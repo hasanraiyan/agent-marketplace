@@ -3,12 +3,14 @@ import cors from 'cors';
 import healthRouter from './routes/health.js';
 import authRouter from './routes/auth.routes.js';
 import profileRouter from './routes/profile.routes.js';
+import adminRouter from './routes/admin.routes.js';
 import errorHandler from './middlewares/errorHandler.js';
 import swaggerUi from 'swagger-ui-express';
 import openapiSpec from './docs/openapi.js';
 import config from './config/index.js';
 import database from './config/database.js';
 import { loggerService } from './utils/index.js';
+import { startAllCronJobs, stopAllCronJobs } from './cron/index.js';
 
 // Initialize logger (Dependency Inversion - can swap implementation)
 const logger = loggerService.getLogger();
@@ -27,6 +29,7 @@ app.get('/openapi.json', (req, res) => res.json(openapiSpec));
 app.use('/api/v1/health', healthRouter);
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/profile', profileRouter);
+app.use('/api/v1/admin', adminRouter);
 
 app.get('/', (req, res) => {
   let dbStatus = 'unknown';
@@ -57,6 +60,23 @@ async function startServer() {
   try {
     // Connect to MongoDB
     await database.connect();
+
+    // Start cron jobs
+    startAllCronJobs();
+
+    // Handle process termination (skip in test to avoid open handles)
+    if (!isTest) {
+      process.on('SIGINT', () => {
+        logger.info('SIGINT received, shutting down gracefully...');
+        stopAllCronJobs();
+        database.closeConnection().then(() => process.exit(0));
+      });
+      process.on('SIGTERM', () => {
+        logger.info('SIGTERM received, shutting down gracefully...');
+        stopAllCronJobs();
+        database.closeConnection().then(() => process.exit(0));
+      });
+    }
 
     if (!isTest) {
       const server = app.listen(config.port, () => {

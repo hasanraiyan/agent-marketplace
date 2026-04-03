@@ -89,8 +89,31 @@ export const changePassword = async (req, res, next) => {
   }
 };
 
+export const deleteAccount = async (req, res, next) => {
+  try {
+    const { password } = req.body;
+
+    const user = await userRepository.findByIdWithPassword(req.user.id);
+
+    const isMatch = await comparePassword(password, user.password);
+    if (!isMatch) {
+      throw new BaseError('Password is incorrect', 400, 'BAD_REQUEST');
+    }
+
+    await userRepository.softDelete(user.id);
+    await userRepository.updateRefreshToken(user.id, null);
+
+    logger.info('Account deleted', { userId: user.id });
+
+    res.json(successFormatter.formatSuccess(null, 'Account deletion scheduled'));
+  } catch (error) {
+    next(error);
+  }
+};
+
 export default {
   getProfile,
   updateProfile,
   changePassword,
+  deleteAccount,
 };

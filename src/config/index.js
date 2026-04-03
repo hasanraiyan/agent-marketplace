@@ -37,6 +37,11 @@ const config = {
     mailFrom: process.env.MAIL_FROM || 'Agent Marketplace <noreply@agentmarketplace.com>',
   },
   websiteUrl: process.env.WEBSITE_URL || 'https://agentmarketplace.vercel.app/',
+  cron: {
+    deleteInactiveUsers: process.env.CRON_DELETE_INACTIVE_USERS || '0 3 * * *',
+    cleanExpiredOTPs: process.env.CRON_CLEAN_EXPIRED_OTPS || '0 */6 * * *',
+    retentionDays: parseInt(process.env.ACCOUNT_RETENTION_DAYS, 10) || 30,
+  },
 };
 
 export default config;
