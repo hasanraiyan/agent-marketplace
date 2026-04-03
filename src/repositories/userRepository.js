@@ -74,6 +74,21 @@ class UserRepository {
   }
 
   /**
+   * Find user by ID excluding sensitive fields for profile
+   * @param {string} id - User ID
+   * @returns {Promise<Object>} User object without sensitive fields
+   */
+  async findByIdForProfile(id) {
+    const user = await User.findById(id).select(
+      '-password -refreshToken -emailVerificationOTP -emailVerificationOTPExpires -passwordResetOTP -passwordResetOTPExpires'
+    );
+    if (!user) {
+      throw new NotFoundError(`User with id ${id} not found`);
+    }
+    return user;
+  }
+
+  /**
    * Find user by email
    * @param {string} email - User email
    * @returns {Promise<Object>} User object

@@ -547,6 +547,37 @@ describe('User Repository', () => {
     });
   });
 
+  describe('findByIdForProfile', () => {
+    test('should find user by ID excluding sensitive fields', async () => {
+      const userForProfile = {
+        ...mockUser,
+        password: undefined,
+        refreshToken: undefined,
+        emailVerificationOTP: undefined,
+        emailVerificationOTPExpires: undefined,
+        passwordResetOTP: undefined,
+        passwordResetOTPExpires: undefined,
+      };
+
+      jest.spyOn(User, 'findById').mockReturnValue({
+        select: jest.fn().mockResolvedValue(userForProfile),
+      });
+
+      const result = await userRepository.findByIdForProfile('507f1f77bcf86cd799439011');
+
+      expect(User.findById).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
+      expect(result).toEqual(userForProfile);
+    });
+
+    test('should throw NotFoundError when user not found', async () => {
+      jest.spyOn(User, 'findById').mockReturnValue({
+        select: jest.fn().mockResolvedValue(null),
+      });
+
+      await expect(userRepository.findByIdForProfile('nonexistent')).rejects.toThrow(NotFoundError);
+    });
+  });
+
   describe('updatePassword', () => {
     test('should update password successfully', async () => {
       const updatedUser = { ...mockUser, password: 'newhashedpassword' };

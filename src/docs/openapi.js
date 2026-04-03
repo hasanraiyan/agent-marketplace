@@ -50,6 +50,35 @@ const openapiSpecification = {
         type: 'object',
         properties: { message: { type: 'string' } },
       },
+      ProfileResponse: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          name: { type: 'string' },
+          email: { type: 'string' },
+          age: { type: 'number', nullable: true },
+          isActive: { type: 'boolean' },
+          role: { type: 'string', enum: ['normal', 'admin'] },
+          emailVerified: { type: 'boolean' },
+          createdAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      UpdateProfileBody: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', minLength: 2, maxLength: 100 },
+          age: { type: 'integer', minimum: 0, maximum: 150 },
+        },
+      },
+      ChangePasswordBody: {
+        type: 'object',
+        required: ['currentPassword', 'newPassword'],
+        properties: {
+          currentPassword: { type: 'string' },
+          newPassword: { type: 'string', minLength: 8 },
+        },
+      },
     },
   },
   paths: {
@@ -192,6 +221,106 @@ const openapiSpecification = {
           },
         },
         responses: { 200: { description: 'Password reset' } },
+      },
+    },
+    '/api/v1/profile': {
+      get: {
+        tags: ['Profile'],
+        summary: 'Get current user profile',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Profile retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    statusCode: { type: 'number' },
+                    message: { type: 'string' },
+                    data: { $ref: '#/components/schemas/ProfileResponse' },
+                    timestamp: { type: 'string', format: 'date-time' },
+                  },
+                },
+              },
+            },
+          },
+          401: { description: 'Unauthorized - Invalid or missing token' },
+          404: { description: 'User not found' },
+        },
+      },
+      patch: {
+        tags: ['Profile'],
+        summary: 'Update profile fields',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/UpdateProfileBody' },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Profile updated successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    statusCode: { type: 'number' },
+                    message: { type: 'string' },
+                    data: { $ref: '#/components/schemas/ProfileResponse' },
+                    timestamp: { type: 'string', format: 'date-time' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Bad request - Validation error or no fields to update' },
+          401: { description: 'Unauthorized' },
+          404: { description: 'User not found' },
+        },
+      },
+    },
+    '/api/v1/profile/change-password': {
+      post: {
+        tags: ['Profile'],
+        summary: 'Change password',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ChangePasswordBody' },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Password changed successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    statusCode: { type: 'number' },
+                    message: { type: 'string' },
+                    data: { type: 'null' },
+                    timestamp: { type: 'string', format: 'date-time' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Bad request - Wrong current password or validation error' },
+          401: { description: 'Unauthorized' },
+          404: { description: 'User not found' },
+        },
       },
     },
   },
