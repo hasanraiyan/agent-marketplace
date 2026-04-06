@@ -159,7 +159,7 @@ class UserRepository {
       const user = await User.findByIdAndUpdate(
         id,
         { ...safeUpdateData, updatedAt: new Date() },
-        { new: true, runValidators: true }
+        { returnDocument: 'after', runValidators: true }
       );
 
       if (!user) {
@@ -185,7 +185,7 @@ class UserRepository {
     const user = await User.findByIdAndUpdate(
       id,
       { refreshToken, updatedAt: new Date() },
-      { new: true, runValidators: false }
+      { returnDocument: 'after', runValidators: false }
     );
 
     if (!user) {
@@ -210,7 +210,7 @@ class UserRepository {
         emailVerificationOTPExpires: expiresAt,
         updatedAt: new Date(),
       },
-      { new: true, runValidators: false }
+      { returnDocument: 'after', runValidators: false }
     );
 
     if (!user) {
@@ -233,7 +233,7 @@ class UserRepository {
         emailVerificationOTPExpires: undefined,
         updatedAt: new Date(),
       },
-      { new: true, runValidators: false }
+      { returnDocument: 'after', runValidators: false }
     );
 
     if (!user) {
@@ -258,7 +258,7 @@ class UserRepository {
         passwordResetOTPExpires: expiresAt,
         updatedAt: new Date(),
       },
-      { new: true, runValidators: false }
+      { returnDocument: 'after', runValidators: false }
     );
 
     if (!user) {
@@ -281,7 +281,7 @@ class UserRepository {
         passwordResetOTPExpires: undefined,
         updatedAt: new Date(),
       },
-      { new: true, runValidators: false }
+      { returnDocument: 'after', runValidators: false }
     );
 
     if (!user) {
@@ -300,7 +300,7 @@ class UserRepository {
     const user = await User.findByIdAndUpdate(
       id,
       { emailVerified: true, updatedAt: new Date() },
-      { new: true, runValidators: false }
+      { returnDocument: 'after', runValidators: false }
     );
 
     if (!user) {
@@ -320,7 +320,7 @@ class UserRepository {
     const user = await User.findByIdAndUpdate(
       id,
       { password: hashedPassword, updatedAt: new Date() },
-      { new: true, runValidators: false }
+      { returnDocument: 'after', runValidators: false }
     );
 
     if (!user) {
@@ -352,7 +352,7 @@ class UserRepository {
     const user = await User.findByIdAndUpdate(
       id,
       { isActive: false, updatedAt: new Date() },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!user) {
