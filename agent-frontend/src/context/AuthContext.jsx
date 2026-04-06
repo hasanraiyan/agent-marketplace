@@ -42,14 +42,29 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
-      const data = await authApi.login(credentials);
-      // Backend returns tokens and user in the response (AuthResponse schema)
+      const resp = await authApi.login(credentials);
+      // Backend wraps the payload under `data` (successFormatter.formatSuccess)
+      const data = resp && resp.data ? resp.data : resp;
       if (data && data.accessToken) {
         localStorage.setItem('accessToken', data.accessToken);
         if (data.refreshToken) {
           localStorage.setItem('refreshToken', data.refreshToken);
         }
-        setUser(data.user);
+        // Normalize backend `user` shape: split `name` into firstName/lastName when needed
+        const user = data.user || null;
+        let normalizedUser = user;
+        if (user) {
+          const hasFirst = user.firstName || user.lastName;
+          if (!hasFirst && user.name) {
+            const parts = user.name.trim().split(/\s+/);
+            normalizedUser = {
+              ...user,
+              firstName: parts[0] || null,
+              lastName: parts.length > 1 ? parts.slice(1).join(' ') : null,
+            };
+          }
+        }
+        setUser(normalizedUser);
         setIsAuthenticated(true);
         return { success: true };
       } else {

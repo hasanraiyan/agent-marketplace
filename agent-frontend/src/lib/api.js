@@ -4,9 +4,13 @@ async function fetchWithAuth(url, options = {}) {
   const token = localStorage.getItem('accessToken');
 
   const headers = {
-    'Content-Type': 'application/json',
     ...(options.headers || {}),
   };
+
+  // Only set JSON content type when sending a JSON body (avoid preflights for GETs or FormData)
+  if (options.body && !(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;

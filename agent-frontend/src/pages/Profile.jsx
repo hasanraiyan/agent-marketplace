@@ -16,11 +16,11 @@ export default function Profile() {
               <div className="grid grid-cols-2 gap-4 max-w-sm">
                 <div>
                   <p className="text-sm text-muted-foreground">First Name</p>
-                  <p className="font-medium">{user.firstName || 'N/A'}</p>
+                  <p className="font-medium">{user.firstName || (user.name ? user.name.split(/\s+/)[0] : 'N/A')}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Last Name</p>
-                  <p className="font-medium">{user.lastName || 'N/A'}</p>
+                  <p className="font-medium">{user.lastName || (user.name ? user.name.split(/\s+/).slice(1).join(' ') || 'N/A' : 'N/A')}</p>
                 </div>
                 <div className="col-span-2">
                   <p className="text-sm text-muted-foreground">Email</p>
