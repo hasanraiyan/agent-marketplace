@@ -1,0 +1,89 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/agent-backend"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "03:00"
+    reviewers:
+      - "hasanraiyan"
+    assignees:
+      - "hasanraiyan"
+    labels:
+      - "dependencies"
+      - "backend"
+    commit-message:
+      prefix: "chore(backend):"
+      include: "scope"
+    pull-request-branch-name:
+      separator: "/"
+    rebase-strategy: "auto"
+
+  - package-ecosystem: "npm"
+    directory: "/agent-backend"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "04:00"
+    reviewers:
+      - "hasanraiyan"
+    assignees:
+      - "hasanraiyan"
+    labels:
+      - "dependencies"
+      - "backend-lawyer"
+    commit-message:
+      prefix: "chore(backend-lawyer):"
+      include: "scope"
+
+  - package-ecosystem: "npm"
+    directory: "/agent-frontend"
+    schedule:
+      interval: "weekly"
+      day: "thursday"
+      time: "03:00"
+    reviewers:
+      - "hasanraiyan"
+    assignees:
+      - "hasanraiyan"
+    labels:
+      - "dependencies"
+      - "frontend"
+    commit-message:
+      prefix: "chore(frontend-user):"
+      include: "scope"
+
+  - package-ecosystem: "npm"
+    directory: "/agent-frontend"
+    schedule:
+      interval: "weekly"
+      day: "thursday"
+      time: "04:00"
+    reviewers:
+      - "hasanraiyan"
+    assignees:
+      - "hasanraiyan"
+    labels:
+      - "dependencies"
+      - "frontend"
+    commit-message:
+      prefix: "chore(frontend-lawyer):"
+      include: "scope"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+      time: "03:00"
+    reviewers:
+      - "hasanraiyan"
+    assignees:
+      - "hasanraiyan"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci:"
+      include: "scope"
