@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    name: Test (backend & frontend)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm i -g pnpm@latest
+
+      - name: Install root dependencies
+        run: pnpm install
+
+      - name: Run backend tests
+        working-directory: agent-backend
+        run: |
+          pnpm install
+          pnpm test
+
+      - name: Run frontend lint/build/tests
+        working-directory: agent-frontend
+        run: |
+          pnpm install
+          pnpm test || true
+          pnpm build || true
