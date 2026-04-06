@@ -35,7 +35,7 @@ jobs:
         run: cd agent-backend && pnpm test
 
       - name: Install dependencies (frontend)
-        run: cd agent-frontend && pnpm install
+        run: cd agent-frontend && pnpm install --frozen-lockfile
 
-      - name: Run lint (frontend)
-        run: cd agent-frontend && pnpm run lint
+      - name: Check formatting (frontend)
+        run: cd agent-frontend && pnpm run format:check
