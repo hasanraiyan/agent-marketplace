@@ -20,8 +20,9 @@ export default function SignUp() {
     e.preventDefault();
     setError('');
     setIsSubmitting(true);
+    const name = `${firstName} ${lastName}`.trim();
     try {
-      await authApi.register({ email, password, firstName, lastName });
+      await authApi.register({ email, password, name });
       navigate('/verify-email', { state: { email } });
     } catch (err) {
       setError(err.message || 'Failed to create account');
