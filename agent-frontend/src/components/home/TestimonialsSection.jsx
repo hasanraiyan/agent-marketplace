@@ -1,8 +1,5 @@
 import { Quote } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-} from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Carousel,
   CarouselContent,
@@ -17,7 +14,9 @@ export default function TestimonialsSection() {
     <section className="py-16 md:py-24 bg-muted/50">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight">What Our Users Say</h2>
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+            What Our Users Say
+          </h2>
           <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
             Trusted by developers, teams, and businesses worldwide
           </p>
@@ -41,7 +40,9 @@ export default function TestimonialsSection() {
                     </blockquote>
                     <div>
                       <div className="font-semibold">{t.name}</div>
-                      <div className="text-sm text-muted-foreground">{t.role}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {t.role}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

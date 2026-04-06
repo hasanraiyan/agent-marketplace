@@ -23,7 +23,7 @@ export const AuthProvider = ({ children }) => {
             handleLogoutState();
           }
         } catch (error) {
-          console.error("Failed to fetch profile with stored token:", error);
+          console.error('Failed to fetch profile with stored token:', error);
           handleLogoutState();
         }
       }
@@ -42,21 +42,21 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
-      const data = await authApi.login(credentials);
-      // Backend returns tokens and user in the response (AuthResponse schema)
-      if (data && data.accessToken) {
-        localStorage.setItem('accessToken', data.accessToken);
-        if (data.refreshToken) {
-          localStorage.setItem('refreshToken', data.refreshToken);
+      const res = await authApi.login(credentials);
+      // Backend responses are wrapped with { success, statusCode, message, data }
+      const payload = res && res.data ? res.data : res;
+      if (payload && payload.accessToken) {
+        localStorage.setItem('accessToken', payload.accessToken);
+        if (payload.refreshToken) {
+          localStorage.setItem('refreshToken', payload.refreshToken);
         }
-        setUser(data.user);
+        setUser(payload.user);
         setIsAuthenticated(true);
         return { success: true };
-      } else {
-        throw new Error('Invalid login response format');
       }
+      throw new Error('Invalid login response format');
     } catch (error) {
-      console.error("Login error:", error);
+      console.error('Login error:', error);
       throw error;
     }
   };
@@ -67,7 +67,7 @@ export const AuthProvider = ({ children }) => {
         await authApi.logout();
       }
     } catch (error) {
-      console.error("Logout API error:", error);
+      console.error('Logout API error:', error);
     } finally {
       handleLogoutState();
     }

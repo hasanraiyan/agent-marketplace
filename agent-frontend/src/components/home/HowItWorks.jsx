@@ -45,9 +45,7 @@ export default function HowItWorks() {
                   </div>
 
                   {/* Title */}
-                  <h3 className="text-xl font-semibold mb-3">
-                    {item.title}
-                  </h3>
+                  <h3 className="text-xl font-semibold mb-3">{item.title}</h3>
 
                   {/* Description */}
                   <p className="text-muted-foreground max-w-xs">

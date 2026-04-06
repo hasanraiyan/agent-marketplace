@@ -17,14 +17,18 @@ export default function AuthLayout({ children, title, subtitle }) {
         </div>
 
         <div className="space-y-4 max-w-md">
-          <h1 className="text-4xl font-bold tracking-tight">Discover the Future of AI.</h1>
+          <h1 className="text-4xl font-bold tracking-tight">
+            Discover the Future of AI.
+          </h1>
           <p className="text-zinc-400 text-lg">
-            Join the largest marketplace for specialized AI agents. Automate workflows, boost productivity, and unlock new possibilities.
+            Join the largest marketplace for specialized AI agents. Automate
+            workflows, boost productivity, and unlock new possibilities.
           </p>
         </div>
 
         <div className="text-sm text-zinc-500">
-          © {new Date().getFullYear()} Agent Marketplace Inc. All rights reserved.
+          © {new Date().getFullYear()} Agent Marketplace Inc. All rights
+          reserved.
         </div>
       </div>
 
@@ -34,7 +38,10 @@ export default function AuthLayout({ children, title, subtitle }) {
           <div className="flex flex-col space-y-2 text-center lg:text-left">
             {/* Show logo on mobile */}
             <div className="lg:hidden flex items-center justify-center lg:justify-start gap-2 mb-6">
-              <Link to="/" className="flex items-center gap-2 font-bold text-xl">
+              <Link
+                to="/"
+                className="flex items-center gap-2 font-bold text-xl"
+              >
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                   <span className="text-lg">🤖</span>
                 </div>
@@ -42,11 +49,12 @@ export default function AuthLayout({ children, title, subtitle }) {
               </Link>
             </div>
             <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-            {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+            {subtitle && (
+              <p className="text-sm text-muted-foreground">{subtitle}</p>
+            )}
           </div>
 
           {children}
-
         </div>
       </div>
     </div>

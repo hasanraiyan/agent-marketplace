@@ -197,7 +197,8 @@ describe('User Model', () => {
 
       expect(schema.paths.emailVerified).toBeDefined();
       expect(schema.paths.emailVerified.instance).toBe('Boolean');
-      expect(schema.paths.emailVerified.options.default).toBe(false);
+      // MVP: users are treated as verified by default
+      expect(schema.paths.emailVerified.options.default).toBe(true);
 
       expect(schema.paths.emailVerificationOTP).toBeDefined();
       expect(schema.paths.emailVerificationOTP.options.select).toBe(false);

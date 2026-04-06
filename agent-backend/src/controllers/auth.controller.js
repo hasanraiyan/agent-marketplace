@@ -90,9 +90,10 @@ export const login = async (req, res, next) => {
       throw new BaseError('Invalid email or password', 401, 'UNAUTHORIZED');
     }
 
-    if (!user.emailVerified) {
-      throw new BaseError('Please verify your email first', 403, 'FORBIDDEN');
-    }
+    // MVP: skip email verification requirement for login
+    // if (!user.emailVerified) {
+    //   throw new BaseError('Please verify your email first', 403, 'FORBIDDEN');
+    // }
 
     const accessToken = generateAccessToken(user.id);
     const refreshToken = generateRefreshToken(user.id);

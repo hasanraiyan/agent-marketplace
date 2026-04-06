@@ -242,7 +242,7 @@ describe('Auth Controller', () => {
       );
     });
 
-    test('should return 403 if email not verified', async () => {
+    test('should allow login even if email not verified (MVP behavior)', async () => {
       const user = {
         id: '507f1f77bcf86cd799439011',
         email: 'john@example.com',
@@ -253,15 +253,18 @@ describe('Auth Controller', () => {
       mockUserFindByEmail.mockResolvedValue(user);
       mockUserFindByIdWithPassword.mockResolvedValue(user);
       mockComparePassword.mockResolvedValue(true);
+      mockGenerateAccessToken.mockReturnValue('access-token-123');
+      mockGenerateRefreshToken.mockReturnValue('refresh-token-456');
+      mockUserUpdateRefreshToken.mockResolvedValue(undefined);
 
       const { login } = await import('../src/controllers/auth.controller.js');
 
       req.body = { email: 'john@example.com', password: 'password123' };
       await login(req, res, next);
 
-      expect(next).toHaveBeenCalledWith(
-        expect.objectContaining({ statusCode: 403, message: 'Please verify your email first' })
-      );
+      // In MVP we no longer block unverified users
+      expect(res.json).toHaveBeenCalled();
+      expect(next).not.toHaveBeenCalled();
     });
 
     test('should login successfully and return tokens', async () => {

@@ -3,16 +3,19 @@ import { Link } from 'react-router-dom';
 import { Menu, X, Moon, Sun, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useTheme } from 'next-themes';
 import { navLinks } from '@/data/mockData';
 import { useAuth } from '@/context/AuthContext';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export default function Navbar() {
   const { isAuthenticated, user, logout } = useAuth();
@@ -50,7 +53,11 @@ export default function Navbar() {
               className="w-64 pl-8 h-9"
             />
           </div>
-          <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          >
             <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             <span className="sr-only">Toggle theme</span>
@@ -58,17 +65,28 @@ export default function Navbar() {
           {isAuthenticated ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                <Button
+                  variant="ghost"
+                  className="relative h-8 w-8 rounded-full"
+                >
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback>{user?.firstName?.charAt(0) || user?.email?.charAt(0) || 'U'}</AvatarFallback>
+                    <AvatarFallback>
+                      {user?.firstName?.charAt(0) ||
+                        user?.email?.charAt(0) ||
+                        'U'}
+                    </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user?.firstName} {user?.lastName}</p>
-                    <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                    <p className="text-sm font-medium leading-none">
+                      {user?.firstName} {user?.lastName}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user?.email}
+                    </p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -76,9 +94,7 @@ export default function Navbar() {
                   <Link to="/profile">Profile</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout}>
-                  Log out
-                </DropdownMenuItem>
+                <DropdownMenuItem onClick={logout}>Log out</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
@@ -94,7 +110,11 @@ export default function Navbar() {
         </div>
 
         <div className="flex md:hidden items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          >
             <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           </Button>
@@ -108,7 +128,11 @@ export default function Navbar() {
               <div className="flex flex-col gap-6 mt-8">
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input type="search" placeholder="Search agents..." className="pl-8" />
+                  <Input
+                    type="search"
+                    placeholder="Search agents..."
+                    className="pl-8"
+                  />
                 </div>
                 <nav className="flex flex-col gap-4">
                   {navLinks.map((link) => (
@@ -125,16 +149,29 @@ export default function Navbar() {
                 <div className="flex flex-col gap-3 mt-4">
                   {isAuthenticated ? (
                     <>
-                      <Button variant="outline" asChild onClick={() => setOpen(false)}>
+                      <Button
+                        variant="outline"
+                        asChild
+                        onClick={() => setOpen(false)}
+                      >
                         <Link to="/profile">Profile</Link>
                       </Button>
-                      <Button onClick={() => { logout(); setOpen(false); }}>
+                      <Button
+                        onClick={() => {
+                          logout();
+                          setOpen(false);
+                        }}
+                      >
                         Log out
                       </Button>
                     </>
                   ) : (
                     <>
-                      <Button variant="outline" asChild onClick={() => setOpen(false)}>
+                      <Button
+                        variant="outline"
+                        asChild
+                        onClick={() => setOpen(false)}
+                      >
                         <Link to="/login">Sign In</Link>
                       </Button>
                       <Button asChild onClick={() => setOpen(false)}>

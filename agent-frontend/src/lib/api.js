@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
 
 async function fetchWithAuth(url, options = {}) {
   const token = localStorage.getItem('accessToken');
@@ -20,13 +21,16 @@ async function fetchWithAuth(url, options = {}) {
   let data;
   try {
     data = await response.json();
-  } catch { // eslint-disable-line no-unused-vars
+  } catch {
+    // eslint-disable-line no-unused-vars
     // Some endpoints like logout might return empty body
     data = null;
   }
 
   if (!response.ok) {
-    const error = new Error((data && data.message) || response.statusText || 'API Error');
+    const error = new Error(
+      (data && data.message) || response.statusText || 'API Error',
+    );
     error.status = response.status;
     error.data = data; // Keep field errors or full response
     throw error;
@@ -36,41 +40,49 @@ async function fetchWithAuth(url, options = {}) {
 }
 
 export const authApi = {
-  register: (payload) => fetchWithAuth('/auth/register', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  }),
+  register: (payload) =>
+    fetchWithAuth('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 
-  login: (payload) => fetchWithAuth('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  }),
+  login: (payload) =>
+    fetchWithAuth('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 
-  logout: () => fetchWithAuth('/auth/logout', {
-    method: 'POST',
-  }),
+  logout: () =>
+    fetchWithAuth('/auth/logout', {
+      method: 'POST',
+    }),
 
-  verifyEmail: (payload) => fetchWithAuth('/auth/verify-email-otp', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  }),
+  verifyEmail: (payload) =>
+    fetchWithAuth('/auth/verify-email-otp', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 
-  resendOtp: (payload) => fetchWithAuth('/auth/resend-otp', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  }),
+  resendOtp: (payload) =>
+    fetchWithAuth('/auth/resend-otp', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 
-  requestPasswordReset: (payload) => fetchWithAuth('/auth/forgot-password', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  }),
+  requestPasswordReset: (payload) =>
+    fetchWithAuth('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 
-  resetPassword: (payload) => fetchWithAuth('/auth/reset-password', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  }),
+  resetPassword: (payload) =>
+    fetchWithAuth('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 
-  getProfile: () => fetchWithAuth('/profile', {
-    method: 'GET',
-  }),
+  getProfile: () =>
+    fetchWithAuth('/profile', {
+      method: 'GET',
+    }),
 };

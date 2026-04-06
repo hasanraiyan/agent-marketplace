@@ -21,7 +21,8 @@ export default function SignUp() {
     setError('');
     setIsSubmitting(true);
     try {
-      await authApi.register({ email, password, firstName, lastName });
+      const name = `${firstName} ${lastName}`.trim();
+      await authApi.register({ email, password, name });
       navigate('/verify-email', { state: { email } });
     } catch (err) {
       setError(err.message || 'Failed to create account');
@@ -80,7 +81,9 @@ export default function SignUp() {
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
-          {error && <div className="text-sm text-destructive text-center">{error}</div>}
+          {error && (
+            <div className="text-sm text-destructive text-center">{error}</div>
+          )}
           <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? 'Creating account...' : 'Create account'}
           </Button>

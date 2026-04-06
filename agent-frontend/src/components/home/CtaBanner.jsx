@@ -11,7 +11,8 @@ export default function CtaBanner() {
             Ready to Build Your First Agent?
           </h2>
           <p className="text-lg text-primary-foreground/80 max-w-xl mx-auto mb-8">
-            Join thousands of developers and teams who are already using Agent Marketplace to ship AI-powered solutions faster.
+            Join thousands of developers and teams who are already using Agent
+            Marketplace to ship AI-powered solutions faster.
           </p>
           <Button size="lg" variant="secondary" asChild>
             <Link to="/create">

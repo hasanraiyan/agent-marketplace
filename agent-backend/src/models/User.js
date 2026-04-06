@@ -53,7 +53,8 @@ const userMongooseSchema = new mongoose.Schema(
     },
     emailVerified: {
       type: Boolean,
-      default: false,
+      // For MVP we treat all users as verified by default
+      default: true,
     },
     emailVerificationOTP: {
       type: String,

@@ -65,7 +65,9 @@ export default function Login() {
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
-          {error && <div className="text-sm text-destructive text-center">{error}</div>}
+          {error && (
+            <div className="text-sm text-destructive text-center">{error}</div>
+          )}
           <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? 'Signing in...' : 'Sign In'}
           </Button>

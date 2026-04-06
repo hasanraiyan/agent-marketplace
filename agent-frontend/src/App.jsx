@@ -18,17 +18,24 @@ function App() {
       <TooltipProvider>
         <AuthProvider>
           <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/browse" element={<BrowseAgents />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<SignUp />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/verify-email" element={<VerifyEmail />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
-          </Routes>
-        </BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/browse" element={<BrowseAgents />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<SignUp />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route
+                path="/profile"
+                element={
+                  <RequireAuth>
+                    <Profile />
+                  </RequireAuth>
+                }
+              />
+            </Routes>
+          </BrowserRouter>
         </AuthProvider>
       </TooltipProvider>
     </ThemeProvider>

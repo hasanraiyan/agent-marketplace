@@ -46,7 +46,9 @@ export default function VerifyEmail() {
     return (
       <AuthLayout title="Verify Email" subtitle="Missing email address">
         <div className="text-center">
-          <p className="text-sm text-muted-foreground mb-4">Please return to the sign up page and try again.</p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Please return to the sign up page and try again.
+          </p>
           <Button onClick={() => navigate('/signup')}>Back to Sign Up</Button>
         </div>
       </AuthLayout>
@@ -71,8 +73,12 @@ export default function VerifyEmail() {
               onChange={(e) => setOtp(e.target.value)}
             />
           </div>
-          {error && <div className="text-sm text-destructive text-center">{error}</div>}
-          {success && <div className="text-sm text-green-600 text-center">{success}</div>}
+          {error && (
+            <div className="text-sm text-destructive text-center">{error}</div>
+          )}
+          {success && (
+            <div className="text-sm text-green-600 text-center">{success}</div>
+          )}
           <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? 'Verifying...' : 'Verify Email'}
           </Button>

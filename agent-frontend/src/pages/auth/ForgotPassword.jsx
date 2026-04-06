@@ -46,7 +46,11 @@ export default function ForgotPassword() {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
-            {error && <div className="text-sm text-destructive text-center">{error}</div>}
+            {error && (
+              <div className="text-sm text-destructive text-center">
+                {error}
+              </div>
+            )}
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? 'Sending...' : 'Send Reset Link'}
             </Button>
@@ -58,13 +62,11 @@ export default function ForgotPassword() {
             Check your email!
           </p>
           <p className="text-sm text-muted-foreground mt-2">
-            If an account exists with that email address, we've sent instructions to reset your password.
+            If an account exists with that email address, we've sent
+            instructions to reset your password.
           </p>
           <div className="flex gap-2 justify-center mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsSubmitted(false)}
-            >
+            <Button variant="outline" onClick={() => setIsSubmitted(false)}>
               Try another email
             </Button>
             <Button

@@ -73,8 +73,12 @@ export default function ResetPassword() {
               onChange={(e) => setNewPassword(e.target.value)}
             />
           </div>
-          {error && <div className="text-sm text-destructive text-center">{error}</div>}
-          {success && <div className="text-sm text-green-600 text-center">{success}</div>}
+          {error && (
+            <div className="text-sm text-destructive text-center">{error}</div>
+          )}
+          {success && (
+            <div className="text-sm text-green-600 text-center">{success}</div>
+          )}
           <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? 'Resetting...' : 'Reset Password'}
           </Button>

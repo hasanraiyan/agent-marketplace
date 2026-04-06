@@ -31,7 +31,9 @@ function AgentCard({ agent }) {
           </div>
         </div>
         <CardTitle className="text-lg">{agent.name}</CardTitle>
-        <CardDescription className="line-clamp-2">{agent.description}</CardDescription>
+        <CardDescription className="line-clamp-2">
+          {agent.description}
+        </CardDescription>
       </CardHeader>
       <CardContent className="flex-1">
         <div className="flex flex-wrap gap-1.5">
@@ -67,7 +69,9 @@ export default function FeaturedAgents() {
       <div className="container mx-auto px-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-10">
           <div>
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Featured Agents</h2>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+              Featured Agents
+            </h2>
             <p className="text-muted-foreground mt-2">
               Top-rated agents trusted by thousands of users
             </p>
@@ -89,7 +93,10 @@ export default function FeaturedAgents() {
         >
           <CarouselContent>
             {featuredAgents.map((agent) => (
-              <CarouselItem key={agent.id} className="md:basis-1/2 lg:basis-1/3">
+              <CarouselItem
+                key={agent.id}
+                className="md:basis-1/2 lg:basis-1/3"
+              >
                 <AgentCard agent={agent} />
               </CarouselItem>
             ))}
