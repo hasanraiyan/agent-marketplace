@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import { Link } from 'react-router-dom';
 import AuthLayout from '@/components/auth/AuthLayout';
 import { Button } from '@/components/ui/button';
@@ -7,10 +9,24 @@ import { Label } from '@/components/ui/label';
 import { GoogleIcon, GithubIcon } from '@/components/icons/SocialIcons';
 
 export default function Login() {
-  const handleSubmit = (e) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Front-end only for now
-    console.log('Login submitted');
+    setError('');
+    setIsSubmitting(true);
+    try {
+      await login({ email, password });
+      navigate('/profile');
+    } catch (err) {
+      setError(err.message || 'Failed to login');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -27,6 +43,8 @@ export default function Login() {
               type="email"
               placeholder="m@example.com"
               required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
           </div>
           <div className="grid gap-2">
@@ -39,10 +57,17 @@ export default function Login() {
                 Forgot password?
               </Link>
             </div>
-            <Input id="password" type="password" required />
+            <Input
+              id="password"
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
           </div>
-          <Button type="submit" className="w-full">
-            Sign In
+          {error && <div className="text-sm text-destructive text-center">{error}</div>}
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? 'Signing in...' : 'Sign In'}
           </Button>
 
           <div className="relative my-4">
