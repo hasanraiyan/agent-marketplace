@@ -190,7 +190,7 @@ describe('User Repository', () => {
       expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439011',
         expect.objectContaining({ name: 'Updated Name', updatedAt: expect.any(Date) }),
-        { returnDocument: 'after', runValidators: true }
+        { new: true, runValidators: true }
       );
       expect(result).toEqual(updatedUser);
     });
@@ -243,7 +243,7 @@ describe('User Repository', () => {
       expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439011',
         { isActive: false, updatedAt: expect.any(Date) },
-        { returnDocument: 'after' }
+        { new: true }
       );
       expect(result.isActive).toBe(false);
     });
@@ -366,7 +366,7 @@ describe('User Repository', () => {
       expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439011',
         { refreshToken: 'newtoken123', updatedAt: expect.any(Date) },
-        { returnDocument: 'after', runValidators: false }
+        { new: true, runValidators: false }
       );
       expect(result).toEqual(updatedUser);
     });
@@ -404,7 +404,7 @@ describe('User Repository', () => {
           emailVerificationOTPExpires: expiresAt,
           updatedAt: expect.any(Date),
         },
-        { returnDocument: 'after', runValidators: false }
+        { new: true, runValidators: false }
       );
       expect(result).toEqual(updatedUser);
     });
@@ -437,7 +437,7 @@ describe('User Repository', () => {
           emailVerificationOTPExpires: undefined,
           updatedAt: expect.any(Date),
         },
-        { returnDocument: 'after', runValidators: false }
+        { new: true, runValidators: false }
       );
       expect(result).toEqual(updatedUser);
     });
@@ -475,7 +475,7 @@ describe('User Repository', () => {
           passwordResetOTPExpires: expiresAt,
           updatedAt: expect.any(Date),
         },
-        { returnDocument: 'after', runValidators: false }
+        { new: true, runValidators: false }
       );
       expect(result).toEqual(updatedUser);
     });
@@ -508,7 +508,7 @@ describe('User Repository', () => {
           passwordResetOTPExpires: undefined,
           updatedAt: expect.any(Date),
         },
-        { returnDocument: 'after', runValidators: false }
+        { new: true, runValidators: false }
       );
       expect(result).toEqual(updatedUser);
     });
@@ -533,7 +533,7 @@ describe('User Repository', () => {
       expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439011',
         { emailVerified: true, updatedAt: expect.any(Date) },
-        { returnDocument: 'after', runValidators: false }
+        { new: true, runValidators: false }
       );
       expect(result).toEqual(updatedUser);
     });
@@ -592,7 +592,7 @@ describe('User Repository', () => {
       expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439011',
         { password: 'newhashedpassword', updatedAt: expect.any(Date) },
-        { returnDocument: 'after', runValidators: false }
+        { new: true, runValidators: false }
       );
       expect(result).toEqual(updatedUser);
     });

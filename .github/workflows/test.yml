@@ -1,0 +1,41 @@
+name: Test (backend & frontend)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+          cache-dependency-path: '**/pnpm-lock.yaml'
+
+      - name: Install dependencies (backend)
+        run: cd agent-backend && pnpm install
+
+      - name: Run tests (backend)
+        run: cd agent-backend && pnpm test
+
+      - name: Install dependencies (frontend)
+        run: cd agent-frontend && pnpm install
+
+      - name: Run lint (frontend)
+        run: cd agent-frontend && pnpm run lint
