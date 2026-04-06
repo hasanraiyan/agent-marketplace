@@ -1,18 +1,30 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { authApi } from '@/lib/api';
 import AuthLayout from '@/components/auth/AuthLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 export default function ForgotPassword() {
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Front-end only for now
-    console.log('Forgot password submitted');
-    setIsSubmitted(true);
+    setError('');
+    setIsSubmitting(true);
+    try {
+      await authApi.requestPasswordReset({ email });
+      setIsSubmitted(true);
+    } catch (err) {
+      setError(err.message || 'Failed to send reset code');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -30,10 +42,13 @@ export default function ForgotPassword() {
                 type="email"
                 placeholder="m@example.com"
                 required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
-            <Button type="submit" className="w-full">
-              Send Reset Link
+            {error && <div className="text-sm text-destructive text-center">{error}</div>}
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? 'Sending...' : 'Send Reset Link'}
             </Button>
           </div>
         </form>
@@ -45,13 +60,19 @@ export default function ForgotPassword() {
           <p className="text-sm text-muted-foreground mt-2">
             If an account exists with that email address, we've sent instructions to reset your password.
           </p>
-          <Button
-            variant="outline"
-            className="mt-4"
-            onClick={() => setIsSubmitted(false)}
-          >
-            Try another email
-          </Button>
+          <div className="flex gap-2 justify-center mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsSubmitted(false)}
+            >
+              Try another email
+            </Button>
+            <Button
+              onClick={() => navigate('/reset-password', { state: { email } })}
+            >
+              Enter Code
+            </Button>
+          </div>
         </div>
       )}
 
