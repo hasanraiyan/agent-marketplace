@@ -3,7 +3,7 @@ name: Test (backend & frontend)
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
 
 jobs:

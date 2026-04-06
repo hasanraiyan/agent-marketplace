@@ -1,6 +1,6 @@
 version: 2
 updates:
-  - package-ecosystem: "npm"
+  - package-ecosystem: "pnpm"
     directory: "/agent-backend"
     schedule:
       interval: "weekly"
@@ -20,24 +20,7 @@ updates:
       separator: "/"
     rebase-strategy: "auto"
 
-  - package-ecosystem: "npm"
-    directory: "/agent-backend"
-    schedule:
-      interval: "weekly"
-      day: "wednesday"
-      time: "04:00"
-    reviewers:
-      - "hasanraiyan"
-    assignees:
-      - "hasanraiyan"
-    labels:
-      - "dependencies"
-      - "backend-lawyer"
-    commit-message:
-      prefix: "chore(backend-lawyer):"
-      include: "scope"
-
-  - package-ecosystem: "npm"
+  - package-ecosystem: "pnpm"
     directory: "/agent-frontend"
     schedule:
       interval: "weekly"
@@ -51,24 +34,7 @@ updates:
       - "dependencies"
       - "frontend"
     commit-message:
-      prefix: "chore(frontend-user):"
-      include: "scope"
-
-  - package-ecosystem: "npm"
-    directory: "/agent-frontend"
-    schedule:
-      interval: "weekly"
-      day: "thursday"
-      time: "04:00"
-    reviewers:
-      - "hasanraiyan"
-    assignees:
-      - "hasanraiyan"
-    labels:
-      - "dependencies"
-      - "frontend"
-    commit-message:
-      prefix: "chore(frontend-lawyer):"
+      prefix: "chore(frontend):"
       include: "scope"
 
   - package-ecosystem: "github-actions"
