@@ -14,6 +14,8 @@ import { assistantsApi } from '@/lib/api';
 
 export default function MyClones() {
   const [clones, setClones] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -24,9 +26,15 @@ export default function MyClones() {
         const data = res?.data || res; // successFormatter or raw
         if (!isMounted) return;
         setClones(data.assistants || []);
+        setLoadError(null);
       })
-      .catch(() => {
-        // Keep empty state on error for now
+      .catch((err) => {
+        if (!isMounted) return;
+        setLoadError(err?.message || 'Failed to load your clones');
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setIsLoading(false);
       });
 
     return () => {
@@ -49,8 +57,22 @@ export default function MyClones() {
           </Button>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          {clones.map((clone) => (
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Loading your clones…</p>
+        ) : loadError ? (
+          <p className="text-sm text-destructive mb-4">{loadError}</p>
+        ) : clones.length === 0 ? (
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 text-center">
+            <p className="text-sm text-muted-foreground">
+              You haven&apos;t created any clones yet.
+            </p>
+            <Button asChild>
+              <Link to="/clones/new">Create your first clone</Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {clones.map((clone) => (
             <Card key={clone.id} className="flex flex-col h-full">
               <CardHeader>
                 <div className="flex items-center justify-between gap-2">
@@ -89,9 +111,10 @@ export default function MyClones() {
                   </Button>
                 </div>
               </CardFooter>
-            </Card>
-          ))}
-        </div>
+             </Card>
+           ))}
+         </div>
+        )}
       </main>
     </div>
   );

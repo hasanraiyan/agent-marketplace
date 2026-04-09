@@ -36,11 +36,18 @@ export default function CloneBuilder() {
   );
   const [status, setStatus] = useState('draft');
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(isEditing);
+  const [loadError, setLoadError] = useState(null);
+  const [saveError, setSaveError] = useState(null);
+  const [saveSuccess, setSaveSuccess] = useState(null);
 
   useEffect(() => {
     if (!isEditing) return;
 
     let isMounted = true;
+
+    setIsLoading(true);
+    setLoadError(null);
 
     assistantsApi
       .getAssistant(id)
@@ -58,8 +65,14 @@ export default function CloneBuilder() {
           setStatus(data.status);
         }
       })
-      .catch(() => {
-        // Keep defaults on error
+      .catch((err) => {
+        if (!isMounted) return;
+        // Keep defaults on error but surface a message
+        setLoadError(err?.message || 'Failed to load clone details');
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setIsLoading(false);
       });
 
     return () => {
@@ -83,8 +96,10 @@ export default function CloneBuilder() {
   });
 
   const handleSave = async () => {
-    if (isSaving) return;
+    if (isSaving || isLoading) return;
     setIsSaving(true);
+    setSaveError(null);
+    setSaveSuccess(null);
     const nextStatus = 'draft';
 
     try {
@@ -92,6 +107,7 @@ export default function CloneBuilder() {
         const res = await assistantsApi.updateAssistant(id, upsertPayload(nextStatus));
         const data = res?.data || res;
         if (data?.status) setStatus(data.status);
+        setSaveSuccess('Draft saved');
       } else {
         const res = await assistantsApi.createAssistant(upsertPayload(nextStatus));
         const data = res?.data || res;
@@ -99,16 +115,18 @@ export default function CloneBuilder() {
           navigate(`/clones/${data.id}/edit`, { replace: true });
         }
       }
-    } catch {
-      // Silently fail for now; UI remains unchanged
+    } catch (err) {
+      setSaveError(err?.message || 'Failed to save changes');
     } finally {
       setIsSaving(false);
     }
   };
 
   const handlePublish = async () => {
-    if (isSaving) return;
+    if (isSaving || isLoading) return;
     setIsSaving(true);
+    setSaveError(null);
+    setSaveSuccess(null);
     const nextStatus = 'published';
 
     try {
@@ -119,6 +137,7 @@ export default function CloneBuilder() {
         });
         const data = res?.data || res;
         if (data?.status) setStatus(data.status);
+        setSaveSuccess('Clone updated');
       } else {
         const res = await assistantsApi.createAssistant({
           ...upsertPayload(nextStatus),
@@ -129,8 +148,8 @@ export default function CloneBuilder() {
           navigate(`/clones/${data.id}/edit`, { replace: true });
         }
       }
-    } catch {
-      // Silently fail for now
+    } catch (err) {
+      setSaveError(err?.message || 'Failed to publish clone');
     } finally {
       setIsSaving(false);
     }
@@ -159,11 +178,15 @@ export default function CloneBuilder() {
             variant="outline"
             size="sm"
             onClick={handleSave}
-            disabled={isSaving}
+            disabled={isSaving || isLoading}
           >
             Save draft
           </Button>
-          <Button size="sm" onClick={handlePublish} disabled={isSaving}>
+          <Button
+            size="sm"
+            onClick={handlePublish}
+            disabled={isSaving || isLoading}
+          >
             {status === 'published' ? 'Update' : 'Publish'}
           </Button>
           {isEditing && (
@@ -173,6 +196,22 @@ export default function CloneBuilder() {
           )}
         </div>
       </header>
+
+      {loadError && (
+        <div className="px-6 py-2 text-xs text-destructive bg-destructive/5 border-b border-destructive/20">
+          {loadError}
+        </div>
+      )}
+      {saveError && (
+        <div className="px-6 py-2 text-xs text-destructive bg-destructive/5 border-b border-destructive/20">
+          {saveError}
+        </div>
+      )}
+      {saveSuccess && !saveError && (
+        <div className="px-6 py-2 text-xs text-emerald-600 bg-emerald-50 border-b border-emerald-200">
+          {saveSuccess}
+        </div>
+      )}
 
       <main className="flex flex-1 flex-col md:flex-row">
         {/* Left: Create / Configure */}
@@ -206,15 +245,21 @@ export default function CloneBuilder() {
                         rows={1}
                         placeholder="Describe the assistant you want to build"
                         className="min-h-0 resize-none border-none shadow-none px-0 py-1 text-xs focus-visible:ring-0"
+                        disabled
                       />
                       <Button
                         type="button"
                         size="icon-sm"
                         className="rounded-full"
-                      >
-                        <SendHorizontal className="h-3 w-3" />
-                      </Button>
+                        variant="outline"
+                        disabled
+                       >
+                         <SendHorizontal className="h-3 w-3" />
+                       </Button>
                     </div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Natural-language clone creation is coming soon. For now, use the form below.
+                    </p>
                   </div>
 
                   <div className="space-y-3">
@@ -222,33 +267,36 @@ export default function CloneBuilder() {
                       Basics
                     </p>
                     <div className="space-y-2">
-                      <label className="text-[11px] font-medium">Name</label>
+                     <label className="text-[11px] font-medium">Name</label>
                       <Input
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         className="h-8 text-xs"
+                        disabled={isLoading || isSaving}
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="text-[11px] font-medium">
-                        Short tagline
-                      </label>
-                      <Input
-                        value={tagline}
-                        onChange={(e) => setTagline(e.target.value)}
-                        className="h-8 text-xs"
-                      />
+                         Short tagline
+                       </label>
+                       <Input
+                         value={tagline}
+                         onChange={(e) => setTagline(e.target.value)}
+                         className="h-8 text-xs"
+                         disabled={isLoading || isSaving}
+                       />
                     </div>
                     <div className="space-y-2">
                       <label className="text-[11px] font-medium">
                         Description
                       </label>
-                      <Textarea
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        rows={3}
-                        className="text-xs"
-                      />
+                       <Textarea
+                         value={description}
+                         onChange={(e) => setDescription(e.target.value)}
+                         rows={3}
+                         className="text-xs"
+                         disabled={isLoading || isSaving}
+                       />
                     </div>
                   </div>
                 </CardContent>
@@ -268,6 +316,7 @@ export default function CloneBuilder() {
                       onChange={(e) => setSystemPrompt(e.target.value)}
                       rows={5}
                       className="text-xs"
+                      disabled={isLoading || isSaving}
                     />
                   </div>
 

@@ -30,8 +30,15 @@ function getInitials(name) {
     .toUpperCase();
 }
 
-function AssistantChatSidebar({ activeAssistant, conversations, onNewChat, onSelectConversation, activeConversationId }) {
-
+function AssistantChatSidebar({
+  activeAssistant,
+  conversations,
+  onNewChat,
+  onSelectConversation,
+  activeConversationId,
+  isLoadingConversations,
+  conversationsError,
+}) {
   return (
     <SidebarProvider>
       <Sidebar side="left" variant="sidebar" collapsible="offcanvas">
@@ -45,20 +52,47 @@ function AssistantChatSidebar({ activeAssistant, conversations, onNewChat, onSel
         </SidebarHeader>
         <SidebarContent>
            <SidebarGroup>
-             <Button className="w-full mb-2" size="sm" variant="outline" onClick={onNewChat}>
+             <Button
+               className="w-full mb-2"
+               size="sm"
+               variant="outline"
+               onClick={onNewChat}
+             >
                New chat
-             </Button>
-           </SidebarGroup>
-           <SidebarGroup>
-            <SidebarGroupLabel className="text-xs text-muted-foreground">
-              Recent
-            </SidebarGroupLabel>
+              </Button>
+            </SidebarGroup>
+            <SidebarGroup>
+             <SidebarGroupLabel className="text-xs text-muted-foreground">
+               Recent
+             </SidebarGroupLabel>
              <SidebarMenu>
+               {isLoadingConversations && (
+                 <SidebarMenuItem>
+                   <span className="px-2 text-[11px] text-muted-foreground">
+                     Loading conversations…
+                   </span>
+                 </SidebarMenuItem>
+               )}
+               {conversationsError && !isLoadingConversations && (
+                 <SidebarMenuItem>
+                   <span className="px-2 text-[11px] text-destructive">
+                     {conversationsError}
+                   </span>
+                 </SidebarMenuItem>
+               )}
+               {!isLoadingConversations && !conversationsError &&
+                 conversations.length === 0 && (
+                   <SidebarMenuItem>
+                     <span className="px-2 text-[11px] text-muted-foreground">
+                       No conversations yet.
+                     </span>
+                   </SidebarMenuItem>
+                 )}
                {conversations.map((c) => (
                  <SidebarMenuItem key={c.id}>
                   <SidebarMenuButton
                     isActive={c.id === activeConversationId}
-                     className="flex items-center gap-2 text-xs"
+                    className="flex items-center gap-2 text-xs"
                     onClick={() => onSelectConversation(c.id)}
                   >
                     <Avatar className="h-6 w-6">
@@ -66,12 +100,12 @@ function AssistantChatSidebar({ activeAssistant, conversations, onNewChat, onSel
                         {getInitials(activeAssistant.name)}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="truncate">{c.title}</span>
+                    <span className="truncate">{c.title || 'New chat'}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroup>
+               ))}
+             </SidebarMenu>
+           </SidebarGroup>
         </SidebarContent>
         <SidebarFooter>
           <div className="flex items-center justify-between px-2 text-[11px] text-muted-foreground">
@@ -81,11 +115,11 @@ function AssistantChatSidebar({ activeAssistant, conversations, onNewChat, onSel
         </SidebarFooter>
       </Sidebar>
        <SidebarInset>
-         <AssistantChatMain
-           assistant={activeAssistant}
-           activeConversationId={activeConversationId}
-           onNewChat={onNewChat}
-         />
+          <AssistantChatMain
+            assistant={activeAssistant}
+            activeConversationId={activeConversationId}
+            onNewChat={onNewChat}
+          />
        </SidebarInset>
       </SidebarProvider>
   );
@@ -94,15 +128,24 @@ function AssistantChatSidebar({ activeAssistant, conversations, onNewChat, onSel
 function AssistantChatMain({ assistant, activeConversationId, onNewChat }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [messagesError, setMessagesError] = useState(null);
+  const [isSending, setIsSending] = useState(false);
+  const [sendError, setSendError] = useState(null);
 
   // Load messages when conversation changes
   useEffect(() => {
     if (!activeConversationId) {
       setMessages([]);
+      setIsLoadingMessages(false);
+      setMessagesError(null);
       return;
     }
 
     let isMounted = true;
+
+    setIsLoadingMessages(true);
+    setMessagesError(null);
 
     chatApi
       .listMessages(assistant.id, activeConversationId)
@@ -111,10 +154,19 @@ function AssistantChatMain({ assistant, activeConversationId, onNewChat }) {
         if (!isMounted) return;
         setMessages(data.messages || []);
       })
-      .catch(() => {
+      .catch((err) => {
         if (!isMounted) return;
         setMessages([]);
+        setMessagesError(err?.message || 'Failed to load messages');
       });
+
+    const finalize = () => {
+      if (!isMounted) return;
+      setIsLoadingMessages(false);
+    };
+
+    // Ensure finalize runs both on success and error
+    Promise.resolve().then(finalize).catch(finalize);
 
     return () => {
       isMounted = false;
@@ -124,6 +176,7 @@ function AssistantChatMain({ assistant, activeConversationId, onNewChat }) {
   const handleSend = async () => {
     const trimmed = input.trim();
     if (!trimmed) return;
+    setSendError(null);
     if (!activeConversationId) {
       // Auto-create conversation if none exists
       await onNewChat(trimmed);
@@ -132,6 +185,7 @@ function AssistantChatMain({ assistant, activeConversationId, onNewChat }) {
     }
 
     try {
+      setIsSending(true);
       const res = await chatApi.sendMessage(assistant.id, activeConversationId, {
         content: trimmed,
       });
@@ -142,11 +196,14 @@ function AssistantChatMain({ assistant, activeConversationId, onNewChat }) {
       setMessages((prev) => [
         ...prev,
         ...(userMessage ? [userMessage] : []),
-        ...(assistantMessage ? [assistantMessage] : []),
+       ...(assistantMessage ? [assistantMessage] : []),
       ]);
       setInput('');
-    } catch {
+    } catch (err) {
       // keep existing messages on error
+      setSendError(err?.message || 'Failed to send message');
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -179,19 +236,51 @@ function AssistantChatMain({ assistant, activeConversationId, onNewChat }) {
             <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
               What's on the agenda today?
             </h1>
-             <ChatInput input={input} setInput={setInput} onSend={handleSend} />
-          </div>
-        ) : (
+             <ChatInput
+               input={input}
+               setInput={setInput}
+               onSend={handleSend}
+               isSending={isSending}
+             />
+           </div>
+         ) : (
           <div className="flex h-full w-full max-w-3xl flex-col gap-4">
             <ScrollArea className="flex-1 rounded-3xl border bg-muted/30 p-4">
               <div className="flex flex-col gap-4">
-                {messages.map((m) => (
-                  <ChatMessage key={m.id} message={m} assistant={assistant} />
-                ))}
+                {isLoadingMessages && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Loading messages…
+                  </p>
+                )}
+                {messagesError && !isLoadingMessages && (
+                  <p className="text-xs text-destructive text-center">
+                    {messagesError}
+                  </p>
+                )}
+                {!isLoadingMessages && !messagesError &&
+                  messages.map((m) => (
+                    <ChatMessage
+                      key={m.id}
+                      message={m}
+                      assistant={assistant}
+                    />
+                  ))}
               </div>
             </ScrollArea>
             <div className="mt-4 flex justify-center">
-              <ChatInput input={input} setInput={setInput} onSend={handleSend} />
+              <div className="flex flex-col gap-1 w-full">
+                <ChatInput
+                  input={input}
+                  setInput={setInput}
+                  onSend={handleSend}
+                  isSending={isSending}
+                />
+                {sendError && (
+                  <p className="text-[11px] text-center text-destructive">
+                    {sendError}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -236,13 +325,13 @@ function ChatMessage({ message, assistant }) {
   );
 }
 
-function ChatInput({ input, setInput, onSend }) {
+function ChatInput({ input, setInput, onSend, isSending }) {
   return (
     <div className="w-full max-w-2xl rounded-full border bg-background/80 shadow-sm px-3 py-1.5 flex items-center gap-2">
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
+         <Button
+           type="button"
+           variant="ghost"
+           size="icon-sm"
         className="rounded-full"
       >
         <Plus className="h-4 w-4" />
@@ -269,14 +358,15 @@ function ChatInput({ input, setInput, onSend }) {
         >
           <Mic className="h-4 w-4" />
         </Button>
-        <Button
-          type="button"
-          size="icon-sm"
-          className="rounded-full bg-primary text-primary-foreground"
-          onClick={onSend}
-        >
-          <SendHorizontal className="h-4 w-4" />
-        </Button>
+         <Button
+           type="button"
+           size="icon-sm"
+           className="rounded-full bg-primary text-primary-foreground"
+           onClick={onSend}
+           disabled={isSending}
+         >
+           <SendHorizontal className="h-4 w-4" />
+         </Button>
       </div>
     </div>
   );
@@ -287,6 +377,8 @@ export default function AssistantChat() {
   const [assistant, setAssistant] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [activeConversationId, setActiveConversationId] = useState(null);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
+  const [conversationsError, setConversationsError] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -313,6 +405,9 @@ export default function AssistantChat() {
 
     let isMounted = true;
 
+    setIsLoadingConversations(true);
+    setConversationsError(null);
+
     chatApi
       .listConversations(assistant.id)
       .then((res) => {
@@ -323,9 +418,14 @@ export default function AssistantChat() {
           setActiveConversationId(data.conversations[0].id);
         }
       })
-      .catch(() => {
+      .catch((err) => {
         if (!isMounted) return;
         setConversations([]);
+        setConversationsError(err?.message || 'Failed to load conversations');
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setIsLoadingConversations(false);
       });
 
     return () => {

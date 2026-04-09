@@ -161,28 +161,23 @@ function DashboardSidebar() {
           </div>
         </SidebarHeader>
         <SidebarContent>
-            <SidebarGroup>
-            <Button className="w-full mb-2" size="sm" asChild>
-              <Link to="/clones/new">+ Clone Yourself</Link>
-            </Button>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive>
-                  <Link to="/dashboard">Discover</Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link to="/assistants/1/chat">Inbox</Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link to="/dashboard">My Clones</Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroup>
+           <SidebarGroup>
+             <Button className="w-full mb-2" size="sm" asChild>
+               <Link to="/clones/new">+ Clone Yourself</Link>
+             </Button>
+             <SidebarMenu>
+               <SidebarMenuItem>
+                 <SidebarMenuButton asChild isActive>
+                   <Link to="/dashboard">Discover</Link>
+                 </SidebarMenuButton>
+               </SidebarMenuItem>
+               <SidebarMenuItem>
+                 <SidebarMenuButton asChild>
+                   <Link to="/clones">My Clones</Link>
+                 </SidebarMenuButton>
+               </SidebarMenuItem>
+             </SidebarMenu>
+           </SidebarGroup>
 
           <SidebarSeparator />
 
@@ -244,6 +239,8 @@ function getInitials(name) {
 
 function DashboardMain() {
   const [trendingClones, setTrendingClones] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -255,10 +252,16 @@ function DashboardMain() {
         if (!isMounted) return;
         const items = data.assistants || [];
         setTrendingClones(items);
+        setLoadError(null);
       })
-      .catch(() => {
+      .catch((err) => {
         if (!isMounted) return;
         setTrendingClones([]);
+        setLoadError(err?.message || 'Failed to load assistants');
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setIsLoading(false);
       });
 
     return () => {
@@ -291,48 +294,71 @@ function DashboardMain() {
               <h2 className="text-sm font-medium text-muted-foreground">
                 Trending Clones
               </h2>
-              <button className="text-xs font-medium text-primary">View all</button>
+              <Link
+                to="/browse"
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                View all
+              </Link>
             </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              {clonesToShow.map((clone) => (
-                <Card key={clone.id} className="h-full">
-                  <CardHeader className="flex flex-row items-start gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback>
-                        {clone.initials || getInitials(clone.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <CardTitle className="text-sm font-semibold">
-                        {clone.name}
-                      </CardTitle>
-                      <CardDescription className="text-xs">
-                        {clone.role || clone.tagline}
-                      </CardDescription>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {clone.description}
-                    </p>
-                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                      <span>
-                        {typeof clone.chatsCount === 'number'
-                          ? `${clone.chatsCount} chats`
-                          : clone.chats || ''}
-                      </span>
-                      {typeof clone.rating === 'number' && (
-                        <span>⭐ {clone.rating.toFixed(1)}</span>
-                      )}
-                    </div>
-                    <div className="flex justify-end">
-                      <Button size="sm" variant="outline" asChild>
-                        <Link to={`/assistants/${clone.id}/chat`}>Chat</Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            {isLoading ? (
+              <p className="text-xs text-muted-foreground">Loading assistants…</p>
+            ) : loadError ? (
+              <p className="text-xs text-destructive">
+                {loadError} — showing example clones instead.
+              </p>
+            ) : null}
+
+            <div className="grid gap-4 md:grid-cols-3 mt-2">
+              {clonesToShow.map((clone) => {
+                const isRealId = typeof clone.id === 'string' && clone.id.length === 24;
+
+                return (
+                  <Card key={clone.id} className="h-full">
+                    <CardHeader className="flex flex-row items-start gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback>
+                          {clone.initials || getInitials(clone.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <CardTitle className="text-sm font-semibold">
+                          {clone.name}
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                          {clone.role || clone.tagline}
+                        </CardDescription>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {clone.description}
+                      </p>
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span>
+                          {typeof clone.chatsCount === 'number'
+                            ? `${clone.chatsCount} chats`
+                            : clone.chats || ''}
+                        </span>
+                        {typeof clone.rating === 'number' && (
+                          <span>⭐ {clone.rating.toFixed(1)}</span>
+                        )}
+                      </div>
+                      <div className="flex justify-end">
+                        {isRealId ? (
+                          <Button size="sm" variant="outline" asChild>
+                            <Link to={`/assistants/${clone.id}/chat`}>Chat</Link>
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="outline" disabled>
+                            Preview only
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </section>
 
