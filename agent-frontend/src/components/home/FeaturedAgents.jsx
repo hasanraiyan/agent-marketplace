@@ -52,12 +52,17 @@ function AgentCard({ agent }) {
           <Users className="h-4 w-4" />
           <span>{agent.users.toLocaleString()} users</span>
         </div>
-        <Button variant="ghost" size="sm" asChild>
-          <Link to={`/agent/${agent.id}`}>
-            View
-            <ArrowRight className="ml-1 h-3 w-3" />
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link to={`/assistants/${agent.id}/chat`}>Chat</Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link to={`/agent/${agent.id}`}>
+              View
+              <ArrowRight className="ml-1 h-3 w-3" />
+            </Link>
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   );

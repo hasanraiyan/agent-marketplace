@@ -91,7 +91,10 @@ export default function Navbar() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link to="/profile">Profile</Link>
+                  <Link to="/dashboard">Dashboard</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/clones">My Clones</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout}>Log out</DropdownMenuItem>
@@ -149,13 +152,13 @@ export default function Navbar() {
                 <div className="flex flex-col gap-3 mt-4">
                   {isAuthenticated ? (
                     <>
-                      <Button
-                        variant="outline"
-                        asChild
-                        onClick={() => setOpen(false)}
-                      >
-                        <Link to="/profile">Profile</Link>
-                      </Button>
+                       <Button
+                         variant="outline"
+                         asChild
+                         onClick={() => setOpen(false)}
+                       >
+                         <Link to="/dashboard">Dashboard</Link>
+                       </Button>
                       <Button
                         onClick={() => {
                           logout();
