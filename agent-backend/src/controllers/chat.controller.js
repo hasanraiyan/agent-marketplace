@@ -3,6 +3,7 @@ import conversationRepository from '../repositories/conversationRepository.js';
 import messageRepository from '../repositories/messageRepository.js';
 import { successFormatter } from '../utils/formatters/index.js';
 import { loggerService } from '../utils/index.js';
+import { runReactAgent } from '../ai/reactAgent.js';
 
 const logger = loggerService.getLogger();
 
@@ -62,9 +63,9 @@ export const sendMessage = async (req, res, next) => {
     const { assistantId, conversationId } = req.params;
     const userId = req.user.id;
 
-    // Ensure assistant exists and is accessible
-    await assistantRepository.findPublicById(assistantId).catch(async () => {
-      await assistantRepository.findByIdForOwner(assistantId, userId);
+    // Ensure assistant exists and is accessible and fetch its config
+    const assistant = await assistantRepository.findPublicById(assistantId).catch(async () => {
+      return assistantRepository.findByIdForOwner(assistantId, userId);
     });
 
     // Ensure conversation belongs to this user and assistant
@@ -76,19 +77,38 @@ export const sendMessage = async (req, res, next) => {
         .json(successFormatter.formatSuccess(null, 'Conversation not found', 404));
     }
 
+    // Persist user message first
     const userMessage = await messageRepository.create({
       conversationId,
       role: 'user',
       content: req.body.content,
     });
 
-    // MVP assistant reply: simple echo acknowledging the message
-    const assistantReplyText = `Thanks for your message: "${req.body.content}"`;
+    // Load full message history for this conversation
+    const historyResult = await messageRepository.listByConversation(conversationId, {
+      page: 1,
+      limit: 200,
+    });
+
+    const historyMessages = (historyResult.messages || []).map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+    const systemPrompt =
+      assistant.systemPrompt ||
+      'You are a clone of the user. Answer as they would: direct, kind, and pragmatic.';
+
+    // Call LangGraph React agent to generate assistant reply
+    const aiMessage = await runReactAgent({
+      systemPrompt,
+      messages: historyMessages,
+    });
 
     const assistantMessage = await messageRepository.create({
       conversationId,
       role: 'assistant',
-      content: assistantReplyText,
+      content: aiMessage.content,
     });
 
     conversation.lastMessageAt = new Date();

@@ -53,8 +53,22 @@ export const validateRequest = (schemas, options = {}) => {
       return next(new ValidationError('Request validation failed', { errors }));
     }
 
-    // Replace request parts with validated data
-    Object.assign(req, validatedParts);
+    // Replace request parts with validated data without reassigning getter-only props
+    Object.entries(validatedParts).forEach(([part, value]) => {
+      const current = req[part];
+
+      if (current && typeof current === 'object') {
+        // Mutate existing object (e.g. req.query) instead of overwriting the property
+        Object.keys(current).forEach((key) => {
+          delete current[key];
+        });
+        Object.assign(current, value);
+      } else {
+        // For parts that don't exist yet, define or assign directly
+        req[part] = value;
+      }
+    });
+
     next();
   };
 };
