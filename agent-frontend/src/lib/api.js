@@ -86,3 +86,65 @@ export const authApi = {
       method: 'GET',
     }),
 };
+
+export const assistantsApi = {
+  getMyAssistants: ({ page = 1, limit = 20 } = {}) =>
+    fetchWithAuth(`/assistants/me?page=${page}&limit=${limit}`, {
+      method: 'GET',
+    }),
+
+  createAssistant: (payload) =>
+    fetchWithAuth('/assistants', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  getAssistant: (id) =>
+    fetchWithAuth(`/assistants/${id}`, {
+      method: 'GET',
+    }),
+
+  updateAssistant: (id, payload) =>
+    fetchWithAuth(`/assistants/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  
+  listPublicAssistants: ({ page = 1, limit = 20 } = {}) =>
+    fetchWithAuth(`/assistants?page=${page}&limit=${limit}`, {
+      method: 'GET',
+    }),
+};
+
+export const chatApi = {
+  createConversation: (assistantId, payload = {}) =>
+    fetchWithAuth(`/assistants/${assistantId}/conversations`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  listConversations: (assistantId, { page = 1, limit = 20 } = {}) =>
+    fetchWithAuth(
+      `/assistants/${assistantId}/conversations?page=${page}&limit=${limit}`,
+      {
+        method: 'GET',
+      },
+    ),
+
+  sendMessage: (assistantId, conversationId, payload) =>
+    fetchWithAuth(
+      `/assistants/${assistantId}/conversations/${conversationId}/messages`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    ),
+
+  listMessages: (assistantId, conversationId, { page = 1, limit = 50 } = {}) =>
+    fetchWithAuth(
+      `/assistants/${assistantId}/conversations/${conversationId}/messages?page=${page}&limit=${limit}`,
+      {
+        method: 'GET',
+      },
+    ),
+};

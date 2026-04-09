@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   SidebarProvider,
@@ -21,10 +21,11 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { assistantsApi } from '@/lib/api';
 
-const trendingClones = [
+const fallbackTrendingClones = [
   {
-    id: 1,
+    id: 'demo-1',
     initials: 'DA',
     name: 'Dan Abramov',
     role: 'Software Engineer',
@@ -34,7 +35,7 @@ const trendingClones = [
     rating: 4.9,
   },
   {
-    id: 2,
+    id: 'demo-2',
     initials: 'LR',
     name: 'Lenny Rachitsky',
     role: 'Product Management Expert',
@@ -44,7 +45,7 @@ const trendingClones = [
     rating: 5.0,
   },
   {
-    id: 3,
+    id: 'demo-3',
     initials: 'AH',
     name: 'Alex Hormozi',
     role: 'Entrepreneur / Investor',
@@ -232,7 +233,41 @@ function DashboardSidebar() {
   );
 }
 
+function getInitials(name) {
+  return (name || 'AI')
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
 function DashboardMain() {
+  const [trendingClones, setTrendingClones] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    assistantsApi
+      .listPublicAssistants({ page: 1, limit: 6 })
+      .then((res) => {
+        const data = res?.data || res;
+        if (!isMounted) return;
+        const items = data.assistants || [];
+        setTrendingClones(items);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setTrendingClones([]);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const clonesToShow = trendingClones.length ? trendingClones : fallbackTrendingClones;
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <div className="flex-1 px-6 py-6 md:px-10 md:py-8">
@@ -259,18 +294,20 @@ function DashboardMain() {
               <button className="text-xs font-medium text-primary">View all</button>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
-              {trendingClones.map((clone) => (
+              {clonesToShow.map((clone) => (
                 <Card key={clone.id} className="h-full">
                   <CardHeader className="flex flex-row items-start gap-3">
                     <Avatar className="h-10 w-10">
-                      <AvatarFallback>{clone.initials}</AvatarFallback>
+                      <AvatarFallback>
+                        {clone.initials || getInitials(clone.name)}
+                      </AvatarFallback>
                     </Avatar>
                     <div>
                       <CardTitle className="text-sm font-semibold">
                         {clone.name}
                       </CardTitle>
                       <CardDescription className="text-xs">
-                        {clone.role}
+                        {clone.role || clone.tagline}
                       </CardDescription>
                     </div>
                   </CardHeader>
@@ -279,8 +316,14 @@ function DashboardMain() {
                       {clone.description}
                     </p>
                     <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                      <span>{clone.chats} chats</span>
-                      <span>⭐ {clone.rating.toFixed(1)}</span>
+                      <span>
+                        {typeof clone.chatsCount === 'number'
+                          ? `${clone.chatsCount} chats`
+                          : clone.chats || ''}
+                      </span>
+                      {typeof clone.rating === 'number' && (
+                        <span>⭐ {clone.rating.toFixed(1)}</span>
+                      )}
                     </div>
                     <div className="flex justify-end">
                       <Button size="sm" variant="outline" asChild>

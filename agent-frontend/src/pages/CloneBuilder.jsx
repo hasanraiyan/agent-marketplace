@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,10 +15,12 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SendHorizontal } from 'lucide-react';
+import { assistantsApi } from '@/lib/api';
 
 export default function CloneBuilder() {
   const { id } = useParams();
   const isEditing = Boolean(id);
+  const navigate = useNavigate();
 
   const [name, setName] = useState(
     isEditing ? 'Me (General Assistant)' : 'New Clone',
@@ -33,6 +35,37 @@ export default function CloneBuilder() {
     'You are a clone of the user. Answer as they would: direct, kind, and pragmatic.',
   );
   const [status, setStatus] = useState('draft');
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (!isEditing) return;
+
+    let isMounted = true;
+
+    assistantsApi
+      .getAssistant(id)
+      .then((res) => {
+        const data = res?.data || res;
+        if (!isMounted || !data) return;
+        setName(data.name || 'New Clone');
+        setTagline(data.tagline || '');
+        setDescription(data.description || '');
+        setSystemPrompt(
+          data.systemPrompt ||
+            'You are a clone of the user. Answer as they would: direct, kind, and pragmatic.',
+        );
+        if (data.status) {
+          setStatus(data.status);
+        }
+      })
+      .catch(() => {
+        // Keep defaults on error
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id, isEditing]);
 
   const initials = name
     .split(' ')
@@ -41,12 +74,66 @@ export default function CloneBuilder() {
     .slice(0, 2)
     .toUpperCase();
 
-  const handlePublish = () => {
-    setStatus('published');
+  const upsertPayload = (nextStatus) => ({
+    name,
+    tagline,
+    description,
+    systemPrompt,
+    status: nextStatus,
+  });
+
+  const handleSave = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    const nextStatus = 'draft';
+
+    try {
+      if (isEditing) {
+        const res = await assistantsApi.updateAssistant(id, upsertPayload(nextStatus));
+        const data = res?.data || res;
+        if (data?.status) setStatus(data.status);
+      } else {
+        const res = await assistantsApi.createAssistant(upsertPayload(nextStatus));
+        const data = res?.data || res;
+        if (data?.id) {
+          navigate(`/clones/${data.id}/edit`, { replace: true });
+        }
+      }
+    } catch {
+      // Silently fail for now; UI remains unchanged
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleSave = () => {
-    // Placeholder: wire to backend later
+  const handlePublish = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    const nextStatus = 'published';
+
+    try {
+      if (isEditing) {
+        const res = await assistantsApi.updateAssistant(id, {
+          ...upsertPayload(nextStatus),
+          visibility: 'public',
+        });
+        const data = res?.data || res;
+        if (data?.status) setStatus(data.status);
+      } else {
+        const res = await assistantsApi.createAssistant({
+          ...upsertPayload(nextStatus),
+          visibility: 'public',
+        });
+        const data = res?.data || res;
+        if (data?.id) {
+          navigate(`/clones/${data.id}/edit`, { replace: true });
+        }
+      }
+    } catch {
+      // Silently fail for now
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -68,10 +155,15 @@ export default function CloneBuilder() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleSave}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSave}
+            disabled={isSaving}
+          >
             Save draft
           </Button>
-          <Button size="sm" onClick={handlePublish}>
+          <Button size="sm" onClick={handlePublish} disabled={isSaving}>
             {status === 'published' ? 'Update' : 'Publish'}
           </Button>
           {isEditing && (

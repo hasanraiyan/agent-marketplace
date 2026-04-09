@@ -4,6 +4,7 @@ import healthRouter from './routes/health.js';
 import authRouter from './routes/auth.routes.js';
 import profileRouter from './routes/profile.routes.js';
 import adminRouter from './routes/admin.routes.js';
+import assistantRouter from './routes/assistant.routes.js';
 import errorHandler from './middlewares/errorHandler.js';
 import swaggerUi from 'swagger-ui-express';
 import openapiSpec from './docs/openapi.js';
@@ -30,6 +31,7 @@ app.use('/api/v1/health', healthRouter);
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/profile', profileRouter);
 app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/assistants', assistantRouter);
 
 app.get('/', (req, res) => {
   let dbStatus = 'unknown';

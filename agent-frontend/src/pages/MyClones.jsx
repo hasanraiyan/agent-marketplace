@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,9 +10,30 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { userClones } from '@/data/assistantsMock';
+import { assistantsApi } from '@/lib/api';
 
 export default function MyClones() {
+  const [clones, setClones] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    assistantsApi
+      .getMyAssistants()
+      .then((res) => {
+        const data = res?.data || res; // successFormatter or raw
+        if (!isMounted) return;
+        setClones(data.assistants || []);
+      })
+      .catch(() => {
+        // Keep empty state on error for now
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <main className="flex-1 container mx-auto px-4 py-8 max-w-5xl">
@@ -29,7 +50,7 @@ export default function MyClones() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          {userClones.map((clone) => (
+          {clones.map((clone) => (
             <Card key={clone.id} className="flex flex-col h-full">
               <CardHeader>
                 <div className="flex items-center justify-between gap-2">

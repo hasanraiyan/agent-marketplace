@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { SendHorizontal, Plus, Mic, MoreVertical } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -19,33 +19,18 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
-import { userClones } from '@/data/assistantsMock';
+import { assistantsApi, chatApi } from '@/lib/api';
 
-const mockConversations = [
-  { id: '1', title: 'Daily notes', assistantId: '1' },
-  { id: '2', title: 'Fundraising strategy', assistantId: '2' },
-];
-
-const initialMessages = [
-  {
-    id: 1,
-    role: 'assistant',
-    content: "Hey! What's on the agenda today?",
-  },
-];
-
-function getAssistantById(id) {
-  return (
-    userClones.find((a) => a.id === id) || {
-      id,
-      name: 'Assistant',
-      initials: 'AI',
-    }
-  );
+function getInitials(name) {
+  return (name || 'AI')
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 }
 
-function AssistantChatSidebar({ activeAssistantId }) {
-  const activeAssistant = getAssistantById(activeAssistantId);
+function AssistantChatSidebar({ activeAssistant, conversations, onNewChat, onSelectConversation, activeConversationId }) {
 
   return (
     <SidebarProvider>
@@ -59,25 +44,26 @@ function AssistantChatSidebar({ activeAssistantId }) {
           </div>
         </SidebarHeader>
         <SidebarContent>
-          <SidebarGroup>
-            <Button className="w-full mb-2" size="sm" variant="outline">
-              New chat
-            </Button>
-          </SidebarGroup>
-          <SidebarGroup>
+           <SidebarGroup>
+             <Button className="w-full mb-2" size="sm" variant="outline" onClick={onNewChat}>
+               New chat
+             </Button>
+           </SidebarGroup>
+           <SidebarGroup>
             <SidebarGroupLabel className="text-xs text-muted-foreground">
               Recent
             </SidebarGroupLabel>
-            <SidebarMenu>
-              {mockConversations.map((c) => (
-                <SidebarMenuItem key={c.id}>
+             <SidebarMenu>
+               {conversations.map((c) => (
+                 <SidebarMenuItem key={c.id}>
                   <SidebarMenuButton
-                    isActive={c.assistantId === activeAssistantId}
-                    className="flex items-center gap-2 text-xs"
+                    isActive={c.id === activeConversationId}
+                     className="flex items-center gap-2 text-xs"
+                    onClick={() => onSelectConversation(c.id)}
                   >
                     <Avatar className="h-6 w-6">
                       <AvatarFallback className="text-[10px]">
-                        {getAssistantById(c.assistantId).initials}
+                        {getInitials(activeAssistant.name)}
                       </AvatarFallback>
                     </Avatar>
                     <span className="truncate">{c.title}</span>
@@ -94,26 +80,74 @@ function AssistantChatSidebar({ activeAssistantId }) {
           </div>
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset>
-        <AssistantChatMain assistant={activeAssistant} />
-      </SidebarInset>
-    </SidebarProvider>
+       <SidebarInset>
+         <AssistantChatMain
+           assistant={activeAssistant}
+           activeConversationId={activeConversationId}
+           onNewChat={onNewChat}
+         />
+       </SidebarInset>
+      </SidebarProvider>
   );
 }
 
-function AssistantChatMain({ assistant }) {
-  const [messages, setMessages] = useState(initialMessages);
+function AssistantChatMain({ assistant, activeConversationId, onNewChat }) {
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
 
-  const handleSend = () => {
+  // Load messages when conversation changes
+  useEffect(() => {
+    if (!activeConversationId) {
+      setMessages([]);
+      return;
+    }
+
+    let isMounted = true;
+
+    chatApi
+      .listMessages(assistant.id, activeConversationId)
+      .then((res) => {
+        const data = res?.data || res;
+        if (!isMounted) return;
+        setMessages(data.messages || []);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setMessages([]);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [assistant.id, activeConversationId]);
+
+  const handleSend = async () => {
     const trimmed = input.trim();
     if (!trimmed) return;
+    if (!activeConversationId) {
+      // Auto-create conversation if none exists
+      await onNewChat(trimmed);
+      setInput('');
+      return;
+    }
 
-    setMessages((prev) => [
-      ...prev,
-      { id: prev.length + 1, role: 'user', content: trimmed },
-    ]);
-    setInput('');
+    try {
+      const res = await chatApi.sendMessage(assistant.id, activeConversationId, {
+        content: trimmed,
+      });
+      const data = res?.data || res;
+      const userMessage = data.userMessage || data?.userMessage;
+      const assistantMessage = data.assistantMessage || data?.assistantMessage;
+
+      setMessages((prev) => [
+        ...prev,
+        ...(userMessage ? [userMessage] : []),
+        ...(assistantMessage ? [assistantMessage] : []),
+      ]);
+      setInput('');
+    } catch {
+      // keep existing messages on error
+    }
   };
 
   const title = useMemo(
@@ -127,7 +161,7 @@ function AssistantChatMain({ assistant }) {
         <button className="flex items-center gap-2 text-sm font-medium">
           <Avatar className="h-7 w-7">
             <AvatarFallback className="text-xs">
-              {assistant.initials}
+              {getInitials(assistant.name)}
             </AvatarFallback>
           </Avatar>
           <span>{title}</span>
@@ -140,12 +174,12 @@ function AssistantChatMain({ assistant }) {
       </header>
 
       <main className="flex flex-1 flex-col items-center justify-center px-4 py-6">
-        {messages.length <= 1 ? (
-          <div className="flex flex-col items-center gap-6 text-center max-w-xl">
+         {!activeConversationId && messages.length === 0 ? (
+           <div className="flex flex-col items-center gap-6 text-center max-w-xl">
             <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
               What's on the agenda today?
             </h1>
-            <ChatInput input={input} setInput={setInput} onSend={handleSend} />
+             <ChatInput input={input} setInput={setInput} onSend={handleSend} />
           </div>
         ) : (
           <div className="flex h-full w-full max-w-3xl flex-col gap-4">
@@ -179,7 +213,7 @@ function ChatMessage({ message, assistant }) {
       {!isUser && (
         <Avatar className="h-7 w-7">
           <AvatarFallback className="text-xs">
-            {assistant.initials}
+            {getInitials(assistant.name)}
           </AvatarFallback>
         </Avatar>
       )}
@@ -250,11 +284,95 @@ function ChatInput({ input, setInput, onSend }) {
 
 export default function AssistantChat() {
   const { assistantId } = useParams();
-  const activeId = assistantId || '1';
+  const [assistant, setAssistant] = useState(null);
+  const [conversations, setConversations] = useState([]);
+  const [activeConversationId, setActiveConversationId] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    assistantsApi
+      .getAssistant(assistantId)
+      .then((res) => {
+        const data = res?.data || res;
+        if (!isMounted) return;
+        setAssistant(data);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setAssistant({ id: assistantId, name: 'Assistant' });
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [assistantId]);
+
+  useEffect(() => {
+    if (!assistant) return;
+
+    let isMounted = true;
+
+    chatApi
+      .listConversations(assistant.id)
+      .then((res) => {
+        const data = res?.data || res;
+        if (!isMounted) return;
+        setConversations(data.conversations || []);
+        if (!activeConversationId && data.conversations?.[0]) {
+          setActiveConversationId(data.conversations[0].id);
+        }
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setConversations([]);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [assistant, activeConversationId]);
+
+  const handleNewChat = async (initialMessage) => {
+    if (!assistant) return;
+    try {
+      const res = await chatApi.createConversation(assistant.id, {});
+      const data = res?.data || res;
+      const conversation = data;
+      setConversations((prev) => [conversation, ...prev]);
+      setActiveConversationId(conversation.id);
+
+      if (initialMessage) {
+        await chatApi.sendMessage(assistant.id, conversation.id, {
+          content: initialMessage,
+        });
+      }
+    } catch {
+      // ignore for now
+    }
+  };
+
+  const handleSelectConversation = (conversationId) => {
+    setActiveConversationId(conversationId);
+  };
+
+  if (!assistant) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <p className="text-sm text-muted-foreground">Loading chat…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <AssistantChatSidebar activeAssistantId={activeId} />
+      <AssistantChatSidebar
+        activeAssistant={assistant}
+        conversations={conversations}
+        activeConversationId={activeConversationId}
+        onNewChat={handleNewChat}
+        onSelectConversation={handleSelectConversation}
+      />
     </div>
   );
 }
