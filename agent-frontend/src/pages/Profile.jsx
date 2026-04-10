@@ -3,7 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/layout/Navbar';
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -11,7 +11,9 @@ export default function Profile() {
       <main className="flex-1 container mx-auto px-4 py-8 max-w-4xl">
         <div className="bg-card rounded-lg border shadow-sm p-6">
           <h1 className="text-2xl font-bold mb-4">My Account</h1>
-          {user ? (
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading profile…</p>
+          ) : user ? (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 max-w-sm">
                 <div>
@@ -29,7 +31,9 @@ export default function Profile() {
               </div>
             </div>
           ) : (
-            <p>Loading profile...</p>
+            <p className="text-sm text-destructive">
+              Unable to load your profile. Please sign in again.
+            </p>
           )}
         </div>
       </main>

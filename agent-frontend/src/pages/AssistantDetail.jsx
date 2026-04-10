@@ -24,6 +24,7 @@ function getInitials(name) {
 export default function AssistantDetail() {
   const { assistantId } = useParams();
   const [assistant, setAssistant] = useState(null);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -34,9 +35,15 @@ export default function AssistantDetail() {
         const data = res?.data || res;
         if (!isMounted) return;
         setAssistant(data);
+        setLoadError(null);
       })
-      .catch(() => {
+      .catch((err) => {
         if (!isMounted) return;
+        setLoadError(
+          err?.status === 404
+            ? 'This assistant could not be found. Showing a placeholder instead.'
+            : err?.message || 'Failed to load assistant. Showing a placeholder instead.',
+        );
         setAssistant({
           id: assistantId,
           name: 'Assistant',
@@ -70,6 +77,12 @@ export default function AssistantDetail() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <main className="flex-1 container mx-auto px-4 py-8 max-w-4xl">
+        {loadError && (
+          <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+            {loadError}
+          </div>
+        )}
+
         <Button
           asChild
           variant="ghost"
@@ -89,6 +102,15 @@ export default function AssistantDetail() {
                 <CardTitle className="text-xl font-semibold">
                   {assistant.name}
                 </CardTitle>
+                {assistant.status && (
+                  <Badge
+                    variant={
+                      assistant.status === 'published' ? 'default' : 'secondary'
+                    }
+                  >
+                    {assistant.status}
+                  </Badge>
+                )}
                 {assistant.category && (
                   <Badge variant="secondary">{assistant.category}</Badge>
                 )}
