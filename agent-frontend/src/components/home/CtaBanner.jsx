@@ -1,3 +1,4 @@
+// CtaBanner.tsx
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
@@ -6,18 +7,20 @@ export default function CtaBanner() {
   return (
     <section className="py-16 md:py-24">
       <div className="container mx-auto px-4">
-        <div className="rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-10 md:p-16 text-center text-primary-foreground">
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
-            Ready to Build Your First Agent?
-          </h2>
-          <p className="text-lg text-primary-foreground/80 max-w-xl mx-auto mb-8">
-            Join thousands of developers and teams who are already using Agent
-            Marketplace to ship AI-powered solutions faster.
-          </p>
-          <Button size="lg" variant="secondary" asChild>
-            <Link to="/create">
+        <div className="flex flex-col items-center gap-8 rounded-3xl bg-primary p-10 text-center text-primary-foreground md:p-16">
+          <div className="flex flex-col gap-4">
+            <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
+              Ready to Build Your First Agent?
+            </h2>
+            <p className="mx-auto max-w-2xl text-lg text-primary-foreground/80">
+              Join thousands of developers and teams who are already using Agent
+              Marketplace to ship AI-powered solutions faster.
+            </p>
+          </div>
+          <Button size="lg" variant="secondary" className="group w-full sm:w-auto" asChild>
+            <Link to="/create" className="flex items-center gap-2">
               Get Started Free
-              <ArrowRight className="ml-2 h-4 w-4" />
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
             </Link>
           </Button>
         </div>

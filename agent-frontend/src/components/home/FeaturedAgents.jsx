@@ -1,42 +1,30 @@
+// FeaturedAgents.tsx
 import { Link } from 'react-router-dom';
 import { Star, Users, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from '@/components/ui/carousel';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Badge } from '@/components/ui/badge';
 import { featuredAgents } from '@/data/mockData';
 
 function AgentCard({ agent }) {
   return (
-    <Card className="flex flex-col h-full hover:shadow-lg transition-shadow">
-      <CardHeader>
-        <div className="flex items-start justify-between gap-2 mb-2">
+    <Card className="flex h-full flex-col transition-shadow hover:shadow-md">
+      <CardHeader className="flex flex-col gap-2">
+        <div className="flex items-start justify-between gap-2">
           <Badge variant="secondary">{agent.category}</Badge>
           <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+            <Star className="size-4 fill-yellow-400 text-yellow-400" />
             <span>{agent.rating}</span>
           </div>
         </div>
-        <CardTitle className="text-lg">{agent.name}</CardTitle>
-        <CardDescription className="line-clamp-2">
-          {agent.description}
-        </CardDescription>
+        <div className="flex flex-col gap-1">
+          <CardTitle className="text-lg">{agent.name}</CardTitle>
+          <CardDescription className="line-clamp-2">{agent.description}</CardDescription>
+        </div>
       </CardHeader>
       <CardContent className="flex-1">
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-2">
           {agent.tags.map((tag) => (
             <span
               key={tag}
@@ -48,18 +36,18 @@ function AgentCard({ agent }) {
         </div>
       </CardContent>
       <CardFooter className="flex items-center justify-between border-t pt-4">
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <Users className="h-4 w-4" />
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Users className="size-4" />
           <span>{agent.users.toLocaleString()} users</span>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" asChild>
             <Link to={`/assistants/${agent.id}/chat`}>Chat</Link>
           </Button>
-          <Button variant="ghost" size="sm" asChild>
-            <Link to={`/agent/${agent.id}`}>
+          <Button variant="ghost" size="sm" asChild className="group">
+            <Link to={`/agent/${agent.id}`} className="flex items-center gap-1">
               View
-              <ArrowRight className="ml-1 h-3 w-3" />
+              <ArrowRight className="size-3 transition-transform group-hover:translate-x-1" />
             </Link>
           </Button>
         </div>
@@ -72,42 +60,31 @@ export default function FeaturedAgents() {
   return (
     <section className="py-16 md:py-24">
       <div className="container mx-auto px-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-10">
-          <div>
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-              Featured Agents
-            </h2>
-            <p className="text-muted-foreground mt-2">
-              Top-rated agents trusted by thousands of users
-            </p>
+        <div className="mb-10 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+          <div className="flex flex-col gap-2">
+            <h2 className="text-3xl font-bold tracking-tight md:text-4xl">Featured Agents</h2>
+            <p className="text-muted-foreground">Top-rated agents trusted by thousands of users</p>
           </div>
-          <Button variant="outline" asChild>
-            <Link to="/browse">
+          <Button variant="outline" asChild className="group">
+            <Link to="/browse" className="flex items-center gap-2">
               View All
-              <ArrowRight className="ml-2 h-4 w-4" />
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
             </Link>
           </Button>
         </div>
 
-        <Carousel
-          opts={{
-            align: 'start',
-            loop: true,
-          }}
-          className="w-full"
-        >
-          <CarouselContent>
+        <Carousel opts={{ align: 'start', loop: true }} className="w-full">
+          <CarouselContent className="-ml-4">
             {featuredAgents.map((agent) => (
-              <CarouselItem
-                key={agent.id}
-                className="md:basis-1/2 lg:basis-1/3"
-              >
+              <CarouselItem key={agent.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
                 <AgentCard agent={agent} />
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious className="hidden md:flex" />
-          <CarouselNext className="hidden md:flex" />
+          <div className="hidden md:block">
+            <CarouselPrevious />
+            <CarouselNext />
+          </div>
         </Carousel>
       </div>
     </section>

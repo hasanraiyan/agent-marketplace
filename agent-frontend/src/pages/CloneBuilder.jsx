@@ -3,18 +3,11 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { SendHorizontal } from 'lucide-react';
+import { SendHorizontal, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { assistantsApi } from '@/lib/api';
 
 export default function CloneBuilder() {
@@ -23,16 +16,16 @@ export default function CloneBuilder() {
   const navigate = useNavigate();
 
   const [name, setName] = useState(
-    isEditing ? 'Me (General Assistant)' : 'New Clone',
+    isEditing ? 'Me (General Assistant)' : 'New Clone'
   );
   const [tagline, setTagline] = useState(
-    'A helpful clone of myself for everyday tasks.',
+    'A helpful clone of myself for everyday tasks.'
   );
   const [description, setDescription] = useState(
-    "I help with brainstorming, writing, and technical questions based on my experience.",
+    'I help with brainstorming, writing, and technical questions based on my experience.'
   );
   const [systemPrompt, setSystemPrompt] = useState(
-    'You are a clone of the user. Answer as they would: direct, kind, and pragmatic.',
+    'You are a clone of the user. Answer as they would: direct, kind, and pragmatic.'
   );
   const [status, setStatus] = useState('draft');
   const [isSaving, setIsSaving] = useState(false);
@@ -59,7 +52,7 @@ export default function CloneBuilder() {
         setDescription(data.description || '');
         setSystemPrompt(
           data.systemPrompt ||
-            'You are a clone of the user. Answer as they would: direct, kind, and pragmatic.',
+            'You are a clone of the user. Answer as they would: direct, kind, and pragmatic.'
         );
         if (data.status) {
           setStatus(data.status);
@@ -67,7 +60,6 @@ export default function CloneBuilder() {
       })
       .catch((err) => {
         if (!isMounted) return;
-        // Keep defaults on error but surface a message
         setLoadError(err?.message || 'Failed to load clone details');
       })
       .finally(() => {
@@ -107,7 +99,7 @@ export default function CloneBuilder() {
         const res = await assistantsApi.updateAssistant(id, upsertPayload(nextStatus));
         const data = res?.data || res;
         if (data?.status) setStatus(data.status);
-        setSaveSuccess('Draft saved');
+        setSaveSuccess('Draft saved successfully');
       } else {
         const res = await assistantsApi.createAssistant(upsertPayload(nextStatus));
         const data = res?.data || res;
@@ -137,7 +129,7 @@ export default function CloneBuilder() {
         });
         const data = res?.data || res;
         if (data?.status) setStatus(data.status);
-        setSaveSuccess('Clone updated');
+        setSaveSuccess('Clone updated and published');
       } else {
         const res = await assistantsApi.createAssistant({
           ...upsertPayload(nextStatus),
@@ -156,24 +148,31 @@ export default function CloneBuilder() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <header className="flex items-center justify-between border-b px-6 py-3">
+    <div className="flex h-[100dvh] w-full flex-col bg-background text-foreground">
+      {/* Header */}
+      <header className="flex h-16 shrink-0 items-center justify-between border-b px-6">
         <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <h1 className="text-sm font-medium">
+          <div className="flex items-center gap-3">
+            <h1 className="text-sm font-semibold text-foreground">
               {isEditing ? name : 'New Clone'}
             </h1>
             <Badge
               variant={status === 'published' ? 'default' : 'secondary'}
+              className="h-5 px-2 text-[10px] uppercase tracking-wider"
             >
-              {status === 'published' ? 'Published' : 'Draft'}
+              {status}
             </Badge>
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground hidden md:block">
             Describe yourself and configure how this assistant should behave.
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {isEditing && (
+            <Button size="sm" variant="ghost" asChild className="hidden md:flex">
+              <Link to={`/assistants/${id}`}>View page</Link>
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -189,205 +188,183 @@ export default function CloneBuilder() {
           >
             {status === 'published' ? 'Update' : 'Publish'}
           </Button>
-          {isEditing && (
-            <Button size="sm" variant="ghost" asChild>
-              <Link to={`/assistants/${id}`}>View page</Link>
-            </Button>
-          )}
         </div>
       </header>
 
+      {/* Status Banners */}
       {loadError && (
-        <div className="px-6 py-2 text-xs text-destructive bg-destructive/5 border-b border-destructive/20">
-          {loadError}
+        <div className="flex items-center gap-2 border-b border-destructive/20 bg-destructive/10 px-6 py-2.5 text-sm text-destructive">
+          <AlertCircle className="size-4" />
+          <p>{loadError}</p>
         </div>
       )}
       {saveError && (
-        <div className="px-6 py-2 text-xs text-destructive bg-destructive/5 border-b border-destructive/20">
-          {saveError}
+        <div className="flex items-center gap-2 border-b border-destructive/20 bg-destructive/10 px-6 py-2.5 text-sm text-destructive">
+          <AlertCircle className="size-4" />
+          <p>{saveError}</p>
         </div>
       )}
       {saveSuccess && !saveError && (
-        <div className="px-6 py-2 text-xs text-emerald-600 bg-emerald-50 border-b border-emerald-200">
-          {saveSuccess}
+        <div className="flex items-center gap-2 border-b border-emerald-500/20 bg-emerald-500/10 px-6 py-2.5 text-sm text-emerald-600 dark:text-emerald-400">
+          <CheckCircle2 className="size-4" />
+          <p>{saveSuccess}</p>
         </div>
       )}
 
-      <main className="flex flex-1 flex-col md:flex-row">
+      {/* Main Content Area */}
+      <main className="flex flex-1 overflow-hidden flex-col md:flex-row">
         {/* Left: Create / Configure */}
-        <div className="w-full md:w-1/2 border-b md:border-b-0 md:border-r flex flex-col">
-          <Tabs defaultValue="create" className="flex-1 flex flex-col">
-            <TabsList className="px-4 pt-4 pb-2 justify-start">
-              <TabsTrigger value="create">Create</TabsTrigger>
-              <TabsTrigger value="configure">Configure</TabsTrigger>
-            </TabsList>
+        <div className="flex w-full flex-col border-b md:w-1/2 md:border-b-0 md:border-r lg:w-[45%]">
+          <Tabs defaultValue="create" className="flex flex-1 flex-col overflow-hidden">
+            <div className="border-b px-4 pt-2">
+              <TabsList className="h-12 w-full justify-start rounded-none border-none bg-transparent p-0">
+                <TabsTrigger
+                  value="create"
+                  className="relative h-full rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 font-medium text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                >
+                  Create
+                </TabsTrigger>
+                <TabsTrigger
+                  value="configure"
+                  className="relative h-full rounded-none border-b-2 border-transparent bg-transparent px-4 pb-3 pt-2 font-medium text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                >
+                  Configure
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-            <TabsContent value="create" className="flex-1 px-4 pb-4 pt-2">
-              <Card className="h-full flex flex-col">
-                <CardHeader>
-                  <CardTitle className="text-sm font-medium">
-                    Describe your clone
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Hi! I&apos;ll help you build a new assistant. You can say
-                    something like, &quot;make a creative who helps generate
-                    visuals for new products&quot; or &quot;make a software engineer
-                    who helps debug my code.&quot;
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-4 flex-1">
-                  <div className="flex-1 rounded-2xl border bg-muted/30 p-3 flex flex-col justify-between gap-3">
-                    <p className="text-xs text-muted-foreground">
-                      What would you like to make?
-                    </p>
-                    <div className="flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 mt-auto">
-                      <Textarea
-                        rows={1}
-                        placeholder="Describe the assistant you want to build"
-                        className="min-h-0 resize-none border-none shadow-none px-0 py-1 text-xs focus-visible:ring-0"
-                        disabled
-                      />
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        className="rounded-full"
-                        variant="outline"
-                        disabled
-                       >
-                         <SendHorizontal className="h-3 w-3" />
-                       </Button>
-                    </div>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      Natural-language clone creation is coming soon. For now, use the form below.
-                    </p>
+            <ScrollArea className="flex-1">
+              <TabsContent value="create" className="m-0 flex flex-col gap-8 p-6">
+                
+                {/* AI Prompt Input (Disabled for now) */}
+                <div className="flex flex-col gap-3 rounded-xl border bg-muted/30 p-4">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-medium">Describe your clone</span>
+                    <span className="text-xs text-muted-foreground">
+                      Natural-language clone creation is coming soon.
+                    </span>
                   </div>
-
-                  <div className="space-y-3">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      Basics
-                    </p>
-                    <div className="space-y-2">
-                     <label className="text-[11px] font-medium">Name</label>
-                      <Input
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="h-8 text-xs"
-                        disabled={isLoading || isSaving}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[11px] font-medium">
-                         Short tagline
-                       </label>
-                       <Input
-                         value={tagline}
-                         onChange={(e) => setTagline(e.target.value)}
-                         className="h-8 text-xs"
-                         disabled={isLoading || isSaving}
-                       />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[11px] font-medium">
-                        Description
-                      </label>
-                       <Textarea
-                         value={description}
-                         onChange={(e) => setDescription(e.target.value)}
-                         rows={3}
-                         className="text-xs"
-                         disabled={isLoading || isSaving}
-                       />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="configure" className="flex-1 px-4 pb-4 pt-2">
-              <ScrollArea className="h-full rounded-xl border bg-muted/20 p-3">
-                <div className="space-y-4 text-xs">
-                  <div className="space-y-2">
-                    <h2 className="text-[13px] font-medium">Behavior</h2>
-                    <p className="text-xs text-muted-foreground">
-                      Define how this clone should speak and act.
-                    </p>
+                  <div className="relative mt-2">
                     <Textarea
-                      value={systemPrompt}
-                      onChange={(e) => setSystemPrompt(e.target.value)}
-                      rows={5}
-                      className="text-xs"
-                      disabled={isLoading || isSaving}
+                      disabled
+                      placeholder="e.g. Make a software engineer who helps debug my code..."
+                      className="min-h-[80px] resize-none bg-background pb-12 shadow-sm"
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <h2 className="text-[13px] font-medium">Knowledge</h2>
-                    <p className="text-xs text-muted-foreground">
-                      Connect documents or links that this clone should know
-                      about. (Placeholder for future integration.)
-                    </p>
-                    <Button size="sm" variant="outline" disabled>
-                      Upload files (coming soon)
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2">
-                    <h2 className="text-[13px] font-medium">Visibility</h2>
-                    <p className="text-xs text-muted-foreground">
-                      Control who can access this clone. (UI only for now.)
-                    </p>
-                    <div className="flex gap-2">
-                      <Badge variant="default">Private</Badge>
-                      <Badge variant="outline">Unlisted</Badge>
-                      <Badge variant="outline">Public</Badge>
+                    <div className="absolute bottom-2 right-2 flex items-center">
+                      <Button size="icon" variant="secondary" disabled className="size-8 rounded-full">
+                        <SendHorizontal className="size-4" />
+                      </Button>
                     </div>
                   </div>
                 </div>
-              </ScrollArea>
-            </TabsContent>
+
+                {/* Manual Inputs */}
+                <div className="flex flex-col gap-5">
+                  <h3 className="text-sm font-semibold">Basics</h3>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Name</label>
+                    <Input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      disabled={isLoading || isSaving}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Short tagline</label>
+                    <Input
+                      value={tagline}
+                      onChange={(e) => setTagline(e.target.value)}
+                      disabled={isLoading || isSaving}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Description</label>
+                    <Textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      rows={3}
+                      className="resize-none"
+                      disabled={isLoading || isSaving}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="configure" className="m-0 flex flex-col gap-8 p-6">
+                <div className="flex flex-col gap-3">
+                  <h3 className="text-sm font-semibold">Behavior</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Define how this clone should speak and act. Be specific about tone, format, and boundaries.
+                  </p>
+                  <Textarea
+                    value={systemPrompt}
+                    onChange={(e) => setSystemPrompt(e.target.value)}
+                    rows={8}
+                    className="resize-none"
+                    disabled={isLoading || isSaving}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <h3 className="text-sm font-semibold">Knowledge</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Connect documents or links that this clone should know about. (Placeholder for future integration.)
+                  </p>
+                  <Button variant="outline" className="w-fit" disabled>
+                    Upload files
+                  </Button>
+                </div>
+
+                <div className="flex flex-col gap-3 border-t pt-6">
+                  <h3 className="text-sm font-semibold">Visibility</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Control who can access this clone.
+                  </p>
+                  <div className="flex items-center gap-2 pt-1">
+                    <Badge variant="default" className="cursor-pointer">Private</Badge>
+                    <Badge variant="outline" className="cursor-not-allowed opacity-50">Unlisted</Badge>
+                    <Badge variant="outline" className="cursor-not-allowed opacity-50">Public</Badge>
+                  </div>
+                </div>
+              </TabsContent>
+            </ScrollArea>
           </Tabs>
         </div>
 
         {/* Right: Preview */}
-        <div className="w-full md:w-1/2 flex flex-col">
-          <div className="flex items-center justify-between border-b px-6 py-3">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">Preview</span>
-                <span className="text-xs text-muted-foreground">
-                  How your clone appears in chat.
-                </span>
-              </div>
-            </div>
-            <div className="text-xs text-muted-foreground">Model: Auto</div>
+        <div className="flex w-full flex-col bg-muted/10 md:w-1/2 lg:w-[55%]">
+          <div className="flex h-12 shrink-0 items-center justify-between border-b px-6 bg-background">
+            <span className="text-sm font-medium">Preview</span>
+            <span className="text-xs text-muted-foreground">Model: Auto</span>
           </div>
 
-          <div className="flex-1 flex items-center justify-center px-4 py-6">
-            <Card className="w-full max-w-xl shadow-sm">
-              <CardHeader className="flex flex-row items-center gap-3">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="text-xs">
-                    {initials}
-                  </AvatarFallback>
+          <div className="flex flex-1 items-center justify-center p-6">
+            {/* Live Chat Mockup */}
+            <div className="flex h-full max-h-[600px] w-full max-w-md flex-col overflow-hidden rounded-2xl border bg-background shadow-sm">
+              <div className="flex shrink-0 flex-col items-center gap-2 border-b bg-muted/20 px-6 py-8 text-center">
+                <Avatar className="size-16 border bg-background shadow-sm">
+                  <AvatarFallback className="text-lg">{initials}</AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col">
-                  <CardTitle className="text-sm font-medium">{name}</CardTitle>
-                  <CardDescription className="text-xs">{tagline}</CardDescription>
+                <div className="flex flex-col gap-1 mt-2">
+                  <span className="font-semibold">{name || 'New Clone'}</span>
+                  <span className="text-sm text-muted-foreground px-4 text-balance">
+                    {tagline || 'Configure a tagline to see it here.'}
+                  </span>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4 pb-4">
-                <div className="rounded-2xl border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                  Start by defining your clone. For example: &quot;Help me write
-                  thoughtful product update emails in my tone.&quot;
+              </div>
+              
+              <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
+                <div className="self-start max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-4 py-2.5 text-sm text-foreground">
+                  Hi! I'm {name || 'your clone'}. {description ? `I can help with: ${description}` : 'How can I help you today?'}
                 </div>
-                <div className="rounded-full border bg-background/80 px-3 py-1.5 text-xs text-muted-foreground">
-                  Ask anything
+              </div>
+
+              <div className="shrink-0 p-4 pt-2">
+                <div className="flex items-center gap-2 rounded-full border bg-muted/30 px-4 py-2.5 text-sm text-muted-foreground">
+                  Message {name ? name.split(' ')[0] : 'Clone'}...
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         </div>
       </main>

@@ -1,6 +1,7 @@
+// Navbar.tsx
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, X, Moon, Sun, Search } from 'lucide-react';
+import { Menu, Moon, Sun, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -26,7 +27,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-8">
-          <Link to="/" className="flex items-center gap-2 font-bold text-xl">
+          <Link to="/" className="flex items-center gap-2 text-xl font-bold">
             <span className="text-primary">Agent</span>
             <span>Marketplace</span>
           </Link>
@@ -36,7 +37,7 @@ export default function Navbar() {
               <Link
                 key={link.label}
                 to={link.href}
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
                 {link.label}
               </Link>
@@ -44,13 +45,13 @@ export default function Navbar() {
           </nav>
         </div>
 
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden items-center gap-4 md:flex">
           <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
             <Input
               type="search"
               placeholder="Search agents..."
-              className="w-64 pl-8 h-9"
+              className="h-9 w-64 pl-8"
             />
           </div>
           <Button
@@ -58,29 +59,25 @@ export default function Navbar() {
             size="icon"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           >
-            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <Sun className="size-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute size-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             <span className="sr-only">Toggle theme</span>
           </Button>
+          
           {isAuthenticated ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="relative h-8 w-8 rounded-full"
-                >
-                  <Avatar className="h-8 w-8">
+                <Button variant="ghost" className="relative size-8 rounded-full">
+                  <Avatar className="size-8">
                     <AvatarFallback>
-                      {user?.firstName?.charAt(0) ||
-                        user?.email?.charAt(0) ||
-                        'U'}
+                      {user?.firstName?.charAt(0) || user?.email?.charAt(0) || 'U'}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
+                  <div className="flex flex-col gap-1">
                     <p className="text-sm font-medium leading-none">
                       {user?.firstName} {user?.lastName}
                     </p>
@@ -101,80 +98,64 @@ export default function Navbar() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <>
+            <div className="flex items-center gap-2">
               <Button variant="ghost" asChild>
                 <Link to="/login">Sign In</Link>
               </Button>
               <Button asChild>
                 <Link to="/signup">Get Started</Link>
               </Button>
-            </>
+            </div>
           )}
         </div>
 
-        <div className="flex md:hidden items-center gap-2">
+        {/* Mobile Menu */}
+        <div className="flex items-center gap-2 md:hidden">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           >
-            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <Sun className="size-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute size-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           </Button>
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon">
-                <Menu className="h-5 w-5" />
+                <Menu className="size-5" />
               </Button>
             </SheetTrigger>
             <SheetContent side="right">
-              <div className="flex flex-col gap-6 mt-8">
+              <div className="mt-8 flex flex-col gap-6">
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Search agents..."
-                    className="pl-8"
-                  />
+                  <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                  <Input type="search" placeholder="Search agents..." className="pl-8" />
                 </div>
                 <nav className="flex flex-col gap-4">
                   {navLinks.map((link) => (
                     <Link
                       key={link.label}
                       to={link.href}
-                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
                       onClick={() => setOpen(false)}
                     >
                       {link.label}
                     </Link>
                   ))}
                 </nav>
-                <div className="flex flex-col gap-3 mt-4">
+                <div className="mt-4 flex flex-col gap-3">
                   {isAuthenticated ? (
                     <>
-                       <Button
-                         variant="outline"
-                         asChild
-                         onClick={() => setOpen(false)}
-                       >
+                       <Button variant="outline" asChild onClick={() => setOpen(false)}>
                          <Link to="/dashboard">Dashboard</Link>
                        </Button>
-                      <Button
-                        onClick={() => {
-                          logout();
-                          setOpen(false);
-                        }}
-                      >
+                      <Button onClick={() => { logout(); setOpen(false); }}>
                         Log out
                       </Button>
                     </>
                   ) : (
                     <>
-                      <Button
-                        variant="outline"
-                        asChild
-                        onClick={() => setOpen(false)}
-                      >
+                      <Button variant="outline" asChild onClick={() => setOpen(false)}>
                         <Link to="/login">Sign In</Link>
                       </Button>
                       <Button asChild onClick={() => setOpen(false)}>
