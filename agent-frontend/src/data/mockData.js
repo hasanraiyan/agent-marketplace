@@ -179,28 +179,28 @@ export const testimonials = [
 export const navLinks = [
   { label: 'Home', href: '/' },
   { label: 'Browse Agents', href: '/browse' },
-  { label: 'Create Agent', href: '/create' },
-  { label: 'Docs', href: '/docs' },
-  { label: 'Pricing', href: '/pricing' },
+  { label: 'Dashboard', href: '/dashboard' },
+  { label: 'My Clones', href: '/clones' },
+  { label: 'Create Clone', href: '/clones/new' },
 ];
 
 export const footerLinks = {
   product: [
     { label: 'Browse Agents', href: '/browse' },
-    { label: 'Create Agent', href: '/create' },
-    { label: 'Templates', href: '/templates' },
-    { label: 'Pricing', href: '/pricing' },
+    { label: 'Create Clone', href: '/clones/new' },
+    { label: 'Dashboard', href: '/dashboard' },
+    { label: 'My Clones', href: '/clones' },
   ],
   resources: [
-    { label: 'Documentation', href: '/docs' },
-    { label: 'API Reference', href: '/docs/api' },
-    { label: 'Tutorials', href: '/tutorials' },
-    { label: 'Blog', href: '/blog' },
+    { label: 'Featured Agents', href: '/#featured' },
+    { label: 'How It Works', href: '/#workflow' },
+    { label: 'Creator Flow', href: '/#creator' },
+    { label: 'Testimonials', href: '/#proof' },
   ],
   company: [
-    { label: 'About', href: '/about' },
-    { label: 'Careers', href: '/careers' },
-    { label: 'Contact', href: '/contact' },
+    { label: 'Home', href: '/' },
+    { label: 'Dashboard', href: '/dashboard' },
+    { label: 'Profile', href: '/profile' },
     { label: 'Privacy Policy', href: '/privacy' },
   ],
 };
