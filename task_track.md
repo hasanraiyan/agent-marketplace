@@ -22,14 +22,13 @@
 - [x] `validators/agent.validator.js` — Zod schemas (`createAgentSchema`, `updateAgentSchema`, `searchAgentSchema`)
 
 ## Phase 4 — Chat + Runtime
-- [ ] `repositories/conversationRepository.js` — `create`, `findById`, `findByUser`, `updateTitle`, `updateLastMessage`
-- [ ] `repositories/messageRepository.js` — `create`, `findByConversation` (paginated)
-- [ ] `services/agentRuntime.service.js` — `getOrBuildRuntime` (with MongoDBSaver checkpointer), `invalidateRuntime`
-- [ ] `services/chat.service.js` — `startConversation`, `streamChat` (includes auto-titling logic)
-- [ ] `controllers/chat.controller.js` — SSE controller
-- [ ] `routes/chat.routes.js` — 6 routes
+- [x] `repositories/threadRepository.js` — `create`, `findById`, `findByUser`, `updateTitle`, `touchLastMessageAt`
+- [x] `repositories/messageRepository.js` — `addMessage`, `findByConversation` (paginated)
+- [x] `services/chat.service.js` — Langchain engine mapping, SSE streams
+- [x] `controllers/thread.controller.js` — CRUD and SSE handler invocation
+- [x] `routes/thread.routes.js` — `/threads` endpoints
 
 ## Phase 5 — Wire Up
-- [ ] Verify dependencies are installed (`deepagents`, `langgraph-checkpoint-mongodb`, etc.)
-- [ ] Update `src/index.js` to register 3 new routers
+- [x] Verify dependencies are installed (`@langchain/openai`, `mongoose`, etc.)
+- [x] Update `src/index.js` to register 3 new routers
 - [ ] E2E Manual Verifications

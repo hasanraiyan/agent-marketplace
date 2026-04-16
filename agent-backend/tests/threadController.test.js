@@ -22,13 +22,6 @@ jest.unstable_mockModule('../src/repositories/agentRepository.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/repositories/messageRepository.js', () => ({
-  default: {
-    findByConversation: jest.fn(),
-    deleteByConversation: jest.fn(),
-  },
-}));
-
 jest.unstable_mockModule('../src/validators/thread.validator.js', () => ({
   createThreadSchema: { parse: jest.fn().mockImplementation(data => data) },
   updateThreadTitleSchema: { parse: jest.fn().mockImplementation(data => data) },

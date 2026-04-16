@@ -8,13 +8,6 @@ jest.unstable_mockModule('../src/repositories/threadRepository.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/repositories/messageRepository.js', () => ({
-  default: {
-    addMessage: jest.fn(),
-    findByConversation: jest.fn(),
-  },
-}));
-
 jest.unstable_mockModule('../src/repositories/agentRepository.js', () => ({
   default: {
     findById: jest.fn(),
@@ -33,17 +26,38 @@ jest.unstable_mockModule('../src/utils/encryption.js', () => ({
   },
 }));
 
+// Mock Native LangGraph Checkpointer
+const mockGetTuple = jest.fn();
+jest.unstable_mockModule('@langchain/langgraph-checkpoint-mongodb', () => ({
+  MongoDBSaver: class {
+    constructor() { this.getTuple = mockGetTuple; }
+  }
+}));
+
+jest.unstable_mockModule('mongodb', () => ({
+  MongoClient: class {
+    constructor() {
+      this.connect = jest.fn().mockResolvedValue(true);
+    }
+  }
+}));
+
+// Mock DeepAgents Factory
+const mockStreamEvents = jest.fn();
+jest.unstable_mockModule('deepagents', () => ({
+  createDeepAgent: jest.fn().mockResolvedValue({
+    streamEvents: mockStreamEvents
+  })
+}));
+
 const threadRepository = (await import('../src/repositories/threadRepository.js')).default;
-const messageRepository = (await import('../src/repositories/messageRepository.js')).default;
 const agentRepository = (await import('../src/repositories/agentRepository.js')).default;
-const providerRepository = (await import('../src/repositories/providerRepository.js')).default;
 const chatService = (await import('../src/services/chat.service.js')).default;
 
-describe('Chat Service (Runtime LLM Engine)', () => {
+describe('Chat Service (DeepAgents Runtime Engine)', () => {
   let mockRes;
   let mockThread;
   let mockAgent;
-  let mockProvider;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -57,8 +71,10 @@ describe('Chat Service (Runtime LLM Engine)', () => {
 
     mockThread = {
       _id: 'thread_1',
+      threadId: 'uuid123',
       userId: 'user_1',
       agentId: 'agent_1',
+      title: 'Existing Conversation'
     };
 
     mockAgent = {
@@ -66,16 +82,9 @@ describe('Chat Service (Runtime LLM Engine)', () => {
       providerId: 'prov_1',
       systemPrompt: 'You are an agent',
     };
-
-    mockProvider = {
-      _id: 'prov_1',
-      apiKeyEncrypted: 'enc-key',
-      defaultModel: 'gpt-4o',
-      baseURL: 'https://api.openai.com/v1',
-    };
   });
 
-  describe('streamChat headers and validation', () => {
+  describe('streamChat DeepAgent execution', () => {
     test('should reject unauthorized user', async () => {
       threadRepository.findById.mockResolvedValue(mockThread);
 
@@ -85,27 +94,41 @@ describe('Chat Service (Runtime LLM Engine)', () => {
       expect(mockRes.end).toHaveBeenCalled();
     });
 
-    test('should reject missing agent', async () => {
-      threadRepository.findById.mockResolvedValue(mockThread);
-      agentRepository.findById.mockResolvedValue(null);
+    test('should invoke deepagent streamEvents and pipe chunk', async () => {
+       threadRepository.findById.mockResolvedValue(mockThread);
+       agentRepository.findById.mockResolvedValue(mockAgent);
+       
+       // Simulate deepagent stream event
+       async function* mockGenerator() {
+         yield { event: 'on_chat_model_stream', data: { chunk: { content: 'chunk1' } } };
+       }
+       mockStreamEvents.mockReturnValue(mockGenerator());
 
-      await chatService.streamChat(mockRes, 'thread_1', 'user_1', 'hello');
+       // We inject the API key directly just to bypass provider fetch logic internally
+       jest.spyOn(chatService, '_getAgentModel').mockResolvedValue({});
 
-      expect(mockRes.write).toHaveBeenCalledWith('data: {"error": "Agent deleted or unavailable"}\n\n');
+       await chatService.streamChat(mockRes, 'thread_1', 'user_1', 'hello');
+
+       expect(mockStreamEvents).toHaveBeenCalledWith(
+          { messages: [expect.any(Object)] }, 
+          { configurable: { thread_id: 'uuid123' }, version: 'v2' }
+       );
+
+       expect(mockRes.write).toHaveBeenCalledWith('data: {"chunk":"chunk1"}\n\n');
+       expect(mockRes.write).toHaveBeenCalledWith('data: [DONE]\n\n');
     });
   });
 
-  describe('LangChain message mapping', () => {
-    test('should accurately map internal messages to LangChain objects array', () => {
-       const mapped = chatService._mapToLangchainMessages([
-           { role: 'user', content: 'hello' },
-           { role: 'assistant', content: 'hi' },
-           { role: 'system', content: 'cmd' },
-       ]);
+  describe('getMessages Native LangGraph Lookup', () => {
+    test('should correctly retrieve snapshot messages', async () => {
+      threadRepository.findById.mockResolvedValue(mockThread);
+      mockGetTuple.mockResolvedValue({
+         checkpoint: { channel_values: { messages: [{ role: 'assistant', content: 'hello' }] } }
+      });
 
-       expect(mapped[0].constructor.name).toBe('HumanMessage');
-       expect(mapped[1].constructor.name).toBe('AIMessage');
-       expect(mapped[2].constructor.name).toBe('SystemMessage');
+      const msgs = await chatService.getMessages('thread_1', 'user_1');
+      expect(msgs).toEqual([{ role: 'assistant', content: 'hello' }]);
+      expect(mockGetTuple).toHaveBeenCalledWith({ configurable: { thread_id: 'uuid123' } });
     });
   });
 });

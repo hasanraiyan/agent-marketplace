@@ -1,6 +1,5 @@
 import crypto from 'crypto';
 import threadRepository from '../repositories/threadRepository.js';
-import messageRepository from '../repositories/messageRepository.js';
 import agentRepository from '../repositories/agentRepository.js';
 import chatService from '../services/chat.service.js';
 import { createThreadSchema, updateThreadTitleSchema, streamMessageSchema } from '../validators/thread.validator.js';
@@ -67,11 +66,9 @@ class ThreadController {
         return res.status(404).json({ success: false, message: 'Thread not found' });
       }
 
-      // Cascade delete messages
-      await messageRepository.deleteByConversation(thread._id);
       await threadRepository.delete(req.params.id);
 
-      res.json({ success: true, message: 'Thread completely deleted' });
+      res.json({ success: true, message: 'Thread permanently removed' });
     } catch (error) {
       next(error);
     }
@@ -95,19 +92,12 @@ class ThreadController {
 
   async getMessages(req, res, next) {
     try {
-      const thread = await threadRepository.findById(req.params.id);
-      
-      if (!thread || thread.userId.toString() !== req.user.id) {
-        return res.status(404).json({ success: false, message: 'Thread not found' });
-      }
-
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 50;
-
-      const messages = await messageRepository.findByConversation(thread._id, { page, limit });
-
+      const messages = await chatService.getMessages(req.params.id, req.user.id);
       res.json({ success: true, data: messages });
     } catch (error) {
+      if (error.message === 'Unauthorized' || error.message === 'Thread not found') {
+         return res.status(404).json({ success: false, message: 'Thread not found' });
+      }
       next(error);
     }
   }

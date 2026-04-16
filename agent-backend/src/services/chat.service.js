@@ -1,33 +1,21 @@
 import { ChatOpenAI } from '@langchain/openai';
-import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import threadRepository from '../repositories/threadRepository.js';
-import messageRepository from '../repositories/messageRepository.js';
 import agentRepository from '../repositories/agentRepository.js';
 import providerRepository from '../repositories/providerRepository.js';
 import encryption from '../utils/encryption.js';
+import { createDeepAgent } from 'deepagents';
+import { MongoDBSaver } from '@langchain/langgraph-checkpoint-mongodb';
+import { MongoClient } from 'mongodb';
 
 class ChatService {
-  /**
-   * Translates our local Message model into LangChain Message objects
-   */
-  _mapToLangchainMessages(localMessages) {
-    return localMessages.map(msg => {
-      switch (msg.role) {
-        case 'user':
-          return new HumanMessage(msg.content);
-        case 'assistant':
-          return new AIMessage(msg.content);
-        case 'system':
-          return new SystemMessage(msg.content);
-        default:
-          return new HumanMessage(msg.content); 
-      }
-    });
+  constructor() {
+    this.mongoClient = new MongoClient(process.env.MONGODB_URI);
+    // Connect explicitly for safety (though driver often handles lazy connections)
+    this.mongoClient.connect().catch(console.error);
+    this.checkpointer = new MongoDBSaver({ client: this.mongoClient });
   }
 
-  /**
-   * Initializes the LLM configured specifically for the agent
-   */
   async _getAgentModel(agent) {
     if (!agent.providerId) {
       throw new Error('Agent has no valid provider configured.');
@@ -40,11 +28,9 @@ class ChatService {
 
     const apiKey = encryption.decrypt(provider.apiKeyEncrypted);
 
-    // Dynamic ChatOpenAI setup pointing to the user's Creator provider.
-    // Works with OpenAI, OpenRouter, Mistral, Anyscale, etc (OpenAI compatible)
     return new ChatOpenAI({
       openAIApiKey: apiKey,
-      modelName: agent.modelName || provider.defaultModel || 'gpt-3.5-turbo', // Fallback
+      modelName: agent.modelName || provider.defaultModel || 'gpt-3.5-turbo',
       temperature: 0.7,
       streaming: true,
       configuration: {
@@ -53,9 +39,6 @@ class ChatService {
     });
   }
 
-  /**
-   * Background task: Attempt to generate a title for a new conversation based on the first message
-   */
   async _autoTitleThread(thread, firstUserMessage, llm) {
     try {
       const titlePrompt = [
@@ -69,16 +52,31 @@ class ChatService {
       await threadRepository.update(thread._id, { title: newTitle });
     } catch (error) {
       console.error('Failed to auto-title thread:', error.message);
-      // Fail silently, auto-titling isn't critical
     }
   }
 
   /**
-   * Resolves the thread, verifies ownership, builds context, triggers the LLM, and attaches the stream to Express Response.
+   * Retrieves messages directly out of the LangGraph MongoDB Checkpointer
    */
-  async streamChat(res, threadId, userId, incomingMessage) {
-    // 1. Resolve and Auth Thread
+  async getMessages(threadId, userId) {
     const thread = await threadRepository.findById(threadId);
+    if (!thread) throw new Error('Thread not found');
+    if (thread.userId.toString() !== userId.toString()) throw new Error('Unauthorized');
+    
+    // Grab the graph snapshot from the LangGraph checkpointer natively
+    const snapshot = await this.checkpointer.getTuple({ configurable: { thread_id: thread.threadId } });
+    
+    if (!snapshot || !snapshot.checkpoint || !snapshot.checkpoint.channel_values) {
+      return [];
+    }
+    
+    // In basic graph setups, messages channel contains the history array
+    return snapshot.checkpoint.channel_values.messages || [];
+  }
+
+  async streamChat(res, threadId, userId, incomingMessage) {
+    const thread = await threadRepository.findById(threadId);
+    
     if (!thread) {
       res.write(`data: {"error": "Thread not found"}\n\n`);
       return res.end();
@@ -88,102 +86,66 @@ class ChatService {
       return res.end();
     }
 
-    // 2. Load Agent Config
     const agent = await agentRepository.findById(thread.agentId);
     if (!agent) {
       res.write(`data: {"error": "Agent deleted or unavailable"}\n\n`);
       return res.end();
     }
 
-    // 3. Setup SSE Headers
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
-    
-    // Flush headers to establish connection immediately
-    if (res.flushHeaders) res.flushHeaders(); 
+    if (res.flushHeaders) res.flushHeaders();
 
     try {
-      // 4. Record User Message
-      await messageRepository.addMessage(thread._id, 'user', incomingMessage);
-      
-      // Update thread lastMessageAt
       await threadRepository.touchLastMessageAt(thread._id);
 
-      // 5. Build Memory Context
-      const pastMessages = await messageRepository.findByConversation(thread._id, { limit: 20 }); // Limit context window
-      
-      const langchainMessages = [
-        new SystemMessage(agent.systemPrompt),
-        ...this._mapToLangchainMessages(pastMessages) // includes the message we just saved
-      ];
-
-      // 6. Initialize LLM Model dynamically
       const llm = await this._getAgentModel(agent);
 
-      // Trigger auto-titling in background if this is the very first message
-      if (pastMessages.length <= 1) { // 1 = just the one we saved right now
-        this._autoTitleThread(thread, incomingMessage, llm).catch(() => {});
-      }
+      // Build DeepAgent wrapper and attach the native checkpoint memory module
+      const agentInstance = await createDeepAgent({
+        model: llm,
+        systemPrompt: agent.systemPrompt,
+        checkpointer: this.checkpointer,
+        // TBD: Inject custom dynamic tools assigned to this agent in MVP iterations
+      });
 
-      // 7. Stream execution
-      const stream = await llm.stream(langchainMessages);
+      // Execute V2 stream! Only sending in the new HumanMessage.
+      // LangGraph dynamically fetches the previous thread context natively.
+      const stream = agentInstance.streamEvents(
+        { messages: [new HumanMessage(incomingMessage)] },
+        { configurable: { thread_id: thread.threadId }, version: "v2" }
+      );
 
-      let fullResponse = '';
+      for await (const event of stream) {
+        const { event: evtName, data, name } = event;
 
-      for await (const chunk of stream) {
-        if (chunk.content) {
-          fullResponse += chunk.content;
-          
-          // Format specific to standard SSE
-          res.write(`data: ${JSON.stringify({ chunk: chunk.content })}\n\n`);
+        if (evtName === 'on_chat_model_stream') {
+          const chunk = data?.chunk?.content;
+          if (typeof chunk === 'string' && chunk) {
+            res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+          }
+        } 
+        else if (evtName === 'on_tool_start') {
+          // Native integration with future deepagents tools
+          const toolName = name || data?.name || "tool";
+          res.write(`data: ${JSON.stringify({ tool: `Executing ${toolName}...` })}\n\n`);
         }
       }
 
-      // 8. Finalize - Save Assistant Response Memory
-      await messageRepository.addMessage(thread._id, 'assistant', fullResponse);
-
-      // End connection gracefully
       res.write(`data: [DONE]\n\n`);
       res.end();
+
+      // Trigger automatic background title update if thread is completely fresh
+      if (thread.title === 'New Conversation') {
+        this._autoTitleThread(thread, incomingMessage, llm).catch(() => {});
+      }
 
     } catch (error) {
       console.error('Chat Streaming Error:', error);
       res.write(`data: ${JSON.stringify({ error: error.message || 'Streaming failed' })}\n\n`);
       res.end();
     }
-  }
-
-  /**
-   * Simplified helper for non-streaming environments (e.g. CLI testing / webhooks)
-   */
-  async getChatResponse(threadId, userId, incomingMessage) {
-    const thread = await threadRepository.findById(threadId);
-    if (!thread || thread.userId.toString() !== userId.toString()) throw new Error('Unauthorized or not found');
-
-    const agent = await agentRepository.findById(thread.agentId);
-    if (!agent) throw new Error('Agent unavailable');
-
-    await messageRepository.addMessage(thread._id, 'user', incomingMessage);
-    await threadRepository.touchLastMessageAt(thread._id);
-
-    const pastMessages = await messageRepository.findByConversation(thread._id, { limit: 20 });
-    const langchainMessages = [
-        new SystemMessage(agent.systemPrompt),
-        ...this._mapToLangchainMessages(pastMessages)
-    ];
-
-    const llm = await this._getAgentModel(agent);
-    
-    if (pastMessages.length <= 1) {
-      this._autoTitleThread(thread, incomingMessage, llm).catch(() => {});
-    }
-
-    const response = await llm.invoke(langchainMessages);
-    
-    await messageRepository.addMessage(thread._id, 'assistant', response.content);
-
-    return { content: response.content };
   }
 }
 
