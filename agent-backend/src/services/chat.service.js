@@ -63,7 +63,7 @@ class ChatService {
       await threadRepository.touchLastMessageAt(thread._id);
 
       // DELAGATE ENTIRE GRAPH COMPILATION TO FACTORY DESIGN PATTERN
-      const { agentInstance, agentConfig, llm } = await agentFactory.buildAgent(thread.agentId, this.checkpointer);
+      const { agentInstance, agentConfig, llm } = await agentFactory.buildAgent(thread.agentId, userId, this.checkpointer);
 
       const stream = agentInstance.streamEvents(
         { messages: [new HumanMessage(incomingMessage)] },
@@ -121,7 +121,7 @@ class ChatService {
     if (res.flushHeaders) res.flushHeaders();
 
     try {
-      const { agentInstance } = await agentFactory.buildAgent(thread.agentId, this.checkpointer);
+      const { agentInstance } = await agentFactory.buildAgent(thread.agentId, userId, this.checkpointer);
       
       let resumePayload;
       if (answers) {

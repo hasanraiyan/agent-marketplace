@@ -4,7 +4,16 @@ import agentRepository from '../repositories/agentRepository.js';
 import providerRepository from '../repositories/providerRepository.js';
 import encryption from '../utils/encryption.js';
 
-import { resolveAgentTools } from '../tools/index.js';
+import { resolveAgentTools, ARCHITECT_AGENT_ID } from '../tools/index.js';
+
+const ARCHITECT_SYSTEM_PROMPT = `
+You are the **Agent Architect**, a senior software engineer and AI specialized in building highly effective agents.
+Your goal is to help the user design, build, and optimize their own custom AI agents.
+- **Discovery**: List and analyze the user's existing agents and providers.
+- **Architecting**: Draft and update agent system instructions (brain).
+- **Engineering**: Create and manage specialized Skills (tools) and link them to agents.
+- **Security**: You CANNOT view or manage API keys.
+`;
 
 import { LRUCache } from 'lru-cache';
 
@@ -44,13 +53,34 @@ class AgentFactory {
    * Factory Method: Builds and returns the compiled DeepAgent graph instance.
    * Leverages LRU caching to avoid expensive recompilation for the same agent.
    */
-  async buildAgent(agentId, checkpointer) {
+  async buildAgent(agentId, userId, checkpointer) {
     const agentIdStr = agentId.toString();
     const cached = this.cache.get(agentIdStr);
 
-    // 1. Fetch Configuration with populate to get attached Skills (metadata only for validation)
-    const agent = await agentRepository.findById(agentId).populate('skills');
-    if (!agent) throw new Error('Agent deleted or unavailable');
+    let agent;
+
+    // 1. Detect if this is the Specialized Architect (Meta-Agent)
+    if (agentIdStr === ARCHITECT_AGENT_ID) {
+      // Find user's default provider for the architect to use
+      const userProviders = await providerRepository.findByUser(userId);
+      const defaultProvider = userProviders.find(p => p.isDefault) || userProviders[0];
+      
+      if (!defaultProvider) throw new Error('No provider configured. Please add a provider (API Key) in settings first.');
+
+      agent = {
+        _id: ARCHITECT_AGENT_ID,
+        name: 'Agent Architect',
+        systemPrompt: ARCHITECT_SYSTEM_PROMPT,
+        providerId: defaultProvider._id,
+        modelName: 'gpt-4o', // The architect should be high-intelligence
+        updatedAt: new Date(0), // Version 0 (static)
+        skills: []
+      };
+    } else {
+      // 1.5 Fetch Standard Configuration from DB
+      agent = await agentRepository.findById(agentId).populate('skills');
+      if (!agent) throw new Error('Agent deleted or unavailable');
+    }
 
     // 2. Cache Validation: If already cached and hasn't been updated since, return it!
     if (cached && cached.updatedAt.getTime() === agent.updatedAt.getTime()) {
@@ -66,7 +96,7 @@ class AgentFactory {
     const llm = await this._buildLLM(agent);
 
     // Completely abstracted Tool Registry injection
-    const dynamicTools = resolveAgentTools(agent);
+    const dynamicTools = resolveAgentTools(agent, userId);
 
     const { InMemoryStore } = await import('@langchain/langgraph');
     const { SkillService } = await import('deepagents');
