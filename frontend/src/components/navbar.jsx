@@ -40,7 +40,9 @@ export function Navbar() {
     <header
       id="navbar"
       className={`fixed top-0 right-0 left-0 z-50 transition-all duration-300 ${
-        scrolled ? "glass-strong shadow-lg shadow-black/20" : "bg-transparent"
+        scrolled
+          ? "glass-strong shadow-lg shadow-black/20"
+          : "glass shadow-sm border-b border-white/5"
       }`}
     >
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
