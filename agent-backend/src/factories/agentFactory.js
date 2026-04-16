@@ -6,9 +6,14 @@ import encryption from '../utils/encryption.js';
 
 import { resolveAgentTools } from '../tools/index.js';
 
+import { LRUCache } from 'lru-cache';
+
 class AgentFactory {
   constructor() {
-    this.cache = new Map();
+    this.cache = new LRUCache({
+      max: 100, // Cache up to 100 compiled agents
+      ttl: 1000 * 60 * 10, // 10 minute default TTL
+    });
   }
 
   /**
@@ -36,14 +41,28 @@ class AgentFactory {
   }
 
   /**
-   * Factory Method: Builds and returns the compiled DeepAgent graph instance
+   * Factory Method: Builds and returns the compiled DeepAgent graph instance.
+   * Leverages LRU caching to avoid expensive recompilation for the same agent.
    */
   async buildAgent(agentId, checkpointer) {
-    // 1. Fetch Configuration with populate to get attached Skills
+    const agentIdStr = agentId.toString();
+    const cached = this.cache.get(agentIdStr);
+
+    // 1. Fetch Configuration with populate to get attached Skills (metadata only for validation)
     const agent = await agentRepository.findById(agentId).populate('skills');
     if (!agent) throw new Error('Agent deleted or unavailable');
 
-    // 2. Build Base Model
+    // 2. Cache Validation: If already cached and hasn't been updated since, return it!
+    if (cached && cached.updatedAt.getTime() === agent.updatedAt.getTime()) {
+      return { 
+        agentInstance: cached.instance, 
+        agentConfig: agent, 
+        llm: cached.llm,
+        cacheHit: true 
+      };
+    }
+
+    // 3. Build Base Model
     const llm = await this._buildLLM(agent);
 
     // Completely abstracted Tool Registry injection
@@ -56,15 +75,13 @@ class AgentFactory {
     const skillService = new SkillService(store);
 
     if (agent.skills && agent.skills.length > 0) {
-      // Loop over populated Skills and load them natively into the store!
       for (const skill of agent.skills) {
-         // Create the frontmatter exactly as deepagent expects
          const frontmatter = `---\nname: ${skill.name}\ndescription: ${skill.description}\n---\n\n${skill.instructions}`;
          await skillService.loadSkill(skill.name, frontmatter);
       }
     }
 
-    // 5. Assemble Custom DeepAgent Runtime
+    // 4. Assemble Custom DeepAgent Runtime
     const agentInstance = await createDeepAgent({
       model: llm,
       systemPrompt: agent.systemPrompt,
@@ -77,7 +94,22 @@ class AgentFactory {
       },
     });
 
-    return { agentInstance, agentConfig: agent, llm };
+    // 5. Update Cache
+    this.cache.set(agentIdStr, {
+      instance: agentInstance,
+      llm: llm,
+      updatedAt: agent.updatedAt,
+    });
+
+    return { agentInstance, agentConfig: agent, llm, cacheHit: false };
+  }
+
+  /**
+   * Explicitly evicts an agent from the factory cache.
+   * Call this when agent configuration or skills are modified.
+   */
+  invalidate(agentId) {
+    this.cache.delete(agentId.toString());
   }
 }
 

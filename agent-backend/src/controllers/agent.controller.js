@@ -1,4 +1,5 @@
 import agentService from '../services/agent.service.js';
+import agentFactory from '../factories/agentFactory.js';
 import { createAgentSchema, updateAgentSchema, searchAgentSchema, countAgentSchema } from '../validators/agent.validator.js';
 
 class AgentController {
@@ -57,6 +58,9 @@ class AgentController {
       const validatedData = updateAgentSchema.parse(req.body);
       const agent = await agentService.updateAgent(req.params.id, req.user.id, validatedData);
       
+      // Clear factory cache so new config picked up immediately
+      agentFactory.invalidate(req.params.id);
+
       res.json({
         success: true,
         data: agent,
@@ -69,6 +73,10 @@ class AgentController {
   async remove(req, res, next) {
     try {
       await agentService.deleteAgent(req.params.id, req.user.id);
+
+      // Clean up cache
+      agentFactory.invalidate(req.params.id);
+
       res.json({
         success: true,
         message: 'Agent deleted successfully',
