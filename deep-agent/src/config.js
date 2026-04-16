@@ -6,8 +6,11 @@ import { ChatOpenAI } from "@langchain/openai";
  */
 export const config = {
   model: new ChatOpenAI({
-    model: "gpt-5.4-nano",
+    model: process.env.OPENAI_MODEL || "gpt-5.4-nano",
     apiKey: process.env.OPENAI_API_KEY,
+    configuration: {
+      baseURL: process.env.OPENAI_BASE_URL,
+    },
   }),
   threadId: process.env.DEFAULT_THREAD_ID || "default-user",
 };
