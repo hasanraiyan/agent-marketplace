@@ -8,6 +8,7 @@ REST API backend for Agent Marketplace built with Express 5, MongoDB (Mongoose),
 - **Framework**: Express 5
 - **Database**: MongoDB via Mongoose 9
 - **Validation**: Zod
+- **AI orchestration**: LangChain, LangGraph, Deep Agents
 - **Encryption**: AES-256-GCM with key rotation support
 - **Auth deps**: bcrypt, jsonwebtoken
 - **Email deps**: resend, mailgen
@@ -58,8 +59,13 @@ backend/
        index.js                    # Logger singleton (swappable)
      validators/
        schemaValidator.js          # Zod validation helpers + reusable schemas
+  ai/
+    config.js                    # AI provider/env helpers
+    examples.js                  # LangChain, LangGraph, and Deep Agents examples
+    index.js                     # AI module exports
  scripts/
    generate-encryption-key.js      # CLI tool for encryption key generation
+  verify-ai-stack.js              # Offline LangChain/LangGraph/Deep Agents verification
  tests/                            # Jest test suite
  docs/
    encryption-rotation-plan.md     # Key rotation migration design
@@ -92,6 +98,12 @@ cp .env.example .env
 | `MONGODB_URI`                 | MongoDB connection string                         | `mongodb://localhost:27017/agent-marketplace` |
 | `DB_ENCRYPTION_ACTIVE_KEY_ID` | Active encryption key ID                          | —                                             |
 | `DB_ENCRYPTION_KEYS`          | JSON map of key IDs to base64-encoded keys        | —                                             |
+| `OPENAI_API_KEY`              | OpenAI API key for live LangChain examples        | —                                             |
+| `OPENAI_MODEL`                | Default OpenAI model                              | `gpt-4.1-mini`                                |
+| `ANTHROPIC_API_KEY`           | Anthropic API key for live Deep Agent examples    | —                                             |
+| `ANTHROPIC_MODEL`             | Default Anthropic model                           | `claude-sonnet-4-6`                           |
+| `LANGSMITH_API_KEY`           | LangSmith tracing key                             | —                                             |
+| `LANGSMITH_PROJECT`           | LangSmith project name                            | `agent-marketplace-backend`                   |
 
 ## Running
 
@@ -123,7 +135,23 @@ pnpm test
 
 # Watch mode
 pnpm run test:watch
+
+# Run the deterministic AI stack smoke test
+pnpm run ai:verify
 ```
+
+## AI Stack
+
+This backend now includes a production-oriented JavaScript AI stack:
+
+- `langchain` for prompts, chains, tools, and agents
+- `@langchain/langgraph` for stateful workflow orchestration and memory
+- `deepagents` for batteries-included task planning and filesystem-aware agents
+- `langsmith` for observability and traces
+
+The offline examples and verification suite live in `src/ai/`, `scripts/verify-ai-stack.js`, and `tests/aiExamples.test.js`.
+
+Detailed implementation guidance is documented in `docs/langchain-javascript-backend-implementation.md`.
 
 ## Code Quality
 

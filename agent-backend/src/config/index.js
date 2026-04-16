@@ -42,6 +42,14 @@ const config = {
     cleanExpiredOTPs: process.env.CRON_CLEAN_EXPIRED_OTPS || '0 */6 * * *',
     retentionDays: parseInt(process.env.ACCOUNT_RETENTION_DAYS, 10) || 30,
   },
+  ai: {
+    openAiApiKey: process.env.OPENAI_API_KEY || null,
+    openAiModel: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY || null,
+    anthropicModel: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
+    langsmithApiKey: process.env.LANGSMITH_API_KEY || null,
+    langsmithProject: process.env.LANGSMITH_PROJECT || 'agent-marketplace-backend',
+  },
 };
 
 export default config;
