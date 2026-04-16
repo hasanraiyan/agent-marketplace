@@ -4,9 +4,9 @@ import agentRepository from '../repositories/agentRepository.js';
 import providerRepository from '../repositories/providerRepository.js';
 import encryption from '../utils/encryption.js';
 
+import { resolveAgentTools } from '../tools/index.js';
+
 class AgentFactory {
-  // A simple in-memory LRU cache concept for future scaling 
-  // so we don't compile LangGraph on every single ping
   constructor() {
     this.cache = new Map();
   }
@@ -46,23 +46,9 @@ class AgentFactory {
     // 2. Build Base Model
     const llm = await this._buildLLM(agent);
 
-    // 3. Assemble Dynamic Tools Array
-    const dynamicTools = [];
-    if (agent.webSearchEnabled) {
-      if (!process.env.TAVILY_API_KEY) {
-        console.warn('Tavily Search is enabled for this agent, but TAVILY_API_KEY is missing from environment.');
-      } else {
-        const { TavilySearch } = await import('@langchain/tavily');
-        dynamicTools.push(new TavilySearch({
-          maxResults: 5,
-          searchDepth: 'advanced',
-          name: 'search_web',
-          description: 'Search the web for up-to-date information on any topic.',
-        }));
-      }
-    }
+    // Completely abstracted Tool Registry injection
+    const dynamicTools = resolveAgentTools(agent);
 
-    // 4. Construct the DeepAgents Native Store for Skill Management
     const { InMemoryStore } = await import('@langchain/langgraph');
     const { SkillService } = await import('deepagents');
     
