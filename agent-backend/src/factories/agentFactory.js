@@ -71,7 +71,10 @@ class AgentFactory {
       checkpointer: checkpointer,
       store: store,
       tools: dynamicTools,
-      interruptOn: agent.interruptOn instanceof Map ? Object.fromEntries(agent.interruptOn) : agent.interruptOn,
+      interruptOn: {
+        ...(agent.interruptOn instanceof Map ? Object.fromEntries(agent.interruptOn) : agent.interruptOn),
+        'ask_clarification': true, // Always force interrupt for structured questions
+      },
     });
 
     return { agentInstance, agentConfig: agent, llm };

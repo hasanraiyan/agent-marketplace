@@ -1,4 +1,5 @@
 import { getSearchTool } from './search.tool.js';
+import { clarificationTool } from './clarification.tool.js';
 
 /**
  * Tool Registry Builder
@@ -9,7 +10,7 @@ import { getSearchTool } from './search.tool.js';
  * @returns {Array} Array of initialized LangChain Tools
  */
 export const resolveAgentTools = (agentConfig) => {
-  const tools = [];
+  const tools = [clarificationTool];
 
   // 1. Core Engine Web Search parsing
   if (agentConfig.webSearchEnabled) {
@@ -24,7 +25,7 @@ export const resolveAgentTools = (agentConfig) => {
 
 // Also expose generic factory for backend scripts outside of Chat loop
 export const getAvailableTools = () => {
-    const tools = [];
+    const tools = [clarificationTool];
     
     const searchTool = getSearchTool();
     if (searchTool) tools.push(searchTool);

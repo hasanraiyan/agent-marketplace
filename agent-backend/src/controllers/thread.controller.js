@@ -119,8 +119,8 @@ class ThreadController {
 
   async handleAction(req, res, next) {
     try {
-      const { action, feedback } = req.body;
-      await chatService.handleAction(res, req.params.id, req.user.id, action, feedback);
+      const { action, feedback, answers } = req.body;
+      await chatService.handleAction(res, req.params.id, req.user.id, action, feedback, answers);
     } catch (error) {
       next(error);
     }

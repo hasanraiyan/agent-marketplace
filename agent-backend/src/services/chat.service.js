@@ -107,7 +107,7 @@ class ChatService {
     }
   }
 
-  async handleAction(res, threadId, userId, action, feedback) {
+  async handleAction(res, threadId, userId, action, feedback, answers) {
     const thread = await threadRepository.findById(threadId);
     
     if (!thread || thread.userId.toString() !== userId.toString()) {
@@ -123,9 +123,17 @@ class ChatService {
     try {
       const { agentInstance } = await agentFactory.buildAgent(thread.agentId, this.checkpointer);
       
-      const resumePayload = action === 'approve' 
-        ? { decisions: [{ type: 'approve' }] } 
-        : { decisions: [{ type: 'reject', message: feedback || 'Rejected by user' }] };
+      let resumePayload;
+      if (answers) {
+        // Special case: Returning structured clarification answers
+        resumePayload = { 
+          decisions: [{ type: 'approve', answers }] 
+        };
+      } else {
+        resumePayload = action === 'approve' 
+          ? { decisions: [{ type: 'approve' }] } 
+          : { decisions: [{ type: 'reject', message: feedback || 'Rejected by user' }] };
+      }
 
       const stream = agentInstance.streamEvents(
         new Command({ resume: resumePayload }),
