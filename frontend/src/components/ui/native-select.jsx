@@ -1,14 +1,14 @@
-import * as React from 'react';
+import * as React from "react";
 
-import { cn } from '@/lib/utils';
-import { ChevronDownIcon } from 'lucide-react';
+import { cn } from "@/lib/utils";
+import { ChevronDownIcon } from "lucide-react";
 
-function NativeSelect({ className, size = 'default', ...props }) {
+function NativeSelect({ className, size = "default", ...props }) {
   return (
     <div
       className={cn(
-        'group/native-select relative w-fit has-[select:disabled]:opacity-50',
-        className
+        "group/native-select relative w-fit has-[select:disabled]:opacity-50",
+        className,
       )}
       data-slot="native-select-wrapper"
       data-size={size}
@@ -32,7 +32,7 @@ function NativeSelectOption({ className, ...props }) {
   return (
     <option
       data-slot="native-select-option"
-      className={cn('bg-[Canvas] text-[CanvasText]', className)}
+      className={cn("bg-[Canvas] text-[CanvasText]", className)}
       {...props}
     />
   );
@@ -42,7 +42,7 @@ function NativeSelectOptGroup({ className, ...props }) {
   return (
     <optgroup
       data-slot="native-select-optgroup"
-      className={cn('bg-[Canvas] text-[CanvasText]', className)}
+      className={cn("bg-[Canvas] text-[CanvasText]", className)}
       {...props}
     />
   );
