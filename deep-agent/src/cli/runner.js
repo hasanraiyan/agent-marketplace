@@ -123,6 +123,7 @@ export async function runAgent(agentInput, agentInstance, getConfig, hooks = {})
 
   } catch (e) {
     stopSpinner();
+    stopToolSpinner();
     process.stdout.write("\r" + " ".repeat(60) + "\r");
 
     if (e?.name === "GraphInterrupt" || e?.message?.includes("interrupt")) {
