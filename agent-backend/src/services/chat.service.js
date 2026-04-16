@@ -2,6 +2,7 @@ import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import threadRepository from '../repositories/threadRepository.js';
 import agentFactory from '../factories/agentFactory.js';
 import { MongoDBSaver } from '@langchain/langgraph-checkpoint-mongodb';
+import { Command } from '@langchain/langgraph';
 import { MongoClient } from 'mongodb';
 
 class ChatService {
@@ -82,6 +83,9 @@ class ChatService {
           const toolName = name || data?.name || "tool";
           res.write(`data: ${JSON.stringify({ tool: `Executing ${toolName}...` })}\n\n`);
         }
+        else if (evtName === 'on_custom_event' && data?.type === 'interrupt') {
+          res.write(`data: ${JSON.stringify({ interrupt: true, tool: data.tool, args: data.args })}\n\n`);
+        }
       }
 
       res.write(`data: [DONE]\n\n`);
@@ -92,8 +96,71 @@ class ChatService {
       }
 
     } catch (error) {
+      if (error?.name === 'GraphInterrupt' || error?.message?.includes('interrupt')) {
+        res.write(`data: ${JSON.stringify({ interrupt: true })}\n\n`);
+        res.write(`data: [DONE]\n\n`);
+        return res.end();
+      }
       console.error('Chat Streaming Error:', error);
       res.write(`data: ${JSON.stringify({ error: error.message || 'Streaming failed' })}\n\n`);
+      res.end();
+    }
+  }
+
+  async handleAction(res, threadId, userId, action, feedback) {
+    const thread = await threadRepository.findById(threadId);
+    
+    if (!thread || thread.userId.toString() !== userId.toString()) {
+       res.write(`data: {"error": "Thread not found or unauthorized"}\n\n`);
+       return res.end();
+    }
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    if (res.flushHeaders) res.flushHeaders();
+
+    try {
+      const { agentInstance } = await agentFactory.buildAgent(thread.agentId, this.checkpointer);
+      
+      const resumePayload = action === 'approve' 
+        ? { decisions: [{ type: 'approve' }] } 
+        : { decisions: [{ type: 'reject', message: feedback || 'Rejected by user' }] };
+
+      const stream = agentInstance.streamEvents(
+        new Command({ resume: resumePayload }),
+        { configurable: { thread_id: thread.threadId }, version: "v2" }
+      );
+
+      for await (const event of stream) {
+        const { event: evtName, data, name } = event;
+
+        if (evtName === 'on_chat_model_stream') {
+          const chunk = data?.chunk?.content;
+          if (typeof chunk === 'string' && chunk) {
+            res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+          }
+        } 
+        else if (evtName === 'on_tool_start') {
+          const toolName = name || data?.name || "tool";
+          res.write(`data: ${JSON.stringify({ tool: `Executing ${toolName}...` })}\n\n`);
+        }
+        else if (evtName === 'on_custom_event' && data?.type === 'interrupt') {
+          res.write(`data: ${JSON.stringify({ interrupt: true, tool: data.tool, args: data.args })}\n\n`);
+        }
+      }
+
+      res.write(`data: [DONE]\n\n`);
+      res.end();
+
+    } catch (error) {
+      if (error?.name === 'GraphInterrupt' || error?.message?.includes('interrupt')) {
+        res.write(`data: ${JSON.stringify({ interrupt: true })}\n\n`);
+        res.write(`data: [DONE]\n\n`);
+        return res.end();
+      }
+      console.error('Action Resumption Error:', error);
+      res.write(`data: ${JSON.stringify({ error: error.message || 'Action failed' })}\n\n`);
       res.end();
     }
   }

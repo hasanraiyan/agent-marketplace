@@ -116,6 +116,15 @@ class ThreadController {
       next(error); 
     }
   }
+
+  async handleAction(req, res, next) {
+    try {
+      const { action, feedback } = req.body;
+      await chatService.handleAction(res, req.params.id, req.user.id, action, feedback);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export default new ThreadController();

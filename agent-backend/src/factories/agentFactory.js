@@ -71,6 +71,7 @@ class AgentFactory {
       checkpointer: checkpointer,
       store: store,
       tools: dynamicTools,
+      interruptOn: agent.interruptOn instanceof Map ? Object.fromEntries(agent.interruptOn) : agent.interruptOn,
     });
 
     return { agentInstance, agentConfig: agent, llm };

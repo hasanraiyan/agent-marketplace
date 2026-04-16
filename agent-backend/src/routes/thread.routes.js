@@ -23,5 +23,6 @@ router.get('/:id/messages', threadController.getMessages);
 // The SSE stream endpoint does not use validateBody because streams bypass standard res.json()
 // Validation happens manually inside the stream controller block so it doesn't interrupt headers unexpectedly.
 router.post('/:id/stream', threadController.stream);
+router.post('/:id/actions', threadController.handleAction);
 
 export default router;
