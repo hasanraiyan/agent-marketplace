@@ -26,6 +26,9 @@ importers:
       '@langchain/openai':
         specifier: ^1.4.4
         version: 1.4.4(@langchain/core@1.1.40(openai@6.34.0(zod@4.3.6)))
+      '@langchain/tavily':
+        specifier: ^1.2.0
+        version: 1.2.0(@langchain/core@1.1.40(openai@6.34.0(zod@4.3.6)))
       deepagents:
         specifier: ^1.9.0
         version: 1.9.0(langsmith@0.5.20(openai@6.34.0(zod@4.3.6)))(openai@6.34.0(zod@4.3.6))
@@ -523,6 +526,12 @@ packages:
     engines: {node: '>=20'}
     peerDependencies:
       '@langchain/core': ^1.1.39
+
+  '@langchain/tavily@1.2.0':
+    resolution: {integrity: sha512-aPLPgtw8+b/Rnr3H+X8H8z98T/Y7JuCE4B5eqRDHoEWgZvMDUFF7divqwQqCTMq2deQttlVrm5bN5JbKaAR7/w==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@langchain/core': ^1.0.0
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -1869,6 +1878,11 @@ snapshots:
       zod: 4.3.6
     transitivePeerDependencies:
       - ws
+
+  '@langchain/tavily@1.2.0(@langchain/core@1.1.40(openai@6.34.0(zod@4.3.6)))':
+    dependencies:
+      '@langchain/core': 1.1.40(openai@6.34.0(zod@4.3.6))
+      zod: 4.3.6
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
