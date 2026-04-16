@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import authMiddleware from '../middlewares/auth.middleware.js';
-import schemaValidator from '../utils/validators/schemaValidator.js';
+import { validateBody } from '../middlewares/validationMiddleware.js';
 import { createSkillSchema, updateSkillSchema } from '../validators/skill.validator.js';
 import skillController from '../controllers/skill.controller.js';
 
@@ -13,9 +13,9 @@ router.get('/public', authMiddleware, skillController.getPublicSkills);
 router.get('/', authMiddleware, skillController.getMySkills);
 
 // CRUD
-router.post('/', authMiddleware, schemaValidator(createSkillSchema), skillController.create);
+router.post('/', authMiddleware, validateBody(createSkillSchema), skillController.create);
 router.get('/:id', authMiddleware, skillController.getById);
-router.patch('/:id', authMiddleware, schemaValidator(updateSkillSchema), skillController.update);
+router.patch('/:id', authMiddleware, validateBody(updateSkillSchema), skillController.update);
 router.delete('/:id', authMiddleware, skillController.delete);
 
 export default router;
