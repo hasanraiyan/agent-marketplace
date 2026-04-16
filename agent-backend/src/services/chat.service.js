@@ -7,9 +7,11 @@ import { MongoClient } from 'mongodb';
 
 class ChatService {
   constructor() {
-    this.mongoClient = new MongoClient(process.env.MONGODB_URI);
-    this.mongoClient.connect().catch(console.error);
-    this.checkpointer = new MongoDBSaver({ client: this.mongoClient });
+    if (process.env.MONGODB_URI) {
+      this.mongoClient = new MongoClient(process.env.MONGODB_URI);
+      this.mongoClient.connect().catch(console.error);
+      this.checkpointer = new MongoDBSaver({ client: this.mongoClient });
+    }
   }
 
   async _autoTitleThread(thread, firstUserMessage, llm) {

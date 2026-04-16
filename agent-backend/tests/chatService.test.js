@@ -85,7 +85,7 @@ describe('Chat Service (DeepAgents Factory Integration)', () => {
 
        await chatService.streamChat(mockRes, 'thread_1', 'user_1', 'hello');
 
-       expect(agentFactory.buildAgent).toHaveBeenCalledWith('agent_1', expect.any(Object));
+       expect(agentFactory.buildAgent).toHaveBeenCalledWith('agent_1', undefined);
        expect(mockStreamEvents).toHaveBeenCalled();
 
        expect(mockRes.write).toHaveBeenCalledWith('data: {"chunk":"chunkV2"}\n\n');
@@ -95,6 +95,7 @@ describe('Chat Service (DeepAgents Factory Integration)', () => {
 
   describe('getMessages Native LangGraph Lookup', () => {
     test('should correctly retrieve snapshot messages', async () => {
+      chatService.checkpointer = { getTuple: mockGetTuple };
       threadRepository.findById.mockResolvedValue(mockThread);
       mockGetTuple.mockResolvedValue({
          checkpoint: { channel_values: { messages: [{ role: 'assistant', content: 'hello' }] } }
