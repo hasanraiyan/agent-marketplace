@@ -5,7 +5,8 @@ import authRouter from './routes/auth.routes.js';
 import profileRouter from './routes/profile.routes.js';
 import adminRouter from './routes/admin.routes.js';
 import providerRouter from './routes/provider.routes.js'; 
-import agentRouter from './routes/agent.routes.js'; // Added
+import agentRouter from './routes/agent.routes.js'; 
+import threadRouter from './routes/thread.routes.js'; // Added
 import errorHandler from './middlewares/errorHandler.js';
 import swaggerUi from 'swagger-ui-express';
 import openapiSpec from './docs/openapi.js';
@@ -33,7 +34,8 @@ app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/profile', profileRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/providers', providerRouter);
-app.use('/api/v1/agents', agentRouter); // Wire up Agent Builder/Discovery
+app.use('/api/v1/agents', agentRouter);
+app.use('/api/v1/threads', threadRouter); // Wire up Chat/Threads
 
 app.get('/', (req, res) => {
   let dbStatus = 'unknown';

@@ -15,11 +15,11 @@
 - [x] `validators/provider.validator.js` — Zod schemas
 
 ## Phase 3 — Agent Builder & Discovery (Standard API)
-- [ ] `repositories/agentRepository.js` — `create`, `findById`, `findBySlug`, `update`, `delete`, `search`, `count`
-- [ ] `services/agent.service.js` — Auto-slug creation, visibility enforcement, `_formatSafe()`
-- [ ] `controllers/agent.controller.js` — `create`, `getOne`, `getBySlug`, `update`, `remove`, `search`, `count`
-- [ ] `routes/agent.routes.js` — `POST /`, `GET /:id`, `PATCH /:id`, `DELETE /:id`, `POST /search`, `POST /count`, `GET /slug/:slug`
-- [ ] `validators/agent.validator.js` — Zod schemas (`createAgentSchema`, `updateAgentSchema`, `searchAgentSchema`)
+- [x] `repositories/agentRepository.js` — `create`, `findById`, `findBySlug`, `update`, `delete`, `search`, `count`
+- [x] `services/agent.service.js` — Auto-slug creation, visibility enforcement, `_formatSafe()`
+- [x] `controllers/agent.controller.js` — `create`, `getOne`, `getBySlug`, `update`, `remove`, `search`, `count`
+- [x] `routes/agent.routes.js` — `POST /`, `GET /:id`, `PATCH /:id`, `DELETE /:id`, `POST /search`, `POST /count`, `GET /slug/:slug`
+- [x] `validators/agent.validator.js` — Zod schemas (`createAgentSchema`, `updateAgentSchema`, `searchAgentSchema`)
 
 ## Phase 4 — Chat + Runtime
 - [ ] `repositories/conversationRepository.js` — `create`, `findById`, `findByUser`, `updateTitle`, `updateLastMessage`
