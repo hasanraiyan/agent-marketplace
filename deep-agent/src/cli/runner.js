@@ -23,9 +23,17 @@ export async function runAgent(agentInput, agentInstance, getConfig, hooks = {})
 
   let fullResponse = "";  // accumulates AI text for markdown render
   let spinnerStopped = false;
+  let toolSpinner = null;
 
   const stopSpinner = () => {
     if (!spinnerStopped) { spinner.stop(); spinnerStopped = true; }
+  };
+
+  const stopToolSpinner = () => {
+    if (toolSpinner) {
+      toolSpinner.stop();
+      toolSpinner = null;
+    }
   };
 
   try {
@@ -42,6 +50,7 @@ export async function runAgent(agentInput, agentInstance, getConfig, hooks = {})
         const chunk = data?.chunk?.content;
         if (typeof chunk === "string" && chunk) {
           stopSpinner(); // first token → UI is live
+          stopToolSpinner();
           fullResponse += chunk;
           // Show a live "typing" indicator without printing raw text
           // We'll render cleanly as markdown at the end
@@ -52,6 +61,7 @@ export async function runAgent(agentInput, agentInstance, getConfig, hooks = {})
       // ── Tool call ───────────────────────────────────────────────────────
       if (evtName === "on_tool_start") {
         stopSpinner();
+        stopToolSpinner();
         // Clear the dot-trail line
         process.stdout.write("\r" + " ".repeat(50) + "\r");
 
@@ -66,22 +76,42 @@ export async function runAgent(agentInput, agentInstance, getConfig, hooks = {})
         } else {
           renderToolCall(toolName, data?.input);
         }
+
+        toolSpinner = ora({
+          text: chalk.dim(`Running ${toolName}…`),
+          color: "magenta",
+          spinner: "dots",
+        }).start();
       }
 
       // ── Tool result ─────────────────────────────────────────────────────
       if (evtName === "on_tool_end") {
-        renderToolResult(data?.output);
+        const toolName = name || data?.name || "tool";
+        const isError = data?.output?.error || (typeof data?.output === "string" && data.output.startsWith("Error:"));
+
+        if (toolSpinner) {
+          if (isError) {
+            toolSpinner.fail(chalk.red(`Tool ${toolName} failed`));
+          } else {
+            toolSpinner.succeed(chalk.dim(`Tool ${toolName} finished`));
+          }
+          toolSpinner = null;
+        }
+
+        renderToolResult(data?.output, isError);
       }
 
       // ── HITL interrupt ──────────────────────────────────────────────────
       if (evtName === "on_custom_event" && data?.type === "interrupt") {
         stopSpinner();
+        stopToolSpinner();
         renderHITL(data?.tool ?? "write_file", data?.args);
         hooks.onHITL?.();
       }
     }
 
     stopSpinner();
+    stopToolSpinner();
     // Clear the dot trail
     process.stdout.write("\r" + " ".repeat(60) + "\r");
 

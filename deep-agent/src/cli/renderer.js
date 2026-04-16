@@ -52,9 +52,26 @@ export function renderToolCall(name, args) {
   console.log(`\n  ${sym.info} ${chalk.magenta.bold(name)}  ${chalk.dim(preview)}`);
 }
 
-export function renderToolResult(output) {
-  const str = typeof output === "string" ? output : JSON.stringify(output ?? "");
-  console.log(`  ${chalk.dim("↳")} ${chalk.dim(str.slice(0, 180))}${str.length > 180 ? "…" : ""}`);
+export function renderToolResult(output, isError = false) {
+  const str = typeof output === "string" ? output : JSON.stringify(output ?? "", null, 2);
+  const maxLen = 500;
+  const isTruncated = str.length > maxLen;
+  const displayOut = str.slice(0, maxLen) + (isTruncated ? "\n... (output truncated)" : "");
+
+  console.log(
+    boxen(
+      isError ? chalk.red(displayOut) : chalk.dim(displayOut),
+      {
+        padding: { top: 0, bottom: 0, left: 1, right: 1 },
+        margin: { top: 0, bottom: 1, left: 2, right: 0 },
+        borderStyle: "round",
+        borderColor: isError ? "red" : "gray",
+        dimBorder: !isError,
+        title: isError ? chalk.red("Error Output") : chalk.dim("Output"),
+        titleAlignment: "left"
+      }
+    )
+  );
 }
 
 // ── Sub-agent spawn box ───────────────────────────────────────────────────────
