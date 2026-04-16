@@ -74,15 +74,23 @@ export function Navbar() {
           ))}
         </div>
 
-        {/* Desktop Actions */}
         <div className="hidden items-center gap-2 md:flex">
-          <Button variant="ghost" size="sm" id="sign-in-btn">
-            <LogInIcon className="size-4" />
-            Sign In
+          <Button variant="ghost" size="sm" id="sign-in-btn" asChild>
+            <Link href="/login">
+              <LogInIcon className="size-4" />
+              Sign In
+            </Link>
           </Button>
-          <Button size="sm" className="glow-primary" id="get-started-btn">
-            <RocketIcon className="size-4" />
-            Get Started
+          <Button
+            size="sm"
+            className="glow-primary"
+            id="get-started-btn"
+            asChild
+          >
+            <Link href="/register">
+              <RocketIcon className="size-4" />
+              Get Started
+            </Link>
           </Button>
         </div>
 
@@ -127,16 +135,22 @@ export function Navbar() {
                 variant="outline"
                 className="w-full justify-start gap-2"
                 onClick={() => setOpen(false)}
+                asChild
               >
-                <LogInIcon className="size-4" />
-                Sign In
+                <Link href="/login">
+                  <LogInIcon className="size-4" />
+                  Sign In
+                </Link>
               </Button>
               <Button
                 className="w-full justify-start gap-2 glow-primary"
                 onClick={() => setOpen(false)}
+                asChild
               >
-                <RocketIcon className="size-4" />
-                Get Started
+                <Link href="/register">
+                  <RocketIcon className="size-4" />
+                  Get Started
+                </Link>
               </Button>
             </div>
           </SheetContent>

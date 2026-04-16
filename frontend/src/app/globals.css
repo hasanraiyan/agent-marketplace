@@ -124,7 +124,9 @@
 
   body {
     @apply bg-background text-foreground shrink-0;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
   }
 
   html {
@@ -159,11 +161,21 @@
     animation: fade-up 0.5s ease-out forwards;
     opacity: 0;
   }
-  & > *:nth-child(1) { animation-delay: 0.1s; }
-  & > *:nth-child(2) { animation-delay: 0.2s; }
-  & > *:nth-child(3) { animation-delay: 0.3s; }
-  & > *:nth-child(4) { animation-delay: 0.4s; }
-  & > *:nth-child(5) { animation-delay: 0.5s; }
+  & > *:nth-child(1) {
+    animation-delay: 0.1s;
+  }
+  & > *:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+  & > *:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+  & > *:nth-child(4) {
+    animation-delay: 0.4s;
+  }
+  & > *:nth-child(5) {
+    animation-delay: 0.5s;
+  }
 }
 
 @keyframes fade-up {
@@ -178,7 +190,8 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.5;
     transform: scale(1);
   }
