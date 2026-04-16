@@ -1,6 +1,5 @@
 import providerRepository from '../repositories/providerRepository.js';
 import encryption from '../utils/encryption.js';
-import fetch from 'node-fetch';
 
 class ProviderService {
   /**
