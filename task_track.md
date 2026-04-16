@@ -8,11 +8,11 @@
 - [x] Create `src/models/Message.js` schema
 
 ## Phase 2 — Provider Features
-- [ ] `repositories/providerRepository.js` — `create`, `findById`, `findByUser`, `update`, `delete`
-- [ ] `services/provider.service.js` — `createProvider` (encrypts key), `updateProvider`, `testConnection`
-- [ ] `controllers/provider.controller.js` — Req/Res handlers
-- [ ] `routes/provider.routes.js` — 5 routes including `/test`
-- [ ] `validators/provider.validator.js` — Zod schemas
+- [x] `repositories/providerRepository.js` — `create`, `findById`, `findByUser`, `update`, `delete`
+- [x] `services/provider.service.js` — `createProvider` (encrypts key), `updateProvider`, `testConnection`
+- [x] `controllers/provider.controller.js` — Req/Res handlers
+- [x] `routes/provider.routes.js` — 5 routes including `/test`
+- [x] `validators/provider.validator.js` — Zod schemas
 
 ## Phase 3 — Agent Builder & Discovery
 - [ ] `repositories/agentRepository.js` — `create`, `findByUser`, `getPublic`, `findBySlug`
