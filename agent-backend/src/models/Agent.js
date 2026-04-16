@@ -52,6 +52,12 @@ const agentSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    skills: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Skill',
+      }
+    ],
     visibility: {
       type: String,
       enum: ['private', 'unlisted', 'public'],

@@ -39,8 +39,8 @@ class AgentFactory {
    * Factory Method: Builds and returns the compiled DeepAgent graph instance
    */
   async buildAgent(agentId, checkpointer) {
-    // 1. Fetch Configuration
-    const agent = await agentRepository.findById(agentId);
+    // 1. Fetch Configuration with populate to get attached Skills
+    const agent = await agentRepository.findById(agentId).populate('skills');
     if (!agent) throw new Error('Agent deleted or unavailable');
 
     // 2. Build Base Model
@@ -62,11 +62,28 @@ class AgentFactory {
       }
     }
 
-    // 4. Assemble Custom DeepAgent Runtime
+    // 4. Construct the DeepAgents Native Store for Skill Management
+    const { InMemoryStore } = await import('@langchain/langgraph');
+    const { SkillService } = await import('deepagents');
+    
+    const store = new InMemoryStore();
+    const skillService = new SkillService(store);
+
+    if (agent.skills && agent.skills.length > 0) {
+      // Loop over populated Skills and load them natively into the store!
+      for (const skill of agent.skills) {
+         // Create the frontmatter exactly as deepagent expects
+         const frontmatter = `---\nname: ${skill.name}\ndescription: ${skill.description}\n---\n\n${skill.instructions}`;
+         await skillService.loadSkill(skill.name, frontmatter);
+      }
+    }
+
+    // 5. Assemble Custom DeepAgent Runtime
     const agentInstance = await createDeepAgent({
       model: llm,
       systemPrompt: agent.systemPrompt,
       checkpointer: checkpointer,
+      store: store,
       tools: dynamicTools,
     });
 
