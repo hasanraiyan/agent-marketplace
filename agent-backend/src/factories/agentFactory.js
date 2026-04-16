@@ -46,13 +46,28 @@ class AgentFactory {
     // 2. Build Base Model
     const llm = await this._buildLLM(agent);
 
-    // 3. Assemble Custom DeepAgent Runtime
-    // Passing the MongoDBSaver checkpointer to hook up native LangGraph memory
+    // 3. Assemble Dynamic Tools Array
+    const dynamicTools = [];
+    if (agent.webSearchEnabled) {
+      if (!process.env.TAVILY_API_KEY) {
+        console.warn('Tavily Search is enabled for this agent, but TAVILY_API_KEY is missing from environment.');
+      } else {
+        const { TavilySearch } = await import('@langchain/tavily');
+        dynamicTools.push(new TavilySearch({
+          maxResults: 5,
+          searchDepth: 'advanced',
+          name: 'search_web',
+          description: 'Search the web for up-to-date information on any topic.',
+        }));
+      }
+    }
+
+    // 4. Assemble Custom DeepAgent Runtime
     const agentInstance = await createDeepAgent({
       model: llm,
       systemPrompt: agent.systemPrompt,
       checkpointer: checkpointer,
-      // Future: Inject dynamically fetched Tools or Skills here
+      tools: dynamicTools,
     });
 
     return { agentInstance, agentConfig: agent, llm };
