@@ -1,0 +1,7 @@
+{
+  "dependencies": ["package.json"],
+  "graphs": {
+    "agent": "./src/index.js:agent"
+  },
+  "env": ".env"
+}
