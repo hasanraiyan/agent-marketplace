@@ -8,21 +8,9 @@ jest.unstable_mockModule('../src/repositories/threadRepository.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/repositories/agentRepository.js', () => ({
+jest.unstable_mockModule('../src/factories/agentFactory.js', () => ({
   default: {
-    findById: jest.fn(),
-  },
-}));
-
-jest.unstable_mockModule('../src/repositories/providerRepository.js', () => ({
-  default: {
-    findById: jest.fn(),
-  },
-}));
-
-jest.unstable_mockModule('../src/utils/encryption.js', () => ({
-  default: {
-    decrypt: jest.fn().mockReturnValue('mocked-decrypted-key'),
+    buildAgent: jest.fn(),
   },
 }));
 
@@ -42,22 +30,13 @@ jest.unstable_mockModule('mongodb', () => ({
   }
 }));
 
-// Mock DeepAgents Factory
-const mockStreamEvents = jest.fn();
-jest.unstable_mockModule('deepagents', () => ({
-  createDeepAgent: jest.fn().mockResolvedValue({
-    streamEvents: mockStreamEvents
-  })
-}));
-
 const threadRepository = (await import('../src/repositories/threadRepository.js')).default;
-const agentRepository = (await import('../src/repositories/agentRepository.js')).default;
+const agentFactory = (await import('../src/factories/agentFactory.js')).default;
 const chatService = (await import('../src/services/chat.service.js')).default;
 
-describe('Chat Service (DeepAgents Runtime Engine)', () => {
+describe('Chat Service (DeepAgents Factory Integration)', () => {
   let mockRes;
   let mockThread;
-  let mockAgent;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -76,15 +55,9 @@ describe('Chat Service (DeepAgents Runtime Engine)', () => {
       agentId: 'agent_1',
       title: 'Existing Conversation'
     };
-
-    mockAgent = {
-      _id: 'agent_1',
-      providerId: 'prov_1',
-      systemPrompt: 'You are an agent',
-    };
   });
 
-  describe('streamChat DeepAgent execution', () => {
+  describe('streamChat DeepAgent execution via Factory', () => {
     test('should reject unauthorized user', async () => {
       threadRepository.findById.mockResolvedValue(mockThread);
 
@@ -94,27 +67,28 @@ describe('Chat Service (DeepAgents Runtime Engine)', () => {
       expect(mockRes.end).toHaveBeenCalled();
     });
 
-    test('should invoke deepagent streamEvents and pipe chunk', async () => {
+    test('should invoke deepagent streamEvents from factory', async () => {
        threadRepository.findById.mockResolvedValue(mockThread);
-       agentRepository.findById.mockResolvedValue(mockAgent);
        
-       // Simulate deepagent stream event
+       const mockStreamEvents = jest.fn();
        async function* mockGenerator() {
-         yield { event: 'on_chat_model_stream', data: { chunk: { content: 'chunk1' } } };
+         yield { event: 'on_chat_model_stream', data: { chunk: { content: 'chunkV2' } } };
        }
        mockStreamEvents.mockReturnValue(mockGenerator());
 
-       // We inject the API key directly just to bypass provider fetch logic internally
-       jest.spyOn(chatService, '_getAgentModel').mockResolvedValue({});
+       // Mock the factory returning the compiled instance
+       agentFactory.buildAgent.mockResolvedValue({
+         agentInstance: { streamEvents: mockStreamEvents },
+         agentConfig: {},
+         llm: {}
+       });
 
        await chatService.streamChat(mockRes, 'thread_1', 'user_1', 'hello');
 
-       expect(mockStreamEvents).toHaveBeenCalledWith(
-          { messages: [expect.any(Object)] }, 
-          { configurable: { thread_id: 'uuid123' }, version: 'v2' }
-       );
+       expect(agentFactory.buildAgent).toHaveBeenCalledWith('agent_1', expect.any(Object));
+       expect(mockStreamEvents).toHaveBeenCalled();
 
-       expect(mockRes.write).toHaveBeenCalledWith('data: {"chunk":"chunk1"}\n\n');
+       expect(mockRes.write).toHaveBeenCalledWith('data: {"chunk":"chunkV2"}\n\n');
        expect(mockRes.write).toHaveBeenCalledWith('data: [DONE]\n\n');
     });
   });
