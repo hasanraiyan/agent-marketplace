@@ -56,16 +56,16 @@ const agentSchema = new mongoose.Schema(
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Skill',
-      }
+      },
     ],
     interruptOn: {
       type: Map,
       of: Boolean,
       default: {
-        'write_file': true,
-        'edit_file': true,
-        'delete_file': true
-      }
+        write_file: true,
+        edit_file: true,
+        delete_file: true,
+      },
     },
     visibility: {
       type: String,

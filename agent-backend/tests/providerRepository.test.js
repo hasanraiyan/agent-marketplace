@@ -58,7 +58,7 @@ describe('Provider Repository', () => {
   describe('findByUser', () => {
     test('should find providers by user ID sorted by createdAt', async () => {
       const mockProviders = [mockProvider];
-      
+
       jest.spyOn(Provider, 'find').mockReturnValue({
         sort: jest.fn().mockResolvedValue(mockProviders),
       });
@@ -73,10 +73,12 @@ describe('Provider Repository', () => {
   describe('update', () => {
     test('should update provider successfully', async () => {
       const updatedProvider = { ...mockProvider, label: 'OpenAI Prod' };
-      
+
       jest.spyOn(Provider, 'findByIdAndUpdate').mockResolvedValue(updatedProvider);
 
-      const result = await providerRepository.update('507f1f77bcf86cd799439022', { label: 'OpenAI Prod' });
+      const result = await providerRepository.update('507f1f77bcf86cd799439022', {
+        label: 'OpenAI Prod',
+      });
 
       expect(Provider.findByIdAndUpdate).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439022',

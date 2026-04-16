@@ -2,7 +2,11 @@ import crypto from 'crypto';
 import threadRepository from '../repositories/threadRepository.js';
 import agentRepository from '../repositories/agentRepository.js';
 import chatService from '../services/chat.service.js';
-import { createThreadSchema, updateThreadTitleSchema, streamMessageSchema } from '../validators/thread.validator.js';
+import {
+  createThreadSchema,
+  updateThreadTitleSchema,
+  streamMessageSchema,
+} from '../validators/thread.validator.js';
 
 class ThreadController {
   async create(req, res, next) {
@@ -37,7 +41,7 @@ class ThreadController {
       const limit = parseInt(req.query.limit) || 20;
 
       const threads = await threadRepository.findByUser(req.user.id, { page, limit });
-      
+
       res.json({ success: true, data: threads });
     } catch (error) {
       next(error);
@@ -47,7 +51,7 @@ class ThreadController {
   async getOne(req, res, next) {
     try {
       const thread = await threadRepository.findById(req.params.id);
-      
+
       if (!thread || thread.userId.toString() !== req.user.id) {
         return res.status(404).json({ success: false, message: 'Thread not found' });
       }
@@ -61,7 +65,7 @@ class ThreadController {
   async delete(req, res, next) {
     try {
       const thread = await threadRepository.findById(req.params.id);
-      
+
       if (!thread || thread.userId.toString() !== req.user.id) {
         return res.status(404).json({ success: false, message: 'Thread not found' });
       }
@@ -96,7 +100,7 @@ class ThreadController {
       res.json({ success: true, data: messages });
     } catch (error) {
       if (error.message === 'Unauthorized' || error.message === 'Thread not found') {
-         return res.status(404).json({ success: false, message: 'Thread not found' });
+        return res.status(404).json({ success: false, message: 'Thread not found' });
       }
       next(error);
     }
@@ -113,7 +117,7 @@ class ThreadController {
     } catch (error) {
       // If validation fails before streaming starts, respond normally.
       // If error happens during stream, `streamChat` catches and sends the SSE `data: {"error"}` pattern!
-      next(error); 
+      next(error);
     }
   }
 

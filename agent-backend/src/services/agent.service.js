@@ -10,7 +10,7 @@ class AgentService {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)+/g, ''); // Trim dashes
-    
+
     // Append a short random string to guarantee uniqueness
     const randomHex = crypto.randomBytes(3).toString('hex');
     const slug = `${baseSlug || 'agent'}-${randomHex}`;
@@ -29,7 +29,7 @@ class AgentService {
       }
       attempts++;
     }
-    
+
     return finalSlug;
   }
 
@@ -39,7 +39,7 @@ class AgentService {
    */
   _formatSafe(agent, requestingUserId) {
     if (!agent) return null;
-    
+
     const obj = agent.toObject ? agent.toObject() : agent;
 
     const isOwner = requestingUserId && obj.ownerId.toString() === requestingUserId.toString();
@@ -48,7 +48,7 @@ class AgentService {
       delete obj.systemPrompt;
       delete obj.providerId;
     }
-    
+
     return obj;
   }
 
@@ -77,8 +77,8 @@ class AgentService {
     // 4. Security & Visibility constraints
     if (filters.ownerId) {
       match.ownerId = filters.ownerId;
-      
-      // If the user is filtering by an ownerId that is NOT themselves, 
+
+      // If the user is filtering by an ownerId that is NOT themselves,
       // they cannot see private agents.
       const isSearchingSelf = requestingUserId && filters.ownerId === requestingUserId.toString();
       if (!isSearchingSelf) {
@@ -105,13 +105,13 @@ class AgentService {
 
   async createAgent(userId, data) {
     const slug = await this._generateSlug(data.name);
-    
+
     const agent = await agentRepository.create({
       ...data,
       slug,
       ownerId: userId,
     });
-    
+
     return this._formatSafe(agent, userId);
   }
 
@@ -141,7 +141,7 @@ class AgentService {
 
   async updateAgent(id, userId, updateData) {
     const existing = await agentRepository.findById(id);
-    
+
     if (!existing) throw new Error('Agent not found');
     if (existing.ownerId.toString() !== userId.toString()) {
       throw new Error('Unauthorized to update this agent');
@@ -149,9 +149,9 @@ class AgentService {
 
     // Never allow updating ownerId or slug directly via this route
     delete updateData.ownerId;
-    delete updateData.slug; 
+    delete updateData.slug;
 
-    // If changing the name, regenerate slug if explicitly requested? 
+    // If changing the name, regenerate slug if explicitly requested?
     // In MVP, we keep the original slug out of simplicity to not break old links.
 
     const updated = await agentRepository.update(id, updateData);
@@ -160,7 +160,7 @@ class AgentService {
 
   async deleteAgent(id, userId) {
     const existing = await agentRepository.findById(id);
-    
+
     if (!existing) throw new Error('Agent not found');
     if (existing.ownerId.toString() !== userId.toString()) {
       throw new Error('Unauthorized to delete this agent');
@@ -173,8 +173,8 @@ class AgentService {
   async searchAgents(filters, pagination, userId) {
     const match = this._buildSearchFilter(filters, userId);
     const agents = await agentRepository.search(match, pagination);
-    
-    return agents.map(agent => this._formatSafe(agent, userId));
+
+    return agents.map((agent) => this._formatSafe(agent, userId));
   }
 
   async countAgents(filters, userId) {

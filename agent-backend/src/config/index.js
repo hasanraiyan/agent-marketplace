@@ -1,6 +1,8 @@
 import dotenv from 'dotenv';
 
-dotenv.config();
+dotenv.config({
+  path: process.env.NODE_ENV === 'test' ? '.env.test' : '.env',
+});
 
 function parseJsonEnv(value, name) {
   if (!value || value.trim() === '') return null;

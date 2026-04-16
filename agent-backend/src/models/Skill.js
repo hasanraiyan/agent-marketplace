@@ -29,8 +29,8 @@ const skillSchema = new mongoose.Schema(
       {
         filename: String,
         code: String,
-        language: { type: String, default: 'python' }
-      }
+        language: { type: String, default: 'python' },
+      },
     ],
     isPublic: {
       type: Boolean,

@@ -4,8 +4,8 @@ import healthRouter from './routes/health.js';
 import authRouter from './routes/auth.routes.js';
 import profileRouter from './routes/profile.routes.js';
 import adminRouter from './routes/admin.routes.js';
-import providerRouter from './routes/provider.routes.js'; 
-import agentRouter from './routes/agent.routes.js'; 
+import providerRouter from './routes/provider.routes.js';
+import agentRouter from './routes/agent.routes.js';
 import threadRouter from './routes/thread.routes.js'; // Added
 import skillRouter from './routes/skill.routes.js';
 import errorHandler from './middlewares/errorHandler.js';

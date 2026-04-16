@@ -1,13 +1,18 @@
 import agentService from '../services/agent.service.js';
 import agentFactory from '../factories/agentFactory.js';
-import { createAgentSchema, updateAgentSchema, searchAgentSchema, countAgentSchema } from '../validators/agent.validator.js';
+import {
+  createAgentSchema,
+  updateAgentSchema,
+  searchAgentSchema,
+  countAgentSchema,
+} from '../validators/agent.validator.js';
 
 class AgentController {
   async create(req, res, next) {
     try {
       const validatedData = createAgentSchema.parse(req.body);
       const agent = await agentService.createAgent(req.user.id, validatedData);
-      
+
       res.status(201).json({
         success: true,
         data: agent,
@@ -22,7 +27,7 @@ class AgentController {
       // Optional auth: req.user might be undefined if route is public
       const userId = req.user ? req.user.id : null;
       const agent = await agentService.getAgentById(req.params.id, userId);
-      
+
       res.json({
         success: true,
         data: agent,
@@ -40,7 +45,7 @@ class AgentController {
     try {
       const userId = req.user ? req.user.id : null;
       const agent = await agentService.getAgentBySlug(req.params.slug, userId);
-      
+
       res.json({
         success: true,
         data: agent,
@@ -57,7 +62,7 @@ class AgentController {
     try {
       const validatedData = updateAgentSchema.parse(req.body);
       const agent = await agentService.updateAgent(req.params.id, req.user.id, validatedData);
-      
+
       // Clear factory cache so new config picked up immediately
       agentFactory.invalidate(req.params.id);
 
@@ -92,13 +97,16 @@ class AgentController {
       const userId = req.user ? req.user.id : null;
 
       const agents = await agentService.searchAgents(filters, { page, limit, sortBy }, userId);
-      
+
       res.json({
         success: true,
         data: agents,
       });
     } catch (error) {
-      if (error.message.includes('Not authorized') || error.message.includes('Can only search marketplace')) {
+      if (
+        error.message.includes('Not authorized') ||
+        error.message.includes('Can only search marketplace')
+      ) {
         return res.status(403).json({ success: false, message: error.message });
       }
       next(error);
@@ -111,13 +119,16 @@ class AgentController {
       const userId = req.user ? req.user.id : null;
 
       const total = await agentService.countAgents(filters, userId);
-      
+
       res.json({
         success: true,
         data: { total },
       });
     } catch (error) {
-       if (error.message.includes('Not authorized') || error.message.includes('Can only search marketplace')) {
+      if (
+        error.message.includes('Not authorized') ||
+        error.message.includes('Can only search marketplace')
+      ) {
         return res.status(403).json({ success: false, message: error.message });
       }
       next(error);

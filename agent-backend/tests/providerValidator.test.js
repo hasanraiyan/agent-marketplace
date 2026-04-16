@@ -1,4 +1,7 @@
-import { createProviderSchema, updateProviderSchema } from '../src/validators/provider.validator.js';
+import {
+  createProviderSchema,
+  updateProviderSchema,
+} from '../src/validators/provider.validator.js';
 
 describe('Provider Validator', () => {
   describe('createProviderSchema', () => {
@@ -70,7 +73,7 @@ describe('Provider Validator', () => {
       const result = updateProviderSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
     });
-    
+
     it('should fail if invalid URL is passed', () => {
       const invalidData = {
         baseURL: 'localhost',

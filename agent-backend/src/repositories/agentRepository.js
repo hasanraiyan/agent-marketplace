@@ -27,10 +27,14 @@ class AgentRepository {
    */
   _getSortObject(sortBy) {
     switch (sortBy) {
-      case 'oldest': return { createdAt: 1 };
-      case 'popular': return { messageCount: -1, createdAt: -1 };
-      case 'title_asc': return { name: 1 };
-      case 'title_desc': return { name: -1 };
+      case 'oldest':
+        return { createdAt: 1 };
+      case 'popular':
+        return { messageCount: -1, createdAt: -1 };
+      case 'title_asc':
+        return { name: 1 };
+      case 'title_desc':
+        return { name: -1 };
       case 'newest':
       default:
         return { createdAt: -1 };
@@ -40,12 +44,9 @@ class AgentRepository {
   async search(filters, { page = 1, limit = 20, sortBy = 'newest' }) {
     const skip = (page - 1) * limit;
     const sortObj = this._getSortObject(sortBy);
-    
-    const agents = await Agent.find(filters)
-      .sort(sortObj)
-      .skip(skip)
-      .limit(limit);
-      
+
+    const agents = await Agent.find(filters).sort(sortObj).skip(skip).limit(limit);
+
     // Populate provider to verify later if needed, but not necessary yet
     return agents;
   }

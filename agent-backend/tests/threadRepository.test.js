@@ -37,7 +37,7 @@ describe('Thread Repository', () => {
       expect(Conversation.findOne).toHaveBeenCalledWith({ _id: '60c72b2f9b1d8b3a1c8e4d5a' });
       expect(result).toEqual(mockThread);
     });
-    
+
     test('should find by custom uuid string', async () => {
       jest.spyOn(Conversation, 'findOne').mockReturnValue({
         populate: jest.fn().mockResolvedValue(mockThread),
@@ -53,8 +53,8 @@ describe('Thread Repository', () => {
       jest.spyOn(Conversation, 'findOneAndUpdate').mockResolvedValue(mockThread);
       await threadRepository.update('uuid-1234', { title: 'New Title' });
       expect(Conversation.findOneAndUpdate).toHaveBeenCalledWith(
-        { threadId: 'uuid-1234' }, 
-        { title: 'New Title' }, 
+        { threadId: 'uuid-1234' },
+        { title: 'New Title' },
         { new: true }
       );
     });

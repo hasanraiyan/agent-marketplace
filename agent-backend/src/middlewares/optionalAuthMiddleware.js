@@ -15,7 +15,7 @@ const optionalAuthMiddleware = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    
+
     // Use try/catch specifically for the token verification so invalid tokens
     // just result in an anonymous session rather than crashing the request.
     try {

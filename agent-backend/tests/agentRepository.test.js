@@ -52,7 +52,11 @@ describe('Agent Repository', () => {
     test('should update agent', async () => {
       jest.spyOn(Agent, 'findByIdAndUpdate').mockResolvedValue(mockAgent);
       await agentRepository.update('agent_123', { name: 'New' });
-      expect(Agent.findByIdAndUpdate).toHaveBeenCalledWith('agent_123', { name: 'New' }, { new: true });
+      expect(Agent.findByIdAndUpdate).toHaveBeenCalledWith(
+        'agent_123',
+        { name: 'New' },
+        { new: true }
+      );
     });
 
     test('should delete agent', async () => {
@@ -67,19 +71,19 @@ describe('Agent Repository', () => {
       const mockResult = [mockAgent];
       const mockSkip = jest.fn().mockReturnThis();
       const mockLimit = jest.fn().mockResolvedValue(mockResult);
-      
+
       jest.spyOn(Agent, 'find').mockReturnValue({
         sort: jest.fn().mockReturnValue({
           skip: mockSkip,
-          limit: mockLimit
-        })
+          limit: mockLimit,
+        }),
       });
 
       const filters = { visibility: 'public' };
       const pagination = { page: 2, limit: 10, sortBy: 'oldest' };
-      
+
       const result = await agentRepository.search(filters, pagination);
-      
+
       expect(Agent.find).toHaveBeenCalledWith(filters);
       // oldest means createdAt: 1
       expect(mockSkip).toHaveBeenCalledWith(10);

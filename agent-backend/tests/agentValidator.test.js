@@ -40,7 +40,7 @@ describe('Agent Validator', () => {
       const filter = {
         category: 'coding',
         visibility: 'public',
-        search: 'react expert'
+        search: 'react expert',
       };
       const result = searchAgentSchema.safeParse(filter);
       expect(result.success).toBe(true);

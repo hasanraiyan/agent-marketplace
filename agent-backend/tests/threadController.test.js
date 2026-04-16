@@ -23,9 +23,9 @@ jest.unstable_mockModule('../src/repositories/agentRepository.js', () => ({
 }));
 
 jest.unstable_mockModule('../src/validators/thread.validator.js', () => ({
-  createThreadSchema: { parse: jest.fn().mockImplementation(data => data) },
-  updateThreadTitleSchema: { parse: jest.fn().mockImplementation(data => data) },
-  streamMessageSchema: { parse: jest.fn().mockImplementation(data => data) },
+  createThreadSchema: { parse: jest.fn().mockImplementation((data) => data) },
+  updateThreadTitleSchema: { parse: jest.fn().mockImplementation((data) => data) },
+  streamMessageSchema: { parse: jest.fn().mockImplementation((data) => data) },
 }));
 
 const threadController = (await import('../src/controllers/thread.controller.js')).default;
@@ -74,7 +74,11 @@ describe('Thread Controller', () => {
       await threadController.create(mockReq, mockRes, mockNext);
 
       expect(threadRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({ agentId: 'agent_1', userId: 'user_1', threadId: expect.any(String) })
+        expect.objectContaining({
+          agentId: 'agent_1',
+          userId: 'user_1',
+          threadId: expect.any(String),
+        })
       );
       expect(mockRes.status).toHaveBeenCalledWith(201);
     });
@@ -93,17 +97,21 @@ describe('Thread Controller', () => {
 
     test('should fallback to next(error) if zod syntax validation fails before stream starts', async () => {
       const err = new Error('Zod validate fail');
-      
+
       // Need a direct mock overlay inside the test for standard import mocking limit
       jest.unstable_mockModule('../src/validators/thread.validator.js', () => ({
-         streamMessageSchema: { parse: jest.fn().mockImplementation(() => { throw err; }) },
+        streamMessageSchema: {
+          parse: jest.fn().mockImplementation(() => {
+            throw err;
+          }),
+        },
       }));
 
       // Because Zod is synchronously evaluated inside standard scope, we'll force simulate
       jest.spyOn(chatService, 'streamChat').mockRejectedValue(err);
 
       await threadController.stream(mockReq, mockRes, mockNext);
-      
+
       expect(mockNext).toHaveBeenCalledWith(err);
     });
   });

@@ -17,7 +17,9 @@ class ChatService {
   async _autoTitleThread(thread, firstUserMessage, llm) {
     try {
       const titlePrompt = [
-        new SystemMessage('You are a helpful assistant. Provide a highly concise, 3 to 4 word summary of the user prompt. Output ONLY the summary. Example: "React Bug Fix" or "Python Setup Guide"'),
+        new SystemMessage(
+          'You are a helpful assistant. Provide a highly concise, 3 to 4 word summary of the user prompt. Output ONLY the summary. Example: "React Bug Fix" or "Python Setup Guide"'
+        ),
         new HumanMessage(firstUserMessage),
       ];
 
@@ -34,19 +36,21 @@ class ChatService {
     const thread = await threadRepository.findById(threadId);
     if (!thread) throw new Error('Thread not found');
     if (thread.userId.toString() !== userId.toString()) throw new Error('Unauthorized');
-    
-    const snapshot = await this.checkpointer.getTuple({ configurable: { thread_id: thread.threadId } });
-    
+
+    const snapshot = await this.checkpointer.getTuple({
+      configurable: { thread_id: thread.threadId },
+    });
+
     if (!snapshot || !snapshot.checkpoint || !snapshot.checkpoint.channel_values) {
       return [];
     }
-    
+
     return snapshot.checkpoint.channel_values.messages || [];
   }
 
   async streamChat(res, threadId, userId, incomingMessage) {
     const thread = await threadRepository.findById(threadId);
-    
+
     if (!thread) {
       res.write(`data: {"error": "Thread not found"}\n\n`);
       return res.end();
@@ -65,11 +69,15 @@ class ChatService {
       await threadRepository.touchLastMessageAt(thread._id);
 
       // DELAGATE ENTIRE GRAPH COMPILATION TO FACTORY DESIGN PATTERN
-      const { agentInstance, agentConfig, llm } = await agentFactory.buildAgent(thread.agentId, userId, this.checkpointer);
+      const { agentInstance, agentConfig, llm } = await agentFactory.buildAgent(
+        thread.agentId,
+        userId,
+        this.checkpointer
+      );
 
       const stream = agentInstance.streamEvents(
         { messages: [new HumanMessage(incomingMessage)] },
-        { configurable: { thread_id: thread.threadId }, version: "v2" }
+        { configurable: { thread_id: thread.threadId }, version: 'v2' }
       );
 
       for await (const event of stream) {
@@ -80,13 +88,13 @@ class ChatService {
           if (typeof chunk === 'string' && chunk) {
             res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
           }
-        } 
-        else if (evtName === 'on_tool_start') {
-          const toolName = name || data?.name || "tool";
+        } else if (evtName === 'on_tool_start') {
+          const toolName = name || data?.name || 'tool';
           res.write(`data: ${JSON.stringify({ tool: `Executing ${toolName}...` })}\n\n`);
-        }
-        else if (evtName === 'on_custom_event' && data?.type === 'interrupt') {
-          res.write(`data: ${JSON.stringify({ interrupt: true, tool: data.tool, args: data.args })}\n\n`);
+        } else if (evtName === 'on_custom_event' && data?.type === 'interrupt') {
+          res.write(
+            `data: ${JSON.stringify({ interrupt: true, tool: data.tool, args: data.args })}\n\n`
+          );
         }
       }
 
@@ -96,7 +104,6 @@ class ChatService {
       if (thread.title === 'New Conversation') {
         this._autoTitleThread(thread, incomingMessage, llm).catch(() => {});
       }
-
     } catch (error) {
       if (error?.name === 'GraphInterrupt' || error?.message?.includes('interrupt')) {
         res.write(`data: ${JSON.stringify({ interrupt: true })}\n\n`);
@@ -111,10 +118,10 @@ class ChatService {
 
   async handleAction(res, threadId, userId, action, feedback, answers) {
     const thread = await threadRepository.findById(threadId);
-    
+
     if (!thread || thread.userId.toString() !== userId.toString()) {
-       res.write(`data: {"error": "Thread not found or unauthorized"}\n\n`);
-       return res.end();
+      res.write(`data: {"error": "Thread not found or unauthorized"}\n\n`);
+      return res.end();
     }
 
     res.setHeader('Content-Type', 'text/event-stream');
@@ -123,24 +130,29 @@ class ChatService {
     if (res.flushHeaders) res.flushHeaders();
 
     try {
-      const { agentInstance } = await agentFactory.buildAgent(thread.agentId, userId, this.checkpointer);
-      
+      const { agentInstance } = await agentFactory.buildAgent(
+        thread.agentId,
+        userId,
+        this.checkpointer
+      );
+
       let resumePayload;
       if (answers) {
         // Special case: Returning structured clarification answers
-        resumePayload = { 
-          decisions: [{ type: 'approve', answers }] 
+        resumePayload = {
+          decisions: [{ type: 'approve', answers }],
         };
       } else {
-        resumePayload = action === 'approve' 
-          ? { decisions: [{ type: 'approve' }] } 
-          : { decisions: [{ type: 'reject', message: feedback || 'Rejected by user' }] };
+        resumePayload =
+          action === 'approve'
+            ? { decisions: [{ type: 'approve' }] }
+            : { decisions: [{ type: 'reject', message: feedback || 'Rejected by user' }] };
       }
 
-      const stream = agentInstance.streamEvents(
-        new Command({ resume: resumePayload }),
-        { configurable: { thread_id: thread.threadId }, version: "v2" }
-      );
+      const stream = agentInstance.streamEvents(new Command({ resume: resumePayload }), {
+        configurable: { thread_id: thread.threadId },
+        version: 'v2',
+      });
 
       for await (const event of stream) {
         const { event: evtName, data, name } = event;
@@ -150,19 +162,18 @@ class ChatService {
           if (typeof chunk === 'string' && chunk) {
             res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
           }
-        } 
-        else if (evtName === 'on_tool_start') {
-          const toolName = name || data?.name || "tool";
+        } else if (evtName === 'on_tool_start') {
+          const toolName = name || data?.name || 'tool';
           res.write(`data: ${JSON.stringify({ tool: `Executing ${toolName}...` })}\n\n`);
-        }
-        else if (evtName === 'on_custom_event' && data?.type === 'interrupt') {
-          res.write(`data: ${JSON.stringify({ interrupt: true, tool: data.tool, args: data.args })}\n\n`);
+        } else if (evtName === 'on_custom_event' && data?.type === 'interrupt') {
+          res.write(
+            `data: ${JSON.stringify({ interrupt: true, tool: data.tool, args: data.args })}\n\n`
+          );
         }
       }
 
       res.write(`data: [DONE]\n\n`);
       res.end();
-
     } catch (error) {
       if (error?.name === 'GraphInterrupt' || error?.message?.includes('interrupt')) {
         res.write(`data: ${JSON.stringify({ interrupt: true })}\n\n`);

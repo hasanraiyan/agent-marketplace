@@ -22,16 +22,16 @@ export const resolveAgentTools = (agentConfig, userId) => {
     const searchTool = getSearchTool();
     if (searchTool) tools.push(searchTool);
   }
-  
+
   return tools;
 };
 
 // Also expose generic factory for backend scripts outside of Chat loop
 export const getAvailableTools = () => {
-    const tools = [clarificationTool];
-    
-    const searchTool = getSearchTool();
-    if (searchTool) tools.push(searchTool);
-    
-    return tools;
+  const tools = [clarificationTool];
+
+  const searchTool = getSearchTool();
+  if (searchTool) tools.push(searchTool);
+
+  return tools;
 };

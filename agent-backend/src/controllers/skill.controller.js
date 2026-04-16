@@ -6,14 +6,16 @@ class SkillController {
     try {
       const skillData = {
         ...req.body,
-        ownerId: req.user.id
+        ownerId: req.user.id,
       };
-      
+
       const skill = await skillService.createSkill(req.user.id, req.body);
       res.status(201).json({ success: true, data: skill });
     } catch (error) {
       if (error.code === 11000) {
-        return res.status(409).json({ success: false, message: 'You already have a skill with this exact name' });
+        return res
+          .status(409)
+          .json({ success: false, message: 'You already have a skill with this exact name' });
       }
       next(error);
     }
@@ -61,7 +63,9 @@ class SkillController {
       res.json({ success: true, data: skill });
     } catch (error) {
       if (error.code === 11000) {
-          return res.status(409).json({ success: false, message: 'Another skill with this name already exists' });
+        return res
+          .status(409)
+          .json({ success: false, message: 'Another skill with this name already exists' });
       }
       next(error);
     }
@@ -70,10 +74,10 @@ class SkillController {
   async delete(req, res, next) {
     try {
       await skillService.deleteSkill(req.params.id, req.user.id);
-      
+
       // Note: Agents that have this skill ID in their `skills` array will just ignore it.
       // LangGraph won't crash if the Mongoose reference fails to populate, it just returns null.
-      
+
       res.json({ success: true, message: 'Skill successfully deleted' });
     } catch (error) {
       next(error);

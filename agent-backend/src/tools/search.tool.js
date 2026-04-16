@@ -14,6 +14,7 @@ export const getSearchTool = () => {
     maxResults: 5,
     searchDepth: 'advanced',
     name: 'search_web',
-    description: 'Search the web for up-to-date information on any topic, current events, or queries requiring internet access.',
+    description:
+      'Search the web for up-to-date information on any topic, current events, or queries requiring internet access.',
   });
 };

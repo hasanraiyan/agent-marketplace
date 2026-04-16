@@ -17,10 +17,10 @@ class SkillRepository {
 
   async findPublicSkills(query = {}, skip = 0, limit = 20) {
     const filter = { ...query, isPublic: true };
-    
+
     // Support regex name search if query provides string name
     if (filter.name && typeof filter.name === 'string') {
-        filter.name = { $regex: filter.name, $options: 'i' };
+      filter.name = { $regex: filter.name, $options: 'i' };
     }
 
     const skills = await Skill.find(filter)
@@ -28,16 +28,16 @@ class SkillRepository {
       .limit(limit)
       .sort({ createdAt: -1 })
       .populate('ownerId', 'username avatarUrl');
-      
+
     const total = await Skill.countDocuments(filter);
-    
+
     return {
       skills,
       pagination: {
         total,
         page: Math.floor(skip / limit) + 1,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     };
   }
 
@@ -47,7 +47,7 @@ class SkillRepository {
       { $set: updateData },
       { new: true, runValidators: true }
     );
-    
+
     if (!skill) throw new NotFoundError('Skill not found or unauthorized');
     return skill;
   }

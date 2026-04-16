@@ -64,7 +64,7 @@ class ProviderService {
 
   async getUserProviders(userId) {
     const providers = await providerRepository.findByUser(userId);
-    return providers.map(p => this._formatProvider(p));
+    return providers.map((p) => this._formatProvider(p));
   }
 
   async deleteProvider(userId, providerId) {
@@ -97,7 +97,7 @@ class ProviderService {
 
     // TODO: In a later phase, upgrade this to robustly ping the provider using LangChain
     // to verify the apiKey and baseURL are functionally working before saving it.
-    
+
     return { success: true, message: 'Provider test connection mocked for MVP.' };
   }
 }

@@ -18,8 +18,10 @@ jest.unstable_mockModule('../src/factories/agentFactory.js', () => ({
 const mockGetTuple = jest.fn();
 jest.unstable_mockModule('@langchain/langgraph-checkpoint-mongodb', () => ({
   MongoDBSaver: class {
-    constructor() { this.getTuple = mockGetTuple; }
-  }
+    constructor() {
+      this.getTuple = mockGetTuple;
+    }
+  },
 }));
 
 jest.unstable_mockModule('mongodb', () => ({
@@ -27,7 +29,7 @@ jest.unstable_mockModule('mongodb', () => ({
     constructor() {
       this.connect = jest.fn().mockResolvedValue(true);
     }
-  }
+  },
 }));
 
 const threadRepository = (await import('../src/repositories/threadRepository.js')).default;
@@ -53,7 +55,7 @@ describe('Chat Service (DeepAgents Factory Integration)', () => {
       threadId: 'uuid123',
       userId: 'user_1',
       agentId: 'agent_1',
-      title: 'Existing Conversation'
+      title: 'Existing Conversation',
     };
   });
 
@@ -68,28 +70,28 @@ describe('Chat Service (DeepAgents Factory Integration)', () => {
     });
 
     test('should invoke deepagent streamEvents from factory', async () => {
-       threadRepository.findById.mockResolvedValue(mockThread);
-       
-       const mockStreamEvents = jest.fn();
-       async function* mockGenerator() {
-         yield { event: 'on_chat_model_stream', data: { chunk: { content: 'chunkV2' } } };
-       }
-       mockStreamEvents.mockReturnValue(mockGenerator());
+      threadRepository.findById.mockResolvedValue(mockThread);
 
-       // Mock the factory returning the compiled instance
-       agentFactory.buildAgent.mockResolvedValue({
-         agentInstance: { streamEvents: mockStreamEvents },
-         agentConfig: {},
-         llm: {}
-       });
+      const mockStreamEvents = jest.fn();
+      async function* mockGenerator() {
+        yield { event: 'on_chat_model_stream', data: { chunk: { content: 'chunkV2' } } };
+      }
+      mockStreamEvents.mockReturnValue(mockGenerator());
 
-       await chatService.streamChat(mockRes, 'thread_1', 'user_1', 'hello');
+      // Mock the factory returning the compiled instance
+      agentFactory.buildAgent.mockResolvedValue({
+        agentInstance: { streamEvents: mockStreamEvents },
+        agentConfig: {},
+        llm: {},
+      });
 
-       expect(agentFactory.buildAgent).toHaveBeenCalledWith('agent_1', undefined);
-       expect(mockStreamEvents).toHaveBeenCalled();
+      await chatService.streamChat(mockRes, 'thread_1', 'user_1', 'hello');
 
-       expect(mockRes.write).toHaveBeenCalledWith('data: {"chunk":"chunkV2"}\n\n');
-       expect(mockRes.write).toHaveBeenCalledWith('data: [DONE]\n\n');
+      expect(agentFactory.buildAgent).toHaveBeenCalledWith('agent_1', 'user_1', expect.anything());
+      expect(mockStreamEvents).toHaveBeenCalled();
+
+      expect(mockRes.write).toHaveBeenCalledWith('data: {"chunk":"chunkV2"}\n\n');
+      expect(mockRes.write).toHaveBeenCalledWith('data: [DONE]\n\n');
     });
   });
 
@@ -98,7 +100,7 @@ describe('Chat Service (DeepAgents Factory Integration)', () => {
       chatService.checkpointer = { getTuple: mockGetTuple };
       threadRepository.findById.mockResolvedValue(mockThread);
       mockGetTuple.mockResolvedValue({
-         checkpoint: { channel_values: { messages: [{ role: 'assistant', content: 'hello' }] } }
+        checkpoint: { channel_values: { messages: [{ role: 'assistant', content: 'hello' }] } },
       });
 
       const msgs = await chatService.getMessages('thread_1', 'user_1');

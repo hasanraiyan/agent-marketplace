@@ -11,19 +11,11 @@ router.use(authMiddleware);
 
 router.get('/', providerController.getAll);
 
-router.post(
-  '/',
-  validateBody(createProviderSchema),
-  providerController.create
-);
+router.post('/', validateBody(createProviderSchema), providerController.create);
 
 router.post('/:id/test', providerController.testConnection);
 
-router.put(
-  '/:id',
-  validateBody(updateProviderSchema),
-  providerController.update
-);
+router.put('/:id', validateBody(updateProviderSchema), providerController.update);
 
 router.delete('/:id', providerController.remove);
 

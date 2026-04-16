@@ -63,9 +63,12 @@ class AgentFactory {
     if (agentIdStr === ARCHITECT_AGENT_ID) {
       // Find user's default provider for the architect to use
       const userProviders = await providerRepository.findByUser(userId);
-      const defaultProvider = userProviders.find(p => p.isDefault) || userProviders[0];
-      
-      if (!defaultProvider) throw new Error('No provider configured. Please add a provider (API Key) in settings first.');
+      const defaultProvider = userProviders.find((p) => p.isDefault) || userProviders[0];
+
+      if (!defaultProvider)
+        throw new Error(
+          'No provider configured. Please add a provider (API Key) in settings first.'
+        );
 
       agent = {
         _id: ARCHITECT_AGENT_ID,
@@ -74,7 +77,7 @@ class AgentFactory {
         providerId: defaultProvider._id,
         modelName: 'gpt-4o', // The architect should be high-intelligence
         updatedAt: new Date(0), // Version 0 (static)
-        skills: []
+        skills: [],
       };
     } else {
       // 1.5 Fetch Standard Configuration from DB
@@ -84,11 +87,11 @@ class AgentFactory {
 
     // 2. Cache Validation: If already cached and hasn't been updated since, return it!
     if (cached && cached.updatedAt.getTime() === agent.updatedAt.getTime()) {
-      return { 
-        agentInstance: cached.instance, 
-        agentConfig: agent, 
+      return {
+        agentInstance: cached.instance,
+        agentConfig: agent,
         llm: cached.llm,
-        cacheHit: true 
+        cacheHit: true,
       };
     }
 
@@ -100,14 +103,14 @@ class AgentFactory {
 
     const { InMemoryStore } = await import('@langchain/langgraph');
     const { SkillService } = await import('deepagents');
-    
+
     const store = new InMemoryStore();
     const skillService = new SkillService(store);
 
     if (agent.skills && agent.skills.length > 0) {
       for (const skill of agent.skills) {
-         const frontmatter = `---\nname: ${skill.name}\ndescription: ${skill.description}\n---\n\n${skill.instructions}`;
-         await skillService.loadSkill(skill.name, frontmatter);
+        const frontmatter = `---\nname: ${skill.name}\ndescription: ${skill.description}\n---\n\n${skill.instructions}`;
+        await skillService.loadSkill(skill.name, frontmatter);
       }
     }
 
@@ -119,8 +122,10 @@ class AgentFactory {
       store: store,
       tools: dynamicTools,
       interruptOn: {
-        ...(agent.interruptOn instanceof Map ? Object.fromEntries(agent.interruptOn) : agent.interruptOn),
-        'ask_clarification': true, // Always force interrupt for structured questions
+        ...(agent.interruptOn instanceof Map
+          ? Object.fromEntries(agent.interruptOn)
+          : agent.interruptOn),
+        ask_clarification: true, // Always force interrupt for structured questions
       },
     });
 

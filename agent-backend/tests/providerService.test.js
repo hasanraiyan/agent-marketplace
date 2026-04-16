@@ -68,7 +68,7 @@ describe('Provider Service', () => {
         ownerId: mockUserId,
         apiKeyEncrypted: 'encrypted-token',
       });
-      
+
       // Ensure API key is stripped from return
       expect(result.apiKey).toBeUndefined();
       expect(result.id).toBe(mockProvider._id);
@@ -95,9 +95,9 @@ describe('Provider Service', () => {
     test('should throw if provider not found', async () => {
       providerRepository.findById.mockResolvedValue(null);
 
-      await expect(
-        providerService.updateProvider(mockUserId, 'invalid-id', {})
-      ).rejects.toThrow('Provider not found');
+      await expect(providerService.updateProvider(mockUserId, 'invalid-id', {})).rejects.toThrow(
+        'Provider not found'
+      );
     });
 
     test('should throw if unauthorized', async () => {
@@ -174,9 +174,9 @@ describe('Provider Service', () => {
         ownerId: 'some-other-dude',
       });
 
-      await expect(
-        providerService.deleteProvider(mockUserId, mockProvider._id)
-      ).rejects.toThrow('Unauthorized to delete this provider');
+      await expect(providerService.deleteProvider(mockUserId, mockProvider._id)).rejects.toThrow(
+        'Unauthorized to delete this provider'
+      );
     });
   });
 
@@ -196,9 +196,9 @@ describe('Provider Service', () => {
         ownerId: 'another-user',
       });
 
-      await expect(
-        providerService.testConnection(mockProvider._id, mockUserId)
-      ).rejects.toThrow('Unauthorized to test this provider');
+      await expect(providerService.testConnection(mockProvider._id, mockUserId)).rejects.toThrow(
+        'Unauthorized to test this provider'
+      );
     });
   });
 });

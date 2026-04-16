@@ -13,10 +13,14 @@ jest.unstable_mockModule('../src/services/agent.service.js', () => ({
 }));
 
 jest.unstable_mockModule('../src/validators/agent.validator.js', () => ({
-  createAgentSchema: { parse: jest.fn().mockImplementation(data => data) },
-  updateAgentSchema: { parse: jest.fn().mockImplementation(data => data) },
-  searchAgentSchema: { parse: jest.fn().mockImplementation(data => ({ page: 1, limit: 10, sortBy: 'newest', ...data })) },
-  countAgentSchema: { parse: jest.fn().mockImplementation(data => data) },
+  createAgentSchema: { parse: jest.fn().mockImplementation((data) => data) },
+  updateAgentSchema: { parse: jest.fn().mockImplementation((data) => data) },
+  searchAgentSchema: {
+    parse: jest
+      .fn()
+      .mockImplementation((data) => ({ page: 1, limit: 10, sortBy: 'newest', ...data })),
+  },
+  countAgentSchema: { parse: jest.fn().mockImplementation((data) => data) },
 }));
 
 const agentService = (await import('../src/services/agent.service.js')).default;
@@ -64,7 +68,10 @@ describe('Agent Controller', () => {
     await agentController.search(mockReq, mockRes, mockNext);
 
     expect(mockRes.status).toHaveBeenCalledWith(403);
-    expect(mockRes.json).toHaveBeenCalledWith({ success: false, message: 'Not authorized to search' });
+    expect(mockRes.json).toHaveBeenCalledWith({
+      success: false,
+      message: 'Not authorized to search',
+    });
   });
 
   test('getOne catches privacy 404', async () => {
