@@ -1,13 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import healthRouter from './routes/health.js';
-import authRouter from './routes/auth.routes.js';
 import profileRouter from './routes/profile.routes.js';
 import adminRouter from './routes/admin.routes.js';
 import providerRouter from './routes/provider.routes.js';
 import agentRouter from './routes/agent.routes.js';
 import threadRouter from './routes/thread.routes.js'; // Added
 import skillRouter from './routes/skill.routes.js';
+import webhookRouter from './routes/webhook.routes.js';
 import errorHandler from './middlewares/errorHandler.js';
 import swaggerUi from 'swagger-ui-express';
 import openapiSpec from './docs/openapi.js';
@@ -22,6 +22,10 @@ const logger = loggerService.getLogger();
 const app = express();
 
 app.use(cors());
+
+// Webhooks must be parsed as raw body
+app.use('/api/v1/webhooks', webhookRouter);
+
 app.use(express.json());
 
 // Serve Swagger UI at /docs
@@ -31,7 +35,6 @@ app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec));
 app.get('/openapi.json', (req, res) => res.json(openapiSpec));
 
 app.use('/api/v1/health', healthRouter);
-app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/profile', profileRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/providers', providerRouter);

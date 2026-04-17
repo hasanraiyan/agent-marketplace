@@ -75,23 +75,7 @@ export function Navbar() {
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
-          <Button variant="ghost" size="sm" id="sign-in-btn" asChild>
-            <Link href="/login">
-              <LogInIcon className="size-4" />
-              Sign In
-            </Link>
-          </Button>
-          <Button
-            size="sm"
-            className="glow-primary"
-            id="get-started-btn"
-            asChild
-          >
-            <Link href="/register">
-              <RocketIcon className="size-4" />
-              Get Started
-            </Link>
-          </Button>
+          <DesktopAuthButtons />
         </div>
 
         {/* Mobile Menu */}
@@ -131,27 +115,7 @@ export function Navbar() {
             </div>
             <Separator />
             <div className="flex flex-col gap-2 p-4">
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-2"
-                onClick={() => setOpen(false)}
-                asChild
-              >
-                <Link href="/login">
-                  <LogInIcon className="size-4" />
-                  Sign In
-                </Link>
-              </Button>
-              <Button
-                className="w-full justify-start gap-2 glow-primary"
-                onClick={() => setOpen(false)}
-                asChild
-              >
-                <Link href="/register">
-                  <RocketIcon className="size-4" />
-                  Get Started
-                </Link>
-              </Button>
+              <MobileAuthButtons setOpen={setOpen} />
             </div>
           </SheetContent>
         </Sheet>

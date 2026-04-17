@@ -1,4 +1,3 @@
-import { hashPassword, comparePassword } from '../services/auth.service.js';
 import userRepository from '../repositories/userRepository.js';
 import { successFormatter } from '../utils/formatters/index.js';
 import { loggerService } from '../utils/index.js';
@@ -67,53 +66,7 @@ export const updateProfile = async (req, res, next) => {
   }
 };
 
-export const changePassword = async (req, res, next) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-
-    const user = await userRepository.findByIdWithPassword(req.user.id);
-
-    const isMatch = await comparePassword(currentPassword, user.password);
-    if (!isMatch) {
-      throw new BaseError('Current password is incorrect', 400, 'BAD_REQUEST');
-    }
-
-    const hashedPassword = await hashPassword(newPassword);
-    await userRepository.updatePassword(user.id, hashedPassword);
-
-    logger.info('Password changed', { userId: user.id });
-
-    res.json(successFormatter.formatSuccess(null, 'Password changed successfully'));
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const deleteAccount = async (req, res, next) => {
-  try {
-    const { password } = req.body;
-
-    const user = await userRepository.findByIdWithPassword(req.user.id);
-
-    const isMatch = await comparePassword(password, user.password);
-    if (!isMatch) {
-      throw new BaseError('Password is incorrect', 400, 'BAD_REQUEST');
-    }
-
-    await userRepository.softDelete(user.id);
-    await userRepository.updateRefreshToken(user.id, null);
-
-    logger.info('Account deleted', { userId: user.id });
-
-    res.json(successFormatter.formatSuccess(null, 'Account deletion scheduled'));
-  } catch (error) {
-    next(error);
-  }
-};
-
 export default {
   getProfile,
   updateProfile,
-  changePassword,
-  deleteAccount,
 };
