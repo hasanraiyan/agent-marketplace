@@ -22,7 +22,7 @@ export function StatsSection() {
             variant="outline"
             className="mb-4 gap-1.5 border-primary/25 bg-primary/5 px-3 py-1 text-primary"
           >
-            <TrendingUpIcon className="size-3" />
+            <TrendingUpIcon data-icon="inline-start" />
             Traction
           </Badge>
           <h2 className="max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">

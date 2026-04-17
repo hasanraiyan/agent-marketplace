@@ -17,65 +17,65 @@ const categories = [
     icon: CodeIcon,
     label: "Development",
     count: 48,
-    color: "text-blue-400",
-    bg: "bg-blue-500/10",
-    border: "hover:border-blue-500/30",
+    color: "text-primary",
+    bg: "bg-primary/10",
+    border: "hover:border-primary/30",
   },
   {
     icon: PenToolIcon,
     label: "Writing",
     count: 35,
-    color: "text-violet-400",
-    bg: "bg-violet-500/10",
-    border: "hover:border-violet-500/30",
+    color: "text-primary",
+    bg: "bg-primary/10",
+    border: "hover:border-primary/30",
   },
   {
     icon: BarChart3Icon,
     label: "Analytics",
     count: 29,
-    color: "text-emerald-400",
-    bg: "bg-emerald-500/10",
-    border: "hover:border-emerald-500/30",
+    color: "text-primary",
+    bg: "bg-primary/10",
+    border: "hover:border-primary/30",
   },
   {
     icon: SearchIcon,
     label: "Research",
     count: 42,
-    color: "text-amber-400",
-    bg: "bg-amber-500/10",
-    border: "hover:border-amber-500/30",
+    color: "text-primary",
+    bg: "bg-primary/10",
+    border: "hover:border-primary/30",
   },
   {
     icon: BrainIcon,
     label: "Strategy",
     count: 21,
-    color: "text-pink-400",
-    bg: "bg-pink-500/10",
-    border: "hover:border-pink-500/30",
+    color: "text-primary",
+    bg: "bg-primary/10",
+    border: "hover:border-primary/30",
   },
   {
     icon: ImageIcon,
     label: "Design",
     count: 33,
-    color: "text-fuchsia-400",
-    bg: "bg-fuchsia-500/10",
-    border: "hover:border-fuchsia-500/30",
+    color: "text-primary",
+    bg: "bg-primary/10",
+    border: "hover:border-primary/30",
   },
   {
     icon: MessageSquareIcon,
     label: "Support",
     count: 27,
-    color: "text-cyan-400",
-    bg: "bg-cyan-500/10",
-    border: "hover:border-cyan-500/30",
+    color: "text-primary",
+    bg: "bg-primary/10",
+    border: "hover:border-primary/30",
   },
   {
     icon: ShieldIcon,
     label: "Security",
     count: 18,
-    color: "text-red-400",
-    bg: "bg-red-500/10",
-    border: "hover:border-red-500/30",
+    color: "text-primary",
+    bg: "bg-primary/10",
+    border: "hover:border-primary/30",
   },
 ];
 
@@ -91,7 +91,7 @@ export function CategoriesSection() {
             variant="outline"
             className="mb-4 gap-1.5 border-primary/25 bg-primary/5 px-3 py-1 text-primary"
           >
-            <LayoutGridIcon className="size-3" />
+            <LayoutGridIcon data-icon="inline-start" />
             Categories
           </Badge>
           <h2 className="max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">

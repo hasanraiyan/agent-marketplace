@@ -89,7 +89,7 @@ export function HeroSection() {
               id="hero-cta-btn"
             >
               Get Early Access
-              <ArrowRightIcon className="size-4" />
+              <ArrowRightIcon data-icon="inline-end" />
             </Button>
           </div>
 
@@ -99,11 +99,11 @@ export function HeroSection() {
             style={{ animationDelay: "0.4s" }}
           >
             <span className="flex items-center gap-1.5">
-              <ZapIcon className="size-3.5 text-yellow-500" />
+              <ZapIcon className="size-3.5 text-primary" />
               Lightning fast setup
             </span>
             <span className="flex items-center gap-1.5">
-              <ShieldCheckIcon className="size-3.5 text-emerald-500" />
+              <ShieldCheckIcon className="size-3.5 text-primary" />
               SOC 2 Compliant
             </span>
             <span className="flex items-center gap-1.5">
@@ -121,9 +121,9 @@ export function HeroSection() {
               {/* App mock header */}
               <div className="flex items-center gap-2 rounded-t-xl bg-muted/50 px-4 py-3">
                 <div className="flex gap-1.5">
-                  <div className="size-3 rounded-full bg-red-500/60" />
-                  <div className="size-3 rounded-full bg-yellow-500/60" />
-                  <div className="size-3 rounded-full bg-green-500/60" />
+                  <div className="size-3 rounded-full bg-destructive" />
+                  <div className="size-3 rounded-full bg-primary" />
+                  <div className="size-3 rounded-full bg-secondary" />
                 </div>
                 <div className="mx-auto flex h-7 w-64 items-center justify-center rounded-lg bg-background/60 text-xs text-muted-foreground">
                   <span className="opacity-60">persona.ai</span>/dashboard
@@ -143,13 +143,13 @@ export function HeroSection() {
                     label: "Tasks Completed",
                     value: "1,847",
                     change: "98.2% success",
-                    color: "text-emerald-400",
+                    color: "text-primary",
                   },
                   {
                     label: "Time Saved",
                     value: "142h",
                     change: "This month",
-                    color: "text-amber-400",
+                    color: "text-primary",
                   },
                 ].map((stat) => (
                   <div
@@ -173,14 +173,14 @@ export function HeroSection() {
                   <p className="mb-3 text-xs font-medium text-muted-foreground">
                     Recent Agent Activity
                   </p>
-                  <div className="space-y-2.5">
+                  <div className="flex flex-col gap-2.5">
                     {[
                       {
                         name: "CodeReview Pro",
                         status: "Completed",
                         task: "Reviewed PR #347",
                         time: "2m ago",
-                        dot: "bg-emerald-400",
+                        dot: "bg-primary",
                       },
                       {
                         name: "DataAnalyst",
@@ -194,7 +194,7 @@ export function HeroSection() {
                         status: "Queued",
                         task: "Blog draft pending",
                         time: "In queue",
-                        dot: "bg-amber-400",
+                        dot: "bg-primary",
                       },
                     ].map((agent) => (
                       <div
@@ -223,7 +223,7 @@ export function HeroSection() {
                   <p className="mb-3 text-xs font-medium text-muted-foreground">
                     Quick Actions
                   </p>
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">
                       <SparklesIcon className="size-3.5" />
                       Deploy Agent

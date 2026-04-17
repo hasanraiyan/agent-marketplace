@@ -45,7 +45,7 @@ export function CTASection() {
                 id="cta-btn"
               >
                 Get Started
-                <ArrowRightIcon className="size-4" />
+                <ArrowRightIcon data-icon="inline-end" />
               </Button>
             </div>
 

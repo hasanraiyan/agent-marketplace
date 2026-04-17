@@ -14,9 +14,9 @@ const steps = [
     title: "Discover",
     description:
       "Browse our curated marketplace of verified AI agents. Filter by category, rating, price, and capability to find the perfect match.",
-    gradient: "from-blue-500 to-cyan-500",
-    bg: "bg-blue-500/10",
-    ring: "ring-blue-500/20",
+    gradient: "from-primary to-primary/80",
+    bg: "bg-primary/10",
+    ring: "ring-primary/20",
   },
   {
     number: "02",
@@ -24,9 +24,9 @@ const steps = [
     title: "Customize",
     description:
       "Configure agents to match your workflow. Set parameters, connect your tools, define guardrails, and tailor behavior to your needs.",
-    gradient: "from-violet-500 to-purple-500",
-    bg: "bg-violet-500/10",
-    ring: "ring-violet-500/20",
+    gradient: "from-primary to-primary/80",
+    bg: "bg-primary/10",
+    ring: "ring-primary/20",
   },
   {
     number: "03",
@@ -34,9 +34,9 @@ const steps = [
     title: "Deploy",
     description:
       "Launch your agents in seconds. They run in secure sandboxes with full observability — monitor tasks, costs, and results in real-time.",
-    gradient: "from-emerald-500 to-teal-500",
-    bg: "bg-emerald-500/10",
-    ring: "ring-emerald-500/20",
+    gradient: "from-primary to-primary/80",
+    bg: "bg-primary/10",
+    ring: "ring-primary/20",
   },
   {
     number: "04",
@@ -44,9 +44,9 @@ const steps = [
     title: "Scale",
     description:
       "Orchestrate multi-agent workflows, track performance analytics, and scale from one agent to hundreds with enterprise controls.",
-    gradient: "from-amber-500 to-orange-500",
-    bg: "bg-amber-500/10",
-    ring: "ring-amber-500/20",
+    gradient: "from-primary to-primary/80",
+    bg: "bg-primary/10",
+    ring: "ring-primary/20",
   },
 ];
 
@@ -63,7 +63,7 @@ export function HowItWorksSection() {
             variant="outline"
             className="mb-4 gap-1.5 border-primary/25 bg-primary/5 px-3 py-1 text-primary"
           >
-            <RocketIcon className="size-3" />
+            <RocketIcon data-icon="inline-start" />
             How It Works
           </Badge>
           <h2 className="max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">

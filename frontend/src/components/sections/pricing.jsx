@@ -77,7 +77,7 @@ export function PricingSection() {
             variant="outline"
             className="mb-4 gap-1.5 border-primary/25 bg-primary/5 px-3 py-1 text-primary"
           >
-            <SparklesIcon className="size-3" />
+            <SparklesIcon data-icon="inline-start" />
             Pricing
           </Badge>
           <h2 className="max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
@@ -124,15 +124,15 @@ export function PricingSection() {
               <Separator className="mx-4 bg-border/30" />
 
               <CardContent className="flex-1 pt-6">
-                <ul className="space-y-3">
+                <ul className="flex flex-col gap-3">
                   {plan.features.map((feature) => (
                     <li
                       key={feature.text}
                       className="flex items-center gap-2.5 text-sm"
                     >
                       {feature.included ? (
-                        <div className="flex size-5 items-center justify-center rounded-full bg-emerald-500/15">
-                          <CheckIcon className="size-3 text-emerald-400" />
+                        <div className="flex size-5 items-center justify-center rounded-full bg-primary/15">
+                          <CheckIcon className="size-3 text-primary" />
                         </div>
                       ) : (
                         <div className="flex size-5 items-center justify-center rounded-full bg-muted">
@@ -157,7 +157,7 @@ export function PricingSection() {
                   className={`w-full gap-2 ${plan.highlight ? "glow-primary" : ""}`}
                 >
                   {plan.cta}
-                  <ArrowRightIcon className="size-4" />
+                  <ArrowRightIcon data-icon="inline-end" />
                 </Button>
               </CardFooter>
             </Card>

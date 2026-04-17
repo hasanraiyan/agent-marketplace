@@ -34,8 +34,8 @@ const agents = [
     reviews: 1247,
     price: "Free",
     icon: CodeIcon,
-    gradient: "from-blue-500/20 to-cyan-500/20",
-    iconColor: "text-blue-400",
+    gradient: "from-primary/20 to-primary/10",
+    iconColor: "text-primary",
     featured: true,
   },
   {
@@ -49,8 +49,8 @@ const agents = [
     reviews: 892,
     price: "$9/mo",
     icon: PenToolIcon,
-    gradient: "from-violet-500/20 to-purple-500/20",
-    iconColor: "text-violet-400",
+    gradient: "from-primary/20 to-primary/10",
+    iconColor: "text-primary",
     featured: false,
   },
   {
@@ -64,8 +64,8 @@ const agents = [
     reviews: 634,
     price: "$19/mo",
     icon: BarChart3Icon,
-    gradient: "from-emerald-500/20 to-teal-500/20",
-    iconColor: "text-emerald-400",
+    gradient: "from-primary/20 to-primary/10",
+    iconColor: "text-primary",
     featured: false,
   },
   {
@@ -79,8 +79,8 @@ const agents = [
     reviews: 1102,
     price: "$14/mo",
     icon: SearchIcon,
-    gradient: "from-amber-500/20 to-orange-500/20",
-    iconColor: "text-amber-400",
+    gradient: "from-primary/20 to-primary/10",
+    iconColor: "text-primary",
     featured: true,
   },
   {
@@ -94,8 +94,8 @@ const agents = [
     reviews: 478,
     price: "Free",
     icon: BrainIcon,
-    gradient: "from-pink-500/20 to-rose-500/20",
-    iconColor: "text-pink-400",
+    gradient: "from-primary/20 to-primary/10",
+    iconColor: "text-primary",
     featured: false,
   },
   {
@@ -109,8 +109,8 @@ const agents = [
     reviews: 756,
     price: "$12/mo",
     icon: ImageIcon,
-    gradient: "from-fuchsia-500/20 to-pink-500/20",
-    iconColor: "text-fuchsia-400",
+    gradient: "from-primary/20 to-primary/10",
+    iconColor: "text-primary",
     featured: false,
   },
 ];
@@ -118,7 +118,7 @@ const agents = [
 function StarRating({ rating }) {
   return (
     <div className="flex items-center gap-1">
-      <StarIcon className="size-3.5 fill-amber-400 text-amber-400" />
+      <StarIcon className="size-3.5 fill-primary text-primary" />
       <span className="text-sm font-medium">{rating}</span>
     </div>
   );
@@ -192,7 +192,10 @@ export function FeaturedAgentsSection() {
                 </CardDescription>
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                   <Badge variant="secondary" className="gap-1 text-[11px]">
-                    <agent.icon className={`size-3 ${agent.iconColor}`} />
+                    <agent.icon
+                      className={agent.iconColor}
+                      data-icon="inline-start"
+                    />
                     {agent.category}
                   </Badge>
                   <StarRating rating={agent.rating} />
@@ -213,7 +216,10 @@ export function FeaturedAgentsSection() {
                     className="gap-1 text-xs group-hover:text-primary"
                   >
                     View Agent
-                    <ArrowRightIcon className="size-3 transition-transform group-hover:translate-x-0.5" />
+                    <ArrowRightIcon
+                      data-icon="inline-end"
+                      className="transition-transform group-hover:translate-x-0.5"
+                    />
                   </Button>
                 </div>
               </CardFooter>
@@ -230,7 +236,7 @@ export function FeaturedAgentsSection() {
             id="browse-all-btn"
           >
             Browse All Agents
-            <ArrowRightIcon className="size-4" />
+            <ArrowRightIcon data-icon="inline-end" />
           </Button>
         </div>
       </div>
