@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 import {
   Card,
   CardContent,
@@ -40,6 +42,19 @@ const GoogleLogo = ({ className }) => (
 );
 
 export default function RegisterPage() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { register } = useAuth();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    await register(name, email, password);
+    setLoading(false);
+  };
+
   return (
     <div className="animate-fade-up w-full max-w-md">
       <Card className="glass border-border/40 shadow-2xl shadow-primary/5">
@@ -54,6 +69,7 @@ export default function RegisterPage() {
             Join 2,000+ users building the future of AI
           </CardDescription>
         </CardHeader>
+        <form onSubmit={handleSubmit}>
         <CardContent className="grid gap-4">
           <div className="grid grid-cols-2 gap-4">
             <Button variant="outline" className="gap-2">
@@ -81,6 +97,8 @@ export default function RegisterPage() {
               id="name"
               placeholder="Elon Musk"
               className="bg-muted/30 focus-visible:ring-primary/30"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               required
             />
           </div>
@@ -91,6 +109,8 @@ export default function RegisterPage() {
               type="email"
               placeholder="elon@mars.com"
               className="bg-muted/30 focus-visible:ring-primary/30"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
@@ -100,6 +120,8 @@ export default function RegisterPage() {
               id="password"
               type="password"
               className="bg-muted/30 focus-visible:ring-primary/30"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               required
             />
           </div>
@@ -121,9 +143,9 @@ export default function RegisterPage() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
-          <Button className="w-full gap-2 glow-primary" id="register-submit">
+          <Button className="w-full gap-2 glow-primary" id="register-submit" type="submit" disabled={loading}>
             <UserPlusIcon className="size-4" />
-            Create Account
+            {loading ? "Creating Account..." : "Create Account"}
           </Button>
           <p className="text-center text-xs text-muted-foreground">
             Already have an account?{" "}
@@ -135,6 +157,7 @@ export default function RegisterPage() {
             </Link>
           </p>
         </CardFooter>
+        </form>
       </Card>
     </div>
   );
