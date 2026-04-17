@@ -10,44 +10,37 @@ export const api = axios.create({
   },
 });
 
-// Request interceptor to attach bearer token
+// Request interceptor to attach bearer token via window.Clerk if available
 api.interceptors.request.use(
-  (config) => {
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("accessToken");
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+  async (config) => {
+    if (typeof window !== "undefined" && window.Clerk && window.Clerk.session) {
+      try {
+        const token = await window.Clerk.session.getToken();
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      } catch (err) {
+        // Silent catch to prevent request blocking on token failure
       }
     }
     return config;
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
-// Response interceptor to handle token refresh or unauthorized errors
+// Response interceptor to handle unhandled errors (e.g., 401)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // If we get unauthorized, we should clear localStorage and redirect to login,
-      // but only if it's not the login/register endpoint itself failing
-      if (
-        typeof window !== "undefined" &&
-        !error.config.url?.includes("/auth/login") &&
-        !error.config.url?.includes("/auth/register")
-      ) {
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
-        localStorage.removeItem("user");
-
-        // Simple redirect to login
-        if (window.location.pathname !== "/login") {
-            window.location.href = "/login";
+      if (typeof window !== "undefined") {
+        if (window.location.pathname !== "/sign-in") {
+          window.location.href = "/sign-in";
         }
       }
     }
     return Promise.reject(error);
-  }
+  },
 );

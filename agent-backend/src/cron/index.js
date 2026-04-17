@@ -2,7 +2,6 @@ import cron from 'node-cron';
 import { loggerService } from '../utils/index.js';
 import config from '../config/index.js';
 import deleteInactiveUsers from './deleteInactiveUsers.js';
-import cleanExpiredOTPs from './cleanExpiredOTPs.js';
 
 const logger = loggerService.getLogger();
 
@@ -30,8 +29,6 @@ function registerJob(name, schedule, task) {
 
 export function startAllCronJobs() {
   registerJob('deleteInactiveUsers', config.cron.deleteInactiveUsers, deleteInactiveUsers);
-
-  registerJob('cleanExpiredOTPs', config.cron.cleanExpiredOTPs, cleanExpiredOTPs);
 
   logger.info(`Registered ${jobs.length} cron jobs`);
 }

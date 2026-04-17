@@ -16,22 +16,13 @@ class UserRepository {
       // Validate base user fields with Zod (do not strip or accept unknowns here)
       const validatedBase = userSchema.parse(userData);
 
-      // Explicitly include sensitive/extra fields required by Mongoose
+      // Explicitly include extra fields
       const createData = { ...validatedBase };
-      const extraKeys = [
-        'password',
-        'emailVerificationOTP',
-        'emailVerificationOTPExpires',
-        'passwordResetOTP',
-        'passwordResetOTPExpires',
-        'refreshToken',
-        'role',
-      ];
-
-      for (const key of extraKeys) {
-        if (Object.prototype.hasOwnProperty.call(userData, key) && userData[key] !== undefined) {
-          createData[key] = userData[key];
-        }
+      if (userData.clerkId) {
+        createData.clerkId = userData.clerkId;
+      }
+      if (userData.role) {
+        createData.role = userData.role;
       }
 
       const user = new User(createData);
@@ -61,14 +52,14 @@ class UserRepository {
   }
 
   /**
-   * Find user by ID with password field selected
-   * @param {string} id - User ID
-   * @returns {Promise<Object>} User object with password
+   * Find user by clerk ID
+   * @param {string} clerkId - User Clerk ID
+   * @returns {Promise<Object>} User object
    */
-  async findByIdWithPassword(id) {
-    const user = await User.findById(id).select('+password +refreshToken');
+  async findByClerkId(clerkId) {
+    const user = await User.findOne({ clerkId });
     if (!user) {
-      throw new NotFoundError(`User with id ${id} not found`);
+      throw new NotFoundError(`User with clerkId ${clerkId} not found`);
     }
     return user;
   }
@@ -79,9 +70,7 @@ class UserRepository {
    * @returns {Promise<Object>} User object without sensitive fields
    */
   async findByIdForProfile(id) {
-    const user = await User.findById(id).select(
-      '-password -refreshToken -emailVerificationOTP -emailVerificationOTPExpires -passwordResetOTP -passwordResetOTPExpires'
-    );
+    const user = await User.findById(id);
     if (!user) {
       throw new NotFoundError(`User with id ${id} not found`);
     }
@@ -95,21 +84,6 @@ class UserRepository {
    */
   async findByEmail(email) {
     const user = await User.findOne({ email });
-    if (!user) {
-      throw new NotFoundError(`User with email ${email} not found`);
-    }
-    return user;
-  }
-
-  /**
-   * Find user by email with sensitive fields selected
-   * @param {string} email - User email
-   * @returns {Promise<Object>} User object with sensitive fields
-   */
-  async findByEmailWithSensitive(email) {
-    const user = await User.findOne({ email }).select(
-      '+password +refreshToken +emailVerificationOTP +emailVerificationOTPExpires +passwordResetOTP +passwordResetOTPExpires'
-    );
     if (!user) {
       throw new NotFoundError(`User with email ${email} not found`);
     }
@@ -173,161 +147,6 @@ class UserRepository {
       }
       throw error;
     }
-  }
-
-  /**
-   * Update refresh token for a user
-   * @param {string} id - User ID
-   * @param {string|null} refreshToken - Refresh token to set
-   * @returns {Promise<Object>} Updated user
-   */
-  async updateRefreshToken(id, refreshToken) {
-    const user = await User.findByIdAndUpdate(
-      id,
-      { refreshToken, updatedAt: new Date() },
-      { new: true, runValidators: false }
-    );
-
-    if (!user) {
-      throw new NotFoundError(`User with id ${id} not found`);
-    }
-
-    return user;
-  }
-
-  /**
-   * Update email verification OTP
-   * @param {string} id - User ID
-   * @param {string} hashedOTP - Hashed OTP
-   * @param {Date} expiresAt - OTP expiration date
-   * @returns {Promise<Object>} Updated user
-   */
-  async updateEmailVerificationOTP(id, hashedOTP, expiresAt) {
-    const user = await User.findByIdAndUpdate(
-      id,
-      {
-        emailVerificationOTP: hashedOTP,
-        emailVerificationOTPExpires: expiresAt,
-        updatedAt: new Date(),
-      },
-      { new: true, runValidators: false }
-    );
-
-    if (!user) {
-      throw new NotFoundError(`User with id ${id} not found`);
-    }
-
-    return user;
-  }
-
-  /**
-   * Clear email verification OTP
-   * @param {string} id - User ID
-   * @returns {Promise<Object>} Updated user
-   */
-  async clearEmailVerificationOTP(id) {
-    const user = await User.findByIdAndUpdate(
-      id,
-      {
-        emailVerificationOTP: undefined,
-        emailVerificationOTPExpires: undefined,
-        updatedAt: new Date(),
-      },
-      { new: true, runValidators: false }
-    );
-
-    if (!user) {
-      throw new NotFoundError(`User with id ${id} not found`);
-    }
-
-    return user;
-  }
-
-  /**
-   * Update password reset OTP
-   * @param {string} id - User ID
-   * @param {string} hashedOTP - Hashed OTP
-   * @param {Date} expiresAt - OTP expiration date
-   * @returns {Promise<Object>} Updated user
-   */
-  async updatePasswordResetOTP(id, hashedOTP, expiresAt) {
-    const user = await User.findByIdAndUpdate(
-      id,
-      {
-        passwordResetOTP: hashedOTP,
-        passwordResetOTPExpires: expiresAt,
-        updatedAt: new Date(),
-      },
-      { new: true, runValidators: false }
-    );
-
-    if (!user) {
-      throw new NotFoundError(`User with id ${id} not found`);
-    }
-
-    return user;
-  }
-
-  /**
-   * Clear password reset OTP
-   * @param {string} id - User ID
-   * @returns {Promise<Object>} Updated user
-   */
-  async clearPasswordResetOTP(id) {
-    const user = await User.findByIdAndUpdate(
-      id,
-      {
-        passwordResetOTP: undefined,
-        passwordResetOTPExpires: undefined,
-        updatedAt: new Date(),
-      },
-      { new: true, runValidators: false }
-    );
-
-    if (!user) {
-      throw new NotFoundError(`User with id ${id} not found`);
-    }
-
-    return user;
-  }
-
-  /**
-   * Mark email as verified
-   * @param {string} id - User ID
-   * @returns {Promise<Object>} Updated user
-   */
-  async markEmailAsVerified(id) {
-    const user = await User.findByIdAndUpdate(
-      id,
-      { emailVerified: true, updatedAt: new Date() },
-      { new: true, runValidators: false }
-    );
-
-    if (!user) {
-      throw new NotFoundError(`User with id ${id} not found`);
-    }
-
-    return user;
-  }
-
-  /**
-   * Update password
-   * @param {string} id - User ID
-   * @param {string} hashedPassword - New hashed password
-   * @returns {Promise<Object>} Updated user
-   */
-  async updatePassword(id, hashedPassword) {
-    const user = await User.findByIdAndUpdate(
-      id,
-      { password: hashedPassword, updatedAt: new Date() },
-      { new: true, runValidators: false }
-    );
-
-    if (!user) {
-      throw new NotFoundError(`User with id ${id} not found`);
-    }
-
-    return user;
   }
 
   /**

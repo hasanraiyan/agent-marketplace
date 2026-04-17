@@ -46,35 +46,11 @@ const userMongooseSchema = new mongoose.Schema(
       enum: ['normal', 'admin'],
       default: 'normal',
     },
-    password: {
+    clerkId: {
       type: String,
       required: true,
-      select: false,
-    },
-    emailVerified: {
-      type: Boolean,
-      // For MVP we treat all users as verified by default
-      default: true,
-    },
-    emailVerificationOTP: {
-      type: String,
-      select: false,
-    },
-    emailVerificationOTPExpires: {
-      type: Date,
-      select: false,
-    },
-    passwordResetOTP: {
-      type: String,
-      select: false,
-    },
-    passwordResetOTPExpires: {
-      type: Date,
-      select: false,
-    },
-    refreshToken: {
-      type: String,
-      select: false,
+      unique: true,
+      index: true,
     },
   },
   {
