@@ -35,7 +35,29 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      appearance={{
+        variables: {
+          colorPrimary: "var(--clerk-color-primary)",
+          colorTextOnPrimaryBackground: "var(--clerk-color-primary-foreground)",
+          colorDanger: "var(--clerk-color-danger)",
+          colorSuccess: "var(--clerk-color-success)",
+          colorWarning: "var(--clerk-color-warning)",
+          colorText: "var(--clerk-color-neutral)",
+          colorTextSecondary: "var(--clerk-color-muted-foreground)",
+          colorBackground: "var(--clerk-color-background)",
+          colorInputBackground: "var(--clerk-color-input)",
+          colorInputText: "var(--clerk-color-input-foreground)",
+          colorShimmer: "var(--clerk-color-shimmer)",
+          borderRadius: "var(--clerk-border-radius)",
+          spacingUnit: "var(--clerk-spacing)",
+        },
+        elements: {
+          cardBox: "shadow-2xl border border-white/10",
+          card: "bg-background/80 backdrop-blur-xl", // Adds glassmorphism to match your vibe
+        },
+      }}
+    >
       <html
         lang="en"
         className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
