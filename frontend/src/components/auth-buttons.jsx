@@ -3,7 +3,7 @@
 import { useAuth, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { LogInIcon, RocketIcon } from "lucide-react";
+import { LogInIcon, RocketIcon, LayoutDashboardIcon } from "lucide-react";
 
 export function DesktopAuthButtons() {
   const { isLoaded, userId } = useAuth();
@@ -33,7 +33,15 @@ export function DesktopAuthButtons() {
           </Button>
         </>
       ) : (
-        <UserButton />
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/dashboard" className="flex items-center gap-2">
+              <LayoutDashboardIcon className="size-4" />
+              <span>Dashboard</span>
+            </Link>
+          </Button>
+          <UserButton afterSignOutUrl="/" />
+        </div>
       )}
     </>
   );
@@ -71,9 +79,22 @@ export function MobileAuthButtons({ setOpen }) {
           </Button>
         </>
       ) : (
-        <div className="flex w-full items-center justify-between">
-          <span className="text-sm font-medium">Account</span>
-          <UserButton />
+        <div className="flex flex-col gap-2">
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-2"
+            onClick={() => setOpen(false)}
+            asChild
+          >
+            <Link href="/dashboard">
+              <LayoutDashboardIcon className="size-4" />
+              Dashboard
+            </Link>
+          </Button>
+          <div className="flex w-full items-center justify-between px-3 py-2">
+            <span className="text-sm font-medium">Account</span>
+            <UserButton afterSignOutUrl="/" />
+          </div>
         </div>
       )}
     </>
