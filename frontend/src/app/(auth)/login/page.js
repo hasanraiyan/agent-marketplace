@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 import {
   Card,
   CardContent,
@@ -40,6 +42,18 @@ const GoogleLogo = ({ className }) => (
 );
 
 export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    await login(email, password);
+    setLoading(false);
+  };
+
   return (
     <div className="animate-fade-up w-full max-w-md">
       <Card className="glass border-border/40 shadow-2xl shadow-primary/5">
@@ -51,6 +65,7 @@ export default function LoginPage() {
             Enter your email below to access your account
           </CardDescription>
         </CardHeader>
+        <form onSubmit={handleSubmit}>
         <CardContent className="grid gap-4">
           <div className="grid grid-cols-2 gap-4">
             <Button variant="outline" className="gap-2">
@@ -81,6 +96,8 @@ export default function LoginPage() {
                 type="email"
                 placeholder="m@example.com"
                 className="bg-muted/30 pl-10 focus-visible:ring-primary/30"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
@@ -99,6 +116,8 @@ export default function LoginPage() {
               id="password"
               type="password"
               className="bg-muted/30 focus-visible:ring-primary/30"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               required
             />
           </div>
@@ -113,9 +132,9 @@ export default function LoginPage() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
-          <Button className="w-full gap-2 glow-primary" id="login-submit">
+          <Button className="w-full gap-2 glow-primary" id="login-submit" type="submit" disabled={loading}>
             <LogInIcon className="size-4" />
-            Sign In
+            {loading ? "Signing in..." : "Sign In"}
           </Button>
           <p className="text-center text-xs text-muted-foreground">
             Don&apos;t have an account?{" "}
@@ -127,6 +146,7 @@ export default function LoginPage() {
             </Link>
           </p>
         </CardFooter>
+        </form>
       </Card>
     </div>
   );

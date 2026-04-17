@@ -1,0 +1,82 @@
+
+> agent-marketplace@1.0.0 dev /app/agent-backend
+> nodemon src/index.js
+
+[33m[nodemon] 3.1.14[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): *.*[39m
+[33m[nodemon] watching extensions: js,mjs,cjs,json[39m
+[32m[nodemon] starting `node src/index.js`[39m
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[INFO] 2026-04-17T02:36:58.063Z - Connecting to MongoDB
+(node:201475) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[ERROR] 2026-04-17T02:37:03.094Z - Failed to connect to MongoDB: MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017
+    at _handleConnectionErrors (/app/agent-backend/node_modules/.pnpm/mongoose@9.3.3/node_modules/mongoose/lib/connection.js:1168:11)
+    at NativeConnection.openUri (/app/agent-backend/node_modules/.pnpm/mongoose@9.3.3/node_modules/mongoose/lib/connection.js:1099:11)
+    at async Database.connect (file:///app/agent-backend/src/config/database.js:44:7)
+    at async startServer (file:///app/agent-backend/src/index.js:70:5) {
+  errorLabelSet: Set(0) {},
+  reason: TopologyDescription {
+    type: 'Unknown',
+    servers: Map(1) { 'localhost:27017' => [ServerDescription] },
+    stale: false,
+    compatible: true,
+    heartbeatFrequencyMS: 10000,
+    localThresholdMS: 15,
+    setName: null,
+    maxElectionId: null,
+    maxSetVersion: null,
+    commonWireVersion: 0,
+    logicalSessionTimeoutMinutes: null
+  },
+  code: undefined,
+  cause: TopologyDescription {
+    type: 'Unknown',
+    servers: Map(1) { 'localhost:27017' => [ServerDescription] },
+    stale: false,
+    compatible: true,
+    heartbeatFrequencyMS: 10000,
+    localThresholdMS: 15,
+    setName: null,
+    maxElectionId: null,
+    maxSetVersion: null,
+    commonWireVersion: 0,
+    logicalSessionTimeoutMinutes: null
+  }
+}
+[ERROR] 2026-04-17T02:37:03.095Z - Failed to start server: MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017
+    at _handleConnectionErrors (/app/agent-backend/node_modules/.pnpm/mongoose@9.3.3/node_modules/mongoose/lib/connection.js:1168:11)
+    at NativeConnection.openUri (/app/agent-backend/node_modules/.pnpm/mongoose@9.3.3/node_modules/mongoose/lib/connection.js:1099:11)
+    at async Database.connect (file:///app/agent-backend/src/config/database.js:44:7)
+    at async startServer (file:///app/agent-backend/src/index.js:70:5) {
+  errorLabelSet: Set(0) {},
+  reason: TopologyDescription {
+    type: 'Unknown',
+    servers: Map(1) { 'localhost:27017' => [ServerDescription] },
+    stale: false,
+    compatible: true,
+    heartbeatFrequencyMS: 10000,
+    localThresholdMS: 15,
+    setName: null,
+    maxElectionId: null,
+    maxSetVersion: null,
+    commonWireVersion: 0,
+    logicalSessionTimeoutMinutes: null
+  },
+  code: undefined,
+  cause: TopologyDescription {
+    type: 'Unknown',
+    servers: Map(1) { 'localhost:27017' => [ServerDescription] },
+    stale: false,
+    compatible: true,
+    heartbeatFrequencyMS: 10000,
+    localThresholdMS: 15,
+    setName: null,
+    maxElectionId: null,
+    maxSetVersion: null,
+    commonWireVersion: 0,
+    logicalSessionTimeoutMinutes: null
+  }
+}
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
