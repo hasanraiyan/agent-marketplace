@@ -8,7 +8,7 @@ const resend = config.resend.apiKey ? new Resend(config.resend.apiKey) : null;
 const mailgen = new Mailgen({
   theme: 'default',
   product: {
-    name: 'Agent Marketplace',
+    name: 'Persona.ai',
     link: config.websiteUrl,
   },
 });

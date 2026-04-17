@@ -1,6 +1,6 @@
-# Agent Marketplace
+# Persona.ai
 
-Monorepo containing the backend and frontend for the Agent Marketplace project.
+Monorepo containing the backend and frontend for the Persona.ai intelligent agent orchestration platform.
 
 ## Structure
 - `agent-backend/` — Node.js backend with tests and scripts

@@ -1,4 +1,4 @@
-# Agent Marketplace — Backend Feature Plan
+# Persona.ai — Backend Feature Plan
 
 > **Scope:** Everything that needs to be built inside `agent-backend/` to support
 > user-created agents, provider key management, and live agent chat powered by `deep-agent`.
@@ -356,7 +356,7 @@ const runtimeCache = new Map();
 // Each conversation is isolated by thread_id within the DB
 const checkpointer = new MongoDBSaver({
   client: mongoose.connection.getClient(),
-  dbName: 'agent-marketplace',
+  dbName: 'persona-ai',
 });
 
 // Web search tool — shared instance (stateless, safe to reuse)

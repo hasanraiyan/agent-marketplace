@@ -51,7 +51,7 @@ app.get('/', (req, res) => {
   }
 
   res.json({
-    message: 'Welcome to Agent Marketplace API',
+    message: 'Welcome to Persona.ai API',
     version: '1.0.0',
     database: dbStatus,
   });

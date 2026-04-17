@@ -1,9 +1,9 @@
 const openapiSpecification = {
   openapi: '3.0.0',
   info: {
-    title: 'Agent Marketplace Backend API',
+    title: 'Persona.ai Backend API',
     version: '1.0.0',
-    description: 'API documentation for the Agent Marketplace backend',
+    description: 'API documentation for the Persona.ai intelligent agent orchestration platform',
   },
   servers: [{ url: `http://localhost:${process.env.PORT || 3000}`, description: 'Local server' }],
   components: {

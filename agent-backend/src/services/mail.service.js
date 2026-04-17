@@ -13,7 +13,7 @@ export const sendVerificationEmail = async (to, otp) => {
   const email = {
     body: {
       name: to,
-      intro: 'Welcome to Agent Marketplace! Verify your email address.',
+      intro: 'Welcome to Persona.ai! Verify your email address.',
       action: {
         instructions: `Your verification code is:`,
         button: {
@@ -40,7 +40,7 @@ export const sendVerificationEmail = async (to, otp) => {
     await resend.emails.send({
       from: config.resend.mailFrom,
       to,
-      subject: 'Verify your Agent Marketplace account',
+      subject: 'Verify your Persona.ai account',
       html,
       text,
     });
@@ -60,9 +60,9 @@ export const sendWelcomeEmail = async (to, name) => {
   const email = {
     body: {
       name: name || to,
-      intro: 'Welcome to Agent Marketplace! Your email has been verified successfully.',
+      intro: 'Welcome to Persona.ai! Your email has been verified successfully.',
       action: {
-        instructions: "You're all set! Start exploring what Agent Marketplace has to offer.",
+        instructions: "You're all set! Start exploring what Persona.ai has to offer.",
         button: {
           color: '#22BC66',
           text: 'Get Started',
@@ -80,7 +80,7 @@ export const sendWelcomeEmail = async (to, name) => {
     await resend.emails.send({
       from: config.resend.mailFrom,
       to,
-      subject: 'Welcome to Agent Marketplace!',
+      subject: 'Welcome to Persona.ai!',
       html,
       text,
     });
@@ -126,7 +126,7 @@ export const sendPasswordResetEmail = async (to, otp) => {
     await resend.emails.send({
       from: config.resend.mailFrom,
       to,
-      subject: 'Reset your Agent Marketplace password',
+      subject: 'Reset your Persona.ai password',
       html,
       text,
     });

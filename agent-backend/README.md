@@ -1,6 +1,6 @@
-# Agent Marketplace Backend Part
+# Persona.ai Backend Part
 
-REST API backend for Agent Marketplace built with Express 5, MongoDB (Mongoose), and Zod validation.
+REST API backend for Persona.ai built with Express 5, MongoDB (Mongoose), and Zod validation.
 
 ## Tech Stack
 
@@ -95,7 +95,7 @@ cp .env.example .env
 | ----------------------------- | ------------------------------------------------- | --------------------------------------------- |
 | `PORT`                        | Server port                                       | `3000`                                        |
 | `NODE_ENV`                    | Environment (`development`, `test`, `production`) | `development`                                 |
-| `MONGODB_URI`                 | MongoDB connection string                         | `mongodb://localhost:27017/agent-marketplace` |
+| `MONGODB_URI`                 | MongoDB connection string                         | `mongodb://localhost:27017/persona-ai` |
 | `DB_ENCRYPTION_ACTIVE_KEY_ID` | Active encryption key ID                          | —                                             |
 | `DB_ENCRYPTION_KEYS`          | JSON map of key IDs to base64-encoded keys        | —                                             |
 | `OPENAI_API_KEY`              | OpenAI API key for live LangChain examples        | —                                             |
@@ -103,7 +103,7 @@ cp .env.example .env
 | `ANTHROPIC_API_KEY`           | Anthropic API key for live Deep Agent examples    | —                                             |
 | `ANTHROPIC_MODEL`             | Default Anthropic model                           | `claude-sonnet-4-6`                           |
 | `LANGSMITH_API_KEY`           | LangSmith tracing key                             | —                                             |
-| `LANGSMITH_PROJECT`           | LangSmith project name                            | `agent-marketplace-backend`                   |
+| `LANGSMITH_PROJECT`           | LangSmith project name                            | `persona-ai-backend`                   |
 
 ## Running
 

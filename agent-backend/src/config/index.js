@@ -36,9 +36,9 @@ const config = {
   },
   resend: {
     apiKey: process.env.RESEND_API_KEY,
-    mailFrom: process.env.MAIL_FROM || 'Agent Marketplace <noreply@agentmarketplace.com>',
+    mailFrom: process.env.MAIL_FROM || 'Persona.ai <noreply@persona.ai>',
   },
-  websiteUrl: process.env.WEBSITE_URL || 'https://agentmarketplace.vercel.app/',
+  websiteUrl: process.env.WEBSITE_URL || 'https://persona.ai/',
   cron: {
     deleteInactiveUsers: process.env.CRON_DELETE_INACTIVE_USERS || '0 3 * * *',
     cleanExpiredOTPs: process.env.CRON_CLEAN_EXPIRED_OTPS || '0 */6 * * *',
@@ -50,7 +50,7 @@ const config = {
     anthropicApiKey: process.env.ANTHROPIC_API_KEY || null,
     anthropicModel: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
     langsmithApiKey: process.env.LANGSMITH_API_KEY || null,
-    langsmithProject: process.env.LANGSMITH_PROJECT || 'agent-marketplace-backend',
+    langsmithProject: process.env.LANGSMITH_PROJECT || 'persona-ai-backend',
   },
 };
 
