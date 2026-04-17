@@ -1,0 +1,92 @@
+[
+  {
+    "id": 1,
+    "header": "CodeNexus Pro",
+    "type": "Coding Assistant",
+    "status": "In Progress",
+    "target": "180",
+    "limit": "500",
+    "owner": "Eddie Lake"
+  },
+  {
+    "id": 2,
+    "header": "MarketMinds Analyzer",
+    "type": "Market Research",
+    "status": "Done",
+    "target": "290",
+    "limit": "2400",
+    "owner": "Eddie Lake"
+  },
+  {
+    "id": 3,
+    "header": "VisionFlow OCR",
+    "type": "Computer Vision",
+    "status": "Done",
+    "target": "105",
+    "limit": "1300",
+    "owner": "Eddie Lake"
+  },
+  {
+    "id": 4,
+    "header": "DataCleaner AI",
+    "type": "Data Processing",
+    "status": "Done",
+    "target": "270",
+    "limit": "2300",
+    "owner": "Jamik Tashpulatov"
+  },
+  {
+    "id": 5,
+    "header": "CyberGuard Sentinel",
+    "type": "Security",
+    "status": "In Progress",
+    "target": "25",
+    "limit": "1600",
+    "owner": "Jamik Tashpulatov"
+  },
+  {
+    "id": 6,
+    "header": "ContentGenie",
+    "type": "Creative Writing",
+    "status": "In Progress",
+    "target": "200",
+    "limit": "800",
+    "owner": "Jamik Tashpulatov"
+  },
+  {
+    "id": 7,
+    "header": "VoiceSync Translator",
+    "type": "NLP",
+    "status": "In Progress",
+    "target": "190",
+    "limit": "2100",
+    "owner": "Jamik Tashpulatov"
+  },
+  {
+    "id": 8,
+    "header": "LegalLogic Bot",
+    "type": "Legal Analysis",
+    "status": "Done",
+    "target": "250",
+    "limit": "2600",
+    "owner": "Assign owner"
+  },
+  {
+    "id": 9,
+    "header": "HealthScan Diagnostic",
+    "type": "Healthcare",
+    "status": "Done",
+    "target": "75",
+    "limit": "2300",
+    "owner": "Assign owner"
+  },
+  {
+    "id": 10,
+    "header": "TradeMaster Bot",
+    "type": "Fintech",
+    "status": "Done",
+    "target": "300",
+    "limit": "2800",
+    "owner": "Assign owner"
+  }
+]
