@@ -15,12 +15,7 @@ export function DesktopAuthButtons() {
             Sign In
           </Link>
         </Button>
-        <Button
-          size="sm"
-          className="glow-primary"
-          id="get-started-btn"
-          asChild
-        >
+        <Button size="sm" className="glow-primary" id="get-started-btn" asChild>
           <Link href="/sign-up">
             <RocketIcon className="size-4" />
             Get Started

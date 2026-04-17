@@ -16,9 +16,11 @@ import {
   LayoutGridIcon,
   BookOpenIcon,
   DollarSignIcon,
-  LogInIcon,
-  RocketIcon,
 } from "lucide-react";
+import {
+  DesktopAuthButtons,
+  MobileAuthButtons,
+} from "@/components/auth-buttons";
 
 const navLinks = [
   { href: "#agents", label: "Explore", icon: LayoutGridIcon },

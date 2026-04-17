@@ -27,7 +27,7 @@ api.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor to handle unhandled errors (e.g., 401)
@@ -37,10 +37,10 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       if (typeof window !== "undefined") {
         if (window.location.pathname !== "/sign-in") {
-            window.location.href = "/sign-in";
+          window.location.href = "/sign-in";
         }
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
