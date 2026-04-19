@@ -1,0 +1,33 @@
+/\*\*
+
+- API Organization Structure
+-
+- This directory contains the organized API functions for the frontend application.
+- The structure is designed for better maintainability, scalability, and easier testing.
+-
+- Directory Structure:
+- - core.js: Axios instance configuration with interceptors
+- - index.js: Barrel exports for all API functions (backward compatibility)
+- - agents.js: Agent-related API functions
+- - threads.js: Thread and conversation API functions
+- - skills.js: Skill management API functions
+- - providers.js: Provider configuration API functions
+- - admin.js: Administrative API functions
+- - profile.js: User profile API functions
+- - health.js: Health check API functions
+-
+- Usage:
+- // Import all functions (backward compatible)
+- import { getAgent, createThread, getProfile } from '@/lib/api';
+-
+- // Import specific domain functions
+- import { getAgent, createAgent } from '@/lib/api/agents';
+- import { getThreads } from '@/lib/api/threads';
+-
+- Benefits:
+- - Domain separation: Each API domain is in its own file
+- - Easier maintenance: Changes to one domain don't affect others
+- - Better testing: Can test individual API modules
+- - Scalability: Easy to add new domains or functions
+- - Import flexibility: Import all or specific functions as needed
+    \*/
