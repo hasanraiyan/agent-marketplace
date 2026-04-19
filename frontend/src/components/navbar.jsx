@@ -89,7 +89,7 @@ export function Navbar() {
               className="md:hidden"
               id="mobile-menu-btn"
             >
-              <MenuIcon className="size-5" />
+              <MenuIcon />
               <span className="sr-only">Menu</span>
             </Button>
           </SheetTrigger>
@@ -110,7 +110,7 @@ export function Navbar() {
                   onClick={() => setOpen(false)}
                   className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
-                  <link.icon className="size-4" />
+                  <link.icon data-icon="inline-start" />
                   {link.label}
                 </Link>
               ))}

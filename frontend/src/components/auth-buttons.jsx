@@ -16,7 +16,7 @@ export function DesktopAuthButtons() {
         <>
           <Button variant="ghost" size="sm" id="sign-in-btn" asChild>
             <Link href="/sign-in">
-              <LogInIcon className="size-4" />
+              <LogInIcon data-icon="inline-start" />
               Sign In
             </Link>
           </Button>
@@ -27,7 +27,7 @@ export function DesktopAuthButtons() {
             asChild
           >
             <Link href="/sign-up">
-              <RocketIcon className="size-4" />
+              <RocketIcon data-icon="inline-start" />
               Get Started
             </Link>
           </Button>
@@ -36,7 +36,7 @@ export function DesktopAuthButtons() {
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" asChild>
             <Link href="/dashboard" className="flex items-center gap-2">
-              <LayoutDashboardIcon className="size-4" />
+              <LayoutDashboardIcon data-icon="inline-start" />
               <span>Dashboard</span>
             </Link>
           </Button>
@@ -63,7 +63,7 @@ export function MobileAuthButtons({ setOpen }) {
             asChild
           >
             <Link href="/sign-in">
-              <LogInIcon className="size-4" />
+              <LogInIcon data-icon="inline-start" />
               Sign In
             </Link>
           </Button>
@@ -73,7 +73,7 @@ export function MobileAuthButtons({ setOpen }) {
             asChild
           >
             <Link href="/sign-up">
-              <RocketIcon className="size-4" />
+              <RocketIcon data-icon="inline-start" />
               Get Started
             </Link>
           </Button>
@@ -87,7 +87,7 @@ export function MobileAuthButtons({ setOpen }) {
             asChild
           >
             <Link href="/dashboard">
-              <LayoutDashboardIcon className="size-4" />
+              <LayoutDashboardIcon data-icon="inline-start" />
               Dashboard
             </Link>
           </Button>
