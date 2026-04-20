@@ -89,9 +89,9 @@ class ProviderService {
       const response = await fetch(`${baseURL}/models`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        }
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
       });
 
       if (!response.ok) {
@@ -109,11 +109,11 @@ class ProviderService {
 
       const data = await response.json();
       if (!data || !Array.isArray(data.data)) {
-         throw new Error('Invalid response format: expected { data: [...] }');
+        throw new Error('Invalid response format: expected { data: [...] }');
       }
 
       // We only need the ID and optionally the provider info, but returning just ID is standard
-      return data.data.map(model => ({ id: model.id }));
+      return data.data.map((model) => ({ id: model.id }));
     } catch (error) {
       throw new Error(`Connection test failed: ${error.message}`);
     }

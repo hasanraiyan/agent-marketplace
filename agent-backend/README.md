@@ -91,18 +91,18 @@ cp .env.example .env
 
 ### Environment Variables
 
-| Variable                      | Description                                       | Default                                       |
-| ----------------------------- | ------------------------------------------------- | --------------------------------------------- |
-| `PORT`                        | Server port                                       | `3000`                                        |
-| `NODE_ENV`                    | Environment (`development`, `test`, `production`) | `development`                                 |
+| Variable                      | Description                                       | Default                                |
+| ----------------------------- | ------------------------------------------------- | -------------------------------------- |
+| `PORT`                        | Server port                                       | `3000`                                 |
+| `NODE_ENV`                    | Environment (`development`, `test`, `production`) | `development`                          |
 | `MONGODB_URI`                 | MongoDB connection string                         | `mongodb://localhost:27017/persona-ai` |
-| `DB_ENCRYPTION_ACTIVE_KEY_ID` | Active encryption key ID                          | —                                             |
-| `DB_ENCRYPTION_KEYS`          | JSON map of key IDs to base64-encoded keys        | —                                             |
-| `OPENAI_API_KEY`              | OpenAI API key for live LangChain examples        | —                                             |
-| `OPENAI_MODEL`                | Default OpenAI model                              | `gpt-4.1-mini`                                |
-| `ANTHROPIC_API_KEY`           | Anthropic API key for live Deep Agent examples    | —                                             |
-| `ANTHROPIC_MODEL`             | Default Anthropic model                           | `claude-sonnet-4-6`                           |
-| `LANGSMITH_API_KEY`           | LangSmith tracing key                             | —                                             |
+| `DB_ENCRYPTION_ACTIVE_KEY_ID` | Active encryption key ID                          | —                                      |
+| `DB_ENCRYPTION_KEYS`          | JSON map of key IDs to base64-encoded keys        | —                                      |
+| `OPENAI_API_KEY`              | OpenAI API key for live LangChain examples        | —                                      |
+| `OPENAI_MODEL`                | Default OpenAI model                              | `gpt-4.1-mini`                         |
+| `ANTHROPIC_API_KEY`           | Anthropic API key for live Deep Agent examples    | —                                      |
+| `ANTHROPIC_MODEL`             | Default Anthropic model                           | `claude-sonnet-4-6`                    |
+| `LANGSMITH_API_KEY`           | LangSmith tracing key                             | —                                      |
 | `LANGSMITH_PROJECT`           | LangSmith project name                            | `persona-ai-backend`                   |
 
 ## Running

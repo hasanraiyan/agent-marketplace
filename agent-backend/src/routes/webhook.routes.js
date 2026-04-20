@@ -68,7 +68,9 @@ router.post('/clerk', express.raw({ type: 'application/json' }), async (req, res
       logger.info(`Successfully created user ${id} in DB`);
     } catch (dbError) {
       if (dbError.code === 11000) {
-        logger.info(`User ${id} or email ${email} already exists in DB (duplicate key), treating as success`);
+        logger.info(
+          `User ${id} or email ${email} already exists in DB (duplicate key), treating as success`
+        );
       } else {
         logger.error('Error saving user to database:', dbError);
         return res.status(500).json({ success: false, message: 'Database error' });

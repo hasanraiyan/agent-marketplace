@@ -1,5 +1,9 @@
 import providerService from '../services/provider.service.js';
-import { createProviderSchema, updateProviderSchema, testConnectionSchema } from '../validators/provider.validator.js';
+import {
+  createProviderSchema,
+  updateProviderSchema,
+  testConnectionSchema,
+} from '../validators/provider.validator.js';
 
 class ProviderController {
   async getAll(req, res, next) {

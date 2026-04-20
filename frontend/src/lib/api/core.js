@@ -10,18 +10,47 @@ export const api = axios.create({
   },
 });
 
+let tokenFetcher = null;
+export const setTokenFetcher = (fetcher) => {
+  tokenFetcher = fetcher;
+};
+
 // Request interceptor to attach bearer token via window.Clerk if available
 api.interceptors.request.use(
   async (config) => {
-    if (typeof window !== "undefined" && window.Clerk && window.Clerk.session) {
-      try {
-        const token = await window.Clerk.session.getToken();
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-      } catch (err) {
-        // Silent catch to prevent request blocking on token failure
+    try {
+      let token = null;
+      if (tokenFetcher) {
+        token = await tokenFetcher();
+        console.log(
+          "[Axios Interceptor] Token fetched from React hook:",
+          token ? "SUCCESS" : "NULL",
+        );
+      } else if (
+        typeof window !== "undefined" &&
+        window.Clerk &&
+        window.Clerk.session
+      ) {
+        token = await window.Clerk.session.getToken();
+        console.log(
+          "[Axios Interceptor] Token fetched from window.Clerk:",
+          token ? "SUCCESS" : "NULL",
+        );
+      } else {
+        console.log(
+          "[Axios Interceptor] No token fetcher or window.Clerk available",
+        );
       }
+
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      } else {
+        console.log(
+          "[Axios Interceptor] WARNING: Request proceeding without Authorization header!",
+        );
+      }
+    } catch (err) {
+      console.error("[Axios Interceptor] Failed to fetch token:", err);
     }
     return config;
   },

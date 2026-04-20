@@ -4,8 +4,10 @@ import React, { useState, useEffect } from "react";
 import { ProviderList } from "./ProviderList";
 import { getProviders } from "@/lib/api/providers";
 import { toast } from "sonner";
+import { useAuth } from "@clerk/nextjs";
 
 export default function SettingsPage() {
+  const { isLoaded, isSignedIn } = useAuth();
   const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,8 +26,10 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    fetchProviders();
-  }, []);
+    if (isLoaded && isSignedIn) {
+      fetchProviders();
+    }
+  }, [isLoaded, isSignedIn]);
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">

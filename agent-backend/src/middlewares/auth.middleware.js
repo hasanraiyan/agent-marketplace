@@ -1,13 +1,14 @@
-import { requireAuth, clerkMiddleware } from '@clerk/express';
+import { clerkMiddleware, getAuth, clerkClient } from '@clerk/express';
 import User from '../models/User.js';
 import BaseError from '../utils/errors/BaseError.js';
+import { loggerService } from '../utils/index.js';
 
 const baseClerkMiddleware = clerkMiddleware();
-const requireAuthMiddleware = requireAuth();
+const logger = loggerService.getLogger();
 
 const authMiddleware = async (req, res, next) => {
   try {
-    // 1. First run clerkMiddleware to parse the token into req.auth
+    // 1. First run clerkMiddleware to parse the token into request
     await new Promise((resolve, reject) => {
       baseClerkMiddleware(req, res, (err) => {
         if (err) return reject(err);
@@ -15,29 +16,54 @@ const authMiddleware = async (req, res, next) => {
       });
     });
 
-    // 2. Then run requireAuth to verify authentication state
-    await new Promise((resolve, reject) => {
-      requireAuthMiddleware(req, res, (err) => {
-        if (err) return reject(err);
-        resolve();
-      });
-    });
-
-    const clerkId = req.auth.userId;
+    // 2. Extract auth state using getAuth
+    const authState = getAuth(req);
+    const clerkId = authState?.userId;
 
     if (!clerkId) {
       throw new BaseError('Access token required', 401, 'UNAUTHORIZED');
     }
 
-    // Try finding the user by their Clerk ID (assuming clerkId mapped to some field, or maybe just email if sync not full)
-    // Actually, usually sync creates a user using Clerk ID. We will assume the user has a clerkId field in our DB.
-    // For now, let's map the user using the clerk ID in the DB. Wait, does our user schema have a clerkId field? We need to update User model.
+    // Try finding the user by their Clerk ID
     let user = await User.findOne({ clerkId });
 
-    // In case webhook hasn't processed yet or this is a first-time use without webhook,
-    // we could dynamically create them, or fail. We'll fail for now and rely on sync step.
+    // Auto-sync fallback for users created before webhook integration, dropped databases, or email-only records
     if (!user) {
-      throw new BaseError('User not found in local database', 401, 'UNAUTHORIZED');
+      try {
+        logger.info(`Auto-syncing missing local user for Clerk ID: ${clerkId}`);
+        const clerkUser = await clerkClient.users.getUser(clerkId);
+        const email = clerkUser.emailAddresses[0]?.emailAddress;
+
+        if (!email) {
+          throw new Error('Clerk user missing email address');
+        }
+
+        const name =
+          `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || 'Anonymous';
+
+        // Check if user exists by email but has a different/missing clerkId
+        user = await User.findOne({ email });
+
+        if (user) {
+          logger.info(
+            `Found existing user by email ${email}, updating with new Clerk ID ${clerkId}`
+          );
+          user.clerkId = clerkId;
+          user.name = name; // Sync name while we're at it
+          await user.save();
+        } else {
+          user = await User.create({
+            clerkId,
+            email,
+            name,
+            role: 'normal',
+          });
+          logger.info(`Successfully created new auto-synced user ${clerkId}`);
+        }
+      } catch (syncErr) {
+        logger.error('Failed to auto-sync user from Clerk:', syncErr);
+        throw new BaseError('User fallback synchronization failed', 401, 'UNAUTHORIZED');
+      }
     }
 
     req.user = user;
