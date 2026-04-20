@@ -19,6 +19,9 @@ jest.unstable_mockModule('../src/validators/provider.validator.js', () => ({
   updateProviderSchema: {
     parse: jest.fn().mockImplementation((data) => data),
   },
+  testConnectionSchema: {
+    parse: jest.fn().mockImplementation((data) => data),
+  },
 }));
 
 const providerService = (await import('../src/services/provider.service.js')).default;
