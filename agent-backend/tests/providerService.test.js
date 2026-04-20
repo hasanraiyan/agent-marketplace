@@ -181,13 +181,29 @@ describe('Provider Service', () => {
   });
 
   describe('testConnection', () => {
-    test('should return mocked success for MVP', async () => {
+    test('should succeed if model fetching works', async () => {
       providerRepository.findById.mockResolvedValue(mockProvider);
+      encryption.decrypt.mockReturnValue('raw-api-key');
+
+      // Mock the fetch call
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ id: 'gpt-4' }] }),
+        })
+      );
 
       const result = await providerService.testConnection(mockProvider._id, mockUserId);
 
       expect(result.success).toBe(true);
-      expect(result.message).toBe('Provider test connection mocked for MVP.');
+      expect(result.message).toBe('Connection successful.');
+      expect(global.fetch).toHaveBeenCalledWith(`${mockProvider.baseURL}/models`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer raw-api-key`,
+          'Content-Type': 'application/json'
+        }
+      });
     });
 
     test('should throw unauthorized if testing someone elses provider', async () => {
@@ -200,5 +216,61 @@ describe('Provider Service', () => {
         'Unauthorized to test this provider'
       );
     });
+  });
+
+  describe('testConnectionWithCredentials', () => {
+     test('should return success with models list', async () => {
+        global.fetch = jest.fn(() =>
+          Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ data: [{ id: 'gpt-4' }, { id: 'gpt-3.5' }] }),
+          })
+        );
+        const result = await providerService.testConnectionWithCredentials('https://test.api/v1', 'key123');
+        expect(result.success).toBe(true);
+        expect(result.models).toEqual([{ id: 'gpt-4' }, { id: 'gpt-3.5' }]);
+     });
+
+     test('should throw error on fetch failure', async () => {
+         global.fetch = jest.fn(() =>
+          Promise.resolve({
+            ok: false,
+            status: 401,
+            statusText: 'Unauthorized',
+            json: () => Promise.resolve({ error: { message: 'Invalid API Key' } }),
+          })
+        );
+        await expect(providerService.testConnectionWithCredentials('https://test.api/v1', 'key123')).rejects.toThrow(
+           'Connection test failed: Failed to fetch models: 401 Unauthorized - Invalid API Key'
+        );
+     });
+  });
+
+  describe('getAvailableModels', () => {
+     test('should fetch models for a saved provider', async () => {
+         providerRepository.findById.mockResolvedValue(mockProvider);
+         encryption.decrypt.mockReturnValue('raw-api-key');
+
+         global.fetch = jest.fn(() =>
+          Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ data: [{ id: 'gpt-4' }, { id: 'gpt-4-turbo' }] }),
+          })
+        );
+
+        const models = await providerService.getAvailableModels(mockProvider._id, mockUserId);
+        expect(models).toEqual([{ id: 'gpt-4' }, { id: 'gpt-4-turbo' }]);
+     });
+
+     test('should throw if unauthorized', async () => {
+         providerRepository.findById.mockResolvedValue({
+             ...mockProvider,
+             ownerId: 'another-user'
+         });
+
+         await expect(providerService.getAvailableModels(mockProvider._id, mockUserId)).rejects.toThrow(
+             'Unauthorized to access this provider'
+         );
+     });
   });
 });

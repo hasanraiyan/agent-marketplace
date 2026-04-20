@@ -15,3 +15,8 @@ export const updateProviderSchema = z.object({
   defaultModel: z.string().min(1).optional(),
   isDefault: z.boolean().optional(),
 });
+
+export const testConnectionSchema = z.object({
+  baseURL: z.string().url('Must be a valid URL'),
+  apiKey: z.string().min(1, 'API Key is required'),
+});

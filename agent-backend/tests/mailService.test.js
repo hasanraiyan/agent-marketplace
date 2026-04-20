@@ -76,7 +76,7 @@ describe('Mail Service', () => {
         expect.objectContaining({
           body: expect.objectContaining({
             name: testEmail,
-            intro: 'Welcome to Agent Marketplace! Verify your email address.',
+            intro: 'Welcome to Persona.ai! Verify your email address.',
             action: expect.objectContaining({
               instructions: 'Your verification code is:',
               button: expect.objectContaining({
@@ -94,7 +94,7 @@ describe('Mail Service', () => {
       expect(mockResend.emails.send).toHaveBeenCalledWith({
         from: config.resend.mailFrom,
         to: testEmail,
-        subject: 'Verify your Agent Marketplace account',
+        subject: 'Verify your Persona.ai account',
         html: '<html>email html</html>',
         text: 'email plaintext',
       });
@@ -153,9 +153,9 @@ describe('Mail Service', () => {
         expect.objectContaining({
           body: expect.objectContaining({
             name: testName,
-            intro: 'Welcome to Agent Marketplace! Your email has been verified successfully.',
+            intro: 'Welcome to Persona.ai! Your email has been verified successfully.',
             action: expect.objectContaining({
-              instructions: "You're all set! Start exploring what Agent Marketplace has to offer.",
+              instructions: "You're all set! Start exploring what Persona.ai has to offer.",
               button: expect.objectContaining({
                 color: '#22BC66',
                 text: 'Get Started',
@@ -171,7 +171,7 @@ describe('Mail Service', () => {
       expect(mockResend.emails.send).toHaveBeenCalledWith({
         from: config.resend.mailFrom,
         to: testEmail,
-        subject: 'Welcome to Agent Marketplace!',
+        subject: 'Welcome to Persona.ai!',
         html: '<html>email html</html>',
         text: 'email plaintext',
       });
@@ -278,7 +278,7 @@ describe('Mail Service', () => {
       expect(mockResend.emails.send).toHaveBeenCalledWith({
         from: config.resend.mailFrom,
         to: testEmail,
-        subject: 'Reset your Agent Marketplace password',
+        subject: 'Reset your Persona.ai password',
         html: '<html>email html</html>',
         text: 'email plaintext',
       });
@@ -448,7 +448,7 @@ describe('Mail Service', () => {
       await sendVerificationEmail(testEmail, testOtp);
       expect(mockResend.emails.send).toHaveBeenCalledWith(
         expect.objectContaining({
-          subject: 'Verify your Agent Marketplace account',
+          subject: 'Verify your Persona.ai account',
         })
       );
 
@@ -457,7 +457,7 @@ describe('Mail Service', () => {
       await sendWelcomeEmail(testEmail, testName);
       expect(mockResend.emails.send).toHaveBeenCalledWith(
         expect.objectContaining({
-          subject: 'Welcome to Agent Marketplace!',
+          subject: 'Welcome to Persona.ai!',
         })
       );
 
@@ -466,7 +466,7 @@ describe('Mail Service', () => {
       await sendPasswordResetEmail(testEmail, testOtp);
       expect(mockResend.emails.send).toHaveBeenCalledWith(
         expect.objectContaining({
-          subject: 'Reset your Agent Marketplace password',
+          subject: 'Reset your Persona.ai password',
         })
       );
     });

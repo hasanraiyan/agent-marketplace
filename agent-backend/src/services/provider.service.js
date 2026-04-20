@@ -84,6 +84,61 @@ class ProviderService {
     return true;
   }
 
+  async fetchModelsFromApi(baseURL, apiKey) {
+    try {
+      const response = await fetch(`${baseURL}/models`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        let errorMessage = `Failed to fetch models: ${response.status} ${response.statusText}`;
+        try {
+          const errorBody = await response.json();
+          if (errorBody && errorBody.error) {
+            errorMessage += ` - ${errorBody.error.message || JSON.stringify(errorBody.error)}`;
+          }
+        } catch (e) {
+          // Ignore json parsing error
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      if (!data || !Array.isArray(data.data)) {
+         throw new Error('Invalid response format: expected { data: [...] }');
+      }
+
+      // We only need the ID and optionally the provider info, but returning just ID is standard
+      return data.data.map(model => ({ id: model.id }));
+    } catch (error) {
+      throw new Error(`Connection test failed: ${error.message}`);
+    }
+  }
+
+  async testConnectionWithCredentials(baseURL, apiKey) {
+    const models = await this.fetchModelsFromApi(baseURL, apiKey);
+    return { success: true, models };
+  }
+
+  async getAvailableModels(providerId, userId) {
+    const provider = await providerRepository.findById(providerId);
+
+    if (!provider) {
+      throw new Error('Provider not found');
+    }
+
+    if (provider.ownerId.toString() !== userId.toString()) {
+      throw new Error('Unauthorized to access this provider');
+    }
+
+    const apiKey = encryption.decrypt(provider.apiKeyEncrypted);
+    return this.fetchModelsFromApi(provider.baseURL, apiKey);
+  }
+
   async testConnection(providerId, userId) {
     const provider = await providerRepository.findById(providerId);
 
@@ -95,10 +150,10 @@ class ProviderService {
       throw new Error('Unauthorized to test this provider');
     }
 
-    // TODO: In a later phase, upgrade this to robustly ping the provider using LangChain
-    // to verify the apiKey and baseURL are functionally working before saving it.
+    const apiKey = encryption.decrypt(provider.apiKeyEncrypted);
+    await this.fetchModelsFromApi(provider.baseURL, apiKey);
 
-    return { success: true, message: 'Provider test connection mocked for MVP.' };
+    return { success: true, message: 'Connection successful.' };
   }
 }
 

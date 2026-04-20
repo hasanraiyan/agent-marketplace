@@ -1,5 +1,5 @@
 import providerService from '../services/provider.service.js';
-import { createProviderSchema, updateProviderSchema } from '../validators/provider.validator.js';
+import { createProviderSchema, updateProviderSchema, testConnectionSchema } from '../validators/provider.validator.js';
 
 class ProviderController {
   async getAll(req, res, next) {
@@ -62,6 +62,40 @@ class ProviderController {
       res.json({
         success: true,
         data: result,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  async testCredentials(req, res, next) {
+    try {
+      const validatedData = testConnectionSchema.parse(req.body);
+      const result = await providerService.testConnectionWithCredentials(
+        validatedData.baseURL,
+        validatedData.apiKey
+      );
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  async getModels(req, res, next) {
+    try {
+      const models = await providerService.getAvailableModels(req.params.id, req.user.id);
+      res.json({
+        success: true,
+        data: models,
       });
     } catch (error) {
       res.status(400).json({
