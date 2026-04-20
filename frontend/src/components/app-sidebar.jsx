@@ -6,6 +6,7 @@ import { NavDocuments } from "@/components/nav-documents";
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
+import Link from "next/link";
 import {
   Sidebar,
   SidebarContent,
@@ -162,12 +163,12 @@ export function AppSidebar({ ...props }) {
               asChild
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
-              <a href="/">
+              <Link href="/">
                 <SparklesIcon className="size-5! text-primary" />
                 <span className="text-base font-bold tracking-tight">
                   Persona<span className="text-primary">.ai</span>
                 </span>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
