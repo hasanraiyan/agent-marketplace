@@ -37,77 +37,19 @@ const data = {
   // user removed in favor of dynamic clerk data
   navMain: [
     {
-      title: "Intelligence",
-      url: "#",
+      title: "Dashboard",
+      url: "/dashboard",
+      icon: <ActivityIcon />,
+    },
+    {
+      title: "My Agents",
+      url: "/dashboard/agents",
       icon: <BrainIcon />,
     },
     {
-      title: "Agent Ops",
-      url: "#",
-      icon: <ActivityIcon />,
-    },
-    {
-      title: "Insights",
-      url: "#",
-      icon: <ActivityIcon />,
-    },
-    {
-      title: "Deployments",
-      url: "#",
-      icon: <LayersIcon />,
-    },
-    {
-      title: "Orchestrators",
-      url: "#",
-      icon: <CpuIcon />,
-    },
-  ],
-  navClouds: [
-    {
-      title: "Capture",
-      icon: <CameraIcon />,
-      isActive: true,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Proposal",
-      icon: <FileTextIcon />,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Prompts",
-      icon: <FileTextIcon />,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
+      title: "Marketplace",
+      url: "/agents",
+      icon: <ZapIcon />,
     },
   ],
   navSecondary: [
@@ -117,30 +59,20 @@ const data = {
       icon: <Settings2Icon />,
     },
     {
-      title: "Get Help",
+      title: "Help & Docs",
       url: "#",
       icon: <CircleHelpIcon />,
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: <SearchIcon />,
     },
   ],
   documents: [
     {
-      name: "Agent Skills",
-      url: "#",
-      icon: <ZapIcon />,
-    },
-    {
-      name: "Knowledge Base",
-      url: "#",
+      name: "Providers",
+      url: "/dashboard/settings/providers",
       icon: <DatabaseIcon />,
     },
     {
-      name: "Training Data",
-      url: "#",
+      name: "Profile",
+      url: "/dashboard/settings/profile",
       icon: <FileIcon />,
     },
   ],
