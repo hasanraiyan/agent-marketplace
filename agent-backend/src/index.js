@@ -23,6 +23,12 @@ const app = express();
 
 app.use(cors());
 
+// Request logging middleware
+app.use((req, res, next) => {
+  logger.info(`${req.method} ${req.path}`);
+  next();
+});
+
 // Webhooks must be parsed as raw body
 app.use('/api/v1/webhooks', webhookRouter);
 

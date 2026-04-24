@@ -115,6 +115,7 @@ export function AgentChat({ agent, thread, onMessageSent, placeholder, showHeade
             if (data.chunk) {
               accumulated += data.chunk;
               setStreamingContent(accumulated);
+              // Only clear tool status once we get actual content back
               setToolStatus(null);
             } else if (data.tool) {
               setToolStatus(data.tool);
