@@ -8,7 +8,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { ZapIcon, BellIcon } from "lucide-react";
+import { PlusIcon, BellIcon } from "lucide-react";
 
 export function NavMain({ items }) {
   return (
@@ -17,11 +17,11 @@ export function NavMain({ items }) {
         <SidebarMenu>
           <SidebarMenuItem className="flex items-center gap-2">
             <SidebarMenuButton
-              tooltip="Deploy Agent"
+              tooltip="Create Agent"
               className="min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
             >
-              <ZapIcon />
-              <span>Deploy Agent</span>
+              <PlusIcon />
+              <span>Create Agent</span>
             </SidebarMenuButton>
             <Button
               size="icon"
