@@ -133,7 +133,7 @@ class UserRepository {
       const user = await User.findByIdAndUpdate(
         id,
         { ...safeUpdateData, updatedAt: new Date() },
-        { new: true, runValidators: true }
+        { returnDocument: 'after', runValidators: true }
       );
 
       if (!user) {
@@ -171,7 +171,7 @@ class UserRepository {
     const user = await User.findByIdAndUpdate(
       id,
       { isActive: false, updatedAt: new Date() },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!user) {

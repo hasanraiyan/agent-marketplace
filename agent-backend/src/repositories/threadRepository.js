@@ -1,5 +1,15 @@
 import Conversation from '../models/Conversation.js';
 
+function idLooksLikeObjectId(id) {
+  if (id == null) return false;
+  try {
+    const idStr = typeof id === 'string' ? id : id.toString();
+    return /^[0-9a-fA-F]{24}$/.test(idStr);
+  } catch (e) {
+    return false;
+  }
+}
+
 class ThreadRepository {
   async create(data) {
     const thread = new Conversation(data);
@@ -8,7 +18,7 @@ class ThreadRepository {
 
   async findById(id) {
     // Allows searching by either Mongoose _id or the custom threadId string
-    const query = id.match(/^[0-9a-fA-F]{24}$/) ? { _id: id } : { threadId: id };
+    const query = idLooksLikeObjectId(id) ? { _id: id } : { threadId: id };
     return await Conversation.findOne(query).populate('agentId', 'name avatar slug');
   }
 
@@ -22,17 +32,17 @@ class ThreadRepository {
   }
 
   async update(id, updateData) {
-    const query = id.match(/^[0-9a-fA-F]{24}$/) ? { _id: id } : { threadId: id };
-    return await Conversation.findOneAndUpdate(query, updateData, { new: true });
+    const query = idLooksLikeObjectId(id) ? { _id: id } : { threadId: id };
+    return await Conversation.findOneAndUpdate(query, updateData, { returnDocument: 'after' });
   }
 
   async touchLastMessageAt(id) {
-    const query = id.match(/^[0-9a-fA-F]{24}$/) ? { _id: id } : { threadId: id };
-    return await Conversation.findOneAndUpdate(query, { lastMessageAt: new Date() }, { new: true });
+    const query = idLooksLikeObjectId(id) ? { _id: id } : { threadId: id };
+    return await Conversation.findOneAndUpdate(query, { lastMessageAt: new Date() }, { returnDocument: 'after' });
   }
 
   async delete(id) {
-    const query = id.match(/^[0-9a-fA-F]{24}$/) ? { _id: id } : { threadId: id };
+    const query = idLooksLikeObjectId(id) ? { _id: id } : { threadId: id };
     return await Conversation.findOneAndDelete(query);
   }
 

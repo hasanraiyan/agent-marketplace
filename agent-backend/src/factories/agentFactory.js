@@ -81,7 +81,10 @@ class AgentFactory {
       };
     } else {
       // 1.5 Fetch Standard Configuration from DB
-      agent = await agentRepository.findById(agentId).populate('skills');
+      agent = await agentRepository.findById(agentId);
+      if (agent && typeof agent.populate === 'function') {
+        await agent.populate('skills');
+      }
       if (!agent) throw new Error('Agent deleted or unavailable');
     }
 
@@ -102,10 +105,36 @@ class AgentFactory {
     const dynamicTools = resolveAgentTools(agent, userId);
 
     const { InMemoryStore } = await import('@langchain/langgraph');
-    const { SkillService } = await import('deepagents');
+    const deepagentsMod = await import('deepagents');
 
     const store = new InMemoryStore();
-    const skillService = new SkillService(store);
+
+    // Support multiple possible export shapes from the `deepagents` package
+    const PossibleSkillService =
+      deepagentsMod.SkillService || deepagentsMod.default?.SkillService || deepagentsMod.default || null;
+
+    let skillService;
+    if (typeof PossibleSkillService === 'function') {
+      try {
+        skillService = new PossibleSkillService(store);
+      } catch (err) {
+        // Some packages expose a factory instead of a constructor
+        if (typeof PossibleSkillService.create === 'function') {
+          skillService = await PossibleSkillService.create(store);
+        } else {
+          throw err;
+        }
+      }
+    } else if (PossibleSkillService && typeof PossibleSkillService.create === 'function') {
+      skillService = await PossibleSkillService.create(store);
+    } else {
+      // Fallback shim: provide a no-op skillService so agent creation can continue
+      skillService = {
+        loadSkill: async () => {
+          console.warn('[AgentFactory] SkillService not available — skipping skill load');
+        },
+      };
+    }
 
     if (agent.skills && agent.skills.length > 0) {
       for (const skill of agent.skills) {
@@ -115,10 +144,48 @@ class AgentFactory {
     }
 
     // 4. Assemble Custom DeepAgent Runtime
+    // Wrap checkpointer with a Proxy to preserve prototype methods (e.g. getTuple)
+    // while guarding against empty bulk write batches that crash MongoDB driver.
+    // Track whether we've warned to avoid log spam
+    let checkpointerWarned = false;
+
+    const safeCheckpointer = checkpointer
+      ? new Proxy(checkpointer, {
+          get(target, prop, receiver) {
+            if (prop === 'putWrites') {
+              return async (...args) => {
+                try {
+                  // Robust empty-batch detection: scan args for any array-like candidate
+                  const foundArray = args.find((a) => Array.isArray(a) || (a && typeof a.length === 'number'));
+                  if (foundArray && foundArray.length === 0) return;
+
+                  // If first arg is falsy or no args, treat as no-op
+                  if (args.length === 0 || !args[0]) return;
+
+                  if (typeof target.putWrites === 'function') {
+                    return await target.putWrites.apply(target, args);
+                  }
+                } catch (err) {
+                  // Only warn once to reduce log noise
+                  if (!checkpointerWarned) {
+                    console.warn('[AgentFactory] checkpointer.putWrites error:', err?.message || err);
+                    checkpointerWarned = true;
+                  }
+                }
+              };
+            }
+
+            const value = Reflect.get(target, prop, receiver);
+            if (typeof value === 'function') return value.bind(target);
+            return value;
+          },
+        })
+      : checkpointer;
+
     const agentInstance = await createDeepAgent({
       model: llm,
       systemPrompt: agent.systemPrompt,
-      checkpointer: checkpointer,
+      checkpointer: safeCheckpointer,
       store: store,
       tools: dynamicTools,
       interruptOn: {

@@ -45,7 +45,7 @@ class SkillRepository {
     const skill = await Skill.findOneAndUpdate(
       { _id: id, ownerId: userId },
       { $set: updateData },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
 
     if (!skill) throw new NotFoundError('Skill not found or unauthorized');
