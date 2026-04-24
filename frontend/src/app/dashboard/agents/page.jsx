@@ -224,7 +224,7 @@ export default function MyAgentsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <Link href={`/dashboard/agents/${agentId}/edit`}>
+                          <Link href={`/dashboard/agents/${agentId}/builder`}>
                             <DropdownMenuItem className="cursor-pointer">
                               <Edit className="mr-2 size-4" /> Edit Details
                             </DropdownMenuItem>

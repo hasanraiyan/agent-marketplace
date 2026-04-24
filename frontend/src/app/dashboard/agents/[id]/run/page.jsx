@@ -232,7 +232,7 @@ export default function RunAgentPage() {
               )}
             </div>
           </div>
-          <Link href={`/dashboard/agents/${agentId}/edit`}>
+          <Link href={`/dashboard/agents/${agentId}/builder`}>
             <Button variant="outline" size="sm">
               Edit
             </Button>
