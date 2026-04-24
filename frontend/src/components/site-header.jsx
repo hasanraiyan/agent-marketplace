@@ -10,7 +10,7 @@ const routeMap = [
   { path: "/dashboard/chats", title: "Chats" },
   { path: "/dashboard/profile", title: "Profile" },
   { path: "/dashboard/settings", title: "Settings" },
-  { path: "/dashboard", title: "Dashboard" },
+  { path: "/dashboard", title: "Explore" },
   { path: "/agents", title: "Marketplace" },
 ];
 

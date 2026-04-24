@@ -19,17 +19,10 @@ import {
 import { useUser } from "@clerk/nextjs";
 import {
   ZapIcon,
-  ActivityIcon,
-  CpuIcon,
+  CompassIcon,
   BrainIcon,
-  LayersIcon,
   Settings2Icon,
   CircleHelpIcon,
-  SearchIcon,
-  DatabaseIcon,
-  FileIcon,
-  CameraIcon,
-  FileTextIcon,
   SparklesIcon,
   MessageSquareIcon,
 } from "lucide-react";
@@ -38,9 +31,9 @@ const data = {
   // user removed in favor of dynamic clerk data
   navMain: [
     {
-      title: "Dashboard",
+      title: "Explore",
       url: "/dashboard",
-      icon: <ActivityIcon />,
+      icon: <CompassIcon />,
     },
     {
       title: "My Agents",
