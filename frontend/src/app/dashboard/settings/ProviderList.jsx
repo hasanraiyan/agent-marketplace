@@ -15,7 +15,13 @@ import { deleteProvider, testProviderConnection } from "@/lib/api/providers";
 import { toast } from "sonner";
 import { TrashIcon, EditIcon, CheckCircleIcon, PlayIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Empty } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyContent,
+} from "@/components/ui/empty";
 
 export function ProviderList({ providers, onUpdate }) {
   const [editingProvider, setEditingProvider] = useState(null);
@@ -113,15 +119,19 @@ export function ProviderList({ providers, onUpdate }) {
       </div>
 
       {providers.length === 0 && (
-        <Empty
-          title="No providers configured"
-          description="Create your first AI provider to get started."
-          action={
+        <Empty>
+          <EmptyHeader>
+            <EmptyTitle>No providers configured</EmptyTitle>
+            <EmptyDescription>
+              Create your first AI provider to get started.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
             <Button onClick={handleAddNew} variant="outline">
               Add your first provider
             </Button>
-          }
-        />
+          </EmptyContent>
+        </Empty>
       )}
 
       {isFormOpen && (

@@ -31,6 +31,7 @@ import {
   CameraIcon,
   FileTextIcon,
   SparklesIcon,
+  MessageSquareIcon,
 } from "lucide-react";
 
 const data = {
@@ -45,6 +46,11 @@ const data = {
       title: "My Agents",
       url: "/dashboard/agents",
       icon: <BrainIcon />,
+    },
+    {
+      title: "Chats",
+      url: "/dashboard/chats",
+      icon: <MessageSquareIcon />,
     },
     {
       title: "Marketplace",
@@ -65,11 +71,6 @@ const data = {
     },
   ],
   documents: [
-    {
-      name: "Profile",
-      url: "/dashboard/settings/profile",
-      icon: <FileIcon />,
-    },
   ],
 };
 

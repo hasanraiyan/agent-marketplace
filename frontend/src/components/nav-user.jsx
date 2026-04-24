@@ -23,7 +23,9 @@ import {
   CreditCardIcon,
   BellIcon,
   LogOutIcon,
+  UserIcon,
 } from "lucide-react";
+import Link from "next/link";
 
 export function NavUser({ user }) {
   const { isMobile } = useSidebar();
@@ -85,12 +87,18 @@ export function NavUser({ user }) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
+              <DropdownMenuItem asChild className="cursor-pointer">
+                <Link href="/dashboard/profile">
+                  <UserIcon className="mr-2" />
+                  Profile
+                </Link>
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => openUserProfile()}
                 className="cursor-pointer"
               >
                 <CircleUserRoundIcon className="mr-2" />
-                Account
+                Identity
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <CreditCardIcon className="mr-2" />
