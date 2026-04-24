@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Star, Users } from "lucide-react";
 
 export function AgentCard({ agent }) {
@@ -18,7 +25,10 @@ export function AgentCard({ agent }) {
   } = agent;
 
   const displayRating = Math.min(5, Math.max(0, rating));
-  const stars = Array.from({ length: 5 }, (_, i) => i < Math.floor(displayRating));
+  const stars = Array.from(
+    { length: 5 },
+    (_, i) => i < Math.floor(displayRating),
+  );
 
   return (
     <Card className="flex flex-col overflow-hidden transition-all hover:shadow-lg">

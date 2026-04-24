@@ -34,11 +34,11 @@ const CATEGORIES = [
 
 // Map UI category labels to backend category enum values
 const CATEGORY_MAP = {
-  'AI Assistant': 'productivity',
-  Research: 'research',
-  Automation: 'productivity',
-  Analytics: 'research',
-  Content: 'creative',
+  "AI Assistant": "productivity",
+  Research: "research",
+  Automation: "productivity",
+  Analytics: "research",
+  Content: "creative",
 };
 
 const SORT_OPTIONS = [
@@ -65,7 +65,9 @@ export default function AgentsPage() {
       setLoading(true);
       try {
         const mappedCategory =
-          selectedCategory !== 'All Categories' ? CATEGORY_MAP[selectedCategory] || undefined : undefined;
+          selectedCategory !== "All Categories"
+            ? CATEGORY_MAP[selectedCategory] || undefined
+            : undefined;
 
         const searchFilters = {
           ...(searchQuery && { search: searchQuery }),
@@ -144,10 +146,11 @@ export default function AgentsPage() {
 
           <div className="flex gap-2">
             <div className="w-full sm:w-48">
-              <label className="mb-2 block text-sm font-medium">
-                Category
-              </label>
-              <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+              <label className="mb-2 block text-sm font-medium">Category</label>
+              <Select
+                value={selectedCategory}
+                onValueChange={handleCategoryChange}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -162,9 +165,7 @@ export default function AgentsPage() {
             </div>
 
             <div className="w-full sm:w-48">
-              <label className="mb-2 block text-sm font-medium">
-                Sort by
-              </label>
+              <label className="mb-2 block text-sm font-medium">Sort by</label>
               <Select value={sortBy} onValueChange={handleSortChange}>
                 <SelectTrigger>
                   <SelectValue />
@@ -249,7 +250,7 @@ export default function AgentsPage() {
                         {page}
                       </PaginationLink>
                     </PaginationItem>
-                  )
+                  ),
                 )}
 
                 {currentPage < totalPages && (

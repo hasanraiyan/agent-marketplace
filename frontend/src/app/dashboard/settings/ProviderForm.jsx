@@ -258,7 +258,9 @@ export function ProviderForm({ open, onOpenChange, provider, onSuccess }) {
                   setFormData((prev) => ({ ...prev, isDefault: checked }))
                 }
               />
-              <FieldLabel htmlFor="isDefault">Set as default provider</FieldLabel>
+              <FieldLabel htmlFor="isDefault">
+                Set as default provider
+              </FieldLabel>
             </Field>
           </FieldGroup>
           <DialogFooter>

@@ -273,10 +273,7 @@ export default function ThreadPage() {
         </div>
       </div>
 
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto px-4 py-6 lg:px-6"
-      >
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 lg:px-6">
         <div className="mx-auto flex max-w-3xl flex-col gap-6">
           {messages.length === 0 && !streaming ? (
             <Empty>
@@ -346,11 +343,7 @@ export default function ThreadPage() {
               disabled={!input.trim() || streaming}
               size="icon"
             >
-              {streaming ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <Send />
-              )}
+              {streaming ? <Loader2 className="animate-spin" /> : <Send />}
             </Button>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">

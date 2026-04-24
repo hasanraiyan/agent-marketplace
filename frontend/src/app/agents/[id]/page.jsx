@@ -173,9 +173,7 @@ export default function AgentDetailPage() {
                   <VisibilityIcon data-icon="inline-start" />
                   {agent.visibility || "public"}
                 </Badge>
-                {!agent.isActive && (
-                  <Badge variant="outline">Inactive</Badge>
-                )}
+                {!agent.isActive && <Badge variant="outline">Inactive</Badge>}
               </div>
 
               <h1 className="mt-2 text-3xl font-bold tracking-tight">

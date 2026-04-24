@@ -328,9 +328,7 @@ export default function CreateAgentPage() {
                         id="systemPrompt"
                         placeholder="You are a helpful assistant that..."
                         value={form.systemPrompt}
-                        onChange={(e) =>
-                          update("systemPrompt", e.target.value)
-                        }
+                        onChange={(e) => update("systemPrompt", e.target.value)}
                         rows={8}
                         required
                       />
@@ -344,9 +342,7 @@ export default function CreateAgentPage() {
                       <Switch
                         id="webSearchEnabled"
                         checked={form.webSearchEnabled}
-                        onCheckedChange={(v) =>
-                          update("webSearchEnabled", v)
-                        }
+                        onCheckedChange={(v) => update("webSearchEnabled", v)}
                       />
                       <div>
                         <FieldLabel htmlFor="webSearchEnabled">
@@ -411,9 +407,7 @@ export default function CreateAgentPage() {
                         <SelectTrigger id="model">
                           <SelectValue
                             placeholder={
-                              loadingModels
-                                ? "Loading..."
-                                : "Select a model"
+                              loadingModels ? "Loading..." : "Select a model"
                             }
                           />
                         </SelectTrigger>

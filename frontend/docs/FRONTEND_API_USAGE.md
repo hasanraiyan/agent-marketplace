@@ -3,6 +3,7 @@
 This document maps frontend pages/components to backend API endpoints (Express routes) the frontend calls, and lists backend routes that are not currently referenced by the frontend.
 
 Summary:
+
 - Frontend implements several API helper modules under `src/lib/api/*` for agents, providers, threads, skills, profile, admin and health.
 - Not all helper functions are used by existing pages/components yet; many endpoints are scaffolded for future features.
 
@@ -15,7 +16,7 @@ Pages and API usage
 - `/agents`
   - File: `src/app/agents/page.jsx`
   - Calls: `searchAgents()` -> POST `/agents/search`
-           `countAgents()` -> POST `/agents/count`
+    `countAgents()` -> POST `/agents/count`
   - Notes: Agent cards link to `/agents/:id` but there is no detail page implemented yet.
 
 - `/dashboard`
@@ -90,6 +91,7 @@ Recommendations / Next steps
 - Remove or document unused API helpers if not intended for frontend.
 
 If you want, I can:
+
 - Create this file in the repo (done), or update it with more detail per-component.
 - Generate a Postman collection for the endpoints the frontend actually uses.
 - Open PR with the docs file and suggested TODOs.

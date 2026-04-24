@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeSanitize from 'rehype-sanitize';
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Send, Loader2, Bot, User, Wrench } from "lucide-react";
@@ -21,10 +21,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
 import { getAgent } from "@/lib/api/agents";
-import {
-  createThread,
-  getThreadMessages,
-} from "@/lib/api/threads";
+import { createThread, getThreadMessages } from "@/lib/api/threads";
 
 export default function RunAgentPage() {
   const params = useParams();
@@ -243,10 +240,7 @@ export default function RunAgentPage() {
         </div>
       </div>
 
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto px-4 py-6 lg:px-6"
-      >
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 lg:px-6">
         <div className="mx-auto flex max-w-3xl flex-col gap-6">
           {messages.length === 0 && !streaming ? (
             <Empty>
@@ -282,12 +276,15 @@ export default function RunAgentPage() {
                 )}
                 {streamingContent ? (
                   <div className="whitespace-pre-wrap text-sm leading-relaxed markdown-body">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeSanitize]}
+                    >
                       {streamingContent}
                     </ReactMarkdown>
                     <span className="ml-0.5 inline-block size-2 animate-pulse bg-foreground" />
                   </div>
-                ) : ( 
+                ) : (
                   !toolStatus && (
                     <div className="flex gap-1">
                       <span className="size-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.3s]" />
@@ -319,11 +316,7 @@ export default function RunAgentPage() {
               disabled={!input.trim() || streaming}
               size="icon"
             >
-              {streaming ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <Send />
-              )}
+              {streaming ? <Loader2 className="animate-spin" /> : <Send />}
             </Button>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
@@ -356,10 +349,15 @@ function Message({ message, agent }) {
       </Avatar>
 
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <p className="text-sm font-medium">{isUser ? "You" : agent?.name || "Agent"}</p>
+        <p className="text-sm font-medium">
+          {isUser ? "You" : agent?.name || "Agent"}
+        </p>
 
         <div className="text-sm leading-relaxed markdown-body">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeSanitize]}
+          >
             {message.content}
           </ReactMarkdown>
         </div>

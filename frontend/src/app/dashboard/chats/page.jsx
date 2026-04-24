@@ -2,14 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import {
-  Bot,
-  MessageSquare,
-  Trash2,
-  Edit2,
-  Check,
-  X,
-} from "lucide-react";
+import { Bot, MessageSquare, Trash2, Edit2, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,11 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
-import {
-  getThreads,
-  deleteThread,
-  updateThreadTitle,
-} from "@/lib/api/threads";
+import { getThreads, deleteThread, updateThreadTitle } from "@/lib/api/threads";
 
 function formatRelative(dateStr) {
   if (!dateStr) return "";
@@ -182,10 +171,7 @@ export default function ChatsPage() {
                   >
                     <CardContent className="flex items-center gap-4 py-4">
                       <Avatar className="size-10 shrink-0">
-                        <AvatarImage
-                          src={agent?.avatar}
-                          alt={agent?.name}
-                        />
+                        <AvatarImage src={agent?.avatar} alt={agent?.name} />
                         <AvatarFallback>
                           <Bot className="size-5" />
                         </AvatarFallback>

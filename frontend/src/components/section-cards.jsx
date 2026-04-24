@@ -97,9 +97,7 @@ export function SectionCards() {
           <div className="line-clamp-1 flex gap-2 font-medium">
             Track your spending <TrendingUpIcon className="size-4" />
           </div>
-          <div className="text-muted-foreground">
-            Current monthly costs
-          </div>
+          <div className="text-muted-foreground">Current monthly costs</div>
         </CardFooter>
       </Card>
     </div>

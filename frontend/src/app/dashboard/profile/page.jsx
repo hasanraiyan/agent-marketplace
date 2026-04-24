@@ -143,18 +143,16 @@ export default function ProfilePage() {
     );
   }
 
-  const displayName =
-    profile?.name || clerkUser?.fullName || "Guest User";
+  const displayName = profile?.name || clerkUser?.fullName || "Guest User";
   const email =
-    profile?.email ||
-    clerkUser?.primaryEmailAddress?.emailAddress ||
-    "";
-  const initials = (displayName || email || "U")
-    .split(/[\s@.]/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((s) => s[0]?.toUpperCase())
-    .join("") || "U";
+    profile?.email || clerkUser?.primaryEmailAddress?.emailAddress || "";
+  const initials =
+    (displayName || email || "U")
+      .split(/[\s@.]/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((s) => s[0]?.toUpperCase())
+      .join("") || "U";
 
   return (
     <div className="@container/main flex flex-1 flex-col gap-2">

@@ -70,8 +70,7 @@ const data = {
       icon: <CircleHelpIcon />,
     },
   ],
-  documents: [
-  ],
+  documents: [],
 };
 
 export function AppSidebar({ ...props }) {

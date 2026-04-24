@@ -347,9 +347,7 @@ export default function EditAgentPage() {
                       <Textarea
                         id="systemPrompt"
                         value={form.systemPrompt}
-                        onChange={(e) =>
-                          update("systemPrompt", e.target.value)
-                        }
+                        onChange={(e) => update("systemPrompt", e.target.value)}
                         rows={8}
                         required
                       />
@@ -362,9 +360,7 @@ export default function EditAgentPage() {
                       <Switch
                         id="webSearchEnabled"
                         checked={form.webSearchEnabled}
-                        onCheckedChange={(v) =>
-                          update("webSearchEnabled", v)
-                        }
+                        onCheckedChange={(v) => update("webSearchEnabled", v)}
                       />
                       <div>
                         <FieldLabel htmlFor="webSearchEnabled">

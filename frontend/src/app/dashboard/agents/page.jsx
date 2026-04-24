@@ -69,9 +69,7 @@ export default function MyAgentsPage() {
       });
       setAgents(res.data?.data || []);
     } catch (err) {
-      toast.error(
-        err.response?.data?.message || "Failed to load your agents",
-      );
+      toast.error(err.response?.data?.message || "Failed to load your agents");
       setAgents([]);
     } finally {
       setLoading(false);
@@ -198,9 +196,7 @@ export default function MyAgentsPage() {
                           <span className="text-muted-foreground">Created</span>
                           <span>
                             {agent.createdAt
-                              ? new Date(
-                                  agent.createdAt,
-                                ).toLocaleDateString()
+                              ? new Date(agent.createdAt).toLocaleDateString()
                               : "—"}
                           </span>
                         </div>
