@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Send, Loader2, Bot, User, Wrench } from "lucide-react";
@@ -278,11 +281,13 @@ export default function RunAgentPage() {
                   </div>
                 )}
                 {streamingContent ? (
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {streamingContent}
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed markdown-body">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+                      {streamingContent}
+                    </ReactMarkdown>
                     <span className="ml-0.5 inline-block size-2 animate-pulse bg-foreground" />
                   </div>
-                ) : (
+                ) : ( 
                   !toolStatus && (
                     <div className="flex gap-1">
                       <span className="size-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.3s]" />
@@ -332,6 +337,7 @@ export default function RunAgentPage() {
 
 function Message({ message, agent }) {
   const isUser = message.role === "user";
+
   return (
     <div className="flex gap-3">
       <Avatar className="size-8 shrink-0">
@@ -348,12 +354,14 @@ function Message({ message, agent }) {
           </>
         )}
       </Avatar>
+
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <p className="text-sm font-medium">
-          {isUser ? "You" : agent?.name || "Agent"}
-        </p>
-        <div className="whitespace-pre-wrap text-sm leading-relaxed">
-          {message.content}
+        <p className="text-sm font-medium">{isUser ? "You" : agent?.name || "Agent"}</p>
+
+        <div className="text-sm leading-relaxed markdown-body">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+            {message.content}
+          </ReactMarkdown>
         </div>
       </div>
     </div>
