@@ -66,11 +66,6 @@ const data = {
   ],
   documents: [
     {
-      name: "Providers",
-      url: "/dashboard/settings/providers",
-      icon: <DatabaseIcon />,
-    },
-    {
       name: "Profile",
       url: "/dashboard/settings/profile",
       icon: <FileIcon />,
