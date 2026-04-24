@@ -10,6 +10,7 @@ import {
   FlameIcon,
   ClockIcon,
   TrendingUpIcon,
+  SlidersHorizontalIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,10 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@/components/ui/toggle-group";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -45,8 +43,10 @@ import {
   PaginationLink,
   PaginationPrevious,
   PaginationNext,
+  PaginationEllipsis,
 } from "@/components/ui/pagination";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { searchAgents, countAgents } from "@/lib/api/agents";
 import { AgentExploreCard } from "@/components/agents/agent-explore-card";
@@ -68,6 +68,15 @@ const SORT_OPTIONS = [
 ];
 
 const PAGE_SIZE = 12;
+
+// Helper to build paginator page numbers with ellipsis
+function buildPageRange(current, total ){
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  if (current <= 4) return [1, 2, 3, 4, 5, "...", total];
+  if (current >= total - 3)
+    return [1, "...", total - 4, total - 3, total - 2, total - 1, total];
+  return [1, "...", current - 1, current, current + 1, "...", total];
+}
 
 export default function ExplorePage() {
   const { user } = useUser();
@@ -91,6 +100,12 @@ export default function ExplorePage() {
 
   const filtersActive = search.trim() !== "" || category !== "all";
 
+  const pageRange = useMemo(
+    () => buildPageRange(page, totalPages),
+    [page, totalPages],
+  );
+
+  // ── Featured ────────────────────────────────────────────────────────────────
   useEffect(() => {
     const loadFeatured = async () => {
       try {
@@ -101,7 +116,7 @@ export default function ExplorePage() {
           sortBy: "popularity",
         });
         setFeatured(res.data?.data || []);
-      } catch (err) {
+      } catch {
         setFeatured([]);
       } finally {
         setFeaturedLoading(false);
@@ -110,6 +125,7 @@ export default function ExplorePage() {
     loadFeatured();
   }, []);
 
+  // ── Agents list ─────────────────────────────────────────────────────────────
   useEffect(() => {
     const loadAgents = async () => {
       setLoading(true);
@@ -136,6 +152,7 @@ export default function ExplorePage() {
     return () => clearTimeout(handle);
   }, [search, category, sortBy, page]);
 
+  // ── Handlers ────────────────────────────────────────────────────────────────
   const handleSearchChange = (e) => {
     setSearch(e.target.value);
     setPage(1);
@@ -152,68 +169,85 @@ export default function ExplorePage() {
     setPage(1);
   };
 
-  const firstName = user?.firstName || user?.fullName?.split(" ")[0] || "there";
+  const firstName =
+    user?.firstName || user?.fullName?.split(" ")[0] || "there";
 
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="@container/main flex flex-1 flex-col gap-6 py-6">
-      <section className="flex flex-col gap-3 px-4 lg:px-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              Hello, {firstName}
+    <div className="@container/main flex flex-1 flex-col gap-4 py-4 md:gap-6 md:py-6">
+      {/* ── Header ── */}
+      <section className="px-4 lg:px-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">
+              Hello, {firstName} 👋
             </h1>
-            <p className="mt-1 text-muted-foreground">
+            <p className="mt-0.5 text-sm text-muted-foreground sm:text-base">
               Discover agents built by the community.
             </p>
           </div>
-          <Link href="/dashboard/agents/create">
-            <Button>
+
+          {/* Desktop: full button / Mobile: icon-only button */}
+          <Link href="/dashboard/agents/create" className="shrink-0">
+            <Button size="sm" className="hidden sm:inline-flex">
               <PlusIcon data-icon="inline-start" />
               Create Agent
+            </Button>
+            <Button size="icon" className="sm:hidden" aria-label="Create Agent">
+              <PlusIcon className="size-4" />
             </Button>
           </Link>
         </div>
       </section>
 
-      <section className="flex flex-col gap-4 px-4 lg:px-6">
+      {/* ── Search + Filters ── */}
+      <section className="flex flex-col gap-3 px-4 lg:px-6">
+        {/* Search */}
         <InputGroup>
           <InputGroupAddon align="inline-start">
-            <SearchIcon />
+            <SearchIcon className="size-4" />
           </InputGroupAddon>
           <InputGroupInput
-            placeholder="Search agents by name..."
+            placeholder="Search agents..."
             value={search}
             onChange={handleSearchChange}
+            className="text-base" // prevents iOS zoom on focus
           />
         </InputGroup>
 
+        {/* Categories + Sort — stacked on mobile, inline on sm+ */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <ScrollArea className="w-full sm:max-w-[calc(100%-12rem)]">
-            <ToggleGroup
-              type="single"
-              value={category}
-              onValueChange={handleCategoryChange}
-              variant="outline"
-              className="w-max"
-            >
-              {CATEGORIES.map((cat) => (
-                <ToggleGroupItem
-                  key={cat.value}
-                  value={cat.value}
-                  className="capitalize"
-                >
-                  {cat.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+          {/* Category pills — horizontally scrollable */}
+          <div className="min-w-0 flex-1">
+            <ScrollArea className="w-full">
+              <ToggleGroup
+                type="single"
+                value={category}
+                onValueChange={handleCategoryChange}
+                variant="outline"
+                className="w-max gap-1.5 pb-1"
+              >
+                {CATEGORIES.map((cat) => (
+                  <ToggleGroupItem
+                    key={cat.value}
+                    value={cat.value}
+                    className="h-8 rounded-full px-3 text-xs capitalize sm:h-9 sm:px-4 sm:text-sm"
+                  >
+                    {cat.label}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+              <ScrollBar orientation="horizontal" className="h-1" />
+            </ScrollArea>
+          </div>
 
+          {/* Sort select */}
           <Select value={sortBy} onValueChange={handleSortChange}>
-            <SelectTrigger className="w-full sm:w-48">
+            <SelectTrigger className="h-8 w-full gap-1.5 sm:h-9 sm:w-44">
+              <SlidersHorizontalIcon className="size-3.5 shrink-0 text-muted-foreground" />
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent align="end">
               <SelectGroup>
                 {SORT_OPTIONS.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>
@@ -227,37 +261,39 @@ export default function ExplorePage() {
         </div>
       </section>
 
+      {/* ── Featured Strip ── */}
       {!filtersActive && (
         <section className="flex flex-col gap-3">
           <div className="flex items-center gap-2 px-4 lg:px-6">
-            <FlameIcon className="size-5 text-primary" />
-            <h2 className="text-xl font-semibold tracking-tight">
+            <FlameIcon className="size-4 text-orange-500 sm:size-5" />
+            <h2 className="text-base font-semibold tracking-tight sm:text-xl">
               Featured agents
             </h2>
           </div>
 
           {featuredLoading ? (
-            <div className="flex gap-4 overflow-hidden px-4 lg:px-6">
+            /* Skeleton strip */
+            <div className="flex gap-3 overflow-hidden px-4 lg:px-6">
               {Array.from({ length: 4 }).map((_, i) => (
                 <Skeleton
                   key={i}
-                  className="aspect-[4/3] w-64 shrink-0 rounded-xl sm:w-72"
+                  className="aspect-4/3 w-56 shrink-0 rounded-xl sm:w-72"
                 />
               ))}
             </div>
           ) : featured.length > 0 ? (
             <ScrollArea className="w-full">
-              <div className="flex gap-4 px-4 pb-3 lg:px-6">
+              <div className="flex gap-3 px-4 pb-3 lg:px-6">
                 {featured.map((agent) => (
                   <div
                     key={agent._id || agent.id}
-                    className="w-64 shrink-0 sm:w-72"
+                    className="w-56 shrink-0 sm:w-72"
                   >
                     <AgentExploreCard agent={agent} />
                   </div>
                 ))}
               </div>
-              <ScrollBar orientation="horizontal" />
+              <ScrollBar orientation="horizontal" className="mx-4 lg:mx-6" />
             </ScrollArea>
           ) : null}
 
@@ -267,24 +303,31 @@ export default function ExplorePage() {
         </section>
       )}
 
+      {/* ── All / Results Grid ── */}
       <section className="flex flex-col gap-4 px-4 lg:px-6">
+        {/* Section header */}
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold tracking-tight">
+          <h2 className="text-base font-semibold tracking-tight sm:text-xl">
             {filtersActive ? "Results" : "All agents"}
           </h2>
-          <p className="text-sm text-muted-foreground">
-            {loading ? "Loading..." : `${total} agent${total === 1 ? "" : "s"}`}
-          </p>
+
+          {!loading && (
+            <Badge variant="secondary" className="tabular-nums">
+              {total} {total === 1 ? "agent" : "agents"}
+            </Badge>
+          )}
+          {loading && <Skeleton className="h-5 w-20 rounded-full" />}
         </div>
 
+        {/* Grid */}
         {loading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-80 rounded-xl" />
+              <Skeleton key={i} className="h-64 rounded-xl sm:h-80" />
             ))}
           </div>
         ) : agents.length === 0 ? (
-          <Empty>
+          <Empty className="py-16">
             <EmptyHeader>
               <EmptyTitle>No agents found</EmptyTitle>
               <EmptyDescription>
@@ -295,7 +338,7 @@ export default function ExplorePage() {
             </EmptyHeader>
             <EmptyContent>
               <Link href="/dashboard/agents/create">
-                <Button variant="outline">
+                <Button variant="outline" size="sm">
                   <PlusIcon data-icon="inline-start" />
                   Create Agent
                 </Button>
@@ -303,55 +346,78 @@ export default function ExplorePage() {
             </EmptyContent>
           </Empty>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
             {agents.map((agent) => (
               <AgentExploreCard key={agent._id || agent.id} agent={agent} />
             ))}
           </div>
         )}
 
+        {/* ── Pagination ── */}
         {totalPages > 1 && !loading && (
-          <div className="mt-4 flex justify-center">
+          <div className="mt-2 flex justify-center">
             <Pagination>
-              <PaginationContent>
-                {page > 1 && (
-                  <PaginationItem>
-                    <PaginationPrevious
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setPage(page - 1);
-                      }}
-                    />
-                  </PaginationItem>
-                )}
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (p) => (
-                    <PaginationItem key={p}>
-                      <PaginationLink
-                        href="#"
-                        isActive={p === page}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setPage(p);
-                        }}
-                      >
-                        {p}
-                      </PaginationLink>
-                    </PaginationItem>
-                  ),
-                )}
-                {page < totalPages && (
-                  <PaginationItem>
-                    <PaginationNext
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setPage(page + 1);
-                      }}
-                    />
-                  </PaginationItem>
-                )}
+              <PaginationContent className="flex-wrap gap-1">
+                {/* Prev */}
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    aria-disabled={page === 1}
+                    className={
+                      page === 1 ? "pointer-events-none opacity-40" : ""
+                    }
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (page > 1) setPage(page - 1);
+                    }}
+                  />
+                </PaginationItem>
+
+                {/* Page numbers — hide on very small screens, show on sm+ */}
+                <div className="hidden items-center gap-1 sm:flex">
+                  {pageRange.map((p, idx) =>
+                    p === "..." ? (
+                      <PaginationItem key={`ellipsis-${idx}`}>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    ) : (
+                      <PaginationItem key={p}>
+                        <PaginationLink
+                          href="#"
+                          isActive={p === page}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setPage(p);
+                          }}
+                        >
+                          {p}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ),
+                  )}
+                </div>
+
+                {/* Mobile: just "page X of Y" text */}
+                <span className="flex items-center px-3 text-sm text-muted-foreground sm:hidden">
+                  {page} / {totalPages}
+                </span>
+
+                {/* Next */}
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    aria-disabled={page === totalPages}
+                    className={
+                      page === totalPages
+                        ? "pointer-events-none opacity-40"
+                        : ""
+                    }
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (page < totalPages) setPage(page + 1);
+                    }}
+                  />
+                </PaginationItem>
               </PaginationContent>
             </Pagination>
           </div>
