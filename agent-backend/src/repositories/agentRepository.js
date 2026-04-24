@@ -30,11 +30,14 @@ class AgentRepository {
       case 'oldest':
         return { createdAt: 1 };
       case 'popular':
+      case 'popularity':
+      case 'rating': // Fallback to popularity until rating field is added
         return { messageCount: -1, createdAt: -1 };
       case 'title_asc':
         return { name: 1 };
       case 'title_desc':
         return { name: -1 };
+      case 'relevance':
       case 'newest':
       default:
         return { createdAt: -1 };

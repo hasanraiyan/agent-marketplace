@@ -36,15 +36,26 @@ export const updateAgentSchema = z.object({
 });
 
 export const searchAgentSchema = z.object({
-  page: z.number().int().min(1).default(1),
-  limit: z.number().int().min(1).max(100).default(20),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
   search: z.string().optional(),
   category: z
     .enum(['productivity', 'coding', 'creative', 'research', 'roleplay', 'other'])
     .optional(),
   visibility: z.enum(['private', 'unlisted', 'public']).optional(),
   ownerId: z.string().optional(),
-  sortBy: z.enum(['newest', 'oldest', 'popular', 'title_asc', 'title_desc']).default('newest'),
+  sortBy: z
+    .enum([
+      'newest',
+      'oldest',
+      'popular',
+      'popularity',
+      'title_asc',
+      'title_desc',
+      'relevance',
+      'rating',
+    ])
+    .default('newest'),
   tags: z.array(z.string()).optional(),
 });
 

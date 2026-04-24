@@ -223,7 +223,7 @@ export default function EditAgentPage() {
             </Link>
             <h1 className="text-3xl font-bold tracking-tight">Edit Agent</h1>
             <p className="text-muted-foreground">
-              Update your agent's configuration.
+              Update your agent&apos;s configuration.
             </p>
           </div>
           <Link href={`/dashboard/agents/${agentId}/run`}>
@@ -352,7 +352,7 @@ export default function EditAgentPage() {
                         required
                       />
                       <FieldDescription>
-                        Shapes the agent's personality and capabilities.
+                        Shapes the agent&apos;s personality and capabilities.
                       </FieldDescription>
                     </Field>
 

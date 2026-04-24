@@ -16,6 +16,7 @@ export default function errorHandler(err, req, res, next) {
     statusCode: err.statusCode,
     path: req.path,
     method: req.method,
+    details: err.details,
   });
 
   // Determine status code

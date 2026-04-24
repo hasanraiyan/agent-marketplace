@@ -39,6 +39,7 @@ const CATEGORY_MAP = {
   Automation: "productivity",
   Analytics: "research",
   Content: "creative",
+  "All Categories": undefined,
 };
 
 const SORT_OPTIONS = [

@@ -279,7 +279,7 @@ export default function AgentDetailPage() {
                 <CardHeader>
                   <CardTitle>System Prompt</CardTitle>
                   <CardDescription>
-                    The instructions that shape this agent's behavior.
+                    The instructions that shape this agent&apos;s behavior.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
