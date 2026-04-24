@@ -373,7 +373,7 @@ export default function AgentDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <Link
-                    href={`/sign-in?redirect_url=/agents/${agentId}`}
+                    href={`/sign-in?redirect_url=/dashboard/agents/${agentId}`}
                     className="block"
                   >
                     <Button className="w-full">Sign In</Button>

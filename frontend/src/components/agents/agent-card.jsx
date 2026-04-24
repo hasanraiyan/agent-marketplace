@@ -45,7 +45,7 @@ export function AgentCard({ agent }) {
           )}
         </div>
 
-        <Link href={`/agents/${_id}`} className="group">
+        <Link href={`/dashboard/agents/${_id}`} className="group">
           <CardTitle className="line-clamp-2 group-hover:text-primary transition-colors">
             {name}
           </CardTitle>
@@ -104,7 +104,7 @@ export function AgentCard({ agent }) {
 
       {/* Footer with CTA */}
       <CardFooter className="border-t pt-3">
-        <Link href={`/agents/${_id}`} className="w-full">
+        <Link href={`/dashboard/agents/${_id}`} className="w-full">
           <Button variant="outline" className="w-full">
             View Details
           </Button>

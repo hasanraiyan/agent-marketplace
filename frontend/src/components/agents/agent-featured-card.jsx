@@ -18,7 +18,7 @@ export function AgentFeaturedCard({ agent }) {
   const displayAvatar = avatarUrl || avatar;
 
   return (
-    <Link href={`/agents/${agentId}`} className="group block h-full">
+    <Link href={`/dashboard/agents/${agentId}`} className="group block h-full">
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-muted ring-foreground/10 transition-all group-hover:shadow-xl group-hover:ring-primary/30">
         {/* Image */}
         {displayAvatar ? (

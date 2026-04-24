@@ -264,7 +264,7 @@ export default function ThreadPage() {
             </div>
           </div>
           {agent && (
-            <Link href={`/agents/${agent.id || agent._id}`}>
+            <Link href={`/dashboard/agents/${agent.id || agent._id}`}>
               <Button variant="outline" size="sm">
                 View Agent
               </Button>
