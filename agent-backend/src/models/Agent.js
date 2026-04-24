@@ -27,7 +27,10 @@ const agentSchema = new mongoose.Schema(
     },
     avatar: {
       type: String,
-      default: '',
+      default: function () {
+        // Default to a DiceBear bot avatar based on the name if no avatar provided
+        return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(this.name || 'agent')}`;
+      },
     },
     tags: [
       {
@@ -88,8 +91,20 @@ const agentSchema = new mongoose.Schema(
       default: true,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
+
+// Ensure even existing agents without an avatar get a default one when retrieved
+agentSchema.virtual('avatarUrl').get(function () {
+  if (this.avatar && this.avatar.trim() !== '') {
+    return this.avatar;
+  }
+  return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(this.name || 'agent')}`;
+});
 
 const Agent = mongoose.model('Agent', agentSchema);
 

@@ -17,19 +17,21 @@ export function AgentExploreCard({ agent }) {
     description,
     category,
     avatar,
+    avatarUrl,
     tags = [],
     messageCount = 0,
   } = agent;
 
   const agentId = _id || id;
+  const displayAvatar = avatarUrl || avatar;
 
   return (
     <Link href={`/agents/${agentId}`} className="group block h-full">
       <Card className="flex h-full flex-col gap-0 overflow-hidden p-0 ring-foreground/10 transition-all group-hover:shadow-lg group-hover:ring-primary/30">
         <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
-          {avatar ? (
+          {displayAvatar ? (
             <img
-              src={avatar}
+              src={displayAvatar}
               alt={name}
               className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
             />

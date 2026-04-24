@@ -158,7 +158,7 @@ export default function AgentDetailPage() {
 
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
             <Avatar className="size-24 shrink-0">
-              <AvatarImage src={agent.avatar} alt={agent.name} />
+              <AvatarImage src={agent.avatarUrl || agent.avatar} alt={agent.name} />
               <AvatarFallback>
                 <Bot className="size-10" />
               </AvatarFallback>

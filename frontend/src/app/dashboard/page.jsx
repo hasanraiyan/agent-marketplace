@@ -50,6 +50,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { searchAgents, countAgents } from "@/lib/api/agents";
 import { AgentExploreCard } from "@/components/agents/agent-explore-card";
+import { AgentFeaturedCard } from "@/components/agents/agent-featured-card";
 
 const CATEGORIES = [
   { value: "all", label: "All" },
@@ -176,45 +177,34 @@ export default function ExplorePage() {
   return (
     <div className="@container/main flex flex-1 flex-col gap-4 py-4 md:gap-6 md:py-6">
       {/* ── Header ── */}
-      <section className="px-4 lg:px-6">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">
-              Hello, {firstName} 👋
-            </h1>
-            <p className="mt-0.5 text-sm text-muted-foreground sm:text-base">
-              Discover agents built by the community.
-            </p>
-          </div>
+      <section className="flex flex-col gap-4 px-4 lg:px-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">
+            Hello, {firstName} 👋
+          </h1>
+          <p className="mt-0.5 text-sm text-muted-foreground sm:text-base">
+            Discover agents built by the community.
+          </p>
+        </div>
 
-          {/* Desktop: full button / Mobile: icon-only button */}
-          <Link href="/dashboard/agents/create" className="shrink-0">
-            <Button size="sm" className="hidden sm:inline-flex">
-              <PlusIcon data-icon="inline-start" />
-              Create Agent
-            </Button>
-            <Button size="icon" className="sm:hidden" aria-label="Create Agent">
-              <PlusIcon className="size-4" />
-            </Button>
-          </Link>
+        {/* Search - moved to header */}
+        <div className="w-full sm:max-w-xs md:max-w-sm">
+          <InputGroup>
+            <InputGroupAddon align="inline-start">
+              <SearchIcon className="size-4" />
+            </InputGroupAddon>
+            <InputGroupInput
+              placeholder="Search agents..."
+              value={search}
+              onChange={handleSearchChange}
+              className="text-base" // prevents iOS zoom on focus
+            />
+          </InputGroup>
         </div>
       </section>
 
-      {/* ── Search + Filters ── */}
+      {/* ── Filters ── */}
       <section className="flex flex-col gap-3 px-4 lg:px-6">
-        {/* Search */}
-        <InputGroup>
-          <InputGroupAddon align="inline-start">
-            <SearchIcon className="size-4" />
-          </InputGroupAddon>
-          <InputGroupInput
-            placeholder="Search agents..."
-            value={search}
-            onChange={handleSearchChange}
-            className="text-base" // prevents iOS zoom on focus
-          />
-        </InputGroup>
-
         {/* Categories + Sort — stacked on mobile, inline on sm+ */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {/* Category pills — horizontally scrollable */}
@@ -289,7 +279,7 @@ export default function ExplorePage() {
                     key={agent._id || agent.id}
                     className="w-56 shrink-0 sm:w-72"
                   >
-                    <AgentExploreCard agent={agent} />
+                    <AgentFeaturedCard agent={agent} />
                   </div>
                 ))}
               </div>

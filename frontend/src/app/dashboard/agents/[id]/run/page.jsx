@@ -6,7 +6,7 @@ import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Send, Loader2, Bot, User, Wrench } from "lucide-react";
+import { ArrowLeft, Send, Loader2, Bot, User, Wrench, BotIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -214,9 +214,9 @@ export default function RunAgentPage() {
         </Link>
         <div className="flex items-center gap-3">
           <Avatar className="size-10">
-            <AvatarImage src={agent?.avatar} alt={agent?.name} />
+            <AvatarImage src={agent?.avatarUrl || agent?.avatar} alt={agent?.name} />
             <AvatarFallback>
-              <Bot className="size-5" />
+              <BotIcon />
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
@@ -261,9 +261,9 @@ export default function RunAgentPage() {
           {streaming && (
             <div className="flex gap-3">
               <Avatar className="size-8 shrink-0">
-                <AvatarImage src={agent?.avatar} alt={agent?.name} />
+                <AvatarImage src={agent?.avatarUrl || agent?.avatar} alt={agent?.name} />
                 <AvatarFallback>
-                  <Bot className="size-4" />
+                  <BotIcon />
                 </AvatarFallback>
               </Avatar>
               <div className="flex min-w-0 flex-1 flex-col gap-2">
