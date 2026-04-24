@@ -14,6 +14,8 @@ import { ProviderForm } from "./ProviderForm";
 import { deleteProvider, testProviderConnection } from "@/lib/api/providers";
 import { toast } from "sonner";
 import { TrashIcon, EditIcon, CheckCircleIcon, PlayIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Empty } from "@/components/ui/empty";
 
 export function ProviderList({ providers, onUpdate }) {
   const [editingProvider, setEditingProvider] = useState(null);
@@ -61,13 +63,13 @@ export function ProviderList({ providers, onUpdate }) {
         {providers.map((provider) => (
           <Card key={provider.id}>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  {provider.label}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <CardTitle>{provider.label}</CardTitle>
                   {provider.isDefault && (
-                    <CheckCircleIcon className="w-4 h-4 text-green-500" />
+                    <Badge variant="outline">Default</Badge>
                   )}
-                </CardTitle>
+                </div>
                 <div className="flex items-center gap-1">
                   <Button
                     variant="ghost"
@@ -75,7 +77,7 @@ export function ProviderList({ providers, onUpdate }) {
                     onClick={() => handleTestConnection(provider.id)}
                     title="Test Connection"
                   >
-                    <PlayIcon className="w-4 h-4" />
+                    <PlayIcon />
                   </Button>
                   <Button
                     variant="ghost"
@@ -83,16 +85,16 @@ export function ProviderList({ providers, onUpdate }) {
                     onClick={() => handleEdit(provider)}
                     title="Edit Provider"
                   >
-                    <EditIcon className="w-4 h-4" />
+                    <EditIcon />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    className="text-destructive hover:text-destructive"
                     onClick={() => handleDelete(provider.id)}
                     title="Delete Provider"
+                    className="text-destructive hover:text-destructive"
                   >
-                    <TrashIcon className="w-4 h-4" />
+                    <TrashIcon />
                   </Button>
                 </div>
               </div>
@@ -101,11 +103,9 @@ export function ProviderList({ providers, onUpdate }) {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-sm">
-                <span className="text-muted-foreground mr-2">
-                  Default Model:
-                </span>
-                <span className="font-medium">{provider.defaultModel}</span>
+              <div className="space-y-1 text-sm">
+                <p className="text-muted-foreground">Default Model</p>
+                <p className="font-medium">{provider.defaultModel}</p>
               </div>
             </CardContent>
           </Card>
@@ -113,14 +113,15 @@ export function ProviderList({ providers, onUpdate }) {
       </div>
 
       {providers.length === 0 && (
-        <div className="text-center p-8 border rounded-lg bg-muted/20">
-          <p className="text-muted-foreground mb-4">
-            No AI Providers configured.
-          </p>
-          <Button onClick={handleAddNew} variant="outline">
-            Add your first provider
-          </Button>
-        </div>
+        <Empty
+          title="No providers configured"
+          description="Create your first AI provider to get started."
+          action={
+            <Button onClick={handleAddNew} variant="outline">
+              Add your first provider
+            </Button>
+          }
+        />
       )}
 
       {isFormOpen && (

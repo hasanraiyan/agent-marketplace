@@ -10,8 +10,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -19,6 +19,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldDescription,
+} from "@/components/ui/field";
 import {
   createProvider,
   updateProvider,
@@ -149,9 +155,9 @@ export function ProviderForm({ open, onOpenChange, provider, onSuccess }) {
               Configure the connection details for your AI provider.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="label">Label</Label>
+          <FieldGroup className="py-4">
+            <Field>
+              <FieldLabel htmlFor="label">Label</FieldLabel>
               <Input
                 id="label"
                 name="label"
@@ -160,9 +166,9 @@ export function ProviderForm({ open, onOpenChange, provider, onSuccess }) {
                 onChange={handleChange}
                 required
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="baseURL">Base URL</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="baseURL">Base URL</FieldLabel>
               <Input
                 id="baseURL"
                 name="baseURL"
@@ -172,9 +178,9 @@ export function ProviderForm({ open, onOpenChange, provider, onSuccess }) {
                 onChange={handleChange}
                 required
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="apiKey">API Key</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="apiKey">API Key</FieldLabel>
               <Input
                 id="apiKey"
                 name="apiKey"
@@ -185,15 +191,15 @@ export function ProviderForm({ open, onOpenChange, provider, onSuccess }) {
                 required={!isEditing}
               />
               {isEditing && (
-                <p className="text-xs text-muted-foreground">
+                <FieldDescription>
                   Leave blank to keep existing key.
-                </p>
+                </FieldDescription>
               )}
-            </div>
+            </Field>
 
-            <div className="grid gap-2">
+            <Field>
               <div className="flex items-center justify-between">
-                <Label htmlFor="defaultModel">Default Model</Label>
+                <FieldLabel htmlFor="defaultModel">Default Model</FieldLabel>
                 <Button
                   type="button"
                   variant="ghost"
@@ -202,9 +208,9 @@ export function ProviderForm({ open, onOpenChange, provider, onSuccess }) {
                   disabled={loadingModels}
                 >
                   {loadingModels ? (
-                    <Loader2Icon className="h-3 w-3 mr-1 animate-spin" />
+                    <Loader2Icon data-icon="inline-start" />
                   ) : (
-                    <RefreshCwIcon className="h-3 w-3 mr-1" />
+                    <RefreshCwIcon data-icon="inline-start" />
                   )}
                   Fetch Models
                 </Button>
@@ -234,7 +240,6 @@ export function ProviderForm({ open, onOpenChange, provider, onSuccess }) {
                         : "No models fetched yet"}
                     </SelectItem>
                   )}
-                  {/* Fallback if models not fetched but there is an existing one */}
                   {models.length === 0 && formData.defaultModel && (
                     <SelectItem value={formData.defaultModel}>
                       {formData.defaultModel}
@@ -242,20 +247,20 @@ export function ProviderForm({ open, onOpenChange, provider, onSuccess }) {
                   )}
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
 
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
+            <Field orientation="horizontal">
+              <Checkbox
                 id="isDefault"
                 name="isDefault"
                 checked={formData.isDefault}
-                onChange={handleChange}
-                className="rounded border-gray-300"
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({ ...prev, isDefault: checked }))
+                }
               />
-              <Label htmlFor="isDefault">Set as default provider</Label>
-            </div>
-          </div>
+              <FieldLabel htmlFor="isDefault">Set as default provider</FieldLabel>
+            </Field>
+          </FieldGroup>
           <DialogFooter>
             <Button
               type="button"
