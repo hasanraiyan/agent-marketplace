@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus, Trash2, Edit, Play } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Plus, Trash2, Edit, Play, MessageSquare, Shield, Globe, Lock, Bot, SearchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import {
   Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,16 +30,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { searchAgents, deleteAgent } from "@/lib/api/agents";
 import { getProfile } from "@/lib/api/profile";
+import { MoreVertical } from "lucide-react";
 
-const VISIBILITY_VARIANTS = {
-  public: "default",
-  unlisted: "secondary",
-  private: "outline",
+const VISIBILITY_CONFIG = {
+  public: { variant: "default", icon: Globe, label: "Public" },
+  unlisted: { variant: "secondary", icon: Shield, label: "Unlisted" },
+  private: { variant: "outline", icon: Lock, label: "Private" },
 };
 
 export default function MyAgentsPage() {
@@ -48,6 +56,17 @@ export default function MyAgentsPage() {
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filteredAgents = useMemo(() => {
+    const q = (search || "").trim().toLowerCase();
+    if (!q) return agents;
+    return agents.filter((a) => {
+      const name = (a.name || "").toLowerCase();
+      const desc = (a.description || "").toLowerCase();
+      return name.includes(q) || desc.includes(q);
+    });
+  }, [agents, search]);
 
   const fetchMyAgents = async () => {
     try {
@@ -98,127 +117,161 @@ export default function MyAgentsPage() {
   };
 
   return (
-    <div className="@container/main flex flex-1 flex-col gap-2">
-      <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-        <div className="px-4 lg:px-6">
-          {loading ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Card key={i}>
-                  <CardHeader>
-                    <Skeleton className="h-5 w-3/4" />
-                    <Skeleton className="mt-2 h-4 w-full" />
-                    <Skeleton className="mt-1 h-4 w-2/3" />
-                  </CardHeader>
-                  <CardContent>
-                    <Skeleton className="h-4 w-full" />
-                  </CardContent>
-                  <CardFooter>
-                    <Skeleton className="h-8 w-full" />
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          ) : agents.length === 0 ? (
-            <Empty>
-              <EmptyHeader>
-                <EmptyTitle>No agents yet</EmptyTitle>
-                <EmptyDescription>
-                  Create your first AI agent to get started.
-                </EmptyDescription>
-              </EmptyHeader>
-              <EmptyContent>
-                <Link href="/dashboard/agents/create">
-                  <Button>
-                    <Plus data-icon="inline-start" />
-                    Create Your First Agent
-                  </Button>
-                </Link>
-              </EmptyContent>
-            </Empty>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {agents.map((agent) => {
-                const agentId = agent.id || agent._id;
-                return (
-                  <Card key={agentId} className="flex flex-col">
-                    <CardHeader>
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <CardTitle className="truncate">
-                            {agent.name}
-                          </CardTitle>
-                          <CardDescription className="line-clamp-2">
-                            {agent.description || "No description"}
-                          </CardDescription>
-                        </div>
-                        <Badge
-                          variant={
-                            VISIBILITY_VARIANTS[agent.visibility] || "outline"
-                          }
-                        >
-                          {agent.visibility || "private"}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="flex-1">
-                      <div className="flex flex-col gap-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">
-                            Category
-                          </span>
-                          <span className="font-medium capitalize">
-                            {agent.category || "other"}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Model</span>
-                          <span className="truncate font-medium">
-                            {agent.modelName || "default"}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Created</span>
-                          <span>
-                            {agent.createdAt
-                              ? new Date(agent.createdAt).toLocaleDateString()
-                              : "—"}
-                          </span>
-                        </div>
-                      </div>
-                    </CardContent>
-                    <CardFooter className="flex gap-2 border-t">
-                      <Link
-                        href={`/dashboard/agents/${agentId}/run`}
-                        className="flex-1"
-                      >
-                        <Button variant="outline" size="sm" className="w-full">
-                          <Play data-icon="inline-start" />
-                          Run
-                        </Button>
-                      </Link>
-                      <Link href={`/dashboard/agents/${agentId}/edit`}>
-                        <Button variant="outline" size="icon-sm" title="Edit">
-                          <Edit />
-                        </Button>
-                      </Link>
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                        title="Delete"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => setDeleteTarget(agent)}
-                      >
-                        <Trash2 />
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
+    <div className="@container/main flex flex-1 flex-col py-4 md:py-6">
+      {/* Header */}
+      <section className="px-4 lg:px-6 mb-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              My Agents
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+              Manage and track the agents you&apos;ve created.
+            </p>
+          </div>
+          <div className="w-full sm:max-w-xs md:max-w-sm">
+            <InputGroup>
+              <InputGroupAddon align="inline-start">
+                <SearchIcon className="size-4" />
+              </InputGroupAddon>
+              <InputGroupInput
+                placeholder="Search your agents..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="text-base" // prevents iOS zoom on focus
+              />
+            </InputGroup>
+          </div>
         </div>
-      </div>
+      </section>
+
+      <section className="px-4 lg:px-6">
+        {loading ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-64 rounded-xl" />
+            ))}
+          </div>
+        ) : agents.length === 0 ? (
+          <Empty className="py-20 border-2 border-dashed rounded-2xl">
+            <EmptyHeader>
+              <EmptyTitle>No agents yet</EmptyTitle>
+              <EmptyDescription>
+                You haven&apos;t created any agents. Start by creating one now!
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Link href="/dashboard/agents/create">
+                <Button variant="outline">
+                  <Plus data-icon="inline-start" />
+                  Create Your First Agent
+                </Button>
+              </Link>
+            </EmptyContent>
+          </Empty>
+        ) : filteredAgents.length === 0 ? (
+          <Empty className="py-20 border-2 border-dashed rounded-2xl">
+            <EmptyHeader>
+              <EmptyTitle>No agents match</EmptyTitle>
+              <EmptyDescription>
+                Try a different search term or clear the search to see all your agents.
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Button variant="outline" onClick={() => setSearch("")}>Clear search</Button>
+            </EmptyContent>
+          </Empty>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {filteredAgents.map((agent) => {
+              const agentId = agent.id || agent._id;
+              const visibility = VISIBILITY_CONFIG[agent.visibility] || VISIBILITY_CONFIG.private;
+              const displayAvatar = agent.avatarUrl || agent.avatar;
+
+              return (
+                <Card key={agentId} className="group relative flex flex-col overflow-hidden rounded-xl border-none bg-card ring-1 ring-foreground/10 transition-all hover:shadow-lg hover:ring-primary/20 py-0">
+                  {/* Image/Avatar Area */}
+                  <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">
+                    {displayAvatar ? (
+                      <img
+                        src={displayAvatar}
+                        alt={agent.name}
+                        className="size-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
+                    ) : (
+                      <div className="flex size-full items-center justify-center bg-gradient-to-br from-muted to-muted/50">
+                        <Bot className="size-10 text-muted-foreground/40" />
+                      </div>
+                    )}
+                    
+                    {/* Floating Badges */}
+                    <div className="absolute left-2 top-2 z-10 flex gap-1.5">
+                      <Badge variant="secondary" className="bg-background/80 text-foreground backdrop-blur-md border-none px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold">
+                        {agent.category || "other"}
+                      </Badge>
+                      <Badge variant={visibility.variant} className="backdrop-blur-md border-none px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold flex items-center gap-1">
+                        <visibility.icon className="size-2.5" />
+                        {visibility.label}
+                      </Badge>
+                    </div>
+
+                    {/* Quick Actions Dropdown */}
+                    <div className="absolute right-2 top-2 z-10">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon-sm" className="size-7 bg-background/50 hover:bg-background/80 backdrop-blur-md">
+                            <MoreVertical className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <Link href={`/dashboard/agents/${agentId}/edit`}>
+                            <DropdownMenuItem className="cursor-pointer">
+                              <Edit className="mr-2 size-4" /> Edit Details
+                            </DropdownMenuItem>
+                          </Link>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            className="cursor-pointer text-destructive focus:text-destructive"
+                            onClick={() => setDeleteTarget(agent)}
+                          >
+                            <Trash2 className="mr-2 size-4" /> Delete Agent
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex flex-1 flex-col p-4">
+                    <div className="mb-2">
+                      <h3 className="line-clamp-1 text-base font-bold transition-colors group-hover:text-primary">
+                        {agent.name}
+                      </h3>
+                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                        {agent.description || "No description provided."}
+                      </p>
+                    </div>
+
+                    <div className="mt-auto flex items-center justify-between border-t pt-3">
+                      <div className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+                        <MessageSquare className="size-3" />
+                        <span>{agent.messageCount || 0} chats</span>
+                      </div>
+                      
+                      <Link href={`/dashboard/agents/${agentId}/run`}>
+                        <Button size="xs" variant="primary" className="h-7 px-3 text-[10px] font-bold uppercase tracking-tight">
+                          <Play className="mr-1 size-2.5 fill-current" />
+                          Launch
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       <AlertDialog
         open={!!deleteTarget}
@@ -229,8 +282,8 @@ export default function MyAgentsPage() {
             <AlertDialogTitle>Delete this agent?</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete{" "}
-              <span className="font-medium">{deleteTarget?.name}</span>. This
-              action cannot be undone.
+              <span className="font-medium text-foreground">{deleteTarget?.name}</span>. This
+              action cannot be undone and all conversation history will be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
