@@ -56,7 +56,7 @@ export function HeroSection() {
             className="animate-fade-up max-w-4xl text-4xl leading-[1.1] font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
             style={{ animationDelay: "0.1s" }}
           >
-            Discover & Deploy <span className="gradient-text">AI Agents</span>{" "}
+            Deploy & Orchestrate <span className="gradient-text">AI Agents</span>{" "}
             That Work For You
           </h1>
 
@@ -65,9 +65,9 @@ export function HeroSection() {
             className="animate-fade-up mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg md:text-xl"
             style={{ animationDelay: "0.2s" }}
           >
-            The premium marketplace for intelligent AI agents. Browse,
+            The professional platform for intelligent AI agents. Create,
             customize, and orchestrate agents for coding, writing, research, and
-            beyond — all from one unified platform.
+            beyond — all from one unified interface.
           </p>
 
           {/* CTA Row */}

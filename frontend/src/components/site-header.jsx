@@ -14,7 +14,6 @@ const routeMap = [
   { path: "/dashboard/profile", title: "Profile" },
   { path: "/dashboard/settings", title: "Settings" },
   { path: "/dashboard", title: "Explore" },
-  { path: "/agents", title: "Marketplace" },
 ];
 
 export function SiteHeader() {

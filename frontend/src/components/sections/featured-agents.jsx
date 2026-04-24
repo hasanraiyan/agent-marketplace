@@ -9,6 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import Link from "next/link";
 import {
   StarIcon,
   ArrowRightIcon,
@@ -141,7 +142,7 @@ export function FeaturedAgentsSection() {
             Featured Agents
           </Badge>
           <h2 className="max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-            Explore Top-Rated <span className="gradient-text">AI Agents</span>
+            Discover Powerful <span className="gradient-text">AI Agents</span>
           </h2>
           <p className="mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
             Hand-picked agents trusted by thousands of professionals. Each one
@@ -223,15 +224,17 @@ export function FeaturedAgentsSection() {
 
         {/* Browse All CTA */}
         <div className="mt-12 flex justify-center">
-          <Button
-            variant="outline"
-            size="lg"
-            className="gap-2"
-            id="browse-all-btn"
-          >
-            Browse All Agents
-            <ArrowRightIcon className="size-4" />
-          </Button>
+          <Link href="/dashboard/agents">
+            <Button
+              variant="outline"
+              size="lg"
+              className="gap-2"
+              id="browse-all-btn"
+            >
+              Browse All Agents
+              <ArrowRightIcon className="size-4" />
+            </Button>
+          </Link>
         </div>
       </div>
     </section>

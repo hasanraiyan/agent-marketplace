@@ -408,12 +408,12 @@ export function DataTable({ data: initialData }) {
           </SelectContent>
         </Select>
         <TabsList className="hidden **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:bg-muted-foreground/30 **:data-[slot=badge]:px-1 @4xl/main:flex">
-          <TabsTrigger value="outline">Active Marketplace</TabsTrigger>
+          <TabsTrigger value="outline">Active Agents</TabsTrigger>
           <TabsTrigger value="past-performance">
             Running Tasks <Badge variant="secondary">3</Badge>
           </TabsTrigger>
           <TabsTrigger value="key-personnel">
-            Market Activity <Badge variant="secondary">2</Badge>
+            Usage Stats <Badge variant="secondary">2</Badge>
           </TabsTrigger>
           <TabsTrigger value="focus-documents">Archived Models</TabsTrigger>
         </TabsList>

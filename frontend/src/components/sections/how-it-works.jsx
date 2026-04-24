@@ -13,7 +13,7 @@ const steps = [
     icon: SearchIcon,
     title: "Discover",
     description:
-      "Browse our curated marketplace of verified AI agents. Filter by category, rating, price, and capability to find the perfect match.",
+      "Browse our curated library of professional AI agents. Filter by category, capability, and model to find the perfect match for your task.",
     gradient: "from-blue-500 to-cyan-500",
     bg: "bg-blue-500/10",
     ring: "ring-blue-500/20",

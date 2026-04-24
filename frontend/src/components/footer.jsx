@@ -9,7 +9,7 @@ import {
 
 const footerLinks = {
   Product: [
-    { label: "Marketplace", href: "#agents" },
+    { label: "Features", href: "#features" },
     { label: "Pricing", href: "#pricing" },
     { label: "Enterprise", href: "#" },
     { label: "Changelog", href: "#" },
@@ -63,7 +63,7 @@ export function Footer() {
               </span>
             </Link>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
-              The premium marketplace for AI agents. Discover, deploy, and
+              The premium platform for AI agents. Deploy and
               orchestrate intelligent agents for any task.
             </p>
             {/* Social Links */}

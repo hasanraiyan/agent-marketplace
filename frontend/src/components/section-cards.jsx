@@ -60,7 +60,7 @@ export function SectionCards() {
       </Card>
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription>Marketplace Agents</CardDescription>
+          <CardDescription>Public Agents</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
             0
           </CardTitle>
@@ -73,10 +73,10 @@ export function SectionCards() {
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            Explore and use agents <TrendingUpIcon className="size-4" />
+            Discover and use agents <TrendingUpIcon className="size-4" />
           </div>
           <div className="text-muted-foreground">
-            Public agents ready to use
+            Shared agents ready to use
           </div>
         </CardFooter>
       </Card>

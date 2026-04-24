@@ -45,11 +45,6 @@ const data = {
       url: "/dashboard/chats",
       icon: <MessageSquareIcon />,
     },
-    {
-      title: "Marketplace",
-      url: "/agents",
-      icon: <ZapIcon />,
-    },
   ],
   navSecondary: [
     {

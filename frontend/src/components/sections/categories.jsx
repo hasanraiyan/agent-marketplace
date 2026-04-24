@@ -98,7 +98,7 @@ export function CategoriesSection() {
             Browse by <span className="gradient-text">Category</span>
           </h2>
           <p className="mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
-            Find the right agent for every use case. Our marketplace spans
+            Find the right agent for every use case. Our platform spans
             dozens of categories and specializations.
           </p>
         </div>

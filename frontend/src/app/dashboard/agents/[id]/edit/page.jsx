@@ -56,7 +56,6 @@ const CATEGORIES = [
 const VISIBILITY_OPTIONS = [
   { value: "private", label: "Private (only you)" },
   { value: "unlisted", label: "Unlisted (anyone with link)" },
-  { value: "public", label: "Public (marketplace)" },
 ];
 
 export default function EditAgentPage() {

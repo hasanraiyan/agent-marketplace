@@ -23,7 +23,7 @@ import {
 } from "@/components/auth-buttons";
 
 const navLinks = [
-  { href: "/agents", label: "Explore", icon: LayoutGridIcon },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutGridIcon },
   { href: "#how-it-works", label: "How It Works", icon: BookOpenIcon },
   { href: "#pricing", label: "Pricing", icon: DollarSignIcon },
 ];

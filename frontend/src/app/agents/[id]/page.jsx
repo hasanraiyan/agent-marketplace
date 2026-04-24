@@ -121,11 +121,11 @@ export default function AgentDetailPage() {
       <div className="min-h-screen bg-background">
         <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
           <Link
-            href="/agents"
+            href="/dashboard/agents"
             className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="size-4" />
-            Back to Marketplace
+            Back to Dashboard
           </Link>
           <Empty>
             <EmptyHeader>
@@ -149,11 +149,11 @@ export default function AgentDetailPage() {
       <div className="border-b bg-muted/30 px-4 py-8 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-5xl">
           <Link
-            href="/agents"
+            href="/dashboard/agents"
             className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="size-4" />
-            Back to Marketplace
+            Back to Dashboard
           </Link>
 
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
