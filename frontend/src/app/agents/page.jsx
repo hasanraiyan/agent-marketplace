@@ -32,6 +32,15 @@ const CATEGORIES = [
   "Content",
 ];
 
+// Map UI category labels to backend category enum values
+const CATEGORY_MAP = {
+  'AI Assistant': 'productivity',
+  Research: 'research',
+  Automation: 'productivity',
+  Analytics: 'research',
+  Content: 'creative',
+};
+
 const SORT_OPTIONS = [
   { value: "relevance", label: "Relevance" },
   { value: "newest", label: "Newest" },
@@ -55,15 +64,16 @@ export default function AgentsPage() {
     const fetchAgents = async () => {
       setLoading(true);
       try {
-        const filters = {
-          ...(searchQuery && { name: searchQuery }),
-          ...(selectedCategory !== "All Categories" && {
-            category: selectedCategory,
-          }),
+        const mappedCategory =
+          selectedCategory !== 'All Categories' ? CATEGORY_MAP[selectedCategory] || undefined : undefined;
+
+        const searchFilters = {
+          ...(searchQuery && { search: searchQuery }),
+          ...(mappedCategory && { category: mappedCategory }),
         };
 
         const response = await searchAgents({
-          ...filters,
+          ...searchFilters,
           page: currentPage,
           limit: itemsPerPage,
           sortBy,
@@ -72,7 +82,7 @@ export default function AgentsPage() {
         setAgents(response.data || []);
 
         // Get total count
-        const countResponse = await countAgents(filters);
+        const countResponse = await countAgents(searchFilters);
         setTotalAgents(countResponse.data.total || 0);
       } catch (error) {
         console.error("Failed to fetch agents:", error);
