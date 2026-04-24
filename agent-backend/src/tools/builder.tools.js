@@ -62,18 +62,38 @@ export const upsertAgentTool = (userId) =>
     }),
     func: async (input) => {
       try {
-        if (input.agentId) {
-          const updated = await agentService.updateAgent(input.agentId, userId, { ...input });
-          return `Successfully updated agent: ${updated.name} (${updated._id})`;
+        // Clean up empty strings for optional fields
+        const sanitized = { ...input };
+        if (sanitized.description === '') delete sanitized.description;
+        if (sanitized.avatar === '') delete sanitized.avatar;
+        if (sanitized.modelName === '') delete sanitized.modelName;
+
+        if (sanitized.agentId) {
+          const updated = await agentService.updateAgent(sanitized.agentId, userId, { ...sanitized });
+          return JSON.stringify({
+            status: 'success',
+            message: `Successfully updated agent: ${updated.name}`,
+            agentId: updated._id,
+          });
         } else {
-          if (!input.name || !input.systemPrompt || !input.providerId) {
-            return 'Error: Name, systemPrompt, and providerId are required to create a new agent.';
+          if (!sanitized.name || !sanitized.systemPrompt || !sanitized.providerId) {
+            return JSON.stringify({
+              status: 'error',
+              message: 'Name, systemPrompt, and providerId are required to create a new agent.',
+            });
           }
-          const created = await agentService.createAgent(userId, { ...input });
-          return `Successfully created new agent: ${created.name} (${created._id})`;
+          const created = await agentService.createAgent(userId, { ...sanitized });
+          return JSON.stringify({
+            status: 'success',
+            message: `Successfully created new agent: ${created.name}`,
+            agentId: created._id,
+          });
         }
       } catch (err) {
-        return `Error managing agent: ${err.message}`;
+        return JSON.stringify({
+          status: 'error',
+          message: `Error managing agent: ${err.message}`,
+        });
       }
     },
   });

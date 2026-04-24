@@ -54,7 +54,9 @@ class AgentFactory {
    * Leverages LRU caching to avoid expensive recompilation for the same agent.
    */
   async buildAgent(agentId, userId, checkpointer) {
-    const agentIdStr = agentId.toString();
+    if (!agentId) throw new Error('Agent ID is required to build an agent');
+    
+    const agentIdStr = agentId._id ? agentId._id.toString() : agentId.toString();
     const cached = this.cache.get(agentIdStr);
 
     let agent;

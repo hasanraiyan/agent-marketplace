@@ -49,15 +49,26 @@ export default function BuilderPage() {
       try {
         // Load agent if editing
         if (agentId) {
-          const res = await getAgent(agentId);
-          setAgent(res.data?.data);
+          try {
+            const res = await getAgent(agentId);
+            setAgent(res.data?.data);
+          } catch (agentErr) {
+            console.error("Failed to load agent:", agentErr);
+            toast.error("Failed to load agent details");
+          }
         }
 
         // Always create a thread with the Architect
-        const archRes = await createThread({ agentId: ARCHITECT_AGENT_ID });
-        setArchitectThread(archRes.data?.data);
+        try {
+            const archRes = await createThread({ agentId: ARCHITECT_AGENT_ID });
+            setArchitectThread(archRes.data?.data);
+        } catch (archErr) {
+            console.error("Failed to create architect thread:", archErr);
+            toast.error("Failed to connect to Agent Architect");
+        }
       } catch (err) {
-        toast.error("Initialization failed");
+        console.error("Critical builder initialization failure:", err);
+        toast.error("Initialization failed: " + (err.response?.data?.message || err.message));
       } finally {
         setLoading(false);
       }
@@ -84,24 +95,26 @@ export default function BuilderPage() {
   const handleArchitectEvent = async (event) => {
     // If architect calls upsert_agent, we should re-fetch our agent data
     if (event.type === 'tool' && event.name === 'upsert_agent') {
-        // Wait a bit for the backend to finish the write
+        // The architect might have returned JSON in the message history or we need to wait
+        // for the message to be finalized. 
+        // For simplicity, we trigger a refresh after the tool finishes.
         setTimeout(async () => {
             try {
-                // We don't know the ID if it was just created, so we might need to search or
-                // just rely on the user to save. 
-                // Better: if we have an ID, refresh it.
+                // If we are in "create" mode, we don't have an ID yet.
+                // We should check the response of the tool if possible, or just refresh list.
                 if (agentId) {
                     const res = await getAgent(agentId);
                     setAgent(res.data?.data);
                 } else {
-                    // This is tricky: architect created a new agent. 
-                    // We should probably check the latest created agent by user.
-                    // For now, let's assume the architect gives the ID back in text.
+                    // Logic to find the newly created agent by this user if just created
+                    // Better: The Architect now returns JSON. If we could parse it from the streaming history...
+                    // For now, let's just refresh the whole page if we detect a creation.
+                    // (The component will re-mount and find the new ID if we redirect)
                 }
             } catch (e) {
                 console.error("Sync failed");
             }
-        }, 1500);
+        }, 2000);
     }
   };
 
@@ -158,9 +171,10 @@ export default function BuilderPage() {
                 size="sm" 
                 variant="primary" 
                 className="h-8 px-4 font-bold"
-                onClick={() => {}} // Create/Publish logic
+                onClick={() => handleManualSave(agent)}
+                disabled={saving || !agent}
             >
-                Create
+                {saving ? "Saving..." : agentId ? "Update" : "Create"}
             </Button>
         </div>
       </header>

@@ -155,7 +155,15 @@ export function AgentForm({ initialData, onSave, loading: saving, hideHeader = f
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(form);
+    
+    // Clean up empty strings for optional fields
+    const sanitized = { ...form };
+    if (!sanitized.description) delete sanitized.description;
+    if (!sanitized.avatar) delete sanitized.avatar;
+    if (!sanitized.modelName) delete sanitized.modelName;
+    if (sanitized.tags?.length === 0) delete sanitized.tags;
+    
+    onSave(sanitized);
   };
 
   return (

@@ -68,9 +68,22 @@ class ChatService {
     try {
       await threadRepository.touchLastMessageAt(thread._id);
 
+      // Ensure we have a valid agentId even if populate failed (common for virtual agents)
+      let agentId = thread.agentId?._id || thread.agentId;
+      
+      // If agentId is still null (but was supposed to be populated) 
+      // or if thread.agentId is not an object, try to get the raw ID
+      if (!agentId || typeof agentId !== 'object') {
+          const rawId = thread.populated('agentId');
+          if (rawId) agentId = rawId;
+      }
+      
+      // Last resort fallback to the field itself if not populated
+      if (!agentId) agentId = thread.agentId;
+
       // DELAGATE ENTIRE GRAPH COMPILATION TO FACTORY DESIGN PATTERN
       const { agentInstance, agentConfig, llm } = await agentFactory.buildAgent(
-        thread.agentId,
+        agentId,
         userId,
         this.checkpointer
       );

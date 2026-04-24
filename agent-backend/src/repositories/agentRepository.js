@@ -1,4 +1,5 @@
 import Agent from '../models/Agent.js';
+import { ARCHITECT_AGENT_ID } from '../tools/index.js';
 
 class AgentRepository {
   async create(agentData) {
@@ -7,6 +8,15 @@ class AgentRepository {
   }
 
   async findById(id) {
+    if (id?.toString() === ARCHITECT_AGENT_ID) {
+      return {
+        _id: ARCHITECT_AGENT_ID,
+        name: 'Agent Architect',
+        description: 'System Builder Agent',
+        isVirtual: true,
+        updatedAt: new Date(0),
+      };
+    }
     return await Agent.findById(id);
   }
 
