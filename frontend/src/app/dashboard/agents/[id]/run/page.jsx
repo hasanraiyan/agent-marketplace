@@ -46,7 +46,7 @@ export default function RunAgentPage() {
       }
     };
     init();
-  }, [agentId]);
+  }, [agentId, getToken]);
 
   if (loading) {
     return (

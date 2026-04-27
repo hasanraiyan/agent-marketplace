@@ -1,16 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { 
   ArrowLeft, 
   Loader2, 
-  Sparkles, 
-  Settings2, 
-  MessageSquare, 
   Play,
-  Save,
   BotIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,20 +15,54 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
-
+import { z } from "zod";
+import { defineToolCallRenderer } from "@copilotkit/react-core/v2";
+import "@copilotkit/react-core/v2/styles.css";
+import { CopilotKit } from "@copilotkit/react-core";
+import { CopilotChat } from "@copilotkit/react-ui";
 import { getAgent, updateAgent, createAgent } from "@/lib/api/agents";
 import { createThread } from "@/lib/api/threads";
-import { AgentChat } from "@/components/agents/agent-chat";
 import { AgentForm } from "@/components/agents/agent-form";
 
-const ARCHITECT_AGENT_ID = '000000000000000000000000';
+const ARCHITECT_AGENT_ID = "000000000000000000000000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
+
+function ArchitectToolSync({ toolCallId, status, result, mode, currentAgentId, onCreated, onUpdated }) {
+  const handledToolCalls = useRef(new Set());
+
+  useEffect(() => {
+    if (status !== "complete" || !result || handledToolCalls.current.has(toolCallId)) {
+      return;
+    }
+
+    handledToolCalls.current.add(toolCallId);
+
+    try {
+      const output = typeof result === "string" ? JSON.parse(result) : result;
+      if (output?.status !== "success" || !output?.agentId) {
+        return;
+      }
+
+      if (mode === "create" && !currentAgentId) {
+        onCreated(output.agentId);
+        return;
+      }
+
+      onUpdated(output.agentId);
+    } catch (error) {
+      console.error("Failed to parse architect tool output", error);
+    }
+  }, [currentAgentId, mode, onCreated, onUpdated, result, status, toolCallId]);
+
+  return null;
+}
 
 export default function BuilderPage() {
   const router = useRouter();
   const params = useParams();
   const agentId = params.id; // May be undefined for "create"
 
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn, getToken } = useAuth();
   const [activeTab, setActiveTab] = useState("create");
   const [loading, setLoading] = useState(!!agentId);
   const [saving, setSaving] = useState(false);
@@ -40,6 +70,7 @@ export default function BuilderPage() {
   const [agent, setAgent] = useState(null);
   const [architectThread, setArchitectThread] = useState(null);
   const [previewThread, setPreviewThread] = useState(null);
+  const [authToken, setAuthToken] = useState(null);
 
   // 1. Initial Load: Agent Data (if edit) and Architect Thread
   useEffect(() => {
@@ -47,6 +78,9 @@ export default function BuilderPage() {
 
     const init = async () => {
       try {
+        const token = await getToken();
+        setAuthToken(token);
+
         // Load agent if editing
         if (agentId) {
           try {
@@ -74,7 +108,7 @@ export default function BuilderPage() {
       }
     };
     init();
-  }, [agentId, isLoaded, isSignedIn]);
+  }, [agentId, getToken, isLoaded, isSignedIn]);
 
   // 2. Preview Thread Management: Re-create when agent config changes significantly (like system prompt)
   const refreshPreview = useCallback(async () => {
@@ -91,42 +125,38 @@ export default function BuilderPage() {
     if (agentId) refreshPreview();
   }, [agentId, refreshPreview]);
 
-  // 3. Handle Architect Tool Calls (Syncing builder with agent state)
-  const handleArchitectEvent = async (event) => {
-    if (event.type === 'tool_output' && event.name === 'upsert_agent') {
-        try {
-            const output = typeof event.output === 'string' ? JSON.parse(event.output) : event.output;
-            
-            if (output.status === 'success' && output.agentId) {
-                if (!agentId) {
-                    // This was a creation! Redirect to the new builder URL
-                    toast.success("Agent created by Architect");
-                    router.push(`/dashboard/agents/${output.agentId}/builder`);
-                } else {
-                    // This was an update! Refresh local agent state
-                    const res = await getAgent(agentId);
-                    setAgent(res.data?.data);
-                    toast.success("Configuration synced");
-                }
-            }
-        } catch (e) {
-            console.error("Failed to parse architect tool output", e);
-        }
+  const handleArchitectCreated = useCallback((newAgentId) => {
+    toast.success("Agent created by Architect");
+    router.push(`/dashboard/agents/${newAgentId}/builder`);
+  }, [router]);
+
+  const handleArchitectUpdated = useCallback(async (updatedAgentId) => {
+    try {
+      const res = await getAgent(updatedAgentId);
+      setAgent(res.data?.data);
+      toast.success("Configuration synced");
+    } catch (error) {
+      console.error("Sync failed", error);
     }
-    
-    // Fallback/Legacy: If architect calls upsert_agent, we should re-fetch our agent data
-    if (event.type === 'tool' && event.name === 'upsert_agent' && agentId) {
-        // We still keep a small delay for the DB to settle if we didn't get the output yet
-        setTimeout(async () => {
-            try {
-                const res = await getAgent(agentId);
-                setAgent(res.data?.data);
-            } catch (e) {
-                console.error("Sync failed");
-            }
-        }, 3000);
-    }
-  };
+  }, []);
+
+  const architectToolRenderers = useMemo(() => [
+    defineToolCallRenderer({
+      name: "upsert_agent",
+      args: z.any(),
+      render: ({ toolCallId, status, result }) => (
+        <ArchitectToolSync
+          toolCallId={toolCallId}
+          status={status}
+          result={result}
+          mode={agentId ? "edit" : "create"}
+          currentAgentId={agentId}
+          onCreated={handleArchitectCreated}
+          onUpdated={handleArchitectUpdated}
+        />
+      ),
+    }),
+  ], [agentId, handleArchitectCreated, handleArchitectUpdated]);
 
   const handleManualSave = async (formData) => {
     setSaving(true);
@@ -155,6 +185,20 @@ export default function BuilderPage() {
       </div>
     );
   }
+
+  const architectThreadId = architectThread?._id || architectThread?.id;
+  const previewThreadId = previewThread?._id || previewThread?.id;
+  const runtimeUrl = `${BASE_URL}/copilotkit`;
+  const architectLabels = {
+    title: "Agent Architect",
+    initial: "Tell me what kind of agent you want to build.",
+    inputPlaceholder: "Say something like 'make a creative writing assistant'...",
+  };
+  const previewLabels = {
+    title: agent?.name || "Agent",
+    initial: agent?.description || "How can I help you today?",
+    inputPlaceholder: `Message ${agent?.name || "agent"}...`,
+  };
 
   return (
     <div className="flex h-screen flex-col bg-background overflow-hidden">
@@ -202,12 +246,31 @@ export default function BuilderPage() {
                 </div>
 
                 <TabsContent value="create" className="m-0 flex-1 overflow-hidden">
-                    <AgentChat 
-                        agent={{ name: "Agent Architect", avatar: "" }}
-                        thread={architectThread}
-                        onMessageSent={handleArchitectEvent}
-                        placeholder="Say something like 'make a creative writing assistant'..."
-                    />
+                    {authToken && architectThreadId ? (
+                      <CopilotKit
+                        runtimeUrl={runtimeUrl}
+                        useSingleEndpoint={false}
+                        headers={{
+                          Authorization: `Bearer ${authToken}`,
+                          "X-Agent-Id": ARCHITECT_AGENT_ID,
+                          "X-Thread-Id": architectThreadId,
+                        }}
+                        renderToolCalls={architectToolRenderers}
+                      >
+                        <CopilotChat
+                          agentId={ARCHITECT_AGENT_ID}
+                          threadId={architectThreadId}
+                          className="h-full min-h-0"
+                          labels={architectLabels}
+                          welcomeScreen={false}
+                          autoScroll="pin-to-bottom"
+                        />
+                      </CopilotKit>
+                    ) : (
+                      <div className="flex h-full items-center justify-center">
+                        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
                 </TabsContent>
 
                 <TabsContent value="configure" className="m-0 flex-1 overflow-y-auto p-6 scrollbar-hide">
@@ -233,12 +296,25 @@ export default function BuilderPage() {
             </div>
             
             <div className="flex-1 overflow-hidden">
-                {agentId ? (
-                    <AgentChat 
-                        agent={agent}
-                        thread={previewThread}
-                        placeholder={`Message ${agent?.name || "agent"}...`}
-                    />
+                {agentId && authToken && previewThreadId ? (
+                    <CopilotKit
+                      runtimeUrl={runtimeUrl}
+                      useSingleEndpoint={false}
+                      headers={{
+                        Authorization: `Bearer ${authToken}`,
+                        "X-Agent-Id": agentId,
+                        "X-Thread-Id": previewThreadId,
+                      }}
+                    >
+                      <CopilotChat
+                        agentId={agentId}
+                        threadId={previewThreadId}
+                        className="h-full min-h-0"
+                        labels={previewLabels}
+                        welcomeScreen={false}
+                        autoScroll="pin-to-bottom"
+                      />
+                    </CopilotKit>
                 ) : (
                     <div className="flex h-full items-center justify-center p-8 text-center">
                         <div className="max-w-xs space-y-2">
