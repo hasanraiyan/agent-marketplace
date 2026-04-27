@@ -67,9 +67,16 @@ export default function RunAgentPage() {
   // runtimeUrl must have no query params — CopilotKit appends /info, /agent/:id/run, etc.
   // Pass agentId and threadId as custom headers so they survive every sub-request.
   const runtimeUrl = `${BASE_URL}/copilotkit`;
+  const chatLabels = {
+    title: agent?.name || "Agent",
+    initial: agent?.description || "How can I help you today?",
+  };
+  const chatInput = {
+    bottomAnchored: true,
+  };
 
   return (
-    <div className="@container/main flex flex-1 flex-col">
+    <div className="@container/main flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="border-b px-4 py-4 lg:px-6">
         <Link
           href="/dashboard/agents"
@@ -106,24 +113,25 @@ export default function RunAgentPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {authToken && (
-          <CopilotKit
-            runtimeUrl={runtimeUrl}
-            headers={{
-              Authorization: `Bearer ${authToken}`,
-              "X-Agent-Id": agentId,
-              ...(threadDbId ? { "X-Thread-Id": threadDbId } : {}),
-            }}
-          >
-            <CopilotChat
-              className="h-full"
-              labels={{
-                title: agent?.name || "Agent",
-                initial: agent?.description || "How can I help you today?",
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <CopilotKit
+              runtimeUrl={runtimeUrl}
+              useSingleEndpoint={false}
+              headers={{
+                Authorization: `Bearer ${authToken}`,
+                "X-Agent-Id": agentId,
+                ...(threadDbId ? { "X-Thread-Id": threadDbId } : {}),
               }}
-            />
-          </CopilotKit>
+            >
+              <CopilotChat
+                className="h-full min-h-0"
+                labels={chatLabels}
+                input={chatInput}
+              />
+            </CopilotKit>
+          </div>
         )}
       </div>
     </div>

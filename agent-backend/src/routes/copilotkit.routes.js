@@ -15,10 +15,27 @@ const requestStore = new AsyncLocalStorage();
 
 const copilotRouter = express.Router();
 
+function formatRuntimeError(err, providerConfig) {
+  const rawMessage = err?.message || 'Unknown error';
+  const lower = rawMessage.toLowerCase();
+
+  const isProviderAuthIssue =
+    lower.includes('incorrect api key provided') ||
+    lower.includes('model_authentication') ||
+    (lower.includes('401') && lower.includes('api key'));
+
+  if (isProviderAuthIssue) {
+    const providerLabel = providerConfig?.label || 'this provider';
+    return `Provider "${providerLabel}" has invalid credentials. Update its API key in Settings and try again.`;
+  }
+
+  return rawMessage;
+}
+
 // Auth + context injection. Skip OPTIONS so CopilotKit's built-in CORS preflight works.
 copilotRouter.use(async (req, res, next) => {
-  console.log(`[CopilotKit] Incoming ${req.method} request to: ${req.url}`);
-  
+  console.log(`[CopilotKit] Incoming ${req.method} request to: ${req.originalUrl}`);
+
   if (req.method === 'OPTIONS') return next();
 
   try {
@@ -28,8 +45,7 @@ copilotRouter.use(async (req, res, next) => {
 
     const userId = req.user._id;
     console.log(`[CopilotKit] Auth successful for user: ${userId}`);
-    // Custom headers carry agentId/threadId so the runtimeUrl stays query-param-free
-    // (CopilotKit appends /info, /agent/:id/run, etc. to runtimeUrl at the call site).
+    // Custom headers carry agentId/threadId so the runtimeUrl stays query-param-free.
     const agentId = req.headers['x-agent-id'] || req.query.agentId;
     const threadDbId = req.headers['x-thread-id'] || req.query.threadId;
 
@@ -52,7 +68,7 @@ copilotRouter.use(async (req, res, next) => {
   }
 });
 
-// Singleton runtime — agent factory reads per-request context from AsyncLocalStorage
+// Singleton runtime: agent factory reads per-request context from AsyncLocalStorage.
 const runtime = new CopilotRuntime({
   agents: {
     default: new BuiltInAgent({
@@ -83,11 +99,23 @@ const runtime = new CopilotRuntime({
             ? lastHuman.content
             : (lastHuman?.content?.[0]?.text ?? '');
 
-        const { agentInstance } = await agentFactory.buildAgent(
-          agentId,
-          userId,
-          chatService.checkpointer,
-        );
+        let agentBuild;
+        try {
+          agentBuild = await agentFactory.buildAgent(agentId, userId, chatService.checkpointer);
+        } catch (err) {
+          async function* buildFailure() {
+            yield { type: EventType.TEXT_MESSAGE_START, messageId };
+            yield {
+              type: EventType.TEXT_MESSAGE_CONTENT,
+              messageId,
+              delta: `*(Error: ${formatRuntimeError(err)})*`,
+            };
+            yield { type: EventType.TEXT_MESSAGE_END, messageId };
+          }
+          return buildFailure();
+        }
+
+        const { agentInstance, providerConfig } = agentBuild;
 
         async function* generateEvents() {
           let started = false;
@@ -112,9 +140,10 @@ const runtime = new CopilotRuntime({
               err?.name === 'GraphInterrupt' || err?.message?.includes('interrupt');
             const notice = isInterrupt
               ? '\n\n*(Agent paused for clarification. Interrupt-based tools are not yet supported in this chat mode.)*'
-              : `\n\n*(Error: ${err?.message || 'Unknown error'})*`;
+              : `\n\n*(Error: ${formatRuntimeError(err, providerConfig)})*`;
             if (!started) {
               yield { type: EventType.TEXT_MESSAGE_START, messageId };
+              started = true;
             }
             yield { type: EventType.TEXT_MESSAGE_CONTENT, messageId, delta: notice };
           } finally {
@@ -130,7 +159,14 @@ const runtime = new CopilotRuntime({
   },
 });
 
-// Mount the v2 AG-UI handler — basePath '/' matches all sub-paths under /api/v1/copilotkit
+// Some client flows probe the bare mounted runtime URL before calling /info.
+// Rewrite those requests in-place so auth headers and middleware context stay intact.
+copilotRouter.get('/', (req, res, next) => {
+  req.url = '/info';
+  next();
+});
+
+// Keep the runtime relative to its mounted Express base path.
 copilotRouter.use(
   createCopilotExpressHandler({
     runtime,

@@ -34,23 +34,42 @@ class AgentFactory {
     });
   }
 
+  _assertProviderCredentials(provider, apiKey) {
+    const trimmedKey = typeof apiKey === 'string' ? apiKey.trim() : '';
+
+    if (!trimmedKey) {
+      throw new Error(
+        `Provider "${provider.label}" is missing an API key. Update it in Settings before running this agent.`
+      );
+    }
+
+    const looksLikePlaceholder =
+      /^sk-your-/i.test(trimmedKey) ||
+      /your-api-key/i.test(trimmedKey) ||
+      /placeholder/i.test(trimmedKey);
+
+    if (looksLikePlaceholder) {
+      throw new Error(
+        `Provider "${provider.label}" is using a placeholder API key. Update it in Settings before running this agent.`
+      );
+    }
+  }
+
   /**
    * Constructs the base LLM dynamically based on the Agent's Provider Config
    */
-  async _buildLLM(agent) {
+  async _buildLLM(agent, provider) {
     if (!agent.providerId) throw new Error('Agent has no valid provider configured.');
-
-    const provider = await providerRepository.findById(agent.providerId);
     if (!provider) throw new Error('Configured Provider not found or was deleted.');
 
     // Securely decrypt the AES-256 API Key from DB into memory
     const apiKey = encryption.decrypt(provider.apiKeyEncrypted);
+    this._assertProviderCredentials(provider, apiKey);
 
     // Initializing dynamic ChatOpenAI class representing the base model
     return new ChatOpenAI({
       openAIApiKey: apiKey,
       modelName: agent.modelName || provider.defaultModel || 'gpt-3.5-turbo',
-      temperature: 0.7,
       streaming: true,
       configuration: {
         baseURL: provider.baseURL,
@@ -69,6 +88,7 @@ class AgentFactory {
     const cached = this.cache.get(agentIdStr);
 
     let agent;
+    let provider;
 
     // 1. Detect if this is the Specialized Architect (Meta-Agent)
     if (agentIdStr === ARCHITECT_AGENT_ID) {
@@ -81,11 +101,12 @@ class AgentFactory {
           'No provider configured. Please add a provider (API Key) in settings first.'
         );
 
+      provider = defaultProvider;
       agent = {
         _id: ARCHITECT_AGENT_ID,
         name: 'Agent Architect',
         systemPrompt: ARCHITECT_SYSTEM_PROMPT,
-        providerId: defaultProvider._id,
+        providerId: provider._id,
         modelName: 'gpt-4o', // The architect should be high-intelligence
         updatedAt: new Date(0), // Version 0 (static)
         skills: [],
@@ -97,20 +118,29 @@ class AgentFactory {
         await agent.populate('skills');
       }
       if (!agent) throw new Error('Agent deleted or unavailable');
+
+      if (!agent.providerId) throw new Error('Agent has no valid provider configured.');
+      provider = await providerRepository.findById(agent.providerId);
+      if (!provider) throw new Error('Configured Provider not found or was deleted.');
     }
 
     // 2. Cache Validation: If already cached and hasn't been updated since, return it!
-    if (cached && cached.updatedAt.getTime() === agent.updatedAt.getTime()) {
+    if (
+      cached &&
+      cached.updatedAt.getTime() === agent.updatedAt.getTime() &&
+      cached.providerUpdatedAt?.getTime() === provider.updatedAt.getTime()
+    ) {
       return {
         agentInstance: cached.instance,
         agentConfig: agent,
         llm: cached.llm,
+        providerConfig: cached.providerConfig,
         cacheHit: true,
       };
     }
 
     // 3. Build Base Model
-    const llm = await this._buildLLM(agent);
+    const llm = await this._buildLLM(agent, provider);
 
     // Completely abstracted Tool Registry injection
     const dynamicTools = resolveAgentTools(agent, userId);
@@ -212,9 +242,27 @@ class AgentFactory {
       instance: agentInstance,
       llm: llm,
       updatedAt: agent.updatedAt,
+      providerUpdatedAt: provider.updatedAt,
+      providerConfig: {
+        id: provider._id?.toString?.() || provider._id,
+        label: provider.label,
+        baseURL: provider.baseURL,
+        modelName: agent.modelName || provider.defaultModel || 'gpt-3.5-turbo',
+      },
     });
 
-    return { agentInstance, agentConfig: agent, llm, cacheHit: false };
+    return {
+      agentInstance,
+      agentConfig: agent,
+      llm,
+      providerConfig: {
+        id: provider._id?.toString?.() || provider._id,
+        label: provider.label,
+        baseURL: provider.baseURL,
+        modelName: agent.modelName || provider.defaultModel || 'gpt-3.5-turbo',
+      },
+      cacheHit: false,
+    };
   }
 
   /**
