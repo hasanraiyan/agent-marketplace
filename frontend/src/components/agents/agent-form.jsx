@@ -92,16 +92,19 @@ export function AgentForm({ initialData, onSave, loading: saving, hideHeader = f
         const res = await getProviders();
         const list = res.data?.data || [];
         setProviders(list);
-        if (!form.providerId) {
-            const defaultProvider = list.find((p) => p.isDefault) || list[0] || null;
-            if (defaultProvider) {
-                setForm((prev) => ({
-                    ...prev,
-                    providerId: defaultProvider.id || defaultProvider._id,
-                    modelName: defaultProvider.defaultModel || "",
-                }));
-            }
-        }
+        
+        // Use functional update to check the CURRENT providerId state
+        setForm((prev) => {
+          if (!prev.providerId && list.length > 0) {
+            const defaultProvider = list.find((p) => p.isDefault) || list[0];
+            return {
+              ...prev,
+              providerId: defaultProvider.id || defaultProvider._id,
+              modelName: prev.modelName || defaultProvider.defaultModel || "",
+            };
+          }
+          return prev;
+        });
       } catch (err) {
         toast.error("Failed to load providers");
       } finally {

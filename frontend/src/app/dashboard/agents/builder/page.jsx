@@ -93,28 +93,38 @@ export default function BuilderPage() {
 
   // 3. Handle Architect Tool Calls (Syncing builder with agent state)
   const handleArchitectEvent = async (event) => {
-    // If architect calls upsert_agent, we should re-fetch our agent data
-    if (event.type === 'tool' && event.name === 'upsert_agent') {
-        // The architect might have returned JSON in the message history or we need to wait
-        // for the message to be finalized. 
-        // For simplicity, we trigger a refresh after the tool finishes.
-        setTimeout(async () => {
-            try {
-                // If we are in "create" mode, we don't have an ID yet.
-                // We should check the response of the tool if possible, or just refresh list.
-                if (agentId) {
+    if (event.type === 'tool_output' && event.name === 'upsert_agent') {
+        try {
+            const output = typeof event.output === 'string' ? JSON.parse(event.output) : event.output;
+            
+            if (output.status === 'success' && output.agentId) {
+                if (!agentId) {
+                    // This was a creation! Redirect to the new builder URL
+                    toast.success("Agent created by Architect");
+                    router.push(`/dashboard/agents/${output.agentId}/builder`);
+                } else {
+                    // This was an update! Refresh local agent state
                     const res = await getAgent(agentId);
                     setAgent(res.data?.data);
-                } else {
-                    // Logic to find the newly created agent by this user if just created
-                    // Better: The Architect now returns JSON. If we could parse it from the streaming history...
-                    // For now, let's just refresh the whole page if we detect a creation.
-                    // (The component will re-mount and find the new ID if we redirect)
+                    toast.success("Configuration synced");
                 }
+            }
+        } catch (e) {
+            console.error("Failed to parse architect tool output", e);
+        }
+    }
+    
+    // Fallback/Legacy: If architect calls upsert_agent, we should re-fetch our agent data
+    if (event.type === 'tool' && event.name === 'upsert_agent' && agentId) {
+        // We still keep a small delay for the DB to settle if we didn't get the output yet
+        setTimeout(async () => {
+            try {
+                const res = await getAgent(agentId);
+                setAgent(res.data?.data);
             } catch (e) {
                 console.error("Sync failed");
             }
-        }, 2000);
+        }, 3000);
     }
   };
 
@@ -172,9 +182,9 @@ export default function BuilderPage() {
                 variant="primary" 
                 className="h-8 px-4 font-bold"
                 onClick={() => handleManualSave(agent)}
-                disabled={saving || !agent}
+                disabled={saving || !agent || activeTab === 'configure'}
             >
-                {saving ? "Saving..." : agentId ? "Update" : "Create"}
+                {saving ? "Saving..." : activeTab === 'configure' ? "Use form below" : agentId ? "Update" : "Create"}
             </Button>
         </div>
       </header>

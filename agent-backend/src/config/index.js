@@ -25,7 +25,7 @@ function parseJsonEnv(value, name) {
 const config = {
   port: parseInt(process.env.PORT, 10) || 3000,
   env: process.env.NODE_ENV || 'development',
-  mongodbUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/agent-marketplace',
+  mongodbUri: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/agent-marketplace',
   dbEncryptionKeys: parseJsonEnv(process.env.DB_ENCRYPTION_KEYS, 'DB_ENCRYPTION_KEYS'),
   dbEncryptionActiveKeyId: process.env.DB_ENCRYPTION_ACTIVE_KEY_ID || null,
   jwt: {

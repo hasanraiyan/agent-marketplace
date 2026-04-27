@@ -8,15 +8,7 @@ const logger = loggerService.getLogger();
 
 const authMiddleware = async (req, res, next) => {
   try {
-    // 1. First run clerkMiddleware to parse the token into request
-    await new Promise((resolve, reject) => {
-      baseClerkMiddleware(req, res, (err) => {
-        if (err) return reject(err);
-        resolve();
-      });
-    });
-
-    // 2. Extract auth state using getAuth
+    // 1. Extract auth state using getAuth (populated by global clerkMiddleware)
     const authState = getAuth(req);
     const clerkId = authState?.userId;
 

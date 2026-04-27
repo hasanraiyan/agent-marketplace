@@ -25,7 +25,10 @@ class AgentRepository {
   }
 
   async update(id, updateData) {
-    return await Agent.findByIdAndUpdate(id, updateData, { returnDocument: 'after' });
+    return await Agent.findByIdAndUpdate(id, updateData, { 
+      returnDocument: 'after',
+      runValidators: true 
+    });
   }
 
   async delete(id) {

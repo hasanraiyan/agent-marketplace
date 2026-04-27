@@ -120,6 +120,8 @@ export function AgentChat({ agent, thread, onMessageSent, placeholder, showHeade
             } else if (data.tool) {
               setToolStatus(data.tool);
               if (onMessageSent) onMessageSent({ type: 'tool', name: data.tool });
+            } else if (data.tool_output) {
+              if (onMessageSent) onMessageSent({ type: 'tool_output', name: data.tool, output: data.tool_output });
             } else if (data.error) {
               toast.error(data.error);
             } else if (data.interrupt) {

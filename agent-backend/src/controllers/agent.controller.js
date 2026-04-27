@@ -26,6 +26,7 @@ class AgentController {
     try {
       // Optional auth: req.user might be undefined if route is public
       const userId = req.user ? req.user.id : null;
+      console.log(`[DEBUG] AgentController.getOne: userId=${userId}, req.user=${!!req.user}`);
       const agent = await agentService.getAgentById(req.params.id, userId);
 
       res.json({
@@ -44,6 +45,7 @@ class AgentController {
   async getBySlug(req, res, next) {
     try {
       const userId = req.user ? req.user.id : null;
+      console.log(`[DEBUG] AgentController.getBySlug: userId=${userId}, req.user=${!!req.user}`);
       const agent = await agentService.getAgentBySlug(req.params.slug, userId);
 
       res.json({

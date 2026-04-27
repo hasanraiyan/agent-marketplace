@@ -104,6 +104,11 @@ class ChatService {
         } else if (evtName === 'on_tool_start') {
           const toolName = name || data?.name || 'tool';
           res.write(`data: ${JSON.stringify({ tool: `Executing ${toolName}...` })}\n\n`);
+        } else if (evtName === 'on_tool_end') {
+          const toolName = name || data?.name || 'tool';
+          res.write(
+            `data: ${JSON.stringify({ tool_output: data.output, tool: toolName })}\n\n`
+          );
         } else if (evtName === 'on_custom_event' && data?.type === 'interrupt') {
           res.write(
             `data: ${JSON.stringify({ interrupt: true, tool: data.tool, args: data.args })}\n\n`
@@ -178,6 +183,11 @@ class ChatService {
         } else if (evtName === 'on_tool_start') {
           const toolName = name || data?.name || 'tool';
           res.write(`data: ${JSON.stringify({ tool: `Executing ${toolName}...` })}\n\n`);
+        } else if (evtName === 'on_tool_end') {
+          const toolName = name || data?.name || 'tool';
+          res.write(
+            `data: ${JSON.stringify({ tool_output: data.output, tool: toolName })}\n\n`
+          );
         } else if (evtName === 'on_custom_event' && data?.type === 'interrupt') {
           res.write(
             `data: ${JSON.stringify({ interrupt: true, tool: data.tool, args: data.args })}\n\n`

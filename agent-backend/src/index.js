@@ -16,6 +16,8 @@ import database from './config/database.js';
 import { loggerService } from './utils/index.js';
 import { startAllCronJobs, stopAllCronJobs } from './cron/index.js';
 
+import { clerkMiddleware } from '@clerk/express';
+
 // Initialize logger (Dependency Inversion - can swap implementation)
 const logger = loggerService.getLogger();
 
@@ -23,14 +25,12 @@ const app = express();
 
 app.use(cors());
 
-// Request logging middleware
-app.use((req, res, next) => {
-  logger.info(`${req.method} ${req.path}`);
-  next();
-});
-
-// Webhooks must be parsed as raw body
+// Webhooks must be parsed as raw body and bypass global auth
 app.use('/api/v1/webhooks', webhookRouter);
+
+app.use(clerkMiddleware());
+
+// Request logging middleware
 
 app.use(express.json());
 

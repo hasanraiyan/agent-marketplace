@@ -42,11 +42,21 @@ class AgentService {
 
     const obj = agent.toObject ? agent.toObject() : agent;
 
-    const isOwner = requestingUserId && obj.ownerId.toString() === requestingUserId.toString();
+    const ownerIdStr = obj.ownerId ? obj.ownerId.toString() : null;
+    const requestingIdStr = requestingUserId ? requestingUserId.toString() : null;
 
-    if (!isOwner) {
+    const isOwner = requestingIdStr && ownerIdStr === requestingIdStr;
+    const isVirtual = obj.isVirtual === true || obj._id === '000000000000000000000000';
+
+    const debugMsg = `[DEBUG] ${new Date().toISOString()} - Agent ${obj._id} ownership check: ownerId=${ownerIdStr}, requestingUserId=${requestingIdStr}, isOwner=${isOwner}, isVirtual=${isVirtual}\n`;
+    import('fs').then(fs => fs.appendFileSync('ownership_debug.log', debugMsg)).catch(() => {});
+
+    if (!isOwner && !isVirtual) {
+      console.log(`  - ACTION: Stripping sensitive fields`);
       delete obj.systemPrompt;
       delete obj.providerId;
+    } else {
+      console.log(`  - ACTION: Keeping sensitive fields (Prompt length: ${obj.systemPrompt?.length || 0})`);
     }
 
     return obj;
@@ -119,8 +129,11 @@ class AgentService {
     const agent = await agentRepository.findById(id);
     if (!agent) throw new Error('Agent not found');
 
-    const isOwner = userId && agent.ownerId.toString() === userId.toString();
-    if (!isOwner && agent.visibility === 'private') {
+    const ownerIdStr = agent.ownerId ? agent.ownerId.toString() : null;
+    const isOwner = userId && ownerIdStr === userId.toString();
+    const isVirtual = agent.isVirtual === true || agent._id === '000000000000000000000000';
+
+    if (!isOwner && !isVirtual && agent.visibility === 'private') {
       throw new Error('Agent not found or is private'); // Ambiguous error for privacy
     }
 
@@ -131,8 +144,11 @@ class AgentService {
     const agent = await agentRepository.findBySlug(slug);
     if (!agent) throw new Error('Agent not found');
 
-    const isOwner = userId && agent.ownerId.toString() === userId.toString();
-    if (!isOwner && agent.visibility === 'private') {
+    const ownerIdStr = agent.ownerId ? agent.ownerId.toString() : null;
+    const isOwner = userId && ownerIdStr === userId.toString();
+    const isVirtual = agent.isVirtual === true || agent._id === '000000000000000000000000';
+
+    if (!isOwner && !isVirtual && agent.visibility === 'private') {
       throw new Error('Agent not found or is private');
     }
 

@@ -29,7 +29,7 @@ const agentSchema = new mongoose.Schema(
       type: String,
       default: function () {
         // Default to a DiceBear bot avatar based on the name if no avatar provided
-        return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(this.name || 'agent')}`;
+        return `https://res.cloudinary.com/djkpavwmp/image/upload/v1777255297/portfolio_assets/q3kcklesxkonvin1ocpi.png`;
       },
     },
     tags: [
