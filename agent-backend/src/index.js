@@ -7,6 +7,7 @@ import providerRouter from './routes/provider.routes.js';
 import agentRouter from './routes/agent.routes.js';
 import threadRouter from './routes/thread.routes.js'; // Added
 import skillRouter from './routes/skill.routes.js';
+import copilotRouter from './routes/copilotkit.routes.js';
 import webhookRouter from './routes/webhook.routes.js';
 import errorHandler from './middlewares/errorHandler.js';
 import swaggerUi from 'swagger-ui-express';
@@ -30,7 +31,9 @@ app.use('/api/v1/webhooks', webhookRouter);
 
 app.use(clerkMiddleware());
 
-// Request logging middleware
+// CopilotKit reads its own raw request body — must be registered before express.json()
+// or the body stream will already be consumed and the handler gets nothing.
+app.use('/api/v1/copilotkit', copilotRouter);
 
 app.use(express.json());
 

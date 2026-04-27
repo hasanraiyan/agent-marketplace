@@ -1,0 +1,9 @@
+[DEBUG] 2026-04-27T03:17:50.963Z - OptionalAuth clerkId: user_3CTGDoWpSdSG580ihyWzQpLc33q
+[DEBUG] 2026-04-27T03:17:50.992Z - OptionalAuth found user: 69eeb3ca07371f1035977e8c
+[DEBUG] 2026-04-27T03:17:51.015Z - Agent 69eec3cf69e8644cc4b08e7b ownership check: ownerId=69eeb3ca07371f1035977e8c, requestingUserId=69eeb3ca07371f1035977e8c, isOwner=true, isVirtual=false
+[DEBUG] 2026-04-27T03:18:44.801Z - OptionalAuth clerkId: user_3CTGDoWpSdSG580ihyWzQpLc33q
+[DEBUG] 2026-04-27T03:18:44.804Z - OptionalAuth found user: 69eeb3ca07371f1035977e8c
+[DEBUG] 2026-04-27T03:18:44.808Z - Agent 69eec3cf69e8644cc4b08e7b ownership check: ownerId=69eeb3ca07371f1035977e8c, requestingUserId=69eeb3ca07371f1035977e8c, isOwner=true, isVirtual=false
+[DEBUG] 2026-04-27T03:21:01.868Z - OptionalAuth clerkId: user_3CTGDoWpSdSG580ihyWzQpLc33q
+[DEBUG] 2026-04-27T03:21:01.874Z - OptionalAuth found user: 69eeb3ca07371f1035977e8c
+[DEBUG] 2026-04-27T03:21:01.882Z - Agent 69eec3cf69e8644cc4b08e7b ownership check: ownerId=69eeb3ca07371f1035977e8c, requestingUserId=69eeb3ca07371f1035977e8c, isOwner=true, isVirtual=false

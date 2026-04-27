@@ -9,6 +9,9 @@ const logger = loggerService.getLogger();
  * Handles custom and standard errors consistently
  */
 export default function errorHandler(err, req, res, next) {
+  // Log to terminal for easier debugging
+  console.error(`[API Error] ${req.method} ${req.url} - Status: ${err.statusCode || 500} - ${err.message}`);
+
   // Log error using injected logger
   logger.error('Request error occurred', {
     message: err.message,
