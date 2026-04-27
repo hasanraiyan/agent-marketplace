@@ -57,8 +57,8 @@ importers:
         specifier: ^11.3.5
         version: 11.3.5
       mailgen:
-        specifier: ^2.0.32
-        version: 2.0.32
+        specifier: ^2.0.34
+        version: 2.0.34
       mongodb:
         specifier: ^7.1.1
         version: 7.1.1
@@ -2085,8 +2085,8 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
-  mailgen@2.0.32:
-    resolution: {integrity: sha512-HneeLo8nxbRxK3g9DlT0ceqISyn/fam6yHAUq6yE2b9SHZ7uj3xYRU+8/nwPBXCIPRUXV3wijdGo9iE5io1EKg==}
+  mailgen@2.0.34:
+    resolution: {integrity: sha512-iSBMTdrLsEtiHF7r73KLwvQFH20J/caW2axkHzxbNzLSfcZ6aYTMtKueqPAt6onRaTX5GS6uwZwtC0gempZ3WQ==}
 
   make-dir@4.0.0:
     resolution: {integrity: sha512-hXdUTZYIVOt1Ex//jAQi+wTZZpUpwBj/0QsOzqegb3rGMMeJiSEu5xLHnYfBrRV4RH2+OCSOO95Is/7x1WJ4bw==}
@@ -5583,7 +5583,7 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  mailgen@2.0.32:
+  mailgen@2.0.34:
     dependencies:
       ejs: 3.1.10
       he: 1.2.0
