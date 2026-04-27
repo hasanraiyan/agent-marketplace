@@ -38,7 +38,7 @@
     "langsmith": "^0.5.19",
     "lru-cache": "^11.3.5",
     "mailgen": "^2.0.32",
-    "mongodb": "^7.1.1",
+    "mongodb": "^7.2.0",
     "mongoose": "^9.3.3",
     "node-cron": "^4.2.1",
     "resend": "^6.12.0",
