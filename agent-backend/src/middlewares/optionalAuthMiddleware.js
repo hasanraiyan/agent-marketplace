@@ -13,7 +13,7 @@ const optionalAuthMiddleware = async (req, res, next) => {
     const clerkId = authState?.userId;
     
     try {
-      fs.appendFileSync('ownership_debug.log', `[DEBUG] ${new Date().toISOString()} - OptionalAuth clerkId: ${clerkId}\n`);
+      // fs.appendFileSync('ownership_debug.log', `[DEBUG] ${new Date().toISOString()} - OptionalAuth clerkId: ${clerkId}\n`);
     } catch (e) {}
 
     if (clerkId) {
@@ -21,11 +21,11 @@ const optionalAuthMiddleware = async (req, res, next) => {
       
       if (user) {
         try {
-          fs.appendFileSync('ownership_debug.log', `[DEBUG] ${new Date().toISOString()} - OptionalAuth found user: ${user.id}\n`);
+          // fs.appendFileSync('ownership_debug.log', `[DEBUG] ${new Date().toISOString()} - OptionalAuth found user: ${user.id}\n`);
         } catch (e) {}
       } else {
         try {
-          fs.appendFileSync('ownership_debug.log', `[DEBUG] ${new Date().toISOString()} - OptionalAuth user NOT cached for clerkId: ${clerkId}, attempting sync...\n`);
+          // fs.appendFileSync('ownership_debug.log', `[DEBUG] ${new Date().toISOString()} - OptionalAuth user NOT cached for clerkId: ${clerkId}, attempting sync...\n`);
         } catch (e) {}
         
         try {
@@ -41,7 +41,7 @@ const optionalAuthMiddleware = async (req, res, next) => {
               user.name = name;
               await user.save();
               try {
-                fs.appendFileSync('ownership_debug.log', `[DEBUG] ${new Date().toISOString()} - OptionalAuth synced user by email: ${user.id}\n`);
+                // fs.appendFileSync('ownership_debug.log', `[DEBUG] ${new Date().toISOString()} - OptionalAuth synced user by email: ${user.id}\n`);
               } catch (e) {}
             } else {
               user = await User.create({
@@ -51,14 +51,14 @@ const optionalAuthMiddleware = async (req, res, next) => {
                 role: 'normal',
               });
               try {
-                fs.appendFileSync('ownership_debug.log', `[DEBUG] ${new Date().toISOString()} - OptionalAuth created new user: ${user.id}\n`);
+                // fs.appendFileSync('ownership_debug.log', `[DEBUG] ${new Date().toISOString()} - OptionalAuth created new user: ${user.id}\n`);
               } catch (e) {}
             }
           }
         } catch (syncErr) {
           logger.error('[OptionalAuth] Sync failed:', syncErr.message);
           try {
-            fs.appendFileSync('ownership_debug.log', `[DEBUG] ${new Date().toISOString()} - OptionalAuth sync failed: ${syncErr.message}\n`);
+            // fs.appendFileSync('ownership_debug.log', `[DEBUG] ${new Date().toISOString()} - OptionalAuth sync failed: ${syncErr.message}\n`);
           } catch (e) {}
         }
       }

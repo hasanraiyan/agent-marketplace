@@ -40,11 +40,6 @@ const data = {
       url: "/dashboard/agents",
       icon: <BrainIcon />,
     },
-    {
-      title: "Chats",
-      url: "/dashboard/chats",
-      icon: <MessageSquareIcon />,
-    },
   ],
   navSecondary: [
     {

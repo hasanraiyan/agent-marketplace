@@ -351,21 +351,6 @@ export default function ProfilePage() {
                   </Link>
 
                   <Link
-                    href="/dashboard/chats"
-                    className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <MessageSquareIcon className="size-5 text-muted-foreground" />
-                      <span className="text-sm font-medium">Chats</span>
-                    </div>
-                    {stats.threads === null ? (
-                      <Skeleton className="h-5 w-8" />
-                    ) : (
-                      <Badge variant="secondary">{stats.threads}</Badge>
-                    )}
-                  </Link>
-
-                  <Link
                     href="/dashboard/settings"
                     className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
                   >

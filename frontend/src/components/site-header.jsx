@@ -10,7 +10,6 @@ import { usePathname } from "next/navigation";
 const routeMap = [
   { path: "/dashboard/agents/create", title: "Create Agent" },
   { path: "/dashboard/agents", title: "My Agents" },
-  { path: "/dashboard/chats", title: "Chats" },
   { path: "/dashboard/profile", title: "Profile" },
   { path: "/dashboard/settings", title: "Settings" },
   { path: "/dashboard", title: "Explore" },
