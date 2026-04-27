@@ -1,9 +1,11 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
+import { interrupt } from '@langchain/langgraph';
 
 /**
- * ask_clarification - A standard capability for Agents to handle ambiguity.
- * Instead of guessing, the agent can pause and present the user with multiple-choice questions.
+ * ask_clarification - Pauses the agent and shows structured questions to the user.
+ * Uses LangGraph's interrupt() directly so the resume value is a plain string,
+ * keeping the copilotkit route's resume logic simple.
  */
 export const clarificationTool = new DynamicStructuredTool({
   name: 'ask_clarification',
@@ -24,11 +26,12 @@ export const clarificationTool = new DynamicStructuredTool({
       )
       .min(1),
   }),
-  func: async () => {
-    // This is a placeholder as the real logic is handled by the LangGraph interrupt.
-    // In deepagents, tools marked for interrupt don't execute their logic;
-    // they pause and wait for a resume command.
-    return 'Question(s) sent to user. Waiting for response...';
+  func: async ({ questions }) => {
+    // Pause graph execution here. The interrupt value carries the questions so the
+    // copilotkit route can format and display them.  When the user replies, LangGraph
+    // resumes and interrupt() returns their answer string.
+    const answer = await interrupt({ questions });
+    return typeof answer === 'string' ? answer : JSON.stringify(answer);
   },
 });
 

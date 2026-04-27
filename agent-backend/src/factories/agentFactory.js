@@ -223,18 +223,21 @@ class AgentFactory {
         })
       : checkpointer;
 
+    // Build interruptOn from the agent's stored config, but exclude ask_clarification
+    // because that tool calls interrupt() directly inside its func — it must NOT be
+    // intercepted by the HITL middleware first.
+    const rawInterruptOn = agent.interruptOn instanceof Map
+      ? Object.fromEntries(agent.interruptOn)
+      : (agent.interruptOn || {});
+    const { ask_clarification: _removed, ...interruptOnConfig } = rawInterruptOn;
+
     const agentInstance = await createDeepAgent({
       model: llm,
       systemPrompt: agent.systemPrompt,
       checkpointer: safeCheckpointer,
       store: store,
       tools: dynamicTools,
-      interruptOn: {
-        ...(agent.interruptOn instanceof Map
-          ? Object.fromEntries(agent.interruptOn)
-          : agent.interruptOn),
-        ask_clarification: true, // Always force interrupt for structured questions
-      },
+      interruptOn: interruptOnConfig,
     });
 
     // 5. Update Cache

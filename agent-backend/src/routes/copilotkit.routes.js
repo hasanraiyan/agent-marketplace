@@ -4,16 +4,42 @@ import { CopilotRuntime, BuiltInAgent } from '@copilotkit/runtime/v2';
 import { createCopilotExpressHandler } from '@copilotkit/runtime/v2/express';
 import { EventType } from '@ag-ui/core';
 import { HumanMessage } from '@langchain/core/messages';
+import { Command } from '@langchain/langgraph';
 import { randomUUID } from 'crypto';
 import authMiddleware from '../middlewares/auth.middleware.js';
 import agentFactory from '../factories/agentFactory.js';
 import threadRepository from '../repositories/threadRepository.js';
 import chatService from '../services/chat.service.js';
 
+// Tracks threads currently paused at an interrupt (ask_clarification, etc.)
+// Key: langGraphThreadId, Value: { timestamp }
+const interruptedThreads = new Map();
+// Clean up stale interrupt entries every 5 min (TTL = 30 min)
+setInterval(() => {
+  const cutoff = Date.now() - 30 * 60 * 1000;
+  for (const [k, v] of interruptedThreads) {
+    if (v.timestamp < cutoff) interruptedThreads.delete(k);
+  }
+}, 5 * 60 * 1000).unref();
+
 // Carries per-request { userId, agentId, langGraphThreadId } through the async chain
 const requestStore = new AsyncLocalStorage();
 
 const copilotRouter = express.Router();
+
+// Recursively find LangGraph interrupt payloads from GraphInterrupt or
+// MultipleErrors (which wraps GraphInterrupt on err.errors[N].interrupts).
+function extractGraphInterrupts(err) {
+  if (!err) return null;
+  if (Array.isArray(err.interrupts) && err.interrupts.length > 0) return err.interrupts;
+  if (Array.isArray(err.errors)) {
+    for (const inner of err.errors) {
+      const found = extractGraphInterrupts(inner);
+      if (found) return found;
+    }
+  }
+  return null;
+}
 
 function formatRuntimeError(err, providerConfig) {
   const rawMessage = err?.message || 'Unknown error';
@@ -117,38 +143,128 @@ const runtime = new CopilotRuntime({
 
         const { agentInstance, providerConfig } = agentBuild;
 
+        // Detect resume: thread was paused at an interrupt and user just replied
+        const isResuming = langGraphThreadId != null && interruptedThreads.has(langGraphThreadId);
+        if (isResuming) interruptedThreads.delete(langGraphThreadId);
+
         async function* generateEvents() {
-          let started = false;
+          let currentTextMsgId = null;
+          let textActive = false;
+          const pendingToolCalls = new Map();
+
           try {
+            const inputArg = isResuming
+              ? new Command({ resume: content })
+              : { messages: [new HumanMessage(content)] };
+
             for await (const event of agentInstance.streamEvents(
-              { messages: [new HumanMessage(content)] },
+              inputArg,
               { configurable: { thread_id: langGraphThreadId }, version: 'v2' },
             )) {
+              // ── Text tokens ──────────────────────────────────────────────────
               if (event.event === 'on_chat_model_stream') {
-                const chunk = event.data?.chunk?.content;
-                if (typeof chunk === 'string' && chunk) {
-                  if (!started) {
-                    yield { type: EventType.TEXT_MESSAGE_START, messageId };
-                    started = true;
+                const text =
+                  typeof event.data?.chunk?.content === 'string'
+                    ? event.data.chunk.content
+                    : '';
+                if (text) {
+                  if (!textActive) {
+                    currentTextMsgId = randomUUID();
+                    textActive = true;
+                    yield { type: EventType.TEXT_MESSAGE_START, messageId: currentTextMsgId };
                   }
-                  yield { type: EventType.TEXT_MESSAGE_CONTENT, messageId, delta: chunk };
+                  yield { type: EventType.TEXT_MESSAGE_CONTENT, messageId: currentTextMsgId, delta: text };
+                }
+              }
+
+              // ── Tool call starts ─────────────────────────────────────────────
+              else if (event.event === 'on_tool_start') {
+                // Close any open text message before emitting tool events
+                if (textActive) {
+                  textActive = false;
+                  yield { type: EventType.TEXT_MESSAGE_END, messageId: currentTextMsgId };
+                }
+
+                const toolCallId = event.run_id;
+                const toolName = event.name;
+                const toolInput = event.data?.input;
+
+                pendingToolCalls.set(toolCallId, { name: toolName });
+
+                yield {
+                  type: EventType.TOOL_CALL_START,
+                  toolCallId,
+                  toolCallName: toolName,
+                  parentMessageId: currentTextMsgId,
+                };
+                const argsStr =
+                  typeof toolInput === 'string' ? toolInput : JSON.stringify(toolInput ?? {});
+                yield { type: EventType.TOOL_CALL_ARGS, toolCallId, delta: argsStr };
+                yield { type: EventType.TOOL_CALL_END, toolCallId };
+              }
+
+              // ── Tool call result ─────────────────────────────────────────────
+              else if (event.event === 'on_tool_end') {
+                const tc = pendingToolCalls.get(event.run_id);
+                if (tc) {
+                  pendingToolCalls.delete(event.run_id);
+                  const resultMsgId = randomUUID();
+                  const output = event.data?.output;
+                  const resultContent =
+                    typeof output === 'string' ? output : JSON.stringify(output ?? '');
+                  yield {
+                    type: EventType.TOOL_CALL_RESULT,
+                    messageId: resultMsgId,
+                    toolCallId: event.run_id,
+                    content: resultContent,
+                    role: 'tool',
+                  };
                 }
               }
             }
           } catch (err) {
+            const graphInterrupts = extractGraphInterrupts(err);
             const isInterrupt =
-              err?.name === 'GraphInterrupt' || err?.message?.includes('interrupt');
-            const notice = isInterrupt
-              ? '\n\n*(Agent paused for clarification. Interrupt-based tools are not yet supported in this chat mode.)*'
-              : `\n\n*(Error: ${formatRuntimeError(err, providerConfig)})*`;
-            if (!started) {
-              yield { type: EventType.TEXT_MESSAGE_START, messageId };
-              started = true;
+              graphInterrupts != null ||
+              err?.name === 'GraphInterrupt' ||
+              err?.message?.toLowerCase().includes('interrupt');
+
+            let notice;
+
+            if (isInterrupt && langGraphThreadId) {
+              // Persist interrupted state so next message triggers a resume
+              interruptedThreads.set(langGraphThreadId, { timestamp: Date.now() });
+
+              // Extract structured questions if the interrupt carried them
+              const interruptValue = (graphInterrupts ?? err?.interrupts)?.[0]?.value;
+              const questions = interruptValue?.questions;
+
+              if (Array.isArray(questions) && questions.length > 0) {
+                const lines = questions.map((q, i) => {
+                  const opts = (q.options || [])
+                    .map((o, j) => `  ${String.fromCharCode(97 + j)}) ${o}`)
+                    .join('\n');
+                  return `**${i + 1}. ${q.text}**${opts ? '\n' + opts : ''}`;
+                });
+                notice =
+                  `I need a bit more information before I continue:\n\n${lines.join('\n\n')}\n\n` +
+                  `Reply with your answer and I'll pick up right where I left off.`;
+              } else {
+                notice = 'I need your input to continue. Please reply with your answer.';
+              }
+            } else {
+              notice = `\n\n*(Error: ${formatRuntimeError(err, providerConfig)})*`;
             }
-            yield { type: EventType.TEXT_MESSAGE_CONTENT, messageId, delta: notice };
+
+            if (!textActive) {
+              currentTextMsgId = randomUUID();
+              textActive = true;
+              yield { type: EventType.TEXT_MESSAGE_START, messageId: currentTextMsgId };
+            }
+            yield { type: EventType.TEXT_MESSAGE_CONTENT, messageId: currentTextMsgId, delta: notice };
           } finally {
-            if (started) {
-              yield { type: EventType.TEXT_MESSAGE_END, messageId };
+            if (textActive) {
+              yield { type: EventType.TEXT_MESSAGE_END, messageId: currentTextMsgId };
             }
           }
         }

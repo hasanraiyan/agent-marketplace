@@ -1,4 +1,5 @@
 import providerRepository from '../repositories/providerRepository.js';
+import agentRepository from '../repositories/agentRepository.js';
 import encryption from '../utils/encryption.js';
 
 class ProviderService {
@@ -78,7 +79,15 @@ class ProviderService {
       throw new Error('Unauthorized to delete this provider');
     }
 
-    // TODO: Note for Phase 3: Add logic here to block deletion if Agents depend on this provider.
+    // Block deletion if any of the user's agents still reference this provider
+    const dependentCount = await agentRepository.count({ providerId, ownerId: userId });
+    if (dependentCount > 0) {
+      throw new Error(
+        `Cannot delete this provider — ${dependentCount} agent${dependentCount === 1 ? '' : 's'} ` +
+        `${dependentCount === 1 ? 'is' : 'are'} still using it. ` +
+        `Update those agents to use a different provider first.`
+      );
+    }
 
     await providerRepository.delete(providerId);
     return true;

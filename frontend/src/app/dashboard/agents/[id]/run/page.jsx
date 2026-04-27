@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, BotIcon } from "lucide-react";
+import { ArrowLeft, BotIcon, SearchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,10 +11,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
 import { CopilotKit } from "@copilotkit/react-core";
+import { defineToolCallRenderer } from "@copilotkit/react-core/v2";
+import "@copilotkit/react-core/v2/styles.css";
 import { CopilotChat } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
 import { getAgent } from "@/lib/api/agents";
 import { createThread } from "@/lib/api/threads";
+import { z } from "zod";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
 
@@ -48,6 +51,28 @@ export default function RunAgentPage() {
     init();
   }, [agentId, getToken]);
 
+  const toolRenderers = useMemo(
+    () => [
+      defineToolCallRenderer({
+        name: "search_web",
+        args: z.object({ query: z.string().optional() }).passthrough(),
+        render: ({ status, args }) => {
+          if (status !== "inProgress") return null;
+          return (
+            <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+              <SearchIcon className="size-3.5 shrink-0 animate-pulse" />
+              <span>
+                Searching the web
+                {args?.query ? ` for "${args.query}"` : ""}…
+              </span>
+            </div>
+          );
+        },
+      }),
+    ],
+    []
+  );
+
   if (loading) {
     return (
       <div className="@container/main flex flex-1 flex-col gap-2">
@@ -64,8 +89,6 @@ export default function RunAgentPage() {
   }
 
   const threadDbId = thread?._id || thread?.id;
-  // runtimeUrl must have no query params — CopilotKit appends /info, /agent/:id/run, etc.
-  // Pass agentId and threadId as custom headers so they survive every sub-request.
   const runtimeUrl = `${BASE_URL}/copilotkit`;
   const chatLabels = {
     title: agent?.name || "Agent",
@@ -124,6 +147,7 @@ export default function RunAgentPage() {
                 "X-Agent-Id": agentId,
                 ...(threadDbId ? { "X-Thread-Id": threadDbId } : {}),
               }}
+              renderToolCalls={toolRenderers}
             >
               <CopilotChat
                 className="h-full min-h-0"

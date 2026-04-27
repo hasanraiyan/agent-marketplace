@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { 
-  ArrowLeft, 
-  Loader2, 
+import {
+  ArrowLeft,
+  Loader2,
   Play,
-  BotIcon
+  BotIcon,
+  SearchIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -158,6 +159,25 @@ export default function BuilderPage() {
     }),
   ], [agentId, handleArchitectCreated, handleArchitectUpdated]);
 
+  const previewToolRenderers = useMemo(() => [
+    defineToolCallRenderer({
+      name: "search_web",
+      args: z.object({ query: z.string().optional() }).passthrough(),
+      render: ({ status, args }) => {
+        if (status !== "inProgress") return null;
+        return (
+          <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+            <SearchIcon className="size-3.5 shrink-0 animate-pulse" />
+            <span>
+              Searching the web
+              {args?.query ? ` for "${args.query}"` : ""}…
+            </span>
+          </div>
+        );
+      },
+    }),
+  ], []);
+
   const handleManualSave = async (formData) => {
     setSaving(true);
     try {
@@ -305,6 +325,7 @@ export default function BuilderPage() {
                         "X-Agent-Id": agentId,
                         "X-Thread-Id": previewThreadId,
                       }}
+                      renderToolCalls={previewToolRenderers}
                     >
                       <CopilotChat
                         agentId={agentId}
