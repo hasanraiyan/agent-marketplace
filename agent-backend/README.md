@@ -148,6 +148,10 @@ This backend now includes a production-oriented JavaScript AI stack:
 - `@langchain/langgraph` for stateful workflow orchestration and memory
 - `deepagents` for batteries-included task planning and filesystem-aware agents
 - `langsmith` for observability and traces
+- `CopilotKit` (v2 preview) for AI UI integration.
+
+> [!IMPORTANT]
+> This project depends on the `/v2` preview API of CopilotKit 1.56.x. Dependencies are pinned to exact version `1.56.3`. Any version bump must be treated as a migration, not a patch bump, as the `/v2` exports may move or change in future versions.
 
 The offline examples and verification suite live in `src/ai/`, `scripts/verify-ai-stack.js`, and `tests/aiExamples.test.js`.
 

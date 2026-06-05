@@ -15,10 +15,10 @@ importers:
         specifier: ^7.2.2
         version: 7.2.2(next@16.2.4(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@copilotkit/react-core':
-        specifier: ^1.56.3
+        specifier: 1.56.3
         version: 1.56.3(@types/mdast@4.0.4)(@types/react@19.2.14)(graphql@16.13.2)(micromark-util-types@2.0.2)(micromark@4.0.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.3.6)
       '@copilotkit/react-ui':
-        specifier: ^1.56.3
+        specifier: 1.56.3
         version: 1.56.3(@ag-ui/core@0.0.52)(@types/mdast@4.0.4)(@types/react@19.2.14)(graphql@16.13.2)(micromark-util-types@2.0.2)(micromark@4.0.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.3.6)
       '@dnd-kit/core':
         specifier: ^6.3.1
