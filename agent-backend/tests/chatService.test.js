@@ -85,9 +85,10 @@ describe('Chat Service (DeepAgents Factory Integration)', () => {
         llm: {},
       });
 
+      chatService.checkpointer = { getTuple: jest.fn() };
       await chatService.streamChat(mockRes, 'thread_1', 'user_1', 'hello');
 
-      expect(agentFactory.buildAgent).toHaveBeenCalledWith('agent_1', 'user_1', expect.anything());
+      expect(agentFactory.buildAgent).toHaveBeenCalledWith('agent_1', 'user_1', chatService.checkpointer);
       expect(mockStreamEvents).toHaveBeenCalled();
 
       expect(mockRes.write).toHaveBeenCalledWith('data: {"chunk":"chunkV2"}\n\n');

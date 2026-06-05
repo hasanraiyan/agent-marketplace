@@ -55,7 +55,10 @@ describe('Agent Repository', () => {
       expect(Agent.findByIdAndUpdate).toHaveBeenCalledWith(
         'agent_123',
         { name: 'New' },
-        { new: true }
+        {
+          new: true,
+          runValidators: true
+        }
       );
     });
 

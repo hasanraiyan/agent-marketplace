@@ -4,6 +4,9 @@ import agentFactory from '../factories/agentFactory.js';
 import { MongoDBSaver } from '@langchain/langgraph-checkpoint-mongodb';
 import { Command } from '@langchain/langgraph';
 import { MongoClient } from 'mongodb';
+import { loggerService } from '../utils/index.js';
+
+const logger = loggerService.getLogger();
 
 class ChatService {
   constructor() {
@@ -71,9 +74,8 @@ class ChatService {
       // Ensure we have a valid agentId even if populate failed (common for virtual agents)
       let agentId = thread.agentId?._id || thread.agentId;
       
-      // If agentId is still null (but was supposed to be populated) 
-      // or if thread.agentId is not an object, try to get the raw ID
-      if (!agentId || typeof agentId !== 'object') {
+      // If agentId is still null (but was supposed to be populated), try to get the raw ID
+      if (!agentId && typeof thread.populated === 'function') {
           const rawId = thread.populated('agentId');
           if (rawId) agentId = rawId;
       }
@@ -93,28 +95,37 @@ class ChatService {
         { configurable: { thread_id: thread.threadId }, version: 'v2' }
       );
 
-      for await (const event of stream) {
-        const { event: evtName, data, name } = event;
-        console.log(`[ChatService] Received event: ${evtName} (name: ${name || data?.name})`);
+      // Keep-alive timer to prevent connection timeouts during long tool runs
+      const keepAlive = setInterval(() => {
+        res.write(': keep-alive\n\n');
+      }, 15000);
 
-        if (evtName === 'on_chat_model_stream') {
-          const chunk = data?.chunk?.content;
-          if (typeof chunk === 'string' && chunk) {
-            res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+      try {
+        for await (const event of stream) {
+          const { event: evtName, data, name } = event;
+          logger.debug(`[ChatService] Received event: ${evtName}`, { name: name || data?.name });
+
+          if (evtName === 'on_chat_model_stream') {
+            const chunk = data?.chunk?.content;
+            if (typeof chunk === 'string' && chunk) {
+              res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+            }
+          } else if (evtName === 'on_tool_start') {
+            const toolName = name || data?.name || 'tool';
+            res.write(`data: ${JSON.stringify({ tool: `Executing ${toolName}...` })}\n\n`);
+          } else if (evtName === 'on_tool_end') {
+            const toolName = name || data?.name || 'tool';
+            res.write(
+              `data: ${JSON.stringify({ tool_output: data.output, tool: toolName })}\n\n`
+            );
+          } else if (evtName === 'on_custom_event' && data?.type === 'interrupt') {
+            res.write(
+              `data: ${JSON.stringify({ interrupt: true, tool: data.tool, args: data.args })}\n\n`
+            );
           }
-        } else if (evtName === 'on_tool_start') {
-          const toolName = name || data?.name || 'tool';
-          res.write(`data: ${JSON.stringify({ tool: `Executing ${toolName}...` })}\n\n`);
-        } else if (evtName === 'on_tool_end') {
-          const toolName = name || data?.name || 'tool';
-          res.write(
-            `data: ${JSON.stringify({ tool_output: data.output, tool: toolName })}\n\n`
-          );
-        } else if (evtName === 'on_custom_event' && data?.type === 'interrupt') {
-          res.write(
-            `data: ${JSON.stringify({ interrupt: true, tool: data.tool, args: data.args })}\n\n`
-          );
         }
+      } finally {
+        clearInterval(keepAlive);
       }
 
       res.write(`data: [DONE]\n\n`);

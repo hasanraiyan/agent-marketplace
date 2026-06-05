@@ -33,12 +33,12 @@ class ThreadRepository {
 
   async update(id, updateData) {
     const query = idLooksLikeObjectId(id) ? { _id: id } : { threadId: id };
-    return await Conversation.findOneAndUpdate(query, updateData, { returnDocument: 'after' });
+    return await Conversation.findOneAndUpdate(query, updateData, { new: true });
   }
 
   async touchLastMessageAt(id) {
     const query = idLooksLikeObjectId(id) ? { _id: id } : { threadId: id };
-    return await Conversation.findOneAndUpdate(query, { lastMessageAt: new Date() }, { returnDocument: 'after' });
+    return await Conversation.findOneAndUpdate(query, { lastMessageAt: new Date() }, { new: true });
   }
 
   async delete(id) {
