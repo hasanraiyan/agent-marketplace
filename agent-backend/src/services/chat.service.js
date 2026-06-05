@@ -95,6 +95,7 @@ class ChatService {
 
       for await (const event of stream) {
         const { event: evtName, data, name } = event;
+        console.log(`[ChatService] Received event: ${evtName} (name: ${name || data?.name})`);
 
         if (evtName === 'on_chat_model_stream') {
           const chunk = data?.chunk?.content;

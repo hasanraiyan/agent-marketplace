@@ -161,6 +161,7 @@ const runtime = new CopilotRuntime({
               inputArg,
               { configurable: { thread_id: langGraphThreadId }, version: 'v2' },
             )) {
+              console.log(`[CopilotKit] Received event: ${event.event} (name: ${event.name || event.data?.name})`);
               // ── Text tokens ──────────────────────────────────────────────────
               if (event.event === 'on_chat_model_stream') {
                 const text =
@@ -291,4 +292,5 @@ copilotRouter.use(
   }),
 );
 
+export { runtime, requestStore, interruptedThreads };
 export default copilotRouter;
