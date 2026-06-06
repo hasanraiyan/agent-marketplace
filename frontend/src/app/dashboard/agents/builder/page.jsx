@@ -73,15 +73,32 @@ export default function BuilderPage() {
   const [previewThread, setPreviewThread] = useState(null);
   const [authToken, setAuthToken] = useState(null);
 
+  // Periodically refresh the auth token to prevent expiration (Clerk tokens expire in 60s)
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+
+    const refreshToken = async () => {
+      try {
+        const token = await getToken();
+        if (token) {
+          setAuthToken(token);
+        }
+      } catch (err) {
+        console.error("Failed to refresh token:", err);
+      }
+    };
+
+    refreshToken();
+    const interval = setInterval(refreshToken, 40000); // refresh every 40 seconds
+    return () => clearInterval(interval);
+  }, [getToken, isLoaded, isSignedIn]);
+
   // 1. Initial Load: Agent Data (if edit) and Architect Thread
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
 
     const init = async () => {
       try {
-        const token = await getToken();
-        setAuthToken(token);
-
         // Load agent if editing
         if (agentId) {
           try {
@@ -109,7 +126,7 @@ export default function BuilderPage() {
       }
     };
     init();
-  }, [agentId, getToken, isLoaded, isSignedIn]);
+  }, [agentId, isLoaded, isSignedIn]);
 
   // 2. Preview Thread Management: Re-create when agent config changes significantly (like system prompt)
   const refreshPreview = useCallback(async () => {
