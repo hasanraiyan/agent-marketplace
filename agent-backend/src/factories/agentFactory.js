@@ -5,6 +5,9 @@ import providerRepository from '../repositories/providerRepository.js';
 import encryption from '../utils/encryption.js';
 
 import { resolveAgentTools, ARCHITECT_AGENT_ID } from '../tools/index.js';
+import { loggerService } from '../utils/index.js';
+
+const logger = loggerService.getLogger();
 
 const ARCHITECT_SYSTEM_PROMPT = `
 You are the **Agent Architect**, a senior software engineer and AI specialized in building highly effective agents.
@@ -83,7 +86,7 @@ class AgentFactory {
    */
   async buildAgent(agentId, userId, checkpointer) {
     if (!agentId) throw new Error('Agent ID is required to build an agent');
-    
+
     const agentIdStr = agentId._id ? agentId._id.toString() : agentId.toString();
     const cached = this.cache.get(agentIdStr);
 
@@ -130,6 +133,10 @@ class AgentFactory {
       cached.updatedAt.getTime() === agent.updatedAt.getTime() &&
       cached.providerUpdatedAt?.getTime() === provider.updatedAt.getTime()
     ) {
+      logger.debug('[AgentFactory] cache hit', {
+        agentId: agentIdStr,
+        model: cached.providerConfig?.modelName,
+      });
       return {
         agentInstance: cached.instance,
         agentConfig: agent,
@@ -139,6 +146,13 @@ class AgentFactory {
         cacheHit: true,
       };
     }
+
+    logger.info('[AgentFactory] building agent', {
+      agentId: agentIdStr,
+      model: agent.modelName,
+      provider: provider.label,
+      skillCount: agent.skills?.length || 0,
+    });
 
     // 3. Build Base Model
     const llm = await this._buildLLM(agent, provider);
@@ -167,11 +181,12 @@ class AgentFactory {
       const now = new Date().toISOString();
       for (const skill of agent.skills) {
         // Slugify the directory segment so odd skill names can't break the path.
-        const dir = String(skill.name)
-          .trim()
-          .replace(/[^a-zA-Z0-9_-]+/g, '-')
-          .replace(/^-+|-+$/g, '')
-          .toLowerCase() || 'skill';
+        const dir =
+          String(skill.name)
+            .trim()
+            .replace(/[^a-zA-Z0-9_-]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .toLowerCase() || 'skill';
         const frontmatter = `---\nname: ${skill.name}\ndescription: ${skill.description}\n---\n\n${skill.instructions}`;
         skillFiles[`/skills/${dir}/SKILL.md`] = {
           content: frontmatter.split('\n'),
@@ -195,7 +210,9 @@ class AgentFactory {
               return async (...args) => {
                 try {
                   // Robust empty-batch detection: scan args for any array-like candidate
-                  const foundArray = args.find((a) => Array.isArray(a) || (a && typeof a.length === 'number'));
+                  const foundArray = args.find(
+                    (a) => Array.isArray(a) || (a && typeof a.length === 'number')
+                  );
                   if (foundArray && foundArray.length === 0) return;
 
                   // If first arg is falsy or no args, treat as no-op
@@ -207,7 +224,10 @@ class AgentFactory {
                 } catch (err) {
                   // Only warn once to reduce log noise
                   if (!checkpointerWarned) {
-                    console.warn('[AgentFactory] checkpointer.putWrites error:', err?.message || err);
+                    console.warn(
+                      '[AgentFactory] checkpointer.putWrites error:',
+                      err?.message || err
+                    );
                     checkpointerWarned = true;
                   }
                 }
@@ -224,9 +244,10 @@ class AgentFactory {
     // Build interruptOn from the agent's stored config, but exclude ask_clarification
     // because that tool calls interrupt() directly inside its func — it must NOT be
     // intercepted by the HITL middleware first.
-    const rawInterruptOn = agent.interruptOn instanceof Map
-      ? Object.fromEntries(agent.interruptOn)
-      : (agent.interruptOn || {});
+    const rawInterruptOn =
+      agent.interruptOn instanceof Map
+        ? Object.fromEntries(agent.interruptOn)
+        : agent.interruptOn || {};
     const { ask_clarification: _removed, ...interruptOnConfig } = rawInterruptOn;
 
     const agentInstance = await createDeepAgent({
@@ -247,6 +268,13 @@ class AgentFactory {
       // Only attach the skills middleware when the agent actually has skills, and
       // point it at the virtual /skills/ tree we seed at invoke time.
       ...(hasSkills ? { skills: ['/skills/'] } : {}),
+    });
+
+    logger.info('[AgentFactory] agent built', {
+      agentId: agentIdStr,
+      toolCount: dynamicTools.length,
+      skillCount: Object.keys(skillFiles).length,
+      hasSkills,
     });
 
     // 5. Update Cache
