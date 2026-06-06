@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import { ToolMessage } from '@langchain/core/messages';
 import {
   translateLangGraphStream,
   emitTextNotice,
@@ -8,6 +9,7 @@ import {
   buildInterruptNotice,
   formatRuntimeError,
   buildFilesTodosSnapshot,
+  extractToolOutputContent,
 } from '../src/utils/aguiTranslator.js';
 
 // Helper: turn an array of LangGraph events into an async iterable, optionally
@@ -104,6 +106,30 @@ describe('translateLangGraphStream', () => {
     );
   });
 
+  test('unwraps a ToolMessage output to its content (the search_web "No sources" bug)', async () => {
+    // When a tool returns an object (e.g. Tavily `{ query, results }`), LangChain
+    // wraps it in a ToolMessage, so event.data.output is the message instance.
+    // The result content must be the real payload, NOT JSON.stringify(message)
+    // which would serialize LangChain's {lc,type,id,kwargs} envelope.
+    const tavily = { query: 'cats', results: [{ title: 'T', url: 'u', content: 'c' }] };
+    const toolMessage = new ToolMessage({
+      content: JSON.stringify(tavily),
+      tool_call_id: 'sw1',
+      name: 'search_web',
+    });
+    const events = [
+      { event: 'on_tool_start', run_id: 'sw1', name: 'search_web', data: { input: { query: 'cats' } } },
+      { event: 'on_tool_end', run_id: 'sw1', name: 'search_web', data: { output: toolMessage } },
+    ];
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    const result = out.find((e) => e.type === 'TOOL_CALL_RESULT');
+    expect(result.content).toBe(JSON.stringify(tavily));
+    // round-trips back to the real shape the renderer expects
+    expect(JSON.parse(result.content).results).toHaveLength(1);
+    expect(result.content).not.toContain('"lc"');
+    expect(result.content).not.toContain('kwargs');
+  });
+
   test('on interrupt: calls onInterrupt and yields the question prompt, not an error', async () => {
     const interruptErr = Object.assign(new Error('Interrupt'), {
       name: 'GraphInterrupt',
@@ -152,6 +178,37 @@ describe('translateLangGraphStream', () => {
     expect(notice).toContain('OpenAI');
     expect(notice).toContain('invalid credentials');
     expect(notice).not.toContain('superstep');
+  });
+});
+
+describe('extractToolOutputContent', () => {
+  test('passes strings through unchanged', () => {
+    expect(extractToolOutputContent("Successfully wrote to '/a.md'")).toBe(
+      "Successfully wrote to '/a.md'"
+    );
+  });
+
+  test('unwraps a ToolMessage to its string content', () => {
+    const tm = new ToolMessage({ content: '{"results":[]}', tool_call_id: 'x', name: 't' });
+    expect(extractToolOutputContent(tm)).toBe('{"results":[]}');
+  });
+
+  test('joins array content blocks into text', () => {
+    const tm = new ToolMessage({
+      content: [{ type: 'text', text: 'hello ' }, { type: 'text', text: 'world' }],
+      tool_call_id: 'x',
+      name: 't',
+    });
+    expect(extractToolOutputContent(tm)).toBe('hello world');
+  });
+
+  test('serializes a plain object that is not a message', () => {
+    expect(extractToolOutputContent({ answer: 42 })).toBe(JSON.stringify({ answer: 42 }));
+  });
+
+  test('handles null/undefined', () => {
+    expect(extractToolOutputContent(null)).toBe('');
+    expect(extractToolOutputContent(undefined)).toBe('');
   });
 });
 
