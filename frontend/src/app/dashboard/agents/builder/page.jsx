@@ -8,7 +8,6 @@ import {
   Loader2,
   Play,
   BotIcon,
-  SearchIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,6 +23,7 @@ import { CopilotChat } from "@copilotkit/react-ui";
 import { getAgent, updateAgent, createAgent } from "@/lib/api/agents";
 import { createThread } from "@/lib/api/threads";
 import { AgentForm } from "@/components/agents/agent-form";
+import { baseToolRenderers } from "@/lib/copilotkit/tool-renderers";
 
 const ARCHITECT_AGENT_ID = "000000000000000000000000";
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
@@ -157,26 +157,10 @@ export default function BuilderPage() {
         />
       ),
     }),
+    // The architect also uses the deepagents built-ins (todos, filesystem,
+    // subagents) and search_web — share the same renderers as every surface.
+    ...baseToolRenderers,
   ], [agentId, handleArchitectCreated, handleArchitectUpdated]);
-
-  const previewToolRenderers = useMemo(() => [
-    defineToolCallRenderer({
-      name: "search_web",
-      args: z.object({ query: z.string().optional() }).passthrough(),
-      render: ({ status, args }) => {
-        if (status !== "inProgress") return null;
-        return (
-          <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-            <SearchIcon className="size-3.5 shrink-0 animate-pulse" />
-            <span>
-              Searching the web
-              {args?.query ? ` for "${args.query}"` : ""}…
-            </span>
-          </div>
-        );
-      },
-    }),
-  ], []);
 
   const handleManualSave = async (formData) => {
     setSaving(true);
@@ -325,7 +309,7 @@ export default function BuilderPage() {
                         "X-Agent-Id": agentId,
                         "X-Thread-Id": previewThreadId,
                       }}
-                      renderToolCalls={previewToolRenderers}
+                      renderToolCalls={baseToolRenderers}
                     >
                       <CopilotChat
                         agentId={agentId}
