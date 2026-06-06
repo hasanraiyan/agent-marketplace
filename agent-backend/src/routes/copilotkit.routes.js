@@ -150,6 +150,17 @@ const runtime = new CopilotRuntime({
         return translateLangGraphStream(stream, {
           providerConfig,
           logger,
+          // Lets the translator emit a STATE_SNAPSHOT of the virtual filesystem +
+          // todos at end-of-turn so the client's Files panel can mirror them. Reads
+          // authoritative persisted channel values from the checkpointer.
+          getState: langGraphThreadId
+            ? async () => {
+                const snap = await agentInstance.getState({
+                  configurable: { thread_id: langGraphThreadId },
+                });
+                return snap?.values;
+              }
+            : undefined,
           onInterrupt: () => {
             // Persist interrupted state so the user's next message triggers a resume.
             if (langGraphThreadId)

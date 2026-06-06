@@ -17,6 +17,7 @@ import "@copilotkit/react-ui/styles.css";
 import { getAgent } from "@/lib/api/agents";
 import { createThread } from "@/lib/api/threads";
 import { baseToolRenderers } from "@/lib/copilotkit/tool-renderers";
+import { FilesPanel } from "@/components/agents/files-panel";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
 
@@ -30,16 +31,32 @@ export default function RunAgentPage() {
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState(null);
 
+  // Periodically refresh the auth token to prevent expiration (Clerk tokens expire in 60s)
+  useEffect(() => {
+    const refreshToken = async () => {
+      try {
+        const tok = await getToken();
+        if (tok) {
+          setAuthToken(tok);
+        }
+      } catch (err) {
+        console.error("Failed to refresh token:", err);
+      }
+    };
+
+    refreshToken();
+    const interval = setInterval(refreshToken, 40000); // refresh every 40 seconds
+    return () => clearInterval(interval);
+  }, [getToken]);
+
   useEffect(() => {
     const init = async () => {
       try {
-        const [agentRes, tok, threadRes] = await Promise.all([
+        const [agentRes, threadRes] = await Promise.all([
           getAgent(agentId),
-          getToken(),
           createThread({ agentId }),
         ]);
         setAgent(agentRes.data?.data);
-        setAuthToken(tok);
         setThread(threadRes.data?.data);
       } catch (err) {
         toast.error(err.response?.data?.message || "Failed to load agent");
@@ -48,7 +65,7 @@ export default function RunAgentPage() {
       }
     };
     init();
-  }, [agentId, getToken]);
+  }, [agentId]);
 
   if (loading) {
     return (
@@ -126,11 +143,17 @@ export default function RunAgentPage() {
               }}
               renderToolCalls={baseToolRenderers}
             >
-              <CopilotChat
-                className="h-full min-h-0"
-                labels={chatLabels}
-                input={chatInput}
-              />
+              <div className="flex min-h-0 flex-1 overflow-hidden">
+                <CopilotChat
+                  className="h-full min-h-0 flex-1"
+                  labels={chatLabels}
+                  input={chatInput}
+                />
+                {/* Mirrors the agent's virtual filesystem; renders nothing until
+                    the agent creates files. Reads the same default agent the
+                    chat above runs on. */}
+                <FilesPanel />
+              </div>
             </CopilotKit>
           </div>
         )}
