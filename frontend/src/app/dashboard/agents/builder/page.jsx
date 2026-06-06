@@ -16,14 +16,15 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
-import { z } from "zod";
-import { defineToolCallRenderer } from "@copilotkit/react-core/v2";
 import "@copilotkit/react-core/v2/styles.css";
 import { CopilotKit } from "@copilotkit/react-core";
 import { CopilotChat } from "@copilotkit/react-ui";
 import { getAgent, updateAgent, createAgent } from "@/lib/api/agents";
 import { createThread } from "@/lib/api/threads";
 import { AgentForm } from "@/components/agents/agent-form";
+import { generateToolRenderers } from "@/lib/copilotkit/tool-renderers";
+import { defineToolCallRenderer } from "@copilotkit/react-core/v2";
+import { z } from "zod";
 
 const ARCHITECT_AGENT_ID = "000000000000000000000000";
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
@@ -141,42 +142,28 @@ export default function BuilderPage() {
     }
   }, []);
 
-  const architectToolRenderers = useMemo(() => [
-    defineToolCallRenderer({
-      name: "upsert_agent",
-      args: z.any(),
-      render: ({ toolCallId, status, result }) => (
-        <ArchitectToolSync
-          toolCallId={toolCallId}
-          status={status}
-          result={result}
-          mode={agentId ? "edit" : "create"}
-          currentAgentId={agentId}
-          onCreated={handleArchitectCreated}
-          onUpdated={handleArchitectUpdated}
-        />
-      ),
-    }),
-  ], [agentId, handleArchitectCreated, handleArchitectUpdated]);
+  const architectToolRenderers = useMemo(() => generateToolRenderers({
+    additionalToolNames: ["upsert_agent"],
+    renderers: [
+      defineToolCallRenderer({
+        name: "upsert_agent",
+        args: z.any(),
+        render: ({ toolCallId, status, result }) => (
+          <ArchitectToolSync
+            toolCallId={toolCallId}
+            status={status}
+            result={result}
+            mode={agentId ? "edit" : "create"}
+            currentAgentId={agentId}
+            onCreated={handleArchitectCreated}
+            onUpdated={handleArchitectUpdated}
+          />
+        ),
+      }),
+    ]
+  }), [agentId, handleArchitectCreated, handleArchitectUpdated]);
 
-  const previewToolRenderers = useMemo(() => [
-    defineToolCallRenderer({
-      name: "search_web",
-      args: z.object({ query: z.string().optional() }).passthrough(),
-      render: ({ status, args }) => {
-        if (status !== "inProgress") return null;
-        return (
-          <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-            <SearchIcon className="size-3.5 shrink-0 animate-pulse" />
-            <span>
-              Searching the web
-              {args?.query ? ` for "${args.query}"` : ""}…
-            </span>
-          </div>
-        );
-      },
-    }),
-  ], []);
+  const previewToolRenderers = useMemo(() => generateToolRenderers(), []);
 
   const handleManualSave = async (formData) => {
     setSaving(true);

@@ -131,11 +131,36 @@ export async function* translateLangGraphStream(stream, opts = {}) {
   const pendingToolCalls = new Map();
   // Lightweight tally for an end-of-stream summary log.
   const stats = { textChunks: 0, toolCalls: 0, toolResults: 0 };
+  // Track last seen state to emit deltas
+  let lastState = { files: {}, todos: [] };
 
   logger?.debug('[AG-UI] stream translation started');
 
   try {
     for await (const event of stream) {
+      // ── State snapshot ───────────────────────────────────────────────────
+      // On every step, check if files or todos changed and emit a state event.
+      // This powers the frontend artifact/file panel.
+      if (event.event === 'on_chain_end' && event.name === 'LangGraph') {
+        const state = event.data?.output;
+        if (state) {
+          const files = state.files || {};
+          const todos = state.todos || [];
+
+          // Simple check for changes
+          const filesChanged = JSON.stringify(files) !== JSON.stringify(lastState.files);
+          const todosChanged = JSON.stringify(todos) !== JSON.stringify(lastState.todos);
+
+          if (filesChanged || todosChanged) {
+            lastState = { files, todos };
+            yield {
+              type: 'STATE_SNAPSHOT',
+              state: { files, todos },
+            };
+          }
+        }
+      }
+
       // ── Streamed assistant text ──────────────────────────────────────────────
       if (event.event === 'on_chat_model_stream') {
         const text = typeof event.data?.chunk?.content === 'string' ? event.data.chunk.content : '';

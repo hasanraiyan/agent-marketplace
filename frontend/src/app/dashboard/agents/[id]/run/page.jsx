@@ -11,13 +11,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
 import { CopilotKit } from "@copilotkit/react-core";
-import { defineToolCallRenderer } from "@copilotkit/react-core/v2";
 import "@copilotkit/react-core/v2/styles.css";
 import { CopilotChat } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
 import { getAgent } from "@/lib/api/agents";
 import { createThread } from "@/lib/api/threads";
-import { z } from "zod";
+import { generateToolRenderers } from "@/lib/copilotkit/tool-renderers";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
 
@@ -51,27 +50,7 @@ export default function RunAgentPage() {
     init();
   }, [agentId, getToken]);
 
-  const toolRenderers = useMemo(
-    () => [
-      defineToolCallRenderer({
-        name: "search_web",
-        args: z.object({ query: z.string().optional() }).passthrough(),
-        render: ({ status, args }) => {
-          if (status !== "inProgress") return null;
-          return (
-            <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-              <SearchIcon className="size-3.5 shrink-0 animate-pulse" />
-              <span>
-                Searching the web
-                {args?.query ? ` for "${args.query}"` : ""}…
-              </span>
-            </div>
-          );
-        },
-      }),
-    ],
-    []
-  );
+  const toolRenderers = useMemo(() => generateToolRenderers(), []);
 
   if (loading) {
     return (
