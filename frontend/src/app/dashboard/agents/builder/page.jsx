@@ -23,6 +23,12 @@ import { getAgent, updateAgent, createAgent } from "@/lib/api/agents";
 import { createThread } from "@/lib/api/threads";
 import { AgentForm } from "@/components/agents/agent-form";
 import { generateToolRenderers } from "@/lib/copilotkit/tool-renderers";
+import { ArtifactPanel } from "@/components/chat/artifact-panel";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup
+} from "@/components/ui/resizable";
 import { defineToolCallRenderer } from "@copilotkit/react-core/v2";
 import { z } from "zod";
 
@@ -314,14 +320,22 @@ export default function BuilderPage() {
                       }}
                       renderToolCalls={previewToolRenderers}
                     >
-                      <CopilotChat
-                        agentId={agentId}
-                        threadId={previewThreadId}
-                        className="h-full min-h-0"
-                        labels={previewLabels}
-                        welcomeScreen={false}
-                        autoScroll="pin-to-bottom"
-                      />
+                      <ResizablePanelGroup direction="vertical" className="h-full">
+                        <ResizablePanel defaultSize={60} minSize={30}>
+                          <CopilotChat
+                            agentId={agentId}
+                            threadId={previewThreadId}
+                            className="h-full min-h-0"
+                            labels={previewLabels}
+                            welcomeScreen={false}
+                            autoScroll="pin-to-bottom"
+                          />
+                        </ResizablePanel>
+                        <ResizableHandle withHandle />
+                        <ResizablePanel defaultSize={40} minSize={20}>
+                          <ArtifactPanel agentId={agentId} threadId={previewThreadId} />
+                        </ResizablePanel>
+                      </ResizablePanelGroup>
                     </CopilotKit>
                 ) : (
                     <div className="flex h-full items-center justify-center p-8 text-center">

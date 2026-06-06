@@ -17,6 +17,12 @@ import "@copilotkit/react-ui/styles.css";
 import { getAgent } from "@/lib/api/agents";
 import { createThread } from "@/lib/api/threads";
 import { generateToolRenderers } from "@/lib/copilotkit/tool-renderers";
+import { ArtifactPanel } from "@/components/chat/artifact-panel";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup
+} from "@/components/ui/resizable";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
 
@@ -78,7 +84,7 @@ export default function RunAgentPage() {
   };
 
   return (
-    <div className="@container/main flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="@container/main flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <div className="border-b px-4 py-4 lg:px-6">
         <Link
           href="/dashboard/agents"
@@ -117,24 +123,32 @@ export default function RunAgentPage() {
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {authToken && (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <CopilotKit
-              runtimeUrl={runtimeUrl}
-              useSingleEndpoint={false}
-              headers={{
-                Authorization: `Bearer ${authToken}`,
-                "X-Agent-Id": agentId,
-                ...(threadDbId ? { "X-Thread-Id": threadDbId } : {}),
-              }}
-              renderToolCalls={toolRenderers}
-            >
-              <CopilotChat
-                className="h-full min-h-0"
-                labels={chatLabels}
-                input={chatInput}
-              />
-            </CopilotKit>
-          </div>
+          <CopilotKit
+            runtimeUrl={runtimeUrl}
+            useSingleEndpoint={false}
+            headers={{
+              Authorization: `Bearer ${authToken}`,
+              "X-Agent-Id": agentId,
+              ...(threadDbId ? { "X-Thread-Id": threadDbId } : {}),
+            }}
+            renderToolCalls={toolRenderers}
+          >
+            <ResizablePanelGroup direction="horizontal" className="flex-1">
+              <ResizablePanel defaultSize={70} minSize={30}>
+                <div className="flex h-full flex-col overflow-hidden">
+                  <CopilotChat
+                    className="h-full min-h-0"
+                    labels={chatLabels}
+                    input={chatInput}
+                  />
+                </div>
+              </ResizablePanel>
+              <ResizableHandle withHandle />
+              <ResizablePanel defaultSize={30} minSize={20} className="hidden md:block">
+                <ArtifactPanel agentId={agentId} threadId={threadDbId} />
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </CopilotKit>
         )}
       </div>
     </div>

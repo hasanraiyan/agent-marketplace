@@ -154,7 +154,7 @@ export async function* translateLangGraphStream(stream, opts = {}) {
           if (filesChanged || todosChanged) {
             lastState = { files, todos };
             yield {
-              type: 'STATE_SNAPSHOT',
+              type: EventType.STATE_SNAPSHOT,
               state: { files, todos },
             };
           }

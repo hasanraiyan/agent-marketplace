@@ -222,9 +222,13 @@ export function generateToolRenderers(options = {}) {
     defineToolCallRenderer({
       name: "read_file",
       args: z.object({ path: z.string() }).passthrough(),
-      render: ({ status, args }) => (
+      render: ({ status, args, result }) => (
         <ToolCard title={`Reading ${args?.path}`} status={status} icon={FileText}>
-           <div className="text-[11px] text-muted-foreground">Reading file content...</div>
+           {status === "complete" ? (
+             <JSONView data={result} label="File Content" />
+           ) : (
+             <div className="text-[11px] text-muted-foreground">Reading file content...</div>
+           )}
         </ToolCard>
       ),
     }),
@@ -238,9 +242,22 @@ export function generateToolRenderers(options = {}) {
          try { if(result) files = typeof result === 'string' ? JSON.parse(result) : result; } catch(e){}
          return (
           <ToolCard title={`Listing ${args?.path || "root"}`} status={status} icon={Folder}>
-            {Array.isArray(files) ? (
-              <div className="text-[11px] text-muted-foreground">Found {files.length} items.</div>
-            ) : null}
+            {status === "complete" && Array.isArray(files) ? (
+              <div className="space-y-1 mt-1">
+                <div className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Directory Contents</div>
+                <div className="grid grid-cols-1 gap-1">
+                  {files.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 text-[12px] py-0.5 px-1 hover:bg-muted/50 rounded">
+                      <FileText className="size-3 text-muted-foreground" />
+                      <span>{f}</span>
+                    </div>
+                  ))}
+                  {files.length === 0 && <div className="text-muted-foreground italic">Empty directory.</div>}
+                </div>
+              </div>
+            ) : (
+              <div className="text-[11px] text-muted-foreground">Listing files...</div>
+            )}
           </ToolCard>
          )
       }
