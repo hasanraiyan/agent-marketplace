@@ -10,6 +10,9 @@ import authMiddleware from '../middlewares/auth.middleware.js';
 import agentFactory from '../factories/agentFactory.js';
 import threadRepository from '../repositories/threadRepository.js';
 import chatService from '../services/chat.service.js';
+import { loggerService } from '../utils/index.js';
+
+const logger = loggerService.getLogger();
 
 // Tracks threads currently paused at an interrupt (ask_clarification, etc.)
 // Key: langGraphThreadId, Value: { timestamp }
@@ -38,7 +41,28 @@ function extractGraphInterrupts(err) {
       if (found) return found;
     }
   }
+  if (err.cause) return extractGraphInterrupts(err.cause);
   return null;
+}
+
+// LangGraph throws an AggregateError ("Multiple errors occurred during superstep N")
+// when 2+ parallel tasks fail in the same step — the real causes live in err.errors[],
+// not err.message. Flatten the whole tree (AggregateError.errors + .cause) into the
+// individual leaf errors so they can be logged and surfaced.
+function flattenErrors(err, seen = new Set()) {
+  if (!err || seen.has(err)) return [];
+  seen.add(err);
+  const leaves = [];
+  const children = [
+    ...(Array.isArray(err.errors) ? err.errors : []),
+    ...(err.cause ? [err.cause] : []),
+  ];
+  if (children.length === 0) {
+    leaves.push(err);
+  } else {
+    for (const child of children) leaves.push(...flattenErrors(child, seen));
+  }
+  return leaves;
 }
 
 function formatRuntimeError(err, providerConfig) {
@@ -161,6 +185,7 @@ const runtime = new CopilotRuntime({
               inputArg,
               { configurable: { thread_id: langGraphThreadId }, version: 'v2' },
             )) {
+              logger.debug(`[CopilotKit] Received event: ${event.event}`, { name: event.name || event.data?.name });
               // ── Text tokens ──────────────────────────────────────────────────
               if (event.event === 'on_chat_model_stream') {
                 const text =
@@ -179,6 +204,14 @@ const runtime = new CopilotRuntime({
 
               // ── Tool call starts ─────────────────────────────────────────────
               else if (event.event === 'on_tool_start') {
+                // Skip internal sub-tool calls (e.g. TavilySearch invoked inside the
+                // search_web wrapper). The model never called these, so emitting AG-UI
+                // tool events for them corrupts the message stream. The matching
+                // on_tool_end is ignored automatically (never added to pendingToolCalls).
+                if (event.tags?.includes('internal:nested-tool')) {
+                  continue;
+                }
+
                 // Close any open text message before emitting tool events
                 if (textActive) {
                   textActive = false;
@@ -191,12 +224,16 @@ const runtime = new CopilotRuntime({
 
                 pendingToolCalls.set(toolCallId, { name: toolName });
 
-                yield {
+                // parentMessageId is `z.string().optional()` in @ag-ui/core — an explicit
+                // `null` fails validation and aborts the whole stream. When the model calls
+                // a tool with no preceding text, currentTextMsgId is null, so omit the field.
+                const toolCallStart = {
                   type: EventType.TOOL_CALL_START,
                   toolCallId,
                   toolCallName: toolName,
-                  parentMessageId: currentTextMsgId,
                 };
+                if (currentTextMsgId) toolCallStart.parentMessageId = currentTextMsgId;
+                yield toolCallStart;
                 const argsStr =
                   typeof toolInput === 'string' ? toolInput : JSON.stringify(toolInput ?? {});
                 yield { type: EventType.TOOL_CALL_ARGS, toolCallId, delta: argsStr };
@@ -229,6 +266,22 @@ const runtime = new CopilotRuntime({
               err?.name === 'GraphInterrupt' ||
               err?.message?.toLowerCase().includes('interrupt');
 
+            // Surface the REAL underlying failures. AggregateError ("Multiple errors
+            // occurred during superstep N") hides the actual tool errors in err.errors[],
+            // so without this they never reach the logs.
+            if (!isInterrupt) {
+              const leaves = flattenErrors(err);
+              logger.error(`[CopilotKit] Stream failed: ${err?.name || 'Error'}: ${err?.message}`, {
+                agentId,
+                leafCount: leaves.length,
+                leaves: leaves.map((e) => ({
+                  name: e?.name,
+                  message: e?.message,
+                  stack: e?.stack,
+                })),
+              });
+            }
+
             let notice;
 
             if (isInterrupt && langGraphThreadId) {
@@ -253,7 +306,11 @@ const runtime = new CopilotRuntime({
                 notice = 'I need your input to continue. Please reply with your answer.';
               }
             } else {
-              notice = `\n\n*(Error: ${formatRuntimeError(err, providerConfig)})*`;
+              // Unwrap AggregateError so the user sees the first real cause, not the
+              // "Multiple errors occurred during superstep N" wrapper.
+              const leaves = flattenErrors(err);
+              const rootCause = leaves.find((e) => e?.message) || err;
+              notice = `\n\n*(Error: ${formatRuntimeError(rootCause, providerConfig)})*`;
             }
 
             if (!textActive) {
@@ -291,4 +348,5 @@ copilotRouter.use(
   }),
 );
 
+export { runtime, requestStore, interruptedThreads };
 export default copilotRouter;

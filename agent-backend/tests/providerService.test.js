@@ -12,6 +12,12 @@ jest.unstable_mockModule('../src/repositories/providerRepository.js', () => ({
   },
 }));
 
+jest.unstable_mockModule('../src/repositories/agentRepository.js', () => ({
+  default: {
+     count: jest.fn(),
+  },
+}));
+
 jest.unstable_mockModule('../src/utils/encryption.js', () => ({
   default: {
     encrypt: jest.fn(),
@@ -20,6 +26,7 @@ jest.unstable_mockModule('../src/utils/encryption.js', () => ({
 }));
 
 const providerRepository = (await import('../src/repositories/providerRepository.js')).default;
+const agentRepository = (await import('../src/repositories/agentRepository.js')).default;
 const encryption = (await import('../src/utils/encryption.js')).default;
 const providerService = (await import('../src/services/provider.service.js')).default;
 
@@ -160,6 +167,7 @@ describe('Provider Service', () => {
   describe('deleteProvider', () => {
     test('should delete successfully if owned', async () => {
       providerRepository.findById.mockResolvedValue(mockProvider);
+      agentRepository.count.mockResolvedValue(0);
       providerRepository.delete.mockResolvedValue(mockProvider);
 
       const result = await providerService.deleteProvider(mockUserId, mockProvider._id);
