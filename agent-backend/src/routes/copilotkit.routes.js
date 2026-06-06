@@ -165,7 +165,7 @@ const runtime = new CopilotRuntime({
           return buildFailure();
         }
 
-        const { agentInstance, providerConfig } = agentBuild;
+        const { agentInstance, providerConfig, skillFiles } = agentBuild;
 
         // Detect resume: thread was paused at an interrupt and user just replied
         const isResuming = langGraphThreadId != null && interruptedThreads.has(langGraphThreadId);
@@ -177,9 +177,19 @@ const runtime = new CopilotRuntime({
           const pendingToolCalls = new Map();
 
           try {
+            const hasSkillFiles = skillFiles && Object.keys(skillFiles).length > 0;
             const inputArg = isResuming
               ? new Command({ resume: content })
-              : { messages: [new HumanMessage(content)] };
+              : {
+                  messages: [new HumanMessage(content)],
+                  // Seed the agent's skills into the StateBackend virtual filesystem
+                  // so the skills middleware can discover them (it scans /skills/).
+                  // The files reducer merges by path, so re-seeding every fresh turn
+                  // is idempotent and won't clobber files the agent wrote earlier. On
+                  // resume we send a Command (no files) — they already persist in
+                  // thread state from the first turn via the checkpointer.
+                  ...(hasSkillFiles ? { files: skillFiles } : {}),
+                };
 
             for await (const event of agentInstance.streamEvents(
               inputArg,

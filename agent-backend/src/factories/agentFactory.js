@@ -1,5 +1,5 @@
 import { ChatOpenAI } from '@langchain/openai';
-import { createDeepAgent } from 'deepagents';
+import { createDeepAgent, StateBackend } from 'deepagents';
 import agentRepository from '../repositories/agentRepository.js';
 import providerRepository from '../repositories/providerRepository.js';
 import encryption from '../utils/encryption.js';
@@ -135,6 +135,7 @@ class AgentFactory {
         agentConfig: agent,
         llm: cached.llm,
         providerConfig: cached.providerConfig,
+        skillFiles: cached.skillFiles || {},
         cacheHit: true,
       };
     }
@@ -146,43 +147,40 @@ class AgentFactory {
     const dynamicTools = resolveAgentTools(agent, userId);
 
     const { InMemoryStore } = await import('@langchain/langgraph');
-    const deepagentsMod = await import('deepagents');
-
     const store = new InMemoryStore();
 
-    // Support multiple possible export shapes from the `deepagents` package
-    const PossibleSkillService =
-      deepagentsMod.SkillService || deepagentsMod.default?.SkillService || deepagentsMod.default || null;
-
-    let skillService;
-    if (typeof PossibleSkillService === 'function') {
-      try {
-        skillService = new PossibleSkillService(store);
-      } catch (err) {
-        // Some packages expose a factory instead of a constructor
-        if (typeof PossibleSkillService.create === 'function') {
-          skillService = await PossibleSkillService.create(store);
-        } else {
-          throw err;
-        }
-      }
-    } else if (PossibleSkillService && typeof PossibleSkillService.create === 'function') {
-      skillService = await PossibleSkillService.create(store);
-    } else {
-      // Fallback shim: provide a no-op skillService so agent creation can continue
-      skillService = {
-        loadSkill: async () => {
-          console.warn('[AgentFactory] SkillService not available — skipping skill load');
-        },
-      };
-    }
-
+    // Materialize the agent's configured skills into deepagents' virtual filesystem.
+    //
+    // deepagents discovers skills via the `skills: ["/skills/"]` param + the agent's
+    // backend (StateBackend below). With StateBackend the skill files live in graph
+    // state, so we build each DB skill as `/skills/<dir>/SKILL.md` (SKILL.md is the
+    // filename the skills middleware scans for) and seed them into the run input
+    // `files` map at invoke time (see copilotkit.routes.js). They then persist for
+    // the rest of the thread via the checkpointer. `skillFiles` is returned to the
+    // caller so it can do that seeding.
+    //
+    // NOTE: this replaces a previous hand-rolled `SkillService` lookup that always
+    // fell through to a no-op shim (deepagents exposes `createSkillsMiddleware`, not
+    // a `SkillService` class), so skills were silently never loaded.
+    const skillFiles = {};
     if (agent.skills && agent.skills.length > 0) {
+      const now = new Date().toISOString();
       for (const skill of agent.skills) {
+        // Slugify the directory segment so odd skill names can't break the path.
+        const dir = String(skill.name)
+          .trim()
+          .replace(/[^a-zA-Z0-9_-]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+          .toLowerCase() || 'skill';
         const frontmatter = `---\nname: ${skill.name}\ndescription: ${skill.description}\n---\n\n${skill.instructions}`;
-        await skillService.loadSkill(skill.name, frontmatter);
+        skillFiles[`/skills/${dir}/SKILL.md`] = {
+          content: frontmatter.split('\n'),
+          created_at: now,
+          modified_at: now,
+        };
       }
     }
+    const hasSkills = Object.keys(skillFiles).length > 0;
 
     // 4. Assemble Custom DeepAgent Runtime
     // Wrap checkpointer with a Proxy to preserve prototype methods (e.g. getTuple)
@@ -238,6 +236,17 @@ class AgentFactory {
       store: store,
       tools: dynamicTools,
       interruptOn: interruptOnConfig,
+      // Explicit, deliberate backend choice (previously left to the implicit
+      // StateBackend default). StateBackend gives each thread an isolated in-state
+      // virtual filesystem, persisted across turns via the checkpointer — the safe
+      // choice for this multi-tenant marketplace where agents are user-defined.
+      // We intentionally do NOT use FilesystemBackend/LocalShellBackend, which would
+      // grant arbitrary user agents read/write + shell access to the host. Swap in a
+      // sandbox backend if real code execution is ever required.
+      backend: new StateBackend(),
+      // Only attach the skills middleware when the agent actually has skills, and
+      // point it at the virtual /skills/ tree we seed at invoke time.
+      ...(hasSkills ? { skills: ['/skills/'] } : {}),
     });
 
     // 5. Update Cache
@@ -246,6 +255,7 @@ class AgentFactory {
       llm: llm,
       updatedAt: agent.updatedAt,
       providerUpdatedAt: provider.updatedAt,
+      skillFiles,
       providerConfig: {
         id: provider._id?.toString?.() || provider._id,
         label: provider.label,
@@ -264,6 +274,7 @@ class AgentFactory {
         baseURL: provider.baseURL,
         modelName: agent.modelName || provider.defaultModel || 'gpt-3.5-turbo',
       },
+      skillFiles,
       cacheHit: false,
     };
   }
