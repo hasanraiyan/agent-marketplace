@@ -103,10 +103,84 @@ export function buildInterruptNotice(graphInterrupts, err) {
   return 'I need your input to continue. Please reply with your answer.';
 }
 
+// Extract the displayable string content of a tool's on_tool_end output.
+//
+// LangChain wraps a tool's return value in a ToolMessage whenever the call has a
+// tool_call_id and the value isn't already a plain string (see core's
+// _formatToolOutput). So when a tool returns an OBJECT (e.g. search_web's Tavily
+// `{ query, results }`), event.data.output is a ToolMessage *instance* — and
+// JSON.stringify(message) serializes LangChain's envelope
+// (`{lc,type,id,kwargs:{content:"<the real payload>"}}`), burying the real result
+// in kwargs.content. Unwrap to `.content` so the client receives the actual tool
+// output (the JSON string / text), not the serialization envelope.
+export function extractToolOutputContent(output) {
+  if (output == null) return '';
+  if (typeof output === 'string') return output;
+  // ToolMessage / BaseMessage: the payload lives on `.content`.
+  if (typeof output.content === 'string') return output.content;
+  if (Array.isArray(output.content)) {
+    // Content blocks: concatenate text parts, stringify anything else.
+    return output.content
+      .map((b) => (typeof b === 'string' ? b : (b?.text ?? JSON.stringify(b))))
+      .join('');
+  }
+  // Plain object (a tool that returned a raw object with no tool_call_id wrapping):
+  // serialize it as before.
+  return JSON.stringify(output ?? '');
+}
+
 // One-shot assistant text message (used for pre-stream errors: missing agent,
 // build failure). Emitted as a single chunk; the runtime closes it at RUN_FINISHED.
 export async function* emitTextNotice(delta) {
   yield { type: EventType.TEXT_MESSAGE_CHUNK, messageId: randomUUID(), role: 'assistant', delta };
+}
+
+// deepagents StateBackend stores each file's body as an array of lines (it splits
+// on '\n' when writing); it can also be a plain string, or a Uint8Array for binary
+// writes. Normalize to a single display string. Binary content is not surfaced as
+// text — the panel can still show its existence/size.
+function normalizeFileContent(data) {
+  const body = data && typeof data === 'object' && 'content' in data ? data.content : data;
+  if (Array.isArray(body)) return body.join('\n');
+  if (typeof body === 'string') return body;
+  return '';
+}
+
+/**
+ * Build the AG-UI state payload mirrored to the client (the virtual filesystem +
+ * the live plan). Reads the graph's persisted channel values (`getState().values`)
+ * and shapes them for the Files panel / todo checklist.
+ *
+ * System-seeded skill files (`/skills/...`) are excluded — they are injected by the
+ * factory, not artifacts the agent produced, so they would only be noise.
+ *
+ * @param {object} stateValues  LangGraph state snapshot `.values` ({ files, todos, ... }).
+ * @returns {{ files: object, todos: Array }} normalized snapshot.
+ */
+export function buildFilesTodosSnapshot(stateValues) {
+  const files = {};
+  const rawFiles = stateValues?.files;
+  if (rawFiles && typeof rawFiles === 'object') {
+    for (const [path, data] of Object.entries(rawFiles)) {
+      if (typeof path !== 'string' || path.startsWith('/skills/')) continue;
+      const content = normalizeFileContent(data);
+      files[path] = {
+        content,
+        size: content.length,
+        created_at: data?.created_at ?? data?.createdAt ?? null,
+        modified_at: data?.modified_at ?? data?.modifiedAt ?? null,
+      };
+    }
+  }
+
+  const todos = Array.isArray(stateValues?.todos)
+    ? stateValues.todos.map((t) => ({
+        content: typeof t?.content === 'string' ? t.content : '',
+        status: typeof t?.status === 'string' ? t.status : 'pending',
+      }))
+    : [];
+
+  return { files, todos };
 }
 
 /**
@@ -119,10 +193,34 @@ export async function* emitTextNotice(delta) {
  *                                          genuine failure, so the caller can log.
  * @param {object}   [opts.logger]          logger with .debug/.info; logs stream
  *                                          lifecycle, tool calls, interrupts.
+ * @param {Function} [opts.getState]        async () => graph state `.values`. When
+ *                                          provided, a STATE_SNAPSHOT of the virtual
+ *                                          filesystem + todos is emitted at the end of
+ *                                          the turn (and on interrupt) so the client can
+ *                                          mirror files the agent created.
  * @returns {AsyncGenerator} AG-UI events.
  */
 export async function* translateLangGraphStream(stream, opts = {}) {
-  const { providerConfig, onInterrupt, onError, logger } = opts;
+  const { providerConfig, onInterrupt, onError, logger, getState } = opts;
+
+  // Read authoritative graph state and emit a STATE_SNAPSHOT of { files, todos }.
+  // Never throws — a state-read failure must not abort the event stream.
+  async function* emitStateSnapshot(phase) {
+    if (typeof getState !== 'function') return;
+    try {
+      const values = await getState();
+      const snapshot = buildFilesTodosSnapshot(values);
+      if (Object.keys(snapshot.files).length === 0 && snapshot.todos.length === 0) return;
+      logger?.debug('[AG-UI] state snapshot', {
+        phase,
+        fileCount: Object.keys(snapshot.files).length,
+        todoCount: snapshot.todos.length,
+      });
+      yield { type: EventType.STATE_SNAPSHOT, snapshot };
+    } catch (stateErr) {
+      logger?.debug('[AG-UI] state snapshot skipped', { phase, error: stateErr?.message });
+    }
+  }
 
   // Current contiguous assistant-text message id. Reset to null when a tool call
   // starts so post-tool text becomes a new message (there is a tool call between).
@@ -195,8 +293,7 @@ export async function* translateLangGraphStream(stream, opts = {}) {
         const tc = pendingToolCalls.get(event.run_id);
         if (tc) {
           pendingToolCalls.delete(event.run_id);
-          const output = event.data?.output;
-          const resultContent = typeof output === 'string' ? output : JSON.stringify(output ?? '');
+          const resultContent = extractToolOutputContent(event.data?.output);
           stats.toolResults += 1;
           logger?.debug('[AG-UI] tool result', {
             name: tc.name,
@@ -214,6 +311,8 @@ export async function* translateLangGraphStream(stream, opts = {}) {
       }
     }
     logger?.info('[AG-UI] stream finished', stats);
+    // Mirror the virtual filesystem + plan to the client once the turn settles.
+    yield* emitStateSnapshot('finished');
   } catch (err) {
     const graphInterrupts = extractGraphInterrupts(err);
     const interrupt = isInterruptError(err, graphInterrupts);
@@ -239,5 +338,10 @@ export async function* translateLangGraphStream(stream, opts = {}) {
       role: 'assistant',
       delta: notice,
     };
+
+    // On an interrupt the agent may already have written files/todos before pausing
+    // (e.g. wrote a draft, then asked for clarification) — surface them now. We skip
+    // this for genuine errors, where the state may be mid-write / inconsistent.
+    if (interrupt) yield* emitStateSnapshot('interrupt');
   }
 }

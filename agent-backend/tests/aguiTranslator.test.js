@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import { ToolMessage } from '@langchain/core/messages';
 import {
   translateLangGraphStream,
   emitTextNotice,
@@ -7,6 +8,8 @@ import {
   isInterruptError,
   buildInterruptNotice,
   formatRuntimeError,
+  buildFilesTodosSnapshot,
+  extractToolOutputContent,
 } from '../src/utils/aguiTranslator.js';
 
 // Helper: turn an array of LangGraph events into an async iterable, optionally
@@ -103,6 +106,30 @@ describe('translateLangGraphStream', () => {
     );
   });
 
+  test('unwraps a ToolMessage output to its content (the search_web "No sources" bug)', async () => {
+    // When a tool returns an object (e.g. Tavily `{ query, results }`), LangChain
+    // wraps it in a ToolMessage, so event.data.output is the message instance.
+    // The result content must be the real payload, NOT JSON.stringify(message)
+    // which would serialize LangChain's {lc,type,id,kwargs} envelope.
+    const tavily = { query: 'cats', results: [{ title: 'T', url: 'u', content: 'c' }] };
+    const toolMessage = new ToolMessage({
+      content: JSON.stringify(tavily),
+      tool_call_id: 'sw1',
+      name: 'search_web',
+    });
+    const events = [
+      { event: 'on_tool_start', run_id: 'sw1', name: 'search_web', data: { input: { query: 'cats' } } },
+      { event: 'on_tool_end', run_id: 'sw1', name: 'search_web', data: { output: toolMessage } },
+    ];
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    const result = out.find((e) => e.type === 'TOOL_CALL_RESULT');
+    expect(result.content).toBe(JSON.stringify(tavily));
+    // round-trips back to the real shape the renderer expects
+    expect(JSON.parse(result.content).results).toHaveLength(1);
+    expect(result.content).not.toContain('"lc"');
+    expect(result.content).not.toContain('kwargs');
+  });
+
   test('on interrupt: calls onInterrupt and yields the question prompt, not an error', async () => {
     const interruptErr = Object.assign(new Error('Interrupt'), {
       name: 'GraphInterrupt',
@@ -151,6 +178,115 @@ describe('translateLangGraphStream', () => {
     expect(notice).toContain('OpenAI');
     expect(notice).toContain('invalid credentials');
     expect(notice).not.toContain('superstep');
+  });
+});
+
+describe('extractToolOutputContent', () => {
+  test('passes strings through unchanged', () => {
+    expect(extractToolOutputContent("Successfully wrote to '/a.md'")).toBe(
+      "Successfully wrote to '/a.md'"
+    );
+  });
+
+  test('unwraps a ToolMessage to its string content', () => {
+    const tm = new ToolMessage({ content: '{"results":[]}', tool_call_id: 'x', name: 't' });
+    expect(extractToolOutputContent(tm)).toBe('{"results":[]}');
+  });
+
+  test('joins array content blocks into text', () => {
+    const tm = new ToolMessage({
+      content: [{ type: 'text', text: 'hello ' }, { type: 'text', text: 'world' }],
+      tool_call_id: 'x',
+      name: 't',
+    });
+    expect(extractToolOutputContent(tm)).toBe('hello world');
+  });
+
+  test('serializes a plain object that is not a message', () => {
+    expect(extractToolOutputContent({ answer: 42 })).toBe(JSON.stringify({ answer: 42 }));
+  });
+
+  test('handles null/undefined', () => {
+    expect(extractToolOutputContent(null)).toBe('');
+    expect(extractToolOutputContent(undefined)).toBe('');
+  });
+});
+
+describe('state snapshots (files + todos)', () => {
+  const stateValues = {
+    files: {
+      '/report.md': {
+        content: ['# Title', 'body line'],
+        created_at: 'c',
+        modified_at: 'm',
+      },
+      '/skills/foo/SKILL.md': { content: ['seeded'] },
+    },
+    todos: [
+      { content: 'step one', status: 'completed' },
+      { content: 'step two', status: 'in_progress' },
+    ],
+  };
+
+  test('buildFilesTodosSnapshot joins line arrays, excludes /skills/, normalizes todos', () => {
+    const snap = buildFilesTodosSnapshot(stateValues);
+    expect(Object.keys(snap.files)).toEqual(['/report.md']); // /skills/ filtered out
+    expect(snap.files['/report.md'].content).toBe('# Title\nbody line');
+    expect(snap.files['/report.md'].size).toBe('# Title\nbody line'.length);
+    expect(snap.files['/report.md'].modified_at).toBe('m');
+    expect(snap.todos).toEqual([
+      { content: 'step one', status: 'completed' },
+      { content: 'step two', status: 'in_progress' },
+    ]);
+  });
+
+  test('buildFilesTodosSnapshot tolerates missing/empty state', () => {
+    expect(buildFilesTodosSnapshot(undefined)).toEqual({ files: {}, todos: [] });
+    expect(buildFilesTodosSnapshot({})).toEqual({ files: {}, todos: [] });
+  });
+
+  test('emits a STATE_SNAPSHOT at end of a successful stream when getState is provided', async () => {
+    const getState = jest.fn().mockResolvedValue(stateValues);
+    const events = [{ event: 'on_chat_model_stream', data: { chunk: { content: 'hi' } } }];
+    const out = await collect(translateLangGraphStream(fakeStream(events), { getState }));
+
+    const snapEvent = out.find((e) => e.type === 'STATE_SNAPSHOT');
+    expect(snapEvent).toBeDefined();
+    expect(snapEvent.snapshot.files['/report.md'].content).toBe('# Title\nbody line');
+    expect(snapEvent.snapshot.todos).toHaveLength(2);
+    // The snapshot lands after the assistant text, once the turn settles.
+    expect(out[out.length - 1].type).toBe('STATE_SNAPSHOT');
+  });
+
+  test('does not emit STATE_SNAPSHOT when state has no files or todos', async () => {
+    const getState = jest.fn().mockResolvedValue({ files: {}, todos: [] });
+    const out = await collect(translateLangGraphStream(fakeStream([]), { getState }));
+    expect(out.find((e) => e.type === 'STATE_SNAPSHOT')).toBeUndefined();
+  });
+
+  test('a getState failure never aborts the stream', async () => {
+    const getState = jest.fn().mockRejectedValue(new Error('checkpointer down'));
+    const events = [{ event: 'on_chat_model_stream', data: { chunk: { content: 'hi' } } }];
+    const out = await collect(translateLangGraphStream(fakeStream(events), { getState }));
+    expect(out.find((e) => e.type === 'TEXT_MESSAGE_CHUNK').delta).toBe('hi');
+    expect(out.find((e) => e.type === 'STATE_SNAPSHOT')).toBeUndefined();
+  });
+
+  test('emits a STATE_SNAPSHOT on interrupt (files written before the pause)', async () => {
+    const getState = jest.fn().mockResolvedValue(stateValues);
+    const interruptErr = Object.assign(new Error('Interrupt'), { name: 'GraphInterrupt' });
+    const out = await collect(
+      translateLangGraphStream(fakeStream([], interruptErr), { getState, onInterrupt: jest.fn() })
+    );
+    expect(out.find((e) => e.type === 'STATE_SNAPSHOT')).toBeDefined();
+  });
+
+  test('does NOT emit STATE_SNAPSHOT on a genuine error (state may be inconsistent)', async () => {
+    const getState = jest.fn().mockResolvedValue(stateValues);
+    const out = await collect(
+      translateLangGraphStream(fakeStream([], new Error('boom')), { getState, onError: jest.fn() })
+    );
+    expect(out.find((e) => e.type === 'STATE_SNAPSHOT')).toBeUndefined();
   });
 });
 

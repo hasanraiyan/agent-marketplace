@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, BotIcon, SearchIcon } from "lucide-react";
+import { ArrowLeft, BotIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,13 +11,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
 import { CopilotKit } from "@copilotkit/react-core";
-import { defineToolCallRenderer } from "@copilotkit/react-core/v2";
 import "@copilotkit/react-core/v2/styles.css";
 import { CopilotChat } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
 import { getAgent } from "@/lib/api/agents";
 import { createThread } from "@/lib/api/threads";
-import { z } from "zod";
+import { baseToolRenderers } from "@/lib/copilotkit/tool-renderers";
+import { FilesPanel } from "@/components/agents/files-panel";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
 
@@ -31,16 +31,32 @@ export default function RunAgentPage() {
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState(null);
 
+  // Periodically refresh the auth token to prevent expiration (Clerk tokens expire in 60s)
+  useEffect(() => {
+    const refreshToken = async () => {
+      try {
+        const tok = await getToken();
+        if (tok) {
+          setAuthToken(tok);
+        }
+      } catch (err) {
+        console.error("Failed to refresh token:", err);
+      }
+    };
+
+    refreshToken();
+    const interval = setInterval(refreshToken, 40000); // refresh every 40 seconds
+    return () => clearInterval(interval);
+  }, [getToken]);
+
   useEffect(() => {
     const init = async () => {
       try {
-        const [agentRes, tok, threadRes] = await Promise.all([
+        const [agentRes, threadRes] = await Promise.all([
           getAgent(agentId),
-          getToken(),
           createThread({ agentId }),
         ]);
         setAgent(agentRes.data?.data);
-        setAuthToken(tok);
         setThread(threadRes.data?.data);
       } catch (err) {
         toast.error(err.response?.data?.message || "Failed to load agent");
@@ -49,29 +65,7 @@ export default function RunAgentPage() {
       }
     };
     init();
-  }, [agentId, getToken]);
-
-  const toolRenderers = useMemo(
-    () => [
-      defineToolCallRenderer({
-        name: "search_web",
-        args: z.object({ query: z.string().optional() }).passthrough(),
-        render: ({ status, args }) => {
-          if (status !== "inProgress") return null;
-          return (
-            <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-              <SearchIcon className="size-3.5 shrink-0 animate-pulse" />
-              <span>
-                Searching the web
-                {args?.query ? ` for "${args.query}"` : ""}…
-              </span>
-            </div>
-          );
-        },
-      }),
-    ],
-    []
-  );
+  }, [agentId]);
 
   if (loading) {
     return (
@@ -147,13 +141,19 @@ export default function RunAgentPage() {
                 "X-Agent-Id": agentId,
                 ...(threadDbId ? { "X-Thread-Id": threadDbId } : {}),
               }}
-              renderToolCalls={toolRenderers}
+              renderToolCalls={baseToolRenderers}
             >
-              <CopilotChat
-                className="h-full min-h-0"
-                labels={chatLabels}
-                input={chatInput}
-              />
+              <div className="flex min-h-0 flex-1 overflow-hidden">
+                <CopilotChat
+                  className="h-full min-h-0 flex-1"
+                  labels={chatLabels}
+                  input={chatInput}
+                />
+                {/* Mirrors the agent's virtual filesystem; renders nothing until
+                    the agent creates files. Reads the same default agent the
+                    chat above runs on. */}
+                <FilesPanel />
+              </div>
             </CopilotKit>
           </div>
         )}
