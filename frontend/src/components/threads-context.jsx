@@ -11,6 +11,8 @@ import {
 import { useAuth } from "@clerk/nextjs";
 import {
   getThreads,
+  searchThreads,
+  getAgentSummary,
   deleteThread,
   updateThreadTitle,
   deleteAllThreads,
@@ -18,14 +20,46 @@ import {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function groupThreadsByAgent(threads) {
+function groupThreadsByAgent(threads, agentSummary = [], isSearching = false) {
   const map = {};
+
+  // If we are NOT searching, initialize map with all agents from the summary
+  // to ensure they appear even if no threads have been loaded for them yet.
+  if (!isSearching) {
+    for (const item of agentSummary) {
+      const key = item.agentId;
+      map[key] = {
+        agent: {
+          _id: item.agentId,
+          name: item.name,
+          avatar: item.avatar,
+          slug: item.slug,
+        },
+        threads: [],
+        totalCount: item.totalThreads,
+        lastInteractionAt: new Date(item.lastInteractionAt),
+      };
+    }
+  }
+
   for (const thread of threads) {
     const agent = thread.agentId;
     if (!agent) continue;
     const key = agent._id || agent.id;
-    if (!map[key]) map[key] = { agent, threads: [] };
-    map[key].threads.push(thread);
+    if (!map[key]) {
+      map[key] = {
+        agent,
+        threads: [],
+        totalCount: 0,
+        lastInteractionAt: new Date(thread.lastMessageAt || 0),
+      };
+    }
+    // Avoid duplicates if a thread was already added
+    if (
+      !map[key].threads.some((t) => (t._id || t.id) === (thread._id || thread.id))
+    ) {
+      map[key].threads.push(thread);
+    }
   }
 
   // Sort threads inside each agent group by lastMessageAt descending
@@ -37,15 +71,9 @@ function groupThreadsByAgent(threads) {
     });
   }
 
-  // Sort agent groups by the lastMessageAt of their most recent thread descending (most active first)
+  // Sort agent groups by their lastInteractionAt descending (most active first)
   return Object.values(map).sort((a, b) => {
-    const aLatest = new Date(
-      a.threads[0]?.lastMessageAt || a.threads[0]?.createdAt || 0,
-    );
-    const bLatest = new Date(
-      b.threads[0]?.lastMessageAt || b.threads[0]?.createdAt || 0,
-    );
-    return bLatest - aLatest;
+    return b.lastInteractionAt - a.lastInteractionAt;
   });
 }
 
@@ -61,6 +89,8 @@ export function ThreadsProvider({ children }) {
   const { isLoaded, isSignedIn } = useAuth();
 
   const [threads, setThreads] = useState([]);
+  const [agentSummary, setAgentSummary] = useState([]);
+  const [totalThreads, setTotalThreads] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
@@ -68,7 +98,22 @@ export function ThreadsProvider({ children }) {
   const [hasMore, setHasMore] = useState(true);
   const [fetchTick, setFetchTick] = useState(0);
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+
   const lastFetchTickRef = useRef(fetchTick);
+
+  // Load agent summary independently (only once or on refresh)
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      getAgentSummary()
+        .then((res) => {
+          setAgentSummary(res.data?.data || []);
+        })
+        .catch(console.error);
+    }
+  }, [isLoaded, isSignedIn, fetchTick]);
 
   // When Clerk Auth loads or user triggers a reset/refresh, reset page and clear threads
   useEffect(() => {
@@ -83,7 +128,7 @@ export function ThreadsProvider({ children }) {
 
   // Load threads for current page
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || isSearching) return;
 
     const tickChanged = lastFetchTickRef.current !== fetchTick;
     lastFetchTickRef.current = fetchTick;
@@ -119,6 +164,9 @@ export function ThreadsProvider({ children }) {
       .then((res) => {
         if (!controller.signal.aborted) {
           const newThreads = res.data?.data || [];
+          const total = res.data?.meta?.total || 0;
+          setTotalThreads(total);
+
           setThreads((prev) => {
             if (isInitial) {
               return newThreads;
@@ -131,7 +179,7 @@ export function ThreadsProvider({ children }) {
               return [...prev, ...filteredNew];
             }
           });
-          setHasMore(newThreads.length === limit);
+          setHasMore(total > page * limit);
         }
       })
       .catch((err) => {
@@ -147,7 +195,34 @@ export function ThreadsProvider({ children }) {
       });
 
     return () => controller.abort();
-  }, [isLoaded, isSignedIn, page, fetchTick]);
+  }, [isLoaded, isSignedIn, page, fetchTick, isSearching]);
+
+  // Handle searching
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      const timeoutId = setTimeout(() => {
+        setIsSearching(false);
+        setSearchResults([]);
+      }, 0);
+      return () => clearTimeout(timeoutId);
+    }
+
+    const timeoutId = setTimeout(() => {
+      setIsSearching(true);
+      searchThreads({ q: searchQuery, limit: 50 })
+        .then((res) => {
+          setSearchResults(res.data?.data || []);
+        })
+        .catch((err) => {
+          console.error("Search failed:", err);
+        })
+        .finally(() => {
+          // Keep isSearching true to show results instead of paginated list
+        });
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   const loadMore = useCallback(() => {
     if (loading || loadingMore || !hasMore) return;
@@ -197,12 +272,14 @@ export function ThreadsProvider({ children }) {
     }
   }, []);
 
-  const groups = groupThreadsByAgent(threads);
+  const displayedThreads = isSearching ? searchResults : threads;
+  const groups = groupThreadsByAgent(displayedThreads, agentSummary, isSearching);
 
   return (
     <ThreadsContext.Provider
       value={{
         groups,
+        totalThreads,
         loading,
         loadingMore,
         hasMore,
@@ -212,6 +289,9 @@ export function ThreadsProvider({ children }) {
         renameThread,
         removeThread,
         removeAllThreads,
+        searchQuery,
+        setSearchQuery,
+        isSearching,
       }}
     >
       {children}
