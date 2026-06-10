@@ -81,11 +81,9 @@ function getLanguage(path) {
   const ext = path.split(".").pop()?.toLowerCase();
   switch (ext) {
     case "js":
-      return "javascript";
     case "jsx":
       return "javascript";
     case "ts":
-      return "typescript";
     case "tsx":
       return "typescript";
     case "py":
@@ -97,16 +95,17 @@ function getLanguage(path) {
     case "css":
       return "css";
     case "html":
-      return "html";
+      return "markup";
     case "sh":
-      return "shell";
+    case "bash":
+      return "bash";
     case "sql":
       return "sql";
     case "yaml":
     case "yml":
       return "yaml";
     default:
-      return "plaintext";
+      return "markup";
   }
 }
 
@@ -777,14 +776,11 @@ export function AguiFilesPanel({ state, open, onOpenChange }) {
             <SimpleEditor
               value={active.content}
               onValueChange={() => {}}
-              highlight={(code) =>
-                Prism.highlight(
-                  code,
-                  Prism.languages[getLanguage(active.path)] ||
-                    Prism.languages.plaintext,
-                  getLanguage(active.path),
-                )
-              }
+              highlight={(code) => {
+                const lang = getLanguage(active.path);
+                const grammar = Prism.languages[lang] || Prism.languages.markup;
+                return Prism.highlight(code, grammar, lang);
+              }}
               padding={10}
               readOnly
               style={{
@@ -792,6 +788,7 @@ export function AguiFilesPanel({ state, open, onOpenChange }) {
                 fontSize: 13,
                 outline: "none",
                 minHeight: "100%",
+                color: "#1a1a1a",
               }}
             />
           </div>
