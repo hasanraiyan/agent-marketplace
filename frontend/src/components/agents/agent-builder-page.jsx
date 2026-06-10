@@ -363,7 +363,7 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
             {/* Configure Form */}
             <TabsContent
               value="configure"
-              className="m-0 min-h-0 flex-1 overflow-y-auto p-6 bg-white dark:bg-slate-950"
+              className="m-0 min-h-0 flex-1 flex-col data-[state=active]:flex overflow-y-auto p-6 bg-white dark:bg-slate-950"
             >
               <div className="mx-auto max-w-2xl">
                 <AgentForm
