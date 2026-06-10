@@ -1,16 +1,25 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Edit, Play, MessageSquare, Shield, Globe, Lock, Bot, SearchIcon } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Edit,
+  Play,
+  MessageSquare,
+  Shield,
+  Globe,
+  Lock,
+  Bot,
+  SearchIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import {
-  Card,
-} from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -43,6 +52,7 @@ import { toast } from "sonner";
 import { searchAgents, deleteAgent } from "@/lib/api/agents";
 import { getProfile } from "@/lib/api/profile";
 import { MoreVertical } from "lucide-react";
+import { useDashboardHeader } from "@/components/dashboard-header-context";
 
 const VISIBILITY_CONFIG = {
   public: { variant: "default", icon: Globe, label: "Public" },
@@ -57,6 +67,37 @@ export default function MyAgentsPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [search, setSearch] = useState("");
+
+  useDashboardHeader(
+    {
+      title: "My Agents",
+      description: "Manage and track the agents you've created.",
+      actions: (
+        <div className="flex items-center gap-2">
+          <div className="hidden w-72 md:block">
+            <InputGroup>
+              <InputGroupAddon align="inline-start">
+                <SearchIcon className="size-4" />
+              </InputGroupAddon>
+              <InputGroupInput
+                placeholder="Search your agents..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="text-base"
+              />
+            </InputGroup>
+          </div>
+          <Link href="/dashboard/agents/create">
+            <Button size="sm">
+              <Plus data-icon="inline-start" />
+              Create Agent
+            </Button>
+          </Link>
+        </div>
+      ),
+    },
+    [search],
+  );
 
   const filteredAgents = useMemo(() => {
     const q = (search || "").trim().toLowerCase();
@@ -118,31 +159,18 @@ export default function MyAgentsPage() {
 
   return (
     <div className="@container/main flex flex-1 flex-col py-4 md:py-6">
-      {/* Header */}
-      <section className="px-4 lg:px-6 mb-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              My Agents
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground sm:text-base">
-              Manage and track the agents you&apos;ve created.
-            </p>
-          </div>
-          <div className="w-full sm:max-w-xs md:max-w-sm">
-            <InputGroup>
-              <InputGroupAddon align="inline-start">
-                <SearchIcon className="size-4" />
-              </InputGroupAddon>
-              <InputGroupInput
-                placeholder="Search your agents..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="text-base" // prevents iOS zoom on focus
-              />
-            </InputGroup>
-          </div>
-        </div>
+      <section className="mb-4 px-4 md:hidden lg:px-6">
+        <InputGroup>
+          <InputGroupAddon align="inline-start">
+            <SearchIcon className="size-4" />
+          </InputGroupAddon>
+          <InputGroupInput
+            placeholder="Search your agents..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="text-base"
+          />
+        </InputGroup>
       </section>
 
       <section className="px-4 lg:px-6">
@@ -174,22 +202,30 @@ export default function MyAgentsPage() {
             <EmptyHeader>
               <EmptyTitle>No agents match</EmptyTitle>
               <EmptyDescription>
-                Try a different search term or clear the search to see all your agents.
+                Try a different search term or clear the search to see all your
+                agents.
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
-              <Button variant="outline" onClick={() => setSearch("")}>Clear search</Button>
+              <Button variant="outline" onClick={() => setSearch("")}>
+                Clear search
+              </Button>
             </EmptyContent>
           </Empty>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredAgents.map((agent) => {
               const agentId = agent.id || agent._id;
-              const visibility = VISIBILITY_CONFIG[agent.visibility] || VISIBILITY_CONFIG.private;
+              const visibility =
+                VISIBILITY_CONFIG[agent.visibility] ||
+                VISIBILITY_CONFIG.private;
               const displayAvatar = agent.avatarUrl || agent.avatar;
 
               return (
-                <Card key={agentId} className="group relative flex flex-col overflow-hidden rounded-xl border-none bg-card ring-1 ring-foreground/10 transition-all hover:shadow-lg hover:ring-primary/20 py-0">
+                <Card
+                  key={agentId}
+                  className="group relative flex flex-col overflow-hidden rounded-xl border-none bg-card ring-1 ring-foreground/10 transition-all hover:shadow-lg hover:ring-primary/20 py-0"
+                >
                   {/* Image/Avatar Area */}
                   <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">
                     {displayAvatar ? (
@@ -203,13 +239,19 @@ export default function MyAgentsPage() {
                         <Bot className="size-10 text-muted-foreground/40" />
                       </div>
                     )}
-                    
+
                     {/* Floating Badges */}
                     <div className="absolute left-2 top-2 z-10 flex gap-1.5">
-                      <Badge variant="secondary" className="bg-background/80 text-foreground backdrop-blur-md border-none px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold">
+                      <Badge
+                        variant="secondary"
+                        className="bg-background/80 text-foreground backdrop-blur-md border-none px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold"
+                      >
                         {agent.category || "other"}
                       </Badge>
-                      <Badge variant={visibility.variant} className="backdrop-blur-md border-none px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold flex items-center gap-1">
+                      <Badge
+                        variant={visibility.variant}
+                        className="backdrop-blur-md border-none px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold flex items-center gap-1"
+                      >
                         <visibility.icon className="size-2.5" />
                         {visibility.label}
                       </Badge>
@@ -219,7 +261,11 @@ export default function MyAgentsPage() {
                     <div className="absolute right-2 top-2 z-10">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon-sm" className="size-7 bg-background/50 hover:bg-background/80 backdrop-blur-md">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="size-7 bg-background/50 hover:bg-background/80 backdrop-blur-md"
+                          >
                             <MoreVertical className="size-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -230,7 +276,7 @@ export default function MyAgentsPage() {
                             </DropdownMenuItem>
                           </Link>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             className="cursor-pointer text-destructive focus:text-destructive"
                             onClick={() => setDeleteTarget(agent)}
                           >
@@ -257,9 +303,13 @@ export default function MyAgentsPage() {
                         <MessageSquare className="size-3" />
                         <span>{agent.messageCount || 0} chats</span>
                       </div>
-                      
+
                       <Link href={`/dashboard/agents/${agentId}/run`}>
-                        <Button size="xs" variant="primary" className="h-7 px-3 text-[10px] font-bold uppercase tracking-tight">
+                        <Button
+                          size="xs"
+                          variant="primary"
+                          className="h-7 px-3 text-[10px] font-bold uppercase tracking-tight"
+                        >
                           <Play className="mr-1 size-2.5 fill-current" />
                           Launch
                         </Button>
@@ -282,8 +332,11 @@ export default function MyAgentsPage() {
             <AlertDialogTitle>Delete this agent?</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete{" "}
-              <span className="font-medium text-foreground">{deleteTarget?.name}</span>. This
-              action cannot be undone and all conversation history will be lost.
+              <span className="font-medium text-foreground">
+                {deleteTarget?.name}
+              </span>
+              . This action cannot be undone and all conversation history will
+              be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

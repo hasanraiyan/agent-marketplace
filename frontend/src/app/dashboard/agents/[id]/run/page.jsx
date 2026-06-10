@@ -7,7 +7,6 @@ import { ArrowLeft, BotIcon } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -16,6 +15,7 @@ import {
 } from "@/components/agents/agui-agent-chat";
 import { getAgent } from "@/lib/api/agents";
 import { createThread } from "@/lib/api/threads";
+import { useDashboardHeader } from "@/components/dashboard-header-context";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
@@ -32,6 +32,43 @@ export default function RunAgentPage() {
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState(null);
   const [agentState, setAgentState] = useState({});
+
+  useDashboardHeader(
+    {
+      title: agent?.name || "Agent",
+      description: [agent?.category || "other", agent?.modelName]
+        .filter(Boolean)
+        .join(" · "),
+      leading: (
+        <Avatar className="size-8">
+          <AvatarImage
+            src={agent?.avatarUrl || agent?.avatar}
+            alt={agent?.name}
+          />
+          <AvatarFallback>
+            <BotIcon className="size-4" />
+          </AvatarFallback>
+        </Avatar>
+      ),
+      actions: (
+        <>
+          <Link
+            href="/dashboard/agents"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" />
+            My Agents
+          </Link>
+          <Link href={`/dashboard/agents/${agentId}/builder`}>
+            <Button variant="outline" size="sm" className="rounded-full">
+              Edit
+            </Button>
+          </Link>
+        </>
+      ),
+    },
+    [agent, agentId],
+  );
 
   useEffect(() => {
     const refreshToken = async () => {
@@ -86,45 +123,6 @@ export default function RunAgentPage() {
 
   return (
     <div className="@container/main flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
-      <div className="border-b border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-950 lg:px-6">
-        <Link
-          href="/dashboard/agents"
-          className="mb-2 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-        >
-          <ArrowLeft className="size-4" />
-          Back to My Agents
-        </Link>
-        <div className="flex items-center gap-3">
-          <Avatar className="size-10">
-            <AvatarImage
-              src={agent?.avatarUrl || agent?.avatar}
-              alt={agent?.name}
-            />
-            <AvatarFallback>
-              <BotIcon />
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-xl font-bold tracking-tight">
-              {agent?.name || "Agent"}
-            </h1>
-            <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-              <Badge variant="outline" className="capitalize">
-                {agent?.category || "other"}
-              </Badge>
-              {agent?.modelName ? (
-                <span className="truncate">{agent.modelName}</span>
-              ) : null}
-            </div>
-          </div>
-          <Link href={`/dashboard/agents/${agentId}/builder`}>
-            <Button variant="outline" size="sm" className="rounded-full">
-              Edit
-            </Button>
-          </Link>
-        </div>
-      </div>
-
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {authToken && threadDbId ? (
           <>
@@ -139,6 +137,7 @@ export default function RunAgentPage() {
                 agent?.description || "Ask this agent to work on your request."
               }
               className="min-w-0 flex-1"
+              showHeader={false}
               headers={{
                 Authorization: `Bearer ${authToken}`,
                 "X-Agent-Id": agentId,

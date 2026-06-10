@@ -1,4 +1,5 @@
 import { AppSidebar } from "@/components/app-sidebar";
+import { DashboardHeaderProvider } from "@/components/dashboard-header-context";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
@@ -11,10 +12,14 @@ export default function DashboardLayout({ children }) {
       }}
     >
       <AppSidebar variant="inset" />
-      <SidebarInset className="min-h-0 overflow-hidden">
-        <SiteHeader />
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
-      </SidebarInset>
+      <DashboardHeaderProvider>
+        <SidebarInset className="min-h-0 overflow-hidden">
+          <SiteHeader />
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            {children}
+          </div>
+        </SidebarInset>
+      </DashboardHeaderProvider>
     </SidebarProvider>
   );
 }

@@ -409,6 +409,7 @@ export function AguiAgentChat({
   className,
   onToolResult,
   onStateChange,
+  showHeader = true,
 }) {
   const [input, setInput] = useState("");
   const scrollRef = useRef(null);
@@ -447,29 +448,31 @@ export function AguiAgentChat({
         className,
       )}
     >
-      <div className="flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 px-5 dark:border-slate-800">
-        <div className="flex size-8 items-center justify-center rounded-full bg-[#1E60FF]/10 text-[#1E60FF]">
-          <Sparkles className="size-4" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-base font-semibold text-slate-950 dark:text-white">
-            {title}
+      {showHeader ? (
+        <div className="flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 px-5 dark:border-slate-800">
+          <div className="flex size-8 items-center justify-center rounded-full bg-[#1E60FF]/10 text-[#1E60FF]">
+            <Sparkles className="size-4" />
           </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-base font-semibold text-slate-950 dark:text-white">
+              {title}
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-9 rounded-full"
+            onClick={() => {
+              setInput("");
+              chat.clear();
+            }}
+            title="New Chat"
+          >
+            <Plus className="size-4" />
+          </Button>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-9 rounded-full"
-          onClick={() => {
-            setInput("");
-            chat.clear();
-          }}
-          title="New Chat"
-        >
-          <Plus className="size-4" />
-        </Button>
-      </div>
+      ) : null}
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
         {chat.conversation.length === 0 ? (

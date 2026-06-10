@@ -14,6 +14,7 @@ import { AgentForm } from "@/components/agents/agent-form";
 import { AguiAgentChat } from "@/components/agents/agui-agent-chat";
 import { getAgent, updateAgent, createAgent } from "@/lib/api/agents";
 import { createThread } from "@/lib/api/threads";
+import { useDashboardHeader } from "@/components/dashboard-header-context";
 
 const ARCHITECT_AGENT_ID = "000000000000000000000000";
 const BASE_URL =
@@ -171,6 +172,56 @@ export default function BuilderPage() {
     }
   };
 
+  useDashboardHeader(
+    {
+      title: agent?.name || "New Agent",
+      description:
+        activeTab === "configure"
+          ? "Configure agent details"
+          : "Build with Sage",
+      leading: (
+        <Avatar className="size-8">
+          <AvatarImage src={agent?.avatarUrl || agent?.avatar} />
+          <AvatarFallback>
+            <BotIcon className="size-4" />
+          </AvatarFallback>
+        </Avatar>
+      ),
+      actions: (
+        <>
+          <Link
+            href="/dashboard/agents"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" />
+            My Agents
+          </Link>
+          <Badge
+            variant="outline"
+            className="h-5 rounded-md py-0 text-[10px] uppercase"
+          >
+            Draft
+          </Badge>
+          <Button
+            size="sm"
+            className="h-8 rounded-full px-4 font-bold"
+            onClick={() => handleManualSave(agent)}
+            disabled={saving || !agent || activeTab === "configure"}
+          >
+            {saving
+              ? "Saving..."
+              : activeTab === "configure"
+                ? "Use form below"
+                : agentId
+                  ? "Update"
+                  : "Create"}
+          </Button>
+        </>
+      ),
+    },
+    [activeTab, agent, agentId, saving],
+  );
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -185,48 +236,6 @@ export default function BuilderPage() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
-      <header className="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-950">
-        <div className="flex items-center gap-3">
-          <Link href="/dashboard/agents">
-            <Button variant="ghost" size="icon" className="size-8 rounded-full">
-              <ArrowLeft className="size-4" />
-            </Button>
-          </Link>
-          <div className="flex items-center gap-2">
-            <Avatar className="size-7">
-              <AvatarImage src={agent?.avatarUrl || agent?.avatar} />
-              <AvatarFallback>
-                <BotIcon className="size-3" />
-              </AvatarFallback>
-            </Avatar>
-            <span className="text-sm font-bold">
-              {agent?.name || "New Agent"}
-            </span>
-            <Badge
-              variant="outline"
-              className="h-5 rounded-md py-0 text-[10px] uppercase"
-            >
-              Draft
-            </Badge>
-          </div>
-        </div>
-
-        <Button
-          size="sm"
-          className="h-8 rounded-full px-4 font-bold"
-          onClick={() => handleManualSave(agent)}
-          disabled={saving || !agent || activeTab === "configure"}
-        >
-          {saving
-            ? "Saving..."
-            : activeTab === "configure"
-              ? "Use form below"
-              : agentId
-                ? "Update"
-                : "Create"}
-        </Button>
-      </header>
-
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
           <Tabs
