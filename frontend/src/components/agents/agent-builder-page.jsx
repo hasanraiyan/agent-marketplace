@@ -49,7 +49,7 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
   const router = useRouter();
 
   const { isLoaded, isSignedIn, getToken } = useAuth();
-  const [activeTab, setActiveTab] = useState("create");
+  const [activeTab, setActiveTab] = useState("chat");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [agent, setAgent] = useState(null);
@@ -223,6 +223,8 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
       description:
         activeTab === "configure"
           ? "Configure agent details"
+          : activeTab === "preview"
+          ? "Test your agent"
           : "Build with Sage",
       leading: (
         <Avatar className="size-8">
@@ -236,16 +238,22 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
           <TabsList className="bg-slate-100 dark:bg-slate-800 p-0.5 h-8">
             <TabsTrigger
-              value="create"
-              className="h-7 px-3 text-xs data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950"
+              value="chat"
+              className="h-7 px-3 text-xs lg:hidden data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950"
             >
-              Create
+              Chat
             </TabsTrigger>
             <TabsTrigger
               value="configure"
               className="h-7 px-3 text-xs data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950"
             >
               Configure
+            </TabsTrigger>
+            <TabsTrigger
+              value="preview"
+              className="h-7 px-3 text-xs data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950"
+            >
+              Preview
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -314,48 +322,48 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
   const runtimeUrl = AGUI_RUNTIME_URL;
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
+    <div className="flex h-full flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+        {/* Left Column: Chat / Architect */}
+        <div className={`min-w-0 flex-1 flex-col overflow-hidden border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 ${activeTab === "chat" ? "flex" : "hidden lg:flex"}`}>
+          {authToken && architectThreadId ? (
+            <AguiAgentChat
+              url={runtimeUrl}
+              agentId={ARCHITECT_AGENT_ID}
+              threadId={architectThreadId}
+              title="Sage"
+              emptyTitle="Agent Architect"
+              emptyDescription={
+                isEdit
+                  ? "Tell Sage what you want to change about this agent."
+                  : "Tell Sage what kind of agent you want to build."
+              }
+              headers={{
+                Authorization: `Bearer ${authToken}`,
+                "X-Agent-Id": ARCHITECT_AGENT_ID,
+                "X-Thread-Id": architectThreadId,
+              }}
+              onToolResult={handleArchitectToolResult}
+              onNewChat={startNewArchitectChat}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: Configure & Preview */}
+        <div className={`min-w-0 flex-1 flex-col overflow-hidden bg-slate-50 dark:bg-slate-900 ${activeTab !== "chat" ? "flex" : "hidden lg:flex"}`}>
           <Tabs
-            value={activeTab}
+            value={activeTab === "chat" ? "configure" : activeTab}
             onValueChange={setActiveTab}
             className="flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <TabsContent
-              value="create"
-              className="m-0 min-h-0 flex-1 overflow-hidden"
-            >
-              {authToken && architectThreadId ? (
-                <AguiAgentChat
-                  url={runtimeUrl}
-                  agentId={ARCHITECT_AGENT_ID}
-                  threadId={architectThreadId}
-                  title="Sage"
-                  emptyTitle="Agent Architect"
-                  emptyDescription={
-                    isEdit
-                      ? "Tell Sage what you want to change about this agent."
-                      : "Tell Sage what kind of agent you want to build."
-                  }
-                  headers={{
-                    Authorization: `Bearer ${authToken}`,
-                    "X-Agent-Id": ARCHITECT_AGENT_ID,
-                    "X-Thread-Id": architectThreadId,
-                  }}
-                  onToolResult={handleArchitectToolResult}
-                  onNewChat={startNewArchitectChat}
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center">
-                  <Loader2 className="size-6 animate-spin text-muted-foreground" />
-                </div>
-              )}
-            </TabsContent>
-
+            {/* Configure Form */}
             <TabsContent
               value="configure"
-              className="m-0 min-h-0 flex-1 overflow-y-auto p-6"
+              className="m-0 min-h-0 flex-1 overflow-y-auto p-6 bg-white dark:bg-slate-950"
             >
               <div className="mx-auto max-w-2xl">
                 <AgentForm
@@ -366,56 +374,61 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
                 />
               </div>
             </TabsContent>
-          </Tabs>
-        </div>
 
-        <div className="hidden min-w-0 flex-1 flex-col overflow-hidden bg-slate-50 lg:flex dark:bg-slate-900">
-          <div className="flex h-12 items-center justify-between border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-950">
-            <span className="text-sm font-bold">Preview</span>
-            {isEdit ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={refreshPreview}
-                title="Reset Preview"
-              >
-                <RotateCcw className="size-3.5" />
-              </Button>
-            ) : null}
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-hidden">
-            {isEdit && authToken && previewThreadId ? (
-              <AguiAgentChat
-                agent={agent}
-                url={runtimeUrl}
-                agentId={agentId}
-                threadId={previewThreadId}
-                title={agent?.name || "Agent preview"}
-                emptyTitle={agent?.name || "Agent preview"}
-                emptyDescription={
-                  agent?.description || "Test your agent before sharing it."
-                }
-                headers={{
-                  Authorization: `Bearer ${authToken}`,
-                  "X-Agent-Id": agentId,
-                  "X-Thread-Id": previewThreadId,
-                }}
-                onNewChat={refreshPreview}
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center p-8 text-center">
-                <div className="max-w-xs space-y-2">
-                  <BotIcon className="mx-auto size-12 text-muted-foreground opacity-20" />
-                  <p className="text-sm font-medium text-muted-foreground">
-                    {isEdit
-                      ? "Loading your agent preview..."
-                      : "Create your agent with Sage or the Configure form — a live preview unlocks right after."}
-                  </p>
-                </div>
+            {/* Preview Panel */}
+            <TabsContent
+              value="preview"
+              className="m-0 min-h-0 flex-1 flex-col data-[state=active]:flex overflow-hidden"
+            >
+              <div className="flex h-12 items-center justify-between border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-950 shrink-0">
+                <span className="text-sm font-bold">Preview</span>
+                {isEdit ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={refreshPreview}
+                    title="Reset Preview"
+                  >
+                    <RotateCcw className="size-3.5" />
+                  </Button>
+                ) : null}
               </div>
-            )}
-          </div>
+
+              <div className="min-h-0 flex-1 overflow-hidden">
+                {isEdit && authToken && previewThreadId ? (
+                  <AguiAgentChat
+                    agent={agent}
+                    url={runtimeUrl}
+                    agentId={agentId}
+                    threadId={previewThreadId}
+                    title={agent?.name || "Agent preview"}
+                    emptyTitle={agent?.name || "Agent preview"}
+                    emptyDescription={
+                      agent?.description || "Test your agent before sharing it."
+                    }
+                    headers={{
+                      Authorization: `Bearer ${authToken}`,
+                      "X-Agent-Id": agentId,
+                      "X-Thread-Id": previewThreadId,
+                    }}
+                    onNewChat={refreshPreview}
+                    showHeader={false}
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center p-8 text-center bg-slate-50 dark:bg-slate-900">
+                    <div className="max-w-xs space-y-2">
+                      <BotIcon className="mx-auto size-12 text-muted-foreground opacity-20" />
+                      <p className="text-sm font-medium text-muted-foreground">
+                        {isEdit
+                          ? "Loading your agent preview..."
+                          : "Create your agent with Sage or the Configure form — a live preview unlocks right after."}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>
