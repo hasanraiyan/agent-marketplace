@@ -14,6 +14,8 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronUp,
+  Circle,
+  CircleCheck,
   Code,
   FileCode,
   FileJson,
@@ -21,6 +23,7 @@ import {
   Globe,
   Hash,
   ImagePlus,
+  ListTodo,
   Loader2,
   PencilLine,
   Search,
@@ -32,6 +35,7 @@ import {
   Wrench,
   X,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -192,6 +196,60 @@ function getSuggestedPrompts(agent) {
   ];
 }
 
+function isTodoTool(name) {
+  return (name || "").toLowerCase().includes("todo");
+}
+
+function parseTodos(argsText) {
+  const parsed = tryParseJson(argsText);
+  if (!Array.isArray(parsed?.todos)) return null;
+  const todos = parsed.todos
+    .map((todo) => ({
+      content: typeof todo?.content === "string" ? todo.content : "",
+      status: typeof todo?.status === "string" ? todo.status : "pending",
+    }))
+    .filter((todo) => todo.content);
+  return todos.length ? todos : null;
+}
+
+function TodoStatusIcon({ status }) {
+  if (status === "completed") {
+    return <CircleCheck className="size-4 shrink-0 text-emerald-500" />;
+  }
+  if (status === "in_progress") {
+    return <Loader2 className="size-4 shrink-0 animate-spin text-[#1E60FF]" />;
+  }
+  return (
+    <Circle className="size-4 shrink-0 text-slate-300 dark:text-slate-600" />
+  );
+}
+
+function TodoChecklist({ todos, className }) {
+  if (!todos?.length) return null;
+  return (
+    <ul className={cn("space-y-2", className)}>
+      {todos.map((todo, index) => (
+        <li key={`${index}-${todo.content}`} className="flex items-start gap-2.5">
+          <span className="mt-0.5">
+            <TodoStatusIcon status={todo.status} />
+          </span>
+          <span
+            className={cn(
+              "min-w-0 flex-1 text-sm leading-5 text-slate-700 dark:text-slate-200",
+              todo.status === "completed" &&
+                "text-slate-400 line-through dark:text-slate-500",
+              todo.status === "in_progress" &&
+                "font-semibold text-slate-900 dark:text-white",
+            )}
+          >
+            {todo.content}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function queryFromArgs(argsText) {
   const parsed = tryParseJson(argsText);
   const value =
@@ -219,7 +277,9 @@ function toolTitle(tool) {
       : "Searching the web";
   }
 
-  if (name.includes("todo")) return "Updated the plan";
+  if (name.includes("todo")) {
+    return tool.status === "completed" ? "Updated the plan" : "Updating the plan";
+  }
   if (name.includes("file") || name === "ls" || name === "glob") {
     return tool.status === "completed" ? "Updated files" : "Working with files";
   }
@@ -362,14 +422,21 @@ function ToolTrace({ tool }) {
   const parsedResult = tryParseJson(tool.resultText);
   const isError = parsedResult?.status === "error";
   const isSearch = tool.name?.toLowerCase().includes("search");
+  const isTodo = isTodoTool(tool.name);
+  const todos = isTodo ? parseTodos(tool.argumentsText) : null;
+  const todosDone = todos
+    ? todos.filter((todo) => todo.status === "completed").length
+    : 0;
   const isExpandable = Boolean(tool.resultText || tool.argumentsText);
   const Icon = isError
     ? AlertCircle
     : isSearch
       ? Globe
-      : tool.name?.includes("file")
-        ? FileText
-        : Wrench;
+      : isTodo
+        ? ListTodo
+        : tool.name?.includes("file")
+          ? FileText
+          : Wrench;
 
   return (
     <div className="max-w-[92%]">
@@ -413,11 +480,13 @@ function ToolTrace({ tool }) {
             >
               {isError
                 ? "Failed"
-                : isSearch && done && results.length
-                  ? `${results.length} results`
-                  : done
-                    ? "Result"
-                    : "Running"}
+                : isTodo && todos
+                  ? `${todosDone}/${todos.length} done`
+                  : isSearch && done && results.length
+                    ? `${results.length} results`
+                    : done
+                      ? "Result"
+                      : "Running"}
             </span>
           </span>
         </span>
@@ -431,7 +500,9 @@ function ToolTrace({ tool }) {
 
       {open ? (
         <div className="ml-8 mt-1 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm dark:border-slate-700 dark:bg-slate-900/70">
-          {results.length ? (
+          {todos ? (
+            <TodoChecklist todos={todos} />
+          ) : results.length ? (
             <div className="max-h-48 overflow-auto">
               {results.map((result, index) => (
                 <a
@@ -705,15 +776,28 @@ function ChatComposer({
   );
 }
 
-export function AguiFilesPanel({ state, open, onOpenChange }) {
+export function AguiFilesPanel({
+  state,
+  open,
+  onOpenChange,
+  tab: tabProp,
+  onTabChange,
+}) {
   const [selected, setSelected] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [internalTab, setInternalTab] = useState("files");
   const { theme } = useTheme();
   const files = Object.entries(state?.files || {}).map(([path, data]) => ({
     path,
     content: data?.content || "",
     size: data?.size || 0,
   }));
+  const todos = Array.isArray(state?.todos) ? state.todos : [];
+  const todosDone = todos.filter((todo) => todo?.status === "completed").length;
+  // Tab is controlled by the parent when provided (so a header button can
+  // open the panel directly on Plan), otherwise managed locally.
+  const tab = tabProp ?? internalTab;
+  const setTab = onTabChange ?? setInternalTab;
   const active = files.find((file) => file.path === selected);
 
   const handleCopy = () => {
@@ -724,7 +808,7 @@ export function AguiFilesPanel({ state, open, onOpenChange }) {
     toast.success("Copied to clipboard");
   };
 
-  if (!files.length) return null;
+  if (!files.length && !todos.length) return null;
 
   return (
     <aside
@@ -738,7 +822,7 @@ export function AguiFilesPanel({ state, open, onOpenChange }) {
     >
       <div className="flex h-14 shrink-0 flex-col items-start justify-center border-b border-slate-200 px-4 dark:border-slate-800">
         <div className="flex w-full items-center gap-2">
-          {active ? (
+          {tab === "files" && active ? (
             <>
               <button
                 onClick={() => setSelected(null)}
@@ -777,9 +861,34 @@ export function AguiFilesPanel({ state, open, onOpenChange }) {
             </>
           ) : (
             <>
-              <span className="text-base font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                Project Explorer
-              </span>
+              <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5 dark:bg-slate-900">
+                <button
+                  type="button"
+                  onClick={() => setTab("plan")}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold transition-colors",
+                    tab === "plan"
+                      ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
+                      : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300",
+                  )}
+                >
+                  <ListTodo className="size-3.5" />
+                  Plan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTab("files")}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold transition-colors",
+                    tab === "files"
+                      ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
+                      : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300",
+                  )}
+                >
+                  <FileCode className="size-3.5" />
+                  Files
+                </button>
+              </div>
               <Button
                 variant="ghost"
                 size="icon"
@@ -791,14 +900,53 @@ export function AguiFilesPanel({ state, open, onOpenChange }) {
             </>
           )}
         </div>
-        {!active && (
+        {!(tab === "files" && active) && (
           <div className="text-[11px] font-bold text-slate-400">
-            {files.length} Files
+            {tab === "plan"
+              ? todos.length
+                ? `${todosDone} of ${todos.length} done`
+                : "No plan yet"
+              : `${files.length} Files`}
           </div>
         )}
       </div>
 
-      {active ? (
+      {tab === "plan" ? (
+        <div className="min-h-0 flex-1 overflow-auto p-4">
+          {todos.length ? (
+            <>
+              <div className="mb-4">
+                <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  <span>Progress</span>
+                  <span className="tabular-nums">
+                    {todosDone}/{todos.length}
+                  </span>
+                </div>
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                  <div
+                    className="h-full rounded-full bg-[#1E60FF] transition-all duration-500"
+                    style={{
+                      width: `${(todosDone / todos.length) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+              <TodoChecklist todos={todos} />
+            </>
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+              <ListTodo className="size-8 text-slate-300 dark:text-slate-700" />
+              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+                No plan yet
+              </p>
+              <p className="max-w-[220px] text-xs text-slate-400 dark:text-slate-500">
+                The agent will break complex tasks into steps and track them
+                here.
+              </p>
+            </div>
+          )}
+        </div>
+      ) : active ? (
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 overflow-auto bg-white p-4">
             <SimpleEditor

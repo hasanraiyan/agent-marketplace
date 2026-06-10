@@ -26,6 +26,21 @@ function contentToText(content) {
     .join("");
 }
 
+// Parse the todo list out of a completed `write_todos` tool call so the plan
+// can update mid-run (the authoritative STATE_SNAPSHOT only arrives at end of
+// turn). Returns null unless the args contain a well-formed todos array.
+function todosFromToolArgs(name, argsText) {
+  if (!name || !name.toLowerCase().includes("todo")) return null;
+  const parsed = parseJsonMaybe(argsText);
+  if (!Array.isArray(parsed?.todos)) return null;
+  return parsed.todos
+    .map((todo) => ({
+      content: typeof todo?.content === "string" ? todo.content : "",
+      status: typeof todo?.status === "string" ? todo.status : "pending",
+    }))
+    .filter((todo) => todo.content);
+}
+
 function replaceById(items, item) {
   const index = items.findIndex((x) => x.id === item.id);
   if (index === -1) return [...items, item];
@@ -313,11 +328,15 @@ export function useAguiChat({
 
       if (type === EventType.TOOL_CALL_END || type === "TOOL_CALL_END") {
         setToolCalls((prev) =>
-          prev.map((tool) =>
-            tool.id === event.toolCallId
-              ? { ...tool, status: "completed" }
-              : tool,
-          ),
+          prev.map((tool) => {
+            if (tool.id !== event.toolCallId) return tool;
+            // Args are complete at END — mirror write_todos into agent state
+            // so the plan UI updates live instead of waiting for the
+            // end-of-turn STATE_SNAPSHOT.
+            const todos = todosFromToolArgs(tool.name, tool.argumentsText);
+            if (todos) setAgentState((state) => ({ ...state, todos }));
+            return { ...tool, status: "completed" };
+          }),
         );
         return;
       }

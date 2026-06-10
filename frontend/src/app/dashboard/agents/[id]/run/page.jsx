@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, BotIcon, FileText } from "lucide-react";
+import { ArrowLeft, BotIcon, FileText, ListTodo } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -173,6 +173,7 @@ export default function RunAgentPage() {
   const [agentState, setAgentState] = useState({});
   const [chatResetKey, setChatResetKey] = useState(0);
   const [showFiles, setShowFiles] = useState(false);
+  const [panelTab, setPanelTab] = useState("files");
 
   // ── Token refresh ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -269,6 +270,23 @@ export default function RunAgentPage() {
   }, [agentId, refreshThreads, router]);
 
   const fileCount = Object.keys(agentState?.files || {}).length;
+  const todos = Array.isArray(agentState?.todos) ? agentState.todos : [];
+  const todoCount = todos.length;
+  const todoDone = todos.filter((todo) => todo?.status === "completed").length;
+
+  // Toggle the side panel: clicking the active tab's button closes it,
+  // otherwise the panel opens (or switches) to that tab.
+  const openPanel = useCallback(
+    (tab) => {
+      if (showFiles && panelTab === tab) {
+        setShowFiles(false);
+      } else {
+        setPanelTab(tab);
+        setShowFiles(true);
+      }
+    },
+    [panelTab, showFiles],
+  );
 
   // ── Dashboard header ─────────────────────────────────────────────────────────
   useDashboardHeader(
@@ -297,13 +315,27 @@ export default function RunAgentPage() {
             <ArrowLeft className="size-4" />
             My Agents
           </Link>
+          {todoCount > 0 && (
+            <Button
+              variant={showFiles && panelTab === "plan" ? "secondary" : "ghost"}
+              size="icon"
+              className="relative size-9 rounded-full"
+              title="Toggle Plan"
+              onClick={() => openPanel("plan")}
+            >
+              <ListTodo className="size-4" />
+              <span className="absolute -top-0.5 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold tabular-nums text-primary-foreground shadow-sm">
+                {todoDone}/{todoCount}
+              </span>
+            </Button>
+          )}
           {fileCount > 0 && (
             <Button
-              variant={showFiles ? "secondary" : "ghost"}
+              variant={showFiles && panelTab === "files" ? "secondary" : "ghost"}
               size="icon"
               className="relative size-9 rounded-full"
               title="Toggle Files"
-              onClick={() => setShowFiles(!showFiles)}
+              onClick={() => openPanel("files")}
             >
               <FileText className="size-4" />
               <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shadow-sm">
@@ -328,7 +360,17 @@ export default function RunAgentPage() {
         </>
       ),
     },
-    [agent, agentId, handleNewChat, showFiles, fileCount],
+    [
+      agent,
+      agentId,
+      handleNewChat,
+      showFiles,
+      fileCount,
+      panelTab,
+      todoCount,
+      todoDone,
+      openPanel,
+    ],
   );
 
   const handleRunFinished = useCallback(() => {
@@ -386,6 +428,8 @@ export default function RunAgentPage() {
               state={agentState}
               open={showFiles}
               onOpenChange={setShowFiles}
+              tab={panelTab}
+              onTabChange={setPanelTab}
             />
           </>
         ) : null}
