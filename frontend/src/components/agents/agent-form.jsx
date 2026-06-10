@@ -1,74 +1,17 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
-import {
-  Bot,
-  Brain,
-  Code,
-  Drama,
-  Lock,
-  Eye,
-  Globe,
-  Cpu,
-  Loader2,
-  Palette,
-  Plug,
-  Rocket,
-  Check,
-  ChevronDown,
-  Save,
-  Search,
-  Sparkles,
-  CheckCircle2,
-  X,
-} from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { getProviders, getProviderModels } from "@/lib/api/providers";
 import { getMySkills } from "@/lib/api/skills";
 
-const CATEGORIES = [
-  { value: "productivity", label: "Productivity", icon: Rocket },
-  { value: "coding", label: "Coding", icon: Code },
-  { value: "creative", label: "Creative", icon: Palette },
-  { value: "research", label: "Research", icon: Search },
-  { value: "roleplay", label: "Roleplay", icon: Drama },
-  { value: "other", label: "Other", icon: Sparkles },
-];
-
-const VISIBILITY_OPTIONS = [
-  {
-    value: "private",
-    label: "Private",
-    description: "Only you can see and use this agent",
-    icon: Lock,
-  },
-  {
-    value: "unlisted",
-    label: "Unlisted",
-    description: "Anyone with the link can use it",
-    icon: Eye,
-  },
-  {
-    value: "public",
-    label: "Public",
-    description: "Visible on the Explore dashboard",
-    icon: Globe,
-  },
-];
+// Modular Form Sections
+import { AgentGeneralInfo } from "./form-sections/AgentGeneralInfo";
+import { AgentModelSelector } from "./form-sections/AgentModelSelector";
+import { AgentToolsSelector } from "./form-sections/AgentToolsSelector";
+import { AgentInstructionInput } from "./form-sections/AgentInstructionInput";
 
 const DEFAULT_FORM = {
   name: "",
@@ -268,330 +211,35 @@ export function AgentForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-10 pb-20">
-      {/* Section: Identity */}
-      <section className="space-y-6">
-        <div className="flex items-center gap-2 border-b pb-2 text-foreground/80">
-          <Bot className="size-4" />
-          <h2 className="text-sm font-bold uppercase tracking-wider">
-            Identity
-          </h2>
-        </div>
+      <AgentGeneralInfo
+        form={form}
+        update={update}
+        tagsInput={tagsInput}
+        setTagsInput={setTagsInput}
+        addTag={addTag}
+        removeTag={removeTag}
+      />
 
-        <div className="grid gap-6">
-          <Field>
-            <FieldLabel className="text-sm font-bold">Agent Name</FieldLabel>
-            <Input
-              placeholder="e.g. Research Assistant"
-              value={form.name}
-              onChange={(e) => update("name", e.target.value)}
-              className="h-11 bg-muted/20"
-              required
-            />
-          </Field>
+      <AgentToolsSelector
+        form={form}
+        update={update}
+        availableSkills={availableSkills}
+        loadingSkills={loadingSkills}
+        toggleSkill={toggleSkill}
+      />
 
-          <div className="grid gap-6 sm:grid-cols-2">
-            <Field>
-              <FieldLabel className="text-sm font-bold">Category</FieldLabel>
-              <Select
-                value={form.category}
-                onValueChange={(v) => update("category", v)}
-              >
-                <SelectTrigger className="h-11 bg-muted/20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>
-                      <c.icon className="mr-2 size-4 text-muted-foreground" />
-                      {c.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
+      <AgentInstructionInput form={form} update={update} />
 
-            <Field>
-              <FieldLabel className="text-sm font-bold">Avatar URL</FieldLabel>
-              <Input
-                type="url"
-                placeholder="https://images.com/..."
-                value={form.avatar}
-                onChange={(e) => update("avatar", e.target.value)}
-                className="h-11 bg-muted/20"
-              />
-            </Field>
-          </div>
-
-          <Field>
-            <FieldLabel className="text-sm font-bold">Description</FieldLabel>
-            <Textarea
-              placeholder="Tell us what this agent specializes in..."
-              value={form.description}
-              onChange={(e) => update("description", e.target.value)}
-              rows={2}
-              className="bg-muted/20"
-            />
-          </Field>
-
-          <Field>
-            <FieldLabel className="text-sm font-bold">Tags</FieldLabel>
-            <div className="flex flex-col gap-2">
-              <Input
-                placeholder="productivity, help, coding..."
-                value={tagsInput}
-                onChange={(e) => setTagsInput(e.target.value)}
-                onKeyDown={addTag}
-                className="bg-muted/20"
-              />
-              <div className="flex flex-wrap gap-1.5">
-                {form.tags.map((tag) => (
-                  <Badge
-                    key={tag}
-                    variant="secondary"
-                    className="pl-2 pr-1 py-1 gap-1"
-                  >
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() => removeTag(tag)}
-                      className="hover:text-destructive"
-                      aria-label={`Remove ${tag}`}
-                    >
-                      <X className="size-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </Field>
-        </div>
-      </section>
-
-      {/* Section: Skills */}
-      <section className="space-y-6">
-        <div className="flex items-center gap-2 border-b pb-2 text-foreground/80">
-          <Cpu className="size-4" />
-          <h2 className="text-sm font-bold uppercase tracking-wider">Skills</h2>
-        </div>
-
-        <div className="grid gap-4">
-          <FieldDescription className="text-xs -mt-2">
-            Attach specialized capabilities to this agent. Skills provide
-            additional instructions and context.
-          </FieldDescription>
-
-          {loadingSkills ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
-              Loading skills...
-            </div>
-          ) : availableSkills.length === 0 ? (
-            <div className="rounded-xl border border-dashed p-6 text-center">
-              <p className="text-sm text-muted-foreground mb-3">
-                No skills created yet.
-              </p>
-              <Link href="/dashboard/skills">
-                <Button variant="outline" size="sm">
-                  Create a Skill
-                </Button>
-              </Link>
-            </div>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {availableSkills.map((skill) => {
-                const isSelected = (form.skills || []).includes(
-                  skill.id || skill._id,
-                );
-                return (
-                  <button
-                    key={skill.id || skill._id}
-                    type="button"
-                    onClick={() => toggleSkill(skill.id || skill._id)}
-                    className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${
-                      isSelected
-                        ? "border-primary bg-primary/5 ring-1 ring-primary"
-                        : "bg-card hover:bg-muted/50"
-                    }`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-bold truncate">
-                          {skill.name}
-                        </p>
-                        {isSelected && (
-                          <Check className="size-3.5 text-primary shrink-0" />
-                        )}
-                      </div>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-1">
-                        {skill.description}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Section: Intelligence */}
-      <section className="space-y-6">
-        <div className="flex items-center gap-2 border-b pb-2 text-foreground/80">
-          <Brain className="size-4" />
-          <h2 className="text-sm font-bold uppercase tracking-wider">
-            Instructions
-          </h2>
-        </div>
-
-        <div className="grid gap-6">
-          <Field>
-            <FieldLabel className="text-sm font-bold">System Prompt</FieldLabel>
-            <Textarea
-              placeholder="What does this GPT do? How does it behave? What should it avoid doing?"
-              value={form.systemPrompt}
-              onChange={(e) => update("systemPrompt", e.target.value)}
-              rows={12}
-              className="font-mono text-sm bg-muted/20"
-              required
-            />
-          </Field>
-
-          <div className="flex flex-col gap-4 rounded-xl border bg-card p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                <FieldLabel className="flex items-center gap-2 font-bold">
-                  Web Search
-                </FieldLabel>
-                <FieldDescription>
-                  Allow the agent to search the web.
-                </FieldDescription>
-              </div>
-              <Switch
-                checked={form.webSearchEnabled}
-                onCheckedChange={(v) => update("webSearchEnabled", v)}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Section: Model Settings */}
-      <section className="space-y-6">
-        <div className="flex items-center gap-2 border-b pb-2 text-foreground/80">
-          <Cpu className="size-4" />
-          <h2 className="text-sm font-bold uppercase tracking-wider">
-            Capabilities
-          </h2>
-        </div>
-
-        {noProviders ? (
-          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
-            <Plug className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
-            <div className="space-y-1 text-sm">
-              <p className="font-bold">No AI provider configured</p>
-              <p className="text-muted-foreground">
-                Add an LLM provider (API key) before creating an agent.
-              </p>
-              <Link
-                href="/dashboard/settings"
-                className="inline-block font-medium text-primary underline-offset-2 hover:underline"
-              >
-                Go to provider settings
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <div className="grid gap-6 sm:grid-cols-2">
-            <Field>
-              <FieldLabel className="text-sm font-bold">AI Provider</FieldLabel>
-              <Select
-                value={form.providerId}
-                onValueChange={changeProvider}
-                disabled={loadingProviders}
-              >
-                <SelectTrigger className="h-11 bg-muted/20">
-                  <SelectValue
-                    placeholder={
-                      loadingProviders ? "Loading..." : "Select Provider"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {providers.map((p) => (
-                    <SelectItem key={p.id || p._id} value={p.id || p._id}>
-                      {p.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Field>
-              <FieldLabel className="text-sm font-bold">Model</FieldLabel>
-              <Select
-                value={form.modelName}
-                onValueChange={(v) => update("modelName", v)}
-                disabled={loadingModels}
-              >
-                <SelectTrigger className="h-11 bg-muted/20">
-                  <SelectValue
-                    placeholder={loadingModels ? "Loading..." : "Select Model"}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {models.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.id}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
-        )}
-      </section>
-
-      {/* Section: Visibility */}
-      <section className="space-y-6">
-        <div className="flex items-center gap-2 border-b pb-2 text-foreground/80">
-          <Lock className="size-4" />
-          <h2 className="text-sm font-bold uppercase tracking-wider">
-            Visibility
-          </h2>
-        </div>
-
-        <div className="grid gap-4">
-          {VISIBILITY_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => update("visibility", opt.value)}
-              className={`flex items-start gap-4 rounded-xl border p-4 text-left transition-all ${
-                form.visibility === opt.value
-                  ? "border-primary bg-primary/5 ring-1 ring-primary"
-                  : "bg-card hover:bg-muted/50"
-              }`}
-            >
-              <div
-                className={`mt-0.5 rounded-lg p-2 ${form.visibility === opt.value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
-              >
-                <opt.icon className="size-4" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-bold">{opt.label}</p>
-                  {form.visibility === opt.value && (
-                    <CheckCircle2 className="size-4 text-primary" />
-                  )}
-                </div>
-                <p className="mt-0.5 text-[10px] text-muted-foreground uppercase tracking-tight">
-                  {opt.description}
-                </p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </section>
+      <AgentModelSelector
+        form={form}
+        update={update}
+        changeProvider={changeProvider}
+        providers={providers}
+        loadingProviders={loadingProviders}
+        models={models}
+        loadingModels={loadingModels}
+        noProviders={noProviders}
+      />
 
       <div className="pt-6">
         <Button
