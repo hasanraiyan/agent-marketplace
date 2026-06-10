@@ -114,6 +114,7 @@ export function useAguiChat({
   const messagesRef = useRef(messages);
   const abortRef = useRef(null);
   const toolNameRef = useRef(new Map());
+  const suppressClarificationNoticeRef = useRef(false);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -204,6 +205,11 @@ export function useAguiChat({
         type === "TEXT_MESSAGE_CONTENT" ||
         type === "TEXT_MESSAGE_CHUNK"
       ) {
+        if (suppressClarificationNoticeRef.current) {
+          suppressClarificationNoticeRef.current = false;
+          return;
+        }
+
         const messageId = event.messageId || id("assistant");
         setMessages((prev) => {
           const current = prev.find((message) => message.id === messageId) || {
@@ -357,6 +363,7 @@ export function useAguiChat({
                 : 0,
               answers: [],
             });
+            suppressClarificationNoticeRef.current = true;
           }
         }
         return;
