@@ -5,8 +5,10 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import {
+  AlertCircle,
   ArrowUp,
   BotIcon,
+  Check,
   ChevronDown,
   ChevronUp,
   FileText,
@@ -14,6 +16,7 @@ import {
   ImagePlus,
   Loader2,
   Search,
+  ShieldAlert,
   Sparkles,
   Square,
   Wrench,
@@ -206,13 +209,17 @@ function ToolTrace({ tool }) {
   const [open, setOpen] = useState(false);
   const done = tool.status === "completed";
   const results = searchResults(tool);
+  const parsedResult = tryParseJson(tool.resultText);
+  const isError = parsedResult?.status === "error";
   const isSearch = tool.name?.toLowerCase().includes("search");
   const isExpandable = Boolean(tool.resultText || tool.argumentsText);
-  const Icon = isSearch
-    ? Globe
-    : tool.name?.includes("file")
-      ? FileText
-      : Wrench;
+  const Icon = isError
+    ? AlertCircle
+    : isSearch
+      ? Globe
+      : tool.name?.includes("file")
+        ? FileText
+        : Wrench;
 
   return (
     <div className="max-w-[92%]">
@@ -225,7 +232,11 @@ function ToolTrace({ tool }) {
           <Icon
             className={cn(
               "size-[18px]",
-              done ? "text-slate-400" : "animate-pulse text-orange-500",
+              isError
+                ? "text-red-500"
+                : done
+                  ? "text-slate-400"
+                  : "animate-pulse text-orange-500",
             )}
           />
           <span className="mt-1 h-5 w-px bg-slate-200 dark:bg-slate-700" />
@@ -242,16 +253,31 @@ function ToolTrace({ tool }) {
                 <ChevronDown className="size-4 text-slate-400" />
               )
             ) : null}
-            <span className="rounded-md bg-[#1E60FF]/10 px-2 py-0.5 text-[11px] font-medium text-[#1E60FF]">
-              {isSearch && done && results.length
-                ? `${results.length} results`
-                : done
-                  ? "Result"
-                  : "Running"}
+            <span
+              className={cn(
+                "rounded-md px-2 py-0.5 text-[11px] font-medium",
+                isError
+                  ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                  : "bg-[#1E60FF]/10 text-[#1E60FF]",
+              )}
+            >
+              {isError
+                ? "Failed"
+                : isSearch && done && results.length
+                  ? `${results.length} results`
+                  : done
+                    ? "Result"
+                    : "Running"}
             </span>
           </span>
         </span>
       </button>
+
+      {isError ? (
+        <div className="ml-8 mt-1 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400">
+          {parsedResult.message || "The tool call failed."}
+        </div>
+      ) : null}
 
       {open ? (
         <div className="ml-8 mt-1 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm dark:border-slate-700 dark:bg-slate-900/70">
@@ -286,6 +312,85 @@ function ToolTrace({ tool }) {
   );
 }
 
+function prettyToolName(name) {
+  return (name || "tool")
+    .split(/[_\-\s]/)
+    .filter(Boolean)
+    .map((word) => word[0].toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function ApprovalCard({ approval, onRespond, disabled }) {
+  const actions = approval?.actionRequests || [];
+  if (!actions.length) return null;
+
+  const approve = () =>
+    onRespond(
+      actions.map(() => ({ type: "approve" })),
+      { displayText: "Approved" },
+    );
+  const reject = () =>
+    onRespond(
+      actions.map(() => ({
+        type: "reject",
+        message: "User rejected the action.",
+      })),
+      { displayText: "Rejected" },
+    );
+
+  return (
+    <div className="max-w-[92%] rounded-2xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
+      <div className="flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-400">
+        <ShieldAlert className="size-4" />
+        Approval required
+      </div>
+      <div className="mt-3 space-y-3">
+        {actions.map((action, index) => (
+          <div
+            key={index}
+            className="rounded-xl border border-amber-200/70 bg-white/70 p-3 dark:border-amber-500/20 dark:bg-slate-900/50"
+          >
+            <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+              {prettyToolName(action.name)}
+            </div>
+            {action.args && Object.keys(action.args).length > 0 ? (
+              <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-slate-600 dark:text-slate-300">
+                {JSON.stringify(action.args, null, 2)}
+              </pre>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          onClick={approve}
+          disabled={disabled}
+          className="rounded-full bg-emerald-600 px-4 font-bold text-white hover:bg-emerald-700"
+        >
+          <Check className="mr-1 size-4" />
+          Approve
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={reject}
+          disabled={disabled}
+          className="rounded-full px-4 font-bold"
+        >
+          <X className="mr-1 size-4" />
+          Reject
+        </Button>
+        <span className="ml-1 text-xs text-slate-500 dark:text-slate-400">
+          or reply below with feedback
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function ChatComposer({
   value,
   onChange,
@@ -293,6 +398,7 @@ function ChatComposer({
   onStop,
   isRunning,
   disabled,
+  placeholder = "Write a message...",
 }) {
   const canSend = value.trim().length > 0 && !disabled && !isRunning;
 
@@ -309,7 +415,7 @@ function ChatComposer({
           }
         }}
         disabled={disabled || isRunning}
-        placeholder="Write a message..."
+        placeholder={placeholder}
         rows={1}
         className="max-h-32 min-h-8 w-full resize-none bg-transparent text-[15px] leading-6 outline-none placeholder:text-slate-400 disabled:opacity-60"
       />
@@ -426,24 +532,47 @@ export function AguiAgentChat({
   agentId,
   threadId,
   headers,
+  initialMessages = [],
   title = "Sage",
   emptyTitle = "Sage",
   emptyDescription = "Tell me what you want to build, change, or explore.",
   className,
   onToolResult,
   onStateChange,
+  onNewChat,
   showHeader = true,
   contentClassName,
 }) {
   const [input, setInput] = useState("");
+  const [resettingChat, setResettingChat] = useState(false);
   const scrollRef = useRef(null);
   const chat = useAguiChat({
     url,
     agentId,
     threadId,
     headers,
+    initialMessages,
     onToolResult,
   });
+
+  const startNewChat = async () => {
+    setInput("");
+    if (!onNewChat) {
+      chat.clear();
+      return;
+    }
+    // Parent creates a fresh backend thread; local state resets when the
+    // threadId prop changes. Fall back to a local clear only on failure.
+    setResettingChat(true);
+    try {
+      await onNewChat();
+    } catch (err) {
+      console.error("Failed to start a new chat thread:", err);
+      chat.clear();
+    } finally {
+      setResettingChat(false);
+    }
+  };
 
   useEffect(() => {
     onStateChange?.(chat.agentState);
@@ -487,13 +616,15 @@ export function AguiAgentChat({
             variant="ghost"
             size="icon"
             className="size-9 rounded-full"
-            onClick={() => {
-              setInput("");
-              chat.clear();
-            }}
+            onClick={startNewChat}
+            disabled={resettingChat}
             title="New Chat"
           >
-            <NewChatIcon className="size-4" />
+            {resettingChat ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <NewChatIcon className="size-4" />
+            )}
           </Button>
         </div>
       ) : null}
@@ -539,6 +670,13 @@ export function AguiAgentChat({
               const tool = toolById(entry.refId);
               return tool ? <ToolTrace key={entry.id} tool={tool} /> : null;
             })}
+            {chat.pendingApproval && !chat.isRunning ? (
+              <ApprovalCard
+                approval={chat.pendingApproval}
+                onRespond={chat.respondToApproval}
+                disabled={chat.isRunning}
+              />
+            ) : null}
             {chat.isRunning ? (
               <div className="max-w-[92%]">
                 <ThinkingText label="Thinking" />
@@ -567,6 +705,11 @@ export function AguiAgentChat({
             onStop={chat.stop}
             isRunning={chat.isRunning}
             disabled={!threadId || !url}
+            placeholder={
+              chat.pendingApproval
+                ? "Reply with feedback, or use the buttons above..."
+                : "Write a message..."
+            }
           />
         </div>
       </div>
