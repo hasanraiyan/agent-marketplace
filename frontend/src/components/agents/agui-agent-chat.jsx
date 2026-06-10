@@ -545,18 +545,13 @@ function ApprovalCard({ approval, onRespond, disabled }) {
   const actions = approval?.actionRequests || [];
   if (!actions.length) return null;
 
-  const approve = () =>
-    onRespond(
-      actions.map(() => ({ type: "approve" })),
-      { displayText: "Approved" },
-    );
+  const approve = () => onRespond(actions.map(() => ({ type: "approve" })));
   const reject = () =>
     onRespond(
       actions.map(() => ({
         type: "reject",
         message: "User rejected the action.",
       })),
-      { displayText: "Rejected" },
     );
 
   return (
@@ -786,6 +781,7 @@ export function AguiFilesPanel({
   const [selected, setSelected] = useState(null);
   const [copied, setCopied] = useState(false);
   const [internalTab, setInternalTab] = useState("files");
+  const [viewMode, setViewMode] = useState("code");
   const { theme } = useTheme();
   const files = Object.entries(state?.files || {}).map(([path, data]) => ({
     path,
@@ -836,6 +832,35 @@ export function AguiFilesPanel({
                 </span>
               </button>
               <div className="ml-auto flex items-center gap-1">
+                {/* Preview toggle for .md and .html files */}
+                {(active.path.endsWith(".md") || active.path.endsWith(".html")) && (
+                  <div className="flex items-center gap-0.5 rounded-lg bg-slate-100 p-0.5 dark:bg-slate-900 mr-1">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("code")}
+                      className={cn(
+                        "rounded-md px-2 py-1 text-[11px] font-bold transition-colors",
+                        viewMode === "code"
+                          ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
+                          : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                      )}
+                    >
+                      Code
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("preview")}
+                      className={cn(
+                        "rounded-md px-2 py-1 text-[11px] font-bold transition-colors",
+                        viewMode === "preview"
+                          ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
+                          : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                      )}
+                    >
+                      Preview
+                    </button>
+                  </div>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -948,28 +973,52 @@ export function AguiFilesPanel({
         </div>
       ) : active ? (
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-auto bg-white p-4">
-            <SimpleEditor
-              value={active.content}
-              onValueChange={() => {}}
-              highlight={(code) => {
-                const lang = getLanguage(active.path);
-                const grammar = Prism.languages[lang] || Prism.languages.markup;
-                return Prism.highlight(code, grammar, lang);
-              }}
-              padding={10}
-              readOnly
-              textareaClassName="focus:outline-none"
-              className="focus:outline-none"
-              style={{
-                fontFamily: "var(--font-geist-mono)",
-                fontSize: 13,
-                outline: "none",
-                minHeight: "100%",
-                color: "#1a1a1a",
-                caretColor: "transparent",
-              }}
-            />
+          <div className="min-h-0 flex-1 overflow-auto bg-white p-4 dark:bg-slate-950">
+            {viewMode === "preview" && (active.path.endsWith(".md") || active.path.endsWith(".html")) ? (
+              /* Rendered Preview */
+              <div className="h-full w-full overflow-auto">
+                {active.path.endsWith(".md") ? (
+                  <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-pre:my-2 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-code:rounded prose-code:bg-slate-100 prose-code:px-1 prose-code:py-0.5 prose-code:text-sm dark:prose-code:bg-slate-800 prose-img:rounded-xl prose-a:text-[#1E60FF]">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeSanitize]}
+                    >
+                      {active.content}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  /* HTML preview via iframe */
+                  <iframe
+                    title="HTML Preview"
+                    srcDoc={active.content}
+                    className="h-full w-full rounded-xl border-0"
+                    sandbox="allow-same-origin"
+                  />
+                )}
+              </div>
+            ) : (
+              <SimpleEditor
+                value={active.content}
+                onValueChange={() => {}}
+                highlight={(code) => {
+                  const lang = getLanguage(active.path);
+                  const grammar = Prism.languages[lang] || Prism.languages.markup;
+                  return Prism.highlight(code, grammar, lang);
+                }}
+                padding={10}
+                readOnly
+                textareaClassName="focus:outline-none"
+                className="focus:outline-none"
+                style={{
+                  fontFamily: "var(--font-geist-mono)",
+                  fontSize: 13,
+                  outline: "none",
+                  minHeight: "100%",
+                  color: "#1a1a1a",
+                  caretColor: "transparent",
+                }}
+              />
+            )}
           </div>
           <div className="border-t border-slate-100 bg-slate-50 px-4 py-2 dark:border-slate-800 dark:bg-slate-900/50">
             <div className="truncate font-mono text-[10px] text-slate-400">

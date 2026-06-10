@@ -535,12 +535,11 @@ export function useAguiChat({
       if (!Array.isArray(decisions) || decisions.length === 0) return;
 
       setPendingApproval(null);
-      const nextMessages = appendUserMessage(
-        displayText ||
-          (decisions.every((d) => d.type === "approve")
-            ? "Approved"
-            : "Rejected"),
-      );
+      // Button decisions resume silently — only genuine typed feedback is
+      // worth keeping in the transcript as a user message.
+      const nextMessages = displayText
+        ? appendUserMessage(displayText)
+        : messagesRef.current;
       await runStream({ messages: nextMessages, resume: { decisions } });
     },
     [appendUserMessage, isRunning, pendingApproval, runStream, url],

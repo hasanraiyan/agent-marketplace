@@ -492,6 +492,8 @@ export async function* translateLangGraphStream(stream, opts = {}) {
       });
       if (onInterrupt) onInterrupt(interruptInfo);
       if (interruptInfo.kind === 'hitl') {
+        // The client renders an approval card from hitl_request — a synthetic
+        // assistant text would just duplicate it in the transcript.
         yield {
           type: EventType.CUSTOM,
           name: 'hitl_request',
@@ -503,13 +505,13 @@ export async function* translateLangGraphStream(stream, opts = {}) {
       } else {
         const customEvent = buildClarificationCustomEvent(interruptInfo);
         if (customEvent) yield customEvent;
+        yield {
+          type: EventType.TEXT_MESSAGE_CHUNK,
+          messageId: randomUUID(),
+          role: 'assistant',
+          delta: buildInterruptNotice(streamInterrupts),
+        };
       }
-      yield {
-        type: EventType.TEXT_MESSAGE_CHUNK,
-        messageId: randomUUID(),
-        role: 'assistant',
-        delta: buildInterruptNotice(streamInterrupts),
-      };
       yield* emitStateSnapshot('interrupt');
       return;
     }
@@ -545,6 +547,7 @@ export async function* translateLangGraphStream(stream, opts = {}) {
       // Surface HITL approval requests as a structured event so the client can
       // render approve/reject controls with the pending tool calls.
       if (interruptInfo.kind === 'hitl') {
+        // Approval card covers it — no synthetic assistant text.
         yield {
           type: EventType.CUSTOM,
           name: 'hitl_request',
@@ -556,8 +559,8 @@ export async function* translateLangGraphStream(stream, opts = {}) {
       } else {
         const customEvent = buildClarificationCustomEvent(interruptInfo);
         if (customEvent) yield customEvent;
+        notice = buildInterruptNotice(graphInterrupts, err);
       }
-      notice = buildInterruptNotice(graphInterrupts, err);
     } else {
       // Surface the REAL underlying failures. AggregateError ("Multiple errors
       // occurred during superstep N") hides the actual tool errors in err.errors[],
