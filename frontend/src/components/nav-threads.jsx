@@ -37,8 +37,6 @@ import {
   MessageSquareIcon,
   CheckIcon,
   XIcon,
-  SearchIcon,
-  Loader2Icon,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -167,14 +165,11 @@ function ThreadItem({ thread, isActive, onRename, onDelete }) {
 
 // ─── Agent group ─────────────────────────────────────────────────────────────
 function AgentGroup({ group, activeThreadId, onRename, onDelete }) {
-  const { agent, threads, totalCount } = group;
+  const { agent, threads } = group;
   const agentId = agent._id || agent.id;
   const hasActive = threads.some((t) => (t._id || t.id) === activeThreadId);
   // Start open if the active thread belongs to this agent
   const [open, setOpen] = useState(hasActive);
-
-  // When searching, we might want to show all groups open by default if they have matches
-  // But for now, let's stick to the active thread logic.
 
   return (
     <Collapsible
@@ -197,11 +192,8 @@ function AgentGroup({ group, activeThreadId, onRename, onDelete }) {
             <span className="min-w-0 flex-1 truncate font-medium">
               {agent.name || "Agent"}
             </span>
-            <span
-              className="shrink-0 rounded-full bg-sidebar-accent px-1.5 py-0.5 text-[10px] text-sidebar-accent-foreground"
-              title={`${threads.length} loaded, ${totalCount || threads.length} total`}
-            >
-              {totalCount || threads.length}
+            <span className="shrink-0 rounded-full bg-sidebar-accent px-1.5 py-0.5 text-[10px] text-sidebar-accent-foreground">
+              {threads.length}
             </span>
             <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
           </SidebarMenuButton>
@@ -209,23 +201,15 @@ function AgentGroup({ group, activeThreadId, onRename, onDelete }) {
 
         <CollapsibleContent>
           <SidebarMenuSub>
-            {threads.length === 0 && totalCount > 0 ? (
-              <SidebarMenuSubItem>
-                <div className="px-6 py-2 text-[10px] text-muted-foreground/60 italic">
-                  Threads not loaded yet. Scroll or search to find them.
-                </div>
-              </SidebarMenuSubItem>
-            ) : (
-              threads.map((thread) => (
-                <ThreadItem
-                  key={thread._id || thread.id}
-                  thread={thread}
-                  isActive={(thread._id || thread.id) === activeThreadId}
-                  onRename={onRename}
-                  onDelete={onDelete}
-                />
-              ))
-            )}
+            {threads.map((thread) => (
+              <ThreadItem
+                key={thread._id || thread.id}
+                thread={thread}
+                isActive={(thread._id || thread.id) === activeThreadId}
+                onRename={onRename}
+                onDelete={onDelete}
+              />
+            ))}
           </SidebarMenuSub>
         </CollapsibleContent>
       </SidebarMenuItem>
@@ -245,16 +229,12 @@ function AgentGroup({ group, activeThreadId, onRename, onDelete }) {
  */
 export function NavThreads({
   groups,
-  totalThreads,
   loading,
   loadingMore,
   hasMore,
   onLoadMore,
   onRename,
   onDelete,
-  searchQuery,
-  onSearchChange,
-  isSearching,
 }) {
   const pathname = usePathname();
 
@@ -265,11 +245,6 @@ export function NavThreads({
     const params = new URLSearchParams(window.location.search);
     return params.get("threadId") || null;
   })();
-
-  const loadedThreadsCount = groups.reduce(
-    (acc, group) => acc + group.threads.length,
-    0,
-  );
 
   if (loading) {
     return (
@@ -291,44 +266,9 @@ export function NavThreads({
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <div className="flex items-center justify-between pr-2">
-        <SidebarGroupLabel>Threads</SidebarGroupLabel>
-        {totalThreads > 0 && !isSearching && (
-          <span className="text-[10px] text-muted-foreground/60">
-            {loadedThreadsCount} of {totalThreads}
-          </span>
-        )}
-      </div>
-
-      <div className="relative mb-2 px-2">
-        <SearchIcon className="absolute left-4 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground/60" />
-        <input
-          type="text"
-          placeholder="Search threads..."
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="h-8 w-full rounded-md border border-sidebar-border bg-sidebar-accent/50 pl-8 pr-8 text-xs outline-none ring-0 transition-all focus:border-primary/50 focus:bg-sidebar-accent"
-        />
-        {searchQuery && (
-          <button
-            onClick={() => onSearchChange("")}
-            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-0.5 hover:bg-muted"
-          >
-            <XIcon className="size-3 text-muted-foreground/60" />
-          </button>
-        )}
-      </div>
-
+      <SidebarGroupLabel>Threads</SidebarGroupLabel>
       <SidebarMenu>
-        {isSearching && groups.length === 0 ? (
-          <SidebarMenuItem>
-            <div className="px-2 py-3 text-center">
-              <p className="text-xs text-muted-foreground/60">
-                No threads found for &quot;{searchQuery}&quot;
-              </p>
-            </div>
-          </SidebarMenuItem>
-        ) : groups.length === 0 ? (
+        {groups.length === 0 ? (
           <SidebarMenuItem>
             <div className="px-2 py-3 text-center">
               <MessageSquareIcon className="mx-auto mb-1.5 size-6 text-muted-foreground/40" />
@@ -351,21 +291,14 @@ export function NavThreads({
           ))
         )}
 
-        {!isSearching && hasMore && (
+        {hasMore && (
           <SidebarMenuItem className="mt-2 px-2">
             <button
               onClick={onLoadMore}
               disabled={loadingMore}
-              className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-sidebar-border py-1.5 text-center text-xs font-semibold text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-primary disabled:opacity-50"
+              className="w-full text-center text-xs font-semibold text-muted-foreground hover:text-primary py-1 px-2 border border-dashed border-sidebar-border rounded-md hover:bg-sidebar-accent transition-all cursor-pointer disabled:opacity-50"
             >
-              {loadingMore ? (
-                <>
-                  <Loader2Icon className="size-3 animate-spin" />
-                  <span>Loading...</span>
-                </>
-              ) : (
-                "Load More Chats"
-              )}
+              {loadingMore ? "Loading more..." : "Load More Chats"}
             </button>
           </SidebarMenuItem>
         )}

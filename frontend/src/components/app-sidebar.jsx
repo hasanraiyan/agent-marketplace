@@ -69,16 +69,12 @@ export function AppSidebar({ ...props }) {
 
   const {
     groups,
-    totalThreads,
     loading: threadsLoading,
     loadingMore,
     hasMore,
     loadMore,
     renameThread,
     removeThread,
-    searchQuery,
-    setSearchQuery,
-    isSearching,
   } = useThreads();
 
   const handleRename = React.useCallback(
@@ -129,16 +125,12 @@ export function AppSidebar({ ...props }) {
         <NavMain items={NAV_MAIN} />
         <NavThreads
           groups={groups}
-          totalThreads={totalThreads}
           loading={threadsLoading}
           loadingMore={loadingMore}
           hasMore={hasMore}
           onLoadMore={loadMore}
           onRename={handleRename}
           onDelete={handleDelete}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          isSearching={isSearching}
         />
         <NavSecondary items={NAV_SECONDARY} className="mt-auto" />
       </SidebarContent>

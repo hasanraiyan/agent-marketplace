@@ -13,8 +13,6 @@ router.use(authMiddleware);
 // Core Thread Management
 router.post('/', validateBody(createThreadSchema), threadController.create);
 router.get('/', threadController.getAllByUser);
-router.get('/search', threadController.search);
-router.get('/agent-summary', threadController.getAgentSummary);
 router.get('/:id', threadController.getOne);
 router.delete('/', threadController.deleteAll);
 router.delete('/:id', threadController.delete);
