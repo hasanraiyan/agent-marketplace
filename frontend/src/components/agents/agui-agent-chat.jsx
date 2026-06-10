@@ -763,14 +763,7 @@ export function AguiAgentChat({
   useEffect(() => {
     if (!scrollRef.current) return;
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [
-    chat.conversation,
-    chat.messages,
-    chat.toolCalls,
-    chat.isRunning,
-    chat.pendingApproval,
-    chat.pendingClarification,
-  ]);
+  });
 
   const send = () => {
     const text = input;

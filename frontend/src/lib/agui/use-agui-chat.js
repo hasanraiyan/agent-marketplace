@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EventType } from "@ag-ui/client";
+import { useAuth } from "@clerk/nextjs";
 
 function id(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -88,6 +89,7 @@ export function useAguiChat({
   onToolResult,
   onRunFinished,
 } = {}) {
+  const { getToken, isLoaded, isSignedIn } = useAuth();
   const isParsedHistory = initialMessages && !Array.isArray(initialMessages) && typeof initialMessages === "object";
   const [messages, setMessages] = useState(isParsedHistory ? (initialMessages.messages || []) : initialMessages);
   const [conversation, setConversation] = useState(
@@ -398,12 +400,25 @@ export function useAguiChat({
       abortRef.current = controller;
 
       try {
+        if (!isLoaded) {
+          throw new Error("Authentication is still loading. Please try again.");
+        }
+        if (!isSignedIn) {
+          throw new Error("Please sign in to run this agent.");
+        }
+
+        const clerkToken = await getToken();
+        if (!clerkToken) {
+          throw new Error("Unable to get a Clerk session token. Please sign in again.");
+        }
+
         const response = await fetch(url, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Accept: "text/event-stream",
             ...Object.fromEntries(headerEntries),
+            Authorization: `Bearer ${clerkToken}`,
           },
           body: JSON.stringify({
             threadId,
@@ -458,7 +473,17 @@ export function useAguiChat({
         abortRef.current = null;
       }
     },
-    [agentId, agentState, applyEvent, headerEntries, threadId, url],
+    [
+      agentId,
+      agentState,
+      applyEvent,
+      getToken,
+      headerEntries,
+      isLoaded,
+      isSignedIn,
+      threadId,
+      url,
+    ],
   );
 
   const appendUserMessage = useCallback((content) => {
