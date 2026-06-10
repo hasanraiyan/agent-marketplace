@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import Conversation from '../models/Conversation.js';
 
 function idLooksLikeObjectId(id) {
@@ -23,82 +22,13 @@ class ThreadRepository {
     return await Conversation.findOne(query).populate('agentId', 'name avatar slug');
   }
 
-  async findByUser(userId, { page = 1, limit = 20, agentId = null } = {}) {
+  async findByUser(userId, { page = 1, limit = 20 } = {}) {
     const skip = (page - 1) * limit;
-    const filter = { userId, isArchived: false };
-    if (agentId) {
-      filter.agentId = agentId;
-    }
-
-    const [threads, total] = await Promise.all([
-      Conversation.find(filter)
-        .sort({ lastMessageAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate('agentId', 'name avatar slug'),
-      Conversation.countDocuments(filter),
-    ]);
-
-    return { threads, total };
-  }
-
-  async search(userId, { q, agentId, limit = 20 } = {}) {
-    const filter = {
-      userId,
-      isArchived: false,
-    };
-
-    if (agentId) {
-      filter.agentId = agentId;
-    }
-
-    if (q) {
-      // Escape regex special characters
-      const escapedQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      filter.title = { $regex: escapedQ, $options: 'i' };
-    }
-
-    return await Conversation.find(filter)
+    return await Conversation.find({ userId, isArchived: false })
       .sort({ lastMessageAt: -1 })
+      .skip(skip)
       .limit(limit)
       .populate('agentId', 'name avatar slug');
-  }
-
-  async getAgentSummary(userId) {
-    // userId should be a Mongoose ObjectId here because it comes from req.user
-    const userObjectId =
-      typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
-
-    return await Conversation.aggregate([
-      { $match: { userId: userObjectId, isArchived: false } },
-      {
-        $group: {
-          _id: '$agentId',
-          totalThreads: { $sum: 1 },
-          lastInteractionAt: { $max: '$lastMessageAt' },
-        },
-      },
-      {
-        $lookup: {
-          from: 'agents',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'agentDetails',
-        },
-      },
-      { $unwind: { path: '$agentDetails', preserveNullAndEmptyArrays: true } },
-      {
-        $project: {
-          agentId: '$_id',
-          totalThreads: 1,
-          lastInteractionAt: 1,
-          name: { $ifNull: ['$agentDetails.name', 'Agent Architect'] },
-          avatar: { $ifNull: ['$agentDetails.avatar', ''] },
-          slug: { $ifNull: ['$agentDetails.slug', ''] },
-        },
-      },
-      { $sort: { lastInteractionAt: -1 } },
-    ]);
   }
 
   async update(id, updateData) {
