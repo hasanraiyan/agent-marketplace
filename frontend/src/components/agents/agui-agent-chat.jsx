@@ -456,34 +456,55 @@ function ApprovalCard({ approval, onRespond, disabled }) {
 }
 
 function ClarificationCard({ clarification, onRespond, disabled }) {
-  const [freeformOpen, setFreeformOpen] = useState(false);
-  const [freeformAnswer, setFreeformAnswer] = useState("");
   const question = clarification?.questions?.[clarification.currentIndex || 0];
   const currentIndex = clarification?.currentIndex || 0;
   const total = clarification?.questions?.length || 0;
 
   if (!question) return null;
 
-  const submitFreeform = () => {
-    const value = freeformAnswer.trim();
-    if (!value || disabled) return;
-    onRespond({ answer: value, freeform: true });
-  };
-
   return (
-    <div className="max-w-[92%] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-700">
-        <div className="min-w-0 flex-1 text-sm font-bold text-slate-900 dark:text-slate-100">
+    <div className="overflow-hidden rounded-[18px] border border-slate-200 bg-[#f7f7f5] shadow-[0_16px_40px_rgba(15,23,42,0.10)] dark:border-[#3f3f3a] dark:bg-[#33332f] dark:shadow-none">
+      <div className="flex h-14 items-center gap-3 px-5">
+        <div className="min-w-0 flex-1 text-[15px] font-semibold leading-5 text-slate-950 dark:text-[#f2f2ec]">
           {question.text}
         </div>
-        {total > 1 ? (
-          <div className="shrink-0 text-xs font-medium text-slate-500 dark:text-slate-400">
-            {currentIndex + 1} of {total}
-          </div>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-2 text-sm text-slate-500 dark:text-[#aaa9a2]">
+          {total > 1 ? (
+            <>
+              <button
+                type="button"
+                disabled
+                className="flex size-6 items-center justify-center rounded-md opacity-45"
+                aria-label="Previous question"
+              >
+                <ChevronDown className="size-4 rotate-90" />
+              </button>
+              <span className="tabular-nums">
+                {currentIndex + 1} of {total}
+              </span>
+              <button
+                type="button"
+                disabled
+                className="flex size-6 items-center justify-center rounded-md opacity-45"
+                aria-label="Next question"
+              >
+                <ChevronDown className="size-4 -rotate-90" />
+              </button>
+            </>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => onRespond({ skipped: true })}
+            disabled={disabled}
+            className="ml-1 flex size-7 items-center justify-center rounded-md hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-white/10"
+            aria-label="Dismiss clarification"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
       </div>
 
-      <div className="divide-y divide-slate-200 dark:divide-slate-700">
+      <div className="px-2 pb-2">
         {(question.options || []).map((option, index) => (
           <button
             key={`${question.id}-${option}-${index}`}
@@ -496,77 +517,34 @@ function ClarificationCard({ clarification, onRespond, disabled }) {
               })
             }
             disabled={disabled}
-            className="group flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-slate-800"
+            className={cn(
+              "group flex h-[52px] w-full items-center gap-3 border-b border-slate-200/80 px-3 text-left transition last:border-b-0 disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#464640]",
+              index === 0
+                ? "rounded-xl bg-white/55 dark:bg-white/[0.06]"
+                : "hover:bg-white/45 dark:hover:bg-white/[0.05]",
+            )}
           >
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-sm font-semibold text-slate-600 group-hover:bg-[#1E60FF] group-hover:text-white dark:bg-slate-800 dark:text-slate-300">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-200/80 text-sm font-semibold text-slate-600 group-hover:bg-slate-300 dark:bg-[#474742] dark:text-[#d5d3ca] dark:group-hover:bg-[#55554f]">
               {index + 1}
             </span>
-            <span className="min-w-0 flex-1 text-sm font-semibold text-slate-800 dark:text-slate-100">
+            <span className="min-w-0 flex-1 text-[15px] font-semibold text-slate-800 dark:text-[#dedcd3]">
               {option}
             </span>
-            <ArrowRight className="size-4 text-slate-400 opacity-0 transition group-hover:opacity-100" />
+            <ArrowRight className="size-4 text-slate-400 opacity-0 transition group-hover:opacity-100 dark:text-[#a4a199]" />
           </button>
         ))}
 
         {question.allowCustom !== false ? (
-          <div className="px-4 py-3">
-            {freeformOpen ? (
-              <div className="flex items-end gap-2">
-                <textarea
-                  value={freeformAnswer}
-                  onChange={(event) => setFreeformAnswer(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault();
-                      submitFreeform();
-                    }
-                  }}
-                  disabled={disabled}
-                  rows={2}
-                  placeholder="Reply directly..."
-                  className="min-h-16 flex-1 resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#1E60FF] dark:border-slate-700 dark:bg-slate-950"
-                />
-                <Button
-                  type="button"
-                  size="icon"
-                  onClick={submitFreeform}
-                  disabled={disabled || !freeformAnswer.trim()}
-                  className="size-10 rounded-full"
-                >
-                  <ArrowUp className="size-4" />
-                </Button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setFreeformOpen(true)}
-                disabled={disabled}
-                className="flex w-full items-center gap-3 rounded-xl px-0 py-1 text-left text-sm font-semibold text-slate-500 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-400 dark:hover:text-slate-100"
-              >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-800">
-                  <PencilLine className="size-4" />
-                </span>
-                Something else
-              </button>
-            )}
+          <div className="flex h-[52px] items-center gap-3 px-3">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-200/80 text-slate-600 dark:bg-[#474742] dark:text-[#d5d3ca]">
+              <PencilLine className="size-4" />
+            </span>
+            <span className="min-w-0 flex-1 text-[15px] font-semibold text-slate-500 dark:text-[#aaa9a2]">
+              Something else
+            </span>
           </div>
         ) : null}
       </div>
-
-      {!question.required ? (
-        <div className="flex justify-end border-t border-slate-200 px-4 py-3 dark:border-slate-700">
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            onClick={() => onRespond({ skipped: true })}
-            disabled={disabled}
-            className="rounded-full px-4 font-bold"
-          >
-            Skip
-          </Button>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -583,7 +561,7 @@ function ChatComposer({
   const canSend = value.trim().length > 0 && !disabled && !isRunning;
 
   return (
-    <div className="rounded-[22px] border border-slate-200 bg-white p-3 shadow-[0_10px_30px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-800">
+    <div className="rounded-[22px] border border-slate-200 bg-white p-3 shadow-[0_10px_30px_rgba(15,23,42,0.08)] dark:border-[#3f3f3a] dark:bg-[#272724]">
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -597,7 +575,7 @@ function ChatComposer({
         disabled={disabled || isRunning}
         placeholder={placeholder}
         rows={1}
-        className="max-h-32 min-h-8 w-full resize-none bg-transparent text-[15px] leading-6 outline-none placeholder:text-slate-400 disabled:opacity-60"
+        className="max-h-32 min-h-8 w-full resize-none bg-transparent text-[15px] leading-6 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:placeholder:text-[#aaa9a2]"
       />
       <div className="mt-2 flex items-center gap-2">
         <Button
@@ -901,14 +879,6 @@ export function AguiAgentChat({
                 disabled={chat.isRunning}
               />
             ) : null}
-            {chat.pendingClarification ? (
-              <ClarificationCard
-                key={chat.pendingClarification.currentIndex}
-                clarification={chat.pendingClarification}
-                onRespond={chat.respondToClarification}
-                disabled={chat.isRunning}
-              />
-            ) : null}
             {chat.isRunning ? <ThinkingText label="Thinking" /> : null}
           </div>
         )}
@@ -925,7 +895,15 @@ export function AguiAgentChat({
         </div>
       ) : null}
       <div className="sticky bottom-0 z-10 shrink-0 border-t border-slate-100 bg-white/95 px-4 pb-4 pt-3 backdrop-blur-sm dark:border-slate-800/50 dark:bg-slate-950/95">
-        <div className={cn("mx-auto w-full max-w-4xl", contentClassName)}>
+        <div className={cn("mx-auto w-full max-w-4xl space-y-2", contentClassName)}>
+          {chat.pendingClarification ? (
+            <ClarificationCard
+              key={chat.pendingClarification.currentIndex}
+              clarification={chat.pendingClarification}
+              onRespond={chat.respondToClarification}
+              disabled={chat.isRunning}
+            />
+          ) : null}
           <ChatComposer
             value={input}
             onChange={setInput}

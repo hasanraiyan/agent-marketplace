@@ -530,7 +530,6 @@ export function useAguiChat({
 
       const normalizedAnswer = skipped ? "" : String(answer || "").trim();
       if (!skipped && !normalizedAnswer) return;
-      if (skipped && question.required) return;
 
       const nextAnswer = {
         questionId: question.id,
