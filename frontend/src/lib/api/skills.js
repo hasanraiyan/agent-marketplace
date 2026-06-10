@@ -3,6 +3,7 @@ import { api } from "./core";
 // Skill API functions
 export const getPublicSkills = () => api.get("/skills/public");
 export const getMySkills = () => api.get("/skills");
+export const searchSkills = (params) => api.get("/skills/search", { params });
 export const createSkill = (data) => api.post("/skills", data);
 export const getSkill = (skillId) => api.get(`/skills/${skillId}`);
 export const updateSkill = (skillId, data) =>

@@ -46,6 +46,13 @@ class SkillService {
   }
 
   /**
+   * Searches skills by name, description, and instructions
+   */
+  async searchSkills(userId, params) {
+    return await skillRepository.searchSkills(userId, params);
+  }
+
+  /**
    * Updates an existing skill
    */
   async updateSkill(id, userId, updateData) {

@@ -30,6 +30,20 @@ class SkillController {
     }
   }
 
+  async search(req, res, next) {
+    try {
+      const { q, scope, limit } = req.query;
+      const skills = await skillService.searchSkills(req.user.id, {
+        q,
+        scope,
+        limit: limit ? parseInt(limit) : 30,
+      });
+      res.json({ success: true, data: skills });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getPublicSkills(req, res, next) {
     try {
       const page = parseInt(req.query.page) || 1;

@@ -6,6 +6,9 @@ import skillController from '../controllers/skill.controller.js';
 
 const router = Router();
 
+// Search skills
+router.get('/search', authMiddleware, skillController.search);
+
 // Publicly searchable skills
 router.get('/public', authMiddleware, skillController.getPublicSkills);
 
