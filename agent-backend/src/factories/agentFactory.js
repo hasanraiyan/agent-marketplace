@@ -1,12 +1,13 @@
 import { ChatOpenAI } from '@langchain/openai';
-import { createDeepAgent, StateBackend } from 'deepagents';
 import agentRepository from '../repositories/agentRepository.js';
 import providerRepository from '../repositories/providerRepository.js';
 import encryption from '../utils/encryption.js';
 
-import { resolveAgentTools, ARCHITECT_AGENT_ID } from '../tools/index.js';
+import { ARCHITECT_AGENT_ID } from '../tools/index.js';
 import { loggerService } from '../utils/index.js';
-import { ARCHITECT_SKILL } from '../skills/architectSkill.js';
+
+import { bindTools } from './toolBinder.js';
+import { compileGraph } from './graphCompiler.js';
 
 const logger = loggerService.getLogger();
 
@@ -135,118 +136,17 @@ class AgentFactory {
     // 3. Build Base Model
     const llm = await this._buildLLM(agent, provider);
 
-    // Completely abstracted Tool Registry injection
-    const dynamicTools = resolveAgentTools(agent, userId);
+    // Completely abstracted Tool Registry injection and skill materialization
+    const { dynamicTools, skillFiles, hasSkills } = bindTools(agent, userId);
 
-    const { InMemoryStore } = await import('@langchain/langgraph');
-    const store = new InMemoryStore();
-
-    // Materialize the agent's configured skills into deepagents' virtual filesystem.
-    //
-    // deepagents discovers skills via the `skills: ["/skills/"]` param + the agent's
-    // backend (StateBackend below). With StateBackend the skill files live in graph
-    // state, so we build each DB skill as `/skills/<dir>/SKILL.md` (SKILL.md is the
-    // filename the skills middleware scans for) and seed them into the run input
-    // `files` map at invoke time (see agui.routes.js). They then persist for
-    // the rest of the thread via the checkpointer. `skillFiles` is returned to the
-    // caller so it can do that seeding.
-    //
-    // NOTE: this replaces a previous hand-rolled `SkillService` lookup that always
-    // fell through to a no-op shim (deepagents exposes `createSkillsMiddleware`, not
-    // a `SkillService` class), so skills were silently never loaded.
-    const skillFiles = {};
-    const now = new Date().toISOString();
-
-    // 3.5 Inject Hardcoded Architect Skill
-    if (agentIdStr === ARCHITECT_AGENT_ID) {
-      skillFiles['/skills/agent-architecture/SKILL.md'] = {
-        content: ARCHITECT_SKILL.split('\n'),
-        created_at: now,
-        modified_at: now,
-      };
-    }
-
-    if (agent.skills && agent.skills.length > 0) {
-      for (const skill of agent.skills) {
-        // Slugify the directory segment so odd skill names can't break the path.
-        const dir =
-          String(skill.name)
-            .trim()
-            .replace(/[^a-zA-Z0-9_-]+/g, '-')
-            .replace(/^-+|-+$/g, '')
-            .toLowerCase() || 'skill';
-        const frontmatter = `---\nname: ${skill.name}\ndescription: ${skill.description}\n---\n\n${skill.instructions}`;
-        skillFiles[`/skills/${dir}/SKILL.md`] = {
-          content: frontmatter.split('\n'),
-          created_at: now,
-          modified_at: now,
-        };
-      }
-    }
-    const hasSkills = Object.keys(skillFiles).length > 0;
-
-    // 4. Assemble Custom DeepAgent Runtime
-    // Wrap checkpointer with a Proxy to preserve prototype methods (e.g. getTuple)
-    // while guarding against empty bulk write batches that crash MongoDB driver.
-    // Track whether we've warned to avoid log spam
-    let checkpointerWarned = false;
-
-    const safeCheckpointer = checkpointer
-      ? new Proxy(checkpointer, {
-          get(target, prop, receiver) {
-            if (prop === 'putWrites') {
-              return async (...args) => {
-                try {
-                  // Robust empty-batch detection: scan args for any array-like candidate
-                  const foundArray = args.find(
-                    (a) => Array.isArray(a) || (a && typeof a.length === 'number')
-                  );
-                  if (foundArray && foundArray.length === 0) return;
-
-                  // If first arg is falsy or no args, treat as no-op
-                  if (args.length === 0 || !args[0]) return;
-
-                  if (typeof target.putWrites === 'function') {
-                    return await target.putWrites.apply(target, args);
-                  }
-                } catch (err) {
-                  // Only warn once to reduce log noise
-                  if (!checkpointerWarned) {
-                    console.warn(
-                      '[AgentFactory] checkpointer.putWrites error:',
-                      err?.message || err
-                    );
-                    checkpointerWarned = true;
-                  }
-                }
-              };
-            }
-
-            const value = Reflect.get(target, prop, receiver);
-            if (typeof value === 'function') return value.bind(target);
-            return value;
-          },
-        })
-      : checkpointer;
-
-    // Build interruptOn from the agent's stored config. These are the built-in
-    // human-in-the-loop pauses used for guarded tool execution.
-    const interruptOnConfig =
-      agent.interruptOn instanceof Map
-        ? Object.fromEntries(agent.interruptOn)
-        : agent.interruptOn || {};
-
-    const agentInstance = await createDeepAgent({
-      model: llm,
+    // Compile the LangGraph instance
+    const { agentInstance, store } = await compileGraph({
+      llm,
       systemPrompt: agent.systemPrompt,
-      checkpointer: safeCheckpointer,
-      store: store,
+      checkpointer,
       tools: dynamicTools,
-      interruptOn: interruptOnConfig,
-      // sandbox backend if real code execution is ever required.
-      backend: new StateBackend(),
-      // point it at the virtual /skills/ tree we seed at invoke time.
-      ...(hasSkills ? { skills: ['/skills/'] } : {}),
+      interruptOn: agent.interruptOn,
+      hasSkills,
     });
 
     logger.info('[AgentFactory] agent built', {
@@ -258,6 +158,7 @@ class AgentFactory {
 
     return {
       agentInstance,
+      store,
       agentConfig: agent,
       llm,
       providerConfig: {
