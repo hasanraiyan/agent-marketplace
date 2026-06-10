@@ -28,7 +28,6 @@ export function AguiAgentChat({
   onStateChange,
   onNewChat,
   onRunFinished,
-  onOpenFile,
   showHeader = true,
   contentClassName,
 }) {
@@ -189,27 +188,14 @@ export function AguiAgentChat({
               contentClassName,
             )}
           >
-            {chat.conversation.map((entry, index) => {
+            {chat.conversation.map((entry) => {
               if (entry.type === 'message') {
                 const message = messageById(entry.refId);
-                const precedingTools = [];
-                for (let i = index - 1; i >= 0; i--) {
-                  const prev = chat.conversation[i];
-                  if (prev.type === 'tool') {
-                    const t = toolById(prev.refId);
-                    if (t) precedingTools.push(t);
-                  } else {
-                    break;
-                  }
-                }
-
                 return message ? (
                   <MessageBubble
                     key={entry.id}
                     message={message}
                     agent={agent}
-                    precedingTools={precedingTools}
-                    onOpenFile={onOpenFile}
                   />
                 ) : null;
               }

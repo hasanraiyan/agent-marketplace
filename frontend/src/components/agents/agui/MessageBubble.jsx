@@ -8,14 +8,9 @@ import {
   BotIcon,
   ChevronDown,
   ChevronUp,
-  Download,
-  FileCode,
-  FileText,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { tryParseJson, getFileSystemActionDetails } from './utils';
 
 function ReasoningBubble({ message }) {
   const [open, setOpen] = useState(false);
@@ -81,7 +76,7 @@ export function NewChatIcon({ className }) {
   );
 }
 
-export function MessageBubble({ message, agent, precedingTools = [], onOpenFile }) {
+export function MessageBubble({ message, agent }) {
   const isUser = message.role === 'user';
 
   if (message.role === 'reasoning') {
@@ -89,37 +84,6 @@ export function MessageBubble({ message, agent, precedingTools = [], onOpenFile 
   }
 
   if (!isUser && !message.content) return null;
-
-  const fsToolCalls = precedingTools.filter((t) => {
-    if (t.status !== 'completed') return false;
-    const details = getFileSystemActionDetails({ name: t.name, args: tryParseJson(t.argumentsText) });
-    return !!details;
-  });
-
-  const uniqueFiles = [];
-  const seen = new Set();
-  fsToolCalls.forEach((t) => {
-    const details = getFileSystemActionDetails({ name: t.name, args: tryParseJson(t.argumentsText) });
-    if (details && !seen.has(details.filePath)) {
-      seen.add(details.filePath);
-      uniqueFiles.push({
-        ...details,
-        toolName: t.name,
-      });
-    }
-  });
-
-  const downloadFile = (fileName, content) => {
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <div
@@ -160,72 +124,6 @@ export function MessageBubble({ message, agent, precedingTools = [], onOpenFile 
             {message.content}
           </ReactMarkdown>
         </div>
-
-        {/* File Artifact Cards */}
-        {!isUser && uniqueFiles.length > 0 && (
-          <div className="mt-3 max-w-xl space-y-2">
-            {uniqueFiles.map((file, i) => {
-              const fileName = file.filePath.split('/').pop() || file.filePath;
-              const fileExt = fileName.includes('.') ? fileName.split('.').pop()?.toUpperCase() : 'FILE';
-              const isCode = ['JS', 'JSX', 'TS', 'TSX', 'JSON', 'HTML', 'CSS', 'PY', 'SH', 'GO', 'RS', 'MD'].includes(fileExt);
-              const FileIcon = isCode ? FileCode : FileText;
-
-              let actionLabel = 'Modified file';
-              let isDeleted = false;
-              if (file.toolName?.toLowerCase().includes('write')) {
-                actionLabel = 'Created file';
-              } else if (file.toolName?.toLowerCase().includes('delete')) {
-                actionLabel = 'Deleted file';
-                isDeleted = true;
-              }
-
-              return (
-                <div
-                  key={i}
-                  onClick={() => !isDeleted && onOpenFile?.(file.filePath)}
-                  className={cn(
-                    'flex items-center justify-between rounded-xl border border-slate-205 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-905/30 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:bg-slate-100/30 dark:hover:bg-slate-900/50 transition-colors',
-                    !isDeleted ? 'cursor-pointer' : 'cursor-default'
-                  )}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-slate-100 dark:bg-slate-800 dark:text-slate-200">
-                      <FileIcon className="size-4.5" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate text-xs font-bold text-slate-800 dark:text-slate-100">
-                          {fileName}
-                        </span>
-                        <span className="shrink-0 rounded bg-slate-100 px-1 py-0.5 text-[9px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-455">
-                          {fileExt}
-                        </span>
-                      </div>
-                      <div className="text-[10px] font-semibold text-slate-450 dark:text-slate-555">
-                        {isDeleted ? actionLabel : 'Click to view preview'}
-                      </div>
-                    </div>
-                  </div>
-
-                  {!isDeleted && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8 rounded-lg text-slate-400 hover:text-slate-650 hover:bg-slate-150/60 dark:hover:bg-slate-800 dark:hover:text-slate-350 flex items-center justify-center shrink-0"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        downloadFile(fileName, file.content);
-                      }}
-                      title="Download file"
-                    >
-                      <Download className="size-4" />
-                    </Button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
     </div>
   );
