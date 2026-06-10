@@ -1,8 +1,27 @@
-import { getSearchTool } from './search.tool.js';
-import { getBuilderToolbox } from './builder.tools.js';
+import { getSearchTool } from './searchTools.js';
+import {
+  upsertAgentTool,
+  getAgentTool,
+  listMyAgentsTool,
+  deleteAgentTool,
+  listProvidersTool,
+} from './devTools.js';
+import { manageSkillTool } from './fileTools.js';
 import { askClarificationTool } from './clarification.tool.js';
 
 export const ARCHITECT_AGENT_ID = '000000000000000000000000';
+
+/**
+ * Factory for all architect tools injected with contextual userId
+ */
+export const getBuilderToolbox = (userId) => [
+  listProvidersTool(userId),
+  upsertAgentTool(userId),
+  manageSkillTool(userId),
+  getAgentTool(userId),
+  listMyAgentsTool(userId),
+  deleteAgentTool(userId),
+];
 
 /**
  * @param {Object} agentConfig - The Mongoose Agent document or System Agent object
