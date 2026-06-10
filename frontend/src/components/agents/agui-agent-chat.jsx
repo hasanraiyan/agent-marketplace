@@ -734,20 +734,19 @@ export function AguiFilesPanel({ state, open, onOpenChange }) {
         "overflow-hidden",
       )}
     >
-      <div className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-200 px-4 dark:border-slate-800">
-        <FileCode className="size-4 text-slate-500" />
-        <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-slate-100">Project Explorer</span>
-        <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 dark:bg-slate-800">
-          {files.length}
-        </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="ml-auto size-8"
-          onClick={() => onOpenChange?.(false)}
-        >
-          <X className="size-4" />
-        </Button>
+      <div className="flex h-14 shrink-0 flex-col items-start justify-center px-4 dark:border-slate-800">
+        <div className="flex w-full items-center gap-2">
+          <span className="text-base font-bold tracking-tight text-slate-900 dark:text-slate-100">Project Explorer</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-auto size-8"
+            onClick={() => onOpenChange?.(false)}
+          >
+            <X className="size-4" />
+          </Button>
+        </div>
+        <div className="text-[11px] font-bold text-slate-400">{files.length}</div>
       </div>
       {active ? (
         <div className="flex min-h-0 flex-1 flex-col">
@@ -801,28 +800,30 @@ export function AguiFilesPanel({ state, open, onOpenChange }) {
           </div>
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-auto p-2">
-          <div className="mb-2 px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+        <div className="min-h-0 flex-1 overflow-auto">
+          <div className="sticky top-0 z-10 border-y border-slate-100 bg-slate-50/80 px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/80">
             Files
           </div>
-          {files.map((file) => (
-            <button
-              key={file.path}
-              type="button"
-              onClick={() => setSelected(file.path)}
-              className="group flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
-            >
-              {getFileIcon(file.path)}
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-slate-700 dark:text-slate-200">
-                  {file.path.split("/").pop()}
-                </span>
-                <span className="block truncate font-mono text-[10px] text-slate-400 dark:text-slate-500">
-                  {file.path}
-                </span>
-              </span>
-            </button>
-          ))}
+          <div className="p-2 space-y-1">
+            {files.map((file) => (
+              <button
+                key={file.path}
+                type="button"
+                onClick={() => setSelected(file.path)}
+                className="group flex w-full items-start gap-3 rounded-lg px-3 py-3 text-left transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <div className="mt-0.5">{getFileIcon(file.path)}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="block truncate text-sm font-bold text-slate-800 dark:text-slate-100">
+                    {file.path.split("/").pop()}
+                  </div>
+                  <div className="block truncate font-mono text-[10px] text-slate-400 dark:text-slate-500">
+                    {file.path}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </aside>
