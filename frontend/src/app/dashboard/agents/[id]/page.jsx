@@ -24,30 +24,36 @@ import {
   Edit,
   Sparkles,
 } from "lucide-react";
-import { Button } from "./components/ui/button";
-import { Badge } from "./components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "./components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "./components/ui/avatar";
-import { Skeleton } from "./components/ui/skeleton";
-import { Separator } from "./components/ui/separator";
+} from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 import {
   Empty,
   EmptyHeader,
   EmptyTitle,
   EmptyDescription,
-} from "./components/ui/empty";
+} from "@/components/ui/empty";
 import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
 import { getAgent } from "@/lib/api/agents";
 import { createThread } from "@/lib/api/threads";
 import { getProfile } from "@/lib/api/profile";
-import { useDashboardHeader } from "./components/dashboard-header-context";
+import { useDashboardHeader } from "@/components/dashboard-header-context";
+
+// New Panel Components
+import AgentDetailPageSkeleton from "./components/AgentDetailPageSkeleton";
+import AgentOverviewCard from "./components/AgentOverviewCard";
+import AgentSkillsCard from "./components/AgentSkillsCard";
+import AgentInstructionsCard from "./components/AgentInstructionsCard";
 
 const VISIBILITY_ICONS = {
   public: Globe,
@@ -132,15 +138,6 @@ export default function AgentDetailPage() {
     }
   };
 
-  const handleCopyText = (text) => {
-    if (typeof window !== "undefined") {
-      navigator.clipboard.writeText(text);
-      setCopied(true);
-      toast.success("Instructions copied to clipboard!");
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
   // ── Dashboard header integration ─────────────────────────────────────────────
   useDashboardHeader(
     {
@@ -205,23 +202,7 @@ export default function AgentDetailPage() {
   );
 
   if (loading) {
-    return (
-      <div className="flex-grow overflow-y-auto bg-slate-50/40 dark:bg-slate-950/20">
-        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-          <div className="grid gap-8 lg:grid-cols-3">
-            <div className="space-y-6 lg:col-span-2">
-              <Skeleton className="h-48 rounded-2xl w-full" />
-              <Skeleton className="h-64 rounded-2xl w-full" />
-              <Skeleton className="h-64 rounded-2xl w-full" />
-            </div>
-            <div className="space-y-6">
-              <Skeleton className="h-80 rounded-2xl w-full" />
-              <Skeleton className="h-40 rounded-2xl w-full" />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <AgentDetailPageSkeleton />;
   }
 
   if (!agent) {
@@ -249,8 +230,6 @@ export default function AgentDetailPage() {
   }
 
   const VisibilityIcon = VISIBILITY_ICONS[agent.visibility] || Globe;
-  const rating = Math.min(5, Math.max(0, agent.rating || 0));
-  const stars = Array.from({ length: 5 }, (_, i) => i < Math.floor(rating));
 
   return (
     <div className="flex-grow overflow-y-auto bg-slate-50/40 dark:bg-slate-950/20">
@@ -258,177 +237,11 @@ export default function AgentDetailPage() {
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           {/* Main Left Column (2/3 width) */}
           <div className="space-y-8 lg:col-span-2">
-            {/* Overview / Identity Card */}
-            <Card className="overflow-hidden border-none bg-card ring-1 ring-foreground/10 relative">
-              <CardContent className="relative px-6 py-6">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-                  <Avatar className="size-20 ring-1 ring-foreground/5 rounded-full bg-card shrink-0">
-                    <AvatarImage
-                      src={agent.avatarUrl || agent.avatar}
-                      alt={agent.name}
-                    />
-                    <AvatarFallback className="bg-gradient-to-br from-primary/10 to-primary/5 text-primary">
-                      <Bot className="size-10" />
-                    </AvatarFallback>
-                  </Avatar>
+            <AgentOverviewCard agent={agent} isOwner={isOwner} />
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                      <Badge
-                        variant="secondary"
-                        className="capitalize text-xs font-semibold px-2.5 py-0.5 bg-primary/10 text-primary hover:bg-primary/15 border-none"
-                      >
-                        {agent.category || "other"}
-                      </Badge>
-                      <Badge
-                        variant="outline"
-                        className="capitalize text-xs font-semibold px-2.5 py-0.5 border-foreground/10 bg-background/50 flex items-center gap-1"
-                      >
-                        <VisibilityIcon className="size-3" />
-                        {agent.visibility || "public"}
-                      </Badge>
-                      {!agent.isActive && (
-                        <Badge
-                          variant="destructive"
-                          className="text-xs font-semibold px-2.5 py-0.5"
-                        >
-                          Inactive
-                        </Badge>
-                      )}
-                    </div>
+            <AgentSkillsCard skills={agent.skills} />
 
-                    <h2 className="text-2xl font-bold tracking-tight text-foreground truncate">
-                      {agent.name}
-                    </h2>
-
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-xs text-muted-foreground">
-                      <div className="flex gap-0.5 mr-1">
-                        {stars.map((filled, i) => (
-                          <Star
-                            key={i}
-                            className={`size-3.5 ${
-                              filled
-                                ? "fill-yellow-400 text-yellow-400"
-                                : "text-muted-foreground/30"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <span>({agent.reviewCount || 0} reviews)</span>
-                      <span className="text-muted-foreground/30">•</span>
-                      <span>
-                        Created by{" "}
-                        <span className="font-semibold text-foreground">
-                          {isOwner ? "You" : "Community Creator"}
-                        </span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <Separator className="my-5" />
-
-                <div className="space-y-2">
-                  <h3 className="text-xs font-bold text-foreground/75 uppercase tracking-wider">
-                    About this agent
-                  </h3>
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    {agent.description || "No description provided."}
-                  </p>
-                </div>
-
-                {agent.tags && agent.tags.length > 0 && (
-                  <div className="mt-5 flex flex-wrap gap-1.5">
-                    {agent.tags.map((tag) => (
-                      <Badge
-                        key={tag}
-                        variant="outline"
-                        className="text-xs text-muted-foreground bg-muted/30 border-muted/50 rounded-full px-2.5 py-0.5 hover:bg-muted/50 transition-colors"
-                      >
-                        #{tag}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Configured Skills Card */}
-            {agent.skills && agent.skills.length > 0 && (
-              <Card className="border-none ring-1 ring-foreground/10 bg-card">
-                <CardHeader>
-                  <CardTitle className="text-base font-bold flex items-center gap-2">
-                    <Cpu className="size-4 text-primary" />
-                    Configured Skills
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Specialized capabilities and instructions attached to this
-                    agent.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {agent.skills.map((skill) => (
-                      <Link
-                        key={skill._id || skill.id}
-                        href={`/dashboard/skills?id=${skill._id || skill.id}`}
-                        className="p-3.5 rounded-xl border bg-muted/10 flex flex-col gap-1.5 transition-colors hover:bg-muted/20"
-                      >
-                        <span className="text-xs font-bold text-foreground">
-                          {skill.name}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
-                          {skill.description || "No description provided."}
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* System Prompt Instructions */}
-            {agent.systemPrompt && (
-              <Card className="border-none ring-1 ring-foreground/10 overflow-hidden bg-card">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                  <div className="space-y-1">
-                    <CardTitle className="text-base font-bold flex items-center gap-2">
-                      <Brain className="size-4 text-primary" />
-                      Instructions
-                    </CardTitle>
-                    <CardDescription className="text-xs">
-                      The core guidelines and rules shaping this agent&apos;s
-                      behavior.
-                    </CardDescription>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleCopyText(agent.systemPrompt)}
-                    className="h-8 rounded-lg px-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="mr-1.5 size-3.5 text-emerald-500" />
-                        Copied
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="mr-1.5 size-3.5" />
-                        Copy
-                      </>
-                    )}
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  <div className="relative">
-                    <div className="rounded-xl border bg-muted/20 p-4 font-mono text-xs leading-relaxed max-h-80 overflow-y-auto whitespace-pre-wrap select-all scrollbar-thin">
-                      {agent.systemPrompt}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            <AgentInstructionsCard systemPrompt={agent.systemPrompt} />
 
             {/* Reviews Card */}
             <Card className="border-none ring-1 ring-foreground/10 bg-card">
