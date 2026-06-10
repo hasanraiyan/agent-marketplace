@@ -783,12 +783,15 @@ export function AguiFilesPanel({ state, open, onOpenChange }) {
               }}
               padding={10}
               readOnly
+              textareaClassName="focus:outline-none"
+              className="focus:outline-none"
               style={{
                 fontFamily: "var(--font-geist-mono)",
                 fontSize: 13,
                 outline: "none",
                 minHeight: "100%",
                 color: "#1a1a1a",
+                caretColor: "transparent",
               }}
             />
           </div>
