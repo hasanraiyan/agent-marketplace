@@ -238,9 +238,10 @@ describe('translateLangGraphStream', () => {
     expect(custom).toBeDefined();
     expect(custom.name).toBe('hitl_request');
     expect(custom.value.actionRequests[0].name).toBe('write_file');
-    // No synthetic assistant text for HITL — the client renders an approval
-    // card from the hitl_request event instead.
-    expect(out.find((e) => e.type === 'TEXT_MESSAGE_CHUNK')).toBeUndefined();
+    // A readable text notice still follows for the transcript.
+    const text = out.find((e) => e.type === 'TEXT_MESSAGE_CHUNK');
+    expect(text).toBeDefined();
+    expect(text.delta).toContain('write_file');
   });
 
   test('on genuine failure: flattens AggregateError, logs leaves, surfaces real cause', async () => {
