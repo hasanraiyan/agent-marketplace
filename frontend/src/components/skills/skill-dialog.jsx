@@ -10,13 +10,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Loader2, Cpu } from "lucide-react";
 import { toast } from "sonner";
 import { createSkill, updateSkill } from "@/lib/api/skills";
+import { SkillSchemaEditor } from "@/app/dashboard/skills/components/SkillSchemaEditor";
 
 const DEFAULT_FORM = {
   name: "",
@@ -80,73 +77,7 @@ export function SkillDialog({ open, onOpenChange, skill, onSuccess }) {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-6 py-6">
-            <div className="grid gap-2">
-              <Label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Skill Name (kebab-case)
-              </Label>
-              <Input
-                id="name"
-                placeholder="e.g. data-analysis"
-                value={form.name}
-                onChange={(e) =>
-                  update(
-                    "name",
-                    e.target.value
-                      .toLowerCase()
-                      .replace(/[^a-z0-9-]/g, "-")
-                      .replace(/-+/g, "-")
-                      .replace(/^-|-$/g, ""),
-                  )
-                }
-                required
-                className="bg-muted/20"
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="description" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Description
-              </Label>
-              <Textarea
-                id="description"
-                placeholder="A brief summary of what this skill enables..."
-                value={form.description}
-                onChange={(e) => update("description", e.target.value)}
-                required
-                rows={2}
-                className="bg-muted/20"
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="instructions" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Instructions (SKILL.md)
-              </Label>
-              <Textarea
-                id="instructions"
-                placeholder="Detail the workflow, rules, and logic for this skill..."
-                value={form.instructions}
-                onChange={(e) => update("instructions", e.target.value)}
-                required
-                rows={8}
-                className="font-mono text-sm bg-muted/20"
-              />
-            </div>
-
-            <div className="flex items-center justify-between rounded-xl border bg-muted/10 p-4">
-              <div className="space-y-0.5">
-                <Label className="text-sm font-bold">Public Marketplace</Label>
-                <p className="text-xs text-muted-foreground">
-                  Allow other users to discover and use this skill.
-                </p>
-              </div>
-              <Switch
-                checked={form.isPublic}
-                onCheckedChange={(v) => update("isPublic", v)}
-              />
-            </div>
-          </div>
+          <SkillSchemaEditor form={form} update={update} />
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={loading}>

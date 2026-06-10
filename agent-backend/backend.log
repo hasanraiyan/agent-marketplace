@@ -1,0 +1,75 @@
+
+> persona-ai@1.0.0 start /app/agent-backend
+> node src/index.js
+
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[INFO] 2026-06-10T14:26:55.003Z - Connecting to MongoDB
+[ERROR] 2026-06-10T14:27:00.026Z - Failed to connect to MongoDB: MongooseServerSelectionError: connect ECONNREFUSED 127.0.0.1:27017
+    at _handleConnectionErrors (/app/agent-backend/node_modules/.pnpm/mongoose@9.3.3/node_modules/mongoose/lib/connection.js:1168:11)
+    at NativeConnection.openUri (/app/agent-backend/node_modules/.pnpm/mongoose@9.3.3/node_modules/mongoose/lib/connection.js:1099:11)
+    at async Database.connect (file:///app/agent-backend/src/config/database.js:44:7)
+    at async startServer (file:///app/agent-backend/src/index.js:89:5) {
+  errorLabelSet: Set(0) {},
+  reason: TopologyDescription {
+    type: 'Unknown',
+    servers: Map(1) { '127.0.0.1:27017' => [ServerDescription] },
+    stale: false,
+    compatible: true,
+    heartbeatFrequencyMS: 10000,
+    localThresholdMS: 15,
+    setName: null,
+    maxElectionId: null,
+    maxSetVersion: null,
+    commonWireVersion: 0,
+    logicalSessionTimeoutMinutes: null
+  },
+  code: undefined,
+  cause: TopologyDescription {
+    type: 'Unknown',
+    servers: Map(1) { '127.0.0.1:27017' => [ServerDescription] },
+    stale: false,
+    compatible: true,
+    heartbeatFrequencyMS: 10000,
+    localThresholdMS: 15,
+    setName: null,
+    maxElectionId: null,
+    maxSetVersion: null,
+    commonWireVersion: 0,
+    logicalSessionTimeoutMinutes: null
+  }
+}
+[ERROR] 2026-06-10T14:27:00.027Z - Failed to start server: MongooseServerSelectionError: connect ECONNREFUSED 127.0.0.1:27017
+    at _handleConnectionErrors (/app/agent-backend/node_modules/.pnpm/mongoose@9.3.3/node_modules/mongoose/lib/connection.js:1168:11)
+    at NativeConnection.openUri (/app/agent-backend/node_modules/.pnpm/mongoose@9.3.3/node_modules/mongoose/lib/connection.js:1099:11)
+    at async Database.connect (file:///app/agent-backend/src/config/database.js:44:7)
+    at async startServer (file:///app/agent-backend/src/index.js:89:5) {
+  errorLabelSet: Set(0) {},
+  reason: TopologyDescription {
+    type: 'Unknown',
+    servers: Map(1) { '127.0.0.1:27017' => [ServerDescription] },
+    stale: false,
+    compatible: true,
+    heartbeatFrequencyMS: 10000,
+    localThresholdMS: 15,
+    setName: null,
+    maxElectionId: null,
+    maxSetVersion: null,
+    commonWireVersion: 0,
+    logicalSessionTimeoutMinutes: null
+  },
+  code: undefined,
+  cause: TopologyDescription {
+    type: 'Unknown',
+    servers: Map(1) { '127.0.0.1:27017' => [ServerDescription] },
+    stale: false,
+    compatible: true,
+    heartbeatFrequencyMS: 10000,
+    localThresholdMS: 15,
+    setName: null,
+    maxElectionId: null,
+    maxSetVersion: null,
+    commonWireVersion: 0,
+    logicalSessionTimeoutMinutes: null
+  }
+}
+ ELIFECYCLE  Command failed with exit code 1.
