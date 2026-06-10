@@ -355,10 +355,12 @@ describe('state snapshots (files + todos)', () => {
     expect(out[out.length - 1].type).toBe('STATE_SNAPSHOT');
   });
 
-  test('does not emit STATE_SNAPSHOT when state has no files or todos', async () => {
+  test('emits STATE_SNAPSHOT even when state has no files or todos', async () => {
     const getState = jest.fn().mockResolvedValue({ files: {}, todos: [] });
     const out = await collect(translateLangGraphStream(fakeStream([]), { getState }));
-    expect(out.find((e) => e.type === 'STATE_SNAPSHOT')).toBeUndefined();
+    const snapEvent = out.find((e) => e.type === 'STATE_SNAPSHOT');
+    expect(snapEvent).toBeDefined();
+    expect(snapEvent.snapshot).toEqual({ files: {}, todos: [] });
   });
 
   test('a getState failure never aborts the stream', async () => {

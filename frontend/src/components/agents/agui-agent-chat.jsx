@@ -509,7 +509,13 @@ function ToolArguments({ argumentsText }) {
           {key.replace(/_/g, " ")}
         </div>
         <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-          &quot;{String(parsed[key])}&quot;
+          {typeof parsed[key] === "object" ? (
+            <pre className="mt-1 font-mono text-xs bg-slate-50 dark:bg-slate-900/30 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/80 max-h-40 overflow-auto scrollbar-thin">
+              {JSON.stringify(parsed[key], null, 2)}
+            </pre>
+          ) : (
+            `"${String(parsed[key])}"`
+          )}
         </div>
       </div>
     );
@@ -623,7 +629,7 @@ function ToolTrace({ tool }) {
       {open ? (
         <div className="ml-8 mt-1 space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 text-sm dark:border-slate-700 dark:bg-slate-900/70">
           {/* Tool Inputs */}
-          {tool.argumentsText && (
+          {tool.argumentsText && !isTodo && (
             <ToolArguments argumentsText={tool.argumentsText} />
           )}
 

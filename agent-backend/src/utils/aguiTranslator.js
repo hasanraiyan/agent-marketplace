@@ -361,7 +361,6 @@ export async function* translateLangGraphStream(stream, opts = {}) {
     try {
       const values = await getState();
       const snapshot = buildFilesTodosSnapshot(values);
-      if (Object.keys(snapshot.files).length === 0 && snapshot.todos.length === 0) return;
       logger?.debug('[AG-UI] state snapshot', {
         phase,
         fileCount: Object.keys(snapshot.files).length,
