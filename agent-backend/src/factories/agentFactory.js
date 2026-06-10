@@ -227,14 +227,12 @@ class AgentFactory {
         })
       : checkpointer;
 
-    // Build interruptOn from the agent's stored config, but exclude ask_clarification
-    // because that tool calls interrupt() directly inside its func — it must NOT be
-    // intercepted by the HITL middleware first.
-    const rawInterruptOn =
+    // Build interruptOn from the agent's stored config. These are the built-in
+    // human-in-the-loop pauses used for guarded tool execution.
+    const interruptOnConfig =
       agent.interruptOn instanceof Map
         ? Object.fromEntries(agent.interruptOn)
         : agent.interruptOn || {};
-    const { ask_clarification: _removed, ...interruptOnConfig } = rawInterruptOn;
 
     const agentInstance = await createDeepAgent({
       model: llm,
@@ -243,7 +241,7 @@ class AgentFactory {
       store: store,
       tools: dynamicTools,
       interruptOn: interruptOnConfig,
-         // sandbox backend if real code execution is ever required.
+      // sandbox backend if real code execution is ever required.
       backend: new StateBackend(),
       // point it at the virtual /skills/ tree we seed at invoke time.
       ...(hasSkills ? { skills: ['/skills/'] } : {}),

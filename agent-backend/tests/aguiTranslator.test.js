@@ -70,7 +70,7 @@ describe('translateLangGraphStream', () => {
 
   test('tool call with no preceding text emits no null parentMessageId', async () => {
     const events = [
-      { event: 'on_tool_start', run_id: 't', name: 'ask_clarification', data: { input: {} } },
+      { event: 'on_tool_start', run_id: 't', name: 'search_web', data: { input: {} } },
     ];
     const out = await collect(translateLangGraphStream(fakeStream(events)));
     const toolChunk = out.find((e) => e.type === 'TOOL_CALL_CHUNK');

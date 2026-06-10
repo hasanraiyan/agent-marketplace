@@ -93,7 +93,7 @@ export function formatRuntimeError(err, providerConfig) {
 }
 
 // Determine whether a thrown error is actually a human-in-the-loop interrupt
-// (ask_clarification etc.) rather than a genuine failure.
+// rather than a genuine failure.
 export function isInterruptError(err, graphInterrupts) {
   return (
     (graphInterrupts ?? extractGraphInterrupts(err)) != null ||
@@ -104,8 +104,8 @@ export function isInterruptError(err, graphInterrupts) {
 
 // Classify the first interrupt payload of a paused run. HITL interrupts come from
 // langchain's humanInTheLoopMiddleware (interruptOn) and carry actionRequests +
-// reviewConfigs; they must be resumed with `{ decisions: [...] }`. Everything else
-// (e.g. ask_clarification calling interrupt() directly) resumes with raw user text.
+// reviewConfigs; they must be resumed with `{ decisions: [...] }`. Other interrupt
+// payloads resume with raw user text.
 export function describeInterrupt(graphInterrupts, err) {
   const interruptValue = (graphInterrupts ?? err?.interrupts)?.[0]?.value;
   const actionRequests = interruptValue?.actionRequests;

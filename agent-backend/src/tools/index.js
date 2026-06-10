@@ -1,5 +1,4 @@
 import { getSearchTool } from './search.tool.js';
-import { clarificationTool } from './clarification.tool.js';
 import { getBuilderToolbox } from './builder.tools.js';
 
 export const ARCHITECT_AGENT_ID = '000000000000000000000000';
@@ -15,7 +14,7 @@ export const resolveAgentTools = (agentConfig, userId) => {
     return getBuilderToolbox(userId);
   }
 
-  const tools = [clarificationTool];
+  const tools = [];
 
   // 2. Core Engine Web Search parsing
   if (agentConfig.webSearchEnabled) {
@@ -28,7 +27,7 @@ export const resolveAgentTools = (agentConfig, userId) => {
 
 // Also expose generic factory for backend scripts outside of Chat loop
 export const getAvailableTools = () => {
-  const tools = [clarificationTool];
+  const tools = [];
 
   const searchTool = getSearchTool();
   if (searchTool) tools.push(searchTool);
