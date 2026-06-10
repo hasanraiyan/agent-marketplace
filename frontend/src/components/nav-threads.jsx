@@ -195,7 +195,7 @@ function AgentGroup({ group, activeThreadId, onRename, onDelete }) {
             <span className="min-w-0 flex-1 truncate font-medium">
               {agent.name || "Agent"}
             </span>
-            <span className="mr-1 shrink-0 rounded-full bg-sidebar-accent px-1.5 py-0.5 text-[10px] text-sidebar-accent-foreground">
+            <span className="shrink-0 rounded-full bg-sidebar-accent px-1.5 py-0.5 text-[10px] text-sidebar-accent-foreground">
               {threads.length}
             </span>
             <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -203,7 +203,7 @@ function AgentGroup({ group, activeThreadId, onRename, onDelete }) {
         </CollapsibleTrigger>
 
         <CollapsibleContent>
-          <SidebarMenuSub className="ml-3.5 border-l border-sidebar-border pl-1.5">
+          <SidebarMenuSub>
             {threads.map((thread) => (
               <ThreadItem
                 key={thread._id || thread.id}
