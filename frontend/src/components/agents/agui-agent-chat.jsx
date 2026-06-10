@@ -200,6 +200,15 @@ function isTodoTool(name) {
   return (name || "").toLowerCase().includes("todo");
 }
 
+function isSkillTool(name) {
+  return (name || "").toLowerCase() === "manage_skill";
+}
+
+function isAgentTool(name) {
+  const n = (name || "").toLowerCase();
+  return n === "upsert_agent" || n === "manage_agent";
+}
+
 function parseTodos(argsText) {
   const parsed = tryParseJson(argsText);
   if (!Array.isArray(parsed?.todos)) return null;
@@ -282,6 +291,21 @@ function toolTitle(tool) {
   }
   if (name.includes("file") || name === "ls" || name === "glob") {
     return tool.status === "completed" ? "Updated files" : "Working with files";
+  }
+  if (name === "manage_skill") {
+    const args = tryParseJson(tool.argumentsText);
+    const action = args?.action === "delete" ? "Deleting" : "Managing";
+    const skillName = args?.name || "skill";
+    return tool.status === "completed"
+      ? `${args?.action === "delete" ? "Deleted" : "Saved"} skill "${skillName}"`
+      : `${action} skill "${skillName}"`;
+  }
+  if (name === "upsert_agent" || name === "manage_agent") {
+    const args = tryParseJson(tool.argumentsText);
+    const agentName = args?.name || "agent";
+    return tool.status === "completed"
+      ? `Saved agent "${agentName}"`
+      : `Saving agent "${agentName}"`;
   }
 
   return name
@@ -423,6 +447,8 @@ function ToolTrace({ tool }) {
   const isError = parsedResult?.status === "error";
   const isSearch = tool.name?.toLowerCase().includes("search");
   const isTodo = isTodoTool(tool.name);
+  const isSkill = isSkillTool(tool.name);
+  const isAgent = isAgentTool(tool.name);
   const todos = isTodo ? parseTodos(tool.argumentsText) : null;
   const todosDone = todos
     ? todos.filter((todo) => todo.status === "completed").length
@@ -434,9 +460,13 @@ function ToolTrace({ tool }) {
       ? Globe
       : isTodo
         ? ListTodo
-        : tool.name?.includes("file")
-          ? FileText
-          : Wrench;
+        : isSkill
+          ? Cpu
+          : isAgent
+            ? BotIcon
+            : tool.name?.includes("file")
+              ? FileText
+              : Wrench;
 
   return (
     <div className="max-w-[92%]">
@@ -500,7 +530,35 @@ function ToolTrace({ tool }) {
 
       {open ? (
         <div className="ml-8 mt-1 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm dark:border-slate-700 dark:bg-slate-900/70">
-          {todos ? (
+          {isSkill && done && !isError ? (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
+                <CheckCircle2 className="size-4" />
+                Skill Successfully {tryParseJson(tool.argumentsText)?.action === "delete" ? "Deleted" : "Saved"}
+              </div>
+              {tryParseJson(tool.argumentsText)?.action !== "delete" && (
+                <Link href={`/dashboard/skills?id=${parsedResult?.data?._id || parsedResult?.data?.id}`}>
+                  <Button size="sm" variant="outline" className="w-full">
+                    <Edit className="mr-2 size-3.5" />
+                    View or Edit Skill
+                  </Button>
+                </Link>
+              )}
+            </div>
+          ) : isAgent && done && !isError ? (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
+                <CheckCircle2 className="size-4" />
+                Agent Successfully Saved
+              </div>
+              <Link href={`/dashboard/agents/${parsedResult?.data?._id || parsedResult?.data?.id}`}>
+                <Button size="sm" variant="outline" className="w-full">
+                  <BotIcon className="mr-2 size-3.5" />
+                  View Agent Details
+                </Button>
+              </Link>
+            </div>
+          ) : todos ? (
             <TodoChecklist todos={todos} />
           ) : results.length ? (
             <div className="max-h-48 overflow-auto">

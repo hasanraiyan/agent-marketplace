@@ -75,10 +75,16 @@ class SkillController {
     try {
       await skillService.deleteSkill(req.params.id, req.user.id);
 
-      // Note: Agents that have this skill ID in their `skills` array will just ignore it.
-      // LangGraph won't crash if the Mongoose reference fails to populate, it just returns null.
-
       res.json({ success: true, message: 'Skill successfully deleted' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getUsedByAgents(req, res, next) {
+    try {
+      const agents = await skillService.getAgentsBySkill(req.params.id);
+      res.json({ success: true, data: agents });
     } catch (error) {
       next(error);
     }
