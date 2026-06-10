@@ -19,6 +19,7 @@ import {
   CircleCheck,
   Code,
   Cpu,
+  Download,
   Edit,
   FileCode,
   FileJson,
@@ -401,6 +402,18 @@ function MessageBubble({ message, agent, precedingTools = [], onOpenFile }) {
     }
   });
 
+  const downloadFile = (fileName, content) => {
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div
       className={cn("flex w-full", isUser ? "justify-end" : "justify-start")}
@@ -462,7 +475,11 @@ function MessageBubble({ message, agent, precedingTools = [], onOpenFile }) {
               return (
                 <div
                   key={i}
-                  className="flex items-center justify-between rounded-xl border border-slate-205 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-905/30 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:bg-slate-100/30 dark:hover:bg-slate-900/50 transition-colors"
+                  onClick={() => !isDeleted && onOpenFile?.(file.filePath)}
+                  className={cn(
+                    "flex items-center justify-between rounded-xl border border-slate-205 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-905/30 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:bg-slate-100/30 dark:hover:bg-slate-900/50 transition-colors",
+                    !isDeleted ? "cursor-pointer" : "cursor-default"
+                  )}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-slate-100 dark:bg-slate-800 dark:text-slate-200">
@@ -473,28 +490,28 @@ function MessageBubble({ message, agent, precedingTools = [], onOpenFile }) {
                         <span className="truncate text-xs font-bold text-slate-800 dark:text-slate-100">
                           {fileName}
                         </span>
-                        <span className="shrink-0 rounded bg-slate-100 px-1 py-0.5 text-[9px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-450">
+                        <span className="shrink-0 rounded bg-slate-100 px-1 py-0.5 text-[9px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-455">
                           {fileExt}
                         </span>
                       </div>
                       <div className="text-[10px] font-semibold text-slate-450 dark:text-slate-555">
-                        {isDeleted ? actionLabel : "Open preview"}
+                        {isDeleted ? actionLabel : "Click to view preview"}
                       </div>
                     </div>
                   </div>
 
                   {!isDeleted && (
                     <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 rounded-lg border border-slate-205 bg-white px-3 text-xs font-bold text-slate-755 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-850 shadow-xs flex items-center gap-1.5"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 rounded-lg text-slate-400 hover:text-slate-650 hover:bg-slate-150/60 dark:hover:bg-slate-800 dark:hover:text-slate-350 flex items-center justify-center shrink-0"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onOpenFile?.(file.filePath);
+                        downloadFile(fileName, file.content);
                       }}
+                      title="Download file"
                     >
-                      Open in
-                      <ChevronLeft className="size-3 text-slate-400 rotate-180" />
+                      <Download className="size-4" />
                     </Button>
                   )}
                 </div>
