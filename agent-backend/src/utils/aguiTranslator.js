@@ -314,6 +314,16 @@ export function buildFilesTodosSnapshot(stateValues) {
   if (rawFiles && typeof rawFiles === 'object') {
     for (const [path, data] of Object.entries(rawFiles)) {
       if (typeof path !== 'string' || path.startsWith('/skills/')) continue;
+      // Filter out directory entries to avoid presenting them as empty files in the UI
+      if (
+        data?.is_dir === true ||
+        data?.isDir === true ||
+        data?.isDirectory === true ||
+        data?.type === 'directory' ||
+        path.endsWith('/')
+      ) {
+        continue;
+      }
       const content = normalizeFileContent(data);
       files[path] = {
         content,

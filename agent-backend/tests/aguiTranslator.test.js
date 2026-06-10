@@ -318,6 +318,10 @@ describe('state snapshots (files + todos)', () => {
         modified_at: 'm',
       },
       '/skills/foo/SKILL.md': { content: ['seeded'] },
+      '/dir/': { is_dir: true },
+      '/another-dir': { isDir: true },
+      '/sub': { isDirectory: true },
+      '/typed-dir': { type: 'directory' },
     },
     todos: [
       { content: 'step one', status: 'completed' },
