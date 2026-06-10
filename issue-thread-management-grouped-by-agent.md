@@ -1,4 +1,6 @@
-# Issue: Grouped Thread Management in Sidebar
+![
+  
+](image.png)# Issue: Grouped Thread Management in Sidebar
 
 ## 📌 Status & Metadata
 - **Title**: Unified Thread Management Grouped by Agent in Sidebar
