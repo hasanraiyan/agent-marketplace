@@ -52,7 +52,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { getMySkills, getPublicSkills, deleteSkill, api } from "@/lib/api/skills";
+import { getMySkills, getPublicSkills, deleteSkill, getUsedByAgents } from "@/lib/api/skills";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
 import { SkillDialog } from "@/components/skills/skill-dialog";
 
@@ -200,7 +200,7 @@ export default function SkillsPage() {
               <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={async () => {
                 setDeleteTarget(skill);
                 try {
-                  const res = await api.get(`/skills/${skill.id || skill._id}/agents`);
+                  const res = await getUsedByAgents(skill.id || skill._id);
                   setUsedByAgents(res.data?.data || []);
                 } catch (err) {
                   console.error("Failed to load referencing agents", err);

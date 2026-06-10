@@ -89,7 +89,16 @@ export function SkillDialog({ open, onOpenChange, skill, onSuccess }) {
                 id="name"
                 placeholder="e.g. data-analysis"
                 value={form.name}
-                onChange={(e) => update("name", e.target.value.toLowerCase().replace(/\s+/g, '-'))}
+                onChange={(e) =>
+                  update(
+                    "name",
+                    e.target.value
+                      .toLowerCase()
+                      .replace(/[^a-z0-9-]/g, "-")
+                      .replace(/-+/g, "-")
+                      .replace(/^-|-$/g, ""),
+                  )
+                }
                 required
                 className="bg-muted/20"
               />

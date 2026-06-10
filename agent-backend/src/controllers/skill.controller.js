@@ -83,6 +83,11 @@ class SkillController {
 
   async getUsedByAgents(req, res, next) {
     try {
+      // Basic visibility check: only owner can see which of their agents use a skill
+      // (or if the skill is public, but for now we focus on the owner's dashboard)
+      const skill = await skillService.getSkillById(req.params.id, req.user.id);
+      if (!skill) throw new NotFoundError('Skill not found');
+
       const agents = await skillService.getAgentsBySkill(req.params.id);
       res.json({ success: true, data: agents });
     } catch (error) {
