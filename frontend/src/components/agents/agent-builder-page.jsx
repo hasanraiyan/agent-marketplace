@@ -322,7 +322,7 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
   const runtimeUrl = AGUI_RUNTIME_URL;
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
+    <div className="flex h-[calc(100vh-var(--header-height))] max-h-[calc(100vh-var(--header-height))] flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* Left Column: Chat / Architect */}
         <div className={`min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 ${activeTab === "chat" ? "flex" : "hidden lg:flex"}`}>
