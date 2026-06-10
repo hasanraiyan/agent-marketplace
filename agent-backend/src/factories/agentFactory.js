@@ -148,7 +148,7 @@ class AgentFactory {
     // backend (StateBackend below). With StateBackend the skill files live in graph
     // state, so we build each DB skill as `/skills/<dir>/SKILL.md` (SKILL.md is the
     // filename the skills middleware scans for) and seed them into the run input
-    // `files` map at invoke time (see copilotkit.routes.js). They then persist for
+    // `files` map at invoke time (see agui.routes.js). They then persist for
     // the rest of the thread via the checkpointer. `skillFiles` is returned to the
     // caller so it can do that seeding.
     //

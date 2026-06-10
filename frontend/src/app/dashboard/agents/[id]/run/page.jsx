@@ -1,25 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, BotIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
-import { CopilotKit } from "@copilotkit/react-core";
-import "@copilotkit/react-core/v2/styles.css";
-import { CopilotChat } from "@copilotkit/react-ui";
-import "@copilotkit/react-ui/styles.css";
+import { toast } from "sonner";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AguiAgentChat,
+  AguiFilesPanel,
+} from "@/components/agents/agui-agent-chat";
 import { getAgent } from "@/lib/api/agents";
 import { createThread } from "@/lib/api/threads";
-import { baseToolRenderers } from "@/lib/copilotkit/tool-renderers";
-import { FilesPanel } from "@/components/agents/files-panel";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
+const BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
+const AGUI_RUNTIME_URL =
+  process.env.NEXT_PUBLIC_AGUI_RUNTIME_URL || `${BASE_URL}/agui`;
 
 export default function RunAgentPage() {
   const params = useParams();
@@ -30,22 +31,20 @@ export default function RunAgentPage() {
   const [thread, setThread] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState(null);
+  const [agentState, setAgentState] = useState({});
 
-  // Periodically refresh the auth token to prevent expiration (Clerk tokens expire in 60s)
   useEffect(() => {
     const refreshToken = async () => {
       try {
-        const tok = await getToken();
-        if (tok) {
-          setAuthToken(tok);
-        }
+        const token = await getToken();
+        if (token) setAuthToken(token);
       } catch (err) {
         console.error("Failed to refresh token:", err);
       }
     };
 
     refreshToken();
-    const interval = setInterval(refreshToken, 40000); // refresh every 40 seconds
+    const interval = setInterval(refreshToken, 40000);
     return () => clearInterval(interval);
   }, [getToken]);
 
@@ -70,7 +69,7 @@ export default function RunAgentPage() {
   if (loading) {
     return (
       <div className="@container/main flex flex-1 flex-col gap-2">
-        <div className="flex flex-col gap-4 py-4 md:py-6 px-4 lg:px-6">
+        <div className="flex flex-col gap-4 px-4 py-4 md:py-6 lg:px-6">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-16" />
           <div className="flex flex-col gap-4">
@@ -83,28 +82,24 @@ export default function RunAgentPage() {
   }
 
   const threadDbId = thread?._id || thread?.id;
-  const runtimeUrl = `${BASE_URL}/copilotkit`;
-  const chatLabels = {
-    title: agent?.name || "Agent",
-    initial: agent?.description || "How can I help you today?",
-  };
-  const chatInput = {
-    bottomAnchored: true,
-  };
+  const runtimeUrl = AGUI_RUNTIME_URL;
 
   return (
-    <div className="@container/main flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="border-b px-4 py-4 lg:px-6">
+    <div className="@container/main flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
+      <div className="border-b border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-950 lg:px-6">
         <Link
           href="/dashboard/agents"
-          className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          className="mb-2 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
         >
           <ArrowLeft className="size-4" />
           Back to My Agents
         </Link>
         <div className="flex items-center gap-3">
           <Avatar className="size-10">
-            <AvatarImage src={agent?.avatarUrl || agent?.avatar} alt={agent?.name} />
+            <AvatarImage
+              src={agent?.avatarUrl || agent?.avatar}
+              alt={agent?.name}
+            />
             <AvatarFallback>
               <BotIcon />
             </AvatarFallback>
@@ -113,50 +108,47 @@ export default function RunAgentPage() {
             <h1 className="truncate text-xl font-bold tracking-tight">
               {agent?.name || "Agent"}
             </h1>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
               <Badge variant="outline" className="capitalize">
                 {agent?.category || "other"}
               </Badge>
-              {agent?.modelName && (
+              {agent?.modelName ? (
                 <span className="truncate">{agent.modelName}</span>
-              )}
+              ) : null}
             </div>
           </div>
           <Link href={`/dashboard/agents/${agentId}/builder`}>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="rounded-full">
               Edit
             </Button>
           </Link>
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {authToken && (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <CopilotKit
-              runtimeUrl={runtimeUrl}
-              useSingleEndpoint={false}
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        {authToken && threadDbId ? (
+          <>
+            <AguiAgentChat
+              agent={agent}
+              url={runtimeUrl}
+              agentId={agentId}
+              threadId={threadDbId}
+              title={agent?.name || "Sage"}
+              emptyTitle={agent?.name || "Sage"}
+              emptyDescription={
+                agent?.description || "Ask this agent to work on your request."
+              }
+              className="min-w-0 flex-1"
               headers={{
                 Authorization: `Bearer ${authToken}`,
                 "X-Agent-Id": agentId,
-                ...(threadDbId ? { "X-Thread-Id": threadDbId } : {}),
+                "X-Thread-Id": threadDbId,
               }}
-              renderToolCalls={baseToolRenderers}
-            >
-              <div className="flex min-h-0 flex-1 overflow-hidden">
-                <CopilotChat
-                  className="h-full min-h-0 flex-1"
-                  labels={chatLabels}
-                  input={chatInput}
-                />
-                {/* Mirrors the agent's virtual filesystem; renders nothing until
-                    the agent creates files. Reads the same default agent the
-                    chat above runs on. */}
-                <FilesPanel />
-              </div>
-            </CopilotKit>
-          </div>
-        )}
+              onStateChange={setAgentState}
+            />
+            <AguiFilesPanel state={agentState} />
+          </>
+        ) : null}
       </div>
     </div>
   );

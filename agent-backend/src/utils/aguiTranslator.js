@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 
 /**
  * Translates a LangGraph `streamEvents(..., { version: 'v2' })` async iterator into
- * the AG-UI event stream that CopilotKit's runtime expects.
+ * the AG-UI event stream that the custom web/mobile clients consume.
  *
  * Why this exists: there is no in-process LangGraph -> AG-UI adapter for Node. The
  * TypeScript `@ag-ui/langgraph` agents (LangGraphAgent / LangGraphHttpAgent) only talk

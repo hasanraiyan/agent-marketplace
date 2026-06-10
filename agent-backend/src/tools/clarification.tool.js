@@ -5,7 +5,7 @@ import { interrupt } from '@langchain/langgraph';
 /**
  * ask_clarification - Pauses the agent and shows structured questions to the user.
  * Uses LangGraph's interrupt() directly so the resume value is a plain string,
- * keeping the copilotkit route's resume logic simple.
+ * keeping the AG-UI route's resume logic simple.
  */
 export const clarificationTool = new DynamicStructuredTool({
   name: 'ask_clarification',
@@ -28,7 +28,7 @@ export const clarificationTool = new DynamicStructuredTool({
   }),
   func: async ({ questions }) => {
     // Pause graph execution here. The interrupt value carries the questions so the
-    // copilotkit route can format and display them.  When the user replies, LangGraph
+    // AG-UI route can format and display them. When the user replies, LangGraph
     // resumes and interrupt() returns their answer string.
     const answer = await interrupt({ questions });
     return typeof answer === 'string' ? answer : JSON.stringify(answer);
