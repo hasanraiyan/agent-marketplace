@@ -17,7 +17,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useUser } from "@clerk/nextjs";
-import { useUserThreads } from "@/hooks/use-user-threads";
+import { useThreads } from "@/components/threads-context";
 import {
   CompassIcon,
   BrainIcon,
@@ -66,7 +66,7 @@ export function AppSidebar({ ...props }) {
     loading: threadsLoading,
     renameThread,
     removeThread,
-  } = useUserThreads();
+  } = useThreads();
 
   const handleRename = React.useCallback(
     async (threadId, title) => {
