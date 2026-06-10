@@ -53,16 +53,21 @@ export function SiteHeader() {
           <Separator orientation="vertical" />
           {pageHeader.leading}
           <div className="min-w-0 py-2">
-            <h1 className="truncate text-base font-semibold text-foreground">
+            <h1 className="truncate text-base font-semibold text-foreground max-w-[100px] sm:max-w-none">
               {title}
             </h1>
             {pageHeader.description ? (
-              <div className="truncate text-xs text-muted-foreground">
+              <div className={`truncate text-xs text-muted-foreground ${pageHeader.tabs ? "hidden sm:block" : ""}`}>
                 {pageHeader.description}
               </div>
             ) : null}
           </div>
         </div>
+        {pageHeader.tabs && (
+          <div className="flex items-center justify-center mx-2">
+            {pageHeader.tabs}
+          </div>
+        )}
         <div className="flex shrink-0 items-center gap-2">{actions}</div>
       </div>
     </header>

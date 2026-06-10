@@ -11,12 +11,14 @@ import {
   ArrowUp,
   BotIcon,
   Check,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronUp,
   Circle,
   CircleCheck,
   Code,
+  Edit,
   FileCode,
   FileJson,
   FileText,
@@ -36,6 +38,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

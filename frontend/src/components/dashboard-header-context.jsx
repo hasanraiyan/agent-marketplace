@@ -14,6 +14,7 @@ const DEFAULT_HEADER = {
   description: null,
   leading: null,
   actions: null,
+  tabs: null,
 };
 
 const DashboardHeaderStateContext = createContext(DEFAULT_HEADER);

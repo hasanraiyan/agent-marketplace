@@ -232,6 +232,24 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
           </AvatarFallback>
         </Avatar>
       ),
+      tabs: (
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
+          <TabsList className="bg-slate-100 dark:bg-slate-800 p-0.5 h-8">
+            <TabsTrigger
+              value="create"
+              className="h-7 px-3 text-xs data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950"
+            >
+              Create
+            </TabsTrigger>
+            <TabsTrigger
+              value="configure"
+              className="h-7 px-3 text-xs data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950"
+            >
+              Configure
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      ),
       actions: (
         <>
           <Link
@@ -304,23 +322,6 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
             onValueChange={setActiveTab}
             className="flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <div className="flex justify-center border-b border-slate-200 bg-slate-50 py-1 dark:border-slate-800 dark:bg-slate-900">
-              <TabsList className="bg-transparent">
-                <TabsTrigger
-                  value="create"
-                  className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950"
-                >
-                  Create
-                </TabsTrigger>
-                <TabsTrigger
-                  value="configure"
-                  className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950"
-                >
-                  Configure
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
             <TabsContent
               value="create"
               className="m-0 min-h-0 flex-1 overflow-hidden"
