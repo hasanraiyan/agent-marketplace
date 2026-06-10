@@ -72,6 +72,10 @@ function getFileIcon(path) {
     case "bash":
     case "zsh":
       return <Terminal className="size-4 text-emerald-500" />;
+    case "c":
+    case "cpp":
+    case "h":
+      return <FileCode className="size-4 text-slate-600" />;
     default:
       return <FileText className="size-4 text-slate-400" />;
   }
