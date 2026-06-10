@@ -60,7 +60,12 @@ export default function RootLayout({ children }) {
         suppressHydrationWarning
       >
         <body className="flex min-h-full flex-col bg-background text-foreground">
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            forcedTheme="light"
+            enableSystem={false}
+          >
             <AxiosTokenProvider />
             <TooltipProvider>{children}</TooltipProvider>
             <Toaster />

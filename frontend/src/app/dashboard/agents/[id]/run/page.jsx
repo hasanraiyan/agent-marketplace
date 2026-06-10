@@ -354,7 +354,7 @@ export default function RunAgentPage() {
   const threadDbId = thread?._id || thread?.id;
 
   return (
-    <div className="@container/main absolute inset-0 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
+    <div className="@container/main absolute inset-0 flex flex-col overflow-hidden bg-white">
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {authToken && threadDbId ? (
           <>
