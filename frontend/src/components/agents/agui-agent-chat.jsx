@@ -44,6 +44,66 @@ function getDomain(url) {
   }
 }
 
+function getSuggestedPrompts(agent) {
+  const name = (agent?.name || "Agent").toLowerCase();
+  const category = (agent?.category || "").toLowerCase();
+
+  if (name.includes("architect") || name.includes("sage")) {
+    return [
+      {
+        title: "Build a new coding assistant agent",
+        prompt: "Help me design a new Python Coding Assistant agent. I want it to focus on writing clean code and using web search.",
+      },
+      {
+        title: "Optimize an existing agent's prompt",
+        prompt: "I want to improve the system prompt of my writing assistant agent. Can you help me make it sound more professional?",
+      },
+      {
+        title: "Explain how skills and providers work",
+        prompt: "What is the difference between an Agent's Skills and its Model Provider? How do I configure Tavily search?",
+      },
+    ];
+  }
+
+  if (
+    category.includes("code") ||
+    category.includes("dev") ||
+    category.includes("software") ||
+    name.includes("code") ||
+    name.includes("dev")
+  ) {
+    return [
+      {
+        title: "Find a bug in my code",
+        prompt: "I have a bug in my React component where state updates are lagging. Can you help me debug it?",
+      },
+      {
+        title: "Write a utility function",
+        prompt: "Write a high-performance helper function in TypeScript to parse and format nested JSON structures.",
+      },
+      {
+        title: "Explain a software concept",
+        prompt: "Can you explain the difference between client-side rendering (CSR) and server-side rendering (SSR) in Next.js?",
+      },
+    ];
+  }
+
+  return [
+    {
+      title: "Explore capabilities",
+      prompt: `What are your core capabilities as a ${agent?.name || "Agent"} agent, and how can you help me today?`,
+    },
+    {
+      title: "Start a planning session",
+      prompt: "Help me brainstorm and write a structured project outline for my next task.",
+    },
+    {
+      title: "Analyze some text or data",
+      prompt: "I'd like to share some text/code with you to get your feedback and suggestions for improvement.",
+    },
+  ];
+}
+
 function queryFromArgs(argsText) {
   const parsed = tryParseJson(argsText);
   const value =
@@ -637,20 +697,60 @@ export function AguiAgentChat({
         {chat.conversation.length === 0 ? (
           <div
             className={cn(
-              "mx-auto flex h-full w-full max-w-4xl items-center justify-center text-center",
+              "mx-auto flex h-full w-full max-w-2xl flex-col justify-center px-4 py-8 md:py-16",
               contentClassName,
             )}
           >
-            <div className="max-w-sm">
-              <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-[#1E60FF]/10 text-[#1E60FF]">
-                <Sparkles className="size-5" />
+            <div className="flex flex-col items-start text-left">
+              {/* Avatar Circle */}
+              <Avatar className="size-16 border border-slate-200/85 shadow-sm dark:border-slate-800">
+                <AvatarImage
+                  src={agent?.avatarUrl || agent?.avatar}
+                  alt={agent?.name || "Agent"}
+                />
+                <AvatarFallback className="bg-slate-100 dark:bg-slate-900 text-slate-500">
+                  <BotIcon className="size-8 text-slate-400" />
+                </AvatarFallback>
+              </Avatar>
+
+              {/* Info Card */}
+              <div className="mt-6 w-full rounded-2xl border border-slate-200/80 bg-white p-6 dark:border-slate-800/80 dark:bg-slate-950 shadow-sm">
+                <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+                  {agent?.name || emptyTitle}
+                  {agent?.modelName && (
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-400 border border-slate-200/40 dark:border-slate-800/50">
+                      {agent.modelName}
+                    </span>
+                  )}
+                </h1>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+                  {agent?.description || emptyDescription}
+                </p>
+                {agent?.category && (
+                  <div className="mt-4 flex items-center gap-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                    <span>{agent.category}</span>
+                  </div>
+                )}
               </div>
-              <h2 className="text-xl font-semibold text-slate-950 dark:text-white">
-                {emptyTitle}
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                {emptyDescription}
-              </p>
+
+              {/* Suggested Prompts List */}
+              <div className="mt-6 w-full space-y-2">
+                {getSuggestedPrompts(agent).map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setInput(item.prompt);
+                    }}
+                    className="flex w-full items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-3 text-left text-xs font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:border-[#1E60FF] hover:bg-[#1E60FF]/5 hover:text-[#1E60FF] dark:border-slate-800/60 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-[#1E60FF] dark:hover:bg-[#1E60FF]/10 dark:hover:text-blue-400 cursor-pointer"
+                  >
+                    <span className="truncate">{item.title}</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0 ml-2">
+                      Use Prompt →
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         ) : (
