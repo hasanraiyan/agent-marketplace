@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   AguiAgentChat,
   AguiFilesPanel,
+  NewChatIcon,
 } from "@/components/agents/agui-agent-chat";
 import { getAgent } from "@/lib/api/agents";
 import { createThread } from "@/lib/api/threads";
@@ -32,6 +33,7 @@ export default function RunAgentPage() {
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState(null);
   const [agentState, setAgentState] = useState({});
+  const [chatResetKey, setChatResetKey] = useState(0);
 
   useDashboardHeader(
     {
@@ -59,6 +61,15 @@ export default function RunAgentPage() {
             <ArrowLeft className="size-4" />
             My Agents
           </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-9 rounded-full"
+            title="New Chat"
+            onClick={() => setChatResetKey((key) => key + 1)}
+          >
+            <NewChatIcon className="size-4" />
+          </Button>
           <Link href={`/dashboard/agents/${agentId}/builder`}>
             <Button variant="outline" size="sm" className="rounded-full">
               Edit
@@ -127,6 +138,7 @@ export default function RunAgentPage() {
         {authToken && threadDbId ? (
           <>
             <AguiAgentChat
+              key={`${threadDbId}-${chatResetKey}`}
               agent={agent}
               url={runtimeUrl}
               agentId={agentId}
