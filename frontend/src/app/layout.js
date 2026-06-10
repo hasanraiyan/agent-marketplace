@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AxiosTokenProvider } from "@/components/auth/axios-token-provider";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -59,9 +60,11 @@ export default function RootLayout({ children }) {
         suppressHydrationWarning
       >
         <body className="flex min-h-full flex-col bg-background text-foreground">
-          <AxiosTokenProvider />
-          <TooltipProvider>{children}</TooltipProvider>
-          <Toaster />
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+            <AxiosTokenProvider />
+            <TooltipProvider>{children}</TooltipProvider>
+            <Toaster />
+          </ThemeProvider>
         </body>
       </html>
     </ClerkProvider>
