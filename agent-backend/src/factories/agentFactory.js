@@ -28,15 +28,7 @@ Your goal is to help the user design, build, and optimize their own custom AI ag
 -   **No Keys**: You CANNOT view or manage API keys.
 `;
 
-import { LRUCache } from 'lru-cache';
-
 class AgentFactory {
-  constructor() {
-    this.cache = new LRUCache({
-      max: 100, // Cache up to 100 compiled agents
-      ttl: 1000 * 60 * 10, // 10 minute default TTL
-    });
-  }
 
   _assertProviderCredentials(provider, apiKey) {
     const trimmedKey = typeof apiKey === 'string' ? apiKey.trim() : '';
@@ -89,8 +81,6 @@ class AgentFactory {
     if (!agentId) throw new Error('Agent ID is required to build an agent');
 
     const agentIdStr = agentId._id ? agentId._id.toString() : agentId.toString();
-    const cacheKey = agentIdStr === ARCHITECT_AGENT_ID ? `${ARCHITECT_AGENT_ID}:${userId}` : agentIdStr;
-    const cached = this.cache.get(cacheKey);
 
     let agent;
     let provider;
@@ -134,25 +124,7 @@ class AgentFactory {
       if (!provider) throw new Error('Configured Provider not found or was deleted.');
     }
 
-    // 2. Cache Validation: If already cached and hasn't been updated since, return it!
-    if (
-      cached &&
-      cached.updatedAt.getTime() === agent.updatedAt.getTime() &&
-      cached.providerUpdatedAt?.getTime() === provider.updatedAt.getTime()
-    ) {
-      logger.debug('[AgentFactory] cache hit', {
-        agentId: agentIdStr,
-        model: cached.providerConfig?.modelName,
-      });
-      return {
-        agentInstance: cached.instance,
-        agentConfig: agent,
-        llm: cached.llm,
-        providerConfig: cached.providerConfig,
-        skillFiles: cached.skillFiles || {},
-        cacheHit: true,
-      };
-    }
+
 
     logger.info('[AgentFactory] building agent', {
       agentId: agentIdStr,
@@ -294,21 +266,6 @@ class AgentFactory {
       hasSkills,
     });
 
-    // 5. Update Cache
-    this.cache.set(cacheKey, {
-      instance: agentInstance,
-      llm: llm,
-      updatedAt: agent.updatedAt,
-      providerUpdatedAt: provider.updatedAt,
-      skillFiles,
-      providerConfig: {
-        id: provider._id?.toString?.() || provider._id,
-        label: provider.label,
-        baseURL: provider.baseURL,
-        modelName: agent.modelName || provider.defaultModel || 'gpt-3.5-turbo',
-      },
-    });
-
     return {
       agentInstance,
       agentConfig: agent,
@@ -329,7 +286,7 @@ class AgentFactory {
    * Call this when agent configuration or skills are modified.
    */
   invalidate(agentId) {
-    this.cache.delete(agentId.toString());
+    // Cache system is disabled/removed. No-op.
   }
 }
 
