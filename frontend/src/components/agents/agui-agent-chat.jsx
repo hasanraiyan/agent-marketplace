@@ -415,7 +415,7 @@ function ReasoningBubble({ message, active = false }) {
 
 function ThinkingText({ label = "Thinking" }) {
   return (
-    <span className="inline-flex animate-pulse items-center text-sm font-medium text-slate-500 dark:text-slate-400">
+    <span className="inline-flex shimmer-text items-center text-sm font-bold tracking-wider">
       {label}
     </span>
   );
