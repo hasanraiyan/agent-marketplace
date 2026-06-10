@@ -35,6 +35,18 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAguiChat } from "@/lib/agui/use-agui-chat";
 import Editor from "@monaco-editor/react";
+import SimpleEditor from "react-simple-code-editor";
+import Prism from "prismjs";
+import "prismjs/components/prism-javascript";
+import "prismjs/components/prism-typescript";
+import "prismjs/components/prism-python";
+import "prismjs/components/prism-json";
+import "prismjs/components/prism-markdown";
+import "prismjs/components/prism-css";
+import "prismjs/components/prism-bash";
+import "prismjs/components/prism-sql";
+import "prismjs/components/prism-yaml";
+import "prismjs/themes/prism.css";
 import { useTheme } from "next-themes";
 
 function getFileIcon(path) {
@@ -761,24 +773,26 @@ export function AguiFilesPanel({ state, open, onOpenChange }) {
               </Button>
             </div>
           </div>
-          <div className="min-h-0 flex-1 bg-slate-50 dark:bg-slate-950">
-            <Editor
-              height="100%"
-              language={getLanguage(active.path)}
-              theme={theme === "dark" ? "vs-dark" : "light"}
+          <div className="min-h-0 flex-1 overflow-auto bg-white p-4">
+            <SimpleEditor
               value={active.content}
-              options={{
-                readOnly: true,
-                minimap: { enabled: false },
-                fontSize: 13,
-                lineNumbers: "on",
-                scrollBeyondLastLine: false,
-                automaticLayout: true,
-                padding: { top: 16 },
-                wordWrap: "on",
+              onValueChange={() => {}}
+              highlight={(code) =>
+                Prism.highlight(
+                  code,
+                  Prism.languages[getLanguage(active.path)] ||
+                    Prism.languages.plaintext,
+                  getLanguage(active.path),
+                )
+              }
+              padding={10}
+              readOnly
+              style={{
                 fontFamily: "var(--font-geist-mono)",
+                fontSize: 13,
+                outline: "none",
+                minHeight: "100%",
               }}
-              loading={<div className="flex h-full items-center justify-center"><Loader2 className="size-6 animate-spin text-slate-400" /></div>}
             />
           </div>
         </div>
