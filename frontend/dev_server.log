@@ -1,0 +1,29 @@
+
+> frontend@0.1.0 dev /app/frontend
+> next dev -p 3001
+
+▲ Next.js 16.2.4 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://192.168.0.2:3001
+✓ Ready in 506ms
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Error: Requested and resolved page mismatch: /dashboard/agents//[id/]/page /dashboard/agents/[id/]/page
+    at ignore-listed frames
+⨯ unhandledRejection: Error: Requested and resolved page mismatch: /dashboard/agents//[id/]/page /dashboard/agents/[id/]/page
+    at ignore-listed frames
+⨯ unhandledRejection:  Error: Requested and resolved page mismatch: /dashboard/agents//[id/]/page /dashboard/agents/[id/]/page
+    at ignore-listed frames
+○ Compiling /_not-found/page ...
+
+[35m
+[Clerk]:[0m You are running in keyless mode.
+You can [35mclaim your keys[0m by visiting https://dashboard.clerk.com/apps/claim?framework=nextjs&token=ji5ill0pp0xi2tzvz51lba654win3yjcj3b3xief&return_url=http%3A%2F%2Flocalhost%3A3001%2F
+
+ GET /dashboard/agents/any-id 404 in 6.8s (next.js: 5.3s, proxy.ts: 178ms, application-code: 1368ms)
+ GET /dashboard/agents/any-id 404 in 156ms (next.js: 25ms, proxy.ts: 18ms, application-code: 113ms)
+[browser] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview (https://guided-walleye-4.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js:12:3216)
+ GET /dashboard/agents/any-id 404 in 103ms (next.js: 9ms, proxy.ts: 7ms, application-code: 87ms)
+[browser] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview (https://guided-walleye-4.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js:12:3216)
+ ELIFECYCLE  Command failed.
+[?25h
