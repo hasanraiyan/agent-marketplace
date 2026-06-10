@@ -24,6 +24,8 @@ import {
   FileCode,
   FileJson,
   FileText,
+  Folder,
+  FolderOpen,
   Globe,
   Hash,
   ImagePlus,
@@ -344,7 +346,10 @@ function toolTitle(tool) {
   if (name === "read_file" || name === "view_file" || name.includes("read_file") || name.includes("view_file")) {
     return tool.status === "completed" ? "Read file" : "Reading file";
   }
-  if (name.includes("file") || name === "ls" || name === "glob") {
+  if (name === "ls" || name === "list_dir" || name === "list_directory" || name.includes("list_dir") || name.includes("list_directory")) {
+    return tool.status === "completed" ? "Listed directory" : "Listing directory";
+  }
+  if (name.includes("file") || name === "glob") {
     return tool.status === "completed" ? "Updated files" : "Working with files";
   }
   if (name === "manage_skill") {
@@ -1002,6 +1007,8 @@ function ToolTrace({ tool }) {
                 </div>
               </div>
             )
+          ) : isLsTool(tool.name) ? (
+            <LsDirectoryCard tool={tool} />
           ) : isReadFileTool(tool.name) ? (
             <ReadFileCard tool={tool} />
           ) : (
@@ -1026,6 +1033,122 @@ function prettyToolName(name) {
     .filter(Boolean)
     .map((word) => word[0].toUpperCase() + word.slice(1))
     .join(" ");
+}
+
+function isLsTool(name) {
+  if (!name) return false;
+  const lower = name.toLowerCase();
+  return lower === "ls" || lower === "list_dir" || lower === "list_directory" || lower.includes("list_dir") || lower.includes("list_directory");
+}
+
+function parseLsResults(resultText) {
+  if (!resultText) return [];
+  
+  // Try to parse as JSON first
+  const parsed = tryParseJson(resultText);
+  if (Array.isArray(parsed)) {
+    return parsed.map(item => {
+      if (typeof item === "string") {
+        const isDir = item.endsWith("/") || item.includes("(directory)");
+        return {
+          name: item.replace(/\(directory\)/g, "").trim(),
+          isDir
+        };
+      }
+      return {
+        name: item.name || item.path || "",
+        isDir: !!(item.isDir || item.is_dir || item.isDirectory)
+      };
+    });
+  }
+
+  // Parse as plain text lines
+  return resultText
+    .split("\n")
+    .map(line => line.trim())
+    .filter(Boolean)
+    .map(line => {
+      // e.g. "/fs_demo/ (directory)" -> name: "/fs_demo/", isDir: true
+      const isDir = line.endsWith("/") || line.toLowerCase().includes("(directory)") || line.toLowerCase().includes("(dir)");
+      let name = line
+        .replace(/\(directory\)/gi, "")
+        .replace(/\(dir\)/gi, "")
+        .trim();
+      return { name, isDir };
+    });
+}
+
+function LsDirectoryCard({ tool }) {
+  const args = tryParseJson(tool.argumentsText) || {};
+  const path = args.path || args.dir || args.directory || "/";
+  const items = parseLsResults(tool.resultText);
+  const done = tool.status === "completed";
+
+  return (
+    <div className="flex flex-col rounded-xl border border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/95 overflow-hidden">
+      {/* Directory Header */}
+      <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-3.5 py-2.5 dark:border-slate-800/80 dark:bg-slate-900/50">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+            <Folder className="size-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="truncate text-xs font-bold text-slate-900 dark:text-slate-100">
+                {path}
+              </span>
+              <span className="shrink-0 rounded bg-slate-105 px-1 py-0.5 text-[9px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                LIST
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Directory Contents */}
+      {!done ? (
+        <div className="flex flex-col items-center justify-center p-5 text-center text-slate-400 dark:text-slate-500">
+          <Loader2 className="size-6 animate-spin mb-1.5 opacity-55 text-blue-500" />
+          <span className="text-[11px] font-semibold">Listing Directory Contents...</span>
+        </div>
+      ) : items.length > 0 ? (
+        <div className="max-h-56 overflow-auto divide-y divide-slate-100 dark:divide-slate-800/60 scrollbar-thin">
+          {items.map((item, index) => (
+            <div 
+              key={index} 
+              className="flex items-center justify-between px-3.5 py-2 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                {item.isDir ? (
+                  <Folder className="size-4 shrink-0 text-amber-500" />
+                ) : (
+                  <FileText className="size-4 shrink-0 text-slate-450 dark:text-slate-500" />
+                )}
+                <span className="truncate text-xs font-medium text-slate-700 dark:text-slate-300 font-mono">
+                  {item.name}
+                </span>
+              </div>
+              <span 
+                className={cn(
+                  "shrink-0 rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider",
+                  item.isDir 
+                    ? "bg-amber-50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400" 
+                    : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                )}
+              >
+                {item.isDir ? "dir" : "file"}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center p-5 text-center text-slate-450 dark:text-slate-500">
+          <FolderOpen className="size-7 mb-1.5 opacity-55 text-slate-450 dark:text-slate-500" />
+          <span className="text-[11px] font-bold">Empty Directory</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function isReadFileTool(name) {
