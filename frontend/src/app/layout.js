@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AxiosTokenProvider } from "@/components/auth/axios-token-provider";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Analytics } from "@vercel/analytics/next";
 import "prismjs/themes/prism.css";
 
 const geistSans = Geist({
@@ -71,6 +72,7 @@ export default function RootLayout({ children }) {
             <TooltipProvider>{children}</TooltipProvider>
             <Toaster />
           </ThemeProvider>
+          <Analytics />
         </body>
       </html>
     </ClerkProvider>
