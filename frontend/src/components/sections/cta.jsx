@@ -6,16 +6,11 @@ export function CTASection() {
   return (
     <section id="cta" className="relative py-24 sm:py-32">
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-3xl border border-border/30 bg-card/40 backdrop-blur-sm">
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-slate-50/50">
           {/* Background effects */}
           <div className="pointer-events-none absolute inset-0">
-            <div className="absolute -top-24 -right-24 size-96 rounded-full bg-primary/10 blur-3xl" />
-            <div className="absolute -bottom-24 -left-24 size-96 rounded-full bg-chart-2/10 blur-3xl" />
-            <div className="absolute inset-0 bg-dot-grid opacity-20" />
+            <div className="absolute inset-0 bg-dot-grid opacity-10" />
           </div>
-
-          {/* Top gradient border */}
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
 
           <div className="relative px-6 py-16 text-center sm:px-12 sm:py-24 lg:px-20">
             <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/15 ring-1 ring-primary/30 sm:size-16">

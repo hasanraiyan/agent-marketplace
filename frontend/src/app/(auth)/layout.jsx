@@ -5,19 +5,10 @@ import { SparklesIcon } from "lucide-react";
 
 export default function AuthLayout({ children }) {
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-white">
       {/* ── Background Effects ──────────────────────────── */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-dot-grid opacity-30" />
-
-        {/* Decorative Orbs */}
-        <div className="animate-pulse-glow absolute -top-32 -left-32 size-96 rounded-full bg-primary/10" />
-        <div
-          className="animate-pulse-glow absolute -right-24 bottom-1/4 size-80 rounded-full bg-chart-2/10"
-          style={{ animationDelay: "2s" }}
-        />
-
-        <div className="absolute inset-0 bg-gradient-to-b from-background/0 via-background/20 to-background" />
+        <div className="absolute inset-0 bg-dot-grid opacity-20" />
       </div>
 
       {/* ── Header ─────────────────────────────────────── */}

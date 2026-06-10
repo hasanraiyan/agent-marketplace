@@ -13,28 +13,12 @@ export function HeroSection() {
   return (
     <section
       id="hero"
-      className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden pt-16"
+      className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-white pt-16"
     >
       {/* ── Background Effects ──────────────────────────── */}
       <div className="pointer-events-none absolute inset-0">
-        {/* Grid pattern */}
-        <div className="absolute inset-0 bg-dot-grid opacity-50" />
-
-        {/* Orb 1 */}
-        <div className="animate-pulse-glow absolute -top-32 -left-32 size-96 rounded-full bg-primary/20" />
-        {/* Orb 2 */}
-        <div
-          className="animate-pulse-glow absolute -right-24 top-1/3 size-80 rounded-full bg-chart-2/15"
-          style={{ animationDelay: "2s" }}
-        />
-        {/* Orb 3 */}
-        <div
-          className="animate-pulse-glow absolute -bottom-20 left-1/3 size-72 rounded-full bg-chart-3/10"
-          style={{ animationDelay: "4s" }}
-        />
-
-        {/* Radial fade */}
-        <div className="absolute inset-0 bg-gradient-to-b from-background/0 via-background/50 to-background" />
+        {/* Subtle Grid pattern */}
+        <div className="absolute inset-0 bg-dot-grid opacity-30" />
       </div>
 
       {/* ── Content ────────────────────────────────────── */}
