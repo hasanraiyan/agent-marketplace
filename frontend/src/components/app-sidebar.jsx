@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { NavDocuments } from "@/components/nav-documents";
+import { NavThreads } from "@/components/nav-threads";
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
@@ -17,44 +17,41 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useUser } from "@clerk/nextjs";
+import { useUserThreads } from "@/hooks/use-user-threads";
 import {
-  ZapIcon,
   CompassIcon,
   BrainIcon,
   Settings2Icon,
   CircleHelpIcon,
   SparklesIcon,
-  MessageSquareIcon,
 } from "lucide-react";
+import { toast } from "sonner";
 
-const data = {
-  // user removed in favor of dynamic clerk data
-  navMain: [
-    {
-      title: "Explore",
-      url: "/dashboard",
-      icon: <CompassIcon />,
-    },
-    {
-      title: "My Agents",
-      url: "/dashboard/agents",
-      icon: <BrainIcon />,
-    },
-  ],
-  navSecondary: [
-    {
-      title: "Settings",
-      url: "/dashboard/settings",
-      icon: <Settings2Icon />,
-    },
-    {
-      title: "Help & Docs",
-      url: "#",
-      icon: <CircleHelpIcon />,
-    },
-  ],
-  documents: [],
-};
+const NAV_MAIN = [
+  {
+    title: "Explore",
+    url: "/dashboard",
+    icon: <CompassIcon />,
+  },
+  {
+    title: "My Agents",
+    url: "/dashboard/agents",
+    icon: <BrainIcon />,
+  },
+];
+
+const NAV_SECONDARY = [
+  {
+    title: "Settings",
+    url: "/dashboard/settings",
+    icon: <Settings2Icon />,
+  },
+  {
+    title: "Help & Docs",
+    url: "#",
+    icon: <CircleHelpIcon />,
+  },
+];
 
 export function AppSidebar({ ...props }) {
   const { user } = useUser();
@@ -63,6 +60,37 @@ export function AppSidebar({ ...props }) {
     email: user?.primaryEmailAddress?.emailAddress || "",
     avatar: user?.imageUrl || "",
   };
+
+  const {
+    groups,
+    loading: threadsLoading,
+    renameThread,
+    removeThread,
+  } = useUserThreads();
+
+  const handleRename = React.useCallback(
+    async (threadId, title) => {
+      try {
+        await renameThread(threadId, title);
+        toast.success("Thread renamed");
+      } catch {
+        toast.error("Failed to rename thread");
+      }
+    },
+    [renameThread]
+  );
+
+  const handleDelete = React.useCallback(
+    async (threadId) => {
+      try {
+        await removeThread(threadId);
+        toast.success("Thread deleted");
+      } catch {
+        toast.error("Failed to delete thread");
+      }
+    },
+    [removeThread]
+  );
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -84,9 +112,14 @@ export function AppSidebar({ ...props }) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavMain items={NAV_MAIN} />
+        <NavThreads
+          groups={groups}
+          loading={threadsLoading}
+          onRename={handleRename}
+          onDelete={handleDelete}
+        />
+        <NavSecondary items={NAV_SECONDARY} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={userData} />
