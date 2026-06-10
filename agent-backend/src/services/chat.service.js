@@ -46,10 +46,11 @@ class ChatService {
     });
 
     if (!snapshot || !snapshot.checkpoint || !snapshot.checkpoint.channel_values) {
-      return [];
+      return { messages: [], state: {} };
     }
 
-    return snapshot.checkpoint.channel_values.messages || [];
+    const { messages = [], ...state } = snapshot.checkpoint.channel_values;
+    return { messages, state };
   }
 
   async streamChat(res, threadId, userId, incomingMessage) {

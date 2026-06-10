@@ -619,7 +619,7 @@ function ChatComposer({
   );
 }
 
-export function AguiFilesPanel({ state }) {
+export function AguiFilesPanel({ state, open, onOpenChange }) {
   const [selected, setSelected] = useState(null);
   const files = Object.entries(state?.files || {}).map(([path, data]) => ({
     path,
@@ -631,13 +631,29 @@ export function AguiFilesPanel({ state }) {
   if (!files.length) return null;
 
   return (
-    <aside className="hidden h-full w-80 shrink-0 flex-col border-l border-slate-200 bg-white lg:flex dark:border-slate-800 dark:bg-slate-950">
-      <div className="flex h-14 items-center gap-2 border-b border-slate-200 px-4 dark:border-slate-800">
+    <aside
+      className={cn(
+        "fixed inset-y-0 right-0 z-50 flex w-80 flex-col border-l border-slate-200 bg-white transition-all duration-300 lg:static lg:z-0 dark:border-slate-800 dark:bg-slate-950",
+        open
+          ? "translate-x-0 shadow-2xl lg:shadow-none"
+          : "translate-x-full lg:w-0 lg:translate-x-0 lg:border-none lg:opacity-0",
+        "overflow-hidden",
+      )}
+    >
+      <div className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-200 px-4 dark:border-slate-800">
         <FileText className="size-4 text-slate-500" />
         <span className="text-sm font-bold">Files</span>
         <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500 dark:bg-slate-800">
           {files.length}
         </span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="ml-auto size-8"
+          onClick={() => onOpenChange?.(false)}
+        >
+          <X className="size-4" />
+        </Button>
       </div>
       {active ? (
         <div className="flex min-h-0 flex-1 flex-col">
@@ -691,6 +707,7 @@ export function AguiAgentChat({
   threadId,
   headers,
   initialMessages = [],
+  initialState = {},
   title = "Sage",
   emptyTitle = "Sage",
   emptyDescription = "Tell me what you want to build, change, or explore.",
@@ -711,6 +728,7 @@ export function AguiAgentChat({
     threadId,
     headers,
     initialMessages,
+    initialState,
     onToolResult,
     onRunFinished,
   });

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, BotIcon } from "lucide-react";
+import { ArrowLeft, BotIcon, FileText } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,6 +18,7 @@ import { getAgent } from "@/lib/api/agents";
 import { createThread, getThread, getThreadMessages } from "@/lib/api/threads";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
 import { useUserThreads } from "@/hooks/use-user-threads";
+import { cn } from "@/lib/utils";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
@@ -166,10 +167,12 @@ export default function RunAgentPage() {
   const [agent, setAgent] = useState(null);
   const [thread, setThread] = useState(null);
   const [initialMessages, setInitialMessages] = useState({ messages: [], toolCalls: [], conversation: [] });
+  const [initialState, setInitialState] = useState({});
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState(null);
   const [agentState, setAgentState] = useState({});
   const [chatResetKey, setChatResetKey] = useState(0);
+  const [showFiles, setShowFiles] = useState(false);
 
   // ── Token refresh ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -192,6 +195,7 @@ export default function RunAgentPage() {
     const init = async () => {
       setLoading(true);
       setInitialMessages({ messages: [], toolCalls: [], conversation: [] });
+      setInitialState({});
 
       try {
         const agentRes = await getAgent(agentId);
@@ -199,7 +203,7 @@ export default function RunAgentPage() {
 
         if (urlThreadId) {
           // ── Resume existing thread ─────────────────────────────────────────
-          const [threadRes, messagesRes] = await Promise.all([
+          const [threadRes, historyRes] = await Promise.all([
             getThread(urlThreadId),
             getThreadMessages(urlThreadId),
           ]);
@@ -208,8 +212,10 @@ export default function RunAgentPage() {
           if (!loadedThread) throw new Error("Thread not found");
           setThread(loadedThread);
 
-          const rawMessages = messagesRes.data?.data || [];
+          const { messages: rawMessages = [], state: rawState = {} } = historyRes.data?.data || {};
           setInitialMessages(normaliseLangChainMessages(rawMessages));
+          setInitialState(rawState);
+          setAgentState(rawState);
         } else {
           // ── Create a fresh thread ──────────────────────────────────────────
           const threadRes = await createThread({ agentId });
@@ -262,6 +268,8 @@ export default function RunAgentPage() {
     }
   }, [agentId, refreshThreads, router]);
 
+  const fileCount = Object.keys(agentState?.files || {}).length;
+
   // ── Dashboard header ─────────────────────────────────────────────────────────
   useDashboardHeader(
     {
@@ -284,11 +292,25 @@ export default function RunAgentPage() {
         <>
           <Link
             href="/dashboard/agents"
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            className="hidden items-center gap-1 text-sm text-muted-foreground hover:text-foreground sm:inline-flex"
           >
             <ArrowLeft className="size-4" />
             My Agents
           </Link>
+          {fileCount > 0 && (
+            <Button
+              variant={showFiles ? "secondary" : "ghost"}
+              size="icon"
+              className="relative size-9 rounded-full"
+              title="Toggle Files"
+              onClick={() => setShowFiles(!showFiles)}
+            >
+              <FileText className="size-4" />
+              <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shadow-sm">
+                {fileCount}
+              </span>
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -306,7 +328,7 @@ export default function RunAgentPage() {
         </>
       ),
     },
-    [agent, agentId, handleNewChat],
+    [agent, agentId, handleNewChat, showFiles, fileCount],
   );
 
   const handleRunFinished = useCallback(() => {
@@ -343,6 +365,7 @@ export default function RunAgentPage() {
               agentId={agentId}
               threadId={threadDbId}
               initialMessages={initialMessages}
+              initialState={initialState}
               title={agent?.name || "Sage"}
               emptyTitle={agent?.name || "Sage"}
               emptyDescription={
@@ -359,7 +382,11 @@ export default function RunAgentPage() {
               onNewChat={handleNewChat}
               onRunFinished={handleRunFinished}
             />
-            <AguiFilesPanel state={agentState} />
+            <AguiFilesPanel
+              state={agentState}
+              open={showFiles}
+              onOpenChange={setShowFiles}
+            />
           </>
         ) : null}
       </div>
