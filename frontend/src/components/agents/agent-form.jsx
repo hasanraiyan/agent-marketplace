@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   Bot,
@@ -80,8 +80,15 @@ export function AgentForm({ mode = "create", initialData, onSave, loading: savin
   const [form, setForm] = useState(DEFAULT_FORM);
 
   // Explicit, mode-aware initialization: hydrate from initialData when editing,
-  // reset to a clean slate when creating or when the agent failed to load.
+  // reset to a clean slate when the form transitions back to create/empty. The
+  // reset only fires on an actual mode/initialData change — never on mount or
+  // effect replays — so it cannot clobber the async-loaded provider defaults.
+  const prevInitRef = useRef({ mode, initialData });
   useEffect(() => {
+    const prev = prevInitRef.current;
+    const changed = prev.mode !== mode || prev.initialData !== initialData;
+    prevInitRef.current = { mode, initialData };
+
     if (mode === "edit" && initialData) {
       setForm({
         name: initialData.name || "",
@@ -96,7 +103,7 @@ export function AgentForm({ mode = "create", initialData, onSave, loading: savin
         category: initialData.category || "other",
         isActive: initialData.isActive !== false,
       });
-    } else {
+    } else if (changed) {
       setForm(DEFAULT_FORM);
     }
   }, [initialData, mode]);

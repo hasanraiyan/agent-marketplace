@@ -53,8 +53,10 @@ export function ThreadsProvider({ children }) {
 
     // Unauthenticated users: clear and stop
     if (!isSignedIn) {
-      setThreads([]);
-      setLoading(false);
+      setTimeout(() => {
+        setThreads([]);
+        setLoading(false);
+      }, 0);
       return;
     }
 
@@ -62,8 +64,10 @@ export function ThreadsProvider({ children }) {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    setLoading(true);
-    setError(null);
+    setTimeout(() => {
+      setLoading(true);
+      setError(null);
+    }, 0);
 
     getThreads()
       .then((res) => {
