@@ -122,7 +122,10 @@ function MessageBubble({ message, agent }) {
             {agent.name || "Agent"}
           </div>
         ) : null}
-        <div className="prose prose-sm max-w-none break-words dark:prose-invert prose-p:my-2 prose-pre:my-3 prose-ul:my-2 prose-ol:my-2">
+        <div className={cn(
+          "prose prose-sm max-w-none break-words prose-p:my-1 prose-pre:my-2 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1",
+          isUser ? "prose-invert" : "dark:prose-invert"
+        )}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             rehypePlugins={[rehypeSanitize]}
@@ -153,7 +156,7 @@ function ReasoningBubble({ message, active = false }) {
         )}
       </button>
       {open ? (
-        <div className="ml-3 border-l border-slate-200 pl-3 text-sm leading-6 text-slate-500 dark:border-slate-700 dark:text-slate-400">
+        <div className="ml-3 border-l border-slate-200 pl-3 text-sm leading-6 text-slate-500 dark:border-slate-700 dark:text-slate-400 prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-pre:my-2 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1">
           {message.content ? (
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
