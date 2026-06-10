@@ -15,6 +15,7 @@ router.get('/', authMiddleware, skillController.getMySkills);
 // CRUD
 router.post('/', authMiddleware, validateBody(createSkillSchema), skillController.create);
 router.get('/:id', authMiddleware, skillController.getById);
+router.get('/:id/agents', authMiddleware, skillController.getUsedByAgents);
 router.patch('/:id', authMiddleware, validateBody(updateSkillSchema), skillController.update);
 router.delete('/:id', authMiddleware, skillController.delete);
 

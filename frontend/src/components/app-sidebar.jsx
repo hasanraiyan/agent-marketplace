@@ -24,6 +24,7 @@ import {
   Settings2Icon,
   CircleHelpIcon,
   SparklesIcon,
+  CpuIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -37,6 +38,11 @@ const NAV_MAIN = [
     title: "My Agents",
     url: "/dashboard/agents",
     icon: <BrainIcon />,
+  },
+  {
+    title: "Skills",
+    url: "/dashboard/skills",
+    icon: <CpuIcon />,
   },
 ];
 

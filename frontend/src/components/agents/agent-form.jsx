@@ -15,6 +15,8 @@ import {
   Palette,
   Plug,
   Rocket,
+  Check,
+  ChevronDown,
   Save,
   Search,
   Sparkles,
@@ -36,6 +38,7 @@ import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { getProviders, getProviderModels } from "@/lib/api/providers";
+import { getMySkills } from "@/lib/api/skills";
 
 const CATEGORIES = [
   { value: "productivity", label: "Productivity", icon: Rocket },
@@ -72,6 +75,7 @@ const DEFAULT_FORM = {
   description: "",
   avatar: "",
   tags: [],
+  skills: [],
   systemPrompt: "",
   providerId: "",
   modelName: "",
@@ -92,6 +96,8 @@ export function AgentForm({
   const [models, setModels] = useState([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [tagsInput, setTagsInput] = useState("");
+  const [availableSkills, setAvailableSkills] = useState([]);
+  const [loadingSkills, setLoadingSkills] = useState(true);
 
   const [form, setForm] = useState(DEFAULT_FORM);
 
@@ -111,6 +117,7 @@ export function AgentForm({
         description: initialData.description || "",
         avatar: initialData.avatar || "",
         tags: initialData.tags || [],
+        skills: (initialData.skills || []).map((s) => s._id || s.id || s),
         systemPrompt: initialData.systemPrompt || "",
         providerId: initialData.providerId || "",
         modelName: initialData.modelName || "",
@@ -125,6 +132,18 @@ export function AgentForm({
   }, [initialData, mode]);
 
   useEffect(() => {
+    const loadSkills = async () => {
+      try {
+        const res = await getMySkills();
+        setAvailableSkills(res.data?.data || []);
+      } catch (err) {
+        toast.error("Failed to load skills");
+      } finally {
+        setLoadingSkills(false);
+      }
+    };
+    loadSkills();
+
     const loadProviders = async () => {
       try {
         const res = await getProviders();
@@ -216,6 +235,18 @@ export function AgentForm({
       "tags",
       form.tags.filter((t) => t !== tag),
     );
+  };
+
+  const toggleSkill = (skillId) => {
+    const current = form.skills || [];
+    if (current.includes(skillId)) {
+      update(
+        "skills",
+        current.filter((id) => id !== skillId),
+      );
+    } else {
+      update("skills", [...current, skillId]);
+    }
   };
 
   const handleSubmit = (e) => {
@@ -333,6 +364,73 @@ export function AgentForm({
               </div>
             </div>
           </Field>
+        </div>
+      </section>
+
+      {/* Section: Skills */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-2 border-b pb-2 text-foreground/80">
+          <Cpu className="size-4" />
+          <h2 className="text-sm font-bold uppercase tracking-wider">Skills</h2>
+        </div>
+
+        <div className="grid gap-4">
+          <FieldDescription className="text-xs -mt-2">
+            Attach specialized capabilities to this agent. Skills provide
+            additional instructions and context.
+          </FieldDescription>
+
+          {loadingSkills ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              Loading skills...
+            </div>
+          ) : availableSkills.length === 0 ? (
+            <div className="rounded-xl border border-dashed p-6 text-center">
+              <p className="text-sm text-muted-foreground mb-3">
+                No skills created yet.
+              </p>
+              <Link href="/dashboard/skills">
+                <Button variant="outline" size="sm">
+                  Create a Skill
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {availableSkills.map((skill) => {
+                const isSelected = (form.skills || []).includes(
+                  skill.id || skill._id,
+                );
+                return (
+                  <button
+                    key={skill.id || skill._id}
+                    type="button"
+                    onClick={() => toggleSkill(skill.id || skill._id)}
+                    className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${
+                      isSelected
+                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                        : "bg-card hover:bg-muted/50"
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-bold truncate">
+                          {skill.name}
+                        </p>
+                        {isSelected && (
+                          <Check className="size-3.5 text-primary shrink-0" />
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-1">
+                        {skill.description}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 

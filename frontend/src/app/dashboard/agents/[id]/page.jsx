@@ -369,8 +369,9 @@ export default function AgentDetailPage() {
                 <CardContent>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {agent.skills.map((skill) => (
-                      <div
+                      <Link
                         key={skill._id || skill.id}
+                        href={`/dashboard/skills?id=${skill._id || skill.id}`}
                         className="p-3.5 rounded-xl border bg-muted/10 flex flex-col gap-1.5 transition-colors hover:bg-muted/20"
                       >
                         <span className="text-xs font-bold text-foreground">
@@ -379,7 +380,7 @@ export default function AgentDetailPage() {
                         <span className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
                           {skill.description || "No description provided."}
                         </span>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 </CardContent>

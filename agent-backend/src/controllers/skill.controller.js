@@ -75,10 +75,21 @@ class SkillController {
     try {
       await skillService.deleteSkill(req.params.id, req.user.id);
 
-      // Note: Agents that have this skill ID in their `skills` array will just ignore it.
-      // LangGraph won't crash if the Mongoose reference fails to populate, it just returns null.
-
       res.json({ success: true, message: 'Skill successfully deleted' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getUsedByAgents(req, res, next) {
+    try {
+      // Basic visibility check: only owner can see which of their agents use a skill
+      // (or if the skill is public, but for now we focus on the owner's dashboard)
+      const skill = await skillService.getSkillById(req.params.id, req.user.id);
+      if (!skill) throw new NotFoundError('Skill not found');
+
+      const agents = await skillService.getAgentsBySkill(req.params.id);
+      res.json({ success: true, data: agents });
     } catch (error) {
       next(error);
     }

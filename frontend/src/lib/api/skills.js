@@ -8,3 +8,4 @@ export const getSkill = (skillId) => api.get(`/skills/${skillId}`);
 export const updateSkill = (skillId, data) =>
   api.patch(`/skills/${skillId}`, data);
 export const deleteSkill = (skillId) => api.delete(`/skills/${skillId}`);
+export const getUsedByAgents = (skillId) => api.get(`/skills/${skillId}/agents`);

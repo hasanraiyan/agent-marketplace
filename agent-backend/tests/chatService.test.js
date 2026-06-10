@@ -108,8 +108,11 @@ describe('Chat Service (DeepAgents Factory Integration)', () => {
         checkpoint: { channel_values: { messages: [{ role: 'assistant', content: 'hello' }] } },
       });
 
-      const msgs = await chatService.getMessages('thread_1', 'user_1');
-      expect(msgs).toEqual([{ role: 'assistant', content: 'hello' }]);
+      const result = await chatService.getMessages('thread_1', 'user_1');
+      expect(result).toEqual({
+        messages: [{ role: 'assistant', content: 'hello' }],
+        state: {},
+      });
       expect(mockGetTuple).toHaveBeenCalledWith({ configurable: { thread_id: 'uuid123' } });
     });
   });
