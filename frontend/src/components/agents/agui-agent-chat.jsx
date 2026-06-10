@@ -373,7 +373,7 @@ function searchResults(tool) {
   return [];
 }
 
-function MessageBubble({ message, agent }) {
+function MessageBubble({ message, agent, precedingTools = [], onOpenFile }) {
   const isUser = message.role === "user";
 
   if (message.role === "reasoning") {
@@ -381,6 +381,25 @@ function MessageBubble({ message, agent }) {
   }
 
   if (!isUser && !message.content) return null;
+
+  const fsToolCalls = precedingTools.filter(t => {
+    if (t.status !== "completed") return false;
+    const details = getFileSystemActionDetails({ name: t.name, args: tryParseJson(t.argumentsText) });
+    return !!details;
+  });
+
+  const uniqueFiles = [];
+  const seen = new Set();
+  fsToolCalls.forEach(t => {
+    const details = getFileSystemActionDetails({ name: t.name, args: tryParseJson(t.argumentsText) });
+    if (details && !seen.has(details.filePath)) {
+      seen.add(details.filePath);
+      uniqueFiles.push({
+        ...details,
+        toolName: t.name
+      });
+    }
+  });
 
   return (
     <div
@@ -421,6 +440,68 @@ function MessageBubble({ message, agent }) {
             {message.content}
           </ReactMarkdown>
         </div>
+
+        {/* File Artifact Cards */}
+        {!isUser && uniqueFiles.length > 0 && (
+          <div className="mt-3 max-w-xl space-y-2">
+            {uniqueFiles.map((file, i) => {
+              const fileName = file.filePath.split("/").pop() || file.filePath;
+              const fileExt = fileName.includes(".") ? fileName.split(".").pop()?.toUpperCase() : "FILE";
+              const isCode = ["JS", "JSX", "TS", "TSX", "JSON", "HTML", "CSS", "PY", "SH", "GO", "RS", "MD"].includes(fileExt);
+              const FileIcon = isCode ? FileCode : FileText;
+
+              let actionLabel = "Modified file";
+              let isDeleted = false;
+              if (file.toolName?.toLowerCase().includes("write")) {
+                actionLabel = "Created file";
+              } else if (file.toolName?.toLowerCase().includes("delete")) {
+                actionLabel = "Deleted file";
+                isDeleted = true;
+              }
+
+              return (
+                <div
+                  key={i}
+                  className="flex items-center justify-between rounded-xl border border-slate-205 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-905/30 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:bg-slate-100/30 dark:hover:bg-slate-900/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-slate-100 dark:bg-slate-800 dark:text-slate-200">
+                      <FileIcon className="size-4.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-xs font-bold text-slate-800 dark:text-slate-100">
+                          {fileName}
+                        </span>
+                        <span className="shrink-0 rounded bg-slate-100 px-1 py-0.5 text-[9px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-450">
+                          {fileExt}
+                        </span>
+                      </div>
+                      <div className="text-[10px] font-semibold text-slate-450 dark:text-slate-555">
+                        {isDeleted ? actionLabel : "Open preview"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {!isDeleted && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 rounded-lg border border-slate-205 bg-white px-3 text-xs font-bold text-slate-755 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-850 shadow-xs flex items-center gap-1.5"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenFile?.(file.filePath);
+                      }}
+                    >
+                      Open in
+                      <ChevronLeft className="size-3 text-slate-400 rotate-180" />
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1683,6 +1764,7 @@ export function AguiAgentChat({
   onStateChange,
   onNewChat,
   onRunFinished,
+  onOpenFile,
   showHeader = true,
   contentClassName,
 }) {
@@ -1843,14 +1925,27 @@ export function AguiAgentChat({
               contentClassName,
             )}
           >
-            {chat.conversation.map((entry) => {
+            {chat.conversation.map((entry, index) => {
               if (entry.type === "message") {
                 const message = messageById(entry.refId);
+                const precedingTools = [];
+                for (let i = index - 1; i >= 0; i--) {
+                  const prev = chat.conversation[i];
+                  if (prev.type === "tool") {
+                    const t = toolById(prev.refId);
+                    if (t) precedingTools.push(t);
+                  } else {
+                    break;
+                  }
+                }
+
                 return message ? (
                   <MessageBubble
                     key={entry.id}
                     message={message}
                     agent={agent}
+                    precedingTools={precedingTools}
+                    onOpenFile={onOpenFile}
                   />
                 ) : null;
               }

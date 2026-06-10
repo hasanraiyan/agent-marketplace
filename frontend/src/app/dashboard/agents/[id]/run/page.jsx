@@ -174,6 +174,7 @@ export default function RunAgentPage() {
   const [chatResetKey, setChatResetKey] = useState(0);
   const [showFiles, setShowFiles] = useState(false);
   const [panelTab, setPanelTab] = useState("files");
+  const [selectedFile, setSelectedFile] = useState(null);
 
   // ── Token refresh ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -217,12 +218,14 @@ export default function RunAgentPage() {
           setInitialMessages(normaliseLangChainMessages(rawMessages));
           setInitialState(rawState);
           setAgentState(rawState);
+          setSelectedFile(null);
         } else {
           // ── Create a fresh thread ──────────────────────────────────────────
           const threadRes = await createThread({ agentId });
           const newThread = threadRes.data?.data;
           setThread(newThread);
           setInitialMessages({ messages: [], toolCalls: [], conversation: [] });
+          setSelectedFile(null);
 
           // Reflect the new thread in the URL so refreshes re-open the same one
           const newId = newThread?._id || newThread?.id;
@@ -257,6 +260,7 @@ export default function RunAgentPage() {
       setThread(newThread);
       setInitialMessages({ messages: [], toolCalls: [], conversation: [] });
       setChatResetKey((k) => k + 1);
+      setSelectedFile(null);
 
       // Navigate to new thread, which will also update the sidebar
       router.replace(`/dashboard/agents/${agentId}/run?threadId=${newId}`, {
@@ -267,7 +271,13 @@ export default function RunAgentPage() {
       toast.error("Failed to start a new chat");
       throw err; // Let AguiAgentChat fall back to chat.clear()
     }
-  }, [agentId, refreshThreads, router]);
+  }, [agentId, refreshThreads, router, setSelectedFile]);
+
+  const handleOpenFile = useCallback((filePath) => {
+    setPanelTab("files");
+    setShowFiles(true);
+    setSelectedFile(filePath);
+  }, []);
 
   const fileCount = Object.keys(agentState?.files || {}).length;
   const todos = Array.isArray(agentState?.todos) ? agentState.todos : [];
@@ -423,6 +433,7 @@ export default function RunAgentPage() {
               onStateChange={setAgentState}
               onNewChat={handleNewChat}
               onRunFinished={handleRunFinished}
+              onOpenFile={handleOpenFile}
             />
             <AguiFilesPanel
               state={agentState}
@@ -430,6 +441,8 @@ export default function RunAgentPage() {
               onOpenChange={setShowFiles}
               tab={panelTab}
               onTabChange={setPanelTab}
+              selectedFile={selectedFile}
+              onSelectFile={setSelectedFile}
             />
           </>
         ) : null}
