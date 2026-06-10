@@ -3,28 +3,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  BotIcon,
-  Loader2,
-  Play,
-  Plug,
-  RotateCcw,
-} from "lucide-react";
+import { Loader2, Plug } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AgentForm } from "@/components/agents/agent-form";
-import { AguiAgentChat } from "@/components/agents/agui-agent-chat";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { getAgent, updateAgent, createAgent } from "@/lib/api/agents";
 import { getProviders } from "@/lib/api/providers";
 import { createThread } from "@/lib/api/threads";
-import { useDashboardHeader } from "@/components/dashboard-header-context";
+import { ARCHITECT_AGENT_ID } from "@/lib/constants";
 
-const ARCHITECT_AGENT_ID = "000000000000000000000000";
+import { BuilderHeader } from "@/components/agents/builder/BuilderHeader";
+import { BuilderArchitectPanel } from "@/components/agents/builder/BuilderArchitectPanel";
+import { BuilderConfigPanel } from "@/components/agents/builder/BuilderConfigPanel";
+import { BuilderPreviewPanel } from "@/components/agents/builder/BuilderPreviewPanel";
+
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
 const AGUI_RUNTIME_URL =
@@ -104,8 +97,6 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
           }
         }
 
-        // The architect needs a configured provider to run; skip the thread
-        // when there is none so we can show the focused empty state instead.
         if (providerList.length > 0) {
           try {
             const archRes = await createThread({ agentId: ARCHITECT_AGENT_ID });
@@ -175,8 +166,6 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
         if (!resultAgentId) return;
 
         if (tool.name === "get_agent") {
-          // The architect verifies its work with get_agent; mirror that
-          // authoritative payload into the form when it is the open agent.
           if (isEdit && resultAgentId === String(agentId) && output.data) {
             setAgent(output.data);
           }
@@ -217,76 +206,6 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
     }
   };
 
-  useDashboardHeader(
-    {
-      title: agent?.name || "New Agent",
-      description:
-        activeTab === "configure"
-          ? "Configure agent details"
-          : activeTab === "preview"
-          ? "Test your agent"
-          : "Build with Sage",
-      leading: (
-        <Avatar className="size-8">
-          <AvatarImage src={agent?.avatarUrl || agent?.avatar} />
-          <AvatarFallback>
-            <BotIcon className="size-4" />
-          </AvatarFallback>
-        </Avatar>
-      ),
-      tabs: (
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
-          <TabsList className="bg-slate-100 dark:bg-slate-800 p-0.5 h-8">
-            <TabsTrigger
-              value="chat"
-              className="h-7 px-3 text-xs lg:hidden data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950"
-            >
-              Chat
-            </TabsTrigger>
-            <TabsTrigger
-              value="configure"
-              className="h-7 px-3 text-xs data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950"
-            >
-              Configure
-            </TabsTrigger>
-            <TabsTrigger
-              value="preview"
-              className="h-7 px-3 text-xs data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950"
-            >
-              Preview
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      ),
-      actions: (
-        <>
-          <Link
-            href="/dashboard/agents"
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" />
-            My Agents
-          </Link>
-          <Badge
-            variant="outline"
-            className="h-5 rounded-md py-0 text-[10px] uppercase"
-          >
-            {isEdit ? agent?.visibility || "private" : "Draft"}
-          </Badge>
-          {isEdit ? (
-            <Link href={`/dashboard/agents/${agentId}/run`}>
-              <Button size="sm" className="h-8 rounded-full px-4 font-bold">
-                <Play className="mr-1 size-3.5" />
-                Run
-              </Button>
-            </Link>
-          ) : null}
-        </>
-      ),
-    },
-    [activeTab, agent, agentId, isEdit],
-  );
-
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -323,110 +242,59 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
 
   return (
     <div className="flex h-[calc(100vh-var(--header-height))] max-h-[calc(100vh-var(--header-height))] flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        {/* Left Column: Chat / Architect */}
-        <div className={`min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 ${activeTab === "chat" ? "flex" : "hidden lg:flex"}`}>
-          {authToken && architectThreadId ? (
-            <AguiAgentChat
-              url={runtimeUrl}
-              agentId={ARCHITECT_AGENT_ID}
-              threadId={architectThreadId}
-              title="Sage"
-              emptyTitle="Agent Architect"
-              emptyDescription={
-                isEdit
-                  ? "Tell Sage what you want to change about this agent."
-                  : "Tell Sage what kind of agent you want to build."
-              }
-              headers={{
-                Authorization: `Bearer ${authToken}`,
-                "X-Agent-Id": ARCHITECT_AGENT_ID,
-                "X-Thread-Id": architectThreadId,
-              }}
-              onToolResult={handleArchitectToolResult}
-              onNewChat={startNewArchitectChat}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <Loader2 className="size-6 animate-spin text-muted-foreground" />
-            </div>
-          )}
-        </div>
+      <BuilderHeader
+        agent={agent}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        isEdit={isEdit}
+        agentId={agentId}
+      />
 
-        {/* Right Column: Configure & Preview */}
-        <div className={`min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-slate-50 dark:bg-slate-900 ${activeTab !== "chat" ? "flex" : "hidden lg:flex"}`}>
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <BuilderArchitectPanel
+          activeTab={activeTab}
+          authToken={authToken}
+          architectThreadId={architectThreadId}
+          runtimeUrl={runtimeUrl}
+          handleArchitectToolResult={handleArchitectToolResult}
+          startNewArchitectChat={startNewArchitectChat}
+          isEdit={isEdit}
+        />
+
+        <div
+          className={`min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-slate-50 dark:bg-slate-900 ${activeTab !== "chat" ? "flex" : "hidden lg:flex"}`}
+        >
           <Tabs
             value={activeTab === "chat" ? "configure" : activeTab}
             onValueChange={setActiveTab}
             className="flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            {/* Configure Form */}
             <TabsContent
               value="configure"
               className="m-0 min-h-0 flex-1 flex-col data-[state=active]:flex overflow-y-auto p-6 bg-white dark:bg-slate-950"
             >
-              <div className="mx-auto max-w-2xl">
-                <AgentForm
-                  mode={mode}
-                  initialData={isEdit ? agent : null}
-                  onSave={handleManualSave}
-                  loading={saving}
-                />
-              </div>
+              <BuilderConfigPanel
+                mode={mode}
+                isEdit={isEdit}
+                agent={agent}
+                handleManualSave={handleManualSave}
+                saving={saving}
+              />
             </TabsContent>
 
-            {/* Preview Panel */}
             <TabsContent
               value="preview"
               className="m-0 min-h-0 flex-1 flex-col data-[state=active]:flex overflow-hidden"
             >
-              <div className="flex h-12 items-center justify-between border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-950 shrink-0">
-                <span className="text-sm font-bold">Preview</span>
-                {isEdit ? (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={refreshPreview}
-                    title="Reset Preview"
-                  >
-                    <RotateCcw className="size-3.5" />
-                  </Button>
-                ) : null}
-              </div>
-
-              <div className="min-h-0 flex-1 overflow-hidden">
-                {isEdit && authToken && previewThreadId ? (
-                  <AguiAgentChat
-                    agent={agent}
-                    url={runtimeUrl}
-                    agentId={agentId}
-                    threadId={previewThreadId}
-                    title={agent?.name || "Agent preview"}
-                    emptyTitle={agent?.name || "Agent preview"}
-                    emptyDescription={
-                      agent?.description || "Test your agent before sharing it."
-                    }
-                    headers={{
-                      Authorization: `Bearer ${authToken}`,
-                      "X-Agent-Id": agentId,
-                      "X-Thread-Id": previewThreadId,
-                    }}
-                    onNewChat={refreshPreview}
-                    showHeader={false}
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center p-8 text-center bg-slate-50 dark:bg-slate-900">
-                    <div className="max-w-xs space-y-2">
-                      <BotIcon className="mx-auto size-12 text-muted-foreground opacity-20" />
-                      <p className="text-sm font-medium text-muted-foreground">
-                        {isEdit
-                          ? "Loading your agent preview..."
-                          : "Create your agent with Sage or the Configure form — a live preview unlocks right after."}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <BuilderPreviewPanel
+                isEdit={isEdit}
+                agent={agent}
+                agentId={agentId}
+                authToken={authToken}
+                previewThreadId={previewThreadId}
+                refreshPreview={refreshPreview}
+                runtimeUrl={runtimeUrl}
+              />
             </TabsContent>
           </Tabs>
         </div>
