@@ -694,7 +694,7 @@ export function AguiAgentChat({
       ) : null}
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
-        {chat.conversation.length === 0 ? (
+        {chat.conversation.length === 0 && !chat.pendingApproval ? (
           <div
             className={cn(
               "mx-auto flex h-full w-full max-w-4xl flex-col justify-center px-4 py-8 md:py-16",
@@ -774,18 +774,14 @@ export function AguiAgentChat({
               const tool = toolById(entry.refId);
               return tool ? <ToolTrace key={entry.id} tool={tool} /> : null;
             })}
-            {chat.pendingApproval && !chat.isRunning ? (
+            {chat.pendingApproval ? (
               <ApprovalCard
                 approval={chat.pendingApproval}
                 onRespond={chat.respondToApproval}
                 disabled={chat.isRunning}
               />
             ) : null}
-            {chat.isRunning ? (
-              <div className="max-w-[92%]">
-                <ThinkingText label="Thinking" />
-              </div>
-            ) : null}
+            {chat.isRunning ? <ThinkingText label="Thinking" /> : null}
           </div>
         )}
       </div>

@@ -243,15 +243,8 @@ class AgentFactory {
       store: store,
       tools: dynamicTools,
       interruptOn: interruptOnConfig,
-      // Explicit, deliberate backend choice (previously left to the implicit
-      // StateBackend default). StateBackend gives each thread an isolated in-state
-      // virtual filesystem, persisted across turns via the checkpointer — the safe
-      // choice for this multi-tenant marketplace where agents are user-defined.
-      // We intentionally do NOT use FilesystemBackend/LocalShellBackend, which would
-      // grant arbitrary user agents read/write + shell access to the host. Swap in a
-      // sandbox backend if real code execution is ever required.
+         // sandbox backend if real code execution is ever required.
       backend: new StateBackend(),
-      // Only attach the skills middleware when the agent actually has skills, and
       // point it at the virtual /skills/ tree we seed at invoke time.
       ...(hasSkills ? { skills: ['/skills/'] } : {}),
     });

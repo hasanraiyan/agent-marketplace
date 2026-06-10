@@ -135,6 +135,47 @@ describe('translateLangGraphStream', () => {
     expect(result.content).not.toContain('kwargs');
   });
 
+  test('synthesizes assistant text when a stream finishes immediately after a tool result', async () => {
+    const events = [
+      {
+        event: 'on_tool_start',
+        run_id: 'upsert-1',
+        name: 'upsert_agent',
+        data: { input: { name: 'Bot' } },
+      },
+      {
+        event: 'on_tool_end',
+        run_id: 'upsert-1',
+        name: 'upsert_agent',
+        data: {
+          output: JSON.stringify({
+            status: 'success',
+            message: 'Successfully created new agent: Bot',
+          }),
+        },
+      },
+    ];
+
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+
+    expect(out.find((e) => e.type === 'TOOL_CALL_RESULT')).toBeDefined();
+    const text = out.find((e) => e.type === 'TEXT_MESSAGE_CHUNK');
+    expect(text).toBeDefined();
+    expect(text.delta).toBe('Successfully created new agent: Bot');
+  });
+
+  test('does not synthesize duplicate assistant text when the model speaks after a tool result', async () => {
+    const events = [
+      { event: 'on_tool_start', run_id: 'a', name: 'write_file', data: { input: {} } },
+      { event: 'on_tool_end', run_id: 'a', name: 'write_file', data: { output: 'ok' } },
+      { event: 'on_chat_model_stream', data: { chunk: { content: 'Done already.' } } },
+    ];
+
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    const text = out.filter((e) => e.type === 'TEXT_MESSAGE_CHUNK').map((e) => e.delta);
+    expect(text).toEqual(['Done already.']);
+  });
+
   test('on interrupt: calls onInterrupt and yields the question prompt, not an error', async () => {
     const interruptErr = Object.assign(new Error('Interrupt'), {
       name: 'GraphInterrupt',
@@ -153,6 +194,36 @@ describe('translateLangGraphStream', () => {
     expect(notice).toContain('Which env?');
     expect(notice).toContain('a) dev');
     expect(notice).toContain('b) prod');
+  });
+
+  test('detects interrupt payloads emitted as normal stream chunks', async () => {
+    const hitlValue = {
+      actionRequests: [{ name: 'write_file', args: { file_path: '/ai.md' } }],
+      reviewConfigs: [{ actionName: 'write_file', allowedDecisions: ['approve', 'reject'] }],
+    };
+    const onInterrupt = jest.fn();
+
+    const out = await collect(
+      translateLangGraphStream(
+        fakeStream([
+          {
+            event: 'on_chain_stream',
+            data: { chunk: { __interrupt__: [{ value: hitlValue }] } },
+          },
+        ]),
+        { onInterrupt }
+      )
+    );
+
+    expect(onInterrupt).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'hitl', actionCount: 1 })
+    );
+    const custom = out.find((e) => e.type === 'CUSTOM');
+    expect(custom).toBeDefined();
+    expect(custom.name).toBe('hitl_request');
+    expect(custom.value.actionRequests[0].name).toBe('write_file');
+    const notice = out.find((e) => e.type === 'TEXT_MESSAGE_CHUNK');
+    expect(notice.delta).toContain('write_file');
   });
 
   test('on genuine failure: flattens AggregateError, logs leaves, surfaces real cause', async () => {

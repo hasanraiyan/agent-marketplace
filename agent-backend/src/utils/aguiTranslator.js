@@ -35,6 +35,26 @@ export function extractGraphInterrupts(err) {
   return null;
 }
 
+function extractStreamInterrupts(value, seen = new Set()) {
+  if (!value || typeof value !== 'object' || seen.has(value)) return null;
+  seen.add(value);
+
+  if (Array.isArray(value.__interrupt__) && value.__interrupt__.length > 0) {
+    return value.__interrupt__;
+  }
+
+  if (Array.isArray(value.interrupts) && value.interrupts.length > 0) {
+    return value.interrupts;
+  }
+
+  for (const child of Object.values(value)) {
+    const found = extractStreamInterrupts(child, seen);
+    if (found) return found;
+  }
+
+  return null;
+}
+
 // LangGraph throws an AggregateError ("Multiple errors occurred during superstep N")
 // when 2+ parallel tasks fail in the same step — the real causes live in err.errors[],
 // not err.message. Flatten the whole tree (AggregateError.errors + .cause) into the
@@ -181,6 +201,33 @@ export function extractToolOutputContent(output) {
   return JSON.stringify(output ?? '');
 }
 
+function buildToolCompletionNotice(toolName, resultContent) {
+  const prettyName = String(toolName || 'tool')
+    .split(/[_\-\s]/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
+  let parsed = null;
+  if (typeof resultContent === 'string' && resultContent.trim().startsWith('{')) {
+    try {
+      parsed = JSON.parse(resultContent);
+    } catch {
+      parsed = null;
+    }
+  }
+
+  if (parsed?.status === 'error') {
+    return `The ${prettyName} tool finished with an error: ${parsed.message || 'Unknown error'}`;
+  }
+
+  if (parsed?.status === 'success' && parsed?.message) {
+    return `${parsed.message}`;
+  }
+
+  return `${prettyName} completed.`;
+}
+
 // One-shot assistant text message (used for pre-stream errors: missing agent,
 // build failure). Emitted as a single chunk; the runtime closes it at RUN_FINISHED.
 export async function* emitTextNotice(delta) {
@@ -281,11 +328,20 @@ export async function* translateLangGraphStream(stream, opts = {}) {
   const pendingToolCalls = new Map();
   // Lightweight tally for an end-of-stream summary log.
   const stats = { textChunks: 0, toolCalls: 0, toolResults: 0 };
+  let textSinceLastToolResult = true;
+  let lastToolResult = null;
+  let streamInterrupts = null;
 
   logger?.debug('[AG-UI] stream translation started');
 
   try {
     for await (const event of stream) {
+      const eventInterrupts = extractStreamInterrupts(event?.data);
+      if (eventInterrupts) {
+        streamInterrupts = eventInterrupts;
+        break;
+      }
+
       // ── Streamed assistant text ──────────────────────────────────────────────
       if (event.event === 'on_chat_model_stream') {
         const text = typeof event.data?.chunk?.content === 'string' ? event.data.chunk.content : '';
@@ -295,6 +351,7 @@ export async function* translateLangGraphStream(stream, opts = {}) {
             logger?.debug('[AG-UI] assistant text started', { messageId: textMsgId });
           }
           stats.textChunks += 1;
+          textSinceLastToolResult = true;
           yield {
             type: EventType.TEXT_MESSAGE_CHUNK,
             messageId: textMsgId,
@@ -347,6 +404,8 @@ export async function* translateLangGraphStream(stream, opts = {}) {
           pendingToolCalls.delete(event.run_id);
           const resultContent = extractToolOutputContent(event.data?.output);
           stats.toolResults += 1;
+          textSinceLastToolResult = false;
+          lastToolResult = { name: tc.name, content: resultContent };
           logger?.debug('[AG-UI] tool result', {
             name: tc.name,
             toolCallId: event.run_id,
@@ -361,6 +420,46 @@ export async function* translateLangGraphStream(stream, opts = {}) {
           };
         }
       }
+    }
+    if (streamInterrupts) {
+      const interruptInfo = describeInterrupt(streamInterrupts);
+      logger?.info('[AG-UI] stream paused at interrupt payload (awaiting user input)', {
+        ...stats,
+        kind: interruptInfo.kind,
+        actionCount: interruptInfo.actionCount,
+      });
+      if (onInterrupt) onInterrupt(interruptInfo);
+      if (interruptInfo.kind === 'hitl') {
+        yield {
+          type: EventType.CUSTOM,
+          name: 'hitl_request',
+          value: {
+            actionRequests: interruptInfo.actionRequests,
+            reviewConfigs: interruptInfo.reviewConfigs,
+          },
+        };
+      }
+      yield {
+        type: EventType.TEXT_MESSAGE_CHUNK,
+        messageId: randomUUID(),
+        role: 'assistant',
+        delta: buildInterruptNotice(streamInterrupts),
+      };
+      yield* emitStateSnapshot('interrupt');
+      return;
+    }
+
+    if (lastToolResult && !textSinceLastToolResult) {
+      const delta = buildToolCompletionNotice(lastToolResult.name, lastToolResult.content);
+      logger?.debug('[AG-UI] synthesized post-tool completion notice', {
+        name: lastToolResult.name,
+      });
+      yield {
+        type: EventType.TEXT_MESSAGE_CHUNK,
+        messageId: randomUUID(),
+        role: 'assistant',
+        delta,
+      };
     }
     logger?.info('[AG-UI] stream finished', stats);
     // Mirror the virtual filesystem + plan to the client once the turn settles.

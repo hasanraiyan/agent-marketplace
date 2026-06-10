@@ -83,7 +83,14 @@ aguiRouter.use(async (req, res, next) => {
   }
 });
 
-async function* runAgentAsAguiEvents({ agentId, userId, langGraphThreadId, threadDbId, messages, resume }) {
+async function* runAgentAsAguiEvents({
+  agentId,
+  userId,
+  langGraphThreadId,
+  threadDbId,
+  messages,
+  resume,
+}) {
   if (!agentId) {
     logger.warn('[AG-UI] run rejected: missing agentId');
     yield* emitTextNotice('*(Error: agentId header is required)*');
@@ -105,7 +112,10 @@ async function* runAgentAsAguiEvents({ agentId, userId, langGraphThreadId, threa
     try {
       thread = await threadRepository.findById(threadDbId);
     } catch (err) {
-      logger.warn('[AG-UI] failed to fetch thread for auto-titling', { threadDbId, err: err.message });
+      logger.warn('[AG-UI] failed to fetch thread for auto-titling', {
+        threadDbId,
+        err: err.message,
+      });
     }
   }
 
@@ -143,6 +153,7 @@ async function* runAgentAsAguiEvents({ agentId, userId, langGraphThreadId, threa
     version: 'v2',
   });
 
+  let pausedForInterrupt = false;
   yield* translateLangGraphStream(stream, {
     providerConfig,
     logger,
@@ -155,6 +166,7 @@ async function* runAgentAsAguiEvents({ agentId, userId, langGraphThreadId, threa
         }
       : undefined,
     onInterrupt: (interruptInfo) => {
+      pausedForInterrupt = true;
       if (langGraphThreadId) {
         interruptedThreads.set(langGraphThreadId, {
           timestamp: Date.now(),
@@ -172,7 +184,7 @@ async function* runAgentAsAguiEvents({ agentId, userId, langGraphThreadId, threa
     },
   });
 
-  if (titlePromise) {
+  if (titlePromise && !pausedForInterrupt) {
     try {
       const newTitle = await titlePromise;
       if (newTitle) {
@@ -181,6 +193,10 @@ async function* runAgentAsAguiEvents({ agentId, userId, langGraphThreadId, threa
     } catch (err) {
       logger.error(`[AG-UI] auto titling failed: ${err?.message}`);
     }
+  } else if (titlePromise) {
+    titlePromise.catch((err) => {
+      logger.error(`[AG-UI] auto titling failed after interrupt: ${err?.message}`);
+    });
   }
 }
 
