@@ -1,12 +1,21 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { BotIcon, Loader2, Sparkles } from 'lucide-react';
+import {
+  BotIcon,
+  Loader2,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle2,
+  AlertCircle,
+  Wrench,
+} from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAguiChat } from '@/lib/agui/use-agui-chat';
-import { getSuggestedPrompts } from './utils';
+import { getSuggestedPrompts, tryParseJson } from './utils';
 import { MessageBubble, ThinkingText, NewChatIcon } from './MessageBubble';
 import { ToolTrace } from './ToolTrace';
 import { ApprovalCard, ClarificationCard } from './ApprovalCard';
@@ -188,20 +197,63 @@ export function AguiAgentChat({
               contentClassName,
             )}
           >
-            {chat.conversation.map((entry) => {
-              if (entry.type === 'message') {
-                const message = messageById(entry.refId);
-                return message ? (
-                  <MessageBubble
-                    key={entry.id}
-                    message={message}
-                    agent={agent}
-                  />
-                ) : null;
-              }
-              const tool = toolById(entry.refId);
-              return tool ? <ToolTrace key={entry.id} tool={tool} /> : null;
-            })}
+            {(() => {
+              const renderItems = [];
+              let currentToolGroup = [];
+
+              const flushToolGroup = () => {
+                if (currentToolGroup.length > 0) {
+                  renderItems.push({
+                    type: 'tool_group',
+                    id: `group-${currentToolGroup[0].id}`,
+                    tools: [...currentToolGroup],
+                  });
+                  currentToolGroup = [];
+                }
+              };
+
+              chat.conversation.forEach((entry) => {
+                if (entry.type === 'message') {
+                  flushToolGroup();
+                  const message = messageById(entry.refId);
+                  if (message) {
+                    renderItems.push({
+                      type: 'message',
+                      id: entry.id,
+                      data: message,
+                    });
+                  }
+                } else if (entry.type === 'tool') {
+                  const tool = toolById(entry.refId);
+                  if (tool) {
+                    currentToolGroup.push(tool);
+                  }
+                }
+              });
+
+              flushToolGroup();
+
+              return renderItems.map((item) => {
+                if (item.type === 'message') {
+                  return (
+                    <MessageBubble
+                      key={item.id}
+                      message={item.data}
+                      agent={agent}
+                    />
+                  );
+                }
+                if (item.type === 'tool_group') {
+                  return (
+                    <CollapsibleToolGroup
+                      key={item.id}
+                      tools={item.tools}
+                    />
+                  );
+                }
+                return null;
+              });
+            })()}
             {chat.pendingApproval ? (
               <ApprovalCard
                 approval={chat.pendingApproval}
@@ -251,6 +303,64 @@ export function AguiAgentChat({
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+function CollapsibleToolGroup({ tools }) {
+  const allDone = tools.every((t) => t.status === 'completed');
+  const hasError = tools.some((t) => {
+    const parsed = tryParseJson(t.resultText);
+    return parsed?.status === 'error';
+  });
+  const anyRunning = tools.some((t) => t.status !== 'completed');
+
+  const [isOpen, setIsOpen] = useState(anyRunning);
+  const [prevAnyRunning, setPrevAnyRunning] = useState(anyRunning);
+
+  if (anyRunning && !prevAnyRunning) {
+    setIsOpen(true);
+    setPrevAnyRunning(anyRunning);
+  } else if (!anyRunning && prevAnyRunning) {
+    setPrevAnyRunning(anyRunning);
+  }
+
+  return (
+    <div className="max-w-[92%] rounded-xl bg-transparent py-1">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex w-full items-center justify-between px-1 py-1.5 text-left text-xs font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+      >
+        <div className="flex items-center gap-2">
+          {anyRunning ? (
+            <Loader2 className="size-4 animate-spin text-orange-500" />
+          ) : hasError ? (
+            <AlertCircle className="size-4 text-red-500" />
+          ) : (
+            <CheckCircle2 className="size-4 text-emerald-500" />
+          )}
+          <span>
+            {anyRunning
+              ? `Running tools (${tools.filter((t) => t.status !== 'completed').length} active)...`
+              : `Used ${tools.length} tool${tools.length > 1 ? 's' : ''}`}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">
+            {isOpen ? 'Click to collapse' : 'Click to expand'}
+          </span>
+          {isOpen ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+        </div>
+      </button>
+
+      {isOpen && (
+        <div className="mt-2 space-y-2 pl-4">
+          {tools.map((tool) => (
+            <ToolTrace key={tool.id} tool={tool} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

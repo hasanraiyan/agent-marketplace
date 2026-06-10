@@ -46,7 +46,7 @@ export function ReadFileCard({ tool }) {
   const done = tool.status === 'completed';
 
   return (
-    <div className="flex flex-col rounded-xl border border-slate-200/80 bg-white/95 shadow-sm dark:border-slate-800 dark:bg-slate-900/95 overflow-hidden">
+    <div className="flex flex-col rounded-xl border border-slate-200/80 bg-white/95 dark:border-slate-800 dark:bg-slate-900/95 overflow-hidden">
       {/* File Header */}
       <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-3.5 py-2.5 dark:border-slate-800/80 dark:bg-slate-900/50">
         <div className="flex items-center gap-2.5 min-w-0">

@@ -17,7 +17,7 @@ export function ToolArguments({ argumentsText }) {
   if (keys.length === 1) {
     const key = keys[0];
     return (
-      <div className="rounded-xl border border-slate-100 bg-white p-3 dark:border-slate-850 dark:bg-slate-950 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+      <div className="rounded-xl border border-slate-100 bg-white p-3 dark:border-slate-850 dark:bg-slate-950">
         <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
           {key.replace(/_/g, ' ')}
         </div>
@@ -35,7 +35,7 @@ export function ToolArguments({ argumentsText }) {
   }
 
   return (
-    <div className="rounded-xl border border-slate-100 bg-white p-3 dark:border-slate-850 dark:bg-slate-950 grid grid-cols-1 gap-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+    <div className="rounded-xl border border-slate-100 bg-white p-3 dark:border-slate-850 dark:bg-slate-950 grid grid-cols-1 gap-2.5">
       {Object.entries(parsed).map(([key, val]) => (
         <div key={key} className="text-xs">
           <div className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">

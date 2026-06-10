@@ -136,7 +136,7 @@ export function GrepResultsView({ tool, done }) {
               const FileIcon = isCode ? FileCode : FileText;
 
               return (
-                <div key={filePath} className="rounded-xl border border-slate-150 bg-white dark:border-slate-800/80 dark:bg-slate-950 overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                <div key={filePath} className="rounded-xl border border-slate-150 bg-white dark:border-slate-800/80 dark:bg-slate-950 overflow-hidden">
                   {/* File group header */}
                   <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-3 py-1.5 dark:border-slate-850 dark:bg-slate-900/40">
                     <FileIcon className="size-3.5 text-slate-450 dark:text-slate-550" />
