@@ -20,15 +20,23 @@ export const listProvidersTool = (userId) =>
       'Lists all LLM providers (base URLs, default models) configured by the user. Use this to help the user choose a model for their agent. Sensitive keys are NOT included.',
     schema: z.object({}),
     func: async () => {
-      const providers = await providerRepository.findByUser(userId);
-      return JSON.stringify(
-        providers.map((p) => ({
-          id: p._id,
-          label: p.label,
-          baseURL: p.baseURL,
-          defaultModel: p.defaultModel,
-        }))
-      );
+      try {
+        const providers = await providerRepository.findByUser(userId);
+        return JSON.stringify({
+          status: 'success',
+          data: providers.map((p) => ({
+            id: p._id,
+            label: p.label,
+            baseURL: p.baseURL,
+            defaultModel: p.defaultModel,
+          })),
+        });
+      } catch (err) {
+        return JSON.stringify({
+          status: 'error',
+          message: err.message,
+        });
+      }
     },
   });
 
@@ -54,6 +62,8 @@ export const upsertAgentTool = (userId) =>
       providerId: z.string().optional().describe('ID of the LLM provider to use'),
       modelName: z.string().optional().describe('Specific model (e.g., gpt-4o)'),
       webSearchEnabled: z.boolean().optional().describe('Toggle for web search capability'),
+      avatar: z.string().optional().describe('URL to the agent avatar image'),
+      tags: z.array(z.string()).optional().describe('Tags for categorization and search'),
       category: z
         .enum(['productivity', 'coding', 'creative', 'research', 'roleplay', 'other'])
         .optional(),
@@ -68,12 +78,23 @@ export const upsertAgentTool = (userId) =>
         if (sanitized.avatar === '') delete sanitized.avatar;
         if (sanitized.modelName === '') delete sanitized.modelName;
 
+        // Verify provider ownership if providerId is changed
+        if (sanitized.providerId) {
+          const provider = await providerRepository.findById(sanitized.providerId);
+          if (!provider || provider.ownerId.toString() !== userId.toString()) {
+            return JSON.stringify({
+              status: 'error',
+              message: 'Invalid providerId or unauthorized.',
+            });
+          }
+        }
+
         if (sanitized.agentId) {
           const updated = await agentService.updateAgent(sanitized.agentId, userId, { ...sanitized });
           return JSON.stringify({
             status: 'success',
             message: `Successfully updated agent: ${updated.name}`,
-            agentId: updated._id,
+            data: updated,
           });
         } else {
           if (!sanitized.name || !sanitized.systemPrompt || !sanitized.providerId) {
@@ -86,7 +107,7 @@ export const upsertAgentTool = (userId) =>
           return JSON.stringify({
             status: 'success',
             message: `Successfully created new agent: ${created.name}`,
-            agentId: created._id,
+            data: created,
           });
         }
       } catch (err) {
@@ -119,25 +140,160 @@ export const manageSkillTool = (userId) =>
         switch (input.action) {
           case 'list':
             const skills = await skillService.getMySkills(userId);
-            return JSON.stringify(
-              skills.map((s) => ({ id: s._id, name: s.name, description: s.description }))
-            );
+            return JSON.stringify({
+              status: 'success',
+              data: skills.map((s) => ({
+                id: s._id,
+                name: s.name,
+                description: s.description,
+              })),
+            });
           case 'create':
+            if (!input.name || !input.instructions || !input.description) {
+              return JSON.stringify({
+                status: 'error',
+                message: 'name, description, and instructions are required for create.',
+              });
+            }
+            // Validate name regex ^[a-z0-9-]+$
+            if (!/^[a-z0-9-]+$/.test(input.name)) {
+              return JSON.stringify({
+                status: 'error',
+                message: 'Skill name must contain only lowercase letters, numbers, and hyphens.',
+              });
+            }
+            if (input.name.length < 2 || input.name.length > 64) {
+              return JSON.stringify({
+                status: 'error',
+                message: 'Skill name must be between 2 and 64 characters.',
+              });
+            }
+            if (input.description.length > 1024) {
+              return JSON.stringify({
+                status: 'error',
+                message: 'Skill description must be 1024 characters or less.',
+              });
+            }
             const newSkill = await skillService.createSkill(userId, { ...input });
-            return `Skill created: ${newSkill.name} (${newSkill._id})`;
+            return JSON.stringify({
+              status: 'success',
+              message: `Skill created: ${newSkill.name}`,
+              data: newSkill,
+            });
           case 'update':
-            if (!input.skillId) return 'Error: skillId is required for update.';
-            await skillService.updateSkill(input.skillId, userId, { ...input });
-            return 'Skill updated successfully.';
+            if (!input.skillId) {
+              return JSON.stringify({ status: 'error', message: 'skillId is required for update.' });
+            }
+            if (input.name && !/^[a-z0-9-]+$/.test(input.name)) {
+              return JSON.stringify({
+                status: 'error',
+                message: 'Skill name must contain only lowercase letters, numbers, and hyphens.',
+              });
+            }
+            const updatedSkill = await skillService.updateSkill(input.skillId, userId, { ...input });
+            return JSON.stringify({
+              status: 'success',
+              message: 'Skill updated successfully.',
+              data: updatedSkill,
+            });
           case 'delete':
-            if (!input.skillId) return 'Error: skillId is required for delete.';
+            if (!input.skillId) {
+              return JSON.stringify({ status: 'error', message: 'skillId is required for delete.' });
+            }
             await skillService.deleteSkill(input.skillId, userId);
-            return 'Skill deleted permanently.';
+            return JSON.stringify({
+              status: 'success',
+              message: 'Skill deleted permanently.',
+            });
           default:
-            return 'Invalid action.';
+            return JSON.stringify({ status: 'error', message: 'Invalid action.' });
         }
       } catch (err) {
-        return `Error managing skill: ${err.message}`;
+        return JSON.stringify({
+          status: 'error',
+          message: `Error managing skill: ${err.message}`,
+        });
+      }
+    },
+  });
+
+/**
+ * get_agent - Fetch a single agent by ID.
+ */
+export const getAgentTool = (userId) =>
+  new DynamicStructuredTool({
+    name: 'get_agent',
+    description: 'Retrieves the full configuration of a specific agent by its ID.',
+    schema: z.object({
+      agentId: z.string().describe('The ID of the agent to fetch'),
+    }),
+    func: async ({ agentId }) => {
+      try {
+        const agent = await agentService.getAgentById(agentId, userId);
+        return JSON.stringify({
+          status: 'success',
+          data: agent,
+        });
+      } catch (err) {
+        return JSON.stringify({
+          status: 'error',
+          message: err.message,
+        });
+      }
+    },
+  });
+
+/**
+ * list_my_agents - List all agents owned by the user.
+ */
+export const listMyAgentsTool = (userId) =>
+  new DynamicStructuredTool({
+    name: 'list_my_agents',
+    description: 'Lists all agents owned by the current user.',
+    schema: z.object({}),
+    func: async () => {
+      try {
+        const agents = await agentService.searchAgents({ ownerId: userId }, {}, userId);
+        return JSON.stringify({
+          status: 'success',
+          data: agents.map((a) => ({
+            id: a._id,
+            name: a.name,
+            description: a.description,
+            visibility: a.visibility,
+          })),
+        });
+      } catch (err) {
+        return JSON.stringify({
+          status: 'error',
+          message: err.message,
+        });
+      }
+    },
+  });
+
+/**
+ * delete_agent - Deletes an agent.
+ */
+export const deleteAgentTool = (userId) =>
+  new DynamicStructuredTool({
+    name: 'delete_agent',
+    description: 'Permanently deletes an agent owned by the user.',
+    schema: z.object({
+      agentId: z.string().describe('The ID of the agent to delete'),
+    }),
+    func: async ({ agentId }) => {
+      try {
+        await agentService.deleteAgent(agentId, userId);
+        return JSON.stringify({
+          status: 'success',
+          message: 'Agent deleted successfully.',
+        });
+      } catch (err) {
+        return JSON.stringify({
+          status: 'error',
+          message: err.message,
+        });
       }
     },
   });
@@ -149,4 +305,7 @@ export const getBuilderToolbox = (userId) => [
   listProvidersTool(userId),
   upsertAgentTool(userId),
   manageSkillTool(userId),
+  getAgentTool(userId),
+  listMyAgentsTool(userId),
+  deleteAgentTool(userId),
 ];

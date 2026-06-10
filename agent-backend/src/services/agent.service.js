@@ -48,15 +48,9 @@ class AgentService {
     const isOwner = requestingIdStr && ownerIdStr === requestingIdStr;
     const isVirtual = obj.isVirtual === true || obj._id === '000000000000000000000000';
 
-    const debugMsg = `[DEBUG] ${new Date().toISOString()} - Agent ${obj._id} ownership check: ownerId=${ownerIdStr}, requestingUserId=${requestingIdStr}, isOwner=${isOwner}, isVirtual=${isVirtual}\n`;
-    // import('fs').then(fs => fs.appendFileSync('ownership_debug.log', debugMsg)).catch(() => {});
-
     if (!isOwner && !isVirtual) {
-      console.log(`  - ACTION: Stripping sensitive fields`);
       delete obj.systemPrompt;
       delete obj.providerId;
-    } else {
-      console.log(`  - ACTION: Keeping sensitive fields (Prompt length: ${obj.systemPrompt?.length || 0})`);
     }
 
     return obj;

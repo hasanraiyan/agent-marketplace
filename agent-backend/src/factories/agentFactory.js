@@ -6,6 +6,7 @@ import encryption from '../utils/encryption.js';
 
 import { resolveAgentTools, ARCHITECT_AGENT_ID } from '../tools/index.js';
 import { loggerService } from '../utils/index.js';
+import { ARCHITECT_SKILL } from '../skills/architectSkill.js';
 
 const logger = loggerService.getLogger();
 
@@ -88,7 +89,8 @@ class AgentFactory {
     if (!agentId) throw new Error('Agent ID is required to build an agent');
 
     const agentIdStr = agentId._id ? agentId._id.toString() : agentId.toString();
-    const cached = this.cache.get(agentIdStr);
+    const cacheKey = agentIdStr === ARCHITECT_AGENT_ID ? `${ARCHITECT_AGENT_ID}:${userId}` : agentIdStr;
+    const cached = this.cache.get(cacheKey);
 
     let agent;
     let provider;
@@ -110,9 +112,14 @@ class AgentFactory {
         name: 'Agent Architect',
         systemPrompt: ARCHITECT_SYSTEM_PROMPT,
         providerId: provider._id,
-        modelName: 'gpt-4o', // The architect should be high-intelligence
+        modelName: provider.defaultModel || 'gpt-4o', // The architect should be high-intelligence
         updatedAt: new Date(0), // Version 0 (static)
         skills: [],
+        interruptOn: {
+          upsert_agent: true,
+          manage_skill: true,
+          delete_agent: true,
+        },
       };
     } else {
       // 1.5 Fetch Standard Configuration from DB
@@ -177,8 +184,18 @@ class AgentFactory {
     // fell through to a no-op shim (deepagents exposes `createSkillsMiddleware`, not
     // a `SkillService` class), so skills were silently never loaded.
     const skillFiles = {};
+    const now = new Date().toISOString();
+
+    // 3.5 Inject Hardcoded Architect Skill
+    if (agentIdStr === ARCHITECT_AGENT_ID) {
+      skillFiles['/skills/agent-architecture/SKILL.md'] = {
+        content: ARCHITECT_SKILL.split('\n'),
+        created_at: now,
+        modified_at: now,
+      };
+    }
+
     if (agent.skills && agent.skills.length > 0) {
-      const now = new Date().toISOString();
       for (const skill of agent.skills) {
         // Slugify the directory segment so odd skill names can't break the path.
         const dir =
@@ -278,7 +295,7 @@ class AgentFactory {
     });
 
     // 5. Update Cache
-    this.cache.set(agentIdStr, {
+    this.cache.set(cacheKey, {
       instance: agentInstance,
       llm: llm,
       updatedAt: agent.updatedAt,
