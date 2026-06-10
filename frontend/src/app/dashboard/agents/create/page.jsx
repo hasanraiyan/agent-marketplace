@@ -1,5 +1,5 @@
-import BuilderPage from "../builder/page";
+import { AgentBuilderPage } from "@/components/agents/agent-builder-page";
 
 export default function Page() {
-    return <BuilderPage />;
+  return <AgentBuilderPage mode="create" />;
 }

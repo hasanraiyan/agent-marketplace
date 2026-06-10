@@ -11,6 +11,7 @@ import {
   translateLangGraphStream,
   emitTextNotice,
   formatRuntimeError,
+  buildResumeValue,
 } from '../utils/aguiTranslator.js';
 
 const logger = loggerService.getLogger();
@@ -84,7 +85,7 @@ aguiRouter.use(async (req, res, next) => {
   }
 });
 
-async function* runAgentAsAguiEvents({ agentId, userId, langGraphThreadId, messages }) {
+async function* runAgentAsAguiEvents({ agentId, userId, langGraphThreadId, messages, resume }) {
   if (!agentId) {
     logger.warn('[AG-UI] run rejected: missing agentId');
     yield* emitTextNotice('*(Error: agentId header is required)*');
@@ -110,12 +111,14 @@ async function* runAgentAsAguiEvents({ agentId, userId, langGraphThreadId, messa
   }
 
   const { agentInstance, providerConfig, skillFiles } = agentBuild;
-  const isResuming = langGraphThreadId != null && interruptedThreads.has(langGraphThreadId);
+  const pendingInterrupt =
+    langGraphThreadId != null ? interruptedThreads.get(langGraphThreadId) : undefined;
+  const isResuming = Boolean(pendingInterrupt);
   if (isResuming) interruptedThreads.delete(langGraphThreadId);
 
   const hasSkillFiles = skillFiles && Object.keys(skillFiles).length > 0;
   const inputArg = isResuming
-    ? new Command({ resume: content })
+    ? new Command({ resume: buildResumeValue(pendingInterrupt, resume, content) })
     : {
         messages: [new HumanMessage(content)],
         ...(hasSkillFiles ? { files: skillFiles } : {}),
@@ -137,8 +140,14 @@ async function* runAgentAsAguiEvents({ agentId, userId, langGraphThreadId, messa
           return snap?.values;
         }
       : undefined,
-    onInterrupt: () => {
-      if (langGraphThreadId) interruptedThreads.set(langGraphThreadId, { timestamp: Date.now() });
+    onInterrupt: (interruptInfo) => {
+      if (langGraphThreadId) {
+        interruptedThreads.set(langGraphThreadId, {
+          timestamp: Date.now(),
+          kind: interruptInfo?.kind || 'clarification',
+          actionCount: interruptInfo?.actionCount || 0,
+        });
+      }
     },
     onError: (leaves, err) => {
       logger.error(`[AG-UI] stream failed: ${err?.name || 'Error'}: ${err?.message}`, {
@@ -176,7 +185,11 @@ aguiRouter.post('/', async (req, res, next) => {
     };
 
     send({ type: EventType.RUN_STARTED, threadId, runId });
-    for await (const event of runAgentAsAguiEvents({ ...context, messages: input.messages || [] })) {
+    for await (const event of runAgentAsAguiEvents({
+      ...context,
+      messages: input.messages || [],
+      resume: input.resume,
+    })) {
       send(event);
     }
     send({ type: EventType.RUN_FINISHED, threadId, runId });

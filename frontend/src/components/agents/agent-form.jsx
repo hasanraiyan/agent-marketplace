@@ -1,16 +1,25 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { 
-  Bot, 
-  Brain, 
-  Lock, 
-  Eye, 
+import Link from "next/link";
+import {
+  Bot,
+  Brain,
+  Code,
+  Drama,
+  Lock,
+  Eye,
   Globe,
   Cpu,
   Loader2,
+  Palette,
+  Plug,
+  Rocket,
+  Save,
+  Search,
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,12 +42,12 @@ import { toast } from "sonner";
 import { getProviders, getProviderModels } from "@/lib/api/providers";
 
 const CATEGORIES = [
-  { value: "productivity", label: "Productivity", icon: "🚀" },
-  { value: "coding", label: "Coding", icon: "💻" },
-  { value: "creative", label: "Creative", icon: "🎨" },
-  { value: "research", label: "Research", icon: "🔍" },
-  { value: "roleplay", label: "Roleplay", icon: "🎭" },
-  { value: "other", label: "Other", icon: "✨" },
+  { value: "productivity", label: "Productivity", icon: Rocket },
+  { value: "coding", label: "Coding", icon: Code },
+  { value: "creative", label: "Creative", icon: Palette },
+  { value: "research", label: "Research", icon: Search },
+  { value: "roleplay", label: "Roleplay", icon: Drama },
+  { value: "other", label: "Other", icon: Sparkles },
 ];
 
 const VISIBILITY_OPTIONS = [
@@ -47,29 +56,33 @@ const VISIBILITY_OPTIONS = [
   { value: "public", label: "Public", description: "Visible on the Explore dashboard", icon: Globe },
 ];
 
-export function AgentForm({ initialData, onSave, loading: saving, hideHeader = false }) {
+const DEFAULT_FORM = {
+  name: "",
+  description: "",
+  avatar: "",
+  tags: [],
+  systemPrompt: "",
+  providerId: "",
+  modelName: "",
+  webSearchEnabled: false,
+  visibility: "private",
+  category: "other",
+  isActive: true,
+};
+
+export function AgentForm({ mode = "create", initialData, onSave, loading: saving }) {
   const [providers, setProviders] = useState([]);
   const [loadingProviders, setLoadingProviders] = useState(true);
   const [models, setModels] = useState([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [tagsInput, setTagsInput] = useState("");
 
-  const [form, setForm] = useState({
-    name: "",
-    description: "",
-    avatar: "",
-    tags: [],
-    systemPrompt: "",
-    providerId: "",
-    modelName: "",
-    webSearchEnabled: false,
-    visibility: "private",
-    category: "other",
-    isActive: true,
-  });
+  const [form, setForm] = useState(DEFAULT_FORM);
 
+  // Explicit, mode-aware initialization: hydrate from initialData when editing,
+  // reset to a clean slate when creating or when the agent failed to load.
   useEffect(() => {
-    if (initialData) {
+    if (mode === "edit" && initialData) {
       setForm({
         name: initialData.name || "",
         description: initialData.description || "",
@@ -83,8 +96,10 @@ export function AgentForm({ initialData, onSave, loading: saving, hideHeader = f
         category: initialData.category || "other",
         isActive: initialData.isActive !== false,
       });
+    } else {
+      setForm(DEFAULT_FORM);
     }
-  }, [initialData]);
+  }, [initialData, mode]);
 
   useEffect(() => {
     const loadProviders = async () => {
@@ -92,7 +107,7 @@ export function AgentForm({ initialData, onSave, loading: saving, hideHeader = f
         const res = await getProviders();
         const list = res.data?.data || [];
         setProviders(list);
-        
+
         // Use functional update to check the CURRENT providerId state
         setForm((prev) => {
           if (!prev.providerId && list.length > 0) {
@@ -125,6 +140,20 @@ export function AgentForm({ initialData, onSave, loading: saving, hideHeader = f
         const res = await getProviderModels(form.providerId);
         const fetched = res.data?.data?.models || res.data?.data || [];
         setModels(fetched);
+
+        // If no model is selected yet, prefer the provider's default model
+        // when it exists in the fetched list.
+        setForm((prev) => {
+          if (prev.modelName) return prev;
+          const provider = providers.find(
+            (p) => (p.id || p._id) === prev.providerId,
+          );
+          const defaultModel = provider?.defaultModel;
+          if (defaultModel && fetched.some((m) => m.id === defaultModel)) {
+            return { ...prev, modelName: defaultModel };
+          }
+          return prev;
+        });
       } catch (err) {
         setModels([]);
       } finally {
@@ -132,10 +161,20 @@ export function AgentForm({ initialData, onSave, loading: saving, hideHeader = f
       }
     };
     loadModels();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.providerId]);
 
   const update = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  // A model only makes sense for the provider it belongs to, so switching
+  // providers clears the selection until the new model list loads.
+  const changeProvider = (providerId) => {
+    setForm((prev) => {
+      if (prev.providerId === providerId) return prev;
+      return { ...prev, providerId, modelName: "" };
+    });
   };
 
   const addTag = (e) => {
@@ -158,16 +197,20 @@ export function AgentForm({ initialData, onSave, loading: saving, hideHeader = f
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+
     // Clean up empty strings for optional fields
     const sanitized = { ...form };
     if (!sanitized.description) delete sanitized.description;
     if (!sanitized.avatar) delete sanitized.avatar;
     if (!sanitized.modelName) delete sanitized.modelName;
     if (sanitized.tags?.length === 0) delete sanitized.tags;
-    
+
     onSave(sanitized);
   };
+
+  const noProviders = !loadingProviders && providers.length === 0;
+  const saveDisabled =
+    saving || loadingProviders || loadingModels || !form.providerId;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-10 pb-20">
@@ -177,7 +220,7 @@ export function AgentForm({ initialData, onSave, loading: saving, hideHeader = f
           <Bot className="size-4" />
           <h2 className="text-sm font-bold uppercase tracking-wider">Identity</h2>
         </div>
-        
+
         <div className="grid gap-6">
           <Field>
             <FieldLabel className="text-sm font-bold">Agent Name</FieldLabel>
@@ -200,7 +243,8 @@ export function AgentForm({ initialData, onSave, loading: saving, hideHeader = f
                 <SelectContent>
                   {CATEGORIES.map((c) => (
                     <SelectItem key={c.value} value={c.value}>
-                      <span className="mr-2">{c.icon}</span> {c.label}
+                      <c.icon className="mr-2 size-4 text-muted-foreground" />
+                      {c.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -244,7 +288,14 @@ export function AgentForm({ initialData, onSave, loading: saving, hideHeader = f
                 {form.tags.map((tag) => (
                   <Badge key={tag} variant="secondary" className="pl-2 pr-1 py-1 gap-1">
                     {tag}
-                    <button type="button" onClick={() => removeTag(tag)} className="hover:text-destructive">×</button>
+                    <button
+                      type="button"
+                      onClick={() => removeTag(tag)}
+                      className="hover:text-destructive"
+                      aria-label={`Remove ${tag}`}
+                    >
+                      <X className="size-3" />
+                    </button>
                   </Badge>
                 ))}
               </div>
@@ -297,35 +348,57 @@ export function AgentForm({ initialData, onSave, loading: saving, hideHeader = f
           <h2 className="text-sm font-bold uppercase tracking-wider">Capabilities</h2>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2">
-          <Field>
-            <FieldLabel className="text-sm font-bold">AI Provider</FieldLabel>
-            <Select value={form.providerId} onValueChange={(v) => update("providerId", v)}>
-              <SelectTrigger className="h-11 bg-muted/20">
-                <SelectValue placeholder="Select Provider" />
-              </SelectTrigger>
-              <SelectContent>
-                {providers.map((p) => (
-                  <SelectItem key={p.id || p._id} value={p.id || p._id}>{p.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
+        {noProviders ? (
+          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
+            <Plug className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="space-y-1 text-sm">
+              <p className="font-bold">No AI provider configured</p>
+              <p className="text-muted-foreground">
+                Add an LLM provider (API key) before creating an agent.
+              </p>
+              <Link
+                href="/dashboard/settings"
+                className="inline-block font-medium text-primary underline-offset-2 hover:underline"
+              >
+                Go to provider settings
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2">
+            <Field>
+              <FieldLabel className="text-sm font-bold">AI Provider</FieldLabel>
+              <Select
+                value={form.providerId}
+                onValueChange={changeProvider}
+                disabled={loadingProviders}
+              >
+                <SelectTrigger className="h-11 bg-muted/20">
+                  <SelectValue placeholder={loadingProviders ? "Loading..." : "Select Provider"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {providers.map((p) => (
+                    <SelectItem key={p.id || p._id} value={p.id || p._id}>{p.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
 
-          <Field>
-            <FieldLabel className="text-sm font-bold">Model</FieldLabel>
-            <Select value={form.modelName} onValueChange={(v) => update("modelName", v)} disabled={loadingModels}>
-              <SelectTrigger className="h-11 bg-muted/20">
-                <SelectValue placeholder={loadingModels ? "Loading..." : "Select Model"} />
-              </SelectTrigger>
-              <SelectContent>
-                {models.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>{m.id}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-        </div>
+            <Field>
+              <FieldLabel className="text-sm font-bold">Model</FieldLabel>
+              <Select value={form.modelName} onValueChange={(v) => update("modelName", v)} disabled={loadingModels}>
+                <SelectTrigger className="h-11 bg-muted/20">
+                  <SelectValue placeholder={loadingModels ? "Loading..." : "Select Model"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {models.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.id}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
+        )}
       </section>
 
       {/* Section: Visibility */}
@@ -342,8 +415,8 @@ export function AgentForm({ initialData, onSave, loading: saving, hideHeader = f
               type="button"
               onClick={() => update("visibility", opt.value)}
               className={`flex items-start gap-4 rounded-xl border p-4 text-left transition-all ${
-                form.visibility === opt.value 
-                  ? "border-primary bg-primary/5 ring-1 ring-primary" 
+                form.visibility === opt.value
+                  ? "border-primary bg-primary/5 ring-1 ring-primary"
                   : "bg-card hover:bg-muted/50"
               }`}
             >
@@ -363,10 +436,10 @@ export function AgentForm({ initialData, onSave, loading: saving, hideHeader = f
       </section>
 
       <div className="pt-6">
-          <Button 
+          <Button
             type="submit"
             className="w-full h-12 text-base font-bold shadow-lg shadow-primary/20"
-            disabled={saving}
+            disabled={saveDisabled}
           >
             {saving ? <Loader2 className="mr-2 size-5 animate-spin" /> : <Save className="mr-2 size-5" />}
             Save configuration
@@ -374,8 +447,4 @@ export function AgentForm({ initialData, onSave, loading: saving, hideHeader = f
       </div>
     </form>
   );
-}
-
-function Save({ className }) {
-    return <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>
 }

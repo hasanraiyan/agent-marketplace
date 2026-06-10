@@ -1,5 +1,9 @@
-import BuilderPage from "../../builder/page";
+"use client";
 
-export default function Page() {
-    return <BuilderPage />;
+import { use } from "react";
+import { AgentBuilderPage } from "@/components/agents/agent-builder-page";
+
+export default function Page({ params }) {
+  const { id } = use(params);
+  return <AgentBuilderPage mode="edit" agentId={id} />;
 }

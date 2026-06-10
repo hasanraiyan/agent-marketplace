@@ -82,10 +82,64 @@ export function isInterruptError(err, graphInterrupts) {
   );
 }
 
+// Classify the first interrupt payload of a paused run. HITL interrupts come from
+// langchain's humanInTheLoopMiddleware (interruptOn) and carry actionRequests +
+// reviewConfigs; they must be resumed with `{ decisions: [...] }`. Everything else
+// (e.g. ask_clarification calling interrupt() directly) resumes with raw user text.
+export function describeInterrupt(graphInterrupts, err) {
+  const interruptValue = (graphInterrupts ?? err?.interrupts)?.[0]?.value;
+  const actionRequests = interruptValue?.actionRequests;
+
+  if (Array.isArray(actionRequests) && actionRequests.length > 0) {
+    return {
+      kind: 'hitl',
+      actionCount: actionRequests.length,
+      actionRequests,
+      reviewConfigs: Array.isArray(interruptValue?.reviewConfigs)
+        ? interruptValue.reviewConfigs
+        : [],
+    };
+  }
+  return { kind: 'clarification', actionCount: 0 };
+}
+
+// Build the value passed to Command({ resume }) when a paused thread receives the
+// next client request. HITL interrupts (interruptOn tool approval) must resume with
+// `{ decisions: [...] }`: structured decisions from the client are forwarded as-is,
+// and a plain text reply is translated into reject-with-feedback so the model
+// re-plans with the user's message. Clarification interrupts resume with raw text.
+export function buildResumeValue(pendingInterrupt, resume, content) {
+  if (pendingInterrupt?.kind !== 'hitl') return content;
+
+  if (Array.isArray(resume?.decisions) && resume.decisions.length > 0) {
+    return { decisions: resume.decisions };
+  }
+
+  const actionCount = pendingInterrupt.actionCount || 1;
+  return {
+    decisions: Array.from({ length: actionCount }, () => ({
+      type: 'reject',
+      message: content || 'User declined the action.',
+    })),
+  };
+}
+
 // Build the user-facing prompt shown when the graph pauses at an interrupt. If the
 // interrupt carried structured questions/options, render them as a numbered list.
 export function buildInterruptNotice(graphInterrupts, err) {
   const interruptValue = (graphInterrupts ?? err?.interrupts)?.[0]?.value;
+  const actionRequests = interruptValue?.actionRequests;
+  if (Array.isArray(actionRequests) && actionRequests.length > 0) {
+    const lines = actionRequests.map(
+      (action, i) => `**${i + 1}. ${action?.name || 'tool'}**`
+    );
+    return (
+      `I'd like to run the following ${actionRequests.length > 1 ? 'actions' : 'action'} and need your approval:\n\n` +
+      `${lines.join('\n')}\n\n` +
+      `Approve to continue, or reply with feedback and I'll adjust.`
+    );
+  }
+
   const questions = interruptValue?.questions;
 
   if (Array.isArray(questions) && questions.length > 0) {
@@ -319,8 +373,25 @@ export async function* translateLangGraphStream(stream, opts = {}) {
 
     let notice;
     if (interrupt) {
-      logger?.info('[AG-UI] stream paused at interrupt (awaiting user input)', stats);
-      if (onInterrupt) onInterrupt();
+      const interruptInfo = describeInterrupt(graphInterrupts, err);
+      logger?.info('[AG-UI] stream paused at interrupt (awaiting user input)', {
+        ...stats,
+        kind: interruptInfo.kind,
+        actionCount: interruptInfo.actionCount,
+      });
+      if (onInterrupt) onInterrupt(interruptInfo);
+      // Surface HITL approval requests as a structured event so the client can
+      // render approve/reject controls with the pending tool calls.
+      if (interruptInfo.kind === 'hitl') {
+        yield {
+          type: EventType.CUSTOM,
+          name: 'hitl_request',
+          value: {
+            actionRequests: interruptInfo.actionRequests,
+            reviewConfigs: interruptInfo.reviewConfigs,
+          },
+        };
+      }
       notice = buildInterruptNotice(graphInterrupts, err);
     } else {
       // Surface the REAL underlying failures. AggregateError ("Multiple errors

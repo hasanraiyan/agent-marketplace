@@ -63,6 +63,9 @@ export function useAguiChat({
   const [isRunning, setIsRunning] = useState(false);
   const [isReasoning, setIsReasoning] = useState(false);
   const [error, setError] = useState(null);
+  // Pending human-in-the-loop approval request emitted by the backend when the
+  // agent pauses before running a guarded tool: { actionRequests, reviewConfigs }.
+  const [pendingApproval, setPendingApproval] = useState(null);
 
   const messagesRef = useRef(messages);
   const abortRef = useRef(null);
@@ -85,6 +88,7 @@ export function useAguiChat({
     setToolCalls([]);
     setAgentState(initialState);
     setError(null);
+    setPendingApproval(null);
     // Reset the chat only when the backing AG-UI thread changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId]);
@@ -280,6 +284,19 @@ export function useAguiChat({
         return;
       }
 
+      if (type === EventType.CUSTOM || type === "CUSTOM") {
+        if (
+          event.name === "hitl_request" &&
+          Array.isArray(event.value?.actionRequests)
+        ) {
+          setPendingApproval({
+            actionRequests: event.value.actionRequests,
+            reviewConfigs: event.value.reviewConfigs || [],
+          });
+        }
+        return;
+      }
+
       if (type === EventType.STATE_SNAPSHOT || type === "STATE_SNAPSHOT") {
         setAgentState(event.snapshot || {});
         return;
@@ -309,21 +326,8 @@ export function useAguiChat({
     [onToolResult, upsertMessage, upsertTool],
   );
 
-  const send = useCallback(
-    async (text) => {
-      const content = text.trim();
-      if (!content || !url || isRunning) return;
-
-      const userMessage = {
-        id: id("user"),
-        role: "user",
-        content,
-      };
-      const nextMessages = [...messagesRef.current, userMessage];
-      setMessages(nextMessages);
-      setConversation((prev) =>
-        ensureConversationEntry(prev, "message", userMessage.id),
-      );
+  const runStream = useCallback(
+    async ({ messages: bodyMessages, resume }) => {
       setError(null);
       setIsRunning(true);
 
@@ -342,11 +346,12 @@ export function useAguiChat({
             threadId,
             runId: id("run"),
             agentId,
-            messages: nextMessages.map((message) => ({
+            messages: bodyMessages.map((message) => ({
               id: message.id,
               role: message.role,
               content: message.content,
             })),
+            ...(resume ? { resume } : {}),
             state: agentState,
             tools: [],
             context: [],
@@ -390,7 +395,63 @@ export function useAguiChat({
         abortRef.current = null;
       }
     },
-    [agentId, agentState, applyEvent, headerEntries, isRunning, threadId, url],
+    [agentId, agentState, applyEvent, headerEntries, threadId, url],
+  );
+
+  const appendUserMessage = useCallback((content) => {
+    const userMessage = {
+      id: id("user"),
+      role: "user",
+      content,
+    };
+    const nextMessages = [...messagesRef.current, userMessage];
+    setMessages(nextMessages);
+    setConversation((prev) =>
+      ensureConversationEntry(prev, "message", userMessage.id),
+    );
+    return nextMessages;
+  }, []);
+
+  // Resolve a pending approval request with explicit HITL decisions
+  // ({ type: "approve" } | { type: "reject", message }). `displayText` is shown
+  // in the transcript as the user's reply.
+  const respondToApproval = useCallback(
+    async (decisions, { displayText } = {}) => {
+      if (!pendingApproval || !url || isRunning) return;
+      if (!Array.isArray(decisions) || decisions.length === 0) return;
+
+      setPendingApproval(null);
+      const nextMessages = appendUserMessage(
+        displayText ||
+          (decisions.every((d) => d.type === "approve")
+            ? "Approved"
+            : "Rejected"),
+      );
+      await runStream({ messages: nextMessages, resume: { decisions } });
+    },
+    [appendUserMessage, isRunning, pendingApproval, runStream, url],
+  );
+
+  const send = useCallback(
+    async (text) => {
+      const content = text.trim();
+      if (!content || !url || isRunning) return;
+
+      // A typed reply while an approval is pending is treated as
+      // reject-with-feedback so the agent re-plans with the user's message.
+      if (pendingApproval) {
+        const decisions = pendingApproval.actionRequests.map(() => ({
+          type: "reject",
+          message: content,
+        }));
+        await respondToApproval(decisions, { displayText: content });
+        return;
+      }
+
+      const nextMessages = appendUserMessage(content);
+      await runStream({ messages: nextMessages });
+    },
+    [appendUserMessage, isRunning, pendingApproval, respondToApproval, runStream, url],
   );
 
   const stop = useCallback(() => {
@@ -407,6 +468,7 @@ export function useAguiChat({
     setToolCalls([]);
     setAgentState(initialState);
     setError(null);
+    setPendingApproval(null);
   }, [initialState, stop]);
 
   return {
@@ -417,6 +479,8 @@ export function useAguiChat({
     isRunning,
     isReasoning,
     error,
+    pendingApproval,
+    respondToApproval,
     send,
     stop,
     clear,

@@ -41,6 +41,21 @@ export const listProvidersTool = (userId) =>
   });
 
 /**
+ * Normalizes an agent document for tool output so clients can rely on both
+ * `id` and `_id` being present regardless of Mongoose serialization.
+ */
+const normalizeAgentPayload = (agent) => {
+  if (!agent) return agent;
+  const plain = typeof agent.toObject === 'function' ? agent.toObject() : { ...agent };
+  const id = plain._id ?? plain.id;
+  if (id != null) {
+    plain.id = id.toString();
+    plain._id = id.toString();
+  }
+  return plain;
+};
+
+/**
  * upsert_agent - Full control over the target agent's configuration.
  */
 export const upsertAgentTool = (userId) =>
@@ -91,10 +106,12 @@ export const upsertAgentTool = (userId) =>
 
         if (sanitized.agentId) {
           const updated = await agentService.updateAgent(sanitized.agentId, userId, { ...sanitized });
+          const data = normalizeAgentPayload(updated);
           return JSON.stringify({
             status: 'success',
             message: `Successfully updated agent: ${updated.name}`,
-            data: updated,
+            agentId: data.id,
+            data,
           });
         } else {
           if (!sanitized.name || !sanitized.systemPrompt || !sanitized.providerId) {
@@ -104,10 +121,12 @@ export const upsertAgentTool = (userId) =>
             });
           }
           const created = await agentService.createAgent(userId, { ...sanitized });
+          const data = normalizeAgentPayload(created);
           return JSON.stringify({
             status: 'success',
             message: `Successfully created new agent: ${created.name}`,
-            data: created,
+            agentId: data.id,
+            data,
           });
         }
       } catch (err) {

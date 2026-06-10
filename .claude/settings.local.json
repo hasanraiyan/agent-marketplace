@@ -5,7 +5,9 @@
       "Bash(node -e \"console.log\\('deepagents', require\\('./node_modules/deepagents/package.json'\\).version\\)\")",
       "Bash(node -e \"console.log\\('langchain', require\\('./node_modules/langchain/package.json'\\).version\\)\")",
       "Bash(node -e \"console.log\\('@langchain/core', require\\('./node_modules/@langchain/core/package.json'\\).version\\)\")",
-      "Bash(node -e \"const p=require\\('./node_modules/deepagents/package.json'\\); console.log\\('main:',p.main,'module:',p.module,'exports:',JSON.stringify\\(p.exports\\)\\)\")"
+      "Bash(node -e \"const p=require\\('./node_modules/deepagents/package.json'\\); console.log\\('main:',p.main,'module:',p.module,'exports:',JSON.stringify\\(p.exports\\)\\)\")",
+      "Read(//d/d/projects/agent-marketplace/frontend/src/app/dashboard/**)",
+      "Read(//d/d/projects/agent-marketplace/frontend/src/lib/**)"
     ]
   }
 }

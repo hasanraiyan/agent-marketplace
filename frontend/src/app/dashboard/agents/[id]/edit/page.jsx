@@ -1,5 +1,8 @@
-import BuilderPage from "../../builder/page";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-    return <BuilderPage />;
+// Legacy alias of the builder. The canonical edit route is
+// /dashboard/agents/:id/builder.
+export default async function Page({ params }) {
+  const { id } = await params;
+  redirect(`/dashboard/agents/${id}/builder`);
 }
