@@ -56,8 +56,8 @@ export function HeroSection() {
             className="animate-fade-up max-w-4xl text-4xl leading-[1.1] font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
             style={{ animationDelay: "0.1s" }}
           >
-            Deploy & Orchestrate <span className="gradient-text">AI Agents</span>{" "}
-            That Work For You
+            Deploy & Orchestrate{" "}
+            <span className="gradient-text">AI Agents</span> That Work For You
           </h1>
 
           {/* Subtitle */}

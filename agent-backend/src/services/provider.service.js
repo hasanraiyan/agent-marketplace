@@ -84,8 +84,8 @@ class ProviderService {
     if (dependentCount > 0) {
       throw new Error(
         `Cannot delete this provider — ${dependentCount} agent${dependentCount === 1 ? '' : 's'} ` +
-        `${dependentCount === 1 ? 'is' : 'are'} still using it. ` +
-        `Update those agents to use a different provider first.`
+          `${dependentCount === 1 ? 'is' : 'are'} still using it. ` +
+          `Update those agents to use a different provider first.`
       );
     }
 

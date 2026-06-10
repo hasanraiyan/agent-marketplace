@@ -46,6 +46,10 @@ class ThreadRepository {
     return await Conversation.findOneAndDelete(query);
   }
 
+  async deleteAllByUser(userId) {
+    return await Conversation.deleteMany({ userId });
+  }
+
   async countByUser(userId) {
     return await Conversation.countDocuments({ userId, isArchived: false });
   }

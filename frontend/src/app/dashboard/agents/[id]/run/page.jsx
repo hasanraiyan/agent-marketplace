@@ -40,54 +40,116 @@ const AGUI_RUNTIME_URL =
  * We also accept the simpler { type: "human"|"ai", content } shape as a fallback.
  */
 function normaliseLangChainMessages(raw) {
-  if (!Array.isArray(raw)) return [];
+  if (!Array.isArray(raw)) {
+    return { messages: [], toolCalls: [], conversation: [] };
+  }
 
-  return raw
-    .map((msg, i) => {
-      if (!msg) return null;
+  const messages = [];
+  const toolCalls = [];
+  const conversation = [];
 
-      // ── Unwrap LangChain constructor serialisation ──────────────────────────
-      // Shape: { lc:1, type:"constructor", id:[...classPath], kwargs:{...} }
-      const isLcConstructor =
-        msg.lc === 1 && msg.type === "constructor" && Array.isArray(msg.id);
+  raw.forEach((msg, i) => {
+    if (!msg) return;
 
-      const className = isLcConstructor
-        ? (msg.id[msg.id.length - 1] || "").toLowerCase()
-        : "";
+    // ── Unwrap LangChain constructor serialisation ──────────────────────────
+    const isLcConstructor =
+      msg.lc === 1 && msg.type === "constructor" && Array.isArray(msg.id);
 
-      const m = isLcConstructor
-        ? { ...(msg.kwargs || {}), _lcClassName: className }
-        : msg;
+    const className = isLcConstructor
+      ? (msg.id[msg.id.length - 1] || "").toLowerCase()
+      : "";
 
-      // ── Extract content ─────────────────────────────────────────────────────
-      const content =
-        typeof m.content === "string"
+    const m = isLcConstructor
+      ? { ...(msg.kwargs || {}), _lcClassName: className }
+      : msg;
+
+    // ── Extract content ─────────────────────────────────────────────────────
+    const content =
+      typeof m.content === "string"
+        ? m.content
+        : Array.isArray(m.content)
           ? m.content
-          : Array.isArray(m.content)
-            ? m.content
-                .map((p) => (typeof p === "string" ? p : p?.text || ""))
-                .join("")
-            : "";
+              .map((p) => (typeof p === "string" ? p : p?.text || ""))
+              .join("")
+          : "";
 
-      // ── Determine role ──────────────────────────────────────────────────────
-      // Priority 1: LangChain class name from id array
-      const lc = m._lcClassName || "";
-      // Priority 2: explicit type field (simple shape)
-      const typeField = (m.type || m._type || "").toLowerCase();
+    // ── Determine role ──────────────────────────────────────────────────────
+    const lc = m._lcClassName || "";
+    const typeField = (m.type || m._type || "").toLowerCase();
 
-      let role = "assistant";
-      const roleHint = lc || typeField;
-      if (roleHint.includes("human")) role = "user";
-      else if (roleHint.includes("ai") || roleHint.includes("assistant"))
-        role = "assistant";
-      else if (roleHint.includes("system")) role = "system";
+    let role = "assistant";
+    const roleHint = lc || typeField;
+    if (roleHint.includes("human") || roleHint.includes("user")) {
+      role = "user";
+    } else if (roleHint.includes("ai") || roleHint.includes("assistant")) {
+      role = "assistant";
+    } else if (roleHint.includes("system")) {
+      role = "system";
+    } else if (roleHint.includes("tool")) {
+      role = "tool";
+    }
 
-      // ── Stable id ──────────────────────────────────────────────────────────
-      const id = m.id || `history-${i}`;
+    const id = m.id || `history-${i}`;
 
-      return { id, role, content };
-    })
-    .filter((m) => m && m.content && m.role !== "system"); // drop empties + system msgs
+    if (role === "system") {
+      return;
+    }
+
+    if (role === "user") {
+      const msgObj = { id, role: "user", content };
+      messages.push(msgObj);
+      conversation.push({ id: `entry-${id}`, type: "message", refId: id });
+    } else if (role === "assistant") {
+      if (content) {
+        const msgObj = { id, role: "assistant", content };
+        messages.push(msgObj);
+        conversation.push({ id: `entry-${id}`, type: "message", refId: id });
+      }
+
+      const toolCallsArray = m.tool_calls || m.toolCalls || [];
+      if (Array.isArray(toolCallsArray)) {
+        toolCallsArray.forEach((tc) => {
+          if (!tc) return;
+          const tcId = tc.id || `tool-${Math.random().toString(16).slice(2)}`;
+          const tcName = tc.name || "tool";
+          const tcArgs = tc.args
+            ? typeof tc.args === "string"
+              ? tc.args
+              : JSON.stringify(tc.args)
+            : "{}";
+
+          const toolObj = {
+            id: tcId,
+            name: tcName,
+            argumentsText: tcArgs,
+            resultText: "",
+            status: "completed",
+          };
+          toolCalls.push(toolObj);
+          conversation.push({ id: `entry-${tcId}`, type: "tool", refId: tcId });
+        });
+      }
+    } else if (role === "tool") {
+      const toolCallId = m.tool_call_id;
+      const resultText = content;
+      const existingTool = toolCalls.find((t) => t.id === toolCallId);
+      if (existingTool) {
+        existingTool.resultText = resultText;
+      } else if (toolCallId) {
+        const toolObj = {
+          id: toolCallId,
+          name: m.name || "tool",
+          argumentsText: "",
+          resultText,
+          status: "completed",
+        };
+        toolCalls.push(toolObj);
+        conversation.push({ id: `entry-${toolCallId}`, type: "tool", refId: toolCallId });
+      }
+    }
+  });
+
+  return { messages, toolCalls, conversation };
 }
 
 export default function RunAgentPage() {
@@ -103,7 +165,7 @@ export default function RunAgentPage() {
 
   const [agent, setAgent] = useState(null);
   const [thread, setThread] = useState(null);
-  const [initialMessages, setInitialMessages] = useState([]);
+  const [initialMessages, setInitialMessages] = useState({ messages: [], toolCalls: [], conversation: [] });
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState(null);
   const [agentState, setAgentState] = useState({});
@@ -129,7 +191,7 @@ export default function RunAgentPage() {
   useEffect(() => {
     const init = async () => {
       setLoading(true);
-      setInitialMessages([]);
+      setInitialMessages({ messages: [], toolCalls: [], conversation: [] });
 
       try {
         const agentRes = await getAgent(agentId);
@@ -153,14 +215,14 @@ export default function RunAgentPage() {
           const threadRes = await createThread({ agentId });
           const newThread = threadRes.data?.data;
           setThread(newThread);
-          setInitialMessages([]);
+          setInitialMessages({ messages: [], toolCalls: [], conversation: [] });
 
           // Reflect the new thread in the URL so refreshes re-open the same one
           const newId = newThread?._id || newThread?.id;
           if (newId) {
             router.replace(
               `/dashboard/agents/${agentId}/run?threadId=${newId}`,
-              { scroll: false }
+              { scroll: false },
             );
           }
 
@@ -186,14 +248,13 @@ export default function RunAgentPage() {
       const newId = newThread?._id || newThread?.id;
 
       setThread(newThread);
-      setInitialMessages([]);
+      setInitialMessages({ messages: [], toolCalls: [], conversation: [] });
       setChatResetKey((k) => k + 1);
 
       // Navigate to new thread, which will also update the sidebar
-      router.replace(
-        `/dashboard/agents/${agentId}/run?threadId=${newId}`,
-        { scroll: false }
-      );
+      router.replace(`/dashboard/agents/${agentId}/run?threadId=${newId}`, {
+        scroll: false,
+      });
       refreshThreads();
     } catch (err) {
       toast.error("Failed to start a new chat");
@@ -248,6 +309,10 @@ export default function RunAgentPage() {
     [agent, agentId, handleNewChat],
   );
 
+  const handleRunFinished = useCallback(() => {
+    refreshThreads();
+  }, [refreshThreads]);
+
   // ── Loading skeleton ─────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -267,7 +332,7 @@ export default function RunAgentPage() {
   const threadDbId = thread?._id || thread?.id;
 
   return (
-    <div className="@container/main flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
+    <div className="@container/main absolute inset-0 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {authToken && threadDbId ? (
           <>
@@ -292,6 +357,7 @@ export default function RunAgentPage() {
               }}
               onStateChange={setAgentState}
               onNewChat={handleNewChat}
+              onRunFinished={handleRunFinished}
             />
             <AguiFilesPanel state={agentState} />
           </>

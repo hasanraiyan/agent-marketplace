@@ -11,14 +11,14 @@ const optionalAuthMiddleware = async (req, res, next) => {
     // 1. Extract auth state (populated by global clerkMiddleware)
     const authState = getAuth(req);
     const clerkId = authState?.userId;
-    
+
     try {
       // fs.appendFileSync('ownership_debug.log', `[DEBUG] ${new Date().toISOString()} - OptionalAuth clerkId: ${clerkId}\n`);
     } catch (e) {}
 
     if (clerkId) {
       let user = await User.findOne({ clerkId });
-      
+
       if (user) {
         try {
           // fs.appendFileSync('ownership_debug.log', `[DEBUG] ${new Date().toISOString()} - OptionalAuth found user: ${user.id}\n`);
@@ -27,13 +27,14 @@ const optionalAuthMiddleware = async (req, res, next) => {
         try {
           // fs.appendFileSync('ownership_debug.log', `[DEBUG] ${new Date().toISOString()} - OptionalAuth user NOT cached for clerkId: ${clerkId}, attempting sync...\n`);
         } catch (e) {}
-        
+
         try {
           const clerkUser = await clerkClient.users.getUser(clerkId);
           const email = clerkUser.emailAddresses[0]?.emailAddress;
 
           if (email) {
-            const name = `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || 'Anonymous';
+            const name =
+              `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || 'Anonymous';
             user = await User.findOne({ email });
 
             if (user) {

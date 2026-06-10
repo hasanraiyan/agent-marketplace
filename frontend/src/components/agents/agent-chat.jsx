@@ -12,7 +12,13 @@ import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
 import { getThreadMessages } from "@/lib/api/threads";
 
-export function AgentChat({ agent, thread, onMessageSent, placeholder, showHeader = false }) {
+export function AgentChat({
+  agent,
+  thread,
+  onMessageSent,
+  placeholder,
+  showHeader = false,
+}) {
   const { getToken } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -74,18 +80,15 @@ export function AgentChat({ agent, thread, onMessageSent, placeholder, showHeade
     let accumulated = "";
 
     try {
-      const response = await fetch(
-        `${baseURL}/threads/${threadId}/stream`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ message: text }),
-          signal: controller.signal,
+      const response = await fetch(`${baseURL}/threads/${threadId}/stream`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify({ message: text }),
+        signal: controller.signal,
+      });
 
       if (!response.ok) {
         throw new Error(`Stream failed: ${response.status}`);
@@ -119,9 +122,15 @@ export function AgentChat({ agent, thread, onMessageSent, placeholder, showHeade
               setToolStatus(null);
             } else if (data.tool) {
               setToolStatus(data.tool);
-              if (onMessageSent) onMessageSent({ type: 'tool', name: data.tool });
+              if (onMessageSent)
+                onMessageSent({ type: "tool", name: data.tool });
             } else if (data.tool_output) {
-              if (onMessageSent) onMessageSent({ type: 'tool_output', name: data.tool, output: data.tool_output });
+              if (onMessageSent)
+                onMessageSent({
+                  type: "tool_output",
+                  name: data.tool,
+                  output: data.tool_output,
+                });
             } else if (data.error) {
               toast.error(data.error);
             } else if (data.interrupt) {
@@ -140,7 +149,8 @@ export function AgentChat({ agent, thread, onMessageSent, placeholder, showHeade
           createdAt: new Date().toISOString(),
         };
         setMessages((prev) => [...prev, assistantMsg]);
-        if (onMessageSent) onMessageSent({ type: 'message', message: assistantMsg });
+        if (onMessageSent)
+          onMessageSent({ type: "message", message: assistantMsg });
       }
     } catch (err) {
       if (err.name !== "AbortError") {
@@ -166,8 +176,13 @@ export function AgentChat({ agent, thread, onMessageSent, placeholder, showHeade
       {showHeader && agent && (
         <div className="flex items-center gap-3 border-b px-4 py-3">
           <Avatar className="size-8">
-            <AvatarImage src={agent.avatarUrl || agent.avatar} alt={agent.name} />
-            <AvatarFallback><BotIcon className="size-4" /></AvatarFallback>
+            <AvatarImage
+              src={agent.avatarUrl || agent.avatar}
+              alt={agent.name}
+            />
+            <AvatarFallback>
+              <BotIcon className="size-4" />
+            </AvatarFallback>
           </Avatar>
           <span className="font-bold">{agent.name}</span>
         </div>
@@ -182,8 +197,13 @@ export function AgentChat({ agent, thread, onMessageSent, placeholder, showHeade
           {streaming && (
             <div className="flex gap-3">
               <Avatar className="size-8 shrink-0">
-                <AvatarImage src={agent?.avatarUrl || agent?.avatar} alt={agent?.name} />
-                <AvatarFallback><BotIcon className="size-4" /></AvatarFallback>
+                <AvatarImage
+                  src={agent?.avatarUrl || agent?.avatar}
+                  alt={agent?.name}
+                />
+                <AvatarFallback>
+                  <BotIcon className="size-4" />
+                </AvatarFallback>
               </Avatar>
               <div className="flex min-w-0 flex-1 flex-col gap-2">
                 {toolStatus && (
@@ -194,7 +214,10 @@ export function AgentChat({ agent, thread, onMessageSent, placeholder, showHeade
                 )}
                 {streamingContent ? (
                   <div className="text-sm leading-relaxed prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-pre:my-2 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeSanitize]}
+                    >
                       {streamingContent}
                     </ReactMarkdown>
                     <span className="ml-0.5 inline-block size-2 animate-pulse bg-foreground" />
@@ -214,7 +237,7 @@ export function AgentChat({ agent, thread, onMessageSent, placeholder, showHeade
         </div>
       </div>
 
-      <div className="border-t bg-background p-4">
+      <div className="sticky bottom-0 z-10 border-t bg-background/95 p-4 backdrop-blur-sm">
         <div className="relative flex items-end gap-2">
           <Textarea
             placeholder={placeholder || `Message ${agent?.name || "agent"}...`}
@@ -231,7 +254,11 @@ export function AgentChat({ agent, thread, onMessageSent, placeholder, showHeade
             size="icon"
             className="size-11 shrink-0"
           >
-            {streaming ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+            {streaming ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Send className="size-4" />
+            )}
           </Button>
         </div>
       </div>
@@ -246,22 +273,36 @@ function Message({ message, agent }) {
     <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
       <Avatar className="size-8 shrink-0">
         {isUser ? (
-          <AvatarFallback className="bg-primary text-primary-foreground text-[10px] font-bold">YOU</AvatarFallback>
+          <AvatarFallback className="bg-primary text-primary-foreground text-[10px] font-bold">
+            YOU
+          </AvatarFallback>
         ) : (
           <>
-            <AvatarImage src={agent?.avatarUrl || agent?.avatar} alt={agent?.name} />
-            <AvatarFallback className="bg-muted text-muted-foreground"><Bot className="size-4" /></AvatarFallback>
+            <AvatarImage
+              src={agent?.avatarUrl || agent?.avatar}
+              alt={agent?.name}
+            />
+            <AvatarFallback className="bg-muted text-muted-foreground">
+              <Bot className="size-4" />
+            </AvatarFallback>
           </>
         )}
       </Avatar>
 
-      <div className={`flex min-w-0 max-w-[85%] flex-col gap-1 ${isUser ? "items-end" : "items-start"}`}>
-        <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed prose prose-sm max-w-none ${
-          isUser 
-            ? "prose-invert bg-primary text-primary-foreground rounded-tr-none" 
-            : "dark:prose-invert bg-muted text-foreground rounded-tl-none"
-        } prose-p:my-1 prose-pre:my-2 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1`}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+      <div
+        className={`flex min-w-0 max-w-[85%] flex-col gap-1 ${isUser ? "items-end" : "items-start"}`}
+      >
+        <div
+          className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed prose prose-sm max-w-none ${
+            isUser
+              ? "prose-invert bg-primary text-primary-foreground rounded-tr-none"
+              : "dark:prose-invert bg-muted text-foreground rounded-tl-none"
+          } prose-p:my-1 prose-pre:my-2 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1`}
+        >
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeSanitize]}
+          >
             {message.content}
           </ReactMarkdown>
         </div>

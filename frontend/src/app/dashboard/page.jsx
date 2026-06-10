@@ -71,7 +71,7 @@ const SORT_OPTIONS = [
 const PAGE_SIZE = 12;
 
 // Helper to build paginator page numbers with ellipsis
-function buildPageRange(current, total ){
+function buildPageRange(current, total) {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
   if (current <= 4) return [1, 2, 3, 4, 5, "...", total];
   if (current >= total - 3)
@@ -170,8 +170,7 @@ export default function ExplorePage() {
     setPage(1);
   };
 
-  const firstName =
-    user?.firstName || user?.fullName?.split(" ")[0] || "there";
+  const firstName = user?.firstName || user?.fullName?.split(" ")[0] || "there";
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (

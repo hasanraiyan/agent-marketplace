@@ -17,7 +17,9 @@ jest.unstable_mockModule('../src/factories/agentFactory.js', () => ({
 jest.unstable_mockModule('@langchain/langgraph-checkpoint-mongodb', () => ({
   MongoDBSaver: class {
     constructor() {}
-    getTuple() { return null; }
+    getTuple() {
+      return null;
+    }
   },
 }));
 
@@ -65,7 +67,10 @@ describe('Reproduction: Stream Disconnect on Tool Call', () => {
       yield { event: 'on_chat_model_stream', data: { chunk: { content: 'Thinking...' } } };
       yield { event: 'on_tool_start', name: 'search_web', data: { input: { query: 'test' } } };
       yield { event: 'on_tool_end', name: 'search_web', data: { output: 'search results' } };
-      yield { event: 'on_chat_model_stream', data: { chunk: { content: ' Based on search, the answer is 42.' } } };
+      yield {
+        event: 'on_chat_model_stream',
+        data: { chunk: { content: ' Based on search, the answer is 42.' } },
+      };
     }
     mockStreamEvents.mockReturnValue(mockGenerator());
 
@@ -78,13 +83,17 @@ describe('Reproduction: Stream Disconnect on Tool Call', () => {
     await chatService.streamChat(mockRes, 'thread_1', 'user_1', 'hello');
 
     // Check that we got all chunks
-    const writes = mockRes.write.mock.calls.map(call => call[0]);
+    const writes = mockRes.write.mock.calls.map((call) => call[0]);
     console.log('Writes:', writes);
 
     expect(writes).toContain(`data: ${JSON.stringify({ chunk: 'Thinking...' })}\n\n`);
     expect(writes).toContain(`data: ${JSON.stringify({ tool: 'Executing search_web...' })}\n\n`);
-    expect(writes).toContain(`data: ${JSON.stringify({ tool_output: 'search results', tool: 'search_web' })}\n\n`);
-    expect(writes).toContain(`data: ${JSON.stringify({ chunk: ' Based on search, the answer is 42.' })}\n\n`);
+    expect(writes).toContain(
+      `data: ${JSON.stringify({ tool_output: 'search results', tool: 'search_web' })}\n\n`
+    );
+    expect(writes).toContain(
+      `data: ${JSON.stringify({ chunk: ' Based on search, the answer is 42.' })}\n\n`
+    );
     expect(writes).toContain(`data: [DONE]\n\n`);
     expect(mockRes.end).toHaveBeenCalledTimes(1);
   });

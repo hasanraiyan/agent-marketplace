@@ -12,6 +12,7 @@ jest.unstable_mockModule('../src/repositories/threadRepository.js', () => ({
     findById: jest.fn(),
     findByUser: jest.fn(),
     delete: jest.fn(),
+    deleteAllByUser: jest.fn(),
     update: jest.fn(),
   },
 }));
@@ -111,6 +112,29 @@ describe('Thread Controller', () => {
       jest.spyOn(chatService, 'streamChat').mockRejectedValue(err);
 
       await threadController.stream(mockReq, mockRes, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(err);
+    });
+  });
+
+  describe('delete all threads', () => {
+    test('should delete all threads for user', async () => {
+      threadRepository.deleteAllByUser.mockResolvedValue({ deletedCount: 5 });
+
+      await threadController.deleteAll(mockReq, mockRes, mockNext);
+
+      expect(threadRepository.deleteAllByUser).toHaveBeenCalledWith('user_1');
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        message: 'All threads permanently removed',
+      });
+    });
+
+    test('should pass error to next if repository fails', async () => {
+      const err = new Error('Database connection failed');
+      threadRepository.deleteAllByUser.mockRejectedValue(err);
+
+      await threadController.deleteAll(mockReq, mockRes, mockNext);
 
       expect(mockNext).toHaveBeenCalledWith(err);
     });

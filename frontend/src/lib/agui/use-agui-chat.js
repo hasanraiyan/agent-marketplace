@@ -49,16 +49,20 @@ export function useAguiChat({
   initialMessages = EMPTY_MESSAGES,
   initialState = EMPTY_STATE,
   onToolResult,
+  onRunFinished,
 } = {}) {
-  const [messages, setMessages] = useState(initialMessages);
+  const isParsedHistory = initialMessages && !Array.isArray(initialMessages) && typeof initialMessages === "object";
+  const [messages, setMessages] = useState(isParsedHistory ? (initialMessages.messages || []) : initialMessages);
   const [conversation, setConversation] = useState(
-    initialMessages.map((message) => ({
-      id: id("entry-message"),
-      type: "message",
-      refId: message.id,
-    })),
+    isParsedHistory
+      ? (initialMessages.conversation || [])
+      : initialMessages.map((message) => ({
+          id: id("entry-message"),
+          type: "message",
+          refId: message.id,
+        })),
   );
-  const [toolCalls, setToolCalls] = useState([]);
+  const [toolCalls, setToolCalls] = useState(isParsedHistory ? (initialMessages.toolCalls || []) : []);
   const [agentState, setAgentState] = useState(initialState);
   const [isRunning, setIsRunning] = useState(false);
   const [isReasoning, setIsReasoning] = useState(false);
@@ -76,16 +80,19 @@ export function useAguiChat({
   }, [messages]);
 
   useEffect(() => {
-    const resetMessages = initialMessages;
+    const isParsedHistory = initialMessages && !Array.isArray(initialMessages) && typeof initialMessages === "object";
+    const resetMessages = isParsedHistory ? (initialMessages.messages || []) : initialMessages;
     setMessages(resetMessages);
     setConversation(
-      resetMessages.map((message) => ({
-        id: id("entry-message"),
-        type: "message",
-        refId: message.id,
-      })),
+      isParsedHistory
+        ? (initialMessages.conversation || [])
+        : resetMessages.map((message) => ({
+            id: id("entry-message"),
+            type: "message",
+            refId: message.id,
+          })),
     );
-    setToolCalls([]);
+    setToolCalls(isParsedHistory ? (initialMessages.toolCalls || []) : []);
     setAgentState(initialState);
     setError(null);
     setPendingApproval(null);
@@ -126,6 +133,7 @@ export function useAguiChat({
       if (type === EventType.RUN_FINISHED || type === "RUN_FINISHED") {
         setIsRunning(false);
         setIsReasoning(false);
+        if (onRunFinished) onRunFinished();
         return;
       }
 
@@ -133,6 +141,7 @@ export function useAguiChat({
         setIsRunning(false);
         setIsReasoning(false);
         setError(event.message || "The agent stopped unexpectedly.");
+        if (onRunFinished) onRunFinished();
         return;
       }
 
@@ -323,7 +332,7 @@ export function useAguiChat({
         );
       }
     },
-    [onToolResult, upsertMessage, upsertTool],
+    [onToolResult, onRunFinished, upsertMessage, upsertTool],
   );
 
   const runStream = useCallback(
@@ -451,7 +460,14 @@ export function useAguiChat({
       const nextMessages = appendUserMessage(content);
       await runStream({ messages: nextMessages });
     },
-    [appendUserMessage, isRunning, pendingApproval, respondToApproval, runStream, url],
+    [
+      appendUserMessage,
+      isRunning,
+      pendingApproval,
+      respondToApproval,
+      runStream,
+      url,
+    ],
   );
 
   const stop = useCallback(() => {

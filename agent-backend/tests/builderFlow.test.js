@@ -52,9 +52,7 @@ describe('upsert_agent result contract', () => {
     });
 
     const tool = upsertAgentTool(userId);
-    const result = JSON.parse(
-      await tool.invoke({ agentId: 'agent-789', name: 'Updated Agent' })
-    );
+    const result = JSON.parse(await tool.invoke({ agentId: 'agent-789', name: 'Updated Agent' }));
 
     expect(result.status).toBe('success');
     expect(result.agentId).toBe('agent-789');
@@ -148,9 +146,7 @@ describe('HITL interrupt translation', () => {
       translateLangGraphStream(fakeStream([], interruptError), { onInterrupt })
     );
 
-    expect(onInterrupt).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: 'clarification' })
-    );
+    expect(onInterrupt).toHaveBeenCalledWith(expect.objectContaining({ kind: 'clarification' }));
     expect(events.find((e) => e.type === EventType.CUSTOM)).toBeUndefined();
   });
 });
@@ -164,9 +160,9 @@ describe('buildResumeValue', () => {
 
   test('HITL interrupts forward structured decisions from the client', () => {
     const decisions = [{ type: 'approve' }];
-    expect(
-      buildResumeValue({ kind: 'hitl', actionCount: 1 }, { decisions }, 'Approved')
-    ).toEqual({ decisions });
+    expect(buildResumeValue({ kind: 'hitl', actionCount: 1 }, { decisions }, 'Approved')).toEqual({
+      decisions,
+    });
   });
 
   test('HITL interrupts translate plain text into reject-with-feedback per action', () => {

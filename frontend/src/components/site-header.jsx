@@ -45,7 +45,7 @@ export function SiteHeader() {
         );
 
   return (
-    <header className="flex min-h-(--header-height) shrink-0 items-center gap-2 border-b bg-background transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:min-h-(--header-height)">
+    <header className="sticky top-0 z-50 flex min-h-(--header-height) shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur-md transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:min-h-(--header-height)">
       <div className="flex w-full items-center justify-between gap-1 px-4 lg:gap-2 lg:px-6">
         <div className="flex min-w-0 items-center gap-2 lg:gap-3">
           <SidebarTrigger className="-ml-1" />

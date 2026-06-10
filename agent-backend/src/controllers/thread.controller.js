@@ -78,6 +78,15 @@ class ThreadController {
     }
   }
 
+  async deleteAll(req, res, next) {
+    try {
+      await threadRepository.deleteAllByUser(req.user.id);
+      res.json({ success: true, message: 'All threads permanently removed' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async updateTitle(req, res, next) {
     try {
       const { title } = updateThreadTitleSchema.parse(req.body);

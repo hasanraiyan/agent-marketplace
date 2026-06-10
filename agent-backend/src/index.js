@@ -26,6 +26,14 @@ const app = express();
 
 app.use(cors());
 
+// Prevent browser and proxy caching for all API responses
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+
 // Webhooks must be parsed as raw body and bypass global auth
 app.use('/api/v1/webhooks', webhookRouter);
 

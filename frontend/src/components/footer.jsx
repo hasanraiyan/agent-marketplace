@@ -63,8 +63,8 @@ export function Footer() {
               </span>
             </Link>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
-              The premium platform for AI agents. Deploy and
-              orchestrate intelligent agents for any task.
+              The premium platform for AI agents. Deploy and orchestrate
+              intelligent agents for any task.
             </p>
             {/* Social Links */}
             <div className="mt-5 flex items-center gap-3">

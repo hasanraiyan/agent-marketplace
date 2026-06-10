@@ -32,11 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Field,
-  FieldLabel,
-  FieldDescription,
-} from "@/components/ui/field";
+import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { getProviders, getProviderModels } from "@/lib/api/providers";
@@ -51,9 +47,24 @@ const CATEGORIES = [
 ];
 
 const VISIBILITY_OPTIONS = [
-  { value: "private", label: "Private", description: "Only you can see and use this agent", icon: Lock },
-  { value: "unlisted", label: "Unlisted", description: "Anyone with the link can use it", icon: Eye },
-  { value: "public", label: "Public", description: "Visible on the Explore dashboard", icon: Globe },
+  {
+    value: "private",
+    label: "Private",
+    description: "Only you can see and use this agent",
+    icon: Lock,
+  },
+  {
+    value: "unlisted",
+    label: "Unlisted",
+    description: "Anyone with the link can use it",
+    icon: Eye,
+  },
+  {
+    value: "public",
+    label: "Public",
+    description: "Visible on the Explore dashboard",
+    icon: Globe,
+  },
 ];
 
 const DEFAULT_FORM = {
@@ -70,7 +81,12 @@ const DEFAULT_FORM = {
   isActive: true,
 };
 
-export function AgentForm({ mode = "create", initialData, onSave, loading: saving }) {
+export function AgentForm({
+  mode = "create",
+  initialData,
+  onSave,
+  loading: saving,
+}) {
   const [providers, setProviders] = useState([]);
   const [loadingProviders, setLoadingProviders] = useState(true);
   const [models, setModels] = useState([]);
@@ -225,7 +241,9 @@ export function AgentForm({ mode = "create", initialData, onSave, loading: savin
       <section className="space-y-6">
         <div className="flex items-center gap-2 border-b pb-2 text-foreground/80">
           <Bot className="size-4" />
-          <h2 className="text-sm font-bold uppercase tracking-wider">Identity</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wider">
+            Identity
+          </h2>
         </div>
 
         <div className="grid gap-6">
@@ -243,7 +261,10 @@ export function AgentForm({ mode = "create", initialData, onSave, loading: savin
           <div className="grid gap-6 sm:grid-cols-2">
             <Field>
               <FieldLabel className="text-sm font-bold">Category</FieldLabel>
-              <Select value={form.category} onValueChange={(v) => update("category", v)}>
+              <Select
+                value={form.category}
+                onValueChange={(v) => update("category", v)}
+              >
                 <SelectTrigger className="h-11 bg-muted/20">
                   <SelectValue />
                 </SelectTrigger>
@@ -293,7 +314,11 @@ export function AgentForm({ mode = "create", initialData, onSave, loading: savin
               />
               <div className="flex flex-wrap gap-1.5">
                 {form.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="pl-2 pr-1 py-1 gap-1">
+                  <Badge
+                    key={tag}
+                    variant="secondary"
+                    className="pl-2 pr-1 py-1 gap-1"
+                  >
                     {tag}
                     <button
                       type="button"
@@ -315,7 +340,9 @@ export function AgentForm({ mode = "create", initialData, onSave, loading: savin
       <section className="space-y-6">
         <div className="flex items-center gap-2 border-b pb-2 text-foreground/80">
           <Brain className="size-4" />
-          <h2 className="text-sm font-bold uppercase tracking-wider">Instructions</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wider">
+            Instructions
+          </h2>
         </div>
 
         <div className="grid gap-6">
@@ -337,7 +364,9 @@ export function AgentForm({ mode = "create", initialData, onSave, loading: savin
                 <FieldLabel className="flex items-center gap-2 font-bold">
                   Web Search
                 </FieldLabel>
-                <FieldDescription>Allow the agent to search the web.</FieldDescription>
+                <FieldDescription>
+                  Allow the agent to search the web.
+                </FieldDescription>
               </div>
               <Switch
                 checked={form.webSearchEnabled}
@@ -352,7 +381,9 @@ export function AgentForm({ mode = "create", initialData, onSave, loading: savin
       <section className="space-y-6">
         <div className="flex items-center gap-2 border-b pb-2 text-foreground/80">
           <Cpu className="size-4" />
-          <h2 className="text-sm font-bold uppercase tracking-wider">Capabilities</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wider">
+            Capabilities
+          </h2>
         </div>
 
         {noProviders ? (
@@ -381,11 +412,17 @@ export function AgentForm({ mode = "create", initialData, onSave, loading: savin
                 disabled={loadingProviders}
               >
                 <SelectTrigger className="h-11 bg-muted/20">
-                  <SelectValue placeholder={loadingProviders ? "Loading..." : "Select Provider"} />
+                  <SelectValue
+                    placeholder={
+                      loadingProviders ? "Loading..." : "Select Provider"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {providers.map((p) => (
-                    <SelectItem key={p.id || p._id} value={p.id || p._id}>{p.label}</SelectItem>
+                    <SelectItem key={p.id || p._id} value={p.id || p._id}>
+                      {p.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -393,13 +430,21 @@ export function AgentForm({ mode = "create", initialData, onSave, loading: savin
 
             <Field>
               <FieldLabel className="text-sm font-bold">Model</FieldLabel>
-              <Select value={form.modelName} onValueChange={(v) => update("modelName", v)} disabled={loadingModels}>
+              <Select
+                value={form.modelName}
+                onValueChange={(v) => update("modelName", v)}
+                disabled={loadingModels}
+              >
                 <SelectTrigger className="h-11 bg-muted/20">
-                  <SelectValue placeholder={loadingModels ? "Loading..." : "Select Model"} />
+                  <SelectValue
+                    placeholder={loadingModels ? "Loading..." : "Select Model"}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {models.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.id}</SelectItem>
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.id}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -412,7 +457,9 @@ export function AgentForm({ mode = "create", initialData, onSave, loading: savin
       <section className="space-y-6">
         <div className="flex items-center gap-2 border-b pb-2 text-foreground/80">
           <Lock className="size-4" />
-          <h2 className="text-sm font-bold uppercase tracking-wider">Visibility</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wider">
+            Visibility
+          </h2>
         </div>
 
         <div className="grid gap-4">
@@ -427,15 +474,21 @@ export function AgentForm({ mode = "create", initialData, onSave, loading: savin
                   : "bg-card hover:bg-muted/50"
               }`}
             >
-              <div className={`mt-0.5 rounded-lg p-2 ${form.visibility === opt.value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+              <div
+                className={`mt-0.5 rounded-lg p-2 ${form.visibility === opt.value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+              >
                 <opt.icon className="size-4" />
               </div>
               <div className="flex-1">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-bold">{opt.label}</p>
-                  {form.visibility === opt.value && <CheckCircle2 className="size-4 text-primary" />}
+                  {form.visibility === opt.value && (
+                    <CheckCircle2 className="size-4 text-primary" />
+                  )}
                 </div>
-                <p className="mt-0.5 text-[10px] text-muted-foreground uppercase tracking-tight">{opt.description}</p>
+                <p className="mt-0.5 text-[10px] text-muted-foreground uppercase tracking-tight">
+                  {opt.description}
+                </p>
               </div>
             </button>
           ))}
@@ -443,14 +496,18 @@ export function AgentForm({ mode = "create", initialData, onSave, loading: savin
       </section>
 
       <div className="pt-6">
-          <Button
-            type="submit"
-            className="w-full h-12 text-base font-bold shadow-lg shadow-primary/20"
-            disabled={saveDisabled}
-          >
-            {saving ? <Loader2 className="mr-2 size-5 animate-spin" /> : <Save className="mr-2 size-5" />}
-            Save configuration
-          </Button>
+        <Button
+          type="submit"
+          className="w-full h-12 text-base font-bold shadow-lg shadow-primary/20"
+          disabled={saveDisabled}
+        >
+          {saving ? (
+            <Loader2 className="mr-2 size-5 animate-spin" />
+          ) : (
+            <Save className="mr-2 size-5" />
+          )}
+          Save configuration
+        </Button>
       </div>
     </form>
   );

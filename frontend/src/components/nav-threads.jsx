@@ -109,7 +109,7 @@ function ThreadItem({ thread, isActive, onRename, onDelete }) {
         isActive={isActive}
         className={cn(
           "group/thread h-7 gap-1.5",
-          isActive && "bg-sidebar-accent text-sidebar-accent-foreground"
+          isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
         )}
       >
         {renaming ? (
@@ -147,17 +147,12 @@ function ThreadItem({ thread, isActive, onRename, onDelete }) {
             side={isMobile ? "bottom" : "right"}
             align={isMobile ? "end" : "start"}
           >
-            <DropdownMenuItem
-              onSelect={() => setRenaming(true)}
-            >
+            <DropdownMenuItem onSelect={() => setRenaming(true)}>
               <PencilIcon className="size-3.5" />
               <span>Rename</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={handleDelete}
-            >
+            <DropdownMenuItem variant="destructive" onSelect={handleDelete}>
               <Trash2Icon className="size-3.5" />
               <span>Delete</span>
             </DropdownMenuItem>
@@ -172,22 +167,24 @@ function ThreadItem({ thread, isActive, onRename, onDelete }) {
 function AgentGroup({ group, activeThreadId, onRename, onDelete }) {
   const { agent, threads } = group;
   const agentId = agent._id || agent.id;
-  const hasActive = threads.some(
-    (t) => (t._id || t.id) === activeThreadId
-  );
+  const hasActive = threads.some((t) => (t._id || t.id) === activeThreadId);
   // Start open if the active thread belongs to this agent
   const [open, setOpen] = useState(hasActive);
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="group/collapsible">
+    <Collapsible
+      open={open}
+      onOpenChange={setOpen}
+      className="group/collapsible"
+    >
       <SidebarMenuItem>
         <CollapsibleTrigger asChild>
-          <SidebarMenuButton
-            tooltip={agent.name}
-            className="gap-2"
-          >
+          <SidebarMenuButton tooltip={agent.name} className="gap-2">
             <Avatar className="size-4 shrink-0">
-              <AvatarImage src={agent.avatarUrl || agent.avatar} alt={agent.name} />
+              <AvatarImage
+                src={agent.avatarUrl || agent.avatar}
+                alt={agent.name}
+              />
               <AvatarFallback className="bg-muted text-[8px]">
                 <BotIcon className="size-2.5" />
               </AvatarFallback>
@@ -230,7 +227,15 @@ function AgentGroup({ group, activeThreadId, onRename, onDelete }) {
  *   onRename  - (threadId, title) => Promise
  *   onDelete  - (threadId) => Promise
  */
-export function NavThreads({ groups, loading, onRename, onDelete }) {
+export function NavThreads({
+  groups,
+  loading,
+  loadingMore,
+  hasMore,
+  onLoadMore,
+  onRename,
+  onDelete,
+}) {
   const pathname = usePathname();
 
   // Determine the active thread from the URL: /dashboard/agents/[id]/run?threadId=...
@@ -284,6 +289,18 @@ export function NavThreads({ groups, loading, onRename, onDelete }) {
               onDelete={onDelete}
             />
           ))
+        )}
+
+        {hasMore && (
+          <SidebarMenuItem className="mt-2 px-2">
+            <button
+              onClick={onLoadMore}
+              disabled={loadingMore}
+              className="w-full text-center text-xs font-semibold text-muted-foreground hover:text-primary py-1 px-2 border border-dashed border-sidebar-border rounded-md hover:bg-sidebar-accent transition-all cursor-pointer disabled:opacity-50"
+            >
+              {loadingMore ? "Loading more..." : "Load More Chats"}
+            </button>
+          </SidebarMenuItem>
         )}
       </SidebarMenu>
     </SidebarGroup>

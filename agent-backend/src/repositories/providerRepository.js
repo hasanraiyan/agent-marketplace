@@ -1,4 +1,4 @@
-                                                                                                                                                                                                 import Provider from '../models/Provider.js';
+import Provider from '../models/Provider.js';
 
 class ProviderRepository {
   async create(providerData) {

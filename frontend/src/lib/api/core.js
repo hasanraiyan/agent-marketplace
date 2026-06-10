@@ -42,6 +42,11 @@ api.interceptors.request.use(
         );
       }
 
+      // Disable client-side request caching to ensure fresh thread info
+      config.headers["Cache-Control"] = "no-cache";
+      config.headers["Pragma"] = "no-cache";
+      config.headers["Expires"] = "0";
+
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       } else {

@@ -29,7 +29,6 @@ Your goal is to help the user design, build, and optimize their own custom AI ag
 `;
 
 class AgentFactory {
-
   _assertProviderCredentials(provider, apiKey) {
     const trimmedKey = typeof apiKey === 'string' ? apiKey.trim() : '';
 
@@ -123,8 +122,6 @@ class AgentFactory {
       provider = await providerRepository.findById(agent.providerId);
       if (!provider) throw new Error('Configured Provider not found or was deleted.');
     }
-
-
 
     logger.info('[AgentFactory] building agent', {
       agentId: agentIdStr,

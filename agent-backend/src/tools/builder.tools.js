@@ -105,7 +105,9 @@ export const upsertAgentTool = (userId) =>
         }
 
         if (sanitized.agentId) {
-          const updated = await agentService.updateAgent(sanitized.agentId, userId, { ...sanitized });
+          const updated = await agentService.updateAgent(sanitized.agentId, userId, {
+            ...sanitized,
+          });
           const data = normalizeAgentPayload(updated);
           return JSON.stringify({
             status: 'success',
@@ -201,7 +203,10 @@ export const manageSkillTool = (userId) =>
             });
           case 'update':
             if (!input.skillId) {
-              return JSON.stringify({ status: 'error', message: 'skillId is required for update.' });
+              return JSON.stringify({
+                status: 'error',
+                message: 'skillId is required for update.',
+              });
             }
             if (input.name && !/^[a-z0-9-]+$/.test(input.name)) {
               return JSON.stringify({
@@ -209,7 +214,9 @@ export const manageSkillTool = (userId) =>
                 message: 'Skill name must contain only lowercase letters, numbers, and hyphens.',
               });
             }
-            const updatedSkill = await skillService.updateSkill(input.skillId, userId, { ...input });
+            const updatedSkill = await skillService.updateSkill(input.skillId, userId, {
+              ...input,
+            });
             return JSON.stringify({
               status: 'success',
               message: 'Skill updated successfully.',
@@ -217,7 +224,10 @@ export const manageSkillTool = (userId) =>
             });
           case 'delete':
             if (!input.skillId) {
-              return JSON.stringify({ status: 'error', message: 'skillId is required for delete.' });
+              return JSON.stringify({
+                status: 'error',
+                message: 'skillId is required for delete.',
+              });
             }
             await skillService.deleteSkill(input.skillId, userId);
             return JSON.stringify({

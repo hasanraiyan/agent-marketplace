@@ -118,7 +118,12 @@ describe('translateLangGraphStream', () => {
       name: 'search_web',
     });
     const events = [
-      { event: 'on_tool_start', run_id: 'sw1', name: 'search_web', data: { input: { query: 'cats' } } },
+      {
+        event: 'on_tool_start',
+        run_id: 'sw1',
+        name: 'search_web',
+        data: { input: { query: 'cats' } },
+      },
       { event: 'on_tool_end', run_id: 'sw1', name: 'search_web', data: { output: toolMessage } },
     ];
     const out = await collect(translateLangGraphStream(fakeStream(events)));
@@ -195,7 +200,10 @@ describe('extractToolOutputContent', () => {
 
   test('joins array content blocks into text', () => {
     const tm = new ToolMessage({
-      content: [{ type: 'text', text: 'hello ' }, { type: 'text', text: 'world' }],
+      content: [
+        { type: 'text', text: 'hello ' },
+        { type: 'text', text: 'world' },
+      ],
       tool_call_id: 'x',
       name: 't',
     });

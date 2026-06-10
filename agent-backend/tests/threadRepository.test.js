@@ -68,5 +68,14 @@ describe('Thread Repository', () => {
         { new: true }
       );
     });
+
+    test('should delete all conversations by user id', async () => {
+      const deleteManySpy = jest
+        .spyOn(Conversation, 'deleteMany')
+        .mockResolvedValue({ deletedCount: 5 });
+      const result = await threadRepository.deleteAllByUser('user-123');
+      expect(deleteManySpy).toHaveBeenCalledWith({ userId: 'user-123' });
+      expect(result).toEqual({ deletedCount: 5 });
+    });
   });
 });

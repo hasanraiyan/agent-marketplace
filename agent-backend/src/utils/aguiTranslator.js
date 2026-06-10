@@ -130,9 +130,7 @@ export function buildInterruptNotice(graphInterrupts, err) {
   const interruptValue = (graphInterrupts ?? err?.interrupts)?.[0]?.value;
   const actionRequests = interruptValue?.actionRequests;
   if (Array.isArray(actionRequests) && actionRequests.length > 0) {
-    const lines = actionRequests.map(
-      (action, i) => `**${i + 1}. ${action?.name || 'tool'}**`
-    );
+    const lines = actionRequests.map((action, i) => `**${i + 1}. ${action?.name || 'tool'}**`);
     return (
       `I'd like to run the following ${actionRequests.length > 1 ? 'actions' : 'action'} and need your approval:\n\n` +
       `${lines.join('\n')}\n\n` +

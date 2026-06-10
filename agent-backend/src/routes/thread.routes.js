@@ -14,6 +14,7 @@ router.use(authMiddleware);
 router.post('/', validateBody(createThreadSchema), threadController.create);
 router.get('/', threadController.getAllByUser);
 router.get('/:id', threadController.getOne);
+router.delete('/', threadController.deleteAll);
 router.delete('/:id', threadController.delete);
 router.patch('/:id/title', validateBody(updateThreadTitleSchema), threadController.updateTitle);
 

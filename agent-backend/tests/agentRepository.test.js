@@ -57,7 +57,7 @@ describe('Agent Repository', () => {
         { name: 'New' },
         {
           new: true,
-          runValidators: true
+          runValidators: true,
         }
       );
     });

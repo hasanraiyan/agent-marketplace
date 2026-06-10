@@ -46,9 +46,7 @@ function getLastUserText(messages) {
 
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
-    return content
-      .map((part) => (typeof part === 'string' ? part : part?.text || ''))
-      .join('');
+    return content.map((part) => (typeof part === 'string' ? part : part?.text || '')).join('');
   }
   return '';
 }
@@ -78,14 +76,14 @@ aguiRouter.use(async (req, res, next) => {
       }
     }
 
-    req.aguiContext = { userId, agentId, langGraphThreadId };
+    req.aguiContext = { userId, agentId, langGraphThreadId, threadDbId };
     next();
   } catch (err) {
     next(err);
   }
 });
 
-async function* runAgentAsAguiEvents({ agentId, userId, langGraphThreadId, messages, resume }) {
+async function* runAgentAsAguiEvents({ agentId, userId, langGraphThreadId, threadDbId, messages, resume }) {
   if (!agentId) {
     logger.warn('[AG-UI] run rejected: missing agentId');
     yield* emitTextNotice('*(Error: agentId header is required)*');
@@ -101,6 +99,16 @@ async function* runAgentAsAguiEvents({ agentId, userId, langGraphThreadId, messa
     contentLength: content.length,
   });
 
+  // Fetch thread if threadDbId exists to check if auto-titling is required
+  let thread = null;
+  if (threadDbId) {
+    try {
+      thread = await threadRepository.findById(threadDbId);
+    } catch (err) {
+      logger.warn('[AG-UI] failed to fetch thread for auto-titling', { threadDbId, err: err.message });
+    }
+  }
+
   let agentBuild;
   try {
     agentBuild = await agentFactory.buildAgent(agentId, userId, chatService.checkpointer);
@@ -110,11 +118,17 @@ async function* runAgentAsAguiEvents({ agentId, userId, langGraphThreadId, messa
     return;
   }
 
-  const { agentInstance, providerConfig, skillFiles } = agentBuild;
+  const { agentInstance, providerConfig, skillFiles, llm } = agentBuild;
   const pendingInterrupt =
     langGraphThreadId != null ? interruptedThreads.get(langGraphThreadId) : undefined;
   const isResuming = Boolean(pendingInterrupt);
   if (isResuming) interruptedThreads.delete(langGraphThreadId);
+
+  // Trigger concurrent auto-titling if this is a fresh conversation with default title
+  let titlePromise = null;
+  if (thread && thread.title === 'New Conversation' && !isResuming && content) {
+    titlePromise = chatService._autoTitleThread(thread, content, llm);
+  }
 
   const hasSkillFiles = skillFiles && Object.keys(skillFiles).length > 0;
   const inputArg = isResuming
@@ -157,6 +171,17 @@ async function* runAgentAsAguiEvents({ agentId, userId, langGraphThreadId, messa
       });
     },
   });
+
+  if (titlePromise) {
+    try {
+      const newTitle = await titlePromise;
+      if (newTitle) {
+        yield { type: 'title', title: newTitle };
+      }
+    } catch (err) {
+      logger.error(`[AG-UI] auto titling failed: ${err?.message}`);
+    }
+  }
 }
 
 aguiRouter.get('/', (req, res) => {

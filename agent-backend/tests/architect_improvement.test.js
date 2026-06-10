@@ -55,6 +55,8 @@ describe('Architect Improvements', () => {
   test('T11: Architect has hardcoded agent-architecture skill', async () => {
     const { skillFiles } = await agentFactory.buildAgent(ARCHITECT_AGENT_ID, userId, null);
     expect(skillFiles['/skills/agent-architecture/SKILL.md']).toBeDefined();
-    expect(skillFiles['/skills/agent-architecture/SKILL.md'].content.join('\n')).toContain('agent-architecture');
+    expect(skillFiles['/skills/agent-architecture/SKILL.md'].content.join('\n')).toContain(
+      'agent-architecture'
+    );
   });
 });

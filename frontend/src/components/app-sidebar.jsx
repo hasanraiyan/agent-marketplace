@@ -64,6 +64,9 @@ export function AppSidebar({ ...props }) {
   const {
     groups,
     loading: threadsLoading,
+    loadingMore,
+    hasMore,
+    loadMore,
     renameThread,
     removeThread,
   } = useThreads();
@@ -77,7 +80,7 @@ export function AppSidebar({ ...props }) {
         toast.error("Failed to rename thread");
       }
     },
-    [renameThread]
+    [renameThread],
   );
 
   const handleDelete = React.useCallback(
@@ -89,7 +92,7 @@ export function AppSidebar({ ...props }) {
         toast.error("Failed to delete thread");
       }
     },
-    [removeThread]
+    [removeThread],
   );
 
   return (
@@ -98,6 +101,7 @@ export function AppSidebar({ ...props }) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
+              size="lg"
               asChild
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
@@ -116,6 +120,9 @@ export function AppSidebar({ ...props }) {
         <NavThreads
           groups={groups}
           loading={threadsLoading}
+          loadingMore={loadingMore}
+          hasMore={hasMore}
+          onLoadMore={loadMore}
           onRename={handleRename}
           onDelete={handleDelete}
         />

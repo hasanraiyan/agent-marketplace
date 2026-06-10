@@ -125,10 +125,12 @@ function MessageBubble({ message, agent }) {
             {agent.name || "Agent"}
           </div>
         ) : null}
-        <div className={cn(
-          "prose prose-sm max-w-none break-words prose-p:my-1 prose-pre:my-2 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1",
-          isUser ? "prose-invert" : "dark:prose-invert"
-        )}>
+        <div
+          className={cn(
+            "prose prose-sm max-w-none break-words prose-p:my-1 prose-pre:my-2 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1",
+            isUser ? "prose-invert" : "dark:prose-invert",
+          )}
+        >
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             rehypePlugins={[rehypeSanitize]}
@@ -540,6 +542,7 @@ export function AguiAgentChat({
   onToolResult,
   onStateChange,
   onNewChat,
+  onRunFinished,
   showHeader = true,
   contentClassName,
 }) {
@@ -553,6 +556,7 @@ export function AguiAgentChat({
     headers,
     initialMessages,
     onToolResult,
+    onRunFinished,
   });
 
   const startNewChat = async () => {
@@ -696,7 +700,7 @@ export function AguiAgentChat({
           {chat.error}
         </div>
       ) : null}
-      <div className="shrink-0 px-4 pb-4 pt-2">
+      <div className="sticky bottom-0 z-10 shrink-0 border-t border-slate-100 bg-white/95 px-4 pb-4 pt-3 backdrop-blur-sm dark:border-slate-800/50 dark:bg-slate-950/95">
         <div className={cn("mx-auto w-full max-w-4xl", contentClassName)}>
           <ChatComposer
             value={input}

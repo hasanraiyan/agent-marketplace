@@ -3,7 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, BotIcon, Loader2, Play, Plug, RotateCcw } from "lucide-react";
+import {
+  ArrowLeft,
+  BotIcon,
+  Loader2,
+  Play,
+  Plug,
+  RotateCcw,
+} from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -91,7 +98,8 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
           } catch (agentErr) {
             console.error("Failed to load agent:", agentErr);
             toast.error(
-              agentErr.response?.data?.message || "Failed to load agent details",
+              agentErr.response?.data?.message ||
+                "Failed to load agent details",
             );
           }
         }

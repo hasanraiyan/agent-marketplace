@@ -30,6 +30,7 @@ class ChatService {
       const newTitle = response.content.replace(/["']/g, '').trim();
 
       await threadRepository.update(thread._id, { title: newTitle });
+      return newTitle;
     } catch (error) {
       console.error('Failed to auto-title thread:', error.message);
     }
@@ -73,13 +74,13 @@ class ChatService {
 
       // Ensure we have a valid agentId even if populate failed (common for virtual agents)
       let agentId = thread.agentId?._id || thread.agentId;
-      
+
       // If agentId is still null (but was supposed to be populated), try to get the raw ID
       if (!agentId && typeof thread.populated === 'function') {
-          const rawId = thread.populated('agentId');
-          if (rawId) agentId = rawId;
+        const rawId = thread.populated('agentId');
+        if (rawId) agentId = rawId;
       }
-      
+
       // Last resort fallback to the field itself if not populated
       if (!agentId) agentId = thread.agentId;
 
@@ -115,9 +116,7 @@ class ChatService {
             res.write(`data: ${JSON.stringify({ tool: `Executing ${toolName}...` })}\n\n`);
           } else if (evtName === 'on_tool_end') {
             const toolName = name || data?.name || 'tool';
-            res.write(
-              `data: ${JSON.stringify({ tool_output: data.output, tool: toolName })}\n\n`
-            );
+            res.write(`data: ${JSON.stringify({ tool_output: data.output, tool: toolName })}\n\n`);
           } else if (evtName === 'on_custom_event' && data?.type === 'interrupt') {
             res.write(
               `data: ${JSON.stringify({ interrupt: true, tool: data.tool, args: data.args })}\n\n`
@@ -197,9 +196,7 @@ class ChatService {
           res.write(`data: ${JSON.stringify({ tool: `Executing ${toolName}...` })}\n\n`);
         } else if (evtName === 'on_tool_end') {
           const toolName = name || data?.name || 'tool';
-          res.write(
-            `data: ${JSON.stringify({ tool_output: data.output, tool: toolName })}\n\n`
-          );
+          res.write(`data: ${JSON.stringify({ tool_output: data.output, tool: toolName })}\n\n`);
         } else if (evtName === 'on_custom_event' && data?.type === 'interrupt') {
           res.write(
             `data: ${JSON.stringify({ interrupt: true, tool: data.tool, args: data.args })}\n\n`

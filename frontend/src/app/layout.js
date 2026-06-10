@@ -19,13 +19,7 @@ export const metadata = {
   title: "Persona.ai — The Premier AI Agent Platform",
   description:
     "Deploy and orchestrate intelligent AI agents for coding, writing, research, and more. Persona.ai is the professional platform for AI-powered productivity.",
-  keywords: [
-    "AI agents",
-    "platform",
-    "automation",
-    "productivity",
-    "AI tools",
-  ],
+  keywords: ["AI agents", "platform", "automation", "productivity", "AI tools"],
   openGraph: {
     title: "Persona.ai — The Premier AI Agent Platform",
     description:

@@ -24,7 +24,11 @@ class ConsoleLogger {
   }
 
   debug(message, data = null) {
-    if (process.env.DEBUG || process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+    if (
+      process.env.DEBUG ||
+      process.env.NODE_ENV === 'development' ||
+      process.env.NODE_ENV === 'test'
+    ) {
       console.debug(`[DEBUG] ${new Date().toISOString()} - ${message}`, data || '');
     }
   }

@@ -14,7 +14,7 @@ jest.unstable_mockModule('../src/repositories/providerRepository.js', () => ({
 
 jest.unstable_mockModule('../src/repositories/agentRepository.js', () => ({
   default: {
-     count: jest.fn(),
+    count: jest.fn(),
   },
 }));
 

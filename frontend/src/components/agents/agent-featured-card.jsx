@@ -54,14 +54,16 @@ export function AgentFeaturedCard({ agent }) {
                 <p className="mt-1 line-clamp-1 text-xs opacity-0 transition-opacity duration-300 group-hover:opacity-100 sm:text-sm">
                   {description || "No description"}
                 </p>
-                
+
                 <div className="mt-3 flex items-center gap-3 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
-                    <div className="flex items-center gap-1.5 text-xs">
-                        <MessageSquareIcon className="size-3.5" />
-                        <span>{messageCount} chats</span>
-                    </div>
-                    <div className="h-1 w-1 rounded-full bg-white/40" />
-                    <span className="text-xs font-medium text-primary-foreground">Try now →</span>
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <MessageSquareIcon className="size-3.5" />
+                    <span>{messageCount} chats</span>
+                  </div>
+                  <div className="h-1 w-1 rounded-full bg-white/40" />
+                  <span className="text-xs font-medium text-primary-foreground">
+                    Try now →
+                  </span>
                 </div>
               </div>
             </div>

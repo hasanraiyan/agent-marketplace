@@ -25,9 +25,9 @@ class AgentRepository {
   }
 
   async update(id, updateData) {
-    return await Agent.findByIdAndUpdate(id, updateData, { 
+    return await Agent.findByIdAndUpdate(id, updateData, {
       new: true,
-      runValidators: true 
+      runValidators: true,
     });
   }
 
