@@ -410,6 +410,7 @@ export function AguiAgentChat({
   onToolResult,
   onStateChange,
   showHeader = true,
+  contentClassName,
 }) {
   const [input, setInput] = useState("");
   const scrollRef = useRef(null);
@@ -474,9 +475,14 @@ export function AguiAgentChat({
         </div>
       ) : null}
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
         {chat.conversation.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-center">
+          <div
+            className={cn(
+              "mx-auto flex h-full w-full max-w-4xl items-center justify-center text-center",
+              contentClassName,
+            )}
+          >
             <div className="max-w-sm">
               <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-[#1E60FF]/10 text-[#1E60FF]">
                 <Sparkles className="size-5" />
@@ -490,7 +496,12 @@ export function AguiAgentChat({
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div
+            className={cn(
+              "mx-auto w-full max-w-4xl space-y-4",
+              contentClassName,
+            )}
+          >
             {chat.conversation.map((entry) => {
               if (entry.type === "message") {
                 const message = messageById(entry.refId);
@@ -515,17 +526,26 @@ export function AguiAgentChat({
       </div>
 
       {chat.error ? (
-        <div className="px-5 pb-2 text-sm text-red-500">{chat.error}</div>
+        <div
+          className={cn(
+            "mx-auto w-full max-w-4xl px-4 pb-2 text-sm text-red-500",
+            contentClassName,
+          )}
+        >
+          {chat.error}
+        </div>
       ) : null}
       <div className="shrink-0 px-4 pb-4 pt-2">
-        <ChatComposer
-          value={input}
-          onChange={setInput}
-          onSend={send}
-          onStop={chat.stop}
-          isRunning={chat.isRunning}
-          disabled={!threadId || !url}
-        />
+        <div className={cn("mx-auto w-full max-w-4xl", contentClassName)}>
+          <ChatComposer
+            value={input}
+            onChange={setInput}
+            onSend={send}
+            onStop={chat.stop}
+            isRunning={chat.isRunning}
+            disabled={!threadId || !url}
+          />
+        </div>
       </div>
     </div>
   );
