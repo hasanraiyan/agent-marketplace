@@ -9,6 +9,7 @@ import {
   buildInterruptNotice,
   buildResumeValue,
 } from '../src/utils/aguiTranslator.js';
+import { askClarificationTool } from '../src/tools/clarification.tool.js';
 
 describe('upsert_agent result contract', () => {
   const userId = 'user-123';
@@ -97,9 +98,18 @@ describe('HITL interrupt translation', () => {
       kind: 'hitl',
       actionCount: 1,
     });
-    expect(describeInterrupt([{ value: { questions: [{ text: 'Which model?' }] } }])).toEqual({
+    expect(describeInterrupt([{ value: { questions: [{ text: 'Which model?' }] } }])).toMatchObject({
       kind: 'clarification',
       actionCount: 0,
+      questions: [
+        {
+          id: 'question_1',
+          text: 'Which model?',
+          options: [],
+          required: true,
+          allowCustom: true,
+        },
+      ],
     });
   });
 
@@ -135,10 +145,10 @@ describe('HITL interrupt translation', () => {
     expect(text.delta).toContain('upsert_agent');
   });
 
-  test('clarification interrupts do not emit a CUSTOM event', async () => {
+  test('clarification interrupts emit a structured CUSTOM event', async () => {
     const interruptError = Object.assign(new Error('GraphInterrupt'), {
       name: 'GraphInterrupt',
-      interrupts: [{ value: { questions: [{ text: 'Which model?' }] } }],
+      interrupts: [{ value: { questions: [{ id: 'model', text: 'Which model?', options: ['GPT', 'Claude'] }] } }],
     });
     const onInterrupt = jest.fn();
 
@@ -147,7 +157,22 @@ describe('HITL interrupt translation', () => {
     );
 
     expect(onInterrupt).toHaveBeenCalledWith(expect.objectContaining({ kind: 'clarification' }));
-    expect(events.find((e) => e.type === EventType.CUSTOM)).toBeUndefined();
+    const custom = events.find((e) => e.type === EventType.CUSTOM);
+    expect(custom).toMatchObject({
+      name: 'clarification_request',
+      value: {
+        currentIndex: 0,
+        questions: [
+          {
+            id: 'model',
+            text: 'Which model?',
+            options: ['GPT', 'Claude'],
+            required: true,
+            allowCustom: true,
+          },
+        ],
+      },
+    });
   });
 });
 
@@ -156,6 +181,26 @@ describe('buildResumeValue', () => {
     expect(
       buildResumeValue({ kind: 'clarification', actionCount: 0 }, undefined, 'gpt-4o please')
     ).toBe('gpt-4o please');
+  });
+
+  test('clarification interrupts forward structured answers from the client', () => {
+    const answers = [
+      {
+        questionId: 'format',
+        question: 'What format?',
+        answer: 'Bullet points',
+        optionIndex: 0,
+        freeform: false,
+        skipped: false,
+      },
+    ];
+    expect(
+      buildResumeValue(
+        { kind: 'clarification', actionCount: 0 },
+        { answers, text: 'Q: What format?\nA: Bullet points' },
+        'fallback'
+      )
+    ).toEqual({ answers, text: 'Q: What format?\nA: Bullet points' });
   });
 
   test('HITL interrupts forward structured decisions from the client', () => {
@@ -181,5 +226,14 @@ describe('buildResumeValue', () => {
     const value = buildResumeValue({ kind: 'hitl', actionCount: 1 }, undefined, '');
     expect(value.decisions[0].type).toBe('reject');
     expect(value.decisions[0].message).toBeTruthy();
+  });
+});
+
+describe('ask_clarification tool', () => {
+  test('is configured with the expected interrupting tool contract', () => {
+    const tool = askClarificationTool();
+
+    expect(tool.name).toBe('ask_clarification');
+    expect(tool.description).toContain('Pause the agent');
   });
 });

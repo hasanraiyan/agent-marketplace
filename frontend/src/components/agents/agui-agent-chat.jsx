@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import {
   AlertCircle,
+  ArrowRight,
   ArrowUp,
   BotIcon,
   Check,
@@ -15,6 +16,7 @@ import {
   Globe,
   ImagePlus,
   Loader2,
+  PencilLine,
   Search,
   ShieldAlert,
   Sparkles,
@@ -453,6 +455,122 @@ function ApprovalCard({ approval, onRespond, disabled }) {
   );
 }
 
+function ClarificationCard({ clarification, onRespond, disabled }) {
+  const [freeformOpen, setFreeformOpen] = useState(false);
+  const [freeformAnswer, setFreeformAnswer] = useState("");
+  const question = clarification?.questions?.[clarification.currentIndex || 0];
+  const currentIndex = clarification?.currentIndex || 0;
+  const total = clarification?.questions?.length || 0;
+
+  if (!question) return null;
+
+  const submitFreeform = () => {
+    const value = freeformAnswer.trim();
+    if (!value || disabled) return;
+    onRespond({ answer: value, freeform: true });
+  };
+
+  return (
+    <div className="max-w-[92%] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+        <div className="min-w-0 flex-1 text-sm font-bold text-slate-900 dark:text-slate-100">
+          {question.text}
+        </div>
+        {total > 1 ? (
+          <div className="shrink-0 text-xs font-medium text-slate-500 dark:text-slate-400">
+            {currentIndex + 1} of {total}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="divide-y divide-slate-200 dark:divide-slate-700">
+        {(question.options || []).map((option, index) => (
+          <button
+            key={`${question.id}-${option}-${index}`}
+            type="button"
+            onClick={() =>
+              onRespond({
+                answer: option,
+                optionIndex: index,
+                freeform: false,
+              })
+            }
+            disabled={disabled}
+            className="group flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-slate-800"
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-sm font-semibold text-slate-600 group-hover:bg-[#1E60FF] group-hover:text-white dark:bg-slate-800 dark:text-slate-300">
+              {index + 1}
+            </span>
+            <span className="min-w-0 flex-1 text-sm font-semibold text-slate-800 dark:text-slate-100">
+              {option}
+            </span>
+            <ArrowRight className="size-4 text-slate-400 opacity-0 transition group-hover:opacity-100" />
+          </button>
+        ))}
+
+        {question.allowCustom !== false ? (
+          <div className="px-4 py-3">
+            {freeformOpen ? (
+              <div className="flex items-end gap-2">
+                <textarea
+                  value={freeformAnswer}
+                  onChange={(event) => setFreeformAnswer(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      submitFreeform();
+                    }
+                  }}
+                  disabled={disabled}
+                  rows={2}
+                  placeholder="Reply directly..."
+                  className="min-h-16 flex-1 resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[#1E60FF] dark:border-slate-700 dark:bg-slate-950"
+                />
+                <Button
+                  type="button"
+                  size="icon"
+                  onClick={submitFreeform}
+                  disabled={disabled || !freeformAnswer.trim()}
+                  className="size-10 rounded-full"
+                >
+                  <ArrowUp className="size-4" />
+                </Button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setFreeformOpen(true)}
+                disabled={disabled}
+                className="flex w-full items-center gap-3 rounded-xl px-0 py-1 text-left text-sm font-semibold text-slate-500 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-400 dark:hover:text-slate-100"
+              >
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-800">
+                  <PencilLine className="size-4" />
+                </span>
+                Something else
+              </button>
+            )}
+          </div>
+        ) : null}
+      </div>
+
+      {!question.required ? (
+        <div className="flex justify-end border-t border-slate-200 px-4 py-3 dark:border-slate-700">
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={() => onRespond({ skipped: true })}
+            disabled={disabled}
+            className="rounded-full px-4 font-bold"
+          >
+            Skip
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ChatComposer({
   value,
   onChange,
@@ -645,7 +763,14 @@ export function AguiAgentChat({
   useEffect(() => {
     if (!scrollRef.current) return;
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [chat.conversation, chat.messages, chat.toolCalls, chat.isRunning]);
+  }, [
+    chat.conversation,
+    chat.messages,
+    chat.toolCalls,
+    chat.isRunning,
+    chat.pendingApproval,
+    chat.pendingClarification,
+  ]);
 
   const send = () => {
     const text = input;
@@ -694,7 +819,9 @@ export function AguiAgentChat({
       ) : null}
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
-        {chat.conversation.length === 0 && !chat.pendingApproval ? (
+        {chat.conversation.length === 0 &&
+        !chat.pendingApproval &&
+        !chat.pendingClarification ? (
           <div
             className={cn(
               "mx-auto flex h-full w-full max-w-4xl flex-col justify-center px-4 py-8 md:py-16",
@@ -781,6 +908,14 @@ export function AguiAgentChat({
                 disabled={chat.isRunning}
               />
             ) : null}
+            {chat.pendingClarification ? (
+              <ClarificationCard
+                key={chat.pendingClarification.currentIndex}
+                clarification={chat.pendingClarification}
+                onRespond={chat.respondToClarification}
+                disabled={chat.isRunning}
+              />
+            ) : null}
             {chat.isRunning ? <ThinkingText label="Thinking" /> : null}
           </div>
         )}
@@ -808,6 +943,8 @@ export function AguiAgentChat({
             placeholder={
               chat.pendingApproval
                 ? "Reply with feedback, or use the buttons above..."
+                : chat.pendingClarification
+                  ? "Reply directly, or use the choices above..."
                 : "Write a message..."
             }
           />

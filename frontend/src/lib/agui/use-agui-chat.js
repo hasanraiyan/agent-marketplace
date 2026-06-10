@@ -38,6 +38,43 @@ function ensureConversationEntry(entries, type, refId) {
   return [...entries, { id: id(`entry-${type}`), type, refId }];
 }
 
+function normalizeClarificationQuestions(questions) {
+  if (!Array.isArray(questions)) return [];
+  return questions
+    .map((question, index) => {
+      const text =
+        typeof question?.text === "string" ? question.text.trim() : "";
+      if (!text) return null;
+      const options = Array.isArray(question.options)
+        ? question.options
+            .map((option) =>
+              typeof option === "string" ? option.trim() : "",
+            )
+            .filter(Boolean)
+        : [];
+      return {
+        id:
+          typeof question.id === "string" && question.id.trim()
+            ? question.id.trim()
+            : `question_${index + 1}`,
+        text,
+        options,
+        required: question.required !== false,
+        allowCustom: question.allowCustom !== false,
+      };
+    })
+    .filter(Boolean);
+}
+
+function buildClarificationTranscript(answers) {
+  return answers
+    .map((answer) => {
+      const value = answer.skipped ? "Skipped" : answer.answer || "";
+      return `Q: ${answer.question}\nA: ${value}`;
+    })
+    .join("\n\n");
+}
+
 const EMPTY_MESSAGES = [];
 const EMPTY_STATE = {};
 
@@ -70,6 +107,7 @@ export function useAguiChat({
   // Pending human-in-the-loop approval request emitted by the backend when the
   // agent pauses before running a guarded tool: { actionRequests, reviewConfigs }.
   const [pendingApproval, setPendingApproval] = useState(null);
+  const [pendingClarification, setPendingClarification] = useState(null);
 
   const messagesRef = useRef(messages);
   const abortRef = useRef(null);
@@ -96,6 +134,7 @@ export function useAguiChat({
     setAgentState(initialState);
     setError(null);
     setPendingApproval(null);
+    setPendingClarification(null);
     // Reset the chat only when the backing AG-UI thread changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId]);
@@ -298,10 +337,25 @@ export function useAguiChat({
           event.name === "hitl_request" &&
           Array.isArray(event.value?.actionRequests)
         ) {
+          setPendingClarification(null);
           setPendingApproval({
             actionRequests: event.value.actionRequests,
             reviewConfigs: event.value.reviewConfigs || [],
           });
+        } else if (event.name === "clarification_request") {
+          const questions = normalizeClarificationQuestions(
+            event.value?.questions,
+          );
+          if (questions.length > 0) {
+            setPendingApproval(null);
+            setPendingClarification({
+              questions,
+              currentIndex: Number.isInteger(event.value?.currentIndex)
+                ? event.value.currentIndex
+                : 0,
+              answers: [],
+            });
+          }
         }
         return;
       }
@@ -441,6 +495,55 @@ export function useAguiChat({
     [appendUserMessage, isRunning, pendingApproval, runStream, url],
   );
 
+  const respondToClarification = useCallback(
+    async ({ answer = "", optionIndex = null, freeform = false, skipped = false } = {}) => {
+      if (!pendingClarification || !url || isRunning) return;
+
+      const currentIndex = pendingClarification.currentIndex || 0;
+      const question = pendingClarification.questions[currentIndex];
+      if (!question) return;
+
+      const normalizedAnswer = skipped ? "" : String(answer || "").trim();
+      if (!skipped && !normalizedAnswer) return;
+      if (skipped && question.required) return;
+
+      const nextAnswer = {
+        questionId: question.id,
+        question: question.text,
+        answer: normalizedAnswer,
+        optionIndex: Number.isInteger(optionIndex) ? optionIndex : null,
+        freeform: Boolean(freeform),
+        skipped: Boolean(skipped),
+      };
+      const nextAnswers = [...pendingClarification.answers, nextAnswer];
+      const nextIndex = currentIndex + 1;
+
+      if (nextIndex < pendingClarification.questions.length) {
+        setPendingClarification({
+          ...pendingClarification,
+          currentIndex: nextIndex,
+          answers: nextAnswers,
+        });
+        return;
+      }
+
+      const text = buildClarificationTranscript(nextAnswers);
+      setPendingClarification(null);
+      const nextMessages = appendUserMessage(text);
+      await runStream({
+        messages: nextMessages,
+        resume: { answers: nextAnswers, text },
+      });
+    },
+    [
+      appendUserMessage,
+      isRunning,
+      pendingClarification,
+      runStream,
+      url,
+    ],
+  );
+
   const send = useCallback(
     async (text) => {
       const content = text.trim();
@@ -457,6 +560,11 @@ export function useAguiChat({
         return;
       }
 
+      if (pendingClarification) {
+        await respondToClarification({ answer: content, freeform: true });
+        return;
+      }
+
       const nextMessages = appendUserMessage(content);
       await runStream({ messages: nextMessages });
     },
@@ -464,7 +572,9 @@ export function useAguiChat({
       appendUserMessage,
       isRunning,
       pendingApproval,
+      pendingClarification,
       respondToApproval,
+      respondToClarification,
       runStream,
       url,
     ],
@@ -485,6 +595,7 @@ export function useAguiChat({
     setAgentState(initialState);
     setError(null);
     setPendingApproval(null);
+    setPendingClarification(null);
   }, [initialState, stop]);
 
   return {
@@ -496,7 +607,9 @@ export function useAguiChat({
     isReasoning,
     error,
     pendingApproval,
+    pendingClarification,
     respondToApproval,
+    respondToClarification,
     send,
     stop,
     clear,

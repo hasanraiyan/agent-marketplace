@@ -190,6 +190,22 @@ describe('translateLangGraphStream', () => {
 
     expect(onInterrupt).toHaveBeenCalledTimes(1);
     expect(onError).not.toHaveBeenCalled();
+    const custom = out.find((e) => e.type === 'CUSTOM');
+    expect(custom).toMatchObject({
+      name: 'clarification_request',
+      value: {
+        currentIndex: 0,
+        questions: [
+          {
+            id: 'question_1',
+            text: 'Which env?',
+            options: ['dev', 'prod'],
+            required: true,
+            allowCustom: true,
+          },
+        ],
+      },
+    });
     const notice = out.find((e) => e.type === 'TEXT_MESSAGE_CHUNK').delta;
     expect(notice).toContain('Which env?');
     expect(notice).toContain('a) dev');

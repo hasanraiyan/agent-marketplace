@@ -102,6 +102,34 @@ export function isInterruptError(err, graphInterrupts) {
   );
 }
 
+export function normalizeClarificationQuestions(graphInterrupts, err) {
+  const interruptValue = (graphInterrupts ?? err?.interrupts)?.[0]?.value;
+  const rawQuestions = Array.isArray(interruptValue?.questions) ? interruptValue.questions : [];
+
+  return rawQuestions
+    .map((question, index) => {
+      const text = typeof question?.text === 'string' ? question.text.trim() : '';
+      if (!text) return null;
+      const options = Array.isArray(question.options)
+        ? question.options
+            .map((option) => (typeof option === 'string' ? option.trim() : ''))
+            .filter(Boolean)
+        : [];
+
+      return {
+        id:
+          typeof question.id === 'string' && question.id.trim()
+            ? question.id.trim()
+            : `question_${index + 1}`,
+        text,
+        options,
+        required: question.required !== false,
+        allowCustom: question.allowCustom !== false,
+      };
+    })
+    .filter(Boolean);
+}
+
 // Classify the first interrupt payload of a paused run. HITL interrupts come from
 // langchain's humanInTheLoopMiddleware (interruptOn) and carry actionRequests +
 // reviewConfigs; they must be resumed with `{ decisions: [...] }`. Other interrupt
@@ -120,7 +148,11 @@ export function describeInterrupt(graphInterrupts, err) {
         : [],
     };
   }
-  return { kind: 'clarification', actionCount: 0 };
+  return {
+    kind: 'clarification',
+    actionCount: 0,
+    questions: normalizeClarificationQuestions(graphInterrupts, err),
+  };
 }
 
 // Build the value passed to Command({ resume }) when a paused thread receives the
@@ -129,7 +161,15 @@ export function describeInterrupt(graphInterrupts, err) {
 // and a plain text reply is translated into reject-with-feedback so the model
 // re-plans with the user's message. Clarification interrupts resume with raw text.
 export function buildResumeValue(pendingInterrupt, resume, content) {
-  if (pendingInterrupt?.kind !== 'hitl') return content;
+  if (pendingInterrupt?.kind !== 'hitl') {
+    if (Array.isArray(resume?.answers) && resume.answers.length > 0) {
+      return {
+        answers: resume.answers,
+        text: typeof resume.text === 'string' ? resume.text : content,
+      };
+    }
+    return content;
+  }
 
   if (Array.isArray(resume?.decisions) && resume.decisions.length > 0) {
     return { decisions: resume.decisions };
@@ -226,6 +266,18 @@ function buildToolCompletionNotice(toolName, resultContent) {
   }
 
   return `${prettyName} completed.`;
+}
+
+function buildClarificationCustomEvent(interruptInfo) {
+  if (interruptInfo.kind !== 'clarification' || interruptInfo.questions.length === 0) return null;
+  return {
+    type: EventType.CUSTOM,
+    name: 'clarification_request',
+    value: {
+      questions: interruptInfo.questions,
+      currentIndex: 0,
+    },
+  };
 }
 
 // One-shot assistant text message (used for pre-stream errors: missing agent,
@@ -363,6 +415,11 @@ export async function* translateLangGraphStream(stream, opts = {}) {
 
       // ── Tool call start ──────────────────────────────────────────────────────
       else if (event.event === 'on_tool_start') {
+        if (event.name === 'ask_clarification') {
+          logger?.debug('[AG-UI] hiding clarification tool trace');
+          continue;
+        }
+
         // Skip internal sub-tool calls (e.g. TavilySearch invoked inside the
         // search_web wrapper). The model never called these, so surfacing AG-UI
         // tool events for them injects a tool-call id with no matching assistant
@@ -399,6 +456,11 @@ export async function* translateLangGraphStream(stream, opts = {}) {
 
       // ── Tool call result ─────────────────────────────────────────────────────
       else if (event.event === 'on_tool_end') {
+        if (event.name === 'ask_clarification') {
+          logger?.debug('[AG-UI] hiding clarification tool result');
+          continue;
+        }
+
         const tc = pendingToolCalls.get(event.run_id);
         if (tc) {
           pendingToolCalls.delete(event.run_id);
@@ -438,6 +500,9 @@ export async function* translateLangGraphStream(stream, opts = {}) {
             reviewConfigs: interruptInfo.reviewConfigs,
           },
         };
+      } else {
+        const customEvent = buildClarificationCustomEvent(interruptInfo);
+        if (customEvent) yield customEvent;
       }
       yield {
         type: EventType.TEXT_MESSAGE_CHUNK,
@@ -488,6 +553,9 @@ export async function* translateLangGraphStream(stream, opts = {}) {
             reviewConfigs: interruptInfo.reviewConfigs,
           },
         };
+      } else {
+        const customEvent = buildClarificationCustomEvent(interruptInfo);
+        if (customEvent) yield customEvent;
       }
       notice = buildInterruptNotice(graphInterrupts, err);
     } else {
