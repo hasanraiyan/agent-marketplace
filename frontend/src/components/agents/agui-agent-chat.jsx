@@ -697,13 +697,13 @@ export function AguiAgentChat({
         {chat.conversation.length === 0 ? (
           <div
             className={cn(
-              "mx-auto flex h-full w-full max-w-2xl flex-col justify-center px-4 py-8 md:py-16",
+              "mx-auto flex h-full w-full max-w-4xl flex-col justify-center px-4 py-8 md:py-16",
               contentClassName,
             )}
           >
             <div className="flex flex-col items-start text-left">
               {/* Avatar Circle */}
-              <Avatar className="size-16 border border-slate-200/85 shadow-sm dark:border-slate-800">
+              <Avatar className="size-16 border border-slate-200/85 dark:border-slate-800">
                 <AvatarImage
                   src={agent?.avatarUrl || agent?.avatar}
                   alt={agent?.name || "Agent"}
@@ -714,7 +714,7 @@ export function AguiAgentChat({
               </Avatar>
 
               {/* Info Card */}
-              <div className="mt-6 w-full rounded-2xl border border-slate-200/80 bg-white p-6 dark:border-slate-800/80 dark:bg-slate-950 shadow-sm">
+              <div className="mt-6 w-full rounded-2xl border border-slate-200/80 bg-white p-6 dark:border-slate-800/80 dark:bg-slate-950">
                 <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                   {agent?.name || emptyTitle}
                   {agent?.modelName && (
@@ -742,7 +742,7 @@ export function AguiAgentChat({
                     onClick={() => {
                       setInput(item.prompt);
                     }}
-                    className="flex w-full items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-3 text-left text-xs font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:border-[#1E60FF] hover:bg-[#1E60FF]/5 hover:text-[#1E60FF] dark:border-slate-800/60 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-[#1E60FF] dark:hover:bg-[#1E60FF]/10 dark:hover:text-blue-400 cursor-pointer"
+                    className="flex w-full items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-3 text-left text-xs font-semibold text-slate-700 transition-all duration-200 hover:border-[#1E60FF] hover:bg-[#1E60FF]/5 hover:text-[#1E60FF] dark:border-slate-800/60 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-[#1E60FF] dark:hover:bg-[#1E60FF]/10 dark:hover:text-blue-400 cursor-pointer"
                   >
                     <span className="truncate">{item.title}</span>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0 ml-2">
