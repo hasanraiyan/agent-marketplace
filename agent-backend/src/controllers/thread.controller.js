@@ -39,10 +39,50 @@ class ThreadController {
     try {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
+      const agentId = req.query.agentId || null;
 
-      const threads = await threadRepository.findByUser(req.user.id, { page, limit });
+      const { threads, total } = await threadRepository.findByUser(req.user.id, {
+        page,
+        limit,
+        agentId,
+      });
+
+      res.json({
+        success: true,
+        data: threads,
+        meta: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async search(req, res, next) {
+    try {
+      const { q, agentId } = req.query;
+      const limit = parseInt(req.query.limit) || 20;
+
+      const threads = await threadRepository.search(req.user.id, {
+        q,
+        agentId,
+        limit,
+      });
 
       res.json({ success: true, data: threads });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getAgentSummary(req, res, next) {
+    try {
+      const summary = await threadRepository.getAgentSummary(req.user.id);
+      res.json({ success: true, data: summary });
     } catch (error) {
       next(error);
     }
