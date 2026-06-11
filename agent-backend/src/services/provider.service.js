@@ -7,6 +7,32 @@ import { ARCHITECT_AGENT_ID } from '../tools/index.js';
 
 class ProviderService {
   /**
+   * Automatically re-encrypts the provider's API key if it's stored in plaintext
+   * or using a stale encryption key.
+   */
+  async _ensureLatestEncryption(provider) {
+    if (!encryption.needsReencryption(provider.apiKeyEncrypted)) {
+      return provider;
+    }
+
+    try {
+      const apiKey = encryption.decrypt(provider.apiKeyEncrypted);
+      if (!apiKey) return provider; // Should not happen with new DecryptionError
+
+      const apiKeyEncrypted = encryption.encrypt(apiKey);
+      const updated = await providerRepository.update(provider._id, { apiKeyEncrypted });
+
+      return updated || provider;
+    } catch (err) {
+      // If decryption fails, we can't re-encrypt. Log it but don't crash here.
+      // The calling method will handle the decryption failure when it tries to use the key.
+      // eslint-disable-next-line no-console
+      console.error(`[ProviderService] Failed lazy re-encryption for ${provider._id}:`, err.message);
+      return provider;
+    }
+  }
+
+  /**
    * Helper to format a provider object for public consumption (never return raw key)
    */
   _formatProvider(provider) {
@@ -42,7 +68,7 @@ class ProviderService {
   }
 
   async updateProvider(userId, providerId, updateData) {
-    const provider = await providerRepository.findById(providerId);
+    let provider = await providerRepository.findById(providerId);
 
     if (!provider) {
       throw new Error('Provider not found');
@@ -51,6 +77,9 @@ class ProviderService {
     if (provider.ownerId.toString() !== userId.toString()) {
       throw new Error('Unauthorized to update this provider');
     }
+
+    // Ensure encryption is up to date before applying updates
+    provider = await this._ensureLatestEncryption(provider);
 
     if (updateData.isDefault) {
       await providerRepository.clearUserDefaultKeys(userId);
@@ -147,7 +176,7 @@ class ProviderService {
   }
 
   async getAvailableModels(providerId, userId) {
-    const provider = await providerRepository.findById(providerId);
+    let provider = await providerRepository.findById(providerId);
 
     if (!provider) {
       throw new Error('Provider not found');
@@ -157,12 +186,14 @@ class ProviderService {
       throw new Error('Unauthorized to access this provider');
     }
 
+    provider = await this._ensureLatestEncryption(provider);
+
     const apiKey = encryption.decrypt(provider.apiKeyEncrypted);
     return this.fetchModelsFromApi(provider.baseURL, apiKey);
   }
 
   async testConnection(providerId, userId) {
-    const provider = await providerRepository.findById(providerId);
+    let provider = await providerRepository.findById(providerId);
 
     if (!provider) {
       throw new Error('Provider not found');
@@ -171,6 +202,8 @@ class ProviderService {
     if (provider.ownerId.toString() !== userId.toString()) {
       throw new Error('Unauthorized to test this provider');
     }
+
+    provider = await this._ensureLatestEncryption(provider);
 
     const apiKey = encryption.decrypt(provider.apiKeyEncrypted);
     await this.fetchModelsFromApi(provider.baseURL, apiKey);

@@ -70,7 +70,19 @@ class AgentFactory {
     if (!provider) throw new Error('Configured Provider not found or was deleted.');
 
     // Securely decrypt the AES-256 API Key from DB into memory
-    const apiKey = encryption.decrypt(provider.apiKeyEncrypted);
+    let apiKey;
+    try {
+      apiKey = encryption.decrypt(provider.apiKeyEncrypted);
+    } catch (err) {
+      if (err.code === 'DECRYPTION_FAILED') {
+        throw new Error(
+          `Stored API key for provider "${provider.label}" cannot be decrypted (encryption key mismatch). ` +
+            'Please re-enter the API key in Settings.'
+        );
+      }
+      throw err;
+    }
+
     this._assertProviderCredentials(provider, apiKey);
 
     // Initializing dynamic ChatOpenAI class representing the base model

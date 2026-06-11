@@ -34,6 +34,7 @@ jest.unstable_mockModule('../src/utils/encryption.js', () => ({
   default: {
     encrypt: jest.fn(),
     decrypt: jest.fn(),
+    needsReencryption: jest.fn().mockReturnValue(false),
   },
 }));
 
