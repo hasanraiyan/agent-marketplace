@@ -368,20 +368,26 @@ export default function AgentDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    {agent.skills.map((skill) => (
-                      <Link
-                        key={skill._id || skill.id}
-                        href={`/dashboard/skills?id=${skill._id || skill.id}`}
-                        className="p-3.5 rounded-xl border bg-muted/10 flex flex-col gap-1.5 transition-colors hover:bg-muted/20"
-                      >
-                        <span className="text-xs font-bold text-foreground">
-                          {skill.name}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
-                          {skill.description || "No description provided."}
-                        </span>
-                      </Link>
-                    ))}
+                    {agent.skills.map((skill) => {
+                      const skillId =
+                        typeof skill === "string"
+                          ? skill
+                          : skill._id || skill.id;
+                      return (
+                        <Link
+                          key={skillId}
+                          href={`/dashboard/skills/${skillId}`}
+                          className="p-3.5 rounded-xl border bg-muted/10 flex flex-col gap-1.5 transition-colors hover:bg-muted/20"
+                        >
+                          <span className="text-xs font-bold text-foreground">
+                            {skill.name || "Skill"}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                            {skill.description || "No description provided."}
+                          </span>
+                        </Link>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>

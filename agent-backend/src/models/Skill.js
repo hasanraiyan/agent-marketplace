@@ -24,6 +24,7 @@ const skillSchema = new mongoose.Schema(
     instructions: {
       type: String,
       required: true, // The body of SKILL.md
+      maxlength: 50000,
     },
     codeSnippets: [
       {

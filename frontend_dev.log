@@ -1,0 +1,200 @@
+
+> frontend@0.1.0 dev /app/frontend
+> next dev -p 3001
+
+▲ Next.js 16.2.4 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://192.168.0.2:3001
+✓ Ready in 577ms
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+○ Compiling /dashboard/skills ...
+
+[35m
+[Clerk]:[0m You are running in keyless mode.
+You can [35mclaim your keys[0m by visiting https://dashboard.clerk.com/apps/claim?framework=nextjs&token=gl9s3uzyefu558zumx0ridx4pvpqoovy2vvf7s27&return_url=http%3A%2F%2Flocalhost%3A3001%2F
+
+ GET /dashboard/skills 200 in 12.5s (next.js: 9.3s, proxy.ts: 185ms, application-code: 3.1s)
+[browser] Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview (https://mature-iguana-92.clerk.accounts.dev/npm/@clerk/clerk-js@6/dist/clerk.browser.js:12:3339)
+Failed to proxy http://localhost:3000/api/v1/skills AggregateError:
+    at ignore-listed frames {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:3000
+        at <unknown> (Error: connect ECONNREFUSED ::1:3000) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 3000
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:3000
+        at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:3000) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 3000
+    }
+  ]
+}
+AggregateError:
+    at ignore-listed frames {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:3000
+        at <unknown> (Error: connect ECONNREFUSED ::1:3000) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 3000
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:3000
+        at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:3000) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 3000
+    }
+  ]
+}
+Failed to proxy http://localhost:3000/api/v1/skills/public AggregateError:
+    at ignore-listed frames {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:3000
+        at <unknown> (Error: connect ECONNREFUSED ::1:3000) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 3000
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:3000
+        at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:3000) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 3000
+    }
+  ]
+}
+AggregateError:
+    at ignore-listed frames {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:3000
+        at <unknown> (Error: connect ECONNREFUSED ::1:3000) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 3000
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:3000
+        at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:3000) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 3000
+    }
+  ]
+}
+Failed to proxy http://localhost:3000/api/v1/skills AggregateError:
+    at ignore-listed frames {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:3000
+        at <unknown> (Error: connect ECONNREFUSED ::1:3000) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 3000
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:3000
+        at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:3000) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 3000
+    }
+  ]
+}
+AggregateError:
+    at ignore-listed frames {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:3000
+        at <unknown> (Error: connect ECONNREFUSED ::1:3000) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 3000
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:3000
+        at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:3000) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 3000
+    }
+  ]
+}
+Failed to proxy http://localhost:3000/api/v1/skills AggregateError:
+    at ignore-listed frames {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:3000
+        at <unknown> (Error: connect ECONNREFUSED ::1:3000) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 3000
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:3000
+        at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:3000) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 3000
+    }
+  ]
+}
+AggregateError:
+    at ignore-listed frames {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:3000
+        at <unknown> (Error: connect ECONNREFUSED ::1:3000) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 3000
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:3000
+        at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:3000) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 3000
+    }
+  ]
+}
+[browser] ⨯ unhandledRejection: AxiosError: Request failed with status code 500
+[browser] ⨯ unhandledRejection: AxiosError: Request failed with status code 500
+ GET /dashboard/skills 404 in 1681ms (next.js: 1543ms, proxy.ts: 27ms, application-code: 111ms)
+ POST /dashboard/skills 303 in 1764ms (next.js: 7ms, proxy.ts: 13ms, application-code: 1744ms)
+  └─ ƒ syncKeylessConfigAction({"apiKeysUrl":"https://dashboard.clerk.com/apps/app_3ExeHPWsFPw3WCH2ETnXBs1v6Oo/instances/ins_3ExeHPZEfyvOzdYe6NApRPVF6s9/api-keys","claimUrl":"https://dashboard.clerk.com/apps/claim?framework=nextjs&token=gl9s3uzyefu558zumx0ridx4pvpqoovy2vvf7s27","...":"3 items not stringified"}) in 9ms node_modules/.pnpm/@clerk+nextjs@7.2.2_next@16.2.4_@babel+core@7.29.0_react-dom@19.2.4_react@19.2.4__react_7b839a63778765a559fe509aaff5b281/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js
+[browser] Failed to fetch RSC payload for http://localhost:3001/clerk-sync-keyless?returnUrl=http://localhost:3001/dashboard/skills. Falling back to browser navigation. TypeError: Failed to fetch

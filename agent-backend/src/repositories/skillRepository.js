@@ -41,6 +41,18 @@ class SkillRepository {
     };
   }
 
+  async searchSkills(userId, { q, scope = 'mine', limit = 30 } = {}) {
+    const filter = {
+      ...(scope === 'mine' ? { ownerId: userId } : { isPublic: true }),
+      $or: [
+        { name: { $regex: q, $options: 'i' } },
+        { description: { $regex: q, $options: 'i' } },
+        { instructions: { $regex: q, $options: 'i' } },
+      ],
+    };
+    return await Skill.find(filter).limit(limit).sort({ updatedAt: -1 });
+  }
+
   async update(id, userId, updateData) {
     const skill = await Skill.findOneAndUpdate(
       { _id: id, ownerId: userId },

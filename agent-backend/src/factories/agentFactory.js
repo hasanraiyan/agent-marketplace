@@ -175,7 +175,11 @@ class AgentFactory {
             .replace(/[^a-zA-Z0-9_-]+/g, '-')
             .replace(/^-+|-+$/g, '')
             .toLowerCase() || 'skill';
-        const frontmatter = `---\nname: ${skill.name}\ndescription: ${skill.description}\n---\n\n${skill.instructions}`;
+        // JSON-encode frontmatter values: colons, quotes, and newlines in
+        // free-text fields are invalid as plain YAML scalars.
+        const name = JSON.stringify(String(skill.name ?? dir));
+        const description = JSON.stringify(String(skill.description ?? ''));
+        const frontmatter = `---\nname: ${name}\ndescription: ${description}\n---\n\n${skill.instructions}`;
         skillFiles[`/skills/${dir}/SKILL.md`] = {
           content: frontmatter.split('\n'),
           created_at: now,

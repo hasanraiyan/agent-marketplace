@@ -22,12 +22,13 @@ class SkillService {
     const skill = await skillRepository.findById(id);
     if (!skill) throw new Error('Skill not found');
 
-    const isOwner = userId && skill.ownerId.toString() === userId.toString();
+    const isOwner = Boolean(userId && skill.ownerId.toString() === userId.toString());
     if (!skill.isPublic && !isOwner) {
       throw new Error('Skill not found or private');
     }
 
-    return skill;
+    const skillObj = skill.toObject ? skill.toObject() : skill;
+    return { ...skillObj, isOwner };
   }
 
   /**
@@ -43,6 +44,13 @@ class SkillService {
   async searchPublicSkills(filters, page = 1, limit = 20) {
     const skip = (page - 1) * limit;
     return await skillRepository.findPublicSkills(filters, skip, limit);
+  }
+
+  /**
+   * Searches skills by name, description, and instructions
+   */
+  async searchSkills(userId, params) {
+    return await skillRepository.searchSkills(userId, params);
   }
 
   /**

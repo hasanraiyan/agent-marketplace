@@ -7,7 +7,10 @@ export const createSkillSchema = z.object({
     .max(64)
     .regex(/^[a-z0-9-]+$/, 'Name must contain only lowercase letters, numbers, and hyphens'),
   description: z.string().min(10).max(1024),
-  instructions: z.string().min(10, 'Workflow instructions are required for Claude-style skills'),
+  instructions: z
+    .string()
+    .min(10, 'Workflow instructions are required for Claude-style skills')
+    .max(50000),
   isPublic: z.boolean().optional(),
   codeSnippets: z
     .array(
@@ -28,7 +31,7 @@ export const updateSkillSchema = z.object({
     .regex(/^[a-z0-9-]+$/)
     .optional(),
   description: z.string().min(10).max(1024).optional(),
-  instructions: z.string().min(10).optional(),
+  instructions: z.string().min(10).max(50000).optional(),
   isPublic: z.boolean().optional(),
   codeSnippets: z
     .array(
