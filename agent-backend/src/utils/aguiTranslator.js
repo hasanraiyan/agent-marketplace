@@ -591,5 +591,9 @@ export async function* translateLangGraphStream(stream, opts = {}) {
     // (e.g. wrote a draft, then asked for clarification) — surface them now. We skip
     // this for genuine errors, where the state may be mid-write / inconsistent.
     if (interrupt) yield* emitStateSnapshot('interrupt');
+    else if (err?.name === 'AbortError') {
+      logger?.info('[AG-UI] stream aborted by client');
+      return;
+    }
   }
 }
