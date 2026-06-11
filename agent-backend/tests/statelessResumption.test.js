@@ -16,7 +16,7 @@ jest.unstable_mockModule('../src/factories/agentFactory.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/services/chat.service.js', () => ({
+jest.unstable_mockModule('../src/services/checkpoint.service.js', () => ({
   default: {
     checkpointer: {},
     _autoTitleThread: jest.fn(),

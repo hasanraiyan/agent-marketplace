@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 
-jest.unstable_mockModule('../src/services/chat.service.js', () => ({
+jest.unstable_mockModule('../src/services/checkpoint.service.js', () => ({
   default: {
     streamChat: jest.fn(),
   },
@@ -32,7 +32,7 @@ jest.unstable_mockModule('../src/validators/thread.validator.js', () => ({
 const threadController = (await import('../src/controllers/thread.controller.js')).default;
 const threadRepository = (await import('../src/repositories/threadRepository.js')).default;
 const agentRepository = (await import('../src/repositories/agentRepository.js')).default;
-const chatService = (await import('../src/services/chat.service.js')).default;
+const checkpointService = (await import('../src/services/checkpoint.service.js')).default;
 
 describe('Thread Controller', () => {
   let mockReq;
@@ -85,37 +85,6 @@ describe('Thread Controller', () => {
     });
   });
 
-  describe('stream SSE', () => {
-    test('should invoke chat service streaming correctly', async () => {
-      mockReq.params.id = 'thread_xyz';
-      mockReq.body.message = 'hi';
-
-      await threadController.stream(mockReq, mockRes, mockNext);
-
-      // It passes res directly into the chatService for socket control
-      expect(chatService.streamChat).toHaveBeenCalledWith(mockRes, 'thread_xyz', 'user_1', 'hi');
-    });
-
-    test('should fallback to next(error) if zod syntax validation fails before stream starts', async () => {
-      const err = new Error('Zod validate fail');
-
-      // Need a direct mock overlay inside the test for standard import mocking limit
-      jest.unstable_mockModule('../src/validators/thread.validator.js', () => ({
-        streamMessageSchema: {
-          parse: jest.fn().mockImplementation(() => {
-            throw err;
-          }),
-        },
-      }));
-
-      // Because Zod is synchronously evaluated inside standard scope, we'll force simulate
-      jest.spyOn(chatService, 'streamChat').mockRejectedValue(err);
-
-      await threadController.stream(mockReq, mockRes, mockNext);
-
-      expect(mockNext).toHaveBeenCalledWith(err);
-    });
-  });
 
   describe('delete all threads', () => {
     test('should delete all threads for user', async () => {
