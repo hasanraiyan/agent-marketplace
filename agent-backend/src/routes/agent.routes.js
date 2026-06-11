@@ -1,6 +1,7 @@
 import express from 'express';
 import agentController from '../controllers/agent.controller.js';
 import authMiddleware from '../middlewares/auth.middleware.js';
+import rateLimiter, { RATE_LIMITS } from '../middlewares/rateLimiter.middleware.js';
 import optionalAuthMiddleware from '../middlewares/optionalAuthMiddleware.js';
 import { validateBody } from '../middlewares/validationMiddleware.js';
 import {
@@ -33,8 +34,10 @@ router.get('/:id', optionalAuthMiddleware, agentController.getOne);
 // These routes strictly require an authenticated user.
 router.use(authMiddleware);
 
-router.post('/', validateBody(createAgentSchema), agentController.create);
-router.patch('/:id', validateBody(updateAgentSchema), agentController.update);
-router.delete('/:id', agentController.remove);
+const mutateLimiter = rateLimiter('MUTATE', RATE_LIMITS.MUTATE);
+
+router.post('/', mutateLimiter, validateBody(createAgentSchema), agentController.create);
+router.patch('/:id', mutateLimiter, validateBody(updateAgentSchema), agentController.update);
+router.delete('/:id', mutateLimiter, agentController.remove);
 
 export default router;

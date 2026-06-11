@@ -114,7 +114,11 @@ describe('Stateless Resumption Logic in agui.routes.js', () => {
     const middleware = aguiRouter.stack.find(s => s.handle?.length === 3).handle;
     await middleware(mockReq, mockRes, next);
 
-    const postHandler = aguiRouter.stack.find(s => s.route?.methods.post).route.stack[0].handle;
+    // Finding the rateLimiter middleware and skip it
+    // The stack looks like: [rateLimiter, postHandler]
+    const routeStack = aguiRouter.stack.find(s => s.route?.methods.post).route.stack;
+    const postHandler = routeStack[routeStack.length - 1].handle;
+
     await postHandler(mockReq, mockRes, next);
 
     expect(mockAgentInstance.getState).toHaveBeenCalledWith({
@@ -141,7 +145,9 @@ describe('Stateless Resumption Logic in agui.routes.js', () => {
     const middleware = aguiRouter.stack.find(s => s.handle?.length === 3).handle;
     await middleware(mockReq, mockRes, next);
 
-    const postHandler = aguiRouter.stack.find(s => s.route?.methods.post).route.stack[0].handle;
+    const routeStack = aguiRouter.stack.find(s => s.route?.methods.post).route.stack;
+    const postHandler = routeStack[routeStack.length - 1].handle;
+
     await postHandler(mockReq, mockRes, next);
 
     expect(mockAgentInstance.streamEvents).toHaveBeenCalledWith(
