@@ -454,6 +454,10 @@ export async function* translateLangGraphStream(stream, opts = {}) {
   // model tokens are attributed to the most recent one so the client can show
   // live subagent activity inside that tool's card.
   const taskToolStack = [];
+  // run_id -> { name, toolCallId } for a subagent's internal tool calls. These
+  // are surfaced as subagent_activity entries on the owning task card, NEVER as
+  // top-level tool cards (that would make them look like the main agent's).
+  const nestedToolRuns = new Map();
   // Tools currently executing (incl. hidden ones). While > 0, any model stream
   // belongs to a nested run — the main model never streams during its own tools.
   let runningToolDepth = 0;
@@ -487,7 +491,7 @@ export async function* translateLangGraphStream(stream, opts = {}) {
               yield {
                 type: EventType.CUSTOM,
                 name: 'subagent_activity',
-                value: { toolCallId: hostTask.toolCallId, delta: nestedText },
+                value: { toolCallId: hostTask.toolCallId, kind: 'text', delta: nestedText },
               };
             }
           }
@@ -601,12 +605,43 @@ export async function* translateLangGraphStream(stream, opts = {}) {
           continue;
         }
 
-        // A tool call ends the current text grouping.
-        textMsgId = null;
-
         const toolName = event.name;
         const toolInput = event.data?.input;
         const argsStr = typeof toolInput === 'string' ? toolInput : JSON.stringify(toolInput ?? {});
+
+        // A subagent's internal tool call must not surface as a main-agent tool
+        // card — scope it to the owning task card as a timeline entry instead.
+        // Nested = nested checkpoint namespace; when namespace metadata is
+        // absent entirely, a running task is the best available signal.
+        const isNestedTool =
+          isNestedNamespace(event) ||
+          (taskToolStack.length > 0 && !event.metadata?.langgraph_checkpoint_ns);
+        if (isNestedTool) {
+          const hostTask = taskToolStack[taskToolStack.length - 1];
+          if (hostTask) {
+            nestedToolRuns.set(event.run_id, { name: toolName, toolCallId: hostTask.toolCallId });
+            logger?.debug('[AG-UI] subagent tool call', {
+              name: toolName,
+              hostToolCallId: hostTask.toolCallId,
+            });
+            yield {
+              type: EventType.CUSTOM,
+              name: 'subagent_activity',
+              value: {
+                toolCallId: hostTask.toolCallId,
+                kind: 'tool_start',
+                toolName,
+                args: argsStr,
+              },
+            };
+          } else {
+            logger?.debug('[AG-UI] dropping nested tool with no host task', { name: toolName });
+          }
+          continue;
+        }
+
+        // A tool call ends the current text grouping.
+        textMsgId = null;
         stats.toolCalls += 1;
 
         // If this call's args were already streamed from tool_call_chunks, bind
@@ -660,6 +695,27 @@ export async function* translateLangGraphStream(stream, opts = {}) {
 
         const taskIndex = taskToolStack.findIndex((t) => t.runId === event.run_id);
         if (taskIndex !== -1) taskToolStack.splice(taskIndex, 1);
+
+        const nestedRun = nestedToolRuns.get(event.run_id);
+        if (nestedRun) {
+          nestedToolRuns.delete(event.run_id);
+          if (event.event === 'on_tool_end') {
+            // Results feed the card's timeline only — cap them so a verbose
+            // nested tool can't bloat the SSE stream.
+            const nestedResult = extractToolOutputContent(event.data?.output).slice(0, 4000);
+            yield {
+              type: EventType.CUSTOM,
+              name: 'subagent_activity',
+              value: {
+                toolCallId: nestedRun.toolCallId,
+                kind: 'tool_result',
+                toolName: nestedRun.name,
+                result: nestedResult,
+              },
+            };
+          }
+          continue;
+        }
 
         if (event.event === 'on_tool_error') continue;
 

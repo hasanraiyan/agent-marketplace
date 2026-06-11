@@ -12,6 +12,7 @@ import {
   FileText,
   Globe,
   ListTodo,
+  Loader2,
   Search,
   Cpu,
   Wrench,
@@ -41,6 +42,60 @@ import { ReadFileCard } from './tool-cards/ReadFileCard';
 export { FileSystemActionCard, ActionArguments } from './tool-cards/FileSystemActionCard';
 export { ToolArguments } from './tool-cards/ToolArguments';
 
+function subToolIcon(name) {
+  const n = (name || '').toLowerCase();
+  if (n.includes('search')) return Globe;
+  if (n.includes('grep')) return Search;
+  if (n.includes('todo')) return ListTodo;
+  if (n.includes('file') || n === 'glob' || n === 'ls') return FileText;
+  return Wrench;
+}
+
+// The subagent's scoped mini-transcript: streamed text interleaved with its
+// own tool calls, rendered inside the owning task card. `compact` is the live
+// tail shown while the subagent is still running.
+function SubAgentTimeline({ items, compact = false }) {
+  return (
+    <div className={compact ? 'space-y-1' : 'space-y-1.5'}>
+      {items.map((item, index) => {
+        if (item.type === 'text') {
+          const text = compact
+            ? item.text.trimEnd().split('\n').slice(-2).join('\n')
+            : item.text;
+          if (!text) return null;
+          return (
+            <p
+              key={index}
+              className="whitespace-pre-wrap break-words text-xs leading-5 text-slate-500 dark:text-slate-400"
+            >
+              {text}
+            </p>
+          );
+        }
+        const Icon = subToolIcon(item.name);
+        const running = item.status === 'running';
+        return (
+          <div key={index} className="flex items-center gap-2 text-xs">
+            {running ? (
+              <Loader2 className="size-3.5 shrink-0 animate-spin text-orange-500" />
+            ) : (
+              <Check className="size-3.5 shrink-0 text-emerald-500" />
+            )}
+            <Icon className="size-3.5 shrink-0 text-slate-400" />
+            <span className="min-w-0 truncate font-medium text-slate-600 dark:text-slate-300">
+              {toolTitle({
+                name: item.name,
+                argumentsText: item.argsText,
+                status: running ? 'running' : 'completed',
+              })}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // Memoized: streaming updates replace only the affected tool object, so other
 // tool cards keep their identity and can skip re-rendering.
 export const ToolTrace = memo(function ToolTrace({ tool }) {
@@ -59,14 +114,11 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
   const todosDone = todos
     ? todos.filter((todo) => todo.status === 'completed').length
     : 0;
+  const subEvents = Array.isArray(tool.subEvents) ? tool.subEvents : [];
+  const subToolUses = subEvents.filter((item) => item.type === 'tool').length;
   const isExpandable = Boolean(
-    tool.resultText || tool.argumentsText || tool.activityText,
+    tool.resultText || tool.argumentsText || subEvents.length,
   );
-  // Rolling tail of the subagent's live output, shown inline while it runs.
-  const activityTail =
-    !done && tool.activityText
-      ? tool.activityText.trimEnd().split('\n').slice(-3).join('\n')
-      : '';
   const Icon = isError
     ? AlertCircle
     : isSearch
@@ -106,6 +158,11 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
           <span className="flex items-center gap-2">
             <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
               {toolTitle(tool)}
+              {isSubagent && subToolUses > 0 ? (
+                <span className="ml-1.5 font-normal text-slate-400 dark:text-slate-500">
+                  · {subToolUses} tool {subToolUses === 1 ? 'use' : 'uses'}
+                </span>
+              ) : null}
             </span>
             {isExpandable ? (
               open ? (
@@ -144,15 +201,13 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
         </div>
       ) : null}
 
-      {activityTail ? (
+      {!done && subEvents.length > 0 ? (
         <div className="ml-8 mt-1 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/60">
-          <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+          <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
             <BotIcon className="size-3 animate-pulse text-orange-500" />
             Subagent working
           </div>
-          <pre className="max-h-20 overflow-hidden whitespace-pre-wrap break-words font-mono text-xs leading-5 text-slate-500 dark:text-slate-400">
-            {activityTail}
-          </pre>
+          <SubAgentTimeline items={subEvents.slice(-4)} compact />
         </div>
       ) : null}
 
@@ -163,15 +218,15 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
             <ToolArguments argumentsText={tool.argumentsText} />
           )}
 
-          {/* Live / final subagent output */}
-          {tool.activityText && (
+          {/* The subagent's scoped timeline: its text + its own tool calls */}
+          {subEvents.length > 0 && (
             <div className="space-y-1.5">
               <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
                 Subagent Activity
               </div>
-              <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-slate-600 dark:text-slate-300 bg-slate-100/50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-150 dark:border-slate-800/60 scrollbar-thin">
-                {tool.activityText}
-              </pre>
+              <div className="max-h-64 overflow-auto rounded-xl border border-slate-150 bg-slate-100/50 p-2.5 dark:border-slate-800/60 dark:bg-slate-900/50 scrollbar-thin">
+                <SubAgentTimeline items={subEvents} />
+              </div>
             </div>
           )}
 

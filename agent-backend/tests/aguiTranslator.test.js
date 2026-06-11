@@ -532,7 +532,7 @@ describe('nested (subagent) stream filtering', () => {
     expect(text).toEqual(['Top-level.']);
   });
 
-  test("a subagent's internal tool cannot steal a streamed main-model call", async () => {
+  test("a subagent's internal tool never surfaces as a main-agent tool card", async () => {
     const events = [
       // Main model streams a write_file call...
       {
@@ -544,7 +544,9 @@ describe('nested (subagent) stream filtering', () => {
           },
         },
       },
-      // ...but a nested write_file (inside a subagent) starts first.
+      // ...but a nested write_file (inside a subagent, no task card known)
+      // starts first. It must neither steal the streamed call nor leak as a
+      // top-level card.
       {
         event: 'on_tool_start',
         run_id: 'nested_run',
@@ -556,9 +558,50 @@ describe('nested (subagent) stream filtering', () => {
     ];
 
     const out = await collect(translateLangGraphStream(fakeStream(events)));
-    // The nested tool keeps its own run_id; the streamed call id stays unbound.
-    const result = out.find((e) => e.type === 'TOOL_CALL_RESULT');
-    expect(result.toolCallId).toBe('nested_run');
+    expect(out.find((e) => e.type === 'TOOL_CALL_RESULT')).toBeUndefined();
+    const chunkIds = out.filter((e) => e.type === 'TOOL_CALL_CHUNK').map((e) => e.toolCallId);
+    expect(chunkIds).toEqual(['call_main']);
+  });
+
+  test("a subagent's internal tool calls become timeline entries on the task card", async () => {
+    const events = [
+      { event: 'on_tool_start', run_id: 'task1', name: 'task', data: { input: { description: 'go' } } },
+      { event: 'on_chat_model_stream', data: { chunk: { content: 'planning ' } } },
+      {
+        event: 'on_tool_start',
+        run_id: 'inner1',
+        name: 'search_web',
+        metadata: { langgraph_checkpoint_ns: 'tools:t1|tools:t2' },
+        data: { input: { query: 'acme' } },
+      },
+      {
+        event: 'on_tool_end',
+        run_id: 'inner1',
+        name: 'search_web',
+        metadata: { langgraph_checkpoint_ns: 'tools:t1|tools:t2' },
+        data: { output: 'findings' },
+      },
+      { event: 'on_chat_model_stream', data: { chunk: { content: 'writing up' } } },
+      { event: 'on_tool_end', run_id: 'task1', name: 'task', data: { output: 'report done' } },
+    ];
+
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+
+    const activity = out.filter((e) => e.type === 'CUSTOM' && e.name === 'subagent_activity');
+    expect(activity.map((e) => e.value.kind)).toEqual(['text', 'tool_start', 'tool_result', 'text']);
+    expect(activity.every((e) => e.value.toolCallId === 'task1')).toBe(true);
+    expect(activity[1].value).toMatchObject({
+      toolName: 'search_web',
+      args: JSON.stringify({ query: 'acme' }),
+    });
+    expect(activity[2].value).toMatchObject({ toolName: 'search_web', result: 'findings' });
+
+    // Only the task itself gets a top-level card and result.
+    const chunkIds = out.filter((e) => e.type === 'TOOL_CALL_CHUNK').map((e) => e.toolCallId);
+    expect(chunkIds).toEqual(['task1']);
+    const results = out.filter((e) => e.type === 'TOOL_CALL_RESULT');
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ toolCallId: 'task1', content: 'report done' });
   });
 });
 

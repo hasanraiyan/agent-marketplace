@@ -81,6 +81,68 @@ function applyFileToolToState(state, name, argsText, resultText) {
   return { ...state, files };
 }
 
+// Fold one subagent_activity event into a task card's timeline. Items are
+// { type: "text", text } or { type: "tool", name, argsText, resultText,
+// status }. Returns the next array, or null when the event changes nothing.
+function appendSubEvent(current, kind, value) {
+  const subEvents = Array.isArray(current) ? [...current] : [];
+
+  if (kind === "text" || kind === undefined) {
+    const delta = typeof value?.delta === "string" ? value.delta : "";
+    if (!delta) return null;
+    const last = subEvents[subEvents.length - 1];
+    if (last?.type === "text") {
+      subEvents[subEvents.length - 1] = {
+        ...last,
+        text: `${last.text}${delta}`.slice(-4000),
+      };
+    } else {
+      subEvents.push({ type: "text", text: delta });
+    }
+  } else if (kind === "tool_start") {
+    subEvents.push({
+      type: "tool",
+      name: value?.toolName || "tool",
+      argsText: typeof value?.args === "string" ? value.args : "",
+      resultText: "",
+      status: "running",
+    });
+  } else if (kind === "tool_result") {
+    // Complete the most recent still-running call of this tool.
+    let matched = false;
+    for (let i = subEvents.length - 1; i >= 0; i -= 1) {
+      const item = subEvents[i];
+      if (item.type === "tool" && item.status === "running" && item.name === value?.toolName) {
+        subEvents[i] = {
+          ...item,
+          resultText: typeof value?.result === "string" ? value.result : "",
+          status: "completed",
+        };
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) return null;
+  } else {
+    return null;
+  }
+
+  return subEvents.slice(-60);
+}
+
+// A finished subagent has no running internal tools — close any stragglers.
+function settleSubEvents(subEvents) {
+  if (!Array.isArray(subEvents)) return subEvents;
+  if (!subEvents.some((item) => item.type === "tool" && item.status === "running")) {
+    return subEvents;
+  }
+  return subEvents.map((item) =>
+    item.type === "tool" && item.status === "running"
+      ? { ...item, status: "completed" }
+      : item,
+  );
+}
+
 function replaceById(items, item) {
   const index = items.findIndex((x) => x.id === item.id);
   if (index === -1) return [...items, item];
@@ -223,7 +285,9 @@ export function useAguiChat({
     setToolCalls((prev) =>
       prev.some((tool) => tool.status === "running")
         ? prev.map((tool) =>
-            tool.status === "running" ? { ...tool, status: "completed" } : tool,
+            tool.status === "running"
+              ? { ...tool, status: "completed", subEvents: settleSubEvents(tool.subEvents) }
+              : tool,
           )
         : prev,
     );
@@ -406,7 +470,12 @@ export function useAguiChat({
             resultText: "",
             status: "running",
           };
-          const completedTool = { ...current, resultText, status: "completed" };
+          const completedTool = {
+            ...current,
+            resultText,
+            status: "completed",
+            subEvents: settleSubEvents(current.subEvents),
+          };
           if (onToolResult) onToolResult(completedTool);
           // Args are complete once the result arrives — mirror write_todos and
           // file writes into agent state so the plan / Files panel update
@@ -442,20 +511,17 @@ export function useAguiChat({
             reviewConfigs: event.value.reviewConfigs || [],
           });
         } else if (event.name === "subagent_activity") {
-          // Live text streamed by a subagent, attributed to its `task` tool
-          // card. Keep a rolling tail so a chatty subagent can't grow the
-          // transcript state without bound.
-          const { toolCallId, delta } = event.value || {};
-          if (toolCallId && typeof delta === "string" && delta) {
+          // Live activity from a subagent, attributed to its `task` tool card
+          // as a structured timeline: streamed text plus the subagent's own
+          // tool calls. Bounded so a chatty subagent can't grow state forever.
+          const { toolCallId, kind } = event.value || {};
+          if (toolCallId) {
             setToolCalls((prev) =>
-              prev.map((tool) =>
-                tool.id === toolCallId
-                  ? {
-                      ...tool,
-                      activityText: `${tool.activityText || ""}${delta}`.slice(-8000),
-                    }
-                  : tool,
-              ),
+              prev.map((tool) => {
+                if (tool.id !== toolCallId) return tool;
+                const subEvents = appendSubEvent(tool.subEvents, kind, event.value);
+                return subEvents ? { ...tool, subEvents } : tool;
+              }),
             );
           }
         } else if (event.name === "clarification_request") {
