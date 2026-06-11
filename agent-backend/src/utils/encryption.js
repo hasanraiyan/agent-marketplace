@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import config from '../config/index.js';
+import { DecryptionError } from './errors/index.js';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
@@ -161,6 +162,22 @@ if (keyring.size > 0) {
 const activeKey = activeKeyId ? keyring.get(activeKeyId) : null;
 const enabled = Boolean(activeKey);
 
+// Fail closed in production, warn in development
+if (!enabled) {
+  if (config.env === 'production') {
+    throw new Error(
+      'Encryption is DISABLED but required in production. ' +
+        'Please configure DB_ENCRYPTION_KEYS and DB_ENCRYPTION_ACTIVE_KEY_ID.'
+    );
+  } else {
+    // eslint-disable-next-line no-console
+    console.warn(
+      '⚠️  WARNING: DB encryption is DISABLED. API keys will be stored in plaintext. ' +
+        'Set DB_ENCRYPTION_KEYS and DB_ENCRYPTION_ACTIVE_KEY_ID to enable.'
+    );
+  }
+}
+
 function decryptVersionedToken(token) {
   const { keyId, iv, tag, ciphertext } = parseVersionedToken(token);
   const keyMaterial = keyring.get(keyId);
@@ -196,7 +213,13 @@ export function needsReencryption(token) {
 }
 
 export function encrypt(value) {
-  if (!enabled) return value;
+  if (!enabled) {
+    // In production, we should never reach this due to startup check
+    if (config.env === 'production') {
+      throw new Error('Encryption is required in production but is not enabled');
+    }
+    return value;
+  }
 
   const plaintext = serializeCurrentPlaintext(value);
   const iv = crypto.randomBytes(IV_LENGTH);
@@ -211,7 +234,14 @@ export function encrypt(value) {
 }
 
 export function decrypt(token) {
-  if (!enabled) return token;
+  if (!enabled) {
+    // If encryption is disabled, we still check if the token looks like it was encrypted.
+    // If it was, we can't decrypt it, so we must throw.
+    if (isVersionedToken(token)) {
+      throw new DecryptionError('Cannot decrypt versioned token: encryption is disabled');
+    }
+    return token;
+  }
 
   try {
     if (typeof token !== 'string') {
@@ -223,7 +253,9 @@ export function decrypt(token) {
     const errorDetail = err?.message ?? err?.code ?? err;
     // eslint-disable-next-line no-console
     console.warn('decrypt failed:', errorDetail);
-    return null;
+
+    // Throw typed error instead of returning null
+    throw new DecryptionError(`Decryption failed: ${errorDetail}`);
   }
 }
 

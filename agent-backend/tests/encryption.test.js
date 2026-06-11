@@ -95,7 +95,7 @@ describe('encryption util', () => {
     expect(decrypt(encrypt(payload))).toEqual(payload);
   });
 
-  it('returns null and logs when decrypt fails with invalid token', async () => {
+  it('throws DecryptionError and logs when decrypt fails with invalid token', async () => {
     jest.resetModules();
     clearEncryptionEnv();
     process.env.DB_ENCRYPTION_KEYS = JSON.stringify({
@@ -104,12 +104,11 @@ describe('encryption util', () => {
     process.env.DB_ENCRYPTION_ACTIVE_KEY_ID = 'current';
     const { decrypt } = await import('../src/utils/encryption.js');
     const spy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    const result = decrypt('not-a-valid-token');
-    expect(result).toBeNull();
+    expect(() => decrypt('not-a-valid-token')).toThrow('Decryption failed:');
     expect(spy).toHaveBeenCalled();
   });
 
-  it('logs error without message property', async () => {
+  it('logs error without message property and throws DecryptionError', async () => {
     jest.resetModules();
     clearEncryptionEnv();
     process.env.DB_ENCRYPTION_KEYS = JSON.stringify({
@@ -123,8 +122,7 @@ describe('encryption util', () => {
       throw { code: 'CUSTOM_ERROR' }; // no message property
     });
     const spy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    const result = decrypt(validToken);
-    expect(result).toBeNull();
+    expect(() => decrypt(validToken)).toThrow('Decryption failed: CUSTOM_ERROR');
     expect(spy).toHaveBeenCalledWith('decrypt failed:', 'CUSTOM_ERROR');
     createDecipherivSpy.mockRestore();
   });
@@ -235,7 +233,7 @@ describe('encryption util', () => {
     expect(decrypted).toBe(plain);
   });
 
-  it('decrypt returns null for token with empty parts', async () => {
+  it('decrypt throws DecryptionError for token with empty parts', async () => {
     jest.resetModules();
     clearEncryptionEnv();
     process.env.DB_ENCRYPTION_KEYS = JSON.stringify({
@@ -246,8 +244,7 @@ describe('encryption util', () => {
     const spy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     // token with empty keyId, iv, tag, ciphertext
     const token = 'enc:v1:::::';
-    const result = decrypt(token);
-    expect(result).toBeNull();
+    expect(() => decrypt(token)).toThrow('Decryption failed:');
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
   });
@@ -318,7 +315,7 @@ describe('encryption util', () => {
     );
   });
 
-  it('decrypt returns null for token with unknown key id', async () => {
+  it('decrypt throws DecryptionError for token with unknown key id', async () => {
     jest.resetModules();
     clearEncryptionEnv();
     process.env.DB_ENCRYPTION_KEYS = JSON.stringify({
@@ -337,8 +334,7 @@ describe('encryption util', () => {
     process.env.DB_ENCRYPTION_ACTIVE_KEY_ID = 'key2';
     const { decrypt: decrypt2 } = await import('../src/utils/encryption.js');
     const spy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    const result = decrypt2(token);
-    expect(result).toBeNull();
+    expect(() => decrypt2(token)).toThrow('Decryption failed: Unknown encryption key id: key1');
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
   });
@@ -367,7 +363,7 @@ describe('encryption util', () => {
     expect(needsReencryption(malformed)).toBe(false);
   });
 
-  it('decrypt returns null for non-string token', async () => {
+  it('decrypt throws DecryptionError for non-string token', async () => {
     jest.resetModules();
     clearEncryptionEnv();
     process.env.DB_ENCRYPTION_KEYS = JSON.stringify({
@@ -377,8 +373,7 @@ describe('encryption util', () => {
     const { decrypt } = await import('../src/utils/encryption.js');
     const spy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     // @ts-expect-error testing invalid input
-    const result = decrypt(123);
-    expect(result).toBeNull();
+    expect(() => decrypt(123)).toThrow('Decryption failed: Encrypted token must be a string');
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
   });
@@ -411,7 +406,7 @@ describe('encryption util', () => {
     );
   });
 
-  it('parseVersionedToken throws when keyId is empty in token', async () => {
+  it('decrypt throws DecryptionError when keyId is empty in token', async () => {
     jest.resetModules();
     clearEncryptionEnv();
     process.env.DB_ENCRYPTION_KEYS = JSON.stringify({
@@ -422,8 +417,7 @@ describe('encryption util', () => {
     const spy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     // token with empty keyId: enc:v1::iv:tag:ciphertext
     const token = 'enc:v1::aXZfdGVzdA==:dGFnX3Rlc3Q=:Y2lwaGVydGVzdA==';
-    const result = decrypt(token);
-    expect(result).toBeNull();
+    expect(() => decrypt(token)).toThrow('Decryption failed: Invalid encrypted token format');
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
   });
