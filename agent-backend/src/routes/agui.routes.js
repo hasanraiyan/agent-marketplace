@@ -123,7 +123,18 @@ async function* runAgentAsAguiEvents({
     return;
   }
 
-  const { agentInstance, providerConfig, skillFiles, llm } = agentBuild;
+  const { agentInstance, agentConfig, providerConfig, skillFiles, llm } = agentBuild;
+
+  // HITL-guarded tools: the graph pauses before executing these, so their args
+  // must not be live-streamed (the card would be stranded "running" across the
+  // interrupt). They surface at on_tool_start after the user approves instead.
+  const interruptOnEntries =
+    agentConfig?.interruptOn instanceof Map
+      ? [...agentConfig.interruptOn.entries()]
+      : Object.entries(agentConfig?.interruptOn || {});
+  const guardedToolNames = interruptOnEntries
+    .filter(([, enabled]) => Boolean(enabled))
+    .map(([name]) => name);
 
   let pendingInterrupt;
   if (langGraphThreadId) {
@@ -170,6 +181,7 @@ async function* runAgentAsAguiEvents({
   yield* translateLangGraphStream(stream, {
     providerConfig,
     logger,
+    suppressArgStreamingFor: guardedToolNames,
     getState: langGraphThreadId
       ? async () => {
           const snap = await agentInstance.getState({

@@ -41,6 +41,46 @@ function todosFromToolArgs(name, argsText) {
     .filter((todo) => todo.content);
 }
 
+// Optimistically mirror a completed write_file / edit_file call into the
+// shared agent state so the Files panel updates mid-run instead of waiting for
+// the end-of-turn STATE_SNAPSHOT (which stays authoritative and reconciles).
+// Returns the next state, or null when the call isn't a mirrorable file write.
+function applyFileToolToState(state, name, argsText, resultText) {
+  const tool = String(name || "").toLowerCase();
+  if (tool !== "write_file" && tool !== "edit_file") return null;
+  // A failed call didn't change the filesystem.
+  if (typeof resultText === "string" && /^\s*error/i.test(resultText)) return null;
+
+  const args = parseJsonMaybe(argsText);
+  const path = typeof args?.file_path === "string" ? args.file_path : args?.path;
+  if (typeof path !== "string" || !path || path.startsWith("/skills/")) return null;
+
+  const files = { ...(state?.files || {}) };
+  const now = new Date().toISOString();
+
+  if (tool === "write_file") {
+    if (typeof args?.content !== "string") return null;
+    files[path] = {
+      content: args.content,
+      size: args.content.length,
+      created_at: files[path]?.created_at ?? now,
+      modified_at: now,
+    };
+  } else {
+    const prev = files[path];
+    if (!prev || typeof prev.content !== "string" || typeof args?.old_string !== "string") {
+      return null;
+    }
+    const replacement = typeof args.new_string === "string" ? args.new_string : "";
+    const content = args.replace_all
+      ? prev.content.split(args.old_string).join(replacement)
+      : prev.content.replace(args.old_string, replacement);
+    files[path] = { ...prev, content, size: content.length, modified_at: now };
+  }
+
+  return { ...state, files };
+}
+
 function replaceById(items, item) {
   const index = items.findIndex((x) => x.id === item.id);
   if (index === -1) return [...items, item];
@@ -177,6 +217,18 @@ export function useAguiChat({
     setConversation((prev) => ensureConversationEntry(prev, "tool", tool.id));
   }, []);
 
+  // The run is over — nothing can still be executing. Close any tool card left
+  // in "running" (e.g. a call streamed before an interrupt paused the graph).
+  const settleRunningTools = useCallback(() => {
+    setToolCalls((prev) =>
+      prev.some((tool) => tool.status === "running")
+        ? prev.map((tool) =>
+            tool.status === "running" ? { ...tool, status: "completed" } : tool,
+          )
+        : prev,
+    );
+  }, []);
+
   const applyEvent = useCallback(
     (event) => {
       const type = event.type;
@@ -190,6 +242,7 @@ export function useAguiChat({
       if (type === EventType.RUN_FINISHED || type === "RUN_FINISHED") {
         setIsRunning(false);
         setIsReasoning(false);
+        settleRunningTools();
         if (onRunFinished) onRunFinished();
         return;
       }
@@ -197,6 +250,7 @@ export function useAguiChat({
       if (type === EventType.RUN_ERROR || type === "RUN_ERROR") {
         setIsRunning(false);
         setIsReasoning(false);
+        settleRunningTools();
         setError(event.message || "The agent stopped unexpectedly.");
         if (onRunFinished) onRunFinished();
         return;
@@ -354,6 +408,24 @@ export function useAguiChat({
           };
           const completedTool = { ...current, resultText, status: "completed" };
           if (onToolResult) onToolResult(completedTool);
+          // Args are complete once the result arrives — mirror write_todos and
+          // file writes into agent state so the plan / Files panel update
+          // mid-run instead of waiting for the end-of-turn STATE_SNAPSHOT.
+          setAgentState((state) => {
+            let next = state;
+            const todos = todosFromToolArgs(
+              completedTool.name,
+              completedTool.argumentsText,
+            );
+            if (todos) next = { ...next, todos };
+            const withFiles = applyFileToolToState(
+              next,
+              completedTool.name,
+              completedTool.argumentsText,
+              resultText,
+            );
+            return withFiles || next;
+          });
           return replaceById(prev, completedTool);
         });
         return;
@@ -369,6 +441,23 @@ export function useAguiChat({
             actionRequests: event.value.actionRequests,
             reviewConfigs: event.value.reviewConfigs || [],
           });
+        } else if (event.name === "subagent_activity") {
+          // Live text streamed by a subagent, attributed to its `task` tool
+          // card. Keep a rolling tail so a chatty subagent can't grow the
+          // transcript state without bound.
+          const { toolCallId, delta } = event.value || {};
+          if (toolCallId && typeof delta === "string" && delta) {
+            setToolCalls((prev) =>
+              prev.map((tool) =>
+                tool.id === toolCallId
+                  ? {
+                      ...tool,
+                      activityText: `${tool.activityText || ""}${delta}`.slice(-8000),
+                    }
+                  : tool,
+              ),
+            );
+          }
         } else if (event.name === "clarification_request") {
           const questions = normalizeClarificationQuestions(
             event.value?.questions,
@@ -414,7 +503,45 @@ export function useAguiChat({
         );
       }
     },
-    [onToolResult, onRunFinished, upsertMessage, upsertTool],
+    [onToolResult, onRunFinished, settleRunningTools, upsertMessage, upsertTool],
+  );
+
+  // SSE events arrive far faster than the screen refreshes (one per LLM token).
+  // Applying each one immediately means a React render per token, which
+  // saturates the main thread and makes streaming feel laggy. Queue them and
+  // flush once per animation frame instead — visually identical, ~60 renders/s
+  // cap regardless of token rate.
+  const eventQueueRef = useRef([]);
+  const flushScheduledRef = useRef(false);
+  const applyEventRef = useRef(applyEvent);
+
+  useEffect(() => {
+    applyEventRef.current = applyEvent;
+  }, [applyEvent]);
+
+  const flushEvents = useCallback(() => {
+    flushScheduledRef.current = false;
+    const queue = eventQueueRef.current;
+    if (queue.length === 0) return;
+    eventQueueRef.current = [];
+    // One pass through the queue inside a single callback — React batches all
+    // the resulting state updates into one render.
+    for (const event of queue) applyEventRef.current(event);
+  }, []);
+
+  const enqueueEvent = useCallback(
+    (event) => {
+      eventQueueRef.current.push(event);
+      if (flushScheduledRef.current) return;
+      flushScheduledRef.current = true;
+      if (typeof requestAnimationFrame === "function" && !document.hidden) {
+        requestAnimationFrame(flushEvents);
+      } else {
+        // Background tabs never fire rAF — keep draining so state stays live.
+        setTimeout(flushEvents, 32);
+      }
+    },
+    [flushEvents],
   );
 
   const runStream = useCallback(
@@ -486,7 +613,7 @@ export function useAguiChat({
               .join("\n");
             if (!data || data === "[DONE]") continue;
             const event = parseJsonMaybe(data);
-            if (event) applyEvent(event);
+            if (event) enqueueEvent(event);
           }
         }
       } catch (err) {
@@ -494,6 +621,8 @@ export function useAguiChat({
           setError(err.message || "Streaming failed.");
         }
       } finally {
+        // Drain anything still queued (any rAF already scheduled becomes a no-op).
+        flushEvents();
         setIsRunning(false);
         setIsReasoning(false);
         abortRef.current = null;
@@ -502,7 +631,8 @@ export function useAguiChat({
     [
       agentId,
       agentState,
-      applyEvent,
+      enqueueEvent,
+      flushEvents,
       getToken,
       headerEntries,
       isLoaded,

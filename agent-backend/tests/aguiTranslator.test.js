@@ -275,6 +275,293 @@ describe('translateLangGraphStream', () => {
   });
 });
 
+describe('incremental tool-arg streaming', () => {
+  test('streams args from tool_call_chunks and binds execution + result to the model id', async () => {
+    const events = [
+      {
+        event: 'on_chat_model_stream',
+        data: {
+          chunk: {
+            content: '',
+            tool_call_chunks: [{ index: 0, id: 'call_1', name: 'search_web', args: '{"qu' }],
+          },
+        },
+      },
+      {
+        event: 'on_chat_model_stream',
+        data: { chunk: { content: '', tool_call_chunks: [{ index: 0, args: 'ery":"x"}' }] } },
+      },
+      {
+        event: 'on_tool_start',
+        run_id: 'run_1',
+        name: 'search_web',
+        data: { input: { query: 'x' } },
+      },
+      { event: 'on_tool_end', run_id: 'run_1', name: 'search_web', data: { output: 'results' } },
+    ];
+
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+
+    const chunks = out.filter((e) => e.type === 'TOOL_CALL_CHUNK');
+    // All chunks carry the model's tool_call id, and on_tool_start must NOT
+    // re-emit the full args (that would double them client-side).
+    expect(chunks.every((c) => c.toolCallId === 'call_1')).toBe(true);
+    expect(chunks.map((c) => c.delta).join('')).toBe('{"query":"x"}');
+
+    const result = out.find((e) => e.type === 'TOOL_CALL_RESULT');
+    expect(result).toMatchObject({ toolCallId: 'call_1', content: 'results', role: 'tool' });
+  });
+
+  test('text after streamed tool args becomes a new message', async () => {
+    const events = [
+      { event: 'on_chat_model_stream', data: { chunk: { content: 'Before.' } } },
+      {
+        event: 'on_chat_model_stream',
+        data: {
+          chunk: {
+            content: '',
+            tool_call_chunks: [{ index: 0, id: 'call_1', name: 'calc', args: '{}' }],
+          },
+        },
+      },
+      { event: 'on_tool_start', run_id: 'r1', name: 'calc', data: { input: {} } },
+      { event: 'on_tool_end', run_id: 'r1', name: 'calc', data: { output: 'ok' } },
+      { event: 'on_chat_model_stream', data: { chunk: { content: 'After.' } } },
+    ];
+
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    const textIds = [
+      ...new Set(out.filter((e) => e.type === 'TEXT_MESSAGE_CHUNK').map((e) => e.messageId)),
+    ];
+    expect(textIds).toHaveLength(2);
+  });
+
+  test('HITL-guarded tools are not arg-streamed and fall back to on_tool_start', async () => {
+    const events = [
+      {
+        event: 'on_chat_model_stream',
+        data: {
+          chunk: {
+            content: '',
+            tool_call_chunks: [{ index: 0, id: 'call_g', name: 'upsert_agent', args: '{"name":"Bot"}' }],
+          },
+        },
+      },
+      {
+        event: 'on_tool_start',
+        run_id: 'run_g',
+        name: 'upsert_agent',
+        data: { input: { name: 'Bot' } },
+      },
+      { event: 'on_tool_end', run_id: 'run_g', name: 'upsert_agent', data: { output: 'saved' } },
+    ];
+
+    const out = await collect(
+      translateLangGraphStream(fakeStream(events), { suppressArgStreamingFor: ['upsert_agent'] })
+    );
+
+    const chunks = out.filter((e) => e.type === 'TOOL_CALL_CHUNK');
+    expect(chunks).toHaveLength(1);
+    expect(chunks[0]).toMatchObject({
+      toolCallId: 'run_g',
+      toolCallName: 'upsert_agent',
+      delta: JSON.stringify({ name: 'Bot' }),
+    });
+    expect(out.find((e) => e.type === 'TOOL_CALL_RESULT').toolCallId).toBe('run_g');
+  });
+
+  test('ask_clarification args are never streamed', async () => {
+    const events = [
+      {
+        event: 'on_chat_model_stream',
+        data: {
+          chunk: {
+            content: '',
+            tool_call_chunks: [{ index: 0, id: 'c1', name: 'ask_clarification', args: '{"questions":[]}' }],
+          },
+        },
+      },
+    ];
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    expect(out.find((e) => e.type === 'TOOL_CALL_CHUNK')).toBeUndefined();
+  });
+});
+
+describe('reasoning streaming', () => {
+  test('emits REASONING events for reasoning deltas, closing before text', async () => {
+    const events = [
+      {
+        event: 'on_chat_model_stream',
+        data: { chunk: { content: '', additional_kwargs: { reasoning_content: 'hmm ' } } },
+      },
+      {
+        event: 'on_chat_model_stream',
+        data: { chunk: { content: '', additional_kwargs: { reasoning_content: 'okay' } } },
+      },
+      { event: 'on_chat_model_stream', data: { chunk: { content: 'Answer.' } } },
+    ];
+
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    const types = out.map((e) => e.type);
+
+    const starts = out.filter((e) => e.type === 'REASONING_MESSAGE_START');
+    expect(starts).toHaveLength(1);
+    const reasoning = out
+      .filter((e) => e.type === 'REASONING_MESSAGE_CONTENT')
+      .map((e) => e.delta)
+      .join('');
+    expect(reasoning).toBe('hmm okay');
+    // REASONING_END lands before the assistant text starts.
+    expect(types.indexOf('REASONING_END')).toBeLessThan(types.indexOf('TEXT_MESSAGE_CHUNK'));
+    expect(out.find((e) => e.type === 'TEXT_MESSAGE_CHUNK').delta).toBe('Answer.');
+  });
+
+  test('closes an open reasoning message when the stream ends', async () => {
+    const events = [
+      {
+        event: 'on_chat_model_stream',
+        data: { chunk: { content: '', additional_kwargs: { reasoning_content: 'thinking' } } },
+      },
+    ];
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    expect(out.filter((e) => e.type === 'REASONING_END')).toHaveLength(1);
+  });
+
+  test('extracts reasoning from content blocks', async () => {
+    const events = [
+      {
+        event: 'on_chat_model_stream',
+        data: { chunk: { content: [{ type: 'reasoning', reasoning: 'deep thought' }] } },
+      },
+      {
+        event: 'on_chat_model_stream',
+        data: { chunk: { content: [{ type: 'text', text: 'Block answer.' }] } },
+      },
+    ];
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    expect(out.find((e) => e.type === 'REASONING_MESSAGE_CONTENT').delta).toBe('deep thought');
+    expect(out.find((e) => e.type === 'TEXT_MESSAGE_CHUNK').delta).toBe('Block answer.');
+  });
+});
+
+describe('nested (subagent) stream filtering', () => {
+  test('drops model tokens streamed while a tool is executing', async () => {
+    const events = [
+      { event: 'on_tool_start', run_id: 'task1', name: 'task', data: { input: { description: 'go' } } },
+      { event: 'on_chat_model_stream', data: { chunk: { content: 'subagent prose' } } },
+      { event: 'on_tool_end', run_id: 'task1', name: 'task', data: { output: 'done' } },
+      { event: 'on_chat_model_stream', data: { chunk: { content: 'Main reply.' } } },
+    ];
+
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    const text = out.filter((e) => e.type === 'TEXT_MESSAGE_CHUNK').map((e) => e.delta);
+    expect(text).toEqual(['Main reply.']);
+  });
+
+  test('routes nested model text into the running task tool as subagent_activity', async () => {
+    const events = [
+      {
+        event: 'on_tool_start',
+        run_id: 'task1',
+        name: 'task',
+        data: { input: { description: 'research', subagent_type: 'general-purpose' } },
+      },
+      { event: 'on_chat_model_stream', data: { chunk: { content: 'sub ' } } },
+      { event: 'on_chat_model_stream', data: { chunk: { content: 'work' } } },
+      { event: 'on_tool_end', run_id: 'task1', name: 'task', data: { output: 'done' } },
+      { event: 'on_chat_model_stream', data: { chunk: { content: 'Main reply.' } } },
+    ];
+
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+
+    const activity = out.filter((e) => e.type === 'CUSTOM' && e.name === 'subagent_activity');
+    expect(activity.map((e) => e.value.delta).join('')).toBe('sub work');
+    expect(activity.every((e) => e.value.toolCallId === 'task1')).toBe(true);
+    // Subagent text never reaches the main transcript.
+    const text = out.filter((e) => e.type === 'TEXT_MESSAGE_CHUNK').map((e) => e.delta);
+    expect(text).toEqual(['Main reply.']);
+  });
+
+  test('nested model text during a non-task tool is dropped silently', async () => {
+    const events = [
+      { event: 'on_tool_start', run_id: 's1', name: 'search_web', data: { input: { query: 'x' } } },
+      { event: 'on_chat_model_stream', data: { chunk: { content: 'internal' } } },
+      { event: 'on_tool_end', run_id: 's1', name: 'search_web', data: { output: 'r' } },
+    ];
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    expect(out.find((e) => e.type === 'CUSTOM')).toBeUndefined();
+    // Only the synthesized completion notice — never the nested model text.
+    const text = out.filter((e) => e.type === 'TEXT_MESSAGE_CHUNK').map((e) => e.delta);
+    expect(text.join('')).not.toContain('internal');
+  });
+
+  test('subagent activity binds to the streamed toolCallId when task args were pre-streamed', async () => {
+    const events = [
+      {
+        event: 'on_chat_model_stream',
+        data: {
+          chunk: {
+            content: '',
+            tool_call_chunks: [{ index: 0, id: 'call_task', name: 'task', args: '{"description":"go"}' }],
+          },
+        },
+      },
+      { event: 'on_tool_start', run_id: 'run_task', name: 'task', data: { input: { description: 'go' } } },
+      { event: 'on_chat_model_stream', data: { chunk: { content: 'inner' } } },
+      { event: 'on_tool_end', run_id: 'run_task', name: 'task', data: { output: 'done' } },
+    ];
+
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    const activity = out.find((e) => e.type === 'CUSTOM' && e.name === 'subagent_activity');
+    expect(activity.value.toolCallId).toBe('call_task');
+    expect(out.find((e) => e.type === 'TOOL_CALL_RESULT').toolCallId).toBe('call_task');
+  });
+
+  test('drops model tokens whose checkpoint namespace is nested', async () => {
+    const events = [
+      {
+        event: 'on_chat_model_stream',
+        metadata: { langgraph_checkpoint_ns: 'tools:abc|model_request:def' },
+        data: { chunk: { content: 'nested text' } },
+      },
+      { event: 'on_chat_model_stream', data: { chunk: { content: 'Top-level.' } } },
+    ];
+
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    const text = out.filter((e) => e.type === 'TEXT_MESSAGE_CHUNK').map((e) => e.delta);
+    expect(text).toEqual(['Top-level.']);
+  });
+
+  test("a subagent's internal tool cannot steal a streamed main-model call", async () => {
+    const events = [
+      // Main model streams a write_file call...
+      {
+        event: 'on_chat_model_stream',
+        data: {
+          chunk: {
+            content: '',
+            tool_call_chunks: [{ index: 0, id: 'call_main', name: 'write_file', args: '{"file_path":"/a.md"}' }],
+          },
+        },
+      },
+      // ...but a nested write_file (inside a subagent) starts first.
+      {
+        event: 'on_tool_start',
+        run_id: 'nested_run',
+        name: 'write_file',
+        metadata: { langgraph_checkpoint_ns: 'tools:t1|tools:t2' },
+        data: { input: { file_path: '/nested.md' } },
+      },
+      { event: 'on_tool_end', run_id: 'nested_run', name: 'write_file', data: { output: 'ok' } },
+    ];
+
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    // The nested tool keeps its own run_id; the streamed call id stays unbound.
+    const result = out.find((e) => e.type === 'TOOL_CALL_RESULT');
+    expect(result.toolCallId).toBe('nested_run');
+  });
+});
+
 describe('extractToolOutputContent', () => {
   test('passes strings through unchanged', () => {
     expect(extractToolOutputContent("Successfully wrote to '/a.md'")).toBe(

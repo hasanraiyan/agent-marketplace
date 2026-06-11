@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
@@ -76,7 +76,10 @@ export function NewChatIcon({ className }) {
   );
 }
 
-export function MessageBubble({ message, agent }) {
+// Memoized: during token streaming only the active message object changes
+// identity (replaceById keeps the rest), so re-parsing every bubble's markdown
+// on every frame is pure waste.
+export const MessageBubble = memo(function MessageBubble({ message, agent }) {
   const isUser = message.role === 'user';
 
   if (message.role === 'reasoning') {
@@ -127,4 +130,4 @@ export function MessageBubble({ message, agent }) {
       </div>
     </div>
   );
-}
+});

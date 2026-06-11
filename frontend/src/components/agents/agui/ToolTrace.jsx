@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import {
   AlertCircle,
   BotIcon,
@@ -41,7 +41,9 @@ import { ReadFileCard } from './tool-cards/ReadFileCard';
 export { FileSystemActionCard, ActionArguments } from './tool-cards/FileSystemActionCard';
 export { ToolArguments } from './tool-cards/ToolArguments';
 
-export function ToolTrace({ tool }) {
+// Memoized: streaming updates replace only the affected tool object, so other
+// tool cards keep their identity and can skip re-rendering.
+export const ToolTrace = memo(function ToolTrace({ tool }) {
   const [open, setOpen] = useState(false);
   const done = tool.status === 'completed';
   const results = searchResults(tool);
@@ -52,11 +54,19 @@ export function ToolTrace({ tool }) {
   const isTodo = isTodoTool(tool.name);
   const isSkill = isSkillTool(tool.name);
   const isAgent = isAgentTool(tool.name);
+  const isSubagent = (tool.name || '').toLowerCase() === 'task';
   const todos = isTodo ? parseTodos(tool.argumentsText, tool.resultText) : null;
   const todosDone = todos
     ? todos.filter((todo) => todo.status === 'completed').length
     : 0;
-  const isExpandable = Boolean(tool.resultText || tool.argumentsText);
+  const isExpandable = Boolean(
+    tool.resultText || tool.argumentsText || tool.activityText,
+  );
+  // Rolling tail of the subagent's live output, shown inline while it runs.
+  const activityTail =
+    !done && tool.activityText
+      ? tool.activityText.trimEnd().split('\n').slice(-3).join('\n')
+      : '';
   const Icon = isError
     ? AlertCircle
     : isSearch
@@ -67,7 +77,7 @@ export function ToolTrace({ tool }) {
           ? ListTodo
           : isSkill
             ? Cpu
-            : isAgent
+            : isAgent || isSubagent
               ? BotIcon
               : tool.name?.includes('file')
                 ? FileText
@@ -134,11 +144,35 @@ export function ToolTrace({ tool }) {
         </div>
       ) : null}
 
+      {activityTail ? (
+        <div className="ml-8 mt-1 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/60">
+          <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            <BotIcon className="size-3 animate-pulse text-orange-500" />
+            Subagent working
+          </div>
+          <pre className="max-h-20 overflow-hidden whitespace-pre-wrap break-words font-mono text-xs leading-5 text-slate-500 dark:text-slate-400">
+            {activityTail}
+          </pre>
+        </div>
+      ) : null}
+
       {open ? (
         <div className="ml-8 mt-1 space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 text-sm dark:border-slate-700 dark:bg-slate-900/70">
           {/* Tool Inputs */}
           {tool.argumentsText && !isTodo && !isGrep && (
             <ToolArguments argumentsText={tool.argumentsText} />
+          )}
+
+          {/* Live / final subagent output */}
+          {tool.activityText && (
+            <div className="space-y-1.5">
+              <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
+                Subagent Activity
+              </div>
+              <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-slate-600 dark:text-slate-300 bg-slate-100/50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-150 dark:border-slate-800/60 scrollbar-thin">
+                {tool.activityText}
+              </pre>
+            </div>
           )}
 
           {/* Tool Outputs / Status */}
@@ -239,4 +273,4 @@ export function ToolTrace({ tool }) {
       ) : null}
     </div>
   );
-}
+});

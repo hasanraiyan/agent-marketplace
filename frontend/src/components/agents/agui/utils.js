@@ -384,6 +384,13 @@ export function toolTitle(tool) {
       ? `Saved agent "${agentName}"`
       : `Saving agent "${agentName}"`;
   }
+  if (name === "task") {
+    const args = tryParseJson(tool.argumentsText);
+    const label = args?.subagent_type
+      ? `${args.subagent_type} subagent`
+      : "subagent";
+    return tool.status === "completed" ? `Ran ${label}` : `Running ${label}`;
+  }
 
   return name
     .split(/[_\-\s]/)

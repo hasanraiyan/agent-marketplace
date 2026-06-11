@@ -286,6 +286,53 @@ export async function* emitTextNotice(delta) {
   yield { type: EventType.TEXT_MESSAGE_CHUNK, messageId: randomUUID(), role: 'assistant', delta };
 }
 
+// Model chunk content can be a plain string or an array of content blocks
+// ({ type: 'text', text }). Normalize to the text delta.
+export function extractTextDelta(content) {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content
+    .map((block) => {
+      if (typeof block === 'string') return block;
+      if (block?.type === 'text' && typeof block.text === 'string') return block.text;
+      return '';
+    })
+    .join('');
+}
+
+// Reasoning deltas land in different places depending on the provider:
+// OpenAI-compatible APIs (DeepSeek, OpenRouter, ...) use
+// additional_kwargs.reasoning_content / .reasoning; block-content providers
+// emit { type: 'reasoning' | 'thinking' } blocks.
+export function extractReasoningDelta(chunk) {
+  const kwargs = chunk?.additional_kwargs;
+  if (typeof kwargs?.reasoning_content === 'string' && kwargs.reasoning_content) {
+    return kwargs.reasoning_content;
+  }
+  if (typeof kwargs?.reasoning === 'string' && kwargs.reasoning) {
+    return kwargs.reasoning;
+  }
+  const content = chunk?.content;
+  if (!Array.isArray(content)) return '';
+  return content
+    .map((block) => {
+      if (!block || (block.type !== 'reasoning' && block.type !== 'thinking')) return '';
+      if (typeof block.reasoning === 'string') return block.reasoning;
+      if (typeof block.thinking === 'string') return block.thinking;
+      if (typeof block.text === 'string') return block.text;
+      return '';
+    })
+    .join('');
+}
+
+// Events from inside a subagent (deepagents `task` tool) carry a nested
+// checkpoint namespace ("parent:id|child:id"); root-level nodes have a single
+// segment. Used to keep subagent model tokens out of the main transcript.
+function isNestedNamespace(event) {
+  const ns = event?.metadata?.langgraph_checkpoint_ns ?? event?.metadata?.checkpoint_ns;
+  return typeof ns === 'string' && ns.includes('|');
+}
+
 // deepagents StateBackend stores each file's body as an array of lines (it splits
 // on '\n' when writing); it can also be a plain string, or a Uint8Array for binary
 // writes. Normalize to a single display string. Binary content is not surfaced as
@@ -359,10 +406,16 @@ export function buildFilesTodosSnapshot(stateValues) {
  *                                          filesystem + todos is emitted at the end of
  *                                          the turn (and on interrupt) so the client can
  *                                          mirror files the agent created.
+ * @param {string[]} [opts.suppressArgStreamingFor]  tool names whose args must NOT be
+ *                                          streamed from the model's tool_call_chunks
+ *                                          (HITL-guarded tools: the graph pauses before
+ *                                          executing them, so a streamed card would be
+ *                                          stranded in "running" across the interrupt).
  * @returns {AsyncGenerator} AG-UI events.
  */
 export async function* translateLangGraphStream(stream, opts = {}) {
   const { providerConfig, onInterrupt, onError, logger, getState } = opts;
+  const suppressArgStreaming = new Set(opts.suppressArgStreamingFor || []);
 
   // Read authoritative graph state and emit a STATE_SNAPSHOT of { files, todos }.
   // Never throws — a state-read failure must not abort the event stream.
@@ -385,10 +438,27 @@ export async function* translateLangGraphStream(stream, opts = {}) {
   // Current contiguous assistant-text message id. Reset to null when a tool call
   // starts so post-tool text becomes a new message (there is a tool call between).
   let textMsgId = null;
-  // run_id -> { name } for tool calls we surfaced, so we can match their results.
+  // Current open reasoning message id (REASONING_MESSAGE_START emitted, no END yet).
+  let reasoningMsgId = null;
+  // run_id -> { name, toolCallId } for tool calls we surfaced, so we can match
+  // their results to the toolCallId the client saw (model id when args were
+  // pre-streamed, run_id otherwise).
   const pendingToolCalls = new Map();
+  // Args streamed live from the model's tool_call_chunks, keyed by chunk index
+  // within the current model turn. A new id at a known index = a new turn.
+  const toolArgStreams = new Map();
+  // model tool_call id -> { name, args, bound }: streamed calls awaiting their
+  // on_tool_start, so execution binds to the already-emitted toolCallId.
+  const streamedToolCalls = new Map();
+  // deepagents `task` (subagent) calls currently executing, newest last. Nested
+  // model tokens are attributed to the most recent one so the client can show
+  // live subagent activity inside that tool's card.
+  const taskToolStack = [];
+  // Tools currently executing (incl. hidden ones). While > 0, any model stream
+  // belongs to a nested run — the main model never streams during its own tools.
+  let runningToolDepth = 0;
   // Lightweight tally for an end-of-stream summary log.
-  const stats = { textChunks: 0, toolCalls: 0, toolResults: 0 };
+  const stats = { textChunks: 0, reasoningChunks: 0, nestedChunks: 0, toolCalls: 0, toolResults: 0 };
   let textSinceLastToolResult = true;
   let lastToolResult = null;
   let streamInterrupts = null;
@@ -403,10 +473,50 @@ export async function* translateLangGraphStream(stream, opts = {}) {
         break;
       }
 
-      // ── Streamed assistant text ──────────────────────────────────────────────
+      // ── Streamed model output (text / reasoning / tool-call args) ───────────
       if (event.event === 'on_chat_model_stream') {
-        const text = typeof event.data?.chunk?.content === 'string' ? event.data.chunk.content : '';
+        // Subagent models (deepagents `task` tool) stream through the same
+        // iterator; interleaving their tokens would corrupt the main transcript.
+        // Instead, surface them as live activity on the owning task tool card.
+        if (runningToolDepth > 0 || isNestedNamespace(event)) {
+          stats.nestedChunks += 1;
+          const hostTask = taskToolStack[taskToolStack.length - 1];
+          if (hostTask) {
+            const nestedText = extractTextDelta(event.data?.chunk?.content);
+            if (nestedText) {
+              yield {
+                type: EventType.CUSTOM,
+                name: 'subagent_activity',
+                value: { toolCallId: hostTask.toolCallId, delta: nestedText },
+              };
+            }
+          }
+          continue;
+        }
+
+        const chunk = event.data?.chunk;
+
+        const reasoningDelta = extractReasoningDelta(chunk);
+        if (reasoningDelta) {
+          if (!reasoningMsgId) {
+            reasoningMsgId = randomUUID();
+            logger?.debug('[AG-UI] reasoning started', { messageId: reasoningMsgId });
+            yield { type: EventType.REASONING_MESSAGE_START, messageId: reasoningMsgId };
+          }
+          stats.reasoningChunks += 1;
+          yield {
+            type: EventType.REASONING_MESSAGE_CONTENT,
+            messageId: reasoningMsgId,
+            delta: reasoningDelta,
+          };
+        }
+
+        const text = extractTextDelta(chunk?.content);
         if (text) {
+          if (reasoningMsgId) {
+            reasoningMsgId = null;
+            yield { type: EventType.REASONING_END };
+          }
           if (!textMsgId) {
             textMsgId = randomUUID();
             logger?.debug('[AG-UI] assistant text started', { messageId: textMsgId });
@@ -420,10 +530,62 @@ export async function* translateLangGraphStream(stream, opts = {}) {
             delta: text,
           };
         }
+
+        // Stream tool-call args as the model generates them, so the tool card
+        // appears the moment the model decides to call a tool instead of after
+        // the full args finished AND execution began (on_tool_start).
+        const tcChunks = Array.isArray(chunk?.tool_call_chunks) ? chunk.tool_call_chunks : [];
+        for (const tc of tcChunks) {
+          const index = typeof tc.index === 'number' ? tc.index : 0;
+          let s = toolArgStreams.get(index);
+          if (!s || (tc.id && s.id && tc.id !== s.id)) {
+            s = { id: tc.id || null, name: tc.name || '', args: '', emitted: 0, opened: false, decided: false, emit: false };
+            toolArgStreams.set(index, s);
+          } else {
+            if (tc.id && !s.id) s.id = tc.id;
+            if (tc.name && !s.name) s.name = tc.name;
+          }
+          if (typeof tc.args === 'string') s.args += tc.args;
+
+          // Decide once per call — needs both id and name (first chunk carries
+          // them). Hidden and HITL-guarded tools fall back to on_tool_start.
+          if (!s.decided && s.id && s.name) {
+            s.decided = true;
+            s.emit = s.name !== 'ask_clarification' && !suppressArgStreaming.has(s.name);
+            if (s.emit) {
+              streamedToolCalls.set(s.id, { name: s.name, args: '', bound: false });
+              logger?.debug('[AG-UI] tool args streaming', { name: s.name, toolCallId: s.id });
+              if (reasoningMsgId) {
+                reasoningMsgId = null;
+                yield { type: EventType.REASONING_END };
+              }
+              // A tool call ends the current text grouping.
+              textMsgId = null;
+            }
+          }
+          if (s.emit) {
+            const pending = s.args.slice(s.emitted);
+            // Emit the (possibly empty) first chunk immediately so the card
+            // shows up as soon as the call starts.
+            if (pending || !s.opened) {
+              s.opened = true;
+              s.emitted = s.args.length;
+              streamedToolCalls.get(s.id).args = s.args;
+              yield {
+                type: EventType.TOOL_CALL_CHUNK,
+                toolCallId: s.id,
+                toolCallName: s.name,
+                delta: pending,
+              };
+            }
+          }
+        }
       }
 
       // ── Tool call start ──────────────────────────────────────────────────────
       else if (event.event === 'on_tool_start') {
+        runningToolDepth += 1;
+
         if (event.name === 'ask_clarification') {
           logger?.debug('[AG-UI] hiding clarification tool trace');
           continue;
@@ -442,29 +604,65 @@ export async function* translateLangGraphStream(stream, opts = {}) {
         // A tool call ends the current text grouping.
         textMsgId = null;
 
-        const toolCallId = event.run_id;
         const toolName = event.name;
         const toolInput = event.data?.input;
-        pendingToolCalls.set(toolCallId, { name: toolName });
+        const argsStr = typeof toolInput === 'string' ? toolInput : JSON.stringify(toolInput ?? {});
         stats.toolCalls += 1;
 
-        const argsStr = typeof toolInput === 'string' ? toolInput : JSON.stringify(toolInput ?? {});
-        logger?.debug('[AG-UI] tool call', {
-          name: toolName,
-          toolCallId,
-          argsLength: argsStr.length,
-        });
-        // TOOL_CALL_CHUNK carries id + name + args and needs no parentMessageId.
-        yield {
-          type: EventType.TOOL_CALL_CHUNK,
-          toolCallId,
-          toolCallName: toolName,
-          delta: argsStr,
-        };
+        // If this call's args were already streamed from tool_call_chunks, bind
+        // execution to that toolCallId instead of re-emitting the args. Only
+        // top-level tools can match — a subagent's internal tool must never
+        // steal a streamed main-model call of the same name. Prefer an exact
+        // args match, fall back to FIFO by name.
+        let streamedId = null;
+        if (!isNestedNamespace(event)) {
+          for (const [id, sc] of streamedToolCalls) {
+            if (sc.bound || sc.name !== toolName) continue;
+            if (sc.args === argsStr) {
+              streamedId = id;
+              break;
+            }
+            if (!streamedId) streamedId = id;
+          }
+        }
+
+        if (toolName === 'task') {
+          taskToolStack.push({ runId: event.run_id, toolCallId: streamedId || event.run_id });
+        }
+
+        if (streamedId) {
+          streamedToolCalls.get(streamedId).bound = true;
+          pendingToolCalls.set(event.run_id, { name: toolName, toolCallId: streamedId });
+          logger?.debug('[AG-UI] tool call (args pre-streamed)', {
+            name: toolName,
+            toolCallId: streamedId,
+          });
+        } else {
+          pendingToolCalls.set(event.run_id, { name: toolName, toolCallId: event.run_id });
+          logger?.debug('[AG-UI] tool call', {
+            name: toolName,
+            toolCallId: event.run_id,
+            argsLength: argsStr.length,
+          });
+          // TOOL_CALL_CHUNK carries id + name + args and needs no parentMessageId.
+          yield {
+            type: EventType.TOOL_CALL_CHUNK,
+            toolCallId: event.run_id,
+            toolCallName: toolName,
+            delta: argsStr,
+          };
+        }
       }
 
       // ── Tool call result ─────────────────────────────────────────────────────
-      else if (event.event === 'on_tool_end') {
+      else if (event.event === 'on_tool_end' || event.event === 'on_tool_error') {
+        runningToolDepth = Math.max(0, runningToolDepth - 1);
+
+        const taskIndex = taskToolStack.findIndex((t) => t.runId === event.run_id);
+        if (taskIndex !== -1) taskToolStack.splice(taskIndex, 1);
+
+        if (event.event === 'on_tool_error') continue;
+
         if (event.name === 'ask_clarification') {
           logger?.debug('[AG-UI] hiding clarification tool result');
           continue;
@@ -479,18 +677,24 @@ export async function* translateLangGraphStream(stream, opts = {}) {
           lastToolResult = { name: tc.name, content: resultContent };
           logger?.debug('[AG-UI] tool result', {
             name: tc.name,
-            toolCallId: event.run_id,
+            toolCallId: tc.toolCallId,
             resultLength: resultContent.length,
           });
           yield {
             type: EventType.TOOL_CALL_RESULT,
             messageId: randomUUID(),
-            toolCallId: event.run_id,
+            toolCallId: tc.toolCallId,
             content: resultContent,
             role: 'tool',
           };
         }
       }
+    }
+
+    // Close a reasoning message left open by a turn that ended mid-thought.
+    if (reasoningMsgId) {
+      reasoningMsgId = null;
+      yield { type: EventType.REASONING_END };
     }
     if (streamInterrupts) {
       const interruptInfo = describeInterrupt(streamInterrupts);
@@ -542,6 +746,10 @@ export async function* translateLangGraphStream(stream, opts = {}) {
     // Mirror the virtual filesystem + plan to the client once the turn settles.
     yield* emitStateSnapshot('finished');
   } catch (err) {
+    if (reasoningMsgId) {
+      reasoningMsgId = null;
+      yield { type: EventType.REASONING_END };
+    }
     const graphInterrupts = extractGraphInterrupts(err);
     const interrupt = isInterruptError(err, graphInterrupts);
 
