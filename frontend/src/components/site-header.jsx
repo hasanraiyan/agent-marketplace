@@ -12,7 +12,10 @@ const routeMap = [
   { path: "/dashboard/agents/create", title: "Create Agent" },
   { path: "/dashboard/agents", title: "My Agents" },
   { path: "/dashboard/skills", title: "Skills" },
-  { path: "/dashboard/profile", title: "Profile" },
+  { path: "/dashboard/settings/profile", title: "Profile" },
+  { path: "/dashboard/settings/providers/new", title: "Add Provider" },
+  { path: "/dashboard/settings/providers", title: "AI Providers" },
+  { path: "/dashboard/settings/danger", title: "Danger Zone" },
   { path: "/dashboard/settings", title: "Settings" },
   { path: "/dashboard", title: "Explore" },
 ];
