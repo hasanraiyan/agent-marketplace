@@ -1,5 +1,7 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { createDeepAgent, StateBackend } from 'deepagents';
+import { InMemoryStore } from '@langchain/langgraph';
+import { LRUCache } from 'lru-cache';
 import agentRepository from '../repositories/agentRepository.js';
 import providerRepository from '../repositories/providerRepository.js';
 import encryption from '../utils/encryption.js';
@@ -9,6 +11,14 @@ import { loggerService } from '../utils/index.js';
 import { ARCHITECT_SKILL } from '../skills/architectSkill.js';
 
 const logger = loggerService.getLogger();
+
+// Shared long-term memory store for all agents. Singleton ensures cross-thread
+// memories persist for the lifetime of the process.
+const globalStore = new InMemoryStore();
+
+// LRU Cache for compiled Agent instances to avoid expensive graph compilation on every message.
+// Small cap since each instance holds an LLM client and internal graph state.
+const agentCache = new LRUCache({ max: 50 });
 
 const ARCHITECT_SYSTEM_PROMPT = `
 You are the **Agent Architect**, a senior software engineer and AI specialized in building highly effective agents.
@@ -83,6 +93,11 @@ class AgentFactory {
 
     const agentIdStr = agentId._id ? agentId._id.toString() : agentId.toString();
 
+    // Cache key: For standard agents it is the agentId. For Architect, it is namespaced by userId
+    // because the Architect's toolbox and provider are user-specific.
+    const cacheKey =
+      agentIdStr === ARCHITECT_AGENT_ID ? `${ARCHITECT_AGENT_ID}:${userId}` : agentIdStr;
+
     let agent;
     let provider;
 
@@ -125,6 +140,16 @@ class AgentFactory {
       if (!provider) throw new Error('Configured Provider not found or was deleted.');
     }
 
+    // 2. Cache Validation
+    const cached = agentCache.get(cacheKey);
+    if (cached && cached.updatedAt?.getTime() === agent.updatedAt?.getTime()) {
+      logger.debug('[AgentFactory] cache hit', { agentId: agentIdStr });
+      return {
+        ...cached,
+        cacheHit: true,
+      };
+    }
+
     logger.info('[AgentFactory] building agent', {
       agentId: agentIdStr,
       model: agent.modelName,
@@ -138,10 +163,6 @@ class AgentFactory {
     // Completely abstracted Tool Registry injection
     const dynamicTools = resolveAgentTools(agent, userId);
 
-    const { InMemoryStore } = await import('@langchain/langgraph');
-    const store = new InMemoryStore();
-
-    // Materialize the agent's configured skills into deepagents' virtual filesystem.
     //
     // deepagents discovers skills via the `skills: ["/skills/"]` param + the agent's
     // backend (StateBackend below). With StateBackend the skill files live in graph
@@ -150,10 +171,6 @@ class AgentFactory {
     // `files` map at invoke time (see agui.routes.js). They then persist for
     // the rest of the thread via the checkpointer. `skillFiles` is returned to the
     // caller so it can do that seeding.
-    //
-    // NOTE: this replaces a previous hand-rolled `SkillService` lookup that always
-    // fell through to a no-op shim (deepagents exposes `createSkillsMiddleware`, not
-    // a `SkillService` class), so skills were silently never loaded.
     const skillFiles = {};
     const now = new Date().toISOString();
 
@@ -192,35 +209,28 @@ class AgentFactory {
     // 4. Assemble Custom DeepAgent Runtime
     // Wrap checkpointer with a Proxy to preserve prototype methods (e.g. getTuple)
     // while guarding against empty bulk write batches that crash MongoDB driver.
-    // Track whether we've warned to avoid log spam
-    let checkpointerWarned = false;
-
     const safeCheckpointer = checkpointer
       ? new Proxy(checkpointer, {
           get(target, prop, receiver) {
             if (prop === 'putWrites') {
               return async (...args) => {
-                try {
-                  // Robust empty-batch detection: scan args for any array-like candidate
-                  const foundArray = args.find(
-                    (a) => Array.isArray(a) || (a && typeof a.length === 'number')
-                  );
-                  if (foundArray && foundArray.length === 0) return;
+                // Robust empty-batch detection: scan args for any array-like candidate
+                const foundArray = args.find(
+                  (a) => Array.isArray(a) || (a && typeof a.length === 'number')
+                );
+                if (foundArray && foundArray.length === 0) return;
 
-                  // If first arg is falsy or no args, treat as no-op
-                  if (args.length === 0 || !args[0]) return;
+                // If first arg is falsy or no args, treat as no-op
+                if (args.length === 0 || !args[0]) return;
 
-                  if (typeof target.putWrites === 'function') {
+                if (typeof target.putWrites === 'function') {
+                  try {
                     return await target.putWrites.apply(target, args);
-                  }
-                } catch (err) {
-                  // Only warn once to reduce log noise
-                  if (!checkpointerWarned) {
-                    console.warn(
-                      '[AgentFactory] checkpointer.putWrites error:',
-                      err?.message || err
-                    );
-                    checkpointerWarned = true;
+                  } catch (err) {
+                    logger.error('[AgentFactory] checkpointer.putWrites error:', {
+                      error: err?.message || err,
+                    });
+                    throw err; // Rethrow so failures aren't silent
                   }
                 }
               };
@@ -244,7 +254,7 @@ class AgentFactory {
       model: llm,
       systemPrompt: agent.systemPrompt,
       checkpointer: safeCheckpointer,
-      store: store,
+      store: globalStore,
       tools: dynamicTools,
       interruptOn: interruptOnConfig,
       // sandbox backend if real code execution is ever required.
@@ -260,9 +270,10 @@ class AgentFactory {
       hasSkills,
     });
 
-    return {
+    const result = {
       agentInstance,
       agentConfig: agent,
+      updatedAt: agent.updatedAt,
       llm,
       providerConfig: {
         id: provider._id?.toString?.() || provider._id,
@@ -271,6 +282,13 @@ class AgentFactory {
         modelName: agent.modelName || provider.defaultModel || 'gpt-3.5-turbo',
       },
       skillFiles,
+    };
+
+    // Cache the compiled result
+    agentCache.set(cacheKey, result);
+
+    return {
+      ...result,
       cacheHit: false,
     };
   }
@@ -280,7 +298,23 @@ class AgentFactory {
    * Call this when agent configuration or skills are modified.
    */
   invalidate(agentId) {
-    // Cache system is disabled/removed. No-op.
+    const idStr = agentId?.toString() || agentId;
+    if (!idStr) return;
+
+    // If it's the Architect, we'd need the userId to invalidate the specific cache entry.
+    // However, most callers (controllers) only pass agentId. For now, we'll
+    // iterate and clear any key starting with the ID.
+    if (idStr === ARCHITECT_AGENT_ID) {
+      for (const key of agentCache.keys()) {
+        if (key.startsWith(ARCHITECT_AGENT_ID)) {
+          agentCache.delete(key);
+        }
+      }
+    } else {
+      agentCache.delete(idStr);
+    }
+
+    logger.debug('[AgentFactory] cache invalidated', { agentId: idStr });
   }
 }
 
