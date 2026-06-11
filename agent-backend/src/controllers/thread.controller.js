@@ -70,7 +70,12 @@ class ThreadController {
         return res.status(404).json({ success: false, message: 'Thread not found' });
       }
 
-      await threadRepository.delete(req.params.id);
+      const deletedThread = await threadRepository.delete(req.params.id);
+
+      // Cascading cleanup of LangGraph checkpoints
+      if (deletedThread && deletedThread.threadId) {
+        chatService.cleanupThreads(deletedThread.threadId).catch(() => {});
+      }
 
       res.json({ success: true, message: 'Thread permanently removed' });
     } catch (error) {
@@ -80,7 +85,13 @@ class ThreadController {
 
   async deleteAll(req, res, next) {
     try {
-      await threadRepository.deleteAllByUser(req.user.id);
+      const result = await threadRepository.deleteAllByUser(req.user.id);
+
+      // Cascading cleanup of LangGraph checkpoints
+      if (result && result.threadIds && result.threadIds.length > 0) {
+        chatService.cleanupThreads(result.threadIds).catch(() => {});
+      }
+
       res.json({ success: true, message: 'All threads permanently removed' });
     } catch (error) {
       next(error);

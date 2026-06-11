@@ -47,7 +47,12 @@ class ThreadRepository {
   }
 
   async deleteAllByUser(userId) {
-    return await Conversation.deleteMany({ userId });
+    // We need to find all threadIds first so we can cleanup checkpoints later
+    const threads = await Conversation.find({ userId }).select('threadId');
+    const threadIds = threads.map((t) => t.threadId);
+
+    const result = await Conversation.deleteMany({ userId });
+    return { ...result, threadIds };
   }
 
   async countByUser(userId) {

@@ -62,10 +62,14 @@ describe('Agent Repository', () => {
       );
     });
 
-    test('should delete agent', async () => {
-      jest.spyOn(Agent, 'findByIdAndDelete').mockResolvedValue(mockAgent);
+    test('should soft-delete agent', async () => {
+      jest.spyOn(Agent, 'findByIdAndUpdate').mockResolvedValue(mockAgent);
       await agentRepository.delete('agent_123');
-      expect(Agent.findByIdAndDelete).toHaveBeenCalledWith('agent_123');
+      expect(Agent.findByIdAndUpdate).toHaveBeenCalledWith(
+        'agent_123',
+        expect.objectContaining({ isActive: false, deletedAt: expect.any(Date) }),
+        { new: true }
+      );
     });
   });
 

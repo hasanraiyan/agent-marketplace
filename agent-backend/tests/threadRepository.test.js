@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import mongoose from 'mongoose';
 import threadRepository from '../src/repositories/threadRepository.js';
 import Conversation from '../src/models/Conversation.js';
 
@@ -70,12 +71,20 @@ describe('Thread Repository', () => {
     });
 
     test('should delete all conversations by user id', async () => {
+      const mockUserId = new mongoose.Types.ObjectId();
+      const mockThreads = [{ threadId: 't1' }, { threadId: 't2' }];
+
+      jest.spyOn(Conversation, 'find').mockReturnValue({
+        select: jest.fn().mockResolvedValue(mockThreads)
+      });
       const deleteManySpy = jest
         .spyOn(Conversation, 'deleteMany')
-        .mockResolvedValue({ deletedCount: 5 });
-      const result = await threadRepository.deleteAllByUser('user-123');
-      expect(deleteManySpy).toHaveBeenCalledWith({ userId: 'user-123' });
-      expect(result).toEqual({ deletedCount: 5 });
+        .mockResolvedValue({ deletedCount: 2 });
+
+      const result = await threadRepository.deleteAllByUser(mockUserId);
+
+      expect(deleteManySpy).toHaveBeenCalledWith({ userId: mockUserId });
+      expect(result).toEqual({ deletedCount: 2, threadIds: ['t1', 't2'] });
     });
   });
 });

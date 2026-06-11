@@ -32,7 +32,12 @@ class AgentRepository {
   }
 
   async delete(id) {
-    return await Agent.findByIdAndDelete(id);
+    // Perform soft-delete instead of hard-delete to avoid orphaning threads
+    return await Agent.findByIdAndUpdate(
+      id,
+      { isActive: false, deletedAt: new Date() },
+      { new: true }
+    );
   }
 
   /**

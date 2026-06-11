@@ -105,7 +105,7 @@ function ThreadItem({ thread, isActive, onRename, onDelete }) {
   return (
     <SidebarMenuSubItem>
       <SidebarMenuSubButton
-        asChild={!renaming}
+        asChild={!renaming && !thread.agentId?.isDeleted}
         isActive={isActive}
         className={cn(
           "group/thread h-7 gap-1.5",
@@ -118,6 +118,13 @@ function ThreadItem({ thread, isActive, onRename, onDelete }) {
             onConfirm={handleConfirmRename}
             onCancel={() => setRenaming(false)}
           />
+        ) : thread.agentId?.isDeleted ? (
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden opacity-60 grayscale">
+            <MessageSquareIcon className="size-3 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate text-xs">
+              {thread.title || "New Conversation"}
+            </span>
+          </div>
         ) : (
           <Link
             href={`/dashboard/agents/${thread.agentId?._id || thread.agentId?.id || thread.agentId}/run?threadId=${threadId}`}
@@ -179,8 +186,11 @@ function AgentGroup({ group, activeThreadId, onRename, onDelete }) {
     >
       <SidebarMenuItem>
         <CollapsibleTrigger asChild>
-          <SidebarMenuButton tooltip={agent.name} className="gap-2">
-            <Avatar className="size-4 shrink-0">
+          <SidebarMenuButton
+            tooltip={agent.name}
+            className={cn("gap-2", agent.isDeleted && "opacity-70")}
+          >
+            <Avatar className={cn("size-4 shrink-0", agent.isDeleted && "grayscale")}>
               <AvatarImage
                 src={agent.avatarUrl || agent.avatar}
                 alt={agent.name}
@@ -189,7 +199,7 @@ function AgentGroup({ group, activeThreadId, onRename, onDelete }) {
                 <BotIcon className="size-2.5" />
               </AvatarFallback>
             </Avatar>
-            <span className="min-w-0 flex-1 truncate font-medium">
+            <span className={cn("min-w-0 flex-1 truncate font-medium", agent.isDeleted && "italic")}>
               {agent.name || "Agent"}
             </span>
             <span className="shrink-0 rounded-full bg-sidebar-accent px-1.5 py-0.5 text-[10px] text-sidebar-accent-foreground">

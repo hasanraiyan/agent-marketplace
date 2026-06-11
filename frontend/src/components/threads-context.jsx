@@ -21,8 +21,31 @@ import {
 function groupThreadsByAgent(threads) {
   const map = {};
   for (const thread of threads) {
-    const agent = thread.agentId;
-    if (!agent) continue;
+    let agent = thread.agentId;
+
+    // Handle legacy or orphaned threads (null agentId) or soft-deleted agents
+    if (!agent || agent.isActive === false) {
+      const fallbackId = "deleted-agent-group";
+      if (!map[fallbackId]) {
+        map[fallbackId] = {
+          agent: {
+            _id: fallbackId,
+            name: "Deleted Agent",
+            isDeleted: true,
+            avatar: "",
+          },
+          threads: [],
+        };
+      }
+      // Ensure the thread item itself knows its agent is considered deleted for UI logic
+      const threadWithDeletedFlag = {
+        ...thread,
+        agentId: { ...agent, isDeleted: true },
+      };
+      map[fallbackId].threads.push(threadWithDeletedFlag);
+      continue;
+    }
+
     const key = agent._id || agent.id;
     if (!map[key]) map[key] = { agent, threads: [] };
     map[key].threads.push(thread);
