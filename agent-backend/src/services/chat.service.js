@@ -36,6 +36,38 @@ class ChatService {
     }
   }
 
+  /**
+   * Permanently removes LangGraph checkpoint data for one or more threads.
+   * This ensures that when a thread is deleted from our primary collection,
+   * its history is also purged from the checkpointer storage.
+   */
+  async cleanupThreads(threadIds) {
+    if (!this.mongoClient || !threadIds || (Array.isArray(threadIds) && threadIds.length === 0)) {
+      return;
+    }
+
+    const ids = Array.isArray(threadIds) ? threadIds : [threadIds];
+
+    try {
+      const db = this.mongoClient.db();
+      // MongoDBSaver default collection names are 'checkpoints' and 'checkpoint_writes'
+      const checkpointColl = db.collection('checkpoints');
+      const checkpointWritesColl = db.collection('checkpoint_writes');
+
+      const [cpResult, cwResult] = await Promise.all([
+        checkpointColl.deleteMany({ thread_id: { $in: ids } }),
+        checkpointWritesColl.deleteMany({ thread_id: { $in: ids } }),
+      ]);
+
+      logger.info(
+        `[ChatService] Purged checkpoints for ${ids.length} threads. ` +
+          `Deleted ${cpResult.deletedCount} checkpoints and ${cwResult.deletedCount} writes.`
+      );
+    } catch (error) {
+      logger.error('[ChatService] Failed to cleanup thread checkpoints:', error);
+    }
+  }
+
   async getMessages(threadId, userId) {
     const thread = await threadRepository.findById(threadId);
     if (!thread) throw new Error('Thread not found');
