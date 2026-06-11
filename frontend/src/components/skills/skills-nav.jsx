@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { SearchIcon, Cpu, Globe, Lock, Plus, Menu } from "lucide-react";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Button } from "@/components/ui/button";
@@ -10,47 +10,25 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
-import { searchSkills } from "@/lib/api/skills";
-import { toast } from "sonner";
-
-function useDebounce(value, delay) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const handler = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(handler);
-  }, [value, delay]);
-  return debouncedValue;
-}
 
 export function SkillsNav({ mySkills, publicSkills }) {
   const params = useParams();
   const pathname = usePathname();
   const [search, setSearch] = useState("");
-  const [searchResults, setSearchResults] = useState(null);
-  const [isSearching, setIsSearching] = useState(false);
-  const debouncedSearch = useDebounce(search, 300);
 
-  const handleSearch = useCallback(async (query) => {
-    if (!query.trim()) {
-      setSearchResults(null);
-      return;
-    }
-    setIsSearching(true);
-    try {
-      const res = await searchSkills({ q: query, scope: "mine" });
-      setSearchResults(res.data?.data || []);
-    } catch (err) {
-      console.error("Search failed", err);
-    } finally {
-      setIsSearching(false);
-    }
-  }, []);
+  // mySkills is already fully loaded in context, so filter locally
+  // instead of hitting the backend on every keystroke.
+  const searchResults = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return null;
+    return (mySkills || []).filter((skill) =>
+      [skill.name, skill.description, skill.instructions].some((field) =>
+        field?.toLowerCase().includes(q)
+      )
+    );
+  }, [search, mySkills]);
 
-  useEffect(() => {
-    handleSearch(debouncedSearch);
-  }, [debouncedSearch, handleSearch]);
-
-  const NavContent = () => (
+  const navContent = (
     <div className="flex h-full flex-col bg-card">
       <div className="p-4 space-y-4">
         <InputGroup>
@@ -128,7 +106,7 @@ export function SkillsNav({ mySkills, publicSkills }) {
     <>
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-72 flex-col border-r sticky top-0 h-[calc(100vh-64px)] overflow-hidden">
-        <NavContent />
+        {navContent}
       </aside>
 
       {/* Mobile Nav */}
@@ -140,7 +118,7 @@ export function SkillsNav({ mySkills, publicSkills }) {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="p-0 w-72">
-            <NavContent />
+            {navContent}
           </SheetContent>
         </Sheet>
         <span className="ml-4 font-semibold text-sm">Skills</span>

@@ -21,14 +21,12 @@ import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 import { deleteSkill, getUsedByAgents } from "@/lib/api/skills";
 import { useRouter } from "next/navigation";
-import { useProfile } from "@/hooks/use-profile";
 import { useSkills } from "@/app/dashboard/skills/skills-context";
 import Link from "next/link";
 
 export function SkillDetail({ skill }) {
   const router = useRouter();
-  const { user } = useProfile();
-  const { refreshSkills } = useSkills();
+  const { refreshSkills, mySkills } = useSkills();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [usedByAgents, setUsedByAgents] = useState([]);
@@ -65,7 +63,10 @@ export function SkillDetail({ skill }) {
     }
   };
 
-  const isOwner = user && skill && (skill.ownerId === user.id || skill.ownerId?._id === user.id || skill.ownerId?.clerkId === user.clerkId);
+  const skillId = skill._id || skill.id;
+  const isOwner =
+    skill.isOwner === true ||
+    mySkills.some((s) => (s._id || s.id) === skillId);
 
   return (
     <div className="flex flex-col h-full bg-background">

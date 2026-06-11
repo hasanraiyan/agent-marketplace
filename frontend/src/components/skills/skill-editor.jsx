@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Cpu, Save, X, Info, Check } from "lucide-react";
+import { Cpu, Save, X, Info, Check, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,7 @@ import { useSkills } from "@/app/dashboard/skills/skills-context";
 import Link from "next/link";
 import Editor from "react-simple-code-editor";
 import { highlight, languages } from "prismjs/components/prism-core";
+import "prismjs/components/prism-markup";
 import "prismjs/components/prism-markdown";
 import "prismjs/themes/prism.css";
 

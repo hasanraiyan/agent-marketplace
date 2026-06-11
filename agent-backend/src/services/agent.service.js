@@ -131,6 +131,10 @@ class AgentService {
       throw new Error('Agent not found or is private'); // Ambiguous error for privacy
     }
 
+    if (typeof agent.populate === 'function') {
+      await agent.populate('skills', 'name description isPublic');
+    }
+
     return this._formatSafe(agent, userId);
   }
 
@@ -144,6 +148,10 @@ class AgentService {
 
     if (!isOwner && !isVirtual && agent.visibility === 'private') {
       throw new Error('Agent not found or is private');
+    }
+
+    if (typeof agent.populate === 'function') {
+      await agent.populate('skills', 'name description isPublic');
     }
 
     return this._formatSafe(agent, userId);

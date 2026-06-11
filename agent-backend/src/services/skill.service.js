@@ -22,12 +22,13 @@ class SkillService {
     const skill = await skillRepository.findById(id);
     if (!skill) throw new Error('Skill not found');
 
-    const isOwner = userId && skill.ownerId.toString() === userId.toString();
+    const isOwner = Boolean(userId && skill.ownerId.toString() === userId.toString());
     if (!skill.isPublic && !isOwner) {
       throw new Error('Skill not found or private');
     }
 
-    return skill;
+    const skillObj = skill.toObject ? skill.toObject() : skill;
+    return { ...skillObj, isOwner };
   }
 
   /**
