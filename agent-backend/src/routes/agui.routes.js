@@ -90,6 +90,7 @@ async function* runAgentAsAguiEvents({
   threadDbId,
   messages,
   resume,
+  signal,
 }) {
   if (!agentId) {
     logger.warn('[AG-UI] run rejected: missing agentId');
@@ -151,6 +152,7 @@ async function* runAgentAsAguiEvents({
   const stream = agentInstance.streamEvents(inputArg, {
     configurable: { thread_id: langGraphThreadId },
     version: 'v2',
+    signal,
   });
 
   let pausedForInterrupt = false;
@@ -166,6 +168,7 @@ async function* runAgentAsAguiEvents({
         }
       : undefined,
     onInterrupt: (interruptInfo) => {
+      if (signal?.aborted) return;
       pausedForInterrupt = true;
       if (langGraphThreadId) {
         interruptedThreads.set(langGraphThreadId, {
@@ -221,7 +224,11 @@ aguiRouter.post('/', async (req, res, next) => {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders?.();
 
+    const controller = new AbortController();
+    res.on('close', () => controller.abort());
+
     const send = (event) => {
+      if (res.destroyed) return;
       res.write(`data: ${JSON.stringify(event)}\n\n`);
     };
 
@@ -230,7 +237,9 @@ aguiRouter.post('/', async (req, res, next) => {
       ...context,
       messages: input.messages || [],
       resume: input.resume,
+      signal: controller.signal,
     })) {
+      if (res.destroyed) break;
       send(event);
     }
     send({ type: EventType.RUN_FINISHED, threadId, runId });

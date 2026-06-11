@@ -48,6 +48,7 @@ describe('Chat Service (DeepAgents Factory Integration)', () => {
       flushHeaders: jest.fn(),
       write: jest.fn(),
       end: jest.fn(),
+      on: jest.fn(),
     };
 
     mockThread = {

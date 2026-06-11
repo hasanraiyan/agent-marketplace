@@ -92,18 +92,22 @@ class ChatService {
         this.checkpointer
       );
 
+      const controller = new AbortController();
+      res.on('close', () => controller.abort());
+
       const stream = agentInstance.streamEvents(
         { messages: [new HumanMessage(incomingMessage)] },
-        { configurable: { thread_id: thread.threadId }, version: 'v2' }
+        { configurable: { thread_id: thread.threadId }, version: 'v2', signal: controller.signal }
       );
 
       // Keep-alive timer to prevent connection timeouts during long tool runs
       const keepAlive = setInterval(() => {
-        res.write(': keep-alive\n\n');
+        if (!res.destroyed) res.write(': keep-alive\n\n');
       }, 15000);
 
       try {
         for await (const event of stream) {
+          if (res.destroyed) break;
           const { event: evtName, data, name } = event;
           logger.debug(`[ChatService] Received event: ${evtName}`, { name: name || data?.name });
 
@@ -166,6 +170,9 @@ class ChatService {
         this.checkpointer
       );
 
+      const controller = new AbortController();
+      res.on('close', () => controller.abort());
+
       let resumePayload;
       if (answers) {
         // Special case: Returning structured clarification answers
@@ -182,9 +189,11 @@ class ChatService {
       const stream = agentInstance.streamEvents(new Command({ resume: resumePayload }), {
         configurable: { thread_id: thread.threadId },
         version: 'v2',
+        signal: controller.signal,
       });
 
       for await (const event of stream) {
+        if (res.destroyed) break;
         const { event: evtName, data, name } = event;
 
         if (evtName === 'on_chat_model_stream') {
