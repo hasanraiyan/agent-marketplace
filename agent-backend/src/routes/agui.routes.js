@@ -12,21 +12,11 @@ import {
   emitTextNotice,
   formatRuntimeError,
   buildResumeValue,
+  describeInterrupt,
 } from '../utils/aguiTranslator.js';
 
 const logger = loggerService.getLogger();
 const aguiRouter = express.Router();
-
-const interruptedThreads = new Map();
-setInterval(
-  () => {
-    const cutoff = Date.now() - 30 * 60 * 1000;
-    for (const [key, value] of interruptedThreads) {
-      if (value.timestamp < cutoff) interruptedThreads.delete(key);
-    }
-  },
-  5 * 60 * 1000
-).unref();
 
 async function readJsonBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
@@ -130,10 +120,27 @@ async function* runAgentAsAguiEvents({
   }
 
   const { agentInstance, providerConfig, skillFiles, llm } = agentBuild;
-  const pendingInterrupt =
-    langGraphThreadId != null ? interruptedThreads.get(langGraphThreadId) : undefined;
+
+  let pendingInterrupt;
+  if (langGraphThreadId) {
+    try {
+      const state = await agentInstance.getState({
+        configurable: { thread_id: langGraphThreadId },
+      });
+      // snapshot.tasks[].interrupts holds any pending pauses
+      const interrupts = (state?.tasks || []).flatMap((t) => t.interrupts || []);
+      if (interrupts.length > 0) {
+        pendingInterrupt = describeInterrupt(interrupts);
+      }
+    } catch (err) {
+      logger.warn('[AG-UI] failed to check graph state for interrupts', {
+        langGraphThreadId,
+        err: err.message,
+      });
+    }
+  }
+
   const isResuming = Boolean(pendingInterrupt);
-  if (isResuming) interruptedThreads.delete(langGraphThreadId);
 
   // Trigger concurrent auto-titling if this is a fresh conversation with default title
   let titlePromise = null;
@@ -170,13 +177,6 @@ async function* runAgentAsAguiEvents({
     onInterrupt: (interruptInfo) => {
       if (signal?.aborted) return;
       pausedForInterrupt = true;
-      if (langGraphThreadId) {
-        interruptedThreads.set(langGraphThreadId, {
-          timestamp: Date.now(),
-          kind: interruptInfo?.kind || 'clarification',
-          actionCount: interruptInfo?.actionCount || 0,
-        });
-      }
     },
     onError: (leaves, err) => {
       logger.error(`[AG-UI] stream failed: ${err?.name || 'Error'}: ${err?.message}`, {
@@ -249,5 +249,4 @@ aguiRouter.post('/', async (req, res, next) => {
   }
 });
 
-export { interruptedThreads };
 export default aguiRouter;
