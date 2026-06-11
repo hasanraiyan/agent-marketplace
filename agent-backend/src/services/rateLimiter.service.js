@@ -9,6 +9,7 @@ import InMemoryRateLimitStore from '../repositories/rateLimiter.repository.js';
  */
 class RateLimiterService {
   #store;
+  #concurrencyStore = new Map();
 
   constructor(store = new InMemoryRateLimitStore()) {
     this.#store = store;
@@ -44,8 +45,37 @@ class RateLimiterService {
   /**
    * Build a unique key from endpoint and client identifier
    */
-  buildKey(endpoint, ip) {
-    return `rl:${endpoint}:${ip}`;
+  buildKey(endpoint, identifier) {
+    return `rl:${endpoint}:${identifier}`;
+  }
+
+  /**
+   * Get current concurrency for a key
+   */
+  getConcurrency(key) {
+    return this.#concurrencyStore.get(key) || 0;
+  }
+
+  /**
+   * Increment concurrency for a key
+   */
+  incrementConcurrency(key) {
+    const current = this.getConcurrency(key);
+    this.#concurrencyStore.set(key, current + 1);
+    return current + 1;
+  }
+
+  /**
+   * Decrement concurrency for a key
+   */
+  decrementConcurrency(key) {
+    const current = this.getConcurrency(key);
+    if (current <= 1) {
+      this.#concurrencyStore.delete(key);
+      return 0;
+    }
+    this.#concurrencyStore.set(key, current - 1);
+    return current - 1;
   }
 
   /**
@@ -55,6 +85,7 @@ class RateLimiterService {
     if (typeof this.#store.destroy === 'function') {
       this.#store.destroy();
     }
+    this.#concurrencyStore.clear();
   }
 }
 

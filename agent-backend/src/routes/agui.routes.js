@@ -4,6 +4,9 @@ import { EventType } from '@ag-ui/core';
 import { HumanMessage } from '@langchain/core/messages';
 import { Command } from '@langchain/langgraph';
 import authMiddleware from '../middlewares/auth.middleware.js';
+import rateLimiter, { RATE_LIMITS } from '../middlewares/rateLimiter.middleware.js';
+import rateLimiterService from '../services/rateLimiter.service.js';
+import RateLimitError from '../utils/errors/RateLimitError.js';
 import agentFactory from '../factories/agentFactory.js';
 import threadRepository from '../repositories/threadRepository.js';
 import checkpointService from '../services/checkpoint.service.js';
@@ -212,10 +215,19 @@ aguiRouter.get('/', (req, res) => {
   });
 });
 
-aguiRouter.post('/', async (req, res, next) => {
+aguiRouter.post('/', rateLimiter('CHAT', RATE_LIMITS.CHAT), async (req, res, next) => {
+  const context = req.aguiContext || {};
+  const identifier = context.userId || req.ip;
+  const concurrencyKey = `concurrency:CHAT:${identifier}`;
+
+  if (rateLimiterService.getConcurrency(concurrencyKey) >= 2) {
+    return next(new RateLimitError(30));
+  }
+
+  rateLimiterService.incrementConcurrency(concurrencyKey);
+
   try {
     const input = await readJsonBody(req);
-    const context = req.aguiContext || {};
     const threadId = input.threadId || context.langGraphThreadId || 'default';
     const runId = input.runId || crypto.randomUUID();
 
@@ -247,6 +259,8 @@ aguiRouter.post('/', async (req, res, next) => {
     res.end();
   } catch (err) {
     next(err);
+  } finally {
+    rateLimiterService.decrementConcurrency(concurrencyKey);
   }
 });
 

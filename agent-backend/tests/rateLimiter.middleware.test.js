@@ -28,17 +28,13 @@ describe('rateLimiter middleware', () => {
     };
     next = jest.fn();
     mockCheck.mockReset();
-    mockBuildKey.mockReturnValue('rl:login:127.0.0.1');
+    mockBuildKey.mockReturnValue('rl:CHAT:127.0.0.1');
   });
 
   describe('RATE_LIMITS presets', () => {
-    test('should export all endpoint presets', () => {
-      expect(RATE_LIMITS.LOGIN).toEqual({ maxRequests: 5, windowMs: 15 * 60 * 1000 });
-      expect(RATE_LIMITS.REGISTER).toEqual({ maxRequests: 3, windowMs: 60 * 60 * 1000 });
-      expect(RATE_LIMITS.FORGOT_PASSWORD).toEqual({ maxRequests: 3, windowMs: 60 * 60 * 1000 });
-      expect(RATE_LIMITS.RESET_PASSWORD).toEqual({ maxRequests: 5, windowMs: 15 * 60 * 1000 });
-      expect(RATE_LIMITS.RESEND_OTP).toEqual({ maxRequests: 3, windowMs: 5 * 60 * 1000 });
-      expect(RATE_LIMITS.VERIFY_OTP).toEqual({ maxRequests: 5, windowMs: 15 * 60 * 1000 });
+    test('should export core presets', () => {
+      expect(RATE_LIMITS.CHAT).toEqual({ maxRequests: 20, windowMs: 60 * 1000 });
+      expect(RATE_LIMITS.MUTATE).toEqual({ maxRequests: 30, windowMs: 60 * 1000 });
     });
   });
 
@@ -47,14 +43,14 @@ describe('rateLimiter middleware', () => {
       mockCheck.mockResolvedValue({
         allowed: true,
         count: 1,
-        remaining: 4,
-        retryAfter: 900,
+        remaining: 19,
+        retryAfter: 60,
       });
 
-      const middleware = rateLimiter('login', RATE_LIMITS.LOGIN);
+      const middleware = rateLimiter('CHAT', RATE_LIMITS.CHAT);
       await middleware(req, res, next);
 
-      expect(mockCheck).toHaveBeenCalledWith('rl:login:127.0.0.1', 5, 15 * 60 * 1000);
+      expect(mockCheck).toHaveBeenCalledWith('rl:CHAT:127.0.0.1', 20, 60 * 1000);
       expect(next).toHaveBeenCalledWith();
     });
 
@@ -62,62 +58,77 @@ describe('rateLimiter middleware', () => {
       mockCheck.mockResolvedValue({
         allowed: true,
         count: 1,
-        remaining: 4,
-        retryAfter: 900,
+        remaining: 19,
+        retryAfter: 60,
       });
 
-      const middleware = rateLimiter('login', RATE_LIMITS.LOGIN);
+      const middleware = rateLimiter('CHAT', RATE_LIMITS.CHAT);
       await middleware(req, res, next);
 
-      expect(res.set).toHaveBeenCalledWith('X-RateLimit-Limit', '5');
-      expect(res.set).toHaveBeenCalledWith('X-RateLimit-Remaining', '4');
+      expect(res.set).toHaveBeenCalledWith('X-RateLimit-Limit', '20');
+      expect(res.set).toHaveBeenCalledWith('X-RateLimit-Remaining', '19');
       expect(res.set).toHaveBeenCalledWith('X-RateLimit-Reset', expect.any(String));
     });
 
     test('should call next with RateLimitError when over limit', async () => {
       mockCheck.mockResolvedValue({
         allowed: false,
-        count: 6,
+        count: 21,
         remaining: 0,
-        retryAfter: 850,
+        retryAfter: 45,
       });
 
-      const middleware = rateLimiter('login', RATE_LIMITS.LOGIN);
+      const middleware = rateLimiter('CHAT', RATE_LIMITS.CHAT);
       await middleware(req, res, next);
 
       expect(next).toHaveBeenCalledTimes(1);
       const error = next.mock.calls[0][0];
       expect(error.statusCode).toBe(429);
       expect(error.code).toBe('RATE_LIMITED');
-      expect(error.retryAfter).toBe(850);
+      expect(error.retryAfter).toBe(45);
     });
 
     test('should set Retry-After header when rate limited', async () => {
       mockCheck.mockResolvedValue({
         allowed: false,
-        count: 6,
+        count: 21,
         remaining: 0,
-        retryAfter: 850,
+        retryAfter: 45,
       });
 
-      const middleware = rateLimiter('login', RATE_LIMITS.LOGIN);
+      const middleware = rateLimiter('CHAT', RATE_LIMITS.CHAT);
       await middleware(req, res, next);
 
-      expect(res.set).toHaveBeenCalledWith('Retry-After', '850');
+      expect(res.set).toHaveBeenCalledWith('Retry-After', '45');
     });
 
-    test('should use req.ip for key generation', async () => {
+    test('should use req.user._id if available for key generation', async () => {
+        req.user = { _id: 'user123' };
+        mockCheck.mockResolvedValue({
+          allowed: true,
+          count: 1,
+          remaining: 19,
+          retryAfter: 60,
+        });
+
+        const middleware = rateLimiter('CHAT', RATE_LIMITS.CHAT);
+        await middleware(req, res, next);
+
+        expect(mockBuildKey).toHaveBeenCalledWith('CHAT', 'user123');
+      });
+
+    test('should use req.ip for key generation as fallback', async () => {
       mockCheck.mockResolvedValue({
         allowed: true,
         count: 1,
-        remaining: 4,
-        retryAfter: 900,
+        remaining: 19,
+        retryAfter: 60,
       });
 
-      const middleware = rateLimiter('register', RATE_LIMITS.REGISTER);
+      const middleware = rateLimiter('CHAT', RATE_LIMITS.CHAT);
       await middleware(req, res, next);
 
-      expect(mockBuildKey).toHaveBeenCalledWith('register', '127.0.0.1');
+      expect(mockBuildKey).toHaveBeenCalledWith('CHAT', '127.0.0.1');
     });
 
     test('should fall back to socket.remoteAddress when req.ip is undefined', async () => {
@@ -125,21 +136,21 @@ describe('rateLimiter middleware', () => {
       mockCheck.mockResolvedValue({
         allowed: true,
         count: 1,
-        remaining: 2,
-        retryAfter: 3600,
+        remaining: 19,
+        retryAfter: 60,
       });
 
-      const middleware = rateLimiter('register', RATE_LIMITS.REGISTER);
+      const middleware = rateLimiter('CHAT', RATE_LIMITS.CHAT);
       await middleware(req, res, next);
 
-      expect(mockBuildKey).toHaveBeenCalledWith('register', '127.0.0.1');
+      expect(mockBuildKey).toHaveBeenCalledWith('CHAT', '127.0.0.1');
     });
 
     test('should call next with error if service throws', async () => {
       const error = new Error('Store failure');
       mockCheck.mockRejectedValue(error);
 
-      const middleware = rateLimiter('login', RATE_LIMITS.LOGIN);
+      const middleware = rateLimiter('CHAT', RATE_LIMITS.CHAT);
       await middleware(req, res, next);
 
       expect(next).toHaveBeenCalledWith(error);
