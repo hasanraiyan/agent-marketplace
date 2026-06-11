@@ -1,11 +1,12 @@
 import express from 'express';
+import crypto from 'crypto';
 import { EventType } from '@ag-ui/core';
 import { HumanMessage } from '@langchain/core/messages';
 import { Command } from '@langchain/langgraph';
 import authMiddleware from '../middlewares/auth.middleware.js';
 import agentFactory from '../factories/agentFactory.js';
 import threadRepository from '../repositories/threadRepository.js';
-import chatService from '../services/chat.service.js';
+import checkpointService from '../services/checkpoint.service.js';
 import { loggerService } from '../utils/index.js';
 import {
   translateLangGraphStream,
@@ -112,7 +113,7 @@ async function* runAgentAsAguiEvents({
 
   let agentBuild;
   try {
-    agentBuild = await agentFactory.buildAgent(agentId, userId, chatService.checkpointer);
+    agentBuild = await agentFactory.buildAgent(agentId, userId, checkpointService.checkpointer);
   } catch (err) {
     logger.error(`[AG-UI] agent build failed: ${err?.message}`, { agentId });
     yield* emitTextNotice(`*(Error: ${formatRuntimeError(err)})*`);
@@ -145,7 +146,7 @@ async function* runAgentAsAguiEvents({
   // Trigger concurrent auto-titling if this is a fresh conversation with default title
   let titlePromise = null;
   if (thread && thread.title === 'New Conversation' && !isResuming && content) {
-    titlePromise = chatService._autoTitleThread(thread, content, llm);
+    titlePromise = checkpointService._autoTitleThread(thread, content, llm);
   }
 
   const hasSkillFiles = skillFiles && Object.keys(skillFiles).length > 0;
@@ -216,7 +217,7 @@ aguiRouter.post('/', async (req, res, next) => {
     const input = await readJsonBody(req);
     const context = req.aguiContext || {};
     const threadId = input.threadId || context.langGraphThreadId || 'default';
-    const runId = input.runId || `run-${Date.now()}`;
+    const runId = input.runId || crypto.randomUUID();
 
     res.status(200);
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');

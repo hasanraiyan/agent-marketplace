@@ -1,11 +1,10 @@
 import crypto from 'crypto';
 import threadRepository from '../repositories/threadRepository.js';
 import agentRepository from '../repositories/agentRepository.js';
-import chatService from '../services/chat.service.js';
+import checkpointService from '../services/checkpoint.service.js';
 import {
   createThreadSchema,
   updateThreadTitleSchema,
-  streamMessageSchema,
 } from '../validators/thread.validator.js';
 
 class ThreadController {
@@ -74,7 +73,7 @@ class ThreadController {
 
       // Cascading cleanup of LangGraph checkpoints
       if (deletedThread && deletedThread.threadId) {
-        chatService.cleanupThreads(deletedThread.threadId).catch(() => {});
+        checkpointService.cleanupThreads(deletedThread.threadId).catch(() => {});
       }
 
       res.json({ success: true, message: 'Thread permanently removed' });
@@ -89,7 +88,7 @@ class ThreadController {
 
       // Cascading cleanup of LangGraph checkpoints
       if (result && result.threadIds && result.threadIds.length > 0) {
-        chatService.cleanupThreads(result.threadIds).catch(() => {});
+        checkpointService.cleanupThreads(result.threadIds).catch(() => {});
       }
 
       res.json({ success: true, message: 'All threads permanently removed' });
@@ -116,7 +115,7 @@ class ThreadController {
 
   async getMessages(req, res, next) {
     try {
-      const messages = await chatService.getMessages(req.params.id, req.user.id);
+      const messages = await checkpointService.getMessages(req.params.id, req.user.id);
       res.json({ success: true, data: messages });
     } catch (error) {
       if (error.message === 'Unauthorized' || error.message === 'Thread not found') {
@@ -126,29 +125,6 @@ class ThreadController {
     }
   }
 
-  async stream(req, res, next) {
-    try {
-      // Validate the incoming JSON via schema
-      const { message } = streamMessageSchema.parse(req.body);
-
-      // Trigger the server-sent events service
-      // We pass `res` because the service takes full control over the connection socket
-      await chatService.streamChat(res, req.params.id, req.user.id, message);
-    } catch (error) {
-      // If validation fails before streaming starts, respond normally.
-      // If error happens during stream, `streamChat` catches and sends the SSE `data: {"error"}` pattern!
-      next(error);
-    }
-  }
-
-  async handleAction(req, res, next) {
-    try {
-      const { action, feedback, answers } = req.body;
-      await chatService.handleAction(res, req.params.id, req.user.id, action, feedback, answers);
-    } catch (error) {
-      next(error);
-    }
-  }
 }
 
 export default new ThreadController();

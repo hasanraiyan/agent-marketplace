@@ -3,7 +3,7 @@ import Agent from '../models/Agent.js';
 import Skill from '../models/Skill.js';
 import Provider from '../models/Provider.js';
 import Conversation from '../models/Conversation.js';
-import chatService from '../services/chat.service.js';
+import checkpointService from '../services/checkpoint.service.js';
 import { loggerService } from '../utils/index.js';
 import config from '../config/index.js';
 
@@ -34,7 +34,7 @@ export default async function deleteInactiveUsers() {
       const userThreads = await Conversation.find({ userId }).select('threadId');
       const threadIds = userThreads.map((t) => t.threadId);
       if (threadIds.length > 0) {
-        await chatService.cleanupThreads(threadIds);
+        await checkpointService.cleanupThreads(threadIds);
         await Conversation.deleteMany({ userId });
       }
 

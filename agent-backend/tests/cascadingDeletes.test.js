@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import mongoose from 'mongoose';
-import chatService from '../src/services/chat.service.js';
+import checkpointService from '../src/services/checkpoint.service.js';
 import threadRepository from '../src/repositories/threadRepository.js';
 import agentRepository from '../src/repositories/agentRepository.js';
 import Conversation from '../src/models/Conversation.js';
@@ -31,14 +31,14 @@ describe('Cascading Deletes Integration', () => {
       jest.spyOn(threadRepository, 'findById').mockResolvedValue(mockThread);
       jest.spyOn(threadRepository, 'delete').mockResolvedValue(mockThread);
 
-      // Mock chatService.cleanupThreads
-      const cleanupSpy = jest.spyOn(chatService, 'cleanupThreads').mockResolvedValue();
+      // Mock checkpointService.cleanupThreads
+      const cleanupSpy = jest.spyOn(checkpointService, 'cleanupThreads').mockResolvedValue();
 
       // We'll simulate the controller action here as we want to test the flow
       // In thread.controller.js:
       const deletedThread = await threadRepository.delete(mockThread._id);
       if (deletedThread && deletedThread.threadId) {
-        await chatService.cleanupThreads(deletedThread.threadId);
+        await checkpointService.cleanupThreads(deletedThread.threadId);
       }
 
       expect(threadRepository.delete).toHaveBeenCalledWith(mockThread._id);
@@ -50,12 +50,12 @@ describe('Cascading Deletes Integration', () => {
       const mockDeleteResult = { deletedCount: 2, threadIds: mockThreadIds };
 
       jest.spyOn(threadRepository, 'deleteAllByUser').mockResolvedValue(mockDeleteResult);
-      const cleanupSpy = jest.spyOn(chatService, 'cleanupThreads').mockResolvedValue();
+      const cleanupSpy = jest.spyOn(checkpointService, 'cleanupThreads').mockResolvedValue();
 
       // In thread.controller.js:
       const result = await threadRepository.deleteAllByUser(mockUserId);
       if (result && result.threadIds && result.threadIds.length > 0) {
-        await chatService.cleanupThreads(result.threadIds);
+        await checkpointService.cleanupThreads(result.threadIds);
       }
 
       expect(threadRepository.deleteAllByUser).toHaveBeenCalledWith(mockUserId);
@@ -93,7 +93,7 @@ describe('Cascading Deletes Integration', () => {
         select: jest.fn().mockResolvedValue([{ threadId: 'thread-1' }])
       });
 
-      const cleanupThreadsSpy = jest.spyOn(chatService, 'cleanupThreads').mockResolvedValue();
+      const cleanupThreadsSpy = jest.spyOn(checkpointService, 'cleanupThreads').mockResolvedValue();
       const deleteThreadsSpy = jest.spyOn(Conversation, 'deleteMany').mockResolvedValue();
       const deleteAgentsSpy = jest.spyOn(Agent, 'deleteMany').mockResolvedValue();
       const deleteSkillsSpy = jest.spyOn(Skill, 'deleteMany').mockResolvedValue();

@@ -65,7 +65,7 @@ jest.unstable_mockModule('../src/models/Conversation.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/services/chat.service.js', () => ({
+jest.unstable_mockModule('../src/services/checkpoint.service.js', () => ({
   default: {
     cleanupThreads: mockCleanupThreads,
   },
