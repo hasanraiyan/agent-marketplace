@@ -626,12 +626,12 @@ export default function ExplorePage() {
           {trendingList.map((mind) => (
             <div
               key={mind.id}
-              className="flex flex-col sm:flex-row sm:items-center justify-between py-4 border-b border-zinc-100 dark:border-zinc-900 gap-4"
+              onClick={() => handleMindClick(mind)}
+              className="flex flex-col sm:flex-row sm:items-center justify-between py-4 px-4 -mx-4 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-900 border-b border-zinc-100/80 dark:border-zinc-900/50 gap-4 cursor-pointer group transition-colors duration-200"
             >
               {/* Left Info: Avatar + Details */}
               <div
-                onClick={() => handleMindClick(mind)}
-                className="flex items-center gap-4 cursor-pointer select-none group"
+                className="flex items-center gap-4 select-none"
               >
                 {/* Avatar with rank overlay */}
                 <div className="relative">
@@ -648,7 +648,7 @@ export default function ExplorePage() {
                 {/* Details */}
                 <div>
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-base font-bold text-zinc-900 dark:text-zinc-550 group-hover:text-primary transition-colors">
+                    <span className="text-base font-bold text-zinc-900 dark:text-zinc-200">
                       {mind.name}
                     </span>
                     <span className="text-xs text-zinc-400 dark:text-zinc-500 font-bold ml-2">
@@ -663,8 +663,7 @@ export default function ExplorePage() {
 
               {/* Right: Speech Bubble */}
               <div
-                onClick={() => handleMindClick(mind, mind.chatPrompt)}
-                className="bg-zinc-50 dark:bg-zinc-900/50 hover:bg-zinc-100/80 dark:hover:bg-zinc-900 text-zinc-700 dark:text-zinc-300 px-6 py-3.5 rounded-2xl rounded-tr-none border border-zinc-100/80 dark:border-zinc-850 max-w-full sm:max-w-lg cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center text-sm font-semibold select-none sm:mr-2"
+                className="bg-zinc-50 dark:bg-zinc-900/50 text-zinc-700 dark:text-zinc-300 px-6 py-3.5 rounded-2xl rounded-tr-none border border-zinc-100/80 dark:border-zinc-850 max-w-full sm:max-w-lg flex items-center text-sm font-semibold select-none sm:mr-2"
               >
                 {mind.chatPrompt}
               </div>
