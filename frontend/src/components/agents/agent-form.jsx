@@ -36,9 +36,11 @@ import {
 } from "@/components/ui/select";
 import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { getProviders, getProviderModels } from "@/lib/api/providers";
 import { getMySkills } from "@/lib/api/skills";
+import { uploadAvatar } from "@/lib/api/upload";
 
 const CATEGORIES = [
   { value: "productivity", label: "Productivity", icon: Rocket },
@@ -100,6 +102,38 @@ export function AgentForm({
   const [loadingSkills, setLoadingSkills] = useState(true);
 
   const [form, setForm] = useState(DEFAULT_FORM);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file");
+      return;
+    }
+
+    setUploading(true);
+    const toastId = toast.loading("Uploading image...");
+
+    try {
+      const res = await uploadAvatar(file);
+      toast.dismiss(toastId);
+      
+      if (res.data?.success && res.data?.data?.url) {
+        update("avatar", res.data.data.url);
+        toast.success("Image uploaded successfully!");
+      } else {
+        toast.error("Upload failed: Invalid server response");
+      }
+    } catch (err) {
+      toast.dismiss(toastId);
+      console.error("Upload error:", err);
+      toast.error(err.response?.data?.message || "Failed to upload image");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   // Explicit, mode-aware initialization: hydrate from initialData when editing,
   // reset to a clean slate when the form transitions back to create/empty. The
@@ -311,14 +345,61 @@ export function AgentForm({
             </Field>
 
             <Field>
-              <FieldLabel className="text-sm font-bold">Avatar URL</FieldLabel>
-              <Input
-                type="url"
-                placeholder="https://images.com/..."
-                value={form.avatar}
-                onChange={(e) => update("avatar", e.target.value)}
-                className="h-11 bg-muted/20"
-              />
+              <FieldLabel className="text-sm font-bold">Avatar</FieldLabel>
+              <div className="flex items-center gap-4 mt-2">
+                <Avatar className="size-14 ring-2 ring-primary/10 shrink-0">
+                  <AvatarImage src={form.avatar} />
+                  <AvatarFallback className="bg-primary/5 text-primary">
+                    <Bot className="size-7 text-zinc-400" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col gap-2 w-full">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      id="avatar-file-upload"
+                      disabled={uploading}
+                    />
+                    <label
+                      htmlFor="avatar-file-upload"
+                      className={`inline-flex items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent px-4 py-2 text-xs font-semibold cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors select-none ${
+                        uploading ? "opacity-50 pointer-events-none" : ""
+                      }`}
+                    >
+                      {uploading ? (
+                        <>
+                          <Loader2 className="mr-2 size-3.5 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        "Upload Image"
+                      )}
+                    </label>
+                    {form.avatar && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => update("avatar", "")}
+                        className="text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 text-xs h-8"
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                  <Input
+                    type="url"
+                    placeholder="Or paste an image URL (https://...)"
+                    value={form.avatar}
+                    onChange={(e) => update("avatar", e.target.value)}
+                    className="h-9 bg-muted/20 text-xs"
+                    disabled={uploading}
+                  />
+                </div>
+              </div>
             </Field>
           </div>
 

@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
 import healthRouter from './routes/health.js';
 import profileRouter from './routes/profile.routes.js';
 import adminRouter from './routes/admin.routes.js';
@@ -9,6 +10,7 @@ import threadRouter from './routes/thread.routes.js'; // Added
 import skillRouter from './routes/skill.routes.js';
 import aguiRouter from './routes/agui.routes.js';
 import webhookRouter from './routes/webhook.routes.js';
+import uploadRouter from './routes/upload.routes.js';
 import errorHandler from './middlewares/errorHandler.js';
 import swaggerUi from 'swagger-ui-express';
 import openapiSpec from './docs/openapi.js';
@@ -57,6 +59,10 @@ app.use('/api/v1/providers', providerRouter);
 app.use('/api/v1/agents', agentRouter);
 app.use('/api/v1/threads', threadRouter);
 app.use('/api/v1/skills', skillRouter);
+app.use('/api/v1/upload', uploadRouter);
+
+// Serve uploads folder statically
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 app.get('/', (req, res) => {
   let dbStatus = 'unknown';

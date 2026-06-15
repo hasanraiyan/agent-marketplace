@@ -18,6 +18,7 @@ import {
   ArrowLeft
 } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { TiltCard } from "@/components/ui/tilt-card";
 import { toast } from "sonner";
 import { searchAgents, createAgent } from "@/lib/api/agents";
 import { getProviders } from "@/lib/api/providers";
@@ -479,7 +480,7 @@ export default function ExplorePage() {
           onClick={() => router.push("/dashboard/agents/create")}
           className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-5 py-2.5 text-[13px] font-bold transition-all active:scale-98 cursor-pointer shadow-sm shrink-0"
         >
-          Create Your Deputy
+          Build an Agent
         </button>
       </div>
 
@@ -498,14 +499,14 @@ export default function ExplorePage() {
               <ArrowLeft className="size-5" />
             </button>
             <div className="relative flex-1">
-              <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 size-4.5 text-zinc-450 dark:text-zinc-500" />
+              <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 size-4.5 text-zinc-500 dark:text-zinc-400" />
               <input
                 type="text"
                 placeholder="Search minds..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 autoFocus
-                className="w-full bg-transparent border border-zinc-200 dark:border-zinc-800 rounded-full py-2.5 pl-11 pr-5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-zinc-900 dark:text-zinc-100 placeholder-zinc-450 dark:placeholder-zinc-500 font-medium"
+                className="w-full bg-transparent border border-zinc-200 dark:border-zinc-800 rounded-full py-2.5 pl-11 pr-5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-zinc-900 dark:text-zinc-100 placeholder-zinc-500 dark:placeholder-zinc-400 font-medium"
               />
             </div>
           </div>
@@ -519,12 +520,18 @@ export default function ExplorePage() {
                     "Discover"
                   ) : (
                     <>
-                      <span className="text-zinc-400 dark:text-zinc-500 font-light">Discover / </span>
+                      <span 
+                        onClick={() => setCategory("all")}
+                        className="text-zinc-400 dark:text-zinc-500 font-light hover:text-zinc-600 dark:hover:text-zinc-350 cursor-pointer transition-colors"
+                      >
+                        Discover
+                      </span>
+                      <span className="text-zinc-400 dark:text-zinc-500 font-light"> / </span>
                       <span className="font-semibold text-zinc-900 dark:text-zinc-100">{activeCategoryLabel}</span>
                     </>
                   )}
                 </h1>
-                <p className="text-zinc-450 dark:text-zinc-500 text-sm md:text-sm font-medium mt-1.5">
+                <p className="text-zinc-500 dark:text-zinc-400 text-sm md:text-sm font-medium mt-1.5">
                   Talk to trusted minds with real experience
                 </p>
               </div>
@@ -539,13 +546,13 @@ export default function ExplorePage() {
 
             {/* Desktop Search (always visible) */}
             <div className="relative hidden md:block w-[320px]">
-              <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 size-4.5 text-zinc-450 dark:text-zinc-500" />
+              <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 size-4.5 text-zinc-500 dark:text-zinc-400" />
               <input
                 type="text"
                 placeholder="Search minds..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-transparent border border-zinc-200 dark:border-zinc-800 rounded-full py-2.5 pl-11 pr-5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-zinc-900 dark:text-zinc-100 placeholder-zinc-450 dark:placeholder-zinc-500 font-medium"
+                className="w-full bg-transparent border border-zinc-200 dark:border-zinc-800 rounded-full py-2.5 pl-11 pr-5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-zinc-900 dark:text-zinc-100 placeholder-zinc-500 dark:placeholder-zinc-400 font-medium"
               />
             </div>
           </>
@@ -582,10 +589,10 @@ export default function ExplorePage() {
             className="flex gap-5 overflow-x-auto no-scrollbar py-2 px-0.5 scroll-smooth"
           >
             {featuredList.map((mind) => (
-              <div
+              <TiltCard
                 key={mind.id}
                 onClick={() => handleMindClick(mind)}
-                className="w-[170px] sm:w-[230px] h-[255px] sm:h-[310px] shrink-0 relative rounded-[24px] sm:rounded-[32px] overflow-hidden group cursor-pointer shadow-sm hover:shadow-xl transition-all duration-300 hover:scale-[1.01]"
+                className="w-[170px] sm:w-[230px] h-[255px] sm:h-[310px] shrink-0 relative rounded-[24px] sm:rounded-[32px] overflow-hidden group cursor-pointer"
               >
                 {/* Photo */}
                 <img
@@ -608,7 +615,7 @@ export default function ExplorePage() {
                     {mind.description}
                   </p>
                 </div>
-              </div>
+              </TiltCard>
             ))}
           </div>
 
@@ -706,7 +713,7 @@ export default function ExplorePage() {
         </Link>
 
         {/* Chats / My Agents */}
-        <Link href="/dashboard/agents" className="flex items-center justify-center text-zinc-450 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
+        <Link href="/dashboard/agents" className="flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
           <div className="p-2.5">
             <MessageSquareIcon className="size-5.5" />
           </div>
@@ -720,14 +727,14 @@ export default function ExplorePage() {
         </Link>
 
         {/* Profile */}
-        <Link href="/dashboard/settings/profile" className="flex items-center justify-center text-zinc-450 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
+        <Link href="/dashboard/settings/profile" className="flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
           <div className="p-2.5">
             <UserIcon className="size-5.5" />
           </div>
         </Link>
 
         {/* More / Settings */}
-        <Link href="/dashboard/settings" className="flex items-center justify-center text-zinc-450 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
+        <Link href="/dashboard/settings" className="flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
           <div className="p-2.5">
             <MoreHorizontalIcon className="size-5.5" />
           </div>
