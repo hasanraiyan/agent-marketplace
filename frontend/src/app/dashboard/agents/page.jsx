@@ -157,7 +157,7 @@ export default function MyAgentsPage() {
   };
 
   return (
-    <div className="@container/main flex flex-1 flex-col py-4 md:py-6">
+    <div className="@container/main flex flex-1 flex-col py-4 md:py-6 overflow-y-auto min-h-0">
       <section className="mb-4 px-4 md:hidden lg:px-6">
         <InputGroup>
           <InputGroupAddon align="inline-start">

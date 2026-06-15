@@ -11,6 +11,7 @@ export default function DashboardLayout({ children }) {
         "--sidebar-width": "calc(var(--spacing) * 72)",
         "--header-height": "calc(var(--spacing) * 12)",
       }}
+      className="h-svh overflow-hidden"
     >
       {/* ThreadsProvider wraps the whole dashboard so sidebar and pages
           share ONE fetch, ONE state, ONE refresh() signal */}
