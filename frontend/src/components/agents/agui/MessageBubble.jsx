@@ -117,7 +117,7 @@ export const MessageBubble = memo(function MessageBubble({ message, agent }) {
         <div
           className={cn(
             'prose prose-sm max-w-none break-words prose-p:my-1 prose-pre:my-2 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1',
-            isUser ? 'prose-invert' : 'dark:prose-invert',
+            isUser ? 'prose-invert [&_*]:text-white text-white' : 'dark:prose-invert',
           )}
         >
           <ReactMarkdown
