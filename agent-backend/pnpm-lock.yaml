@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@ag-ui/core':
-        specifier: ^0.0.52
-        version: 0.0.52
+        specifier: ^0.0.57
+        version: 0.0.57
       '@clerk/express':
         specifier: ^2.1.4
         version: 2.1.4(express@5.2.1)
@@ -99,8 +99,8 @@ importers:
 
 packages:
 
-  '@ag-ui/core@0.0.52':
-    resolution: {integrity: sha512-Xo0bUaNV56EqylzcrAuhUkQX7et7+SZIrqZZtEByGwEq/I1EHny6ZMkWHLkKR7UNi0FJZwJyhKYmKJS3B2SEgA==}
+  '@ag-ui/core@0.0.57':
+    resolution: {integrity: sha512-gho1OWjNE6E3Rl7ZEZ1wr2CEpUHjLFU0FqzCZZk439TicLu+BfLCMkMokB07bMGlRmbJ60hM6LW60iOVauCx+Q==}
 
   '@anthropic-ai/sdk@0.74.0':
     resolution: {integrity: sha512-srbJV7JKsc5cQ6eVuFzjZO7UR3xEPJqPamHFIe29bs38Ij2IripoAhC0S5NslNbaFUYqBKypmmpzMTpqfHEUDw==}
@@ -2333,7 +2333,7 @@ packages:
 
 snapshots:
 
-  '@ag-ui/core@0.0.52':
+  '@ag-ui/core@0.0.57':
     dependencies:
       zod: 3.25.76
 
