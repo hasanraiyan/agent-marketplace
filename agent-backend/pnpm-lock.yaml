@@ -72,8 +72,8 @@ importers:
         specifier: ^6.12.0
         version: 6.12.0
       svix:
-        specifier: ^1.90.0
-        version: 1.90.0
+        specifier: ^1.95.2
+        version: 1.95.2
       swagger-ui-express:
         specifier: ^5.0.1
         version: 5.0.1(express@5.2.1)
@@ -2176,6 +2176,9 @@ packages:
 
   svix@1.90.0:
     resolution: {integrity: sha512-ljkZuyy2+IBEoESkIpn8sLM+sxJHQcPxlZFxU+nVDhltNfUMisMBzWX/UR8SjEnzoI28ZjCzMbmYAPwSTucoMw==}
+
+  svix@1.95.2:
+    resolution: {integrity: sha512-i2gDtqABKQritWlFOxQHr+Oa63PBQ3q1oUhwhNwJgH+Xi0NjgWz5o6nd+8EwgNFGrH6UOe3wjKZtbZmjVn9r8w==}
 
   swagger-ui-dist@5.32.1:
     resolution: {integrity: sha512-6HQoo7+j8PA2QqP5kgAb9dl1uxUjvR0SAoL/WUp1sTEvm0F6D5npgU2OGCLwl++bIInqGlEUQ2mpuZRZYtyCzQ==}
@@ -4770,6 +4773,10 @@ snapshots:
     dependencies:
       standardwebhooks: 1.0.0
       uuid: 10.0.0
+
+  svix@1.95.2:
+    dependencies:
+      standardwebhooks: 1.0.0
 
   swagger-ui-dist@5.32.1:
     dependencies:
