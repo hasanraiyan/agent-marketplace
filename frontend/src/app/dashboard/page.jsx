@@ -407,7 +407,7 @@ export default function ExplorePage() {
       );
 
       if (existing) {
-        router.push(`/dashboard/agents/${existing._id || existing.id}`);
+        router.push(`/dashboard/agents/${existing._id || existing.id}/run`);
         return;
       }
 
@@ -434,7 +434,7 @@ export default function ExplorePage() {
       const newAgent = res.data?.data;
       if (newAgent) {
         setDbAgents((prev) => [...prev, newAgent]);
-        router.push(`/dashboard/agents/${newAgent._id || newAgent.id}`);
+        router.push(`/dashboard/agents/${newAgent._id || newAgent.id}/run`);
       }
     } catch (err) {
       toast.dismiss();
@@ -443,13 +443,7 @@ export default function ExplorePage() {
     }
   };
 
-  const renderVerifiedBadge = () => (
-    <div className="flex size-4.5 items-center justify-center rounded-full bg-[#3b82f6] text-white shrink-0">
-      <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-      </svg>
-    </div>
-  );
+
 
   return (
     <div className="bg-white dark:bg-zinc-950 flex flex-1 flex-col min-h-full w-full overflow-y-auto no-scrollbar relative">
@@ -609,7 +603,6 @@ export default function ExplorePage() {
                     <h3 className="text-lg sm:text-2xl font-bold tracking-tight leading-none">
                       {mind.name}
                     </h3>
-                    {mind.verified && renderVerifiedBadge()}
                   </div>
                   <p className="text-white/80 text-[11px] sm:text-[13px] font-medium leading-snug line-clamp-2">
                     {mind.description}
@@ -658,7 +651,6 @@ export default function ExplorePage() {
                     <span className="text-base font-bold text-zinc-900 dark:text-zinc-550 group-hover:text-primary transition-colors">
                       {mind.name}
                     </span>
-                    {mind.verified && renderVerifiedBadge()}
                     <span className="text-xs text-zinc-400 dark:text-zinc-500 font-bold ml-2">
                       {mind.mindCount}
                     </span>
@@ -672,7 +664,7 @@ export default function ExplorePage() {
               {/* Right: Speech Bubble */}
               <div
                 onClick={() => handleMindClick(mind, mind.chatPrompt)}
-                className="bg-zinc-50 dark:bg-zinc-900/50 hover:bg-zinc-100/80 dark:hover:bg-zinc-900 text-zinc-700 dark:text-zinc-300 px-6 py-3.5 rounded-2xl rounded-tr-none border border-zinc-100/80 dark:border-zinc-850 max-w-full sm:max-w-lg cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99] shadow-sm flex items-center text-sm font-semibold select-none sm:mr-2"
+                className="bg-zinc-50 dark:bg-zinc-900/50 hover:bg-zinc-100/80 dark:hover:bg-zinc-900 text-zinc-700 dark:text-zinc-300 px-6 py-3.5 rounded-2xl rounded-tr-none border border-zinc-100/80 dark:border-zinc-850 max-w-full sm:max-w-lg cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center text-sm font-semibold select-none sm:mr-2"
               >
                 {mind.chatPrompt}
               </div>
