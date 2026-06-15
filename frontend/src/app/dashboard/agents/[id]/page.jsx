@@ -23,6 +23,7 @@ import {
   MessageSquare,
   Edit,
   Sparkles,
+  BadgeCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -173,7 +174,7 @@ export default function AgentDetailPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 rounded-full px-3.5 font-bold transition-all hover:bg-muted"
+                className="h-8 rounded-full px-3.5 font-bold transition-all hover:bg-zinc-50 dark:hover:bg-zinc-900 border-zinc-150/60 dark:border-zinc-800 shadow-none"
               >
                 <Edit className="mr-1.5 size-3.5" />
                 Edit
@@ -184,7 +185,7 @@ export default function AgentDetailPage() {
             size="sm"
             onClick={handleUseAgent}
             disabled={starting || !agent?.isActive || !isLoaded}
-            className="h-8 rounded-full px-4 font-bold shadow-sm"
+            className="h-8 rounded-full px-4 font-bold shadow-none active:scale-98 transition-all"
           >
             {starting ? (
               <>
@@ -251,6 +252,8 @@ export default function AgentDetailPage() {
   const VisibilityIcon = VISIBILITY_ICONS[agent.visibility] || Globe;
   const rating = Math.min(5, Math.max(0, agent.rating || 0));
   const stars = Array.from({ length: 5 }, (_, i) => i < Math.floor(rating));
+  const isVerified = (agent.messageCount || agent.usageCount || 0) > 5;
+  const displayAvatar = agent.avatarUrl || agent.avatar;
 
   return (
     <div className="flex-grow overflow-y-auto bg-slate-50/40 dark:bg-slate-950/20">
@@ -259,30 +262,32 @@ export default function AgentDetailPage() {
           {/* Main Left Column (2/3 width) */}
           <div className="space-y-8 lg:col-span-2">
             {/* Overview / Identity Card */}
-            <Card className="overflow-hidden border-none bg-card ring-1 ring-foreground/10 relative">
+            <Card className="border border-zinc-150/60 dark:border-zinc-900/60 bg-card rounded-3xl ring-0 shadow-none overflow-hidden relative">
               <CardContent className="relative px-6 py-6">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-                  <Avatar className="size-20 ring-1 ring-foreground/5 rounded-full bg-card shrink-0">
-                    <AvatarImage
-                      src={agent.avatarUrl || agent.avatar}
+                  {displayAvatar ? (
+                    <img
+                      src={displayAvatar}
                       alt={agent.name}
+                      className="size-20 sm:size-24 rounded-2xl sm:rounded-3xl object-cover border border-zinc-150/60 dark:border-zinc-800 shrink-0"
                     />
-                    <AvatarFallback className="bg-gradient-to-br from-primary/10 to-primary/5 text-primary">
-                      <Bot className="size-10" />
-                    </AvatarFallback>
-                  </Avatar>
+                  ) : (
+                    <div className="size-20 sm:size-24 rounded-2xl sm:rounded-3xl border border-zinc-150/60 dark:border-zinc-800 shrink-0 flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5 text-primary">
+                      <Bot className="size-10 sm:size-12" />
+                    </div>
+                  )}
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
                       <Badge
                         variant="secondary"
-                        className="capitalize text-xs font-semibold px-2.5 py-0.5 bg-primary/10 text-primary hover:bg-primary/15 border-none"
+                        className="capitalize text-xs font-semibold px-2.5 py-0.5 bg-primary/10 text-primary hover:bg-primary/15 border-none rounded-full"
                       >
                         {agent.category || "other"}
                       </Badge>
                       <Badge
                         variant="outline"
-                        className="capitalize text-xs font-semibold px-2.5 py-0.5 border-foreground/10 bg-background/50 flex items-center gap-1"
+                        className="capitalize text-xs font-semibold px-2.5 py-0.5 border-zinc-150/60 dark:border-zinc-800 bg-background/50 flex items-center gap-1 rounded-full text-zinc-650 dark:text-zinc-350"
                       >
                         <VisibilityIcon className="size-3" />
                         {agent.visibility || "public"}
@@ -290,35 +295,42 @@ export default function AgentDetailPage() {
                       {!agent.isActive && (
                         <Badge
                           variant="destructive"
-                          className="text-xs font-semibold px-2.5 py-0.5"
+                          className="text-xs font-semibold px-2.5 py-0.5 rounded-full"
                         >
                           Inactive
                         </Badge>
                       )}
                     </div>
 
-                    <h2 className="text-2xl font-bold tracking-tight text-foreground truncate">
-                      {agent.name}
-                    </h2>
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 truncate">
+                        {agent.name}
+                      </h2>
+                      {isVerified && (
+                        <span className="inline-flex text-blue-500 shrink-0 animate-fade-in" title="Verified Creator">
+                          <BadgeCheck className="size-5.5 fill-current text-white dark:text-zinc-950 stroke-blue-500 stroke-[2px]" />
+                        </span>
+                      )}
+                    </div>
 
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-xs text-muted-foreground">
-                      <div className="flex gap-0.5 mr-1">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 font-medium">
+                      <div className="flex gap-0.5 items-center mr-1">
                         {stars.map((filled, i) => (
                           <Star
                             key={i}
-                            className={`size-3.5 ${
+                            className={`size-4 ${
                               filled
                                 ? "fill-yellow-400 text-yellow-400"
-                                : "text-muted-foreground/30"
+                                : "text-zinc-200 dark:text-zinc-800"
                             }`}
                           />
                         ))}
                       </div>
                       <span>({agent.reviewCount || 0} reviews)</span>
-                      <span className="text-muted-foreground/30">•</span>
+                      <span className="text-zinc-300 dark:text-zinc-800">•</span>
                       <span>
                         Created by{" "}
-                        <span className="font-semibold text-foreground">
+                        <span className="font-bold text-zinc-800 dark:text-zinc-200">
                           {isOwner ? "You" : "Community Creator"}
                         </span>
                       </span>
@@ -329,10 +341,10 @@ export default function AgentDetailPage() {
                 <Separator className="my-5" />
 
                 <div className="space-y-2">
-                  <h3 className="text-xs font-bold text-foreground/75 uppercase tracking-wider">
+                  <h3 className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
                     About this agent
                   </h3>
-                  <p className="text-sm leading-relaxed text-muted-foreground">
+                  <p className="text-sm sm:text-base leading-relaxed text-zinc-650 dark:text-zinc-350 font-medium">
                     {agent.description || "No description provided."}
                   </p>
                 </div>
@@ -343,7 +355,7 @@ export default function AgentDetailPage() {
                       <Badge
                         key={tag}
                         variant="outline"
-                        className="text-xs text-muted-foreground bg-muted/30 border-muted/50 rounded-full px-2.5 py-0.5 hover:bg-muted/50 transition-colors"
+                        className="text-xs text-zinc-500 bg-zinc-50 dark:bg-zinc-900 border-zinc-150/60 dark:border-zinc-800 rounded-full px-3 py-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-850 transition-colors"
                       >
                         #{tag}
                       </Badge>
@@ -355,15 +367,14 @@ export default function AgentDetailPage() {
 
             {/* Configured Skills Card */}
             {agent.skills && agent.skills.length > 0 && (
-              <Card className="border-none ring-1 ring-foreground/10 bg-card">
+              <Card className="border border-zinc-150/60 dark:border-zinc-900/60 bg-card rounded-3xl ring-0 shadow-none">
                 <CardHeader>
-                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <CardTitle className="text-base font-bold flex items-center gap-2 text-zinc-900 dark:text-zinc-150">
                     <Cpu className="size-4 text-primary" />
                     Configured Skills
                   </CardTitle>
-                  <CardDescription className="text-xs">
-                    Specialized capabilities and instructions attached to this
-                    agent.
+                  <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                    Specialized capabilities and instructions attached to this agent.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -377,12 +388,12 @@ export default function AgentDetailPage() {
                         <Link
                           key={skillId}
                           href={`/dashboard/skills/${skillId}`}
-                          className="p-3.5 rounded-xl border bg-muted/10 flex flex-col gap-1.5 transition-colors hover:bg-muted/20"
+                          className="p-4 rounded-2xl border border-zinc-150/60 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/10 flex flex-col gap-1.5 transition-all hover:bg-zinc-100/50 dark:hover:bg-zinc-900/40"
                         >
-                          <span className="text-xs font-bold text-foreground">
+                          <span className="text-xs font-bold text-zinc-900 dark:text-zinc-150">
                             {skill.name || "Skill"}
                           </span>
-                          <span className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                          <span className="text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed font-medium">
                             {skill.description || "No description provided."}
                           </span>
                         </Link>
@@ -395,23 +406,22 @@ export default function AgentDetailPage() {
 
             {/* System Prompt Instructions */}
             {agent.systemPrompt && (
-              <Card className="border-none ring-1 ring-foreground/10 overflow-hidden bg-card">
+              <Card className="border border-zinc-150/60 dark:border-zinc-900/60 bg-card rounded-3xl ring-0 shadow-none overflow-hidden">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                   <div className="space-y-1">
-                    <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <CardTitle className="text-base font-bold flex items-center gap-2 text-zinc-900 dark:text-zinc-150">
                       <Brain className="size-4 text-primary" />
                       Instructions
                     </CardTitle>
-                    <CardDescription className="text-xs">
-                      The core guidelines and rules shaping this agent&apos;s
-                      behavior.
+                    <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                      The core guidelines and rules shaping this agent&apos;s behavior.
                     </CardDescription>
                   </div>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleCopyText(agent.systemPrompt)}
-                    className="h-8 rounded-lg px-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+                    className="h-8 rounded-full px-3.5 text-xs font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-50 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-all border border-zinc-150/60 dark:border-zinc-800"
                   >
                     {copied ? (
                       <>
@@ -428,7 +438,7 @@ export default function AgentDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="relative">
-                    <div className="rounded-xl border bg-muted/20 p-4 font-mono text-xs leading-relaxed max-h-80 overflow-y-auto whitespace-pre-wrap select-all scrollbar-thin">
+                    <div className="rounded-2xl border border-zinc-150/60 dark:border-zinc-900 bg-zinc-50/40 dark:bg-zinc-900/10 p-5 font-mono text-xs leading-relaxed max-h-80 overflow-y-auto whitespace-pre-wrap select-all scrollbar-thin text-zinc-700 dark:text-zinc-300">
                       {agent.systemPrompt}
                     </div>
                   </div>
@@ -437,27 +447,26 @@ export default function AgentDetailPage() {
             )}
 
             {/* Reviews Card */}
-            <Card className="border-none ring-1 ring-foreground/10 bg-card">
+            <Card className="border border-zinc-150/60 dark:border-zinc-900/60 bg-card rounded-3xl ring-0 shadow-none">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base font-bold flex items-center gap-2">
+                <CardTitle className="text-base font-bold flex items-center gap-2 text-zinc-900 dark:text-zinc-150">
                   <MessageSquare className="size-4 text-primary" />
                   User Reviews
                 </CardTitle>
-                <CardDescription className="text-xs">
+                <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
                   Feedback from other developers and users who ran this agent.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Empty className="py-10 border border-dashed rounded-xl bg-muted/5">
-                  <EmptyHeader>
-                    <EmptyTitle className="text-sm font-bold">
-                      No reviews yet
-                    </EmptyTitle>
-                    <EmptyDescription className="text-xs">
-                      Be the first to run this agent and leave your thoughts!
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
+                <div className="flex flex-col items-center justify-center py-10 px-6 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/20 dark:bg-zinc-900/5 text-center select-none">
+                  <MessageSquare className="size-8 text-zinc-400 dark:text-zinc-650 mb-3" />
+                  <h4 className="text-sm font-bold text-zinc-800 dark:text-zinc-200">
+                    No reviews yet
+                  </h4>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-xs leading-relaxed font-medium">
+                    Be the first to run this agent and leave your thoughts!
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -465,10 +474,10 @@ export default function AgentDetailPage() {
           {/* Right Sidebar Column (1/3 width) */}
           <div className="space-y-8">
             {/* Quick Actions Card */}
-            <Card className="border-none ring-1 ring-foreground/10 bg-card p-5 space-y-4">
+            <Card className="border border-zinc-150/60 dark:border-zinc-900/60 bg-card rounded-3xl p-5 space-y-4 ring-0 shadow-none">
               <div className="space-y-1">
-                <h3 className="text-sm font-bold text-foreground">Actions</h3>
-                <p className="text-xs text-muted-foreground">
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Actions</h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
                   Launch a chat session or share this agent.
                 </p>
               </div>
@@ -478,7 +487,7 @@ export default function AgentDetailPage() {
                   size="lg"
                   onClick={handleUseAgent}
                   disabled={starting || !agent.isActive || !isLoaded}
-                  className="w-full h-11 font-bold text-sm uppercase tracking-tight transition-all"
+                  className="w-full h-11 font-bold text-sm rounded-full shadow-none hover:shadow-none active:scale-98 transition-all uppercase tracking-wider"
                 >
                   {starting ? (
                     <>
@@ -496,7 +505,7 @@ export default function AgentDetailPage() {
                 <Button
                   variant="outline"
                   onClick={handleShareAgent}
-                  className="w-full h-11 font-semibold text-sm rounded-xl border-foreground/10 hover:bg-muted transition-all"
+                  className="w-full h-11 font-bold text-sm rounded-full border border-zinc-150/60 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-all uppercase tracking-wider shadow-none"
                 >
                   <Share2 className="mr-2 size-4" />
                   Share Link
@@ -504,27 +513,27 @@ export default function AgentDetailPage() {
               </div>
             </Card>
 
-            {/* Metadata Card */}
-            <Card className="border-none ring-1 ring-foreground/10 overflow-hidden bg-card">
-              <CardHeader className="bg-muted/10 border-b pb-4">
-                <CardTitle className="text-sm font-bold flex items-center gap-2">
+            {/* Details Metadata Card */}
+            <Card className="border border-zinc-150/60 dark:border-zinc-900/60 bg-card rounded-3xl ring-0 shadow-none overflow-hidden">
+              <CardHeader className="pb-4 border-b border-zinc-150/60 dark:border-zinc-900/60">
+                <CardTitle className="text-sm font-bold flex items-center gap-2 text-zinc-900 dark:text-zinc-150">
                   <Sparkles className="size-4 text-primary" />
                   Details
                 </CardTitle>
               </CardHeader>
-              <CardContent className="divide-y divide-foreground/5 p-0">
+              <CardContent className="divide-y divide-zinc-150/60 dark:divide-zinc-900/60 p-0">
                 <div className="flex items-center justify-between px-5 py-3.5 text-xs">
-                  <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 font-medium">
                     <Brain className="size-3.5" />
                     <span>Base Model</span>
                   </div>
-                  <span className="font-semibold text-foreground font-mono bg-muted px-2 py-0.5 rounded text-[10px]">
+                  <span className="font-semibold text-zinc-900 dark:text-zinc-100 font-mono bg-zinc-100 dark:bg-zinc-900 px-2 py-0.5 rounded text-[10px]">
                     {agent.modelName || "Default"}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between px-5 py-3.5 text-xs">
-                  <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 font-medium">
                     <Globe className="size-3.5" />
                     <span>Web Search</span>
                   </div>
@@ -533,7 +542,7 @@ export default function AgentDetailPage() {
                     className={`text-[10px] font-bold px-2 py-0.5 border-none ${
                       agent.webSearchEnabled
                         ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                        : "bg-muted text-muted-foreground"
+                        : "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400"
                     }`}
                   >
                     {agent.webSearchEnabled ? "Enabled" : "Disabled"}
@@ -541,42 +550,42 @@ export default function AgentDetailPage() {
                 </div>
 
                 <div className="flex items-center justify-between px-5 py-3.5 text-xs">
-                  <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 font-medium">
                     <Cpu className="size-3.5" />
                     <span>Category</span>
                   </div>
-                  <span className="font-semibold text-foreground capitalize">
+                  <span className="font-semibold text-zinc-900 dark:text-zinc-150 capitalize">
                     {agent.category || "other"}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between px-5 py-3.5 text-xs">
-                  <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 font-medium">
                     <VisibilityIcon className="size-3.5" />
                     <span>Visibility</span>
                   </div>
-                  <span className="font-semibold text-foreground capitalize">
+                  <span className="font-semibold text-zinc-900 dark:text-zinc-150 capitalize">
                     {agent.visibility || "public"}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between px-5 py-3.5 text-xs">
-                  <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 font-medium">
                     <Users className="size-3.5" />
                     <span>Usage Count</span>
                   </div>
-                  <span className="font-semibold text-foreground">
+                  <span className="font-semibold text-zinc-900 dark:text-zinc-150 font-bold">
                     {agent.usageCount || 0} runs
                   </span>
                 </div>
 
                 {agent.createdAt && (
                   <div className="flex items-center justify-between px-5 py-3.5 text-xs">
-                    <div className="flex items-center gap-2 text-muted-foreground">
+                    <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 font-medium">
                       <Calendar className="size-3.5" />
                       <span>Created</span>
                     </div>
-                    <span className="font-semibold text-foreground">
+                    <span className="font-semibold text-zinc-900 dark:text-zinc-150">
                       {new Date(agent.createdAt).toLocaleDateString()}
                     </span>
                   </div>
@@ -584,11 +593,11 @@ export default function AgentDetailPage() {
 
                 {agent.updatedAt && (
                   <div className="flex items-center justify-between px-5 py-3.5 text-xs">
-                    <div className="flex items-center gap-2 text-muted-foreground">
+                    <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 font-medium">
                       <Calendar className="size-3.5" />
                       <span>Last Updated</span>
                     </div>
-                    <span className="font-semibold text-foreground">
+                    <span className="font-semibold text-zinc-900 dark:text-zinc-150">
                       {new Date(agent.updatedAt).toLocaleDateString()}
                     </span>
                   </div>

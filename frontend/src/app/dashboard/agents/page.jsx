@@ -19,7 +19,6 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -88,9 +87,9 @@ export default function MyAgentsPage() {
             </InputGroup>
           </div>
           <Link href="/dashboard/agents/create">
-            <Button size="sm">
-              <Plus data-icon="inline-start" />
-              Create Agent
+            <Button size="sm" className="rounded-full px-4 font-bold shadow-sm transition-all active:scale-98">
+              <Plus className="mr-1.5 size-4" />
+              Build an Agent
             </Button>
           </Link>
         </div>
@@ -181,37 +180,38 @@ export default function MyAgentsPage() {
             ))}
           </div>
         ) : agents.length === 0 ? (
-          <Empty className="py-20 border-2 border-dashed rounded-2xl">
-            <EmptyHeader>
-              <EmptyTitle>No agents yet</EmptyTitle>
-              <EmptyDescription>
-                You haven&apos;t created any agents. Start by creating one now!
-              </EmptyDescription>
-            </EmptyHeader>
-            <EmptyContent>
-              <Link href="/dashboard/agents/create">
-                <Button variant="outline">
-                  <Plus data-icon="inline-start" />
-                  Create Your First Agent
-                </Button>
-              </Link>
-            </EmptyContent>
-          </Empty>
-        ) : filteredAgents.length === 0 ? (
-          <Empty className="py-20 border-2 border-dashed rounded-2xl">
-            <EmptyHeader>
-              <EmptyTitle>No agents match</EmptyTitle>
-              <EmptyDescription>
-                Try a different search term or clear the search to see all your
-                agents.
-              </EmptyDescription>
-            </EmptyHeader>
-            <EmptyContent>
-              <Button variant="outline" onClick={() => setSearch("")}>
-                Clear search
+          <div className="flex flex-col items-center justify-center py-20 px-6 border border-zinc-150/60 dark:border-zinc-900 rounded-[28px] bg-zinc-50/50 dark:bg-zinc-900/10 text-center select-none max-w-2xl mx-auto mt-8">
+            <div className="size-16 rounded-3xl bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center mb-5 text-zinc-400 dark:text-zinc-600">
+              <Bot className="size-8" />
+            </div>
+            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-150">
+              No agents yet
+            </h3>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2 max-w-sm leading-relaxed font-medium">
+              You haven&apos;t created any agents yet. Start by creating one now to bring your ideas to life!
+            </p>
+            <Link href="/dashboard/agents/create" className="mt-6">
+              <Button className="rounded-full px-6 py-2.5 font-bold shadow-sm active:scale-98 transition-all">
+                <Plus className="mr-1.5 size-4" />
+                Build Your First Agent
               </Button>
-            </EmptyContent>
-          </Empty>
+            </Link>
+          </div>
+        ) : filteredAgents.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 px-6 border border-zinc-150/60 dark:border-zinc-900 rounded-[28px] bg-zinc-50/50 dark:bg-zinc-900/10 text-center select-none max-w-2xl mx-auto mt-8">
+            <div className="size-16 rounded-3xl bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center mb-5 text-zinc-400 dark:text-zinc-650">
+              <SearchIcon className="size-8" />
+            </div>
+            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-150">
+              No agents match
+            </h3>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2 max-w-sm leading-relaxed font-medium">
+              Try a different search term or clear the search to see all of your agents.
+            </p>
+            <Button variant="outline" onClick={() => setSearch("")} className="mt-6 rounded-full px-6 font-bold transition-all active:scale-98">
+              Clear search
+            </Button>
+          </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredAgents.map((agent) => {
@@ -222,93 +222,95 @@ export default function MyAgentsPage() {
               const displayAvatar = agent.avatarUrl || agent.avatar;
 
               return (
-                <Card
+                <div
                   key={agentId}
-                  className="group relative flex flex-col overflow-hidden rounded-xl border-none bg-card ring-1 ring-foreground/10 transition-all hover:shadow-lg hover:ring-primary/20 py-0"
+                  onClick={() => router.push(`/dashboard/agents/${agentId}/run`)}
+                  className="group relative flex flex-col overflow-hidden rounded-[24px] sm:rounded-[32px] h-[300px] sm:h-[360px] bg-zinc-950 border border-zinc-150/10 dark:border-zinc-900/80 transition-all hover:shadow-xl cursor-pointer"
                 >
-                  {/* Image/Avatar Area */}
-                  <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">
-                    {displayAvatar ? (
-                      <img
-                        src={displayAvatar}
-                        alt={agent.name}
-                        className="size-full object-cover transition-transform duration-500 group-hover:scale-110"
-                      />
-                    ) : (
-                      <div className="flex size-full items-center justify-center bg-gradient-to-br from-muted to-muted/50">
-                        <Bot className="size-10 text-muted-foreground/40" />
-                      </div>
-                    )}
+                  {/* Photo Background */}
+                  {displayAvatar ? (
+                    <img
+                      src={displayAvatar}
+                      alt={agent.name}
+                      className="absolute inset-0 size-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex size-full items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-950">
+                      <Bot className="size-16 text-zinc-600" />
+                    </div>
+                  )}
 
-                    {/* Floating Badges */}
-                    <div className="absolute left-2 top-2 z-10 flex gap-1.5">
+                  {/* Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent z-10" />
+
+                  {/* Top Overlay Area (Badges + Actions) */}
+                  <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between">
+                    <div className="flex gap-1.5">
                       <Badge
                         variant="secondary"
-                        className="bg-background/80 text-foreground backdrop-blur-md border-none px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold"
+                        className="bg-black/40 text-white backdrop-blur-md border border-white/10 px-2.5 py-0.5 text-[9px] uppercase tracking-wider font-extrabold"
                       >
                         {agent.category || "other"}
                       </Badge>
                       <Badge
                         variant={visibility.variant}
-                        className="backdrop-blur-md border-none px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold flex items-center gap-1"
+                        className="bg-black/40 text-white backdrop-blur-md border border-white/10 px-2.5 py-0.5 text-[9px] uppercase tracking-wider font-extrabold flex items-center gap-1"
                       >
                         <visibility.icon className="size-2.5" />
                         {visibility.label}
                       </Badge>
                     </div>
 
-                    {/* Quick Actions Dropdown */}
-                    <div className="absolute right-2 top-2 z-10">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="size-7 bg-background/50 hover:bg-background/80 backdrop-blur-md"
-                          >
-                            <MoreVertical className="size-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <Link href={`/dashboard/agents/${agentId}/builder`}>
-                            <DropdownMenuItem className="cursor-pointer">
-                              <Edit className="mr-2 size-4" /> Edit Details
-                            </DropdownMenuItem>
-                          </Link>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="cursor-pointer text-destructive focus:text-destructive"
-                            onClick={() => setDeleteTarget(agent)}
-                          >
-                            <Trash2 className="mr-2 size-4" /> Delete Agent
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="size-7 rounded-full bg-black/40 hover:bg-black/60 text-white hover:text-white aria-expanded:bg-black/60 aria-expanded:text-white border border-white/10 backdrop-blur-md"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreVertical className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="rounded-xl shadow-md border-zinc-150/80 dark:border-zinc-850">
+                        <Link href={`/dashboard/agents/${agentId}/builder`}>
+                          <DropdownMenuItem className="cursor-pointer font-semibold text-xs py-2" onClick={(e) => e.stopPropagation()}>
+                            <Edit className="mr-2 size-3.5 text-zinc-500" /> Edit Details
                           </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+                        </Link>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="cursor-pointer text-destructive focus:text-destructive font-semibold text-xs py-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteTarget(agent);
+                          }}
+                        >
+                          <Trash2 className="mr-2 size-3.5" /> Delete Agent
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
 
-                  {/* Content */}
-                  <div className="flex flex-1 flex-col p-4">
-                    <div className="mb-2">
-                      <h3 className="line-clamp-1 text-base font-bold transition-colors group-hover:text-primary">
-                        {agent.name}
-                      </h3>
-                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                        {agent.description || "No description provided."}
-                      </p>
-                    </div>
+                  {/* Bottom Content Area */}
+                  <div className="absolute bottom-4 sm:bottom-5 left-4 sm:left-5 right-4 sm:right-5 z-20 flex flex-col justify-end text-white select-none">
+                    <h3 className="line-clamp-1 text-base sm:text-lg font-bold tracking-tight leading-snug">
+                      {agent.name}
+                    </h3>
+                    <p className="mt-1 line-clamp-2 text-[11px] sm:text-xs text-white/70 leading-relaxed font-medium">
+                      {agent.description || "No description provided."}
+                    </p>
 
-                    <div className="mt-auto flex items-center justify-between border-t pt-3">
-                      <div className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
-                        <MessageSquare className="size-3" />
+                    <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3">
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-white/50 uppercase tracking-tight">
+                        <MessageSquare className="size-3.5" />
                         <span>{agent.messageCount || 0} chats</span>
                       </div>
 
-                      <Link href={`/dashboard/agents/${agentId}/run`}>
+                      <Link href={`/dashboard/agents/${agentId}/run`} onClick={(e) => e.stopPropagation()}>
                         <Button
                           size="xs"
-                          variant="primary"
-                          className="h-7 px-3 text-[10px] font-bold uppercase tracking-tight"
+                          className="h-7 px-3.5 text-[10px] font-bold uppercase tracking-tight rounded-full bg-white hover:bg-white/90 text-zinc-900 border-none shadow-sm active:scale-95 transition-all"
                         >
                           <Play className="mr-1 size-2.5 fill-current" />
                           Launch
@@ -316,7 +318,7 @@ export default function MyAgentsPage() {
                       </Link>
                     </div>
                   </div>
-                </Card>
+                </div>
               );
             })}
           </div>
