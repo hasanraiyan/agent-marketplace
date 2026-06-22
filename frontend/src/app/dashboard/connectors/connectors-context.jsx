@@ -10,9 +10,9 @@ import {
 } from "@/lib/api/mcps";
 import { toast } from "sonner";
 
-const SkillsContext = createContext();
+const ConnectorsContext = createContext();
 
-export function SkillsProvider({ children }) {
+export function ConnectorsProvider({ children }) {
   const [mySkills, setMySkills] = useState([]);
   const [publicSkills, setPublicSkills] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,19 +29,13 @@ export function SkillsProvider({ children }) {
     setIsCreatingMcp(false);
   }, []);
 
-  // Sync the active connectors tab with the URL/localStorage (pure UI state,
-  // no backend involved).
+  // Sync the active connectors tab with localStorage (pure UI state,
+  // no backend involved). The tabs now navigate between sub-routes.
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const tab = params.get("tab");
-      if (tab === "mcps" || tab === "skills") {
-        setActiveTabState(tab);
-      } else {
-        const savedTab = localStorage.getItem("connectors_active_tab");
-        if (savedTab === "mcps" || savedTab === "skills") {
-          setActiveTabState(savedTab);
-        }
+      const savedTab = localStorage.getItem("connectors_active_tab");
+      if (savedTab === "mcps" || savedTab === "skills") {
+        setActiveTabState(savedTab);
       }
     }
   }, []);
@@ -50,9 +44,6 @@ export function SkillsProvider({ children }) {
     setActiveTabState(tab);
     if (typeof window !== "undefined") {
       localStorage.setItem("connectors_active_tab", tab);
-      const url = new URL(window.location.href);
-      url.searchParams.set("tab", tab);
-      window.history.pushState({}, "", url.toString());
     }
   }, []);
 
@@ -140,7 +131,7 @@ export function SkillsProvider({ children }) {
   }, [fetchSkills, fetchMcps]);
 
   return (
-    <SkillsContext.Provider
+    <ConnectorsContext.Provider
       value={{
         mySkills,
         publicSkills,
@@ -162,14 +153,14 @@ export function SkillsProvider({ children }) {
       }}
     >
       {children}
-    </SkillsContext.Provider>
+    </ConnectorsContext.Provider>
   );
 }
 
-export function useSkills() {
-  const context = useContext(SkillsContext);
+export function useConnectors() {
+  const context = useContext(ConnectorsContext);
   if (!context) {
-    throw new Error("useSkills must be used within a SkillsProvider");
+    throw new Error("useConnectors must be used within a ConnectorsProvider");
   }
   return context;
 }

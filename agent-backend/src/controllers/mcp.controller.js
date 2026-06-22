@@ -92,7 +92,7 @@ class McpController {
       res.redirect(redirectTo);
     } catch (error) {
       res.redirect(
-        `${config.websiteUrl.replace(/\/+$/, '')}/dashboard/skills?tab=mcps&error=oauth_failed`
+        `${config.websiteUrl.replace(/\/+$/, '')}/dashboard/connectors/mcps?error=oauth_failed`
       );
     }
   }

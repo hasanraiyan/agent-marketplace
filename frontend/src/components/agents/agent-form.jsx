@@ -500,7 +500,7 @@ export function AgentForm({
               <p className="text-sm text-muted-foreground mb-3">
                 No skills created yet.
               </p>
-              <Link href="/dashboard/skills">
+              <Link href="/dashboard/connectors/skills">
                 <Button variant="outline" size="sm">
                   Create a Skill
                 </Button>
@@ -568,7 +568,7 @@ export function AgentForm({
               <p className="text-sm text-muted-foreground mb-3">
                 No MCP servers configured yet.
               </p>
-              <Link href="/dashboard/skills?tab=mcps">
+              <Link href="/dashboard/connectors/mcps">
                 <Button variant="outline" size="sm">
                   Add an MCP Server
                 </Button>

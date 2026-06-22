@@ -4,8 +4,6 @@ import { useState, useMemo } from "react";
 import {
   SearchIcon,
   Cpu,
-  Globe,
-  Lock,
   Plus,
   Menu,
   Search,
@@ -36,27 +34,16 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
-import { useSkills } from "@/app/dashboard/skills/skills-context";
+import { useConnectors } from "@/app/dashboard/connectors/connectors-context";
 
-const MCP_ICONS = {
-  github: Github,
-  search: Search,
-  folder: Folder,
-  database: Database,
-  slack: MessageSquare,
-  custom: Server
-};
-
-export function SkillsNav({ mySkills, publicSkills }) {
+export function ConnectorsNav({ mySkills, publicSkills }) {
   const params = useParams();
   const pathname = usePathname();
   const [search, setSearch] = useState("");
   const {
     activeTab,
     mcps,
-    selectedMcpId,
-    setSelectedMcpId
-  } = useSkills();
+  } = useConnectors();
 
   // Filter skills or MCPs locally
   const searchResults = useMemo(() => {
@@ -70,7 +57,7 @@ export function SkillsNav({ mySkills, publicSkills }) {
       );
     } else {
       return (mcps || []).filter((mcp) =>
-        [mcp.name, mcp.description, mcp.command, mcp.args].some((field) =>
+        [mcp.name, mcp.description, mcp.url].some((field) =>
           field?.toLowerCase().includes(q)
         )
       );
@@ -94,20 +81,17 @@ export function SkillsNav({ mySkills, publicSkills }) {
 
         {activeTab === "skills" ? (
           <Button asChild variant="outline" className="w-full justify-start gap-2 h-9" size="sm">
-            <Link href="/dashboard/skills/new">
+            <Link href="/dashboard/connectors/skills/new">
               <Plus className="size-4" />
               New Skill
             </Link>
           </Button>
         ) : (
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2 h-9"
-            size="sm"
-            onClick={() => setSelectedMcpId(null)}
-          >
-            <Plus className="size-4" />
-            Connect Server
+          <Button asChild variant="outline" className="w-full justify-start gap-2 h-9" size="sm">
+            <Link href="/dashboard/connectors/mcps/new">
+              <Plus className="size-4" />
+              Connect Server
+            </Link>
           </Button>
         )}
       </div>
@@ -126,7 +110,7 @@ export function SkillsNav({ mySkills, publicSkills }) {
                   return (
                     <Link
                       key={id}
-                      href={`/dashboard/skills/${id}`}
+                      href={`/dashboard/connectors/skills/${id}`}
                       className={cn(
                         "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
                         isActive
@@ -154,13 +138,12 @@ export function SkillsNav({ mySkills, publicSkills }) {
               </h2>
               <div className="space-y-1">
                 {(searchResults || mcps).map((mcp) => {
-                  const id = mcp.id;
-                  const isActive = selectedMcpId === id;
-                  const IconComp = MCP_ICONS[mcp.icon] || Server;
+                  const id = mcp._id;
+                  const isActive = params.id === id && pathname.startsWith("/dashboard/connectors/mcps");
                   return (
-                    <button
+                    <Link
                       key={id}
-                      onClick={() => setSelectedMcpId(id)}
+                      href={`/dashboard/connectors/mcps/${id}`}
                       className={cn(
                         "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors text-left",
                         isActive
@@ -168,13 +151,13 @@ export function SkillsNav({ mySkills, publicSkills }) {
                           : "hover:bg-muted text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      <IconComp className={cn("size-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground")} />
+                      <Server className={cn("size-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground")} />
                       <span className="truncate flex-1">{mcp.name}</span>
                       <span className={cn(
                         "size-2 rounded-full shrink-0",
                         mcp.isEnabled ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/30"
                       )} />
-                    </button>
+                    </Link>
                   );
                 })}
                 {searchResults?.length === 0 && (
@@ -187,10 +170,10 @@ export function SkillsNav({ mySkills, publicSkills }) {
           {activeTab === "skills" && (
             <section>
               <Link
-                href="/dashboard/skills/public"
+                href="/dashboard/connectors/skills/public"
                 className={cn(
                   "px-3 mb-2 text-xs font-semibold uppercase tracking-wider block hover:text-foreground transition-colors",
-                  pathname === "/dashboard/skills/public" ? "text-primary" : "text-muted-foreground"
+                  pathname === "/dashboard/connectors/skills/public" ? "text-primary" : "text-muted-foreground"
                 )}
               >
                 Public Marketplace

@@ -387,7 +387,7 @@ export default function AgentDetailPage() {
                       return (
                         <Link
                           key={skillId}
-                          href={`/dashboard/skills/${skillId}`}
+                          href={`/dashboard/connectors/skills/${skillId}`}
                           className="p-4 rounded-2xl border border-zinc-150/60 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/10 flex flex-col gap-1.5 transition-all hover:bg-zinc-100/50 dark:hover:bg-zinc-900/40"
                         >
                           <span className="text-xs font-bold text-zinc-900 dark:text-zinc-150">

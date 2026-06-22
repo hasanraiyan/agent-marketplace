@@ -238,7 +238,7 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
                 Skill Successfully {tryParseJson(tool.argumentsText)?.action === 'delete' ? 'Deleted' : 'Saved'}
               </div>
               {tryParseJson(tool.argumentsText)?.action !== 'delete' && (
-                <Link href={`/dashboard/skills?id=${parsedResult?.data?._id || parsedResult?.data?.id}`}>
+                <Link href={`/dashboard/connectors/skills/${parsedResult?.data?._id || parsedResult?.data?.id}`}>
                   <Button size="sm" variant="outline" className="w-full">
                     <Edit className="mr-2 size-3.5" />
                     View or Edit Skill

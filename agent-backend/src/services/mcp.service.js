@@ -238,7 +238,7 @@ class McpService {
 
     await this._invalidateAgentsUsingMcp(id);
 
-    return `${config.websiteUrl.replace(/\/+$/, '')}/dashboard/skills?tab=mcps&mcpId=${id}&connected=owner`;
+    return `${config.websiteUrl.replace(/\/+$/, '')}/dashboard/connectors/mcps?mcpId=${id}&connected=owner`;
   }
 
   async getUserAuthorizationUrl(id, userId, returnTo) {

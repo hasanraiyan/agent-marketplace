@@ -1,18 +1,19 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Cpu, Save, X, Info, Check, Globe } from "lucide-react";
+import { Cpu, Save, X, Info, Check, Globe, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
+import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { createSkill, updateSkill } from "@/lib/api/skills";
 import { useRouter } from "next/navigation";
-import { useSkills } from "@/app/dashboard/skills/skills-context";
+import { useConnectors } from "@/app/dashboard/connectors/connectors-context";
 import Link from "next/link";
 import Editor from "react-simple-code-editor";
 import { highlight, languages } from "prismjs/components/prism-core";
@@ -29,7 +30,7 @@ const DEFAULT_FORM = {
 
 export function SkillEditor({ skill, mode = "edit" }) {
   const router = useRouter();
-  const { refreshSkills } = useSkills();
+  const { refreshSkills } = useConnectors();
   const [form, setForm] = useState(skill || DEFAULT_FORM);
   const [loading, setLoading] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -95,7 +96,7 @@ export function SkillEditor({ skill, mode = "edit" }) {
       const newSkillId = res.data?.data?._id || res.data?.data?.id;
       setIsDirty(false);
       refreshSkills();
-      router.push(`/dashboard/skills/${newSkillId}`);
+      router.push(`/dashboard/connectors/skills/${newSkillId}`);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to save skill");
     } finally {
@@ -119,7 +120,7 @@ export function SkillEditor({ skill, mode = "edit" }) {
 
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" asChild disabled={loading}>
-            <Link href={mode === "edit" ? `/dashboard/skills/${skill._id || skill.id}` : "/dashboard/skills"}>
+            <Link href={mode === "edit" ? `/dashboard/connectors/skills/${skill._id || skill.id}` : "/dashboard/connectors/skills"}>
               <X className="size-4 mr-2" />
               Cancel
             </Link>
@@ -133,7 +134,7 @@ export function SkillEditor({ skill, mode = "edit" }) {
 
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto p-6 space-y-10 pb-20">
-          {/* General Info */}
+          {/* Section: General Info - grid layout from agent-form */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="space-y-1">
               <h2 className="text-sm font-bold">General Information</h2>
@@ -143,54 +144,53 @@ export function SkillEditor({ skill, mode = "edit" }) {
             </div>
 
             <div className="lg:col-span-2 space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="name" className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                  Skill Name
-                  <Info className="size-3 cursor-help" />
-                </Label>
+              <Field>
+                <FieldLabel className="text-sm font-bold">Skill Name</FieldLabel>
                 <Input
-                  id="name"
                   placeholder="e.g. data-analysis"
                   value={form.name}
                   onChange={(e) => handleNameChange(e.target.value)}
-                  className="font-mono text-sm"
+                  className="font-mono text-sm bg-muted/20"
                 />
-                <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                <p className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-1">
                   <Check className="size-3 text-green-500" />
                   Will be saved as: <code className="bg-muted px-1 rounded">{form.name || "..."}</code>
                 </p>
-              </div>
+              </Field>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="description" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Description</Label>
+              <Field>
+                <FieldLabel className="text-sm font-bold">Description</FieldLabel>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-muted-foreground">
+                    What does this skill enable the agent to do?
+                  </span>
                   <span className={cn("text-[10px] font-medium", form.description.length > 1000 ? "text-destructive" : "text-muted-foreground")}>
                     {form.description.length} / 1024
                   </span>
                 </div>
                 <Textarea
-                  id="description"
-                  placeholder="What does this skill enable the agent to do?"
                   value={form.description}
                   onChange={(e) => update("description", e.target.value.slice(0, 1024))}
                   rows={3}
-                  className="resize-none"
+                  className="bg-muted/20 resize-none"
                 />
-              </div>
+              </Field>
             </div>
           </div>
 
           <hr className="border-muted" />
 
-          {/* Instructions Editor */}
+          {/* Section: Instructions */}
           <div className="space-y-4">
+            <div className="flex items-center gap-2 border-b pb-2 text-foreground/80">
+              <Cpu className="size-4" />
+              <h2 className="text-sm font-bold uppercase tracking-wider">Instructions (SKILL.md)</h2>
+            </div>
+
             <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <h2 className="text-sm font-bold">Instructions (SKILL.md)</h2>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  The core logic and workflow for this skill using Markdown.
-                </p>
-              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                The core logic and workflow for this skill using Markdown.
+              </p>
               <span className={cn("text-[10px] font-medium", form.instructions.length > 45000 ? "text-destructive" : "text-muted-foreground")}>
                 {form.instructions.length.toLocaleString()} / 50,000 chars
               </span>
@@ -215,7 +215,7 @@ export function SkillEditor({ skill, mode = "edit" }) {
 
           <hr className="border-muted" />
 
-          {/* Marketplace */}
+          {/* Section: Visibility - from agent-form visibility pattern */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="space-y-1">
               <h2 className="text-sm font-bold">Visibility</h2>

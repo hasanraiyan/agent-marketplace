@@ -8,10 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
-import { useSkills } from "../skills-context";
+import { useConnectors } from "../../connectors-context";
 
 export default function PublicSkillsPage() {
-  const { publicSkills: skills, loading } = useSkills();
+  const { publicSkills: skills, loading } = useConnectors();
 
   return (
     <div className="flex flex-col h-full">
@@ -45,7 +45,7 @@ export default function PublicSkillsPage() {
                   By {skill.ownerId?.username || "Unknown"}
                 </span>
                 <Button variant="ghost" size="sm" className="h-7 text-xs" asChild>
-                  <Link href={`/dashboard/skills/${skill._id || skill.id}`}>
+                  <Link href={`/dashboard/connectors/skills/${skill._id || skill.id}`}>
                     View <ExternalLink className="ml-1 size-3" />
                   </Link>
                 </Button>

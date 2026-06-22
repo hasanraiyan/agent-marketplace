@@ -2,16 +2,16 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSkills } from "./skills-context";
+import { useConnectors } from "../connectors-context";
 import { Cpu, ArrowLeft } from "lucide-react";
 
-export default function SkillsPage() {
+export default function SkillsListPage() {
   const router = useRouter();
-  const { mySkills, loading } = useSkills();
+  const { mySkills, loading } = useConnectors();
 
   useEffect(() => {
     if (!loading && mySkills.length > 0) {
-      router.replace(`/dashboard/skills/${mySkills[0]._id || mySkills[0].id}`);
+      router.replace(`/dashboard/connectors/skills/${mySkills[0]._id || mySkills[0].id}`);
     }
   }, [mySkills, loading, router]);
 

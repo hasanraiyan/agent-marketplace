@@ -41,7 +41,7 @@ const NAV_MAIN = [
   },
   {
     title: "Connectors",
-    url: "/dashboard/skills",
+    url: "/dashboard/connectors",
     icon: <CpuIcon />,
   },
 ];
