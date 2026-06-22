@@ -205,6 +205,7 @@ export function useAguiChat({
   initialState = EMPTY_STATE,
   onToolResult,
   onRunFinished,
+  onTitleGenerated,
 } = {}) {
   const { getToken, isLoaded, isSignedIn } = useAuth();
   const isParsedHistory = initialMessages && !Array.isArray(initialMessages) && typeof initialMessages === "object";
@@ -548,6 +549,13 @@ export function useAguiChat({
         return;
       }
 
+      if (type === "title" || type === EventType.TITLE) {
+        if (onTitleGenerated && event.title) {
+          onTitleGenerated(event.title);
+        }
+        return;
+      }
+
       if (
         type === EventType.MESSAGES_SNAPSHOT ||
         type === "MESSAGES_SNAPSHOT"
@@ -569,7 +577,7 @@ export function useAguiChat({
         );
       }
     },
-    [onToolResult, onRunFinished, settleRunningTools, upsertMessage, upsertTool],
+    [onToolResult, onRunFinished, onTitleGenerated, settleRunningTools, upsertMessage, upsertTool],
   );
 
   // SSE events arrive far faster than the screen refreshes (one per LLM token).
