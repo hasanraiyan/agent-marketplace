@@ -150,8 +150,10 @@ export function AguiAgentChat({
   className,
   onToolResult,
   onStateChange,
+  onCreateThread,
   onNewChat,
   onRunFinished,
+  onTitleGenerated,
   showHeader = true,
   contentClassName,
 }) {
@@ -166,7 +168,9 @@ export function AguiAgentChat({
     initialMessages,
     initialState,
     onToolResult,
+    onCreateThread,
     onRunFinished,
+    onTitleGenerated,
   });
 
   const startNewChat = async () => {

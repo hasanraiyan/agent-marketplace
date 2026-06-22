@@ -46,7 +46,6 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
 import { getAgent } from "@/lib/api/agents";
-import { createThread } from "@/lib/api/threads";
 import { getProfile } from "@/lib/api/profile";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
 
@@ -64,7 +63,6 @@ export default function AgentDetailPage() {
 
   const [agent, setAgent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [starting, setStarting] = useState(false);
   const [profile, setProfile] = useState(null);
   const [copied, setCopied] = useState(false);
 
@@ -105,25 +103,12 @@ export default function AgentDetailPage() {
     agent &&
     String(agent.ownerId) === String(profile.id || profile._id);
 
-  const handleUseAgent = async () => {
+  const handleUseAgent = () => {
     if (!isSignedIn) {
       router.push(`/sign-in?redirect_url=/dashboard/agents/${agentId}`);
       return;
     }
-    setStarting(true);
-    try {
-      const res = await createThread({ agentId });
-      const thread = res.data?.data;
-      const tid = thread?.id || thread?._id;
-      if (tid) {
-        router.push(`/dashboard/agents/${agentId}/run?threadId=${tid}`);
-      } else {
-        router.push(`/dashboard/agents/${agentId}/run`);
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to start chat");
-      setStarting(false);
-    }
+    router.push(`/dashboard/agents/${agentId}/run?threadId=new`);
   };
 
   const handleShareAgent = () => {
@@ -184,25 +169,16 @@ export default function AgentDetailPage() {
           <Button
             size="sm"
             onClick={handleUseAgent}
-            disabled={starting || !agent?.isActive || !isLoaded}
+            disabled={!agent?.isActive || !isLoaded}
             className="h-8 rounded-full px-4 font-bold shadow-none active:scale-98 transition-all"
           >
-            {starting ? (
-              <>
-                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                Starting...
-              </>
-            ) : (
-              <>
-                <Play className="mr-1.5 size-3.5 fill-current" />
-                Use Agent
-              </>
-            )}
+            <Play className="mr-1.5 size-3.5 fill-current" />
+            Use Agent
           </Button>
         </div>
       ),
     },
-    [agent, agentId, isOwner, starting, isLoaded],
+    [agent, agentId, isOwner, isLoaded],
   );
 
   if (loading) {
@@ -486,20 +462,11 @@ export default function AgentDetailPage() {
                 <Button
                   size="lg"
                   onClick={handleUseAgent}
-                  disabled={starting || !agent.isActive || !isLoaded}
+                  disabled={!agent.isActive || !isLoaded}
                   className="w-full h-11 font-bold text-sm rounded-full shadow-none hover:shadow-none active:scale-98 transition-all uppercase tracking-wider"
                 >
-                  {starting ? (
-                    <>
-                      <Loader2 className="mr-2 size-4 animate-spin" />
-                      Starting...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="mr-2 size-4 fill-current" />
-                      Launch Agent
-                    </>
-                  )}
+                  <Play className="mr-2 size-4 fill-current" />
+                  Launch Agent
                 </Button>
 
                 <Button

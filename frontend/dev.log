@@ -5,9 +5,8 @@
 ▲ Next.js 16.2.4 (Turbopack)
 - Local:         http://localhost:3001
 - Network:       http://192.168.0.2:3001
-✓ Ready in 487ms
+✓ Ready in 625ms
 ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
 
-○ Compiling /dashboard/agents ...
- GET /dashboard/agents 200 in 8.6s (next.js: 7.4s, proxy.ts: 216ms, application-code: 1017ms)
- GET /dashboard/agents/660d1f2e9f1b2c3d4e5f6a7b/run?threadId=new 200 in 4.3s (next.js: 3.8s, proxy.ts: 12ms, application-code: 479ms)
+○ Compiling /dashboard/agents/[id]/run ...
+ GET /dashboard/agents/any-id/run 200 in 16.2s (next.js: 13.5s, proxy.ts: 177ms, application-code: 2.6s)
