@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useConnectors } from "@/app/dashboard/connectors/connectors-context";
-import { testMcp, getOwnerAuthorizeUrl } from "@/lib/api/mcps";
+import { testMcp, getOwnerAuthorizeUrl, getUserAuthorizeUrl } from "@/lib/api/mcps";
 import { toast } from "sonner";
 import {
   Server,
@@ -76,6 +76,19 @@ export function McpDetail({ mcp }) {
     setIsConnecting(true);
     try {
       const res = await getOwnerAuthorizeUrl(mcp._id);
+      const url = res.data?.data?.url;
+      if (url) window.location.href = url;
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to start OAuth connection");
+      setIsConnecting(false);
+    }
+  }, [mcp]);
+
+  const handleConnectUser = useCallback(async () => {
+    if (!mcp) return;
+    setIsConnecting(true);
+    try {
+      const res = await getUserAuthorizeUrl(mcp._id, window.location.href);
       const url = res.data?.data?.url;
       if (url) window.location.href = url;
     } catch (err) {
@@ -206,11 +219,21 @@ export function McpDetail({ mcp }) {
                           </Button>
                         </div>
                       ) : (
-                        <p className="text-xs text-muted-foreground italic pt-2 border-t">
-                          Per-user authentication: each user of an agent using this connector
-                          will be prompted to connect their own account before its tools become
-                          available to them.
-                        </p>
+                        <div className="flex items-center justify-between pt-2 border-t">
+                          <div className="flex items-center gap-2 text-sm">
+                            <Users className="size-4 text-muted-foreground" />
+                            <span className="text-muted-foreground">Per-user auth</span>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleConnectUser}
+                            disabled={isConnecting}
+                          >
+                            {isConnecting && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
+                            Connect
+                          </Button>
+                        </div>
                       )}
                     </div>
                   ) : (

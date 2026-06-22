@@ -201,7 +201,16 @@ class McpService {
         mcp.authMode === 'owner'
           ? await mcpTokenService.getOwnerAccessToken(mcp)
           : await mcpTokenService.getUserAccessToken(mcp, userId);
-      if (token) headers.Authorization = `Bearer ${token}`;
+
+      if (!token) {
+        throw new ValidationError(
+          mcp.authMode === 'owner'
+            ? 'Owner has not authenticated with this MCP server. Connect your account first.'
+            : 'You need to authenticate with this MCP server before testing. Connect your account first.'
+        );
+      }
+
+      headers.Authorization = `Bearer ${token}`;
     }
 
     const client = new MultiServerMCPClient({
