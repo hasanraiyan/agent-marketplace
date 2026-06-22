@@ -307,7 +307,7 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
             Agents need an LLM provider (API key) to run. Add one in settings,
             then come back to build your agent.
           </p>
-          <Link href="/dashboard/settings">
+          <Link href="/dashboard/settings/providers">
             <Button className="rounded-full px-6 font-bold">
               Go to provider settings
             </Button>

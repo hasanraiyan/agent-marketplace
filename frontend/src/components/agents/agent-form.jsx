@@ -676,7 +676,7 @@ export function AgentForm({
                 Add an LLM provider (API key) before creating an agent.
               </p>
               <Link
-                href="/dashboard/settings"
+                href="/dashboard/settings/providers"
                 className="inline-block font-medium text-primary underline-offset-2 hover:underline"
               >
                 Go to provider settings
