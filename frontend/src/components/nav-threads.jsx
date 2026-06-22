@@ -262,7 +262,7 @@ export function NavThreads({
           </CollapsibleTrigger>
         </SidebarGroupLabel>
         <CollapsibleContent>
-          <div className="max-h-[350px] overflow-y-auto pr-1 select-none scrollbar-thin scrollbar-thumb-sidebar-border scrollbar-track-transparent">
+          <div className="max-h-[calc(100vh-320px)] overflow-y-auto select-none no-scrollbar">
             <SidebarMenu>
               {allThreads.length === 0 ? (
                 <SidebarMenuItem>

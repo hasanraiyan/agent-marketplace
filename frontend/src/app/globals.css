@@ -199,3 +199,11 @@
   -webkit-background-clip: text;
   animation: shimmer 2s linear infinite;
 }
+
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
