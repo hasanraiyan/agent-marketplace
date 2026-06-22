@@ -30,10 +30,14 @@ class McpTokenService {
       return encryption.decrypt(ownerToken.accessTokenEncrypted);
     }
 
+    const clientSecret = mcp.oauth.clientSecretEncrypted
+      ? encryption.decrypt(mcp.oauth.clientSecretEncrypted)
+      : null;
+
     const refreshed = await refreshAccessToken({
       tokenEndpoint: mcp.oauth.tokenEndpoint,
       clientId: mcp.oauth.clientId,
-      clientSecret: encryption.decrypt(mcp.oauth.clientSecretEncrypted),
+      clientSecret,
       refreshToken: encryption.decrypt(ownerToken.refreshTokenEncrypted),
     });
 
@@ -75,10 +79,14 @@ class McpTokenService {
       return encryption.decrypt(connection.accessTokenEncrypted);
     }
 
+    const clientSecret = mcp.oauth.clientSecretEncrypted
+      ? encryption.decrypt(mcp.oauth.clientSecretEncrypted)
+      : null;
+
     const refreshed = await refreshAccessToken({
       tokenEndpoint: mcp.oauth.tokenEndpoint,
       clientId: mcp.oauth.clientId,
-      clientSecret: encryption.decrypt(mcp.oauth.clientSecretEncrypted),
+      clientSecret,
       refreshToken: encryption.decrypt(connection.refreshTokenEncrypted),
     });
 

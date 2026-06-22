@@ -15,9 +15,10 @@ export const createMcpSchema = z
     authType: z.enum(['none', 'oauth']).default('none'),
     authMode: z.enum(['owner', 'user']).default('owner'),
     oauth: oauthConfigSchema.optional(),
+    useDynamicRegistration: z.boolean().optional(),
     isEnabled: z.boolean().default(true),
   })
-  .refine((data) => data.authType !== 'oauth' || Boolean(data.oauth), {
+  .refine((data) => data.authType !== 'oauth' || data.useDynamicRegistration || Boolean(data.oauth), {
     message: 'Client ID and Client Secret are required when auth type is oauth',
     path: ['oauth'],
   });
@@ -30,6 +31,7 @@ export const updateMcpSchema = z.object({
   authType: z.enum(['none', 'oauth']).optional(),
   authMode: z.enum(['owner', 'user']).optional(),
   isEnabled: z.boolean().optional(),
+  useDynamicRegistration: z.boolean().optional(),
   oauth: z
     .object({
       clientId: z.string().min(1).optional(),

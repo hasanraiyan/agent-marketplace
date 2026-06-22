@@ -44,6 +44,7 @@ function SelectCard({ active, onClick, icon: Icon, title, subtitle }) {
 export function McpEditor({ mcp, mode = "new" }) {
   const router = useRouter();
   const { createMcp, updateMcp } = useConnectors();
+  const isCreating = mode === "new";
 
   const [formName, setFormName] = useState(mcp?.name || "");
   const [formDesc, setFormDesc] = useState(mcp?.description || "");
@@ -53,9 +54,8 @@ export function McpEditor({ mcp, mode = "new" }) {
   const [formAuthMode, setFormAuthMode] = useState(mcp?.authMode || "owner");
   const [formClientId, setFormClientId] = useState(mcp?.oauth?.clientId || "");
   const [formClientSecret, setFormClientSecret] = useState("");
+  const [formUseDcr, setFormUseDcr] = useState(mcp?.oauth?.dynamicallyRegistered ?? isCreating);
   const [isSaving, setIsSaving] = useState(false);
-
-  const isCreating = mode === "new";
 
   const handleSave = async () => {
     if (!formName.trim()) {
@@ -66,11 +66,15 @@ export function McpEditor({ mcp, mode = "new" }) {
       toast.error("Server URL is required");
       return;
     }
-    if (formAuthType === "oauth" && !formClientId.trim()) {
+
+    const isOAuthDynamic = isCreating && formAuthType === "oauth" && formUseDcr;
+    const isOAuthManual = formAuthType === "oauth" && !formUseDcr;
+
+    if (isOAuthManual && !formClientId.trim()) {
       toast.error("Client ID is required for OAuth");
       return;
     }
-    if (formAuthType === "oauth" && isCreating && !formClientSecret.trim()) {
+    if (isOAuthManual && isCreating && !formClientSecret.trim()) {
       toast.error("Client Secret is required for OAuth");
       return;
     }
@@ -82,14 +86,16 @@ export function McpEditor({ mcp, mode = "new" }) {
       url: formUrl,
       authType: formAuthType,
       authMode: formAuthMode,
-      ...(formAuthType === "oauth"
-        ? {
-            oauth: {
-              clientId: formClientId,
-              ...(formClientSecret.trim() ? { clientSecret: formClientSecret } : {}),
-            },
-          }
-        : {}),
+      ...(isOAuthDynamic
+        ? { useDynamicRegistration: true }
+        : formAuthType === "oauth"
+          ? {
+              oauth: {
+                clientId: formClientId,
+                ...(formClientSecret.trim() ? { clientSecret: formClientSecret } : {}),
+              },
+            }
+          : {}),
     };
 
     setIsSaving(true);
@@ -267,55 +273,118 @@ export function McpEditor({ mcp, mode = "new" }) {
               {formAuthType === "oauth" && (
                 <div className="space-y-5 border p-4 rounded-xl bg-muted/10">
                   <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                    OAuth Credentials
+                    OAuth Configuration
                   </h3>
-                  <p className="text-[11px] text-muted-foreground -mt-3">
-                    Authorization and token endpoints are auto-discovered from the server&apos;s{" "}
-                    <code>/.well-known</code> metadata. Dynamic Client Registration isn&apos;t used — 
-                    enter the Client ID/Secret you registered manually with the server.
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="mcp-client-id" className="text-xs font-bold">Client ID</Label>
-                      <Input
-                        id="mcp-client-id"
-                        value={formClientId}
-                        onChange={(e) => setFormClientId(e.target.value)}
-                        className="font-mono text-sm bg-muted/20"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="mcp-client-secret" className="text-xs font-bold">Client Secret</Label>
-                      <Input
-                        id="mcp-client-secret"
-                        type="password"
-                        placeholder={!isCreating ? "Leave blank to keep current secret" : ""}
-                        value={formClientSecret}
-                        onChange={(e) => setFormClientSecret(e.target.value)}
-                        className="font-mono text-sm bg-muted/20"
-                      />
-                    </div>
-                  </div>
 
-                  <div className="space-y-2 pt-2">
-                    <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Who authenticates?</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <SelectCard
-                        active={formAuthMode === "owner"}
-                        onClick={() => setFormAuthMode("owner")}
-                        icon={Link2}
-                        title="Shared — you connect once"
-                        subtitle="Every user of an agent using this connector shares your connection."
-                      />
-                      <SelectCard
-                        active={formAuthMode === "user"}
-                        onClick={() => setFormAuthMode("user")}
-                        icon={Users}
-                        title="Per-user"
-                        subtitle="Each user connects their own account before using its tools."
-                      />
+                  {/* Auto-register toggle */}
+                  {isCreating && (
+                    <div
+                      className="flex items-start gap-3 p-3 rounded-lg cursor-pointer hover:bg-muted/30 transition-colors"
+                      onClick={() => setFormUseDcr(!formUseDcr)}
+                    >
+                      <div
+                        className={`mt-0.5 size-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          formUseDcr
+                            ? "bg-primary border-primary text-primary-foreground"
+                            : "border-muted-foreground/30"
+                        }`}
+                      >
+                        {formUseDcr && (
+                          <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">Auto-register client with server</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Dynamically register with the server&apos;s OAuth authorization server (RFC 7591).
+                          No need to manually obtain a Client ID or Secret — the platform handles it automatically.
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {formUseDcr ? (
+                    <>
+                      <p className="text-xs text-muted-foreground">
+                        When you save, the platform will auto-discover the server&apos;s OAuth endpoints via{" "}
+                        <code>/.well-known</code> and dynamically register a client with the
+                        authorization server. If the server doesn&apos;t support Dynamic Client Registration,
+                        you&apos;ll be prompted to enter credentials manually.
+                      </p>
+
+                      {/* Still need to know who authenticates */}
+                      <div className="space-y-2 pt-2">
+                        <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Who authenticates?</Label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <SelectCard
+                            active={formAuthMode === "owner"}
+                            onClick={() => setFormAuthMode("owner")}
+                            icon={Link2}
+                            title="Shared — you connect once"
+                            subtitle="Every user of an agent using this connector shares your connection."
+                          />
+                          <SelectCard
+                            active={formAuthMode === "user"}
+                            onClick={() => setFormAuthMode("user")}
+                            icon={Users}
+                            title="Per-user"
+                            subtitle="Each user connects their own account before using its tools."
+                          />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs text-muted-foreground -mt-2">
+                        Authorization and token endpoints are auto-discovered from the server&apos;s{" "}
+                        <code>/.well-known</code> metadata.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="mcp-client-id" className="text-xs font-bold">Client ID</Label>
+                          <Input
+                            id="mcp-client-id"
+                            value={formClientId}
+                            onChange={(e) => setFormClientId(e.target.value)}
+                            className="font-mono text-sm bg-muted/20"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="mcp-client-secret" className="text-xs font-bold">Client Secret</Label>
+                          <Input
+                            id="mcp-client-secret"
+                            type="password"
+                            placeholder={!isCreating ? "Leave blank to keep current secret" : ""}
+                            value={formClientSecret}
+                            onChange={(e) => setFormClientSecret(e.target.value)}
+                            className="font-mono text-sm bg-muted/20"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 pt-2">
+                        <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Who authenticates?</Label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <SelectCard
+                            active={formAuthMode === "owner"}
+                            onClick={() => setFormAuthMode("owner")}
+                            icon={Link2}
+                            title="Shared — you connect once"
+                            subtitle="Every user of an agent using this connector shares your connection."
+                          />
+                          <SelectCard
+                            active={formAuthMode === "user"}
+                            onClick={() => setFormAuthMode("user")}
+                            icon={Users}
+                            title="Per-user"
+                            subtitle="Each user connects their own account before using its tools."
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>

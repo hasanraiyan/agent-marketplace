@@ -13,10 +13,76 @@ async function fetchJson(url) {
 }
 
 /**
+ * Dynamic Client Registration (RFC 7591).
+ * Posts client metadata to the authorization server's registration endpoint
+ * and returns the issued client_id and (optionally) client_secret.
+ *
+ * Tries confidential-client registration first (client_secret_basic). If the
+ * server doesn't return a secret, re-registers as a public client (none) so
+ * the token exchange skips client_secret.
+ */
+export async function dynamicClientRegistration({
+  registrationEndpoint,
+  redirectUris,
+  clientName,
+  clientUri,
+}) {
+  async function tryRegister(authMethod) {
+    const body = {
+      redirect_uris: redirectUris,
+      client_name: clientName,
+      client_uri: clientUri,
+      grant_types: ['authorization_code'],
+      response_types: ['code'],
+      token_endpoint_auth_method: authMethod,
+    };
+
+    const res = await fetch(registrationEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(
+        data.error_description || data.error || `Dynamic client registration failed with status ${res.status}`
+      );
+    }
+
+    return data;
+  }
+
+  // Try confidential client first
+  const data = await tryRegister('client_secret_basic');
+  const hasSecret = Boolean(data.client_secret);
+
+  if (hasSecret) {
+    return {
+      clientId: data.client_id,
+      clientSecret: data.client_secret,
+      clientSecretExpiresAt: data.client_secret_expires_at || 0,
+      tokenEndpointAuthMethod: 'client_secret_basic',
+    };
+  }
+
+  // No secret returned — re-register as a public client so the auth server
+  // knows not to expect client_secret on token exchanges.
+  const publicData = await tryRegister('none');
+
+  return {
+    clientId: publicData.client_id,
+    clientSecret: null,
+    clientSecretExpiresAt: 0,
+    tokenEndpointAuthMethod: 'none',
+  };
+}
+
+/**
  * Discovers the OAuth authorization/token endpoints for a remote MCP server,
  * following RFC 9728 (protected resource metadata) then RFC 8414
- * (authorization server metadata) - the same two-hop discovery used by
- * Coursify's own MCP server.
+ * (authorization server metadata).
  */
 export async function discoverOAuthEndpoints(mcpServerUrl) {
   const parsed = new URL(mcpServerUrl);
@@ -47,6 +113,7 @@ export async function discoverOAuthEndpoints(mcpServerUrl) {
   return {
     authorizationEndpoint: asMetadata.authorization_endpoint,
     tokenEndpoint: asMetadata.token_endpoint,
+    registrationEndpoint: asMetadata.registration_endpoint || null,
     scopesSupported: asMetadata.scopes_supported || [],
   };
 }
@@ -104,21 +171,33 @@ export async function exchangeCodeForToken({
   redirectUri,
   codeVerifier,
 }) {
-  return postForm(tokenEndpoint, {
+  const params = {
     grant_type: 'authorization_code',
     code,
     redirect_uri: redirectUri,
     client_id: clientId,
-    client_secret: clientSecret,
     code_verifier: codeVerifier,
-  });
+  };
+
+  // Only include client_secret for confidential clients
+  if (clientSecret) {
+    params.client_secret = clientSecret;
+  }
+
+  return postForm(tokenEndpoint, params);
 }
 
 export async function refreshAccessToken({ tokenEndpoint, clientId, clientSecret, refreshToken }) {
-  return postForm(tokenEndpoint, {
+  const params = {
     grant_type: 'refresh_token',
     refresh_token: refreshToken,
     client_id: clientId,
-    client_secret: clientSecret,
-  });
+  };
+
+  // Only include client_secret for confidential clients
+  if (clientSecret) {
+    params.client_secret = clientSecret;
+  }
+
+  return postForm(tokenEndpoint, params);
 }

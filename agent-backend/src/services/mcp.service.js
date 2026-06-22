@@ -8,6 +8,7 @@ import mcpTokenService from './mcpToken.service.js';
 import { signOAuthState, verifyOAuthState } from '../utils/oauthState.js';
 import {
   discoverOAuthEndpoints,
+  dynamicClientRegistration,
   generatePkcePair,
   buildAuthorizationUrl,
   exchangeCodeForToken,
@@ -43,6 +44,7 @@ class McpService {
         authorizationEndpoint: oauth.authorizationEndpoint || null,
         tokenEndpoint: oauth.tokenEndpoint || null,
         scopes: oauth.scopes || [],
+        dynamicallyRegistered: Boolean(oauth.dynamicallyRegistered),
         ownerConnected: Boolean(oauth.ownerToken?.accessTokenEncrypted),
       },
     };
@@ -62,13 +64,51 @@ class McpService {
 
     if (mcpData.authType === 'oauth') {
       const discovered = await discoverOAuthEndpoints(data.url);
-      mcpData.oauth = {
-        clientId: data.oauth.clientId,
-        clientSecretEncrypted: encryption.encrypt(data.oauth.clientSecret),
-        authorizationEndpoint: discovered.authorizationEndpoint,
-        tokenEndpoint: discovered.tokenEndpoint,
-        scopes: data.oauth.scopes?.length ? data.oauth.scopes : discovered.scopesSupported,
-      };
+
+      if (data.useDynamicRegistration) {
+        // Dynamic Client Registration (RFC 7591): auto-register with the
+        // authorization server so the user doesn't need to supply a
+        // manually pre-registered client_id / client_secret.
+        if (!discovered.registrationEndpoint) {
+          throw new ValidationError(
+            'This MCP server does not support Dynamic Client Registration. ' +
+            'Please provide a Client ID and Client Secret manually.'
+          );
+        }
+
+        const registered = await dynamicClientRegistration({
+          registrationEndpoint: discovered.registrationEndpoint,
+          redirectUris: [redirectUriFor('owner'), redirectUriFor('user')],
+          clientName: data.name,
+          clientUri: config.websiteUrl,
+        });
+
+        mcpData.oauth = {
+          clientId: registered.clientId,
+          clientSecretEncrypted: registered.clientSecret
+            ? encryption.encrypt(registered.clientSecret)
+            : null,
+          authorizationEndpoint: discovered.authorizationEndpoint,
+          tokenEndpoint: discovered.tokenEndpoint,
+          scopes: discovered.scopesSupported,
+          dynamicallyRegistered: true,
+          tokenEndpointAuthMethod: registered.tokenEndpointAuthMethod,
+        };
+      } else {
+        // Manual registration: user must provide client_id and client_secret.
+        if (!data.oauth?.clientId || !data.oauth?.clientSecret) {
+          throw new ValidationError('Client ID and Client Secret are required when auth type is oauth');
+        }
+
+        mcpData.oauth = {
+          clientId: data.oauth.clientId,
+          clientSecretEncrypted: encryption.encrypt(data.oauth.clientSecret),
+          authorizationEndpoint: discovered.authorizationEndpoint,
+          tokenEndpoint: discovered.tokenEndpoint,
+          scopes: data.oauth.scopes?.length ? data.oauth.scopes : discovered.scopesSupported,
+          dynamicallyRegistered: false,
+        };
+      }
     }
 
     return await mcpRepository.create(mcpData);
@@ -99,12 +139,15 @@ class McpService {
         : null;
 
       const clientId = data.oauth?.clientId || existing.oauth?.clientId;
-      const hasSecret = Boolean(data.oauth?.clientSecret || existing.oauth?.clientSecretEncrypted);
+      const isDcr = existing.oauth?.dynamicallyRegistered;
 
-      if (!clientId || !hasSecret) {
-        throw new ValidationError(
-          'Client ID and Client Secret are required when auth type is oauth'
-        );
+      // For manually registered OAuth, clientId + secret are required.
+      // For DCR (public client), the secret may legitimately be null.
+      if (!clientId) {
+        throw new ValidationError('Client ID is required when auth type is oauth');
+      }
+      if (!isDcr && !Boolean(data.oauth?.clientSecret || existing.oauth?.clientSecretEncrypted)) {
+        throw new ValidationError('Client Secret is required when auth type is oauth');
       }
 
       updateData.oauth = {
@@ -115,6 +158,8 @@ class McpService {
         authorizationEndpoint: discovered?.authorizationEndpoint || existing.oauth.authorizationEndpoint,
         tokenEndpoint: discovered?.tokenEndpoint || existing.oauth.tokenEndpoint,
         scopes: data.oauth?.scopes || existing.oauth?.scopes || [],
+        dynamicallyRegistered: existing.oauth?.dynamicallyRegistered || false,
+        tokenEndpointAuthMethod: existing.oauth?.tokenEndpointAuthMethod || 'client_secret_basic',
         ownerToken: existing.oauth?.ownerToken || {},
       };
     } else if (data.authType === 'none') {
@@ -210,10 +255,14 @@ class McpService {
     const mcp = await mcpRepository.findById(id);
     if (!mcp) throw new NotFoundError('MCP server not found');
 
+    const clientSecret = mcp.oauth.clientSecretEncrypted
+      ? encryption.decrypt(mcp.oauth.clientSecretEncrypted)
+      : null;
+
     const tokenResponse = await exchangeCodeForToken({
       tokenEndpoint: mcp.oauth.tokenEndpoint,
       clientId: mcp.oauth.clientId,
-      clientSecret: encryption.decrypt(mcp.oauth.clientSecretEncrypted),
+      clientSecret,
       code,
       redirectUri: redirectUriFor('owner'),
       codeVerifier: decoded.codeVerifier,
@@ -277,10 +326,14 @@ class McpService {
     const mcp = await mcpRepository.findById(id);
     if (!mcp) throw new NotFoundError('MCP server not found');
 
+    const clientSecret = mcp.oauth.clientSecretEncrypted
+      ? encryption.decrypt(mcp.oauth.clientSecretEncrypted)
+      : null;
+
     const tokenResponse = await exchangeCodeForToken({
       tokenEndpoint: mcp.oauth.tokenEndpoint,
       clientId: mcp.oauth.clientId,
-      clientSecret: encryption.decrypt(mcp.oauth.clientSecretEncrypted),
+      clientSecret,
       code,
       redirectUri: redirectUriFor('user'),
       codeVerifier: decoded.codeVerifier,

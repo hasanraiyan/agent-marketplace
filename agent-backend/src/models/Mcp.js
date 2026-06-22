@@ -16,6 +16,12 @@ const oauthSchema = new mongoose.Schema(
     authorizationEndpoint: { type: String, default: null },
     tokenEndpoint: { type: String, default: null },
     scopes: { type: [String], default: [] },
+    dynamicallyRegistered: { type: Boolean, default: false },
+    tokenEndpointAuthMethod: {
+      type: String,
+      enum: ['client_secret_basic', 'client_secret_post', 'none'],
+      default: 'client_secret_basic',
+    },
     ownerToken: { type: ownerTokenSchema, default: () => ({}) },
   },
   { _id: false }
