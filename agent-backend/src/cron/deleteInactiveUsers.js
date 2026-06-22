@@ -2,6 +2,8 @@ import User from '../models/User.js';
 import Agent from '../models/Agent.js';
 import Skill from '../models/Skill.js';
 import Provider from '../models/Provider.js';
+import Mcp from '../models/Mcp.js';
+import McpUserConnection from '../models/McpUserConnection.js';
 import Conversation from '../models/Conversation.js';
 import checkpointService from '../services/checkpoint.service.js';
 import { loggerService } from '../utils/index.js';
@@ -43,6 +45,8 @@ export default async function deleteInactiveUsers() {
         Agent.deleteMany({ ownerId: userId }),
         Skill.deleteMany({ ownerId: userId }),
         Provider.deleteMany({ ownerId: userId }),
+        Mcp.deleteMany({ ownerId: userId }),
+        McpUserConnection.deleteMany({ userId }),
       ]);
 
       // 3. Finally delete the user document

@@ -40,6 +40,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { getProviders, getProviderModels } from "@/lib/api/providers";
 import { getMySkills } from "@/lib/api/skills";
+import { getMyMcps } from "@/lib/api/mcps";
 import { uploadAvatar } from "@/lib/api/upload";
 
 const CATEGORIES = [
@@ -78,6 +79,7 @@ const DEFAULT_FORM = {
   avatar: "",
   tags: [],
   skills: [],
+  mcps: [],
   systemPrompt: "",
   providerId: "",
   modelName: "",
@@ -100,6 +102,8 @@ export function AgentForm({
   const [tagsInput, setTagsInput] = useState("");
   const [availableSkills, setAvailableSkills] = useState([]);
   const [loadingSkills, setLoadingSkills] = useState(true);
+  const [availableMcps, setAvailableMcps] = useState([]);
+  const [loadingMcps, setLoadingMcps] = useState(true);
 
   const [form, setForm] = useState(DEFAULT_FORM);
   const [uploading, setUploading] = useState(false);
@@ -152,6 +156,7 @@ export function AgentForm({
         avatar: initialData.avatar || "",
         tags: initialData.tags || [],
         skills: (initialData.skills || []).map((s) => s._id || s.id || s),
+        mcps: (initialData.mcps || []).map((m) => m._id || m.id || m),
         systemPrompt: initialData.systemPrompt || "",
         providerId: initialData.providerId || "",
         modelName: initialData.modelName || "",
@@ -177,6 +182,18 @@ export function AgentForm({
       }
     };
     loadSkills();
+
+    const loadMcps = async () => {
+      try {
+        const res = await getMyMcps();
+        setAvailableMcps(res.data?.data || []);
+      } catch (err) {
+        toast.error("Failed to load MCP servers");
+      } finally {
+        setLoadingMcps(false);
+      }
+    };
+    loadMcps();
 
     const loadProviders = async () => {
       try {
@@ -280,6 +297,18 @@ export function AgentForm({
       );
     } else {
       update("skills", [...current, skillId]);
+    }
+  };
+
+  const toggleMcp = (mcpId) => {
+    const current = form.mcps || [];
+    if (current.includes(mcpId)) {
+      update(
+        "mcps",
+        current.filter((id) => id !== mcpId),
+      );
+    } else {
+      update("mcps", [...current, mcpId]);
     }
   };
 
@@ -506,6 +535,79 @@ export function AgentForm({
                       <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-1">
                         {skill.description}
                       </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Section: MCP Connectors */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-2 border-b pb-2 text-foreground/80">
+          <Plug className="size-4" />
+          <h2 className="text-sm font-bold uppercase tracking-wider">
+            MCP Connectors
+          </h2>
+        </div>
+
+        <div className="grid gap-4">
+          <FieldDescription className="text-xs -mt-2">
+            Attach remote MCP servers so this agent can call their tools.
+          </FieldDescription>
+
+          {loadingMcps ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              Loading MCP servers...
+            </div>
+          ) : availableMcps.length === 0 ? (
+            <div className="rounded-xl border border-dashed p-6 text-center">
+              <p className="text-sm text-muted-foreground mb-3">
+                No MCP servers configured yet.
+              </p>
+              <Link href="/dashboard/skills?tab=mcps">
+                <Button variant="outline" size="sm">
+                  Add an MCP Server
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {availableMcps.map((mcp) => {
+                const isSelected = (form.mcps || []).includes(mcp._id || mcp.id);
+                const authLabel =
+                  mcp.authType !== "oauth"
+                    ? "No auth"
+                    : mcp.authMode === "user"
+                      ? "OAuth · Per-user"
+                      : "OAuth · Shared";
+                return (
+                  <button
+                    key={mcp._id || mcp.id}
+                    type="button"
+                    onClick={() => toggleMcp(mcp._id || mcp.id)}
+                    className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${
+                      isSelected
+                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                        : "bg-card hover:bg-muted/50"
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-bold truncate">{mcp.name}</p>
+                        {isSelected && (
+                          <Check className="size-3.5 text-primary shrink-0" />
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-1">
+                        {mcp.description || mcp.url}
+                      </p>
+                      <Badge variant="outline" className="mt-1.5 text-[10px]">
+                        {authLabel}
+                      </Badge>
                     </div>
                   </button>
                 );

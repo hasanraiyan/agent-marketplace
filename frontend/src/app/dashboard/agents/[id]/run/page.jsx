@@ -14,6 +14,7 @@ import {
   AguiFilesPanel,
   NewChatIcon,
 } from "@/components/agents/agui-agent-chat";
+import { McpConnectBanner } from "@/components/agents/mcp-connect-banner";
 import { getAgent } from "@/lib/api/agents";
 import { createThread, getThread, getThreadMessages } from "@/lib/api/threads";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
@@ -407,6 +408,7 @@ export default function RunAgentPage() {
 
   return (
     <div className="@container/main absolute inset-0 flex flex-col overflow-hidden bg-white">
+      <McpConnectBanner mcps={agent?.mcps} />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {authToken && threadDbId ? (
           <>

@@ -61,6 +61,12 @@ const agentSchema = new mongoose.Schema(
         ref: 'Skill',
       },
     ],
+    mcps: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Mcp',
+      },
+    ],
     interruptOn: {
       type: Map,
       of: Boolean,

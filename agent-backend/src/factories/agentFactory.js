@@ -112,6 +112,7 @@ class AgentFactory {
 
     let agent;
     let provider;
+    let usesPerUserMcp = false;
 
     // 1. Detect if this is the Specialized Architect (Meta-Agent)
     if (agentIdStr === ARCHITECT_AGENT_ID) {
@@ -143,17 +144,24 @@ class AgentFactory {
       // 1.5 Fetch Standard Configuration from DB
       agent = await agentRepository.findById(agentId);
       if (agent && typeof agent.populate === 'function') {
-        await agent.populate('skills');
+        await agent.populate(['skills', 'mcps']);
       }
       if (!agent) throw new Error('Agent deleted or unavailable');
 
       if (!agent.providerId) throw new Error('Agent has no valid provider configured.');
       provider = await providerRepository.findById(agent.providerId);
       if (!provider) throw new Error('Configured Provider not found or was deleted.');
+
+      // Per-user MCP connectors mean different users see different tools for
+      // the *same* agent, so the compiled-instance cache must be namespaced
+      // by user too (same reasoning as the Architect cache key below).
+      usesPerUserMcp = (agent.mcps || []).some((mcp) => mcp.authMode === 'user');
     }
 
+    const effectiveCacheKey = usesPerUserMcp ? `${cacheKey}:${userId}` : cacheKey;
+
     // 2. Cache Validation
-    const cached = agentCache.get(cacheKey);
+    const cached = agentCache.get(effectiveCacheKey);
     if (cached && cached.updatedAt?.getTime() === agent.updatedAt?.getTime()) {
       logger.debug('[AgentFactory] cache hit', { agentId: agentIdStr });
       return {
@@ -173,7 +181,7 @@ class AgentFactory {
     const llm = await this._buildLLM(agent, provider);
 
     // Completely abstracted Tool Registry injection
-    const dynamicTools = resolveAgentTools(agent, userId);
+    const dynamicTools = await resolveAgentTools(agent, userId);
 
     //
     // deepagents discovers skills via the `skills: ["/skills/"]` param + the agent's
@@ -297,7 +305,7 @@ class AgentFactory {
     };
 
     // Cache the compiled result
-    agentCache.set(cacheKey, result);
+    agentCache.set(effectiveCacheKey, result);
 
     return {
       ...result,
@@ -313,17 +321,14 @@ class AgentFactory {
     const idStr = agentId?.toString() || agentId;
     if (!idStr) return;
 
-    // If it's the Architect, we'd need the userId to invalidate the specific cache entry.
-    // However, most callers (controllers) only pass agentId. For now, we'll
-    // iterate and clear any key starting with the ID.
-    if (idStr === ARCHITECT_AGENT_ID) {
-      for (const key of agentCache.keys()) {
-        if (key.startsWith(ARCHITECT_AGENT_ID)) {
-          agentCache.delete(key);
-        }
+    // Cache keys are either the bare agentId, or namespaced as `${agentId}:${userId}`
+    // (the Architect always uses the namespaced form; standard agents do too
+    // when they have a per-user-auth MCP attached). Most callers only have
+    // the agentId, so clear both the exact key and any namespaced variants.
+    for (const key of agentCache.keys()) {
+      if (key === idStr || key.startsWith(`${idStr}:`)) {
+        agentCache.delete(key);
       }
-    } else {
-      agentCache.delete(idStr);
     }
 
     logger.debug('[AgentFactory] cache invalidated', { agentId: idStr });

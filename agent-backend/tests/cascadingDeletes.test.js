@@ -9,6 +9,8 @@ import deleteInactiveUsers from '../src/cron/deleteInactiveUsers.js';
 import User from '../src/models/User.js';
 import Provider from '../src/models/Provider.js';
 import Skill from '../src/models/Skill.js';
+import Mcp from '../src/models/Mcp.js';
+import McpUserConnection from '../src/models/McpUserConnection.js';
 
 describe('Cascading Deletes Integration', () => {
   const mockUserId = new mongoose.Types.ObjectId();
@@ -98,6 +100,8 @@ describe('Cascading Deletes Integration', () => {
       const deleteAgentsSpy = jest.spyOn(Agent, 'deleteMany').mockResolvedValue();
       const deleteSkillsSpy = jest.spyOn(Skill, 'deleteMany').mockResolvedValue();
       const deleteProvidersSpy = jest.spyOn(Provider, 'deleteMany').mockResolvedValue();
+      const deleteMcpsSpy = jest.spyOn(Mcp, 'deleteMany').mockResolvedValue();
+      const deleteMcpConnectionsSpy = jest.spyOn(McpUserConnection, 'deleteMany').mockResolvedValue();
       const deleteUserSpy = jest.spyOn(User, 'findByIdAndDelete').mockResolvedValue();
 
       await deleteInactiveUsers();
@@ -107,7 +111,14 @@ describe('Cascading Deletes Integration', () => {
       expect(deleteAgentsSpy).toHaveBeenCalledWith({ ownerId: mockUserId });
       expect(deleteSkillsSpy).toHaveBeenCalledWith({ ownerId: mockUserId });
       expect(deleteProvidersSpy).toHaveBeenCalledWith({ ownerId: mockUserId });
+      expect(deleteMcpsSpy).toHaveBeenCalledWith({ ownerId: mockUserId });
+      expect(deleteMcpConnectionsSpy).toHaveBeenCalledWith({ userId: mockUserId });
       expect(deleteUserSpy).toHaveBeenCalledWith(mockUserId);
     });
   });
+
+  // Mcp -> Agent.mcps cascade-on-delete is covered by the "deleteMcp" describe
+  // block in mcp.service.test.js, with proper top-level unstable_mockModule
+  // setup (re-mocking modules mid-test-file isn't reliable under Jest's ESM
+  // support, so it isn't duplicated here).
 });

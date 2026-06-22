@@ -8,6 +8,7 @@ import providerRouter from './routes/provider.routes.js';
 import agentRouter from './routes/agent.routes.js';
 import threadRouter from './routes/thread.routes.js'; // Added
 import skillRouter from './routes/skill.routes.js';
+import mcpRouter from './routes/mcp.routes.js';
 import aguiRouter from './routes/agui.routes.js';
 import webhookRouter from './routes/webhook.routes.js';
 import uploadRouter from './routes/upload.routes.js';
@@ -59,6 +60,7 @@ app.use('/api/v1/providers', providerRouter);
 app.use('/api/v1/agents', agentRouter);
 app.use('/api/v1/threads', threadRouter);
 app.use('/api/v1/skills', skillRouter);
+app.use('/api/v1/mcps', mcpRouter);
 app.use('/api/v1/upload', uploadRouter);
 
 // Serve uploads folder statically

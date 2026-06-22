@@ -29,6 +29,8 @@ const mockUserFindByIdAndDelete = jest.fn();
 const mockAgentDeleteMany = jest.fn();
 const mockSkillDeleteMany = jest.fn();
 const mockProviderDeleteMany = jest.fn();
+const mockMcpDeleteMany = jest.fn();
+const mockMcpUserConnectionDeleteMany = jest.fn();
 const mockConversationFind = jest.fn();
 const mockConversationDeleteMany = jest.fn();
 const mockCleanupThreads = jest.fn();
@@ -55,6 +57,18 @@ jest.unstable_mockModule('../src/models/Skill.js', () => ({
 jest.unstable_mockModule('../src/models/Provider.js', () => ({
   default: {
     deleteMany: mockProviderDeleteMany,
+  },
+}));
+
+jest.unstable_mockModule('../src/models/Mcp.js', () => ({
+  default: {
+    deleteMany: mockMcpDeleteMany,
+  },
+}));
+
+jest.unstable_mockModule('../src/models/McpUserConnection.js', () => ({
+  default: {
+    deleteMany: mockMcpUserConnectionDeleteMany,
   },
 }));
 
@@ -87,6 +101,8 @@ describe('Cron - deleteInactiveUsers', () => {
     mockAgentDeleteMany.mockResolvedValue();
     mockSkillDeleteMany.mockResolvedValue();
     mockProviderDeleteMany.mockResolvedValue();
+    mockMcpDeleteMany.mockResolvedValue();
+    mockMcpUserConnectionDeleteMany.mockResolvedValue();
     mockUserFindByIdAndDelete.mockResolvedValue();
 
     const deleteInactiveUsers = (await import('../src/cron/deleteInactiveUsers.js')).default;
@@ -98,6 +114,8 @@ describe('Cron - deleteInactiveUsers', () => {
       updatedAt: expect.any(Object),
     });
     expect(mockCleanupThreads).toHaveBeenCalledWith(['t1']);
+    expect(mockMcpDeleteMany).toHaveBeenCalledWith({ ownerId: mockUserId });
+    expect(mockMcpUserConnectionDeleteMany).toHaveBeenCalledWith({ userId: mockUserId });
     expect(mockUserFindByIdAndDelete).toHaveBeenCalledWith(mockUserId);
     expect(result.deletedCount).toBe(1);
     expect(mockLoggerInfo).toHaveBeenCalledWith('Deleted 1 inactive users older than 30 days');
@@ -129,6 +147,8 @@ describe('Cron - deleteInactiveUsers', () => {
     mockAgentDeleteMany.mockResolvedValue();
     mockSkillDeleteMany.mockResolvedValue();
     mockProviderDeleteMany.mockResolvedValue();
+    mockMcpDeleteMany.mockResolvedValue();
+    mockMcpUserConnectionDeleteMany.mockResolvedValue();
     mockUserFindByIdAndDelete.mockResolvedValue();
 
     const deleteInactiveUsers = (await import('../src/cron/deleteInactiveUsers.js')).default;

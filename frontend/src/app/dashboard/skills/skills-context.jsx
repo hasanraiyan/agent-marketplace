@@ -2,11 +2,15 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { getMySkills, getPublicSkills } from "@/lib/api/skills";
+import {
+  getMyMcps,
+  createMcp as createMcpApi,
+  updateMcp as updateMcpApi,
+  deleteMcp as deleteMcpApi,
+} from "@/lib/api/mcps";
 import { toast } from "sonner";
 
 const SkillsContext = createContext();
-
-const DEFAULT_MCPS = [];
 
 export function SkillsProvider({ children }) {
   const [mySkills, setMySkills] = useState([]);
@@ -16,6 +20,7 @@ export function SkillsProvider({ children }) {
   // Connectors / MCP state
   const [activeTab, setActiveTabState] = useState("skills");
   const [mcps, setMcps] = useState([]);
+  const [loadingMcps, setLoadingMcps] = useState(true);
   const [selectedMcpId, setSelectedMcpId] = useState(null);
   const [isCreatingMcp, setIsCreatingMcp] = useState(false);
 
@@ -24,7 +29,8 @@ export function SkillsProvider({ children }) {
     setIsCreatingMcp(false);
   }, []);
 
-  // Sync tab with URL and localStorage
+  // Sync the active connectors tab with the URL/localStorage (pure UI state,
+  // no backend involved).
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -36,24 +42,6 @@ export function SkillsProvider({ children }) {
         if (savedTab === "mcps" || savedTab === "skills") {
           setActiveTabState(savedTab);
         }
-      }
-
-      // Load MCPs
-      const savedMcps = localStorage.getItem("connectors_mcps");
-      if (savedMcps) {
-        try {
-          const parsed = JSON.parse(savedMcps);
-          const filtered = parsed.filter(m => !["github", "google-search", "filesystem", "postgres"].includes(m.id));
-          setMcps(filtered);
-          localStorage.setItem("connectors_mcps", JSON.stringify(filtered));
-        } catch (e) {
-          console.error("Failed to parse saved MCPs, resetting to empty");
-          setMcps([]);
-          localStorage.setItem("connectors_mcps", JSON.stringify([]));
-        }
-      } else {
-        setMcps([]);
-        localStorage.setItem("connectors_mcps", JSON.stringify([]));
       }
     }
   }, []);
@@ -68,86 +56,68 @@ export function SkillsProvider({ children }) {
     }
   }, []);
 
-  const saveMcps = useCallback((updatedMcps) => {
-    setMcps(updatedMcps);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("connectors_mcps", JSON.stringify(updatedMcps));
+  const fetchMcps = useCallback(async () => {
+    try {
+      const res = await getMyMcps();
+      setMcps(res.data?.data || []);
+    } catch (err) {
+      toast.error("Failed to load MCP servers");
+    } finally {
+      setLoadingMcps(false);
     }
   }, []);
 
-  const addMcp = useCallback((newMcp) => {
-    const mcpToAdd = {
-      ...newMcp,
-      id: newMcp.id || `custom-${Date.now()}`,
-      status: newMcp.isEnabled ? "connected" : "disconnected",
-      tools: newMcp.tools || [
-        { name: `${newMcp.name.toLowerCase().replace(/\s+/g, "_")}_tool_1`, description: "Custom tool exported by server" }
-      ]
-    };
-    saveMcps([...mcps, mcpToAdd]);
-    toast.success(`MCP server "${newMcp.name}" added`);
-    return mcpToAdd.id;
-  }, [mcps, saveMcps]);
-
-  const updateMcp = useCallback((id, updatedFields) => {
-    const updated = mcps.map((m) => {
-      if (m.id === id) {
-        const isEnabledChanged = updatedFields.isEnabled !== undefined && updatedFields.isEnabled !== m.isEnabled;
-        let newStatus = m.status;
-        if (isEnabledChanged) {
-          newStatus = updatedFields.isEnabled ? "connected" : "disconnected";
-        }
-        return {
-          ...m,
-          ...updatedFields,
-          status: newStatus
-        };
-      }
-      return m;
-    });
-    saveMcps(updated);
-    toast.success("MCP configuration updated");
-  }, [mcps, saveMcps]);
-
-  const deleteMcp = useCallback((id) => {
-    const updated = mcps.filter((m) => m.id !== id);
-    saveMcps(updated);
-    if (selectedMcpId === id) {
-      setSelectedMcpId(null);
+  const createMcp = useCallback(async (data) => {
+    try {
+      const res = await createMcpApi(data);
+      const created = res.data?.data;
+      setMcps((prev) => [created, ...prev]);
+      toast.success(`MCP server "${created.name}" added`);
+      return created;
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to add MCP server");
+      throw err;
     }
-    toast.success("MCP server deleted");
-  }, [mcps, selectedMcpId, saveMcps]);
+  }, []);
 
-  const toggleMcp = useCallback((id) => {
-    const updated = mcps.map((m) => {
-      if (m.id === id) {
-        const nextEnabled = !m.isEnabled;
-        if (nextEnabled) {
-          // Check if key credentials are filled
-          const missingKeys = Object.entries(m.env || {}).filter(([_, val]) => !val).map(([k]) => k);
-          if (missingKeys.length > 0) {
-            toast.error(`Please configure required keys: ${missingKeys.join(", ")}`);
-            return m;
-          }
-        }
-        return {
-          ...m,
-          isEnabled: nextEnabled,
-          status: nextEnabled ? "connected" : "disconnected"
-        };
-      }
-      return m;
-    });
-    saveMcps(updated);
-    const updatedMcp = updated.find(m => m.id === id);
-    if (updatedMcp) {
-      if (updatedMcp.isEnabled) {
-        toast.success(`MCP server "${updatedMcp.name}" connected`);
-      } else {
-        toast.info(`MCP server "${updatedMcp.name}" disconnected`);
-      }
+  const updateMcp = useCallback(async (id, data) => {
+    try {
+      const res = await updateMcpApi(id, data);
+      const updated = res.data?.data;
+      setMcps((prev) => prev.map((m) => (m._id === id ? updated : m)));
+      toast.success("MCP configuration updated");
+      return updated;
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update MCP server");
+      throw err;
     }
-  }, [mcps, saveMcps]);
+  }, []);
+
+  const deleteMcp = useCallback(
+    async (id) => {
+      try {
+        await deleteMcpApi(id);
+        setMcps((prev) => prev.filter((m) => m._id !== id));
+        if (selectedMcpId === id) {
+          setSelectedMcpId(null);
+        }
+        toast.success("MCP server deleted");
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Failed to delete MCP server");
+        throw err;
+      }
+    },
+    [selectedMcpId]
+  );
+
+  const toggleMcp = useCallback(
+    async (id) => {
+      const current = mcps.find((m) => m._id === id);
+      if (!current) return;
+      await updateMcp(id, { isEnabled: !current.isEnabled });
+    },
+    [mcps, updateMcp]
+  );
 
   const fetchSkills = useCallback(async () => {
     try {
@@ -166,7 +136,8 @@ export function SkillsProvider({ children }) {
 
   useEffect(() => {
     fetchSkills();
-  }, [fetchSkills]);
+    fetchMcps();
+  }, [fetchSkills, fetchMcps]);
 
   return (
     <SkillsContext.Provider
@@ -178,14 +149,16 @@ export function SkillsProvider({ children }) {
         activeTab,
         setActiveTab,
         mcps,
+        loadingMcps,
+        refreshMcps: fetchMcps,
         selectedMcpId,
         setSelectedMcpId: handleSetSelectedMcpId,
         isCreatingMcp,
         setIsCreatingMcp,
-        addMcp,
+        createMcp,
         updateMcp,
         deleteMcp,
-        toggleMcp
+        toggleMcp,
       }}
     >
       {children}

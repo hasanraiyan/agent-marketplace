@@ -1,44 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSkills } from "@/app/dashboard/skills/skills-context";
+import { testMcp, getOwnerAuthorizeUrl } from "@/lib/api/mcps";
+import { toast } from "sonner";
 import {
   Server,
-  Play,
   Settings,
   Trash2,
   CheckCircle2,
   XCircle,
   Plus,
   ArrowRight,
-  Terminal,
   Shield,
-  HelpCircle,
   Globe,
-  Database,
-  Search,
-  Folder,
-  Eye,
-  EyeOff,
-  MessageSquare,
-  Key,
+  Radio,
+  Users,
+  Lock,
   X,
-  Code
+  Code,
+  Link2,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
-
-const Github = (props) => (
-  <svg
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth="2"
-    fill="none"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  >
-    <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
-  </svg>
-);
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,7 +30,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,155 +38,204 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-const MCP_ICONS = {
-  github: Github,
-  search: Search,
-  folder: Folder,
-  database: Database,
-  slack: MessageSquare,
-  custom: Server
-};
 
 export function McpManager() {
   const {
     mcps,
     selectedMcpId,
     setSelectedMcpId,
-    addMcp,
+    isCreatingMcp,
+    setIsCreatingMcp,
+    createMcp,
     updateMcp,
     deleteMcp,
-    toggleMcp
+    toggleMcp,
+    refreshMcps,
   } = useSkills();
 
   const [isEditing, setIsEditing] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showValues, setShowValues] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   // Editing/Creating form state
   const [formName, setFormName] = useState("");
   const [formDesc, setFormDesc] = useState("");
-  const [formType, setFormType] = useState("stdio");
-  const [formCommand, setFormCommand] = useState("");
-  const [formArgs, setFormArgs] = useState("");
+  const [formTransport, setFormTransport] = useState("http");
   const [formUrl, setFormUrl] = useState("");
-  const [formEnv, setFormEnv] = useState([]); // [{key, value}]
+  const [formAuthType, setFormAuthType] = useState("none");
+  const [formAuthMode, setFormAuthMode] = useState("owner");
+  const [formClientId, setFormClientId] = useState("");
+  const [formClientSecret, setFormClientSecret] = useState("");
 
-  const activeMcp = mcps.find((m) => m.id === selectedMcpId);
+  const activeMcp = mcps.find((m) => m._id === selectedMcpId);
+  const isCreating = isCreatingMcp;
+
+  // Pick up the OAuth callback redirect (?mcpId=&connected=owner or ?error=)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get("connected");
+    const mcpId = params.get("mcpId");
+    const error = params.get("error");
+
+    if (connected === "owner" && mcpId) {
+      setSelectedMcpId(mcpId);
+      refreshMcps();
+      toast.success("Connected successfully");
+    } else if (error === "oauth_failed") {
+      toast.error("OAuth connection failed. Please try again.");
+    }
+
+    if (connected || error || mcpId) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("connected");
+      url.searchParams.delete("mcpId");
+      url.searchParams.delete("error");
+      window.history.replaceState({}, "", url.toString());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const resetForm = () => {
+    setFormName("");
+    setFormDesc("");
+    setFormTransport("http");
+    setFormUrl("");
+    setFormAuthType("none");
+    setFormAuthMode("owner");
+    setFormClientId("");
+    setFormClientSecret("");
+  };
 
   const handleStartEdit = () => {
     if (activeMcp) {
       setFormName(activeMcp.name);
       setFormDesc(activeMcp.description || "");
-      setFormType(activeMcp.type || "stdio");
-      setFormCommand(activeMcp.command || "");
-      setFormArgs(activeMcp.args || "");
+      setFormTransport(activeMcp.transport || "http");
       setFormUrl(activeMcp.url || "");
-      
-      const envPairs = Object.entries(activeMcp.env || {}).map(([key, value]) => ({
-        key,
-        value
-      }));
-      setFormEnv(envPairs);
+      setFormAuthType(activeMcp.authType || "none");
+      setFormAuthMode(activeMcp.authMode || "owner");
+      setFormClientId(activeMcp.oauth?.clientId || "");
+      setFormClientSecret("");
       setIsEditing(true);
-      setIsCreating(false);
+      setIsCreatingMcp(false);
     }
   };
 
   const handleCreateNew = () => {
-    setFormName("");
-    setFormDesc("");
-    setFormType("stdio");
-    setFormCommand("");
-    setFormArgs("");
-    setFormUrl("");
-    setFormEnv([]);
-    setIsCreating(true);
+    resetForm();
+    setIsCreatingMcp(true);
     setIsEditing(false);
   };
 
-  const handleAddEnvRow = () => {
-    setFormEnv([...formEnv, { key: "", value: "" }]);
+  const handleCancelForm = () => {
+    setIsCreatingMcp(false);
+    setIsEditing(false);
   };
 
-  const handleRemoveEnvRow = (index) => {
-    setFormEnv(formEnv.filter((_, i) => i !== index));
-  };
-
-  const handleEnvChange = (index, field, value) => {
-    const updated = [...formEnv];
-    updated[index][field] = value;
-    setFormEnv(updated);
-  };
-
-  const toggleShowValue = (key) => {
-    setShowValues((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formName.trim()) {
-      alert("Name is required");
+      toast.error("Name is required");
+      return;
+    }
+    if (!formUrl.trim()) {
+      toast.error("Server URL is required");
+      return;
+    }
+    if (formAuthType === "oauth" && !formClientId.trim()) {
+      toast.error("Client ID is required for OAuth");
+      return;
+    }
+    if (formAuthType === "oauth" && isCreating && !formClientSecret.trim()) {
+      toast.error("Client Secret is required for OAuth");
       return;
     }
 
-    const envObj = {};
-    formEnv.forEach((pair) => {
-      if (pair.key.trim()) {
-        envObj[pair.key.trim()] = pair.value;
-      }
-    });
-
-    const mcpData = {
+    const payload = {
       name: formName,
       description: formDesc,
-      type: formType,
-      command: formType === "stdio" ? formCommand : "",
-      args: formType === "stdio" ? formArgs : "",
-      url: formType === "sse" ? formUrl : "",
-      env: envObj,
-      icon: activeMcp?.icon || "custom"
+      transport: formTransport,
+      url: formUrl,
+      authType: formAuthType,
+      authMode: formAuthMode,
+      ...(formAuthType === "oauth"
+        ? {
+            oauth: {
+              clientId: formClientId,
+              ...(formClientSecret.trim() ? { clientSecret: formClientSecret } : {}),
+            },
+          }
+        : {}),
     };
 
-    if (isCreating) {
-      const newId = addMcp({
-        ...mcpData,
-        isEnabled: false
-      });
-      setSelectedMcpId(newId);
-      setIsCreating(false);
-    } else {
-      updateMcp(activeMcp.id, mcpData);
-      setIsEditing(false);
+    setIsSaving(true);
+    try {
+      if (isCreating) {
+        const created = await createMcp(payload);
+        setSelectedMcpId(created._id);
+        setIsCreatingMcp(false);
+      } else {
+        await updateMcp(activeMcp._id, payload);
+        setIsEditing(false);
+      }
+    } catch {
+      // toasts are already shown by the context
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (activeMcp) {
-      deleteMcp(activeMcp.id);
+      await deleteMcp(activeMcp._id);
       setShowDeleteDialog(false);
     }
   };
 
-  const renderIcon = (iconName, className = "size-5") => {
-    const IconComp = MCP_ICONS[iconName] || Server;
-    return <IconComp className={className} />;
-  };
+  const handleTestConnection = useCallback(async () => {
+    if (!activeMcp) return;
+    setIsTesting(true);
+    try {
+      const res = await testMcp(activeMcp._id);
+      const tools = res.data?.data || [];
+      await refreshMcps();
+      toast.success(`Connection successful — ${tools.length} tool(s) found`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Connection test failed");
+    } finally {
+      setIsTesting(false);
+    }
+  }, [activeMcp, refreshMcps]);
+
+  const handleConnectOwner = useCallback(async () => {
+    if (!activeMcp) return;
+    setIsConnecting(true);
+    try {
+      const res = await getOwnerAuthorizeUrl(activeMcp._id);
+      const url = res.data?.data?.url;
+      if (url) window.location.href = url;
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to start OAuth connection");
+      setIsConnecting(false);
+    }
+  }, [activeMcp]);
 
   return (
     <div className="flex flex-col h-full bg-background animate-in fade-in duration-300">
       {/* Sticky Header */}
       <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4 flex items-center justify-between">
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="rounded-lg bg-primary/10 p-2 text-primary shrink-0 animate-pulse">
+          <div className="rounded-lg bg-primary/10 p-2 text-primary shrink-0">
             <Server className="size-5" />
           </div>
           <div className="overflow-hidden">
             <h1 className="text-xl font-bold truncate">Model Context Protocol</h1>
             <p className="text-xs text-muted-foreground truncate">
-              Connect external databases, APIs, and CLI tools directly to your AI agents.
+              Connect remote MCP servers to extend your agents&apos; capabilities.
             </p>
           </div>
         </div>
@@ -224,14 +256,7 @@ export function McpManager() {
               <h2 className="text-lg font-bold">
                 {isCreating ? "Register New MCP Server" : `Edit ${formName}`}
               </h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setIsCreating(false);
-                  setIsEditing(false);
-                }}
-              >
+              <Button variant="ghost" size="sm" onClick={handleCancelForm}>
                 <X className="size-4 mr-2" />
                 Cancel
               </Button>
@@ -242,7 +267,7 @@ export function McpManager() {
                 <Label htmlFor="mcp-name">Server Name</Label>
                 <Input
                   id="mcp-name"
-                  placeholder="e.g. SQLite database, Slack connector"
+                  placeholder="e.g. Coursify, Linear, Notion"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                 />
@@ -260,141 +285,114 @@ export function McpManager() {
               </div>
 
               <div className="space-y-2">
-                <Label>Connection Type</Label>
+                <Label>Transport</Label>
                 <div className="grid grid-cols-2 gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setFormType("stdio")}
-                    className={`p-4 border rounded-xl flex flex-col items-center gap-2 transition-all hover:bg-muted/50 ${
-                      formType === "stdio"
-                        ? "border-primary bg-primary/5 text-primary font-semibold ring-2 ring-primary/20"
-                        : "border-muted"
-                    }`}
-                  >
-                    <Terminal className="size-6" />
-                    <span className="text-sm">Local Command (STDIO)</span>
-                    <span className="text-[10px] text-muted-foreground font-normal">
-                      Runs node/python scripts or local binaries.
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormType("sse")}
-                    className={`p-4 border rounded-xl flex flex-col items-center gap-2 transition-all hover:bg-muted/50 ${
-                      formType === "sse"
-                        ? "border-primary bg-primary/5 text-primary font-semibold ring-2 ring-primary/20"
-                        : "border-muted"
-                    }`}
-                  >
-                    <Globe className="size-6" />
-                    <span className="text-sm">Remote SSE URL</span>
-                    <span className="text-[10px] text-muted-foreground font-normal">
-                      Connects to a hosted SSE server endpoint.
-                    </span>
-                  </button>
+                  <SelectCard
+                    active={formTransport === "http"}
+                    onClick={() => setFormTransport("http")}
+                    icon={Globe}
+                    title="Streamable HTTP"
+                    subtitle="Standard remote MCP transport."
+                  />
+                  <SelectCard
+                    active={formTransport === "sse"}
+                    onClick={() => setFormTransport("sse")}
+                    icon={Radio}
+                    title="Server-Sent Events"
+                    subtitle="Legacy SSE transport."
+                  />
                 </div>
               </div>
 
-              {formType === "stdio" ? (
-                <div className="space-y-4 border p-4 rounded-xl bg-muted/10">
+              <div className="space-y-2">
+                <Label htmlFor="mcp-url">Server URL</Label>
+                <Input
+                  id="mcp-url"
+                  placeholder="https://my-mcp-server.com/api/mcp"
+                  value={formUrl}
+                  onChange={(e) => setFormUrl(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Authentication</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <SelectCard
+                    active={formAuthType === "none"}
+                    onClick={() => setFormAuthType("none")}
+                    icon={Globe}
+                    title="None"
+                    subtitle="Open access, no credentials."
+                  />
+                  <SelectCard
+                    active={formAuthType === "oauth"}
+                    onClick={() => setFormAuthType("oauth")}
+                    icon={Lock}
+                    title="OAuth 2.1"
+                    subtitle="Client ID + Secret, PKCE flow."
+                  />
+                </div>
+              </div>
+
+              {formAuthType === "oauth" && (
+                <div className="space-y-5 border p-4 rounded-xl bg-muted/10">
                   <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                    Process Configuration
+                    OAuth Credentials
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="md:col-span-1 space-y-2">
-                      <Label htmlFor="mcp-cmd">Executable / Cmd</Label>
+                  <p className="text-[11px] text-muted-foreground -mt-3">
+                    Authorization and token endpoints are auto-discovered from the server&apos;s{" "}
+                    <code>/.well-known</code> metadata. Dynamic Client Registration isn&apos;t used —
+                    enter the Client ID/Secret you registered manually with the server.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="mcp-client-id">Client ID</Label>
                       <Input
-                        id="mcp-cmd"
-                        placeholder="npx, python, etc."
-                        value={formCommand}
-                        onChange={(e) => setFormCommand(e.target.value)}
+                        id="mcp-client-id"
+                        value={formClientId}
+                        onChange={(e) => setFormClientId(e.target.value)}
                       />
                     </div>
-                    <div className="md:col-span-3 space-y-2">
-                      <Label htmlFor="mcp-args">Command Arguments</Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="mcp-client-secret">Client Secret</Label>
                       <Input
-                        id="mcp-args"
-                        placeholder="-y @modelcontextprotocol/server-postgres"
-                        value={formArgs}
-                        onChange={(e) => setFormArgs(e.target.value)}
+                        id="mcp-client-secret"
+                        type="password"
+                        placeholder={!isCreating ? "Leave blank to keep current secret" : ""}
+                        value={formClientSecret}
+                        onChange={(e) => setFormClientSecret(e.target.value)}
                       />
                     </div>
                   </div>
 
-                  {/* Environment Variables */}
                   <div className="space-y-2 pt-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs font-bold text-muted-foreground">
-                        Environment Variables
-                      </Label>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="xs"
-                        onClick={handleAddEnvRow}
-                        className="h-7 text-[10px]"
-                      >
-                        <Plus className="size-3 mr-1" /> Add Row
-                      </Button>
+                    <Label>Who authenticates?</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <SelectCard
+                        active={formAuthMode === "owner"}
+                        onClick={() => setFormAuthMode("owner")}
+                        icon={Link2}
+                        title="Shared — you connect once"
+                        subtitle="Every user of an agent using this connector shares your connection."
+                      />
+                      <SelectCard
+                        active={formAuthMode === "user"}
+                        onClick={() => setFormAuthMode("user")}
+                        icon={Users}
+                        title="Per-user"
+                        subtitle="Each user connects their own account before using its tools."
+                      />
                     </div>
-                    {formEnv.length > 0 ? (
-                      <div className="space-y-2">
-                        {formEnv.map((pair, idx) => (
-                          <div key={idx} className="flex gap-2 items-center">
-                            <Input
-                              placeholder="KEY"
-                              className="font-mono text-xs h-8"
-                              value={pair.key}
-                              onChange={(e) => handleEnvChange(idx, "key", e.target.value)}
-                            />
-                            <Input
-                              placeholder="VALUE"
-                              type="password"
-                              className="font-mono text-xs h-8"
-                              value={pair.value}
-                              onChange={(e) => handleEnvChange(idx, "value", e.target.value)}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive h-8 w-8 hover:bg-destructive/10"
-                              onClick={() => handleRemoveEnvRow(idx)}
-                            >
-                              <X className="size-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-[10px] text-muted-foreground italic">
-                        No custom variables set. Standard user context applies.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4 border p-4 rounded-xl bg-muted/10">
-                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                    Server HTTP Endpoint
-                  </h3>
-                  <div className="space-y-2">
-                    <Label htmlFor="mcp-url">Server URL</Label>
-                    <Input
-                      id="mcp-url"
-                      placeholder="https://my-mcp-server.com/sse"
-                      value={formUrl}
-                      onChange={(e) => setFormUrl(e.target.value)}
-                    />
                   </div>
                 </div>
               )}
 
               <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => { setIsCreating(false); setIsEditing(false); }}>
+                <Button variant="outline" onClick={handleCancelForm}>
                   Cancel
                 </Button>
-                <Button onClick={handleSave}>
+                <Button onClick={handleSave} disabled={isSaving}>
+                  {isSaving && <Loader2 className="size-4 mr-2 animate-spin" />}
                   Save Server
                 </Button>
               </div>
@@ -406,26 +404,12 @@ export function McpManager() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-6">
               <div className="flex gap-4 items-start">
                 <div className="rounded-xl border bg-muted p-3 text-foreground shrink-0 shadow-sm">
-                  {renderIcon(activeMcp.icon, "size-6 text-primary")}
+                  <Server className="size-6 text-primary" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="text-xl font-bold">{activeMcp.name}</h2>
-                    <Badge
-                      variant={activeMcp.isEnabled ? "success" : "outline"}
-                      className={
-                        activeMcp.isEnabled
-                          ? "bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/20 border-emerald-500/20"
-                          : "text-muted-foreground"
-                      }
-                    >
-                      {activeMcp.isEnabled ? (
-                        <CheckCircle2 className="mr-1 size-3" />
-                      ) : (
-                        <XCircle className="mr-1 size-3" />
-                      )}
-                      {activeMcp.isEnabled ? "Connected" : "Disconnected"}
-                    </Badge>
+                    <StatusBadge mcp={activeMcp} />
                   </div>
                   <p className="text-sm text-muted-foreground mt-1 max-w-xl">
                     {activeMcp.description}
@@ -435,10 +419,10 @@ export function McpManager() {
 
               <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                 <div className="flex items-center gap-2 border rounded-lg px-3 py-1.5 bg-card">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase">Enable:</span>
+                  <span className="text-xs font-semibold text-muted-foreground uppercase">Enabled:</span>
                   <Switch
                     checked={activeMcp.isEnabled}
-                    onCheckedChange={() => toggleMcp(activeMcp.id)}
+                    onCheckedChange={() => toggleMcp(activeMcp._id)}
                   />
                 </div>
                 <Button variant="outline" size="sm" onClick={handleStartEdit}>
@@ -460,80 +444,97 @@ export function McpManager() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Settings / Specs */}
               <div className="lg:col-span-2 space-y-6">
-                {/* Connection detail card */}
                 <Card className="p-5 space-y-4">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Connection Method
-                  </h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Connection
+                    </h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[11px]"
+                      onClick={handleTestConnection}
+                      disabled={isTesting}
+                    >
+                      {isTesting && <Loader2 className="size-3 mr-1.5 animate-spin" />}
+                      Test Connection
+                    </Button>
+                  </div>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center text-sm border-b pb-2">
-                      <span className="text-muted-foreground">Type:</span>
-                      <span className="font-semibold capitalize">{activeMcp.type || "stdio"}</span>
+                      <span className="text-muted-foreground">Transport:</span>
+                      <span className="font-semibold uppercase">{activeMcp.transport}</span>
                     </div>
 
-                    {activeMcp.type === "stdio" ? (
-                      <>
-                        <div className="space-y-1.5">
-                          <span className="text-xs text-muted-foreground font-semibold">Command Line Command:</span>
-                          <div className="p-3 bg-muted rounded-lg font-mono text-xs flex items-center justify-between group">
-                            <span className="truncate">{activeMcp.command} {activeMcp.args}</span>
-                          </div>
+                    <div className="space-y-1.5">
+                      <span className="text-xs text-muted-foreground font-semibold">Server URL:</span>
+                      <div className="p-3 bg-muted rounded-lg font-mono text-xs truncate">
+                        {activeMcp.url}
+                      </div>
+                    </div>
+
+                    {activeMcp.authType === "oauth" ? (
+                      <div className="space-y-3 pt-2">
+                        <div className="flex justify-between items-center text-sm border-b pb-2">
+                          <span className="text-muted-foreground">Client ID:</span>
+                          <span className="font-mono text-xs">{activeMcp.oauth?.clientId}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm border-b pb-2">
+                          <span className="text-muted-foreground">Client Secret:</span>
+                          <span className="font-mono text-xs">
+                            {activeMcp.oauth?.hasClientSecret ? "••••••••••••" : "Not set"}
+                          </span>
                         </div>
 
-                        <div className="space-y-2 pt-2">
-                          <span className="text-xs text-muted-foreground font-semibold flex items-center gap-1">
-                            <Key className="size-3.5" /> Environment Variables
-                          </span>
-                          {Object.keys(activeMcp.env || {}).length > 0 ? (
-                            <div className="border rounded-lg overflow-hidden divide-y text-xs font-mono">
-                              {Object.entries(activeMcp.env).map(([key, val]) => (
-                                <div key={key} className="flex justify-between items-center p-2.5 bg-card">
-                                  <span className="text-muted-foreground truncate pr-2">{key}</span>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-foreground">
-                                      {showValues[key] ? val : "••••••••••••"}
-                                    </span>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="size-6 text-muted-foreground hover:text-foreground"
-                                      onClick={() => toggleShowValue(key)}
-                                    >
-                                      {showValues[key] ? (
-                                        <EyeOff className="size-3" />
-                                      ) : (
-                                        <Eye className="size-3" />
-                                      )}
-                                    </Button>
-                                  </div>
-                                </div>
-                              ))}
+                        {activeMcp.authMode === "owner" ? (
+                          <div className="flex items-center justify-between pt-2">
+                            <div className="flex items-center gap-2 text-sm">
+                              {activeMcp.oauth?.ownerConnected ? (
+                                <>
+                                  <CheckCircle2 className="size-4 text-emerald-500" />
+                                  <span>Connected</span>
+                                </>
+                              ) : (
+                                <>
+                                  <XCircle className="size-4 text-amber-500" />
+                                  <span>Not connected</span>
+                                </>
+                              )}
                             </div>
-                          ) : (
-                            <p className="text-xs text-muted-foreground italic">
-                              No special credentials or environmental parameters configured.
-                            </p>
-                          )}
-                        </div>
-                      </>
-                    ) : (
-                      <div className="space-y-1.5">
-                        <span className="text-xs text-muted-foreground font-semibold">Server SSE URL:</span>
-                        <div className="p-3 bg-muted rounded-lg font-mono text-xs truncate">
-                          {activeMcp.url}
-                        </div>
+                            <Button
+                              size="sm"
+                              variant={activeMcp.oauth?.ownerConnected ? "outline" : "default"}
+                              onClick={handleConnectOwner}
+                              disabled={isConnecting}
+                            >
+                              {isConnecting && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
+                              {activeMcp.oauth?.ownerConnected ? "Reconnect" : "Connect"}
+                            </Button>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground italic pt-2">
+                            Per-user authentication: each user of an agent using this connector
+                            will be prompted to connect their own account before its tools become
+                            available to them.
+                          </p>
+                        )}
                       </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic pt-2">
+                        No authentication — this server accepts requests without credentials.
+                      </p>
                     )}
                   </div>
                 </Card>
 
-                {/* Info Disclaimer */}
                 <div className="rounded-xl border border-dashed p-4 flex gap-3 bg-primary/5">
                   <Shield className="size-5 text-primary shrink-0 mt-0.5" />
                   <div className="text-xs space-y-1">
                     <p className="font-semibold">Security Boundary</p>
                     <p className="text-muted-foreground leading-relaxed">
-                      MCP servers run in their own sandboxed sub-processes on the host platform. Only expose command directories, database access credentials, and slack API key scopes that you intend your agents to query or write to.
+                      Client secrets and OAuth tokens are encrypted at rest and never shown after
+                      they&apos;re saved. Only attach servers you trust with the data your agents can
+                      access.
                     </p>
                   </div>
                 </div>
@@ -545,9 +546,21 @@ export function McpManager() {
                   <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                     <Code className="size-3.5 text-primary" /> Tools Exchanged
                   </h3>
-                  <Badge variant="secondary" className="rounded-full">
-                    {activeMcp.tools?.length || 0}
-                  </Badge>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="secondary" className="rounded-full">
+                      {activeMcp.tools?.length || 0}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-6 text-muted-foreground hover:text-foreground"
+                      title="Refresh tools"
+                      onClick={handleTestConnection}
+                      disabled={isTesting}
+                    >
+                      <RefreshCw className={`size-3.5 ${isTesting ? "animate-spin" : ""}`} />
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="space-y-2 max-h-[450px] overflow-y-auto pr-1">
@@ -567,7 +580,7 @@ export function McpManager() {
                     ))
                   ) : (
                     <p className="text-xs text-muted-foreground italic text-center py-6 border border-dashed rounded-lg">
-                      No tools exposed by this server.
+                      No tools discovered yet. Run &quot;Test Connection&quot; to fetch them.
                     </p>
                   )}
                 </div>
@@ -583,7 +596,8 @@ export function McpManager() {
                   Extend agents with Model Context Protocol
                 </h2>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Model Context Protocol (MCP) is an open standard that allows secure connection between LLMs and your local or remote file hierarchies, postgres databases, CLI tools, and private APIs.
+                  Model Context Protocol (MCP) is an open standard that connects LLMs to remote
+                  APIs and tools over Streamable HTTP or SSE, optionally protected by OAuth 2.1.
                 </p>
                 <div className="flex items-center justify-center md:justify-start gap-3 pt-2">
                   <a
@@ -596,75 +610,59 @@ export function McpManager() {
                   </a>
                 </div>
               </div>
-              <div className="shrink-0 size-24 bg-card rounded-2xl border flex items-center justify-center shadow-lg transform hover:scale-105 transition-transform duration-300">
+              <div className="shrink-0 size-24 bg-card rounded-2xl border flex items-center justify-center shadow-lg">
                 <Server className="size-12 text-primary" />
               </div>
             </div>
 
-            {/* Configured MCP Servers List or Empty State */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
                   Configured MCP Servers
                 </h3>
               </div>
-              
+
               {mcps.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {mcps.map((mcp) => {
-                    const isConfigured = mcp.isEnabled || Object.values(mcp.env || {}).some(v => v);
-                    return (
-                      <Card
-                        key={mcp.id}
-                        className="p-5 flex flex-col justify-between hover:border-primary/20 transition-all duration-300"
-                      >
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-start">
-                            <div className="rounded-lg bg-muted p-2 text-foreground">
-                              {renderIcon(mcp.icon, "size-5 text-primary")}
-                            </div>
-                            {mcp.isEnabled ? (
-                              <Badge variant="success" className="bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/20 border-emerald-500/20">
-                                Connected
-                              </Badge>
-                            ) : isConfigured ? (
-                              <Badge variant="outline" className="text-amber-500 border-amber-500/20">
-                                Configured
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-muted-foreground">
-                                Disconnected
-                              </Badge>
-                            )}
+                  {mcps.map((mcp) => (
+                    <Card
+                      key={mcp._id}
+                      className="p-5 flex flex-col justify-between hover:border-primary/20 transition-all duration-300"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-start">
+                          <div className="rounded-lg bg-muted p-2 text-foreground">
+                            <Server className="size-5 text-primary" />
                           </div>
-
-                          <div>
-                            <h4 className="font-bold text-sm">{mcp.name}</h4>
-                            {mcp.description && (
-                              <p className="text-xs text-muted-foreground leading-relaxed mt-1">
-                                {mcp.description}
-                              </p>
-                            )}
-                          </div>
+                          <StatusBadge mcp={mcp} />
                         </div>
 
-                        <div className="flex items-center justify-between border-t pt-4 mt-4">
-                          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                            <Code className="size-3" />
-                            <span>{mcp.tools?.length || 0} tools</span>
-                          </div>
-                          <Button
-                            variant={mcp.isEnabled ? "outline" : "default"}
-                            size="sm"
-                            className="h-8 text-xs"
-                            onClick={() => setSelectedMcpId(mcp.id)}
-                          >
-                            {mcp.isEnabled ? "View Config" : "Setup Server"}
-                          </Button>
+                        <div>
+                          <h4 className="font-bold text-sm">{mcp.name}</h4>
+                          {mcp.description && (
+                            <p className="text-xs text-muted-foreground leading-relaxed mt-1">
+                              {mcp.description}
+                            </p>
+                          )}
                         </div>
-                      </Card>
-                    );
-                  })}
+                      </div>
+
+                      <div className="flex items-center justify-between border-t pt-4 mt-4">
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                          <Code className="size-3" />
+                          <span>{mcp.tools?.length || 0} tools</span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs"
+                          onClick={() => setSelectedMcpId(mcp._id)}
+                        >
+                          View Config
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
                 </div>
               ) : (
                 <div className="rounded-2xl border border-dashed p-10 flex flex-col items-center justify-center text-center bg-muted/5 min-h-[220px]">
@@ -673,7 +671,7 @@ export function McpManager() {
                   </div>
                   <h4 className="font-bold text-sm text-foreground mb-1">No MCP Servers Configured</h4>
                   <p className="text-xs text-muted-foreground max-w-sm mb-6 leading-relaxed">
-                    You haven't configured any local command-line executables or remote Server-Sent Event (SSE) endpoints yet.
+                    You haven&apos;t connected any remote HTTP or SSE MCP servers yet.
                   </p>
                   <Button size="sm" onClick={handleCreateNew}>
                     <Plus className="size-4 mr-2" />
@@ -692,17 +690,85 @@ export function McpManager() {
           <AlertDialogHeader>
             <AlertDialogTitle>Remove MCP Server?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the <strong>{activeMcp?.name}</strong> connection configuration. Any agents expecting its tools to be active will fail during execution.
+              This will permanently delete the <strong>{activeMcp?.name}</strong> connection
+              configuration, unassign it from every agent, and remove any per-user connections.
+              Agents expecting its tools to be active will fail during execution.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+function SelectCard({ active, onClick, icon: Icon, title, subtitle }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`p-4 border rounded-xl flex flex-col items-center gap-2 text-center transition-all hover:bg-muted/50 ${
+        active
+          ? "border-primary bg-primary/5 text-primary font-semibold ring-2 ring-primary/20"
+          : "border-muted"
+      }`}
+    >
+      <Icon className="size-6" />
+      <span className="text-sm">{title}</span>
+      <span className="text-[10px] text-muted-foreground font-normal">{subtitle}</span>
+    </button>
+  );
+}
+
+function StatusBadge({ mcp }) {
+  if (!mcp.isEnabled) {
+    return (
+      <Badge variant="outline" className="text-muted-foreground">
+        Disabled
+      </Badge>
+    );
+  }
+
+  if (mcp.authType === "oauth" && mcp.authMode === "user") {
+    return (
+      <Badge variant="outline" className="text-sky-600 border-sky-500/20">
+        <Users className="mr-1 size-3" />
+        Per-user auth
+      </Badge>
+    );
+  }
+
+  if (mcp.authType === "oauth" && mcp.authMode === "owner") {
+    return mcp.oauth?.ownerConnected ? (
+      <Badge
+        variant="success"
+        className="bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/20 border-emerald-500/20"
+      >
+        <CheckCircle2 className="mr-1 size-3" />
+        Connected
+      </Badge>
+    ) : (
+      <Badge variant="outline" className="text-amber-500 border-amber-500/20">
+        Needs Connection
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge
+      variant="success"
+      className="bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/20 border-emerald-500/20"
+    >
+      <CheckCircle2 className="mr-1 size-3" />
+      Ready
+    </Badge>
   );
 }
