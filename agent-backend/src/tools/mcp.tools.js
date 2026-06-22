@@ -46,7 +46,12 @@ export async function resolveMcpTools(agent, userId) {
 
       logger.info(`[MCP] Preparing connection to server "${mcp.name}" (id: ${mcp._id}, url: ${mcp.url})`);
 
-      const serverKey = String(mcp._id);
+      const serverKey = mcp.name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]/g, '_')
+        .replace(/_+/g, '_');
+
       mcpServers[serverKey] = {
         transport: mcp.transport,
         url: mcp.url,
@@ -68,6 +73,7 @@ export async function resolveMcpTools(agent, userId) {
     mcpServers,
     throwOnLoadError: false,
     onConnectionError: 'ignore',
+    prefixToolNameWithServerName: true,
   });
 
   try {

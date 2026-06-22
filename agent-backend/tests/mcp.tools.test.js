@@ -41,7 +41,8 @@ describe('resolveMcpTools', () => {
 
     expect(tools).toEqual([{ name: 'tool_a' }]);
     const [[config]] = MultiServerMCPClient.mock.calls;
-    expect(config.mcpServers.mcp1).toEqual({ transport: 'http', url: 'https://x.com/mcp' });
+    expect(config.prefixToolNameWithServerName).toBe(true);
+    expect(config.mcpServers.public_mcp).toEqual({ transport: 'http', url: 'https://x.com/mcp' });
   });
 
   it('attaches a bearer header for an owner-mode oauth server', async () => {
@@ -64,7 +65,8 @@ describe('resolveMcpTools', () => {
     await resolveMcpTools(agent, 'user1');
 
     const [[config]] = MultiServerMCPClient.mock.calls;
-    expect(config.mcpServers.mcp1.headers).toEqual({ Authorization: 'Bearer owner-token' });
+    expect(config.prefixToolNameWithServerName).toBe(true);
+    expect(config.mcpServers.owner_mcp.headers).toEqual({ Authorization: 'Bearer owner-token' });
   });
 
   it('skips a user-mode oauth server the current user has not connected', async () => {
@@ -117,6 +119,6 @@ describe('resolveMcpTools', () => {
 
     expect(tools).toEqual([{ name: 'tool_b' }]);
     const [[config]] = MultiServerMCPClient.mock.calls;
-    expect(Object.keys(config.mcpServers)).toEqual(['fine']);
+    expect(Object.keys(config.mcpServers)).toEqual(['fine_mcp']);
   });
 });
