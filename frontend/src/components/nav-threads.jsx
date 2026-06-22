@@ -252,17 +252,17 @@ export function NavThreads({
     <Collapsible
       open={isOpen}
       onOpenChange={setIsOpen}
-      className="group/collapsible"
+      className="group/collapsible data-[state=open]:flex-1 data-[state=open]:min-h-0 flex flex-col overflow-hidden"
     >
-      <SidebarGroup className="group-data-[collapsible=icon]:hidden pr-0">
+      <SidebarGroup className="group-data-[collapsible=icon]:hidden pr-0 group-data-[state=open]/collapsible:flex-1 group-data-[state=open]/collapsible:min-h-0 flex flex-col overflow-hidden">
         <SidebarGroupLabel asChild className="cursor-pointer select-none hover:text-sidebar-foreground transition-colors pr-3">
           <CollapsibleTrigger className="flex w-full items-center justify-between">
             <span>Threads</span>
             <ChevronRightIcon className="size-3.5 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 text-muted-foreground" />
           </CollapsibleTrigger>
         </SidebarGroupLabel>
-        <CollapsibleContent>
-          <div className="max-h-[calc(100vh-320px)] overflow-y-auto select-none no-scrollbar">
+        <CollapsibleContent className="group-data-[state=open]/collapsible:flex-1 group-data-[state=open]/collapsible:min-h-0 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto select-none no-scrollbar min-h-0">
             <SidebarMenu>
               {allThreads.length === 0 ? (
                 <SidebarMenuItem>
