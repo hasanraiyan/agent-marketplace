@@ -46,6 +46,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { searchAgents, deleteAgent } from "@/lib/api/agents";
@@ -60,6 +61,7 @@ const VISIBILITY_CONFIG = {
 };
 
 export default function MyAgentsPage() {
+  const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
