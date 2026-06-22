@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { toast } from "sonner";
@@ -79,7 +79,7 @@ function InlineRename({ currentTitle, onConfirm, onCancel }) {
 }
 
 // ─── Single thread item ───────────────────────────────────────────────────────
-function ThreadItem({ thread, isActive, onRename, onDelete }) {
+function ThreadItem({ thread, agent, isActive, onRename, onDelete }) {
   const [renaming, setRenaming] = useState(false);
   const { isMobile } = useSidebar();
   const threadId = thread._id || thread.id;
@@ -103,12 +103,12 @@ function ThreadItem({ thread, isActive, onRename, onDelete }) {
   };
 
   return (
-    <SidebarMenuSubItem>
-      <SidebarMenuSubButton
-        asChild={!renaming && !thread.agentId?.isDeleted}
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild={!renaming && !agent?.isDeleted}
         isActive={isActive}
         className={cn(
-          "group/thread h-7 gap-1.5",
+          "group/thread h-8 gap-2 pr-8",
           isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
         )}
       >
@@ -118,32 +118,44 @@ function ThreadItem({ thread, isActive, onRename, onDelete }) {
             onConfirm={handleConfirmRename}
             onCancel={() => setRenaming(false)}
           />
-        ) : thread.agentId?.isDeleted ? (
-          <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden opacity-60 grayscale">
-            <MessageSquareIcon className="size-3 shrink-0 text-muted-foreground" />
+        ) : agent?.isDeleted ? (
+          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden opacity-60 grayscale">
+            <Avatar className="size-4 shrink-0">
+              <AvatarFallback className="bg-muted text-[8px]">
+                <BotIcon className="size-2.5" />
+              </AvatarFallback>
+            </Avatar>
             <span className="min-w-0 flex-1 truncate text-xs">
               {thread.title || "New Conversation"}
             </span>
           </div>
         ) : (
           <Link
-            href={`/dashboard/agents/${thread.agentId?._id || thread.agentId?.id || thread.agentId}/run?threadId=${threadId}`}
-            className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden"
+            href={`/dashboard/agents/${agent?._id || agent?.id || thread.agentId?._id || thread.agentId?.id || thread.agentId}/run?threadId=${threadId}`}
+            className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden"
           >
-            <MessageSquareIcon className="size-3 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1 truncate text-xs">
+            <Avatar className="size-4 shrink-0">
+              <AvatarImage
+                src={agent?.avatarUrl || agent?.avatar}
+                alt={agent?.name || "Agent"}
+              />
+              <AvatarFallback className="bg-muted text-[8px]">
+                <BotIcon className="size-2.5" />
+              </AvatarFallback>
+            </Avatar>
+            <span className="min-w-0 flex-1 truncate text-xs font-medium">
               {thread.title || "New Conversation"}
             </span>
           </Link>
         )}
-      </SidebarMenuSubButton>
+      </SidebarMenuButton>
 
       {!renaming && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuAction
               showOnHover
-              className="right-0.5 top-0.5 size-5 rounded"
+              className="right-1 top-1.5 size-5 rounded"
             >
               <MoreHorizontalIcon className="size-3" />
               <span className="sr-only">More</span>
@@ -166,64 +178,7 @@ function ThreadItem({ thread, isActive, onRename, onDelete }) {
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-    </SidebarMenuSubItem>
-  );
-}
-
-// ─── Agent group ─────────────────────────────────────────────────────────────
-function AgentGroup({ group, activeThreadId, onRename, onDelete }) {
-  const { agent, threads } = group;
-  const agentId = agent._id || agent.id;
-  const hasActive = threads.some((t) => (t._id || t.id) === activeThreadId);
-  // Start open if the active thread belongs to this agent
-  const [open, setOpen] = useState(hasActive);
-
-  return (
-    <Collapsible
-      open={open}
-      onOpenChange={setOpen}
-      className="group/collapsible"
-    >
-      <SidebarMenuItem>
-        <CollapsibleTrigger asChild>
-          <SidebarMenuButton
-            tooltip={agent.name}
-            className={cn("gap-2", agent.isDeleted && "opacity-70")}
-          >
-            <Avatar className={cn("size-4 shrink-0", agent.isDeleted && "grayscale")}>
-              <AvatarImage
-                src={agent.avatarUrl || agent.avatar}
-                alt={agent.name}
-              />
-              <AvatarFallback className="bg-muted text-[8px]">
-                <BotIcon className="size-2.5" />
-              </AvatarFallback>
-            </Avatar>
-            <span className={cn("min-w-0 flex-1 truncate font-medium", agent.isDeleted && "italic")}>
-              {agent.name || "Agent"}
-            </span>
-            <span className="shrink-0 rounded-full bg-sidebar-accent px-1.5 py-0.5 text-[10px] text-sidebar-accent-foreground">
-              {threads.length}
-            </span>
-            <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-          </SidebarMenuButton>
-        </CollapsibleTrigger>
-
-        <CollapsibleContent>
-          <SidebarMenuSub>
-            {threads.map((thread) => (
-              <ThreadItem
-                key={thread._id || thread.id}
-                thread={thread}
-                isActive={(thread._id || thread.id) === activeThreadId}
-                onRename={onRename}
-                onDelete={onDelete}
-              />
-            ))}
-          </SidebarMenuSub>
-        </CollapsibleContent>
-      </SidebarMenuItem>
-    </Collapsible>
+    </SidebarMenuItem>
   );
 }
 
@@ -249,12 +204,30 @@ export function NavThreads({
   const pathname = usePathname();
 
   // Determine the active thread from the URL: /dashboard/agents/[id]/run?threadId=...
-  // We also check if the URL segment is a known threadId from our list
   const activeThreadId = (() => {
     if (typeof window === "undefined") return null;
     const params = new URLSearchParams(window.location.search);
     return params.get("threadId") || null;
   })();
+
+  // Flatten and sort all threads by recency
+  const allThreads = useMemo(() => {
+    const list = [];
+    for (const group of groups) {
+      for (const thread of group.threads) {
+        list.push({
+          ...thread,
+          agent: group.agent,
+        });
+      }
+    }
+    list.sort((a, b) => {
+      const aDate = new Date(a.lastMessageAt || a.createdAt || 0);
+      const bDate = new Date(b.lastMessageAt || b.createdAt || 0);
+      return bDate - aDate;
+    });
+    return list;
+  }, [groups]);
 
   if (loading) {
     return (
@@ -278,7 +251,7 @@ export function NavThreads({
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
       <SidebarGroupLabel>Threads</SidebarGroupLabel>
       <SidebarMenu>
-        {groups.length === 0 ? (
+        {allThreads.length === 0 ? (
           <SidebarMenuItem>
             <div className="px-2 py-3 text-center">
               <MessageSquareIcon className="mx-auto mb-1.5 size-6 text-muted-foreground/40" />
@@ -290,11 +263,12 @@ export function NavThreads({
             </div>
           </SidebarMenuItem>
         ) : (
-          groups.map((group) => (
-            <AgentGroup
-              key={group.agent._id || group.agent.id}
-              group={group}
-              activeThreadId={activeThreadId}
+          allThreads.map((thread) => (
+            <ThreadItem
+              key={thread._id || thread.id}
+              thread={thread}
+              agent={thread.agent}
+              isActive={(thread._id || thread.id) === activeThreadId}
               onRename={onRename}
               onDelete={onDelete}
             />
