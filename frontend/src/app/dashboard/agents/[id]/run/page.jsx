@@ -160,7 +160,7 @@ export default function RunAgentPage() {
   const router = useRouter();
   const agentId = params.id;
   const { getToken } = useAuth();
-  const { refresh: refreshThreads } = useUserThreads();
+  const { refresh: refreshThreads, renameThread } = useUserThreads();
 
   // If the user navigated from the sidebar, ?threadId will be set
   const urlThreadId = searchParams.get("threadId");
@@ -402,6 +402,22 @@ export default function RunAgentPage() {
     refreshThreads();
   }, [refreshThreads]);
 
+  const handleTitleGenerated = useCallback(
+    (newTitle) => {
+      const threadDbId = thread?._id || thread?.id;
+      if (!threadDbId) return;
+
+      // Update local state
+      setThread((prev) => (prev ? { ...prev, title: newTitle } : prev));
+
+      // Update global sidebar state immediately
+      renameThread(threadDbId, newTitle).catch((err) => {
+        console.error("Failed to sync auto-title to sidebar:", err);
+      });
+    },
+    [thread, renameThread],
+  );
+
   // ── Loading skeleton ─────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -451,6 +467,7 @@ export default function RunAgentPage() {
               onNewChat={handleNewChat}
               onRunFinished={handleRunFinished}
               onOpenFile={handleOpenFile}
+              onTitleGenerated={handleTitleGenerated}
             />
             <AguiFilesPanel
               state={agentState}
