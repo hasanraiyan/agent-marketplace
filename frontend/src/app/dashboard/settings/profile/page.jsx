@@ -123,6 +123,14 @@ export default function ProfileSettingsPage() {
 
     setSaving(true);
     try {
+      // Sync with Clerk if name changed
+      if (payload.name && clerkUser) {
+        const parts = payload.name.split(" ");
+        const firstName = parts[0] || "";
+        const lastName = parts.slice(1).join(" ") || "";
+        await clerkUser.update({ firstName, lastName });
+      }
+
       const res = await updateProfile(payload);
       setProfile(res.data?.data || res.data);
       toast.success("Profile updated");
