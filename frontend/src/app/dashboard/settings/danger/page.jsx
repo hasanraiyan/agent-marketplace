@@ -2,6 +2,9 @@
 
 import React, { useState } from "react";
 import { useThreads } from "@/components/threads-context";
+import { deleteAccount } from "@/lib/api/profile";
+import { useClerk } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Card,
@@ -31,6 +34,12 @@ export default function DangerZonePage() {
   const [confirmText, setConfirmText] = useState("");
   const { removeAllThreads } = useThreads();
 
+  const [isAccountAlertOpen, setIsAccountAlertOpen] = useState(false);
+  const [isAccountDeleting, setIsAccountDeleting] = useState(false);
+  const [confirmAccountText, setConfirmAccountText] = useState("");
+  const { signOut } = useClerk();
+  const router = useRouter();
+
   useDashboardHeader({
     title: "Danger Zone",
     description: "Irreversible actions that permanently delete your data.",
@@ -54,6 +63,26 @@ export default function DangerZonePage() {
       );
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (confirmAccountText !== "DELETE ACCOUNT") {
+      toast.error("Please type DELETE ACCOUNT to confirm.");
+      return;
+    }
+
+    setIsAccountDeleting(true);
+    try {
+      await deleteAccount();
+      toast.success("Account deleted successfully.");
+      await signOut();
+      router.push("/");
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message || "Failed to delete account.",
+      );
+      setIsAccountDeleting(false);
     }
   };
 
@@ -88,15 +117,20 @@ export default function DangerZonePage() {
         </CardContent>
       </Card>
 
-      <Card className="border-muted opacity-60">
+      <Card className="border-destructive/20 shadow-sm">
         <CardHeader>
-          <CardTitle>Delete Account</CardTitle>
+          <CardTitle className="text-destructive">Delete Account</CardTitle>
           <CardDescription>
-            Permanently delete your account and all associated data. This feature is coming soon.
+            Permanently delete your account and all associated data. This action is irreversible.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button variant="outline" disabled>
+          <Button
+            variant="destructive"
+            className="flex items-center gap-2"
+            onClick={() => setIsAccountAlertOpen(true)}
+          >
+            <Trash2 className="size-4" />
             Delete My Account
           </Button>
         </CardContent>
@@ -144,6 +178,54 @@ export default function DangerZonePage() {
                 </>
               ) : (
                 "Permanently Delete All"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isAccountAlertOpen} onOpenChange={setIsAccountAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Delete Account?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This action will permanently delete your account and all associated data including agents, skills, providers and conversation history. This action is irreversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="my-4 space-y-2">
+            <p className="text-sm font-medium">
+              Please type <span className="font-bold">DELETE ACCOUNT</span> to confirm:
+            </p>
+            <Input
+              value={confirmAccountText}
+              onChange={(e) => setConfirmAccountText(e.target.value)}
+              placeholder="DELETE ACCOUNT"
+              className="border-destructive focus-visible:ring-destructive"
+              autoFocus
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isAccountDeleting} onClick={() => setConfirmAccountText("")}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteAccount();
+              }}
+              disabled={isAccountDeleting || confirmAccountText !== "DELETE ACCOUNT"}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isAccountDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Permanently Delete Account"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

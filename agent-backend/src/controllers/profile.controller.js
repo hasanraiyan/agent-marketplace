@@ -2,6 +2,13 @@ import userRepository from '../repositories/userRepository.js';
 import { successFormatter } from '../utils/formatters/index.js';
 import { loggerService } from '../utils/index.js';
 import BaseError from '../utils/errors/BaseError.js';
+import Agent from '../models/Agent.js';
+import Skill from '../models/Skill.js';
+import Provider from '../models/Provider.js';
+import Mcp from '../models/Mcp.js';
+import McpUserConnection from '../models/McpUserConnection.js';
+import Conversation from '../models/Conversation.js';
+import checkpointService from '../services/checkpoint.service.js';
 
 const logger = loggerService.getLogger();
 
@@ -66,7 +73,44 @@ export const updateProfile = async (req, res, next) => {
   }
 };
 
+export const deleteProfile = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+
+    logger.info('User requested account deletion', { userId });
+
+    // 1. Cleanup threads and their LangGraph checkpoints
+    const userThreads = await Conversation.find({ userId }).select('threadId');
+    const threadIds = userThreads.map((t) => t.threadId);
+    if (threadIds.length > 0) {
+      await checkpointService.cleanupThreads(threadIds);
+      await Conversation.deleteMany({ userId });
+    }
+
+    // 2. Delete all other user owned resources
+    await Promise.all([
+      Agent.deleteMany({ ownerId: userId }),
+      Skill.deleteMany({ ownerId: userId }),
+      Provider.deleteMany({ ownerId: userId }),
+      Mcp.deleteMany({ ownerId: userId }),
+      McpUserConnection.deleteMany({ userId }),
+    ]);
+
+    // 3. Finally delete the user document
+    await userRepository.delete(userId);
+
+    logger.info('Account and all associated data deleted successfully', { userId });
+
+    res.json(
+      successFormatter.formatSuccess(null, 'Account and all associated data deleted successfully')
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
 export default {
   getProfile,
   updateProfile,
+  deleteProfile,
 };
