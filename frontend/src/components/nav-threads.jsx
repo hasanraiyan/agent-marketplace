@@ -202,6 +202,7 @@ export function NavThreads({
   onDelete,
 }) {
   const pathname = usePathname();
+  const [isOpen, setIsOpen] = useState(true);
 
   // Determine the active thread from the URL: /dashboard/agents/[id]/run?threadId=...
   const activeThreadId = (() => {
@@ -248,45 +249,60 @@ export function NavThreads({
   }
 
   return (
-    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <SidebarGroupLabel>Threads</SidebarGroupLabel>
-      <SidebarMenu>
-        {allThreads.length === 0 ? (
-          <SidebarMenuItem>
-            <div className="px-2 py-3 text-center">
-              <MessageSquareIcon className="mx-auto mb-1.5 size-6 text-muted-foreground/40" />
-              <p className="text-xs text-muted-foreground/60">
-                No threads yet.
-                <br />
-                Start a conversation!
-              </p>
-            </div>
-          </SidebarMenuItem>
-        ) : (
-          allThreads.map((thread) => (
-            <ThreadItem
-              key={thread._id || thread.id}
-              thread={thread}
-              agent={thread.agent}
-              isActive={(thread._id || thread.id) === activeThreadId}
-              onRename={onRename}
-              onDelete={onDelete}
-            />
-          ))
-        )}
+    <Collapsible
+      open={isOpen}
+      onOpenChange={setIsOpen}
+      className="group/collapsible"
+    >
+      <SidebarGroup className="group-data-[collapsible=icon]:hidden pr-0">
+        <SidebarGroupLabel asChild className="cursor-pointer select-none hover:text-sidebar-foreground transition-colors pr-3">
+          <CollapsibleTrigger className="flex w-full items-center justify-between">
+            <span>Threads</span>
+            <ChevronRightIcon className="size-3.5 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 text-muted-foreground" />
+          </CollapsibleTrigger>
+        </SidebarGroupLabel>
+        <CollapsibleContent>
+          <div className="max-h-[350px] overflow-y-auto pr-1 select-none scrollbar-thin scrollbar-thumb-sidebar-border scrollbar-track-transparent">
+            <SidebarMenu>
+              {allThreads.length === 0 ? (
+                <SidebarMenuItem>
+                  <div className="px-2 py-3 text-center">
+                    <MessageSquareIcon className="mx-auto mb-1.5 size-6 text-muted-foreground/40" />
+                    <p className="text-xs text-muted-foreground/60">
+                      No threads yet.
+                      <br />
+                      Start a conversation!
+                    </p>
+                  </div>
+                </SidebarMenuItem>
+              ) : (
+                allThreads.map((thread) => (
+                  <ThreadItem
+                    key={thread._id || thread.id}
+                    thread={thread}
+                    agent={thread.agent}
+                    isActive={(thread._id || thread.id) === activeThreadId}
+                    onRename={onRename}
+                    onDelete={onDelete}
+                  />
+                ))
+              )}
 
-        {hasMore && (
-          <SidebarMenuItem className="mt-2 px-2">
-            <button
-              onClick={onLoadMore}
-              disabled={loadingMore}
-              className="w-full text-center text-xs font-semibold text-muted-foreground hover:text-primary py-1 px-2 border border-dashed border-sidebar-border rounded-md hover:bg-sidebar-accent transition-all cursor-pointer disabled:opacity-50"
-            >
-              {loadingMore ? "Loading more..." : "Load More Chats"}
-            </button>
-          </SidebarMenuItem>
-        )}
-      </SidebarMenu>
-    </SidebarGroup>
+              {hasMore && (
+                <SidebarMenuItem className="mt-2 px-2 pb-1">
+                  <button
+                    onClick={onLoadMore}
+                    disabled={loadingMore}
+                    className="w-full text-center text-xs font-semibold text-muted-foreground hover:text-primary py-1 px-2 border border-dashed border-sidebar-border rounded-md hover:bg-sidebar-accent transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {loadingMore ? "Loading more..." : "Load More Chats"}
+                  </button>
+                </SidebarMenuItem>
+              )}
+            </SidebarMenu>
+          </div>
+        </CollapsibleContent>
+      </SidebarGroup>
+    </Collapsible>
   );
 }
