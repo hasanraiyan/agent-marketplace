@@ -173,6 +173,10 @@ export default function RunAgentPage() {
   const [authToken, setAuthToken] = useState(null);
   const [agentState, setAgentState] = useState({});
   const [chatResetKey, setChatResetKey] = useState(0);
+  const [sessionKey, setSessionKey] = useState(() =>
+    urlThreadId === "new" || !urlThreadId ? `new-${Date.now()}` : urlThreadId,
+  );
+  const promotingRef = useRef(false);
   const [showFiles, setShowFiles] = useState(false);
   const [panelTab, setPanelTab] = useState("files");
   const [selectedFile, setSelectedFile] = useState(null);
@@ -196,6 +200,16 @@ export default function RunAgentPage() {
   // ── Load agent + thread ──────────────────────────────────────────────────────
   useEffect(() => {
     const init = async () => {
+      if (promotingRef.current) {
+        promotingRef.current = false;
+        return;
+      }
+
+      // If the current thread state already matches the URL, skip (prevents re-fetch after promotion)
+      if (urlThreadId && (thread?._id === urlThreadId || thread?.id === urlThreadId)) {
+        return;
+      }
+
       setLoading(true);
       setInitialMessages({ messages: [], toolCalls: [], conversation: [] });
       setInitialState({});
@@ -204,7 +218,7 @@ export default function RunAgentPage() {
         const agentRes = await getAgent(agentId);
         setAgent(agentRes.data?.data);
 
-        if (urlThreadId) {
+        if (urlThreadId && urlThreadId !== "new") {
           // ── Resume existing thread ─────────────────────────────────────────
           const [threadRes, historyRes] = await Promise.all([
             getThread(urlThreadId),
@@ -214,6 +228,7 @@ export default function RunAgentPage() {
           const loadedThread = threadRes.data?.data;
           if (!loadedThread) throw new Error("Thread not found");
           setThread(loadedThread);
+          setSessionKey(urlThreadId);
 
           const { messages: rawMessages = [], state: rawState = {} } = historyRes.data?.data || {};
           setInitialMessages(normaliseLangChainMessages(rawMessages));
@@ -221,24 +236,13 @@ export default function RunAgentPage() {
           setAgentState(rawState);
           setSelectedFile(null);
         } else {
-          // ── Create a fresh thread ──────────────────────────────────────────
-          const threadRes = await createThread({ agentId });
-          const newThread = threadRes.data?.data;
-          setThread(newThread);
+          // ── Initialize virtual thread ──────────────────────────────────────
+          setThread({ _id: "new", title: "New Conversation" });
+          setSessionKey(`new-${Date.now()}`);
           setInitialMessages({ messages: [], toolCalls: [], conversation: [] });
+          setInitialState({});
+          setAgentState({});
           setSelectedFile(null);
-
-          // Reflect the new thread in the URL so refreshes re-open the same one
-          const newId = newThread?._id || newThread?.id;
-          if (newId) {
-            router.replace(
-              `/dashboard/agents/${agentId}/run?threadId=${newId}`,
-              { scroll: false },
-            );
-          }
-
-          // Refresh sidebar thread list
-          refreshThreads();
         }
       } catch (err) {
         toast.error(err.response?.data?.message || "Failed to load chat");
@@ -253,26 +257,36 @@ export default function RunAgentPage() {
 
   // ── "New Chat" handler ───────────────────────────────────────────────────────
   const handleNewChat = useCallback(async () => {
+    // Navigate to virtual 'new' thread, the sidebar update will happen once a message is sent.
+    router.replace(`/dashboard/agents/${agentId}/run?threadId=new`, {
+      scroll: false,
+    });
+  }, [agentId, router]);
+
+  const handleCreateThread = useCallback(async () => {
     try {
+      promotingRef.current = true;
       const res = await createThread({ agentId });
       const newThread = res.data?.data;
       const newId = newThread?._id || newThread?.id;
 
       setThread(newThread);
-      setInitialMessages({ messages: [], toolCalls: [], conversation: [] });
-      setChatResetKey((k) => k + 1);
-      setSelectedFile(null);
 
-      // Navigate to new thread, which will also update the sidebar
+      // Update URL to the new thread ID
       router.replace(`/dashboard/agents/${agentId}/run?threadId=${newId}`, {
         scroll: false,
       });
+
+      // Refresh sidebar thread list
       refreshThreads();
+
+      return newId;
     } catch (err) {
-      toast.error("Failed to start a new chat");
-      throw err; // Let AguiAgentChat fall back to chat.clear()
+      promotingRef.current = false;
+      toast.error("Failed to persist conversation");
+      throw err;
     }
-  }, [agentId, refreshThreads, router, setSelectedFile]);
+  }, [agentId, refreshThreads, router]);
 
   const handleOpenFile = useCallback((filePath) => {
     setPanelTab("files");
@@ -413,7 +427,7 @@ export default function RunAgentPage() {
         {authToken && threadDbId ? (
           <>
             <AguiAgentChat
-              key={`${threadDbId}-${chatResetKey}`}
+              key={`${sessionKey}-${chatResetKey}`}
               agent={agent}
               url={AGUI_RUNTIME_URL}
               agentId={agentId}
@@ -433,6 +447,7 @@ export default function RunAgentPage() {
                 "X-Thread-Id": threadDbId,
               }}
               onStateChange={setAgentState}
+              onCreateThread={handleCreateThread}
               onNewChat={handleNewChat}
               onRunFinished={handleRunFinished}
               onOpenFile={handleOpenFile}

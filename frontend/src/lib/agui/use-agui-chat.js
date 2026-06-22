@@ -204,6 +204,7 @@ export function useAguiChat({
   initialMessages = EMPTY_MESSAGES,
   initialState = EMPTY_STATE,
   onToolResult,
+  onCreateThread,
   onRunFinished,
 } = {}) {
   const { getToken, isLoaded, isSignedIn } = useAuth();
@@ -232,12 +233,18 @@ export function useAguiChat({
   const abortRef = useRef(null);
   const toolNameRef = useRef(new Map());
   const suppressClarificationNoticeRef = useRef(false);
+  const promotingRef = useRef(false);
 
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
 
   useEffect(() => {
+    if (promotingRef.current) {
+      promotingRef.current = false;
+      return;
+    }
+
     const isParsedHistory = initialMessages && !Array.isArray(initialMessages) && typeof initialMessages === "object";
     const resetMessages = isParsedHistory ? (initialMessages.messages || []) : initialMessages;
     setMessages(resetMessages);
@@ -611,7 +618,7 @@ export function useAguiChat({
   );
 
   const runStream = useCallback(
-    async ({ messages: bodyMessages, resume }) => {
+    async ({ messages: bodyMessages, resume, threadIdOverride }) => {
       setError(null);
       setIsRunning(true);
 
@@ -631,6 +638,8 @@ export function useAguiChat({
           throw new Error("Unable to get a Clerk session token. Please sign in again.");
         }
 
+        const activeThreadId = threadIdOverride || threadId;
+
         const response = await fetch(url, {
           method: "POST",
           headers: {
@@ -638,9 +647,10 @@ export function useAguiChat({
             Accept: "text/event-stream",
             ...Object.fromEntries(headerEntries),
             Authorization: `Bearer ${clerkToken}`,
+            "X-Thread-Id": activeThreadId,
           },
           body: JSON.stringify({
-            threadId,
+            threadId: activeThreadId,
             runId: id("run"),
             agentId,
             messages: bodyMessages.map((message) => ({
@@ -811,7 +821,14 @@ export function useAguiChat({
       }
 
       const nextMessages = appendUserMessage(content);
-      await runStream({ messages: nextMessages });
+
+      let threadIdOverride;
+      if (threadId === "new" && onCreateThread) {
+        promotingRef.current = true;
+        threadIdOverride = await onCreateThread();
+      }
+
+      await runStream({ messages: nextMessages, threadIdOverride });
     },
     [
       appendUserMessage,
@@ -822,6 +839,8 @@ export function useAguiChat({
       respondToClarification,
       runStream,
       url,
+      threadId,
+      onCreateThread,
     ],
   );
 
