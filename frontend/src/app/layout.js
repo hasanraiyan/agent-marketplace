@@ -64,9 +64,9 @@ export default function RootLayout({ children }) {
         <body className="flex min-h-full flex-col bg-background text-foreground">
           <ThemeProvider
             attribute="class"
-            defaultTheme="light"
-            forcedTheme="light"
-            enableSystem={false}
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
           >
             <AxiosTokenProvider />
             <TooltipProvider>{children}</TooltipProvider>
