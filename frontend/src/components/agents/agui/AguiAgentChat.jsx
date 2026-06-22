@@ -150,6 +150,7 @@ export function AguiAgentChat({
   className,
   onToolResult,
   onStateChange,
+  onCreateThread,
   onNewChat,
   onRunFinished,
   showHeader = true,
@@ -166,6 +167,7 @@ export function AguiAgentChat({
     initialMessages,
     initialState,
     onToolResult,
+    onCreateThread,
     onRunFinished,
   });
 
