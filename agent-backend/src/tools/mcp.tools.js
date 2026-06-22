@@ -17,12 +17,18 @@ const logger = loggerService.getLogger();
  * @returns {Promise<Array>} LangChain tools
  */
 export async function resolveMcpTools(agent, userId) {
-  if (!agent.mcps || agent.mcps.length === 0) return [];
+  if (!agent.mcps || agent.mcps.length === 0) {
+    logger.info(`[MCP] No MCP servers attached to agent ${agent._id || agent.id}`);
+    return [];
+  }
 
   const mcpServers = {};
 
   for (const mcp of agent.mcps) {
-    if (mcp.isEnabled === false) continue;
+    if (mcp.isEnabled === false) {
+      logger.info(`[MCP] Skipping disabled server "${mcp.name}" (id: ${mcp._id})`);
+      continue;
+    }
 
     try {
       let token = null;
@@ -33,11 +39,12 @@ export async function resolveMcpTools(agent, userId) {
             : await mcpTokenService.getUserAccessToken(mcp, userId);
 
         if (!token) {
-          // Owner never connected, or this user hasn't connected yet - skip
-          // this server's tools for this run rather than failing the build.
+          logger.info(`[MCP] Skipping OAuth server "${mcp.name}" (id: ${mcp._id}) - missing user or owner token`);
           continue;
         }
       }
+
+      logger.info(`[MCP] Preparing connection to server "${mcp.name}" (id: ${mcp._id}, url: ${mcp.url})`);
 
       const serverKey = String(mcp._id);
       mcpServers[serverKey] = {
@@ -52,7 +59,10 @@ export async function resolveMcpTools(agent, userId) {
     }
   }
 
-  if (Object.keys(mcpServers).length === 0) return [];
+  if (Object.keys(mcpServers).length === 0) {
+    logger.info(`[MCP] No active MCP servers prepared for agent ${agent._id || agent.id}`);
+    return [];
+  }
 
   const client = new MultiServerMCPClient({
     mcpServers,
@@ -61,7 +71,9 @@ export async function resolveMcpTools(agent, userId) {
   });
 
   try {
-    return await client.getTools();
+    const tools = await client.getTools();
+    logger.info(`[MCP] Successfully resolved ${tools.length} tools from ${Object.keys(mcpServers).length} active MCP servers: [${tools.map(t => t.name).join(', ')}]`);
+    return tools;
   } catch (err) {
     logger.error(`[MCP] failed to load tools: ${err?.message}`);
     return [];

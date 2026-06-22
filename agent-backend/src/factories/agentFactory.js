@@ -175,6 +175,12 @@ class AgentFactory {
       model: agent.modelName,
       provider: provider.label,
       skillCount: agent.skills?.length || 0,
+      mcpCount: agent.mcps?.length || 0,
+      mcps: (agent.mcps || []).map((mcp) => ({
+        id: String(mcp._id || mcp.id),
+        name: mcp.name,
+        isEnabled: mcp.isEnabled,
+      })),
     });
 
     // 3. Build Base Model
@@ -286,8 +292,16 @@ class AgentFactory {
     logger.info('[AgentFactory] agent built', {
       agentId: agentIdStr,
       toolCount: dynamicTools.length,
+      tools: dynamicTools.map((t) => t.name),
       skillCount: Object.keys(skillFiles).length,
       hasSkills,
+      mcpCount: (agent.mcps || []).filter((mcp) => mcp.isEnabled !== false).length,
+      mcps: (agent.mcps || [])
+        .filter((mcp) => mcp.isEnabled !== false)
+        .map((mcp) => ({
+          id: String(mcp._id || mcp.id),
+          name: mcp.name,
+        })),
     });
 
     const result = {
@@ -325,13 +339,14 @@ class AgentFactory {
     // (the Architect always uses the namespaced form; standard agents do too
     // when they have a per-user-auth MCP attached). Most callers only have
     // the agentId, so clear both the exact key and any namespaced variants.
-    for (const key of agentCache.keys()) {
+    const keys = Array.from(agentCache.keys());
+    for (const key of keys) {
       if (key === idStr || key.startsWith(`${idStr}:`)) {
         agentCache.delete(key);
       }
     }
 
-    logger.debug('[AgentFactory] cache invalidated', { agentId: idStr });
+    logger.info('[AgentFactory] cache invalidated', { agentId: idStr });
   }
 }
 

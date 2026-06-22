@@ -16,6 +16,9 @@ import {
 import config from '../config/index.js';
 import NotFoundError from '../utils/errors/NotFoundError.js';
 import ValidationError from '../utils/errors/ValidationError.js';
+import { loggerService } from '../utils/index.js';
+
+const logger = loggerService.getLogger();
 
 // Fixed, mcpId-independent callback URLs - these are what gets registered in
 // the external OAuth provider's "Redirect URIs" allowlist ahead of time, so
@@ -187,6 +190,7 @@ class McpService {
 
   async _invalidateAgentsUsingMcp(mcpId) {
     const agents = await Agent.find({ mcps: mcpId }, '_id');
+    logger.info(`[MCP] Invalidating cache for ${agents.length} agents using MCP server (id: ${mcpId})`);
     for (const agent of agents) {
       agentFactory.invalidate(agent._id);
     }

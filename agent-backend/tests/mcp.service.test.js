@@ -53,6 +53,7 @@ jest.unstable_mockModule('../src/utils/oauthState.js', () => ({
 
 jest.unstable_mockModule('../src/utils/mcpOAuthClient.js', () => ({
   discoverOAuthEndpoints: jest.fn(),
+  dynamicClientRegistration: jest.fn(),
   generatePkcePair: jest.fn(() => ({ codeVerifier: 'verifier', codeChallenge: 'challenge' })),
   buildAuthorizationUrl: jest.fn(() => 'https://authorize.example.com'),
   exchangeCodeForToken: jest.fn(),
@@ -177,7 +178,7 @@ describe('Mcp Service', () => {
 
       await expect(
         mcpService.updateMcp(mockMcp._id, mockUserId, { authType: 'oauth' })
-      ).rejects.toThrow('Client ID and Client Secret are required when auth type is oauth');
+      ).rejects.toThrow('Client ID is required when auth type is oauth');
     });
 
     it('invalidates dependent agents after a successful update', async () => {
