@@ -40,7 +40,7 @@ const NAV_MAIN = [
     icon: <BrainIcon />,
   },
   {
-    title: "Skills",
+    title: "Connectors",
     url: "/dashboard/skills",
     icon: <CpuIcon />,
   },
