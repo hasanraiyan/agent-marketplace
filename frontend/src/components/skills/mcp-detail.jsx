@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useConnectors } from "@/app/dashboard/connectors/connectors-context";
-import { testMcp, getOwnerAuthorizeUrl, getUserAuthorizeUrl } from "@/lib/api/mcps";
+import { testMcp, getOwnerAuthorizeUrl, getUserAuthorizeUrl, getUsedByAgents } from "@/lib/api/mcps";
 import { toast } from "sonner";
 import {
   Server,
@@ -55,6 +55,15 @@ export function McpDetail({ mcp }) {
   const [isTesting, setIsTesting] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [usedByAgents, setUsedByAgents] = useState([]);
+
+  useEffect(() => {
+    if (mcp) {
+      getUsedByAgents(mcp._id || mcp.id)
+        .then((res) => setUsedByAgents(res.data?.data || []))
+        .catch(err => console.error("Failed to fetch agents using MCP", err));
+    }
+  }, [mcp]);
 
   const handleTestConnection = useCallback(async () => {
     if (!mcp) return;
@@ -422,15 +431,34 @@ export function McpDetail({ mcp }) {
               </CardContent>
             </Card>
 
-            {/* Status Card */}
+            {/* Used by Agents Card */}
             <Card className="border border-zinc-150/60 dark:border-zinc-900/60 bg-card rounded-3xl p-5 space-y-3 ring-0 shadow-none">
               <h3 className="text-sm font-bold flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
                 <Bot className="size-4 text-primary" />
                 Used by Agents
               </h3>
-              <p className="text-xs text-muted-foreground italic">
-                Not assigned to any agents yet.
-              </p>
+              {usedByAgents.length > 0 ? (
+                <div className="grid gap-2">
+                  {usedByAgents.map((agent) => (
+                    <Link
+                      key={agent._id || agent.id}
+                      href={`/dashboard/agents/${agent._id || agent.id}/run`}
+                      className="p-2.5 rounded-2xl border border-zinc-150/60 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/10 flex items-center gap-2 transition-all hover:bg-zinc-100/50 dark:hover:bg-zinc-900/40"
+                    >
+                      <div className="rounded bg-muted p-1">
+                        <Boxes className="size-3.5 text-muted-foreground" />
+                      </div>
+                      <span className="text-xs font-semibold truncate text-zinc-900 dark:text-zinc-150">
+                        {agent.name}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic">
+                  Not assigned to any agents yet.
+                </p>
+              )}
             </Card>
           </div>
         </div>
