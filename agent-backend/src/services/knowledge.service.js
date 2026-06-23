@@ -4,13 +4,15 @@ import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import crypto from 'crypto';
 import config from '../config/index.js';
 import knowledgeRepository from '../repositories/knowledgeRepository.js';
+import providerRepository from '../repositories/providerRepository.js';
+import encryption from '../utils/encryption.js';
 import { loggerService } from '../utils/index.js';
 
 const logger = loggerService.getLogger();
 
 class KnowledgeService {
   constructor() {
-    this._embeddings = null;
+    this._embeddingsMap = {};
     this._qdrantClientPromise = null;
   }
 
@@ -18,20 +20,48 @@ class KnowledgeService {
    * Lazy-initializes the OpenAI embedding instance using the platform's
    * global OPENAI_API_KEY (not the user's personal provider key).
    */
-  _getEmbeddings() {
-    if (!this._embeddings) {
-      const apiKey = config.ai.openAiApiKey;
+  _getEmbeddings(modelName = 'text-embedding-3-small', provider = null) {
+    const providerIdStr = provider?._id?.toString() || 'default';
+    const cacheKey = `${providerIdStr}:${modelName}`;
+
+    if (!this._embeddingsMap[cacheKey]) {
+      let apiKey = null;
+      let baseURL = null;
+
+      if (provider) {
+        try {
+          apiKey = encryption.decrypt(provider.apiKeyEncrypted);
+          baseURL = provider.baseURL;
+        } catch (err) {
+          logger.warn('[KnowledgeService] Failed to decrypt provider API key:', err.message);
+        }
+      }
+
+      // If no provider or decryption failed, fallback to global config env keys for compatibility
+      if (!apiKey) {
+        apiKey = config.ai.openAiApiKey;
+      }
+
       if (!apiKey) {
         throw new Error(
-          'OPENAI_API_KEY is not configured. It is required for generating knowledge base embeddings.'
+          'API key is not configured. It is required for generating knowledge base embeddings.'
         );
       }
-      this._embeddings = new OpenAIEmbeddings({
+
+      const options = {
         openAIApiKey: apiKey,
-        model: config.knowledge.embeddingModel,
-      });
+        model: modelName,
+      };
+
+      if (baseURL) {
+        options.configuration = {
+          baseURL,
+        };
+      }
+
+      this._embeddingsMap[cacheKey] = new OpenAIEmbeddings(options);
     }
-    return this._embeddings;
+    return this._embeddingsMap[cacheKey];
   }
 
   /**
@@ -68,14 +98,23 @@ class KnowledgeService {
   /**
    * Returns a QdrantVectorStore referencing an existing collection.
    */
-  async _getVectorStore(collectionName) {
+  async _getVectorStore(collectionName, embeddingModel, providerId) {
     const apiKey = config.knowledge.qdrantApiKey;
     if (!apiKey) {
       throw new Error(
         'QDRANT_API_KEY is not configured. Set it in your environment variables.'
       );
     }
-    return await QdrantVectorStore.fromExistingCollection(this._getEmbeddings(), {
+    let provider = null;
+    if (providerId) {
+      if (typeof providerId === 'object' && providerId.apiKeyEncrypted) {
+        provider = providerId;
+      } else {
+        provider = await providerRepository.findById(providerId?._id || providerId);
+      }
+    }
+    const embeddings = this._getEmbeddings(embeddingModel, provider);
+    return await QdrantVectorStore.fromExistingCollection(embeddings, {
       url: config.knowledge.qdrantUrl,
       apiKey,
       collectionName,
@@ -84,23 +123,28 @@ class KnowledgeService {
 
   /**
    * Creates a new Qdrant collection via the REST API with the proper
-   * vector configuration for OpenAI text-embedding-3-small (1536-d).
+   * vector configuration for the chosen embedding model.
    */
-  async _createQdrantCollection(collectionName) {
+  async _createQdrantCollection(collectionName, embeddingModel = 'text-embedding-3-small') {
     const client = await this._getQdrantClient();
 
     const collections = await client.getCollections();
     const exists = collections.collections?.some((c) => c.name === collectionName);
     if (exists) return; // Already exists — safe to reuse
 
+    let size = 1536; // OpenAI text-embedding-3-small dimension
+    if (embeddingModel && embeddingModel.includes('3-large')) {
+      size = 3072;
+    }
+
     await client.createCollection(collectionName, {
       vectors: {
-        size: 1536, // OpenAI text-embedding-3-small dimension
+        size,
         distance: 'Cosine',
       },
     });
 
-    logger.info('[KnowledgeService] Created Qdrant collection:', collectionName);
+    logger.info(`[KnowledgeService] Created Qdrant collection: ${collectionName} with size ${size}`);
   }
 
   /**
@@ -138,8 +182,9 @@ class KnowledgeService {
     // PDF
     if (mimeType === 'application/pdf' || ext === 'pdf') {
       try {
-        const pdfParse = (await import('pdf-parse')).default;
-        const data = await pdfParse(fileBuffer);
+        const { PDFParse } = await import('pdf-parse');
+        const parser = new PDFParse({ data: fileBuffer });
+        const data = await parser.getText();
         return data.text || '';
       } catch (err) {
         logger.error('[KnowledgeService] PDF parse error:', err);
@@ -155,10 +200,10 @@ class KnowledgeService {
   /**
    * Splits text into overlapping chunks using LangChain's recursive splitter.
    */
-  async _chunkText(text) {
+  async _chunkText(text, chunkSize, chunkOverlap) {
     const splitter = new RecursiveCharacterTextSplitter({
-      chunkSize: config.knowledge.chunkSize,
-      chunkOverlap: config.knowledge.chunkOverlap,
+      chunkSize: chunkSize || config.knowledge.chunkSize,
+      chunkOverlap: typeof chunkOverlap === 'number' ? chunkOverlap : config.knowledge.chunkOverlap,
       separators: ['\n\n', '\n', '.', ' ', ''],
     });
 
@@ -173,21 +218,40 @@ class KnowledgeService {
    * Flow: save MongoDB record first → build collection name from its _id →
    * create Qdrant collection via REST API → update record with collection name.
    */
-  async createKnowledgeBase(userId, { name, description }) {
+  async createKnowledgeBase(userId, { name, description, isPublic, embeddingModel, providerId, chunkSize, chunkOverlap, topK }) {
+    let resolvedProviderId = providerId;
+    if (!resolvedProviderId) {
+      const userProviders = await providerRepository.findByUser(userId);
+      const defaultProvider = userProviders.find((p) => p.isDefault) || userProviders[0];
+      if (defaultProvider) {
+        resolvedProviderId = defaultProvider._id;
+      }
+    }
+
+    if (!resolvedProviderId) {
+      throw new Error('No AI provider found. Please configure a provider in settings before creating a knowledge base.');
+    }
+
     // 1. Create a placeholder KB record in Mongo to get the _id
     const tempCollectionName = `kb_temp_${crypto.randomBytes(8).toString('hex')}`;
     const kb = await knowledgeRepository.createKb({
       name,
       description,
+      isPublic,
       ownerId: userId,
       qdrantCollectionName: tempCollectionName,
+      embeddingModel,
+      providerId: resolvedProviderId,
+      chunkSize,
+      chunkOverlap,
+      topK,
     });
 
     // 2. Generate a deterministic collection name from the real _id
     const collectionName = this._generateCollectionName(kb._id);
 
     // 3. Create the Qdrant collection
-    await this._createQdrantCollection(collectionName);
+    await this._createQdrantCollection(collectionName, kb.embeddingModel);
 
     // 4. Update the KB record with the real collection name
     const updatedKb = await knowledgeRepository.updateKb(kb._id, {
@@ -233,6 +297,11 @@ class KnowledgeService {
     if (updateData.name !== undefined) sanitized.name = updateData.name;
     if (updateData.description !== undefined) sanitized.description = updateData.description;
     if (updateData.isPublic !== undefined) sanitized.isPublic = updateData.isPublic;
+    if (updateData.embeddingModel !== undefined) sanitized.embeddingModel = updateData.embeddingModel;
+    if (updateData.providerId !== undefined) sanitized.providerId = updateData.providerId;
+    if (updateData.chunkSize !== undefined) sanitized.chunkSize = updateData.chunkSize;
+    if (updateData.chunkOverlap !== undefined) sanitized.chunkOverlap = updateData.chunkOverlap;
+    if (updateData.topK !== undefined) sanitized.topK = updateData.topK;
 
     if (Object.keys(sanitized).length === 0) {
       throw new Error('No valid fields to update');
@@ -274,9 +343,9 @@ class KnowledgeService {
     }
 
     // Ensure the Qdrant collection exists
-    await this._createQdrantCollection(kb.qdrantCollectionName);
+    await this._createQdrantCollection(kb.qdrantCollectionName, kb.embeddingModel);
 
-    const vectorStore = await this._getVectorStore(kb.qdrantCollectionName);
+    const vectorStore = await this._getVectorStore(kb.qdrantCollectionName, kb.embeddingModel, kb.providerId);
     const allDocs = [];
     const processedFiles = [];
 
@@ -293,10 +362,11 @@ class KnowledgeService {
         }
 
         // 2. Chunk
-        const chunks = await this._chunkText(text);
+        const chunks = await this._chunkText(text, kb.chunkSize, kb.chunkOverlap);
 
         // 3. Prepare documents for LangChain
         const docs = chunks.map((chunkText, i) => ({
+          id: crypto.randomUUID(),
           pageContent: chunkText,
           metadata: {
             kbId: kb._id.toString(),
@@ -326,13 +396,31 @@ class KnowledgeService {
       throw new Error('No extractable content found in the uploaded files');
     }
 
-    // 4. Add documents to Qdrant (generates embeddings and stores vectors)
-    const pointIds = await vectorStore.addDocuments(
-      allDocs.map((d) => ({
-        pageContent: d.pageContent,
-        metadata: d.metadata,
-      }))
+    // 4. Add documents to Qdrant in batches to avoid payload size limits
+    const BATCH_SIZE = 100;
+    const uploadPromises = [];
+    const totalBatches = Math.ceil(allDocs.length / BATCH_SIZE);
+    
+    logger.info(
+      `[KnowledgeService] Starting parallel vector upload to Qdrant: ${totalBatches} batches (${allDocs.length} chunks)...`
     );
+    
+    for (let i = 0; i < allDocs.length; i += BATCH_SIZE) {
+      const batchDocs = allDocs.slice(i, i + BATCH_SIZE);
+      const promise = vectorStore.addDocuments(
+        batchDocs.map((d) => ({
+          id: d.id,
+          pageContent: d.pageContent,
+          metadata: d.metadata,
+        }))
+      );
+      uploadPromises.push(promise);
+    }
+    
+    await Promise.all(uploadPromises);
+    logger.info(`[KnowledgeService] Successfully uploaded all ${totalBatches} batches to Qdrant.`);
+
+    const pointIds = allDocs.map((d) => d.id);
 
     // 5. Persist chunk metadata in MongoDB with Qdrant point IDs
     const mongoChunks = allDocs.map((doc, i) => ({
@@ -346,7 +434,6 @@ class KnowledgeService {
     }));
 
     // Insert in batches of 100
-    const BATCH_SIZE = 100;
     for (let i = 0; i < mongoChunks.length; i += BATCH_SIZE) {
       const batch = mongoChunks.slice(i, i + BATCH_SIZE);
       await knowledgeRepository.insertChunks(batch);
@@ -369,19 +456,44 @@ class KnowledgeService {
     };
   }
 
-  /**
-   * Searches a knowledge base for chunks similar to the query.
-   * Returns ranked chunks with source attribution.
-   */
-  async searchKnowledgeBase(kbId, query, { topK } = {}) {
+  async searchKnowledgeBase(kbId, rawQuery, { topK } = {}) {
     const kb = await knowledgeRepository.findKbById(kbId);
     if (!kb) throw new Error('Knowledge base not found');
 
-    const k = topK || config.knowledge.topK;
-    const vectorStore = await this._getVectorStore(kb.qdrantCollectionName);
+    // Extract search query if passed as an object or JSON string from LangChain tools
+    let query = rawQuery;
+    if (rawQuery && typeof rawQuery === 'object') {
+      query = rawQuery.query || rawQuery.input || rawQuery.question || JSON.stringify(rawQuery);
+    } else if (rawQuery && typeof rawQuery === 'string') {
+      const trimmed = rawQuery.trim();
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          query = parsed.query || parsed.input || parsed.question || rawQuery;
+        } catch (e) {
+          // not JSON, keep original
+        }
+      }
+    }
+
+    // Fallback if query is somehow empty or still not a string
+    if (typeof query !== 'string') {
+      query = String(query || '');
+    }
+
+    logger.info(
+      `[KnowledgeService] Searching KB "${kb.name}" (${kbId}) for query: "${query}" (raw: ${
+        typeof rawQuery === 'object' ? JSON.stringify(rawQuery) : rawQuery
+      })`
+    );
+
+    const k = topK || kb.topK || config.knowledge.topK;
+    const vectorStore = await this._getVectorStore(kb.qdrantCollectionName, kb.embeddingModel, kb.providerId);
 
     // Perform similarity search
     const results = await vectorStore.similaritySearch(query, k);
+    
+    logger.info(`[KnowledgeService] Found ${results ? results.length : 0} results for query "${query}"`);
 
     // Enrich results with chunk metadata from MongoDB
     return results.map((result) => ({

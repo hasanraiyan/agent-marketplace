@@ -10,7 +10,7 @@ class KnowledgeRepository {
   }
 
   async findKbById(id) {
-    return await KnowledgeBase.findById(id);
+    return await KnowledgeBase.findById(id).populate('providerId', 'label defaultModel');
   }
 
   async findKbsByUser(userId) {

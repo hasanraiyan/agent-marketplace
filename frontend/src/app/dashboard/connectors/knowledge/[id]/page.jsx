@@ -307,6 +307,23 @@ export default function KnowledgeBaseDetailPage() {
                       {kb.chunkCount || 0} chunks
                     </Badge>
                   </div>
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mr-1">Settings:</span>
+                    <Badge variant="outline" className="rounded-full text-[11px] font-medium px-2 py-0.5 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
+                      Model: {kb.embeddingModel || "text-embedding-3-small"}
+                    </Badge>
+                    {kb.providerId?.label && (
+                      <Badge variant="outline" className="rounded-full text-[11px] font-medium px-2 py-0.5 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
+                        Provider: {kb.providerId.label}
+                      </Badge>
+                    )}
+                    <Badge variant="outline" className="rounded-full text-[11px] font-medium px-2 py-0.5 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
+                      Chunk: {kb.chunkSize || 800} (overlap {kb.chunkOverlap ?? 100})
+                    </Badge>
+                    <Badge variant="outline" className="rounded-full text-[11px] font-medium px-2 py-0.5 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
+                      Top K: {kb.topK || 5}
+                    </Badge>
+                  </div>
                 </div>
               )}
             </div>

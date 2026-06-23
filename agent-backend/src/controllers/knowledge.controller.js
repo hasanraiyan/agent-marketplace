@@ -9,11 +9,16 @@ class KnowledgeController {
    */
   async create(req, res, next) {
     try {
-      const { name, description, isPublic } = req.body;
+      const { name, description, isPublic, embeddingModel, providerId, chunkSize, chunkOverlap, topK } = req.body;
       const kb = await knowledgeService.createKnowledgeBase(req.user.id, {
         name,
         description,
         isPublic,
+        embeddingModel,
+        providerId,
+        chunkSize,
+        chunkOverlap,
+        topK,
       });
 
       res.status(201).json({

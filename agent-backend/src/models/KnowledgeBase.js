@@ -44,6 +44,28 @@ const knowledgeBaseSchema = new mongoose.Schema(
         uploadedAt: { type: Date, default: Date.now },
       },
     ],
+    embeddingModel: {
+      type: String,
+      default: 'text-embedding-3-small',
+    },
+    providerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Provider',
+      required: false,
+      index: true,
+    },
+    chunkSize: {
+      type: Number,
+      default: 800,
+    },
+    chunkOverlap: {
+      type: Number,
+      default: 100,
+    },
+    topK: {
+      type: Number,
+      default: 5,
+    },
   },
   { timestamps: true }
 );

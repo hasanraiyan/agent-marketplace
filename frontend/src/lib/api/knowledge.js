@@ -18,3 +18,6 @@ export const deleteDocument = (kbId, sourceName) =>
   api.delete(`/knowledge/${kbId}/documents/${encodeURIComponent(sourceName)}`);
 export const searchKnowledgeBase = (kbId, query, topK) =>
   api.post(`/knowledge/${kbId}/search`, { query, topK });
+export const updateKnowledgeBase = (kbId, data) =>
+  api.patch(`/knowledge/${kbId}`, data);
+

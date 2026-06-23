@@ -49,6 +49,7 @@ export async function resolveKnowledgeBaseTools(knowledgeBaseIds, userId) {
         .join(' '),
       func: async (query) => {
         try {
+          logger.info(`[KnowledgeTools] Tool "search_${safeName}" called with raw query input:`, typeof query === 'object' ? JSON.stringify(query) : query);
           const results = await knowledgeService.searchKnowledgeBase(kbId, query);
           if (results.length === 0) {
             return `No relevant information found in "${kb.name}" for the query.`;
