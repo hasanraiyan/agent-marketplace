@@ -357,6 +357,28 @@ export function toolTitle(tool) {
       : "Searching the web";
   }
 
+  if (name === "search_knowledge_base" || name === "list_knowledge_base_sources") {
+    const isSearchAction = name === "search_knowledge_base";
+    const args = tryParseJson(tool.argumentsText);
+    const kbName = args?.knowledgeBaseName || "Knowledge Base";
+    const kbQuery = args?.query || query;
+
+    if (isSearchAction) {
+      if (kbQuery) {
+        return tool.status === "completed"
+          ? `Searched knowledge base "${kbName}" for "${kbQuery}"`
+          : `Searching knowledge base "${kbName}" for "${kbQuery}"`;
+      }
+      return tool.status === "completed"
+        ? `Searched knowledge base "${kbName}"`
+        : `Searching knowledge base "${kbName}"`;
+    } else {
+      return tool.status === "completed"
+        ? `Listed documents in "${kbName}"`
+        : `Listing documents in "${kbName}"`;
+    }
+  }
+
   if (name.startsWith("search_") || name.startsWith("list_sources_")) {
     const isSearchAction = name.startsWith("search_");
     const rawKbName = name.replace(/^(search_|list_sources_)/, "");

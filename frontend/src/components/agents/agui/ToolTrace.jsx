@@ -108,7 +108,7 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
   const nameLower = (tool.name || '').toLowerCase();
   const isWebSearch = tool.name === 'search_web' || nameLower.includes('google') || nameLower.startsWith('tavily');
   const isKbSearch = nameLower.startsWith('search_') && !isWebSearch;
-  const isKbListSources = nameLower.startsWith('list_sources_');
+  const isKbListSources = nameLower === 'list_knowledge_base_sources' || nameLower.startsWith('list_sources_');
 
   const isGrep = nameLower.includes('grep');
   const isTodo = isTodoTool(tool.name);
