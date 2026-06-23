@@ -39,7 +39,6 @@ import { ToolArguments } from './tool-cards/ToolArguments';
 import { GrepResultsView, parseGrepResults } from './tool-cards/GrepResultsView';
 import { LsDirectoryCard } from './tool-cards/LsDirectoryCard';
 import { ReadFileCard } from './tool-cards/ReadFileCard';
-import { MCPAppRenderer } from '@/components/mcp/mcp-app-renderer';
 
 export { FileSystemActionCard, ActionArguments } from './tool-cards/FileSystemActionCard';
 export { ToolArguments } from './tool-cards/ToolArguments';
@@ -116,11 +115,6 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
   const isSkill = isSkillTool(tool.name);
   const isAgent = isAgentTool(tool.name);
   const isSubagent = nameLower === 'task';
-
-  // MCP App detection: tools with `__` come from a namespaced MCP server.
-  // If the tool has a `mcpApp` metadata (resourceUri + mcpId), render the app.
-  const isMcpApp =
-    Boolean(tool.mcpApp?.resourceUri && tool.mcpApp?.mcpId);
   const todos = isTodo ? parseTodos(tool.argumentsText, tool.resultText) : null;
   const todosDone = todos
     ? todos.filter((todo) => todo.status === 'completed').length
@@ -331,19 +325,6 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
                   </div>
                 </div>
               )
-            ) : isMcpApp ? (
-              <div className="space-y-2">
-                <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
-                  MCP App Interface
-                </div>
-                <MCPAppRenderer
-                  mcpId={tool.mcpApp.mcpId}
-                  resourceUri={tool.mcpApp.resourceUri}
-                  toolName={tool.name}
-                  tool={tool}
-                  height={420}
-                />
-              </div>
             ) : (
               <div className="space-y-1.5">
                 <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">

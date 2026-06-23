@@ -18,6 +18,7 @@ import { useAguiChat } from '@/lib/agui/use-agui-chat';
 import { getSuggestedPrompts, tryParseJson } from './utils';
 import { MessageBubble, ThinkingText, NewChatIcon } from './MessageBubble';
 import { ToolTrace } from './ToolTrace';
+import { MCPAppRenderer } from '@/components/mcp/mcp-app-renderer';
 import { ApprovalCard, ClarificationCard } from './ApprovalCard';
 import { ChatComposer } from './ChatComposer';
 import { toast } from 'sonner';
@@ -472,6 +473,18 @@ export function AguiAgentChat({
                   const tool = toolById(entry.refId);
                   if (tool) {
                     currentToolGroup.push(tool);
+                    // MCP App widgets are a first-class part of the conversation,
+                    // not a detail buried behind the "Used N tools" accordion -
+                    // flush so it renders as its own always-visible block right
+                    // where this tool call happened, not nested inside it.
+                    if (tool.mcpApp?.resourceUri && tool.mcpApp?.mcpId) {
+                      flushToolGroup();
+                      renderItems.push({
+                        type: 'mcp_app',
+                        id: `mcpapp-${tool.id}`,
+                        tool,
+                      });
+                    }
                   }
                 }
               });
@@ -493,6 +506,18 @@ export function AguiAgentChat({
                     <CollapsibleToolGroup
                       key={item.id}
                       tools={item.tools}
+                    />
+                  );
+                }
+                if (item.type === 'mcp_app') {
+                  return (
+                    <MCPAppRenderer
+                      key={item.id}
+                      mcpId={item.tool.mcpApp.mcpId}
+                      resourceUri={item.tool.mcpApp.resourceUri}
+                      toolName={item.tool.name}
+                      tool={item.tool}
+                      height={420}
                     />
                   );
                 }

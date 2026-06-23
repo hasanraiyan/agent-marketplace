@@ -201,6 +201,21 @@
   animation: shimmer 2s linear infinite;
 }
 
+/* Skeleton block shimmer: a translucent sheen sweeping over a solid base
+   color (pair with bg-muted or similar). Relative/translucent rather than an
+   absolute white/black highlight so it reads correctly in both themes. */
+@utility skeleton-shimmer {
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in srgb, var(--color-muted-foreground) 30%, transparent) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
 @utility no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;

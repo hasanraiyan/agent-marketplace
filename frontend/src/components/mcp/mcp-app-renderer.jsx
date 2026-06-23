@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Loader2, AlertCircle, Maximize2, Minimize2 } from 'lucide-react';
+import { AlertCircle, Maximize2, Minimize2 } from 'lucide-react';
 import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps/app-bridge';
 import { readMcpResource, callMcpTool } from '@/lib/api/mcps';
 import { cn } from '@/lib/utils';
@@ -259,15 +259,14 @@ export function MCPAppRenderer({
         </div>
       </div>
 
-      {/* Loading state */}
+      {/* Loading skeleton - mimics a generic widget layout (content area +
+          a couple of detail rows) so the shimmer reads as "this app is
+          drawing in" rather than a generic spinner. */}
       {loading && (
-        <div className="flex items-center justify-center py-12">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="size-6 animate-spin text-primary" />
-            <p className="text-xs font-medium text-slate-400 dark:text-slate-500">
-              Loading MCP App...
-            </p>
-          </div>
+        <div className="space-y-3 p-3" style={{ height: `${height}px` }}>
+          <div className="skeleton-shimmer bg-muted h-2/3 w-full rounded-lg" />
+          <div className="skeleton-shimmer bg-muted h-5 w-2/3 rounded-md" />
+          <div className="skeleton-shimmer bg-muted h-5 w-1/2 rounded-md" />
         </div>
       )}
 
