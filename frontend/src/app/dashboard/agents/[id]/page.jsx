@@ -24,6 +24,7 @@ import {
   Edit,
   Sparkles,
   BadgeCheck,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,7 +46,7 @@ import {
 } from "@/components/ui/empty";
 import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
-import { getAgent } from "@/lib/api/agents";
+import { getAgent, getAgentMemory, deleteAgentMemory } from "@/lib/api/agents";
 import { getProfile } from "@/lib/api/profile";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
 
@@ -65,6 +66,8 @@ export default function AgentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [memories, setMemories] = useState([]);
+  const [loadingMemory, setLoadingMemory] = useState(true);
 
   useEffect(() => {
     const load = async () => {
@@ -102,6 +105,38 @@ export default function AgentDetailPage() {
     profile &&
     agent &&
     String(agent.ownerId) === String(profile.id || profile._id);
+
+  useEffect(() => {
+    const fetchMemory = async () => {
+      setLoadingMemory(true);
+      try {
+        const res = await getAgentMemory(agentId);
+        setMemories(res.data?.data || []);
+      } catch (err) {
+        console.error("Failed to load agent memories", err);
+        toast.error("Failed to load agent memory");
+      } finally {
+        setLoadingMemory(false);
+      }
+    };
+    if (isOwner) {
+      fetchMemory();
+    }
+  }, [isOwner, agentId]);
+
+  const handleDeleteMemory = async (key) => {
+    if (!window.confirm("Are you sure you want to delete this memory item?")) {
+      return;
+    }
+    try {
+      await deleteAgentMemory(agentId, key);
+      setMemories((prev) => prev.filter((m) => m.key !== key));
+      toast.success("Memory deleted successfully");
+    } catch (err) {
+      console.error("Failed to delete memory item", err);
+      toast.error(err.response?.data?.message || "Failed to delete memory");
+    }
+  };
 
   const handleUseAgent = () => {
     if (!isSignedIn) {
@@ -283,7 +318,10 @@ export default function AgentDetailPage() {
                         {agent.name}
                       </h2>
                       {isVerified && (
-                        <span className="inline-flex text-blue-500 shrink-0 animate-fade-in" title="Verified Creator">
+                        <span
+                          className="inline-flex text-blue-500 shrink-0 animate-fade-in"
+                          title="Verified Creator"
+                        >
                           <BadgeCheck className="size-5.5 fill-current text-white dark:text-zinc-950 stroke-blue-500 stroke-[2px]" />
                         </span>
                       )}
@@ -303,7 +341,9 @@ export default function AgentDetailPage() {
                         ))}
                       </div>
                       <span>({agent.reviewCount || 0} reviews)</span>
-                      <span className="text-zinc-300 dark:text-zinc-800">•</span>
+                      <span className="text-zinc-300 dark:text-zinc-800">
+                        •
+                      </span>
                       <span>
                         Created by{" "}
                         <span className="font-bold text-zinc-800 dark:text-zinc-200">
@@ -350,7 +390,8 @@ export default function AgentDetailPage() {
                     Configured Skills
                   </CardTitle>
                   <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-                    Specialized capabilities and instructions attached to this agent.
+                    Specialized capabilities and instructions attached to this
+                    agent.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -390,7 +431,8 @@ export default function AgentDetailPage() {
                       Instructions
                     </CardTitle>
                     <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-                      The core guidelines and rules shaping this agent&apos;s behavior.
+                      The core guidelines and rules shaping this agent&apos;s
+                      behavior.
                     </CardDescription>
                   </div>
                   <Button
@@ -418,6 +460,100 @@ export default function AgentDetailPage() {
                       {agent.systemPrompt}
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* AI Agent Memory Card */}
+            {isOwner && (
+              <Card className="border border-zinc-150/60 dark:border-zinc-900/60 bg-card rounded-3xl ring-0 shadow-none overflow-hidden">
+                <CardHeader>
+                  <CardTitle className="text-base font-bold flex items-center gap-2 text-zinc-900 dark:text-zinc-150">
+                    <Brain className="size-4 text-primary" />
+                    AI Agent Memory (Long-term)
+                  </CardTitle>
+                  <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                    Stored experiences and facts that this agent remembers
+                    across all conversations. Only you can view or manage this.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loadingMemory ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="size-6 animate-spin text-zinc-400" />
+                    </div>
+                  ) : memories.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 px-6 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/20 dark:bg-zinc-900/5 text-center select-none">
+                      <Brain className="size-8 text-zinc-400 dark:text-zinc-650 mb-3" />
+                      <h4 className="text-sm font-bold text-zinc-800 dark:text-zinc-200">
+                        No memories stored yet
+                      </h4>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-xs leading-relaxed font-medium">
+                        As this agent interacts with users, it will build
+                        long-term memory of snippets, facts, and preferences.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="overflow-hidden border border-zinc-150/60 dark:border-zinc-900 rounded-2xl bg-zinc-50/40 dark:bg-zinc-900/10">
+                        <div className="overflow-x-auto font-sans">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="border-b border-zinc-150/60 dark:border-zinc-900/60 bg-zinc-100/40 dark:bg-zinc-900/20 text-zinc-500 dark:text-zinc-400 font-bold">
+                                <th className="p-3.5">Memory Key</th>
+                                <th className="p-3.5">Memory Content</th>
+                                <th className="p-3.5">Last Updated</th>
+                                <th className="p-3.5 text-right">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-150/60 dark:divide-zinc-900/60 text-zinc-700 dark:text-zinc-300">
+                              {memories.map((mem) => (
+                                <tr
+                                  key={mem.key}
+                                  className="hover:bg-zinc-100/20 dark:hover:bg-zinc-900/10 transition-colors"
+                                >
+                                  <td
+                                    className="p-3.5 font-semibold font-mono text-[11px] max-w-[150px] truncate"
+                                    title={mem.key}
+                                  >
+                                    {mem.key}
+                                  </td>
+                                  <td className="p-3.5 font-medium leading-relaxed max-w-[320px]">
+                                    {typeof mem.value === "object" ? (
+                                      <pre className="text-[10px] font-mono bg-zinc-100 dark:bg-zinc-900/50 p-2 rounded-lg overflow-x-auto whitespace-pre-wrap">
+                                        {JSON.stringify(mem.value, null, 2)}
+                                      </pre>
+                                    ) : (
+                                      String(mem.value)
+                                    )}
+                                  </td>
+                                  <td className="p-3.5 text-zinc-500 font-medium">
+                                    {mem.updatedAt
+                                      ? new Date(
+                                          mem.updatedAt,
+                                        ).toLocaleDateString()
+                                      : "N/A"}
+                                  </td>
+                                  <td className="p-3.5 text-right">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        handleDeleteMemory(mem.key)
+                                      }
+                                      className="size-8 rounded-full text-zinc-400 hover:text-red-500 hover:bg-red-50/50 dark:hover:bg-red-950/20 transition-all"
+                                    >
+                                      <Trash2 className="size-4" />
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -452,7 +588,9 @@ export default function AgentDetailPage() {
             {/* Quick Actions Card */}
             <Card className="border border-zinc-150/60 dark:border-zinc-900/60 bg-card rounded-3xl p-5 space-y-4 ring-0 shadow-none">
               <div className="space-y-1">
-                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Actions</h3>
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                  Actions
+                </h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
                   Launch a chat session or share this agent.
                 </p>

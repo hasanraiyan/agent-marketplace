@@ -9,3 +9,6 @@ export const createAgent = (data) => api.post("/agents", data);
 export const updateAgent = (agentId, data) =>
   api.patch(`/agents/${agentId}`, data);
 export const deleteAgent = (agentId) => api.delete(`/agents/${agentId}`);
+export const getAgentMemory = (agentId) => api.get(`/agents/${agentId}/memory`);
+export const deleteAgentMemory = (agentId, key) =>
+  api.delete(`/agents/${agentId}/memory/${key}`);

@@ -36,6 +36,8 @@ router.use(authMiddleware);
 
 const mutateLimiter = rateLimiter('MUTATE', RATE_LIMITS.MUTATE);
 
+router.get('/:id/memory', agentController.getMemory);
+router.delete('/:id/memory/:key', agentController.deleteMemory);
 router.post('/', mutateLimiter, validateBody(createAgentSchema), agentController.create);
 router.patch('/:id', mutateLimiter, validateBody(updateAgentSchema), agentController.update);
 router.delete('/:id', mutateLimiter, agentController.remove);

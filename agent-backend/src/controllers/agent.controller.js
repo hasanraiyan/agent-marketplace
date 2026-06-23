@@ -1,5 +1,7 @@
+import mongoose from 'mongoose';
 import agentService from '../services/agent.service.js';
 import agentFactory from '../factories/agentFactory.js';
+import checkpointService from '../services/checkpoint.service.js';
 import { loggerService } from '../utils/index.js';
 import {
   createAgentSchema,
@@ -136,6 +138,77 @@ class AgentController {
       ) {
         return res.status(403).json({ success: false, message: error.message });
       }
+      next(error);
+    }
+  }
+
+  async getMemory(req, res, next) {
+    try {
+      const agentId = req.params.id;
+      if (!checkpointService.mongoClient) {
+        return res.json({ success: true, data: [] });
+      }
+
+      // Verify user ownership
+      const agent = await agentService.getAgentById(agentId, req.user.id);
+      if (String(agent.ownerId) !== String(req.user.id)) {
+        return res.status(403).json({ success: false, message: 'Unauthorized access to agent memory' });
+      }
+
+      const db = checkpointService.mongoClient.db();
+      const coll = db.collection('agent_memories');
+      
+      const docs = await coll.find({
+        namespace: {
+          $in: [agentId, new mongoose.Types.ObjectId(agentId)]
+        }
+      }).toArray();
+
+      res.json({
+        success: true,
+        data: docs.map(d => ({
+          key: d.key,
+          value: d.value,
+          namespace: d.namespace,
+          createdAt: d.createdAt,
+          updatedAt: d.updatedAt
+        }))
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteMemory(req, res, next) {
+    try {
+      const agentId = req.params.id;
+      const key = req.params.key;
+
+      if (!checkpointService.mongoClient) {
+        throw new Error('Database client not available');
+      }
+
+      // Verify user ownership
+      const agent = await agentService.getAgentById(agentId, req.user.id);
+      if (String(agent.ownerId) !== String(req.user.id)) {
+        return res.status(403).json({ success: false, message: 'Unauthorized' });
+      }
+
+      const db = checkpointService.mongoClient.db();
+      const coll = db.collection('agent_memories');
+      
+      await coll.deleteOne({
+        namespace: {
+          $in: [agentId, new mongoose.Types.ObjectId(agentId)]
+        },
+        key: key
+      });
+
+      res.json({
+        success: true,
+        message: 'Agent memory deleted successfully'
+      });
+    } catch (error) {
       next(error);
     }
   }
