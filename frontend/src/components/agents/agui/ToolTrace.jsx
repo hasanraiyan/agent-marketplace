@@ -340,6 +340,7 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
                   mcpId={tool.mcpApp.mcpId}
                   resourceUri={tool.mcpApp.resourceUri}
                   toolName={tool.name}
+                  tool={tool}
                   height={420}
                 />
               </div>

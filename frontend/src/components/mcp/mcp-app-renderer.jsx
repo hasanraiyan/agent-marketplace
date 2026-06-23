@@ -1,25 +1,44 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Loader2, AlertCircle, Maximize2, Minimize2, ExternalLink } from 'lucide-react';
-import { readMcpResource } from '@/lib/api/mcps';
+import { Loader2, AlertCircle, Maximize2, Minimize2 } from 'lucide-react';
+import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps/app-bridge';
+import { readMcpResource, callMcpTool } from '@/lib/api/mcps';
 import { cn } from '@/lib/utils';
+
+function parseJsonObject(value) {
+  if (!value || typeof value !== 'string') return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
 
 /**
  * MCPAppRenderer — renders an MCP App (interactive UI from an MCP server)
- * inside a sandboxed iframe with a bidirectional JSON-RPC bridge over postMessage.
+ * inside a sandboxed iframe, wired up with the real `AppBridge` protocol from
+ * `@modelcontextprotocol/ext-apps`. The widget HTML (fetched from the backend)
+ * itself imports the matching `App` class and speaks this same JSON-RPC-over-
+ * postMessage protocol - that pairing is what makes buttons/tool calls inside
+ * the widget actually work, not just render static markup.
  *
- * This mirrors how Claude Desktop and ChatGPT render MCP Apps: the MCP server
- * declares a `_meta.ui.resourceUri` on a tool, pointing to a `ui://` resource
- * that contains an HTML/JS/CSS bundle. The client fetches it, renders it in a
- * sandboxed iframe, and communicates via postMessage.
+ * This uses a single sandboxed iframe rather than the spec's double-iframe
+ * "sandbox proxy on a separate origin" pattern (see modelcontextprotocol/
+ * ext-apps' basic-host example). `sandbox="allow-scripts allow-forms"` with NO
+ * `allow-same-origin` still gives the widget content a unique opaque origin
+ * isolated from this app (no access to our cookies/storage/DOM), which is what
+ * actually matters for the threat model here. Move to the separate-origin
+ * sandbox proxy if this ever needs to render third-party widgets the platform
+ * doesn't otherwise vet (see the build-mcp-app skill's iframe-sandbox notes).
  *
  * @param {Object} props
- * @param {string} props.mcpId - The MCP server ID (to fetch the resource)
+ * @param {string} props.mcpId - The MCP server ID (to fetch the resource / proxy tool calls)
  * @param {string} props.resourceUri - The ui:// resource URI
  * @param {string} [props.toolName] - Optional tool name for display
- * @param {Function} [props.onToolCall] - Callback when the iframe requests a tool call
- * @param {Function} [props.onContextUpdate] - Callback when the iframe pushes context to the LLM
+ * @param {Object} [props.tool] - The ToolTrace tool object ({ argumentsText, resultText, status })
+ *   whose input/result get forwarded into the widget via sendToolInput/sendToolResult.
  * @param {string} [props.className] - Additional CSS classes
  * @param {number} [props.height=500] - Iframe height in pixels
  * @param {boolean} [props.expanded=false] - Whether to expand to full height
@@ -28,19 +47,20 @@ export function MCPAppRenderer({
   mcpId,
   resourceUri,
   toolName,
-  onToolCall,
-  onContextUpdate,
+  tool,
   className,
   height = 500,
   expanded: initialExpanded = false,
 }) {
   const iframeRef = useRef(null);
   const bridgeRef = useRef(null);
+  const resultSentRef = useRef(false);
+  const [html, setHtml] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(initialExpanded);
 
-  // Fetch the HTML bundle from the backend
+  // Fetch the HTML bundle from the backend.
   useEffect(() => {
     if (!mcpId || !resourceUri) {
       setError('Missing MCP server ID or resource URI');
@@ -51,6 +71,7 @@ export function MCPAppRenderer({
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setHtml(null);
 
     readMcpResource(mcpId, resourceUri)
       .then((res) => {
@@ -59,12 +80,7 @@ export function MCPAppRenderer({
         if (!data?.text) {
           throw new Error('Empty resource response');
         }
-
-        // Create a blob URL from the HTML content
-        const blob = new Blob([data.text], { type: 'text/html' });
-        if (iframeRef.current) {
-          iframeRef.current.src = URL.createObjectURL(blob);
-        }
+        setHtml(data.text);
         setLoading(false);
       })
       .catch((err) => {
@@ -75,116 +91,109 @@ export function MCPAppRenderer({
 
     return () => {
       cancelled = true;
-      // Revoke blob URL if set
-      if (iframeRef.current?.src?.startsWith('blob:')) {
-        URL.revokeObjectURL(iframeRef.current.src);
-      }
     };
   }, [mcpId, resourceUri]);
 
-  // Set up the postMessage JSON-RPC bridge
+  // Wire up the real AppBridge once the widget HTML is fetched, then load it
+  // into the iframe. Connect the bridge (attaching its postMessage listener)
+  // BEFORE setting srcdoc, so the widget's `ui/initialize` request - sent the
+  // instant its script runs - can't race ahead of us listening for it.
   useEffect(() => {
-    if (loading || error) return;
+    if (!html || !iframeRef.current) return;
 
-    const handleMessage = (event) => {
-      // Only accept messages from our iframe
-      if (event.source !== iframeRef.current?.contentWindow) return;
+    const iframe = iframeRef.current;
+    resultSentRef.current = false;
 
-      const msg = event.data;
-      if (!msg || typeof msg !== 'object') return;
+    const bridge = new AppBridge(
+      // No live MCP client in the browser - handlers below proxy through our
+      // backend instead, which already holds this server's auth (OAuth token /
+      // API key) server-side. Never send those credentials to the browser.
+      null,
+      { name: 'agent-marketplace', version: '1.0.0' },
+      {
+        openLinks: {},
+        serverTools: {},
+        serverResources: {},
+        updateModelContext: { text: {} },
+      },
+      {
+        hostContext: {
+          theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+          platform: 'web',
+          displayMode: 'inline',
+          availableDisplayModes: ['inline'],
+        },
+      },
+    );
 
-      // JSON-RPC request from the iframe
-      if (msg.jsonrpc === '2.0' && msg.method) {
-        handleRpcRequest(msg);
-        return;
-      }
-
-      // Simple event-based protocol (used by some MCP Apps SDKs)
-      if (msg.type) {
-        handleEventMessage(msg);
-      }
+    bridge.oncalltool = async (params) => {
+      const res = await callMcpTool(mcpId, params.name, params.arguments || {});
+      return res.data?.data;
     };
 
-    const handleRpcRequest = async (msg) => {
-      const { id, method, params } = msg;
+    bridge.onreadresource = async (params) => {
+      const res = await readMcpResource(mcpId, params.uri);
+      const data = res.data?.data;
+      return {
+        contents: [
+          { uri: params.uri, mimeType: data?.mimeType || 'text/html', text: data?.text || '' },
+        ],
+      };
+    };
 
-      switch (method) {
-        case 'ui/initialize':
-          // Handshake: acknowledge initialization
-          sendToIframe({
-            jsonrpc: '2.0',
-            id,
-            result: { ok: true },
-          });
-          break;
+    // Widgets shouldn't be able to navigate the host page directly (the
+    // sandbox blocks window.open from inside the iframe) - this is the
+    // sanctioned escape hatch for outbound links.
+    bridge.onopenlink = async ({ url }) => {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return {};
+    };
 
-        case 'ui/callTool':
-          try {
-            const result = await onToolCall?.(params?.name, params?.arguments);
-            sendToIframe({
-              jsonrpc: '2.0',
-              id,
-              result: result ?? { ok: true },
-            });
-          } catch (err) {
-            sendToIframe({
-              jsonrpc: '2.0',
-              id,
-              error: { message: err.message || 'Tool call failed' },
-            });
-          }
-          break;
+    // Not wired into the chat transcript yet (would need a callback threaded
+    // through ToolTrace -> use-agui-chat) - acknowledge so widgets that call
+    // these don't get a hard error, but the message/context is dropped.
+    bridge.onmessage = async () => ({});
+    bridge.onupdatemodelcontext = async () => ({});
 
-        case 'ui/updateModelContext':
-          onContextUpdate?.(params);
-          sendToIframe({
-            jsonrpc: '2.0',
-            id,
-            result: { ok: true },
-          });
-          break;
-
-        default:
-          // Unknown method — respond with error
-          sendToIframe({
-            jsonrpc: '2.0',
-            id,
-            error: { message: `Unknown method: ${method}` },
-          });
+    bridge.oninitialized = () => {
+      bridge.sendToolInput({ arguments: parseJsonObject(tool?.argumentsText) });
+      if (tool?.status === 'completed' && typeof tool?.resultText === 'string') {
+        resultSentRef.current = true;
+        bridge.sendToolResult({ content: [{ type: 'text', text: tool.resultText }] });
       }
     };
 
-    const handleEventMessage = (msg) => {
-      switch (msg.type) {
-        case 'ui/initialize':
-          // Simple handshake
-          sendToIframe({ type: 'ui/initialized', ok: true });
-          break;
+    let cancelled = false;
+    bridge
+      .connect(new PostMessageTransport(iframe.contentWindow, iframe.contentWindow))
+      .then(() => {
+        if (cancelled) return;
+        iframe.srcdoc = html;
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err?.message || 'Failed to connect to MCP App');
+      });
 
-        case 'ui/callTool':
-          onToolCall?.(msg.toolName, msg.args);
-          break;
-
-        case 'ui/updateModelContext':
-          onContextUpdate?.(msg.params || msg);
-          break;
-      }
-    };
-
-    const sendToIframe = (data) => {
-      iframeRef.current?.contentWindow?.postMessage(data, '*');
-    };
-
-    window.addEventListener('message', handleMessage);
-
-    // Store bridge ref for cleanup
-    bridgeRef.current = { sendToIframe };
+    bridgeRef.current = bridge;
 
     return () => {
-      window.removeEventListener('message', handleMessage);
+      cancelled = true;
       bridgeRef.current = null;
+      bridge.close?.();
     };
-  }, [loading, error, onToolCall, onContextUpdate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-wire on a new widget load; tool input/result changes are forwarded by the effect below
+  }, [html, mcpId]);
+
+  // Forward the tool result once it lands, for the case where the card is
+  // expanded (mounting this component) while the tool call is still running.
+  useEffect(() => {
+    const bridge = bridgeRef.current;
+    if (!bridge || resultSentRef.current) return;
+    if (tool?.status !== 'completed' || typeof tool?.resultText !== 'string') return;
+    resultSentRef.current = true;
+    bridge.sendToolResult({ content: [{ type: 'text', text: tool.resultText }] });
+  }, [tool?.status, tool?.resultText]);
 
   const toggleExpanded = useCallback(() => {
     setExpanded((prev) => !prev);
@@ -249,10 +258,10 @@ export function MCPAppRenderer({
         </div>
       )}
 
-      {/* Sandboxed iframe — only rendered when loaded */}
+      {/* Sandboxed iframe - content set imperatively via srcdoc once AppBridge is connected */}
       <iframe
         ref={iframeRef}
-        sandbox="allow-scripts allow-forms allow-same-origin"
+        sandbox="allow-scripts allow-forms"
         className={cn(
           'w-full border-0',
           loading && 'hidden',
