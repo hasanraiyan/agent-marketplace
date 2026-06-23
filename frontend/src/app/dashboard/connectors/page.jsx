@@ -113,7 +113,7 @@ export default function ConnectorsPage() {
     <div className="flex flex-col h-full bg-slate-50/40 dark:bg-zinc-950/20 overflow-y-auto">
       {/* Connector Type Cards */}
       <div className="flex-1 px-8 py-8 md:px-10 md:py-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl">
           {CONNECTOR_TYPES.map((type) => {
             const count =
               type.countKey === "mySkills"
