@@ -21,7 +21,7 @@
   "license": "ISC",
   "packageManager": "pnpm@10.20.0",
   "dependencies": {
-    "@ag-ui/core": "^0.0.52",
+    "@ag-ui/core": "^0.0.57",
     "@clerk/express": "^2.1.4",
     "@langchain/anthropic": "^1.3.26",
     "@langchain/core": "^1.1.40",
