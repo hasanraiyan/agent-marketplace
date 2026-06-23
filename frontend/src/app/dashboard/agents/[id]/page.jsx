@@ -17,6 +17,8 @@ import {
   EyeOff,
   Brain,
   Cpu,
+  Server,
+  BookText,
   Copy,
   Check,
   Share2,
@@ -412,6 +414,86 @@ export default function AgentDetailPage() {
                           </span>
                           <span className="text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed font-medium">
                             {skill.description || "No description provided."}
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Configured MCP Servers Card */}
+            {agent.mcps && agent.mcps.length > 0 && (
+              <Card className="border border-zinc-150/60 dark:border-zinc-900/60 bg-card rounded-3xl ring-0 shadow-none">
+                <CardHeader>
+                  <CardTitle className="text-base font-bold flex items-center gap-2 text-zinc-900 dark:text-zinc-150">
+                    <Server className="size-4 text-primary" />
+                    Configured MCP Servers
+                  </CardTitle>
+                  <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                    External data sources, APIs, and tools attached to this agent.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {agent.mcps.map((mcp) => {
+                      const mcpId = typeof mcp === "string" ? mcp : mcp._id || mcp.id;
+                      const hasDetails = typeof mcp === "object" && mcp !== null;
+                      return (
+                        <Link
+                          key={mcpId}
+                          href={`/dashboard/connectors/mcps/${mcpId}`}
+                          className="p-4 rounded-2xl border border-zinc-150/60 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/10 flex flex-col gap-1.5 transition-all hover:bg-zinc-100/50 dark:hover:bg-zinc-900/40"
+                        >
+                          <span className="text-xs font-bold text-zinc-900 dark:text-zinc-150 flex items-center justify-between">
+                            <span>{hasDetails ? mcp.name : "MCP Server"}</span>
+                            {hasDetails && mcp.transport && (
+                              <Badge className="text-[8px] h-3.5 px-1.5 uppercase font-extrabold">{mcp.transport}</Badge>
+                            )}
+                          </span>
+                          <span className="text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed font-medium">
+                            {hasDetails ? mcp.description || "No description provided." : "View MCP details"}
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Configured Knowledge Bases Card */}
+            {agent.knowledgeBases && agent.knowledgeBases.length > 0 && (
+              <Card className="border border-zinc-150/60 dark:border-zinc-900/60 bg-card rounded-3xl ring-0 shadow-none">
+                <CardHeader>
+                  <CardTitle className="text-base font-bold flex items-center gap-2 text-zinc-900 dark:text-zinc-150">
+                    <BookText className="size-4 text-primary" />
+                    Configured Knowledge Bases
+                  </CardTitle>
+                  <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                    Document collections enabling AI-powered semantic search and RAG for this agent.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {agent.knowledgeBases.map((kb) => {
+                      const kbId = typeof kb === "string" ? kb : kb._id || kb.id;
+                      const hasDetails = typeof kb === "object" && kb !== null;
+                      return (
+                        <Link
+                          key={kbId}
+                          href={`/dashboard/connectors/knowledge/${kbId}`}
+                          className="p-4 rounded-2xl border border-zinc-150/60 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/10 flex flex-col gap-1.5 transition-all hover:bg-zinc-100/50 dark:hover:bg-zinc-900/40"
+                        >
+                          <span className="text-xs font-bold text-zinc-900 dark:text-zinc-150 flex items-center justify-between">
+                            <span>{hasDetails ? kb.name : "Knowledge Base"}</span>
+                            {hasDetails && (
+                              <Badge className="text-[8px] h-3.5 px-1.5 uppercase font-extrabold">{kb.documentCount || 0} docs</Badge>
+                            )}
+                          </span>
+                          <span className="text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed font-medium">
+                            {hasDetails ? kb.description || "No description provided." : "View Knowledge Base details"}
                           </span>
                         </Link>
                       );
