@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
@@ -55,6 +55,10 @@ export function AguiFilesPanel({
       ) {
         return false;
       }
+      // Filter out hidden versions directory
+      if (path.startsWith('/.versions/') || path.startsWith('.versions/')) {
+        return false;
+      }
       return true;
     })
     .map(([path, data]) => ({
@@ -62,6 +66,33 @@ export function AguiFilesPanel({
       content: data?.content || '',
       size: data?.size || 0,
     }));
+
+  const [selectedVersion, setSelectedVersion] = useState(null);
+
+  useEffect(() => {
+    setSelectedVersion(null);
+  }, [selected]);
+
+  const activeVersions = useMemo(() => {
+    if (!active) return [];
+    const normalizedPath = active.path.startsWith('/') ? active.path : '/' + active.path;
+    const prefix = `/.versions${normalizedPath}.v`;
+
+    return Object.entries(state?.files || {})
+      .filter(([path]) => path.startsWith(prefix))
+      .map(([path, data]) => {
+        const verNum = parseInt(path.slice(prefix.length));
+        return {
+          version: verNum,
+          path,
+          content: data?.content || '',
+          modifiedAt: data?.modified_at || data?.modifiedAt || '',
+        };
+      })
+      .sort((a, b) => b.version - a.version);
+  }, [active, state?.files]);
+
+  const displayContent = selectedVersion ? selectedVersion.content : (active?.content || '');
   const todos = Array.isArray(state?.todos) ? state.todos : [];
   const todosDone = todos.filter((todo) => todo?.status === 'completed').length;
   // Tab is controlled by the parent when provided (so a header button can
@@ -72,7 +103,7 @@ export function AguiFilesPanel({
 
   const handleCopy = () => {
     if (!active) return;
-    navigator.clipboard.writeText(active.content);
+    navigator.clipboard.writeText(displayContent);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     toast.success('Copied to clipboard');
@@ -134,6 +165,28 @@ export function AguiFilesPanel({
                       Preview
                     </button>
                   </div>
+                )}
+                {activeVersions.length > 0 && (
+                  <select
+                    value={selectedVersion ? selectedVersion.version : 'current'}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === 'current') {
+                        setSelectedVersion(null);
+                      } else {
+                        const ver = activeVersions.find((v) => v.version === parseInt(val));
+                        setSelectedVersion(ver);
+                      }
+                    }}
+                    className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 focus:outline-none focus:ring-0 mr-1 cursor-pointer"
+                  >
+                    <option value="current">Current</option>
+                    {activeVersions.map((v) => (
+                      <option key={v.version} value={v.version}>
+                        v{v.version}
+                      </option>
+                    ))}
+                  </select>
                 )}
                 <Button
                   variant="ghost"
@@ -257,14 +310,14 @@ export function AguiFilesPanel({
                       remarkPlugins={[remarkGfm]}
                       rehypePlugins={[rehypeSanitize]}
                     >
-                      {active.content}
+                      {displayContent}
                     </ReactMarkdown>
                   </div>
                 ) : (
                   /* HTML preview via iframe */
                   <iframe
                     title="HTML Preview"
-                    srcDoc={active.content}
+                    srcDoc={displayContent}
                     className="h-full w-full rounded-xl border-0"
                     sandbox="allow-same-origin"
                   />
@@ -272,7 +325,7 @@ export function AguiFilesPanel({
               </div>
             ) : (
               <SimpleEditor
-                value={active.content}
+                value={displayContent}
                 onValueChange={() => {}}
                 highlight={(code) => {
                   const lang = getLanguage(active.path);
