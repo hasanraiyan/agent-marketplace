@@ -269,7 +269,7 @@ export function AguiAgentChat({
         !chat.pendingClarification ? (
           <div
             className={cn(
-              'mx-auto flex w-full max-w-4xl flex-col justify-start px-6 pt-2 pb-12 text-left bg-white dark:bg-slate-950',
+              'mx-auto flex w-full max-w-4xl flex-col justify-start px-6 pt-2 pb-8 text-left bg-white dark:bg-slate-950',
               contentClassName,
             )}
           >
@@ -361,14 +361,14 @@ export function AguiAgentChat({
                   </div>
 
                   {/* Description Paragraphs */}
-                  <div className="mt-6 text-slate-650 dark:text-slate-350 text-[14.5px] sm:text-[15.5px] leading-relaxed space-y-4 font-medium max-w-4xl">
+                  <div className="mt-4 text-slate-650 dark:text-slate-350 text-[14.5px] sm:text-[15.5px] leading-relaxed space-y-3 font-medium max-w-4xl">
                     {details.description.map((para, i) => (
                       <p key={i}>{para}</p>
                     ))}
                   </div>
 
                   {/* Ask me about Card */}
-                  <div className="bg-slate-50/80 dark:bg-slate-900/40 p-5 sm:p-6 rounded-3xl mt-8 w-full max-w-4xl border border-slate-100/60 dark:border-slate-900/60">
+                  <div className="bg-slate-50/80 dark:bg-slate-900/40 p-4 sm:p-5 rounded-3xl mt-5 w-full max-w-4xl border border-slate-100/60 dark:border-slate-900/60">
                     <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2.5 mb-4 select-none">
                       <svg className="size-5 text-slate-805 dark:text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -389,7 +389,7 @@ export function AguiAgentChat({
                   </div>
 
                   {/* Social Follow */}
-                  <div className="mt-8">
+                  <div className="mt-6">
                     <p className="text-[13px] font-bold text-slate-450 dark:text-slate-500 select-none">
                       Follow {agent?.name || 'them'} for more...
                     </p>
@@ -428,7 +428,7 @@ export function AguiAgentChat({
                   </div>
 
                   {/* Footer */}
-                  <div className="mt-16 pt-5 border-t border-slate-100 dark:border-slate-900 w-full text-[11.5px] font-semibold text-slate-450 dark:text-slate-600 select-none">
+                  <div className="mt-10 pt-4 border-t border-slate-100 dark:border-slate-900 w-full text-[11.5px] font-semibold text-slate-450 dark:text-slate-600 select-none">
                     © 2026 {agent?.name || 'Agent'} • Terms • Privacy
                   </div>
                 </div>
