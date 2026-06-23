@@ -3,6 +3,7 @@ import { getBuilderToolbox } from './builder.tools.js';
 import { askClarificationTool } from './clarification.tool.js';
 import { resolveMcpTools } from './mcp.tools.js';
 import { resolveKnowledgeBaseTools } from './knowledge.tools.js';
+import { getMemoryTools } from './memory.tools.js';
 
 export const ARCHITECT_AGENT_ID = '000000000000000000000000';
 
@@ -19,7 +20,7 @@ export const resolveAgentTools = async (agentConfig, userId) => {
     return [clarificationTool, ...getBuilderToolbox(userId)];
   }
 
-  const tools = [clarificationTool];
+  const tools = [clarificationTool, ...getMemoryTools(userId)];
 
   // 2. Core Engine Web Search parsing
   if (agentConfig.webSearchEnabled) {
