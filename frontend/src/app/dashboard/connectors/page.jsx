@@ -6,6 +6,8 @@ import { Cpu, Server, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { BookText } from "lucide-react";
+
 const CONNECTOR_TYPES = [
   {
     id: "skills",
@@ -17,6 +19,17 @@ const CONNECTOR_TYPES = [
     badge: "Core",
     countKey: "mySkills",
     emptyLabel: "Create your first skill",
+  },
+  {
+    id: "knowledge",
+    title: "Knowledge Bases",
+    description: "Upload documents (PDF, TXT, MD) and let your agents search them with semantic understanding via AI-powered retrieval.",
+    icon: BookText,
+    gradient: "from-emerald-500 to-teal-600",
+    href: "/dashboard/connectors/knowledge",
+    badge: "RAG",
+    countKey: "knowledgeBases",
+    emptyLabel: "Create your first knowledge base",
   },
   {
     id: "mcps",
@@ -91,7 +104,7 @@ function ConnectorCard({ type, count, loading }) {
 }
 
 export default function ConnectorsPage() {
-  const { mySkills, mcps, loading, loadingMcps } = useConnectors();
+  const { mySkills, mcps, knowledgeBases, loading, loadingMcps, loadingKnowledgeBases } = useConnectors();
 
   return (
     <div className="flex flex-col h-full bg-background overflow-y-auto">
@@ -102,11 +115,17 @@ export default function ConnectorsPage() {
             const count =
               type.countKey === "mySkills"
                 ? mySkills?.length || 0
-                : type.countKey === "mcps"
-                  ? mcps?.length || 0
-                  : 0;
+                : type.countKey === "knowledgeBases"
+                  ? knowledgeBases?.length || 0
+                  : type.countKey === "mcps"
+                    ? mcps?.length || 0
+                    : 0;
             const isLoading =
-              type.countKey === "mySkills" ? loading : loadingMcps;
+              type.countKey === "mySkills"
+                ? loading
+                : type.countKey === "knowledgeBases"
+                  ? loadingKnowledgeBases
+                  : loadingMcps;
 
             return (
               <ConnectorCard

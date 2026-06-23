@@ -2,6 +2,7 @@ import { getSearchTool } from './search.tool.js';
 import { getBuilderToolbox } from './builder.tools.js';
 import { askClarificationTool } from './clarification.tool.js';
 import { resolveMcpTools } from './mcp.tools.js';
+import { resolveKnowledgeBaseTools } from './knowledge.tools.js';
 
 export const ARCHITECT_AGENT_ID = '000000000000000000000000';
 
@@ -30,6 +31,15 @@ export const resolveAgentTools = async (agentConfig, userId) => {
   // attached connector's authMode)
   const mcpTools = await resolveMcpTools(agentConfig, userId);
   tools.push(...mcpTools);
+
+  // 4. Knowledge Base tools (semantic search + list sources per KB)
+  if (agentConfig.knowledgeBases && agentConfig.knowledgeBases.length > 0) {
+    const kbTools = await resolveKnowledgeBaseTools(
+      agentConfig.knowledgeBases,
+      userId
+    );
+    tools.push(...kbTools);
+  }
 
   return tools;
 };

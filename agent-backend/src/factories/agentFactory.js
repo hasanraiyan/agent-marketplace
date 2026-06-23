@@ -144,7 +144,7 @@ class AgentFactory {
       // 1.5 Fetch Standard Configuration from DB
       agent = await agentRepository.findById(agentId);
       if (agent && typeof agent.populate === 'function') {
-        await agent.populate(['skills', 'mcps']);
+        await agent.populate(['skills', 'mcps', 'knowledgeBases']);
       }
       if (!agent) throw new Error('Agent deleted or unavailable');
 

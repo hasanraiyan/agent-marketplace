@@ -8,6 +8,12 @@ import {
   updateMcp as updateMcpApi,
   deleteMcp as deleteMcpApi,
 } from "@/lib/api/mcps";
+import {
+  getMyKnowledgeBases,
+  createKnowledgeBase as createKbApi,
+  deleteKnowledgeBase as deleteKbApi,
+  uploadFiles as uploadFilesApi,
+} from "@/lib/api/knowledge";
 import { toast } from "sonner";
 
 const ConnectorsContext = createContext();
@@ -23,6 +29,10 @@ export function ConnectorsProvider({ children }) {
   const [loadingMcps, setLoadingMcps] = useState(true);
   const [selectedMcpId, setSelectedMcpId] = useState(null);
   const [isCreatingMcp, setIsCreatingMcp] = useState(false);
+
+  // Knowledge Bases state
+  const [knowledgeBases, setKnowledgeBases] = useState([]);
+  const [loadingKnowledgeBases, setLoadingKnowledgeBases] = useState(true);
 
   const handleSetSelectedMcpId = useCallback((id) => {
     setSelectedMcpId(id);
@@ -110,6 +120,54 @@ export function ConnectorsProvider({ children }) {
     [mcps, updateMcp]
   );
 
+  // Knowledge Base operations
+  const fetchKnowledgeBases = useCallback(async () => {
+    try {
+      const res = await getMyKnowledgeBases();
+      setKnowledgeBases(res.data?.data || []);
+    } catch (err) {
+      toast.error("Failed to load knowledge bases");
+    } finally {
+      setLoadingKnowledgeBases(false);
+    }
+  }, []);
+
+  const createKb = useCallback(async (data) => {
+    try {
+      const res = await createKbApi(data);
+      const created = res.data?.data;
+      setKnowledgeBases((prev) => [created, ...prev]);
+      toast.success(`Knowledge base "${created.name}" created`);
+      return created;
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to create knowledge base");
+      throw err;
+    }
+  }, []);
+
+  const deleteKb = useCallback(async (id) => {
+    try {
+      await deleteKbApi(id);
+      setKnowledgeBases((prev) => prev.filter((kb) => kb._id !== id));
+      toast.success("Knowledge base deleted");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete knowledge base");
+      throw err;
+    }
+  }, []);
+
+  const uploadKbFiles = useCallback(async (id, files) => {
+    try {
+      const res = await uploadFilesApi(id, files);
+      // Refresh the KB list to get updated counts
+      fetchKnowledgeBases();
+      return res.data?.data;
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to upload files");
+      throw err;
+    }
+  }, [fetchKnowledgeBases]);
+
   const fetchSkills = useCallback(async () => {
     try {
       const [myRes, publicRes] = await Promise.all([
@@ -128,7 +186,8 @@ export function ConnectorsProvider({ children }) {
   useEffect(() => {
     fetchSkills();
     fetchMcps();
-  }, [fetchSkills, fetchMcps]);
+    fetchKnowledgeBases();
+  }, [fetchSkills, fetchMcps, fetchKnowledgeBases]);
 
   return (
     <ConnectorsContext.Provider
@@ -150,6 +209,13 @@ export function ConnectorsProvider({ children }) {
         updateMcp,
         deleteMcp,
         toggleMcp,
+        // Knowledge Base state
+        knowledgeBases,
+        loadingKnowledgeBases,
+        refreshKnowledgeBases: fetchKnowledgeBases,
+        createKb,
+        deleteKb,
+        uploadKbFiles,
       }}
     >
       {children}

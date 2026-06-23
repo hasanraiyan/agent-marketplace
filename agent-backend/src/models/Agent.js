@@ -67,6 +67,12 @@ const agentSchema = new mongoose.Schema(
         ref: 'Mcp',
       },
     ],
+    knowledgeBases: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'KnowledgeBase',
+      },
+    ],
     interruptOn: {
       type: Map,
       of: Boolean,

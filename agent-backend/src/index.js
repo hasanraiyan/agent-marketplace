@@ -12,6 +12,7 @@ import mcpRouter from './routes/mcp.routes.js';
 import aguiRouter from './routes/agui.routes.js';
 import webhookRouter from './routes/webhook.routes.js';
 import uploadRouter from './routes/upload.routes.js';
+import knowledgeRouter from './routes/knowledge.routes.js';
 import errorHandler from './middlewares/errorHandler.js';
 import swaggerUi from 'swagger-ui-express';
 import openapiSpec from './docs/openapi.js';
@@ -62,6 +63,7 @@ app.use('/api/v1/threads', threadRouter);
 app.use('/api/v1/skills', skillRouter);
 app.use('/api/v1/mcps', mcpRouter);
 app.use('/api/v1/upload', uploadRouter);
+app.use('/api/v1/knowledge', knowledgeRouter);
 
 // Serve uploads folder statically
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));

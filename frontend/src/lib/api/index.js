@@ -21,3 +21,6 @@ export * from "./threads";
 
 // Skill API
 export * from "./skills";
+
+// Knowledge Base API
+export * from "./knowledge";

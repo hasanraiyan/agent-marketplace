@@ -22,6 +22,7 @@ import {
   Sparkles,
   CheckCircle2,
   X,
+  BookText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,7 @@ import { toast } from "sonner";
 import { getProviders, getProviderModels } from "@/lib/api/providers";
 import { getMySkills } from "@/lib/api/skills";
 import { getMyMcps } from "@/lib/api/mcps";
+import { getMyKnowledgeBases } from "@/lib/api/knowledge";
 import { uploadAvatar } from "@/lib/api/upload";
 
 const CATEGORIES = [
@@ -80,6 +82,7 @@ const DEFAULT_FORM = {
   tags: [],
   skills: [],
   mcps: [],
+  knowledgeBases: [],
   systemPrompt: "",
   providerId: "",
   modelName: "",
@@ -104,6 +107,8 @@ export function AgentForm({
   const [loadingSkills, setLoadingSkills] = useState(true);
   const [availableMcps, setAvailableMcps] = useState([]);
   const [loadingMcps, setLoadingMcps] = useState(true);
+  const [availableKbs, setAvailableKbs] = useState([]);
+  const [loadingKbs, setLoadingKbs] = useState(true);
 
   const [form, setForm] = useState(DEFAULT_FORM);
   const [uploading, setUploading] = useState(false);
@@ -157,6 +162,7 @@ export function AgentForm({
         tags: initialData.tags || [],
         skills: (initialData.skills || []).map((s) => s._id || s.id || s),
         mcps: (initialData.mcps || []).map((m) => m._id || m.id || m),
+        knowledgeBases: (initialData.knowledgeBases || []).map((kb) => kb._id || kb.id || kb),
         systemPrompt: initialData.systemPrompt || "",
         providerId: initialData.providerId || "",
         modelName: initialData.modelName || "",
@@ -194,6 +200,18 @@ export function AgentForm({
       }
     };
     loadMcps();
+
+    const loadKbs = async () => {
+      try {
+        const res = await getMyKnowledgeBases();
+        setAvailableKbs(res.data?.data || []);
+      } catch (err) {
+        toast.error("Failed to load knowledge bases");
+      } finally {
+        setLoadingKbs(false);
+      }
+    };
+    loadKbs();
 
     const loadProviders = async () => {
       try {
@@ -309,6 +327,18 @@ export function AgentForm({
       );
     } else {
       update("mcps", [...current, mcpId]);
+    }
+  };
+
+  const toggleKb = (kbId) => {
+    const current = form.knowledgeBases || [];
+    if (current.includes(kbId)) {
+      update(
+        "knowledgeBases",
+        current.filter((id) => id !== kbId),
+      );
+    } else {
+      update("knowledgeBases", [...current, kbId]);
     }
   };
 
@@ -608,6 +638,84 @@ export function AgentForm({
                       <Badge variant="outline" className="mt-1.5 text-[10px]">
                         {authLabel}
                       </Badge>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Section: Knowledge Bases */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-2 border-b pb-2 text-foreground/80">
+          <BookText className="size-4" />
+          <h2 className="text-sm font-bold uppercase tracking-wider">
+            Knowledge Bases
+          </h2>
+        </div>
+
+        <div className="grid gap-4">
+          <FieldDescription className="text-xs -mt-2">
+            Attach knowledge bases to give your agent access to uploaded
+            documents. The agent can search and retrieve relevant information
+            from these sources at runtime.
+          </FieldDescription>
+
+          {loadingKbs ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              Loading knowledge bases...
+            </div>
+          ) : availableKbs.length === 0 ? (
+            <div className="rounded-xl border border-dashed p-6 text-center">
+              <p className="text-sm text-muted-foreground mb-3">
+                No knowledge bases created yet.
+              </p>
+              <Link href="/dashboard/connectors/knowledge">
+                <Button variant="outline" size="sm">
+                  Create a Knowledge Base
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {availableKbs.map((kb) => {
+                const isSelected = (form.knowledgeBases || []).includes(
+                  kb._id || kb.id,
+                );
+                return (
+                  <button
+                    key={kb._id || kb.id}
+                    type="button"
+                    onClick={() => toggleKb(kb._id || kb.id)}
+                    className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${
+                      isSelected
+                        ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-500/10 ring-1 ring-emerald-500/50"
+                        : "bg-card hover:bg-muted/50"
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-bold truncate">
+                          {kb.name}
+                        </p>
+                        {isSelected && (
+                          <Check className="size-3.5 text-emerald-600 shrink-0" />
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-1">
+                        {kb.description || `${kb.documentCount || 0} documents`}
+                      </p>
+                      <div className="flex gap-2 mt-1">
+                        <span className="text-[10px] text-muted-foreground">
+                          {kb.documentCount || 0} docs
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {kb.chunkCount || 0} chunks
+                        </span>
+                      </div>
                     </div>
                   </button>
                 );

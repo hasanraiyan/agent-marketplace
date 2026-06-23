@@ -134,6 +134,7 @@ class AgentService {
     if (typeof agent.populate === 'function') {
       await agent.populate('skills', 'name description isPublic');
       await agent.populate('mcps', 'name description transport authType authMode isEnabled');
+      await agent.populate('knowledgeBases', 'name description documentCount chunkCount');
     }
 
     return this._formatSafe(agent, userId);
@@ -154,6 +155,7 @@ class AgentService {
     if (typeof agent.populate === 'function') {
       await agent.populate('skills', 'name description isPublic');
       await agent.populate('mcps', 'name description transport authType authMode isEnabled');
+      await agent.populate('knowledgeBases', 'name description documentCount chunkCount');
     }
 
     return this._formatSafe(agent, userId);

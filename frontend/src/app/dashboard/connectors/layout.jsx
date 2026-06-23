@@ -11,28 +11,58 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
 function ConnectorsLayoutContent({ children }) {
-  const { loading } = useConnectors();
+  const { loading, loadingMcps, loadingKnowledgeBases } = useConnectors();
   const pathname = usePathname();
 
   const inMcps = pathname.startsWith("/dashboard/connectors/mcps");
+  const inKnowledge = pathname.startsWith("/dashboard/connectors/knowledge");
+  const inSkills = pathname.startsWith("/dashboard/connectors/skills");
   const isRoot = pathname === "/dashboard/connectors";
 
+  const isLoading =
+    (inMcps && loadingMcps) ||
+    (inKnowledge && loadingKnowledgeBases) ||
+    (inSkills && loading);
+
+  // For knowledge/new and knowledge/[id] we want to show the KB nav
   const isEditingOrCreate =
     pathname.includes("/new") || pathname.includes("/edit");
 
+  const getTitle = () => {
+    if (isRoot) return "Connectors";
+    if (inMcps) return "MCP Servers";
+    if (inKnowledge) return "Knowledge Bases";
+    return "Skills";
+  };
+
+  const getDescription = () => {
+    if (isRoot) return "Choose a connector type to manage";
+    if (inMcps) return "Manage your Model Context Protocol server connections";
+    if (inKnowledge) return "Upload documents and let your agents search them with AI-powered retrieval";
+    return "Manage your skills and capabilities";
+  };
+
+  const getActionHref = () => {
+    if (inMcps) return "/dashboard/connectors/mcps/new";
+    if (inKnowledge) return "/dashboard/connectors/knowledge/new";
+    return "/dashboard/connectors/skills/new";
+  };
+
+  const getActionLabel = () => {
+    if (inMcps) return "Add Server";
+    if (inKnowledge) return "New KB";
+    return "New Skill";
+  };
+
   useDashboardHeader(
     {
-      title: inMcps ? "MCP Servers" : isRoot ? "Connectors" : "Skills",
-      description: isRoot
-        ? "Choose a connector type to manage"
-        : inMcps
-          ? "Manage your Model Context Protocol server connections"
-          : "Manage your skills and capabilities",
+      title: getTitle(),
+      description: getDescription(),
       actions: !isRoot && !isEditingOrCreate ? (
-        <Link href={inMcps ? "/dashboard/connectors/mcps/new" : "/dashboard/connectors/skills/new"}>
+        <Link href={getActionHref()}>
           <Button size="sm">
             <Plus className="size-4 mr-2" />
-            {inMcps ? "Add Server" : "New Skill"}
+            {getActionLabel()}
           </Button>
         </Link>
       ) : null,
@@ -46,7 +76,7 @@ function ConnectorsLayoutContent({ children }) {
         <ConnectorsNav />
       )}
       <main className="flex-1 overflow-y-auto relative">
-        {!isRoot && loading && !inMcps ? (
+        {!isRoot && isLoading && !inMcps ? (
           <div className="p-6">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {Array.from({ length: 8 }).map((_, i) => (
