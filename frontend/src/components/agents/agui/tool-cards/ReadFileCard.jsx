@@ -17,11 +17,8 @@ export function ReadFileCard({ tool }) {
 
   const { filePath, content, otherArgs } = details;
   
-  // Extract filename and folder path
+  // Extract filename and file extension
   const fileName = filePath.split('/').pop() || filePath;
-  const folderPath = filePath.includes('/')
-    ? filePath.substring(0, filePath.lastIndexOf('/') + 1)
-    : '';
   const fileExt = fileName.includes('.')
     ? fileName.split('.').pop()?.toLowerCase()
     : '';
@@ -84,55 +81,17 @@ export function ReadFileCard({ tool }) {
   const displayLines = linesData.lines;
   const displayNumbers = linesData.lineNumbers;
 
-  // Format breadcrumbs folder path
-  const folders = folderPath.split('/').filter(Boolean);
-
   return (
     <div className="flex flex-col rounded-[16px] border border-slate-205/70 bg-white overflow-hidden dark:border-slate-800 dark:bg-slate-950 transition-all duration-300">
       {/* File Header */}
-      <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-4 py-3 dark:border-slate-800/80 dark:bg-slate-900/40 backdrop-blur-md">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400 border border-indigo-100/50 dark:border-indigo-900/30">
-            <FileIcon className="size-4.5" />
+      <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-4 py-2.5 dark:border-slate-800/80 dark:bg-slate-900/40">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400">
+            <FileIcon className="size-4" />
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Breadcrumb Path */}
-              {folders.length > 0 && (
-                <div className="flex items-center text-[11px] font-semibold text-slate-400 dark:text-slate-500 truncate select-none">
-                  {folders.map((folder, index) => (
-                    <span key={index} className="flex items-center">
-                      <span className="hover:text-slate-650 transition-colors cursor-pointer">{folder}</span>
-                      <span className="mx-1 font-normal opacity-60">/</span>
-                    </span>
-                  ))}
-                </div>
-              )}
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate leading-none">
-                {fileName}
-              </span>
-              <span className="shrink-0 rounded-md bg-indigo-50/60 px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wider text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400 border border-indigo-100/30">
-                {fileExt || 'file'}
-              </span>
-              <span className="shrink-0 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wider text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-100/30">
-                Read
-              </span>
-            </div>
-            {/* Show parameters as small badges in the subheader */}
-            <div className="flex gap-2.5 mt-1 select-none flex-wrap">
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 dark:text-slate-500">
-                offset: <span className="font-mono text-slate-600 dark:text-slate-350 bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded border border-slate-150/50 dark:border-slate-800/80">{otherArgs.offset ?? 0}</span>
-              </span>
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 dark:text-slate-500">
-                limit: <span className="font-mono text-slate-600 dark:text-slate-350 bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded border border-slate-150/50 dark:border-slate-800/80">{otherArgs.limit ?? 200}</span>
-              </span>
-              {otherArgs.offset_line !== undefined && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 dark:text-slate-500">
-                  offset line: <span className="font-mono text-slate-600 dark:text-slate-350 bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded border border-slate-150/50 dark:border-slate-800/80">{otherArgs.offset_line}</span>
-                </span>
-              )}
-            </div>
-          </div>
+          <span className="truncate text-xs font-bold text-slate-800 dark:text-slate-100">
+            {filePath}
+          </span>
         </div>
       </div>
 
