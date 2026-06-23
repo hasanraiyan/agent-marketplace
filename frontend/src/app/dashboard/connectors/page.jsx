@@ -2,21 +2,20 @@
 
 import Link from "next/link";
 import { useConnectors } from "./connectors-context";
-import { Cpu, Server, ArrowRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Cpu, FileText, Server, Database, ArrowRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-
-import { BookText } from "lucide-react";
 
 const CONNECTOR_TYPES = [
   {
     id: "skills",
     title: "Skills",
-    description: "Specialized instructions and capabilities that teach your agents new behaviors.",
+    description: "Create specialized instructions and capabilities that teach your agents new behaviors.",
     icon: Cpu,
-    gradient: "from-violet-500 to-purple-600",
+    footerIcon: FileText,
+    bgColor: "bg-[#9333EA]", // Solid purple
+    badgeBgColor: "bg-[#FAF5FF] text-[#9333EA] dark:bg-purple-950/30 dark:text-purple-300",
     href: "/dashboard/connectors/skills",
-    badge: "Core",
+    badge: "CORE",
     countKey: "mySkills",
     emptyLabel: "Create your first skill",
   },
@@ -24,8 +23,10 @@ const CONNECTOR_TYPES = [
     id: "knowledge",
     title: "Knowledge Bases",
     description: "Upload documents (PDF, TXT, MD) and let your agents search them with semantic understanding via AI-powered retrieval.",
-    icon: BookText,
-    gradient: "from-emerald-500 to-teal-600",
+    icon: FileText,
+    footerIcon: Database,
+    bgColor: "bg-[#10B981]", // Solid green
+    badgeBgColor: "bg-[#ECFDF5] text-[#10B981] dark:bg-emerald-950/30 dark:text-emerald-300",
     href: "/dashboard/connectors/knowledge",
     badge: "RAG",
     countKey: "knowledgeBases",
@@ -34,11 +35,13 @@ const CONNECTOR_TYPES = [
   {
     id: "mcps",
     title: "MCP Servers",
-    description: "Remote protocol servers that connect your agents to external APIs, tools, and data sources.",
+    description: "Connect your agents to external APIs, tools, and data sources through remote protocol servers.",
     icon: Server,
-    gradient: "from-sky-500 to-blue-600",
+    footerIcon: Server,
+    bgColor: "bg-[#0052FF]", // Solid blue
+    badgeBgColor: "bg-[#EFF6FF] text-[#0052FF] dark:bg-blue-950/30 dark:text-blue-300",
     href: "/dashboard/connectors/mcps",
-    badge: "Protocol",
+    badge: "PROTOCOL",
     countKey: "mcps",
     emptyLabel: "Add your first server",
   },
@@ -46,56 +49,56 @@ const CONNECTOR_TYPES = [
 
 function ConnectorCard({ type, count, loading }) {
   const Icon = type.icon;
+  const FooterIcon = type.footerIcon;
+
   return (
     <Link
       href={type.href}
-      className="group flex flex-col rounded-3xl border border-zinc-150/60 dark:border-zinc-900/60 bg-card p-6 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 active:scale-[0.98]"
+      className="group flex flex-col rounded-3xl border border-slate-100 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 p-8 shadow-[0_4px_20px_0_rgba(0,0,0,0.015)] dark:shadow-none hover:border-slate-200 dark:hover:border-zinc-700 hover:shadow-[0_8px_30px_0_rgba(0,0,0,0.03)] hover:-translate-y-0.5 transition-all duration-300 active:scale-[0.99]"
     >
       {/* Icon */}
       <div
-        className={`size-14 rounded-2xl bg-gradient-to-br ${type.gradient} flex items-center justify-center text-white shadow-sm mb-5 group-hover:scale-105 transition-transform duration-300`}
+        className={`size-14 rounded-2xl ${type.bgColor} flex items-center justify-center text-white shadow-sm mb-6 group-hover:scale-105 transition-transform duration-300`}
       >
-        <Icon className="size-7" />
+        <Icon className="size-6 text-white" />
       </div>
 
       {/* Title + Badge */}
-      <div className="flex items-center gap-2 mb-2">
-        <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-primary transition-colors">
+      <div className="flex items-center gap-2.5 mb-2.5">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-zinc-100 group-hover:text-[#0052FF] dark:group-hover:text-blue-400 transition-colors tracking-tight">
           {type.title}
         </h2>
-        <Badge
-          variant="outline"
-          className="text-[8px] uppercase h-4 px-1.5 border-primary/20 text-primary font-bold"
+        <span
+          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-[6px] ${type.badgeBgColor}`}
         >
           {type.badge}
-        </Badge>
+        </span>
       </div>
 
       {/* Description */}
-      <p className="text-sm text-muted-foreground leading-relaxed mb-6 flex-1">
+      <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed mb-6 flex-1 font-normal">
         {type.description}
       </p>
 
+      {/* Divider */}
+      <div className="w-full h-px bg-slate-100 dark:bg-zinc-800/80 mb-5" />
+
       {/* Count + CTA */}
-      <div className="flex items-center justify-between pt-4 border-t border-zinc-150/60 dark:border-zinc-900/60">
+      <div className="flex items-center justify-between">
         <div>
           {loading ? (
-            <Skeleton className="h-5 w-16 rounded-full" />
-          ) : count > 0 ? (
-            <Badge
-              variant="secondary"
-              className="rounded-full text-xs font-bold px-3"
-            >
-              {count} {count === 1 ? "item" : "items"}
-            </Badge>
+            <Skeleton className="h-5 w-16 rounded" />
           ) : (
-            <span className="text-xs text-muted-foreground italic font-medium">
-              {type.emptyLabel}
-            </span>
+            <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-zinc-400 font-medium">
+              <FooterIcon className="size-4 text-slate-400 dark:text-zinc-500" />
+              <span>
+                {count} {count === 1 ? "item" : "items"}
+              </span>
+            </div>
           )}
         </div>
-        <div className="flex items-center gap-1.5 text-sm font-semibold text-primary group-hover:gap-2 transition-all">
-          Browse
+        <div className="flex items-center gap-1 text-sm font-semibold text-[#0052FF] dark:text-blue-400 group-hover:gap-1.5 transition-all">
+          Manage
           <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
         </div>
       </div>
@@ -107,10 +110,10 @@ export default function ConnectorsPage() {
   const { mySkills, mcps, knowledgeBases, loading, loadingMcps, loadingKnowledgeBases } = useConnectors();
 
   return (
-    <div className="flex flex-col h-full bg-background overflow-y-auto">
+    <div className="flex flex-col h-full bg-slate-50/40 dark:bg-zinc-950/20 overflow-y-auto">
       {/* Connector Type Cards */}
-      <div className="flex-1 px-6 pb-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4 max-w-4xl">
+      <div className="flex-1 px-8 py-8 md:px-10 md:py-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
           {CONNECTOR_TYPES.map((type) => {
             const count =
               type.countKey === "mySkills"

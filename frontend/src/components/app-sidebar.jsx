@@ -20,7 +20,7 @@ import { useUser } from "@clerk/nextjs";
 import { useThreads } from "@/components/threads-context";
 import {
   CompassIcon,
-  BrainIcon,
+  UserIcon,
   Settings2Icon,
   CircleHelpIcon,
   SparklesIcon,
@@ -37,7 +37,7 @@ const NAV_MAIN = [
   {
     title: "My Agents",
     url: "/dashboard/agents",
-    icon: <BrainIcon />,
+    icon: <UserIcon />,
   },
   {
     title: "Connectors",

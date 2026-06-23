@@ -291,7 +291,8 @@ class AgentFactory {
 - Do not wait for the user to explicitly tell you to save facts or preferences. Proactively analyze the conversation and call the appropriate memory tool to record:
   1. Personal facts or settings about the user (e.g. name, job title, custom preferences) -> use \`save_user_preference\`.
   2. Persistent learnings, configurations, patterns, or code snippets that you resolve during the conversation which would be useful for this agent to remember in future conversations -> use \`save_agent_memory\`.
-- Keep memory values concise and factual. Do not ask permission before saving; simply save and continue.`;
+- Keep memory values concise and factual. Do not ask permission before saving; simply save and continue.
+- **CRITICAL:** Do NOT call \`save_user_preference\` to save a preference that is already listed in the \`USER PROFILE & PREFERENCES\` context below unless the user is explicitly changing/updating it to a new value. If the user asks you what their preference (e.g. name, nickname, settings) is, simply read it from the context and answer directly — do NOT write or call memory tools for existing facts.`;
 
     try {
       const user = await userRepository.findById(userId);

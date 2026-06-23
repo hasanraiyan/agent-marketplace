@@ -36,7 +36,7 @@ function ConnectorsLayoutContent({ children }) {
   };
 
   const getDescription = () => {
-    if (isRoot) return "Choose a connector type to manage";
+    if (isRoot) return "Choose a connector type to manage and extend your agents.";
     if (inMcps) return "Manage your Model Context Protocol server connections";
     if (inKnowledge) return "Upload documents and let your agents search them with AI-powered retrieval";
     return "Manage your skills and capabilities";
@@ -58,7 +58,14 @@ function ConnectorsLayoutContent({ children }) {
     {
       title: getTitle(),
       description: getDescription(),
-      actions: !isRoot && !isEditingOrCreate ? (
+      actions: isRoot ? (
+        <Link href="/dashboard/agents/create">
+          <Button className="bg-[#0052FF] hover:bg-[#0040D0] text-white">
+            <Plus className="size-4 mr-2" />
+            Create Agent
+          </Button>
+        </Link>
+      ) : !isEditingOrCreate ? (
         <Link href={getActionHref()}>
           <Button size="sm">
             <Plus className="size-4 mr-2" />
