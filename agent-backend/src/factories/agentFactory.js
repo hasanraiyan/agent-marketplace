@@ -284,11 +284,20 @@ class AgentFactory {
         : agent.interruptOn || {};
 
     // Fetch User Profile context and append to system prompt
-    let personalizedPrompt = agent.systemPrompt;
+    let personalizedPrompt = `${agent.systemPrompt}
+
+### AUTOMATIC PERSISTENT MEMORY RULES
+- You have access to long-term memory tools (\`save_agent_memory\` for agent-level learnings, and \`save_user_preference\` for user profile details).
+- Do not wait for the user to explicitly tell you to save facts or preferences. Proactively analyze the conversation and call the appropriate memory tool to record:
+  1. Personal facts or settings about the user (e.g. name, job title, custom preferences) -> use \`save_user_preference\`.
+  2. Persistent learnings, configurations, patterns, or code snippets that you resolve during the conversation which would be useful for this agent to remember in future conversations -> use \`save_agent_memory\`.
+- Keep memory values concise and factual. Do not ask permission before saving; simply save and continue.`;
+
     try {
       const user = await userRepository.findById(userId);
       if (user && user.profile) {
-        let profileContext = '\n\n### USER PROFILE & PREFERENCES (Apply this context to the user):\n';
+        let profileContext =
+          '\n\n### USER PROFILE & PREFERENCES (Apply this context to the user):\n';
         let hasContext = false;
         if (user.profile.summary) {
           profileContext += `- Summary: ${user.profile.summary}\n`;
@@ -306,7 +315,7 @@ class AgentFactory {
           }
         }
         if (hasContext) {
-          personalizedPrompt = `${agent.systemPrompt}${profileContext}`;
+          personalizedPrompt = `${personalizedPrompt}${profileContext}`;
         }
       }
     } catch (err) {
