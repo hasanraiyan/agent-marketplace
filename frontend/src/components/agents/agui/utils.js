@@ -346,7 +346,7 @@ export function toolTitle(tool) {
   const name = tool.name?.toLowerCase() || "tool";
   const query = queryFromArgs(tool.argumentsText);
 
-  if (name.includes("search") || name.includes("google")) {
+  if (name === "search_web" || name.includes("google") || name.startsWith("tavily")) {
     if (query) {
       return tool.status === "completed"
         ? `Searched the web for "${query}"`
@@ -355,6 +355,31 @@ export function toolTitle(tool) {
     return tool.status === "completed"
       ? "Searched the web"
       : "Searching the web";
+  }
+
+  if (name.startsWith("search_") || name.startsWith("list_sources_")) {
+    const isSearchAction = name.startsWith("search_");
+    const rawKbName = name.replace(/^(search_|list_sources_)/, "");
+    const kbName = rawKbName
+      .split(/[_\-\s]/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+
+    if (isSearchAction) {
+      if (query) {
+        return tool.status === "completed"
+          ? `Searched knowledge base "${kbName}" for "${query}"`
+          : `Searching knowledge base "${kbName}" for "${query}"`;
+      }
+      return tool.status === "completed"
+        ? `Searched knowledge base "${kbName}"`
+        : `Searching knowledge base "${kbName}"`;
+    } else {
+      return tool.status === "completed"
+        ? `Listed documents in "${kbName}"`
+        : `Listing documents in "${kbName}"`;
+    }
   }
 
   if (name.includes("todo")) {

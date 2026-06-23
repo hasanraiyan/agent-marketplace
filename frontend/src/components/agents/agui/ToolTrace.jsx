@@ -16,6 +16,7 @@ import {
   Search,
   Cpu,
   Wrench,
+  BookText,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -104,12 +105,16 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
   const results = searchResults(tool);
   const parsedResult = tryParseJson(tool.resultText);
   const isError = parsedResult?.status === 'error';
-  const isSearch = tool.name?.toLowerCase().includes('search');
-  const isGrep = tool.name?.toLowerCase().includes('grep');
+  const nameLower = (tool.name || '').toLowerCase();
+  const isWebSearch = tool.name === 'search_web' || nameLower.includes('google') || nameLower.startsWith('tavily');
+  const isKbSearch = nameLower.startsWith('search_') && !isWebSearch;
+  const isKbListSources = nameLower.startsWith('list_sources_');
+
+  const isGrep = nameLower.includes('grep');
   const isTodo = isTodoTool(tool.name);
   const isSkill = isSkillTool(tool.name);
   const isAgent = isAgentTool(tool.name);
-  const isSubagent = (tool.name || '').toLowerCase() === 'task';
+  const isSubagent = nameLower === 'task';
   const todos = isTodo ? parseTodos(tool.argumentsText, tool.resultText) : null;
   const todosDone = todos
     ? todos.filter((todo) => todo.status === 'completed').length
@@ -121,19 +126,21 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
   );
   const Icon = isError
     ? AlertCircle
-    : isSearch
+    : isWebSearch
       ? Globe
-      : isGrep
-        ? Search
-        : isTodo
-          ? ListTodo
-          : isSkill
-            ? Cpu
-            : isAgent || isSubagent
-              ? BotIcon
-              : tool.name?.includes('file')
-                ? FileText
-                : Wrench;
+      : isKbSearch || isKbListSources
+        ? BookText
+        : isGrep
+          ? Search
+          : isTodo
+            ? ListTodo
+            : isSkill
+              ? Cpu
+              : isAgent || isSubagent
+                ? BotIcon
+                : tool.name?.includes('file')
+                  ? FileText
+                  : Wrench;
 
   return (
     <div className="max-w-[92%]">
@@ -183,7 +190,7 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
                 ? 'Failed'
                 : isTodo && todos
                   ? `${todosDone}/${todos.length} done`
-                  : isSearch && done && results.length
+                  : isWebSearch && done && results.length
                     ? `${results.length} results`
                     : isGrep && done
                       ? `${parseGrepResults(tool.resultText).length} matches`
@@ -263,7 +270,7 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
             <GrepResultsView tool={tool} done={done} />
           ) : todos ? (
             <TodoChecklist todos={todos} showProgress={true} />
-          ) : isSearch ? (
+          ) : isWebSearch ? (
             done ? (
               results.length ? (
                 <div className="space-y-1.5">
