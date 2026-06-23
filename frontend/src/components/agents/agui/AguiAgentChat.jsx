@@ -497,7 +497,6 @@ export function AguiAgentChat({
                     <MessageBubble
                       key={item.id}
                       message={item.data}
-                      agent={agent}
                     />
                   );
                 }

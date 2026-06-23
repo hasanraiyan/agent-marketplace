@@ -5,11 +5,9 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
 import {
-  BotIcon,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
 function ReasoningBubble({ message }) {
@@ -79,7 +77,7 @@ export function NewChatIcon({ className }) {
 // Memoized: during token streaming only the active message object changes
 // identity (replaceById keeps the rest), so re-parsing every bubble's markdown
 // on every frame is pure waste.
-export const MessageBubble = memo(function MessageBubble({ message, agent }) {
+export const MessageBubble = memo(function MessageBubble({ message }) {
   const isUser = message.role === 'user';
 
   if (message.role === 'reasoning') {
@@ -100,20 +98,6 @@ export const MessageBubble = memo(function MessageBubble({ message, agent }) {
             : 'max-w-[92%] text-slate-900 dark:text-slate-100',
         )}
       >
-        {!isUser && agent ? (
-          <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-            <Avatar className="size-6">
-              <AvatarImage
-                src={agent.avatarUrl || agent.avatar}
-                alt={agent.name}
-              />
-              <AvatarFallback className="bg-slate-100 text-slate-500">
-                <BotIcon className="size-3" />
-              </AvatarFallback>
-            </Avatar>
-            {agent.name || 'Agent'}
-          </div>
-        ) : null}
         <div
           className={cn(
             'prose prose-sm max-w-none break-words prose-p:my-1 prose-pre:my-2 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1',

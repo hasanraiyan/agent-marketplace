@@ -35,13 +35,12 @@ import {
 } from './utils';
 import { TodoChecklist } from './TodoChecklist';
 import { toast } from 'sonner';
-import { ToolArguments } from './tool-cards/ToolArguments';
+import { RequestResponsePanel } from './tool-cards/RequestResponsePanel';
 import { GrepResultsView, parseGrepResults } from './tool-cards/GrepResultsView';
 import { LsDirectoryCard } from './tool-cards/LsDirectoryCard';
 import { ReadFileCard } from './tool-cards/ReadFileCard';
 
 export { FileSystemActionCard, ActionArguments } from './tool-cards/FileSystemActionCard';
-export { ToolArguments } from './tool-cards/ToolArguments';
 
 function subToolIcon(name) {
   const n = (name || '').toLowerCase();
@@ -230,7 +229,7 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
           <div className="ml-8 mt-1 space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 text-sm dark:border-slate-700 dark:bg-slate-900/70">
             {/* Tool Inputs */}
             {tool.argumentsText && !isTodo && !isGrep && (
-              <ToolArguments argumentsText={tool.argumentsText} />
+              <RequestResponsePanel label="Request" text={tool.argumentsText} />
             )}
 
             {/* The subagent's scoped timeline: its text + its own tool calls */}
@@ -325,14 +324,15 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
                   </div>
                 </div>
               )
+            ) : tool.resultText ? (
+              <RequestResponsePanel
+                label="Response"
+                text={tool.resultText}
+                structuredData={tool.structuredResult}
+              />
             ) : (
-              <div className="space-y-1.5">
-                <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
-                  Output Result
-                </div>
-                <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-slate-600 dark:text-slate-300 bg-slate-100/50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-150 dark:border-slate-800/60 scrollbar-thin">
-                  {tool.resultText || 'No result yet.'}
-                </pre>
+              <div className="text-xs italic text-slate-400 dark:text-slate-500">
+                No result yet.
               </div>
             )}
           </div>

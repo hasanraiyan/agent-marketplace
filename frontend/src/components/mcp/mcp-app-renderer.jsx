@@ -48,7 +48,7 @@ function buildToolResultPayload(tool) {
  * @param {Object} props
  * @param {string} props.mcpId - The MCP server ID (to fetch the resource / proxy tool calls)
  * @param {string} props.resourceUri - The ui:// resource URI
- * @param {string} [props.toolName] - Optional tool name for display
+ * @param {string} [props.toolName] - Tool name, used only for the iframe's a11y title (not shown visually)
  * @param {Object} [props.tool] - The ToolTrace tool object ({ argumentsText, resultText, status })
  *   whose input/result get forwarded into the widget via sendToolInput/sendToolResult.
  * @param {string} [props.className] - Additional CSS classes
@@ -62,7 +62,7 @@ export function MCPAppRenderer({
   tool,
   className,
   height = 500,
-  expanded: initialExpanded = false,
+  expanded: initialExpanded = true,
 }) {
   const iframeRef = useRef(null);
   const bridgeRef = useRef(null);
@@ -231,33 +231,17 @@ export function MCPAppRenderer({
   }
 
   return (
-    <div className={cn('rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-950', className)}>
-      {/* Header bar */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <div className="size-2.5 rounded-full bg-emerald-500" />
-            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-              MCP App
-            </span>
-          </div>
-          {toolName && (
-            <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 truncate ml-1">
-              {toolName}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={toggleExpanded}
-            className="size-6 rounded-md flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer"
-            title={expanded ? 'Collapse' : 'Expand'}
-          >
-            {expanded ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
-          </button>
-        </div>
-      </div>
+    <div className={cn('group relative rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-950', className)}>
+      {/* Expand/collapse only appears on hover - end users just see the app,
+          no "MCP App" branding or internal tool name. */}
+      <button
+        type="button"
+        onClick={toggleExpanded}
+        className="absolute right-2 top-2 z-10 size-6 rounded-md flex items-center justify-center bg-white/80 dark:bg-slate-900/80 text-slate-400 opacity-0 group-hover:opacity-100 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer"
+        title={expanded ? 'Collapse' : 'Expand'}
+      >
+        {expanded ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+      </button>
 
       {/* Loading skeleton - mimics a generic widget layout (content area +
           a couple of detail rows) so the shimmer reads as "this app is
