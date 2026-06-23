@@ -9,6 +9,13 @@ export const userSchema = z.object({
   age: z.number().int().min(0).max(150).optional(),
   isActive: z.boolean().default(true),
   role: UserRole.default('normal'),
+  profile: z
+    .object({
+      preferences: z.record(z.string()).default({}),
+      summary: z.string().default(''),
+      lastUpdated: z.date().default(() => new Date()),
+    })
+    .optional(),
   createdAt: z.date().default(() => new Date()),
   updatedAt: z.date().default(() => new Date()),
 });
@@ -51,6 +58,21 @@ const userMongooseSchema = new mongoose.Schema(
       required: true,
       unique: true,
       index: true,
+    },
+    profile: {
+      preferences: {
+        type: Map,
+        of: String,
+        default: new Map(),
+      },
+      summary: {
+        type: String,
+        default: '',
+      },
+      lastUpdated: {
+        type: Date,
+        default: Date.now,
+      },
     },
   },
   {

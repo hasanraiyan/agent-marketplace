@@ -212,9 +212,20 @@ async function* runAgentAsAguiEvents({
     } catch (err) {
       logger.error(`[AG-UI] auto titling failed: ${err?.message}`);
     }
-  } else if (titlePromise) {
-    titlePromise.catch((err) => {
-      logger.error(`[AG-UI] auto titling failed after interrupt: ${err?.message}`);
+  }
+
+  if (langGraphThreadId && !pausedForInterrupt) {
+    setImmediate(async () => {
+      try {
+        const chatHistory = await checkpointService.getMessages(threadDbId, userId);
+        // Trigger memory extraction periodically (e.g. every 5 messages)
+        if (chatHistory.messages && chatHistory.messages.length > 0 && chatHistory.messages.length % 5 === 0) {
+          const { extractAndSaveMemory } = await import('../services/memoryCollector.service.js');
+          await extractAndSaveMemory(userId, chatHistory.messages, providerConfig);
+        }
+      } catch (e) {
+        logger.error('[AG-UI] Background memory collector failed:', e.message);
+      }
     });
   }
 }

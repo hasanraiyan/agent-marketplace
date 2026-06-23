@@ -1,9 +1,11 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { createDeepAgent, StateBackend } from 'deepagents';
-import { InMemoryStore } from '@langchain/langgraph';
+import { MongoDBStore } from '../utils/mongoStore.js';
+import checkpointService from '../services/checkpoint.service.js';
 import { LRUCache } from 'lru-cache';
 import agentRepository from '../repositories/agentRepository.js';
 import providerRepository from '../repositories/providerRepository.js';
+import { userRepository } from '../repositories/index.js';
 import encryption from '../utils/encryption.js';
 
 import { resolveAgentTools, ARCHITECT_AGENT_ID } from '../tools/index.js';
@@ -12,9 +14,14 @@ import { ARCHITECT_SKILL } from '../skills/architectSkill.js';
 
 const logger = loggerService.getLogger();
 
-// Shared long-term memory store for all agents. Singleton ensures cross-thread
-// memories persist for the lifetime of the process.
-const globalStore = new InMemoryStore();
+// Shared long-term memory store for all agents.
+let globalStore = null;
+function getGlobalStore() {
+  if (!globalStore && checkpointService.mongoClient) {
+    globalStore = new MongoDBStore({ client: checkpointService.mongoClient });
+  }
+  return globalStore;
+}
 
 // LRU Cache for compiled Agent instances to avoid expensive graph compilation on every message.
 // Small cap since each instance holds an LLM client and internal graph state.
@@ -158,7 +165,7 @@ class AgentFactory {
       usesPerUserMcp = (agent.mcps || []).some((mcp) => mcp.authMode === 'user');
     }
 
-    const effectiveCacheKey = usesPerUserMcp ? `${cacheKey}:${userId}` : cacheKey;
+    const effectiveCacheKey = `${cacheKey}:${userId}`;
 
     // 2. Cache Validation
     const cached = agentCache.get(effectiveCacheKey);
@@ -276,11 +283,41 @@ class AgentFactory {
         ? Object.fromEntries(agent.interruptOn)
         : agent.interruptOn || {};
 
+    // Fetch User Profile context and append to system prompt
+    let personalizedPrompt = agent.systemPrompt;
+    try {
+      const user = await userRepository.findById(userId);
+      if (user && user.profile) {
+        let profileContext = '\n\n### USER PROFILE & PREFERENCES (Apply this context to the user):\n';
+        let hasContext = false;
+        if (user.profile.summary) {
+          profileContext += `- Summary: ${user.profile.summary}\n`;
+          hasContext = true;
+        }
+        if (user.profile.preferences instanceof Map && user.profile.preferences.size > 0) {
+          for (const [key, val] of user.profile.preferences.entries()) {
+            profileContext += `- ${key}: ${val}\n`;
+            hasContext = true;
+          }
+        } else if (user.profile.preferences && typeof user.profile.preferences === 'object') {
+          for (const [key, val] of Object.entries(user.profile.preferences)) {
+            profileContext += `- ${key}: ${val}\n`;
+            hasContext = true;
+          }
+        }
+        if (hasContext) {
+          personalizedPrompt = `${agent.systemPrompt}${profileContext}`;
+        }
+      }
+    } catch (err) {
+      logger.warn('[AgentFactory] Failed to inject user profile:', err.message);
+    }
+
     const agentInstance = await createDeepAgent({
       model: llm,
-      systemPrompt: agent.systemPrompt,
+      systemPrompt: personalizedPrompt,
       checkpointer: safeCheckpointer,
-      store: globalStore,
+      store: getGlobalStore(),
       tools: dynamicTools,
       interruptOn: interruptOnConfig,
       // sandbox backend if real code execution is ever required.
@@ -312,6 +349,7 @@ class AgentFactory {
       providerConfig: {
         id: provider._id?.toString?.() || provider._id,
         label: provider.label,
+        apiKey: encryption.decrypt(provider.apiKeyEncrypted),
         baseURL: provider.baseURL,
         modelName: agent.modelName || provider.defaultModel || 'gpt-3.5-turbo',
       },
