@@ -1,4 +1,5 @@
 import Conversation from '../models/Conversation.js';
+import Agent from '../models/Agent.js';
 
 function idLooksLikeObjectId(id) {
   if (id == null) return false;
@@ -13,7 +14,11 @@ function idLooksLikeObjectId(id) {
 class ThreadRepository {
   async create(data) {
     const thread = new Conversation(data);
-    return await thread.save();
+    const savedThread = await thread.save();
+    if (data.agentId) {
+      await Agent.findByIdAndUpdate(data.agentId, { $inc: { messageCount: 1 } });
+    }
+    return savedThread;
   }
 
   async findById(id) {
@@ -43,15 +48,31 @@ class ThreadRepository {
 
   async delete(id) {
     const query = idLooksLikeObjectId(id) ? { _id: id } : { threadId: id };
-    return await Conversation.findOneAndDelete(query);
+    const deletedThread = await Conversation.findOneAndDelete(query);
+    if (deletedThread && deletedThread.agentId) {
+      await Agent.findByIdAndUpdate(deletedThread.agentId, { $inc: { messageCount: -1 } });
+    }
+    return deletedThread;
   }
 
   async deleteAllByUser(userId) {
     // We need to find all threadIds first so we can cleanup checkpoints later
-    const threads = await Conversation.find({ userId }).select('threadId');
+    const threads = await Conversation.find({ userId }).select('threadId agentId');
     const threadIds = threads.map((t) => t.threadId);
 
+    const agentCounts = {};
+    for (const t of threads) {
+      if (t.agentId) {
+        agentCounts[t.agentId] = (agentCounts[t.agentId] || 0) + 1;
+      }
+    }
+
     const result = await Conversation.deleteMany({ userId });
+
+    for (const [agentId, count] of Object.entries(agentCounts)) {
+      await Agent.findByIdAndUpdate(agentId, { $inc: { messageCount: -count } });
+    }
+
     return { ...result, threadIds };
   }
 
