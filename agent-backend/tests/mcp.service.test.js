@@ -317,14 +317,20 @@ describe('Mcp Service', () => {
       mockGetTools.mockResolvedValue([{ name: 'tool_a', description: 'does a thing' }]);
       mcpRepository.update.mockResolvedValue(mockMcp);
 
-      const tools = await mcpService.testConnection(mockMcp._id, mockUserId);
+      const result = await mcpService.testConnection(mockMcp._id, mockUserId);
 
       expect(mcpTokenService.getOwnerAccessToken).not.toHaveBeenCalled();
-      expect(tools).toEqual([{ name: 'tool_a', description: 'does a thing' }]);
+      expect(result.tools).toEqual([{ name: 'tool_a', description: 'does a thing' }]);
+      expect(result.resources).toEqual([]);
+      expect(result.resourceTemplates).toEqual([]);
       expect(mcpRepository.update).toHaveBeenCalledWith(
         mockMcp._id,
         mockUserId,
-        expect.objectContaining({ tools: [{ name: 'tool_a', description: 'does a thing' }] })
+        expect.objectContaining({
+          tools: [{ name: 'tool_a', description: 'does a thing' }],
+          resources: [],
+          resourceTemplates: [],
+        })
       );
     });
 

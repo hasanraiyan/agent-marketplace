@@ -78,6 +78,23 @@ const mcpSchema = new mongoose.Schema(
         description: String,
       },
     ],
+    resources: [
+      {
+        uri: String,
+        name: String,
+        description: String,
+        mimeType: String,
+      },
+    ],
+    resourceTemplates: [
+      {
+        uriTemplate: String,
+        name: String,
+        description: String,
+        mimeType: String,
+        toolName: String,
+      },
+    ],
     lastTestedAt: {
       type: Date,
       default: null,

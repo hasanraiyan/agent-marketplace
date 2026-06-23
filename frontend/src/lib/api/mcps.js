@@ -17,3 +17,10 @@ export const getUserConnectionStatus = (mcpId) =>
   api.get(`/mcps/${mcpId}/oauth/user/status`);
 export const disconnectUserConnection = (mcpId) =>
   api.delete(`/mcps/${mcpId}/oauth/user/connection`);
+
+/**
+ * Fetches a UI resource (HTML bundle) from an MCP server for sandboxed iframe rendering.
+ * Used by the MCPAppRenderer component to render MCP Apps.
+ */
+export const readMcpResource = (mcpId, uri) =>
+  api.get(`/mcps/${mcpId}/resource`, { params: { uri } });

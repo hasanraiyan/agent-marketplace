@@ -414,7 +414,7 @@ export function buildFilesTodosSnapshot(stateValues) {
  * @returns {AsyncGenerator} AG-UI events.
  */
 export async function* translateLangGraphStream(stream, opts = {}) {
-  const { providerConfig, onInterrupt, onError, logger, getState } = opts;
+  const { providerConfig, onInterrupt, onError, logger, getState, mcpAppMap = {} } = opts;
   const suppressArgStreaming = new Set(opts.suppressArgStreamingFor || []);
 
   // Read authoritative graph state and emit a STATE_SNAPSHOT of { files, todos }.
@@ -685,6 +685,22 @@ export async function* translateLangGraphStream(stream, opts = {}) {
             toolCallId: event.run_id,
             toolCallName: toolName,
             delta: argsStr,
+          };
+        }
+
+        // This tool's MCP server declared a `_meta.ui.resourceUri` widget for it
+        // (see tools/mcp.tools.js) - tell the client which MCP App to render
+        // alongside this tool call's card.
+        const mcpApp = mcpAppMap[toolName];
+        if (mcpApp) {
+          yield {
+            type: EventType.CUSTOM,
+            name: 'mcp_app',
+            value: {
+              toolCallId: streamedId || event.run_id,
+              resourceUri: mcpApp.resourceUri,
+              mcpId: mcpApp.mcpId,
+            },
           };
         }
       }

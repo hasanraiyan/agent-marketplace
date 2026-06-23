@@ -123,7 +123,7 @@ async function* runAgentAsAguiEvents({
     return;
   }
 
-  const { agentInstance, agentConfig, providerConfig, skillFiles, llm } = agentBuild;
+  const { agentInstance, agentConfig, providerConfig, skillFiles, llm, mcpAppMap } = agentBuild;
 
   // HITL-guarded tools: the graph pauses before executing these, so their args
   // must not be live-streamed (the card would be stranded "running" across the
@@ -181,6 +181,7 @@ async function* runAgentAsAguiEvents({
   yield* translateLangGraphStream(stream, {
     providerConfig,
     logger,
+    mcpAppMap,
     suppressArgStreamingFor: guardedToolNames,
     getState: langGraphThreadId
       ? async () => {

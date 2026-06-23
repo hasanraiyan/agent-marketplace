@@ -76,6 +76,19 @@ class McpController {
     }
   }
 
+  async readResource(req, res, next) {
+    try {
+      const { uri } = req.query;
+      if (!uri) {
+        return res.status(400).json({ success: false, message: 'Resource URI is required' });
+      }
+      const content = await mcpService.readResource(req.params.id, req.user.id, uri);
+      res.json({ success: true, data: content });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getOwnerAuthorizeUrl(req, res, next) {
     try {
       const url = await mcpService.getOwnerAuthorizationUrl(req.params.id, req.user.id);

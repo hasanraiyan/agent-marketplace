@@ -47,10 +47,17 @@ function sanitizeMcpTool(tool) {
 export async function resolveMcpTools(agent, userId) {
   if (!agent.mcps || agent.mcps.length === 0) {
     logger.info(`[MCP] No MCP servers attached to agent ${agent._id || agent.id}`);
-    return [];
+    return { tools: [], mcpAppMap: {} };
   }
 
   const mcpServers = {};
+  // Maps the agent's namespaced tool name (server-prefixed, matching what
+  // `@langchain/mcp-adapters` produces below) to the MCP App widget it should
+  // render. Built from each Mcp doc's `resourceTemplates`, captured by the last
+  // Test Connection - `@langchain/mcp-adapters` drops `_meta` when it converts
+  // an MCP tool into a LangChain tool, so this is the only place left that
+  // still has the resourceUri by the time a tool call streams to the client.
+  const mcpAppMap = {};
 
   for (const mcp of agent.mcps) {
     if (mcp.isEnabled === false) {
@@ -85,6 +92,15 @@ export async function resolveMcpTools(agent, userId) {
         url: mcp.url,
         ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
       };
+
+      for (const tmpl of mcp.resourceTemplates || []) {
+        if (tmpl.toolName && tmpl.uriTemplate) {
+          mcpAppMap[`${serverKey}__${tmpl.toolName}`] = {
+            resourceUri: tmpl.uriTemplate,
+            mcpId: String(mcp._id),
+          };
+        }
+      }
     } catch (err) {
       logger.error(`[MCP] failed to prepare connection for "${mcp.name}": ${err?.message}`, {
         mcpId: String(mcp._id),
@@ -94,7 +110,7 @@ export async function resolveMcpTools(agent, userId) {
 
   if (Object.keys(mcpServers).length === 0) {
     logger.info(`[MCP] No active MCP servers prepared for agent ${agent._id || agent.id}`);
-    return [];
+    return { tools: [], mcpAppMap: {} };
   }
 
   const client = new MultiServerMCPClient({
@@ -108,9 +124,9 @@ export async function resolveMcpTools(agent, userId) {
     const rawTools = await client.getTools();
     const tools = rawTools.map(sanitizeMcpTool);
     logger.info(`[MCP] Successfully resolved ${tools.length} tools from ${Object.keys(mcpServers).length} active MCP servers: [${tools.map(t => t.name).join(', ')}]`);
-    return tools;
+    return { tools, mcpAppMap };
   } catch (err) {
     logger.error(`[MCP] failed to load tools: ${err?.message}`);
-    return [];
+    return { tools: [], mcpAppMap: {} };
   }
 }

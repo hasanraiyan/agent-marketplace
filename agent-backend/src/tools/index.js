@@ -17,7 +17,7 @@ export const resolveAgentTools = async (agentConfig, userId) => {
 
   // 1. If it is the Specialized Architect, give it the Builder Toolbox
   if (agentConfig._id?.toString() === ARCHITECT_AGENT_ID) {
-    return [clarificationTool, ...getBuilderToolbox(userId)];
+    return { tools: [clarificationTool, ...getBuilderToolbox(userId)], mcpAppMap: {} };
   }
 
   const agentId = agentConfig._id?.toString() || agentConfig.id?.toString();
@@ -30,8 +30,9 @@ export const resolveAgentTools = async (agentConfig, userId) => {
   }
 
   // 3. MCP connector tools (owner-shared or per-user, depending on each
-  // attached connector's authMode)
-  const mcpTools = await resolveMcpTools(agentConfig, userId);
+  // attached connector's authMode). mcpAppMap maps a tool name to the MCP App
+  // widget (resourceUri + mcpId) the AG-UI stream should render when it's called.
+  const { tools: mcpTools, mcpAppMap } = await resolveMcpTools(agentConfig, userId);
   tools.push(...mcpTools);
 
   // 4. Knowledge Base tools (semantic search + list sources per KB)
@@ -40,7 +41,7 @@ export const resolveAgentTools = async (agentConfig, userId) => {
     tools.push(...kbTools);
   }
 
-  return tools;
+  return { tools, mcpAppMap };
 };
 
 // Also expose generic factory for backend scripts outside of Chat loop

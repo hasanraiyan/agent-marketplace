@@ -212,7 +212,7 @@ class AgentFactory {
     const llm = await this._buildLLM(agent, provider);
 
     // Completely abstracted Tool Registry injection
-    const dynamicTools = await resolveAgentTools(agent, userId);
+    const { tools: dynamicTools, mcpAppMap } = await resolveAgentTools(agent, userId);
 
     //
     // deepagents discovers skills via the `skills: ["/skills/"]` param + the agent's
@@ -382,6 +382,7 @@ class AgentFactory {
         modelName: agent.modelName || provider.defaultModel || 'gpt-3.5-turbo',
       },
       skillFiles,
+      mcpAppMap,
     };
 
     // Cache the compiled result

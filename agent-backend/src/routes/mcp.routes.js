@@ -29,6 +29,7 @@ router.patch('/:id', mutateLimiter, validateBody(updateMcpSchema), mcpController
 router.delete('/:id', mutateLimiter, mcpController.delete);
 
 router.post('/:id/test', mutateLimiter, mcpController.testConnection);
+router.get('/:id/resource', mcpController.readResource);
 
 router.get('/:id/oauth/owner/authorize', mcpController.getOwnerAuthorizeUrl);
 router.get('/:id/oauth/user/authorize', mcpController.getUserAuthorizeUrl);

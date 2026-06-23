@@ -532,6 +532,19 @@ export function useAguiChat({
               }),
             );
           }
+        } else if (event.name === "mcp_app") {
+          // MCP App UI metadata for a specific tool call.
+          // The backend emits this when a tool with _meta.ui.resourceUri is called.
+          const { toolCallId, resourceUri, mcpId } = event.value || {};
+          if (toolCallId && resourceUri && mcpId) {
+            setToolCalls((prev) =>
+              prev.map((tool) =>
+                tool.id === toolCallId
+                  ? { ...tool, mcpApp: { resourceUri, mcpId } }
+                  : tool,
+              ),
+            );
+          }
         } else if (event.name === "clarification_request") {
           const questions = normalizeClarificationQuestions(
             event.value?.questions,

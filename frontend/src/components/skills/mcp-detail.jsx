@@ -23,6 +23,9 @@ import {
   Plug,
   Bot,
   Boxes,
+  FileText,
+  Database,
+  LayoutTemplate,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -70,9 +73,14 @@ export function McpDetail({ mcp }) {
     setIsTesting(true);
     try {
       const res = await testMcp(mcp._id);
-      const tools = res.data?.data || [];
+      const data = res.data?.data || {};
+      const tools = Array.isArray(data) ? data : (data.tools || []);
+      const resources = data.resources || [];
+      const templates = data.resourceTemplates || [];
       await refreshMcps();
-      toast.success(`Connection successful — ${tools.length} tool(s) found`);
+      const parts = [`${tools.length} tool(s)`, `${resources.length} resource(s)`];
+      if (templates.length) parts.push(`${templates.length} template(s)`);
+      toast.success(`Connection successful — ${parts.join(', ')} found`);
     } catch (err) {
       toast.error(err.response?.data?.message || "Connection test failed");
     } finally {
@@ -315,6 +323,126 @@ export function McpDetail({ mcp }) {
                       <Code className="size-6 text-zinc-400 dark:text-zinc-650 mb-2" />
                       <p className="text-xs text-zinc-500 dark:text-zinc-400 italic">
                         No tools discovered yet. Run &quot;Test Connection&quot; to fetch them.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Resources Shared Card */}
+            <Card className="border border-zinc-150/60 dark:border-zinc-900/60 bg-card rounded-3xl ring-0 shadow-none">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold flex items-center gap-2 text-zinc-900 dark:text-zinc-150">
+                  <Database className="size-4 text-primary" />
+                  Resources Shared
+                </CardTitle>
+                <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                  Data resources this MCP server makes available to your agents (files, documents, UI apps).
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between mb-3">
+                  <Badge variant="secondary" className="rounded-full">
+                    {mcp.resources?.length || 0} resources
+                  </Badge>
+                </div>
+
+                <div className="space-y-2 max-h-[450px] overflow-y-auto pr-1">
+                  {mcp.resources && mcp.resources.length > 0 ? (
+                    mcp.resources.map((resource) => (
+                      <div
+                        key={resource.uri || resource.name}
+                        className="p-3 rounded-lg border bg-card/60 hover:bg-card hover:border-emerald-500/20 transition-all space-y-1"
+                      >
+                        <div className="flex items-center gap-2">
+                          <FileText className="size-3.5 shrink-0 text-emerald-500" />
+                          <p className="font-mono text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate flex-1">
+                            {resource.name || resource.uri}
+                          </p>
+                        </div>
+                        {resource.description && (
+                          <p className="text-[10px] text-muted-foreground leading-normal ml-5.5">
+                            {resource.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 ml-5.5 mt-1">
+                          <code className="text-[9px] font-mono text-zinc-400 dark:text-zinc-600 truncate">
+                            {resource.uri}
+                          </code>
+                          {resource.mimeType && (
+                            <span className="text-[8px] font-bold uppercase text-zinc-400 dark:text-zinc-600 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded shrink-0">
+                              {resource.mimeType}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 px-6 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/20 dark:bg-zinc-900/5 text-center select-none">
+                      <Database className="size-6 text-zinc-400 dark:text-zinc-650 mb-2" />
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 italic">
+                        No resources discovered yet. Run &quot;Test Connection&quot; to fetch them.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Resource Templates Card (parameterized URIs like ui://widgets/*) */}
+            <Card className="border border-zinc-150/60 dark:border-zinc-900/60 bg-card rounded-3xl ring-0 shadow-none">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold flex items-center gap-2 text-zinc-900 dark:text-zinc-150">
+                  <LayoutTemplate className="size-4 text-primary" />
+                  UI App Templates
+                </CardTitle>
+                <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                  Interactive UI templates this server exposes (e.g. Canva design widgets).
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between mb-3">
+                  <Badge variant="secondary" className="rounded-full">
+                    {mcp.resourceTemplates?.length || 0} templates
+                  </Badge>
+                </div>
+
+                <div className="space-y-2 max-h-[450px] overflow-y-auto pr-1">
+                  {mcp.resourceTemplates && mcp.resourceTemplates.length > 0 ? (
+                    mcp.resourceTemplates.map((tmpl) => (
+                      <div
+                        key={tmpl.uriTemplate || tmpl.name}
+                        className="p-3 rounded-lg border bg-card/60 hover:bg-card hover:border-violet-500/20 transition-all space-y-1"
+                      >
+                        <div className="flex items-center gap-2">
+                          <LayoutTemplate className="size-3.5 shrink-0 text-violet-500" />
+                          <p className="font-mono text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate flex-1">
+                            {tmpl.name || tmpl.uriTemplate}
+                          </p>
+                        </div>
+                        {tmpl.description && (
+                          <p className="text-[10px] text-muted-foreground leading-normal ml-5.5">
+                            {tmpl.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 ml-5.5 mt-1">
+                          <code className="text-[9px] font-mono text-violet-500/80 dark:text-violet-400/80 truncate">
+                            {tmpl.uriTemplate}
+                          </code>
+                          {tmpl.mimeType && (
+                            <span className="text-[8px] font-bold uppercase text-zinc-400 dark:text-zinc-600 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded shrink-0">
+                              {tmpl.mimeType}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 px-6 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/20 dark:bg-zinc-900/5 text-center select-none">
+                      <LayoutTemplate className="size-6 text-zinc-400 dark:text-zinc-650 mb-2" />
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 italic">
+                        No UI templates discovered yet. Run &quot;Test Connection&quot; to fetch them.
                       </p>
                     </div>
                   )}

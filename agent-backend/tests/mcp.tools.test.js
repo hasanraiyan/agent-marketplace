@@ -25,8 +25,9 @@ describe('resolveMcpTools', () => {
   });
 
   it('returns no tools when the agent has no mcps', async () => {
-    const tools = await resolveMcpTools({ mcps: [] }, 'user1');
+    const { tools, mcpAppMap } = await resolveMcpTools({ mcps: [] }, 'user1');
     expect(tools).toEqual([]);
+    expect(mcpAppMap).toEqual({});
     expect(MultiServerMCPClient).not.toHaveBeenCalled();
   });
 
@@ -37,7 +38,7 @@ describe('resolveMcpTools', () => {
       mcps: [{ _id: 'mcp1', name: 'Public MCP', transport: 'http', url: 'https://x.com/mcp', authType: 'none' }],
     };
 
-    const tools = await resolveMcpTools(agent, 'user1');
+    const { tools } = await resolveMcpTools(agent, 'user1');
 
     expect(tools).toEqual([{ name: 'tool_a' }]);
     const [[config]] = MultiServerMCPClient.mock.calls;
@@ -85,7 +86,7 @@ describe('resolveMcpTools', () => {
       ],
     };
 
-    const tools = await resolveMcpTools(agent, 'user1');
+    const { tools } = await resolveMcpTools(agent, 'user1');
 
     expect(tools).toEqual([]);
     expect(MultiServerMCPClient).not.toHaveBeenCalled();
@@ -115,10 +116,35 @@ describe('resolveMcpTools', () => {
       ],
     };
 
-    const tools = await resolveMcpTools(agent, 'user1');
+    const { tools } = await resolveMcpTools(agent, 'user1');
 
     expect(tools).toEqual([{ name: 'tool_b' }]);
     const [[config]] = MultiServerMCPClient.mock.calls;
     expect(Object.keys(config.mcpServers)).toEqual(['fine_mcp']);
+  });
+
+  it('maps a tool with a resourceTemplate to its MCP App widget', async () => {
+    mockGetTools.mockResolvedValue([{ name: 'canva__search-designs' }]);
+
+    const agent = {
+      mcps: [
+        {
+          _id: 'mcp1',
+          name: 'Canva',
+          transport: 'http',
+          url: 'https://x.com/mcp',
+          authType: 'none',
+          resourceTemplates: [
+            { toolName: 'search-designs', uriTemplate: 'ui://widgets/search_designs.html' },
+          ],
+        },
+      ],
+    };
+
+    const { mcpAppMap } = await resolveMcpTools(agent, 'user1');
+
+    expect(mcpAppMap).toEqual({
+      'canva__search-designs': { resourceUri: 'ui://widgets/search_designs.html', mcpId: 'mcp1' },
+    });
   });
 });
