@@ -54,11 +54,11 @@ function ConnectorCard({ type, count, loading }) {
   return (
     <Link
       href={type.href}
-      className="group flex flex-col rounded-3xl border border-slate-100 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 p-8 shadow-[0_4px_20px_0_rgba(0,0,0,0.015)] dark:shadow-none hover:border-slate-200 dark:hover:border-zinc-700 hover:shadow-[0_8px_30px_0_rgba(0,0,0,0.03)] hover:-translate-y-0.5 transition-all duration-300 active:scale-[0.99]"
+      className="group flex flex-col rounded-3xl border border-slate-100 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 p-8 hover:border-slate-200 dark:hover:border-zinc-700 hover:-translate-y-0.5 transition-all duration-300 active:scale-[0.99]"
     >
       {/* Icon */}
       <div
-        className={`size-14 rounded-2xl ${type.bgColor} flex items-center justify-center text-white shadow-sm mb-6 group-hover:scale-105 transition-transform duration-300`}
+        className={`size-14 rounded-2xl ${type.bgColor} flex items-center justify-center text-white mb-6 group-hover:scale-105 transition-transform duration-300`}
       >
         <Icon className="size-6 text-white" />
       </div>

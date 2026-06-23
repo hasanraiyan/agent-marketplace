@@ -23,7 +23,7 @@ export function TodoChecklist({ todos, className, showProgress = false }) {
   return (
     <div className={cn('space-y-3.5', className)}>
       {showProgress && (
-        <div className="rounded-xl border border-slate-100 bg-white p-3 dark:border-slate-850 dark:bg-slate-950 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+        <div className="rounded-xl border border-slate-100 bg-white p-3 dark:border-slate-850 dark:bg-slate-950">
           <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
             <span>Roadmap Progress</span>
             <span className="tabular-nums font-mono text-xs text-slate-600 dark:text-slate-350">{todosDone}/{todos.length} ({percentage}%)</span>
@@ -50,7 +50,7 @@ export function TodoChecklist({ todos, className, showProgress = false }) {
                 isCompleted
                   ? 'border-slate-100 bg-slate-50/40 opacity-70 dark:border-slate-800/40 dark:bg-slate-900/10'
                   : isInProgress
-                    ? 'border-blue-100 bg-blue-50/20 shadow-[0_2px_8px_-3px_rgba(30,96,255,0.08)] dark:border-blue-900/30 dark:bg-blue-950/10 border-l-2 border-l-[#1E60FF]'
+                    ? 'border-blue-100 bg-blue-50/20 dark:border-blue-900/30 dark:bg-blue-950/10 border-l-2 border-l-[#1E60FF]'
                     : 'border-slate-100 bg-white dark:border-slate-850 dark:bg-slate-950'
               )}
             >

@@ -227,7 +227,7 @@ export default function MyAgentsPage() {
                 <div
                   key={agentId}
                   onClick={() => router.push(`/dashboard/agents/${agentId}/run`)}
-                  className="group relative flex flex-col overflow-hidden rounded-[24px] sm:rounded-[32px] h-[300px] sm:h-[360px] bg-zinc-950 border border-zinc-150/10 dark:border-zinc-900/80 transition-all hover:shadow-xl cursor-pointer"
+                  className="group relative flex flex-col overflow-hidden rounded-[24px] sm:rounded-[32px] h-[300px] sm:h-[360px] bg-zinc-950 border border-zinc-150/10 dark:border-zinc-900/80 transition-all hover:border-zinc-800 cursor-pointer"
                 >
                   {/* Photo Background */}
                   {displayAvatar ? (

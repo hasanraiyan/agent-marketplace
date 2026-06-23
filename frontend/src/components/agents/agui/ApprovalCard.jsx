@@ -27,7 +27,7 @@ export function ApprovalCard({ approval, onRespond, disabled }) {
     );
 
   return (
-    <div className="max-w-[92%] rounded-2xl border border-amber-200/80 bg-amber-50/50 p-4 shadow-[0_8px_30px_rgb(251,191,36,0.03)] dark:border-amber-500/20 dark:bg-amber-950/10">
+    <div className="max-w-[92%] rounded-2xl border border-amber-200/80 bg-amber-50/50 p-4 dark:border-amber-500/20 dark:bg-amber-950/10">
       <div className="flex items-center gap-2 text-sm font-bold text-amber-850 dark:text-amber-400">
         <div className="flex size-5.5 items-center justify-center rounded-full bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-455">
           <ShieldAlert className="size-3.5 animate-pulse" />
@@ -97,7 +97,7 @@ export function ClarificationCard({ clarification, onRespond, disabled }) {
   if (!question) return null;
 
   return (
-    <div className="overflow-hidden rounded-[18px] border border-slate-200 bg-[#f7f7f5] shadow-[0_16px_40px_rgba(15,23,42,0.10)] dark:border-[#3f3f3a] dark:bg-[#33332f] dark:shadow-none">
+    <div className="overflow-hidden rounded-[18px] border border-slate-200 bg-[#f7f7f5] dark:border-[#3f3f3a] dark:bg-[#33332f]">
       <div className="flex h-14 items-center gap-3 px-5">
         <div className="min-w-0 flex-1 text-[15px] font-semibold leading-5 text-slate-950 dark:text-[#f2f2ec]">
           {question.text}

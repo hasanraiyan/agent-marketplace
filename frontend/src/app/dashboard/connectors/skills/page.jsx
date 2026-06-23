@@ -87,7 +87,7 @@ export default function SkillsListPage() {
             <Link
               key={id}
               href={`/dashboard/connectors/skills/${id}`}
-              className="group flex flex-col rounded-2xl border border-zinc-150/60 dark:border-zinc-900/60 bg-card p-5 hover:border-primary/20 hover:shadow-md transition-all duration-200 active:scale-[0.98]"
+              className="group flex flex-col rounded-2xl border border-zinc-150/60 dark:border-zinc-900/60 bg-card p-5 hover:border-zinc-300 dark:hover:border-zinc-800 transition-all duration-200 active:scale-[0.98]"
             >
               {/* Top: Icon + Badge */}
               <div className="flex items-center justify-between mb-4">

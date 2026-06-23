@@ -88,7 +88,7 @@ export default function McpsListPage() {
             <Link
               key={id}
               href={`/dashboard/connectors/mcps/${id}`}
-              className="group flex flex-col rounded-2xl border border-zinc-150/60 dark:border-zinc-900/60 bg-card p-5 hover:border-primary/20 hover:shadow-md transition-all duration-200 active:scale-[0.98]"
+              className="group flex flex-col rounded-2xl border border-zinc-150/60 dark:border-zinc-900/60 bg-card p-5 hover:border-sky-500/30 transition-all duration-200 active:scale-[0.98]"
             >
               {/* Top: Icon + Status Badge */}
               <div className="flex items-center justify-between mb-4">

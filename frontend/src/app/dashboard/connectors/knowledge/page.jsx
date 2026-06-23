@@ -87,7 +87,7 @@ export default function KnowledgeBasesListPage() {
             <Link
               key={id}
               href={`/dashboard/connectors/knowledge/${id}`}
-              className="group flex flex-col rounded-2xl border border-zinc-150/60 dark:border-zinc-900/60 bg-card p-5 hover:border-emerald-500/30 hover:shadow-md hover:shadow-emerald-500/5 transition-all duration-200 active:scale-[0.98]"
+              className="group flex flex-col rounded-2xl border border-zinc-150/60 dark:border-zinc-900/60 bg-card p-5 hover:border-emerald-500/30 transition-all duration-200 active:scale-[0.98]"
             >
               {/* Top: Icon + Badge */}
               <div className="flex items-center justify-between mb-4">
