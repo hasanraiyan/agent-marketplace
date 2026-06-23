@@ -67,6 +67,8 @@ export function AguiFilesPanel({
       size: data?.size || 0,
     }));
 
+  const active = files.find((file) => file.path === selected);
+
   const [selectedVersion, setSelectedVersion] = useState(null);
 
   useEffect(() => {
@@ -99,7 +101,6 @@ export function AguiFilesPanel({
   // open the panel directly on Plan), otherwise managed locally.
   const tab = tabProp ?? internalTab;
   const setTab = onTabChange ?? setInternalTab;
-  const active = files.find((file) => file.path === selected);
 
   const handleCopy = () => {
     if (!active) return;
