@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Check, Code, FileCode, FileText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getReadFileToolDetails } from '../utils';
@@ -38,10 +38,37 @@ export function ReadFileCard({ tool }) {
   const isCode = ['JS', 'JSX', 'TS', 'TSX', 'JSON', 'HTML', 'CSS', 'PY', 'SH', 'GO', 'RS', 'MD'].includes(fileExt);
   const FileIcon = isCode ? FileCode : FileText;
 
-  const lines = content ? content.split('\n') : [];
-  if (lines.length > 1 && lines[lines.length - 1] === '') {
-    lines.pop();
-  }
+  const lines = useMemo(() => {
+    if (!content) return [];
+    const rawLines = content.split('\n');
+    if (rawLines.length > 1 && rawLines[rawLines.length - 1] === '') {
+      rawLines.pop();
+    }
+
+    // Detect if lines are prefixed with line numbers (e.g. "   1  content")
+    let isPrefixed = true;
+    const regex = /^\s*(\d+)(?:\s+(.*)|$)/;
+    
+    for (let i = 0; i < rawLines.length; i++) {
+      const line = rawLines[i];
+      if (line.trim() === '') continue; // Skip empty lines in validation
+      
+      const match = line.match(regex);
+      if (!match) {
+        isPrefixed = false;
+        break;
+      }
+    }
+
+    if (isPrefixed && rawLines.length > 0) {
+      return rawLines.map((line) => {
+        const match = line.match(regex);
+        return match ? (match[2] || '') : line;
+      });
+    }
+
+    return rawLines;
+  }, [content]);
 
   const done = tool.status === 'completed';
 
