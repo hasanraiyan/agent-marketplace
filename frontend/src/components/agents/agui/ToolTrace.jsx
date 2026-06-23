@@ -221,7 +221,7 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
       {open ? (
         <div className="ml-8 mt-1 space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 text-sm dark:border-slate-700 dark:bg-slate-900/70">
           {/* Tool Inputs */}
-          {tool.argumentsText && !isTodo && !isGrep && (
+          {tool.argumentsText && !isTodo && !isGrep && !isReadFileTool(tool.name) && (
             <ToolArguments argumentsText={tool.argumentsText} />
           )}
 
