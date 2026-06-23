@@ -586,7 +586,7 @@ export default function ExplorePage() {
               <TiltCard
                 key={mind.id}
                 onClick={() => handleMindClick(mind)}
-                className="w-[170px] sm:w-[230px] h-[255px] sm:h-[310px] shrink-0 relative rounded-[24px] sm:rounded-[32px] overflow-hidden group cursor-pointer"
+                className="w-[190px] sm:w-[230px] h-[255px] sm:h-[310px] shrink-0 relative rounded-[24px] sm:rounded-[32px] overflow-hidden group cursor-pointer"
               >
                 {/* Photo */}
                 <img
@@ -685,7 +685,7 @@ export default function ExplorePage() {
               <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-200">
                 No minds found
               </h3>
-              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1 max-w-[280px]">
+              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1 max-w-xs">
                 Try adjusting your search query or select another category.
               </p>
             </>
