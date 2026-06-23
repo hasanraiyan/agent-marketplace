@@ -20,7 +20,8 @@ export const resolveAgentTools = async (agentConfig, userId) => {
     return [clarificationTool, ...getBuilderToolbox(userId)];
   }
 
-  const tools = [clarificationTool, ...getMemoryTools(userId)];
+  const agentId = agentConfig._id?.toString() || agentConfig.id?.toString();
+  const tools = [clarificationTool, ...getMemoryTools(userId, agentId)];
 
   // 2. Core Engine Web Search parsing
   if (agentConfig.webSearchEnabled) {
@@ -35,10 +36,7 @@ export const resolveAgentTools = async (agentConfig, userId) => {
 
   // 4. Knowledge Base tools (semantic search + list sources per KB)
   if (agentConfig.knowledgeBases && agentConfig.knowledgeBases.length > 0) {
-    const kbTools = await resolveKnowledgeBaseTools(
-      agentConfig.knowledgeBases,
-      userId
-    );
+    const kbTools = await resolveKnowledgeBaseTools(agentConfig.knowledgeBases, userId);
     tools.push(...kbTools);
   }
 
