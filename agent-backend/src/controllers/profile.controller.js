@@ -27,6 +27,7 @@ export const getProfile = async (req, res, next) => {
         isActive: user.isActive,
         role: user.role,
         emailVerified: user.emailVerified,
+        profile: user.profile || { summary: '', preferences: {} },
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       })
@@ -38,11 +39,18 @@ export const getProfile = async (req, res, next) => {
 
 export const updateProfile = async (req, res, next) => {
   try {
-    const { name, age } = req.body;
+    const { name, age, profile } = req.body;
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
     if (age !== undefined) updateData.age = age;
+    if (profile !== undefined) {
+      updateData.profile = {
+        summary: profile.summary !== undefined ? profile.summary : '',
+        preferences: profile.preferences !== undefined ? profile.preferences : {},
+        lastUpdated: new Date()
+      };
+    }
 
     if (Object.keys(updateData).length === 0) {
       throw new BaseError('No fields to update', 400, 'BAD_REQUEST');
@@ -62,6 +70,7 @@ export const updateProfile = async (req, res, next) => {
           isActive: user.isActive,
           role: user.role,
           emailVerified: user.emailVerified,
+          profile: user.profile || { summary: '', preferences: {} },
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
         },
