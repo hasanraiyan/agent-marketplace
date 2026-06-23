@@ -77,9 +77,9 @@ const agentSchema = new mongoose.Schema(
       type: Map,
       of: Boolean,
       default: {
-        write_file: true,
-        edit_file: true,
-        delete_file: true,
+        write_file: false,
+        edit_file: false,
+        delete_file: false,
       },
     },
     visibility: {

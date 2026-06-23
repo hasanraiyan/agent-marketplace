@@ -1,6 +1,7 @@
 import { ChatOpenAI } from '@langchain/openai';
-import { createDeepAgent, StateBackend } from 'deepagents';
+import { createDeepAgent } from 'deepagents';
 import { MongoDBStore } from '../utils/mongoStore.js';
+import { VersionedStateBackend } from '../utils/versionedStateBackend.js';
 import checkpointService from '../services/checkpoint.service.js';
 import { LRUCache } from 'lru-cache';
 import agentRepository from '../repositories/agentRepository.js';
@@ -348,7 +349,7 @@ class AgentFactory {
       tools: dynamicTools,
       interruptOn: interruptOnConfig,
       // sandbox backend if real code execution is ever required.
-      backend: new StateBackend(),
+      backend: new VersionedStateBackend(),
       // point it at the virtual /skills/ tree we seed at invoke time.
       ...(hasSkills ? { skills: ['/skills/'] } : {}),
     });
