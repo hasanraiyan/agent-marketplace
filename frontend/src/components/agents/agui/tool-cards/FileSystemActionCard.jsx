@@ -54,9 +54,6 @@ export function FileSystemActionCard({ action }) {
 
   const { filePath, content, hasContent, otherArgs } = details;
   const fileName = filePath.split('/').pop() || filePath;
-  const folderPath = filePath.includes('/')
-    ? filePath.substring(0, filePath.lastIndexOf('/') + 1)
-    : '';
   const fileExt = fileName.includes('.')
     ? fileName.split('.').pop()?.toUpperCase()
     : 'FILE';
@@ -85,21 +82,9 @@ export function FileSystemActionCard({ action }) {
           <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
             <FileIcon className="size-4" />
           </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className="truncate text-xs font-bold text-slate-900 dark:text-slate-100">
-                {fileName}
-              </span>
-              <span className="shrink-0 rounded bg-slate-100 px-1 py-0.5 text-[9px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                {fileExt}
-              </span>
-            </div>
-            {folderPath && (
-              <div className="truncate text-[10px] font-medium text-slate-450 dark:text-slate-500">
-                {folderPath}
-              </div>
-            )}
-          </div>
+          <span className="truncate text-xs font-bold text-slate-900 dark:text-slate-100">
+            {filePath}
+          </span>
         </div>
 
         {hasContent && (

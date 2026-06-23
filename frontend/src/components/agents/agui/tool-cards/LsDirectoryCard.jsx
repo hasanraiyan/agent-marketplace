@@ -18,16 +18,9 @@ export function LsDirectoryCard({ tool }) {
           <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
             <Folder className="size-4" />
           </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className="truncate text-xs font-bold text-slate-900 dark:text-slate-100">
-                {path}
-              </span>
-              <span className="shrink-0 rounded bg-slate-105 px-1 py-0.5 text-[9px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                LIST
-              </span>
-            </div>
-          </div>
+          <span className="truncate text-xs font-bold text-slate-900 dark:text-slate-100">
+            {path}
+          </span>
         </div>
       </div>
 
