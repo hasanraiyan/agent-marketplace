@@ -613,10 +613,10 @@ export default function ExplorePage() {
           </div>
 
           {/* Left Fade Overlay */}
-          <div className="absolute left-0 top-0 bottom-0 w-10 bg-gradient-to-r from-white dark:from-zinc-950 via-white/50 dark:via-zinc-950/50 to-transparent pointer-events-none z-20 backdrop-blur-[0.5px]" />
+          <div className="absolute left-0 top-0 bottom-0 w-10 bg-gradient-to-r from-white dark:from-zinc-950 to-transparent pointer-events-none z-20" />
 
           {/* Right Fade Overlay */}
-          <div className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-white dark:from-zinc-950 via-white/50 dark:via-zinc-950/50 to-transparent pointer-events-none z-20 backdrop-blur-[0.5px]" />
+          <div className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-white dark:from-zinc-950 to-transparent pointer-events-none z-20" />
         </div>
       )}
 
