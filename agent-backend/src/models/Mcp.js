@@ -59,7 +59,7 @@ const mcpSchema = new mongoose.Schema(
     },
     authType: {
       type: String,
-      enum: ['none', 'oauth'],
+      enum: ['none', 'oauth', 'apiKey'],
       default: 'none',
     },
     authMode: {
@@ -68,6 +68,11 @@ const mcpSchema = new mongoose.Schema(
       default: 'owner',
     },
     oauth: { type: oauthSchema, default: () => ({}) },
+    // Static bearer token for `authType: 'apiKey'` servers (e.g. Excalidraw's
+    // `Authorization: Bearer <API_KEY>`) - no OAuth discovery/flow, just a
+    // fixed secret sent on every request. Always owner-shared (authMode
+    // doesn't apply): there's only one key, not a per-user token exchange.
+    apiKeyEncrypted: { type: String, default: null },
     isEnabled: {
       type: Boolean,
       default: true,

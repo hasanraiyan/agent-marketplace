@@ -24,3 +24,10 @@ export const disconnectUserConnection = (mcpId) =>
  */
 export const readMcpResource = (mcpId, uri) =>
   api.get(`/mcps/${mcpId}/resource`, { params: { uri } });
+
+/**
+ * Proxies a `tools/call` to the MCP server, for an MCP App widget's
+ * `app.callServerTool()`. Used by MCPAppRenderer's AppBridge `oncalltool` handler.
+ */
+export const callMcpTool = (mcpId, name, args) =>
+  api.post(`/mcps/${mcpId}/call-tool`, { name, arguments: args });

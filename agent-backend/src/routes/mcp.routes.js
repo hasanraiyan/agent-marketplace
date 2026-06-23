@@ -30,6 +30,7 @@ router.delete('/:id', mutateLimiter, mcpController.delete);
 
 router.post('/:id/test', mutateLimiter, mcpController.testConnection);
 router.get('/:id/resource', mcpController.readResource);
+router.post('/:id/call-tool', mutateLimiter, mcpController.callTool);
 
 router.get('/:id/oauth/owner/authorize', mcpController.getOwnerAuthorizeUrl);
 router.get('/:id/oauth/user/authorize', mcpController.getUserAuthorizeUrl);

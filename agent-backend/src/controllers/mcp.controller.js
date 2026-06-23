@@ -89,6 +89,19 @@ class McpController {
     }
   }
 
+  async callTool(req, res, next) {
+    try {
+      const { name, arguments: toolArgs } = req.body;
+      if (!name) {
+        return res.status(400).json({ success: false, message: 'Tool name is required' });
+      }
+      const result = await mcpService.callTool(req.params.id, req.user.id, name, toolArgs);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getOwnerAuthorizeUrl(req, res, next) {
     try {
       const url = await mcpService.getOwnerAuthorizationUrl(req.params.id, req.user.id);

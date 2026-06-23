@@ -43,6 +43,7 @@ jest.unstable_mockModule('../src/services/mcpToken.service.js', () => ({
   default: {
     getOwnerAccessToken: jest.fn(),
     getUserAccessToken: jest.fn(),
+    getApiKeyToken: jest.fn(),
   },
 }));
 
@@ -106,6 +107,25 @@ describe('Mcp Service', () => {
     };
   });
 
+  describe('toSafeJson', () => {
+    it('never leaks the encrypted API key', () => {
+      const apiKeyMcp = {
+        ...mockMcp,
+        authType: 'apiKey',
+        apiKeyEncrypted: 'enc:super-secret',
+        toObject() {
+          return { ...this, toObject: undefined, oauth: undefined };
+        },
+      };
+
+      const safe = mcpService.toSafeJson(apiKeyMcp);
+
+      expect(safe.apiKeyEncrypted).toBeUndefined();
+      expect(safe.hasApiKey).toBe(true);
+      expect(JSON.stringify(safe)).not.toContain('super-secret');
+    });
+  });
+
   describe('createMcp', () => {
     it('creates a none-auth MCP without discovery', async () => {
       mcpRepository.create.mockResolvedValue(mockMcp);
@@ -153,6 +173,35 @@ describe('Mcp Service', () => {
         })
       );
     });
+
+    it('encrypts and stores a static API key for apiKey MCPs', async () => {
+      mcpRepository.create.mockResolvedValue(mockMcp);
+
+      await mcpService.createMcp(mockUserId, {
+        name: 'Excalidraw',
+        transport: 'http',
+        url: 'https://api.excalidraw.com/api/v1/mcp',
+        authType: 'apiKey',
+        apiKey: 'secret-key-1',
+      });
+
+      expect(discoverOAuthEndpoints).not.toHaveBeenCalled();
+      expect(encryption.encrypt).toHaveBeenCalledWith('secret-key-1');
+      expect(mcpRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ authType: 'apiKey', apiKeyEncrypted: 'enc:secret-key-1' })
+      );
+    });
+
+    it('rejects an apiKey MCP with no key provided', async () => {
+      await expect(
+        mcpService.createMcp(mockUserId, {
+          name: 'Excalidraw',
+          transport: 'http',
+          url: 'https://api.excalidraw.com/api/v1/mcp',
+          authType: 'apiKey',
+        })
+      ).rejects.toThrow('API key is required when auth type is apiKey');
+    });
   });
 
   describe('getMcpById', () => {
@@ -179,6 +228,42 @@ describe('Mcp Service', () => {
       await expect(
         mcpService.updateMcp(mockMcp._id, mockUserId, { authType: 'oauth' })
       ).rejects.toThrow('Client ID is required when auth type is oauth');
+    });
+
+    it('throws ValidationError if switching to apiKey without a key', async () => {
+      mcpRepository.findById.mockResolvedValue(mockMcp);
+
+      await expect(
+        mcpService.updateMcp(mockMcp._id, mockUserId, { authType: 'apiKey' })
+      ).rejects.toThrow('API key is required when auth type is apiKey');
+    });
+
+    it('encrypts a new API key when switching to apiKey', async () => {
+      mcpRepository.findById.mockResolvedValue(mockMcp);
+      mcpRepository.update.mockResolvedValue({ ...mockMcp, authType: 'apiKey' });
+      Agent.find.mockResolvedValue([]);
+
+      await mcpService.updateMcp(mockMcp._id, mockUserId, { authType: 'apiKey', apiKey: 'new-key' });
+
+      expect(mcpRepository.update).toHaveBeenCalledWith(
+        mockMcp._id,
+        mockUserId,
+        expect.objectContaining({ apiKeyEncrypted: 'enc:new-key' })
+      );
+      const [, , updateArg] = mcpRepository.update.mock.calls[0];
+      expect(updateArg.apiKey).toBeUndefined();
+    });
+
+    it('keeps the existing API key when none is provided in the update', async () => {
+      const apiKeyMcp = { ...mockMcp, authType: 'apiKey', apiKeyEncrypted: 'enc:existing-key' };
+      mcpRepository.findById.mockResolvedValue(apiKeyMcp);
+      mcpRepository.update.mockResolvedValue(apiKeyMcp);
+      Agent.find.mockResolvedValue([]);
+
+      await mcpService.updateMcp(mockMcp._id, mockUserId, { description: 'updated desc' });
+
+      const [, , updateArg] = mcpRepository.update.mock.calls[0];
+      expect(updateArg.apiKeyEncrypted).toBeUndefined();
     });
 
     it('invalidates dependent agents after a successful update', async () => {
@@ -344,6 +429,36 @@ describe('Mcp Service', () => {
       await mcpService.testConnection(mockMcp._id, mockUserId);
 
       expect(mcpTokenService.getOwnerAccessToken).toHaveBeenCalledWith(oauthMcp);
+    });
+
+    it('throws if an apiKey MCP has no key configured', async () => {
+      const apiKeyMcp = { ...mockMcp, authType: 'apiKey', apiKeyEncrypted: null };
+      mcpRepository.findById.mockResolvedValue(apiKeyMcp);
+      mcpTokenService.getApiKeyToken.mockReturnValue(null);
+
+      await expect(mcpService.testConnection(mockMcp._id, mockUserId)).rejects.toThrow(
+        'This MCP server has no API key configured'
+      );
+    });
+  });
+
+  describe('callTool', () => {
+    it('throws if an apiKey MCP has no key configured (auth resolved before connecting)', async () => {
+      const apiKeyMcp = { ...mockMcp, authType: 'apiKey', apiKeyEncrypted: null };
+      mcpRepository.findById.mockResolvedValue(apiKeyMcp);
+      mcpTokenService.getApiKeyToken.mockReturnValue(null);
+
+      await expect(
+        mcpService.callTool(mockMcp._id, mockUserId, 'some-tool', {})
+      ).rejects.toThrow('This MCP server has no API key configured');
+    });
+
+    it('propagates a connection failure for an unreachable server', async () => {
+      mcpRepository.findById.mockResolvedValue(mockMcp);
+
+      await expect(
+        mcpService.callTool(mockMcp._id, mockUserId, 'some-tool', {})
+      ).rejects.toThrow();
     });
   });
 });

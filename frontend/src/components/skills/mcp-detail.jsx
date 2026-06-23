@@ -26,6 +26,7 @@ import {
   FileText,
   Database,
   LayoutTemplate,
+  KeyRound,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -161,6 +162,15 @@ export function McpDetail({ mcp }) {
                           OAuth · {mcp.authMode === "owner" ? "Shared" : "Per-user"}
                         </Badge>
                       )}
+                      {mcp.authType === "apiKey" && (
+                        <Badge
+                          variant="outline"
+                          className="text-xs font-semibold px-2.5 py-0.5 border-zinc-150/60 dark:border-zinc-800 bg-background/50 flex items-center gap-1 rounded-full"
+                        >
+                          <KeyRound className="size-3" />
+                          API Key
+                        </Badge>
+                      )}
                     </div>
 
                     <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 truncate">
@@ -252,6 +262,13 @@ export function McpDetail({ mcp }) {
                           </Button>
                         </div>
                       )}
+                    </div>
+                  ) : mcp.authType === "apiKey" ? (
+                    <div className="flex justify-between items-center text-sm pt-1">
+                      <span className="text-muted-foreground">API Key:</span>
+                      <span className="font-mono text-xs">
+                        {mcp.hasApiKey ? "••••••••••••" : "Not set"}
+                      </span>
                     </div>
                   ) : (
                     <p className="text-xs text-muted-foreground italic pt-1">
@@ -517,7 +534,7 @@ export function McpDetail({ mcp }) {
                     <span>Auth Type</span>
                   </div>
                   <span className="font-semibold text-zinc-900 dark:text-zinc-150 capitalize">
-                    {mcp.authType === "none" ? "None" : "OAuth 2.1"}
+                    {mcp.authType === "none" ? "None" : mcp.authType === "apiKey" ? "API Key" : "OAuth 2.1"}
                   </span>
                 </div>
 

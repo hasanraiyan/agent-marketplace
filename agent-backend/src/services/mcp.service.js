@@ -27,10 +27,11 @@ function redirectUriFor(mode) {
 class McpService {
   toSafeJson(mcp) {
     const obj = mcp.toObject ? mcp.toObject() : mcp;
-    const { oauth, ...rest } = obj;
-    if (!oauth) return rest;
+    const { oauth, apiKeyEncrypted, ...rest } = obj;
+    const safe = { ...rest, hasApiKey: Boolean(apiKeyEncrypted) };
+    if (!oauth) return safe;
     return {
-      ...rest,
+      ...safe,
       oauth: {
         clientId: oauth.clientId || null,
         hasClientSecret: Boolean(oauth.clientSecretEncrypted),
@@ -87,6 +88,11 @@ class McpService {
           dynamicallyRegistered: false,
         };
       }
+    } else if (mcpData.authType === 'apiKey') {
+      if (!data.apiKey) {
+        throw new ValidationError('API key is required when auth type is apiKey');
+      }
+      mcpData.apiKeyEncrypted = encryption.encrypt(data.apiKey);
     }
     return await mcpRepository.create(mcpData);
   }
@@ -126,8 +132,15 @@ class McpService {
         tokenEndpointAuthMethod: existing.oauth?.tokenEndpointAuthMethod || 'client_secret_basic',
         ownerToken: existing.oauth?.ownerToken || {},
       };
+    } else if (resolvedAuthType === 'apiKey') {
+      if (!data.apiKey && !existing.apiKeyEncrypted) {
+        throw new ValidationError('API key is required when auth type is apiKey');
+      }
+      if (data.apiKey) updateData.apiKeyEncrypted = encryption.encrypt(data.apiKey);
+      delete updateData.apiKey;
     } else if (data.authType === 'none') {
       updateData.oauth = {};
+      updateData.apiKeyEncrypted = null;
     }
     const mcp = await mcpRepository.update(id, userId, updateData);
     await this._invalidateAgentsUsingMcp(id);
@@ -179,9 +192,10 @@ class McpService {
     return { client, transport };
   }
 
-  async testConnection(id, userId) {
-    const mcp = await this.getMcpById(id, userId);
-
+  // Builds the request headers for connecting to an MCP server under any
+  // supported authType. Shared by testConnection() and readResource() so
+  // adding/fixing an auth method only has to happen in one place.
+  async _resolveAuthHeaders(mcp, userId, actionLabel) {
     const headers = {};
     if (mcp.authType === 'oauth') {
       const token = mcp.authMode === 'owner'
@@ -191,11 +205,23 @@ class McpService {
         throw new ValidationError(
           mcp.authMode === 'owner'
             ? 'Owner has not authenticated with this MCP server. Connect your account first.'
-            : 'You need to authenticate with this MCP server before testing. Connect your account first.'
+            : `You need to authenticate with this MCP server before ${actionLabel}. Connect your account first.`
         );
       }
       headers.Authorization = `Bearer ${token}`;
+    } else if (mcp.authType === 'apiKey') {
+      const token = mcpTokenService.getApiKeyToken(mcp);
+      if (!token) {
+        throw new ValidationError('This MCP server has no API key configured. Add one in its settings first.');
+      }
+      headers.Authorization = `Bearer ${token}`;
     }
+    return headers;
+  }
+
+  async testConnection(id, userId) {
+    const mcp = await this.getMcpById(id, userId);
+    const headers = await this._resolveAuthHeaders(mcp, userId, 'testing');
 
     const adapterClient = new MultiServerMCPClient({
       mcpServers: {
@@ -387,21 +413,7 @@ class McpService {
 
   async readResource(id, userId, resourceUri) {
     const mcp = await this.getMcpById(id, userId);
-
-    const headers = {};
-    if (mcp.authType === 'oauth') {
-      const token = mcp.authMode === 'owner'
-        ? await mcpTokenService.getOwnerAccessToken(mcp)
-        : await mcpTokenService.getUserAccessToken(mcp, userId);
-      if (!token) {
-        throw new ValidationError(
-          mcp.authMode === 'owner'
-            ? 'Owner has not authenticated with this MCP server. Connect your account first.'
-            : 'You need to authenticate with this MCP server before connecting. Connect your account first.'
-        );
-      }
-      headers.Authorization = `Bearer ${token}`;
-    }
+    const headers = await this._resolveAuthHeaders(mcp, userId, 'connecting');
 
     // Use the same capability-declaring client as testConnection()'s _meta.ui
     // extraction - MultiServerMCPClient's bare client (no declared capabilities)
@@ -418,6 +430,24 @@ class McpService {
         text: contents[0].text || '',
         mimeType: contents[0].mimeType || 'text/html',
       };
+    } finally {
+      try {
+        await transport.close();
+        await client.close();
+      } catch { /* best-effort cleanup */ }
+    }
+  }
+
+  // Proxies a `tools/call` for an MCP App widget's `app.callServerTool()`.
+  // The widget runs in the browser and has no credentials of its own - this
+  // keeps auth (OAuth tokens, API keys) server-side like every other MCP call.
+  async callTool(id, userId, toolName, args) {
+    const mcp = await this.getMcpById(id, userId);
+    const headers = await this._resolveAuthHeaders(mcp, userId, 'connecting');
+    const { client, transport } = await this._connectAppsClient(mcp, headers);
+
+    try {
+      return await client.callTool({ name: toolName, arguments: args || {} });
     } finally {
       try {
         await transport.close();

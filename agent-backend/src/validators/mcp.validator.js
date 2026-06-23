@@ -12,15 +12,20 @@ export const createMcpSchema = z
     description: z.string().max(500).optional(),
     transport: z.enum(['http', 'sse']),
     url: z.string().url('Must be a valid URL'),
-    authType: z.enum(['none', 'oauth']).default('none'),
+    authType: z.enum(['none', 'oauth', 'apiKey']).default('none'),
     authMode: z.enum(['owner', 'user']).default('owner'),
     oauth: oauthConfigSchema.optional(),
+    apiKey: z.string().min(1).optional(),
     useDynamicRegistration: z.boolean().optional(),
     isEnabled: z.boolean().default(true),
   })
   .refine((data) => data.authType !== 'oauth' || data.useDynamicRegistration || Boolean(data.oauth), {
     message: 'Client ID and Client Secret are required when auth type is oauth',
     path: ['oauth'],
+  })
+  .refine((data) => data.authType !== 'apiKey' || Boolean(data.apiKey), {
+    message: 'API key is required when auth type is apiKey',
+    path: ['apiKey'],
   });
 
 export const updateMcpSchema = z.object({
@@ -28,7 +33,7 @@ export const updateMcpSchema = z.object({
   description: z.string().max(500).optional(),
   transport: z.enum(['http', 'sse']).optional(),
   url: z.string().url('Must be a valid URL').optional(),
-  authType: z.enum(['none', 'oauth']).optional(),
+  authType: z.enum(['none', 'oauth', 'apiKey']).optional(),
   authMode: z.enum(['owner', 'user']).optional(),
   isEnabled: z.boolean().optional(),
   useDynamicRegistration: z.boolean().optional(),
@@ -39,4 +44,5 @@ export const updateMcpSchema = z.object({
       scopes: z.array(z.string()).optional(),
     })
     .optional(),
+  apiKey: z.string().min(1).optional(),
 });

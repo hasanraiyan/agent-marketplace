@@ -15,6 +15,7 @@ import {
   Loader2,
   Info,
   Plug,
+  KeyRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +56,7 @@ export function McpEditor({ mcp, mode = "new" }) {
   const [formClientId, setFormClientId] = useState(mcp?.oauth?.clientId || "");
   const [formClientSecret, setFormClientSecret] = useState("");
   const [formUseDcr, setFormUseDcr] = useState(mcp?.oauth?.dynamicallyRegistered ?? isCreating);
+  const [formApiKey, setFormApiKey] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
@@ -78,6 +80,10 @@ export function McpEditor({ mcp, mode = "new" }) {
       toast.error("Client Secret is required for OAuth");
       return;
     }
+    if (formAuthType === "apiKey" && isCreating && !formApiKey.trim()) {
+      toast.error("API Key is required");
+      return;
+    }
 
     const payload = {
       name: formName,
@@ -96,6 +102,7 @@ export function McpEditor({ mcp, mode = "new" }) {
               },
             }
           : {}),
+      ...(formAuthType === "apiKey" && formApiKey.trim() ? { apiKey: formApiKey.trim() } : {}),
     };
 
     setIsSaving(true);
@@ -252,7 +259,7 @@ export function McpEditor({ mcp, mode = "new" }) {
             <div className="lg:col-span-2 space-y-6">
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Auth Type</Label>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <SelectCard
                     active={formAuthType === "none"}
                     onClick={() => setFormAuthType("none")}
@@ -267,8 +274,32 @@ export function McpEditor({ mcp, mode = "new" }) {
                     title="OAuth 2.1"
                     subtitle="Client ID + Secret, PKCE flow."
                   />
+                  <SelectCard
+                    active={formAuthType === "apiKey"}
+                    onClick={() => setFormAuthType("apiKey")}
+                    icon={KeyRound}
+                    title="API Key"
+                    subtitle="Static bearer token."
+                  />
                 </div>
               </div>
+
+              {formAuthType === "apiKey" && (
+                <div className="space-y-2 border p-4 rounded-xl bg-muted/10">
+                  <Label htmlFor="mcp-api-key" className="text-xs font-bold">API Key</Label>
+                  <Input
+                    id="mcp-api-key"
+                    type="password"
+                    placeholder={!isCreating ? "Leave blank to keep current key" : ""}
+                    value={formApiKey}
+                    onChange={(e) => setFormApiKey(e.target.value)}
+                    className="font-mono text-sm bg-muted/20"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Sent as <code>Authorization: Bearer &lt;key&gt;</code> on every request to this server.
+                  </p>
+                </div>
+              )}
 
               {formAuthType === "oauth" && (
                 <div className="space-y-5 border p-4 rounded-xl bg-muted/10">

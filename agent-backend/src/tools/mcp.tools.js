@@ -77,6 +77,13 @@ export async function resolveMcpTools(agent, userId) {
           logger.info(`[MCP] Skipping OAuth server "${mcp.name}" (id: ${mcp._id}) - missing user or owner token`);
           continue;
         }
+      } else if (mcp.authType === 'apiKey') {
+        token = mcpTokenService.getApiKeyToken(mcp);
+
+        if (!token) {
+          logger.info(`[MCP] Skipping API-key server "${mcp.name}" (id: ${mcp._id}) - no API key configured`);
+          continue;
+        }
       }
 
       logger.info(`[MCP] Preparing connection to server "${mcp.name}" (id: ${mcp._id}, url: ${mcp.url})`);

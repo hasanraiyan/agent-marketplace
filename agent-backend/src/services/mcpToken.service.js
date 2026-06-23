@@ -104,6 +104,16 @@ class McpTokenService {
 
     return refreshed.access_token;
   }
+
+  /**
+   * Returns the static bearer token for an apiKey-auth MCP. Returns null if
+   * not applicable (authType !== 'apiKey' or never configured) - no refresh,
+   * it's a fixed secret rather than an OAuth-issued token.
+   */
+  getApiKeyToken(mcp) {
+    if (mcp.authType !== 'apiKey' || !mcp.apiKeyEncrypted) return null;
+    return encryption.decrypt(mcp.apiKeyEncrypted);
+  }
 }
 
 export default new McpTokenService();
