@@ -16,6 +16,18 @@ function parseJsonObject(value) {
   }
 }
 
+// Most MCP App widgets read `result.structuredContent` in their `ontoolresult`
+// handler (it's a real, typed object), not the flattened text the rest of the
+// chat UI uses - `tool.structuredResult` is the backend's unflattened copy of
+// it (see aguiTranslator's extractStructuredContent). Always include `content`
+// too: some widgets fall back to it, and it's required by the CallToolResult shape.
+function buildToolResultPayload(tool) {
+  const content = [{ type: 'text', text: typeof tool?.resultText === 'string' ? tool.resultText : '' }];
+  return tool?.structuredResult !== undefined
+    ? { content, structuredContent: tool.structuredResult }
+    : { content };
+}
+
 /**
  * MCPAppRenderer — renders an MCP App (interactive UI from an MCP server)
  * inside a sandboxed iframe, wired up with the real `AppBridge` protocol from
@@ -159,7 +171,7 @@ export function MCPAppRenderer({
       bridge.sendToolInput({ arguments: parseJsonObject(tool?.argumentsText) });
       if (tool?.status === 'completed' && typeof tool?.resultText === 'string') {
         resultSentRef.current = true;
-        bridge.sendToolResult({ content: [{ type: 'text', text: tool.resultText }] });
+        bridge.sendToolResult(buildToolResultPayload(tool));
       }
     };
 
@@ -192,8 +204,9 @@ export function MCPAppRenderer({
     if (!bridge || resultSentRef.current) return;
     if (tool?.status !== 'completed' || typeof tool?.resultText !== 'string') return;
     resultSentRef.current = true;
-    bridge.sendToolResult({ content: [{ type: 'text', text: tool.resultText }] });
-  }, [tool?.status, tool?.resultText]);
+    bridge.sendToolResult(buildToolResultPayload(tool));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- depend on the primitive fields, not `tool` itself (a new object reference every render) which would refire this on every unrelated update
+  }, [tool?.status, tool?.resultText, tool?.structuredResult]);
 
   const toggleExpanded = useCallback(() => {
     setExpanded((prev) => !prev);

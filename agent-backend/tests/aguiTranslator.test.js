@@ -10,6 +10,7 @@ import {
   formatRuntimeError,
   buildFilesTodosSnapshot,
   extractToolOutputContent,
+  extractStructuredContent,
 } from '../src/utils/aguiTranslator.js';
 
 // Helper: turn an array of LangGraph events into an async iterable, optionally
@@ -133,6 +134,37 @@ describe('translateLangGraphStream', () => {
     expect(JSON.parse(result.content).results).toHaveLength(1);
     expect(result.content).not.toContain('"lc"');
     expect(result.content).not.toContain('kwargs');
+  });
+
+  test('forwards structuredContent on TOOL_CALL_RESULT for MCP App tools', async () => {
+    // @langchain/mcp-adapters merges structuredContent onto the text block
+    // (content becomes an object) and tags it onto .artifact as
+    // mcp_structured_content - both must survive into the AG-UI event so
+    // MCPAppRenderer's sendToolResult can give the widget what it expects.
+    const toolMessage = new ToolMessage({
+      content: { type: 'text', text: '{"hostname":"box"}', structuredContent: { hostname: 'box' } },
+      tool_call_id: 'mcp1',
+      name: 'system__get-system-info',
+    });
+    toolMessage.artifact = [{ type: 'mcp_structured_content', data: { hostname: 'box' } }];
+    const events = [
+      { event: 'on_tool_start', run_id: 'mcp1', name: 'system__get-system-info', data: { input: {} } },
+      { event: 'on_tool_end', run_id: 'mcp1', name: 'system__get-system-info', data: { output: toolMessage } },
+    ];
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    const result = out.find((e) => e.type === 'TOOL_CALL_RESULT');
+    expect(result.content).toBe('{"hostname":"box"}');
+    expect(result.structuredContent).toEqual({ hostname: 'box' });
+  });
+
+  test('omits structuredContent on TOOL_CALL_RESULT for ordinary tools', async () => {
+    const events = [
+      { event: 'on_tool_start', run_id: 'a', name: 'calc', data: { input: { n: 2 } } },
+      { event: 'on_tool_end', run_id: 'a', name: 'calc', data: { output: { answer: 42 } } },
+    ];
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    const result = out.find((e) => e.type === 'TOOL_CALL_RESULT');
+    expect('structuredContent' in result).toBe(false);
   });
 
   test('synthesizes assistant text when a stream finishes immediately after a tool result', async () => {
@@ -636,6 +668,41 @@ describe('extractToolOutputContent', () => {
   test('handles null/undefined', () => {
     expect(extractToolOutputContent(null)).toBe('');
     expect(extractToolOutputContent(undefined)).toBe('');
+  });
+
+  test('unwraps a single text block merged with structuredContent (MCP App tools)', () => {
+    // What @langchain/mcp-adapters produces for an MCP tool whose result has
+    // both a text block and structuredContent: the text block becomes an
+    // object instead of an array, so .content is neither string nor array.
+    const tm = new ToolMessage({
+      content: { type: 'text', text: '{"hostname":"box"}', structuredContent: { hostname: 'box' } },
+      tool_call_id: 'x',
+      name: 't',
+    });
+    expect(extractToolOutputContent(tm)).toBe('{"hostname":"box"}');
+  });
+});
+
+describe('extractStructuredContent', () => {
+  test('reads structuredContent off the mcp_structured_content artifact entry', () => {
+    const tm = new ToolMessage({
+      content: '{"hostname":"box"}',
+      tool_call_id: 'x',
+      name: 't',
+    });
+    tm.artifact = [{ type: 'mcp_structured_content', data: { hostname: 'box' } }];
+    expect(extractStructuredContent(tm)).toEqual({ hostname: 'box' });
+  });
+
+  test('returns undefined when there is no artifact array', () => {
+    expect(extractStructuredContent({ content: 'x' })).toBeUndefined();
+    expect(extractStructuredContent(null)).toBeUndefined();
+  });
+
+  test('returns undefined when the artifact array has no structured-content entry', () => {
+    const tm = new ToolMessage({ content: 'x', tool_call_id: 'x', name: 't' });
+    tm.artifact = [{ type: 'mcp_meta', data: { foo: 1 } }];
+    expect(extractStructuredContent(tm)).toBeUndefined();
   });
 });
 

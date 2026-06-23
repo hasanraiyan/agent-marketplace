@@ -236,9 +236,31 @@ export function extractToolOutputContent(output) {
       .map((b) => (typeof b === 'string' ? b : (b?.text ?? JSON.stringify(b))))
       .join('');
   }
+  // A single text block returned as an object rather than an array -
+  // @langchain/mcp-adapters does this when the MCP result also carries
+  // structuredContent/_meta (it merges them onto the one text block: see
+  // _convertCallToolResult in @langchain/mcp-adapters/dist/tools.js). Unwrap
+  // `.text` here too, or this falls through to the envelope-stringify below.
+  if (output.content && typeof output.content === 'object' && typeof output.content.text === 'string') {
+    return output.content.text;
+  }
   // Plain object (a tool that returned a raw object with no tool_call_id wrapping):
   // serialize it as before.
   return JSON.stringify(output ?? '');
+}
+
+// MCP tools that return `structuredContent` (declared via an outputSchema -
+// used by MCP App widgets for their `ontoolresult`/`oncalltool` payloads)
+// carry it on the ToolMessage's `.artifact`, not `.content`:
+// @langchain/mcp-adapters' _convertCallToolResult pushes
+// `{ type: "mcp_structured_content", data: structuredContent }` onto the
+// artifact array for `responseFormat: "content_and_artifact"` tools (which is
+// how loadMcpTools configures every MCP tool). extractToolOutputContent only
+// reads `.content`, so without this it's silently dropped.
+export function extractStructuredContent(output) {
+  const artifact = output?.artifact;
+  if (!Array.isArray(artifact)) return undefined;
+  return artifact.find((item) => item?.type === 'mcp_structured_content')?.data;
 }
 
 function buildToolCompletionNotice(toolName, resultContent) {
@@ -744,6 +766,7 @@ export async function* translateLangGraphStream(stream, opts = {}) {
         if (tc) {
           pendingToolCalls.delete(event.run_id);
           const resultContent = extractToolOutputContent(event.data?.output);
+          const structuredContent = extractStructuredContent(event.data?.output);
           stats.toolResults += 1;
           textSinceLastToolResult = false;
           lastToolResult = { name: tc.name, content: resultContent };
@@ -758,6 +781,9 @@ export async function* translateLangGraphStream(stream, opts = {}) {
             toolCallId: tc.toolCallId,
             content: resultContent,
             role: 'tool',
+            // Forwarded so MCP App widgets (which read result.structuredContent,
+            // not the flattened text) get the data their ontoolresult expects.
+            ...(structuredContent !== undefined ? { structuredContent } : {}),
           };
         }
       }

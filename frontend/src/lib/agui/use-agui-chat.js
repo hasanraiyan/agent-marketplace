@@ -483,6 +483,12 @@ export function useAguiChat({
             resultText,
             status: "completed",
             subEvents: settleSubEvents(current.subEvents),
+            // MCP App widgets read structuredContent, not the flattened text
+            // (see aguiTranslator's extractStructuredContent) - carried here
+            // unparsed so MCPAppRenderer can forward it via sendToolResult.
+            ...(event.structuredContent !== undefined
+              ? { structuredResult: event.structuredContent }
+              : {}),
           };
           if (onToolResult) onToolResult(completedTool);
           // Args are complete once the result arrives — mirror write_todos and
