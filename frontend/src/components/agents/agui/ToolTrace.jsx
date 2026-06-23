@@ -217,121 +217,126 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
           <SubAgentTimeline items={subEvents.slice(-4)} compact />
         </div>
       ) : null}
-
       {open ? (
-        <div className="ml-8 mt-1 space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 text-sm dark:border-slate-700 dark:bg-slate-900/70">
-          {/* Tool Inputs */}
-          {tool.argumentsText && !isTodo && !isGrep && !isReadFileTool(tool.name) && (
-            <ToolArguments argumentsText={tool.argumentsText} />
-          )}
+        isLsTool(tool.name) ? (
+          <div className="ml-8 mt-1 text-sm">
+            <LsDirectoryCard tool={tool} />
+          </div>
+        ) : isReadFileTool(tool.name) ? (
+          <div className="ml-8 mt-1 text-sm">
+            <ReadFileCard tool={tool} />
+          </div>
+        ) : (
+          <div className="ml-8 mt-1 space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 text-sm dark:border-slate-700 dark:bg-slate-900/70">
+            {/* Tool Inputs */}
+            {tool.argumentsText && !isTodo && !isGrep && (
+              <ToolArguments argumentsText={tool.argumentsText} />
+            )}
 
-          {/* The subagent's scoped timeline: its text + its own tool calls */}
-          {subEvents.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
-                Subagent Activity
+            {/* The subagent's scoped timeline: its text + its own tool calls */}
+            {subEvents.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
+                  Subagent Activity
+                </div>
+                <div className="max-h-64 overflow-auto rounded-xl border border-slate-150 bg-slate-100/50 p-2.5 dark:border-slate-800/60 dark:bg-slate-900/50 scrollbar-thin">
+                  <SubAgentTimeline items={subEvents} />
+                </div>
               </div>
-              <div className="max-h-64 overflow-auto rounded-xl border border-slate-150 bg-slate-100/50 p-2.5 dark:border-slate-800/60 dark:bg-slate-900/50 scrollbar-thin">
-                <SubAgentTimeline items={subEvents} />
-              </div>
-            </div>
-          )}
+            )}
 
-          {/* Tool Outputs / Status */}
-          {isSkill && done && !isError ? (
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
-                <CheckCircle2 className="size-4" />
-                Skill Successfully {tryParseJson(tool.argumentsText)?.action === 'delete' ? 'Deleted' : 'Saved'}
+            {/* Tool Outputs / Status */}
+            {isSkill && done && !isError ? (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
+                  <CheckCircle2 className="size-4" />
+                  Skill Successfully {tryParseJson(tool.argumentsText)?.action === 'delete' ? 'Deleted' : 'Saved'}
+                </div>
+                {tryParseJson(tool.argumentsText)?.action !== 'delete' && (
+                  <Link href={`/dashboard/connectors/skills/${parsedResult?.data?._id || parsedResult?.data?.id}`}>
+                    <Button size="sm" variant="outline" className="w-full">
+                      <Edit className="mr-2 size-3.5" />
+                      View or Edit Skill
+                    </Button>
+                  </Link>
+                )}
               </div>
-              {tryParseJson(tool.argumentsText)?.action !== 'delete' && (
-                <Link href={`/dashboard/connectors/skills/${parsedResult?.data?._id || parsedResult?.data?.id}`}>
+            ) : isAgent && done && !isError ? (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
+                  <CheckCircle2 className="size-4" />
+                  Agent Successfully Saved
+                </div>
+                <Link href={`/dashboard/agents/${parsedResult?.data?._id || parsedResult?.data?.id}`}>
                   <Button size="sm" variant="outline" className="w-full">
-                    <Edit className="mr-2 size-3.5" />
-                    View or Edit Skill
+                    <BotIcon className="mr-2 size-3.5" />
+                    View Agent Details
                   </Button>
                 </Link>
-              )}
-            </div>
-          ) : isAgent && done && !isError ? (
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
-                <CheckCircle2 className="size-4" />
-                Agent Successfully Saved
               </div>
-              <Link href={`/dashboard/agents/${parsedResult?.data?._id || parsedResult?.data?.id}`}>
-                <Button size="sm" variant="outline" className="w-full">
-                  <BotIcon className="mr-2 size-3.5" />
-                  View Agent Details
-                </Button>
-              </Link>
-            </div>
-          ) : isGrep ? (
-            <GrepResultsView tool={tool} done={done} />
-          ) : todos ? (
-            <TodoChecklist todos={todos} showProgress={true} />
-          ) : isWebSearch ? (
-            done ? (
-              results.length ? (
+            ) : isGrep ? (
+              <GrepResultsView tool={tool} done={done} />
+            ) : todos ? (
+              <TodoChecklist todos={todos} showProgress={true} />
+            ) : isWebSearch ? (
+              done ? (
+                results.length ? (
+                  <div className="space-y-1.5">
+                    <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
+                      Search Results
+                    </div>
+                    <div className="max-h-48 overflow-auto space-y-1.5 scrollbar-thin">
+                      {results.map((result, index) => (
+                        <a
+                           key={result.url || index}
+                           href={result.url}
+                           target="_blank"
+                           rel="noreferrer"
+                           className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-3 py-2 hover:border-blue-500 hover:bg-blue-50/10 dark:border-slate-800/60 dark:bg-slate-950 dark:hover:border-blue-500/30 dark:hover:bg-blue-950/10 transition-all duration-200"
+                        >
+                          <img
+                            src={`https://www.google.com/s2/favicons?sz=32&domain=${getDomain(result.url || '')}`}
+                            alt=""
+                            className="size-3.5 shrink-0 rounded-sm"
+                          />
+                          <span className="min-w-0 flex-1 truncate font-medium text-slate-700 dark:text-slate-300 text-xs">
+                            {result.title || result.url}
+                          </span>
+                          <span className="shrink-0 text-[10px] text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900 px-1.5 py-0.5 rounded border">
+                            {getDomain(result.url || '')}
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xs text-slate-500 dark:text-slate-400 italic">
+                    No search results found.
+                  </div>
+                )
+              ) : (
                 <div className="space-y-1.5">
                   <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
-                    Search Results
+                    Searching Results...
                   </div>
-                  <div className="max-h-48 overflow-auto space-y-1.5 scrollbar-thin">
-                    {results.map((result, index) => (
-                      <a
-                        key={result.url || index}
-                        href={result.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-3 py-2 hover:border-blue-500 hover:bg-blue-50/10 dark:border-slate-800/60 dark:bg-slate-950 dark:hover:border-blue-500/30 dark:hover:bg-blue-950/10 transition-all duration-200"
-                      >
-                        <img
-                          src={`https://www.google.com/s2/favicons?sz=32&domain=${getDomain(result.url || '')}`}
-                          alt=""
-                          className="size-3.5 shrink-0 rounded-sm"
-                        />
-                        <span className="min-w-0 flex-1 truncate font-medium text-slate-700 dark:text-slate-300 text-xs">
-                          {result.title || result.url}
-                        </span>
-                        <span className="shrink-0 text-[10px] text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900 px-1.5 py-0.5 rounded border">
-                          {getDomain(result.url || '')}
-                        </span>
-                      </a>
-                    ))}
+                  <div className="space-y-2 animate-pulse">
+                    <div className="h-8 rounded-xl bg-slate-105 dark:bg-slate-800/40" />
+                    <div className="h-8 rounded-xl bg-slate-105 dark:bg-slate-800/40" />
                   </div>
-                </div>
-              ) : (
-                <div className="text-xs text-slate-500 dark:text-slate-400 italic">
-                  No search results found.
                 </div>
               )
             ) : (
               <div className="space-y-1.5">
                 <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
-                  Searching Results...
+                  Output Result
                 </div>
-                <div className="space-y-2 animate-pulse">
-                  <div className="h-8 rounded-xl bg-slate-105 dark:bg-slate-800/40" />
-                  <div className="h-8 rounded-xl bg-slate-105 dark:bg-slate-800/40" />
-                </div>
+                <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-slate-600 dark:text-slate-300 bg-slate-100/50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-150 dark:border-slate-800/60 scrollbar-thin">
+                  {tool.resultText || 'No result yet.'}
+                </pre>
               </div>
-            )
-          ) : isLsTool(tool.name) ? (
-            <LsDirectoryCard tool={tool} />
-          ) : isReadFileTool(tool.name) ? (
-            <ReadFileCard tool={tool} />
-          ) : (
-            <div className="space-y-1.5">
-              <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
-                Output Result
-              </div>
-              <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-slate-600 dark:text-slate-300 bg-slate-100/50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-150 dark:border-slate-800/60 scrollbar-thin">
-                {tool.resultText || 'No result yet.'}
-              </pre>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )
       ) : null}
     </div>
   );

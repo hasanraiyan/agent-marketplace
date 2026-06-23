@@ -1,15 +1,11 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Check, Code, FileCode, FileText, Loader2, Copy } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useMemo } from 'react';
+import { FileCode, FileText, Loader2 } from 'lucide-react';
 import { getReadFileToolDetails } from '../utils';
-import { toast } from 'sonner';
 
 export function ReadFileCard({ tool }) {
   const details = getReadFileToolDetails(tool);
-  const [copied, setCopied] = useState(false);
-  const [showRaw, setShowRaw] = useState(false);
 
   if (!details) {
     return (
@@ -29,14 +25,6 @@ export function ReadFileCard({ tool }) {
   const fileExt = fileName.includes('.')
     ? fileName.split('.').pop()?.toLowerCase()
     : '';
-
-  const handleCopy = (e) => {
-    e.stopPropagation();
-    navigator.clipboard.writeText(content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    toast.success('Copied file content');
-  };
 
   const isCode = ['js', 'jsx', 'ts', 'tsx', 'json', 'html', 'css', 'py', 'sh', 'go', 'rs', 'md', 'yaml', 'yml'].includes(fileExt);
   const FileIcon = isCode ? FileCode : FileText;
@@ -93,16 +81,14 @@ export function ReadFileCard({ tool }) {
 
   const done = tool.status === 'completed';
 
-  const displayLines = showRaw ? (content ? content.split('\n') : []) : linesData.lines;
-  const displayNumbers = showRaw 
-    ? displayLines.map((_, i) => i + 1)
-    : linesData.lineNumbers;
+  const displayLines = linesData.lines;
+  const displayNumbers = linesData.lineNumbers;
 
   // Format breadcrumbs folder path
   const folders = folderPath.split('/').filter(Boolean);
 
   return (
-    <div className="flex flex-col rounded-[16px] border border-slate-205/70 bg-white shadow-sm overflow-hidden dark:border-slate-800 dark:bg-slate-950 transition-all duration-300">
+    <div className="flex flex-col rounded-[16px] border border-slate-205/70 bg-white overflow-hidden dark:border-slate-800 dark:bg-slate-950 transition-all duration-300">
       {/* File Header */}
       <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-4 py-3 dark:border-slate-800/80 dark:bg-slate-900/40 backdrop-blur-md">
         <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -148,35 +134,6 @@ export function ReadFileCard({ tool }) {
             </div>
           </div>
         </div>
-
-        {done && content && (
-          <div className="flex items-center gap-1.5 shrink-0 select-none">
-            {/* Raw Toggle Button */}
-            <Button
-              variant="outline"
-              size="xs"
-              onClick={() => setShowRaw(!showRaw)}
-              className="h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider px-2.5 border-slate-200 hover:bg-slate-100 dark:border-slate-800 dark:hover:bg-slate-900 transition-colors"
-            >
-              {showRaw ? 'Show Formatted' : '</> Raw'}
-            </Button>
-            
-            {/* Copy Button */}
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={handleCopy}
-              className="size-7 rounded-lg border-slate-200 hover:bg-slate-100 dark:border-slate-800 dark:hover:bg-slate-900 transition-colors text-slate-450 hover:text-slate-700 dark:hover:text-slate-200"
-              title="Copy content"
-            >
-              {copied ? (
-                <Check className="size-3.5 text-emerald-500" />
-              ) : (
-                <Copy className="size-3.5" />
-              )}
-            </Button>
-          </div>
-        )}
       </div>
 
       {/* Code Editor Preview */}
@@ -217,7 +174,7 @@ export function ReadFileCard({ tool }) {
       {done && content && (
         <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 px-4 py-2 dark:border-slate-800/80 dark:bg-slate-900/20 text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-tight select-none">
           <div>
-            {showRaw ? 'Showing raw text' : `Showing lines ${displayNumbers[0]}-${displayNumbers[displayNumbers.length - 1]}`}
+            Showing lines {displayNumbers[0]}-{displayNumbers[displayNumbers.length - 1]}
           </div>
           <div>
             {displayLines.length} lines
