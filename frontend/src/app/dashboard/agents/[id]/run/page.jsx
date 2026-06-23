@@ -294,7 +294,9 @@ export default function RunAgentPage() {
     setSelectedFile(filePath);
   }, []);
 
-  const fileCount = Object.keys(agentState?.files || {}).length;
+  const fileCount = Object.keys(agentState?.files || {}).filter(
+    (path) => !path.startsWith("/.versions/") && !path.startsWith(".versions/")
+  ).length;
   const todos = Array.isArray(agentState?.todos) ? agentState.todos : [];
   const todoCount = todos.length;
   const todoDone = todos.filter((todo) => todo?.status === "completed").length;
