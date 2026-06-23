@@ -92,13 +92,30 @@ class AgentFactory {
 
     this._assertProviderCredentials(provider, apiKey);
 
+    const modelName = agent.modelName || provider.defaultModel || 'gpt-3.5-turbo';
+    const maskedKey = apiKey
+      ? (apiKey.length > 8
+          ? `${apiKey.substring(0, 6)}...${apiKey.substring(apiKey.length - 4)}`
+          : '***')
+      : 'empty';
+
+    logger.info('[AgentFactory] Creating ChatOpenAI client config', {
+      provider: provider.label,
+      baseURL: provider.baseURL,
+      modelName: modelName,
+      apiKey: maskedKey,
+      apiKeyLength: apiKey ? apiKey.length : 0,
+    });
+
     // Initializing dynamic ChatOpenAI class representing the base model
     return new ChatOpenAI({
+      apiKey: apiKey,
       openAIApiKey: apiKey,
-      modelName: agent.modelName || provider.defaultModel || 'gpt-3.5-turbo',
+      modelName: modelName,
       streaming: true,
       configuration: {
         baseURL: provider.baseURL,
+        apiKey: apiKey,
       },
     });
   }

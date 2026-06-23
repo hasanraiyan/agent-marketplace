@@ -18,12 +18,22 @@ export async function extractAndSaveMemory(userId, chatHistory, llmConfig) {
     return;
   }
 
-  // Use a fast model like gpt-4o-mini
-  const llm = new ChatOpenAI({
+  // Use a fast model like gpt-4o-mini, or fallback to provider settings if custom baseURL is present
+  const options = {
+    apiKey: apiKey,
     openAIApiKey: apiKey,
-    modelName: 'gpt-4o-mini',
+    modelName: llmConfig?.baseURL ? (llmConfig.modelName || 'gpt-4o-mini') : 'gpt-4o-mini',
     temperature: 0,
-  });
+    configuration: {
+      apiKey: apiKey,
+    },
+  };
+
+  if (llmConfig?.baseURL) {
+    options.configuration.baseURL = llmConfig.baseURL;
+  }
+
+  const llm = new ChatOpenAI(options);
 
   const formattedHistory = chatHistory.map(m => {
     let role = 'user';
