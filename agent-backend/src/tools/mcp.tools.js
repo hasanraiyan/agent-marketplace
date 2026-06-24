@@ -1,46 +1,76 @@
 import { MultiServerMCPClient } from '@langchain/mcp-adapters';
 import { DynamicStructuredTool } from '@langchain/core/tools';
+import { z } from 'zod';
 import mcpTokenService from '../services/mcpToken.service.js';
 import { loggerService } from '../utils/index.js';
 
 const logger = loggerService.getLogger();
 
 /**
- * Wraps an MCP tool to safely handle hallucinated parameters from the LLM.
+ * Recursively rebuilds a Zod schema so every field (at every depth) becomes
+ * optional, and any value that doesn't match its expected type/shape is
+ * silently dropped (turned into `undefined`) instead of failing validation.
+ * Unknown object keys are dropped too, for free, by Zod's default object
+ * behavior (no `.passthrough()` needed once nothing is required).
  *
- * The LLM often guesses extra arguments (e.g. `length`, `brand_kit_id`,
- * `user_intent`) that the MCP server's schema didn't declare. This wrapper:
- * 1. Uses `.passthrough()` on the Zod schema so validation doesn't throw
- * 2. Strips unknown keys before passing input to the underlying MCP server
+ * LLMs routinely send extra, missing, or mistyped tool arguments -
+ * hallucinated fields nested arbitrarily deep, "" instead of omitting an
+ * optional value, wrong enum members, a string where a number was expected.
+ * None of that should fail the whole call: the underlying MCP server
+ * re-validates and applies its own defaults/required-field errors anyway, so
+ * loosening client-side just moves "bad input" from a hard local
+ * ToolInputParsingException into a normal (recoverable) MCP tool-call error
+ * surfaced by the server - one the agent can see and retry from instead of
+ * crashing the run.
+ */
+function loosenSchema(schema) {
+  const def = schema?.def;
+  if (!def) return schema;
+
+  let loosened;
+  if (def.type === 'object') {
+    const shape = {};
+    for (const [key, value] of Object.entries(def.shape)) {
+      shape[key] = loosenSchema(value);
+    }
+    loosened = z.object(shape);
+  } else if (def.type === 'array') {
+    loosened = z.array(loosenSchema(def.element));
+  } else if (['optional', 'nullable', 'default', 'readonly', 'nonoptional'].includes(def.type)) {
+    return loosenSchema(def.innerType);
+  } else {
+    // Leaf type (string, number, boolean, enum, literal, union, ...) - keep
+    // its real validation so the model still gets accurate type guidance.
+    loosened = schema;
+  }
+
+  return z.preprocess((value) => {
+    if (value === undefined) return undefined;
+    const result = loosened.safeParse(value);
+    return result.success ? result.data : undefined;
+  }, loosened.optional());
+}
+
+/**
+ * Wraps an MCP tool so a malformed tool call never throws a hard
+ * ToolInputParsingException that kills the whole agent run. See
+ * loosenSchema() above for how the schema is relaxed.
  *
  * @param {DynamicStructuredTool} tool - the raw MCP tool from the adapter
  * @returns {DynamicStructuredTool} a sanitized wrapper
  */
 function sanitizeMcpTool(tool) {
-  const schemaShape = tool.schema?.shape;
-  if (!schemaShape) {
+  if (tool.schema?.def?.type !== 'object') {
     return tool;
   }
 
-  const allowedKeys = new Set(Object.keys(schemaShape));
-
-  logger.debug(`[MCP] Sanitizing tool "${tool.name}": ${allowedKeys.size} declared params`);
+  logger.debug(`[MCP] Loosening schema for tool "${tool.name}"`);
 
   return new DynamicStructuredTool({
     name: tool.name,
     description: tool.description,
-    schema: tool.schema.passthrough(),
-    func: async (input) => {
-      const cleanInput = {};
-      for (const key of Object.keys(input)) {
-        if (allowedKeys.has(key)) {
-          cleanInput[key] = input[key];
-        } else {
-          logger.debug(`[MCP] Stripping unexpected param "${key}" from tool "${tool.name}"`);
-        }
-      }
-      return tool.func(cleanInput);
-    },
+    schema: loosenSchema(tool.schema),
+    func: (...args) => tool.func(...args),
   });
 }
 
