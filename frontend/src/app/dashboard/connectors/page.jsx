@@ -67,7 +67,7 @@ function ConnectorCard({ type, count, loading }) {
   return (
     <Link
       href={type.href}
-      className="group flex flex-col rounded-3xl border border-slate-100 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 p-8 hover:border-slate-200 dark:hover:border-zinc-700 hover:-translate-y-0.5 transition-all duration-300 active:scale-[0.99]"
+      className="group flex flex-col flex-1 min-w-[260px] sm:min-w-[280px] max-w-full sm:max-w-[360px] rounded-3xl border border-slate-100 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 p-8 hover:border-slate-200 dark:hover:border-zinc-700 hover:-translate-y-0.5 transition-all duration-300 active:scale-[0.99]"
     >
       {/* Icon */}
       <div
@@ -124,9 +124,8 @@ export default function ConnectorsPage() {
 
   return (
     <div className="flex flex-col h-full bg-slate-50/40 dark:bg-zinc-950/20 overflow-y-auto">
-      {/* Connector Type Cards */}
       <div className="flex-1 px-8 py-8 md:px-10 md:py-10">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl">
+        <div className="flex flex-wrap gap-6">
           {CONNECTOR_TYPES.map((type) => {
             const count =
               type.countKey === "mySkills"
