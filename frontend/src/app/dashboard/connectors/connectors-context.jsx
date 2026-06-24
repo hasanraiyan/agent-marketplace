@@ -14,6 +14,11 @@ import {
   deleteKnowledgeBase as deleteKbApi,
   uploadFiles as uploadFilesApi,
 } from "@/lib/api/knowledge";
+import {
+  getAllMemory as getAllMemoryApi,
+  createMemory as createMemoryApi,
+  deleteMemoryEntry as deleteMemoryEntryApi,
+} from "@/lib/api/memory";
 import { toast } from "sonner";
 
 const ConnectorsContext = createContext();
@@ -33,6 +38,10 @@ export function ConnectorsProvider({ children }) {
   // Knowledge Bases state
   const [knowledgeBases, setKnowledgeBases] = useState([]);
   const [loadingKnowledgeBases, setLoadingKnowledgeBases] = useState(true);
+
+  // Memory state
+  const [memoryData, setMemoryData] = useState(null);
+  const [loadingMemory, setLoadingMemory] = useState(false);
 
   const handleSetSelectedMcpId = useCallback((id) => {
     setSelectedMcpId(id);
@@ -168,6 +177,41 @@ export function ConnectorsProvider({ children }) {
     }
   }, [fetchKnowledgeBases]);
 
+  const fetchMemory = useCallback(async () => {
+    setLoadingMemory(true);
+    try {
+      const res = await getAllMemoryApi();
+      setMemoryData(res.data?.data);
+    } catch (err) {
+      // Memory fetching failures are non-critical
+    } finally {
+      setLoadingMemory(false);
+    }
+  }, []);
+
+  const createMemoryEntry = useCallback(async (data) => {
+    try {
+      const res = await createMemoryApi(data);
+      toast.success("Memory created");
+      fetchMemory();
+      return res.data?.data;
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to create memory");
+      throw err;
+    }
+  }, [fetchMemory]);
+
+  const deleteMemoryEntry = useCallback(async (agentId, key) => {
+    try {
+      await deleteMemoryEntryApi(agentId, key);
+      toast.success("Memory deleted");
+      fetchMemory();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete memory");
+      throw err;
+    }
+  }, [fetchMemory]);
+
   const fetchSkills = useCallback(async () => {
     try {
       const [myRes, publicRes] = await Promise.all([
@@ -216,6 +260,12 @@ export function ConnectorsProvider({ children }) {
         createKb,
         deleteKb,
         uploadKbFiles,
+        // Memory state
+        memoryData,
+        loadingMemory,
+        refreshMemory: fetchMemory,
+        createMemoryEntry,
+        deleteMemoryEntry,
       }}
     >
       {children}

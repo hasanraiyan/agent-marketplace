@@ -1,6 +1,6 @@
 "use client";
 
-import { Cpu, Plus, Menu, Globe, Server, ArrowLeft, BookText } from "lucide-react";
+import { Cpu, Plus, Menu, Globe, Server, ArrowLeft, BookText, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ export function ConnectorsNav() {
   const inSkills = pathname.startsWith("/dashboard/connectors/skills");
   const inMcps = pathname.startsWith("/dashboard/connectors/mcps");
   const inKnowledge = pathname.startsWith("/dashboard/connectors/knowledge");
+  const inMemory = pathname.startsWith("/dashboard/connectors/memory");
   const isPublic = pathname === "/dashboard/connectors/skills/public";
 
   const navContent = (
@@ -20,7 +21,7 @@ export function ConnectorsNav() {
       <div className="p-4 space-y-1">
         {/* Section header */}
         <p className="px-3 mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          {inMcps ? "MCP Servers" : inKnowledge ? "Knowledge Bases" : "Skills"}
+          {inMcps ? "MCP Servers" : inKnowledge ? "Knowledge Bases" : inMemory ? "AI Memory" : "Skills"}
         </p>
 
         {/* Back to connectors overview */}
@@ -77,6 +78,22 @@ export function ConnectorsNav() {
           >
             <Server className="size-4 shrink-0" />
             My Servers
+          </Link>
+        )}
+
+        {/* Memory link — only show when in Memory section */}
+        {inMemory && (
+          <Link
+            href="/dashboard/connectors/memory"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+              inMemory
+                ? "bg-primary/10 text-primary font-medium"
+                : "hover:bg-muted text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Brain className="size-4 shrink-0" />
+            Memory Dashboard
           </Link>
         )}
       </div>
@@ -154,7 +171,7 @@ export function ConnectorsNav() {
             </SheetContent>
           </Sheet>
           <span className="ml-4 font-semibold text-sm">
-            {inMcps ? "MCP Servers" : inKnowledge ? "Knowledge Bases" : "Skills"}
+            {inMcps ? "MCP Servers" : inKnowledge ? "Knowledge Bases" : inMemory ? "AI Memory" : "Skills"}
           </span>
         </div>
       </div>

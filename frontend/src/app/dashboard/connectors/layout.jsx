@@ -11,18 +11,20 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
 function ConnectorsLayoutContent({ children }) {
-  const { loading, loadingMcps, loadingKnowledgeBases } = useConnectors();
+  const { loading, loadingMcps, loadingKnowledgeBases, loadingMemory } = useConnectors();
   const pathname = usePathname();
 
   const inMcps = pathname.startsWith("/dashboard/connectors/mcps");
   const inKnowledge = pathname.startsWith("/dashboard/connectors/knowledge");
   const inSkills = pathname.startsWith("/dashboard/connectors/skills");
+  const inMemory = pathname.startsWith("/dashboard/connectors/memory");
   const isRoot = pathname === "/dashboard/connectors";
 
   const isLoading =
     (inMcps && loadingMcps) ||
     (inKnowledge && loadingKnowledgeBases) ||
-    (inSkills && loading);
+    (inSkills && loading) ||
+    (inMemory && loadingMemory);
 
   // For knowledge/new and knowledge/[id] we want to show the KB nav
   const isEditingOrCreate =
@@ -32,6 +34,7 @@ function ConnectorsLayoutContent({ children }) {
     if (isRoot) return "Connectors";
     if (inMcps) return "MCP Servers";
     if (inKnowledge) return "Knowledge Bases";
+    if (inMemory) return "AI Memory";
     return "Skills";
   };
 
@@ -39,18 +42,21 @@ function ConnectorsLayoutContent({ children }) {
     if (isRoot) return "Choose a connector type to manage and extend your agents.";
     if (inMcps) return "Manage your Model Context Protocol server connections";
     if (inKnowledge) return "Upload documents and let your agents search them with AI-powered retrieval";
+    if (inMemory) return "View and manage your AI memory — profile preferences and agent long-term memories";
     return "Manage your skills and capabilities";
   };
 
   const getActionHref = () => {
     if (inMcps) return "/dashboard/connectors/mcps/new";
     if (inKnowledge) return "/dashboard/connectors/knowledge/new";
+    if (inMemory) return null;
     return "/dashboard/connectors/skills/new";
   };
 
   const getActionLabel = () => {
     if (inMcps) return "Add Server";
     if (inKnowledge) return "New KB";
+    if (inMemory) return null;
     return "New Skill";
   };
 
@@ -65,7 +71,7 @@ function ConnectorsLayoutContent({ children }) {
             Create Agent
           </Button>
         </Link>
-      ) : !isEditingOrCreate ? (
+      ) : !isEditingOrCreate && getActionHref() ? (
         <Link href={getActionHref()}>
           <Button size="sm">
             <Plus className="size-4 mr-2" />

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useConnectors } from "./connectors-context";
-import { Cpu, FileText, Server, Database, ArrowRight } from "lucide-react";
+import { Cpu, FileText, Server, Database, Brain, ArrowRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const CONNECTOR_TYPES = [
@@ -44,6 +44,19 @@ const CONNECTOR_TYPES = [
     badge: "PROTOCOL",
     countKey: "mcps",
     emptyLabel: "Add your first server",
+  },
+  {
+    id: "memory",
+    title: "AI Memory",
+    description: "View and manage AI memory — user profile preferences and long-term agent memories across all conversations.",
+    icon: Brain,
+    footerIcon: Brain,
+    bgColor: "bg-[#8B5CF6]", // Solid violet
+    badgeBgColor: "bg-[#F5F3FF] text-[#8B5CF6] dark:bg-violet-950/30 dark:text-violet-300",
+    href: "/dashboard/connectors/memory",
+    badge: "MEMORY",
+    countKey: "memoryData",
+    emptyLabel: "No memories yet",
   },
 ];
 
@@ -107,7 +120,7 @@ function ConnectorCard({ type, count, loading }) {
 }
 
 export default function ConnectorsPage() {
-  const { mySkills, mcps, knowledgeBases, loading, loadingMcps, loadingKnowledgeBases } = useConnectors();
+  const { mySkills, mcps, knowledgeBases, memoryData, loading, loadingMcps, loadingKnowledgeBases, loadingMemory } = useConnectors();
 
   return (
     <div className="flex flex-col h-full bg-slate-50/40 dark:bg-zinc-950/20 overflow-y-auto">
@@ -122,13 +135,17 @@ export default function ConnectorsPage() {
                   ? knowledgeBases?.length || 0
                   : type.countKey === "mcps"
                     ? mcps?.length || 0
-                    : 0;
+                    : type.countKey === "memoryData"
+                      ? (memoryData?.agentMemories?.length || 0) + (Object.keys(memoryData?.profile?.preferences || {}).length || 0) + (memoryData?.profile?.summary ? 1 : 0)
+                      : 0;
             const isLoading =
               type.countKey === "mySkills"
                 ? loading
                 : type.countKey === "knowledgeBases"
                   ? loadingKnowledgeBases
-                  : loadingMcps;
+                  : type.countKey === "memoryData"
+                    ? loadingMemory
+                    : loadingMcps;
 
             return (
               <ConnectorCard
