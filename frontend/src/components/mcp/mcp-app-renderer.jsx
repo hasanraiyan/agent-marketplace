@@ -71,6 +71,7 @@ export function MCPAppRenderer({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(initialExpanded);
+  const [contentHeight, setContentHeight] = useState(null);
 
   // Fetch the HTML bundle from the backend.
   useEffect(() => {
@@ -84,6 +85,7 @@ export function MCPAppRenderer({
     setLoading(true);
     setError(null);
     setHtml(null);
+    setContentHeight(null);
 
     readMcpResource(mcpId, resourceUri)
       .then((res) => {
@@ -175,6 +177,13 @@ export function MCPAppRenderer({
       }
     };
 
+    const handleSizeChange = ({ height }) => {
+      if (height !== undefined && height !== null) {
+        setContentHeight(height);
+      }
+    };
+    bridge.addEventListener('sizechange', handleSizeChange);
+
     let cancelled = false;
     bridge
       .connect(new PostMessageTransport(iframe.contentWindow, iframe.contentWindow))
@@ -192,6 +201,7 @@ export function MCPAppRenderer({
     return () => {
       cancelled = true;
       bridgeRef.current = null;
+      bridge.removeEventListener('sizechange', handleSizeChange);
       bridge.close?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-wire on a new widget load; tool input/result changes are forwarded by the effect below
@@ -259,11 +269,17 @@ export function MCPAppRenderer({
         ref={iframeRef}
         sandbox="allow-scripts allow-forms"
         className={cn(
-          'w-full border-0',
+          'w-full border-0 transition-[height] duration-200 ease-in-out',
           loading && 'hidden',
-          expanded && 'h-[calc(100vh-12rem)]',
         )}
-        style={!loading ? { height: expanded ? 'calc(100vh - 12rem)' : `${height}px` } : undefined}
+        style={
+          !loading
+            ? {
+                height: contentHeight !== null ? `${contentHeight}px` : (expanded ? 'calc(100vh - 12rem)' : `${height}px`),
+                maxHeight: expanded ? 'calc(100vh - 12rem)' : `${height}px`,
+              }
+            : undefined
+        }
         title={`MCP App: ${toolName || resourceUri}`}
       />
     </div>
