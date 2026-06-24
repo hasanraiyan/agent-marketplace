@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useConnectors } from "@/app/dashboard/connectors/connectors-context";
-import { testMcp, getOwnerAuthorizeUrl, getUserAuthorizeUrl, getUsedByAgents } from "@/lib/api/mcps";
+import { testMcp, getOwnerAuthorizeUrl, getUserAuthorizeUrl, getUsedByAgents, disconnectOwnerConnection, disconnectUserConnection, getUserConnectionStatus } from "@/lib/api/mcps";
 import { toast } from "sonner";
 import {
   Server,
@@ -27,6 +27,7 @@ import {
   Database,
   LayoutTemplate,
   KeyRound,
+  Unplug,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,14 +59,25 @@ export function McpDetail({ mcp }) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [usedByAgents, setUsedByAgents] = useState([]);
+  const [ownerConnected, setOwnerConnected] = useState(false);
+  const [userConnected, setUserConnected] = useState(false);
 
   useEffect(() => {
     if (mcp) {
-      getUsedByAgents(mcp._id || mcp.id)
+      const id = mcp._id || mcp.id;
+      setOwnerConnected(mcp.oauth?.ownerConnected || false);
+      getUsedByAgents(id)
         .then((res) => setUsedByAgents(res.data?.data || []))
         .catch(err => console.error("Failed to fetch agents using MCP", err));
+
+      if (mcp.authMode === "user" && mcp.authType === "oauth") {
+        getUserConnectionStatus(id)
+          .then((res) => setUserConnected(res.data?.data?.connected || false))
+          .catch(err => console.error("Failed to fetch user connection status", err));
+      }
     }
   }, [mcp]);
 
@@ -114,6 +126,36 @@ export function McpDetail({ mcp }) {
       setIsConnecting(false);
     }
   }, [mcp]);
+
+  const handleDisconnectOwner = useCallback(async () => {
+    if (!mcp) return;
+    setIsDisconnecting(true);
+    try {
+      await disconnectOwnerConnection(mcp._id);
+      toast.success("Owner connection disconnected");
+      setOwnerConnected(false);
+      refreshMcps();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to disconnect");
+    } finally {
+      setIsDisconnecting(false);
+    }
+  }, [mcp, refreshMcps]);
+
+  const handleDisconnectUser = useCallback(async () => {
+    if (!mcp) return;
+    setIsDisconnecting(true);
+    try {
+      await disconnectUserConnection(mcp._id);
+      toast.success("Connection disconnected");
+      setUserConnected(false);
+      refreshMcps();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to disconnect");
+    } finally {
+      setIsDisconnecting(false);
+    }
+  }, [mcp, refreshMcps]);
 
   const handleDeleteConfirm = async () => {
     if (!mcp) return;
@@ -223,7 +265,7 @@ export function McpDetail({ mcp }) {
                       {mcp.authMode === "owner" ? (
                         <div className="flex items-center justify-between pt-2 border-t">
                           <div className="flex items-center gap-2 text-sm">
-                            {mcp.oauth?.ownerConnected ? (
+                            {ownerConnected ? (
                               <>
                                 <CheckCircle2 className="size-4 text-emerald-500" />
                                 <span>Connected</span>
@@ -235,31 +277,76 @@ export function McpDetail({ mcp }) {
                               </>
                             )}
                           </div>
-                          <Button
-                            size="sm"
-                            variant={mcp.oauth?.ownerConnected ? "outline" : "default"}
-                            onClick={handleConnectOwner}
-                            disabled={isConnecting}
-                          >
-                            {isConnecting && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
-                            {mcp.oauth?.ownerConnected ? "Reconnect" : "Connect"}
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            {ownerConnected && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={handleDisconnectOwner}
+                                disabled={isDisconnecting}
+                              >
+                                {isDisconnecting ? (
+                                  <Loader2 className="size-3.5 mr-1 animate-spin" />
+                                ) : (
+                                  <Unplug className="size-3.5 mr-1" />
+                                )}
+                                Disconnect
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant={ownerConnected ? "outline" : "default"}
+                              onClick={handleConnectOwner}
+                              disabled={isConnecting}
+                            >
+                              {isConnecting && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
+                              {ownerConnected ? "Reconnect" : "Connect"}
+                            </Button>
+                          </div>
                         </div>
                       ) : (
                         <div className="flex items-center justify-between pt-2 border-t">
                           <div className="flex items-center gap-2 text-sm">
-                            <Users className="size-4 text-muted-foreground" />
-                            <span className="text-muted-foreground">Per-user auth</span>
+                            {userConnected ? (
+                              <>
+                                <CheckCircle2 className="size-4 text-emerald-500" />
+                                <span>Connected</span>
+                              </>
+                            ) : (
+                              <>
+                                <Users className="size-4 text-muted-foreground" />
+                                <span className="text-muted-foreground">Per-user auth</span>
+                              </>
+                            )}
                           </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleConnectUser}
-                            disabled={isConnecting}
-                          >
-                            {isConnecting && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
-                            Connect
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            {userConnected && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={handleDisconnectUser}
+                                disabled={isDisconnecting}
+                              >
+                                {isDisconnecting ? (
+                                  <Loader2 className="size-3.5 mr-1 animate-spin" />
+                                ) : (
+                                  <Unplug className="size-3.5 mr-1" />
+                                )}
+                                Disconnect
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant={userConnected ? "outline" : "default"}
+                              onClick={handleConnectUser}
+                              disabled={isConnecting}
+                            >
+                              {isConnecting && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
+                              {userConnected ? "Reconnect" : "Connect"}
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </div>

@@ -36,5 +36,6 @@ router.get('/:id/oauth/owner/authorize', mcpController.getOwnerAuthorizeUrl);
 router.get('/:id/oauth/user/authorize', mcpController.getUserAuthorizeUrl);
 router.get('/:id/oauth/user/status', mcpController.getUserConnectionStatus);
 router.delete('/:id/oauth/user/connection', mutateLimiter, mcpController.disconnectUserConnection);
+router.delete('/:id/oauth/owner/connection', mutateLimiter, mcpController.disconnectOwnerConnection);
 
 export default router;

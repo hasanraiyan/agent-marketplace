@@ -163,6 +163,15 @@ class McpController {
       next(error);
     }
   }
+
+  async disconnectOwnerConnection(req, res, next) {
+    try {
+      await mcpService.disconnectOwnerConnection(req.params.id, req.user.id);
+      res.json({ success: true, message: 'Owner connection disconnected' });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export default new McpController();

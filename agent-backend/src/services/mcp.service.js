@@ -407,6 +407,20 @@ class McpService {
     await this._invalidateAgentsUsingMcp(id);
   }
 
+  async disconnectOwnerConnection(id, userId) {
+    const mcp = await this.getMcpById(id, userId);
+    if (!mcp.oauth?.ownerToken?.accessTokenEncrypted) {
+      throw new ValidationError('No owner connection to disconnect');
+    }
+    await mcpRepository.update(id, userId, {
+      oauth: {
+        ...mcp.oauth.toObject(),
+        ownerToken: {},
+      },
+    });
+    await this._invalidateAgentsUsingMcp(id);
+  }
+
   async getAgentsByMcp(id) {
     return await Agent.find({ mcps: id }).select('name slug avatar visibility');
   }
