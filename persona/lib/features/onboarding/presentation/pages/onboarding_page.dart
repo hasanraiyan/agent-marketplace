@@ -121,10 +121,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
             final isTablet = constraints.maxWidth > 600;
             final isLandscape = constraints.maxWidth > constraints.maxHeight;
 
-            if (isTablet && isLandscape) {
-              return _buildTabletLayout(isDark);
+            if (isLandscape) {
+              return _buildLandscapeLayout(isDark, isTablet);
             } else {
-              return _buildMobileLayout(isDark);
+              return _buildPortraitLayout(isDark, isTablet);
             }
           },
         ),
@@ -132,15 +132,20 @@ class _OnboardingPageState extends State<OnboardingPage> {
     );
   }
 
-  // ── Tablet Layout (Split Screen) ───────────────────────────────────────────
-  Widget _buildTabletLayout(bool isDark) {
+  // ── Landscape Layout (Split Screen for both Mobile & Tablet) ───────────────
+  Widget _buildLandscapeLayout(bool isDark, bool isTablet) {
     final s = _slides[_currentIndex];
+    final padding = isTablet ? 40.0 : 20.0;
+    final titleSize = isTablet ? 28.0.sp.clamp(20.0, 32.0) : 18.0;
+    final subtitleSize = isTablet ? 16.0.sp.clamp(14.0, 18.0) : 13.0;
+    final spacing = isTablet ? 16.0 : 8.0;
+    final buttonSpacing = isTablet ? 16.0 : 10.0;
 
     return Row(
       children: [
-        // Left side: Large Illustration Area
+        // Left side: Illustration Area
         Expanded(
-          flex: 5,
+          flex: isTablet ? 5 : 1,
           child: Container(
             color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
             child: LayoutBuilder(
@@ -149,14 +154,14 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     (constraints.maxWidth < constraints.maxHeight
                         ? constraints.maxWidth
                         : constraints.maxHeight) *
-                    0.8;
+                    (isTablet ? 0.8 : 0.7);
                 return Center(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 400),
                     child: KeyedSubtree(
                       key: ValueKey(_currentIndex),
                       child: Padding(
-                        padding: const EdgeInsets.all(32),
+                        padding: EdgeInsets.all(isTablet ? 32 : 16),
                         child: _AdaptiveImage(
                           assetPath: s.assetPath,
                           fallbackIcon: s.fallbackIcon,
@@ -173,9 +178,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
         // Right side: Info Card and Navigation
         Expanded(
-          flex: 4,
+          flex: isTablet ? 4 : 1,
           child: Container(
-            padding: const EdgeInsets.all(40),
+            padding: EdgeInsets.all(padding),
             child: CustomScrollView(
               slivers: [
                 SliverFillRemaining(
@@ -194,25 +199,26 @@ class _OnboardingPageState extends State<OnboardingPage> {
                               color: isDark
                                   ? AppColors.textSecondaryDark
                                   : AppColors.textSecondaryLight,
+                              fontSize: isTablet ? 14 : 12,
                             ),
                           ),
                         ),
                       ),
 
-                      const Spacer(),
+                      if (isTablet) const Spacer() else const SizedBox(height: 8),
 
                       // Title & Subtitle
                       Text(
                             s.title,
                             style: AppTypography.headlineMedium.copyWith(
-                              fontSize: 28.sp.clamp(20.0, 32.0),
+                              fontSize: titleSize,
                             ),
                           )
                           .animate()
                           .fadeIn(duration: 400.ms)
                           .slideX(begin: 0.1, end: 0),
 
-                      const SizedBox(height: 16),
+                      SizedBox(height: spacing),
 
                       Text(
                         s.subtitle,
@@ -220,12 +226,12 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           color: isDark
                               ? AppColors.textSecondaryDark
                               : AppColors.textSecondaryLight,
-                          height: 1.6,
-                          fontSize: 16.sp.clamp(14.0, 18.0),
+                          height: isTablet ? 1.6 : 1.4,
+                          fontSize: subtitleSize,
                         ),
                       ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
 
-                      const SizedBox(height: 36),
+                      SizedBox(height: isTablet ? 36 : 16),
 
                       // Page Indicator Dots
                       Row(
@@ -253,7 +259,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         }),
                       ),
 
-                      const Spacer(),
+                      if (isTablet) const Spacer() else const SizedBox(height: 16),
 
                       // Buttons
                       AppButton(
@@ -263,7 +269,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         onPressed: _next,
                       ),
 
-                      const SizedBox(height: 16),
+                      SizedBox(height: buttonSpacing),
 
                       _buildSignInLink(isDark),
                     ],
@@ -277,10 +283,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
     );
   }
 
-  // ── Mobile Layout (Stacked Vertical) ───────────────────────────────────────
-  Widget _buildMobileLayout(bool isDark) {
+  // ── Portrait Layout (Stacked Vertical for both Mobile & Tablet) ────────────
+  Widget _buildPortraitLayout(bool isDark, bool isTablet) {
     final isLast = _currentIndex == _slides.length - 1;
-    final isTablet = MediaQuery.of(context).size.width > 600;
 
     return Column(
       children: [
