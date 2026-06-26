@@ -274,7 +274,8 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
 
   Widget _buildFeaturedCarousel(List<AgentModel> agents, bool isDark) {
     if (agents.isEmpty) return const SizedBox.shrink();
-    final w = MediaQuery.sizeOf(context).width >= 600 ? 230.0 : 190.0;
+
+    final w = MediaQuery.sizeOf(context).width >= 600 ? 200.0 : 160.0;
     final h = MediaQuery.sizeOf(context).width >= 600 ? 310.0 : 255.0;
 
     return Padding(
@@ -583,163 +584,145 @@ class _TrendingRow extends StatelessWidget {
               ),
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Top row: avatar + name + description
-              Row(
-                children: [
-                  // Circular avatar + rank badge bottom-left
-                  SizedBox(
-                    width: 56,
-                    height: 56,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isDark
-                                  ? AppColors.dividerDark
-                                  : const Color(0xFFE8E8E3),
-                            ),
-                          ),
-                          child: ClipOval(
-                            child: agent.avatar.isNotEmpty
-                                ? Image.network(
-                                    agent.avatar,
-                                    width: 56,
-                                    height: 56,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, _, _) =>
-                                        _avatarFallback(),
-                                  )
-                                : _avatarFallback(),
-                          ),
+              // Circular avatar + rank badge bottom-left
+              SizedBox(
+                width: 48,
+                height: 48,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.dividerDark
+                              : const Color(0xFFE8E8E3),
                         ),
-                        // Rank badge — bottom-LEFT, circular
-                        Positioned(
-                          bottom: -2,
-                          left: -2,
-                          child: Container(
-                            width: 22,
-                            height: 22,
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? AppColors.backgroundDark
-                                  : AppColors.backgroundLight,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: isDark
-                                    ? AppColors.dividerDark
-                                    : const Color(0xFFDFDFDA),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color:
-                                      Colors.black.withValues(alpha: 0.06),
-                                  blurRadius: 4,
-                                ),
-                              ],
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              '$rank',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w900,
-                                color: isDark
-                                    ? AppColors.textSecondaryDark
-                                    : AppColors.textSecondaryLight,
-                                height: 1,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
+                      child: ClipOval(
+                        child: agent.avatar.isNotEmpty
+                            ? Image.network(
+                                agent.avatar,
+                                width: 48,
+                                height: 48,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => _avatarFallback(),
+                              )
+                            : _avatarFallback(),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 14),
-                  // Name + mindCount + description
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                agent.name,
-                                style: AppTypography.bodyLarge.copyWith(
-                                  color: isDark
-                                      ? AppColors.textPrimaryDark
-                                      : AppColors.textPrimaryLight,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '${agent.messageCount} Chats',
-                              style: AppTypography.labelSmall.copyWith(
-                                color: isDark
-                                    ? AppColors.textSecondaryDark
-                                    : AppColors.textSecondaryLight,
-                                fontWeight: FontWeight.w700,
-                              ),
+                    Positioned(
+                      bottom: -2,
+                      left: -2,
+                      child: Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? AppColors.backgroundDark
+                              : AppColors.backgroundLight,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isDark
+                                ? AppColors.dividerDark
+                                : const Color(0xFFDFDFDA),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.06),
+                              blurRadius: 4,
                             ),
                           ],
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          agent.description,
-                          style: AppTypography.labelSmall.copyWith(
+                        alignment: Alignment.center,
+                        child: Text(
+                          '$rank',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
                             color: isDark
                                 ? AppColors.textSecondaryDark
                                 : AppColors.textSecondaryLight,
-                            fontWeight: FontWeight.w600,
+                            height: 1,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Name + count + description — takes 40% of remaining space
+              Expanded(
+                flex: 4,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      agent.name,
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      '${agent.messageCount} Chats',
+                      style: AppTypography.labelSmall.copyWith(
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Chat bubble — takes 56% of remaining space
+              Expanded(
+                flex: 5,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.inputFillDark
+                        : const Color(0xFFF9F9F9),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(14),
+                      topRight: Radius.circular(0),
+                      bottomLeft: Radius.circular(14),
+                      bottomRight: Radius.circular(14),
+                    ),
+                    border: Border.all(
+                      color: isDark
+                          ? AppColors.dividerDark
+                          : const Color(0xFFEDEDED),
                     ),
                   ),
-                ],
-              ),
-              // Chat bubble below — full width on mobile (matches web flex-col on sm)
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 14),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? AppColors.inputFillDark
-                      : const Color(0xFFF9F9F9),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(0),
-                    bottomLeft: Radius.circular(16),
-                    bottomRight: Radius.circular(16),
-                  ),
-                  border: Border.all(
-                    color: isDark
-                        ? AppColors.dividerDark
-                        : const Color(0xFFEDEDED),
-                  ),
-                ),
-                child: Text(
-                  _suggestedPrompt(),
-                  style: AppTypography.bodySmall.copyWith(
-                    color: isDark
-                        ? const Color(0xFFD4D4D0)
-                        : const Color(0xFF52525B),
-                    fontWeight: FontWeight.w600,
-                    height: 1.5,
+                  child: Text(
+                    _suggestedPrompt(),
+                    style: AppTypography.labelSmall.copyWith(
+                      color: isDark
+                          ? const Color(0xFFD4D4D0)
+                          : const Color(0xFF52525B),
+                      fontWeight: FontWeight.w600,
+                      height: 1.4,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
@@ -752,8 +735,8 @@ class _TrendingRow extends StatelessWidget {
 
   Widget _avatarFallback() {
     return Container(
-      width: 56,
-      height: 56,
+      width: 48,
+      height: 48,
       color: AppColors.primaryLight.withValues(alpha: 0.1),
       alignment: Alignment.center,
       child: Text(
