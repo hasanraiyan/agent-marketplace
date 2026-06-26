@@ -134,32 +134,33 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   // ── Landscape Layout (Split Screen for both Mobile & Tablet) ───────────────
   Widget _buildLandscapeLayout(bool isDark, bool isTablet) {
-    final s = _slides[_currentIndex];
-    final padding = isTablet ? 40.0 : 20.0;
-    final titleSize = isTablet ? 28.0.sp.clamp(20.0, 32.0) : 18.0;
-    final subtitleSize = isTablet ? 16.0.sp.clamp(14.0, 18.0) : 13.0;
-    final spacing = isTablet ? 16.0 : 8.0;
-    final buttonSpacing = isTablet ? 16.0 : 10.0;
+    return PageView.builder(
+      controller: _controller,
+      onPageChanged: (i) => setState(() => _currentIndex = i),
+      itemCount: _slides.length,
+      itemBuilder: (context, index) {
+        final s = _slides[index];
+        final padding = isTablet ? 40.0 : 20.0;
+        final titleSize = isTablet ? 28.0.sp.clamp(20.0, 32.0) : 18.0;
+        final subtitleSize = isTablet ? 16.0.sp.clamp(14.0, 18.0) : 13.0;
+        final spacing = isTablet ? 16.0 : 8.0;
+        final buttonSpacing = isTablet ? 16.0 : 10.0;
 
-    return Row(
-      children: [
-        // Left side: Illustration Area
-        Expanded(
-          flex: isTablet ? 5 : 1,
-          child: Container(
-            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final dynamicSize =
-                    (constraints.maxWidth < constraints.maxHeight
-                        ? constraints.maxWidth
-                        : constraints.maxHeight) *
-                    (isTablet ? 0.8 : 0.7);
-                return Center(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 400),
-                    child: KeyedSubtree(
-                      key: ValueKey(_currentIndex),
+        return Row(
+          children: [
+            // Left side: Illustration Area
+            Expanded(
+              flex: isTablet ? 5 : 1,
+              child: Container(
+                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final dynamicSize =
+                        (constraints.maxWidth < constraints.maxHeight
+                            ? constraints.maxWidth
+                            : constraints.maxHeight) *
+                        (isTablet ? 0.8 : 0.7);
+                    return Center(
                       child: Padding(
                         padding: EdgeInsets.all(isTablet ? 32 : 16),
                         child: _AdaptiveImage(
@@ -168,118 +169,118 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           size: dynamicSize,
                         ),
                       ),
-                    ),
-                  ),
-                );
-              },
+                    );
+                  },
+                ),
+              ),
             ),
-          ),
-        ),
 
-        // Right side: Info Card and Navigation
-        Expanded(
-          flex: isTablet ? 4 : 1,
-          child: Container(
-            padding: EdgeInsets.all(padding),
-            child: CustomScrollView(
-              slivers: [
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Skip Button
-                      Align(
-                        alignment: Alignment.topRight,
-                        child: TextButton(
-                          onPressed: _finish,
-                          child: Text(
-                            'Skip',
-                            style: AppTypography.labelMedium.copyWith(
+            // Right side: Info Card and Navigation
+            Expanded(
+              flex: isTablet ? 4 : 1,
+              child: Container(
+                padding: EdgeInsets.all(padding),
+                child: CustomScrollView(
+                  slivers: [
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Skip Button
+                          Align(
+                            alignment: Alignment.topRight,
+                            child: TextButton(
+                              onPressed: _finish,
+                              child: Text(
+                                'Skip',
+                                style: AppTypography.labelMedium.copyWith(
+                                  color: isDark
+                                      ? AppColors.textSecondaryDark
+                                      : AppColors.textSecondaryLight,
+                                  fontSize: isTablet ? 14 : 12,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          if (isTablet) const Spacer() else const SizedBox(height: 8),
+
+                          // Title & Subtitle
+                          Text(
+                                s.title,
+                                style: AppTypography.headlineMedium.copyWith(
+                                  fontSize: titleSize,
+                                ),
+                              )
+                              .animate()
+                              .fadeIn(duration: 400.ms)
+                              .slideX(begin: 0.1, end: 0),
+
+                          SizedBox(height: spacing),
+
+                          Text(
+                            s.subtitle,
+                            style: AppTypography.bodyMedium.copyWith(
                               color: isDark
                                   ? AppColors.textSecondaryDark
                                   : AppColors.textSecondaryLight,
-                              fontSize: isTablet ? 14 : 12,
+                              height: isTablet ? 1.6 : 1.4,
+                              fontSize: subtitleSize,
                             ),
+                          ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
+
+                          SizedBox(height: isTablet ? 36 : 16),
+
+                          // Page Indicator Dots
+                          Row(
+                            children: List.generate(_slides.length, (i) {
+                              final isActive = i == _currentIndex;
+                              return GestureDetector(
+                                onTap: () => _goToPage(i),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                                  width: isActive ? 24 : 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: isActive
+                                        ? (isDark
+                                              ? AppColors.primaryDark
+                                              : AppColors.primaryLight)
+                                        : (isDark
+                                              ? AppColors.dividerDark
+                                              : AppColors.dividerDark.withValues(alpha: 0.3)),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                              );
+                            }),
                           ),
-                        ),
+
+                          if (isTablet) const Spacer() else const SizedBox(height: 16),
+
+                          // Buttons
+                          AppButton(
+                            label: _currentIndex == _slides.length - 1
+                                ? 'Get Started'
+                                : 'Continue',
+                            onPressed: _next,
+                          ),
+
+                          SizedBox(height: buttonSpacing),
+
+                          _buildSignInLink(isDark),
+                        ],
                       ),
-
-                      if (isTablet) const Spacer() else const SizedBox(height: 8),
-
-                      // Title & Subtitle
-                      Text(
-                            s.title,
-                            style: AppTypography.headlineMedium.copyWith(
-                              fontSize: titleSize,
-                            ),
-                          )
-                          .animate()
-                          .fadeIn(duration: 400.ms)
-                          .slideX(begin: 0.1, end: 0),
-
-                      SizedBox(height: spacing),
-
-                      Text(
-                        s.subtitle,
-                        style: AppTypography.bodyMedium.copyWith(
-                          color: isDark
-                              ? AppColors.textSecondaryDark
-                              : AppColors.textSecondaryLight,
-                          height: isTablet ? 1.6 : 1.4,
-                          fontSize: subtitleSize,
-                        ),
-                      ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
-
-                      SizedBox(height: isTablet ? 36 : 16),
-
-                      // Page Indicator Dots
-                      Row(
-                        children: List.generate(_slides.length, (i) {
-                          final isActive = i == _currentIndex;
-                          return GestureDetector(
-                            onTap: () => _goToPage(i),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              width: isActive ? 24 : 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: isActive
-                                    ? (isDark
-                                          ? AppColors.primaryDark
-                                          : AppColors.primaryLight)
-                                    : (isDark
-                                          ? AppColors.dividerDark
-                                          : AppColors.dividerDark.withValues(alpha: 0.3)),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                          );
-                        }),
-                      ),
-
-                      if (isTablet) const Spacer() else const SizedBox(height: 16),
-
-                      // Buttons
-                      AppButton(
-                        label: _currentIndex == _slides.length - 1
-                            ? 'Get Started'
-                            : 'Continue',
-                        onPressed: _next,
-                      ),
-
-                      SizedBox(height: buttonSpacing),
-
-                      _buildSignInLink(isDark),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 
