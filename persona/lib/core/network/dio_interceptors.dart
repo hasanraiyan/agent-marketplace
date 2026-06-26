@@ -4,26 +4,25 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:logger/logger.dart';
 
-import '../config/api_constants.dart';
-import '../config/storage_keys.dart';
-import '../storage/local_storage.dart';
+import '../auth/clerk_token_store.dart';
 import '../errors/exceptions.dart';
 import '../../services/crash_reporting_service.dart';
 
 // ── Auth Interceptor ─────────────────────────────────────────────────────────
 
-/// Reads the stored access token and attaches it as an `Authorization` header
-/// on every outgoing request.
+/// Attaches the active Clerk session token as a `Bearer` header on every
+/// outgoing request.
 ///
-/// On a 401 response the interceptor attempts a token refresh before
-/// retrying the original request once.
+/// On a 401 the interceptor asks Clerk for a fresh token (Clerk handles
+/// expiry and rotation internally) and retries the original request once.
+/// If no session is active the 401 propagates to the error layer.
 class AuthInterceptor extends Interceptor {
   @override
   Future<void> onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    final token = LocalStorage.getString(StorageKeys.accessToken);
+    final token = await ClerkTokenStore.instance.getToken();
     if (token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
     }
@@ -36,54 +35,18 @@ class AuthInterceptor extends Interceptor {
     ErrorInterceptorHandler handler,
   ) async {
     if (err.response?.statusCode == 401) {
-      // Attempt token refresh.
       try {
-        final refreshToken = LocalStorage.getString(StorageKeys.refreshToken);
-
-        if (refreshToken == null) {
-          // No refresh token — propagate error; auth layer will handle logout.
-          return handler.next(err);
+        // Clerk keeps the session fresh internally; a second call returns a
+        // new JWT if the previous one was close to expiry.
+        final freshToken = await ClerkTokenStore.instance.getToken();
+        if (freshToken != null && freshToken.isNotEmpty) {
+          final retryOptions = err.requestOptions
+            ..headers['Authorization'] = 'Bearer $freshToken';
+          final response = await Dio().fetch(retryOptions);
+          return handler.resolve(response);
         }
-
-        final refreshDio = Dio(
-          BaseOptions(
-            baseUrl: ApiConstants.baseUrl,
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-          ),
-        );
-        final response = await refreshDio.post(
-          // For Clerk/Persona backend, token refresh endpoint should match API spec.
-          // Adjust backend refresh path as needed.
-          '/auth/refresh', 
-          data: {'refreshToken': refreshToken},
-        );
-
-        final payload = response.data as Map<String, dynamic>;
-        final innerData = payload['data'] as Map<String, dynamic>? ?? payload;
-        final newToken =
-            (innerData['accessToken'] ?? innerData['access_token']) as String;
-        final newRefreshToken =
-            (innerData['refreshToken'] ?? innerData['refresh_token'])
-                as String?;
-
-        await LocalStorage.setString(StorageKeys.accessToken, newToken);
-        if (newRefreshToken != null) {
-          await LocalStorage.setString(
-            StorageKeys.refreshToken,
-            newRefreshToken,
-          );
-        }
-
-        // Retry the failed request with the new token.
-        final opts = err.requestOptions
-          ..headers['Authorization'] = 'Bearer $newToken';
-        final clonedRequest = await Dio().fetch(opts);
-        return handler.resolve(clonedRequest);
       } catch (_) {
-        return handler.next(err);
+        // Fall through — let the 401 propagate
       }
     }
     return handler.next(err);
