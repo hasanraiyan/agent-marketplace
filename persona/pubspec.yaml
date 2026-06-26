@@ -55,6 +55,7 @@ dependencies:
   flutter_dotenv: 6.0.1
   responsive_framework: ^1.5.1
   clerk_flutter: ^0.0.16-beta
+  timeago: ^3.7.0
 
 dev_dependencies:
   flutter_test:
