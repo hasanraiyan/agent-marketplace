@@ -1,3 +1,4 @@
+import 'package:clerk_flutter/clerk_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,8 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/typography.dart';
-import '../../../profile/data/models/user_model.dart';
-import '../../../profile/presentation/providers/profile_provider.dart';
 
 // Direct key so any screen can open the drawer without context lookup
 final shellScaffoldKey = GlobalKey<ScaffoldState>();
@@ -138,7 +137,6 @@ class _SideDrawer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final profile = ref.watch(profileProvider);
     final bg = isDark ? const Color(0xFF110F0E) : const Color(0xFFFAFAF9);
 
     final content = Column(
@@ -195,7 +193,7 @@ class _SideDrawer extends ConsumerWidget {
           height: 1,
           color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
         ),
-        _UserFooter(profile: profile, isDark: isDark),
+        _UserFooter(isDark: isDark),
       ],
     );
 
@@ -417,91 +415,68 @@ class _SecondaryTile extends StatelessWidget {
   }
 }
 
-// ── User footer ─────────────────────────────────────────────────────────────────
+
+
+// ── User footer ──────────────────────────────────────────────────────────────
 
 class _UserFooter extends StatelessWidget {
-  const _UserFooter({required this.profile, required this.isDark});
-  final AsyncValue<UserModel?> profile;
+  const _UserFooter({required this.isDark});
   final bool isDark;
 
   @override
   Widget build(BuildContext context) {
-    final user = profile.value;
-    final name = user?.name.isNotEmpty == true ? user!.name : 'You';
-    final email = user?.email ?? '';
+    final clerkUser = ClerkAuth.of(context).user;
+    final imageUrl = clerkUser?.imageUrl;
+    final name = clerkUser?.name.isNotEmpty == true
+        ? clerkUser!.name
+        : (clerkUser?.firstName ?? 'You');
     final initials = name
         .split(' ')
         .take(2)
         .map((w) => w.isNotEmpty ? w[0].toUpperCase() : '')
         .join();
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isDark
-                  ? AppColors.inputFillDark
-                  : AppColors.inputFillLight,
-              border: Border.all(
-                color: isDark ? AppColors.dividerDark : AppColors.dividerLight,
-              ),
+    return GestureDetector(
+      onTap: () => context.go(RouteNames.profile),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 17,
+              backgroundColor:
+                  isDark ? AppColors.inputFillDark : AppColors.inputFillLight,
+              backgroundImage:
+                  imageUrl != null ? NetworkImage(imageUrl) : null,
+              child: imageUrl == null
+                  ? Text(
+                      initials.isEmpty ? '?' : initials,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
+                      ),
+                    )
+                  : null,
             ),
-            alignment: Alignment.center,
-            child: Text(
-              initials.isEmpty ? '?' : initials,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: isDark
-                    ? AppColors.textPrimaryDark
-                    : AppColors.textPrimaryLight,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  name,
-                  style: AppTypography.labelMedium.copyWith(
-                    color: isDark
-                        ? AppColors.textPrimaryDark
-                        : AppColors.textPrimaryLight,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                name,
+                style: AppTypography.labelMedium.copyWith(
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
+                  fontWeight: FontWeight.w600,
                 ),
-                if (email.isNotEmpty)
-                  Text(
-                    email,
-                    style: AppTypography.labelSmall.copyWith(
-                      color: isDark
-                          ? AppColors.textSecondaryDark
-                          : AppColors.textSecondaryLight,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
-          Icon(
-            Icons.more_vert_rounded,
-            size: 16,
-            color: isDark
-                ? AppColors.textSecondaryDark
-                : AppColors.textSecondaryLight,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
