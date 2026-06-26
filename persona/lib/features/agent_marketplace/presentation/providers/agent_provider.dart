@@ -34,7 +34,7 @@ class MarketplaceState {
   MarketplaceState copyWith({
     List<AgentModel>? agents,
     String? query,
-    String? category,
+    Object? category = _keep,
     bool? isLoading,
     bool? hasMore,
     int? page,
@@ -44,13 +44,15 @@ class MarketplaceState {
     return MarketplaceState(
       agents: agents ?? this.agents,
       query: query ?? this.query,
-      category: category ?? this.category,
+      category: category == _keep ? this.category : category as String?,
       isLoading: isLoading ?? this.isLoading,
       hasMore: hasMore ?? this.hasMore,
       page: page ?? this.page,
       error: clearError ? null : error ?? this.error,
     );
   }
+
+  static const Object _keep = Object();
 }
 
 class MarketplaceNotifier extends Notifier<MarketplaceState> {
@@ -119,7 +121,9 @@ class MarketplaceNotifier extends Notifier<MarketplaceState> {
   }
 
   void setCategory(String? cat) {
-    state = state.copyWith(category: cat == state.category ? null : cat);
+    // Toggle off if same category tapped again, otherwise select new
+    final next = cat == state.category ? null : cat;
+    state = state.copyWith(category: next);
     loadInitial();
   }
 }

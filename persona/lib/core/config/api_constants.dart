@@ -1,5 +1,3 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// All API-related constants, loaded from environment files (.env).
@@ -7,17 +5,12 @@ class ApiConstants {
   ApiConstants._();
 
   /// Base API URL for the Persona.ai backend.
+  /// Set API_BASE_URL in .env:
+  ///   Physical device via adb reverse → http://localhost:3000/api/v1
+  ///   Android emulator               → http://10.0.2.2:3000/api/v1
   static String get baseUrl {
     try {
-      final url = dotenv.env['API_BASE_URL'] ?? 'http://localhost:3000/api/v1';
-      if (!kIsWeb && Platform.isAndroid) {
-        if (url.contains('localhost')) {
-          return url.replaceAll('localhost', '10.0.2.2');
-        } else if (url.contains('127.0.0.1')) {
-          return url.replaceAll('127.0.0.1', '10.0.2.2');
-        }
-      }
-      return url;
+      return dotenv.env['API_BASE_URL'] ?? 'http://localhost:3000/api/v1';
     } catch (_) {
       return 'http://localhost:3000/api/v1';
     }

@@ -26,6 +26,8 @@ class AuthInterceptor extends Interceptor {
     if (token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
     }
+    // Bypass ngrok browser-warning interstitial page
+    options.headers['ngrok-skip-browser-warning'] = 'true';
     return handler.next(options);
   }
 
