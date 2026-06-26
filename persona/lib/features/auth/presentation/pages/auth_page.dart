@@ -7,14 +7,10 @@ import '../../../../core/theme/typography.dart';
 
 /// Hosts the Clerk pre-built authentication UI.
 ///
-/// [ClerkAuthentication] handles the complete flow:
-///   • Email + password sign-in / sign-up
-///   • Email verification code entry
-///   • Forgot password → reset password
-///   • OAuth / SSO (activated when providers are enabled in the Dashboard)
-///
-/// On successful sign-in, [ClerkAuthBridge] updates [globalAuthNotifier]
-/// and GoRouter automatically redirects the user to the dashboard.
+/// Shows a branded loading state while the Clerk SDK is initialising
+/// (isNotAvailable) so the screen is never blank. Once ready, renders
+/// [ClerkAuthentication] which handles sign-in, sign-up, email verification,
+/// forgot/reset password, and OAuth.
 class AuthPage extends StatelessWidget {
   const AuthPage({super.key});
 
@@ -26,23 +22,52 @@ class AuthPage extends StatelessWidget {
       backgroundColor:
           isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(isDark),
-            Expanded(
-              child: ClerkErrorListener(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 8,
-                  ),
-                  child: const ClerkAuthentication(),
-                ),
-              ),
-            ),
-          ],
+        child: ClerkAuthBuilder(
+          // While the SDK is still initialising (isNotAvailable == true) the
+          // signedOutBuilder fires with no user data — show a spinner instead
+          // of handing off to ClerkAuthentication which would render blank.
+          signedOutBuilder: (context, authState) {
+            if (authState.isNotAvailable) {
+              return _buildLoading(isDark);
+            }
+            return _buildAuthContent(isDark);
+          },
+          // Signed-in users are redirected by GoRouter; this state should
+          // never be visible on AuthPage, but show a spinner just in case.
+          signedInBuilder: (context, authState) => _buildLoading(isDark),
         ),
       ),
+    );
+  }
+
+  Widget _buildAuthContent(bool isDark) {
+    return Column(
+      children: [
+        _buildHeader(isDark),
+        Expanded(
+          child: ClerkErrorListener(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: const ClerkAuthentication(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoading(bool isDark) {
+    return Column(
+      children: [
+        _buildHeader(isDark),
+        Expanded(
+          child: Center(
+            child: CircularProgressIndicator(
+              color: isDark ? AppColors.primaryDark : AppColors.primaryLight,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -51,7 +76,6 @@ class AuthPage extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
       child: Column(
         children: [
-          // App icon placeholder
           Container(
             width: 64,
             height: 64,
