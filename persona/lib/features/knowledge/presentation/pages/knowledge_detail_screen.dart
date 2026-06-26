@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/typography.dart';
 import '../../../../shared/utils/responsive.dart';
+import '../../../../shared/widgets/app_top_bar.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../providers/knowledge_provider.dart';
@@ -27,18 +28,21 @@ class KnowledgeDetailScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor:
           isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      appBar: AppBar(
-        title: Text(kb?.name ?? 'Knowledge Base'),
-        backgroundColor:
-            isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-        surfaceTintColor: Colors.transparent,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_outline_rounded,
-                color: AppColors.error),
-            onPressed: () => _deleteKb(context, ref),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(56),
+        child: SafeArea(
+          bottom: false,
+          child: AppTopBar(
+            title: kb?.name ?? 'Knowledge Base',
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.delete_outline_rounded,
+                    color: AppColors.error),
+                onPressed: () => _deleteKb(context, ref),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _uploadDocument(context, ref),

@@ -9,6 +9,7 @@ import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/typography.dart';
 import '../../../../shared/utils/responsive.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
+import '../../../../shared/widgets/app_top_bar.dart';
 import '../../data/models/agent_model.dart';
 import '../providers/agent_provider.dart';
 
@@ -116,10 +117,12 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
   Widget _buildHeader(bool isDark) {
     final r = Responsive.of(context);
     return Padding(
-      padding: EdgeInsets.fromLTRB(r.horizontalPadding, 24, r.horizontalPadding, 14),
+      padding: EdgeInsets.fromLTRB(r.horizontalPadding, 16, r.horizontalPadding, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          AppNavButton(isDark: isDark, canPop: false),
+          const SizedBox(height: 14),
           Text(
             'Discover',
             style: AppTypography.headlineMedium.copyWith(

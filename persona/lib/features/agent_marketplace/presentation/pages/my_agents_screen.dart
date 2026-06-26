@@ -4,8 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/colors.dart';
-import '../../../../core/theme/typography.dart';
 import '../../../../shared/utils/responsive.dart';
+import '../../../../shared/widgets/app_top_bar.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../providers/agent_provider.dart';
@@ -26,32 +26,22 @@ class MyAgentsScreen extends ConsumerWidget {
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                  r.horizontalPadding, 16, r.horizontalPadding, 8),
-              child: Row(
-                children: [
-                  Text(
-                    'My Agents',
-                    style: AppTypography.headlineSmall.copyWith(
-                      color: isDark
-                          ? AppColors.textPrimaryDark
-                          : AppColors.textPrimaryLight,
-                    ),
+            AppTopBar(
+              title: 'My Agents',
+              actions: [
+                FilledButton.icon(
+                  onPressed: () => context.push(RouteNames.agentNew),
+                  icon: const Icon(Icons.add_rounded, size: 16),
+                  label: const Text('Create'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor:
+                        isDark ? AppColors.primaryDark : AppColors.primaryLight,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 0),
+                    minimumSize: const Size(0, 36),
                   ),
-                  const Spacer(),
-                  FilledButton.icon(
-                    onPressed: () => context.push(RouteNames.agentNew),
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text('Create'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: isDark
-                          ? AppColors.primaryDark
-                          : AppColors.primaryLight,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
             Expanded(
               child: agentsAsync.when(

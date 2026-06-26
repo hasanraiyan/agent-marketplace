@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/typography.dart';
 import '../../../../shared/utils/responsive.dart';
+import '../../../../shared/widgets/app_top_bar.dart';
 import '../providers/provider_notifier.dart';
 
 const _presets = [
@@ -76,20 +77,23 @@ class _ProviderFormScreenState extends ConsumerState<ProviderFormScreen> {
     return Scaffold(
       backgroundColor:
           isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      appBar: AppBar(
-        title: Text(_isEdit ? 'Edit Provider' : 'Add Provider'),
-        backgroundColor:
-            isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-        surfaceTintColor: Colors.transparent,
-        actions: _isEdit
-            ? [
-                IconButton(
-                  icon: const Icon(Icons.delete_outline_rounded,
-                      color: AppColors.error),
-                  onPressed: _delete,
-                ),
-              ]
-            : null,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(56),
+        child: SafeArea(
+          bottom: false,
+          child: AppTopBar(
+            title: _isEdit ? 'Edit Provider' : 'Add Provider',
+            actions: _isEdit
+                ? [
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline_rounded,
+                          color: AppColors.error),
+                      onPressed: _delete,
+                    ),
+                  ]
+                : [],
+          ),
+        ),
       ),
       body: ResponsiveCenter(
         padding: EdgeInsets.symmetric(horizontal: r.horizontalPadding),

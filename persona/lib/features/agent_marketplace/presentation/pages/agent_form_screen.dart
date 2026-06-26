@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/typography.dart';
 import '../../../../shared/utils/responsive.dart';
+import '../../../../shared/widgets/app_top_bar.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../../provider_keys/presentation/providers/provider_notifier.dart';
 import '../../../mcp_servers/data/models/mcp_model.dart';
@@ -114,7 +115,13 @@ class _AgentFormScreenState extends ConsumerState<AgentFormScreen> {
 
     if (_isEdit && _initialLoad) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Edit Agent')),
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: SafeArea(
+            bottom: false,
+            child: AppTopBar(title: 'Edit Agent'),
+          ),
+        ),
         body: const Padding(
           padding: EdgeInsets.all(16),
           child: Column(
@@ -133,11 +140,12 @@ class _AgentFormScreenState extends ConsumerState<AgentFormScreen> {
     return Scaffold(
       backgroundColor:
           isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      appBar: AppBar(
-        title: Text(_isEdit ? 'Edit Agent' : 'Create Agent'),
-        backgroundColor:
-            isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-        surfaceTintColor: Colors.transparent,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(56),
+        child: SafeArea(
+          bottom: false,
+          child: AppTopBar(title: _isEdit ? 'Edit Agent' : 'Create Agent'),
+        ),
       ),
       body: ResponsiveCenter(
         padding: EdgeInsets.symmetric(horizontal: r.horizontalPadding),

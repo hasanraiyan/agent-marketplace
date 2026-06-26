@@ -7,6 +7,7 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/typography.dart';
 import '../../../../shared/utils/responsive.dart';
+import '../../../../shared/widgets/app_top_bar.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../data/models/thread_model.dart';
@@ -70,31 +71,17 @@ class ThreadListScreen extends ConsumerWidget {
     WidgetRef ref,
     AsyncValue<List<ThreadModel>> threadsAsync,
   ) {
-    return Padding(
-      padding:
-          EdgeInsets.fromLTRB(r.horizontalPadding, 16, r.horizontalPadding, 8),
-      child: Row(
-        children: [
-          Text(
-            'Chats',
-            style: AppTypography.headlineSmall.copyWith(
-              color: isDark
-                  ? AppColors.textPrimaryDark
-                  : AppColors.textPrimaryLight,
-            ),
+    return AppTopBar(
+      title: 'Chats',
+      actions: [
+        if (threadsAsync.value?.isNotEmpty == true)
+          TextButton.icon(
+            onPressed: () => _confirmDeleteAll(context, ref),
+            icon: const Icon(Icons.delete_sweep_rounded, size: 18),
+            label: const Text('Clear all'),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
           ),
-          const Spacer(),
-          if (threadsAsync.value?.isNotEmpty == true)
-            TextButton.icon(
-              onPressed: () => _confirmDeleteAll(context, ref),
-              icon: const Icon(Icons.delete_sweep_rounded, size: 18),
-              label: const Text('Clear all'),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.error,
-              ),
-            ),
-        ],
-      ),
+      ],
     );
   }
 

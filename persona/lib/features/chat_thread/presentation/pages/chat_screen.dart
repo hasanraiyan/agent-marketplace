@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/typography.dart';
+import '../../../../shared/widgets/app_top_bar.dart';
 import '../../../../shared/utils/responsive.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../providers/chat_provider.dart';
@@ -81,12 +82,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return Scaffold(
       backgroundColor:
           isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      appBar: _buildAppBar(context, isDark, thread?.title),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth >= 600;
           return Column(
             children: [
+              SafeArea(
+                bottom: false,
+                child: AppTopBar(
+                  title: thread?.title ?? 'Chat',
+                  actions: [
+                    IconButton(
+                      icon: const Icon(Icons.edit_rounded, size: 20),
+                      onPressed: () => _showRenameSheet(context),
+                      tooltip: 'Rename',
+                    ),
+                  ],
+                ),
+              ),
               // Error banner
               if (chatState.error != null)
                 _ErrorBanner(
@@ -113,36 +126,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  AppBar _buildAppBar(BuildContext context, bool isDark, String? title) {
-    return AppBar(
-      backgroundColor:
-          isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      surfaceTintColor: Colors.transparent,
-      leading: const BackButton(),
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title ?? 'Chat',
-            style: AppTypography.titleMedium.copyWith(
-              color: isDark
-                  ? AppColors.textPrimaryDark
-                  : AppColors.textPrimaryLight,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.edit_rounded),
-          onPressed: () => _showRenameSheet(context),
-          tooltip: 'Rename',
-        ),
-      ],
-    );
-  }
 
   Widget _buildMessageList(
     BuildContext context,

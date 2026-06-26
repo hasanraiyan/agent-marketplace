@@ -6,6 +6,7 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/typography.dart';
 import '../../../../shared/utils/responsive.dart';
+import '../../../../shared/widgets/app_top_bar.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../../data/models/skill_model.dart';
@@ -42,17 +43,20 @@ class _SkillsScreenState extends ConsumerState<SkillsScreen>
     return Scaffold(
       backgroundColor:
           isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      appBar: AppBar(
-        title: const Text('Skills'),
-        backgroundColor:
-            isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-        surfaceTintColor: Colors.transparent,
-        bottom: TabBar(
-          controller: _tabs,
-          tabs: const [
-            Tab(text: 'My Skills'),
-            Tab(text: 'Public'),
-          ],
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(100),
+        child: SafeArea(
+          bottom: false,
+          child: AppTopBar(
+            title: 'Skills',
+            bottom: TabBar(
+              controller: _tabs,
+              tabs: const [
+                Tab(text: 'My Skills'),
+                Tab(text: 'Public'),
+              ],
+            ),
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(

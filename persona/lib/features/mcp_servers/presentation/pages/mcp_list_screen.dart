@@ -6,6 +6,7 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/typography.dart';
 import '../../../../shared/utils/responsive.dart';
+import '../../../../shared/widgets/app_top_bar.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/skeleton_loader.dart';
 import '../providers/mcp_provider.dart';
@@ -22,11 +23,12 @@ class McpListScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor:
           isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      appBar: AppBar(
-        title: const Text('MCP Servers'),
-        backgroundColor:
-            isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-        surfaceTintColor: Colors.transparent,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(56),
+        child: SafeArea(
+          bottom: false,
+          child: AppTopBar(title: 'MCP Servers'),
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push(RouteNames.mcpNew),

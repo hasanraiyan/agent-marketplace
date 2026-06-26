@@ -7,6 +7,7 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/typography.dart';
 import '../../../../shared/utils/responsive.dart';
+import '../../../../shared/widgets/app_top_bar.dart';
 import '../providers/profile_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -21,23 +22,20 @@ class ProfileScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor:
           isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-              horizontal: r.horizontalPadding, vertical: 16),
-          child: ResponsiveCenter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Profile',
-                  style: AppTypography.headlineSmall.copyWith(
-                    color: isDark
-                        ? AppColors.textPrimaryDark
-                        : AppColors.textPrimaryLight,
-                  ),
-                ),
-                const SizedBox(height: 24),
+      body: Column(
+        children: [
+          SafeArea(
+            bottom: false,
+            child: AppTopBar(title: 'Profile'),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                  horizontal: r.horizontalPadding, vertical: 16),
+              child: ResponsiveCenter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
 
                 // Avatar + name block
                 profileAsync.when(
@@ -108,7 +106,9 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ),
       ),
-    );
+    ],
+  ),
+      );
   }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
