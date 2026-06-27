@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { toast } from "sonner";
@@ -18,9 +18,6 @@ import {
   SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar";
 import {
@@ -52,13 +49,13 @@ function InlineRename({ currentTitle, onConfirm, onCancel }) {
   };
 
   return (
-    <div className="flex flex-1 items-center gap-1 overflow-hidden pr-1">
+    <div className="flex flex-1 items-center gap-1.5 overflow-hidden pr-1">
       <input
         autoFocus
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
-        className="h-6 min-w-0 flex-1 rounded border border-sidebar-border bg-sidebar px-1.5 text-xs text-sidebar-foreground outline-none ring-0 focus:ring-1 focus:ring-primary"
+        className="h-6 min-w-0 flex-1 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 text-xs text-slate-800 dark:text-slate-250 outline-none ring-0 focus:border-[#1E60FF] focus:ring-1 focus:ring-[#1E60FF]"
       />
       <button
         type="button"
@@ -108,8 +105,10 @@ function ThreadItem({ thread, agent, isActive, onRename, onDelete }) {
         asChild={!renaming && !agent?.isDeleted}
         isActive={isActive}
         className={cn(
-          "group/thread h-8 gap-2 pr-8",
-          isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
+          "group/thread h-9 gap-2.5 pr-8 rounded-xl transition-all duration-200 border-l-2 border-transparent px-3",
+          isActive
+            ? "bg-slate-200/50 dark:bg-slate-850/60 text-slate-900 dark:text-white font-semibold shadow-xs border-l-[#1E60FF]!"
+            : "text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-100 hover:bg-slate-100/40 dark:hover:bg-slate-800/20",
         )}
       >
         {renaming ? (
@@ -119,28 +118,29 @@ function ThreadItem({ thread, agent, isActive, onRename, onDelete }) {
             onCancel={() => setRenaming(false)}
           />
         ) : agent?.isDeleted ? (
-          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden opacity-60 grayscale">
-            <Avatar className="size-4 shrink-0">
-              <AvatarFallback className="bg-muted text-[8px]">
-                <BotIcon className="size-2.5" />
+          <div className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden opacity-60 grayscale">
+            <Avatar className="size-5 shrink-0 rounded-[6px]">
+              <AvatarFallback className="bg-muted text-[8px] rounded-[6px]">
+                <BotIcon className="size-3" />
               </AvatarFallback>
             </Avatar>
-            <span className="min-w-0 flex-1 truncate text-xs">
+            <span className="min-w-0 flex-1 truncate text-xs font-medium">
               {thread.title || "New Conversation"}
             </span>
           </div>
         ) : (
           <Link
             href={`/dashboard/agents/${agent?._id || agent?.id || thread.agentId?._id || thread.agentId?.id || thread.agentId}/run?threadId=${threadId}`}
-            className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden"
+            className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden"
           >
-            <Avatar className="size-4 shrink-0">
+            <Avatar className="size-5 shrink-0 rounded-[6px]">
               <AvatarImage
                 src={agent?.avatarUrl || agent?.avatar}
                 alt={agent?.name || "Agent"}
+                className="rounded-[6px] object-cover"
               />
-              <AvatarFallback className="bg-muted text-[8px]">
-                <BotIcon className="size-2.5" />
+              <AvatarFallback className="bg-muted text-[8px] rounded-[6px]">
+                <BotIcon className="size-3" />
               </AvatarFallback>
             </Avatar>
             <span className="min-w-0 flex-1 truncate text-xs font-medium">
@@ -155,9 +155,9 @@ function ThreadItem({ thread, agent, isActive, onRename, onDelete }) {
           <DropdownMenuTrigger asChild>
             <SidebarMenuAction
               showOnHover
-              className="right-1 top-1.5 size-5 rounded"
+              className="right-2 top-2 size-5 rounded-md hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors"
             >
-              <MoreHorizontalIcon className="size-3" />
+              <MoreHorizontalIcon className="size-3 text-slate-500 dark:text-slate-400" />
               <span className="sr-only">More</span>
             </SidebarMenuAction>
           </DropdownMenuTrigger>
@@ -166,13 +166,13 @@ function ThreadItem({ thread, agent, isActive, onRename, onDelete }) {
             side={isMobile ? "bottom" : "right"}
             align={isMobile ? "end" : "start"}
           >
-            <DropdownMenuItem onSelect={() => setRenaming(true)}>
-              <PencilIcon className="size-3.5" />
+            <DropdownMenuItem onSelect={() => setRenaming(true)} className="cursor-pointer">
+              <PencilIcon className="size-3.5 mr-2" />
               <span>Rename</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onSelect={handleDelete}>
-              <Trash2Icon className="size-3.5" />
+            <DropdownMenuItem variant="destructive" onSelect={handleDelete} className="cursor-pointer">
+              <Trash2Icon className="size-3.5 mr-2" />
               <span>Delete</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -183,15 +183,6 @@ function ThreadItem({ thread, agent, isActive, onRename, onDelete }) {
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────
-/**
- * NavThreads — renders all user threads grouped by agent in the sidebar.
- *
- * Props:
- *   groups    - Array<{ agent, threads[] }>  (from useUserThreads)
- *   loading   - boolean
- *   onRename  - (threadId, title) => Promise
- *   onDelete  - (threadId) => Promise
- */
 export function NavThreads({
   groups,
   loading,
@@ -204,14 +195,12 @@ export function NavThreads({
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(true);
 
-  // Determine the active thread from the URL: /dashboard/agents/[id]/run?threadId=...
   const activeThreadId = (() => {
     if (typeof window === "undefined") return null;
     const params = new URLSearchParams(window.location.search);
     return params.get("threadId") || null;
   })();
 
-  // Flatten and sort all threads by recency
   const allThreads = useMemo(() => {
     const list = [];
     for (const group of groups) {
@@ -232,14 +221,16 @@ export function NavThreads({
 
   if (loading) {
     return (
-      <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-        <SidebarGroupLabel>Threads</SidebarGroupLabel>
-        <SidebarMenu>
+      <SidebarGroup className="group-data-[collapsible=icon]:hidden border-t border-slate-100/60 dark:border-slate-800/40 mt-4 pt-4 px-0">
+        <SidebarGroupLabel className="text-[11px] font-bold tracking-wider uppercase text-slate-400 dark:text-slate-500 mb-2 px-3">
+          Threads
+        </SidebarGroupLabel>
+        <SidebarMenu className="px-1.5">
           {[1, 2, 3].map((i) => (
             <SidebarMenuItem key={i}>
-              <div className="flex items-center gap-2 px-2 py-1.5">
-                <Skeleton className="size-4 rounded-full" />
-                <Skeleton className="h-3 flex-1 rounded" />
+              <div className="flex items-center gap-2.5 px-3 py-2">
+                <Skeleton className="size-5 rounded-[6px]" />
+                <Skeleton className="h-3.5 flex-1 rounded-md" />
               </div>
             </SidebarMenuItem>
           ))}
@@ -252,23 +243,30 @@ export function NavThreads({
     <Collapsible
       open={isOpen}
       onOpenChange={setIsOpen}
-      className="group/collapsible data-[state=open]:flex-1 data-[state=open]:min-h-0 flex flex-col overflow-hidden"
+      className="group/collapsible data-[state=open]:flex-1 data-[state=open]:min-h-0 flex flex-col overflow-hidden border-t border-slate-150/50 dark:border-slate-850/40 mt-4 pt-4"
     >
-      <SidebarGroup className="group-data-[collapsible=icon]:hidden pr-0 group-data-[state=open]/collapsible:flex-1 group-data-[state=open]/collapsible:min-h-0 flex flex-col overflow-hidden">
-        <SidebarGroupLabel asChild className="cursor-pointer select-none hover:text-sidebar-foreground transition-colors pr-3">
+      <SidebarGroup className="group-data-[collapsible=icon]:hidden pr-0 group-data-[state=open]/collapsible:flex-1 group-data-[state=open]/collapsible:min-h-0 flex flex-col overflow-hidden p-0">
+        <SidebarGroupLabel asChild className="cursor-pointer select-none text-[11px] font-bold tracking-wider uppercase text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-350 transition-colors px-3 mb-2">
           <CollapsibleTrigger className="flex w-full items-center justify-between">
-            <span>Threads</span>
+            <span className="flex items-center gap-1.5">
+              Threads
+              {allThreads.length > 0 && (
+                <span className="rounded-full bg-slate-100 dark:bg-slate-800/80 px-1.5 py-0.2 text-[9px] font-semibold text-slate-550 dark:text-slate-450 select-none">
+                  {allThreads.length}
+                </span>
+              )}
+            </span>
             <ChevronRightIcon className="size-3.5 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 text-muted-foreground" />
           </CollapsibleTrigger>
         </SidebarGroupLabel>
-        <CollapsibleContent className="group-data-[state=open]/collapsible:flex-1 group-data-[state=open]/collapsible:min-h-0 flex flex-col overflow-hidden">
+        <CollapsibleContent className="group-data-[state=open]/collapsible:flex-1 group-data-[state=open]/collapsible:min-h-0 flex flex-col overflow-hidden px-1.5">
           <div className="flex-1 overflow-y-auto select-none no-scrollbar min-h-0">
-            <SidebarMenu>
+            <SidebarMenu className="gap-0.5">
               {allThreads.length === 0 ? (
                 <SidebarMenuItem>
-                  <div className="px-2 py-3 text-center">
-                    <MessageSquareIcon className="mx-auto mb-1.5 size-6 text-muted-foreground/40" />
-                    <p className="text-xs text-muted-foreground/60">
+                  <div className="px-3 py-6 text-center">
+                    <MessageSquareIcon className="mx-auto mb-2 size-6 text-muted-foreground/30" />
+                    <p className="text-xs text-muted-foreground/50">
                       No threads yet.
                       <br />
                       Start a conversation!
@@ -293,7 +291,7 @@ export function NavThreads({
                   <button
                     onClick={onLoadMore}
                     disabled={loadingMore}
-                    className="w-full text-center text-xs font-semibold text-muted-foreground hover:text-primary py-1 px-2 border border-dashed border-sidebar-border rounded-md hover:bg-sidebar-accent transition-all cursor-pointer disabled:opacity-50"
+                    className="w-full text-center text-xs font-semibold text-muted-foreground hover:text-[#1E60FF] py-1.5 px-2 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100/50 dark:hover:bg-slate-800/30 transition-all cursor-pointer disabled:opacity-50"
                   >
                     {loadingMore ? "Loading more..." : "Load More Chats"}
                   </button>

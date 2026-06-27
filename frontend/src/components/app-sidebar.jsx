@@ -102,26 +102,37 @@ export function AppSidebar({ ...props }) {
   );
 
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
-      <SidebarHeader>
+    <Sidebar
+      collapsible="offcanvas"
+      className="border-r border-slate-100 bg-[#fbfbfb] dark:border-slate-850 dark:bg-[#0c0c0e] select-none"
+      {...props}
+    >
+      <SidebarHeader className="border-b border-slate-100/60 dark:border-slate-800/40 py-4 px-4 bg-slate-50/20 dark:bg-slate-950/10">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
               asChild
-              className="data-[slot=sidebar-menu-button]:p-1.5!"
+              className="data-[slot=sidebar-menu-button]:p-0 hover:bg-transparent dark:hover:bg-transparent"
             >
-              <Link href="/">
-                <SparklesIcon className="size-5! text-primary" />
-                <span className="text-base font-bold tracking-tight">
-                  Persona<span className="text-primary">.ai</span>
-                </span>
+              <Link href="/" className="flex items-center gap-3">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-tr from-[#1E60FF] via-[#5d73ff] to-[#8c52ff] text-white shadow-md shadow-[#1E60FF]/25 dark:shadow-none transition-transform duration-300 hover:scale-[1.05]">
+                  <SparklesIcon className="size-4.5 text-white" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white leading-none">
+                    Persona<span className="text-[#1E60FF] font-black">.ai</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold mt-1">
+                    v1.0.0
+                  </span>
+                </div>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="px-3.5 py-3 gap-4">
         <NavMain items={NAV_MAIN} />
         <NavThreads
           groups={groups}
@@ -134,7 +145,7 @@ export function AppSidebar({ ...props }) {
         />
         <NavSecondary items={NAV_SECONDARY} className="mt-auto" />
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="p-3.5">
         <NavUser user={userData} />
       </SidebarFooter>
     </Sidebar>
