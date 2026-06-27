@@ -90,24 +90,39 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
           child: CustomScrollView(
             controller: _scrollController,
             slivers: [
-              SliverToBoxAdapter(child: _buildHeader(isDark)),
+              SliverToBoxAdapter(child: _constrain(_buildHeader(isDark))),
               SliverToBoxAdapter(
-                  child: _buildCategoryPills(isDark, state.category)),
+                  child:
+                      _constrain(_buildCategoryPills(isDark, state.category))),
               if (state.isLoading && state.agents.isEmpty)
-                SliverToBoxAdapter(child: _buildLoadingState(isDark))
+                SliverToBoxAdapter(child: _constrain(_buildLoadingState(isDark)))
               else if (state.agents.isEmpty)
-                SliverToBoxAdapter(child: _buildEmpty(isDark))
+                SliverToBoxAdapter(child: _constrain(_buildEmpty(isDark)))
               else ...[
                 SliverToBoxAdapter(
-                    child: _buildFeaturedCarousel(
-                        state.agents.take(5).toList(), isDark)),
-                SliverToBoxAdapter(child: const SizedBox(height: 16)),
+                    child: _constrain(_buildFeaturedCarousel(
+                        state.agents.take(5).toList(), isDark))),
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
                 _buildTrendingSliver(
                     state.agents.toList(), state.hasMore, isDark),
               ],
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Caps content width on large screens, left-aligned so every section shares
+  /// the same left edge as the header. The cap comes from [Responsive]
+  /// breakpoints (not a hardcoded number) so it adapts per device class.
+  Widget _constrain(Widget child) {
+    return Align(
+      alignment: Alignment.topLeft,
+      child: ConstrainedBox(
+        constraints:
+            BoxConstraints(maxWidth: Responsive.of(context).contentMaxWidth),
+        child: child,
       ),
     );
   }
@@ -316,10 +331,12 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                   )
                 : const SizedBox(height: 24);
           }
-          return _TrendingRow(
-            agent: agents[i],
-            rank: i + 1,
-            isDark: isDark,
+          return _constrain(
+            _TrendingRow(
+              agent: agents[i],
+              rank: i + 1,
+              isDark: isDark,
+            ),
           );
         },
         childCount: agents.length + 1,
@@ -330,30 +347,34 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
   // ── Loading skeleton ────────────────────────────────────────────────────────
 
   Widget _buildLoadingState(bool isDark) {
+    final wide = MediaQuery.sizeOf(context).width >= 600;
+    final cardW = wide ? 200.0 : 160.0;
+    final cardH = wide ? 310.0 : 255.0;
+    final hPad = Responsive.of(context).horizontalPadding;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 22, 16, 12),
-          child: SkeletonBox(width: 150, height: 20, borderRadius: 6),
-        ),
-        SizedBox(
-          height: 240,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: 4,
-            itemBuilder: (_, _) => const Padding(
-              padding: EdgeInsets.only(right: 12),
-              child: SkeletonBox(width: 162, height: 240, borderRadius: 24),
+        // Featured carousel — mirrors _buildFeaturedCarousel dimensions.
+        Padding(
+          padding: const EdgeInsets.only(top: 16),
+          child: SizedBox(
+            height: cardH,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.symmetric(horizontal: hPad),
+              itemCount: 4,
+              itemBuilder: (_, _) => Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child:
+                    SkeletonBox(width: cardW, height: cardH, borderRadius: 24),
+              ),
             ),
           ),
         ),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 22, 16, 12),
-          child: SkeletonBox(width: 100, height: 20, borderRadius: 6),
-        ),
-        ...List.generate(5, (_) => const ListTileSkeleton()),
+        const SizedBox(height: 16),
+        // Trending rows — mirror _TrendingRow layout.
+        ...List.generate(6, (_) => _TrendingRowSkeleton(isDark: isDark)),
       ],
     );
   }
@@ -577,7 +598,9 @@ class _TrendingRow extends StatelessWidget {
             ? AppColors.inputFillDark.withValues(alpha: 0.6)
             : const Color(0xFFF4F4F4).withValues(alpha: 0.6),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: EdgeInsets.symmetric(
+              horizontal: Responsive.of(context).horizontalPadding,
+              vertical: 14),
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
@@ -659,74 +682,83 @@ class _TrendingRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              // Name + count + description — takes 40% of remaining space
+              // Name/count on the left, prompt bubble pinned to the right edge.
+              // spaceBetween puts all slack between them so the bubble hugs its
+              // text yet always sits at the right.
               Expanded(
-                flex: 4,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      agent.name,
-                      style: AppTypography.bodyMedium.copyWith(
-                        color: isDark
-                            ? AppColors.textPrimaryDark
-                            : AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.w700,
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            agent.name,
+                            style: AppTypography.bodyMedium.copyWith(
+                              color: isDark
+                                  ? AppColors.textPrimaryDark
+                                  : AppColors.textPrimaryLight,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            '${agent.messageCount} Chats',
+                            style: AppTypography.labelSmall.copyWith(
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : AppColors.textSecondaryLight,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 1),
-                    Text(
-                      '${agent.messageCount} Chats',
-                      style: AppTypography.labelSmall.copyWith(
-                        color: isDark
-                            ? AppColors.textSecondaryDark
-                            : AppColors.textSecondaryLight,
-                        fontWeight: FontWeight.w600,
+                    const SizedBox(width: 10),
+                    // Chat bubble — hugs its prompt text (shrinks for short
+                    // prompts), ellipsizes if the prompt is long.
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? AppColors.inputFillDark
+                              : const Color(0xFFF9F9F9),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(14),
+                            topRight: Radius.circular(0),
+                            bottomLeft: Radius.circular(14),
+                            bottomRight: Radius.circular(14),
+                          ),
+                          border: Border.all(
+                            color: isDark
+                                ? AppColors.dividerDark
+                                : const Color(0xFFEDEDED),
+                          ),
+                        ),
+                        child: Text(
+                          _suggestedPrompt(),
+                          style: AppTypography.labelSmall.copyWith(
+                            color: isDark
+                                ? const Color(0xFFD4D4D0)
+                                : const Color(0xFF52525B),
+                            fontWeight: FontWeight.w600,
+                            height: 1.4,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              // Chat bubble — takes 56% of remaining space
-              Expanded(
-                flex: 5,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? AppColors.inputFillDark
-                        : const Color(0xFFF9F9F9),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(14),
-                      topRight: Radius.circular(0),
-                      bottomLeft: Radius.circular(14),
-                      bottomRight: Radius.circular(14),
-                    ),
-                    border: Border.all(
-                      color: isDark
-                          ? AppColors.dividerDark
-                          : const Color(0xFFEDEDED),
-                    ),
-                  ),
-                  child: Text(
-                    _suggestedPrompt(),
-                    style: AppTypography.labelSmall.copyWith(
-                      color: isDark
-                          ? const Color(0xFFD4D4D0)
-                          : const Color(0xFF52525B),
-                      fontWeight: FontWeight.w600,
-                      height: 1.4,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
                 ),
               ),
             ],
@@ -762,5 +794,56 @@ class _TrendingRow extends StatelessWidget {
       'roleplay' => "Let's roleplay…",
       _ => 'Ask me anything',
     };
+  }
+}
+
+// ── Trending Row Skeleton ────────────────────────────────────────────────────
+// Mirrors [_TrendingRow]: 48px circular avatar, name/count column, chat bubble.
+
+class _TrendingRowSkeleton extends StatelessWidget {
+  const _TrendingRowSkeleton({required this.isDark});
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+          horizontal: Responsive.of(context).horizontalPadding, vertical: 14),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: isDark
+                ? AppColors.dividerDark.withValues(alpha: 0.5)
+                : const Color(0xFFF0F0EE),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          const SkeletonBox(width: 48, height: 48, borderRadius: 24),
+          const SizedBox(width: 10),
+          const Expanded(
+            flex: 4,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SkeletonBox(width: 90, height: 13, borderRadius: 5),
+                SizedBox(height: 6),
+                SkeletonBox(width: 50, height: 10, borderRadius: 5),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            flex: 5,
+            child: SkeletonBox(
+              height: 44,
+              borderRadius: 14,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

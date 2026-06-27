@@ -56,6 +56,9 @@ dependencies:
   responsive_framework: ^1.5.1
   clerk_flutter: ^0.0.16-beta
   timeago: ^3.7.0
+  # Direct dep so the Windows no-op WebViewPlatform shim can subclass the
+  # platform interface (clerk_flutter pulls webview_flutter transitively).
+  webview_flutter_platform_interface: 2.15.1
 
 dev_dependencies:
   flutter_test:

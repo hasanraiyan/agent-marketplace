@@ -12,7 +12,6 @@ import '../../features/agent_marketplace/presentation/pages/marketplace_screen.d
 import '../../features/agent_marketplace/presentation/pages/agent_detail_screen.dart';
 import '../../features/agent_marketplace/presentation/pages/my_agents_screen.dart';
 import '../../features/agent_marketplace/presentation/pages/agent_form_screen.dart';
-import '../../features/chat_thread/presentation/pages/thread_list_screen.dart';
 import '../../features/chat_thread/presentation/pages/chat_screen.dart';
 import '../../features/profile/presentation/pages/profile_screen.dart';
 import '../../features/provider_keys/presentation/pages/providers_screen.dart';
@@ -69,10 +68,15 @@ final router = GoRouter(
           ],
         ),
 
-        // ── Chats tab ─────────────────────────────────────────────────────────
+        // ── Chats (thread list now lives in the side drawer) ────────────────
+        // The standalone /chats list page was removed; the chat screen at
+        // /chats/:threadId is still reachable via chatPath().
         GoRoute(
           path: RouteNames.chats,
-          builder: (context, state) => const ThreadListScreen(),
+          redirect: (context, state) =>
+              state.matchedLocation == RouteNames.chats
+                  ? RouteNames.marketplace
+                  : null,
           routes: [
             GoRoute(
               path: ':threadId',

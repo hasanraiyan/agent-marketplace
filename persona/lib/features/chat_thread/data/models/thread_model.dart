@@ -7,6 +7,8 @@ class ThreadModel {
     required this.title,
     required this.lastMessageAt,
     required this.isArchived,
+    this.agentName,
+    this.agentAvatarUrl,
     this.createdAt,
     this.updatedAt,
   });
@@ -18,6 +20,12 @@ class ThreadModel {
   final String title;
   final DateTime lastMessageAt;
   final bool isArchived;
+
+  /// Populated when the API returns `agentId` as an embedded agent object.
+  /// Null when only the agent id string is returned, or the agent was deleted.
+  final String? agentName;
+  final String? agentAvatarUrl;
+
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -27,6 +35,20 @@ class ThreadModel {
     final String parsedAgentId = (agentData is Map)
         ? (agentData['id'] ?? agentData['_id'] ?? '').toString()
         : (agentData ?? '').toString();
+
+    // Capture the embedded agent's name/avatar when the API populates it.
+    String? parsedAgentName;
+    String? parsedAgentAvatarUrl;
+    if (agentData is Map) {
+      parsedAgentName = (agentData['name'] as String?)?.trim();
+      if (parsedAgentName != null && parsedAgentName.isEmpty) {
+        parsedAgentName = null;
+      }
+      final avatar =
+          (agentData['avatarUrl'] ?? agentData['avatar'])?.toString().trim();
+      parsedAgentAvatarUrl =
+          (avatar != null && avatar.isNotEmpty) ? avatar : null;
+    }
 
     // Sometimes userId is populated as an object
     final userData = json['userId'];
@@ -44,6 +66,8 @@ class ThreadModel {
           ? DateTime.tryParse(json['lastMessageAt'].toString()) ?? DateTime.now()
           : DateTime.now(),
       isArchived: json['isArchived'] as bool? ?? false,
+      agentName: parsedAgentName,
+      agentAvatarUrl: parsedAgentAvatarUrl,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())
           : null,
@@ -62,8 +86,30 @@ class ThreadModel {
       'title': title,
       'lastMessageAt': lastMessageAt.toIso8601String(),
       'isArchived': isArchived,
+      'agentName': agentName,
+      'agentAvatarUrl': agentAvatarUrl,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
     };
+  }
+
+  ThreadModel copyWith({
+    String? title,
+    DateTime? lastMessageAt,
+    bool? isArchived,
+  }) {
+    return ThreadModel(
+      id: id,
+      agentId: agentId,
+      userId: userId,
+      threadId: threadId,
+      title: title ?? this.title,
+      lastMessageAt: lastMessageAt ?? this.lastMessageAt,
+      isArchived: isArchived ?? this.isArchived,
+      agentName: agentName,
+      agentAvatarUrl: agentAvatarUrl,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
   }
 }

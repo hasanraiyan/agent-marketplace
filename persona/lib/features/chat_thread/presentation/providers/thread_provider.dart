@@ -49,19 +49,7 @@ class ThreadListNotifier extends AsyncNotifier<List<ThreadModel>> {
         .updateThreadTitle(id, title);
     state = AsyncData(
       (state.value ?? [])
-          .map((t) => t.id == id
-              ? ThreadModel(
-                  id: t.id,
-                  agentId: t.agentId,
-                  userId: t.userId,
-                  threadId: t.threadId,
-                  title: title,
-                  lastMessageAt: t.lastMessageAt,
-                  isArchived: t.isArchived,
-                  createdAt: t.createdAt,
-                  updatedAt: t.updatedAt,
-                )
-              : t)
+          .map((t) => t.id == id ? t.copyWith(title: title) : t)
           .toList(),
     );
   }

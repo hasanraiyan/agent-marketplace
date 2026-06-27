@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/typography.dart';
+import '../../../chat_thread/presentation/widgets/sidebar_thread_list.dart';
 
 // Direct key so any screen can open the drawer without context lookup
 final shellScaffoldKey = GlobalKey<ScaffoldState>();
@@ -27,9 +28,8 @@ class MainShell extends StatelessWidget {
   }
 
   static int _indexFromLocation(String location) {
-    if (location.startsWith('/chats')) return 1;
-    if (location.startsWith('/agents')) return 2;
-    if (location.startsWith('/profile')) return 3;
+    if (location.startsWith('/agents')) return 1;
+    if (location.startsWith('/profile')) return 2;
     return 0;
   }
 }
@@ -55,12 +55,6 @@ const _navItems = [
     activeIcon: Icons.explore_rounded,
     label: 'Explore',
     route: RouteNames.marketplace,
-  ),
-  _NavItem(
-    icon: Icons.chat_bubble_outline_rounded,
-    activeIcon: Icons.chat_bubble_rounded,
-    label: 'Chats',
-    route: RouteNames.chats,
   ),
   _NavItem(
     icon: Icons.smart_toy_outlined,
@@ -165,7 +159,9 @@ class _SideDrawer extends ConsumerWidget {
             }),
           ),
         ),
-        const Spacer(),
+        Expanded(
+          child: SidebarThreadList(isDark: isDark, permanent: permanent),
+        ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Column(
