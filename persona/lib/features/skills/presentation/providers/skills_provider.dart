@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/dio_client.dart';
+import '../../../agent_marketplace/data/models/agent_model.dart';
 import '../../data/datasources/skill_remote_datasource.dart';
 import '../../data/models/skill_model.dart';
 
@@ -17,24 +18,28 @@ class MySkillsNotifier extends AsyncNotifier<List<SkillModel>> {
 
   Future<void> refresh() => ref.refresh(mySkillsProvider.future);
 
-  Future<void> create({
+  Future<SkillModel> create({
     required String name,
     required String description,
     required String instructions,
-    required List<Map<String, dynamic>> codeSnippets,
+    List<Map<String, dynamic>> codeSnippets = const [],
     required bool isPublic,
   }) async {
-    final resp = await ref.read(skillDatasourceProvider).createSkill(
+    final resp = await ref
+        .read(skillDatasourceProvider)
+        .createSkill(
           name: name,
           description: description,
           instructions: instructions,
           codeSnippets: codeSnippets,
           isPublic: isPublic,
         );
-    state = AsyncData([resp.data!, ...(state.value ?? [])]);
+    final created = resp.data!;
+    state = AsyncData([created, ...(state.value ?? [])]);
+    return created;
   }
 
-  Future<void> editItem(
+  Future<SkillModel> editItem(
     String id, {
     String? name,
     String? description,
@@ -42,7 +47,9 @@ class MySkillsNotifier extends AsyncNotifier<List<SkillModel>> {
     List<Map<String, dynamic>>? codeSnippets,
     bool? isPublic,
   }) async {
-    final resp = await ref.read(skillDatasourceProvider).updateSkill(
+    final resp = await ref
+        .read(skillDatasourceProvider)
+        .updateSkill(
           id,
           name: name,
           description: description,
@@ -50,23 +57,25 @@ class MySkillsNotifier extends AsyncNotifier<List<SkillModel>> {
           codeSnippets: codeSnippets,
           isPublic: isPublic,
         );
+    final updated = resp.data!;
     state = AsyncData(
-      (state.value ?? []).map((s) => s.id == id ? resp.data! : s).toList(),
+      (state.value ?? []).map((s) => s.id == id ? updated : s).toList(),
     );
+    ref.invalidate(skillDetailProvider(id));
+    return updated;
   }
 
   Future<void> delete(String id) async {
     await ref.read(skillDatasourceProvider).deleteSkill(id);
-    state = AsyncData(
-      (state.value ?? []).where((s) => s.id != id).toList(),
-    );
+    state = AsyncData((state.value ?? []).where((s) => s.id != id).toList());
+    ref.invalidate(skillDetailProvider(id));
   }
 }
 
 final mySkillsProvider =
     AsyncNotifierProvider<MySkillsNotifier, List<SkillModel>>(
-  MySkillsNotifier.new,
-);
+      MySkillsNotifier.new,
+    );
 
 class PublicSkillsNotifier extends AsyncNotifier<List<SkillModel>> {
   @override
@@ -78,5 +87,51 @@ class PublicSkillsNotifier extends AsyncNotifier<List<SkillModel>> {
 
 final publicSkillsProvider =
     AsyncNotifierProvider<PublicSkillsNotifier, List<SkillModel>>(
-  PublicSkillsNotifier.new,
-);
+      PublicSkillsNotifier.new,
+    );
+
+class SkillDetailNotifier extends AsyncNotifier<SkillModel> {
+  SkillDetailNotifier(this._skillId);
+
+  final String _skillId;
+
+  @override
+  Future<SkillModel> build() async {
+    SkillModel? cached;
+    for (final skill in ref.read(mySkillsProvider).value ?? <SkillModel>[]) {
+      if (skill.id == _skillId) {
+        cached = skill;
+        break;
+      }
+    }
+    if (cached != null) return cached.copyWith(isOwner: true);
+
+    SkillModel? publicCached;
+    for (final skill
+        in ref.read(publicSkillsProvider).value ?? <SkillModel>[]) {
+      if (skill.id == _skillId) {
+        publicCached = skill;
+        break;
+      }
+    }
+    if (publicCached != null && publicCached.instructions.isNotEmpty) {
+      return publicCached;
+    }
+
+    final resp = await ref.read(skillDatasourceProvider).getSkillById(_skillId);
+    return resp.data!;
+  }
+}
+
+final skillDetailProvider =
+    AsyncNotifierProvider.family<SkillDetailNotifier, SkillModel, String>(
+      SkillDetailNotifier.new,
+    );
+
+final skillAgentsProvider = FutureProvider.family<List<AgentModel>, String>((
+  ref,
+  skillId,
+) async {
+  final resp = await ref.read(skillDatasourceProvider).getUsedByAgents(skillId);
+  return resp.data ?? [];
+});

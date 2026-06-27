@@ -1,37 +1,40 @@
 class KnowledgeDocumentModel {
   const KnowledgeDocumentModel({
-    required this.id,
-    required this.sourceName,
-    required this.fileType,
-    required this.createdAt,
-    this.size,
+    required this.fileName,
+    required this.fileSize,
+    required this.mimeType,
+    required this.chunkCount,
+    this.uploadedAt,
   });
 
-  final String id;
-  final String sourceName;
-  final String fileType;
-  final DateTime createdAt;
-  final int? size; // bytes
+  final String fileName;
+  final int fileSize;
+  final String mimeType;
+  final int chunkCount;
+  final DateTime? uploadedAt;
 
-  factory KnowledgeDocumentModel.fromJson(Map<String, dynamic> json) {
-    return KnowledgeDocumentModel(
-      id: (json['id'] ?? json['_id'])?.toString() ?? '',
-      sourceName: json['sourceName'] as String? ?? '',
-      fileType: json['fileType'] as String? ?? '',
-      createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
-          : DateTime.now(),
-      size: json['size'] as int?,
-    );
+  String get id => fileName;
+  String get sourceName => fileName;
+  String get fileType {
+    final parts = fileName.split('.');
+    return parts.length > 1 ? parts.last.toLowerCase() : mimeType;
   }
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'sourceName': sourceName,
-        'fileType': fileType,
-        'createdAt': createdAt.toIso8601String(),
-        if (size != null) 'size': size,
-      };
+  factory KnowledgeDocumentModel.fromJson(Map<String, dynamic> json) {
+    final fallbackName =
+        (json['sourceName'] ?? json['name'] ?? json['id'])?.toString() ?? '';
+    return KnowledgeDocumentModel(
+      fileName: (json['fileName'] ?? fallbackName).toString(),
+      fileSize: (json['fileSize'] ?? json['size'] ?? 0) as int? ?? 0,
+      mimeType: (json['mimeType'] ?? json['fileType'] ?? '').toString(),
+      chunkCount: (json['chunkCount'] ?? 0) as int? ?? 0,
+      uploadedAt: json['uploadedAt'] != null || json['createdAt'] != null
+          ? DateTime.tryParse(
+              (json['uploadedAt'] ?? json['createdAt']).toString(),
+            )
+          : null,
+    );
+  }
 }
 
 class KnowledgeBaseModel {
@@ -41,6 +44,12 @@ class KnowledgeBaseModel {
     required this.name,
     required this.description,
     required this.documentCount,
+    required this.chunkCount,
+    required this.embeddingModel,
+    required this.chunkSize,
+    required this.chunkOverlap,
+    required this.topK,
+    this.providerId,
     this.createdAt,
     this.updatedAt,
   });
@@ -50,6 +59,12 @@ class KnowledgeBaseModel {
   final String name;
   final String description;
   final int documentCount;
+  final int chunkCount;
+  final String embeddingModel;
+  final String? providerId;
+  final int chunkSize;
+  final int chunkOverlap;
+  final int topK;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -60,6 +75,13 @@ class KnowledgeBaseModel {
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
       documentCount: json['documentCount'] as int? ?? 0,
+      chunkCount: json['chunkCount'] as int? ?? 0,
+      embeddingModel:
+          json['embeddingModel'] as String? ?? 'text-embedding-3-small',
+      providerId: json['providerId']?.toString(),
+      chunkSize: json['chunkSize'] as int? ?? 800,
+      chunkOverlap: json['chunkOverlap'] as int? ?? 100,
+      topK: json['topK'] as int? ?? 5,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())
           : null,
@@ -69,15 +91,35 @@ class KnowledgeBaseModel {
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'ownerId': ownerId,
-      'name': name,
-      'description': description,
-      'documentCount': documentCount,
-      'createdAt': createdAt?.toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String(),
-    };
+  KnowledgeBaseModel copyWith({
+    String? id,
+    String? ownerId,
+    String? name,
+    String? description,
+    int? documentCount,
+    int? chunkCount,
+    String? embeddingModel,
+    String? providerId,
+    int? chunkSize,
+    int? chunkOverlap,
+    int? topK,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return KnowledgeBaseModel(
+      id: id ?? this.id,
+      ownerId: ownerId ?? this.ownerId,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      documentCount: documentCount ?? this.documentCount,
+      chunkCount: chunkCount ?? this.chunkCount,
+      embeddingModel: embeddingModel ?? this.embeddingModel,
+      providerId: providerId ?? this.providerId,
+      chunkSize: chunkSize ?? this.chunkSize,
+      chunkOverlap: chunkOverlap ?? this.chunkOverlap,
+      topK: topK ?? this.topK,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
   }
 }

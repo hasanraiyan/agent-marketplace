@@ -25,7 +25,9 @@ class KnowledgeRemoteDatasource {
     }
   }
 
-  Future<ApiResponse<KnowledgeBaseModel>> getKnowledgeBaseById(String id) async {
+  Future<ApiResponse<KnowledgeBaseModel>> getKnowledgeBaseById(
+    String id,
+  ) async {
     try {
       final response = await _dio.get('${ApiConstants.knowledge}/$id');
       final jsonMap = response.data as Map<String, dynamic>;
@@ -39,11 +41,24 @@ class KnowledgeRemoteDatasource {
   Future<ApiResponse<KnowledgeBaseModel>> createKnowledgeBase({
     required String name,
     required String description,
+    required String providerId,
+    required String embeddingModel,
+    required int chunkSize,
+    required int chunkOverlap,
+    required int topK,
   }) async {
     try {
       final response = await _dio.post(
         ApiConstants.knowledge,
-        data: {'name': name, 'description': description},
+        data: {
+          'name': name,
+          'description': description,
+          'providerId': providerId,
+          'embeddingModel': embeddingModel,
+          'chunkSize': chunkSize,
+          'chunkOverlap': chunkOverlap,
+          'topK': topK,
+        },
       );
       final jsonMap = response.data as Map<String, dynamic>;
       final payload = jsonMap['data'] as Map<String, dynamic>? ?? jsonMap;
@@ -63,8 +78,10 @@ class KnowledgeRemoteDatasource {
         'name': ?name,
         'description': ?description,
       };
-      final response =
-          await _dio.patch('${ApiConstants.knowledge}/$id', data: data);
+      final response = await _dio.patch(
+        '${ApiConstants.knowledge}/$id',
+        data: data,
+      );
       final jsonMap = response.data as Map<String, dynamic>;
       final payload = jsonMap['data'] as Map<String, dynamic>? ?? jsonMap;
       return ApiResponse.success(data: KnowledgeBaseModel.fromJson(payload));
@@ -78,23 +95,27 @@ class KnowledgeRemoteDatasource {
       final response = await _dio.delete('${ApiConstants.knowledge}/$id');
       final jsonMap = response.data as Map<String, dynamic>;
       return ApiResponse.success(
-          message: jsonMap['message'] as String? ?? 'Knowledge base deleted');
+        message: jsonMap['message'] as String? ?? 'Knowledge base deleted',
+      );
     } on DioException catch (e) {
       throw _handle(e);
     }
   }
 
   Future<ApiResponse<List<KnowledgeDocumentModel>>> getDocuments(
-      String kbId) async {
+    String kbId,
+  ) async {
     try {
-      final response =
-          await _dio.get('${ApiConstants.knowledge}/$kbId/documents');
+      final response = await _dio.get(
+        '${ApiConstants.knowledge}/$kbId/documents',
+      );
       final jsonMap = response.data as Map<String, dynamic>;
       final payload =
           jsonMap['data'] as List? ?? jsonMap['documents'] as List? ?? [];
       final list = payload
-          .map((e) =>
-              KnowledgeDocumentModel.fromJson(e as Map<String, dynamic>))
+          .map(
+            (e) => KnowledgeDocumentModel.fromJson(e as Map<String, dynamic>),
+          )
           .toList();
       return ApiResponse.success(data: list);
     } on DioException catch (e) {
@@ -102,35 +123,52 @@ class KnowledgeRemoteDatasource {
     }
   }
 
-  Future<ApiResponse<KnowledgeDocumentModel>> uploadDocument(
-      String kbId, String sourceUrl) async {
+  Future<ApiResponse<void>> uploadFiles(
+    String kbId,
+    List<String> paths, {
+    ProgressCallback? onSendProgress,
+  }) async {
     try {
+      final files = paths
+          .map(
+            (path) =>
+                MultipartFile.fromFileSync(path, filename: _filename(path)),
+          )
+          .toList();
+      final formData = FormData.fromMap({'files': files});
       final response = await _dio.post(
-        '${ApiConstants.knowledge}/$kbId/documents',
-        data: {'sourceUrl': sourceUrl},
+        '${ApiConstants.knowledge}/$kbId/upload',
+        data: formData,
+        onSendProgress: onSendProgress,
       );
       final jsonMap = response.data as Map<String, dynamic>;
-      final payload = jsonMap['data'] as Map<String, dynamic>? ?? jsonMap;
       return ApiResponse.success(
-          data: KnowledgeDocumentModel.fromJson(payload));
+        message: jsonMap['message'] as String? ?? 'Files uploaded',
+      );
     } on DioException catch (e) {
       throw _handle(e);
     }
   }
 
   Future<ApiResponse<void>> deleteDocument(
-      String kbId, String sourceName) async {
+    String kbId,
+    String sourceName,
+  ) async {
     try {
       final encodedName = Uri.encodeComponent(sourceName);
       final response = await _dio.delete(
-          '${ApiConstants.knowledge}/$kbId/documents/$encodedName');
+        '${ApiConstants.knowledge}/$kbId/documents/$encodedName',
+      );
       final jsonMap = response.data as Map<String, dynamic>;
       return ApiResponse.success(
-          message: jsonMap['message'] as String? ?? 'Document deleted');
+        message: jsonMap['message'] as String? ?? 'Document deleted',
+      );
     } on DioException catch (e) {
       throw _handle(e);
     }
   }
+
+  String _filename(String path) => path.split(RegExp(r'[\\/]')).last;
 
   AppException _handle(DioException e) => e.error is AppException
       ? e.error as AppException

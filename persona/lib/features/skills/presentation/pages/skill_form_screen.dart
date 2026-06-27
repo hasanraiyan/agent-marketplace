@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/typography.dart';
-import '../../../../shared/utils/responsive.dart';
-import '../../../../shared/widgets/app_top_bar.dart';
+import '../../../../shared/widgets/empty_state.dart';
+import '../../../connectors/presentation/widgets/connector_widgets.dart';
+import '../../data/models/skill_model.dart';
 import '../providers/skills_provider.dart';
 
 class SkillFormScreen extends ConsumerStatefulWidget {
@@ -20,212 +23,225 @@ class _SkillFormScreenState extends ConsumerState<SkillFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
-  final _codeCtrl = TextEditingController();
-  String _language = 'python';
+  final _instructionsCtrl = TextEditingController();
   bool _isPublic = false;
   bool _loading = false;
+  bool _loadingExisting = false;
+  String? _loadError;
 
   bool get _isEdit => widget.skillId != null;
+  String get _slug => _slugify(_nameCtrl.text);
 
   @override
   void initState() {
     super.initState();
+    _nameCtrl.addListener(_refreshSlug);
+    _descCtrl.addListener(_refreshCounters);
+    _instructionsCtrl.addListener(_refreshCounters);
     if (_isEdit) _loadExisting();
   }
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
-    _descCtrl.dispose();
-    _codeCtrl.dispose();
+    _nameCtrl
+      ..removeListener(_refreshSlug)
+      ..dispose();
+    _descCtrl
+      ..removeListener(_refreshCounters)
+      ..dispose();
+    _instructionsCtrl
+      ..removeListener(_refreshCounters)
+      ..dispose();
     super.dispose();
   }
 
-  void _loadExisting() {
-    final skills = ref.read(mySkillsProvider).value ?? [];
-    final skill = skills.firstWhere((s) => s.id == widget.skillId,
-        orElse: () => skills.first);
-    _nameCtrl.text = skill.name;
-    _descCtrl.text = skill.description;
-    _isPublic = skill.isPublic;
-    if (skill.codeSnippets.isNotEmpty) {
-      _codeCtrl.text = skill.codeSnippets.first.code;
-      _language = skill.codeSnippets.first.language;
+  void _refreshSlug() => setState(() {});
+  void _refreshCounters() => setState(() {});
+
+  Future<void> _loadExisting() async {
+    setState(() {
+      _loadingExisting = true;
+      _loadError = null;
+    });
+    try {
+      SkillModel? skill;
+      for (final item in ref.read(mySkillsProvider).value ?? <SkillModel>[]) {
+        if (item.id == widget.skillId) {
+          skill = item;
+          break;
+        }
+      }
+      skill ??=
+          (await ref
+                  .read(skillDatasourceProvider)
+                  .getSkillById(widget.skillId!))
+              .data;
+      if (!mounted || skill == null) return;
+      _nameCtrl.text = skill.name;
+      _descCtrl.text = skill.description;
+      _instructionsCtrl.text = skill.instructions;
+      setState(() {
+        _isPublic = skill!.isPublic;
+        _loadingExisting = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = e.toString();
+        _loadingExisting = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final r = Responsive.of(context);
 
-    return Scaffold(
-      backgroundColor:
-          isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(56),
-        child: SafeArea(
-          bottom: false,
-          child: AppTopBar(
-            title: _isEdit ? 'Edit Skill' : 'New Skill',
-            actions: _isEdit
-                ? [
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded,
-                          color: AppColors.error),
-                      onPressed: _delete,
-                    ),
-                  ]
-                : [],
-          ),
-        ),
-      ),
-      body: ResponsiveCenter(
-        padding: EdgeInsets.symmetric(horizontal: r.horizontalPadding),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.only(top: 8, bottom: 100),
-            children: [
-              _field(isDark,
-                  controller: _nameCtrl,
-                  label: 'Skill Name',
-                  hint: 'search_web',
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'Required' : null),
-              const SizedBox(height: 12),
-              _field(isDark,
-                  controller: _descCtrl,
-                  label: 'Description',
-                  hint: 'Searches the web for current information',
-                  maxLines: 2),
-              const SizedBox(height: 12),
-
-              // Language picker
-              DropdownButtonFormField<String>(
-                initialValue: _language,
-                decoration: InputDecoration(
-                  labelText: 'Language',
-                  filled: true,
-                  fillColor: isDark
-                      ? AppColors.inputFillDark
-                      : AppColors.inputFillLight,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'python', child: Text('Python')),
-                  DropdownMenuItem(
-                      value: 'typescript', child: Text('TypeScript')),
-                  DropdownMenuItem(
-                      value: 'javascript', child: Text('JavaScript')),
-                ],
-                onChanged: (v) => setState(() => _language = v ?? 'python'),
-              ),
-              const SizedBox(height: 12),
-
-              // Code editor
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return ConnectorPageScaffold(
+      title: _isEdit ? 'Edit Skill' : 'New Skill',
+      section: ConnectorSection.skills,
+      child: _loadingExisting
+          ? const Center(child: CircularProgressIndicator())
+          : _loadError != null
+          ? ErrorState(message: _loadError!, onRetry: _loadExisting)
+          : Form(
+              key: _formKey,
+              child: ConnectorScrollableContent(
+                maxWidth: 760,
                 children: [
+                  ConnectorIntro(
+                    title: _isEdit ? 'Edit Skill' : 'Create Skill',
+                    description:
+                        'Write the SKILL.md instructions your agents should follow.',
+                  ),
+                  TextFormField(
+                    controller: _nameCtrl,
+                    maxLength: 64,
+                    inputFormatters: [LengthLimitingTextInputFormatter(64)],
+                    validator: (_) {
+                      if (_slug.isEmpty) return 'Name is required';
+                      if (_slug.length < 2) {
+                        return 'Name must be at least 2 characters';
+                      }
+                      return null;
+                    },
+                    decoration: _decoration(
+                      isDark,
+                      label: 'Name',
+                      hint: 'Search Web',
+                    ),
+                  ),
                   Text(
-                    'Code',
+                    _slug.isEmpty
+                        ? 'Use letters, numbers, and hyphens.'
+                        : 'Will be saved as: $_slug',
                     style: AppTypography.bodySmall.copyWith(
                       color: isDark
                           ? AppColors.textSecondaryDark
                           : AppColors.textSecondaryLight,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? const Color(0xFF1a1a2e)
-                          : const Color(0xFFF0F0F0),
-                      borderRadius: BorderRadius.circular(10),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _descCtrl,
+                    minLines: 3,
+                    maxLines: 5,
+                    maxLength: 1024,
+                    validator: (value) {
+                      final text = value?.trim() ?? '';
+                      if (text.isEmpty) return 'Description is required';
+                      if (text.length < 10) {
+                        return 'Description must be at least 10 characters';
+                      }
+                      return null;
+                    },
+                    decoration: _decoration(
+                      isDark,
+                      label: 'Description',
+                      hint: 'Searches the web for current information.',
                     ),
-                    child: TextFormField(
-                      controller: _codeCtrl,
-                      maxLines: null,
-                      minLines: 12,
-                      style: AppTypography.mono.copyWith(
-                        fontSize: 12.5,
-                        color: isDark ? Colors.white : Colors.black87,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _instructionsCtrl,
+                    minLines: 14,
+                    maxLines: 26,
+                    maxLength: 50000,
+                    style: AppTypography.mono.copyWith(
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight,
+                    ),
+                    validator: (value) {
+                      final text = value?.trim() ?? '';
+                      if (text.isEmpty) return 'Instructions are required';
+                      if (text.length < 10) {
+                        return 'Instructions must be at least 10 characters';
+                      }
+                      return null;
+                    },
+                    decoration: _decoration(
+                      isDark,
+                      label: 'Instructions / SKILL.md',
+                      hint:
+                          '# Skill\n\nDescribe when and how the agent should use this workflow.',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    value: _isPublic,
+                    onChanged: (value) => setState(() => _isPublic = value),
+                    title: Text(
+                      'Public Marketplace',
+                      style: AppTypography.bodyMedium.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.all(12),
-                      ),
+                    ),
+                    subtitle: const Text(
+                      'Allow other users to discover and inspect this skill.',
+                    ),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: 52,
+                    child: FilledButton(
+                      onPressed: _loading ? null : _save,
+                      child: _loading
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              _isEdit ? 'Save Changes' : 'Create Skill',
+                              style: AppTypography.labelLarge,
+                            ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              SwitchListTile(
-                value: _isPublic,
-                onChanged: (v) => setState(() => _isPublic = v),
-                title: Text('Make public', style: AppTypography.bodyMedium),
-                subtitle: const Text('Share with the community'),
-                contentPadding: EdgeInsets.zero,
-              ),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-              horizontal: Responsive.of(context).horizontalPadding,
-              vertical: 12),
-          child: SizedBox(
-            height: 52,
-            child: FilledButton(
-              onPressed: _loading ? null : _save,
-              style: FilledButton.styleFrom(
-                backgroundColor:
-                    isDark ? AppColors.primaryDark : AppColors.primaryLight,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              child: _loading
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2.5, color: Colors.white),
-                    )
-                  : Text(_isEdit ? 'Save Changes' : 'Create Skill',
-                      style: AppTypography.labelLarge),
             ),
-          ),
-        ),
-      ),
     );
   }
 
-  Widget _field(
+  InputDecoration _decoration(
     bool isDark, {
-    required TextEditingController controller,
     required String label,
     String? hint,
-    int maxLines = 1,
-    String? Function(String?)? validator,
   }) {
-    return TextFormField(
-      controller: controller,
-      maxLines: maxLines,
-      validator: validator,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        filled: true,
-        fillColor: isDark ? AppColors.inputFillDark : AppColors.inputFillLight,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
-        ),
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      alignLabelWithHint: true,
+      filled: true,
+      fillColor: isDark ? AppColors.inputFillDark : AppColors.inputFillLight,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide.none,
       ),
     );
   }
@@ -235,60 +251,50 @@ class _SkillFormScreenState extends ConsumerState<SkillFormScreen> {
     setState(() => _loading = true);
     try {
       final notifier = ref.read(mySkillsProvider.notifier);
-      final snippet = {
-        'filename': 'main.${_language == 'python' ? 'py' : _language == 'typescript' ? 'ts' : 'js'}',
-        'code': _codeCtrl.text,
-        'language': _language,
-      };
+      final description = _descCtrl.text.trim();
+      final instructions = _instructionsCtrl.text.trim();
+      SkillModel saved;
       if (_isEdit) {
-        await notifier.editItem(
+        saved = await notifier.editItem(
           widget.skillId!,
-          name: _nameCtrl.text.trim(),
-          description: _descCtrl.text.trim(),
-          instructions: _descCtrl.text.trim(),
+          name: _slug,
+          description: description,
+          instructions: instructions,
           isPublic: _isPublic,
-          codeSnippets: [snippet],
         );
       } else {
-        await notifier.create(
-          name: _nameCtrl.text.trim(),
-          description: _descCtrl.text.trim(),
-          instructions: _descCtrl.text.trim(),
+        saved = await notifier.create(
+          name: _slug,
+          description: description,
+          instructions: instructions,
           isPublic: _isPublic,
-          codeSnippets: [snippet],
         );
       }
-      if (mounted) context.pop();
+      if (mounted) context.go(RouteNames.skillDetailPath(saved.id));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(_friendlyError(e))));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _delete() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete skill?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    await ref.read(mySkillsProvider.notifier).delete(widget.skillId!);
-    if (mounted) context.pop();
+  String _friendlyError(Object error) {
+    final text = error.toString();
+    if (text.contains('already have') || text.contains('already exists')) {
+      return 'A skill with this name already exists.';
+    }
+    return text;
+  }
+
+  String _slugify(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'-+'), '-')
+        .replaceAll(RegExp(r'^-|-$'), '');
   }
 }

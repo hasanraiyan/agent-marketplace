@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../../../core/config/api_constants.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/network/api_response.dart';
+import '../../../agent_marketplace/data/models/agent_model.dart';
 import '../models/skill_model.dart';
 
 class SkillRemoteDatasource {
@@ -25,9 +26,21 @@ class SkillRemoteDatasource {
     }
   }
 
-  Future<ApiResponse<List<SkillModel>>> getPublicSkills() async {
+  Future<ApiResponse<List<SkillModel>>> getPublicSkills({
+    int page = 1,
+    int limit = 50,
+    String? search,
+  }) async {
     try {
-      final response = await _dio.get('${ApiConstants.skills}/public');
+      final response = await _dio.get(
+        '${ApiConstants.skills}/public',
+        queryParameters: {
+          'page': page,
+          'limit': limit,
+          if (search != null && search.trim().isNotEmpty)
+            'search': search.trim(),
+        },
+      );
       final jsonMap = response.data as Map<String, dynamic>;
       final payload =
           jsonMap['data'] as List? ?? jsonMap['skills'] as List? ?? [];
@@ -35,6 +48,20 @@ class SkillRemoteDatasource {
           .map((e) => SkillModel.fromJson(e as Map<String, dynamic>))
           .toList();
       return ApiResponse.success(data: list);
+    } on DioException catch (e) {
+      throw _handle(e);
+    }
+  }
+
+  Future<ApiResponse<List<AgentModel>>> getUsedByAgents(String id) async {
+    try {
+      final response = await _dio.get('${ApiConstants.skills}/$id/agents');
+      final jsonMap = response.data as Map<String, dynamic>;
+      final payload = jsonMap['data'] as List? ?? [];
+      final agents = payload
+          .map((e) => AgentModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+      return ApiResponse.success(data: agents);
     } on DioException catch (e) {
       throw _handle(e);
     }
@@ -55,7 +82,7 @@ class SkillRemoteDatasource {
     required String name,
     required String description,
     required String instructions,
-    required List<Map<String, dynamic>> codeSnippets,
+    List<Map<String, dynamic>> codeSnippets = const [],
     required bool isPublic,
   }) async {
     try {
@@ -63,7 +90,7 @@ class SkillRemoteDatasource {
         'name': name,
         'description': description,
         'instructions': instructions,
-        'codeSnippets': codeSnippets,
+        if (codeSnippets.isNotEmpty) 'codeSnippets': codeSnippets,
         'isPublic': isPublic,
       };
       final response = await _dio.post(ApiConstants.skills, data: data);
@@ -91,8 +118,10 @@ class SkillRemoteDatasource {
         'codeSnippets': ?codeSnippets,
         'isPublic': ?isPublic,
       };
-      final response =
-          await _dio.patch('${ApiConstants.skills}/$id', data: data);
+      final response = await _dio.patch(
+        '${ApiConstants.skills}/$id',
+        data: data,
+      );
       final jsonMap = response.data as Map<String, dynamic>;
       final payload = jsonMap['data'] as Map<String, dynamic>? ?? jsonMap;
       return ApiResponse.success(data: SkillModel.fromJson(payload));
@@ -106,7 +135,8 @@ class SkillRemoteDatasource {
       final response = await _dio.delete('${ApiConstants.skills}/$id');
       final jsonMap = response.data as Map<String, dynamic>;
       return ApiResponse.success(
-          message: jsonMap['message'] as String? ?? 'Skill deleted');
+        message: jsonMap['message'] as String? ?? 'Skill deleted',
+      );
     } on DioException catch (e) {
       throw _handle(e);
     }

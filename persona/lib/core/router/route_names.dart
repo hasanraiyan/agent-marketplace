@@ -30,19 +30,39 @@ class RouteNames {
   static const String providerEdit = '/profile/providers/:id';
   static String providerEditPath(String id) => '/profile/providers/$id';
 
-  static const String mcps = '/profile/mcps';
-  static const String mcpNew = '/profile/mcps/new';
-  static const String mcpEdit = '/profile/mcps/:id';
-  static String mcpEditPath(String id) => '/profile/mcps/$id';
+  // Legacy profile connector paths kept as redirects for older links.
+  static const String legacyMcps = '/profile/mcps';
+  static const String legacySkills = '/profile/skills';
+  static const String legacyKnowledge = '/profile/knowledge';
 
-  static const String skills = '/profile/skills';
-  static const String skillNew = '/profile/skills/new';
-  static const String skillEdit = '/profile/skills/:id';
-  static String skillEditPath(String id) => '/profile/skills/$id';
+  // Connectors hub
+  static const String connectors = '/connectors';
 
-  static const String knowledge = '/profile/knowledge';
-  static const String knowledgeDetail = '/profile/knowledge/:id';
-  static String knowledgeDetailPath(String id) => '/profile/knowledge/$id';
+  // MCP Servers
+  static const String mcps = '/connectors/mcps';
+  static const String mcpNew = '/connectors/mcps/new';
+  static const String mcpDetail = '/connectors/mcps/:id';
+  static const String mcpEdit = '/connectors/mcps/:id/edit';
+  static String mcpDetailPath(String id) => '/connectors/mcps/$id';
+  static String mcpEditPath(String id) => '/connectors/mcps/$id/edit';
+
+  // Skills
+  static const String skills = '/connectors/skills';
+  static const String skillNew = '/connectors/skills/new';
+  static const String skillPublic = '/connectors/skills/public';
+  static const String skillDetail = '/connectors/skills/:id';
+  static const String skillEdit = '/connectors/skills/:id/edit';
+  static String skillDetailPath(String id) => '/connectors/skills/$id';
+  static String skillEditPath(String id) => '/connectors/skills/$id/edit';
+
+  // Knowledge
+  static const String knowledge = '/connectors/knowledge';
+  static const String knowledgeNew = '/connectors/knowledge/new';
+  static const String knowledgeDetail = '/connectors/knowledge/:id';
+  static String knowledgeDetailPath(String id) => '/connectors/knowledge/$id';
+
+  // Memory
+  static const String memory = '/connectors/memory';
 
   // Kept for compatibility (redirects to /marketplace)
   static const String dashboard = '/marketplace';

@@ -29,7 +29,7 @@ class MainShell extends StatelessWidget {
 
   static int _indexFromLocation(String location) {
     if (location.startsWith('/agents')) return 1;
-    if (location.startsWith('/profile')) return 2;
+    if (location.startsWith('/connectors')) return 2;
     return 0;
   }
 }
@@ -66,7 +66,7 @@ const _navItems = [
     icon: Icons.memory_outlined,
     activeIcon: Icons.memory_rounded,
     label: 'Connectors',
-    route: RouteNames.profile,
+    route: RouteNames.connectors,
   ),
 ];
 
@@ -82,8 +82,9 @@ class _NarrowShell extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       key: shellScaffoldKey,
-      backgroundColor:
-          isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+      backgroundColor: isDark
+          ? AppColors.backgroundDark
+          : AppColors.backgroundLight,
       drawer: _SideDrawer(selectedIndex: selectedIndex),
       body: child,
     );
@@ -101,8 +102,9 @@ class _WideShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor:
-          isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+      backgroundColor: isDark
+          ? AppColors.backgroundDark
+          : AppColors.backgroundLight,
       body: Row(
         children: [
           SizedBox(
@@ -243,8 +245,9 @@ class _DrawerLogo extends StatelessWidget {
                 TextSpan(
                   text: '.ai',
                   style: TextStyle(
-                    color:
-                        isDark ? AppColors.primaryDark : AppColors.primaryLight,
+                    color: isDark
+                        ? AppColors.primaryDark
+                        : AppColors.primaryLight,
                   ),
                 ),
               ],
@@ -271,15 +274,17 @@ class _CreateAgentButton extends StatelessWidget {
         icon: const Icon(Icons.add_rounded, size: 16),
         label: const Text('Create Agent'),
         style: ElevatedButton.styleFrom(
-          backgroundColor:
-              isDark ? AppColors.primaryDark : AppColors.primaryLight,
+          backgroundColor: isDark
+              ? AppColors.primaryDark
+              : AppColors.primaryLight,
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 14),
-          textStyle: AppTypography.labelMedium
-              .copyWith(fontWeight: FontWeight.w600, fontSize: 13),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          textStyle: AppTypography.labelMedium.copyWith(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
     );
@@ -304,15 +309,15 @@ class _NavTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeColor =
-        isDark ? AppColors.primaryDark : AppColors.primaryLight;
-    final inactiveTextColor =
-        isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
-    final inactiveIconColor =
-        isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
-    final activeBg =
-        (isDark ? AppColors.primaryDark : AppColors.primaryLight)
-            .withValues(alpha: 0.1);
+    final activeColor = isDark ? AppColors.primaryDark : AppColors.primaryLight;
+    final inactiveTextColor = isDark
+        ? AppColors.textPrimaryDark
+        : AppColors.textPrimaryLight;
+    final inactiveIconColor = isDark
+        ? AppColors.textSecondaryDark
+        : AppColors.textSecondaryLight;
+    final activeBg = (isDark ? AppColors.primaryDark : AppColors.primaryLight)
+        .withValues(alpha: 0.1);
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 1),
@@ -344,8 +349,7 @@ class _NavTile extends StatelessWidget {
                   label,
                   style: AppTypography.bodySmall.copyWith(
                     color: isActive ? activeColor : inactiveTextColor,
-                    fontWeight:
-                        isActive ? FontWeight.w600 : FontWeight.w500,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
                     fontSize: 13.5,
                   ),
                 ),
@@ -411,8 +415,6 @@ class _SecondaryTile extends StatelessWidget {
   }
 }
 
-
-
 // ── User footer ──────────────────────────────────────────────────────────────
 
 class _UserFooter extends StatelessWidget {
@@ -440,10 +442,10 @@ class _UserFooter extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 17,
-              backgroundColor:
-                  isDark ? AppColors.inputFillDark : AppColors.inputFillLight,
-              backgroundImage:
-                  imageUrl != null ? NetworkImage(imageUrl) : null,
+              backgroundColor: isDark
+                  ? AppColors.inputFillDark
+                  : AppColors.inputFillLight,
+              backgroundImage: imageUrl != null ? NetworkImage(imageUrl) : null,
               child: imageUrl == null
                   ? Text(
                       initials.isEmpty ? '?' : initials,

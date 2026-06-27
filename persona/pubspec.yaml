@@ -59,6 +59,8 @@ dependencies:
   # Direct dep so the Windows no-op WebViewPlatform shim can subclass the
   # platform interface (clerk_flutter pulls webview_flutter transitively).
   webview_flutter_platform_interface: 2.15.1
+  url_launcher: ^6.3.2
+  file_selector: ^1.1.0
 
 dev_dependencies:
   flutter_test:

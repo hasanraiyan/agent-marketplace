@@ -13,15 +13,21 @@ import '../../features/agent_marketplace/presentation/pages/agent_detail_screen.
 import '../../features/agent_marketplace/presentation/pages/my_agents_screen.dart';
 import '../../features/agent_marketplace/presentation/pages/agent_form_screen.dart';
 import '../../features/chat_thread/presentation/pages/chat_screen.dart';
+import '../../features/connectors/presentation/pages/connectors_hub_screen.dart';
 import '../../features/profile/presentation/pages/profile_screen.dart';
 import '../../features/provider_keys/presentation/pages/providers_screen.dart';
 import '../../features/provider_keys/presentation/pages/provider_form_screen.dart';
 import '../../features/mcp_servers/presentation/pages/mcp_list_screen.dart';
 import '../../features/mcp_servers/presentation/pages/mcp_form_screen.dart';
+import '../../features/mcp_servers/presentation/pages/mcp_detail_screen.dart';
 import '../../features/skills/presentation/pages/skills_screen.dart';
 import '../../features/skills/presentation/pages/skill_form_screen.dart';
+import '../../features/skills/presentation/pages/skill_detail_screen.dart';
+import '../../features/skills/presentation/pages/public_skills_screen.dart';
 import '../../features/knowledge/presentation/pages/knowledge_list_screen.dart';
+import '../../features/knowledge/presentation/pages/knowledge_form_screen.dart';
 import '../../features/knowledge/presentation/pages/knowledge_detail_screen.dart';
+import '../../features/memory/presentation/pages/memory_screen.dart';
 import 'route_names.dart';
 
 /// GoRouter instance.
@@ -61,9 +67,8 @@ final router = GoRouter(
           routes: [
             GoRoute(
               path: 'agents/:id',
-              builder: (context, state) => AgentDetailScreen(
-                agentId: state.pathParameters['id']!,
-              ),
+              builder: (context, state) =>
+                  AgentDetailScreen(agentId: state.pathParameters['id']!),
             ),
           ],
         ),
@@ -75,8 +80,8 @@ final router = GoRouter(
           path: RouteNames.chats,
           redirect: (context, state) =>
               state.matchedLocation == RouteNames.chats
-                  ? RouteNames.marketplace
-                  : null,
+              ? RouteNames.marketplace
+              : null,
           routes: [
             GoRoute(
               path: ':threadId',
@@ -99,14 +104,83 @@ final router = GoRouter(
             ),
             GoRoute(
               path: ':id/edit',
-              builder: (context, state) => AgentFormScreen(
-                agentId: state.pathParameters['id'],
-              ),
+              builder: (context, state) =>
+                  AgentFormScreen(agentId: state.pathParameters['id']),
             ),
           ],
         ),
 
         // ── Profile tab ───────────────────────────────────────────────────────
+        GoRoute(
+          path: RouteNames.connectors,
+          builder: (context, state) => const ConnectorsHubScreen(),
+          routes: [
+            GoRoute(
+              path: 'skills',
+              builder: (context, state) => const SkillsScreen(),
+              routes: [
+                GoRoute(
+                  path: 'new',
+                  builder: (context, state) => const SkillFormScreen(),
+                ),
+                GoRoute(
+                  path: 'public',
+                  builder: (context, state) => const PublicSkillsScreen(),
+                ),
+                GoRoute(
+                  path: ':id/edit',
+                  builder: (context, state) =>
+                      SkillFormScreen(skillId: state.pathParameters['id']),
+                ),
+                GoRoute(
+                  path: ':id',
+                  builder: (context, state) =>
+                      SkillDetailScreen(skillId: state.pathParameters['id']!),
+                ),
+              ],
+            ),
+            GoRoute(
+              path: 'mcps',
+              builder: (context, state) => const McpListScreen(),
+              routes: [
+                GoRoute(
+                  path: 'new',
+                  builder: (context, state) => const McpFormScreen(),
+                ),
+                GoRoute(
+                  path: ':id/edit',
+                  builder: (context, state) =>
+                      McpFormScreen(mcpId: state.pathParameters['id']),
+                ),
+                GoRoute(
+                  path: ':id',
+                  builder: (context, state) =>
+                      McpDetailScreen(mcpId: state.pathParameters['id']!),
+                ),
+              ],
+            ),
+            GoRoute(
+              path: 'knowledge',
+              builder: (context, state) => const KnowledgeListScreen(),
+              routes: [
+                GoRoute(
+                  path: 'new',
+                  builder: (context, state) => const KnowledgeFormScreen(),
+                ),
+                GoRoute(
+                  path: ':id',
+                  builder: (context, state) =>
+                      KnowledgeDetailScreen(kbId: state.pathParameters['id']!),
+                ),
+              ],
+            ),
+            GoRoute(
+              path: 'memory',
+              builder: (context, state) => const MemoryScreen(),
+            ),
+          ],
+        ),
+
         GoRoute(
           path: RouteNames.profile,
           builder: (context, state) => const ProfileScreen(),
@@ -129,44 +203,46 @@ final router = GoRouter(
             ),
             GoRoute(
               path: 'mcps',
-              builder: (context, state) => const McpListScreen(),
+              redirect: (context, state) => RouteNames.mcps,
               routes: [
                 GoRoute(
                   path: 'new',
-                  builder: (context, state) => const McpFormScreen(),
+                  redirect: (context, state) => RouteNames.mcpNew,
                 ),
                 GoRoute(
                   path: ':id',
-                  builder: (context, state) => McpFormScreen(
-                    mcpId: state.pathParameters['id'],
-                  ),
+                  redirect: (context, state) =>
+                      RouteNames.mcpDetailPath(state.pathParameters['id']!),
                 ),
               ],
             ),
             GoRoute(
               path: 'skills',
-              builder: (context, state) => const SkillsScreen(),
+              redirect: (context, state) => RouteNames.skills,
               routes: [
                 GoRoute(
                   path: 'new',
-                  builder: (context, state) => const SkillFormScreen(),
+                  redirect: (context, state) => RouteNames.skillNew,
                 ),
                 GoRoute(
                   path: ':id',
-                  builder: (context, state) => SkillFormScreen(
-                    skillId: state.pathParameters['id'],
-                  ),
+                  redirect: (context, state) =>
+                      RouteNames.skillDetailPath(state.pathParameters['id']!),
                 ),
               ],
             ),
             GoRoute(
               path: 'knowledge',
-              builder: (context, state) => const KnowledgeListScreen(),
+              redirect: (context, state) => RouteNames.knowledge,
               routes: [
                 GoRoute(
+                  path: 'new',
+                  redirect: (context, state) => RouteNames.knowledgeNew,
+                ),
+                GoRoute(
                   path: ':id',
-                  builder: (context, state) => KnowledgeDetailScreen(
-                    kbId: state.pathParameters['id']!,
+                  redirect: (context, state) => RouteNames.knowledgeDetailPath(
+                    state.pathParameters['id']!,
                   ),
                 ),
               ],
@@ -252,8 +328,6 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }

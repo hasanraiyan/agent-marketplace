@@ -1,123 +1,460 @@
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/typography.dart';
-import '../../../../shared/utils/responsive.dart';
-import '../../../../shared/widgets/app_top_bar.dart';
 import '../../../../shared/widgets/empty_state.dart';
-import '../../../../shared/widgets/skeleton_loader.dart';
+import '../../../connectors/presentation/widgets/connector_widgets.dart';
+import '../../data/models/knowledge_model.dart';
 import '../providers/knowledge_provider.dart';
 
-class KnowledgeDetailScreen extends ConsumerWidget {
+class KnowledgeDetailScreen extends ConsumerStatefulWidget {
   const KnowledgeDetailScreen({super.key, required this.kbId});
+
   final String kbId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<KnowledgeDetailScreen> createState() =>
+      _KnowledgeDetailScreenState();
+}
+
+class _KnowledgeDetailScreenState extends ConsumerState<KnowledgeDetailScreen> {
+  final _nameCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
+  String? _loadedKbId;
+  bool _saving = false;
+  double? _uploadProgress;
+
+  static const _allowedExtensions = ['pdf', 'txt', 'md', 'json', 'csv'];
+  static const _maxFileBytes = 20 * 1024 * 1024;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _descCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final kbAsync = ref.watch(knowledgeBaseProvider(widget.kbId));
+    final docsAsync = ref.watch(knowledgeDocumentsProvider(widget.kbId));
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final r = Responsive.of(context);
-    final kbsAsync = ref.watch(knowledgeListProvider);
-    final docsAsync = ref.watch(knowledgeDetailProvider(kbId));
 
-    final kb = kbsAsync.value?.firstWhere(
-      (k) => k.id == kbId,
-      orElse: () => kbsAsync.value!.first,
+    return ConnectorPageScaffold(
+      title: 'Knowledge Base',
+      section: ConnectorSection.knowledge,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _uploadProgress == null ? _pickAndUpload : null,
+        icon: const Icon(Icons.upload_file_rounded),
+        label: const Text('Upload'),
+        backgroundColor: isDark
+            ? AppColors.primaryDark
+            : AppColors.primaryLight,
+        foregroundColor: Colors.white,
+      ),
+      child: kbAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => ErrorState(
+          message: e.toString(),
+          onRetry: () => ref.refresh(knowledgeBaseProvider(widget.kbId).future),
+        ),
+        data: (kb) {
+          if (_loadedKbId != kb.id) {
+            _nameCtrl.text = kb.name;
+            _descCtrl.text = kb.description;
+            _loadedKbId = kb.id;
+          }
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(knowledgeBaseProvider(widget.kbId));
+              ref.invalidate(knowledgeDocumentsProvider(widget.kbId));
+            },
+            child: ConnectorScrollableContent(
+              maxWidth: 980,
+              children: [
+                ConnectorIntro(
+                  title: kb.name,
+                  description: kb.description.isEmpty
+                      ? 'Manage metadata and uploaded source documents.'
+                      : kb.description,
+                  trailing: OutlinedButton.icon(
+                    onPressed: () => _deleteKb(kb),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    label: const Text('Delete'),
+                  ),
+                ),
+                _MetadataCard(
+                  nameCtrl: _nameCtrl,
+                  descCtrl: _descCtrl,
+                  saving: _saving,
+                  onSave: () => _saveMetadata(kb),
+                ),
+                const SizedBox(height: 14),
+                _UploadCard(progress: _uploadProgress, onPick: _pickAndUpload),
+                const SizedBox(height: 14),
+                _DocumentsCard(docsAsync: docsAsync, onDelete: _deleteDocument),
+                const SizedBox(height: 14),
+                DetailCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Retrieval Settings',
+                        style: AppTypography.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      KeyValueRow(label: 'Embedding', value: kb.embeddingModel),
+                      KeyValueRow(
+                        label: 'Chunk size',
+                        value: '${kb.chunkSize}',
+                      ),
+                      KeyValueRow(
+                        label: 'Overlap',
+                        value: '${kb.chunkOverlap}',
+                      ),
+                      KeyValueRow(label: 'Top K', value: '${kb.topK}'),
+                      KeyValueRow(
+                        label: 'Documents',
+                        value: '${kb.documentCount}',
+                      ),
+                      KeyValueRow(label: 'Chunks', value: '${kb.chunkCount}'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
+  }
 
-    return Scaffold(
-      backgroundColor:
-          isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(56),
-        child: SafeArea(
-          bottom: false,
-          child: AppTopBar(
-            title: kb?.name ?? 'Knowledge Base',
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.delete_outline_rounded,
-                    color: AppColors.error),
-                onPressed: () => _deleteKb(context, ref),
+  Future<void> _saveMetadata(KnowledgeBaseModel kb) async {
+    if (_nameCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Name is required')));
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(knowledgeListProvider.notifier)
+          .editItem(
+            kb.id,
+            name: _nameCtrl.text.trim(),
+            description: _descCtrl.text.trim(),
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Knowledge base updated')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _pickAndUpload() async {
+    final files = await openFiles(
+      acceptedTypeGroups: const [
+        XTypeGroup(label: 'Documents', extensions: _allowedExtensions),
+      ],
+    );
+    if (files.isEmpty) return;
+
+    if (files.length > 10) {
+      _showSnack('Select up to 10 files at a time.');
+      return;
+    }
+
+    final paths = <String>[];
+    for (final file in files) {
+      final extension = file.name.split('.').last.toLowerCase();
+      if (!_allowedExtensions.contains(extension)) {
+        _showSnack('${file.name} is not a supported file type.');
+        return;
+      }
+      final size = await file.length();
+      if (size > _maxFileBytes) {
+        _showSnack('${file.name} is larger than 20MB.');
+        return;
+      }
+      if (file.path.isEmpty) {
+        _showSnack('${file.name} could not be read from this device.');
+        return;
+      }
+      paths.add(file.path);
+    }
+    if (paths.isEmpty) return;
+
+    setState(() => _uploadProgress = 0);
+    try {
+      await ref
+          .read(knowledgeDocumentsProvider(widget.kbId).notifier)
+          .uploadFiles(
+            paths,
+            onSendProgress: (sent, total) {
+              if (total <= 0 || !mounted) return;
+              setState(() => _uploadProgress = sent / total);
+            },
+          );
+      if (mounted) _showSnack('Files uploaded');
+    } catch (e) {
+      if (mounted) _showSnack('Upload failed: $e');
+    } finally {
+      if (mounted) setState(() => _uploadProgress = null);
+    }
+  }
+
+  Future<void> _deleteDocument(KnowledgeDocumentModel doc) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete document?'),
+        content: Text('Remove ${doc.fileName} from this knowledge base?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref
+          .read(knowledgeDocumentsProvider(widget.kbId).notifier)
+          .deleteDocument(doc.sourceName);
+    } catch (e) {
+      if (mounted) _showSnack('Error: $e');
+    }
+  }
+
+  Future<void> _deleteKb(KnowledgeBaseModel kb) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete knowledge base?'),
+        content: const Text(
+          'This deletes its document index and removes it from agents.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(knowledgeListProvider.notifier).delete(kb.id);
+      if (mounted) context.go(RouteNames.knowledge);
+    } catch (e) {
+      if (mounted) _showSnack('Error: $e');
+    }
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _MetadataCard extends StatelessWidget {
+  const _MetadataCard({
+    required this.nameCtrl,
+    required this.descCtrl,
+    required this.saving,
+    required this.onSave,
+  });
+
+  final TextEditingController nameCtrl;
+  final TextEditingController descCtrl;
+  final bool saving;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return DetailCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Details', style: AppTypography.titleMedium),
+          const SizedBox(height: 12),
+          TextField(
+            controller: nameCtrl,
+            decoration: _decoration(isDark, 'Name'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: descCtrl,
+            minLines: 2,
+            maxLines: 4,
+            decoration: _decoration(isDark, 'Description'),
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              onPressed: saving ? null : onSave,
+              icon: saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save_rounded, size: 18),
+              label: const Text('Save'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  InputDecoration _decoration(bool isDark, String label) {
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: isDark ? AppColors.inputFillDark : AppColors.inputFillLight,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide.none,
+      ),
+    );
+  }
+}
+
+class _UploadCard extends StatelessWidget {
+  const _UploadCard({required this.progress, required this.onPick});
+
+  final double? progress;
+  final VoidCallback onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    return DetailCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('Upload Files', style: AppTypography.titleMedium),
+              const Spacer(),
+              OutlinedButton.icon(
+                onPressed: progress == null ? onPick : null,
+                icon: const Icon(Icons.upload_file_rounded, size: 18),
+                label: const Text('Pick Files'),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 8),
+          Text(
+            '.pdf, .txt, .md, .json, .csv. Up to 20MB each and 10 files per upload.',
+            style: AppTypography.bodySmall,
+          ),
+          if (progress != null) ...[
+            const SizedBox(height: 12),
+            LinearProgressIndicator(value: progress),
+          ],
+        ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _uploadDocument(context, ref),
-        icon: const Icon(Icons.upload_file_rounded),
-        label: const Text('Upload Doc'),
-        backgroundColor: isDark ? AppColors.primaryDark : AppColors.primaryLight,
-        foregroundColor: Colors.white,
-      ),
-      body: docsAsync.when(
-        loading: () => ListView.builder(
-          itemCount: 4,
-          itemBuilder: (_, _) => const ListTileSkeleton(),
-        ),
-        error: (e, _) => ErrorState(
-          message: e.toString(),
-          onRetry: () => ref.refresh(knowledgeDetailProvider(kbId).future),
-        ),
-        data: (docs) => docs.isEmpty
-            ? const EmptyState(
-                icon: Icons.description_outlined,
-                title: 'No documents yet',
-                subtitle: 'Upload files to build your knowledge base',
-              )
-            : RefreshIndicator(
-                onRefresh: () =>
-                    ref.refresh(knowledgeDetailProvider(kbId).future),
-                child: ListView.separated(
-                  padding: EdgeInsets.symmetric(
-                      horizontal: r.horizontalPadding, vertical: 8),
-                  itemCount: docs.length,
-                  separatorBuilder: (_, _) => Divider(
-                    height: 1,
-                    color: isDark
-                        ? AppColors.dividerDark
-                        : AppColors.dividerLight,
+    );
+  }
+}
+
+class _DocumentsCard extends StatelessWidget {
+  const _DocumentsCard({required this.docsAsync, required this.onDelete});
+
+  final AsyncValue<List<KnowledgeDocumentModel>> docsAsync;
+  final ValueChanged<KnowledgeDocumentModel> onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return DetailCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Documents', style: AppTypography.titleMedium),
+          const SizedBox(height: 12),
+          docsAsync.when(
+            loading: () => const LinearProgressIndicator(),
+            error: (e, _) => Text(
+              e.toString(),
+              style: AppTypography.bodySmall.copyWith(color: AppColors.error),
+            ),
+            data: (docs) => docs.isEmpty
+                ? Text(
+                    'No documents uploaded yet.',
+                    style: AppTypography.bodySmall,
+                  )
+                : Column(
+                    children: docs
+                        .map(
+                          (doc) => _DocumentTile(
+                            doc: doc,
+                            onDelete: () => onDelete(doc),
+                          ),
+                        )
+                        .toList(),
                   ),
-                  itemBuilder: (context, i) {
-                    final doc = docs[i];
-                    return ListTile(
-                      leading: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color:
-                              AppColors.primaryLight.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          _fileIcon(doc.fileType),
-                          color: isDark
-                              ? AppColors.primaryDark
-                              : AppColors.primaryLight,
-                        ),
-                      ),
-                      title:
-                          Text(doc.sourceName, style: AppTypography.bodyMedium),
-                      subtitle: Text(
-                        '${doc.fileType.toUpperCase()} · ${_formatSize(doc.size ?? 0)}',
-                        style: AppTypography.bodySmall.copyWith(
-                          color: isDark
-                              ? AppColors.textSecondaryDark
-                              : AppColors.textSecondaryLight,
-                        ),
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded,
-                            size: 20),
-                        color: AppColors.error,
-                        onPressed: () =>
-                            _deleteDoc(context, ref, doc.sourceName),
-                      ),
-                    );
-                  },
-                ),
-              ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DocumentTile extends StatelessWidget {
+  const _DocumentTile({required this.doc, required this.onDelete});
+
+  final KnowledgeDocumentModel doc;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(_fileIcon(doc.fileType)),
+      title: Text(doc.fileName, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+        '${_formatSize(doc.fileSize)} | ${doc.chunkCount} chunks',
+        style: AppTypography.bodySmall.copyWith(
+          color: isDark
+              ? AppColors.textSecondaryDark
+              : AppColors.textSecondaryLight,
+        ),
+      ),
+      trailing: IconButton(
+        tooltip: 'Delete document',
+        onPressed: onDelete,
+        color: AppColors.error,
+        icon: const Icon(Icons.delete_outline_rounded),
       ),
     );
   }
@@ -126,122 +463,17 @@ class KnowledgeDetailScreen extends ConsumerWidget {
     return switch (fileType.toLowerCase()) {
       'pdf' => Icons.picture_as_pdf_rounded,
       'txt' || 'md' => Icons.description_rounded,
-      'csv' || 'xlsx' => Icons.table_chart_rounded,
-      'docx' || 'doc' => Icons.article_rounded,
+      'csv' => Icons.table_chart_rounded,
+      'json' => Icons.data_object_rounded,
       _ => Icons.insert_drive_file_rounded,
     };
   }
 
   String _formatSize(int bytes) {
     if (bytes < 1024) return '${bytes}B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
-  }
-
-  Future<void> _uploadDocument(BuildContext context, WidgetRef ref) async {
-    // In a real app this would open a file picker.
-    // For now show a text-based URL/source input sheet.
-    final urlCtrl = TextEditingController();
-
-    final ok = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 16,
-          bottom: MediaQuery.viewInsetsOf(ctx).bottom + 16,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Upload Document', style: AppTypography.titleMedium),
-            const SizedBox(height: 16),
-            TextField(
-              controller: urlCtrl,
-              decoration: const InputDecoration(
-                labelText: 'File URL or source name',
-                hintText: 'https://example.com/doc.pdf',
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Upload'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (ok != true || urlCtrl.text.trim().isEmpty) return;
-
-    try {
-      await ref
-          .read(knowledgeDetailProvider(kbId).notifier)
-          .uploadDocument(urlCtrl.text.trim());
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)}KB';
     }
-  }
-
-  Future<void> _deleteDoc(
-      BuildContext context, WidgetRef ref, String sourceName) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete document?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    await ref
-        .read(knowledgeDetailProvider(kbId).notifier)
-        .deleteDocument(sourceName);
-  }
-
-  Future<void> _deleteKb(BuildContext context, WidgetRef ref) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete knowledge base?'),
-        content: const Text(
-            'This will delete all documents and disconnect agents using this KB.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    await ref.read(knowledgeListProvider.notifier).delete(kbId);
-    if (context.mounted) Navigator.pop(context);
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
   }
 }
