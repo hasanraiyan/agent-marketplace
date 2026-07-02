@@ -16,8 +16,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useAuth } from "@clerk/nextjs";
 import { useThreads } from "@/components/threads-context";
+import { getMyAgent } from "@/lib/api/agents";
 import {
   CompassIcon,
   UserIcon,
@@ -61,11 +62,27 @@ const NAV_SECONDARY = [
 
 export function AppSidebar({ ...props }) {
   const { user } = useUser();
+  const { isLoaded, isSignedIn } = useAuth();
   const userData = {
     name: user?.fullName || "Guest User",
     email: user?.primaryEmailAddress?.emailAddress || "",
     avatar: user?.imageUrl || "",
   };
+
+  const [myAgentId, setMyAgentId] = React.useState(null);
+
+  React.useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    let cancelled = false;
+    getMyAgent()
+      .then((agent) => {
+        if (!cancelled) setMyAgentId(agent?.id || agent?._id || null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded, isSignedIn]);
 
   const {
     groups,
@@ -133,7 +150,7 @@ export function AppSidebar({ ...props }) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent className="px-3.5 py-3 gap-4">
-        <NavMain items={NAV_MAIN} />
+        <NavMain items={NAV_MAIN} myAgentId={myAgentId} />
         <NavThreads
           groups={groups}
           loading={threadsLoading}

@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AgentForm } from "@/components/agents/agent-form";
 import { AguiAgentChat } from "@/components/agents/agui-agent-chat";
-import { getAgent, updateAgent, createAgent } from "@/lib/api/agents";
+import { getAgent, updateAgent, createAgent, getMyAgent } from "@/lib/api/agents";
 import { getProviders } from "@/lib/api/providers";
 import { createThread } from "@/lib/api/threads";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
@@ -81,6 +81,19 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
 
     const init = async () => {
       try {
+        if (!isEdit) {
+          try {
+            const existing = await getMyAgent();
+            if (existing) {
+              toast.error("You already have a persona");
+              router.replace(`/dashboard/agents/${existing.id || existing._id}`);
+              return;
+            }
+          } catch (err) {
+            console.error("Failed to check for existing persona:", err);
+          }
+        }
+
         let providerList = [];
         try {
           const provRes = await getProviders();
@@ -185,7 +198,7 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
 
         if (!isEdit) {
           toast.success("Agent created by Architect");
-          router.push(`/dashboard/agents/${resultAgentId}/builder`);
+          router.push(`/dashboard/agents/${resultAgentId}/onboarding`);
           return;
         }
 
@@ -208,7 +221,7 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
         const res = await createAgent(formData);
         const newAgent = res.data?.data;
         toast.success("Agent created");
-        router.push(`/dashboard/agents/${newAgent.id || newAgent._id}/builder`);
+        router.push(`/dashboard/agents/${newAgent.id || newAgent._id}/onboarding`);
       }
     } catch (err) {
       toast.error(err.response?.data?.message || "Save failed");

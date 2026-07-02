@@ -319,9 +319,9 @@ export default function RunAgentPage() {
   useDashboardHeader(
     {
       title: agent?.name || "Agent",
-      description: [agent?.category || "other", agent?.modelName]
-        .filter(Boolean)
-        .join(" · "),
+      description:
+        agent?.tagline ||
+        [agent?.category || "other", agent?.modelName].filter(Boolean).join(" · "),
       leading: (
         <Avatar className="size-8">
           <AvatarImage

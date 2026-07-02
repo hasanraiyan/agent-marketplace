@@ -88,16 +88,18 @@ export default function MyAgentsPage() {
               />
             </InputGroup>
           </div>
-          <Link href="/dashboard/agents/create">
-            <Button size="sm" className="rounded-full px-4 font-bold shadow-sm transition-all active:scale-98">
-              <Plus className="mr-1.5 size-4" />
-              Build an Agent
-            </Button>
-          </Link>
+          {agents.length === 0 && (
+            <Link href="/dashboard/agents/create">
+              <Button size="sm" className="rounded-full px-4 font-bold shadow-sm transition-all active:scale-98">
+                <Plus className="mr-1.5 size-4" />
+                Build an Agent
+              </Button>
+            </Link>
+          )}
         </div>
       ),
     },
-    [search],
+    [search, agents.length],
   );
 
   const filteredAgents = useMemo(() => {

@@ -39,6 +39,7 @@ describe('Agent Service', () => {
 
   describe('slug generation', () => {
     test('should generate slug successfully', async () => {
+      agentRepository.count.mockResolvedValue(0);
       agentRepository.findBySlug.mockResolvedValue(null);
       agentRepository.create.mockResolvedValue(mockAgent);
 
@@ -51,6 +52,32 @@ describe('Agent Service', () => {
           slug: expect.stringMatching(/^my-special-bot-[0-9a-f]{6}$/),
         })
       );
+    });
+  });
+
+  describe('one persona per user cap', () => {
+    test('should allow creation when the user has no active agent', async () => {
+      agentRepository.count.mockResolvedValue(0);
+      agentRepository.findBySlug.mockResolvedValue(null);
+      agentRepository.create.mockResolvedValue(mockAgent);
+
+      await agentService.createAgent(mockUserId, { name: 'First Persona' });
+
+      expect(agentRepository.count).toHaveBeenCalledWith({
+        ownerId: mockUserId,
+        isActive: true,
+      });
+      expect(agentRepository.create).toHaveBeenCalled();
+    });
+
+    test('should reject creation with a 409 when the user already has an active agent', async () => {
+      agentRepository.count.mockResolvedValue(1);
+
+      await expect(
+        agentService.createAgent(mockUserId, { name: 'Second Persona' })
+      ).rejects.toMatchObject({ statusCode: 409 });
+
+      expect(agentRepository.create).not.toHaveBeenCalled();
     });
   });
 

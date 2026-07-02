@@ -9,16 +9,20 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, UserIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function NavMain({ items }) {
+export function NavMain({ items, myAgentId }) {
   const pathname = usePathname();
 
   const isActive = (url) => {
     if (url === "/dashboard") return pathname === "/dashboard";
     return pathname === url || pathname.startsWith(`${url}/`);
   };
+
+  const ctaHref = myAgentId ? `/dashboard/agents/${myAgentId}` : "/dashboard/agents/create";
+  const ctaLabel = myAgentId ? "My Persona" : "Create Agent";
+  const CtaIcon = myAgentId ? UserIcon : PlusIcon;
 
   return (
     <SidebarGroup className="p-0">
@@ -27,17 +31,17 @@ export function NavMain({ items }) {
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              tooltip="Create Agent"
+              tooltip={ctaLabel}
               className="h-10 w-full justify-center gap-2 rounded-xl bg-gradient-to-r from-[#1E60FF] via-[#4f46e5] to-[#1E60FF] bg-[length:200%_auto] text-white hover:bg-[position:right_center] font-bold text-sm tracking-wide shadow-md shadow-indigo-500/15 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none"
             >
-              <Link href="/dashboard/agents/create">
-                <PlusIcon className="size-4 shrink-0 transition-transform duration-300 group-hover/menu-button:rotate-90" />
-                <span>Create Agent</span>
+              <Link href={ctaHref}>
+                <CtaIcon className="size-4 shrink-0 transition-transform duration-300 group-hover/menu-button:rotate-90" />
+                <span>{ctaLabel}</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-        
+
         <SidebarMenu className="gap-1">
           {items.map((item) => {
             const active = isActive(item.url);
