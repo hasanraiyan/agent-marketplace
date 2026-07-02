@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+const socialLinksSchema = z.object({
+  website: z.string().url().optional().or(z.literal('')),
+  twitter: z.string().url().optional().or(z.literal('')),
+  github: z.string().url().optional().or(z.literal('')),
+  linkedin: z.string().url().optional().or(z.literal('')),
+});
+
 export const createAgentSchema = z.object({
   name: z
     .string()
@@ -8,6 +15,10 @@ export const createAgentSchema = z.object({
   description: z.string().max(500, 'Description must be under 500 characters').optional(),
   avatar: z.string().url().optional().or(z.literal('')),
   tags: z.array(z.string()).max(10, 'Maximum 10 tags allowed').optional(),
+  tagline: z.string().max(150, 'Tagline must be under 150 characters').optional(),
+  bio: z.string().max(1000, 'Bio must be under 1000 characters').optional(),
+  personalityTraits: z.array(z.string()).max(5, 'Maximum 5 personality traits allowed').optional(),
+  socialLinks: socialLinksSchema.optional(),
   systemPrompt: z.string().min(10, 'System prompt must be at least 10 characters'),
   providerId: z.string().min(1, 'Provider ID is required'),
   modelName: z.string().min(1, 'Model name is required').optional(),
@@ -27,6 +38,10 @@ export const updateAgentSchema = z.object({
   description: z.string().max(500).optional(),
   avatar: z.string().url().optional().or(z.literal('')),
   tags: z.array(z.string()).max(10).optional(),
+  tagline: z.string().max(150).optional(),
+  bio: z.string().max(1000).optional(),
+  personalityTraits: z.array(z.string()).max(5).optional(),
+  socialLinks: socialLinksSchema.optional(),
   systemPrompt: z.string().min(10).optional(),
   providerId: z.string().min(1).optional(),
   modelName: z.string().min(1).optional(),

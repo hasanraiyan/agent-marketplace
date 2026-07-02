@@ -545,7 +545,7 @@ export function AguiAgentChat({
           {chat.error}
         </div>
       ) : null}
-      <div className="sticky bottom-0 z-10 shrink-0 border-t border-slate-100 bg-white/95 px-4 pb-4 pt-3 backdrop-blur-sm dark:border-slate-800/50 dark:bg-slate-950/95">
+      <div className="sticky bottom-0 z-10 shrink-0 bg-transparent px-4 pb-4 pt-3">
         <div className={cn('mx-auto w-full max-w-4xl space-y-2', contentClassName)}>
           {chat.pendingClarification ? (
             <ClarificationCard

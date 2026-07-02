@@ -37,6 +37,27 @@ const agentSchema = new mongoose.Schema(
         type: String,
       },
     ],
+    tagline: {
+      type: String,
+      maxlength: 150,
+      default: '',
+    },
+    bio: {
+      type: String,
+      maxlength: 1000,
+      default: '',
+    },
+    personalityTraits: [
+      {
+        type: String,
+      },
+    ],
+    socialLinks: {
+      website: { type: String, default: '' },
+      twitter: { type: String, default: '' },
+      github: { type: String, default: '' },
+      linkedin: { type: String, default: '' },
+    },
     systemPrompt: {
       type: String,
       required: true,

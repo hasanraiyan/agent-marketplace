@@ -39,6 +39,19 @@ app.use((req, res, next) => {
   next();
 });
 
+// Log every incoming request — method, path, query, and timing
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    const query = Object.keys(req.query).length ? ` ${JSON.stringify(req.query)}` : '';
+    logger.info(
+      `${req.method} ${req.originalUrl}${query} → ${res.statusCode} (${ms}ms)`,
+    );
+  });
+  next();
+});
+
 // Webhooks must be parsed as raw body and bypass global auth
 app.use('/api/v1/webhooks', webhookRouter);
 

@@ -108,6 +108,13 @@ class AgentService {
   }
 
   async createAgent(userId, data) {
+    const existingCount = await agentRepository.count({ ownerId: userId, isActive: true });
+    if (existingCount > 0) {
+      const err = new Error('You already have a persona. Each account is limited to one.');
+      err.statusCode = 409;
+      throw err;
+    }
+
     const slug = await this._generateSlug(data.name);
 
     const agent = await agentRepository.create({

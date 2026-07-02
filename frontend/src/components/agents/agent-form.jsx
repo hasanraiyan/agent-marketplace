@@ -23,6 +23,8 @@ import {
   CheckCircle2,
   X,
   BookText,
+  UserRound,
+  Link2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,11 +77,22 @@ const VISIBILITY_OPTIONS = [
   },
 ];
 
+const DEFAULT_SOCIAL_LINKS = {
+  website: "",
+  twitter: "",
+  github: "",
+  linkedin: "",
+};
+
 const DEFAULT_FORM = {
   name: "",
   description: "",
   avatar: "",
   tags: [],
+  tagline: "",
+  bio: "",
+  personalityTraits: [],
+  socialLinks: DEFAULT_SOCIAL_LINKS,
   skills: [],
   mcps: [],
   knowledgeBases: [],
@@ -103,6 +116,7 @@ export function AgentForm({
   const [models, setModels] = useState([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [tagsInput, setTagsInput] = useState("");
+  const [traitInput, setTraitInput] = useState("");
   const [availableSkills, setAvailableSkills] = useState([]);
   const [loadingSkills, setLoadingSkills] = useState(true);
   const [availableMcps, setAvailableMcps] = useState([]);
@@ -160,6 +174,10 @@ export function AgentForm({
         description: initialData.description || "",
         avatar: initialData.avatar || "",
         tags: initialData.tags || [],
+        tagline: initialData.tagline || "",
+        bio: initialData.bio || "",
+        personalityTraits: initialData.personalityTraits || [],
+        socialLinks: { ...DEFAULT_SOCIAL_LINKS, ...(initialData.socialLinks || {}) },
         skills: (initialData.skills || []).map((s) => s._id || s.id || s),
         mcps: (initialData.mcps || []).map((m) => m._id || m.id || m),
         knowledgeBases: (initialData.knowledgeBases || []).map((kb) => kb._id || kb.id || kb),
@@ -306,6 +324,32 @@ export function AgentForm({
     );
   };
 
+  const addTrait = (e) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      const trait = traitInput.trim().replace(/,$/, "");
+      if (
+        trait &&
+        !form.personalityTraits.includes(trait) &&
+        form.personalityTraits.length < 5
+      ) {
+        update("personalityTraits", [...form.personalityTraits, trait]);
+      }
+      setTraitInput("");
+    }
+  };
+
+  const removeTrait = (trait) => {
+    update(
+      "personalityTraits",
+      form.personalityTraits.filter((t) => t !== trait),
+    );
+  };
+
+  const updateSocialLink = (platform, value) => {
+    update("socialLinks", { ...form.socialLinks, [platform]: value });
+  };
+
   const toggleSkill = (skillId) => {
     const current = form.skills || [];
     if (current.includes(skillId)) {
@@ -351,6 +395,15 @@ export function AgentForm({
     if (!sanitized.avatar) delete sanitized.avatar;
     if (!sanitized.modelName) delete sanitized.modelName;
     if (sanitized.tags?.length === 0) delete sanitized.tags;
+    if (!sanitized.tagline) delete sanitized.tagline;
+    if (!sanitized.bio) delete sanitized.bio;
+    if (sanitized.personalityTraits?.length === 0) delete sanitized.personalityTraits;
+    if (
+      sanitized.socialLinks &&
+      Object.values(sanitized.socialLinks).every((v) => !v)
+    ) {
+      delete sanitized.socialLinks;
+    }
 
     onSave(sanitized);
   };
@@ -502,6 +555,118 @@ export function AgentForm({
                   </Badge>
                 ))}
               </div>
+            </div>
+          </Field>
+        </div>
+      </section>
+
+      {/* Section: Profile */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-2 border-b pb-2 text-foreground/80">
+          <UserRound className="size-4" />
+          <h2 className="text-sm font-bold uppercase tracking-wider">
+            Profile
+          </h2>
+        </div>
+
+        <div className="grid gap-6">
+          <FieldDescription className="text-xs -mt-2">
+            Personal touches that make this persona feel like someone, not
+            just a config. All optional.
+          </FieldDescription>
+
+          <Field>
+            <FieldLabel className="text-sm font-bold">Tagline</FieldLabel>
+            <Input
+              placeholder="A short one-line hook, e.g. 'Your witty coding co-pilot'"
+              value={form.tagline}
+              onChange={(e) => update("tagline", e.target.value)}
+              maxLength={150}
+              className="h-11 bg-muted/20"
+            />
+          </Field>
+
+          <Field>
+            <FieldLabel className="text-sm font-bold">Bio</FieldLabel>
+            <Textarea
+              placeholder="Tell people who this persona is..."
+              value={form.bio}
+              onChange={(e) => update("bio", e.target.value)}
+              rows={4}
+              maxLength={1000}
+              className="bg-muted/20"
+            />
+          </Field>
+
+          <Field>
+            <FieldLabel className="text-sm font-bold">
+              Personality Traits
+            </FieldLabel>
+            <div className="flex flex-col gap-2">
+              <Input
+                placeholder="witty, warm, direct... (up to 5)"
+                value={traitInput}
+                onChange={(e) => setTraitInput(e.target.value)}
+                onKeyDown={addTrait}
+                disabled={form.personalityTraits.length >= 5}
+                className="bg-muted/20"
+              />
+              <div className="flex flex-wrap gap-1.5">
+                {form.personalityTraits.map((trait) => (
+                  <Badge
+                    key={trait}
+                    variant="secondary"
+                    className="pl-2 pr-1 py-1 gap-1"
+                  >
+                    {trait}
+                    <button
+                      type="button"
+                      onClick={() => removeTrait(trait)}
+                      className="hover:text-destructive"
+                      aria-label={`Remove ${trait}`}
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </Field>
+
+          <Field>
+            <FieldLabel className="flex items-center gap-2 text-sm font-bold">
+              <Link2 className="size-3.5" />
+              Social Links
+            </FieldLabel>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Input
+                type="url"
+                placeholder="Website (https://...)"
+                value={form.socialLinks.website}
+                onChange={(e) => updateSocialLink("website", e.target.value)}
+                className="h-10 bg-muted/20 text-sm"
+              />
+              <Input
+                type="url"
+                placeholder="X / Twitter (https://...)"
+                value={form.socialLinks.twitter}
+                onChange={(e) => updateSocialLink("twitter", e.target.value)}
+                className="h-10 bg-muted/20 text-sm"
+              />
+              <Input
+                type="url"
+                placeholder="GitHub (https://...)"
+                value={form.socialLinks.github}
+                onChange={(e) => updateSocialLink("github", e.target.value)}
+                className="h-10 bg-muted/20 text-sm"
+              />
+              <Input
+                type="url"
+                placeholder="LinkedIn (https://...)"
+                value={form.socialLinks.linkedin}
+                onChange={(e) => updateSocialLink("linkedin", e.target.value)}
+                className="h-10 bg-muted/20 text-sm"
+              />
             </div>
           </Field>
         </div>

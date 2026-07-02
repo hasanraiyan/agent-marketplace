@@ -27,6 +27,8 @@ import {
   Sparkles,
   BadgeCheck,
   Trash2,
+  UserRound,
+  Link2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -329,6 +331,12 @@ export default function AgentDetailPage() {
                       )}
                     </div>
 
+                    {agent.tagline && (
+                      <p className="text-sm sm:text-base font-semibold text-zinc-600 dark:text-zinc-350">
+                        {agent.tagline}
+                      </p>
+                    )}
+
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 font-medium">
                       <div className="flex gap-0.5 items-center mr-1">
                         {stars.map((filled, i) => (
@@ -382,6 +390,70 @@ export default function AgentDetailPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Persona Profile Card */}
+            {(agent.bio ||
+              (agent.personalityTraits && agent.personalityTraits.length > 0) ||
+              (agent.socialLinks &&
+                Object.values(agent.socialLinks).some(Boolean))) && (
+              <Card className="border border-zinc-150/60 dark:border-zinc-900/60 bg-card rounded-3xl ring-0 shadow-none">
+                <CardHeader>
+                  <CardTitle className="text-base font-bold flex items-center gap-2 text-zinc-900 dark:text-zinc-150">
+                    <UserRound className="size-4 text-primary" />
+                    Persona Profile
+                  </CardTitle>
+                  <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                    Who this persona is, beyond the config.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  {agent.bio && (
+                    <p className="text-sm leading-relaxed text-zinc-650 dark:text-zinc-350 font-medium whitespace-pre-wrap">
+                      {agent.bio}
+                    </p>
+                  )}
+
+                  {agent.personalityTraits && agent.personalityTraits.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {agent.personalityTraits.map((trait) => (
+                        <Badge
+                          key={trait}
+                          variant="secondary"
+                          className="text-xs font-semibold px-2.5 py-0.5 rounded-full"
+                        >
+                          {trait}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  {agent.socialLinks &&
+                    Object.values(agent.socialLinks).some(Boolean) && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {[
+                          { key: "website", label: "Website" },
+                          { key: "twitter", label: "X / Twitter" },
+                          { key: "github", label: "GitHub" },
+                          { key: "linkedin", label: "LinkedIn" },
+                        ]
+                          .filter(({ key }) => agent.socialLinks[key])
+                          .map(({ key, label }) => (
+                            <a
+                              key={key}
+                              href={agent.socialLinks[key]}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 rounded-full border border-zinc-150/60 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/10 px-3 py-1.5 text-xs font-semibold text-zinc-650 dark:text-zinc-350 hover:bg-zinc-100 dark:hover:bg-zinc-850 transition-colors"
+                            >
+                              <Link2 className="size-3.5" />
+                              {label}
+                            </a>
+                          ))}
+                      </div>
+                    )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Configured Skills Card */}
             {agent.skills && agent.skills.length > 0 && (
