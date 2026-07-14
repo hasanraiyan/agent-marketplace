@@ -690,7 +690,18 @@ export async function* translateLangGraphStream(stream, opts = {}) {
         }
 
         const toolName = event.name;
-        const toolInput = event.data?.input;
+        let toolInput = event.data?.input;
+        // LangChain's tool tracer wraps stringified args in an envelope
+        // ({ input: "<json>" }) — unwrap it so clients receive the tool's
+        // real arguments (file_path, old_string, ...), not the wrapper.
+        if (
+          toolInput &&
+          typeof toolInput === 'object' &&
+          typeof toolInput.input === 'string' &&
+          Object.keys(toolInput).length === 1
+        ) {
+          toolInput = toolInput.input;
+        }
         const argsStr = typeof toolInput === 'string' ? toolInput : JSON.stringify(toolInput ?? {});
 
         // A subagent's internal tool call must not surface as a main-agent tool

@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
   tryParseJson,
+  parseToolArgs,
   isTodoTool,
   isSkillTool,
   isAgentTool,
@@ -44,7 +45,7 @@ import { RequestResponsePanel } from './tool-cards/RequestResponsePanel';
 import { GrepResultsView, parseGrepResults } from './tool-cards/GrepResultsView';
 import { LsDirectoryCard } from './tool-cards/LsDirectoryCard';
 import { ReadFileCard } from './tool-cards/ReadFileCard';
-import { FileDiffCard } from './tool-cards/DiffView';
+import { FileDiffCard, computeFileDiffStats } from './tool-cards/DiffView';
 import { SubagentActivityDialog } from './SubagentActivityDialog';
 
 export { FileSystemActionCard, ActionArguments } from './tool-cards/FileSystemActionCard';
@@ -162,6 +163,8 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
     : 0;
   const subEvents = Array.isArray(tool.subEvents) ? tool.subEvents : [];
   const subToolUses = subEvents.filter((item) => item.type === 'tool').length;
+  const isFileDiff = (isFileWriteTool(tool.name) || isFileEditTool(tool.name)) && !isError;
+  const diffStats = isFileDiff ? computeFileDiffStats(tool) : null;
   const isExpandable = Boolean(
     tool.resultText || tool.argumentsText || subEvents.length,
   );
@@ -229,8 +232,18 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
                 <ChevronDown className="size-4 text-slate-400" />
               )
             ) : null}
-            {/* The Plan title already carries its status (x/y) — no badge. */}
-            {isError || !(isTodo && todos) ? (
+            {/* File writes/edits show a diffstat instead of a status badge. */}
+            {diffStats ? (
+              <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums dark:bg-slate-800/80">
+                <span className="text-emerald-600 dark:text-emerald-400">
+                  +{diffStats.added}
+                </span>{' '}
+                <span className="text-red-500 dark:text-red-400">
+                  -{diffStats.removed}
+                </span>
+              </span>
+            ) : /* The Plan title already carries its status (x/y) — no badge. */
+            isError || !(isTodo && todos) ? (
               <span
                 className={cn(
                   'rounded-md px-2 py-0.5 text-[11px] font-medium',
@@ -278,7 +291,9 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
           <div className="ml-8 mt-1 text-sm">
             <ReadFileCard tool={tool} />
           </div>
-        ) : (isFileWriteTool(tool.name) || isFileEditTool(tool.name)) && !isError ? (
+        ) : diffStats ? (
+          // Only when the args parsed into a real diff — otherwise fall
+          // through to the generic panel (an empty diff card shows nothing).
           <div className="ml-8 mt-1 text-sm">
             <FileDiffCard tool={tool} />
           </div>
@@ -306,9 +321,9 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
                   <CheckCircle2 className="size-4" />
-                  Skill Successfully {tryParseJson(tool.argumentsText)?.action === 'delete' ? 'Deleted' : 'Saved'}
+                  Skill Successfully {parseToolArgs(tool.argumentsText)?.action === 'delete' ? 'Deleted' : 'Saved'}
                 </div>
-                {tryParseJson(tool.argumentsText)?.action !== 'delete' && (
+                {parseToolArgs(tool.argumentsText)?.action !== 'delete' && (
                   <Link href={`/dashboard/connectors/skills/${parsedResult?.data?._id || parsedResult?.data?.id}`}>
                     <Button size="sm" variant="outline" className="w-full">
                       <Edit className="mr-2 size-3.5" />

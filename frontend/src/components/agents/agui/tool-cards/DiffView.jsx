@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { FileCode, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { tryParseJson } from '../utils';
+import { parseToolArgs } from '../utils';
 
 // Line-level LCS diff. Bounded: falls back to a naive remove-then-add
 // rendering when either side is too large for O(n*m) DP to stay fast.
@@ -138,11 +138,40 @@ export function DiffView({ oldContent = '', newContent = '', fileName, note }) {
   );
 }
 
+// Line counts for the card row's "+19 -6" diffstat. Returns null when the
+// args aren't parseable (yet) — the caller falls back to the generic panel
+// instead of rendering an empty diff.
+export function computeFileDiffStats(tool) {
+  const args = parseToolArgs(tool.argumentsText) || {};
+  const name = (tool.name || '').toLowerCase();
+
+  if (name === 'write_file') {
+    if (typeof args.content !== 'string') return null;
+    return { added: args.content.split('\n').length, removed: 0 };
+  }
+
+  if (name === 'edit_file') {
+    if (typeof args.old_string !== 'string' && typeof args.new_string !== 'string') {
+      return null;
+    }
+    const rows = computeLineDiff(
+      String(args.old_string ?? '').split('\n'),
+      String(args.new_string ?? '').split('\n'),
+    );
+    return {
+      added: rows.filter((row) => row.type === 'add').length,
+      removed: rows.filter((row) => row.type === 'remove').length,
+    };
+  }
+
+  return null;
+}
+
 // Reads a write_file / edit_file tool's arguments and renders the DiffView.
 // write_file has no prior content available client-side, so the entire body
 // renders as additions; edit_file diffs old_string against new_string.
 export function FileDiffCard({ tool }) {
-  const args = tryParseJson(tool.argumentsText) || {};
+  const args = parseToolArgs(tool.argumentsText) || {};
   const nameLower = (tool.name || '').toLowerCase();
   const filePath = args.file_path || args.filePath || args.path || '';
 

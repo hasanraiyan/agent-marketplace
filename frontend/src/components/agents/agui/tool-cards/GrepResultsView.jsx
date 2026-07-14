@@ -1,7 +1,7 @@
 'use client';
 
 import { FileCode, FileText, Search } from 'lucide-react';
-import { tryParseJson } from '../utils';
+import { tryParseJson, parseToolArgs } from '../utils';
 
 export function parseGrepResults(resultText) {
   if (!resultText) return [];
@@ -92,7 +92,7 @@ function highlightMatch(text, query) {
 }
 
 export function GrepResultsView({ tool, done }) {
-  const parsedInput = tryParseJson(tool.argumentsText) || {};
+  const parsedInput = parseToolArgs(tool.argumentsText) || {};
   const query = parsedInput.pattern || parsedInput.Query || parsedInput.query || '';
   const path = parsedInput.path || parsedInput.SearchPath || parsedInput.searchPath || '/';
   const results = parseGrepResults(tool.resultText);

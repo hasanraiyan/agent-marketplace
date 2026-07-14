@@ -19,7 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAguiChat } from '@/lib/agui/use-agui-chat';
-import { getSuggestedPrompts, tryParseJson } from './utils';
+import { getSuggestedPrompts, tryParseJson, parseToolArgs } from './utils';
 import { MessageBubble, ThinkingText, NewChatIcon } from './MessageBubble';
 import { ToolTrace } from './ToolTrace';
 import { MCPAppRenderer } from '@/components/mcp/mcp-app-renderer';
@@ -593,7 +593,7 @@ export function AguiAgentChat({
 function toolGroupKey(tool) {
   const name = (tool.name || '').toLowerCase();
   if (name.includes('memory') || name.includes('preference')) return 'memory';
-  const args = tryParseJson(tool.argumentsText);
+  const args = parseToolArgs(tool.argumentsText);
   const path = args?.file_path || args?.path || '';
   if (typeof path === 'string' && path.includes('/memories')) return 'memory';
   if (name.includes('file') || name === 'ls' || name === 'glob' || name === 'grep')

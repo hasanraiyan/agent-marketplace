@@ -108,6 +108,24 @@ describe('translateLangGraphStream', () => {
     );
   });
 
+  test("unwraps the tool tracer's { input: \"<json>\" } envelope around args", async () => {
+    // LangChain's tool tracer stringifies tool args and wraps them as
+    // { input: "<json>" } — the client must receive the real args
+    // (file_path, old_string, ...), or diff/file cards can't parse them.
+    const realArgs = JSON.stringify({ file_path: '/a.txt', old_string: 'x', new_string: 'y' });
+    const events = [
+      {
+        event: 'on_tool_start',
+        run_id: 'e1',
+        name: 'edit_file',
+        data: { input: { input: realArgs } },
+      },
+      { event: 'on_tool_end', run_id: 'e1', name: 'edit_file', data: { output: 'ok' } },
+    ];
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    expect(out.find((e) => e.type === 'TOOL_CALL_CHUNK').delta).toBe(realArgs);
+  });
+
   test('on_tool_error resolves the pending tool call instead of leaving it stuck running', async () => {
     // LangGraph's ToolNode already catches the throw and feeds the model a
     // recovery ToolMessage, so the run continues — but the *traced* call still

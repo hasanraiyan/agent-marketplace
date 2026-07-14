@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { tryParseJson } from './utils';
+import { tryParseJson, parseToolArgs } from './utils';
 import { SubAgentTimeline } from './ToolTrace';
 
 const STATUS_META = {
@@ -60,7 +60,7 @@ function getSubagentStatus(tool) {
 export function SubagentActivityDialog({ tool, open, onOpenChange }) {
   if (!tool) return null;
 
-  const args = tryParseJson(tool.argumentsText) || {};
+  const args = parseToolArgs(tool.argumentsText) || {};
   const goal = args.description || args.task || args.goal || 'Subagent task';
   const subagentType = args.subagent_type || args.subagentType;
   const subEvents = Array.isArray(tool.subEvents) ? tool.subEvents : [];

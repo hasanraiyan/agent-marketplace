@@ -6,25 +6,13 @@ import { getReadFileToolDetails } from '../utils';
 
 export function ReadFileCard({ tool }) {
   const details = getReadFileToolDetails(tool);
-
-  if (!details) {
-    return (
-      <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-slate-600 dark:text-slate-300 bg-slate-100/50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-150 dark:border-slate-800/60 scrollbar-thin">
-        {tool.resultText || 'No result yet.'}
-      </pre>
-    );
-  }
-
-  const { filePath, content, otherArgs } = details;
-  
-  // Extract filename and file extension
-  const fileName = filePath.split('/').pop() || filePath;
-  const fileExt = fileName.includes('.')
-    ? fileName.split('.').pop()?.toLowerCase()
-    : '';
-
-  const isCode = ['js', 'jsx', 'ts', 'tsx', 'json', 'html', 'css', 'py', 'sh', 'go', 'rs', 'md', 'yaml', 'yml'].includes(fileExt);
-  const FileIcon = isCode ? FileCode : FileText;
+  // Hooks must run unconditionally — details can be null on one render and
+  // present on the next (args still streaming), so the early return comes
+  // AFTER the useMemo below.
+  const content = details?.content ?? '';
+  const otherArgs = details?.otherArgs ?? {};
+  const filePath = details?.filePath ?? '';
+  const lineOffset = otherArgs.offset ?? otherArgs.offsetLine ?? 0;
 
   // Process lines and line numbers dynamically
   const linesData = useMemo(() => {
@@ -71,10 +59,25 @@ export function ReadFileCard({ tool }) {
       return { lines: cleaned, lineNumbers: numbers, isPrefixed: true };
     }
 
-    const offset = parseInt(otherArgs.offset || otherArgs.offsetLine || 0);
+    const offset = parseInt(lineOffset) || 0;
     const numbers = rawLines.map((_, i) => offset + i + 1);
     return { lines: rawLines, lineNumbers: numbers, isPrefixed: false };
-  }, [content, otherArgs.offset, otherArgs.offsetLine]);
+  }, [content, lineOffset]);
+
+  if (!details) {
+    return (
+      <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-slate-600 dark:text-slate-300 bg-slate-100/50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-150 dark:border-slate-800/60 scrollbar-thin">
+        {tool.resultText || 'No result yet.'}
+      </pre>
+    );
+  }
+
+  const fileName = filePath.split('/').pop() || filePath;
+  const fileExt = fileName.includes('.')
+    ? fileName.split('.').pop()?.toLowerCase()
+    : '';
+  const isCode = ['js', 'jsx', 'ts', 'tsx', 'json', 'html', 'css', 'py', 'sh', 'go', 'rs', 'md', 'yaml', 'yml'].includes(fileExt);
+  const FileIcon = isCode ? FileCode : FileText;
 
   const done = tool.status === 'completed';
 
