@@ -40,6 +40,13 @@ const userMongooseSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+    username: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+      index: true,
+    },
     age: {
       type: Number,
       min: 0,

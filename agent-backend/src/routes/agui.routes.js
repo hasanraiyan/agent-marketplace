@@ -19,6 +19,7 @@ import {
   describeInterrupt,
 } from '../utils/aguiTranslator.js';
 import { RunScopeTracker } from '../utils/RunScopeTracker.js';
+import { foldSubagentEvent, settleTrace } from '../utils/subagentTrace.js';
 
 const logger = loggerService.getLogger();
 const aguiRouter = express.Router();
@@ -277,6 +278,11 @@ aguiRouter.post('/', rateLimiter('CHAT', RATE_LIMITS.CHAT), async (req, res, nex
       res.write(`data: ${JSON.stringify(event)}\n\n`);
     };
 
+    // Subagent timelines exist only in the live stream (checkpoints hold just
+    // the main thread's messages) — fold them here and persist per task call
+    // so the subagent's transcript survives thread reloads.
+    const subagentTraces = {};
+
     send({ type: EventType.RUN_STARTED, threadId, runId });
     for await (const event of runAgentAsAguiEvents({
       ...context,
@@ -285,10 +291,31 @@ aguiRouter.post('/', rateLimiter('CHAT', RATE_LIMITS.CHAT), async (req, res, nex
       signal: controller.signal,
     })) {
       if (res.destroyed) break;
+      if (event?.type === EventType.CUSTOM && event.name === 'subagent_activity') {
+        const callId = event.value?.toolCallId;
+        if (callId) {
+          foldSubagentEvent((subagentTraces[callId] ??= []), event.value);
+        }
+      }
       send(event);
     }
     send({ type: EventType.RUN_FINISHED, threadId, runId });
     res.end();
+
+    if (context.threadDbId && Object.keys(subagentTraces).length > 0) {
+      // Per-key $set merges this run's traces with earlier turns' instead of
+      // replacing the whole map. Fire-and-forget — persistence must not
+      // delay or fail the response.
+      const setOps = {};
+      for (const [callId, items] of Object.entries(subagentTraces)) {
+        setOps[`subagentTraces.${callId}`] = settleTrace(items);
+      }
+      threadRepository
+        .update(context.threadDbId, { $set: setOps })
+        .catch((err) =>
+          logger.warn('[AG-UI] failed to persist subagent traces', { err: err.message })
+        );
+    }
   } catch (err) {
     next(err);
   } finally {

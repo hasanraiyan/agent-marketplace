@@ -1,11 +1,38 @@
 # Goal: Unified Implementation Plan - Multi-Agent Support, Clerk Sync, and Premium Chat Bot UI Upgrade
 
 This document outlines the detailed roadmap for upgrading our platform. It includes:
+1. **Multi-Agent & Clone Integration**: Allowing multiple agents per user and linking the Main Agent directly to the Clerk username.
 2. **Premium Chat UI & Tool Views (Inspired by Dostify)**: Transforming the chat interface, adding sub-agent activity modal dialogs, syntax-highlighted file viewers, diff views, and advanced event translation on the backend.
+3. **Sub-Agent Workspace Output Routing**: Dynamically guiding sub-agents to save outputs inside the `/workspace/outputs/` directory.
 
 ---
 
-Premium Chat UI & Tool Cards (Inspired by Dostify)
+## Part 1: Clerk Sync & Multi-Agent Clone
+
+### 1. Database Schema Changes
+- **User Model (`agent-backend/src/models/User.js`)**:
+  - Add `username: { type: String, unique: true, sparse: true, trim: true, index: true }`.
+  - Update validation schema (Zod) to include optional username.
+- **Agent Model (`agent-backend/src/models/Agent.js`)**:
+  - Add `isMainAgent: { type: Boolean, default: false, index: true }`.
+  - Add a partial compound unique index `{ ownerId: 1, isMainAgent: 1, isActive: 1 }` where `isMainAgent: true` and `isActive: true`.
+
+### 2. User Sync & Webhook Additions
+- **Clerk Webhooks (`agent-backend/src/routes/webhook.routes.js`)**:
+  - Extract and save `username` on the `user.created` event.
+  - Implement a `user.updated` webhook handler to update the database when a user changes their username or profile details on Clerk.
+- **Auth Middlewares (`agent-backend/src/middlewares/auth.middleware.js` & `optionalAuthMiddleware.js`)**:
+  - Extract and update `username` from Clerk during fallback user auto-syncing.
+
+### 3. Agent Service Logic Update (`agent-backend/src/services/agent.service.js`)
+- Modify `createAgent` to lift the single-agent limit:
+  - If the user has 0 active agents, automatically set `isMainAgent: true`, set the agent's name to their Clerk `username`, and set the slug to their lowercase username.
+  - If they already have a Main Agent, allow the creation of multiple standard sub-agents (`isMainAgent: false`) with arbitrary names.
+  - Enforce that a user cannot have more than one Main Agent.
+
+---
+
+## Part 2: Premium Chat UI & Tool Cards (Inspired by Dostify)
 
 To match the rich user experience of the Dostify chat, we will build specialized components and extend backend streaming events to correlate sub-agent runs.
 
@@ -81,6 +108,20 @@ export class RunScopeTracker extends BaseCallbackHandler {
 
 ---
 
+## Part 5: Sub-Agent Workspace Routing Rules
+
+### 1. Dynamic System Prompt Integration
+- In `agent-backend/src/factories/agentFactory.js`, dynamic sub-agent instructions are injected into the agent's prompt context during compilation:
+ do that wirk nw edit code
+ 
+  ```markdown
+  ### SUB-AGENT WORKSPACE RULES
+  - Whenever you delegate a task to a sub-agent (using the `task` tool), you MUST explicitly instruct that sub-agent to write all of its files, outputs, and responses inside the `/workspace/outputs/` directory.
+  - This ensures all sub-agent deliverables are systematically gathered in one folder under the workspace.
+  ```
+
+---
+
 ## Reference File Paths
 
 ### A. Our Project Target Files
@@ -112,4 +153,3 @@ export class RunScopeTracker extends BaseCallbackHandler {
   - [Dostify Subagent Activity Live Modal](file:///d:/projects/dostify/dostify/lib/features/chat/presentation/chat_subagent_activity_dialog.dart)
   - [Dostify Custom Tool Trace Renderer](file:///d:/projects/dostify/dostify/lib/features/chat/presentation/chat_tool_trace.dart)
   - [Dostify Main Messages Panel](file:///d:/projects/dostify/dostify/lib/features/chat/presentation/chat_messages_panel.dart)
- 
