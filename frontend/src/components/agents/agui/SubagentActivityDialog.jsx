@@ -69,7 +69,7 @@ export function SubagentActivityDialog({ tool, open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden sm:max-w-lg">
+      <DialogContent className="flex max-h-[85vh] w-full flex-col overflow-hidden sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="sr-only">Subagent activity</DialogTitle>
           <div className="flex items-start justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-900/60">

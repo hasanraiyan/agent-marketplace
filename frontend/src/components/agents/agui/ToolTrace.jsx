@@ -19,6 +19,9 @@ import {
   BookText,
 } from 'lucide-react';
 import Link from 'next/link';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -67,13 +70,30 @@ export function SubAgentTimeline({ items, compact = false }) {
             ? item.text.trimEnd().split('\n').slice(-2).join('\n')
             : item.text;
           if (!text) return null;
+          // The live tail stays plain text (it shows mid-stream fragments);
+          // the full timeline renders the subagent's prose as Markdown.
+          if (compact) {
+            return (
+              <p
+                key={index}
+                className="whitespace-pre-wrap break-words text-xs leading-5 text-slate-500 dark:text-slate-400"
+              >
+                {text}
+              </p>
+            );
+          }
           return (
-            <p
+            <div
               key={index}
-              className="whitespace-pre-wrap break-words text-xs leading-5 text-slate-500 dark:text-slate-400"
+              className="prose prose-sm max-w-none break-words text-[13px] leading-6 text-slate-600 dark:prose-invert dark:text-slate-300 prose-p:my-1 prose-pre:my-2 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1"
             >
-              {text}
-            </p>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeSanitize]}
+              >
+                {text}
+              </ReactMarkdown>
+            </div>
           );
         }
         const Icon = subToolIcon(item.name);

@@ -812,9 +812,9 @@ export async function* translateLangGraphStream(stream, opts = {}) {
         if (nestedRun) {
           nestedToolRuns.delete(event.run_id);
           if (event.event === 'on_tool_end') {
-            // Results feed the card's timeline only — cap them so a verbose
-            // nested tool can't bloat the SSE stream.
-            const nestedResult = extractToolOutputContent(event.data?.output).slice(0, 4000);
+            // Full result, same as top-level TOOL_CALL_RESULT — the timeline
+            // is the subagent's complete transcript, not a preview.
+            const nestedResult = extractToolOutputContent(event.data?.output);
             yield {
               type: EventType.CUSTOM,
               name: 'subagent_activity',
