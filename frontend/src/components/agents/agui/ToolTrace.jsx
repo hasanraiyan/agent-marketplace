@@ -333,7 +333,7 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
             ) : isGrep ? (
               <GrepResultsView tool={tool} done={done} />
             ) : todos ? (
-              <TodoChecklist todos={todos} showProgress={true} />
+              <TodoChecklist todos={todos} />
             ) : isWebSearch ? (
               done ? (
                 results.length ? (
