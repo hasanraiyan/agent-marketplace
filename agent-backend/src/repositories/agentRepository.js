@@ -24,6 +24,10 @@ class AgentRepository {
     return await Agent.findOne({ slug });
   }
 
+  async findOne(filters) {
+    return await Agent.findOne(filters);
+  }
+
   async update(id, updateData) {
     return await Agent.findByIdAndUpdate(id, updateData, {
       new: true,

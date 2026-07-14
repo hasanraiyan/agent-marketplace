@@ -53,7 +53,7 @@ router.post('/clerk', express.raw({ type: 'application/json' }), async (req, res
   logger.info(`Received webhook with ID ${id} and event type of ${eventType}`);
 
   if (eventType === 'user.created') {
-    const { email_addresses, first_name, last_name } = evt.data;
+    const { email_addresses, first_name, last_name, username } = evt.data;
 
     const email = email_addresses[0]?.email_address;
     const name = `${first_name || ''} ${last_name || ''}`.trim() || 'Anonymous';
@@ -63,6 +63,7 @@ router.post('/clerk', express.raw({ type: 'application/json' }), async (req, res
         clerkId: id,
         email,
         name,
+        username: username || undefined,
         role: 'normal',
       });
       logger.info(`Successfully created user ${id} in DB`);
@@ -75,6 +76,24 @@ router.post('/clerk', express.raw({ type: 'application/json' }), async (req, res
         logger.error('Error saving user to database:', dbError);
         return res.status(500).json({ success: false, message: 'Database error' });
       }
+    }
+  }
+
+  if (eventType === 'user.updated') {
+    const { email_addresses, first_name, last_name, username } = evt.data;
+    const email = email_addresses[0]?.email_address;
+    const name = `${first_name || ''} ${last_name || ''}`.trim() || 'Anonymous';
+
+    try {
+      await User.findOneAndUpdate(
+        { clerkId: id },
+        { email, name, username: username || undefined },
+        { new: true }
+      );
+      logger.info(`Successfully updated user ${id} in DB`);
+    } catch (dbError) {
+      logger.error('Error updating user in database:', dbError);
+      return res.status(500).json({ success: false, message: 'Database error' });
     }
   }
 

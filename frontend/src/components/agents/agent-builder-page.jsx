@@ -19,8 +19,9 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AgentForm } from "@/components/agents/agent-form";
 import { AguiAgentChat } from "@/components/agents/agui-agent-chat";
-import { getAgent, updateAgent, createAgent, getMyAgent } from "@/lib/api/agents";
+import { getAgent, updateAgent, createAgent, getMyMainAgent } from "@/lib/api/agents";
 import { getProviders } from "@/lib/api/providers";
+import { getProfile } from "@/lib/api/profile";
 import { createThread } from "@/lib/api/threads";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
 
@@ -57,6 +58,7 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
   const [architectThread, setArchitectThread] = useState(null);
   const [previewThread, setPreviewThread] = useState(null);
   const [authToken, setAuthToken] = useState(null);
+  const [mainAgentSetup, setMainAgentSetup] = useState(null);
   const handledArchitectTools = useRef(new Set());
 
   useEffect(() => {
@@ -83,14 +85,16 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
       try {
         if (!isEdit) {
           try {
-            const existing = await getMyAgent();
-            if (existing) {
-              toast.error("You already have a persona");
-              router.replace(`/dashboard/agents/${existing.id || existing._id}`);
-              return;
+            const [mainAgent, profileRes] = await Promise.all([
+              getMyMainAgent(),
+              getProfile(),
+            ]);
+            if (!mainAgent) {
+              const profile = profileRes.data?.data || profileRes.data;
+              setMainAgentSetup({ username: profile?.username || null });
             }
           } catch (err) {
-            console.error("Failed to check for existing persona:", err);
+            console.error("Failed to check for existing Main Agent:", err);
           }
         }
 
@@ -384,6 +388,7 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
                   initialData={isEdit ? agent : null}
                   onSave={handleManualSave}
                   loading={saving}
+                  mainAgentSetup={!isEdit ? mainAgentSetup : null}
                 />
               </div>
             </TabsContent>

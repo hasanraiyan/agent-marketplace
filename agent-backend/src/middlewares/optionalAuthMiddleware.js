@@ -35,11 +35,13 @@ const optionalAuthMiddleware = async (req, res, next) => {
           if (email) {
             const name =
               `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || 'Anonymous';
+            const username = clerkUser.username || null;
             user = await User.findOne({ email });
 
             if (user) {
               user.clerkId = clerkId;
               user.name = name;
+              if (username) user.username = username;
               await user.save();
               try {
                 // fs.appendFileSync('ownership_debug.log', `[DEBUG] ${new Date().toISOString()} - OptionalAuth synced user by email: ${user.id}\n`);
@@ -49,6 +51,7 @@ const optionalAuthMiddleware = async (req, res, next) => {
                 clerkId,
                 email,
                 name,
+                username: username || undefined,
                 role: 'normal',
               });
               try {

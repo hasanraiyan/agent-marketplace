@@ -14,13 +14,15 @@ export const getAgentMemory = (agentId) => api.get(`/agents/${agentId}/memory`);
 export const deleteAgentMemory = (agentId, key) =>
   api.delete(`/agents/${agentId}/memory/${key}`);
 
-// Returns the current user's single persona, or null if they haven't created one yet.
-export async function getMyAgent() {
+// Returns the current user's Main Agent (their personal clone), or null if
+// they haven't created one yet. Users can have many agents; only one is main.
+export async function getMyMainAgent() {
   const profileRes = await getProfile();
   const profile = profileRes.data?.data || profileRes.data;
   const ownerId = profile?.id || profile?._id;
   if (!ownerId) return null;
 
-  const res = await searchAgents({ ownerId, page: 1, limit: 1, sortBy: "newest" });
-  return (res.data?.data || [])[0] || null;
+  const res = await searchAgents({ ownerId, page: 1, limit: 100, sortBy: "newest" });
+  const agents = res.data?.data || [];
+  return agents.find((a) => a.isMainAgent) || null;
 }

@@ -1,4 +1,5 @@
 import agentRepository from '../repositories/agentRepository.js';
+import User from '../models/User.js';
 import crypto from 'crypto';
 
 class AgentService {
@@ -30,6 +31,28 @@ class AgentService {
       attempts++;
     }
 
+    return finalSlug;
+  }
+
+  /**
+   * Generates a slug that strictly matches the given base (username/name),
+   * only falling back to a random suffix if that exact slug is already taken.
+   */
+  async _generateMainSlug(base) {
+    const baseSlug =
+      (base || 'me')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)+/g, '') || 'me';
+
+    let finalSlug = baseSlug;
+    let attempts = 0;
+    while (attempts < 5) {
+      const existing = await agentRepository.findBySlug(finalSlug);
+      if (!existing) return finalSlug;
+      finalSlug = `${baseSlug}-${crypto.randomBytes(2).toString('hex')}`;
+      attempts++;
+    }
     return finalSlug;
   }
 
@@ -108,22 +131,42 @@ class AgentService {
   }
 
   async createAgent(userId, data) {
-    const existingCount = await agentRepository.count({ ownerId: userId, isActive: true });
-    if (existingCount > 0) {
-      const err = new Error('You already have a persona. Each account is limited to one.');
-      err.statusCode = 409;
-      throw err;
-    }
+    const user = await User.findById(userId);
+    if (!user) throw new Error('User not found');
 
-    const slug = await this._generateSlug(data.name);
-
-    const agent = await agentRepository.create({
-      ...data,
-      slug,
+    const mainAgent = await agentRepository.findOne({
       ownerId: userId,
+      isMainAgent: true,
+      isActive: true,
     });
 
-    return this._formatSafe(agent, userId);
+    const agentData = { ...data };
+
+    if (!mainAgent) {
+      // First active agent becomes the user's Main Agent (Clone), locked to their username.
+      agentData.isMainAgent = true;
+      agentData.name = user.username || user.name || 'My Clone';
+      agentData.slug = await this._generateMainSlug(user.username || user.name);
+    } else {
+      agentData.isMainAgent = false;
+      agentData.slug = await this._generateSlug(data.name);
+    }
+
+    try {
+      const agent = await agentRepository.create({
+        ...agentData,
+        ownerId: userId,
+      });
+
+      return this._formatSafe(agent, userId);
+    } catch (error) {
+      if (error.code === 11000 && error.keyPattern?.isMainAgent) {
+        const err = new Error('You already have a Main Agent.');
+        err.statusCode = 409;
+        throw err;
+      }
+      throw error;
+    }
   }
 
   async getAgentById(id, userId) {

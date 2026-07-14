@@ -6,6 +6,7 @@ export const UserRole = z.enum(['normal', 'admin']);
 export const userSchema = z.object({
   name: z.string().min(2).max(100),
   email: z.string().email(),
+  username: z.string().min(2).max(50).optional(),
   age: z.number().int().min(0).max(150).optional(),
   isActive: z.boolean().default(true),
   role: UserRole.default('normal'),
@@ -57,6 +58,13 @@ const userMongooseSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      index: true,
+    },
+    username: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
       index: true,
     },
     profile: {
