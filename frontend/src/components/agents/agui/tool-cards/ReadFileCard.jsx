@@ -1,68 +1,67 @@
 'use client';
 
-import { useMemo } from 'react';
 import { FileCode, FileText, Loader2 } from 'lucide-react';
 import { getReadFileToolDetails } from '../utils';
 
+// Split file content into display lines + line numbers, stripping any
+// "   1  content" prefixes the tool may have added. Pure — the React
+// Compiler memoizes the call site.
+function processLines(content, lineOffset) {
+  if (!content) return { lines: [], lineNumbers: [], isPrefixed: false };
+  const rawLines = content.split('\n');
+  if (rawLines.length > 1 && rawLines[rawLines.length - 1] === '') {
+    rawLines.pop();
+  }
+
+  let isPrefixed = true;
+  const regex = /^\s*(\d+)(?:\s+(.*)|$)/;
+
+  for (let i = 0; i < rawLines.length; i++) {
+    const line = rawLines[i];
+    if (line.trim() === '') continue; // Skip empty lines in validation
+
+    const match = line.match(regex);
+    if (!match) {
+      isPrefixed = false;
+      break;
+    }
+  }
+
+  if (isPrefixed && rawLines.length > 0) {
+    const cleaned = [];
+    const numbers = [];
+    let lastNum = 0;
+
+    for (let i = 0; i < rawLines.length; i++) {
+      const line = rawLines[i];
+      const match = line.match(regex);
+      if (match) {
+        cleaned.push(match[2] || '');
+        const num = parseInt(match[1]);
+        numbers.push(num);
+        lastNum = num;
+      } else {
+        cleaned.push(line);
+        lastNum = lastNum + 1;
+        numbers.push(lastNum);
+      }
+    }
+    return { lines: cleaned, lineNumbers: numbers, isPrefixed: true };
+  }
+
+  const offset = parseInt(lineOffset) || 0;
+  const numbers = rawLines.map((_, i) => offset + i + 1);
+  return { lines: rawLines, lineNumbers: numbers, isPrefixed: false };
+}
+
 export function ReadFileCard({ tool }) {
   const details = getReadFileToolDetails(tool);
-  // Hooks must run unconditionally — details can be null on one render and
-  // present on the next (args still streaming), so the early return comes
-  // AFTER the useMemo below.
   const content = details?.content ?? '';
   const otherArgs = details?.otherArgs ?? {};
   const filePath = details?.filePath ?? '';
   const lineOffset = otherArgs.offset ?? otherArgs.offsetLine ?? 0;
 
-  // Process lines and line numbers dynamically
-  const linesData = useMemo(() => {
-    if (!content) return { lines: [], lineNumbers: [], isPrefixed: false };
-    const rawLines = content.split('\n');
-    if (rawLines.length > 1 && rawLines[rawLines.length - 1] === '') {
-      rawLines.pop();
-    }
-
-    // Detect if lines are prefixed with line numbers (e.g. "   1  content")
-    let isPrefixed = true;
-    const regex = /^\s*(\d+)(?:\s+(.*)|$)/;
-    
-    for (let i = 0; i < rawLines.length; i++) {
-      const line = rawLines[i];
-      if (line.trim() === '') continue; // Skip empty lines in validation
-      
-      const match = line.match(regex);
-      if (!match) {
-        isPrefixed = false;
-        break;
-      }
-    }
-
-    if (isPrefixed && rawLines.length > 0) {
-      const cleaned = [];
-      const numbers = [];
-      let lastNum = 0;
-      
-      for (let i = 0; i < rawLines.length; i++) {
-        const line = rawLines[i];
-        const match = line.match(regex);
-        if (match) {
-          cleaned.push(match[2] || '');
-          const num = parseInt(match[1]);
-          numbers.push(num);
-          lastNum = num;
-        } else {
-          cleaned.push(line);
-          lastNum = lastNum + 1;
-          numbers.push(lastNum);
-        }
-      }
-      return { lines: cleaned, lineNumbers: numbers, isPrefixed: true };
-    }
-
-    const offset = parseInt(lineOffset) || 0;
-    const numbers = rawLines.map((_, i) => offset + i + 1);
-    return { lines: rawLines, lineNumbers: numbers, isPrefixed: false };
-  }, [content, lineOffset]);
+  const linesData = processLines(content, lineOffset);
 
   if (!details) {
     return (
