@@ -18,6 +18,7 @@ import {
   buildResumeValue,
   describeInterrupt,
 } from '../utils/aguiTranslator.js';
+import { RunScopeTracker } from '../utils/RunScopeTracker.js';
 
 const logger = loggerService.getLogger();
 const aguiRouter = express.Router();
@@ -171,10 +172,16 @@ async function* runAgentAsAguiEvents({
         ...(hasSkillFiles ? { files: skillFiles } : {}),
       };
 
+  // Records run ancestry alongside the event stream so the translator can
+  // attribute nested events to the correct `task` (subagent) call even when
+  // several subagents run in parallel.
+  const runScopeTracker = new RunScopeTracker();
+
   const stream = agentInstance.streamEvents(inputArg, {
     configurable: { thread_id: langGraphThreadId },
     version: 'v2',
     signal,
+    callbacks: [runScopeTracker],
   });
 
   let pausedForInterrupt = false;
@@ -182,6 +189,7 @@ async function* runAgentAsAguiEvents({
     providerConfig,
     logger,
     mcpAppMap,
+    runScopeTracker,
     suppressArgStreamingFor: guardedToolNames,
     getState: langGraphThreadId
       ? async () => {

@@ -432,7 +432,13 @@ export function useAguiChat({
           event.toolCallName || toolNameRef.current.get(toolCallId) || "tool";
         toolNameRef.current.set(toolCallId, toolName);
         setToolCalls((prev) => {
-          const current = prev.find((tool) => tool.id === toolCallId) || {
+          const existing = prev.find((tool) => tool.id === toolCallId);
+          // A finished call never streams more args — a late chunk for a
+          // completed card is a stray (e.g. a provider re-using chunk indexes
+          // across turns) and must not flip it back to "running" or corrupt
+          // its args.
+          if (existing?.status === "completed") return prev;
+          const current = existing || {
             id: toolCallId,
             name: toolName,
             argumentsText: "",

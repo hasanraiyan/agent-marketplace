@@ -29,6 +29,8 @@ import {
   parseTodos,
   isLsTool,
   isReadFileTool,
+  isFileWriteTool,
+  isFileEditTool,
   toolTitle,
   searchResults,
   getDomain,
@@ -39,10 +41,12 @@ import { RequestResponsePanel } from './tool-cards/RequestResponsePanel';
 import { GrepResultsView, parseGrepResults } from './tool-cards/GrepResultsView';
 import { LsDirectoryCard } from './tool-cards/LsDirectoryCard';
 import { ReadFileCard } from './tool-cards/ReadFileCard';
+import { FileDiffCard } from './tool-cards/DiffView';
+import { SubagentActivityDialog } from './SubagentActivityDialog';
 
 export { FileSystemActionCard, ActionArguments } from './tool-cards/FileSystemActionCard';
 
-function subToolIcon(name) {
+export function subToolIcon(name) {
   const n = (name || '').toLowerCase();
   if (n.includes('search')) return Globe;
   if (n.includes('grep')) return Search;
@@ -54,7 +58,7 @@ function subToolIcon(name) {
 // The subagent's scoped mini-transcript: streamed text interleaved with its
 // own tool calls, rendered inside the owning task card. `compact` is the live
 // tail shown while the subagent is still running.
-function SubAgentTimeline({ items, compact = false }) {
+export function SubAgentTimeline({ items, compact = false }) {
   return (
     <div className={compact ? 'space-y-1' : 'space-y-1.5'}>
       {items.map((item, index) => {
@@ -100,6 +104,7 @@ function SubAgentTimeline({ items, compact = false }) {
 // tool cards keep their identity and can skip re-rendering.
 export const ToolTrace = memo(function ToolTrace({ tool }) {
   const [open, setOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const done = tool.status === 'completed';
   const results = searchResults(tool);
   const parsedResult = tryParseJson(tool.resultText);
@@ -141,11 +146,21 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
                   ? FileText
                   : Wrench;
 
+  // Subagent runs don't clutter the main feed with an inline accordion —
+  // tapping the card opens the SubagentActivityDialog instead.
+  const handleToggle = () => {
+    if (isSubagent) {
+      setDialogOpen(true);
+      return;
+    }
+    if (isExpandable) setOpen((value) => !value);
+  };
+
   return (
     <div className="max-w-[92%]">
       <button
         type="button"
-        onClick={() => isExpandable && setOpen((value) => !value)}
+        onClick={handleToggle}
         className="group flex w-full items-start gap-2 rounded-lg px-1 py-1 text-left hover:bg-slate-100 dark:hover:bg-slate-800"
       >
         <span className="flex w-6 shrink-0 justify-center pt-0.5">
@@ -224,6 +239,10 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
         ) : isReadFileTool(tool.name) ? (
           <div className="ml-8 mt-1 text-sm">
             <ReadFileCard tool={tool} />
+          </div>
+        ) : (isFileWriteTool(tool.name) || isFileEditTool(tool.name)) && !isError ? (
+          <div className="ml-8 mt-1 text-sm">
+            <FileDiffCard tool={tool} />
           </div>
         ) : (
           <div className="ml-8 mt-1 space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 text-sm dark:border-slate-700 dark:bg-slate-900/70">
@@ -337,6 +356,10 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
             )}
           </div>
         )
+      ) : null}
+
+      {isSubagent ? (
+        <SubagentActivityDialog tool={tool} open={dialogOpen} onOpenChange={setDialogOpen} />
       ) : null}
     </div>
   );

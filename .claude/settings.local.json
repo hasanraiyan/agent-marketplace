@@ -11,7 +11,8 @@
       "Bash(xargs grep -l \"readResource\\\\|listResources\")",
       "Bash(NODE_ENV=test node --experimental-vm-modules ./node_modules/jest/bin/jest.js mcp)",
       "WebSearch",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(NODE_ENV=test node --experimental-vm-modules ./node_modules/jest/bin/jest.js)"
     ]
   }
 }

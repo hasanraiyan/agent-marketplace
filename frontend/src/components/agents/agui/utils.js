@@ -167,6 +167,14 @@ export function getFileSystemActionDetails(action) {
   return { filePath, content, hasContent, otherArgs };
 }
 
+export function isFileWriteTool(name) {
+  return (name || "").toLowerCase() === "write_file";
+}
+
+export function isFileEditTool(name) {
+  return (name || "").toLowerCase() === "edit_file";
+}
+
 export function isTodoTool(name) {
   return (name || "").toLowerCase().includes("todo");
 }

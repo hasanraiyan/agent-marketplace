@@ -12,6 +12,7 @@ import {
   extractToolOutputContent,
   extractStructuredContent,
 } from '../src/utils/aguiTranslator.js';
+import { RunScopeTracker } from '../src/utils/RunScopeTracker.js';
 
 // Helper: turn an array of LangGraph events into an async iterable, optionally
 // throwing `failWith` after they are all yielded (to exercise the catch path).
@@ -105,6 +106,23 @@ describe('translateLangGraphStream', () => {
     expect(out.find((e) => e.type === 'TOOL_CALL_RESULT').content).toBe(
       JSON.stringify({ answer: 42 })
     );
+  });
+
+  test('on_tool_error resolves the pending tool call instead of leaving it stuck running', async () => {
+    // LangGraph's ToolNode already catches the throw and feeds the model a
+    // recovery ToolMessage, so the run continues — but the *traced* call still
+    // reports on_tool_error (not on_tool_end), and the AG-UI stream must not
+    // silently drop it or the client's tool card is stranded "running" forever.
+    const events = [
+      { event: 'on_tool_start', run_id: 'a', name: 'search_web', data: { input: { query: 'x' } } },
+      { event: 'on_tool_error', run_id: 'a', name: 'search_web', data: { error: new Error('boom') } },
+      { event: 'on_chat_model_stream', data: { chunk: { content: 'Recovering.' } } },
+    ];
+
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    const result = out.find((e) => e.type === 'TOOL_CALL_RESULT');
+    expect(result).toMatchObject({ toolCallId: 'a', role: 'tool' });
+    expect(JSON.parse(result.content)).toEqual({ status: 'error', message: 'boom' });
   });
 
   test('unwraps a ToolMessage output to its content (the search_web "No sources" bug)', async () => {
@@ -595,6 +613,32 @@ describe('nested (subagent) stream filtering', () => {
     expect(chunkIds).toEqual(['call_main']);
   });
 
+  test("a failed subagent internal tool closes its timeline entry instead of staying stuck running", async () => {
+    const events = [
+      { event: 'on_tool_start', run_id: 'task1', name: 'task', data: { input: { description: 'go' } } },
+      {
+        event: 'on_tool_start',
+        run_id: 'inner1',
+        name: 'search_web',
+        metadata: { langgraph_checkpoint_ns: 'tools:t1|tools:t2' },
+        data: { input: { query: 'acme' } },
+      },
+      {
+        event: 'on_tool_error',
+        run_id: 'inner1',
+        name: 'search_web',
+        metadata: { langgraph_checkpoint_ns: 'tools:t1|tools:t2' },
+        data: { error: new Error('rate limited') },
+      },
+      { event: 'on_tool_end', run_id: 'task1', name: 'task', data: { output: 'recovered anyway' } },
+    ];
+
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    const activity = out.filter((e) => e.type === 'CUSTOM' && e.name === 'subagent_activity');
+    expect(activity.map((e) => e.value.kind)).toEqual(['tool_start', 'tool_result']);
+    expect(JSON.parse(activity[1].value.result)).toEqual({ status: 'error', message: 'rate limited' });
+  });
+
   test("a subagent's internal tool calls become timeline entries on the task card", async () => {
     const events = [
       { event: 'on_tool_start', run_id: 'task1', name: 'task', data: { input: { description: 'go' } } },
@@ -634,6 +678,160 @@ describe('nested (subagent) stream filtering', () => {
     const results = out.filter((e) => e.type === 'TOOL_CALL_RESULT');
     expect(results).toHaveLength(1);
     expect(results[0]).toMatchObject({ toolCallId: 'task1', content: 'report done' });
+  });
+});
+
+describe('parallel subagent correlation (run ancestry)', () => {
+  test('nested activity is attributed via run ancestry, not "newest task wins"', async () => {
+    // Two subagents running concurrently (deepagents executes parallel task
+    // calls via Promise.all). Without ancestry, everything below would be
+    // attributed to taskB (the newest on the stack) — duplicating/mixing
+    // activity across cards.
+    const tracker = new RunScopeTracker();
+    tracker.record('chainA', 'taskA');
+    tracker.record('modelA', 'chainA');
+    tracker.record('innerA', 'chainA');
+    tracker.record('chainB', 'taskB');
+    tracker.record('modelB', 'chainB');
+
+    const events = [
+      {
+        event: 'on_tool_start',
+        run_id: 'taskA',
+        name: 'task',
+        metadata: { langgraph_checkpoint_ns: 'tools:1' },
+        data: { input: { description: 'research A' } },
+      },
+      {
+        event: 'on_tool_start',
+        run_id: 'taskB',
+        name: 'task',
+        metadata: { langgraph_checkpoint_ns: 'tools:2' },
+        data: { input: { description: 'research B' } },
+      },
+      // A streams while B is on top of the stack.
+      { event: 'on_chat_model_stream', run_id: 'modelA', data: { chunk: { content: 'from A' } } },
+      { event: 'on_chat_model_stream', run_id: 'modelB', data: { chunk: { content: 'from B' } } },
+      // A's internal tool call, no namespace metadata at all.
+      { event: 'on_tool_start', run_id: 'innerA', name: 'search_web', data: { input: { query: 'a' } } },
+      { event: 'on_tool_end', run_id: 'innerA', name: 'search_web', data: { output: 'ra' } },
+      { event: 'on_tool_end', run_id: 'taskB', name: 'task', data: { output: 'done b' } },
+      { event: 'on_tool_end', run_id: 'taskA', name: 'task', data: { output: 'done a' } },
+    ];
+
+    const out = await collect(
+      translateLangGraphStream(fakeStream(events), { runScopeTracker: tracker })
+    );
+
+    const activity = out.filter((e) => e.type === 'CUSTOM' && e.name === 'subagent_activity');
+    const textFor = (id) =>
+      activity
+        .filter((e) => e.value.kind === 'text' && e.value.toolCallId === id)
+        .map((e) => e.value.delta);
+    expect(textFor('taskA')).toEqual(['from A']);
+    expect(textFor('taskB')).toEqual(['from B']);
+
+    // innerA belongs to task A even though B started later.
+    const toolEvents = activity.filter((e) => e.value.kind !== 'text');
+    expect(toolEvents.map((e) => e.value.kind)).toEqual(['tool_start', 'tool_result']);
+    expect(toolEvents.every((e) => e.value.toolCallId === 'taskA')).toBe(true);
+
+    // Both task cards still resolve their own results.
+    const results = out.filter((e) => e.type === 'TOOL_CALL_RESULT');
+    expect(results.map((e) => e.toolCallId).sort()).toEqual(['taskA', 'taskB']);
+  });
+
+  test('both parallel task calls surface as top-level cards (neither is swallowed as nested)', async () => {
+    const events = [
+      {
+        event: 'on_tool_start',
+        run_id: 'taskA',
+        name: 'task',
+        metadata: { langgraph_checkpoint_ns: 'tools:1' },
+        data: { input: { description: 'A' } },
+      },
+      {
+        event: 'on_tool_start',
+        run_id: 'taskB',
+        name: 'task',
+        metadata: { langgraph_checkpoint_ns: 'tools:2' },
+        data: { input: { description: 'B' } },
+      },
+      { event: 'on_tool_end', run_id: 'taskA', name: 'task', data: { output: 'a' } },
+      { event: 'on_tool_end', run_id: 'taskB', name: 'task', data: { output: 'b' } },
+    ];
+
+    const out = await collect(
+      translateLangGraphStream(fakeStream(events), { runScopeTracker: new RunScopeTracker() })
+    );
+    const chunkIds = out.filter((e) => e.type === 'TOOL_CALL_CHUNK').map((e) => e.toolCallId);
+    expect(chunkIds.sort()).toEqual(['taskA', 'taskB']);
+  });
+});
+
+describe('model turn boundaries', () => {
+  test("a new turn's id-less chunks cannot reopen the previous turn's completed call", async () => {
+    // Some OpenAI-compatible providers omit the tool-call id on a turn's first
+    // chunk. Without a per-turn reset, turn 2's chunk at index 0 appends onto
+    // turn 1's call — reopening a card the client already completed
+    // ("Updating the plan") while the real execution spawns a second card
+    // ("Updated the plan").
+    const events = [
+      { event: 'on_chat_model_start', run_id: 'm1', data: {} },
+      {
+        event: 'on_chat_model_stream',
+        run_id: 'm1',
+        data: {
+          chunk: {
+            content: '',
+            tool_call_chunks: [{ index: 0, id: 'call_1', name: 'write_todos', args: '{"todos":[]}' }],
+          },
+        },
+      },
+      {
+        event: 'on_tool_start',
+        run_id: 'r1',
+        name: 'write_todos',
+        metadata: { langgraph_checkpoint_ns: 'tools:1' },
+        data: { input: { todos: [] } },
+      },
+      { event: 'on_tool_end', run_id: 'r1', name: 'write_todos', data: { output: 'ok' } },
+      { event: 'on_chat_model_start', run_id: 'm2', data: {} },
+      {
+        event: 'on_chat_model_stream',
+        run_id: 'm2',
+        data: {
+          chunk: {
+            content: '',
+            tool_call_chunks: [{ index: 0, id: null, name: 'write_todos', args: '{"todos":[{"content":"x"}]}' }],
+          },
+        },
+      },
+      {
+        event: 'on_tool_start',
+        run_id: 'r2',
+        name: 'write_todos',
+        metadata: { langgraph_checkpoint_ns: 'tools:2' },
+        data: { input: { todos: [{ content: 'x' }] } },
+      },
+      { event: 'on_tool_end', run_id: 'r2', name: 'write_todos', data: { output: 'ok2' } },
+    ];
+
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+
+    // Nothing may reference call_1 after its result arrived.
+    const resultIdx = out.findIndex(
+      (e) => e.type === 'TOOL_CALL_RESULT' && e.toolCallId === 'call_1'
+    );
+    expect(resultIdx).toBeGreaterThan(-1);
+    const lateChunks = out
+      .slice(resultIdx + 1)
+      .filter((e) => e.type === 'TOOL_CALL_CHUNK' && e.toolCallId === 'call_1');
+    expect(lateChunks).toHaveLength(0);
+
+    // The second call is its own card with its own result.
+    const results = out.filter((e) => e.type === 'TOOL_CALL_RESULT');
+    expect(results.map((e) => e.toolCallId)).toEqual(['call_1', 'r2']);
   });
 });
 
