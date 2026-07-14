@@ -96,8 +96,25 @@ export function SubAgentTimeline({ items, compact = false }) {
             </div>
           );
         }
-        const Icon = subToolIcon(item.name);
         const running = item.status === 'running';
+        // Full view: the subagent's tool calls are first-class, expandable
+        // trace cards — its plan renders as the real checklist, its searches
+        // as result cards — exactly like the main transcript.
+        if (!compact) {
+          return (
+            <ToolTrace
+              key={index}
+              tool={{
+                id: `sub-${index}`,
+                name: item.name,
+                argumentsText: item.argsText,
+                resultText: item.resultText,
+                status: running ? 'running' : 'completed',
+              }}
+            />
+          );
+        }
+        const Icon = subToolIcon(item.name);
         return (
           <div key={index} className="flex items-center gap-2 text-xs">
             {running ? (
@@ -198,7 +215,7 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
             <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
-              {toolTitle(tool)}
+              {isTodo && todos ? `Plan (${todosDone}/${todos.length})` : toolTitle(tool)}
               {isSubagent && subToolUses > 0 ? (
                 <span className="ml-1.5 font-normal text-slate-400 dark:text-slate-500">
                   · {subToolUses} tool {subToolUses === 1 ? 'use' : 'uses'}
@@ -212,18 +229,18 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
                 <ChevronDown className="size-4 text-slate-400" />
               )
             ) : null}
-            <span
-              className={cn(
-                'rounded-md px-2 py-0.5 text-[11px] font-medium',
-                isError
-                  ? 'bg-red-500/10 text-red-600 dark:text-red-400'
-                  : 'bg-[#1E60FF]/10 text-[#1E60FF]',
-              )}
-            >
-              {isError
-                ? 'Failed'
-                : isTodo && todos
-                  ? `${todosDone}/${todos.length} done`
+            {/* The Plan title already carries its status (x/y) — no badge. */}
+            {isError || !(isTodo && todos) ? (
+              <span
+                className={cn(
+                  'rounded-md px-2 py-0.5 text-[11px] font-medium',
+                  isError
+                    ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+                    : 'bg-[#1E60FF]/10 text-[#1E60FF]',
+                )}
+              >
+                {isError
+                  ? 'Failed'
                   : isWebSearch && done && results.length
                     ? `${results.length} results`
                     : isGrep && done
@@ -231,7 +248,8 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
                       : done
                         ? 'Result'
                         : 'Running'}
-            </span>
+              </span>
+            ) : null}
           </span>
         </span>
       </button>

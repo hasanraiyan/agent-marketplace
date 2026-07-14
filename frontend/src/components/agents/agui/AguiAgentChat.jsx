@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   BotIcon,
+  Brain,
+  FileText,
+  Globe,
+  ListTodo,
   Loader2,
   Sparkles,
   ChevronDown,
@@ -491,27 +495,30 @@ export function AguiAgentChat({
 
               flushToolGroup();
 
-              return renderItems.map((item) => {
+              return renderItems.map((item, index) => {
+                const prev = renderItems[index - 1];
+                // The trace flows straight into the assistant text answering
+                // it — no gap. A new user turn keeps its breathing room.
+                const tightAfterTools =
+                  prev?.type === 'tool_group' &&
+                  item.type === 'message' &&
+                  item.data.role !== 'user';
+
+                let node = null;
                 if (item.type === 'message') {
-                  return (
-                    <MessageBubble
-                      key={item.id}
-                      message={item.data}
-                    />
-                  );
-                }
-                if (item.type === 'tool_group') {
-                  return (
-                    <CollapsibleToolGroup
-                      key={item.id}
-                      tools={item.tools}
-                    />
-                  );
-                }
-                if (item.type === 'mcp_app') {
-                  return (
+                  node = <MessageBubble message={item.data} />;
+                } else if (item.type === 'tool_group') {
+                  // A lone tool reads as a plain step row — a one-item
+                  // accordion is just noise.
+                  node =
+                    item.tools.length === 1 ? (
+                      <ToolTrace tool={item.tools[0]} />
+                    ) : (
+                      <CollapsibleToolGroup tools={item.tools} />
+                    );
+                } else if (item.type === 'mcp_app') {
+                  node = (
                     <MCPAppRenderer
-                      key={item.id}
                       mcpId={item.tool.mcpApp.mcpId}
                       resourceUri={item.tool.mcpApp.resourceUri}
                       toolName={item.tool.name}
@@ -520,7 +527,12 @@ export function AguiAgentChat({
                     />
                   );
                 }
-                return null;
+                if (!node) return null;
+                return (
+                  <div key={item.id} className={tightAfterTools ? '!mt-1' : undefined}>
+                    {node}
+                  </div>
+                );
               });
             })()}
             {chat.pendingApproval ? (
@@ -576,13 +588,47 @@ export function AguiAgentChat({
   );
 }
 
+// Which semantic family a tool belongs to, for the cluster header. Memory is
+// detected by name AND by file ops touching /memories/ paths (Dostify-style).
+function toolGroupKey(tool) {
+  const name = (tool.name || '').toLowerCase();
+  if (name.includes('memory') || name.includes('preference')) return 'memory';
+  const args = tryParseJson(tool.argumentsText);
+  const path = args?.file_path || args?.path || '';
+  if (typeof path === 'string' && path.includes('/memories')) return 'memory';
+  if (name.includes('file') || name === 'ls' || name === 'glob' || name === 'grep')
+    return 'file';
+  if (name.includes('search') || name.startsWith('tavily')) return 'search';
+  if (name === 'task') return 'task';
+  if (name.includes('todo')) return 'plan';
+  return name;
+}
+
+const CLUSTER_META = {
+  memory: { title: 'Personalizing memory', Icon: Brain },
+  file: { title: 'Working with files', Icon: FileText },
+  search: { title: 'Searching the web', Icon: Globe },
+  task: { title: 'Running subagents', Icon: BotIcon },
+  plan: { title: 'Updating the plan', Icon: ListTodo },
+  mixed: { title: 'Performing actions', Icon: Wrench },
+};
+
+// A run of adjacent tool calls collapses into ONE cluster with a header
+// derived from what the mix is doing — "Working with files", "Searching the
+// web" — instead of a generic "Used N tools".
+function clusterMeta(tools) {
+  const groups = new Set(tools.map(toolGroupKey));
+  const key = groups.size === 1 ? [...groups][0] : 'mixed';
+  return CLUSTER_META[key] || CLUSTER_META.mixed;
+}
+
 function CollapsibleToolGroup({ tools }) {
-  const allDone = tools.every((t) => t.status === 'completed');
   const hasError = tools.some((t) => {
     const parsed = tryParseJson(t.resultText);
     return parsed?.status === 'error';
   });
   const anyRunning = tools.some((t) => t.status !== 'completed');
+  const { title, Icon: GroupIcon } = clusterMeta(tools);
 
   const [isOpen, setIsOpen] = useState(anyRunning);
   const [prevAnyRunning, setPrevAnyRunning] = useState(anyRunning);
@@ -609,18 +655,13 @@ function CollapsibleToolGroup({ tools }) {
           ) : (
             <CheckCircle2 className="size-4 text-emerald-500" />
           )}
-          <span>
-            {anyRunning
-              ? `Running tools (${tools.filter((t) => t.status !== 'completed').length} active)...`
-              : `Used ${tools.length} tool${tools.length > 1 ? 's' : ''}`}
+          <GroupIcon className="size-4 text-slate-400 dark:text-slate-500" />
+          <span className="font-bold">{title}</span>
+          <span className="text-[10px] font-normal text-slate-400 dark:text-slate-500">
+            {tools.length} step{tools.length > 1 ? 's' : ''}
           </span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">
-            {isOpen ? 'Click to collapse' : 'Click to expand'}
-          </span>
-          {isOpen ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-        </div>
+        {isOpen ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
       </button>
 
       {isOpen && (
