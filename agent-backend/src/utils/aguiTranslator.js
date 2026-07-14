@@ -514,6 +514,12 @@ export async function* translateLangGraphStream(stream, opts = {}) {
   // Tools currently executing (incl. hidden ones). While > 0, any model stream
   // belongs to a nested run — the main model never streams during its own tools.
   let runningToolDepth = 0;
+  // run_ids with a processed on_tool_start awaiting their end. LangSmith
+  // tracing (LANGCHAIN_TRACING_V2) makes subagent callbacks fire twice — a
+  // run can only start/end once, so lifecycle events are deduped by run_id.
+  // This also keeps runningToolDepth correct when deliveries are asymmetric
+  // (an end with no matching start must not decrement the depth).
+  const liveToolRuns = new Set();
   // Lightweight tally for an end-of-stream summary log.
   const stats = { textChunks: 0, reasoningChunks: 0, nestedChunks: 0, toolCalls: 0, toolResults: 0 };
   let textSinceLastToolResult = true;
@@ -659,6 +665,13 @@ export async function* translateLangGraphStream(stream, opts = {}) {
 
       // ── Tool call start ──────────────────────────────────────────────────────
       else if (event.event === 'on_tool_start') {
+        if (liveToolRuns.has(event.run_id)) {
+          logger?.debug('[AG-UI] skipping duplicate on_tool_start delivery', {
+            name: event.name,
+          });
+          continue;
+        }
+        liveToolRuns.add(event.run_id);
         runningToolDepth += 1;
 
         if (event.name === 'ask_clarification') {
@@ -781,6 +794,14 @@ export async function* translateLangGraphStream(stream, opts = {}) {
 
       // ── Tool call result ─────────────────────────────────────────────────────
       else if (event.event === 'on_tool_end' || event.event === 'on_tool_error') {
+        // An end whose start was never processed is either a duplicate
+        // delivery or an orphan — both must be ignored (and must not
+        // corrupt runningToolDepth).
+        if (!liveToolRuns.has(event.run_id)) {
+          logger?.debug('[AG-UI] skipping unmatched tool end delivery', { name: event.name });
+          continue;
+        }
+        liveToolRuns.delete(event.run_id);
         runningToolDepth = Math.max(0, runningToolDepth - 1);
 
         const taskIndex = taskToolStack.findIndex((t) => t.runId === event.run_id);

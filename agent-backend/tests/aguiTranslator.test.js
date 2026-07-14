@@ -769,6 +769,80 @@ describe('parallel subagent correlation (run ancestry)', () => {
   });
 });
 
+describe('duplicate event delivery (LangSmith tracing side effect)', () => {
+  test('double-delivered subagent tool lifecycle events produce a single timeline entry', async () => {
+    // With LANGCHAIN_TRACING_V2 enabled, every subagent callback fires twice
+    // (verified against a mock OpenAI server) — on_tool_start/end arrive twice
+    // with the SAME run_id. The translator must dedupe by run_id.
+    const dup = (e) => [e, e];
+    const events = [
+      {
+        event: 'on_tool_start',
+        run_id: 'task1',
+        name: 'task',
+        metadata: { langgraph_checkpoint_ns: 'tools:1' },
+        data: { input: { description: 'go' } },
+      },
+      ...dup({
+        event: 'on_tool_start',
+        run_id: 'inner1',
+        name: 'write_todos',
+        metadata: { langgraph_checkpoint_ns: 'tools:1|tools:2' },
+        data: { input: { todos: [] } },
+      }),
+      ...dup({
+        event: 'on_tool_end',
+        run_id: 'inner1',
+        name: 'write_todos',
+        metadata: { langgraph_checkpoint_ns: 'tools:1|tools:2' },
+        data: { output: 'ok' },
+      }),
+      // Depth must survive the asymmetric bookkeeping: this nested stream
+      // (no ns metadata, relies on runningToolDepth > 0) must still be
+      // routed to the task card, not the main transcript.
+      { event: 'on_chat_model_stream', run_id: 'm1', data: { chunk: { content: 'still nested' } } },
+      { event: 'on_tool_end', run_id: 'task1', name: 'task', data: { output: 'done' } },
+      { event: 'on_chat_model_stream', data: { chunk: { content: 'Main.' } } },
+    ];
+
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    const activity = out.filter((e) => e.type === 'CUSTOM' && e.name === 'subagent_activity');
+    expect(activity.filter((a) => a.value.kind === 'tool_start')).toHaveLength(1);
+    expect(activity.filter((a) => a.value.kind === 'tool_result')).toHaveLength(1);
+    expect(
+      activity.filter((a) => a.value.kind === 'text').map((a) => a.value.delta)
+    ).toEqual(['still nested']);
+    const text = out.filter((e) => e.type === 'TEXT_MESSAGE_CHUNK').map((e) => e.delta);
+    expect(text).toEqual(['Main.']);
+  });
+
+  test('a tool end with no matching start is ignored and does not corrupt depth', async () => {
+    const events = [
+      {
+        event: 'on_tool_start',
+        run_id: 'task1',
+        name: 'task',
+        metadata: { langgraph_checkpoint_ns: 'tools:1' },
+        data: { input: { description: 'go' } },
+      },
+      // Orphan ends (starts were never delivered) — seen in production logs
+      // as "Run ID not found in run map". Each must be a no-op.
+      { event: 'on_tool_end', run_id: 'ghost1', name: 'read_file', data: { output: 'x' } },
+      { event: 'on_tool_end', run_id: 'ghost1', name: 'read_file', data: { output: 'x' } },
+      // The task is still running: nested text must stay on its card.
+      { event: 'on_chat_model_stream', run_id: 'm1', data: { chunk: { content: 'nested' } } },
+      { event: 'on_tool_end', run_id: 'task1', name: 'task', data: { output: 'done' } },
+    ];
+
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    const activity = out.filter((e) => e.type === 'CUSTOM' && e.name === 'subagent_activity');
+    expect(activity.map((a) => a.value.delta)).toEqual(['nested']);
+    // The ghost result never surfaces as a tool card result.
+    const results = out.filter((e) => e.type === 'TOOL_CALL_RESULT');
+    expect(results.map((e) => e.toolCallId)).toEqual(['task1']);
+  });
+});
+
 describe('model turn boundaries', () => {
   test("a new turn's id-less chunks cannot reopen the previous turn's completed call", async () => {
     // Some OpenAI-compatible providers omit the tool-call id on a turn's first
