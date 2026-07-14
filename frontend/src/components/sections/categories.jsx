@@ -108,7 +108,7 @@ export function CategoriesSection() {
           {categories.map((cat) => (
             <button
               key={cat.label}
-              className={`group flex flex-col items-center gap-3 rounded-xl border border-border/40 bg-card/50 p-5 backdrop-blur-sm transition-all duration-300 hover:bg-card/80 hover:shadow-lg ${cat.border} sm:p-6`}
+              className={`group flex flex-col items-center gap-3 rounded-xl border border-border/40 bg-card/50 p-5 backdrop-blur-sm transition-all duration-300 hover:bg-card/80 hover:shadow-lg cursor-pointer ${cat.border} sm:p-6`}
             >
               <div
                 className={`flex size-12 items-center justify-center rounded-xl ${cat.bg} transition-transform duration-300 group-hover:scale-110 sm:size-14`}
