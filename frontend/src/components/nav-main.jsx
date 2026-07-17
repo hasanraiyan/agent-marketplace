@@ -20,9 +20,9 @@ export function NavMain({ items, myAgentId }) {
     return pathname === url || pathname.startsWith(`${url}/`);
   };
 
-  const ctaHref = myAgentId ? `/dashboard/agents/${myAgentId}` : "/dashboard/agents/create";
-  const ctaLabel = myAgentId ? "My Persona" : "Create Agent";
-  const CtaIcon = myAgentId ? UserIcon : PlusIcon;
+  const ctaHref = "/dashboard/agents/create";
+  const ctaLabel = "Create Agent";
+  const CtaIcon = PlusIcon;
 
   return (
     <SidebarGroup className="p-0">
@@ -32,7 +32,7 @@ export function NavMain({ items, myAgentId }) {
             <SidebarMenuButton
               asChild
               tooltip={ctaLabel}
-              className="h-10 w-full justify-center gap-2 rounded-xl bg-gradient-to-r from-[#1E60FF] via-[#4f46e5] to-[#1E60FF] bg-[length:200%_auto] text-white hover:bg-[position:right_center] font-bold text-sm tracking-wide shadow-md shadow-indigo-500/15 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none"
+              className="h-10 w-full justify-center gap-2 rounded-xl !bg-[#1E60FF] !text-white hover:!bg-[#154ed0] hover:!text-white font-bold text-sm tracking-wide shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none"
             >
               <Link href={ctaHref}>
                 <CtaIcon className="size-4 shrink-0 transition-transform duration-300 group-hover/menu-button:rotate-90" />
