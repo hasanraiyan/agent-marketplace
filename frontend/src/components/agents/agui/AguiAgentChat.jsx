@@ -27,119 +27,8 @@ import { ApprovalCard, ClarificationCard } from './ApprovalCard';
 import { ChatComposer } from './ChatComposer';
 import { toast } from 'sonner';
 
-const PREMIUM_MINDS_DETAILS = {
-  "moses moody": {
-    tags: "NBA | Warriors | Arkansas",
-    mindCount: "42.1K Mind",
-    verified: true,
-    description: [
-      "I am Moses Moody, professional basketball player for the Golden State Warriors. Drafted in the first round of the 2021 NBA draft, I won an NBA championship with the Warriors in my rookie season.",
-      "Ask me about shot mechanics, playing in the NBA, Steve Kerr's coaching, and my journey to the league."
-    ],
-    prompts: [
-      "What's your training routine look like?",
-      "How is it playing under Coach Steve Kerr?",
-      "What was it like winning a championship in your rookie year?"
-    ],
-    socials: {
-      x: "https://x.com/mosesmoody",
-      linkedin: "https://linkedin.com",
-      youtube: "https://youtube.com"
-    }
-  },
-  "brian halligan": {
-    tags: "HubSpot | Sequoia | MIT",
-    mindCount: "26.4K Mind",
-    verified: true,
-    description: [
-      "I am HubSpot's co-founder and was its long time CEO. Along that journey, I learned a lot about creating a category (inbound), going from an app to a platform, creating a remark-able culture, etc.",
-      "Today, I spend a lot of my time building Sequoia's CEO practice. I have a community of CEOs, coach CEOs, and create content for CEOs (Long Strange Trip podcast). From HubSpot and communing with some of the world's best startup CEOs, I have a perspective on the job.",
-      "Ask me anything you like."
-    ],
-    prompts: [
-      "What are the best practices for a startup founder to evolve into a scale-up CEO?",
-      "What are the biggest pitfalls on the CEOs journey from startup founder to scale-up CEO?",
-      "How can I create my company's second act?"
-    ],
-    socials: {
-      x: "https://x.com/bhalligan",
-      linkedin: "https://linkedin.com/in/brianhalligan",
-      youtube: "https://youtube.com"
-    }
-  },
-  "emily mcdonald": {
-    tags: "Neuroscientist | Brain Coach | @emonthebrain",
-    mindCount: "38.9K Mind",
-    verified: true,
-    description: [
-      "I am Emily McDonald, neuroscientist, brain coach, and content creator. I specialize in teaching people how to optimize their brain health, enhance mental focus, build positive cognitive habits, and use science-backed biohacking and mindfulness techniques to live a better life."
-    ],
-    prompts: [
-      "How can I optimize my brain health today?",
-      "What are the best habits to improve focus and productivity?",
-      "Explain the neuroscience behind mindfulness."
-    ],
-    socials: {
-      x: "https://x.com/emonthebrain",
-      linkedin: "https://linkedin.com",
-      youtube: "https://youtube.com"
-    }
-  },
-  "ben greenfield": {
-    tags: "Biohacker | Triathlete | Author",
-    mindCount: "31.2K Mind",
-    verified: true,
-    description: [
-      "I am Ben Greenfield, biohacker, human performance consultant, ex-bodybuilder, and triathlete. I focus on helping you optimize physical performance, longevity, sleep, nutrition, and deep wellness through scientific protocols, biohacking tools, and holistic health practices."
-    ],
-    prompts: [
-      "What are the top biohacks for deep sleep?",
-      "Can you recommend a longevity nutrition protocol?",
-      "What are the best active recovery routines?"
-    ],
-    socials: {
-      x: "https://x.com/bengreenfield",
-      linkedin: "https://linkedin.com/in/ben-greenfield-8a032822",
-      youtube: "https://youtube.com"
-    }
-  },
-  "vanessa van edwards": {
-    tags: "Author | Captivate | Science of People",
-    mindCount: "53.4K Mind",
-    verified: true,
-    description: [
-      "I am Vanessa Van Edwards, lead behavioral investigator at Science of People and author of the best-selling books 'Captivate' and 'Cues'. I teach people-skills, body language, charisma, and how to communicate effectively to build instant rapport and make unforgettable first impressions."
-    ],
-    prompts: [
-      "How can I make a great first impression?",
-      "What body language cues should I use in high-stakes negotiations?",
-      "How do I build rapport quickly with new connections?"
-    ],
-    socials: {
-      x: "https://x.com/vvanedwards",
-      linkedin: "https://linkedin.com/in/vanessavanedwards",
-      youtube: "https://youtube.com"
-    }
-  },
-  "zack kass": {
-    tags: "AI Futurist | OpenAI | Advisor",
-    mindCount: "18.9K Mind",
-    verified: true,
-    description: [
-      "I am Zack Kass, AI Futurist and former Head of Go-To-Market at OpenAI. I work with organizations to navigate the future of Artificial General Intelligence (AGI), build corporate AI strategies, and encourage human-centric adaptation that empowers society."
-    ],
-    prompts: [
-      "How do we restore humanity in the age of AI?",
-      "What are key strategies for corporate AI implementation?",
-      "What does the road to AGI look like?"
-    ],
-    socials: {
-      x: "https://x.com/zackkass",
-      linkedin: "https://linkedin.com/in/zackkass",
-      youtube: "https://youtube.com"
-    }
-  }
-};
+// Premium minds details removed
+
 
 export function AguiAgentChat({
   agent,
@@ -279,10 +168,9 @@ export function AguiAgentChat({
             )}
           >
             {(() => {
-              const agentName = (agent?.name || "").toLowerCase();
-              let details = {
+              const details = {
                 tags: agent?.tags?.join(' | ') || agent?.category || 'Agent',
-                mindCount: '12.5K Mind',
+                mindCount: agent?.messageCount ? `${agent.messageCount} Chats` : '0 Chats',
                 verified: false,
                 description: [agent?.description || 'Ask this agent to work on your request.'],
                 prompts: getSuggestedPrompts(agent).map(p => p.prompt),
@@ -292,20 +180,6 @@ export function AguiAgentChat({
                   youtube: "https://youtube.com"
                 }
               };
-
-              if (agentName.includes("moses") || agentName.includes("moody")) {
-                details = PREMIUM_MINDS_DETAILS["moses moody"];
-              } else if (agentName.includes("brian") || agentName.includes("halligan")) {
-                details = PREMIUM_MINDS_DETAILS["brian halligan"];
-              } else if (agentName.includes("emily") || agentName.includes("mcdonald")) {
-                details = PREMIUM_MINDS_DETAILS["emily mcdonald"];
-              } else if (agentName.includes("ben") || agentName.includes("greenfield")) {
-                details = PREMIUM_MINDS_DETAILS["ben greenfield"];
-              } else if (agentName.includes("vanessa")) {
-                details = PREMIUM_MINDS_DETAILS["vanessa van edwards"];
-              } else if (agentName.includes("zack") || agentName.includes("kass")) {
-                details = PREMIUM_MINDS_DETAILS["zack kass"];
-              }
 
               const handleShare = () => {
                 if (typeof window !== "undefined") {

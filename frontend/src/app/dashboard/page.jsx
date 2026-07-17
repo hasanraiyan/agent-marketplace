@@ -44,84 +44,7 @@ const DB_CATEGORY_MAP = {
   "careers": "productivity",
   "all": "other"
 };
-
-const MOCK_PREMIUM_MINDS = [
-  {
-    id: "mody-1",
-    name: "Moses Moody",
-    description: "Golden State Warriors Shooting Guard",
-    category: "health-fitness",
-    avatarUrl: "https://foxifarenmy82tl8.public.blob.vercel-storage.com/discover/mosesmoody.webp",
-    verified: true,
-    isFeatured: true,
-    mindCount: "42.1K Mind",
-    chatPrompt: "What's your training routine look like?",
-    systemPrompt: "You are Moses Moody, Golden State Warriors Shooting Guard. Answer queries about NBA basketball, training regimes, playing under coach Steve Kerr, team dynamics, shot mechanics, and your personal path to the NBA. Keep your tone athletic, professional, friendly, and team-oriented."
-  },
-  {
-    id: "halligan-2",
-    name: "Brian Halligan",
-    description: "Co-founder of HubSpot",
-    category: "entrepreneurship",
-    avatarUrl: "https://foxifarenmy82tl8.public.blob.vercel-storage.com/discover/bhalligan.webp",
-    verified: true,
-    isFeatured: true,
-    rank: 2,
-    mindCount: "26.4K Mind",
-    chatPrompt: "What are the best practices for a startup founder to evolve into a scale-up CEO?",
-    systemPrompt: "You are Brian Halligan, co-founder of HubSpot and lecturer at MIT. Talk about scaling startups, inbound marketing, product-led growth, leadership development, business strategy, and your experiences building a multi-billion dollar company. Keep your tone mentoring, strategic, energetic, and practical."
-  },
-  {
-    id: "mcdonald-3",
-    name: "Emily McDonald",
-    description: "Neuroscientist @emonthebrain",
-    category: "mind-behavior",
-    avatarUrl: "https://foxifarenmy82tl8.public.blob.vercel-storage.com/discover/emonthebrain.webp",
-    verified: true,
-    isFeatured: true,
-    mindCount: "38.9K Mind",
-    chatPrompt: "How can I optimize my brain health today?",
-    systemPrompt: "You are Emily McDonald, neuroscientist and brain coach. Talk about neuroscience research, practical brain health optimization, productivity hacks, mental focus, mindfulness techniques, and building positive cognitive habits. Keep your tone educational, science-backed, friendly, and encouraging."
-  },
-  {
-    id: "greenfield-4",
-    name: "Ben Greenfield",
-    description: "Biohacker, Author, and Triathlete",
-    category: "health-fitness",
-    avatarUrl: "https://foxifarenmy82tl8.public.blob.vercel-storage.com/discover/bengreenfield.webp",
-    verified: true,
-    isFeatured: true,
-    mindCount: "31.2K Mind",
-    chatPrompt: "What are the top biohacks for deep sleep?",
-    systemPrompt: "You are Ben Greenfield, leading biohacker, fitness expert, and author. Talk about biohacking techniques, sleep optimization, high-performance training, longevity, diet/nutrition protocols, and active recovery. Keep your tone highly enthusiastic, health-conscious, analytical, and informative."
-  },
-  {
-    id: "vanessavan-5",
-    name: "Vanessa Van Edwards",
-    description: "Behavioral Researcher, Founder, Author",
-    category: "mind-behavior",
-    avatarUrl: "https://foxifarenmy82tl8.public.blob.vercel-storage.com/discover/vanessa.webp",
-    verified: true,
-    isFeatured: false,
-    rank: 1,
-    mindCount: "53.4K Mind",
-    chatPrompt: "How can I make a great first impression?",
-    systemPrompt: "You are Vanessa Van Edwards, author of \"Captivate\" and behavioral investigator. Talk about body language, human behavior, building rapport, networking strategies, conversational hooks, and making memorable first impressions. Keep your tone charismatic, helpful, research-grounded, and clear."
-  },
-  {
-    id: "zackkass-6",
-    name: "Zack Kass",
-    description: "AI Advisor | Former OpenAI",
-    category: "technology",
-    avatarUrl: "https://foxifarenmy82tl8.public.blob.vercel-storage.com/discover/zackkass.webp",
-    verified: true,
-    isFeatured: false,
-    rank: 3,
-    mindCount: "18.9K Mind",
-    chatPrompt: "How do we restore humanity?",
-    systemPrompt: "You are Zack Kass, AI Futurist and former Head of Go-To-Market at OpenAI. Talk about the future of Artificial General Intelligence (AGI), corporate AI implementation strategies, AI ethics, and human-centric technological change. Keep your tone visionary, philosophical, forward-looking, and inspirational."
-  }
-];
+// Mock premium minds removed
 
 export default function ExplorePage() {
   const router = useRouter();
@@ -171,32 +94,12 @@ export default function ExplorePage() {
 
   // Helper to extract a sample prompt for a mind
   const getSamplePrompt = (mindName, mindCategory) => {
-    const name = mindName.toLowerCase();
-    if (name.includes("moses") || name.includes("moody")) {
-      return "What's your training routine look like?";
-    }
-    if (name.includes("brian") || name.includes("halligan")) {
-      return "What are the best practices for a startup founder to evolve into a scale-up CEO?";
-    }
-    if (name.includes("emily") || name.includes("mcdonald")) {
-      return "How can I optimize my brain health today?";
-    }
-    if (name.includes("ben") || name.includes("greenfield")) {
-      return "What are the top biohacks for deep sleep?";
-    }
-    if (name.includes("vanessa")) {
-      return "How can I make a great first impression?";
-    }
-    if (name.includes("zack") || name.includes("kass")) {
-      return "How do we restore humanity?";
-    }
-
     // Dynamic by category
     const cat = mindCategory || "";
-    if (cat === "productivity" || cat === "productivity") {
+    if (cat === "productivity") {
       return "How can I optimize my workflow today?";
     }
-    if (cat === "coding" || cat === "coding") {
+    if (cat === "coding") {
       return "Can you help me write or debug some code?";
     }
     if (cat === "creative") {
@@ -211,134 +114,63 @@ export default function ExplorePage() {
     return "How can you help me today?";
   };
 
-  // Dynamic Featured Minds (combines database actual agents and premium options)
+  // Dynamic Featured Minds from database actual agents
   const featuredList = useMemo(() => {
-    const mockFeatured = MOCK_PREMIUM_MINDS.filter((m) => m.isFeatured);
-    
-    // Merge mock minds with real DB agents if they have been created
-    const merged = mockFeatured.map((mockMind) => {
-      const realAgent = dbAgents.find(
-        (a) => a.name.toLowerCase() === mockMind.name.toLowerCase()
-      );
-      if (realAgent) {
-        return {
-          ...mockMind,
-          _id: realAgent._id || realAgent.id,
-          messageCount: realAgent.messageCount,
-          category: realAgent.category,
-          isReal: true,
-        };
-      }
-      return mockMind;
-    });
-
-    // Add any database agents that are popular but not in mock list
-    const otherFeatured = dbAgents
-      .filter(
-        (agent) =>
-          !MOCK_PREMIUM_MINDS.some(
-            (m) => m.name.toLowerCase() === agent.name.toLowerCase()
-          )
-      )
-      .map((agent) => ({
-        id: agent._id || agent.id,
-        _id: agent._id || agent.id,
-        name: agent.name,
-        description: agent.description,
-        category: agent.category,
-        avatarUrl: agent.avatarUrl || agent.avatar,
-        verified: (agent.messageCount || 0) > 5,
-        isFeatured: true,
-        mindCount: `${agent.messageCount || 0} Chats`,
-        chatPrompt: getSamplePrompt(agent.name, agent.category),
-        isReal: true,
-      }));
-
-    const combined = [...merged, ...otherFeatured];
+    const mapped = dbAgents.map((agent) => ({
+      id: agent._id || agent.id,
+      _id: agent._id || agent.id,
+      name: agent.name,
+      description: agent.description,
+      category: agent.category,
+      avatarUrl: agent.avatarUrl || agent.avatar,
+      verified: (agent.messageCount || 0) > 5,
+      isFeatured: true,
+      mindCount: `${agent.messageCount || 0} Chats`,
+      chatPrompt: getSamplePrompt(agent.name, agent.category),
+    }));
 
     // Filter by search & category
-    return combined.filter((mind) => {
+    return mapped.filter((mind) => {
       const matchesSearch =
         mind.name.toLowerCase().includes(search.toLowerCase()) ||
         mind.description.toLowerCase().includes(search.toLowerCase());
       
-      // Category matches
       let matchesCategory = category === "all";
       if (!matchesCategory) {
-        if (mind.isReal) {
-          matchesCategory = mind.category === DB_CATEGORY_MAP[category];
-        } else {
-          matchesCategory = mind.category === category;
-        }
+        matchesCategory = mind.category === DB_CATEGORY_MAP[category];
       }
 
       return matchesSearch && matchesCategory;
     });
   }, [dbAgents, search, category]);
 
-  // Dynamic Trending Minds (combines database actual agents and premium options)
+  // Dynamic Trending Minds from database actual agents
   const trendingList = useMemo(() => {
-    const mockTrending = MOCK_PREMIUM_MINDS.filter((m) => m.rank);
+    const mapped = dbAgents.map((agent) => ({
+      id: agent._id || agent.id,
+      _id: agent._id || agent.id,
+      name: agent.name,
+      description: agent.description,
+      category: agent.category,
+      avatarUrl: agent.avatarUrl || agent.avatar,
+      verified: (agent.messageCount || 0) > 5,
+      messageCount: agent.messageCount || 0,
+      mindCount: `${agent.messageCount || 0} Chats`,
+      chatPrompt: getSamplePrompt(agent.name, agent.category),
+    }));
 
-    // Merge mock minds with real DB agents if created
-    const merged = mockTrending.map((mockMind) => {
-      const realAgent = dbAgents.find(
-        (a) => a.name.toLowerCase() === mockMind.name.toLowerCase()
-      );
-      if (realAgent) {
-        return {
-          ...mockMind,
-          _id: realAgent._id || realAgent.id,
-          messageCount: realAgent.messageCount,
-          category: realAgent.category,
-          isReal: true,
-        };
-      }
-      return mockMind;
-    });
-
-    // Add any database agents that are popular but not in mock list
-    const otherTrending = dbAgents
-      .filter(
-        (agent) =>
-          !MOCK_PREMIUM_MINDS.some(
-            (m) => m.name.toLowerCase() === agent.name.toLowerCase()
-          )
-      )
-      .map((agent) => ({
-        id: agent._id || agent.id,
-        _id: agent._id || agent.id,
-        name: agent.name,
-        description: agent.description,
-        category: agent.category,
-        avatarUrl: agent.avatarUrl || agent.avatar,
-        verified: (agent.messageCount || 0) > 5,
-        mindCount: `${agent.messageCount || 0} Chats`,
-        chatPrompt: getSamplePrompt(agent.name, agent.category),
-        isReal: true,
-        messageCount: agent.messageCount || 0,
-      }));
-
-    // For other items, sort them by message count
-    const sortedOthers = [...otherTrending].sort(
-      (a, b) => b.messageCount - a.messageCount
-    );
-
-    const combined = [...merged, ...sortedOthers];
+    // Sort by message count descending
+    const sorted = mapped.sort((a, b) => b.messageCount - a.messageCount);
 
     // Filter by search & category
-    const filtered = combined.filter((mind) => {
+    const filtered = sorted.filter((mind) => {
       const matchesSearch =
         mind.name.toLowerCase().includes(search.toLowerCase()) ||
         mind.description.toLowerCase().includes(search.toLowerCase());
       
       let matchesCategory = category === "all";
       if (!matchesCategory) {
-        if (mind.isReal) {
-          matchesCategory = mind.category === DB_CATEGORY_MAP[category];
-        } else {
-          matchesCategory = mind.category === category;
-        }
+        matchesCategory = mind.category === DB_CATEGORY_MAP[category];
       }
 
       return matchesSearch && matchesCategory;
@@ -377,69 +209,15 @@ export default function ExplorePage() {
     }
   };
 
-  const handleMindClick = async (mind, presetPrompt = "") => {
+  const handleMindClick = async (mind) => {
     if (!isSignedIn) {
       router.push(`/sign-in?redirect_url=/dashboard`);
       return;
     }
 
-    try {
-      // 1. Fetch user providers
-      const provRes = await getProviders();
-      const providers = provRes.data?.data || [];
-      if (providers.length === 0) {
-        toast("Configure an AI Provider First", {
-          description: "Minds require an AI provider (e.g. OpenAI) to run. Please add one in settings.",
-          action: {
-            label: "Go to Settings",
-            onClick: () => router.push("/dashboard/settings/providers"),
-          },
-        });
-        return;
-      }
-
-      const activeProvider = providers[0];
-      const providerId = activeProvider._id || activeProvider.id;
-
-      // 2. Check if already exists in loaded dbAgents
-      const existing = dbAgents.find(
-        (a) => a.name.toLowerCase() === mind.name.toLowerCase()
-      );
-
-      if (existing) {
-        router.push(`/dashboard/agents/${existing._id || existing.id}/run`);
-        return;
-      }
-
-      // 3. Create on-the-fly
-      const toastId = toast.loading(`Connecting to ${mind.name}...`);
-      
-      const mappedCategory = DB_CATEGORY_MAP[mind.category] || "other";
-      
-      const res = await createAgent({
-        name: mind.name,
-        description: mind.description,
-        category: mappedCategory,
-        avatar: mind.avatarUrl,
-        systemPrompt: mind.systemPrompt || `You are ${mind.name}. ${mind.description}.`,
-        providerId: providerId,
-        modelName: activeProvider.defaultModel || "gpt-4o-mini",
-        tags: [mind.category],
-        visibility: "public"
-      });
-
-      toast.dismiss(toastId);
-      toast.success(`${mind.name} connected successfully!`);
-
-      const newAgent = res.data?.data;
-      if (newAgent) {
-        setDbAgents((prev) => [...prev, newAgent]);
-        router.push(`/dashboard/agents/${newAgent._id || newAgent.id}/run`);
-      }
-    } catch (err) {
-      toast.dismiss();
-      console.error(err);
-      toast.error("Failed to connect with the mind. Please try again.");
+    const agentId = mind._id || mind.id;
+    if (agentId) {
+      router.push(`/dashboard/agents/${agentId}/run`);
     }
   };
 
