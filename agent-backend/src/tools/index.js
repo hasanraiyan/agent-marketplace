@@ -4,6 +4,7 @@ import { askClarificationTool } from './clarification.tool.js';
 import { resolveMcpTools } from './mcp.tools.js';
 import { resolveKnowledgeBaseTools } from './knowledge.tools.js';
 import { getMemoryTools } from './memory.tools.js';
+import { presentFileTool } from './present.tool.js';
 
 export const ARCHITECT_AGENT_ID = '000000000000000000000000';
 
@@ -21,7 +22,8 @@ export const resolveAgentTools = async (agentConfig, userId) => {
   }
 
   const agentId = agentConfig._id?.toString() || agentConfig.id?.toString();
-  const tools = [clarificationTool, ...getMemoryTools(userId, agentId)];
+  const presentTool = presentFileTool();
+  const tools = [clarificationTool, presentTool, ...getMemoryTools(userId, agentId)];
 
   // 2. Core Engine Web Search parsing
   if (agentConfig.webSearchEnabled) {
@@ -46,7 +48,7 @@ export const resolveAgentTools = async (agentConfig, userId) => {
 
 // Also expose generic factory for backend scripts outside of Chat loop
 export const getAvailableTools = () => {
-  const tools = [askClarificationTool()];
+  const tools = [askClarificationTool(), presentFileTool()];
 
   const searchTool = getSearchTool();
   if (searchTool) tools.push(searchTool);

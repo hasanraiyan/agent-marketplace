@@ -10,6 +10,7 @@ import {
   Code,
   FileCode,
   ListTodo,
+  Loader2,
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -37,8 +38,12 @@ export function AguiFilesPanel({
   onOpenChange,
   tab: tabProp,
   onTabChange,
+  selectedFile,
+  onSelectFile,
 }) {
-  const [selected, setSelected] = useState(null);
+  const [localSelected, setLocalSelected] = useState(null);
+  const selected = selectedFile !== undefined ? selectedFile : localSelected;
+  const setSelected = onSelectFile !== undefined ? onSelectFile : setLocalSelected;
   const [copied, setCopied] = useState(false);
   const [internalTab, setInternalTab] = useState('files');
   const [viewMode, setViewMode] = useState('code');
@@ -349,10 +354,15 @@ export function AguiFilesPanel({
             )}
           </div>
           <div className="border-t border-slate-100 bg-slate-50 px-4 py-2 dark:border-slate-800 dark:bg-slate-900/50">
-            <div className="truncate font-mono text-[10px] text-slate-400">
+            <div className="truncate font-mono text-[10px] text-slate-450">
               {active.path}
             </div>
           </div>
+        </div>
+      ) : selected ? (
+        <div className="flex flex-col items-center justify-center flex-1 p-6 text-center text-slate-400 dark:text-slate-500">
+          <Loader2 className="size-6.5 animate-spin mb-2 text-indigo-500" />
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-450">Opening {selected.split('/').pop()}...</span>
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-auto">

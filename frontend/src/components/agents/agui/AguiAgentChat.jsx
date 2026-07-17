@@ -48,6 +48,7 @@ export function AguiAgentChat({
   onNewChat,
   onRunFinished,
   onTitleGenerated,
+  onOpenFile,
   showHeader = true,
   contentClassName,
 }) {
@@ -386,9 +387,9 @@ export function AguiAgentChat({
                   // accordion is just noise.
                   node =
                     item.tools.length === 1 ? (
-                      <ToolTrace tool={item.tools[0]} />
+                      <ToolTrace tool={item.tools[0]} onOpenFile={onOpenFile} />
                     ) : (
-                      <CollapsibleToolGroup tools={item.tools} />
+                      <CollapsibleToolGroup tools={item.tools} onOpenFile={onOpenFile} />
                     );
                 } else if (item.type === 'mcp_app') {
                   node = (
@@ -496,7 +497,7 @@ function clusterMeta(tools) {
   return CLUSTER_META[key] || CLUSTER_META.mixed;
 }
 
-function CollapsibleToolGroup({ tools }) {
+function CollapsibleToolGroup({ tools, onOpenFile }) {
   const hasError = tools.some((t) => {
     const parsed = tryParseJson(t.resultText);
     return parsed?.status === 'error';
@@ -541,7 +542,7 @@ function CollapsibleToolGroup({ tools }) {
       {isOpen && (
         <div className="mt-2 space-y-2 pl-4">
           {tools.map((tool) => (
-            <ToolTrace key={tool.id} tool={tool} />
+            <ToolTrace key={tool.id} tool={tool} onOpenFile={onOpenFile} />
           ))}
         </div>
       )}

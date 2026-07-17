@@ -62,7 +62,7 @@ export function subToolIcon(name) {
 // The subagent's scoped mini-transcript: streamed text interleaved with its
 // own tool calls, rendered inside the owning task card. `compact` is the live
 // tail shown while the subagent is still running.
-export function SubAgentTimeline({ items, compact = false }) {
+export function SubAgentTimeline({ items, compact = false, onOpenFile }) {
   return (
     <div className={compact ? 'space-y-1' : 'space-y-1.5'}>
       {items.map((item, index) => {
@@ -112,6 +112,7 @@ export function SubAgentTimeline({ items, compact = false }) {
                 resultText: item.resultText,
                 status: running ? 'running' : 'completed',
               }}
+              onOpenFile={onOpenFile}
             />
           );
         }
@@ -140,7 +141,7 @@ export function SubAgentTimeline({ items, compact = false }) {
 
 // Memoized: streaming updates replace only the affected tool object, so other
 // tool cards keep their identity and can skip re-rendering.
-export const ToolTrace = memo(function ToolTrace({ tool }) {
+export const ToolTrace = memo(function ToolTrace({ tool, onOpenFile }) {
   const [open, setOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const done = tool.status === 'completed';
@@ -148,6 +149,53 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
   const parsedResult = tryParseJson(tool.resultText);
   const isError = parsedResult?.status === 'error';
   const nameLower = (tool.name || '').toLowerCase();
+
+  if (nameLower === 'present_file') {
+    const args = parseToolArgs(tool.argumentsText) || {};
+    const filePath = args.filePath || args.file_path || args.path || '';
+    const fileName = filePath.split('/').pop() || filePath;
+    const description = args.description || '';
+
+    const handleOpenClick = () => {
+      if (onOpenFile && filePath) {
+        onOpenFile(filePath);
+      } else {
+        toast.error("VFS not available to open file");
+      }
+    };
+
+    return (
+      <div className="flex w-full items-center justify-between rounded-lg border border-slate-150 bg-slate-50/50 p-2 dark:border-slate-800 dark:bg-slate-900/20">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+            <FileText className="size-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="truncate text-xs font-bold text-slate-800 dark:text-slate-100">
+              {fileName}
+            </div>
+            {description ? (
+              <p className="truncate text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                {description}
+              </p>
+            ) : (
+              <p className="truncate text-[10px] text-slate-400 dark:text-slate-500 font-mono mt-0.5">
+                {filePath}
+              </p>
+            )}
+          </div>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleOpenClick}
+          className="ml-2 shrink-0 h-7 rounded border-slate-200 hover:bg-slate-100 text-xs font-semibold px-2.5 dark:border-slate-800 dark:hover:bg-slate-800/80"
+        >
+          Open
+        </Button>
+      </div>
+    );
+  }
   const isWebSearch = tool.name === 'search_web' || nameLower.includes('google') || nameLower.startsWith('tavily');
   const isKbSearch = nameLower.startsWith('search_') && !isWebSearch;
   const isKbListSources = nameLower === 'list_knowledge_base_sources' || nameLower.startsWith('list_sources_');
@@ -279,7 +327,7 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
             <BotIcon className="size-3 animate-pulse text-orange-500" />
             Subagent working
           </div>
-          <SubAgentTimeline items={subEvents.slice(-4)} compact />
+          <SubAgentTimeline items={subEvents.slice(-4)} compact onOpenFile={onOpenFile} />
         </div>
       ) : null}
       {open ? (
@@ -311,7 +359,7 @@ export const ToolTrace = memo(function ToolTrace({ tool }) {
                   Subagent Activity
                 </div>
                 <div className="max-h-64 overflow-auto rounded-xl border border-slate-150 bg-slate-100/50 p-2.5 dark:border-slate-800/60 dark:bg-slate-900/50 scrollbar-thin">
-                  <SubAgentTimeline items={subEvents} />
+                  <SubAgentTimeline items={subEvents} onOpenFile={onOpenFile} />
                 </div>
               </div>
             )}
