@@ -7,7 +7,19 @@ import rehypeSanitize from 'rehype-sanitize';
 import {
   ChevronDown,
   ChevronUp,
+  Copy,
+  Check,
 } from 'lucide-react';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-javascript';
+import 'prismjs/components/prism-typescript';
+import 'prismjs/components/prism-python';
+import 'prismjs/components/prism-json';
+import 'prismjs/components/prism-markdown';
+import 'prismjs/components/prism-css';
+import 'prismjs/components/prism-bash';
+import 'prismjs/components/prism-sql';
+import 'prismjs/components/prism-yaml';
 import { cn } from '@/lib/utils';
 
 function ReasoningBubble({ message }) {
@@ -33,6 +45,7 @@ function ReasoningBubble({ message }) {
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               rehypePlugins={[rehypeSanitize]}
+              components={markdownComponents}
             >
               {message.content}
             </ReactMarkdown>
@@ -45,10 +58,14 @@ function ReasoningBubble({ message }) {
   );
 }
 
-export function ThinkingText({ label = 'Thinking' }) {
+export function ThinkingText() {
   return (
-    <span className="inline-flex shimmer-text items-center text-sm font-bold tracking-wider">
-      {label}
+    <span className="inline-flex items-center py-1.5">
+      <span className="inline-flex gap-1.2">
+        <span className="h-1.5 w-1.5 rounded-full bg-slate-500 dark:bg-slate-400 animate-bounce [animation-delay:-0.3s]" />
+        <span className="h-1.5 w-1.5 rounded-full bg-slate-500 dark:bg-slate-400 animate-bounce [animation-delay:-0.15s]" />
+        <span className="h-1.5 w-1.5 rounded-full bg-slate-500 dark:bg-slate-400 animate-bounce" />
+      </span>
     </span>
   );
 }
@@ -73,6 +90,107 @@ export function NewChatIcon({ className }) {
     </svg>
   );
 }
+
+function CodeBlock({ language, value }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
+
+  const getGrammar = (lang) => {
+    const l = lang.toLowerCase();
+    if (l === 'js' || l === 'javascript') return Prism.languages.javascript;
+    if (l === 'ts' || l === 'typescript') return Prism.languages.typescript;
+    if (l === 'py' || l === 'python') return Prism.languages.python;
+    if (l === 'json') return Prism.languages.json;
+    if (l === 'html') return Prism.languages.markup;
+    if (l === 'css') return Prism.languages.css;
+    if (l === 'md' || l === 'markdown') return Prism.languages.markdown;
+    if (l === 'bash' || l === 'sh') return Prism.languages.bash;
+    if (l === 'sql') return Prism.languages.sql;
+    if (l === 'yaml' || l === 'yml') return Prism.languages.yaml;
+    return Prism.languages[l] || Prism.languages.markup;
+  };
+
+  const highlighted = (() => {
+    try {
+      const grammar = getGrammar(language);
+      if (grammar) {
+        return Prism.highlight(value, grammar, language);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return value;
+  })();
+
+  return (
+    <div className="my-3 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0D1117] shadow-xs">
+      <div className="flex items-center justify-between bg-slate-100/80 dark:bg-[#161B22]/80 px-4 py-1.5 text-xs text-slate-500 dark:text-slate-400 font-sans select-none border-b border-slate-200 dark:border-slate-800">
+        <span className="font-semibold uppercase tracking-wider text-[10px]">{language}</span>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
+        >
+          {copied ? (
+            <>
+              <Check className="size-3.5 text-green-600 dark:text-green-400" />
+              <span>Copied</span>
+            </>
+          ) : (
+            <>
+              <Copy className="size-3.5" />
+              <span>Copy</span>
+            </>
+          )}
+        </button>
+      </div>
+      <div className="p-3.5 overflow-x-auto scrollbar-thin select-text">
+        <pre className="m-0 bg-transparent p-0 font-mono text-[13px] leading-6 text-slate-800 dark:text-[#E6EDF2]">
+          {highlighted !== value ? (
+            <code
+              className={`language-${language}`}
+              dangerouslySetInnerHTML={{ __html: highlighted }}
+            />
+          ) : (
+            <code className={`language-${language}`}>{value}</code>
+          )}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+const markdownComponents = {
+  pre({ children }) {
+    return <>{children}</>;
+  },
+  code({ node, inline, className, children, ...props }) {
+    const match = /language-(\w+)/.exec(className || '');
+    const language = match ? match[1] : '';
+    const codeValue = String(children).replace(/\n$/, '');
+
+    if (!inline) {
+      return (
+        <CodeBlock language={language || 'text'} value={codeValue} />
+      );
+    }
+
+    return (
+      <code className={cn("px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-mono break-all", className)} {...props}>
+        {children}
+      </code>
+    );
+  }
+};
 
 // Memoized: during token streaming only the active message object changes
 // identity (replaceById keeps the rest), so re-parsing every bubble's markdown
@@ -107,6 +225,7 @@ export const MessageBubble = memo(function MessageBubble({ message }) {
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             rehypePlugins={[rehypeSanitize]}
+            components={markdownComponents}
           >
             {message.content}
           </ReactMarkdown>
