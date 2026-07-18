@@ -304,6 +304,11 @@ class AgentFactory {
     // Fetch User Profile context and append to system prompt
     let personalizedPrompt = `${agent.systemPrompt}
 
+### PRESENT FILE RULES
+- When you want to showcase or highlight a file to the user, call the \`present_file\` tool.
+- The frontend will automatically display a clean inline card with an "Open" button on the user's screen.
+- Therefore, do NOT repeat the file path, location, or description in your text response. Keep your text response minimal to avoid duplicating the information on the user's screen.
+
 ### AUTOMATIC PERSISTENT MEMORY RULES
 - You have access to long-term memory tools (\`save_agent_memory\` for agent-level learnings, and \`save_user_preference\` for user profile details).
 - Do not wait for the user to explicitly tell you to save facts or preferences. Proactively analyze the conversation and call the appropriate memory tool to record:

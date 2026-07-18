@@ -941,7 +941,7 @@ export async function* translateLangGraphStream(stream, opts = {}) {
       return;
     }
 
-    if (lastToolResult && !textSinceLastToolResult) {
+    if (lastToolResult && !textSinceLastToolResult && lastToolResult.name !== 'present_file') {
       const delta = buildToolCompletionNotice(lastToolResult.name, lastToolResult.content);
       logger?.debug('[AG-UI] synthesized post-tool completion notice', {
         name: lastToolResult.name,
