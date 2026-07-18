@@ -351,18 +351,28 @@ export function AguiAgentChat({
                 } else if (entry.type === 'tool') {
                   const tool = toolById(entry.refId);
                   if (tool) {
-                    currentToolGroup.push(tool);
-                    // MCP App widgets are a first-class part of the conversation,
-                    // not a detail buried behind the "Used N tools" accordion -
-                    // flush so it renders as its own always-visible block right
-                    // where this tool call happened, not nested inside it.
-                    if (tool.mcpApp?.resourceUri && tool.mcpApp?.mcpId) {
+                    const isPresentFile = tool.name?.toLowerCase() === 'present_file';
+                    if (isPresentFile) {
                       flushToolGroup();
                       renderItems.push({
-                        type: 'mcp_app',
-                        id: `mcpapp-${tool.id}`,
+                        type: 'present_file',
+                        id: `present-${tool.id}`,
                         tool,
                       });
+                    } else {
+                      currentToolGroup.push(tool);
+                      // MCP App widgets are a first-class part of the conversation,
+                      // not a detail buried behind the "Used N tools" accordion -
+                      // flush so it renders as its own always-visible block right
+                      // where this tool call happened, not nested inside it.
+                      if (tool.mcpApp?.resourceUri && tool.mcpApp?.mcpId) {
+                        flushToolGroup();
+                        renderItems.push({
+                          type: 'mcp_app',
+                          id: `mcpapp-${tool.id}`,
+                          tool,
+                        });
+                      }
                     }
                   }
                 }
@@ -375,7 +385,7 @@ export function AguiAgentChat({
                 // The trace flows straight into the assistant text answering
                 // it — no gap. A new user turn keeps its breathing room.
                 const tightAfterTools =
-                  prev?.type === 'tool_group' &&
+                  (prev?.type === 'tool_group' || prev?.type === 'present_file') &&
                   item.type === 'message' &&
                   item.data.role !== 'user';
 
@@ -401,6 +411,8 @@ export function AguiAgentChat({
                       height={420}
                     />
                   );
+                } else if (item.type === 'present_file') {
+                  node = <ToolTrace tool={item.tool} onOpenFile={onOpenFile} />;
                 }
                 if (!node) return null;
                 return (
