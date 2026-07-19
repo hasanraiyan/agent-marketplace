@@ -9,6 +9,7 @@ import { MongoDBStore } from '../utils/mongoStore.js';
 import { VersionedStateBackend } from '../utils/versionedStateBackend.js';
 import { AgentSkillsStore } from '../utils/agentSkillsStore.js';
 import { readonlyBackend } from '../utils/readonlyBackend.js';
+import { gracefulBackend } from '../utils/gracefulBackend.js';
 import {
   memoryFilesStore,
   userMemoryNamespace,
@@ -316,25 +317,33 @@ class AgentFactory {
         }),
         '/skills/'
       ),
-      '/memories/user/': new StoreBackend({
-        store: memoryFilesStore,
-        namespace: userMemoryNamespace(userId),
-      }),
-      '/memories/agent/': new StoreBackend({
-        store: memoryFilesStore,
-        namespace: agentMemoryNamespace(userId, agentIdStr),
-      }),
+      '/memories/user/': gracefulBackend(
+        new StoreBackend({
+          store: memoryFilesStore,
+          namespace: userMemoryNamespace(userId),
+        })
+      ),
+      '/memories/agent/': gracefulBackend(
+        new StoreBackend({
+          store: memoryFilesStore,
+          namespace: agentMemoryNamespace(userId, agentIdStr),
+        })
+      ),
     };
 
     // The Architect authors skills by writing files (dostify pattern): the
     // user's whole skill library is mounted read-write at /skill-library/,
     // backed by the Skill collection. Writes validate paths/limits and parse
     // SKILL.md frontmatter into name/description/instructions.
+    // gracefulBackend: store validation errors (SKILL.md missing, bad path,
+    // size limits) must reach the model as tool errors, not crash the run.
     if (agentIdStr === ARCHITECT_AGENT_ID) {
-      backendRoutes['/skill-library/'] = new StoreBackend({
-        store: skillLibraryStore,
-        namespace: skillLibraryNamespace(userId),
-      });
+      backendRoutes['/skill-library/'] = gracefulBackend(
+        new StoreBackend({
+          store: skillLibraryStore,
+          namespace: skillLibraryNamespace(userId),
+        })
+      );
     }
 
     const backend = new CompositeBackend(new VersionedStateBackend(), backendRoutes);
