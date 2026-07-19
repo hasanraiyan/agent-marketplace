@@ -75,6 +75,9 @@ export function parseSkillMdContent(content) {
   return { metadata, body: text.slice(match[0].length).replace(/^\r?\n/, '') };
 }
 
+// Per-user write queues (see _put). Entries are removed once a queue drains.
+const putQueues = new Map();
+
 export class SkillLibraryStore extends BaseStore {
   _userIdFromNamespace(namespace) {
     // ['users', <userId>, 'skill-library'] — tolerate shorter shapes.
@@ -184,19 +187,53 @@ export class SkillLibraryStore extends BaseStore {
   async _put(op) {
     const userId = this._userIdFromNamespace(op.namespace);
     if (!userId) throw new Error('Skill library writes require a user namespace.');
+    // The Architect often issues several write_file calls in parallel; each
+    // one loads the Skill doc, mutates it, and save()s, so concurrent writes
+    // hit mongoose's optimistic-concurrency check (VersionError). Serialize
+    // writes per user; retry once for cross-process races.
+    return this._enqueuePut(String(userId), () => this._putNow(userId, op));
+  }
 
+  _enqueuePut(userId, fn) {
+    const prev = putQueues.get(userId) ?? Promise.resolve();
+    const run = prev.then(fn);
+    const tail = run.then(
+      () => {},
+      () => {}
+    );
+    putQueues.set(userId, tail);
+    tail.then(() => {
+      if (putQueues.get(userId) === tail) putQueues.delete(userId);
+    });
+    return run;
+  }
+
+  async _putNow(userId, op, isRetry = false) {
     const { skillName, relativePath, isSkillMd } = parseSkillLibraryKey(op.key);
-    const skill = await this._findSkill(userId, skillName);
+    try {
+      const skill = await this._findSkill(userId, skillName);
 
-    if (op.value === null) {
-      return this._deleteFile(skill, skillName, relativePath, isSkillMd);
-    }
+      if (op.value === null) {
+        return await this._deleteFile(skill, skillName, relativePath, isSkillMd);
+      }
 
-    const content = this._contentToString(op.value.content);
-    if (isSkillMd) {
-      return this._writeSkillMd(userId, skill, skillName, content);
+      const content = this._contentToString(op.value.content);
+      if (isSkillMd) {
+        return await this._writeSkillMd(userId, skill, skillName, content);
+      }
+      return await this._writeSupportingFile(
+        skill,
+        skillName,
+        relativePath,
+        content,
+        op.value.mimeType
+      );
+    } catch (err) {
+      if (err?.name === 'VersionError' && !isRetry) {
+        return this._putNow(userId, op, true);
+      }
+      throw err;
     }
-    return this._writeSupportingFile(skill, skillName, relativePath, content, op.value.mimeType);
   }
 
   async _writeSkillMd(userId, skill, skillName, content) {

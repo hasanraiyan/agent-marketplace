@@ -290,6 +290,52 @@ describe('SkillLibraryStore', () => {
     ).rejects.toThrow(/too large/);
   });
 
+  test('parallel supporting-file writes are serialized (no overlapping saves)', async () => {
+    let active = 0;
+    let maxActive = 0;
+    mockSkill.save.mockImplementation(async () => {
+      active += 1;
+      maxActive = Math.max(maxActive, active);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      active -= 1;
+    });
+
+    await Promise.all([
+      store.put(ns, '/pdf-tools/references/a.md', { content: 'aaa' }),
+      store.put(ns, '/pdf-tools/references/b.md', { content: 'bbb' }),
+      store.put(ns, '/pdf-tools/references/c.md', { content: 'ccc' }),
+    ]);
+
+    expect(maxActive).toBe(1);
+    const paths = mockSkill.files.map((f) => f.path);
+    expect(paths).toEqual(
+      expect.arrayContaining(['references/a.md', 'references/b.md', 'references/c.md'])
+    );
+  });
+
+  test('a write is retried once after a mongoose VersionError', async () => {
+    mockSkill.save
+      .mockRejectedValueOnce(Object.assign(new Error('stale doc'), { name: 'VersionError' }))
+      .mockResolvedValue(undefined);
+
+    await store.put(ns, '/pdf-tools/references/retry.md', { content: 'retry me' });
+    expect(mockSkill.save).toHaveBeenCalledTimes(2);
+    expect(mockSkill.files.some((f) => f.path === 'references/retry.md')).toBe(true);
+  });
+
+  test('a failed write does not wedge the per-user queue', async () => {
+    mockSkill.save
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValue(undefined);
+
+    await expect(
+      store.put(ns, '/pdf-tools/references/fail.md', { content: 'x' })
+    ).rejects.toThrow('boom');
+    // The queue must keep serving subsequent writes.
+    await store.put(ns, '/pdf-tools/references/after.md', { content: 'y' });
+    expect(mockSkill.files.some((f) => f.path === 'references/after.md')).toBe(true);
+  });
+
   test('deleting SKILL.md is blocked; supporting files are removed', async () => {
     await expect(store.put(ns, '/pdf-tools/SKILL.md', null)).rejects.toThrow(/manage_skill/);
 
