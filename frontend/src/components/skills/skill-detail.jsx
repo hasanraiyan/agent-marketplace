@@ -55,8 +55,8 @@ export function SkillDetail({ skill }) {
   // files[] is canonical; codeSnippets is the unmigrated legacy shape
   const bundledFiles =
     skill?.files?.length > 0
-      ? skill.files.map((f) => ({ path: f.path, content: f.content ?? "" }))
-      : (skill?.codeSnippets || []).map((s) => ({ path: s.filename, content: s.code ?? "" }));
+      ? skill.files.map((f) => ({ path: f.path, content: f.content ?? "" })).sort((a, b) => a.path.localeCompare(b.path))
+      : (skill?.codeSnippets || []).map((s) => ({ path: s.filename, content: s.code ?? "" })).sort((a, b) => a.path.localeCompare(b.path));
 
   useEffect(() => {
     if (skill) {
