@@ -1,47 +1,43 @@
-import 'dart:convert';
+/// File-based memory models.
+///
+/// Backend returns:
+/// ```json
+/// {
+///   userFiles: [{ scope, path, content, mimeType, createdAt, updatedAt }],
+///   agentMemories: [{ agentId, agentName, files: [...] }]
+/// }
+/// ```
+/// Single file write -> PUT /memory/file with { scope, agentId?, path, content }
+// ignore_for_file: comment_references
+//
+library;
 
-class MemoryProfileModel {
-  const MemoryProfileModel({required this.summary, required this.preferences});
-
-  final String summary;
-  final Map<String, dynamic> preferences;
-
-  factory MemoryProfileModel.fromJson(Map<String, dynamic> json) {
-    final prefs = json['preferences'];
-    return MemoryProfileModel(
-      summary: json['summary']?.toString() ?? '',
-      preferences: prefs is Map
-          ? prefs.map((key, value) => MapEntry(key.toString(), value))
-          : const {},
-    );
-  }
-
-  int get itemCount => (summary.trim().isEmpty ? 0 : 1) + preferences.length;
-}
-
-class AgentMemoryEntryModel {
-  const AgentMemoryEntryModel({
-    required this.agentId,
-    required this.agentName,
-    required this.key,
-    required this.value,
+class MemoryFileModel {
+  const MemoryFileModel({
+    required this.scope,
+    this.agentId,
+    required this.path,
+    required this.content,
+    this.mimeType = 'text/markdown',
     this.createdAt,
     this.updatedAt,
   });
 
-  final String agentId;
-  final String agentName;
-  final String key;
-  final dynamic value;
+  final String scope; // 'user' | 'agent'
+  final String? agentId;
+  final String path;
+  final String content;
+  final String mimeType;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  factory AgentMemoryEntryModel.fromJson(Map<String, dynamic> json) {
-    return AgentMemoryEntryModel(
-      agentId: json['agentId']?.toString() ?? '',
-      agentName: json['agentName']?.toString() ?? 'Unknown Agent',
-      key: json['key']?.toString() ?? '',
-      value: json['value'],
+  factory MemoryFileModel.fromJson(Map<String, dynamic> json) {
+    return MemoryFileModel(
+      scope: json['scope']?.toString() ?? 'user',
+      agentId: json['agentId']?.toString(),
+      path: json['path']?.toString() ?? '',
+      content: json['content']?.toString() ?? '',
+      mimeType: json['mimeType']?.toString() ?? 'text/markdown',
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())
           : null,
@@ -51,55 +47,105 @@ class AgentMemoryEntryModel {
     );
   }
 
-  String get valueText {
-    final current = value;
-    if (current == null) return '';
-    if (current is String) return current;
-    const encoder = JsonEncoder.withIndent('  ');
-    return encoder.convert(current);
-  }
+  String get fileId => '$scope:${agentId ?? ""}:$path';
 
-  AgentMemoryEntryModel copyWith({
+  MemoryFileModel copyWith({
+    String? scope,
     String? agentId,
-    String? agentName,
-    String? key,
-    dynamic value = _keep,
+    String? path,
+    String? content,
+    String? mimeType,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
-    return AgentMemoryEntryModel(
+    return MemoryFileModel(
+      scope: scope ?? this.scope,
       agentId: agentId ?? this.agentId,
-      agentName: agentName ?? this.agentName,
-      key: key ?? this.key,
-      value: value == _keep ? this.value : value,
+      path: path ?? this.path,
+      content: content ?? this.content,
+      mimeType: mimeType ?? this.mimeType,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
-
-  static const Object _keep = Object();
 }
 
-class MemoryDataModel {
-  const MemoryDataModel({required this.profile, required this.agentMemories});
+class AgentMemoryGroupModel {
+  const AgentMemoryGroupModel({
+    required this.agentId,
+    this.agentName,
+    required this.files,
+  });
 
-  final MemoryProfileModel profile;
-  final List<AgentMemoryEntryModel> agentMemories;
+  final String agentId;
+  final String? agentName;
+  final List<MemoryFileModel> files;
 
-  factory MemoryDataModel.fromJson(Map<String, dynamic> json) {
-    final memories = json['agentMemories'] as List? ?? [];
-    return MemoryDataModel(
-      profile: MemoryProfileModel.fromJson(
-        json['profile'] as Map<String, dynamic>? ?? const {},
-      ),
-      agentMemories: memories
-          .map(
-            (item) =>
-                AgentMemoryEntryModel.fromJson(item as Map<String, dynamic>),
-          )
+  factory AgentMemoryGroupModel.fromJson(Map<String, dynamic> json) {
+    final rawFiles = json['files'] as List? ?? [];
+    return AgentMemoryGroupModel(
+      agentId: json['agentId']?.toString() ?? '',
+      agentName: json['agentName']?.toString(),
+      files: rawFiles
+          .map((f) => MemoryFileModel.fromJson(f as Map<String, dynamic>))
           .toList(),
     );
   }
 
-  int get totalCount => profile.itemCount + agentMemories.length;
+  int get fileCount => files.length;
+
+  AgentMemoryGroupModel copyWith({
+    String? agentId,
+    String? agentName,
+    List<MemoryFileModel>? files,
+  }) {
+    return AgentMemoryGroupModel(
+      agentId: agentId ?? this.agentId,
+      agentName: agentName ?? this.agentName,
+      files: files ?? this.files,
+    );
+  }
+}
+
+class AllMemoryDataModel {
+  const AllMemoryDataModel({
+    required this.userFiles,
+    required this.agentMemories,
+  });
+
+  final List<MemoryFileModel> userFiles;
+  final List<AgentMemoryGroupModel> agentMemories;
+
+  factory AllMemoryDataModel.fromJson(Map<String, dynamic> json) {
+    final rawUserFiles = json['userFiles'] as List? ?? [];
+    final rawAgentMemories = json['agentMemories'] as List? ?? [];
+    return AllMemoryDataModel(
+      userFiles: rawUserFiles
+          .map((f) => MemoryFileModel.fromJson(f as Map<String, dynamic>))
+          .toList(),
+      agentMemories: rawAgentMemories
+          .map((g) => AgentMemoryGroupModel.fromJson(g as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
+  int get userFileCount => userFiles.length;
+
+  int get agentFileCount =>
+      agentMemories.fold(0, (sum, g) => sum + g.files.length);
+
+  int get totalCount => userFileCount + agentFileCount;
+
+  int get agentCount => agentMemories.length;
+
+  /// All memory files flattened into a single list (user files + agent files).
+  List<MemoryFileModel> get allFiles => [
+        ...userFiles.map((f) => f),
+        ...agentMemories.expand((g) => g.files.map(
+              (f) => f.copyWith(scope: 'agent', agentId: g.agentId),
+            )),
+      ];
+
+  /// Whether the given memory file exists (by fileId).
+  bool hasFile(MemoryFileModel file) => allFiles.any((f) => f.fileId == file.fileId);
 }
