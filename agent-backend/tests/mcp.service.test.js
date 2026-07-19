@@ -91,6 +91,11 @@ describe('Mcp Service', () => {
     jest.clearAllMocks();
     encryption.encrypt.mockImplementation((v) => `enc:${v}`);
     encryption.decrypt.mockImplementation((v) => String(v).replace(/^enc:/, ''));
+    // Deterministic baseline: several code paths call Agent.find to invalidate
+    // caches; without this, tests only pass when an implementation leaks in
+    // from an earlier test (clearAllMocks clears calls, not implementations).
+    Agent.find.mockResolvedValue([]);
+    Agent.updateMany.mockResolvedValue({});
 
     mockMcp = {
       _id: '507f1f77bcf86cd799439022',

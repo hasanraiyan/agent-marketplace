@@ -6,6 +6,13 @@
  * are relative to the skills route root.
  */
 
+import { normalizeSkillFilePath, mimeTypeForSkillPath } from './skillValidation.js';
+
+/** ISO string from a Date, or the fallback when absent/invalid. */
+function toIso(date, fallback) {
+  return date instanceof Date ? date.toISOString() : fallback;
+}
+
 /**
  * Slugify a skill name into a safe directory segment.
  * The Skill model already enforces lowercase-hyphen names, but agent-attached
@@ -22,21 +29,12 @@ export function slugifySkillName(name) {
 }
 
 /**
- * Sanitize a supporting-file name into a single path segment.
- * Rejects traversal and separators; returns null for unusable names.
+ * Sanitize a supporting-file name into a safe relative path.
+ * Rejects traversal; nested folders are allowed (references/, scripts/, …).
+ * Returns null for unusable names.
  */
 export function sanitizeSkillFilename(filename) {
-  const cleaned = String(filename || '')
-    .trim()
-    .replace(/\\/g, '/')
-    .replace(/^\/+/, '');
-  if (!cleaned || cleaned.includes('..') || cleaned.includes('\0') || cleaned.includes('~')) {
-    return null;
-  }
-  // Keep at most one directory level (per Agent Skills spec references stay shallow)
-  const parts = cleaned.split('/').filter(Boolean).slice(0, 2);
-  if (parts.length === 0) return null;
-  return parts.join('/');
+  return normalizeSkillFilePath(String(filename || '').replace(/^\/+/, ''));
 }
 
 /**
@@ -68,14 +66,21 @@ export function buildSkillFiles(skill) {
     mimeType: 'text/markdown',
   };
 
-  for (const snippet of skill.codeSnippets || []) {
-    const filename = sanitizeSkillFilename(snippet.filename);
+  // Bundled files (files[] is canonical; codeSnippets is the unmigrated
+  // legacy shape and is only read when files[] is empty).
+  const bundled =
+    skill.files?.length > 0
+      ? skill.files.map((f) => ({ ...f, filename: f.path, code: f.content }))
+      : (skill.codeSnippets || []).map((s) => ({ ...s }));
+
+  for (const entry of bundled) {
+    const filename = sanitizeSkillFilename(entry.filename);
     if (!filename || filename.toUpperCase() === 'SKILL.MD') continue;
     files[`/${slug}/${filename}`] = {
-      content: String(snippet.code ?? ''),
-      created_at: createdAt,
-      modified_at: modifiedAt,
-      mimeType: 'text/plain',
+      content: String(entry.code ?? ''),
+      created_at: toIso(entry.createdAt, createdAt),
+      modified_at: toIso(entry.updatedAt, modifiedAt),
+      mimeType: entry.mimeType || mimeTypeForSkillPath(filename),
     };
   }
 

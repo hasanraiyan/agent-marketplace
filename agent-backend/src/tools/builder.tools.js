@@ -141,25 +141,25 @@ export const upsertAgentTool = (userId) =>
   });
 
 /**
- * manage_skill - CRUD for individual skills.
+ * manage_skill - skill lifecycle operations (list / delete / visibility).
+ *
+ * Skill CONTENT is authored via the /skill-library/ filesystem route
+ * (write_file/edit_file on SKILL.md and supporting files), not this tool.
  */
 export const manageSkillTool = (userId) =>
   new DynamicStructuredTool({
     name: 'manage_skill',
     description:
-      'Creates, updates, or lists skills owned by the user. Skills are standalone logic blocks that can be attached to agents.',
+      'Lifecycle operations for the user\'s skills: list them (with IDs for attaching to agents), delete one, or toggle marketplace visibility. To CREATE or EDIT skill content, write files under /skill-library/<skill-name>/ instead (SKILL.md with YAML frontmatter + optional references/ files).',
     schema: z.object({
-      action: z.enum(['create', 'update', 'list', 'delete']),
-      skillId: z.string().optional().describe('ID of the skill (required for update/delete)'),
-      name: z.string().optional().describe('Short name (e.g., "weather-parser")'),
-      description: z.string().optional(),
-      instructions: z.string().optional().describe('The core logic / SKILL.md content'),
-      isPublic: z.boolean().optional(),
+      action: z.enum(['list', 'delete', 'set_visibility']),
+      skillId: z.string().optional().describe('ID of the skill (required for delete/set_visibility)'),
+      isPublic: z.boolean().optional().describe('Marketplace visibility (required for set_visibility)'),
     }),
     func: async (input) => {
       try {
         switch (input.action) {
-          case 'list':
+          case 'list': {
             const skills = await skillService.getMySkills(userId);
             return JSON.stringify({
               status: 'success',
@@ -167,62 +167,12 @@ export const manageSkillTool = (userId) =>
                 id: s._id,
                 name: s.name,
                 description: s.description,
+                isPublic: s.isPublic,
+                fileCount: (s.files?.length || 0) + 1,
               })),
             });
-          case 'create':
-            if (!input.name || !input.instructions || !input.description) {
-              return JSON.stringify({
-                status: 'error',
-                message: 'name, description, and instructions are required for create.',
-              });
-            }
-            // Validate name regex ^[a-z0-9-]+$
-            if (!/^[a-z0-9-]+$/.test(input.name)) {
-              return JSON.stringify({
-                status: 'error',
-                message: 'Skill name must contain only lowercase letters, numbers, and hyphens.',
-              });
-            }
-            if (input.name.length < 2 || input.name.length > 64) {
-              return JSON.stringify({
-                status: 'error',
-                message: 'Skill name must be between 2 and 64 characters.',
-              });
-            }
-            if (input.description.length > 1024) {
-              return JSON.stringify({
-                status: 'error',
-                message: 'Skill description must be 1024 characters or less.',
-              });
-            }
-            const newSkill = await skillService.createSkill(userId, { ...input });
-            return JSON.stringify({
-              status: 'success',
-              message: `Skill created: ${newSkill.name}`,
-              data: newSkill,
-            });
-          case 'update':
-            if (!input.skillId) {
-              return JSON.stringify({
-                status: 'error',
-                message: 'skillId is required for update.',
-              });
-            }
-            if (input.name && !/^[a-z0-9-]+$/.test(input.name)) {
-              return JSON.stringify({
-                status: 'error',
-                message: 'Skill name must contain only lowercase letters, numbers, and hyphens.',
-              });
-            }
-            const updatedSkill = await skillService.updateSkill(input.skillId, userId, {
-              ...input,
-            });
-            return JSON.stringify({
-              status: 'success',
-              message: 'Skill updated successfully.',
-              data: updatedSkill,
-            });
-          case 'delete':
+          }
+          case 'delete': {
             if (!input.skillId) {
               return JSON.stringify({
                 status: 'error',
@@ -234,6 +184,23 @@ export const manageSkillTool = (userId) =>
               status: 'success',
               message: 'Skill deleted permanently.',
             });
+          }
+          case 'set_visibility': {
+            if (!input.skillId || typeof input.isPublic !== 'boolean') {
+              return JSON.stringify({
+                status: 'error',
+                message: 'skillId and isPublic are required for set_visibility.',
+              });
+            }
+            const updatedSkill = await skillService.updateSkill(input.skillId, userId, {
+              isPublic: input.isPublic,
+            });
+            return JSON.stringify({
+              status: 'success',
+              message: `Skill is now ${updatedSkill.isPublic ? 'public' : 'private'}.`,
+              data: { id: updatedSkill._id, name: updatedSkill.name, isPublic: updatedSkill.isPublic },
+            });
+          }
           default:
             return JSON.stringify({ status: 'error', message: 'Invalid action.' });
         }

@@ -12,6 +12,7 @@
     "keygen:secrets:jwt": "node ./scripts/generate-auth-secrets.js",
     "admin:create": "node ./scripts/create-admin.js",
     "migrate:memories": "node ./scripts/migrate-memories-to-files.js",
+    "migrate:skill-files": "node ./scripts/migrate-skill-snippets-to-files.js",
     "format": "prettier --write \"**/*.{js,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,json,md}\"",
     "test": "cross-env NODE_ENV=test node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage",

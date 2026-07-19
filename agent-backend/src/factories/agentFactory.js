@@ -14,6 +14,7 @@ import {
   userMemoryNamespace,
   agentMemoryNamespace,
 } from '../utils/memoryFilesStore.js';
+import { skillLibraryStore, skillLibraryNamespace } from '../utils/skillLibraryStore.js';
 import checkpointService from '../services/checkpoint.service.js';
 import { LRUCache } from 'lru-cache';
 import agentRepository from '../repositories/agentRepository.js';
@@ -65,6 +66,7 @@ Your goal is to help the user design, build, and optimize their own custom AI ag
 ### GUIDELINES
 -   **System Prompts**: Draft high-quality, professional system prompts that use expert-level instructions.
 -   **Descriptions**: Keep descriptions punchy and informative (1-2 sentences).
+-   **Skills**: The user's skill library is mounted read-write at \`/skill-library/\`. Author skills as folders there with your file tools (\`write_file\` a \`/skill-library/<name>/SKILL.md\` with YAML frontmatter, plus optional \`references/\` files). Consult your agent-architecture skill for the full workflow; \`manage_skill\` is only for list/delete/visibility.
 -   **Transparency**: When you call a tool, briefly explain what you are setting (e.g., "I'm setting up your coding assistant with the GPT-4o model and web search enabled.").
 -   **No Keys**: You CANNOT view or manage API keys.
 `;
@@ -306,7 +308,7 @@ class AgentFactory {
     // persistent DB-backed routes for skills (read-only, live from the Skill
     // collection) and memories (per user / per user+agent). The compiled
     // instance is cached per agentId:userId, so static namespaces are safe.
-    const backend = new CompositeBackend(new VersionedStateBackend(), {
+    const backendRoutes = {
       '/skills/': readonlyBackend(
         new StoreBackend({
           store: agentSkillsStore,
@@ -322,7 +324,20 @@ class AgentFactory {
         store: memoryFilesStore,
         namespace: agentMemoryNamespace(userId, agentIdStr),
       }),
-    });
+    };
+
+    // The Architect authors skills by writing files (dostify pattern): the
+    // user's whole skill library is mounted read-write at /skill-library/,
+    // backed by the Skill collection. Writes validate paths/limits and parse
+    // SKILL.md frontmatter into name/description/instructions.
+    if (agentIdStr === ARCHITECT_AGENT_ID) {
+      backendRoutes['/skill-library/'] = new StoreBackend({
+        store: skillLibraryStore,
+        namespace: skillLibraryNamespace(userId),
+      });
+    }
+
+    const backend = new CompositeBackend(new VersionedStateBackend(), backendRoutes);
 
     const agentInstance = await createDeepAgent({
       model: llm,
