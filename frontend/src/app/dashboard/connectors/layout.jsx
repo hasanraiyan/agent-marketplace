@@ -66,7 +66,7 @@ function ConnectorsLayoutContent({ children }) {
       description: getDescription(),
       actions: isRoot ? (
         <Link href="/dashboard/agents/create">
-          <Button className="bg-[#0052FF] hover:bg-[#0040D0] text-white">
+          <Button className="bg-[#1E60FF] hover:bg-[#154ed0] text-white">
             <Plus className="size-4 mr-2" />
             Create Agent
           </Button>

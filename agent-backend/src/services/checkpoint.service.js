@@ -75,12 +75,16 @@ class CheckpointService {
       configurable: { thread_id: thread.threadId },
     });
 
+    // Subagent timelines live on the thread doc, not in checkpoints — see
+    // agui.routes.js where they are folded from the live stream.
+    const subagentTraces = thread.subagentTraces || {};
+
     if (!snapshot || !snapshot.checkpoint || !snapshot.checkpoint.channel_values) {
-      return { messages: [], state: {} };
+      return { messages: [], state: {}, subagentTraces };
     }
 
     const { messages = [], ...state } = snapshot.checkpoint.channel_values;
-    return { messages, state };
+    return { messages, state, subagentTraces };
   }
 }
 

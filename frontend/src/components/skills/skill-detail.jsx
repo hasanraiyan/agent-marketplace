@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { FolderOpen, FileText, FileCode, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { deleteSkill, getUsedByAgents } from "@/lib/api/skills";
 import { useRouter } from "next/navigation";
@@ -49,6 +50,13 @@ export function SkillDetail({ skill }) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [usedByAgents, setUsedByAgents] = useState([]);
   const [copied, setCopied] = useState(false);
+  const [expandedFile, setExpandedFile] = useState(null);
+
+  // files[] is canonical; codeSnippets is the unmigrated legacy shape
+  const bundledFiles =
+    skill?.files?.length > 0
+      ? skill.files.map((f) => ({ path: f.path, content: f.content ?? "" }))
+      : (skill?.codeSnippets || []).map((s) => ({ path: s.filename, content: s.code ?? "" }));
 
   useEffect(() => {
     if (skill) {
@@ -242,6 +250,58 @@ export function SkillDetail({ skill }) {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Bundled Files Card */}
+            {bundledFiles.length > 0 && (
+              <Card className="border border-zinc-150/60 dark:border-zinc-900/60 bg-card rounded-3xl ring-0 shadow-none overflow-hidden">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-bold flex items-center gap-2 text-zinc-900 dark:text-zinc-150">
+                    <FolderOpen className="size-4 text-primary" />
+                    Bundled Files
+                  </CardTitle>
+                  <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                    Supporting files shipped alongside SKILL.md — the agent reads them on demand.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {bundledFiles.map((file) => {
+                    const isExpanded = expandedFile === file.path;
+                    const ext = file.path.split(".").pop()?.toLowerCase();
+                    const Icon = ext === "md" || ext === "markdown" || ext === "txt" ? FileText : FileCode;
+                    return (
+                      <div
+                        key={file.path}
+                        className="rounded-2xl border border-zinc-150/60 dark:border-zinc-900 bg-zinc-50/40 dark:bg-zinc-900/10 overflow-hidden"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setExpandedFile(isExpanded ? null : file.path)}
+                          className="w-full flex items-center gap-2.5 px-4 py-3 text-left transition-colors hover:bg-zinc-100/50 dark:hover:bg-zinc-900/40"
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="size-3.5 text-zinc-400 shrink-0" />
+                          ) : (
+                            <ChevronRight className="size-3.5 text-zinc-400 shrink-0" />
+                          )}
+                          <Icon className="size-4 text-primary shrink-0" />
+                          <span className="text-xs font-mono font-semibold text-zinc-800 dark:text-zinc-200 truncate">
+                            {file.path}
+                          </span>
+                          <span className="ml-auto text-[10px] text-zinc-400 dark:text-zinc-500 font-medium shrink-0">
+                            {file.content.length.toLocaleString()} chars
+                          </span>
+                        </button>
+                        {isExpanded && (
+                          <pre className="border-t border-zinc-150/60 dark:border-zinc-900 px-4 py-3 font-mono text-xs leading-relaxed max-h-80 overflow-auto whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
+                            {file.content || "(empty file)"}
+                          </pre>
+                        )}
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Right Sidebar Column (1/3 width) */}
@@ -306,6 +366,16 @@ export function SkillDetail({ skill }) {
                   </div>
                   <span className="font-semibold text-zinc-900 dark:text-zinc-150 capitalize">
                     {skill.isPublic ? "Public" : "Private"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between px-5 py-3.5 text-xs">
+                  <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 font-medium">
+                    <FolderOpen className="size-3.5" />
+                    <span>Files</span>
+                  </div>
+                  <span className="font-semibold text-zinc-900 dark:text-zinc-150">
+                    {bundledFiles.length + 1}
                   </span>
                 </div>
 

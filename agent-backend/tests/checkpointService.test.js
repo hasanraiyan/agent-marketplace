@@ -56,6 +56,7 @@ describe('Checkpoint Service', () => {
       expect(result).toEqual({
         messages: [{ role: 'assistant', content: 'hello' }],
         state: {},
+        subagentTraces: {},
       });
       expect(mockGetTuple).toHaveBeenCalledWith({ configurable: { thread_id: 'uuid123' } });
     });

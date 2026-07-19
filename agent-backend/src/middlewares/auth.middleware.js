@@ -32,6 +32,7 @@ const authMiddleware = async (req, res, next) => {
 
         const name =
           `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || 'Anonymous';
+        const username = clerkUser.username || null;
 
         // Check if user exists by email but has a different/missing clerkId
         user = await User.findOne({ email });
@@ -42,12 +43,14 @@ const authMiddleware = async (req, res, next) => {
           );
           user.clerkId = clerkId;
           user.name = name; // Sync name while we're at it
+          if (username) user.username = username;
           await user.save();
         } else {
           user = await User.create({
             clerkId,
             email,
             name,
+            username: username || undefined,
             role: 'normal',
           });
           logger.info(`Successfully created new auto-synced user ${clerkId}`);

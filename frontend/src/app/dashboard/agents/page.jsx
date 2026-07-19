@@ -12,6 +12,7 @@ import {
   Lock,
   Bot,
   SearchIcon,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -88,14 +89,12 @@ export default function MyAgentsPage() {
               />
             </InputGroup>
           </div>
-          {agents.length === 0 && (
-            <Link href="/dashboard/agents/create">
-              <Button size="sm" className="rounded-full px-4 font-bold shadow-sm transition-all active:scale-98">
-                <Plus className="mr-1.5 size-4" />
-                Build an Agent
-              </Button>
-            </Link>
-          )}
+          <Link href="/dashboard/agents/create">
+            <Button size="sm" className="rounded-full px-4 font-bold shadow-sm transition-all active:scale-98">
+              <Plus className="mr-1.5 size-4" />
+              Build an Agent
+            </Button>
+          </Link>
         </div>
       ),
     },
@@ -250,6 +249,15 @@ export default function MyAgentsPage() {
                   {/* Top Overlay Area (Badges + Actions) */}
                   <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between">
                     <div className="flex gap-1.5">
+                      {agent.isMainAgent && (
+                        <Badge
+                          variant="secondary"
+                          className="bg-primary/90 text-primary-foreground backdrop-blur-md border border-white/10 px-2.5 py-0.5 text-[9px] uppercase tracking-wider font-extrabold flex items-center gap-1"
+                        >
+                          <Sparkles className="size-2.5" />
+                          Main Clone
+                        </Badge>
+                      )}
                       <Badge
                         variant="secondary"
                         className="bg-black/40 text-white backdrop-blur-md border border-white/10 px-2.5 py-0.5 text-[9px] uppercase tracking-wider font-extrabold"

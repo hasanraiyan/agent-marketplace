@@ -127,12 +127,23 @@ const agentSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    isMainAgent: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   {
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   }
+);
+
+// A user cannot have more than one active Main Agent (Clone) at a time.
+agentSchema.index(
+  { ownerId: 1, isMainAgent: 1, isActive: 1 },
+  { unique: true, partialFilterExpression: { isMainAgent: true, isActive: true } }
 );
 
 // Ensure even existing agents without an avatar get a default one when retrieved

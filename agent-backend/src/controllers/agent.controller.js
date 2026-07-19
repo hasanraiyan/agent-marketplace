@@ -1,7 +1,7 @@
-import mongoose from 'mongoose';
 import agentService from '../services/agent.service.js';
 import agentFactory from '../factories/agentFactory.js';
-import checkpointService from '../services/checkpoint.service.js';
+import MemoryFile from '../models/MemoryFile.js';
+import { normalizeMemoryKey, agentMemoryNamespace } from '../utils/memoryFilesStore.js';
 import { loggerService } from '../utils/index.js';
 import {
   createAgentSchema,
@@ -142,37 +142,29 @@ class AgentController {
     }
   }
 
+  // Memory is file-based: these endpoints serve the requesting user's memory
+  // files for this agent (namespace ['users', userId, 'agents', agentId]) —
+  // the same files the agent reads/writes via its /memories/agent/ route.
   async getMemory(req, res, next) {
     try {
       const agentId = req.params.id;
-      if (!checkpointService.mongoClient) {
-        return res.json({ success: true, data: [] });
-      }
 
-      // Verify user ownership
-      const agent = await agentService.getAgentById(agentId, req.user.id);
-      if (String(agent.ownerId) !== String(req.user.id)) {
-        return res.status(403).json({ success: false, message: 'Unauthorized access to agent memory' });
-      }
+      // Verify agent visibility for the requesting user.
+      await agentService.getAgentById(agentId, req.user.id);
 
-      const db = checkpointService.mongoClient.db();
-      const coll = db.collection('agent_memories');
-      
-      const docs = await coll.find({
-        namespace: {
-          $in: [agentId, new mongoose.Types.ObjectId(agentId)]
-        }
-      }).toArray();
+      const docs = await MemoryFile.find({
+        namespace: agentMemoryNamespace(req.user.id, agentId),
+      }).sort({ key: 1 });
 
       res.json({
         success: true,
-        data: docs.map(d => ({
-          key: d.key,
-          value: d.value,
-          namespace: d.namespace,
+        data: docs.map((d) => ({
+          path: d.key,
+          content: d.content,
+          mimeType: d.mimeType,
           createdAt: d.createdAt,
-          updatedAt: d.updatedAt
-        }))
+          updatedAt: d.updatedAt,
+        })),
       });
     } catch (error) {
       next(error);
@@ -182,31 +174,22 @@ class AgentController {
   async deleteMemory(req, res, next) {
     try {
       const agentId = req.params.id;
-      const key = req.params.key;
+      // The path arrives URL-encoded (it contains slashes), e.g. %2Flearnings.md
+      const path = normalizeMemoryKey(req.params.key);
 
-      if (!checkpointService.mongoClient) {
-        throw new Error('Database client not available');
-      }
+      await agentService.getAgentById(agentId, req.user.id);
 
-      // Verify user ownership
-      const agent = await agentService.getAgentById(agentId, req.user.id);
-      if (String(agent.ownerId) !== String(req.user.id)) {
-        return res.status(403).json({ success: false, message: 'Unauthorized' });
-      }
-
-      const db = checkpointService.mongoClient.db();
-      const coll = db.collection('agent_memories');
-      
-      await coll.deleteOne({
-        namespace: {
-          $in: [agentId, new mongoose.Types.ObjectId(agentId)]
-        },
-        key: key
+      const result = await MemoryFile.deleteOne({
+        namespace: agentMemoryNamespace(req.user.id, agentId),
+        key: path,
       });
+      if (result.deletedCount === 0) {
+        return res.status(404).json({ success: false, message: 'Memory file not found' });
+      }
 
       res.json({
         success: true,
-        message: 'Agent memory deleted successfully'
+        message: 'Agent memory deleted successfully',
       });
     } catch (error) {
       next(error);

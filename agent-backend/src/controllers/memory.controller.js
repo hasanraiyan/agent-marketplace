@@ -10,44 +10,44 @@ class MemoryController {
     }
   }
 
-  async create(req, res, next) {
+  async writeFile(req, res, next) {
     try {
-      const { agentId, key, value } = req.body;
-      if (!agentId || !key || value === undefined) {
+      const { scope, agentId, path, content } = req.body;
+      if (!path || content === undefined) {
         return res.status(400).json({
           success: false,
-          message: 'agentId, key, and value are required',
+          message: 'path and content are required',
         });
       }
-      const entry = await memoryService.createMemory(req.user.id, { agentId, key, value });
-      res.status(201).json({ success: true, data: entry });
+      if (scope === 'agent' && !agentId) {
+        return res.status(400).json({
+          success: false,
+          message: 'agentId is required when scope is "agent"',
+        });
+      }
+      const file = await memoryService.writeMemoryFile(req.user.id, {
+        scope,
+        agentId,
+        path,
+        content,
+      });
+      res.status(201).json({ success: true, data: file });
     } catch (error) {
       next(error);
     }
   }
 
-  async update(req, res, next) {
+  async removeFile(req, res, next) {
     try {
-      const { agentId, key } = req.params;
-      const { value } = req.body;
-      if (value === undefined) {
+      const { scope, agentId, path } = req.query;
+      if (!path) {
         return res.status(400).json({
           success: false,
-          message: 'value is required',
+          message: 'path query parameter is required',
         });
       }
-      const entry = await memoryService.updateMemory(req.user.id, agentId, key, { value });
-      res.json({ success: true, data: entry });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  async remove(req, res, next) {
-    try {
-      const { agentId, key } = req.params;
-      await memoryService.deleteMemory(req.user.id, agentId, key);
-      res.json({ success: true, message: 'Memory deleted' });
+      await memoryService.deleteMemoryFile(req.user.id, { scope, agentId, path });
+      res.json({ success: true, message: 'Memory file deleted' });
     } catch (error) {
       next(error);
     }

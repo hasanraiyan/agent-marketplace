@@ -263,6 +263,22 @@ export function extractStructuredContent(output) {
   return artifact.find((item) => item?.type === 'mcp_structured_content')?.data;
 }
 
+// LangGraph's ToolNode already catches tool exceptions and feeds the model an
+// error ToolMessage (see `defaultHandleToolErrors` in `langchain`'s ToolNode) —
+// the run itself never crashes. But the *traced* tool.invoke() call still ends
+// in on_tool_error rather than on_tool_end, so the AG-UI stream must read the
+// failure off event.data.error (not event.data.output) to describe it.
+export function extractToolErrorMessage(err) {
+  if (!err) return 'Tool execution failed.';
+  if (typeof err === 'string') return err;
+  if (typeof err.message === 'string' && err.message) return err.message;
+  return String(err);
+}
+
+function buildToolErrorContent(err) {
+  return JSON.stringify({ status: 'error', message: extractToolErrorMessage(err) });
+}
+
 function buildToolCompletionNotice(toolName, resultContent) {
   const prettyName = String(toolName || 'tool')
     .split(/[_\-\s]/)
@@ -436,7 +452,7 @@ export function buildFilesTodosSnapshot(stateValues) {
  * @returns {AsyncGenerator} AG-UI events.
  */
 export async function* translateLangGraphStream(stream, opts = {}) {
-  const { providerConfig, onInterrupt, onError, logger, getState, mcpAppMap = {} } = opts;
+  const { providerConfig, onInterrupt, onError, logger, getState, mcpAppMap = {}, runScopeTracker } = opts;
   const suppressArgStreaming = new Set(opts.suppressArgStreamingFor || []);
 
   // Read authoritative graph state and emit a STATE_SNAPSHOT of { files, todos }.
@@ -472,10 +488,25 @@ export async function* translateLangGraphStream(stream, opts = {}) {
   // model tool_call id -> { name, args, bound }: streamed calls awaiting their
   // on_tool_start, so execution binds to the already-emitted toolCallId.
   const streamedToolCalls = new Map();
-  // deepagents `task` (subagent) calls currently executing, newest last. Nested
-  // model tokens are attributed to the most recent one so the client can show
-  // live subagent activity inside that tool's card.
+  // deepagents `task` (subagent) calls currently executing, newest last. Used
+  // as the attribution fallback when run ancestry is unavailable.
   const taskToolStack = [];
+  // task tool run_id -> the toolCallId the client saw for that task card.
+  const taskRuns = new Map();
+
+  // Resolve which running `task` call encloses `runId` by walking the run
+  // ancestry recorded by RunScopeTracker. Returns null when ancestry is
+  // unavailable or no task run is an ancestor.
+  const findTaskAncestor = (runId) => {
+    if (!runScopeTracker || !runId || taskRuns.size === 0) return null;
+    const taskRunId = runScopeTracker.findAncestor(runId, (id) => taskRuns.has(id));
+    return taskRunId ? { runId: taskRunId, toolCallId: taskRuns.get(taskRunId) } : null;
+  };
+  // Ancestry is authoritative; the newest-task stack is only a fallback. The
+  // stack alone misattributes events when the model launches several
+  // subagents in parallel (Promise.all interleaves their streams).
+  const resolveHostTask = (runId) =>
+    findTaskAncestor(runId) || taskToolStack[taskToolStack.length - 1];
   // run_id -> { name, toolCallId } for a subagent's internal tool calls. These
   // are surfaced as subagent_activity entries on the owning task card, NEVER as
   // top-level tool cards (that would make them look like the main agent's).
@@ -483,6 +514,12 @@ export async function* translateLangGraphStream(stream, opts = {}) {
   // Tools currently executing (incl. hidden ones). While > 0, any model stream
   // belongs to a nested run — the main model never streams during its own tools.
   let runningToolDepth = 0;
+  // run_ids with a processed on_tool_start awaiting their end. LangSmith
+  // tracing (LANGCHAIN_TRACING_V2) makes subagent callbacks fire twice — a
+  // run can only start/end once, so lifecycle events are deduped by run_id.
+  // This also keeps runningToolDepth correct when deliveries are asymmetric
+  // (an end with no matching start must not decrement the depth).
+  const liveToolRuns = new Set();
   // Lightweight tally for an end-of-stream summary log.
   const stats = { textChunks: 0, reasoningChunks: 0, nestedChunks: 0, toolCalls: 0, toolResults: 0 };
   let textSinceLastToolResult = true;
@@ -506,7 +543,7 @@ export async function* translateLangGraphStream(stream, opts = {}) {
         // Instead, surface them as live activity on the owning task tool card.
         if (runningToolDepth > 0 || isNestedNamespace(event)) {
           stats.nestedChunks += 1;
-          const hostTask = taskToolStack[taskToolStack.length - 1];
+          const hostTask = resolveHostTask(event.run_id);
           if (hostTask) {
             const nestedText = extractTextDelta(event.data?.chunk?.content);
             if (nestedText) {
@@ -608,8 +645,33 @@ export async function* translateLangGraphStream(stream, opts = {}) {
         }
       }
 
+      // ── New top-level model turn ─────────────────────────────────────────────
+      else if (event.event === 'on_chat_model_start') {
+        if (runningToolDepth === 0 && !isNestedNamespace(event)) {
+          // Arg streams are keyed by chunk index within one model turn. Some
+          // OpenAI-compatible providers omit the tool-call id on a turn's
+          // first chunk, so without a reset a NEW turn's chunks at index 0
+          // would append onto the PREVIOUS turn's call — reopening a card the
+          // client already completed and spawning a duplicate for the real
+          // execution. A new turn always starts from a clean slate.
+          toolArgStreams.clear();
+          for (const [id, sc] of streamedToolCalls) {
+            // Bound entries stay: a still-running task card's id must remain
+            // resolvable for its late TOOL_CALL_RESULT.
+            if (!sc.bound) streamedToolCalls.delete(id);
+          }
+        }
+      }
+
       // ── Tool call start ──────────────────────────────────────────────────────
       else if (event.event === 'on_tool_start') {
+        if (liveToolRuns.has(event.run_id)) {
+          logger?.debug('[AG-UI] skipping duplicate on_tool_start delivery', {
+            name: event.name,
+          });
+          continue;
+        }
+        liveToolRuns.add(event.run_id);
         runningToolDepth += 1;
 
         if (event.name === 'ask_clarification') {
@@ -628,18 +690,31 @@ export async function* translateLangGraphStream(stream, opts = {}) {
         }
 
         const toolName = event.name;
-        const toolInput = event.data?.input;
+        let toolInput = event.data?.input;
+        // LangChain's tool tracer wraps stringified args in an envelope
+        // ({ input: "<json>" }) — unwrap it so clients receive the tool's
+        // real arguments (file_path, old_string, ...), not the wrapper.
+        if (
+          toolInput &&
+          typeof toolInput === 'object' &&
+          typeof toolInput.input === 'string' &&
+          Object.keys(toolInput).length === 1
+        ) {
+          toolInput = toolInput.input;
+        }
         const argsStr = typeof toolInput === 'string' ? toolInput : JSON.stringify(toolInput ?? {});
 
         // A subagent's internal tool call must not surface as a main-agent tool
         // card — scope it to the owning task card as a timeline entry instead.
-        // Nested = nested checkpoint namespace; when namespace metadata is
-        // absent entirely, a running task is the best available signal.
+        // Run ancestry is the authoritative signal; nested checkpoint namespace
+        // and (when namespace metadata is absent) a running task are fallbacks.
+        const ancestryHost = findTaskAncestor(event.run_id);
         const isNestedTool =
+          Boolean(ancestryHost) ||
           isNestedNamespace(event) ||
           (taskToolStack.length > 0 && !event.metadata?.langgraph_checkpoint_ns);
         if (isNestedTool) {
-          const hostTask = taskToolStack[taskToolStack.length - 1];
+          const hostTask = ancestryHost || taskToolStack[taskToolStack.length - 1];
           if (hostTask) {
             nestedToolRuns.set(event.run_id, { name: toolName, toolCallId: hostTask.toolCallId });
             logger?.debug('[AG-UI] subagent tool call', {
@@ -685,6 +760,7 @@ export async function* translateLangGraphStream(stream, opts = {}) {
 
         if (toolName === 'task') {
           taskToolStack.push({ runId: event.run_id, toolCallId: streamedId || event.run_id });
+          taskRuns.set(event.run_id, streamedId || event.run_id);
         }
 
         if (streamedId) {
@@ -729,18 +805,27 @@ export async function* translateLangGraphStream(stream, opts = {}) {
 
       // ── Tool call result ─────────────────────────────────────────────────────
       else if (event.event === 'on_tool_end' || event.event === 'on_tool_error') {
+        // An end whose start was never processed is either a duplicate
+        // delivery or an orphan — both must be ignored (and must not
+        // corrupt runningToolDepth).
+        if (!liveToolRuns.has(event.run_id)) {
+          logger?.debug('[AG-UI] skipping unmatched tool end delivery', { name: event.name });
+          continue;
+        }
+        liveToolRuns.delete(event.run_id);
         runningToolDepth = Math.max(0, runningToolDepth - 1);
 
         const taskIndex = taskToolStack.findIndex((t) => t.runId === event.run_id);
         if (taskIndex !== -1) taskToolStack.splice(taskIndex, 1);
+        taskRuns.delete(event.run_id);
 
         const nestedRun = nestedToolRuns.get(event.run_id);
         if (nestedRun) {
           nestedToolRuns.delete(event.run_id);
           if (event.event === 'on_tool_end') {
-            // Results feed the card's timeline only — cap them so a verbose
-            // nested tool can't bloat the SSE stream.
-            const nestedResult = extractToolOutputContent(event.data?.output).slice(0, 4000);
+            // Full result, same as top-level TOOL_CALL_RESULT — the timeline
+            // is the subagent's complete transcript, not a preview.
+            const nestedResult = extractToolOutputContent(event.data?.output);
             yield {
               type: EventType.CUSTOM,
               name: 'subagent_activity',
@@ -751,11 +836,28 @@ export async function* translateLangGraphStream(stream, opts = {}) {
                 result: nestedResult,
               },
             };
+          } else {
+            // A failed nested tool must still close out its timeline entry —
+            // otherwise it's stranded "running" forever inside the task card,
+            // even though the subagent itself recovers and keeps going.
+            logger?.debug('[AG-UI] nested tool error', {
+              name: nestedRun.name,
+              hostToolCallId: nestedRun.toolCallId,
+              error: extractToolErrorMessage(event.data?.error),
+            });
+            yield {
+              type: EventType.CUSTOM,
+              name: 'subagent_activity',
+              value: {
+                toolCallId: nestedRun.toolCallId,
+                kind: 'tool_result',
+                toolName: nestedRun.name,
+                result: buildToolErrorContent(event.data?.error),
+              },
+            };
           }
           continue;
         }
-
-        if (event.event === 'on_tool_error') continue;
 
         if (event.name === 'ask_clarification') {
           logger?.debug('[AG-UI] hiding clarification tool result');
@@ -765,16 +867,27 @@ export async function* translateLangGraphStream(stream, opts = {}) {
         const tc = pendingToolCalls.get(event.run_id);
         if (tc) {
           pendingToolCalls.delete(event.run_id);
-          const resultContent = extractToolOutputContent(event.data?.output);
-          const structuredContent = extractStructuredContent(event.data?.output);
+          const isError = event.event === 'on_tool_error';
+          const resultContent = isError
+            ? buildToolErrorContent(event.data?.error)
+            : extractToolOutputContent(event.data?.output);
+          const structuredContent = isError ? undefined : extractStructuredContent(event.data?.output);
           stats.toolResults += 1;
           textSinceLastToolResult = false;
           lastToolResult = { name: tc.name, content: resultContent };
-          logger?.debug('[AG-UI] tool result', {
-            name: tc.name,
-            toolCallId: tc.toolCallId,
-            resultLength: resultContent.length,
-          });
+          if (isError) {
+            logger?.debug('[AG-UI] tool error', {
+              name: tc.name,
+              toolCallId: tc.toolCallId,
+              error: extractToolErrorMessage(event.data?.error),
+            });
+          } else {
+            logger?.debug('[AG-UI] tool result', {
+              name: tc.name,
+              toolCallId: tc.toolCallId,
+              resultLength: resultContent.length,
+            });
+          }
           yield {
             type: EventType.TOOL_CALL_RESULT,
             messageId: randomUUID(),
@@ -828,7 +941,7 @@ export async function* translateLangGraphStream(stream, opts = {}) {
       return;
     }
 
-    if (lastToolResult && !textSinceLastToolResult) {
+    if (lastToolResult && !textSinceLastToolResult && lastToolResult.name !== 'present_file') {
       const delta = buildToolCompletionNotice(lastToolResult.name, lastToolResult.content);
       logger?.debug('[AG-UI] synthesized post-tool completion notice', {
         name: lastToolResult.name,

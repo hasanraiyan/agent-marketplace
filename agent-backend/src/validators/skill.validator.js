@@ -1,45 +1,73 @@
 import { z } from 'zod';
+import { validateSkillFiles } from '../utils/skillValidation.js';
 
-export const createSkillSchema = z.object({
-  name: z
-    .string()
-    .min(2)
-    .max(64)
-    .regex(/^[a-z0-9-]+$/, 'Name must contain only lowercase letters, numbers, and hyphens'),
-  description: z.string().min(10).max(1024),
-  instructions: z
-    .string()
-    .min(10, 'Workflow instructions are required for Claude-style skills')
-    .max(50000),
-  isPublic: z.boolean().optional(),
-  codeSnippets: z
-    .array(
-      z.object({
-        filename: z.string(),
-        code: z.string(),
-        language: z.string().optional(),
-      })
-    )
-    .optional(),
+const skillFileSchema = z.object({
+  path: z.string().min(1).max(256),
+  content: z.string(),
+  mimeType: z.string().optional(),
 });
 
-export const updateSkillSchema = z.object({
-  name: z
-    .string()
-    .min(2)
-    .max(64)
-    .regex(/^[a-z0-9-]+$/)
-    .optional(),
-  description: z.string().min(10).max(1024).optional(),
-  instructions: z.string().min(10).max(50000).optional(),
-  isPublic: z.boolean().optional(),
-  codeSnippets: z
-    .array(
-      z.object({
-        filename: z.string(),
-        code: z.string(),
-        language: z.string().optional(),
-      })
-    )
-    .optional(),
+// DEPRECATED shape, still accepted from old clients; converted to files[].
+const codeSnippetSchema = z.object({
+  filename: z.string(),
+  code: z.string(),
+  language: z.string().optional(),
 });
+
+/**
+ * Normalize legacy codeSnippets into files[], then validate the bundle
+ * (safe relative paths, per-file and total size limits, no SKILL.md).
+ */
+function normalizeAndValidateFiles(data, ctx) {
+  let files = data.files;
+  if (!files && data.codeSnippets) {
+    files = data.codeSnippets.map((s) => ({ path: s.filename, content: s.code }));
+  }
+  if (!files) return data;
+
+  const result = validateSkillFiles(files, { instructions: data.instructions ?? '' });
+  if (result.errors.length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['files'],
+      message: result.errors.join(' '),
+    });
+    return data;
+  }
+  const { codeSnippets: _dropped, ...rest } = data;
+  return { ...rest, files: result.files };
+}
+
+export const createSkillSchema = z
+  .object({
+    name: z
+      .string()
+      .min(2)
+      .max(64)
+      .regex(/^[a-z0-9-]+$/, 'Name must contain only lowercase letters, numbers, and hyphens'),
+    description: z.string().min(10).max(1024),
+    instructions: z
+      .string()
+      .min(10, 'Workflow instructions are required for Claude-style skills')
+      .max(50000),
+    isPublic: z.boolean().optional(),
+    files: z.array(skillFileSchema).optional(),
+    codeSnippets: z.array(codeSnippetSchema).optional(),
+  })
+  .transform(normalizeAndValidateFiles);
+
+export const updateSkillSchema = z
+  .object({
+    name: z
+      .string()
+      .min(2)
+      .max(64)
+      .regex(/^[a-z0-9-]+$/)
+      .optional(),
+    description: z.string().min(10).max(1024).optional(),
+    instructions: z.string().min(10).max(50000).optional(),
+    isPublic: z.boolean().optional(),
+    files: z.array(skillFileSchema).optional(),
+    codeSnippets: z.array(codeSnippetSchema).optional(),
+  })
+  .transform(normalizeAndValidateFiles);

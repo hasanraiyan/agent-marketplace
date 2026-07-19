@@ -84,6 +84,7 @@ function applyFileToolToState(state, name, argsText, resultText) {
 // Fold one subagent_activity event into a task card's timeline. Items are
 // { type: "text", text } or { type: "tool", name, argsText, resultText,
 // status }. Returns the next array, or null when the event changes nothing.
+// The timeline is intentionally unbounded — it IS the subagent's transcript.
 function appendSubEvent(current, kind, value) {
   const subEvents = Array.isArray(current) ? [...current] : [];
 
@@ -92,9 +93,11 @@ function appendSubEvent(current, kind, value) {
     if (!delta) return null;
     const last = subEvents[subEvents.length - 1];
     if (last?.type === "text") {
+      // The subagent's output is a real deliverable — keep the complete
+      // conversation, exactly like the main transcript.
       subEvents[subEvents.length - 1] = {
         ...last,
-        text: `${last.text}${delta}`.slice(-4000),
+        text: `${last.text}${delta}`,
       };
     } else {
       subEvents.push({ type: "text", text: delta });
@@ -127,7 +130,7 @@ function appendSubEvent(current, kind, value) {
     return null;
   }
 
-  return subEvents.slice(-60);
+  return subEvents;
 }
 
 // A finished subagent has no running internal tools — close any stragglers.
@@ -432,7 +435,13 @@ export function useAguiChat({
           event.toolCallName || toolNameRef.current.get(toolCallId) || "tool";
         toolNameRef.current.set(toolCallId, toolName);
         setToolCalls((prev) => {
-          const current = prev.find((tool) => tool.id === toolCallId) || {
+          const existing = prev.find((tool) => tool.id === toolCallId);
+          // A finished call never streams more args — a late chunk for a
+          // completed card is a stray (e.g. a provider re-using chunk indexes
+          // across turns) and must not flip it back to "running" or corrupt
+          // its args.
+          if (existing?.status === "completed") return prev;
+          const current = existing || {
             id: toolCallId,
             name: toolName,
             argumentsText: "",

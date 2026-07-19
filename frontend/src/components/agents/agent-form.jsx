@@ -110,6 +110,7 @@ export function AgentForm({
   initialData,
   onSave,
   loading: saving,
+  mainAgentSetup = null,
 }) {
   const [providers, setProviders] = useState([]);
   const [loadingProviders, setLoadingProviders] = useState(true);
@@ -193,6 +194,17 @@ export function AgentForm({
       setForm(DEFAULT_FORM);
     }
   }, [initialData, mode]);
+
+  // Main Agent (Clone) names are locked to the Clerk username, not user-chosen.
+  useEffect(() => {
+    if (mode === "create" && mainAgentSetup?.username) {
+      setForm((prev) =>
+        prev.name === mainAgentSetup.username
+          ? prev
+          : { ...prev, name: mainAgentSetup.username },
+      );
+    }
+  }, [mode, mainAgentSetup]);
 
   useEffect(() => {
     const loadSkills = async () => {
@@ -424,6 +436,21 @@ export function AgentForm({
         </div>
 
         <div className="grid gap-6">
+          {mode === "create" && mainAgentSetup && (
+            <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+              <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
+              <p className="text-sm leading-relaxed">
+                You are about to build your{" "}
+                <span className="font-bold">Main Agent</span> (your personal
+                clone). Its name will be locked to your username:{" "}
+                <span className="font-bold">
+                  @{mainAgentSetup.username || "your-username"}
+                </span>
+                .
+              </p>
+            </div>
+          )}
+
           <Field>
             <FieldLabel className="text-sm font-bold">Agent Name</FieldLabel>
             <Input
@@ -431,6 +458,7 @@ export function AgentForm({
               value={form.name}
               onChange={(e) => update("name", e.target.value)}
               className="h-11 bg-muted/20"
+              disabled={mode === "create" && Boolean(mainAgentSetup?.username)}
               required
             />
           </Field>

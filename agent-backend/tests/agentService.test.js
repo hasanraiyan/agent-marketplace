@@ -5,6 +5,7 @@ jest.unstable_mockModule('../src/repositories/agentRepository.js', () => ({
     create: jest.fn(),
     findById: jest.fn(),
     findBySlug: jest.fn(),
+    findOne: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
     search: jest.fn(),
@@ -12,7 +13,14 @@ jest.unstable_mockModule('../src/repositories/agentRepository.js', () => ({
   },
 }));
 
+jest.unstable_mockModule('../src/models/User.js', () => ({
+  default: {
+    findById: jest.fn(),
+  },
+}));
+
 const agentRepository = (await import('../src/repositories/agentRepository.js')).default;
+const User = (await import('../src/models/User.js')).default;
 const agentService = (await import('../src/services/agent.service.js')).default;
 
 describe('Agent Service', () => {
@@ -35,11 +43,14 @@ describe('Agent Service', () => {
         return { ...this };
       },
     };
+
+    User.findById.mockResolvedValue({ id: mockUserId, username: 'alice', name: 'Alice A' });
   });
 
-  describe('slug generation', () => {
-    test('should generate slug successfully', async () => {
-      agentRepository.count.mockResolvedValue(0);
+  describe('slug generation (sub-agent)', () => {
+    test('should generate a random-suffixed slug for a sub-agent', async () => {
+      // A Main Agent already exists, so this create() call is a sub-agent.
+      agentRepository.findOne.mockResolvedValue({ _id: 'main_agent' });
       agentRepository.findBySlug.mockResolvedValue(null);
       agentRepository.create.mockResolvedValue(mockAgent);
 
@@ -49,35 +60,67 @@ describe('Agent Service', () => {
         expect.objectContaining({
           ownerId: mockUserId,
           name: 'My Special Bot!!!',
+          isMainAgent: false,
           slug: expect.stringMatching(/^my-special-bot-[0-9a-f]{6}$/),
         })
       );
     });
   });
 
-  describe('one persona per user cap', () => {
-    test('should allow creation when the user has no active agent', async () => {
-      agentRepository.count.mockResolvedValue(0);
+  describe('main agent (clone) creation', () => {
+    test('first active agent becomes the Main Agent, locked to the username', async () => {
+      agentRepository.findOne.mockResolvedValue(null);
       agentRepository.findBySlug.mockResolvedValue(null);
       agentRepository.create.mockResolvedValue(mockAgent);
 
-      await agentService.createAgent(mockUserId, { name: 'First Persona' });
+      await agentService.createAgent(mockUserId, { name: 'Whatever the user typed' });
 
-      expect(agentRepository.count).toHaveBeenCalledWith({
-        ownerId: mockUserId,
-        isActive: true,
-      });
-      expect(agentRepository.create).toHaveBeenCalled();
+      expect(agentRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ownerId: mockUserId,
+          isMainAgent: true,
+          name: 'alice',
+          slug: 'alice',
+        })
+      );
     });
 
-    test('should reject creation with a 409 when the user already has an active agent', async () => {
-      agentRepository.count.mockResolvedValue(1);
+    test('falls back to the user name when no Clerk username is set', async () => {
+      User.findById.mockResolvedValue({ id: mockUserId, username: null, name: 'Bob B' });
+      agentRepository.findOne.mockResolvedValue(null);
+      agentRepository.findBySlug.mockResolvedValue(null);
+      agentRepository.create.mockResolvedValue(mockAgent);
 
-      await expect(
-        agentService.createAgent(mockUserId, { name: 'Second Persona' })
-      ).rejects.toMatchObject({ statusCode: 409 });
+      await agentService.createAgent(mockUserId, { name: 'Ignored' });
 
-      expect(agentRepository.create).not.toHaveBeenCalled();
+      expect(agentRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ isMainAgent: true, name: 'Bob B', slug: 'bob-b' })
+      );
+    });
+
+    test('creating a sub-agent when a Main Agent already exists does not override name', async () => {
+      agentRepository.findOne.mockResolvedValue({ _id: 'main_agent', isMainAgent: true });
+      agentRepository.findBySlug.mockResolvedValue(null);
+      agentRepository.create.mockResolvedValue(mockAgent);
+
+      await agentService.createAgent(mockUserId, { name: 'Research Helper' });
+
+      expect(agentRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ isMainAgent: false, name: 'Research Helper' })
+      );
+    });
+
+    test('surfaces a 409 when a race condition creates two Main Agents', async () => {
+      agentRepository.findOne.mockResolvedValue(null);
+      agentRepository.findBySlug.mockResolvedValue(null);
+      const dupError = new Error('duplicate key');
+      dupError.code = 11000;
+      dupError.keyPattern = { ownerId: 1, isMainAgent: 1, isActive: 1 };
+      agentRepository.create.mockRejectedValue(dupError);
+
+      await expect(agentService.createAgent(mockUserId, { name: 'Ignored' })).rejects.toMatchObject({
+        statusCode: 409,
+      });
     });
   });
 

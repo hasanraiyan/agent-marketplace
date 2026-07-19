@@ -17,6 +17,21 @@ export function tryParseJson(value) {
   }
 }
 
+// Tool arguments can arrive double-encoded — LangChain's tool tracer wraps
+// stringified args as { input: "<json>" }. Unwrap that envelope so callers
+// see the real args (file_path, old_string, todos, ...). Safe on clean args.
+export function parseToolArgs(argsText) {
+  const parsed = tryParseJson(argsText);
+  if (
+    parsed &&
+    typeof parsed.input === "string" &&
+    Object.keys(parsed).length === 1
+  ) {
+    return tryParseJson(parsed.input) ?? parsed;
+  }
+  return parsed;
+}
+
 export function getDomain(url) {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
@@ -40,7 +55,7 @@ export function isReadFileTool(name) {
 }
 
 export function getReadFileToolDetails(tool) {
-  const args = tryParseJson(tool.argumentsText) || {};
+  const args = parseToolArgs(tool.argumentsText) || {};
   
   // Detect file path key
   const pathKeys = ["file_path", "filePath", "path", "filename", "fileName", "targetFile", "TargetFile", "target_file"];
@@ -167,6 +182,14 @@ export function getFileSystemActionDetails(action) {
   return { filePath, content, hasContent, otherArgs };
 }
 
+export function isFileWriteTool(name) {
+  return (name || "").toLowerCase() === "write_file";
+}
+
+export function isFileEditTool(name) {
+  return (name || "").toLowerCase() === "edit_file";
+}
+
 export function isTodoTool(name) {
   return (name || "").toLowerCase().includes("todo");
 }
@@ -195,7 +218,7 @@ export function parseTodos(argsText, resultText) {
     }
   }
 
-  const parsed = tryParseJson(argsText);
+  const parsed = parseToolArgs(argsText);
   if (!Array.isArray(parsed?.todos)) return null;
   const todos = parsed.todos
     .map((todo) => ({
@@ -331,7 +354,7 @@ export function getLanguage(path) {
 }
 
 export function queryFromArgs(argsText) {
-  const parsed = tryParseJson(argsText);
+  const parsed = parseToolArgs(argsText);
   const value =
     parsed?.query ||
     parsed?.q ||
@@ -359,7 +382,7 @@ export function toolTitle(tool) {
 
   if (name === "search_knowledge_base" || name === "list_knowledge_base_sources") {
     const isSearchAction = name === "search_knowledge_base";
-    const args = tryParseJson(tool.argumentsText);
+    const args = parseToolArgs(tool.argumentsText);
     const kbName = args?.knowledgeBaseName || "Knowledge Base";
     const kbQuery = args?.query || query;
 
@@ -417,7 +440,7 @@ export function toolTitle(tool) {
     return tool.status === "completed" ? "Updated files" : "Working with files";
   }
   if (name === "manage_skill") {
-    const args = tryParseJson(tool.argumentsText);
+    const args = parseToolArgs(tool.argumentsText);
     const action = args?.action === "delete" ? "Deleting" : "Managing";
     const skillName = args?.name || "skill";
     return tool.status === "completed"
@@ -425,14 +448,14 @@ export function toolTitle(tool) {
       : `${action} skill "${skillName}"`;
   }
   if (name === "upsert_agent" || name === "manage_agent") {
-    const args = tryParseJson(tool.argumentsText);
+    const args = parseToolArgs(tool.argumentsText);
     const agentName = args?.name || "agent";
     return tool.status === "completed"
       ? `Saved agent "${agentName}"`
       : `Saving agent "${agentName}"`;
   }
   if (name === "task") {
-    const args = tryParseJson(tool.argumentsText);
+    const args = parseToolArgs(tool.argumentsText);
     const label = args?.subagent_type
       ? `${args.subagent_type} subagent`
       : "subagent";

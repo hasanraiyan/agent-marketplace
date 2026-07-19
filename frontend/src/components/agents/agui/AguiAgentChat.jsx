@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   BotIcon,
+  Brain,
+  FileText,
+  Globe,
+  ListTodo,
   Loader2,
   Sparkles,
   ChevronDown,
@@ -15,7 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAguiChat } from '@/lib/agui/use-agui-chat';
-import { getSuggestedPrompts, tryParseJson } from './utils';
+import { getSuggestedPrompts, tryParseJson, parseToolArgs } from './utils';
 import { MessageBubble, ThinkingText, NewChatIcon } from './MessageBubble';
 import { ToolTrace } from './ToolTrace';
 import { MCPAppRenderer } from '@/components/mcp/mcp-app-renderer';
@@ -23,119 +27,8 @@ import { ApprovalCard, ClarificationCard } from './ApprovalCard';
 import { ChatComposer } from './ChatComposer';
 import { toast } from 'sonner';
 
-const PREMIUM_MINDS_DETAILS = {
-  "moses moody": {
-    tags: "NBA | Warriors | Arkansas",
-    mindCount: "42.1K Mind",
-    verified: true,
-    description: [
-      "I am Moses Moody, professional basketball player for the Golden State Warriors. Drafted in the first round of the 2021 NBA draft, I won an NBA championship with the Warriors in my rookie season.",
-      "Ask me about shot mechanics, playing in the NBA, Steve Kerr's coaching, and my journey to the league."
-    ],
-    prompts: [
-      "What's your training routine look like?",
-      "How is it playing under Coach Steve Kerr?",
-      "What was it like winning a championship in your rookie year?"
-    ],
-    socials: {
-      x: "https://x.com/mosesmoody",
-      linkedin: "https://linkedin.com",
-      youtube: "https://youtube.com"
-    }
-  },
-  "brian halligan": {
-    tags: "HubSpot | Sequoia | MIT",
-    mindCount: "26.4K Mind",
-    verified: true,
-    description: [
-      "I am HubSpot's co-founder and was its long time CEO. Along that journey, I learned a lot about creating a category (inbound), going from an app to a platform, creating a remark-able culture, etc.",
-      "Today, I spend a lot of my time building Sequoia's CEO practice. I have a community of CEOs, coach CEOs, and create content for CEOs (Long Strange Trip podcast). From HubSpot and communing with some of the world's best startup CEOs, I have a perspective on the job.",
-      "Ask me anything you like."
-    ],
-    prompts: [
-      "What are the best practices for a startup founder to evolve into a scale-up CEO?",
-      "What are the biggest pitfalls on the CEOs journey from startup founder to scale-up CEO?",
-      "How can I create my company's second act?"
-    ],
-    socials: {
-      x: "https://x.com/bhalligan",
-      linkedin: "https://linkedin.com/in/brianhalligan",
-      youtube: "https://youtube.com"
-    }
-  },
-  "emily mcdonald": {
-    tags: "Neuroscientist | Brain Coach | @emonthebrain",
-    mindCount: "38.9K Mind",
-    verified: true,
-    description: [
-      "I am Emily McDonald, neuroscientist, brain coach, and content creator. I specialize in teaching people how to optimize their brain health, enhance mental focus, build positive cognitive habits, and use science-backed biohacking and mindfulness techniques to live a better life."
-    ],
-    prompts: [
-      "How can I optimize my brain health today?",
-      "What are the best habits to improve focus and productivity?",
-      "Explain the neuroscience behind mindfulness."
-    ],
-    socials: {
-      x: "https://x.com/emonthebrain",
-      linkedin: "https://linkedin.com",
-      youtube: "https://youtube.com"
-    }
-  },
-  "ben greenfield": {
-    tags: "Biohacker | Triathlete | Author",
-    mindCount: "31.2K Mind",
-    verified: true,
-    description: [
-      "I am Ben Greenfield, biohacker, human performance consultant, ex-bodybuilder, and triathlete. I focus on helping you optimize physical performance, longevity, sleep, nutrition, and deep wellness through scientific protocols, biohacking tools, and holistic health practices."
-    ],
-    prompts: [
-      "What are the top biohacks for deep sleep?",
-      "Can you recommend a longevity nutrition protocol?",
-      "What are the best active recovery routines?"
-    ],
-    socials: {
-      x: "https://x.com/bengreenfield",
-      linkedin: "https://linkedin.com/in/ben-greenfield-8a032822",
-      youtube: "https://youtube.com"
-    }
-  },
-  "vanessa van edwards": {
-    tags: "Author | Captivate | Science of People",
-    mindCount: "53.4K Mind",
-    verified: true,
-    description: [
-      "I am Vanessa Van Edwards, lead behavioral investigator at Science of People and author of the best-selling books 'Captivate' and 'Cues'. I teach people-skills, body language, charisma, and how to communicate effectively to build instant rapport and make unforgettable first impressions."
-    ],
-    prompts: [
-      "How can I make a great first impression?",
-      "What body language cues should I use in high-stakes negotiations?",
-      "How do I build rapport quickly with new connections?"
-    ],
-    socials: {
-      x: "https://x.com/vvanedwards",
-      linkedin: "https://linkedin.com/in/vanessavanedwards",
-      youtube: "https://youtube.com"
-    }
-  },
-  "zack kass": {
-    tags: "AI Futurist | OpenAI | Advisor",
-    mindCount: "18.9K Mind",
-    verified: true,
-    description: [
-      "I am Zack Kass, AI Futurist and former Head of Go-To-Market at OpenAI. I work with organizations to navigate the future of Artificial General Intelligence (AGI), build corporate AI strategies, and encourage human-centric adaptation that empowers society."
-    ],
-    prompts: [
-      "How do we restore humanity in the age of AI?",
-      "What are key strategies for corporate AI implementation?",
-      "What does the road to AGI look like?"
-    ],
-    socials: {
-      x: "https://x.com/zackkass",
-      linkedin: "https://linkedin.com/in/zackkass",
-      youtube: "https://youtube.com"
-    }
-  }
-};
+// Premium minds details removed
+
 
 export function AguiAgentChat({
   agent,
@@ -155,6 +48,7 @@ export function AguiAgentChat({
   onNewChat,
   onRunFinished,
   onTitleGenerated,
+  onOpenFile,
   showHeader = true,
   contentClassName,
 }) {
@@ -275,10 +169,9 @@ export function AguiAgentChat({
             )}
           >
             {(() => {
-              const agentName = (agent?.name || "").toLowerCase();
-              let details = {
+              const details = {
                 tags: agent?.tags?.join(' | ') || agent?.category || 'Agent',
-                mindCount: '12.5K Mind',
+                mindCount: agent?.messageCount ? `${agent.messageCount} Chats` : '0 Chats',
                 verified: false,
                 description: [agent?.description || 'Ask this agent to work on your request.'],
                 prompts: getSuggestedPrompts(agent).map(p => p.prompt),
@@ -288,20 +181,6 @@ export function AguiAgentChat({
                   youtube: "https://youtube.com"
                 }
               };
-
-              if (agentName.includes("moses") || agentName.includes("moody")) {
-                details = PREMIUM_MINDS_DETAILS["moses moody"];
-              } else if (agentName.includes("brian") || agentName.includes("halligan")) {
-                details = PREMIUM_MINDS_DETAILS["brian halligan"];
-              } else if (agentName.includes("emily") || agentName.includes("mcdonald")) {
-                details = PREMIUM_MINDS_DETAILS["emily mcdonald"];
-              } else if (agentName.includes("ben") || agentName.includes("greenfield")) {
-                details = PREMIUM_MINDS_DETAILS["ben greenfield"];
-              } else if (agentName.includes("vanessa")) {
-                details = PREMIUM_MINDS_DETAILS["vanessa van edwards"];
-              } else if (agentName.includes("zack") || agentName.includes("kass")) {
-                details = PREMIUM_MINDS_DETAILS["zack kass"];
-              }
 
               const handleShare = () => {
                 if (typeof window !== "undefined") {
@@ -472,18 +351,28 @@ export function AguiAgentChat({
                 } else if (entry.type === 'tool') {
                   const tool = toolById(entry.refId);
                   if (tool) {
-                    currentToolGroup.push(tool);
-                    // MCP App widgets are a first-class part of the conversation,
-                    // not a detail buried behind the "Used N tools" accordion -
-                    // flush so it renders as its own always-visible block right
-                    // where this tool call happened, not nested inside it.
-                    if (tool.mcpApp?.resourceUri && tool.mcpApp?.mcpId) {
+                    const isPresentFile = tool.name?.toLowerCase() === 'present_file';
+                    if (isPresentFile) {
                       flushToolGroup();
                       renderItems.push({
-                        type: 'mcp_app',
-                        id: `mcpapp-${tool.id}`,
+                        type: 'present_file',
+                        id: `present-${tool.id}`,
                         tool,
                       });
+                    } else {
+                      currentToolGroup.push(tool);
+                      // MCP App widgets are a first-class part of the conversation,
+                      // not a detail buried behind the "Used N tools" accordion -
+                      // flush so it renders as its own always-visible block right
+                      // where this tool call happened, not nested inside it.
+                      if (tool.mcpApp?.resourceUri && tool.mcpApp?.mcpId) {
+                        flushToolGroup();
+                        renderItems.push({
+                          type: 'mcp_app',
+                          id: `mcpapp-${tool.id}`,
+                          tool,
+                        });
+                      }
                     }
                   }
                 }
@@ -491,27 +380,30 @@ export function AguiAgentChat({
 
               flushToolGroup();
 
-              return renderItems.map((item) => {
+              return renderItems.map((item, index) => {
+                const prev = renderItems[index - 1];
+                // The trace flows straight into the assistant text answering
+                // it — no gap. A new user turn keeps its breathing room.
+                const tightAfterTools =
+                  (prev?.type === 'tool_group' || prev?.type === 'present_file') &&
+                  item.type === 'message' &&
+                  item.data.role !== 'user';
+
+                let node = null;
                 if (item.type === 'message') {
-                  return (
-                    <MessageBubble
-                      key={item.id}
-                      message={item.data}
-                    />
-                  );
-                }
-                if (item.type === 'tool_group') {
-                  return (
-                    <CollapsibleToolGroup
-                      key={item.id}
-                      tools={item.tools}
-                    />
-                  );
-                }
-                if (item.type === 'mcp_app') {
-                  return (
+                  node = <MessageBubble message={item.data} />;
+                } else if (item.type === 'tool_group') {
+                  // A lone tool reads as a plain step row — a one-item
+                  // accordion is just noise.
+                  node =
+                    item.tools.length === 1 ? (
+                      <ToolTrace tool={item.tools[0]} onOpenFile={onOpenFile} />
+                    ) : (
+                      <CollapsibleToolGroup tools={item.tools} onOpenFile={onOpenFile} />
+                    );
+                } else if (item.type === 'mcp_app') {
+                  node = (
                     <MCPAppRenderer
-                      key={item.id}
                       mcpId={item.tool.mcpApp.mcpId}
                       resourceUri={item.tool.mcpApp.resourceUri}
                       toolName={item.tool.name}
@@ -519,8 +411,15 @@ export function AguiAgentChat({
                       height={420}
                     />
                   );
+                } else if (item.type === 'present_file') {
+                  node = <ToolTrace tool={item.tool} onOpenFile={onOpenFile} />;
                 }
-                return null;
+                if (!node) return null;
+                return (
+                  <div key={item.id} className={tightAfterTools ? '!mt-1' : undefined}>
+                    {node}
+                  </div>
+                );
               });
             })()}
             {chat.pendingApproval ? (
@@ -576,13 +475,47 @@ export function AguiAgentChat({
   );
 }
 
-function CollapsibleToolGroup({ tools }) {
-  const allDone = tools.every((t) => t.status === 'completed');
+// Which semantic family a tool belongs to, for the cluster header. Memory is
+// detected by name AND by file ops touching /memories/ paths (Dostify-style).
+function toolGroupKey(tool) {
+  const name = (tool.name || '').toLowerCase();
+  if (name.includes('memory') || name.includes('preference')) return 'memory';
+  const args = parseToolArgs(tool.argumentsText);
+  const path = args?.file_path || args?.path || '';
+  if (typeof path === 'string' && path.includes('/memories')) return 'memory';
+  if (name.includes('file') || name === 'ls' || name === 'glob' || name === 'grep')
+    return 'file';
+  if (name.includes('search') || name.startsWith('tavily')) return 'search';
+  if (name === 'task') return 'task';
+  if (name.includes('todo')) return 'plan';
+  return name;
+}
+
+const CLUSTER_META = {
+  memory: { title: 'Personalizing memory', Icon: Brain },
+  file: { title: 'Working with files', Icon: FileText },
+  search: { title: 'Searching the web', Icon: Globe },
+  task: { title: 'Running subagents', Icon: BotIcon },
+  plan: { title: 'Updating the plan', Icon: ListTodo },
+  mixed: { title: 'Performing actions', Icon: Wrench },
+};
+
+// A run of adjacent tool calls collapses into ONE cluster with a header
+// derived from what the mix is doing — "Working with files", "Searching the
+// web" — instead of a generic "Used N tools".
+function clusterMeta(tools) {
+  const groups = new Set(tools.map(toolGroupKey));
+  const key = groups.size === 1 ? [...groups][0] : 'mixed';
+  return CLUSTER_META[key] || CLUSTER_META.mixed;
+}
+
+function CollapsibleToolGroup({ tools, onOpenFile }) {
   const hasError = tools.some((t) => {
     const parsed = tryParseJson(t.resultText);
     return parsed?.status === 'error';
   });
   const anyRunning = tools.some((t) => t.status !== 'completed');
+  const { title, Icon: GroupIcon } = clusterMeta(tools);
 
   const [isOpen, setIsOpen] = useState(anyRunning);
   const [prevAnyRunning, setPrevAnyRunning] = useState(anyRunning);
@@ -609,24 +542,19 @@ function CollapsibleToolGroup({ tools }) {
           ) : (
             <CheckCircle2 className="size-4 text-emerald-500" />
           )}
-          <span>
-            {anyRunning
-              ? `Running tools (${tools.filter((t) => t.status !== 'completed').length} active)...`
-              : `Used ${tools.length} tool${tools.length > 1 ? 's' : ''}`}
+          <GroupIcon className="size-4 text-slate-400 dark:text-slate-500" />
+          <span className="font-bold">{title}</span>
+          <span className="text-[10px] font-normal text-slate-400 dark:text-slate-500">
+            {tools.length} step{tools.length > 1 ? 's' : ''}
           </span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">
-            {isOpen ? 'Click to collapse' : 'Click to expand'}
-          </span>
-          {isOpen ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-        </div>
+        {isOpen ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
       </button>
 
       {isOpen && (
         <div className="mt-2 space-y-2 pl-4">
           {tools.map((tool) => (
-            <ToolTrace key={tool.id} tool={tool} />
+            <ToolTrace key={tool.id} tool={tool} onOpenFile={onOpenFile} />
           ))}
         </div>
       )}

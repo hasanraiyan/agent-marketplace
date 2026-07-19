@@ -128,16 +128,16 @@ export default function AgentDetailPage() {
     }
   }, [isOwner, agentId]);
 
-  const handleDeleteMemory = async (key) => {
-    if (!window.confirm("Are you sure you want to delete this memory item?")) {
+  const handleDeleteMemory = async (path) => {
+    if (!window.confirm("Are you sure you want to delete this memory file?")) {
       return;
     }
     try {
-      await deleteAgentMemory(agentId, key);
-      setMemories((prev) => prev.filter((m) => m.key !== key));
-      toast.success("Memory deleted successfully");
+      await deleteAgentMemory(agentId, path);
+      setMemories((prev) => prev.filter((m) => m.path !== path));
+      toast.success("Memory file deleted successfully");
     } catch (err) {
-      console.error("Failed to delete memory item", err);
+      console.error("Failed to delete memory file", err);
       toast.error(err.response?.data?.message || "Failed to delete memory");
     }
   };
@@ -627,8 +627,8 @@ export default function AgentDetailPage() {
                     AI Agent Memory (Long-term)
                   </CardTitle>
                   <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-                    Stored experiences and facts that this agent remembers
-                    across all conversations. Only you can view or manage this.
+                    Memory files this agent keeps for you across conversations
+                    (/memories/agent/). Only you can view or manage them.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -643,8 +643,8 @@ export default function AgentDetailPage() {
                         No memories stored yet
                       </h4>
                       <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-xs leading-relaxed font-medium">
-                        As this agent interacts with users, it will build
-                        long-term memory of snippets, facts, and preferences.
+                        As you chat with this agent, it will save memory files
+                        with learnings, facts, and preferences.
                       </p>
                     </div>
                   ) : (
@@ -654,8 +654,8 @@ export default function AgentDetailPage() {
                           <table className="w-full text-left border-collapse text-xs">
                             <thead>
                               <tr className="border-b border-zinc-150/60 dark:border-zinc-900/60 bg-zinc-100/40 dark:bg-zinc-900/20 text-zinc-500 dark:text-zinc-400 font-bold">
-                                <th className="p-3.5">Memory Key</th>
-                                <th className="p-3.5">Memory Content</th>
+                                <th className="p-3.5">Memory File</th>
+                                <th className="p-3.5">Content</th>
                                 <th className="p-3.5">Last Updated</th>
                                 <th className="p-3.5 text-right">Action</th>
                               </tr>
@@ -663,23 +663,19 @@ export default function AgentDetailPage() {
                             <tbody className="divide-y divide-zinc-150/60 dark:divide-zinc-900/60 text-zinc-700 dark:text-zinc-300">
                               {memories.map((mem) => (
                                 <tr
-                                  key={mem.key}
+                                  key={mem.path}
                                   className="hover:bg-zinc-100/20 dark:hover:bg-zinc-900/10 transition-colors"
                                 >
                                   <td
                                     className="p-3.5 font-semibold font-mono text-[11px] max-w-[150px] truncate"
-                                    title={mem.key}
+                                    title={mem.path}
                                   >
-                                    {mem.key}
+                                    {mem.path}
                                   </td>
                                   <td className="p-3.5 font-medium leading-relaxed max-w-[320px]">
-                                    {typeof mem.value === "object" ? (
-                                      <pre className="text-[10px] font-mono bg-zinc-100 dark:bg-zinc-900/50 p-2 rounded-lg overflow-x-auto whitespace-pre-wrap">
-                                        {JSON.stringify(mem.value, null, 2)}
-                                      </pre>
-                                    ) : (
-                                      String(mem.value)
-                                    )}
+                                    <pre className="text-[10px] font-mono bg-zinc-100 dark:bg-zinc-900/50 p-2 rounded-lg overflow-x-auto whitespace-pre-wrap max-h-32 overflow-y-auto">
+                                      {mem.content}
+                                    </pre>
                                   </td>
                                   <td className="p-3.5 text-zinc-500 font-medium">
                                     {mem.updatedAt
@@ -693,7 +689,7 @@ export default function AgentDetailPage() {
                                       variant="ghost"
                                       size="icon"
                                       onClick={() =>
-                                        handleDeleteMemory(mem.key)
+                                        handleDeleteMemory(mem.path)
                                       }
                                       className="size-8 rounded-full text-zinc-400 hover:text-red-500 hover:bg-red-50/50 dark:hover:bg-red-950/20 transition-all"
                                     >

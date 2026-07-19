@@ -8,10 +8,11 @@ const mutateLimiter = rateLimiter('MUTATE', RATE_LIMITS.MUTATE);
 
 router.use(authMiddleware);
 
+// File-based memory: memories are markdown virtual files, the same ones agents
+// read/write through their /memories/ filesystem routes.
 router.get('/', memoryController.getAll);
-router.post('/', mutateLimiter, memoryController.create);
-router.put('/:agentId/:key', mutateLimiter, memoryController.update);
-router.delete('/:agentId/:key', mutateLimiter, memoryController.remove);
+router.put('/file', mutateLimiter, memoryController.writeFile);
+router.delete('/file', mutateLimiter, memoryController.removeFile);
 router.delete('/all', mutateLimiter, memoryController.clearAll);
 
 export default router;

@@ -41,7 +41,7 @@ const AGUI_RUNTIME_URL =
  * The role lives in the LAST element of the `id` array.
  * We also accept the simpler { type: "human"|"ai", content } shape as a fallback.
  */
-function normaliseLangChainMessages(raw) {
+function normaliseLangChainMessages(raw, subagentTraces = {}) {
   if (!Array.isArray(raw)) {
     return { messages: [], toolCalls: [], conversation: [] };
   }
@@ -126,6 +126,10 @@ function normaliseLangChainMessages(raw) {
             argumentsText: tcArgs,
             resultText: "",
             status: "completed",
+            // Re-attach the subagent's persisted transcript (task tool calls).
+            ...(Array.isArray(subagentTraces[tcId])
+              ? { subEvents: subagentTraces[tcId] }
+              : {}),
           };
           toolCalls.push(toolObj);
           conversation.push({ id: `entry-${tcId}`, type: "tool", refId: tcId });
@@ -144,6 +148,9 @@ function normaliseLangChainMessages(raw) {
           argumentsText: "",
           resultText,
           status: "completed",
+          ...(Array.isArray(subagentTraces[toolCallId])
+            ? { subEvents: subagentTraces[toolCallId] }
+            : {}),
         };
         toolCalls.push(toolObj);
         conversation.push({ id: `entry-${toolCallId}`, type: "tool", refId: toolCallId });
@@ -230,8 +237,12 @@ export default function RunAgentPage() {
           setThread(loadedThread);
           setSessionKey(urlThreadId);
 
-          const { messages: rawMessages = [], state: rawState = {} } = historyRes.data?.data || {};
-          setInitialMessages(normaliseLangChainMessages(rawMessages));
+          const {
+            messages: rawMessages = [],
+            state: rawState = {},
+            subagentTraces = {},
+          } = historyRes.data?.data || {};
+          setInitialMessages(normaliseLangChainMessages(rawMessages, subagentTraces));
           setInitialState(rawState);
           setAgentState(rawState);
           setSelectedFile(null);

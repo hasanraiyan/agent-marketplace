@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import { ARCHITECT_AGENT_ID } from '../src/tools/index.js';
-import agentFactory from '../src/factories/agentFactory.js';
+import agentFactory, { agentSkillsStore } from '../src/factories/agentFactory.js';
 import providerRepository from '../src/repositories/providerRepository.js';
 import encryption from '../src/utils/encryption.js';
 
@@ -53,10 +53,13 @@ describe('Architect Improvements', () => {
   });
 
   test('T11: Architect has hardcoded agent-architecture skill', async () => {
-    const { skillFiles } = await agentFactory.buildAgent(ARCHITECT_AGENT_ID, userId, null);
-    expect(skillFiles['/skills/agent-architecture/SKILL.md']).toBeDefined();
-    expect(skillFiles['/skills/agent-architecture/SKILL.md'].content.join('\n')).toContain(
-      'agent-architecture'
+    // Skills are served live from the read-only skills store (no per-invoke
+    // seeding). The Architect's skill is a static entry in that store.
+    const item = await agentSkillsStore.get(
+      ['agents', ARCHITECT_AGENT_ID, 'enabled'],
+      '/agent-architecture/SKILL.md'
     );
+    expect(item).not.toBeNull();
+    expect(item.value.content).toContain('agent-architecture');
   });
 });

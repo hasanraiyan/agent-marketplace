@@ -18,6 +18,8 @@ import {
   buildResumeValue,
   describeInterrupt,
 } from '../utils/aguiTranslator.js';
+import { RunScopeTracker } from '../utils/RunScopeTracker.js';
+import { foldSubagentEvent, settleTrace } from '../utils/subagentTrace.js';
 
 const logger = loggerService.getLogger();
 const aguiRouter = express.Router();
@@ -123,7 +125,7 @@ async function* runAgentAsAguiEvents({
     return;
   }
 
-  const { agentInstance, agentConfig, providerConfig, skillFiles, llm, mcpAppMap } = agentBuild;
+  const { agentInstance, agentConfig, providerConfig, llm, mcpAppMap } = agentBuild;
 
   // HITL-guarded tools: the graph pauses before executing these, so their args
   // must not be live-streamed (the card would be stranded "running" across the
@@ -163,18 +165,20 @@ async function* runAgentAsAguiEvents({
     titlePromise = checkpointService._autoTitleThread(thread, content, llm);
   }
 
-  const hasSkillFiles = skillFiles && Object.keys(skillFiles).length > 0;
   const inputArg = isResuming
     ? new Command({ resume: buildResumeValue(pendingInterrupt, resume, content) })
-    : {
-        messages: [new HumanMessage(content)],
-        ...(hasSkillFiles ? { files: skillFiles } : {}),
-      };
+    : { messages: [new HumanMessage(content)] };
+
+  // Records run ancestry alongside the event stream so the translator can
+  // attribute nested events to the correct `task` (subagent) call even when
+  // several subagents run in parallel.
+  const runScopeTracker = new RunScopeTracker();
 
   const stream = agentInstance.streamEvents(inputArg, {
     configurable: { thread_id: langGraphThreadId },
     version: 'v2',
     signal,
+    callbacks: [runScopeTracker],
   });
 
   let pausedForInterrupt = false;
@@ -182,6 +186,7 @@ async function* runAgentAsAguiEvents({
     providerConfig,
     logger,
     mcpAppMap,
+    runScopeTracker,
     suppressArgStreamingFor: guardedToolNames,
     getState: langGraphThreadId
       ? async () => {
@@ -213,21 +218,6 @@ async function* runAgentAsAguiEvents({
     } catch (err) {
       logger.error(`[AG-UI] auto titling failed: ${err?.message}`);
     }
-  }
-
-  if (langGraphThreadId && !pausedForInterrupt) {
-    setImmediate(async () => {
-      try {
-        const chatHistory = await checkpointService.getMessages(threadDbId, userId);
-        // Trigger memory extraction periodically (e.g. every 5 messages)
-        if (chatHistory.messages && chatHistory.messages.length > 0 && chatHistory.messages.length % 5 === 0) {
-          const { extractAndSaveMemory } = await import('../services/memoryCollector.service.js');
-          await extractAndSaveMemory(userId, chatHistory.messages, providerConfig);
-        }
-      } catch (e) {
-        logger.error('[AG-UI] Background memory collector failed:', e.message);
-      }
-    });
   }
 }
 
@@ -269,6 +259,11 @@ aguiRouter.post('/', rateLimiter('CHAT', RATE_LIMITS.CHAT), async (req, res, nex
       res.write(`data: ${JSON.stringify(event)}\n\n`);
     };
 
+    // Subagent timelines exist only in the live stream (checkpoints hold just
+    // the main thread's messages) — fold them here and persist per task call
+    // so the subagent's transcript survives thread reloads.
+    const subagentTraces = {};
+
     send({ type: EventType.RUN_STARTED, threadId, runId });
     for await (const event of runAgentAsAguiEvents({
       ...context,
@@ -277,10 +272,31 @@ aguiRouter.post('/', rateLimiter('CHAT', RATE_LIMITS.CHAT), async (req, res, nex
       signal: controller.signal,
     })) {
       if (res.destroyed) break;
+      if (event?.type === EventType.CUSTOM && event.name === 'subagent_activity') {
+        const callId = event.value?.toolCallId;
+        if (callId) {
+          foldSubagentEvent((subagentTraces[callId] ??= []), event.value);
+        }
+      }
       send(event);
     }
     send({ type: EventType.RUN_FINISHED, threadId, runId });
     res.end();
+
+    if (context.threadDbId && Object.keys(subagentTraces).length > 0) {
+      // Per-key $set merges this run's traces with earlier turns' instead of
+      // replacing the whole map. Fire-and-forget — persistence must not
+      // delay or fail the response.
+      const setOps = {};
+      for (const [callId, items] of Object.entries(subagentTraces)) {
+        setOps[`subagentTraces.${callId}`] = settleTrace(items);
+      }
+      threadRepository
+        .update(context.threadDbId, { $set: setOps })
+        .catch((err) =>
+          logger.warn('[AG-UI] failed to persist subagent traces', { err: err.message })
+        );
+    }
   } catch (err) {
     next(err);
   } finally {

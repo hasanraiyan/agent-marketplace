@@ -3,9 +3,12 @@ import { getBuilderToolbox } from './builder.tools.js';
 import { askClarificationTool } from './clarification.tool.js';
 import { resolveMcpTools } from './mcp.tools.js';
 import { resolveKnowledgeBaseTools } from './knowledge.tools.js';
-import { getMemoryTools } from './memory.tools.js';
+import { presentFileTool } from './present.tool.js';
 
-export const ARCHITECT_AGENT_ID = '000000000000000000000000';
+// Defined in a leaf constants module so consumers that sit inside import
+// cycles with this module (e.g. agentFactory) can import it safely.
+import { ARCHITECT_AGENT_ID } from '../utils/architectConstants.js';
+export { ARCHITECT_AGENT_ID };
 
 /**
  * @param {Object} agentConfig - The Mongoose Agent document or System Agent object
@@ -20,8 +23,10 @@ export const resolveAgentTools = async (agentConfig, userId) => {
     return { tools: [clarificationTool, ...getBuilderToolbox(userId)], mcpAppMap: {} };
   }
 
-  const agentId = agentConfig._id?.toString() || agentConfig.id?.toString();
-  const tools = [clarificationTool, ...getMemoryTools(userId, agentId)];
+  // Long-term memory is file-based now: the agent persists memories through
+  // the /memories/ filesystem routes, so no dedicated memory tools are needed.
+  const presentTool = presentFileTool();
+  const tools = [clarificationTool, presentTool];
 
   // 2. Core Engine Web Search parsing
   if (agentConfig.webSearchEnabled) {
@@ -46,7 +51,7 @@ export const resolveAgentTools = async (agentConfig, userId) => {
 
 // Also expose generic factory for backend scripts outside of Chat loop
 export const getAvailableTools = () => {
-  const tools = [askClarificationTool()];
+  const tools = [askClarificationTool(), presentFileTool()];
 
   const searchTool = getSearchTool();
   if (searchTool) tools.push(searchTool);

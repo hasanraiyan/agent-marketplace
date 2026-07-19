@@ -2,10 +2,10 @@
 
 import { FileText, Folder, FolderOpen, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { tryParseJson, parseLsResults } from '../utils';
+import { parseToolArgs, parseLsResults } from '../utils';
 
 export function LsDirectoryCard({ tool }) {
-  const args = tryParseJson(tool.argumentsText) || {};
+  const args = parseToolArgs(tool.argumentsText) || {};
   const path = args.path || args.dir || args.directory || '/';
   const items = parseLsResults(tool.resultText);
   const done = tool.status === 'completed';

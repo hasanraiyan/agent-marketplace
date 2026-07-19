@@ -1,15 +1,28 @@
 import { ChatOpenAI } from '@langchain/openai';
-import { createDeepAgent } from 'deepagents';
+import {
+  createDeepAgent,
+  CompositeBackend,
+  StoreBackend,
+  DEFAULT_GENERAL_PURPOSE_DESCRIPTION,
+} from 'deepagents';
 import { MongoDBStore } from '../utils/mongoStore.js';
 import { VersionedStateBackend } from '../utils/versionedStateBackend.js';
+import { AgentSkillsStore } from '../utils/agentSkillsStore.js';
+import { readonlyBackend } from '../utils/readonlyBackend.js';
+import {
+  memoryFilesStore,
+  userMemoryNamespace,
+  agentMemoryNamespace,
+} from '../utils/memoryFilesStore.js';
+import { skillLibraryStore, skillLibraryNamespace } from '../utils/skillLibraryStore.js';
 import checkpointService from '../services/checkpoint.service.js';
 import { LRUCache } from 'lru-cache';
 import agentRepository from '../repositories/agentRepository.js';
 import providerRepository from '../repositories/providerRepository.js';
-import { userRepository } from '../repositories/index.js';
 import encryption from '../utils/encryption.js';
 
-import { resolveAgentTools, ARCHITECT_AGENT_ID } from '../tools/index.js';
+import { resolveAgentTools } from '../tools/index.js';
+import { ARCHITECT_AGENT_ID } from '../utils/architectConstants.js';
 import { loggerService } from '../utils/index.js';
 import { ARCHITECT_SKILL } from '../skills/architectSkill.js';
 
@@ -23,6 +36,15 @@ function getGlobalStore() {
   }
   return globalStore;
 }
+
+// Read-only BaseStore facade serving each agent's attached skills live from
+// the Skill collection. The Architect's hardcoded skill is registered as a
+// static entry since it has no DB-backed agent document. Exported for tests.
+export const agentSkillsStore = new AgentSkillsStore({
+  staticSkillFiles: {
+    [ARCHITECT_AGENT_ID]: { '/agent-architecture/SKILL.md': ARCHITECT_SKILL },
+  },
+});
 
 // LRU Cache for compiled Agent instances to avoid expensive graph compilation on every message.
 // Small cap since each instance holds an LLM client and internal graph state.
@@ -44,6 +66,7 @@ Your goal is to help the user design, build, and optimize their own custom AI ag
 ### GUIDELINES
 -   **System Prompts**: Draft high-quality, professional system prompts that use expert-level instructions.
 -   **Descriptions**: Keep descriptions punchy and informative (1-2 sentences).
+-   **Skills**: The user's skill library is mounted read-write at \`/skill-library/\`. Author skills as folders there with your file tools (\`write_file\` a \`/skill-library/<name>/SKILL.md\` with YAML frontmatter, plus optional \`references/\` files). Consult your agent-architecture skill for the full workflow; \`manage_skill\` is only for list/delete/visibility.
 -   **Transparency**: When you call a tool, briefly explain what you are setting (e.g., "I'm setting up your coding assistant with the GPT-4o model and web search enabled.").
 -   **No Keys**: You CANNOT view or manage API keys.
 `;
@@ -95,9 +118,9 @@ class AgentFactory {
 
     const modelName = agent.modelName || provider.defaultModel || 'gpt-3.5-turbo';
     const maskedKey = apiKey
-      ? (apiKey.length > 8
-          ? `${apiKey.substring(0, 6)}...${apiKey.substring(apiKey.length - 4)}`
-          : '***')
+      ? apiKey.length > 8
+        ? `${apiKey.substring(0, 6)}...${apiKey.substring(apiKey.length - 4)}`
+        : '***'
       : 'empty';
 
     logger.info('[AgentFactory] Creating ChatOpenAI client config', {
@@ -214,49 +237,6 @@ class AgentFactory {
     // Completely abstracted Tool Registry injection
     const { tools: dynamicTools, mcpAppMap } = await resolveAgentTools(agent, userId);
 
-    //
-    // deepagents discovers skills via the `skills: ["/skills/"]` param + the agent's
-    // backend (StateBackend below). With StateBackend the skill files live in graph
-    // state, so we build each DB skill as `/skills/<dir>/SKILL.md` (SKILL.md is the
-    // filename the skills middleware scans for) and seed them into the run input
-    // `files` map at invoke time (see agui.routes.js). They then persist for
-    // the rest of the thread via the checkpointer. `skillFiles` is returned to the
-    // caller so it can do that seeding.
-    const skillFiles = {};
-    const now = new Date().toISOString();
-
-    // 3.5 Inject Hardcoded Architect Skill
-    if (agentIdStr === ARCHITECT_AGENT_ID) {
-      skillFiles['/skills/agent-architecture/SKILL.md'] = {
-        content: ARCHITECT_SKILL.split('\n'),
-        created_at: now,
-        modified_at: now,
-      };
-    }
-
-    if (agent.skills && agent.skills.length > 0) {
-      for (const skill of agent.skills) {
-        // Slugify the directory segment so odd skill names can't break the path.
-        const dir =
-          String(skill.name)
-            .trim()
-            .replace(/[^a-zA-Z0-9_-]+/g, '-')
-            .replace(/^-+|-+$/g, '')
-            .toLowerCase() || 'skill';
-        // JSON-encode frontmatter values: colons, quotes, and newlines in
-        // free-text fields are invalid as plain YAML scalars.
-        const name = JSON.stringify(String(skill.name ?? dir));
-        const description = JSON.stringify(String(skill.description ?? ''));
-        const frontmatter = `---\nname: ${name}\ndescription: ${description}\n---\n\n${skill.instructions}`;
-        skillFiles[`/skills/${dir}/SKILL.md`] = {
-          content: frontmatter.split('\n'),
-          created_at: now,
-          modified_at: now,
-        };
-      }
-    }
-    const hasSkills = Object.keys(skillFiles).length > 0;
-
     // 4. Assemble Custom DeepAgent Runtime
     // Wrap checkpointer with a Proxy to preserve prototype methods (e.g. getTuple)
     // while guarding against empty bulk write batches that crash MongoDB driver.
@@ -301,45 +281,63 @@ class AgentFactory {
         ? Object.fromEntries(agent.interruptOn)
         : agent.interruptOn || {};
 
-    // Fetch User Profile context and append to system prompt
-    let personalizedPrompt = `${agent.systemPrompt}
+    const personalizedPrompt = `${agent.systemPrompt}
 
-### AUTOMATIC PERSISTENT MEMORY RULES
-- You have access to long-term memory tools (\`save_agent_memory\` for agent-level learnings, and \`save_user_preference\` for user profile details).
-- Do not wait for the user to explicitly tell you to save facts or preferences. Proactively analyze the conversation and call the appropriate memory tool to record:
-  1. Personal facts or settings about the user (e.g. name, job title, custom preferences) -> use \`save_user_preference\`.
-  2. Persistent learnings, configurations, patterns, or code snippets that you resolve during the conversation which would be useful for this agent to remember in future conversations -> use \`save_agent_memory\`.
-- Keep memory values concise and factual. Do not ask permission before saving; simply save and continue.
-- **CRITICAL:** Do NOT call \`save_user_preference\` to save a preference that is already listed in the \`USER PROFILE & PREFERENCES\` context below unless the user is explicitly changing/updating it to a new value. If the user asks you what their preference (e.g. name, nickname, settings) is, simply read it from the context and answer directly — do NOT write or call memory tools for existing facts.`;
+### PRESENT FILE RULES
+- When you want to showcase or highlight a file to the user, call the \`present_file\` tool.
+- The frontend will automatically display a clean inline card with an "Open" button on the user's screen.
+- Therefore, do NOT repeat the file path, location, or description in your text response. Keep your text response minimal to avoid duplicating the information on the user's screen.
 
-    try {
-      const user = await userRepository.findById(userId);
-      if (user && user.profile) {
-        let profileContext =
-          '\n\n### USER PROFILE & PREFERENCES (Apply this context to the user):\n';
-        let hasContext = false;
-        if (user.profile.summary) {
-          profileContext += `- Summary: ${user.profile.summary}\n`;
-          hasContext = true;
-        }
-        if (user.profile.preferences instanceof Map && user.profile.preferences.size > 0) {
-          for (const [key, val] of user.profile.preferences.entries()) {
-            profileContext += `- ${key}: ${val}\n`;
-            hasContext = true;
-          }
-        } else if (user.profile.preferences && typeof user.profile.preferences === 'object') {
-          for (const [key, val] of Object.entries(user.profile.preferences)) {
-            profileContext += `- ${key}: ${val}\n`;
-            hasContext = true;
-          }
-        }
-        if (hasContext) {
-          personalizedPrompt = `${personalizedPrompt}${profileContext}`;
-        }
-      }
-    } catch (err) {
-      logger.warn('[AgentFactory] Failed to inject user profile:', err.message);
+### PERSISTENT MEMORY RULES (file-based)
+- Your filesystem has two persistent memory directories that survive across all conversations:
+  - \`/memories/user/\` — facts and preferences about the user, shared across all of their agents.
+  - \`/memories/agent/\` — learnings, patterns, and configurations specific to you (private to this user).
+- \`/memories/user/index.md\` and \`/memories/agent/index.md\` are auto-loaded into every conversation — you never need to read_file them. Every other \`/memories/**\` file is NOT auto-loaded; read_file it when its topic becomes relevant.
+- Each index must stay an index, not a dumping ground: one line per topic with a pointer to its topic file, e.g. "- Prefers concise answers → /memories/user/preferences.md". When a topic in an index grows past 2-3 bullets, move the content into its own topic file and leave the one-line pointer.
+- Suggested topic files: \`/memories/user/preferences.md\` (communication style, tooling choices), \`/memories/user/facts.md\` (job, projects, biography), \`/memories/agent/learnings.md\` (resolved patterns, templates, configurations).
+- Proactively persist new durable facts with \`write_file\`/\`edit_file\` — update the topic file, then keep the index in sync. Do not ask permission; save and continue.
+- Do NOT re-save facts already present in the auto-loaded indexes. If the user asks what you remember about them, answer from the loaded context directly.
+- Never store API keys, passwords, tokens, or other secrets in memory files.
+- \`/skills/\` is read-only reference material — never attempt to write there.
+
+### SUB-AGENT WORKSPACE RULES
+- Whenever you delegate a task to a sub-agent (using the \`task\` tool), you MUST explicitly instruct that sub-agent to write all of its files, outputs, and responses inside the \`/workspace/outputs/\` directory.
+- This ensures all sub-agent deliverables are systematically gathered in one folder under the workspace.`;
+
+    // Virtual filesystem: ephemeral thread-scoped scratch by default, with
+    // persistent DB-backed routes for skills (read-only, live from the Skill
+    // collection) and memories (per user / per user+agent). The compiled
+    // instance is cached per agentId:userId, so static namespaces are safe.
+    const backendRoutes = {
+      '/skills/': readonlyBackend(
+        new StoreBackend({
+          store: agentSkillsStore,
+          namespace: ['agents', agentIdStr, 'enabled'],
+        }),
+        '/skills/'
+      ),
+      '/memories/user/': new StoreBackend({
+        store: memoryFilesStore,
+        namespace: userMemoryNamespace(userId),
+      }),
+      '/memories/agent/': new StoreBackend({
+        store: memoryFilesStore,
+        namespace: agentMemoryNamespace(userId, agentIdStr),
+      }),
+    };
+
+    // The Architect authors skills by writing files (dostify pattern): the
+    // user's whole skill library is mounted read-write at /skill-library/,
+    // backed by the Skill collection. Writes validate paths/limits and parse
+    // SKILL.md frontmatter into name/description/instructions.
+    if (agentIdStr === ARCHITECT_AGENT_ID) {
+      backendRoutes['/skill-library/'] = new StoreBackend({
+        store: skillLibraryStore,
+        namespace: skillLibraryNamespace(userId),
+      });
     }
+
+    const backend = new CompositeBackend(new VersionedStateBackend(), backendRoutes);
 
     const agentInstance = await createDeepAgent({
       model: llm,
@@ -349,17 +347,30 @@ class AgentFactory {
       tools: dynamicTools,
       interruptOn: interruptOnConfig,
       // sandbox backend if real code execution is ever required.
-      backend: new VersionedStateBackend(),
-      // point it at the virtual /skills/ tree we seed at invoke time.
-      ...(hasSkills ? { skills: ['/skills/'] } : {}),
+      backend,
+      // Skills are served live from the DB via the /skills/ route above.
+      skills: ['/skills/'],
+      // Memory indexes are auto-loaded into the system prompt each run;
+      // missing files are skipped gracefully by the memory middleware.
+      memory: ['/memories/user/index.md', '/memories/agent/index.md'],
+      subagents: [
+        {
+          name: 'general-purpose',
+          description: DEFAULT_GENERAL_PURPOSE_DESCRIPTION,
+          systemPrompt: `In order to complete the objective that the user asks of you, you have access to a number of standard tools.
+
+### WORKSPACE OUTPUT ROUTING RULES
+- All outputs, responses, files, and deliverables generated by you MUST be written to a file inside the \`/workspace/outputs/\` directory.
+- Never write files to the root directory or other directories unless explicitly requested by the user.`,
+        },
+      ],
     });
 
     logger.info('[AgentFactory] agent built', {
       agentId: agentIdStr,
       toolCount: dynamicTools.length,
       tools: dynamicTools.map((t) => t.name),
-      skillCount: Object.keys(skillFiles).length,
-      hasSkills,
+      skillCount: agent.skills?.length || 0,
       mcpCount: (agent.mcps || []).filter((mcp) => mcp.isEnabled !== false).length,
       mcps: (agent.mcps || [])
         .filter((mcp) => mcp.isEnabled !== false)
@@ -381,7 +392,6 @@ class AgentFactory {
         baseURL: provider.baseURL,
         modelName: agent.modelName || provider.defaultModel || 'gpt-3.5-turbo',
       },
-      skillFiles,
       mcpAppMap,
     };
 

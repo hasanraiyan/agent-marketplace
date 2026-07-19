@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useUser, useAuth } from "@clerk/nextjs";
 import { useThreads } from "@/components/threads-context";
-import { getMyAgent } from "@/lib/api/agents";
+import { getMyMainAgent } from "@/lib/api/agents";
 import {
   CompassIcon,
   UserIcon,
@@ -74,7 +74,7 @@ export function AppSidebar({ ...props }) {
   React.useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
     let cancelled = false;
-    getMyAgent()
+    getMyMainAgent()
       .then((agent) => {
         if (!cancelled) setMyAgentId(agent?.id || agent?._id || null);
       })
