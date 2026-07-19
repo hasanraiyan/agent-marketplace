@@ -66,7 +66,6 @@ describe('Stateless Resumption Logic in agui.routes.js', () => {
     agentFactory.buildAgent.mockResolvedValue({
       agentInstance: mockAgentInstance,
       providerConfig: {},
-      skillFiles: {},
       llm: {},
     });
     threadRepository.findById.mockResolvedValue({

@@ -125,7 +125,7 @@ async function* runAgentAsAguiEvents({
     return;
   }
 
-  const { agentInstance, agentConfig, providerConfig, skillFiles, llm, mcpAppMap } = agentBuild;
+  const { agentInstance, agentConfig, providerConfig, llm, mcpAppMap } = agentBuild;
 
   // HITL-guarded tools: the graph pauses before executing these, so their args
   // must not be live-streamed (the card would be stranded "running" across the
@@ -165,13 +165,9 @@ async function* runAgentAsAguiEvents({
     titlePromise = checkpointService._autoTitleThread(thread, content, llm);
   }
 
-  const hasSkillFiles = skillFiles && Object.keys(skillFiles).length > 0;
   const inputArg = isResuming
     ? new Command({ resume: buildResumeValue(pendingInterrupt, resume, content) })
-    : {
-        messages: [new HumanMessage(content)],
-        ...(hasSkillFiles ? { files: skillFiles } : {}),
-      };
+    : { messages: [new HumanMessage(content)] };
 
   // Records run ancestry alongside the event stream so the translator can
   // attribute nested events to the correct `task` (subagent) call even when
@@ -222,21 +218,6 @@ async function* runAgentAsAguiEvents({
     } catch (err) {
       logger.error(`[AG-UI] auto titling failed: ${err?.message}`);
     }
-  }
-
-  if (langGraphThreadId && !pausedForInterrupt) {
-    setImmediate(async () => {
-      try {
-        const chatHistory = await checkpointService.getMessages(threadDbId, userId);
-        // Trigger memory extraction periodically (e.g. every 5 messages)
-        if (chatHistory.messages && chatHistory.messages.length > 0 && chatHistory.messages.length % 5 === 0) {
-          const { extractAndSaveMemory } = await import('../services/memoryCollector.service.js');
-          await extractAndSaveMemory(userId, chatHistory.messages, providerConfig);
-        }
-      } catch (e) {
-        logger.error('[AG-UI] Background memory collector failed:', e.message);
-      }
-    });
   }
 }
 

@@ -1,227 +1,146 @@
 import Agent from '../models/Agent.js';
+import MemoryFile from '../models/MemoryFile.js';
 import checkpointService from './checkpoint.service.js';
 import userRepository from '../repositories/userRepository.js';
-import agentFactory from '../factories/agentFactory.js';
+import {
+  normalizeMemoryKey,
+  userMemoryNamespace,
+  agentMemoryNamespace,
+} from '../utils/memoryFilesStore.js';
 import { loggerService } from '../utils/index.js';
 
 const logger = loggerService.getLogger();
 
+/**
+ * File-based memory (dostify-style): memories are markdown virtual files in the
+ * `memoryfiles` collection, the same files agents read/write through their
+ * /memories/user/ and /memories/agent/ filesystem routes.
+ *
+ * Namespaces:
+ *   ['users', userId]                      → /memories/user/   (all agents)
+ *   ['users', userId, 'agents', agentId]   → /memories/agent/  (one agent)
+ */
 class MemoryService {
+  _toFileDto(doc) {
+    const isAgentScope = doc.namespace.length === 4;
+    return {
+      scope: isAgentScope ? 'agent' : 'user',
+      agentId: isAgentScope ? doc.namespace[3] : undefined,
+      path: doc.key,
+      content: doc.content,
+      mimeType: doc.mimeType,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+    };
+  }
+
+  _namespaceFor(userId, scope, agentId) {
+    if (scope === 'agent') {
+      if (!agentId) throw new Error('agentId is required for agent-scoped memory');
+      return agentMemoryNamespace(userId, agentId);
+    }
+    return userMemoryNamespace(userId);
+  }
+
   /**
-   * Aggregates all memory for a user:
-   * 1. User profile memory (summary + preferences)
-   * 2. Agent-level memories from all agents owned by the user
+   * All memory files for a user: user-global files plus per-agent groups
+   * (annotated with agent names where the agent still exists).
    */
   async getAllMemory(userId) {
-    const user = await userRepository.findById(userId);
-    if (!user) throw new Error('User not found');
+    const docs = await MemoryFile.find({
+      'namespace.0': 'users',
+      'namespace.1': String(userId),
+    }).sort({ namespace: 1, key: 1 });
 
-    // User profile memory
-    const profileMemory = {
-      summary: user.profile?.summary || '',
-      preferences: {},
-    };
-    if (user.profile?.preferences instanceof Map) {
-      for (const [key, val] of user.profile.preferences.entries()) {
-        profileMemory.preferences[key] = val;
+    const userFiles = [];
+    const agentGroups = new Map();
+
+    for (const doc of docs) {
+      const dto = this._toFileDto(doc);
+      if (dto.scope === 'user') {
+        userFiles.push(dto);
+      } else {
+        if (!agentGroups.has(dto.agentId)) {
+          agentGroups.set(dto.agentId, { agentId: dto.agentId, agentName: null, files: [] });
+        }
+        agentGroups.get(dto.agentId).files.push(dto);
       }
-    } else if (user.profile?.preferences) {
-      Object.assign(profileMemory.preferences, user.profile.preferences);
     }
 
-    // Agent memories — only if MongoDB client is available
-    let agentMemories = [];
-    if (checkpointService.mongoClient) {
-      try {
-        // Get all agents owned by user
-        const agents = await Agent.find(
-          { ownerId: userId, deletedAt: null },
-          '_id name'
-        );
-        const agentIds = agents.map((a) => String(a._id));
-        const agentNameMap = {};
-        agents.forEach((a) => {
-          agentNameMap[String(a._id)] = a.name;
-        });
-
-        if (agentIds.length > 0) {
-          const db = checkpointService.mongoClient.db();
-          const coll = db.collection('agent_memories');
-
-          const docs = await coll
-            .find({
-              namespace: { $in: agentIds },
-            })
-            .sort({ updatedAt: -1 })
-            .toArray();
-
-          agentMemories = docs.map((d) => {
-            const ns = Array.isArray(d.namespace) ? d.namespace[0] : d.namespace;
-            return {
-              agentId: ns,
-              agentName: agentNameMap[ns] || 'Unknown Agent',
-              key: d.key,
-              value: d.value,
-              createdAt: d.createdAt,
-              updatedAt: d.updatedAt,
-            };
-          });
-        }
-      } catch (err) {
-        logger.error('[MemoryService] Failed to fetch agent memories:', err.message);
+    if (agentGroups.size > 0) {
+      const agents = await Agent.find({ _id: { $in: Array.from(agentGroups.keys()) } }, '_id name');
+      for (const agent of agents) {
+        const group = agentGroups.get(String(agent._id));
+        if (group) group.agentName = agent.name;
       }
     }
 
     return {
-      profile: profileMemory,
-      agentMemories,
+      userFiles,
+      agentMemories: Array.from(agentGroups.values()),
     };
   }
 
-  /**
-   * Create a new memory entry for an agent.
-   */
-  async createMemory(userId, { agentId, key, value }) {
-    if (!checkpointService.mongoClient) {
-      throw new Error('Database client not available');
-    }
+  /** Create or overwrite one memory file. */
+  async writeMemoryFile(userId, { scope = 'user', agentId, path, content }) {
+    const namespace = this._namespaceFor(userId, scope, agentId);
+    const key = normalizeMemoryKey(path);
 
-    // Verify agent ownership
-    const agent = await Agent.findOne({ _id: agentId, ownerId: userId, deletedAt: null });
-    if (!agent) {
-      throw new Error('Agent not found or not owned by you');
-    }
-
-    const db = checkpointService.mongoClient.db();
-    const coll = db.collection('agent_memories');
-
-    const now = new Date();
-    let parsedValue = value;
-    try {
-      parsedValue = JSON.parse(value);
-    } catch {
-      // Keep as string
-    }
-
-    await coll.updateOne(
-      { namespace: agentId, key },
-      {
-        $set: { value: parsedValue, updatedAt: now },
-        $setOnInsert: { createdAt: now },
-      },
-      { upsert: true }
+    const doc = await MemoryFile.findOneAndUpdate(
+      { namespace, key },
+      { $set: { content: String(content ?? ''), mimeType: 'text/markdown' } },
+      { upsert: true, new: true }
     );
 
-    logger.info(`[MemoryService] Created memory for agent ${agentId}: ${key}`);
-    return { agentId: String(agent._id), agentName: agent.name, key, value: parsedValue };
+    logger.info(`[MemoryService] Wrote memory file for user ${userId}: ${scope}${key}`);
+    return this._toFileDto(doc);
+  }
+
+  /** Delete one memory file. */
+  async deleteMemoryFile(userId, { scope = 'user', agentId, path }) {
+    const namespace = this._namespaceFor(userId, scope, agentId);
+    const key = normalizeMemoryKey(path);
+
+    const result = await MemoryFile.deleteOne({ namespace, key });
+    if (result.deletedCount === 0) {
+      throw new Error('Memory file not found');
+    }
+
+    logger.info(`[MemoryService] Deleted memory file for user ${userId}: ${scope}${key}`);
   }
 
   /**
-   * Update an existing agent memory entry.
-   */
-  async updateMemory(userId, agentId, key, { value }) {
-    if (!checkpointService.mongoClient) {
-      throw new Error('Database client not available');
-    }
-
-    // Verify agent ownership
-    const agent = await Agent.findOne({ _id: agentId, ownerId: userId, deletedAt: null });
-    if (!agent) {
-      throw new Error('Agent not found or not owned by you');
-    }
-
-    const db = checkpointService.mongoClient.db();
-    const coll = db.collection('agent_memories');
-
-    let parsedValue = value;
-    try {
-      parsedValue = JSON.parse(value);
-    } catch {
-      // Keep as string
-    }
-
-    const result = await coll.updateOne(
-      { namespace: agentId, key },
-      { $set: { value: parsedValue, updatedAt: new Date() } }
-    );
-
-    if (result.matchedCount === 0) {
-      throw new Error('Memory entry not found');
-    }
-
-    logger.info(`[MemoryService] Updated memory for agent ${agentId}: ${key}`);
-    return { agentId: String(agent._id), agentName: agent.name, key, value: parsedValue };
-  }
-
-  /**
-   * Clears ALL memory for the user:
-   * 1. User profile summary + preferences
-   * 2. All agent memories for all agents owned by the user
+   * Clears ALL memory for the user: every memory file under their namespace,
+   * plus legacy KV data (profile preferences + old agent_memories entries)
+   * so pre-migration remnants are wiped too.
    */
   async clearAllMemory(userId) {
-    // 1. Clear user profile memory
-    await userRepository.update(userId, {
-      'profile.summary': '',
-      'profile.preferences': {},
+    const result = await MemoryFile.deleteMany({
+      'namespace.0': 'users',
+      'namespace.1': String(userId),
     });
+    logger.info(`[MemoryService] Cleared ${result.deletedCount} memory files for user ${userId}`);
 
-    // 2. Delete all agent memories for user's agents
-    if (checkpointService.mongoClient) {
-      try {
-        const agents = await Agent.find(
-          { ownerId: userId, deletedAt: null },
-          '_id'
-        );
+    // Legacy cleanup: profile KV + old agent_memories collection.
+    try {
+      await userRepository.update(userId, {
+        'profile.summary': '',
+        'profile.preferences': {},
+      });
+
+      if (checkpointService.mongoClient) {
+        const agents = await Agent.find({ ownerId: userId, deletedAt: null }, '_id');
         const agentIds = agents.map((a) => String(a._id));
-
         if (agentIds.length > 0) {
-          const db = checkpointService.mongoClient.db();
-          const coll = db.collection('agent_memories');
-          const result = await coll.deleteMany({
-            namespace: { $in: agentIds },
-          });
-          logger.info(
-            `[MemoryService] Cleared ${result.deletedCount} agent memories for user ${userId}`
-          );
+          const coll = checkpointService.mongoClient.db().collection('agent_memories');
+          await coll.deleteMany({ namespace: { $in: agentIds } });
         }
-
-        // 3. Invalidate all agent caches so they pick up the cleared state
-        for (const agent of agents) {
-          agentFactory.invalidate(agent._id);
-        }
-      } catch (err) {
-        logger.error('[MemoryService] Failed to clear agent memories:', err.message);
-        throw err;
       }
+    } catch (err) {
+      logger.warn('[MemoryService] Legacy memory cleanup failed:', err.message);
     }
 
-    logger.info(`[MemoryService] Cleared all memory for user ${userId}`);
     return { cleared: true };
-  }
-
-  /**
-   * Delete an agent memory entry.
-   */
-  async deleteMemory(userId, agentId, key) {
-    if (!checkpointService.mongoClient) {
-      throw new Error('Database client not available');
-    }
-
-    // Verify agent ownership
-    const agent = await Agent.findOne({ _id: agentId, ownerId: userId, deletedAt: null });
-    if (!agent) {
-      throw new Error('Agent not found or not owned by you');
-    }
-
-    const db = checkpointService.mongoClient.db();
-    const coll = db.collection('agent_memories');
-
-    const result = await coll.deleteOne({ namespace: agentId, key });
-    if (result.deletedCount === 0) {
-      throw new Error('Memory entry not found');
-    }
-
-    logger.info(`[MemoryService] Deleted memory for agent ${agentId}: ${key}`);
   }
 }
 
