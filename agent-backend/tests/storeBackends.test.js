@@ -6,6 +6,7 @@ import {
 } from '../src/utils/skillMarkdown.js';
 import { AgentSkillsStore } from '../src/utils/agentSkillsStore.js';
 import { readonlyBackend } from '../src/utils/readonlyBackend.js';
+import { gracefulBackend } from '../src/utils/gracefulBackend.js';
 import {
   normalizeMemoryKey,
   userMemoryNamespace,
@@ -123,6 +124,52 @@ describe('readonlyBackend', () => {
     expect(editRes.occurrences).toBe(0);
     const uploadRes = await guarded.uploadFiles([['/skills/a/x.md', new Uint8Array()]]);
     expect(uploadRes[0].error).toBe('permission_denied');
+  });
+});
+
+describe('gracefulBackend', () => {
+  const inner = {
+    ls: async () => ({ files: [] }),
+    read: async () => ({ content: 'data' }),
+    readRaw: async () => ({ data: {} }),
+    grep: async () => ({ matches: [] }),
+    glob: async () => ({ files: [] }),
+    downloadFiles: async () => [],
+    write: async (path) => {
+      if (path.includes('bad')) throw new Error("Skill 'x' does not exist yet");
+      return { path, filesUpdate: null };
+    },
+    edit: async () => {
+      throw new Error('validation failed');
+    },
+    uploadFiles: async () => {
+      throw new Error('upload rejected');
+    },
+  };
+  const guarded = gracefulBackend(inner);
+
+  test('successful writes pass through untouched', async () => {
+    expect(await guarded.write('/skill-library/a/SKILL.md', 'x')).toEqual({
+      path: '/skill-library/a/SKILL.md',
+      filesUpdate: null,
+    });
+  });
+
+  test('thrown store errors become tool-visible { error } results', async () => {
+    const writeRes = await guarded.write('/skill-library/bad/references/x.md', 'x');
+    expect(writeRes.error).toContain('does not exist yet');
+    expect(writeRes.filesUpdate).toBeNull();
+
+    const editRes = await guarded.edit('/skill-library/a/SKILL.md', 'a', 'b');
+    expect(editRes.error).toBe('validation failed');
+    expect(editRes.occurrences).toBe(0);
+
+    const uploadRes = await guarded.uploadFiles([['/skill-library/a/x.md', new Uint8Array()]]);
+    expect(uploadRes[0].error).toBe('upload rejected');
+  });
+
+  test('reads pass through', async () => {
+    expect(await guarded.read('/skill-library/a/SKILL.md')).toEqual({ content: 'data' });
   });
 });
 

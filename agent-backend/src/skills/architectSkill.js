@@ -43,6 +43,7 @@ description: Extract text and tables from PDF documents. Use when the user uploa
 1. ...step-by-step instructions the agent follows when the skill activates...
 \`\`\`
 
+- **ORDER MATTERS — SKILL.md first, alone**: the skill does not exist until its SKILL.md is written, and supporting-file writes are REJECTED until then. Write \`/skill-library/<name>/SKILL.md\` as a single tool call, confirm it succeeded, and only then add supporting files (one write_file call at a time — never batch several file writes in one parallel tool block).
 - **Description matters most**: it is what the agent reads to decide when to activate the skill — state WHAT it does and WHEN to use it (10-1024 chars).
 - **Keep SKILL.md focused** (under ~500 lines). Move detailed reference material into \`references/*.md\` files and link to them from SKILL.md; the agent reads them on demand.
 - **Add supporting files**: \`write_file\` to \`/skill-library/<name>/references/api-guide.md\` etc. Limits: 50 files, 200KB per file, 1MB per skill.
