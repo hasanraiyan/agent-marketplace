@@ -135,7 +135,11 @@ export default function ConnectorsPage() {
                   : type.countKey === "mcps"
                     ? mcps?.length || 0
                     : type.countKey === "memoryData"
-                      ? (memoryData?.agentMemories?.length || 0) + (Object.keys(memoryData?.profile?.preferences || {}).length || 0) + (memoryData?.profile?.summary ? 1 : 0)
+                      ? (memoryData?.userFiles?.length || 0) +
+                        (memoryData?.agentMemories || []).reduce(
+                          (sum, group) => sum + (group.files?.length || 0),
+                          0
+                        )
                       : 0;
             const isLoading =
               type.countKey === "mySkills"

@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useConnectors } from "../connectors-context";
-import { getAllMemory, createMemory, updateMemory, deleteMemoryEntry, clearAllMemory } from "@/lib/api/memory";
+import { getAllMemory, writeMemoryFile, deleteMemoryFile, clearAllMemory } from "@/lib/api/memory";
 import { getMyMcps } from "@/lib/api/mcps";
 import { toast } from "sonner";
 import {
@@ -10,7 +9,6 @@ import {
   Plus,
   Trash2,
   Loader2,
-  Edit3,
   Check,
   X,
   Sparkles,
@@ -19,6 +17,7 @@ import {
   Pencil,
   SearchIcon,
   AlertTriangle,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -38,16 +37,121 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+function fileId(file) {
+  return `${file.scope}:${file.agentId || ""}:${file.path}`;
+}
+
+function MemoryFileRow({ file, agentName, editing, onStartEdit, onCancelEdit, onSave, onDelete }) {
+  const [draft, setDraft] = useState(file.content);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (editing) setDraft(file.content);
+  }, [editing, file.content]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onSave(draft);
+      onCancelEdit();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-zinc-150/60 dark:border-zinc-900/60 p-3 bg-card hover:bg-zinc-50/30 dark:hover:bg-zinc-900/10 transition-colors">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0 space-y-1.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <FileText className="size-3.5 text-primary shrink-0" />
+            <span className="text-xs font-mono font-bold text-zinc-800 dark:text-zinc-200 truncate">
+              {file.path}
+            </span>
+            {agentName && (
+              <Badge variant="outline" className="text-[9px] font-bold px-1.5 py-0 rounded-full">
+                <Bot className="size-2.5 mr-1" />
+                {agentName}
+              </Badge>
+            )}
+            {file.updatedAt && (
+              <span className="text-[10px] text-muted-foreground">
+                {new Date(file.updatedAt).toLocaleDateString()}
+              </span>
+            )}
+          </div>
+          {editing ? (
+            <div className="space-y-2 mt-1">
+              <Textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                className="text-xs font-mono min-h-[120px]"
+                autoFocus
+              />
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="h-7 rounded-full text-xs font-bold"
+                >
+                  {saving ? (
+                    <Loader2 className="size-3 mr-1 animate-spin" />
+                  ) : (
+                    <Check className="size-3 mr-1" />
+                  )}
+                  Save
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onCancelEdit}
+                  className="h-7 rounded-full text-xs"
+                >
+                  <X className="size-3 mr-1" />
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <pre className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed whitespace-pre-wrap font-sans max-h-40 overflow-y-auto">
+              {file.content}
+            </pre>
+          )}
+        </div>
+        {!editing && (
+          <div className="flex items-center gap-1 shrink-0">
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onStartEdit}
+              className="size-7 rounded-full text-muted-foreground hover:text-foreground"
+            >
+              <Pencil className="size-3.5" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onDelete}
+              className="size-7 rounded-full text-muted-foreground hover:text-red-500 hover:bg-red-50/50 dark:hover:bg-red-950/20"
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function MemoryDashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [agents, setAgents] = useState([]);
   const [showNewForm, setShowNewForm] = useState(false);
-  const [newMemory, setNewMemory] = useState({ agentId: "", key: "", value: "" });
+  const [newFile, setNewFile] = useState({ scope: "user", agentId: "", path: "", content: "" });
   const [creating, setCreating] = useState(false);
-  const [editingKey, setEditingKey] = useState(null);
-  const [editValue, setEditValue] = useState("");
-  const [savingEdit, setSavingEdit] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [search, setSearch] = useState("");
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
@@ -72,60 +176,98 @@ export default function MemoryDashboardPage() {
     fetchData();
   }, [fetchData]);
 
+  const userFiles = (data?.userFiles || []).map((f) => ({ ...f, scope: "user" }));
+  const agentGroups = data?.agentMemories || [];
+
   // Derive agent options from both agents list AND any agents already in memories
   const allAgents = (() => {
     const agentMap = {};
     for (const agent of agents) {
       agentMap[agent._id || agent.id] = agent.name;
     }
-    if (data?.agentMemories) {
-      for (const mem of data.agentMemories) {
-        if (mem.agentId && !agentMap[mem.agentId]) {
-          agentMap[mem.agentId] = mem.agentName;
-        }
+    for (const group of agentGroups) {
+      if (group.agentId && !agentMap[group.agentId]) {
+        agentMap[group.agentId] = group.agentName || "Unknown Agent";
       }
     }
     return Object.entries(agentMap).map(([id, name]) => ({ id, name }));
   })();
 
+  const matchesSearch = (file, agentName) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      (file.path || "").toLowerCase().includes(q) ||
+      (file.content || "").toLowerCase().includes(q) ||
+      (agentName || "").toLowerCase().includes(q)
+    );
+  };
+
+  const filteredUserFiles = userFiles.filter((f) => matchesSearch(f, null));
+  const filteredAgentGroups = agentGroups
+    .map((group) => ({
+      ...group,
+      files: (group.files || []).filter((f) => matchesSearch(f, group.agentName)),
+    }))
+    .filter((group) => group.files.length > 0);
+  const agentFileCount = agentGroups.reduce((sum, g) => sum + (g.files?.length || 0), 0);
+
   const handleCreate = async () => {
-    if (!newMemory.agentId || !newMemory.key.trim() || !newMemory.value.trim()) {
-      toast.error("Agent, key, and value are required");
+    if (!newFile.path.trim() || !newFile.content.trim()) {
+      toast.error("File path and content are required");
+      return;
+    }
+    if (newFile.scope === "agent" && !newFile.agentId) {
+      toast.error("Select an agent for agent-scoped memory");
       return;
     }
     setCreating(true);
     try {
-      await createMemory({
-        agentId: newMemory.agentId,
-        key: newMemory.key.trim(),
-        value: newMemory.value.trim(),
+      await writeMemoryFile({
+        scope: newFile.scope,
+        agentId: newFile.scope === "agent" ? newFile.agentId : undefined,
+        path: newFile.path.trim(),
+        content: newFile.content,
       });
-      toast.success("Memory created");
+      toast.success("Memory file saved");
       setShowNewForm(false);
-      setNewMemory({ agentId: "", key: "", value: "" });
+      setNewFile({ scope: "user", agentId: "", path: "", content: "" });
       fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to create memory");
+      toast.error(err.response?.data?.message || "Failed to save memory file");
     } finally {
       setCreating(false);
     }
   };
 
-  const handleEdit = async (agentId, key) => {
-    if (!editValue.trim()) {
-      toast.error("Value is required");
-      return;
-    }
-    setSavingEdit(true);
+  const handleSaveEdit = async (file, content) => {
     try {
-      await updateMemory(agentId, key, { value: editValue.trim() });
-      toast.success("Memory updated");
-      setEditingKey(null);
+      await writeMemoryFile({
+        scope: file.scope,
+        agentId: file.scope === "agent" ? file.agentId : undefined,
+        path: file.path,
+        content,
+      });
+      toast.success("Memory file updated");
       fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to update memory");
-    } finally {
-      setSavingEdit(false);
+      toast.error(err.response?.data?.message || "Failed to update memory file");
+      throw err;
+    }
+  };
+
+  const handleDelete = async (file) => {
+    if (!window.confirm(`Delete memory file "${file.path}"? This cannot be undone.`)) return;
+    try {
+      await deleteMemoryFile({
+        scope: file.scope,
+        agentId: file.scope === "agent" ? file.agentId : undefined,
+        path: file.path,
+      });
+      toast.success("Memory file deleted");
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete memory file");
     }
   };
 
@@ -135,37 +277,13 @@ export default function MemoryDashboardPage() {
       await clearAllMemory();
       toast.success("All memory cleared successfully");
       setShowClearDialog(false);
-      setData({
-        profile: { summary: "", preferences: {} },
-        agentMemories: [],
-      });
+      setData({ userFiles: [], agentMemories: [] });
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to clear memory");
     } finally {
       setIsClearing(false);
     }
   };
-
-  const handleDelete = async (agentId, key) => {
-    if (!window.confirm(`Delete memory "${key}"? This cannot be undone.`)) return;
-    try {
-      await deleteMemoryEntry(agentId, key);
-      toast.success("Memory deleted");
-      fetchData();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to delete memory");
-    }
-  };
-
-  const filteredMemories = (data?.agentMemories || []).filter((mem) => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return (
-      (mem.key || "").toLowerCase().includes(q) ||
-      String(mem.value || "").toLowerCase().includes(q) ||
-      (mem.agentName || "").toLowerCase().includes(q)
-    );
-  });
 
   if (loading) {
     return (
@@ -176,9 +294,7 @@ export default function MemoryDashboardPage() {
     );
   }
 
-  const profile = data?.profile || { summary: "", preferences: {} };
-  const prefEntries = Object.entries(profile.preferences || {});
-  const hasNoMemories = filteredMemories.length === 0 && prefEntries.length === 0 && !profile.summary;
+  const hasNoMemories = userFiles.length === 0 && agentFileCount === 0;
 
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -190,7 +306,7 @@ export default function MemoryDashboardPage() {
             AI Memory Dashboard
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Centralized view of user profile memory and all agent long-term memories.
+            Memory is stored as markdown files your agents read and update across conversations.
           </p>
         </div>
         <Button
@@ -199,7 +315,7 @@ export default function MemoryDashboardPage() {
           className="rounded-full font-bold"
         >
           <Plus className="size-4 mr-1.5" />
-          New Memory
+          New Memory File
         </Button>
       </div>
 
@@ -209,49 +325,76 @@ export default function MemoryDashboardPage() {
           <CardContent className="p-5 space-y-4">
             <h3 className="text-sm font-bold flex items-center gap-2">
               <Plus className="size-4 text-primary" />
-              Create Agent Memory
+              Create Memory File
             </h3>
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Agent</label>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Scope</label>
                 <select
-                  value={newMemory.agentId}
-                  onChange={(e) => setNewMemory((p) => ({ ...p, agentId: e.target.value }))}
+                  value={newFile.scope}
+                  onChange={(e) => setNewFile((p) => ({ ...p, scope: e.target.value }))}
                   className="w-full h-9 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-background px-3 text-xs"
                 >
-                  <option value="">Select agent...</option>
-                  {allAgents.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
+                  <option value="user">User (all agents)</option>
+                  <option value="agent">Agent-specific</option>
                 </select>
               </div>
+              {newFile.scope === "agent" && (
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Agent</label>
+                  <select
+                    value={newFile.agentId}
+                    onChange={(e) => setNewFile((p) => ({ ...p, agentId: e.target.value }))}
+                    className="w-full h-9 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-background px-3 text-xs"
+                  >
+                    <option value="">Select agent...</option>
+                    {allAgents.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Key</label>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                  File Path
+                </label>
                 <Input
-                  placeholder="e.g. resolved_pattern"
-                  value={newMemory.key}
-                  onChange={(e) => setNewMemory((p) => ({ ...p, key: e.target.value }))}
-                  className="h-9 text-xs"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Value</label>
-                <Input
-                  placeholder="e.g. Use functional components"
-                  value={newMemory.value}
-                  onChange={(e) => setNewMemory((p) => ({ ...p, value: e.target.value }))}
-                  className="h-9 text-xs"
+                  placeholder="e.g. /preferences.md"
+                  value={newFile.path}
+                  onChange={(e) => setNewFile((p) => ({ ...p, path: e.target.value }))}
+                  className="h-9 text-xs font-mono"
                 />
               </div>
             </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Content (markdown)
+              </label>
+              <Textarea
+                placeholder={"- Prefers concise answers\n- Works with Next.js and Tailwind"}
+                value={newFile.content}
+                onChange={(e) => setNewFile((p) => ({ ...p, content: e.target.value }))}
+                className="text-xs font-mono min-h-[100px]"
+              />
+            </div>
             <div className="flex items-center gap-2 pt-1">
-              <Button size="sm" onClick={handleCreate} disabled={creating} className="rounded-full font-bold">
+              <Button
+                size="sm"
+                onClick={handleCreate}
+                disabled={creating}
+                className="rounded-full font-bold"
+              >
                 {creating && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
-                Create
+                Save File
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => setShowNewForm(false)} className="rounded-full">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowNewForm(false)}
+                className="rounded-full"
+              >
                 Cancel
               </Button>
             </div>
@@ -268,65 +411,64 @@ export default function MemoryDashboardPage() {
             No memories stored yet
           </h3>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2 max-w-sm leading-relaxed font-medium">
-            Memories are created automatically as your agents interact with users,
-            or you can add them manually below.
+            Agents save memory files automatically as they learn during conversations, or you can
+            create files manually.
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Left Column: User Profile Memory */}
+          {/* Left Column */}
           <div className="space-y-6 lg:col-span-2">
-            {/* User Profile Memory Card */}
+            {/* Search */}
+            <div className="relative">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search memory files..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full h-9 pl-9 pr-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+
+            {/* User Memory Card */}
             <Card className="border border-zinc-150/60 dark:border-zinc-900/60 rounded-3xl">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <Sparkles className="size-4 text-indigo-500" />
-                  User Profile Memory
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  Summary and preferences extracted from your conversations.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {profile.summary ? (
+                <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-                      Summary
-                    </p>
-                    <p className="text-sm text-zinc-700 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-900/30 rounded-xl p-3 border">
-                      {profile.summary}
-                    </p>
+                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                      <Sparkles className="size-4 text-indigo-500" />
+                      User Memory
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Files shared with all of your agents (/memories/user/).
+                    </CardDescription>
                   </div>
-                ) : (
+                  <Badge variant="secondary" className="rounded-full">
+                    {userFiles.length} files
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {filteredUserFiles.length === 0 ? (
                   <p className="text-xs text-muted-foreground italic">
-                    No profile summary yet. It will be generated as you interact with agents.
+                    {search
+                      ? "No user memory files match your search."
+                      : "No user memory files yet. They are created as agents learn about you."}
                   </p>
-                )}
-
-                {prefEntries.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-                      Preferences ({prefEntries.length})
-                    </p>
-                    <div className="grid gap-2">
-                      {prefEntries.map(([key, value]) => (
-                        <div
-                          key={key}
-                          className="flex items-center justify-between rounded-xl border border-zinc-150/60 dark:border-zinc-900/60 p-3 bg-zinc-50/30 dark:bg-zinc-900/10"
-                        >
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <Sparkles className="size-3.5 text-indigo-500 shrink-0" />
-                            <span className="text-xs font-semibold font-mono text-zinc-700 dark:text-zinc-300 truncate">
-                              {key}
-                            </span>
-                            <span className="text-xs text-muted-foreground">→</span>
-                            <span className="text-xs text-zinc-600 dark:text-zinc-400 truncate">
-                              {String(value)}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                ) : (
+                  <div className="space-y-2">
+                    {filteredUserFiles.map((file) => (
+                      <MemoryFileRow
+                        key={fileId(file)}
+                        file={file}
+                        editing={editingId === fileId(file)}
+                        onStartEdit={() => setEditingId(fileId(file))}
+                        onCancelEdit={() => setEditingId(null)}
+                        onSave={(content) => handleSaveEdit(file, content)}
+                        onDelete={() => handleDelete(file)}
+                      />
+                    ))}
                   </div>
                 )}
               </CardContent>
@@ -342,139 +484,65 @@ export default function MemoryDashboardPage() {
                       Agent Memories
                     </CardTitle>
                     <CardDescription className="text-xs">
-                      Long-term memories stored across all your agents.
+                      Per-agent memory files (/memories/agent/), private to you.
                     </CardDescription>
                   </div>
                   <Badge variant="secondary" className="rounded-full">
-                    {data?.agentMemories?.length || 0} items
+                    {agentFileCount} files
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent>
-                {/* Search */}
-                {filteredMemories.length > 0 && (
-                  <div className="mb-4">
-                    <div className="relative">
-                      <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
-                      <input
-                        type="text"
-                        placeholder="Search memories..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="w-full h-9 pl-9 pr-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {filteredMemories.length === 0 ? (
+                {filteredAgentGroups.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 px-6 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/20 dark:bg-zinc-900/5 text-center">
                     <Brain className="size-6 text-zinc-400 mb-2" />
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 italic">
                       {search
-                        ? "No memories match your search."
-                        : "No agent memories yet. They're created as agents learn during conversations."}
+                        ? "No agent memory files match your search."
+                        : "No agent memory files yet. They're created as agents learn during conversations."}
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {filteredMemories.map((mem) => {
-                      const isEditing = editingKey === `${mem.agentId}:${mem.key}`;
-                      return (
-                        <div
-                          key={`${mem.agentId}:${mem.key}`}
-                          className="rounded-xl border border-zinc-150/60 dark:border-zinc-900/60 p-3 bg-card hover:bg-zinc-50/30 dark:hover:bg-zinc-900/10 transition-colors"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0 space-y-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <Badge variant="outline" className="text-[9px] font-bold px-1.5 py-0 rounded-full">
-                                  <Bot className="size-2.5 mr-1" />
-                                  {mem.agentName}
-                                </Badge>
-                                <span className="text-xs font-mono font-bold text-zinc-800 dark:text-zinc-200 truncate">
-                                  {mem.key}
-                                </span>
-                                {mem.updatedAt && (
-                                  <span className="text-[10px] text-muted-foreground">
-                                    {new Date(mem.updatedAt).toLocaleDateString()}
-                                  </span>
-                                )}
-                              </div>
-                              {isEditing ? (
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Input
-                                    value={editValue}
-                                    onChange={(e) => setEditValue(e.target.value)}
-                                    className="h-8 text-xs flex-1"
-                                    autoFocus
-                                  />
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => handleEdit(mem.agentId, mem.key)}
-                                    disabled={savingEdit}
-                                    className="size-7 rounded-full text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
-                                  >
-                                    {savingEdit ? (
-                                      <Loader2 className="size-3.5 animate-spin" />
-                                    ) : (
-                                      <Check className="size-3.5" />
-                                    )}
-                                  </Button>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => setEditingKey(null)}
-                                    className="size-7 rounded-full text-muted-foreground hover:text-foreground"
-                                  >
-                                    <X className="size-3.5" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                                  {typeof mem.value === "object"
-                                    ? JSON.stringify(mem.value)
-                                    : String(mem.value)}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => {
-                                  setEditingKey(`${mem.agentId}:${mem.key}`);
-                                  setEditValue(
-                                    typeof mem.value === "object"
-                                      ? JSON.stringify(mem.value)
-                                      : String(mem.value)
-                                  );
-                                }}
-                                className="size-7 rounded-full text-muted-foreground hover:text-foreground"
-                              >
-                                <Pencil className="size-3.5" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => handleDelete(mem.agentId, mem.key)}
-                                className="size-7 rounded-full text-muted-foreground hover:text-red-500 hover:bg-red-50/50 dark:hover:bg-red-950/20"
-                              >
-                                <Trash2 className="size-3.5" />
-                              </Button>
-                            </div>
-                          </div>
+                  <div className="space-y-5">
+                    {filteredAgentGroups.map((group) => (
+                      <div key={group.agentId} className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                          >
+                            <Bot className="size-3 mr-1" />
+                            {group.agentName || "Unknown Agent"}
+                          </Badge>
+                          <span className="text-[10px] text-muted-foreground">
+                            {group.files.length} file{group.files.length === 1 ? "" : "s"}
+                          </span>
                         </div>
-                      );
-                    })}
+                        <div className="space-y-2">
+                          {group.files.map((file) => {
+                            const enriched = { ...file, scope: "agent", agentId: group.agentId };
+                            return (
+                              <MemoryFileRow
+                                key={fileId(enriched)}
+                                file={enriched}
+                                editing={editingId === fileId(enriched)}
+                                onStartEdit={() => setEditingId(fileId(enriched))}
+                                onCancelEdit={() => setEditingId(null)}
+                                onSave={(content) => handleSaveEdit(enriched, content)}
+                                onDelete={() => handleDelete(enriched)}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
 
-          {/* Right Sidebar: Summary Card */}
+          {/* Right Sidebar */}
           <div className="space-y-6">
             <Card className="border border-zinc-150/60 dark:border-zinc-900/60 rounded-3xl p-5 space-y-4">
               <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
@@ -483,30 +551,23 @@ export default function MemoryDashboardPage() {
               </h3>
               <div className="space-y-3 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Profile Summary</span>
+                  <span className="text-muted-foreground">User Memory Files</span>
                   <Badge variant="secondary" className="rounded-full">
-                    {profile.summary ? "Present" : "Empty"}
+                    {userFiles.length}
                   </Badge>
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">User Preferences</span>
+                  <span className="text-muted-foreground">Agent Memory Files</span>
                   <Badge variant="secondary" className="rounded-full">
-                    {prefEntries.length}
-                  </Badge>
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Agent Memories</span>
-                  <Badge variant="secondary" className="rounded-full">
-                    {data?.agentMemories?.length || 0}
+                    {agentFileCount}
                   </Badge>
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Agents with Memory</span>
                   <Badge variant="secondary" className="rounded-full">
-                    {new Set((data?.agentMemories || []).map((m) => m.agentId)).size}
+                    {agentGroups.length}
                   </Badge>
                 </div>
               </div>
@@ -519,18 +580,18 @@ export default function MemoryDashboardPage() {
               </h3>
               <div className="text-xs text-muted-foreground leading-relaxed space-y-2">
                 <p>
-                  <strong className="text-zinc-700 dark:text-zinc-300">User Memory</strong> — Profile
-                  summary and preferences are automatically extracted from your conversations and saved
-                  to your profile. You can also edit them in Settings.
+                  <strong className="text-zinc-700 dark:text-zinc-300">User Memory</strong> — Markdown
+                  files under <code className="font-mono">/memories/user/</code>, shared across all
+                  your agents. The <code className="font-mono">index.md</code> file is loaded into
+                  every conversation automatically.
                 </p>
                 <p>
-                  <strong className="text-zinc-700 dark:text-zinc-300">Agent Memory</strong> — Each
-                  agent can save key-value facts and learnings that persist across all conversations.
-                  These are stored per-agent in the agent_memories collection.
+                  <strong className="text-zinc-700 dark:text-zinc-300">Agent Memory</strong> — Files
+                  under <code className="font-mono">/memories/agent/</code>, kept separately for each
+                  agent you talk to. Agents update these with the same file tools they use for
+                  everything else.
                 </p>
-                <p>
-                  You can manually create, edit, and delete any memory entry from this dashboard.
-                </p>
+                <p>You can view, edit, and delete any memory file from this dashboard.</p>
               </div>
             </Card>
 
@@ -541,8 +602,8 @@ export default function MemoryDashboardPage() {
                 Danger Zone
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Permanently delete all user profile memory, preferences, and all agent
-                long-term memories across every agent. This action cannot be undone.
+                Permanently delete every memory file — user memory and all per-agent memories. This
+                action cannot be undone.
               </p>
               <Button
                 variant="ghost"
@@ -572,11 +633,11 @@ export default function MemoryDashboardPage() {
           <div className="text-xs text-muted-foreground space-y-2 px-1">
             <div className="flex items-center gap-2">
               <Sparkles className="size-3.5 text-indigo-500" />
-              User profile summary and all preferences
+              All user memory files (shared across agents)
             </div>
             <div className="flex items-center gap-2">
               <Brain className="size-3.5 text-primary" />
-              All agent long-term memories (every agent, every key)
+              All per-agent memory files (every agent)
             </div>
           </div>
           <AlertDialogFooter>

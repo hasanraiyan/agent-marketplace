@@ -11,8 +11,10 @@ export const updateAgent = (agentId, data) =>
   api.patch(`/agents/${agentId}`, data);
 export const deleteAgent = (agentId) => api.delete(`/agents/${agentId}`);
 export const getAgentMemory = (agentId) => api.get(`/agents/${agentId}/memory`);
-export const deleteAgentMemory = (agentId, key) =>
-  api.delete(`/agents/${agentId}/memory/${key}`);
+// `path` is a memory file path like '/learnings.md' — encode it since it
+// contains slashes.
+export const deleteAgentMemory = (agentId, path) =>
+  api.delete(`/agents/${agentId}/memory/${encodeURIComponent(path)}`);
 
 // Returns the current user's Main Agent (their personal clone), or null if
 // they haven't created one yet. Users can have many agents; only one is main.

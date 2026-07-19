@@ -10,8 +10,6 @@ import {
   Loader2,
   BrainIcon,
   SettingsIcon,
-  Trash2,
-  Plus,
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -48,13 +46,10 @@ export default function ProfileSettingsPage() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [savingMemory, setSavingMemory] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
     age: "",
-    profileSummary: "",
-    profilePreferences: [],
   });
 
   const [stats, setStats] = useState({
@@ -79,10 +74,6 @@ export default function ProfileSettingsPage() {
         setForm({
           name: p?.name || "",
           age: p?.age ?? "",
-          profileSummary: p?.profile?.summary || "",
-          profilePreferences: p?.profile?.preferences
-            ? Object.entries(p.profile.preferences).map(([key, value]) => ({ key, value }))
-            : [],
         });
       } catch (err) {
         toast.error(err.response?.data?.message || "Failed to load profile");
@@ -151,42 +142,6 @@ export default function ProfileSettingsPage() {
       toast.error(err.response?.data?.message || "Failed to update profile");
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleSaveMemory = async () => {
-    setSavingMemory(true);
-    try {
-      const preferencesObj = {};
-      form.profilePreferences.forEach(({ key, value }) => {
-        const trimmedKey = key.trim();
-        if (trimmedKey) {
-          preferencesObj[trimmedKey] = value.trim();
-        }
-      });
-
-      const payload = {
-        profile: {
-          summary: form.profileSummary.trim(),
-          preferences: preferencesObj,
-        },
-      };
-
-      const res = await updateProfile(payload);
-      const updated = res.data?.data || res.data;
-      setProfile(updated);
-      setForm((prev) => ({
-        ...prev,
-        profileSummary: updated?.profile?.summary || "",
-        profilePreferences: updated?.profile?.preferences
-          ? Object.entries(updated.profile.preferences).map(([key, value]) => ({ key, value }))
-          : [],
-      }));
-      toast.success("AI Memory updated successfully");
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to update AI Memory");
-    } finally {
-      setSavingMemory(false);
     }
   };
 
@@ -377,117 +332,21 @@ export default function ProfileSettingsPage() {
                 AI Memory & Personalization
               </CardTitle>
               <CardDescription>
-                Review or modify the profile summary and preferences that the AI agents automatically learn and use to personalize your experience.
+                Agents now remember you through markdown memory files they read and update during
+                conversations — shared user memory plus per-agent memory.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col gap-6">
-                <Field>
-                  <FieldLabel htmlFor="profileSummary">Learned User Profile Summary</FieldLabel>
-                  <textarea
-                    id="profileSummary"
-                    className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    value={form.profileSummary}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, profileSummary: e.target.value }))
-                    }
-                    placeholder="E.g., Senior developer specializing in React and Python. Prefers highly technical explanations."
-                  />
-                  <FieldDescription>
-                    A brief description of who you are, extracted from your conversations.
-                  </FieldDescription>
-                </Field>
-
-                <Separator />
-
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-semibold flex items-center gap-1.5">
-                        <Sparkles className="size-4 text-indigo-500" />
-                        User Preferences
-                      </h4>
-                      <p className="text-xs text-muted-foreground">
-                        Specific settings or constraints applied dynamically (e.g. coding styles, library choices).
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setForm((prev) => ({
-                          ...prev,
-                          profilePreferences: [
-                            ...prev.profilePreferences,
-                            { key: "", value: "" },
-                          ],
-                        }))
-                      }
-                    >
-                      <Plus className="size-4 mr-1" />
-                      Add Rule
-                    </Button>
-                  </div>
-
-                  {form.profilePreferences.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic text-center py-4 border border-dashed rounded-lg">
-                      No specific rules extracted yet. These are learned as you chat.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {form.profilePreferences.map((pref, index) => (
-                        <div key={index} className="flex gap-2 items-center">
-                          <Input
-                            placeholder="Preference Key (e.g. framework)"
-                            value={pref.key}
-                            onChange={(e) => {
-                              const updated = [...form.profilePreferences];
-                              updated[index].key = e.target.value;
-                              setForm((prev) => ({ ...prev, profilePreferences: updated }));
-                            }}
-                            className="flex-1"
-                          />
-                          <Input
-                            placeholder="Preference Value (e.g. nextjs)"
-                            value={pref.value}
-                            onChange={(e) => {
-                              const updated = [...form.profilePreferences];
-                              updated[index].value = e.target.value;
-                              setForm((prev) => ({ ...prev, profilePreferences: updated }));
-                            }}
-                            className="flex-1"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              const updated = form.profilePreferences.filter((_, idx) => idx !== index);
-                              setForm((prev) => ({ ...prev, profilePreferences: updated }));
-                            }}
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-2">
-                  <Button type="button" onClick={handleSaveMemory} disabled={savingMemory}>
-                    {savingMemory ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving Memory...
-                      </>
-                    ) : (
-                      "Save AI Memory"
-                    )}
-                  </Button>
-                </div>
+              <div className="flex items-center justify-between gap-4 rounded-xl border border-dashed p-4">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  View, edit, and delete everything your agents remember from the Memory Dashboard.
+                </p>
+                <Button type="button" variant="outline" size="sm" asChild>
+                  <Link href="/dashboard/connectors/memory">
+                    <Sparkles className="size-4 mr-1.5 text-indigo-500" />
+                    Open Memory Dashboard
+                  </Link>
+                </Button>
               </div>
             </CardContent>
           </Card>

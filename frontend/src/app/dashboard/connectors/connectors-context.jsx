@@ -16,8 +16,8 @@ import {
 } from "@/lib/api/knowledge";
 import {
   getAllMemory as getAllMemoryApi,
-  createMemory as createMemoryApi,
-  deleteMemoryEntry as deleteMemoryEntryApi,
+  writeMemoryFile as writeMemoryFileApi,
+  deleteMemoryFile as deleteMemoryFileApi,
 } from "@/lib/api/memory";
 import { toast } from "sonner";
 
@@ -189,25 +189,25 @@ export function ConnectorsProvider({ children }) {
     }
   }, []);
 
-  const createMemoryEntry = useCallback(async (data) => {
+  const writeMemoryFile = useCallback(async (data) => {
     try {
-      const res = await createMemoryApi(data);
-      toast.success("Memory created");
+      const res = await writeMemoryFileApi(data);
+      toast.success("Memory file saved");
       fetchMemory();
       return res.data?.data;
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to create memory");
+      toast.error(err.response?.data?.message || "Failed to save memory file");
       throw err;
     }
   }, [fetchMemory]);
 
-  const deleteMemoryEntry = useCallback(async (agentId, key) => {
+  const deleteMemoryFile = useCallback(async (data) => {
     try {
-      await deleteMemoryEntryApi(agentId, key);
-      toast.success("Memory deleted");
+      await deleteMemoryFileApi(data);
+      toast.success("Memory file deleted");
       fetchMemory();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to delete memory");
+      toast.error(err.response?.data?.message || "Failed to delete memory file");
       throw err;
     }
   }, [fetchMemory]);
@@ -260,12 +260,12 @@ export function ConnectorsProvider({ children }) {
         createKb,
         deleteKb,
         uploadKbFiles,
-        // Memory state
+        // Memory state (file-based)
         memoryData,
         loadingMemory,
         refreshMemory: fetchMemory,
-        createMemoryEntry,
-        deleteMemoryEntry,
+        writeMemoryFile,
+        deleteMemoryFile,
       }}
     >
       {children}
