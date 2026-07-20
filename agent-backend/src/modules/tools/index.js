@@ -1,13 +1,13 @@
 import { getSearchTool } from './search.tool.js';
 import { getBuilderToolbox } from './builder.tools.js';
 import { askClarificationTool } from './clarification.tool.js';
-import { resolveMcpTools } from '../../mcp/mcp.tools.js';
-import { resolveKnowledgeBaseTools } from '../../knowledge/knowledge.tools.js';
+import { resolveMcpTools } from '../mcp/mcp.tools.js';
+import { resolveKnowledgeBaseTools } from '../knowledge/knowledge.tools.js';
 import { presentFileTool } from './present.tool.js';
 
 // Defined in a leaf constants module so consumers that sit inside import
 // cycles with this module (e.g. agentFactory) can import it safely.
-import { ARCHITECT_AGENT_ID } from '../architectConstants.js';
+import { ARCHITECT_AGENT_ID } from '../agents/architectConstants.js';
 export { ARCHITECT_AGENT_ID };
 
 /**

@@ -14,7 +14,7 @@ import {
   memoryFilesStore,
   userMemoryNamespace,
   agentMemoryNamespace,
-} from './memory-files-store.js';
+} from '../memory/memory-files-store.js';
 import { skillLibraryStore, skillLibraryNamespace } from '../skills/skillLibraryStore.js';
 import checkpointService from '../threads/checkpoint.service.js';
 import { LRUCache } from 'lru-cache';
@@ -22,7 +22,7 @@ import agentRepository from './agent.repository.js';
 import providerRepository from '../providers/provider.repository.js';
 import encryption from '../../utils/encryption.js';
 
-import { resolveAgentTools } from './tools/index.js';
+import { resolveAgentTools } from '../tools/index.js';
 import { ARCHITECT_AGENT_ID } from './architectConstants.js';
 import { loggerService } from '../../utils/index.js';
 import { ARCHITECT_SKILL } from '../skills/architectSkill.js';

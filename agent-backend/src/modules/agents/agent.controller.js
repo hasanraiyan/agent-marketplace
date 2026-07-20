@@ -1,7 +1,7 @@
 import agentService from './agent.service.js';
 import agentFactory from './agent.factory.js';
-import MemoryFile from './memory-file.model.js';
-import { normalizeMemoryKey, agentMemoryNamespace } from './memory-files-store.js';
+import MemoryFile from '../memory/memory-file.model.js';
+import { normalizeMemoryKey, agentMemoryNamespace } from '../memory/memory-files-store.js';
 import { loggerService } from '../../utils/index.js';
 
 const logger = loggerService.getLogger();

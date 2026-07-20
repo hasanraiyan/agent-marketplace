@@ -11,7 +11,7 @@ import {
   normalizeMemoryKey,
   userMemoryNamespace,
   agentMemoryNamespace,
-} from '../src/modules/agents/memory-files-store.js';
+} from '../src/modules/memory/memory-files-store.js';
 
 describe('skillMarkdown', () => {
   test('slugifies odd skill names into safe directory segments', () => {

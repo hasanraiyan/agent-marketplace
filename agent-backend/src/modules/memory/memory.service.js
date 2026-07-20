@@ -1,4 +1,4 @@
-import Agent from './agent.model.js';
+import Agent from '../agents/agent.model.js';
 import MemoryFile from './memory-file.model.js';
 import checkpointService from '../threads/checkpoint.service.js';
 import userRepository from '../users/user.repository.js';

@@ -2,7 +2,7 @@ import providerRepository from './provider.repository.js';
 import agentRepository from '../agents/agent.repository.js';
 import agentFactory from '../agents/agent.factory.js';
 import encryption from '../../utils/encryption.js';
-import { ARCHITECT_AGENT_ID } from '../agents/tools/index.js';
+import { ARCHITECT_AGENT_ID } from '../tools/index.js';
 
 class ProviderService {
   /**

@@ -13,7 +13,7 @@ import aguiRouter from './modules/agui/agui.routes.js';
 import webhookRouter from './modules/webhooks/webhook.routes.js';
 import uploadRouter from './modules/upload/upload.routes.js';
 import knowledgeRouter from './modules/knowledge/knowledge.routes.js';
-import memoryRouter from './modules/agents/memory.routes.js';
+import memoryRouter from './modules/memory/memory.routes.js';
 import errorHandler from './middlewares/errorHandler.js';
 import swaggerUi from 'swagger-ui-express';
 import openapiSpec from './docs/openapi.js';

@@ -2,14 +2,14 @@ import { jest } from '@jest/globals';
 import { EventType } from '@ag-ui/core';
 import agentService from '../src/modules/agents/agent.service.js';
 import providerRepository from '../src/modules/providers/provider.repository.js';
-import { upsertAgentTool } from '../src/modules/agents/tools/builder.tools.js';
+import { upsertAgentTool } from '../src/modules/tools/builder.tools.js';
 import {
   translateLangGraphStream,
   describeInterrupt,
   buildInterruptNotice,
   buildResumeValue,
 } from '../src/modules/agui/aguiTranslator.js';
-import { askClarificationTool } from '../src/modules/agents/tools/clarification.tool.js';
+import { askClarificationTool } from '../src/modules/tools/clarification.tool.js';
 
 describe('upsert_agent result contract', () => {
   const userId = 'user-123';
