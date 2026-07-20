@@ -72,14 +72,14 @@ jest.unstable_mockModule('../src/models/McpUserConnection.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/models/Conversation.js', () => ({
+jest.unstable_mockModule('../src/modules/threads/thread.model.js', () => ({
   default: {
     find: mockConversationFind,
     deleteMany: mockConversationDeleteMany,
   },
 }));
 
-jest.unstable_mockModule('../src/services/checkpoint.service.js', () => ({
+jest.unstable_mockModule('../src/modules/threads/checkpoint.service.js', () => ({
   default: {
     cleanupThreads: mockCleanupThreads,
   },

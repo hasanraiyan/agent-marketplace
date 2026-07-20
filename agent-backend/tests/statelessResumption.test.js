@@ -3,7 +3,7 @@ import { HumanMessage } from '@langchain/core/messages';
 import { Command } from '@langchain/langgraph';
 
 // Mocking dependencies
-jest.unstable_mockModule('../src/repositories/threadRepository.js', () => ({
+jest.unstable_mockModule('../src/modules/threads/thread.repository.js', () => ({
   default: {
     findById: jest.fn(),
     touchLastMessageAt: jest.fn(),
@@ -16,7 +16,7 @@ jest.unstable_mockModule('../src/factories/agentFactory.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/services/checkpoint.service.js', () => ({
+jest.unstable_mockModule('../src/modules/threads/checkpoint.service.js', () => ({
   default: {
     checkpointer: {},
     _autoTitleThread: jest.fn(),
@@ -46,7 +46,7 @@ jest.unstable_mockModule('../src/modules/auth/auth.middleware.js', () => ({
 }));
 
 const agentFactory = (await import('../src/factories/agentFactory.js')).default;
-const threadRepository = (await import('../src/repositories/threadRepository.js')).default;
+const threadRepository = (await import('../src/modules/threads/thread.repository.js')).default;
 const aguiRouterModule = await import('../src/routes/agui.routes.js');
 const aguiRouter = aguiRouterModule.default;
 

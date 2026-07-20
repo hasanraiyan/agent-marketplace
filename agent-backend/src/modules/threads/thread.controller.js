@@ -1,8 +1,8 @@
 import crypto from 'crypto';
-import threadRepository from '../repositories/threadRepository.js';
-import agentRepository from '../repositories/agentRepository.js';
-import checkpointService from '../services/checkpoint.service.js';
-import { createThreadSchema, updateThreadTitleSchema } from '../validators/thread.validator.js';
+import threadRepository from './thread.repository.js';
+import agentRepository from '../../repositories/agentRepository.js';
+import checkpointService from './checkpoint.service.js';
+import { createThreadSchema, updateThreadTitleSchema } from './thread.validator.js';
 
 class ThreadController {
   async create(req, res, next) {

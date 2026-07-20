@@ -4,8 +4,8 @@ import Skill from '../modules/skills/skill.model.js';
 import Provider from '../modules/providers/provider.model.js';
 import Mcp from '../models/Mcp.js';
 import McpUserConnection from '../models/McpUserConnection.js';
-import Conversation from '../models/Conversation.js';
-import checkpointService from '../services/checkpoint.service.js';
+import Conversation from '../modules/threads/thread.model.js';
+import checkpointService from '../modules/threads/checkpoint.service.js';
 import { loggerService } from '../utils/index.js';
 import config from '../config/index.js';
 

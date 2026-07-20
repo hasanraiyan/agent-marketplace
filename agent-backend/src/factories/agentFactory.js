@@ -16,7 +16,7 @@ import {
   agentMemoryNamespace,
 } from '../utils/memoryFilesStore.js';
 import { skillLibraryStore, skillLibraryNamespace } from '../utils/skillLibraryStore.js';
-import checkpointService from '../services/checkpoint.service.js';
+import checkpointService from '../modules/threads/checkpoint.service.js';
 import { LRUCache } from 'lru-cache';
 import agentRepository from '../repositories/agentRepository.js';
 import providerRepository from '../modules/providers/provider.repository.js';

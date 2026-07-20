@@ -15,7 +15,7 @@ This document contains a highly granular, step-by-step checklist for the refacto
   - **Step 5: Skills Module**: [x] Completed
   - **Step 6: Providers Module**: [x] Completed
   - **Step 7: Users & Profile Module**: [x] Completed
-  - **Step 8: Threads & Checkpoints**: [ ] Pending
+  - **Step 8: Threads & Checkpoints**: [x] Completed
   - **Step 9: MCP Module**: [ ] Pending
   - **Step 10: Agents & Memory Module**: [ ] Pending
   - **Step 11: AGUI SSE Chat Stream**: [ ] Pending
@@ -112,16 +112,16 @@ This document contains a highly granular, step-by-step checklist for the refacto
   - [x] Update route mounts in `src/index.js`.
   - [x] Run `pnpm test`.
 
-### [ ] Step 8: Threads & Checkpoints Module Refactor
+### [x] Step 8: Threads & Checkpoints Module Refactor
 * **Objective**: Move thread/checkpoint logic to `src/modules/threads/`.
 * **Tasks**:
-  - [ ] Move `src/routes/thread.routes.js` to `src/modules/threads/thread.routes.js`.
-  - [ ] Move `src/controllers/thread.controller.js` to `src/modules/threads/thread.controller.js`.
-  - [ ] Move `src/repositories/threadRepository.js` to `src/modules/threads/thread.repository.js`.
-  - [ ] Move `src/models/Conversation.js` to `src/modules/threads/conversation.model.js`.
-  - [ ] Move `src/validators/thread.validator.js` to `src/modules/threads/thread.validator.js`.
-  - [ ] Move `src/services/checkpoint.service.js` to `src/modules/threads/checkpoint.service.js`.
-  - [ ] Fix imports, update mounts in `src/index.js`, and run `pnpm test`.
+  - [x] Move `src/routes/thread.routes.js` to `src/modules/threads/thread.routes.js`.
+  - [x] Move `src/controllers/thread.controller.js` to `src/modules/threads/thread.controller.js`.
+  - [x] Move `src/repositories/threadRepository.js` to `src/modules/threads/thread.repository.js`.
+  - [x] Move `src/models/Conversation.js` to `src/modules/threads/thread.model.js`.
+  - [x] Move `src/validators/thread.validator.js` to `src/modules/threads/thread.validator.js`.
+  - [x] Move `src/services/checkpoint.service.js` to `src/modules/threads/checkpoint.service.js`.
+  - [x] Fix imports, update mounts in `src/index.js`, and run `pnpm test`.
 
 ### [ ] Step 9: MCP Module Refactor
 * **Objective**: Move MCP logic to `src/modules/mcps/` and decouple Agent model references.
@@ -419,6 +419,47 @@ This document contains a highly granular, step-by-step checklist for the refacto
   * `src/repositories/userRepository.js` (deleted)
   * `src/models/User.js` (deleted)
   * `src/validators/profile.validator.js` (deleted)
+* **Verification performed**:
+  * Executed Jest test suite (`pnpm test`) pre-deletion and post-deletion of original files.
+* **Pass/Fail status**:
+  * Pass (588/588 tests passed successfully on all runs).
+* **Issues discovered**:
+  * None.
+
+#### Step 8: Threads & Checkpoints Module Refactor
+* **What was changed**:
+  * Created modular thread files under `src/modules/threads/`: `thread.model.js` (renamed from `Conversation.js`), `thread.repository.js`, `checkpoint.service.js`, `thread.controller.js`, `thread.routes.js`, and `thread.validator.js`.
+  * Updated relative imports inside modular files.
+  * Updated imports in `src/index.js`, `src/modules/users/user.service.js`, `src/routes/agui.routes.js`, `src/services/memory.service.js`, and `src/cron/deleteInactiveUsers.js`.
+  * Updated imports and mock definitions in test files (`tests/cascadingDeletes.test.js`, `tests/checkpointService.test.js`, `tests/rateLimitIntegration.test.js`, `tests/statelessResumption.test.js`, `tests/threadController.test.js`, `tests/threadRepository.test.js`, and `tests/cronDeleteInactiveUsers.test.js`).
+  * Deleted legacy technical-layered files.
+* **Why it was changed**:
+  * Co-located thread and checkpointer logic inside `src/modules/threads/` to enforce modular domain alignment.
+* **Files affected**:
+  * `src/modules/threads/thread.model.js` (created)
+  * `src/modules/threads/thread.repository.js` (created)
+  * `src/modules/threads/checkpoint.service.js` (created)
+  * `src/modules/threads/thread.controller.js` (created)
+  * `src/modules/threads/thread.routes.js` (created)
+  * `src/modules/threads/thread.validator.js` (created)
+  * `src/index.js`
+  * `src/modules/users/user.service.js`
+  * `src/routes/agui.routes.js`
+  * `src/services/memory.service.js`
+  * `src/cron/deleteInactiveUsers.js`
+  * `tests/cascadingDeletes.test.js`
+  * `tests/checkpointService.test.js`
+  * `tests/rateLimitIntegration.test.js`
+  * `tests/statelessResumption.test.js`
+  * `tests/threadController.test.js`
+  * `tests/threadRepository.test.js`
+  * `tests/cronDeleteInactiveUsers.test.js`
+  * `src/routes/thread.routes.js` (deleted)
+  * `src/controllers/thread.controller.js` (deleted)
+  * `src/repositories/threadRepository.js` (deleted)
+  * `src/models/Conversation.js` (deleted)
+  * `src/validators/thread.validator.js` (deleted)
+  * `src/services/checkpoint.service.js` (deleted)
 * **Verification performed**:
   * Executed Jest test suite (`pnpm test`) pre-deletion and post-deletion of original files.
 * **Pass/Fail status**:

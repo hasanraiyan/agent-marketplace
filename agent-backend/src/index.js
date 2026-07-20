@@ -6,7 +6,7 @@ import profileRouter from './modules/users/profile.routes.js';
 import adminRouter from './modules/users/admin.routes.js';
 import providerRouter from './modules/providers/provider.routes.js';
 import agentRouter from './routes/agent.routes.js';
-import threadRouter from './routes/thread.routes.js'; // Added
+import threadRouter from './modules/threads/thread.routes.js'; // Added
 import skillRouter from './modules/skills/skill.routes.js';
 import mcpRouter from './routes/mcp.routes.js';
 import aguiRouter from './routes/agui.routes.js';

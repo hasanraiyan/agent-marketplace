@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 import mongoose from 'mongoose';
-import threadRepository from '../src/repositories/threadRepository.js';
-import Conversation from '../src/models/Conversation.js';
+import threadRepository from '../src/modules/threads/thread.repository.js';
+import Conversation from '../src/modules/threads/thread.model.js';
 
 describe('Thread Repository', () => {
   let mockThread;

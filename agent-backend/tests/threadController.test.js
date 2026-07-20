@@ -1,12 +1,12 @@
 import { jest } from '@jest/globals';
 
-jest.unstable_mockModule('../src/services/checkpoint.service.js', () => ({
+jest.unstable_mockModule('../src/modules/threads/checkpoint.service.js', () => ({
   default: {
     streamChat: jest.fn(),
   },
 }));
 
-jest.unstable_mockModule('../src/repositories/threadRepository.js', () => ({
+jest.unstable_mockModule('../src/modules/threads/thread.repository.js', () => ({
   default: {
     create: jest.fn(),
     findById: jest.fn(),
@@ -23,16 +23,16 @@ jest.unstable_mockModule('../src/repositories/agentRepository.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/validators/thread.validator.js', () => ({
+jest.unstable_mockModule('../src/modules/threads/thread.validator.js', () => ({
   createThreadSchema: { parse: jest.fn().mockImplementation((data) => data) },
   updateThreadTitleSchema: { parse: jest.fn().mockImplementation((data) => data) },
   streamMessageSchema: { parse: jest.fn().mockImplementation((data) => data) },
 }));
 
-const threadController = (await import('../src/controllers/thread.controller.js')).default;
-const threadRepository = (await import('../src/repositories/threadRepository.js')).default;
+const threadController = (await import('../src/modules/threads/thread.controller.js')).default;
+const threadRepository = (await import('../src/modules/threads/thread.repository.js')).default;
 const agentRepository = (await import('../src/repositories/agentRepository.js')).default;
-const checkpointService = (await import('../src/services/checkpoint.service.js')).default;
+const checkpointService = (await import('../src/modules/threads/checkpoint.service.js')).default;
 
 describe('Thread Controller', () => {
   let mockReq;

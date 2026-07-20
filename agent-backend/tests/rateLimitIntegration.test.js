@@ -19,10 +19,10 @@ const mockCheckpointService = {
 jest.unstable_mockModule('../src/factories/agentFactory.js', () => ({
   default: mockAgentFactory,
 }));
-jest.unstable_mockModule('../src/repositories/threadRepository.js', () => ({
+jest.unstable_mockModule('../src/modules/threads/thread.repository.js', () => ({
   default: mockThreadRepository,
 }));
-jest.unstable_mockModule('../src/services/checkpoint.service.js', () => ({
+jest.unstable_mockModule('../src/modules/threads/checkpoint.service.js', () => ({
   default: mockCheckpointService,
 }));
 

@@ -1,8 +1,8 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import threadRepository from '../repositories/threadRepository.js';
+import threadRepository from './thread.repository.js';
 import { MongoDBSaver } from '@langchain/langgraph-checkpoint-mongodb';
 import { MongoClient } from 'mongodb';
-import { loggerService } from '../utils/index.js';
+import { loggerService } from '../../utils/index.js';
 
 const logger = loggerService.getLogger();
 

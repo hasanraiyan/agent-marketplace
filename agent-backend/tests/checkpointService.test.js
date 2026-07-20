@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 
-jest.unstable_mockModule('../src/repositories/threadRepository.js', () => ({
+jest.unstable_mockModule('../src/modules/threads/thread.repository.js', () => ({
   default: {
     findById: jest.fn(),
     touchLastMessageAt: jest.fn(),
@@ -26,8 +26,8 @@ jest.unstable_mockModule('mongodb', () => ({
   },
 }));
 
-const threadRepository = (await import('../src/repositories/threadRepository.js')).default;
-const checkpointService = (await import('../src/services/checkpoint.service.js')).default;
+const threadRepository = (await import('../src/modules/threads/thread.repository.js')).default;
+const checkpointService = (await import('../src/modules/threads/checkpoint.service.js')).default;
 
 describe('Checkpoint Service', () => {
   let mockThread;

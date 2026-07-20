@@ -1,9 +1,9 @@
 import express from 'express';
-import threadController from '../controllers/thread.controller.js';
-import authMiddleware from '../modules/auth/auth.middleware.js';
-import rateLimiter, { RATE_LIMITS } from '../middlewares/rateLimiter.middleware.js';
-import { validateBody } from '../middlewares/validationMiddleware.js';
-import { createThreadSchema, updateThreadTitleSchema } from '../validators/thread.validator.js';
+import threadController from './thread.controller.js';
+import authMiddleware from '../auth/auth.middleware.js';
+import rateLimiter, { RATE_LIMITS } from '../../middlewares/rateLimiter.middleware.js';
+import { validateBody } from '../../middlewares/validationMiddleware.js';
+import { createThreadSchema, updateThreadTitleSchema } from './thread.validator.js';
 
 const router = express.Router();
 

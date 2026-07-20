@@ -1,9 +1,9 @@
 import { jest } from '@jest/globals';
 import mongoose from 'mongoose';
-import checkpointService from '../src/services/checkpoint.service.js';
-import threadRepository from '../src/repositories/threadRepository.js';
+import checkpointService from '../src/modules/threads/checkpoint.service.js';
+import threadRepository from '../src/modules/threads/thread.repository.js';
 import agentRepository from '../src/repositories/agentRepository.js';
-import Conversation from '../src/models/Conversation.js';
+import Conversation from '../src/modules/threads/thread.model.js';
 import Agent from '../src/models/Agent.js';
 import deleteInactiveUsers from '../src/cron/deleteInactiveUsers.js';
 import User from '../src/modules/users/user.model.js';
