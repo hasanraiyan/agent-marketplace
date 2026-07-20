@@ -2,9 +2,9 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import authMiddleware from '../modules/auth/auth.middleware.js';
-import successFormatter from '../utils/formatters/successFormatter.js';
-import BaseError from '../utils/errors/BaseError.js';
+import authMiddleware from '../auth/auth.middleware.js';
+import successFormatter from '../../utils/formatters/successFormatter.js';
+import BaseError from '../../utils/errors/BaseError.js';
 
 const router = express.Router();
 

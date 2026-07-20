@@ -10,7 +10,7 @@ This document contains a highly granular, step-by-step checklist for the refacto
 - **Phase 11: Incremental Refactoring Implementation**:
   - **Step 1: Setup & Auth Service**: [x] Completed
   - **Step 2: Health Module**: [x] Completed
-  - **Step 3: Upload Module**: [ ] Pending
+  - **Step 3: Upload Module**: [x] Completed
   - **Step 4: Clerk Webhook**: [ ] Pending
   - **Step 5: Skills Module**: [ ] Pending
   - **Step 6: Providers Module**: [ ] Pending
@@ -49,14 +49,14 @@ This document contains a highly granular, step-by-step checklist for the refacto
   - [x] Verify `/api/v1/health` and `/api/v1/health/db` function correctly.
   - [x] Run `pnpm test` to ensure zero regressions.
 
-### [ ] Step 3: Upload Module Refactor
+### [x] Step 3: Upload Module Refactor
 * **Objective**: Colocate upload routing under `src/modules/upload/`.
 * **Tasks**:
-  - [ ] Move `src/routes/upload.routes.js` to `src/modules/upload/upload.routes.js`.
-  - [ ] Fix relative imports inside `upload.routes.js`.
-  - [ ] Update route mount in `src/index.js`.
-  - [ ] Verify image uploading via `/api/v1/upload/avatar` still works.
-  - [ ] Run `pnpm test`.
+  - [x] Move `src/routes/upload.routes.js` to `src/modules/upload/upload.routes.js`.
+  - [x] Fix relative imports inside `upload.routes.js`.
+  - [x] Update route mount in `src/index.js`.
+  - [x] Verify image uploading via `/api/v1/upload/avatar` still works.
+  - [x] Run `pnpm test`.
 
 ### [ ] Step 4: Clerk Webhook Module Refactor
 * **Objective**: Decouple Clerk webhook route from business/data-access logic.
@@ -236,6 +236,25 @@ This document contains a highly granular, step-by-step checklist for the refacto
   * `src/controllers/healthController.js` (deleted)
   * `src/services/healthService.js` (deleted)
   * `src/repositories/healthRepository.js` (deleted)
+* **Verification performed**:
+  * Executed Jest test suite (`pnpm test`) pre-deletion and post-deletion of original files.
+* **Pass/Fail status**:
+  * Pass (588/588 tests passed successfully on all runs).
+* **Issues discovered**:
+  * None.
+
+#### Step 3: Upload Module Refactor
+* **What was changed**:
+  * Moved upload routing to `src/modules/upload/upload.routes.js`.
+  * Updated relative imports for `authMiddleware`, `successFormatter`, and `BaseError` inside `upload.routes.js`.
+  * Updated `src/index.js` to mount the new modular upload routes path.
+  * Deleted the original deprecated route file `src/routes/upload.routes.js`.
+* **Why it was changed**:
+  * Cleaned up the technical-layered directory by colocating the upload route file into the modular `src/modules/upload/` directory.
+* **Files affected**:
+  * `src/modules/upload/upload.routes.js` (created)
+  * `src/index.js`
+  * `src/routes/upload.routes.js` (deleted)
 * **Verification performed**:
   * Executed Jest test suite (`pnpm test`) pre-deletion and post-deletion of original files.
 * **Pass/Fail status**:

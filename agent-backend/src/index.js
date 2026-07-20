@@ -11,7 +11,7 @@ import skillRouter from './routes/skill.routes.js';
 import mcpRouter from './routes/mcp.routes.js';
 import aguiRouter from './routes/agui.routes.js';
 import webhookRouter from './routes/webhook.routes.js';
-import uploadRouter from './routes/upload.routes.js';
+import uploadRouter from './modules/upload/upload.routes.js';
 import knowledgeRouter from './routes/knowledge.routes.js';
 import memoryRouter from './routes/memory.routes.js';
 import errorHandler from './middlewares/errorHandler.js';
