@@ -66,12 +66,15 @@ export function buildSkillFiles(skill) {
     mimeType: 'text/markdown',
   };
 
-  // Bundled files (files[] is canonical; codeSnippets is the unmigrated
-  // legacy shape and is only read when files[] is empty).
-  const bundled =
-    skill.files?.length > 0
-      ? skill.files.map((f) => ({ ...f, filename: f.path, code: f.content }))
-      : (skill.codeSnippets || []).map((s) => ({ ...s }));
+  // Bundled files
+  const bundled = (skill.files || []).map((f) => {
+    const fileObj = f.toObject ? f.toObject() : f;
+    return {
+      ...fileObj,
+      filename: fileObj.path,
+      code: fileObj.content,
+    };
+  });
 
   for (const entry of bundled) {
     const filename = sanitizeSkillFilename(entry.filename);

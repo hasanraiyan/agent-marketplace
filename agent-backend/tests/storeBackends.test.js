@@ -39,14 +39,14 @@ describe('skillMarkdown', () => {
     expect(md.endsWith('# Body')).toBe(true);
   });
 
-  test('builds SKILL.md plus code snippet files', () => {
+  test('builds SKILL.md plus supporting files', () => {
     const files = buildSkillFiles({
       name: 'pdf-tools',
       description: 'PDF workflows',
       instructions: 'Use the script.',
-      codeSnippets: [
-        { filename: 'extract.py', code: 'print(1)' },
-        { filename: '../evil.py', code: 'x' },
+      files: [
+        { path: 'extract.py', content: 'print(1)' },
+        { path: '../evil.py', content: 'x' },
       ],
       createdAt: new Date('2026-01-01'),
       updatedAt: new Date('2026-01-02'),

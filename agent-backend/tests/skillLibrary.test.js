@@ -150,13 +150,12 @@ describe('parseSkillMdContent', () => {
 });
 
 describe('buildSkillFiles with files[]', () => {
-  test('files[] takes precedence over legacy codeSnippets', () => {
+  test('builds files from files[] array', () => {
     const files = buildSkillFiles({
       name: 'pdf-tools',
       description: 'PDF workflows',
       instructions: 'Use the script.',
       files: [{ path: 'references/api.md', content: '# API', mimeType: 'text/markdown' }],
-      codeSnippets: [{ filename: 'old.py', code: 'legacy' }],
     });
     expect(Object.keys(files).sort()).toEqual([
       '/pdf-tools/SKILL.md',

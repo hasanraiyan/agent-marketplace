@@ -38,16 +38,6 @@ const skillSchema = new mongoose.Schema(
         updatedAt: { type: Date, default: Date.now },
       },
     ],
-    // DEPRECATED: replaced by files[]. Kept so unmigrated documents still
-    // expose their snippets; scripts/migrate-skill-snippets-to-files.js
-    // converts and clears this field.
-    codeSnippets: [
-      {
-        filename: String,
-        code: String,
-        language: { type: String, default: 'python' },
-      },
-    ],
     isPublic: {
       type: Boolean,
       default: false,

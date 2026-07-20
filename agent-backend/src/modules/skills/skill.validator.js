@@ -7,22 +7,12 @@ const skillFileSchema = z.object({
   mimeType: z.string().optional(),
 });
 
-// DEPRECATED shape, still accepted from old clients; converted to files[].
-const codeSnippetSchema = z.object({
-  filename: z.string(),
-  code: z.string(),
-  language: z.string().optional(),
-});
-
 /**
- * Normalize legacy codeSnippets into files[], then validate the bundle
+ * Validate the files bundle
  * (safe relative paths, per-file and total size limits, no SKILL.md).
  */
-function normalizeAndValidateFiles(data, ctx) {
-  let files = data.files;
-  if (!files && data.codeSnippets) {
-    files = data.codeSnippets.map((s) => ({ path: s.filename, content: s.code }));
-  }
+function validateFiles(data, ctx) {
+  const files = data.files;
   if (!files) return data;
 
   const result = validateSkillFiles(files, { instructions: data.instructions ?? '' });
@@ -34,8 +24,7 @@ function normalizeAndValidateFiles(data, ctx) {
     });
     return data;
   }
-  const { codeSnippets: _dropped, ...rest } = data;
-  return { ...rest, files: result.files };
+  return { ...data, files: result.files };
 }
 
 export const createSkillSchema = z
@@ -52,9 +41,8 @@ export const createSkillSchema = z
       .max(50000),
     isPublic: z.boolean().optional(),
     files: z.array(skillFileSchema).optional(),
-    codeSnippets: z.array(codeSnippetSchema).optional(),
   })
-  .transform(normalizeAndValidateFiles);
+  .transform(validateFiles);
 
 export const updateSkillSchema = z
   .object({
@@ -68,6 +56,5 @@ export const updateSkillSchema = z
     instructions: z.string().min(10).max(50000).optional(),
     isPublic: z.boolean().optional(),
     files: z.array(skillFileSchema).optional(),
-    codeSnippets: z.array(codeSnippetSchema).optional(),
   })
-  .transform(normalizeAndValidateFiles);
+  .transform(validateFiles);
