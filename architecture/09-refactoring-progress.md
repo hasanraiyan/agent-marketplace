@@ -9,7 +9,7 @@ This document contains a highly granular, step-by-step checklist for the refacto
 - **Phase 1 to 10: Research & Planning**: [x] Completed
 - **Phase 11: Incremental Refactoring Implementation**:
   - **Step 1: Setup & Auth Service**: [x] Completed
-  - **Step 2: Health Module**: [ ] Pending
+  - **Step 2: Health Module**: [x] Completed
   - **Step 3: Upload Module**: [ ] Pending
   - **Step 4: Clerk Webhook**: [ ] Pending
   - **Step 5: Skills Module**: [ ] Pending
@@ -37,17 +37,17 @@ This document contains a highly granular, step-by-step checklist for the refacto
   - [x] Update all import paths to these middlewares across all existing files in `src/`.
   - [x] Run `pnpm test` to verify auth checks still work perfectly.
 
-### [ ] Step 2: Health Module Refactor
+### [x] Step 2: Health Module Refactor
 * **Objective**: Migrate the health checks to `src/modules/health/`.
 * **Tasks**:
-  - [ ] Move `src/routes/health.js` to `src/modules/health/health.routes.js`.
-  - [ ] Move `src/controllers/healthController.js` to `src/modules/health/health.controller.js`.
-  - [ ] Move `src/services/healthService.js` to `src/modules/health/health.service.js`.
-  - [ ] Move `src/repositories/healthRepository.js` to `src/modules/health/health.repository.js`.
-  - [ ] Update imports within these moved files.
-  - [ ] Update `src/index.js` to mount the new route file path.
-  - [ ] Verify `/api/v1/health` and `/api/v1/health/db` function correctly.
-  - [ ] Run `pnpm test` to ensure zero regressions.
+  - [x] Move `src/routes/health.js` to `src/modules/health/health.routes.js`.
+  - [x] Move `src/controllers/healthController.js` to `src/modules/health/health.controller.js`.
+  - [x] Move `src/services/healthService.js` to `src/modules/health/health.service.js`.
+  - [x] Move `src/repositories/healthRepository.js` to `src/modules/health/health.repository.js`.
+  - [x] Update imports within these moved files.
+  - [x] Update `src/index.js` to mount the new route file path.
+  - [x] Verify `/api/v1/health` and `/api/v1/health/db` function correctly.
+  - [x] Run `pnpm test` to ensure zero regressions.
 
 ### [ ] Step 3: Upload Module Refactor
 * **Objective**: Colocate upload routing under `src/modules/upload/`.
@@ -211,3 +211,34 @@ This document contains a highly granular, step-by-step checklist for the refacto
   * Pass (588/588 tests passed successfully on all runs).
 * **Issues discovered**:
   * The verification script `pnpm run ai:verify` fails because the `src/ai` folder it depends on was deleted in a previous commit (`4076d3a`). It has been marked as deprecated in the migration plan.
+
+#### Step 2: Health Module Refactor
+* **What was changed**:
+  * Moved health routes, controllers, services, and repositories to `src/modules/health/`.
+  * Updated relative imports in the moved files to preserve logging, database, and formatter behaviors.
+  * Updated `src/repositories/index.js` to point to the new modular health repository path.
+  * Updated `src/index.js` to mount the new health routes path.
+  * Updated import paths in `tests/healthController.test.js`, `tests/healthService.test.js`, and `tests/healthRepository.test.js` to keep test functionality intact.
+  * Deleted the original deprecated health files in `src/routes/`, `src/controllers/`, `src/services/`, and `src/repositories/`.
+* **Why it was changed**:
+  * Transitioned technical-layered files to the feature/domain-based `src/modules/health/` directory to improve cohesion and support modular architecture goals.
+* **Files affected**:
+  * `src/modules/health/health.routes.js` (created)
+  * `src/modules/health/health.controller.js` (created)
+  * `src/modules/health/health.service.js` (created)
+  * `src/modules/health/health.repository.js` (created)
+  * `src/index.js`
+  * `src/repositories/index.js`
+  * `tests/healthController.test.js`
+  * `tests/healthService.test.js`
+  * `tests/healthRepository.test.js`
+  * `src/routes/health.js` (deleted)
+  * `src/controllers/healthController.js` (deleted)
+  * `src/services/healthService.js` (deleted)
+  * `src/repositories/healthRepository.js` (deleted)
+* **Verification performed**:
+  * Executed Jest test suite (`pnpm test`) pre-deletion and post-deletion of original files.
+* **Pass/Fail status**:
+  * Pass (588/588 tests passed successfully on all runs).
+* **Issues discovered**:
+  * None.

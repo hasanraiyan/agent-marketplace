@@ -2,7 +2,7 @@ import { jest } from '@jest/globals';
 
 const mockFetchServerStatus = jest.fn().mockReturnValue({ uptime: 123.456 });
 
-jest.unstable_mockModule('../src/repositories/healthRepository.js', () => ({
+jest.unstable_mockModule('../src/modules/health/health.repository.js', () => ({
   default: { fetchServerStatus: mockFetchServerStatus },
 }));
 
@@ -10,7 +10,7 @@ describe('Health Service', () => {
   let healthService;
 
   beforeAll(async () => {
-    const mod = await import('../src/services/healthService.js');
+    const mod = await import('../src/modules/health/health.service.js');
     healthService = mod.default;
   });
 

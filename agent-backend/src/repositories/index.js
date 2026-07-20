@@ -1,4 +1,4 @@
-import healthRepository from './healthRepository.js';
+import healthRepository from '../modules/health/health.repository.js';
 import userRepository from './userRepository.js';
 import InMemoryRateLimitStore from './rateLimiter.repository.js';
 

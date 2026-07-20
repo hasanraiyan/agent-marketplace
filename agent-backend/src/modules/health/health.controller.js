@@ -1,7 +1,8 @@
-import healthService from '../services/healthService.js';
-import database from '../config/database.js';
-import { successFormatter } from '../utils/formatters/index.js';
-import { loggerService } from '../utils/index.js';
+import healthService from './health.service.js';
+import database from '../../config/database.js';
+import { successFormatter } from '../../utils/formatters/index.js';
+import { loggerService } from '../../utils/index.js';
+
 const logger = loggerService.getLogger();
 
 /**

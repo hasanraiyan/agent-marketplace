@@ -8,12 +8,13 @@ describe('healthController', () => {
     const mockLogger = { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() };
     loggerService.setLogger(mockLogger);
 
-    const { default: healthService } = await import('../src/services/healthService.js');
+    const { default: healthService } = await import('../src/modules/health/health.service.js');
     healthService.getHealth = jest
       .fn()
       .mockReturnValue({ status: 'ok', uptime: 42, timestamp: '2020-01-01T00:00:00.000Z' });
 
-    const { default: healthController } = await import('../src/controllers/healthController.js');
+    const { default: healthController } =
+      await import('../src/modules/health/health.controller.js');
 
     const req = {};
     const res = { json: jest.fn() };
@@ -39,12 +40,13 @@ describe('healthController', () => {
     const mockLogger = { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() };
     loggerService.setLogger(mockLogger);
 
-    const { default: healthService } = await import('../src/services/healthService.js');
+    const { default: healthService } = await import('../src/modules/health/health.service.js');
     healthService.getHealth = jest.fn().mockImplementation(() => {
       throw new Error('boom');
     });
 
-    const { default: healthController } = await import('../src/controllers/healthController.js');
+    const { default: healthController } =
+      await import('../src/modules/health/health.controller.js');
 
     const req = {};
     const res = { json: jest.fn() };

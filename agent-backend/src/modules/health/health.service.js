@@ -1,4 +1,4 @@
-import healthRepository from '../repositories/healthRepository.js';
+import healthRepository from './health.repository.js';
 
 const getHealth = () => {
   const repoData = healthRepository.fetchServerStatus();

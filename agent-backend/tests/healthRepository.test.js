@@ -1,4 +1,4 @@
-import healthRepo from '../src/repositories/healthRepository.js';
+import healthRepo from '../src/modules/health/health.repository.js';
 
 describe('healthRepository', () => {
   test('fetchServerStatus returns uptime number', () => {
