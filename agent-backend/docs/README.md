@@ -33,6 +33,12 @@ The backend uses a **domain-based modular architecture**. Each business capabili
 | [Request Lifecycle](architecture/request-lifecycle.md) | How an HTTP request flows through the system |
 | [Module System](architecture/module-system.md) | How modules are structured and organized |
 | [Dependency Rules](architecture/dependency-rules.md) | Allowed and forbidden dependencies between layers |
+| [Backend Style Guide](architecture/BACKEND_STYLE_GUIDE.md) | SOLID principles, conventions, layer by layer |
+| [AI Memory Systems Guide](architecture/AI_AGENT_MEMORY_SYSTEMS_GUIDE.md) | AI memory taxonomy and implementation patterns |
+| [AI Memory Research](architecture/AI_MEMORY_RESEARCH.md) | Memory levels mapped to this codebase |
+| [LangChain Implementation](architecture/langchain-javascript-backend-implementation.md) | LangChain/LangGraph/Deep Agents integration |
+| [Store Backend Upgrade Plan](architecture/STORE_BACKEND_UPGRADE_PLAN.md) | DB-backed filesystem upgrade roadmap |
+| [Memory Implementation Plan](architecture/MEMORY_IMPLEMENTATION_PLAN.md) | Memory persistence & personalization roadmap |
 
 ---
 
@@ -72,6 +78,7 @@ All API routes are prefixed with `/api/v1/`.
 | [Authentication](api/authentication.md) | How auth works (Clerk) |
 | [Error Format](api/errors.md) | Error response structure and codes |
 | [Pagination](api/pagination.md) | Paginated response format |
+| [Route Reference (Legacy)](api/ROUTES.md) | Original route table (legacy) |
 
 ### Route Summary
 
@@ -109,6 +116,7 @@ All API routes are prefixed with `/api/v1/`.
 | [Adding Validation](development/adding-validation.md) | Add request validation |
 | [Testing](development/testing.md) | How to write and run tests |
 | [Architecture Rules](development/architecture-rules.md) | Architectural constraints |
+| [Route Checklist](development/route-checklist.md) | Generic endpoint creation checklist |
 
 ---
 
