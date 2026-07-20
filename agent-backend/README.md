@@ -18,58 +18,39 @@ REST API backend for Persona.ai built with Express 5, MongoDB (Mongoose), and Zo
 - **CI**: GitHub Actions
 - **Package manager**: pnpm
 
-## Project Structure
+## Architecture
+
+The backend uses a **domain-based modular architecture** — 17 business modules under `src/modules/`, each following a consistent `route → controller → service → repository → model` pattern.
 
 ```
-backend/
- src/
-   index.js                        # Express app entry point
-   config/
-     index.js                      # Environment config loader
-     database.js                   # MongoDB connection singleton
-   controllers/
-     healthController.js           # Health check endpoint
-   middlewares/
-     errorHandler.js               # Global error handler
-     validationMiddleware.js       # Zod-based request validation
-   models/
-     User.js                       # Mongoose + Zod User model
-     index.js
-   repositories/
-     healthRepository.js           # Server status data
-     userRepository.js             # User CRUD operations
-     index.js
-   routes/
-     health.js                     # /health route
-   services/
-     healthService.js              # Health check business logic
-   utils/
-     constants.js                  # HTTP status codes, error codes, pagination defaults
-     encryption.js                 # AES-256-GCM encrypt/decrypt with key rotation
-     index.js                      # Central utils export
-     errors/
-       BaseError.js                # Abstract error base class
-       ValidationError.js          # 400 validation errors
-       NotFoundError.js            # 404 not found errors
-     formatters/
-       successFormatter.js         # Standardized success responses
-       errorFormatter.js           # Standardized error responses
-     logger/
-       ConsoleLogger.js            # Default console logger
-       index.js                    # Logger singleton (swappable)
-     validators/
-       schemaValidator.js          # Zod validation helpers + reusable schemas
-  ai/
-    config.js                    # AI provider/env helpers
-    examples.js                  # LangChain, LangGraph, and Deep Agents examples
-    index.js                     # AI module exports
- scripts/
-   generate-encryption-key.js      # CLI tool for encryption key generation
-  verify-ai-stack.js              # Offline LangChain/LangGraph/Deep Agents verification
- tests/                            # Jest test suite
- docs/
-   encryption-rotation-plan.md     # Key rotation migration design
+src/
+├── index.js                    # Express app entry point
+├── config/                     # Environment & service configs
+├── middlewares/                 # Global error handler, Zod validation
+├── modules/
+│   ├── agents/                 # AI agent CRUD, factory, search
+│   ├── agui/                   # AG-UI SSE streaming protocol
+│   ├── auth/                   # Clerk authentication middleware
+│   ├── cron/                   # Scheduled background jobs
+│   ├── health/                 # Health check endpoints
+│   ├── knowledge/              # RAG knowledge bases (Qdrant)
+│   ├── mail/                   # Email sending (Resend)
+│   ├── mcp/                    # MCP server connectors + OAuth
+│   ├── memory/                 # File-based persistent memory
+│   ├── providers/              # LLM provider credentials
+│   ├── rateLimiter/            # API rate limiting
+│   ├── skills/                 # Agent skill library
+│   ├── threads/                # Conversation threads + checkpoints
+│   ├── tools/                  # Agent tool registration
+│   ├── upload/                 # File uploads
+│   ├── users/                  # User profiles + admin
+│   └── webhooks/               # Clerk webhook ingestion
+├── utils/                      # Encryption, errors, formatters, logger, validators
+└── docs/
+    └── openapi.js              # OpenAPI/Swagger spec
 ```
+
+> See [docs/README.md](docs/README.md) for the complete documentation portal including architecture guides, module docs, API reference, development guides, and operations docs.
 
 ## Prerequisites
 
@@ -115,17 +96,12 @@ pnpm run dev
 pnpm run start
 ```
 
-## API Endpoints
-
-| Method | Path         | Description                                  |
-| ------ | ------------ | -------------------------------------------- |
-| GET    | `/`          | Root — server status and DB connection state |
-| GET    | `/health`    | Health check with uptime                     |
-| GET    | `/health/db` | Database connectivity check                  |
-
 ## API Documentation
 
-- **Swagger UI**: Interactive API documentation is served at `/docs` when the server is running (e.g. `http://localhost:3000/docs`). The OpenAPI specification lives at `src/docs/openapi.js`.
+API docs and interactive reference are available at:
+- **Swagger UI**: `http://localhost:3000/docs` (when server is running)
+- **OpenAPI JSON**: `http://localhost:3000/openapi.json`
+- **Markdown docs**: See [docs/api/](docs/api/overview.md) for the complete route table, auth flow, error codes, and pagination format.
 
 ## Testing
 
@@ -155,7 +131,7 @@ This backend now includes a production-oriented JavaScript AI stack:
 
 The offline examples and verification suite live in `src/ai/`, `scripts/verify-ai-stack.js`, and `tests/aiExamples.test.js`.
 
-Detailed implementation guidance is documented in `docs/langchain-javascript-backend-implementation.md`.
+Detailed implementation guidance is documented in [docs/architecture/langchain-javascript-backend-implementation.md](docs/architecture/langchain-javascript-backend-implementation.md).
 
 ## Code Quality
 
