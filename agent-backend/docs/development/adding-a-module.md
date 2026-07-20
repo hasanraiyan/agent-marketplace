@@ -160,14 +160,125 @@ router.use(authMiddleware);
 
 const mutateLimiter = rateLimiter('MUTATE', RATE_LIMITS.MUTATE);
 
+/**
+ * @openapi
+ * /api/v1/<module-name>:
+ *   get:
+ *     tags: [ModuleName]
+ *     summary: List all entities
+ *     security: [{ clerkAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: List of entities
+ *       401:
+ *         description: Unauthorized
+ */
 router.get('/', controller.getAll);
+
+/**
+ * @openapi
+ * /api/v1/<module-name>/{id}:
+ *   get:
+ *     tags: [ModuleName]
+ *     summary: Get entity by ID
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Entity details
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Entity not found
+ */
 router.get('/:id', controller.getById);
+
+/**
+ * @openapi
+ * /api/v1/<module-name>:
+ *   post:
+ *     tags: [ModuleName]
+ *     summary: Create a new entity
+ *     security: [{ clerkAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Entity created
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ */
 router.post('/', mutateLimiter, validateBody(createSchema), controller.create);
+
+/**
+ * @openapi
+ * /api/v1/<module-name>/{id}:
+ *   patch:
+ *     tags: [ModuleName]
+ *     summary: Update an entity
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Entity updated
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Entity not found
+ *   delete:
+ *     tags: [ModuleName]
+ *     summary: Delete an entity
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Entity deleted
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Entity not found
+ */
 router.patch('/:id', mutateLimiter, validateBody(updateSchema), controller.update);
 router.delete('/:id', mutateLimiter, controller.remove);
 
 export default router;
 ```
+
+> **Every route handler needs an `@openapi` JSDoc block.** Add one above each route — the spec is auto-generated from these annotations at startup. See [adding-an-endpoint.md](./adding-an-endpoint.md) for detailed annotation rules and a reference table.
 
 ### 2.7 Barrel Exports (`index.js`)
 
@@ -209,9 +320,12 @@ touch docs/modules/<module-name>.md
 - [ ] All files created in `src/modules/<module-name>/`
 - [ ] Barrel exports in `index.js`
 - [ ] Routes registered in `src/index.js`
+- [ ] `@openapi` JSDoc block added above every route handler
+- [ ] Security key in `@openapi` block matches auth middleware (`[{ clerkAuth: [] }]` for auth, omit for public)
 - [ ] Authentication middleware applied appropriately
 - [ ] Rate limiting applied to mutation endpoints
 - [ ] Validation schemas created and applied
 - [ ] Tests written and passing
 - [ ] Module documentation added to `docs/modules/<module-name>.md`
 - [ ] Module linked from `docs/README.md`
+- [ ] Verify new paths appear in `/docs` after starting the server
