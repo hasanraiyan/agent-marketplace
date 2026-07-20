@@ -10,7 +10,7 @@ REST API backend for Persona.ai built with Express 5, MongoDB (Mongoose), and Zo
 - **Validation**: Zod
 - **AI orchestration**: LangChain, LangGraph, Deep Agents
 - **Encryption**: AES-256-GCM with key rotation support
-- **Auth deps**: bcrypt, jsonwebtoken
+- **Auth**: Clerk (external auth provider)
 - **Email deps**: resend, mailgen
 - **Testing**: Jest + Supertest
 - **Formatting**: Prettier
