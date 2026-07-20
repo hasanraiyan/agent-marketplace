@@ -189,7 +189,7 @@ async findById(id) {
 ### 4. Services (`src/modules/<module>/<module>.service.js`)
 
 - **Business logic only** — no HTTP concerns (no req/res).
-- Can be plain functions (e.g., `thread.validator.js`) or classes (e.g., `rateLimiter.service.js`).
+- Can be plain functions (e.g., `health.service.js`) or classes (e.g., `rateLimiter.service.js`).
 - Depend on repositories via injection or import.
 - Never import controllers or routes.
 - Access other modules' data through their services (not repositories or models).
