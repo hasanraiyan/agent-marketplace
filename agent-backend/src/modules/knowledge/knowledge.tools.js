@@ -1,8 +1,8 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
-import knowledgeRepository from '../modules/knowledge/knowledge.repository.js';
-import knowledgeService from '../modules/knowledge/knowledge.service.js';
-import { loggerService } from '../utils/index.js';
+import knowledgeRepository from './knowledge.repository.js';
+import knowledgeService from './knowledge.service.js';
+import { loggerService } from '../../utils/index.js';
 
 const logger = loggerService.getLogger();
 

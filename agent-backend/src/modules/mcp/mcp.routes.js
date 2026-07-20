@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import authMiddleware from '../auth/auth.middleware.js';
-import rateLimiter, { RATE_LIMITS } from '../../middlewares/rateLimiter.middleware.js';
+import rateLimiter, { RATE_LIMITS } from '../rateLimiter/rateLimiter.middleware.js';
 import { validateBody } from '../../middlewares/validationMiddleware.js';
 import { createMcpSchema, updateMcpSchema } from './mcp.validator.js';
 import mcpController from './mcp.controller.js';

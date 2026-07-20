@@ -90,7 +90,8 @@ jest.unstable_mockModule('@qdrant/js-client-rest', () => ({
 }));
 
 const config = (await import('../src/config/index.js')).default;
-const knowledgeRepository = (await import('../src/modules/knowledge/knowledge.repository.js')).default;
+const knowledgeRepository = (await import('../src/modules/knowledge/knowledge.repository.js'))
+  .default;
 const providerRepository = (await import('../src/modules/providers/provider.repository.js'))
   .default;
 const encryption = (await import('../src/utils/encryption.js')).default;

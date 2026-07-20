@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import authMiddleware from '../auth/auth.middleware.js';
-import rateLimiter, { RATE_LIMITS } from '../../middlewares/rateLimiter.middleware.js';
+import rateLimiter, { RATE_LIMITS } from '../rateLimiter/rateLimiter.middleware.js';
 import memoryController from './memory.controller.js';
 
 const router = Router();

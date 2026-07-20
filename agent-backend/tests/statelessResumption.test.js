@@ -23,7 +23,7 @@ jest.unstable_mockModule('../src/modules/threads/checkpoint.service.js', () => (
   },
 }));
 
-jest.unstable_mockModule('../src/utils/aguiTranslator.js', () => ({
+jest.unstable_mockModule('../src/modules/agui/aguiTranslator.js', () => ({
   translateLangGraphStream: jest.fn(),
   emitTextNotice: jest.fn(),
   formatRuntimeError: jest.fn((err) => err.message),

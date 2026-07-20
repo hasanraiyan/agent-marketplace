@@ -1,7 +1,7 @@
 import express from 'express';
 import agentController from './agent.controller.js';
 import authMiddleware from '../auth/auth.middleware.js';
-import rateLimiter, { RATE_LIMITS } from '../../middlewares/rateLimiter.middleware.js';
+import rateLimiter, { RATE_LIMITS } from '../rateLimiter/rateLimiter.middleware.js';
 import optionalAuthMiddleware from '../auth/optional-auth.middleware.js';
 import { validateBody } from '../../middlewares/validationMiddleware.js';
 import {

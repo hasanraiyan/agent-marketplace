@@ -52,7 +52,7 @@ describe('Mail Service', () => {
     }));
 
     // Import the mail service after mocks are set up
-    const mailService = await import('../src/services/mail.service.js');
+    const mailService = await import('../src/modules/mail/mail.service.js');
     sendVerificationEmail = mailService.sendVerificationEmail;
     sendWelcomeEmail = mailService.sendWelcomeEmail;
     sendPasswordResetEmail = mailService.sendPasswordResetEmail;
@@ -536,7 +536,7 @@ describe('Mail Service', () => {
         },
       }));
 
-      const mailService = await import('../src/services/mail.service.js');
+      const mailService = await import('../src/modules/mail/mail.service.js');
       sendVerificationEmail = mailService.sendVerificationEmail;
       sendWelcomeEmail = mailService.sendWelcomeEmail;
       sendPasswordResetEmail = mailService.sendPasswordResetEmail;

@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import InMemoryRateLimitStore from '../src/repositories/rateLimiter.repository.js';
+import InMemoryRateLimitStore from '../src/modules/rateLimiter/rateLimiter.repository.js';
 
 describe('InMemoryRateLimitStore', () => {
   let store;

@@ -4,7 +4,7 @@ const mockIncrement = jest.fn();
 const mockDelete = jest.fn();
 const mockDestroy = jest.fn();
 
-jest.unstable_mockModule('../src/repositories/rateLimiter.repository.js', () => ({
+jest.unstable_mockModule('../src/modules/rateLimiter/rateLimiter.repository.js', () => ({
   default: class MockStore {
     increment = mockIncrement;
     delete = mockDelete;
@@ -16,7 +16,7 @@ describe('RateLimiterService', () => {
   let rateLimiterService;
 
   beforeAll(async () => {
-    const mod = await import('../src/services/rateLimiter.service.js');
+    const mod = await import('../src/modules/rateLimiter/rateLimiter.service.js');
     rateLimiterService = mod.default;
   });
 
@@ -98,7 +98,7 @@ describe('RateLimiterService', () => {
     });
 
     test('should not throw when store destroy is not a function', async () => {
-      const mod = await import('../src/services/rateLimiter.service.js');
+      const mod = await import('../src/modules/rateLimiter/rateLimiter.service.js');
       const { RateLimiterService } = mod;
 
       // Create a service with a store that has no destroy method

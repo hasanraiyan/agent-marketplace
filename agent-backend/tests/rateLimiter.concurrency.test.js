@@ -1,4 +1,4 @@
-import rateLimiterService from '../src/services/rateLimiter.service.js';
+import rateLimiterService from '../src/modules/rateLimiter/rateLimiter.service.js';
 
 describe('RateLimiterService Concurrency', () => {
   beforeEach(() => {

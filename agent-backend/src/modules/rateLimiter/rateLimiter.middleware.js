@@ -1,5 +1,5 @@
-import rateLimiterService from '../services/rateLimiter.service.js';
-import RateLimitError from '../utils/errors/RateLimitError.js';
+import rateLimiterService from './rateLimiter.service.js';
+import RateLimitError from '../../utils/errors/RateLimitError.js';
 
 /**
  * Rate limit presets for core endpoints

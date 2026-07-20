@@ -1,13 +1,13 @@
-import User from '../modules/users/user.model.js';
-import Agent from '../modules/agents/agent.model.js';
-import Skill from '../modules/skills/skill.model.js';
-import Provider from '../modules/providers/provider.model.js';
-import Mcp from '../modules/mcp/mcp.model.js';
-import McpUserConnection from '../modules/mcp/mcp-user-connection.model.js';
-import Conversation from '../modules/threads/thread.model.js';
-import checkpointService from '../modules/threads/checkpoint.service.js';
-import { loggerService } from '../utils/index.js';
-import config from '../config/index.js';
+import User from '../users/user.model.js';
+import Agent from '../agents/agent.model.js';
+import Skill from '../skills/skill.model.js';
+import Provider from '../providers/provider.model.js';
+import Mcp from '../mcp/mcp.model.js';
+import McpUserConnection from '../mcp/mcp-user-connection.model.js';
+import Conversation from '../threads/thread.model.js';
+import checkpointService from '../threads/checkpoint.service.js';
+import { loggerService } from '../../utils/index.js';
+import config from '../../config/index.js';
 
 const logger = loggerService.getLogger();
 

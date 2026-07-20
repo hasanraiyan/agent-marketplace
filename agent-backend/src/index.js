@@ -20,7 +20,7 @@ import openapiSpec from './docs/openapi.js';
 import config from './config/index.js';
 import database from './config/database.js';
 import { loggerService } from './utils/index.js';
-import { startAllCronJobs, stopAllCronJobs } from './cron/index.js';
+import { startAllCronJobs, stopAllCronJobs } from './modules/cron/index.js';
 
 import { clerkMiddleware } from '@clerk/express';
 

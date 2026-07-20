@@ -3,8 +3,8 @@ import {
   sanitizeSkillFilename,
   renderSkillMarkdown,
   buildSkillFiles,
-} from '../src/utils/skillMarkdown.js';
-import { AgentSkillsStore } from '../src/utils/agentSkillsStore.js';
+} from '../src/modules/skills/skillMarkdown.js';
+import { AgentSkillsStore } from '../src/modules/skills/agentSkillsStore.js';
 import { readonlyBackend } from '../src/utils/readonlyBackend.js';
 import { gracefulBackend } from '../src/utils/gracefulBackend.js';
 import {

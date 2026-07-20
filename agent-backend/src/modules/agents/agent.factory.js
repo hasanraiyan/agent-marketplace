@@ -7,7 +7,7 @@ import {
 } from 'deepagents';
 import { MongoDBStore } from '../../utils/mongoStore.js';
 import { VersionedStateBackend } from '../../utils/versionedStateBackend.js';
-import { AgentSkillsStore } from '../../utils/agentSkillsStore.js';
+import { AgentSkillsStore } from '../skills/agentSkillsStore.js';
 import { readonlyBackend } from '../../utils/readonlyBackend.js';
 import { gracefulBackend } from '../../utils/gracefulBackend.js';
 import {
@@ -15,17 +15,17 @@ import {
   userMemoryNamespace,
   agentMemoryNamespace,
 } from './memory-files-store.js';
-import { skillLibraryStore, skillLibraryNamespace } from '../../utils/skillLibraryStore.js';
+import { skillLibraryStore, skillLibraryNamespace } from '../skills/skillLibraryStore.js';
 import checkpointService from '../threads/checkpoint.service.js';
 import { LRUCache } from 'lru-cache';
 import agentRepository from './agent.repository.js';
 import providerRepository from '../providers/provider.repository.js';
 import encryption from '../../utils/encryption.js';
 
-import { resolveAgentTools } from '../../tools/index.js';
-import { ARCHITECT_AGENT_ID } from '../../utils/architectConstants.js';
+import { resolveAgentTools } from './tools/index.js';
+import { ARCHITECT_AGENT_ID } from './architectConstants.js';
 import { loggerService } from '../../utils/index.js';
-import { ARCHITECT_SKILL } from '../../skills/architectSkill.js';
+import { ARCHITECT_SKILL } from '../skills/architectSkill.js';
 
 const logger = loggerService.getLogger();
 

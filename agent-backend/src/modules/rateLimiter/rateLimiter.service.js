@@ -1,4 +1,4 @@
-import InMemoryRateLimitStore from '../repositories/rateLimiter.repository.js';
+import InMemoryRateLimitStore from './rateLimiter.repository.js';
 
 /**
  * RateLimiterService - Core rate limiting logic

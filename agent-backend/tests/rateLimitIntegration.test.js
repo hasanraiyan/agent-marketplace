@@ -38,7 +38,7 @@ jest.unstable_mockModule('../src/modules/auth/auth.middleware.js', () => ({
 
 // Import the router after mocks
 const { default: aguiRouter } = await import('../src/modules/agui/agui.routes.js');
-const { default: rateLimiterService } = await import('../src/services/rateLimiter.service.js');
+const { default: rateLimiterService } = await import('../src/modules/rateLimiter/rateLimiter.service.js');
 
 describe('Rate Limit Integration', () => {
   let app;

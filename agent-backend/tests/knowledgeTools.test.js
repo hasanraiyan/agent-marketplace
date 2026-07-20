@@ -14,9 +14,10 @@ jest.unstable_mockModule('../src/modules/knowledge/knowledge.service.js', () => 
   },
 }));
 
-const knowledgeRepository = (await import('../src/modules/knowledge/knowledge.repository.js')).default;
+const knowledgeRepository = (await import('../src/modules/knowledge/knowledge.repository.js'))
+  .default;
 const knowledgeService = (await import('../src/modules/knowledge/knowledge.service.js')).default;
-const { resolveKnowledgeBaseTools } = await import('../src/tools/knowledge.tools.js');
+const { resolveKnowledgeBaseTools } = await import('../src/modules/knowledge/knowledge.tools.js');
 
 describe('resolveKnowledgeBaseTools', () => {
   const mockUserId = 'user123';

@@ -1,5 +1,5 @@
 import Agent from './agent.model.js';
-import { ARCHITECT_AGENT_ID } from '../../tools/index.js';
+import { ARCHITECT_AGENT_ID } from './tools/index.js';
 
 class AgentRepository {
   async create(agentData) {

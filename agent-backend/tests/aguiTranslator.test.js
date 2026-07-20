@@ -11,8 +11,8 @@ import {
   buildFilesTodosSnapshot,
   extractToolOutputContent,
   extractStructuredContent,
-} from '../src/utils/aguiTranslator.js';
-import { RunScopeTracker } from '../src/utils/RunScopeTracker.js';
+} from '../src/modules/agui/aguiTranslator.js';
+import { RunScopeTracker } from '../src/modules/agui/RunScopeTracker.js';
 
 // Helper: turn an array of LangGraph events into an async iterable, optionally
 // throwing `failWith` after they are all yielded (to exercise the catch path).

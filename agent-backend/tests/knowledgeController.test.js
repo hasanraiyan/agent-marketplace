@@ -16,7 +16,8 @@ jest.unstable_mockModule('../src/modules/knowledge/knowledge.service.js', () => 
 }));
 
 const knowledgeService = (await import('../src/modules/knowledge/knowledge.service.js')).default;
-const knowledgeController = (await import('../src/modules/knowledge/knowledge.controller.js')).default;
+const knowledgeController = (await import('../src/modules/knowledge/knowledge.controller.js'))
+  .default;
 
 describe('Knowledge Controller', () => {
   let mockReq;

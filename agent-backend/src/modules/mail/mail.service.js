@@ -1,6 +1,6 @@
-import { resend, mailgen } from '../config/mail.config.js';
-import config from '../config/index.js';
-import { loggerService } from '../utils/index.js';
+import { resend, mailgen } from '../../config/mail.config.js';
+import config from '../../config/index.js';
+import { loggerService } from '../../utils/index.js';
 
 const logger = loggerService.getLogger();
 

@@ -1,6 +1,6 @@
 import cron from 'node-cron';
-import { loggerService } from '../utils/index.js';
-import config from '../config/index.js';
+import { loggerService } from '../../utils/index.js';
+import config from '../../config/index.js';
 import deleteInactiveUsers from './deleteInactiveUsers.js';
 
 const logger = loggerService.getLogger();

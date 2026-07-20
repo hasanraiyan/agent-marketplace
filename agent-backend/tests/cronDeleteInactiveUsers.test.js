@@ -105,7 +105,7 @@ describe('Cron - deleteInactiveUsers', () => {
     mockMcpUserConnectionDeleteMany.mockResolvedValue();
     mockUserFindByIdAndDelete.mockResolvedValue();
 
-    const deleteInactiveUsers = (await import('../src/cron/deleteInactiveUsers.js')).default;
+    const deleteInactiveUsers = (await import('../src/modules/cron/deleteInactiveUsers.js')).default;
 
     const result = await deleteInactiveUsers();
 
@@ -124,7 +124,7 @@ describe('Cron - deleteInactiveUsers', () => {
   test('should not log when no users to purge', async () => {
     mockUserFind.mockResolvedValue([]);
 
-    const deleteInactiveUsers = (await import('../src/cron/deleteInactiveUsers.js')).default;
+    const deleteInactiveUsers = (await import('../src/modules/cron/deleteInactiveUsers.js')).default;
 
     const result = await deleteInactiveUsers();
 
@@ -153,7 +153,7 @@ describe('Cron - deleteInactiveUsers', () => {
     mockMcpUserConnectionDeleteMany.mockResolvedValue();
     mockUserFindByIdAndDelete.mockResolvedValue();
 
-    const deleteInactiveUsers = (await import('../src/cron/deleteInactiveUsers.js')).default;
+    const deleteInactiveUsers = (await import('../src/modules/cron/deleteInactiveUsers.js')).default;
 
     const result = await deleteInactiveUsers();
 

@@ -38,7 +38,7 @@ const providerRepository = (await import('../src/modules/providers/provider.repo
 const agentRepository = (await import('../src/modules/agents/agent.repository.js')).default;
 const agentFactory = (await import('../src/modules/agents/agent.factory.js')).default;
 const encryption = (await import('../src/utils/encryption.js')).default;
-const { ARCHITECT_AGENT_ID } = await import('../src/tools/index.js');
+const { ARCHITECT_AGENT_ID } = await import('../src/modules/agents/tools/index.js');
 const providerService = (await import('../src/modules/providers/provider.service.js')).default;
 
 describe('Provider Service', () => {

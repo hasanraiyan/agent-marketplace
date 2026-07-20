@@ -1,10 +1,10 @@
 import crypto from 'crypto';
 import { EventType } from '@ag-ui/core';
-import rateLimiterService from '../../services/rateLimiter.service.js';
+import rateLimiterService from '../rateLimiter/rateLimiter.service.js';
 import RateLimitError from '../../utils/errors/RateLimitError.js';
 import threadRepository from '../threads/thread.repository.js';
 import { loggerService } from '../../utils/index.js';
-import { foldSubagentEvent, settleTrace } from '../../utils/subagentTrace.js';
+import { foldSubagentEvent, settleTrace } from './subagentTrace.js';
 import { readJsonBody, runAgentAsAguiEvents } from './agui.service.js';
 
 const logger = loggerService.getLogger();

@@ -10,8 +10,8 @@ import {
   formatRuntimeError,
   buildResumeValue,
   describeInterrupt,
-} from '../../utils/aguiTranslator.js';
-import { RunScopeTracker } from '../../utils/RunScopeTracker.js';
+} from './aguiTranslator.js';
+import { RunScopeTracker } from './RunScopeTracker.js';
 
 const logger = loggerService.getLogger();
 

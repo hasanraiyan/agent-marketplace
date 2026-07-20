@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { validateSkillFiles } from '../../utils/skillValidation.js';
+import { validateSkillFiles } from './skillValidation.js';
 
 const skillFileSchema = z.object({
   path: z.string().min(1).max(256),

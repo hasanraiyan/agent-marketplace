@@ -3,7 +3,7 @@ import { jest } from '@jest/globals';
 const mockCheck = jest.fn();
 const mockBuildKey = jest.fn();
 
-jest.unstable_mockModule('../src/services/rateLimiter.service.js', () => ({
+jest.unstable_mockModule('../src/modules/rateLimiter/rateLimiter.service.js', () => ({
   default: {
     check: mockCheck,
     buildKey: mockBuildKey,
@@ -14,7 +14,7 @@ describe('rateLimiter middleware', () => {
   let rateLimiter, RATE_LIMITS;
 
   beforeAll(async () => {
-    const mod = await import('../src/middlewares/rateLimiter.middleware.js');
+    const mod = await import('../src/modules/rateLimiter/rateLimiter.middleware.js');
     rateLimiter = mod.default;
     RATE_LIMITS = mod.RATE_LIMITS;
   });

@@ -10,10 +10,10 @@ jest.unstable_mockModule('../src/modules/skills/skill.model.js', () => ({
 
 const Skill = (await import('../src/modules/skills/skill.model.js')).default;
 const { SKILL_LIMITS, normalizeSkillFilePath, mimeTypeForSkillPath, validateSkillFiles } =
-  await import('../src/utils/skillValidation.js');
+  await import('../src/modules/skills/skillValidation.js');
 const { parseSkillLibraryKey, parseSkillMdContent, SkillLibraryStore, skillLibraryNamespace } =
-  await import('../src/utils/skillLibraryStore.js');
-const { buildSkillFiles } = await import('../src/utils/skillMarkdown.js');
+  await import('../src/modules/skills/skillLibraryStore.js');
+const { buildSkillFiles } = await import('../src/modules/skills/skillMarkdown.js');
 
 describe('skillValidation', () => {
   describe('normalizeSkillFilePath', () => {
@@ -136,7 +136,7 @@ describe('parseSkillMdContent', () => {
   });
 
   test('round-trips renderSkillMarkdown output', async () => {
-    const { renderSkillMarkdown } = await import('../src/utils/skillMarkdown.js');
+    const { renderSkillMarkdown } = await import('../src/modules/skills/skillMarkdown.js');
     const md = renderSkillMarkdown({
       name: 'my-skill',
       description: 'Does: things "quoted"',

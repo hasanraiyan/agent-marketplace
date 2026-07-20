@@ -17,7 +17,7 @@ jest.unstable_mockModule('@langchain/mcp-adapters', () => ({
 
 const mcpTokenService = (await import('../src/modules/mcp/mcp-token.service.js')).default;
 const { MultiServerMCPClient } = await import('@langchain/mcp-adapters');
-const { resolveMcpTools } = await import('../src/tools/mcp.tools.js');
+const { resolveMcpTools } = await import('../src/modules/mcp/mcp.tools.js');
 
 describe('resolveMcpTools', () => {
   beforeEach(() => {

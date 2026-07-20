@@ -1,4 +1,4 @@
-import { foldSubagentEvent, settleTrace } from '../src/utils/subagentTrace.js';
+import { foldSubagentEvent, settleTrace } from '../src/modules/agui/subagentTrace.js';
 
 describe('foldSubagentEvent', () => {
   test('merges contiguous text deltas and interleaves tool entries (client shape)', () => {

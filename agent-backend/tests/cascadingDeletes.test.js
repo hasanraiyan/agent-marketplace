@@ -5,7 +5,7 @@ import threadRepository from '../src/modules/threads/thread.repository.js';
 import agentRepository from '../src/modules/agents/agent.repository.js';
 import Conversation from '../src/modules/threads/thread.model.js';
 import Agent from '../src/modules/agents/agent.model.js';
-import deleteInactiveUsers from '../src/cron/deleteInactiveUsers.js';
+import deleteInactiveUsers from '../src/modules/cron/deleteInactiveUsers.js';
 import User from '../src/modules/users/user.model.js';
 import Provider from '../src/modules/providers/provider.model.js';
 import Skill from '../src/modules/skills/skill.model.js';
