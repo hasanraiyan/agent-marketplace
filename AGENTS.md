@@ -131,7 +131,57 @@ res.json(formatters.formatSuccess(data, 'Message'));
 res.json(formatters.formatList(items, total, page, limit));
 ```
 
-### 5. Validation
+### 5. OpenAPI Documentation (Every Route Must Have It)
+
+Every route handler must have an `@openapi` JSDoc block above it. The spec is
+auto-generated at startup by `swagger-jsdoc` — **the route file IS the spec.**
+There is no separate OpenAPI file to update.
+
+```javascript
+/**
+ * @openapi
+ * /api/v1/agents:
+ *   post:
+ *     tags: [Agents]
+ *     summary: Create a new agent
+ *     security: [{ clerkAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, systemPrompt]
+ *             properties:
+ *               name:
+ *                 type: string
+ *               systemPrompt:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Agent created
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/', controller.create);
+```
+
+### Rules
+
+- **Every route handler** needs an `@openapi` block — no exceptions
+- **Auth-required endpoints** must include `security: [{ clerkAuth: [] }]`
+- **Public endpoints** (webhooks, OAuth callbacks) must omit the `security` key
+- **Path parameters** use `{param}` syntax (e.g. `/agents/{id}`)
+- **Header parameters** use `in: header` (e.g. AG-UI's `x-agent-id`)
+- **Multipart uploads** use content type `multipart/form-data`
+- **Response codes** must match actual behavior: 201 for create, 400/401/403/404/503
+- **Shared models** reference schemas via `$ref: '#/components/schemas/SchemaName'`
+- **YAML indentation** is strict — exactly 2 spaces per level
+- **Tags** must match the module name (e.g. `[Agents]`, `[MCP]`, `[Knowledge]`)
+
+### 6. Validation
 Use Zod schemas via `validateBody()` middleware:
 ```javascript
 router.post('/', validateBody(createSchema), controller.create);

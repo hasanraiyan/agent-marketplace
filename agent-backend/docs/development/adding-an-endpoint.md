@@ -32,6 +32,54 @@ Always apply middleware in this order:
 3. **Validation** — `validateBody(schema)` or `validateQuery(schema)`
 4. **Controller** — The handler function
 
+### OpenAPI Documentation (Add Above Every Route Handler)
+
+Every route handler needs an `@openapi` JSDoc block directly above it.
+The spec is auto-generated at startup by `swagger-jsdoc` — there is **no**
+separate OpenAPI file to update. Add the annotation at the same time you
+write the route, not later.
+
+```javascript
+/**
+ * @openapi
+ * /api/v1/<module>/search:
+ *   post:
+ *     tags: [ModuleName]
+ *     summary: What this endpoint does
+ *     security: [{ clerkAuth: [] }]
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               query:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Search results
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/search', authMiddleware, controller.search);
+```
+
+### Annotation Rules
+
+| Rule | Example |
+|------|---------|
+| **Auth-required endpoints** | `security: [{ clerkAuth: [] }]` |
+| **Public endpoints** (webhooks, OAuth callbacks) | Omit `security` key entirely |
+| **Path parameters** | `/users/{id}` — use `{param}` syntax |
+| **Header parameters** | `in: header` for things like `x-agent-id` |
+| **Multipart uploads** | `content: multipart/form-data` |
+| **Response codes** | 201 for create, 400/401/403/404/503 as appropriate |
+| **Shared schemas** | `$ref: '#/components/schemas/SchemaName'` |
+| **YAML indentation** | Exactly 2 spaces per level |
+| **Tags** | Match module name: `[Agents]`, `[MCP]`, `[Knowledge]` |
+
 ## Step 2: Add Validation (if needed)
 
 In `<module>.validator.js`, add Zod schemas:
@@ -131,12 +179,15 @@ describe('GET /api/v1/<module>/search', () => {
 ## Endpoint Checklist
 
 - [ ] Route defined in `.routes.js`
+- [ ] `@openapi` JSDoc block added above the route handler
 - [ ] Validation schema created (if accepting input)
 - [ ] Controller method created
 - [ ] Service method created
 - [ ] Repository method created (if accessing DB)
-- [ ] Auth middleware applied correctly
+- [ ] Auth middleware applied correctly (`authMiddleware` or `optionalAuthMiddleware`)
+- [ ] Security key in `@openapi` block matches auth middleware (`[{ clerkAuth: [] }]` for auth, omit for public)
 - [ ] Rate limiting applied for mutations
 - [ ] Tests written and passing
 - [ ] Error cases handled (not found, unauthorized, validation failure)
 - [ ] Response uses standard formatter
+- [ ] Verify path appears in `/docs` after starting the server
