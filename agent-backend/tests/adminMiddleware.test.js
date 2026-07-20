@@ -39,7 +39,7 @@ describe('Admin Middleware', () => {
 
     mockUserFindById.mockResolvedValue({ id: '507f1f77bcf86cd799439011', role: 'admin' });
 
-    const module = await import('../src/middlewares/admin.middleware.js');
+    const module = await import('../src/modules/users/admin.middleware.js');
     adminMiddleware = module.default;
   });
 

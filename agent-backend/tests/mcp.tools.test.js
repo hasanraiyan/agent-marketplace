@@ -35,7 +35,15 @@ describe('resolveMcpTools', () => {
     mockGetTools.mockResolvedValue([{ name: 'tool_a' }]);
 
     const agent = {
-      mcps: [{ _id: 'mcp1', name: 'Public MCP', transport: 'http', url: 'https://x.com/mcp', authType: 'none' }],
+      mcps: [
+        {
+          _id: 'mcp1',
+          name: 'Public MCP',
+          transport: 'http',
+          url: 'https://x.com/mcp',
+          authType: 'none',
+        },
+      ],
     };
 
     const { tools } = await resolveMcpTools(agent, 'user1');

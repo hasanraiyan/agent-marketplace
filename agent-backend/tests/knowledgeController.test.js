@@ -51,7 +51,10 @@ describe('Knowledge Controller', () => {
 
       await knowledgeController.create(mockReq, mockRes, mockNext);
 
-      expect(knowledgeService.createKnowledgeBase).toHaveBeenCalledWith(mockUserId, expect.objectContaining(kbData));
+      expect(knowledgeService.createKnowledgeBase).toHaveBeenCalledWith(
+        mockUserId,
+        expect.objectContaining(kbData)
+      );
       expect(mockRes.status).toHaveBeenCalledWith(201);
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
@@ -114,7 +117,9 @@ describe('Knowledge Controller', () => {
 
     test('should return 403 if unauthorized', async () => {
       mockReq.params = { id: mockKbId };
-      knowledgeService.getKnowledgeBase.mockRejectedValue(new Error('Not authorized to access this knowledge base'));
+      knowledgeService.getKnowledgeBase.mockRejectedValue(
+        new Error('Not authorized to access this knowledge base')
+      );
 
       await knowledgeController.getOne(mockReq, mockRes, mockNext);
 
@@ -135,7 +140,11 @@ describe('Knowledge Controller', () => {
 
       await knowledgeController.update(mockReq, mockRes, mockNext);
 
-      expect(knowledgeService.updateKnowledgeBase).toHaveBeenCalledWith(mockKbId, mockUserId, updateData);
+      expect(knowledgeService.updateKnowledgeBase).toHaveBeenCalledWith(
+        mockKbId,
+        mockUserId,
+        updateData
+      );
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
         data: expect.objectContaining(updateData),
@@ -144,7 +153,9 @@ describe('Knowledge Controller', () => {
 
     test('should handle controller errors', async () => {
       mockReq.params = { id: mockKbId };
-      knowledgeService.updateKnowledgeBase.mockRejectedValue(new Error('No valid fields to update'));
+      knowledgeService.updateKnowledgeBase.mockRejectedValue(
+        new Error('No valid fields to update')
+      );
 
       await knowledgeController.update(mockReq, mockRes, mockNext);
 
@@ -176,7 +187,11 @@ describe('Knowledge Controller', () => {
 
       await knowledgeController.upload(mockReq, mockRes, mockNext);
 
-      expect(knowledgeService.uploadFiles).toHaveBeenCalledWith(mockKbId, mockUserId, mockReq.files);
+      expect(knowledgeService.uploadFiles).toHaveBeenCalledWith(
+        mockKbId,
+        mockUserId,
+        mockReq.files
+      );
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
         data: mockResult,
@@ -191,10 +206,12 @@ describe('Knowledge Controller', () => {
       await knowledgeController.upload(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
-        success: false,
-        message: 'No files uploaded. Please select at least one file.',
-      }));
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          message: 'No files uploaded. Please select at least one file.',
+        })
+      );
     });
   });
 
@@ -206,7 +223,11 @@ describe('Knowledge Controller', () => {
 
       await knowledgeController.deleteDocument(mockReq, mockRes, mockNext);
 
-      expect(knowledgeService.deleteDocumentFromKb).toHaveBeenCalledWith(mockKbId, mockUserId, 'test.txt');
+      expect(knowledgeService.deleteDocumentFromKb).toHaveBeenCalledWith(
+        mockKbId,
+        mockUserId,
+        'test.txt'
+      );
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
         data: mockResult,
@@ -240,7 +261,9 @@ describe('Knowledge Controller', () => {
 
       await knowledgeController.search(mockReq, mockRes, mockNext);
 
-      expect(knowledgeService.searchKnowledgeBase).toHaveBeenCalledWith(mockKbId, 'test query', { topK: 3 });
+      expect(knowledgeService.searchKnowledgeBase).toHaveBeenCalledWith(mockKbId, 'test query', {
+        topK: 3,
+      });
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
         data: mockMatches,

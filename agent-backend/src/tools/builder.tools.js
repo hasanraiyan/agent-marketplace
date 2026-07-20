@@ -150,11 +150,17 @@ export const manageSkillTool = (userId) =>
   new DynamicStructuredTool({
     name: 'manage_skill',
     description:
-      'Lifecycle operations for the user\'s skills: list them (with IDs for attaching to agents), delete one, or toggle marketplace visibility. To CREATE or EDIT skill content, write files under /skill-library/<skill-name>/ instead (SKILL.md with YAML frontmatter + optional references/ files).',
+      "Lifecycle operations for the user's skills: list them (with IDs for attaching to agents), delete one, or toggle marketplace visibility. To CREATE or EDIT skill content, write files under /skill-library/<skill-name>/ instead (SKILL.md with YAML frontmatter + optional references/ files).",
     schema: z.object({
       action: z.enum(['list', 'delete', 'set_visibility']),
-      skillId: z.string().optional().describe('ID of the skill (required for delete/set_visibility)'),
-      isPublic: z.boolean().optional().describe('Marketplace visibility (required for set_visibility)'),
+      skillId: z
+        .string()
+        .optional()
+        .describe('ID of the skill (required for delete/set_visibility)'),
+      isPublic: z
+        .boolean()
+        .optional()
+        .describe('Marketplace visibility (required for set_visibility)'),
     }),
     func: async (input) => {
       try {
@@ -198,7 +204,11 @@ export const manageSkillTool = (userId) =>
             return JSON.stringify({
               status: 'success',
               message: `Skill is now ${updatedSkill.isPublic ? 'public' : 'private'}.`,
-              data: { id: updatedSkill._id, name: updatedSkill.name, isPublic: updatedSkill.isPublic },
+              data: {
+                id: updatedSkill._id,
+                name: updatedSkill.name,
+                isPublic: updatedSkill.isPublic,
+              },
             });
           }
           default:

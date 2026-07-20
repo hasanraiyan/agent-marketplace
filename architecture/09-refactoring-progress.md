@@ -8,7 +8,7 @@ This document contains a highly granular, step-by-step checklist for the refacto
 
 - **Phase 1 to 10: Research & Planning**: [x] Completed
 - **Phase 11: Incremental Refactoring Implementation**:
-  - **Step 1: Setup & Auth Service**: [ ] Pending
+  - **Step 1: Setup & Auth Service**: [x] Completed
   - **Step 2: Health Module**: [ ] Pending
   - **Step 3: Upload Module**: [ ] Pending
   - **Step 4: Clerk Webhook**: [ ] Pending
@@ -26,16 +26,16 @@ This document contains a highly granular, step-by-step checklist for the refacto
 
 ## Detailed Task Checklists
 
-### [ ] Step 1: Create Module Folder Structures & Auth Sync Service
+### [x] Step 1: Create Module Folder Structures & Auth Sync Service
 * **Objective**: Initialize the modular folder structure and consolidate duplicate Clerk syncing logic.
 * **Tasks**:
-  - [ ] Create folder structures in `src/modules/`: `auth`, `users`, `health`, `upload`, `webhooks`, `skills`, `providers`, `threads`, `mcps`, `agents`, `agui`, `knowledge`.
-  - [ ] Create `src/modules/auth/auth.service.js` containing user retrieval and auto-sync logic.
-  - [ ] Move `src/middlewares/auth.middleware.js` to `src/modules/auth/auth.middleware.js` and refactor it to call `authService.syncUser`.
-  - [ ] Move `src/middlewares/optionalAuthMiddleware.js` to `src/modules/auth/optional-auth.middleware.js` and refactor it to call `authService.syncUser`.
-  - [ ] Move `src/middlewares/admin.middleware.js` to `src/modules/users/admin.middleware.js`.
-  - [ ] Update all import paths to these middlewares across all existing files in `src/`.
-  - [ ] Run `pnpm test` to verify auth checks still work perfectly.
+  - [x] Create folder structures in `src/modules/`: `auth`, `users`, `health`, `upload`, `webhooks`, `skills`, `providers`, `threads`, `mcps`, `agents`, `agui`, `knowledge`.
+  - [x] Create `src/modules/auth/auth.service.js` containing user retrieval and auto-sync logic.
+  - [x] Move `src/middlewares/auth.middleware.js` to `src/modules/auth/auth.middleware.js` and refactor it to call `authService.syncUser`.
+  - [x] Move `src/middlewares/optionalAuthMiddleware.js` to `src/modules/auth/optional-auth.middleware.js` and refactor it to call `authService.syncUser`.
+  - [x] Move `src/middlewares/admin.middleware.js` to `src/modules/users/admin.middleware.js`.
+  - [x] Update all import paths to these middlewares across all existing files in `src/`.
+  - [x] Run `pnpm test` to verify auth checks still work perfectly.
 
 ### [ ] Step 2: Health Module Refactor
 * **Objective**: Migrate the health checks to `src/modules/health/`.
@@ -162,3 +162,52 @@ This document contains a highly granular, step-by-step checklist for the refacto
   - [ ] Run `pnpm run format` to standardise code styles.
   - [ ] Run `pnpm test` and confirm all 588 unit/integration tests pass.
   - [ ] Start the backend locally with `pnpm run dev` and ensure successful bootstrap.
+
+---
+
+## Change Log
+
+### Refactoring Progress Log - 2026-07-20
+
+#### Step 1: Setup & Auth Service
+* **What was changed**:
+  * Created domain directories under `src/modules/` (`auth`, `users`, etc.).
+  * Created `src/modules/auth/auth.service.js` containing consolidated `AuthService.syncUser` logic for Clerk user retrieval and fallback syncing.
+  * Moved `src/middlewares/auth.middleware.js` to `src/modules/auth/auth.middleware.js` and refactored it to call `AuthService.syncUser`.
+  * Moved `src/middlewares/optionalAuthMiddleware.js` to `src/modules/auth/optional-auth.middleware.js` and refactored it to call `AuthService.syncUser`, resolving Finding 4.1 by removing leftover debug logger filesystem writes.
+  * Moved `src/middlewares/admin.middleware.js` to `src/modules/users/admin.middleware.js`.
+  * Updated route files (`admin.routes.js`, `agent.routes.js`, `agui.routes.js`, `knowledge.routes.js`, `mcp.routes.js`, `memory.routes.js`, `profile.routes.js`, `provider.routes.js`, `skill.routes.js`, `thread.routes.js`, `upload.routes.js`) to import the new middleware paths.
+  * Updated test files (`tests/rateLimitIntegration.test.js`, `tests/statelessResumption.test.js`, `tests/adminMiddleware.test.js`) to mock/import middlewares from the new modular paths.
+  * Deleted the original deprecated files in `src/middlewares/` (`auth.middleware.js`, `optionalAuthMiddleware.js`, `admin.middleware.js`).
+* **Why it was changed**:
+  * Consolidated duplicated Clerk user synchronization logic to ensure consistency between optional and strict auth behaviors and to satisfy DRY principles (Finding 3.2).
+  * Enforced standard service and repository boundaries (e.g. `AuthService` queries database only through `userRepository`, keeping it decoupled from database model details).
+  * Prepared the authentication and authorization layer as the foundational step of the modular transition.
+* **Files affected**:
+  * `src/modules/auth/auth.service.js` (created)
+  * `src/modules/auth/auth.middleware.js` (created)
+  * `src/modules/auth/optional-auth.middleware.js` (created)
+  * `src/modules/users/admin.middleware.js` (created)
+  * `src/routes/admin.routes.js`
+  * `src/routes/agent.routes.js`
+  * `src/routes/agui.routes.js`
+  * `src/routes/knowledge.routes.js`
+  * `src/routes/mcp.routes.js`
+  * `src/routes/memory.routes.js`
+  * `src/routes/profile.routes.js`
+  * `src/routes/provider.routes.js`
+  * `src/routes/skill.routes.js`
+  * `src/routes/thread.routes.js`
+  * `src/routes/upload.routes.js`
+  * `tests/adminMiddleware.test.js`
+  * `tests/rateLimitIntegration.test.js`
+  * `tests/statelessResumption.test.js`
+  * `src/middlewares/auth.middleware.js` (deleted)
+  * `src/middlewares/optionalAuthMiddleware.js` (deleted)
+  * `src/middlewares/admin.middleware.js` (deleted)
+* **Verification performed**:
+  * Executed Jest test suite (`pnpm test`) pre-deletion and post-deletion of original files.
+* **Pass/Fail status**:
+  * Pass (588/588 tests passed successfully on all runs).
+* **Issues discovered**:
+  * The verification script `pnpm run ai:verify` fails because the `src/ai` folder it depends on was deleted in a previous commit (`4076d3a`). It has been marked as deprecated in the migration plan.

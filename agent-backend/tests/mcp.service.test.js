@@ -78,9 +78,8 @@ const agentFactory = (await import('../src/factories/agentFactory.js')).default;
 const encryption = (await import('../src/utils/encryption.js')).default;
 const mcpTokenService = (await import('../src/services/mcpToken.service.js')).default;
 const { signOAuthState, verifyOAuthState } = await import('../src/utils/oauthState.js');
-const { discoverOAuthEndpoints, exchangeCodeForToken } = await import(
-  '../src/utils/mcpOAuthClient.js'
-);
+const { discoverOAuthEndpoints, exchangeCodeForToken } =
+  await import('../src/utils/mcpOAuthClient.js');
 const mcpService = (await import('../src/services/mcp.service.js')).default;
 
 describe('Mcp Service', () => {
@@ -248,7 +247,10 @@ describe('Mcp Service', () => {
       mcpRepository.update.mockResolvedValue({ ...mockMcp, authType: 'apiKey' });
       Agent.find.mockResolvedValue([]);
 
-      await mcpService.updateMcp(mockMcp._id, mockUserId, { authType: 'apiKey', apiKey: 'new-key' });
+      await mcpService.updateMcp(mockMcp._id, mockUserId, {
+        authType: 'apiKey',
+        apiKey: 'new-key',
+      });
 
       expect(mcpRepository.update).toHaveBeenCalledWith(
         mockMcp._id,
@@ -305,9 +307,9 @@ describe('Mcp Service', () => {
     it('throws if the MCP does not use oauth', async () => {
       mcpRepository.findById.mockResolvedValue(mockMcp);
 
-      await expect(
-        mcpService.getOwnerAuthorizationUrl(mockMcp._id, mockUserId)
-      ).rejects.toThrow('This MCP server does not use OAuth');
+      await expect(mcpService.getOwnerAuthorizationUrl(mockMcp._id, mockUserId)).rejects.toThrow(
+        'This MCP server does not use OAuth'
+      );
     });
 
     it('signs state and builds an authorization URL for oauth MCPs', async () => {
@@ -335,9 +337,9 @@ describe('Mcp Service', () => {
     it('rejects state for the wrong mode', async () => {
       verifyOAuthState.mockReturnValue({ mode: 'user', mcpId: String(mockMcp._id) });
 
-      await expect(
-        mcpService.handleOwnerCallback('code', 'state')
-      ).rejects.toThrow('OAuth state does not match this request');
+      await expect(mcpService.handleOwnerCallback('code', 'state')).rejects.toThrow(
+        'OAuth state does not match this request'
+      );
     });
 
     it('exchanges the code, persists the owner token, and invalidates caches', async () => {
@@ -453,17 +455,15 @@ describe('Mcp Service', () => {
       mcpRepository.findById.mockResolvedValue(apiKeyMcp);
       mcpTokenService.getApiKeyToken.mockReturnValue(null);
 
-      await expect(
-        mcpService.callTool(mockMcp._id, mockUserId, 'some-tool', {})
-      ).rejects.toThrow('This MCP server has no API key configured');
+      await expect(mcpService.callTool(mockMcp._id, mockUserId, 'some-tool', {})).rejects.toThrow(
+        'This MCP server has no API key configured'
+      );
     });
 
     it('propagates a connection failure for an unreachable server', async () => {
       mcpRepository.findById.mockResolvedValue(mockMcp);
 
-      await expect(
-        mcpService.callTool(mockMcp._id, mockUserId, 'some-tool', {})
-      ).rejects.toThrow();
+      await expect(mcpService.callTool(mockMcp._id, mockUserId, 'some-tool', {})).rejects.toThrow();
     });
   });
 });

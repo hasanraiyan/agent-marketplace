@@ -2,7 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import authMiddleware from '../middlewares/auth.middleware.js';
+import authMiddleware from '../modules/auth/auth.middleware.js';
 import successFormatter from '../utils/formatters/successFormatter.js';
 import BaseError from '../utils/errors/BaseError.js';
 
@@ -40,7 +40,13 @@ const upload = multer({
     if (extname && mimetype) {
       return cb(null, true);
     } else {
-      cb(new BaseError('Only image files (jpg, jpeg, png, webp, gif) are allowed', 400, 'BAD_REQUEST'));
+      cb(
+        new BaseError(
+          'Only image files (jpg, jpeg, png, webp, gif) are allowed',
+          400,
+          'BAD_REQUEST'
+        )
+      );
     }
   },
 });

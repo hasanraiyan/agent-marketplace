@@ -27,7 +27,7 @@ describe('Cascading Deletes Integration', () => {
       const mockThread = {
         _id: new mongoose.Types.ObjectId(),
         userId: mockUserId,
-        threadId: mockThreadId
+        threadId: mockThreadId,
       };
 
       jest.spyOn(threadRepository, 'findById').mockResolvedValue(mockThread);
@@ -72,7 +72,7 @@ describe('Cascading Deletes Integration', () => {
       const updateSpy = jest.spyOn(Agent, 'findByIdAndUpdate').mockResolvedValue({
         ...mockAgent,
         isActive: false,
-        deletedAt: new Date()
+        deletedAt: new Date(),
       });
 
       const result = await agentRepository.delete(mockAgentId);
@@ -92,7 +92,7 @@ describe('Cascading Deletes Integration', () => {
 
       jest.spyOn(User, 'find').mockResolvedValue([mockUser]);
       jest.spyOn(Conversation, 'find').mockReturnValue({
-        select: jest.fn().mockResolvedValue([{ threadId: 'thread-1' }])
+        select: jest.fn().mockResolvedValue([{ threadId: 'thread-1' }]),
       });
 
       const cleanupThreadsSpy = jest.spyOn(checkpointService, 'cleanupThreads').mockResolvedValue();
@@ -101,7 +101,9 @@ describe('Cascading Deletes Integration', () => {
       const deleteSkillsSpy = jest.spyOn(Skill, 'deleteMany').mockResolvedValue();
       const deleteProvidersSpy = jest.spyOn(Provider, 'deleteMany').mockResolvedValue();
       const deleteMcpsSpy = jest.spyOn(Mcp, 'deleteMany').mockResolvedValue();
-      const deleteMcpConnectionsSpy = jest.spyOn(McpUserConnection, 'deleteMany').mockResolvedValue();
+      const deleteMcpConnectionsSpy = jest
+        .spyOn(McpUserConnection, 'deleteMany')
+        .mockResolvedValue();
       const deleteUserSpy = jest.spyOn(User, 'findByIdAndDelete').mockResolvedValue();
 
       await deleteInactiveUsers();

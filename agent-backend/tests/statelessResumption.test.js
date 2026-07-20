@@ -38,13 +38,12 @@ jest.unstable_mockModule('@clerk/express', () => ({
 }));
 
 // Mock authMiddleware
-jest.unstable_mockModule('../src/middlewares/auth.middleware.js', () => ({
+jest.unstable_mockModule('../src/modules/auth/auth.middleware.js', () => ({
   default: (req, res, next) => {
-      req.user = { _id: 'user_1' };
-      next();
+    req.user = { _id: 'user_1' };
+    next();
   },
 }));
-
 
 const agentFactory = (await import('../src/factories/agentFactory.js')).default;
 const threadRepository = (await import('../src/repositories/threadRepository.js')).default;
@@ -69,10 +68,10 @@ describe('Stateless Resumption Logic in agui.routes.js', () => {
       llm: {},
     });
     threadRepository.findById.mockResolvedValue({
-        _id: 'thread_1',
-        threadId: 'uuid_1',
-        userId: 'user_1',
-        title: 'Existing Conversation'
+      _id: 'thread_1',
+      threadId: 'uuid_1',
+      userId: 'user_1',
+      title: 'Existing Conversation',
     });
 
     mockReq = {
@@ -110,12 +109,12 @@ describe('Stateless Resumption Logic in agui.routes.js', () => {
       ],
     });
 
-    const middleware = aguiRouter.stack.find(s => s.handle?.length === 3).handle;
+    const middleware = aguiRouter.stack.find((s) => s.handle?.length === 3).handle;
     await middleware(mockReq, mockRes, next);
 
     // Finding the rateLimiter middleware and skip it
     // The stack looks like: [rateLimiter, postHandler]
-    const routeStack = aguiRouter.stack.find(s => s.route?.methods.post).route.stack;
+    const routeStack = aguiRouter.stack.find((s) => s.route?.methods.post).route.stack;
     const postHandler = routeStack[routeStack.length - 1].handle;
 
     await postHandler(mockReq, mockRes, next);
@@ -141,10 +140,10 @@ describe('Stateless Resumption Logic in agui.routes.js', () => {
       tasks: [],
     });
 
-    const middleware = aguiRouter.stack.find(s => s.handle?.length === 3).handle;
+    const middleware = aguiRouter.stack.find((s) => s.handle?.length === 3).handle;
     await middleware(mockReq, mockRes, next);
 
-    const routeStack = aguiRouter.stack.find(s => s.route?.methods.post).route.stack;
+    const routeStack = aguiRouter.stack.find((s) => s.route?.methods.post).route.stack;
     const postHandler = routeStack[routeStack.length - 1].handle;
 
     await postHandler(mockReq, mockRes, next);

@@ -1,6 +1,6 @@
 import express from 'express';
 import threadController from '../controllers/thread.controller.js';
-import authMiddleware from '../middlewares/auth.middleware.js';
+import authMiddleware from '../modules/auth/auth.middleware.js';
 import rateLimiter, { RATE_LIMITS } from '../middlewares/rateLimiter.middleware.js';
 import { validateBody } from '../middlewares/validationMiddleware.js';
 import { createThreadSchema, updateThreadTitleSchema } from '../validators/thread.validator.js';
@@ -19,7 +19,12 @@ router.get('/', threadController.getAllByUser);
 router.get('/:id', threadController.getOne);
 router.delete('/', mutateLimiter, threadController.deleteAll);
 router.delete('/:id', mutateLimiter, threadController.delete);
-router.patch('/:id/title', mutateLimiter, validateBody(updateThreadTitleSchema), threadController.updateTitle);
+router.patch(
+  '/:id/title',
+  mutateLimiter,
+  validateBody(updateThreadTitleSchema),
+  threadController.updateTitle
+);
 
 // Chat & Streaming
 router.get('/:id/messages', threadController.getMessages);

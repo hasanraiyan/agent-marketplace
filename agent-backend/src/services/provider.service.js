@@ -27,7 +27,10 @@ class ProviderService {
       // If decryption fails, we can't re-encrypt. Log it but don't crash here.
       // The calling method will handle the decryption failure when it tries to use the key.
       // eslint-disable-next-line no-console
-      console.error(`[ProviderService] Failed lazy re-encryption for ${provider._id}:`, err.message);
+      console.error(
+        `[ProviderService] Failed lazy re-encryption for ${provider._id}:`,
+        err.message
+      );
       return provider;
     }
   }

@@ -63,12 +63,16 @@ describe('Checkpoint Service', () => {
 
     test('should throw error if thread not found', async () => {
       threadRepository.findById.mockResolvedValue(null);
-      await expect(checkpointService.getMessages('thread_1', 'user_1')).rejects.toThrow('Thread not found');
+      await expect(checkpointService.getMessages('thread_1', 'user_1')).rejects.toThrow(
+        'Thread not found'
+      );
     });
 
     test('should throw error if unauthorized', async () => {
       threadRepository.findById.mockResolvedValue(mockThread);
-      await expect(checkpointService.getMessages('thread_1', 'user_2')).rejects.toThrow('Unauthorized');
+      await expect(checkpointService.getMessages('thread_1', 'user_2')).rejects.toThrow(
+        'Unauthorized'
+      );
     });
   });
 });

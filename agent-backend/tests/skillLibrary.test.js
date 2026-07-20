@@ -9,18 +9,10 @@ jest.unstable_mockModule('../src/models/Skill.js', () => ({
 }));
 
 const Skill = (await import('../src/models/Skill.js')).default;
-const {
-  SKILL_LIMITS,
-  normalizeSkillFilePath,
-  mimeTypeForSkillPath,
-  validateSkillFiles,
-} = await import('../src/utils/skillValidation.js');
-const {
-  parseSkillLibraryKey,
-  parseSkillMdContent,
-  SkillLibraryStore,
-  skillLibraryNamespace,
-} = await import('../src/utils/skillLibraryStore.js');
+const { SKILL_LIMITS, normalizeSkillFilePath, mimeTypeForSkillPath, validateSkillFiles } =
+  await import('../src/utils/skillValidation.js');
+const { parseSkillLibraryKey, parseSkillMdContent, SkillLibraryStore, skillLibraryNamespace } =
+  await import('../src/utils/skillLibraryStore.js');
 const { buildSkillFiles } = await import('../src/utils/skillMarkdown.js');
 
 describe('skillValidation', () => {
@@ -79,10 +71,11 @@ describe('skillValidation', () => {
     });
 
     test('warns on non-conventional folders and long SKILL.md', () => {
-      const { warnings, errors } = validateSkillFiles(
-        [{ path: 'docs/guide.md', content: 'x' }],
-        { instructions: Array(SKILL_LIMITS.MAX_SKILL_MD_LINES + 2).fill('line').join('\n') }
-      );
+      const { warnings, errors } = validateSkillFiles([{ path: 'docs/guide.md', content: 'x' }], {
+        instructions: Array(SKILL_LIMITS.MAX_SKILL_MD_LINES + 2)
+          .fill('line')
+          .join('\n'),
+      });
       expect(errors).toEqual([]);
       expect(warnings.join(' ')).toContain('references/');
       expect(warnings.join(' ')).toContain('lines');
@@ -214,10 +207,7 @@ describe('SkillLibraryStore', () => {
   test('search lists all files sorted with offset/limit', async () => {
     // localeCompare ordering: 'references' sorts before 'SKILL.md'
     const all = await store.search(ns);
-    expect(all.map((i) => i.key)).toEqual([
-      '/pdf-tools/references/api.md',
-      '/pdf-tools/SKILL.md',
-    ]);
+    expect(all.map((i) => i.key)).toEqual(['/pdf-tools/references/api.md', '/pdf-tools/SKILL.md']);
     const page = await store.search(ns, { limit: 1, offset: 1 });
     expect(page.map((i) => i.key)).toEqual(['/pdf-tools/SKILL.md']);
   });
@@ -268,9 +258,9 @@ describe('SkillLibraryStore', () => {
   test('supporting files require the skill to exist first', async () => {
     Skill.findOne.mockResolvedValue(null);
     Skill.find.mockResolvedValue([]);
-    await expect(
-      store.put(ns, '/data-viz/references/x.md', { content: 'hello' })
-    ).rejects.toThrow(/create \/data-viz\/SKILL\.md first/);
+    await expect(store.put(ns, '/data-viz/references/x.md', { content: 'hello' })).rejects.toThrow(
+      /create \/data-viz\/SKILL\.md first/
+    );
   });
 
   test('supporting file writes add and update files[]', async () => {
@@ -324,13 +314,11 @@ describe('SkillLibraryStore', () => {
   });
 
   test('a failed write does not wedge the per-user queue', async () => {
-    mockSkill.save
-      .mockRejectedValueOnce(new Error('boom'))
-      .mockResolvedValue(undefined);
+    mockSkill.save.mockRejectedValueOnce(new Error('boom')).mockResolvedValue(undefined);
 
-    await expect(
-      store.put(ns, '/pdf-tools/references/fail.md', { content: 'x' })
-    ).rejects.toThrow('boom');
+    await expect(store.put(ns, '/pdf-tools/references/fail.md', { content: 'x' })).rejects.toThrow(
+      'boom'
+    );
     // The queue must keep serving subsequent writes.
     await store.put(ns, '/pdf-tools/references/after.md', { content: 'y' });
     expect(mockSkill.files.some((f) => f.path === 'references/after.md')).toBe(true);

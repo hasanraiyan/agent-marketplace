@@ -67,7 +67,7 @@ describe('resolveKnowledgeBaseTools', () => {
     expect(tools).toHaveLength(2);
     expect(tools[0].name).toBe('search_knowledge_base');
     expect(tools[1].name).toBe('list_knowledge_base_sources');
-    
+
     // Check that we retrieved all KBs from DB
     expect(knowledgeRepository.findKbsByIds).toHaveBeenCalledWith(['kb1', 'kb2', 'kb3']);
   });
@@ -115,7 +115,13 @@ describe('resolveKnowledgeBaseTools', () => {
   it('correctly executes the list sources tool func', async () => {
     knowledgeRepository.findKbsByIds.mockResolvedValue([mockKbs[0]]);
     knowledgeService.listDocumentSources.mockResolvedValue([
-      { fileName: 'doc1.txt', fileSize: 1024, mimeType: 'text/plain', chunkCount: 3, uploadedAt: 'date' },
+      {
+        fileName: 'doc1.txt',
+        fileSize: 1024,
+        mimeType: 'text/plain',
+        chunkCount: 3,
+        uploadedAt: 'date',
+      },
     ]);
 
     const tools = await resolveKnowledgeBaseTools(['kb1'], mockUserId);

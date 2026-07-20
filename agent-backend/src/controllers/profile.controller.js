@@ -49,7 +49,7 @@ export const updateProfile = async (req, res, next) => {
       updateData.profile = {
         summary: profile.summary !== undefined ? profile.summary : '',
         preferences: profile.preferences !== undefined ? profile.preferences : {},
-        lastUpdated: new Date()
+        lastUpdated: new Date(),
       };
     }
 

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import authMiddleware from '../middlewares/auth.middleware.js';
+import authMiddleware from '../modules/auth/auth.middleware.js';
 import rateLimiter, { RATE_LIMITS } from '../middlewares/rateLimiter.middleware.js';
 import { validateBody } from '../middlewares/validationMiddleware.js';
 import { createSkillSchema, updateSkillSchema } from '../validators/skill.validator.js';
@@ -18,10 +18,22 @@ router.get('/public', authMiddleware, skillController.getPublicSkills);
 router.get('/', authMiddleware, skillController.getMySkills);
 
 // CRUD
-router.post('/', authMiddleware, mutateLimiter, validateBody(createSkillSchema), skillController.create);
+router.post(
+  '/',
+  authMiddleware,
+  mutateLimiter,
+  validateBody(createSkillSchema),
+  skillController.create
+);
 router.get('/:id', authMiddleware, skillController.getById);
 router.get('/:id/agents', authMiddleware, skillController.getUsedByAgents);
-router.patch('/:id', authMiddleware, mutateLimiter, validateBody(updateSkillSchema), skillController.update);
+router.patch(
+  '/:id',
+  authMiddleware,
+  mutateLimiter,
+  validateBody(updateSkillSchema),
+  skillController.update
+);
 router.delete('/:id', authMiddleware, mutateLimiter, skillController.delete);
 
 export default router;

@@ -241,7 +241,11 @@ export function extractToolOutputContent(output) {
   // structuredContent/_meta (it merges them onto the one text block: see
   // _convertCallToolResult in @langchain/mcp-adapters/dist/tools.js). Unwrap
   // `.text` here too, or this falls through to the envelope-stringify below.
-  if (output.content && typeof output.content === 'object' && typeof output.content.text === 'string') {
+  if (
+    output.content &&
+    typeof output.content === 'object' &&
+    typeof output.content.text === 'string'
+  ) {
     return output.content.text;
   }
   // Plain object (a tool that returned a raw object with no tool_call_id wrapping):
@@ -452,7 +456,15 @@ export function buildFilesTodosSnapshot(stateValues) {
  * @returns {AsyncGenerator} AG-UI events.
  */
 export async function* translateLangGraphStream(stream, opts = {}) {
-  const { providerConfig, onInterrupt, onError, logger, getState, mcpAppMap = {}, runScopeTracker } = opts;
+  const {
+    providerConfig,
+    onInterrupt,
+    onError,
+    logger,
+    getState,
+    mcpAppMap = {},
+    runScopeTracker,
+  } = opts;
   const suppressArgStreaming = new Set(opts.suppressArgStreamingFor || []);
 
   // Read authoritative graph state and emit a STATE_SNAPSHOT of { files, todos }.
@@ -521,7 +533,13 @@ export async function* translateLangGraphStream(stream, opts = {}) {
   // (an end with no matching start must not decrement the depth).
   const liveToolRuns = new Set();
   // Lightweight tally for an end-of-stream summary log.
-  const stats = { textChunks: 0, reasoningChunks: 0, nestedChunks: 0, toolCalls: 0, toolResults: 0 };
+  const stats = {
+    textChunks: 0,
+    reasoningChunks: 0,
+    nestedChunks: 0,
+    toolCalls: 0,
+    toolResults: 0,
+  };
   let textSinceLastToolResult = true;
   let lastToolResult = null;
   let streamInterrupts = null;
@@ -602,7 +620,15 @@ export async function* translateLangGraphStream(stream, opts = {}) {
           const index = typeof tc.index === 'number' ? tc.index : 0;
           let s = toolArgStreams.get(index);
           if (!s || (tc.id && s.id && tc.id !== s.id)) {
-            s = { id: tc.id || null, name: tc.name || '', args: '', emitted: 0, opened: false, decided: false, emit: false };
+            s = {
+              id: tc.id || null,
+              name: tc.name || '',
+              args: '',
+              emitted: 0,
+              opened: false,
+              decided: false,
+              emit: false,
+            };
             toolArgStreams.set(index, s);
           } else {
             if (tc.id && !s.id) s.id = tc.id;
@@ -871,7 +897,9 @@ export async function* translateLangGraphStream(stream, opts = {}) {
           const resultContent = isError
             ? buildToolErrorContent(event.data?.error)
             : extractToolOutputContent(event.data?.output);
-          const structuredContent = isError ? undefined : extractStructuredContent(event.data?.output);
+          const structuredContent = isError
+            ? undefined
+            : extractStructuredContent(event.data?.output);
           stats.toolResults += 1;
           textSinceLastToolResult = false;
           lastToolResult = { name: tc.name, content: resultContent };

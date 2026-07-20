@@ -19,10 +19,13 @@ export const createMcpSchema = z
     useDynamicRegistration: z.boolean().optional(),
     isEnabled: z.boolean().default(true),
   })
-  .refine((data) => data.authType !== 'oauth' || data.useDynamicRegistration || Boolean(data.oauth), {
-    message: 'Client ID and Client Secret are required when auth type is oauth',
-    path: ['oauth'],
-  })
+  .refine(
+    (data) => data.authType !== 'oauth' || data.useDynamicRegistration || Boolean(data.oauth),
+    {
+      message: 'Client ID and Client Secret are required when auth type is oauth',
+      path: ['oauth'],
+    }
+  )
   .refine((data) => data.authType !== 'apiKey' || Boolean(data.apiKey), {
     message: 'API key is required when auth type is apiKey',
     path: ['apiKey'],

@@ -5,13 +5,23 @@ describe('foldSubagentEvent', () => {
     const items = [];
     foldSubagentEvent(items, { kind: 'text', delta: 'plan ' });
     foldSubagentEvent(items, { kind: 'text', delta: 'first' });
-    foldSubagentEvent(items, { kind: 'tool_start', toolName: 'write_file', args: '{"file_path":"/a.md"}' });
+    foldSubagentEvent(items, {
+      kind: 'tool_start',
+      toolName: 'write_file',
+      args: '{"file_path":"/a.md"}',
+    });
     foldSubagentEvent(items, { kind: 'tool_result', toolName: 'write_file', result: 'ok' });
     foldSubagentEvent(items, { kind: 'text', delta: 'done' });
 
     expect(items).toEqual([
       { type: 'text', text: 'plan first' },
-      { type: 'tool', name: 'write_file', argsText: '{"file_path":"/a.md"}', resultText: 'ok', status: 'completed' },
+      {
+        type: 'tool',
+        name: 'write_file',
+        argsText: '{"file_path":"/a.md"}',
+        resultText: 'ok',
+        status: 'completed',
+      },
       { type: 'text', text: 'done' },
     ]);
   });

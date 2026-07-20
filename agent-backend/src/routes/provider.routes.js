@@ -1,6 +1,6 @@
 import express from 'express';
 import providerController from '../controllers/provider.controller.js';
-import authMiddleware from '../middlewares/auth.middleware.js';
+import authMiddleware from '../modules/auth/auth.middleware.js';
 import rateLimiter, { RATE_LIMITS } from '../middlewares/rateLimiter.middleware.js';
 import { validateBody } from '../middlewares/validationMiddleware.js';
 import {

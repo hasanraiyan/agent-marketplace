@@ -5,25 +5,25 @@ import RateLimitError from '../src/utils/errors/RateLimitError.js';
 
 // Mock dependencies
 const mockAgentFactory = {
-  buildAgent: jest.fn()
+  buildAgent: jest.fn(),
 };
 const mockThreadRepository = {
-  findById: jest.fn()
+  findById: jest.fn(),
 };
 const mockCheckpointService = {
-  checkpointer: {}
+  checkpointer: {},
 };
 
 // We need to mock the rateLimiterService because it's a singleton
 // and we want to control its state across tests.
 jest.unstable_mockModule('../src/factories/agentFactory.js', () => ({
-  default: mockAgentFactory
+  default: mockAgentFactory,
 }));
 jest.unstable_mockModule('../src/repositories/threadRepository.js', () => ({
-  default: mockThreadRepository
+  default: mockThreadRepository,
 }));
 jest.unstable_mockModule('../src/services/checkpoint.service.js', () => ({
-  default: mockCheckpointService
+  default: mockCheckpointService,
 }));
 
 // Mock auth middleware to provide a user
@@ -32,8 +32,8 @@ const mockAuth = (req, res, next) => {
   next();
 };
 
-jest.unstable_mockModule('../src/middlewares/auth.middleware.js', () => ({
-  default: mockAuth
+jest.unstable_mockModule('../src/modules/auth/auth.middleware.js', () => ({
+  default: mockAuth,
 }));
 
 // Import the router after mocks

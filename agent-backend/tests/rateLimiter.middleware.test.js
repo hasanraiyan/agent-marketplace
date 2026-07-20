@@ -103,19 +103,19 @@ describe('rateLimiter middleware', () => {
     });
 
     test('should use req.user._id if available for key generation', async () => {
-        req.user = { _id: 'user123' };
-        mockCheck.mockResolvedValue({
-          allowed: true,
-          count: 1,
-          remaining: 19,
-          retryAfter: 60,
-        });
-
-        const middleware = rateLimiter('CHAT', RATE_LIMITS.CHAT);
-        await middleware(req, res, next);
-
-        expect(mockBuildKey).toHaveBeenCalledWith('CHAT', 'user123');
+      req.user = { _id: 'user123' };
+      mockCheck.mockResolvedValue({
+        allowed: true,
+        count: 1,
+        remaining: 19,
+        retryAfter: 60,
       });
+
+      const middleware = rateLimiter('CHAT', RATE_LIMITS.CHAT);
+      await middleware(req, res, next);
+
+      expect(mockBuildKey).toHaveBeenCalledWith('CHAT', 'user123');
+    });
 
     test('should use req.ip for key generation as fallback', async () => {
       mockCheck.mockResolvedValue({

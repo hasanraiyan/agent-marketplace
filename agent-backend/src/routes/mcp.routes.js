@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import authMiddleware from '../middlewares/auth.middleware.js';
+import authMiddleware from '../modules/auth/auth.middleware.js';
 import rateLimiter, { RATE_LIMITS } from '../middlewares/rateLimiter.middleware.js';
 import { validateBody } from '../middlewares/validationMiddleware.js';
 import { createMcpSchema, updateMcpSchema } from '../validators/mcp.validator.js';
@@ -36,6 +36,10 @@ router.get('/:id/oauth/owner/authorize', mcpController.getOwnerAuthorizeUrl);
 router.get('/:id/oauth/user/authorize', mcpController.getUserAuthorizeUrl);
 router.get('/:id/oauth/user/status', mcpController.getUserConnectionStatus);
 router.delete('/:id/oauth/user/connection', mutateLimiter, mcpController.disconnectUserConnection);
-router.delete('/:id/oauth/owner/connection', mutateLimiter, mcpController.disconnectOwnerConnection);
+router.delete(
+  '/:id/oauth/owner/connection',
+  mutateLimiter,
+  mcpController.disconnectOwnerConnection
+);
 
 export default router;

@@ -118,9 +118,11 @@ describe('Agent Service', () => {
       dupError.keyPattern = { ownerId: 1, isMainAgent: 1, isActive: 1 };
       agentRepository.create.mockRejectedValue(dupError);
 
-      await expect(agentService.createAgent(mockUserId, { name: 'Ignored' })).rejects.toMatchObject({
-        statusCode: 409,
-      });
+      await expect(agentService.createAgent(mockUserId, { name: 'Ignored' })).rejects.toMatchObject(
+        {
+          statusCode: 409,
+        }
+      );
     });
   });
 

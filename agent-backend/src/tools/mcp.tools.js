@@ -104,19 +104,25 @@ export async function resolveMcpTools(agent, userId) {
             : await mcpTokenService.getUserAccessToken(mcp, userId);
 
         if (!token) {
-          logger.info(`[MCP] Skipping OAuth server "${mcp.name}" (id: ${mcp._id}) - missing user or owner token`);
+          logger.info(
+            `[MCP] Skipping OAuth server "${mcp.name}" (id: ${mcp._id}) - missing user or owner token`
+          );
           continue;
         }
       } else if (mcp.authType === 'apiKey') {
         token = mcpTokenService.getApiKeyToken(mcp);
 
         if (!token) {
-          logger.info(`[MCP] Skipping API-key server "${mcp.name}" (id: ${mcp._id}) - no API key configured`);
+          logger.info(
+            `[MCP] Skipping API-key server "${mcp.name}" (id: ${mcp._id}) - no API key configured`
+          );
           continue;
         }
       }
 
-      logger.info(`[MCP] Preparing connection to server "${mcp.name}" (id: ${mcp._id}, url: ${mcp.url})`);
+      logger.info(
+        `[MCP] Preparing connection to server "${mcp.name}" (id: ${mcp._id}, url: ${mcp.url})`
+      );
 
       const serverKey = mcp.name
         .trim()
@@ -160,7 +166,9 @@ export async function resolveMcpTools(agent, userId) {
   try {
     const rawTools = await client.getTools();
     const tools = rawTools.map(sanitizeMcpTool);
-    logger.info(`[MCP] Successfully resolved ${tools.length} tools from ${Object.keys(mcpServers).length} active MCP servers: [${tools.map(t => t.name).join(', ')}]`);
+    logger.info(
+      `[MCP] Successfully resolved ${tools.length} tools from ${Object.keys(mcpServers).length} active MCP servers: [${tools.map((t) => t.name).join(', ')}]`
+    );
     return { tools, mcpAppMap };
   } catch (err) {
     logger.error(`[MCP] failed to load tools: ${err?.message}`);

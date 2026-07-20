@@ -77,7 +77,9 @@ export function validateSkillFiles(files = [], context = {}) {
       continue;
     }
     if (path.toUpperCase() === 'SKILL.MD') {
-      errors.push('SKILL.md is generated from the skill instructions — do not bundle it as a file.');
+      errors.push(
+        'SKILL.md is generated from the skill instructions — do not bundle it as a file.'
+      );
       continue;
     }
     if (seen.has(path)) {

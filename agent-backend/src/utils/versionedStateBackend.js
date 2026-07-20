@@ -6,9 +6,10 @@ export class VersionedStateBackend extends StateBackend {
       // 1. Read the current content of the file before editing
       const readRes = await this.read(filePath);
       if (readRes && !readRes.error && readRes.content !== undefined) {
-        const currentContent = typeof readRes.content === 'string'
-          ? readRes.content
-          : new TextDecoder().decode(readRes.content);
+        const currentContent =
+          typeof readRes.content === 'string'
+            ? readRes.content
+            : new TextDecoder().decode(readRes.content);
 
         // 2. Generate the backup file name in a hidden directory
         // E.g., "/src/index.js" -> "/.versions/src/index.js.v1", "/.versions/src/index.js.v2", etc.

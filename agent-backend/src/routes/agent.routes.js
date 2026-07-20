@@ -1,8 +1,8 @@
 import express from 'express';
 import agentController from '../controllers/agent.controller.js';
-import authMiddleware from '../middlewares/auth.middleware.js';
+import authMiddleware from '../modules/auth/auth.middleware.js';
 import rateLimiter, { RATE_LIMITS } from '../middlewares/rateLimiter.middleware.js';
-import optionalAuthMiddleware from '../middlewares/optionalAuthMiddleware.js';
+import optionalAuthMiddleware from '../modules/auth/optional-auth.middleware.js';
 import { validateBody } from '../middlewares/validationMiddleware.js';
 import {
   createAgentSchema,

@@ -9,14 +9,14 @@ and `/memories/` persists per user+agent — modeled on the working implementati
 
 ## 1. Where we are today
 
-| Piece | File | Behavior |
-|---|---|---|
-| Backend | `src/factories/agentFactory.js:361` | `backend: new VersionedStateBackend()` (extends `StateBackend`) — all files thread-scoped, lost across threads |
-| Skills | `agentFactory.js:225-258` | DB skills rendered to `/skills/<dir>/SKILL.md` strings (`skillFiles`) |
-| Seeding | `src/routes/agui.routes.js:168-173` | `skillFiles` injected into invoke input `files` map on **every request** |
-| Store | `src/utils/mongoStore.js` | Generic `MongoDBStore extends BaseStore` (`agent_memories` collection), passed as `store:`, used only by memory tools |
-| Skill model | Mongo `Skill` | `name`, `description`, `instructions` — single blob, no multi-file support |
-| deepagents | `package.json` | **1.9.0** |
+| Piece       | File                                | Behavior                                                                                                              |
+| ----------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Backend     | `src/factories/agentFactory.js:361` | `backend: new VersionedStateBackend()` (extends `StateBackend`) — all files thread-scoped, lost across threads        |
+| Skills      | `agentFactory.js:225-258`           | DB skills rendered to `/skills/<dir>/SKILL.md` strings (`skillFiles`)                                                 |
+| Seeding     | `src/routes/agui.routes.js:168-173` | `skillFiles` injected into invoke input `files` map on **every request**                                              |
+| Store       | `src/utils/mongoStore.js`           | Generic `MongoDBStore extends BaseStore` (`agent_memories` collection), passed as `store:`, used only by memory tools |
+| Skill model | Mongo `Skill`                       | `name`, `description`, `instructions` — single blob, no multi-file support                                            |
+| deepagents  | `package.json`                      | **1.9.0**                                                                                                             |
 
 Problems: skill copies bloat every thread's checkpoints; agent writes never survive a
 thread; `skillFiles` plumbing couples factory → route → invoke input.
@@ -28,7 +28,7 @@ thread; `skillFiles` plumbing couples factory → route → invoke input.
 Dostify's `backend/src/skills/` + `agent.service.ts` implement the full pattern. Key
 findings, with the parts worth copying:
 
-### 2.1 The big idea: a `BaseStore` *facade* over the skills collection — no sync job
+### 2.1 The big idea: a `BaseStore` _facade_ over the skills collection — no sync job
 
 `SkillsStore extends BaseStore` (`dostify/backend/src/skills/skills-store.ts`) does
 **not** mirror skill files into a separate store collection. It implements
@@ -86,6 +86,7 @@ memory: ['/memories/index.md'],
 ```
 
 Two things to note:
+
 - **`namespace` is a function of the runtime** (`rt.config.configurable.userId`) —
   one shared agent instance serves all users with per-user isolation resolved at
   call time. Requires deepagents ≥ 1.10 (our 1.9.0 types only allow `string[]`).
@@ -225,6 +226,7 @@ Plus `memory: ['/memories/user/index.md', '/memories/agent/index.md']` on
 ### Phase 4 — Memory system: KV → file-based (all memory types)
 
 Current state to replace:
+
 - **User memory**: `user.profile.{summary, preferences: Map}` on the User doc;
   injected into the prompt at build time (`agentFactory.js:324-351`); managed by
   `save_user_preference`/`get_user_preferences` tools + `memoryCollector.service.js`
@@ -292,7 +294,7 @@ Steps (dostify §2.7 as the template):
 - Agent `write_file /skills/...` → read-only error (both routes).
 - `/memories/agent/x.md` written in thread 1 readable in thread 2 (same
   user+agent); invisible to a different user on the same agent.
-- `/memories/user/preferences.md` visible from a *different* agent, same user.
+- `/memories/user/preferences.md` visible from a _different_ agent, same user.
 - `memory:` auto-load: index content appears in the run's system prompt without a
   `read_file` call; agent updates a topic file and the index via `edit_file`.
 - Migration script: profile KV + `agent_memories` KV land in the right files
@@ -302,16 +304,16 @@ Steps (dostify §2.7 as the template):
 
 ## 6. Risks
 
-| Risk | Mitigation |
-|---|---|
-| deepagents 1.9 → 1.10 breaking changes | Phase 0 isolated PR; full regression before backend wiring |
-| `configurable.agentId` missing on some invoke path (resume, subagent) | Facade returns empty results + logs; read-only so no corruption possible |
-| Facade `search` loads all skill files per `ls` | Skills are small; populate() is one indexed query; measure |
-| Per-run Mongo reads on skill discovery | Same as dostify in production; acceptable |
-| `/.versions/` doesn't cover store routes | Fine: `/skills/` read-only; `/memories/` low-risk |
-| KV→file migration loses structure (Map keys → markdown bullets) | Acceptable — files are the new source of truth; keep source data until verified |
-| Old agent-global `agent_memories` reattributed to owner only | Document it; other users' runs simply start fresh memory files |
-| `memory:` auto-load grows prompt if index bloats | Prompt rules keep index an index; cap index file size in memory UI validation |
+| Risk                                                                  | Mitigation                                                                      |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| deepagents 1.9 → 1.10 breaking changes                                | Phase 0 isolated PR; full regression before backend wiring                      |
+| `configurable.agentId` missing on some invoke path (resume, subagent) | Facade returns empty results + logs; read-only so no corruption possible        |
+| Facade `search` loads all skill files per `ls`                        | Skills are small; populate() is one indexed query; measure                      |
+| Per-run Mongo reads on skill discovery                                | Same as dostify in production; acceptable                                       |
+| `/.versions/` doesn't cover store routes                              | Fine: `/skills/` read-only; `/memories/` low-risk                               |
+| KV→file migration loses structure (Map keys → markdown bullets)       | Acceptable — files are the new source of truth; keep source data until verified |
+| Old agent-global `agent_memories` reattributed to owner only          | Document it; other users' runs simply start fresh memory files                  |
+| `memory:` auto-load grows prompt if index bloats                      | Prompt rules keep index an index; cap index file size in memory UI validation   |
 
 **PR order**: Phase 0 → Phase 1+2 (the payoff: seeding deleted) → Phase 3 →
 Phase 4 (memory migration, its own PR + migration script) → Phase 5.

@@ -37,14 +37,14 @@ export async function resolveKnowledgeBaseTools(knowledgeBaseIds, userId) {
     schema: z.object({
       knowledgeBaseName: z
         .string()
-        .describe(`The name of the knowledge base to search. Must be exactly one of: ${kbNamesList}`),
+        .describe(
+          `The name of the knowledge base to search. Must be exactly one of: ${kbNamesList}`
+        ),
       query: z.string().describe('The search query or keywords to look up.'),
     }),
     func: async ({ knowledgeBaseName, query }) => {
       try {
-        const kb = allowedKbs.find(
-          (k) => k.name.toLowerCase() === knowledgeBaseName.toLowerCase()
-        );
+        const kb = allowedKbs.find((k) => k.name.toLowerCase() === knowledgeBaseName.toLowerCase());
         if (!kb) {
           return `Knowledge base "${knowledgeBaseName}" not found. Attached knowledge bases are: ${kbNamesList}`;
         }
@@ -74,9 +74,7 @@ export async function resolveKnowledgeBaseTools(knowledgeBaseIds, userId) {
     }),
     func: async ({ knowledgeBaseName }) => {
       try {
-        const kb = allowedKbs.find(
-          (k) => k.name.toLowerCase() === knowledgeBaseName.toLowerCase()
-        );
+        const kb = allowedKbs.find((k) => k.name.toLowerCase() === knowledgeBaseName.toLowerCase());
         if (!kb) {
           return `Knowledge base "${knowledgeBaseName}" not found. Attached knowledge bases are: ${kbNamesList}`;
         }

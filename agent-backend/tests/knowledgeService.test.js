@@ -192,9 +192,9 @@ describe('Knowledge Service', () => {
 
     test('should throw if not owner and not public', async () => {
       knowledgeRepository.findKbById.mockResolvedValue(mockKb);
-      await expect(
-        knowledgeService.getKnowledgeBase(mockKbId, 'other-user')
-      ).rejects.toThrow('Not authorized');
+      await expect(knowledgeService.getKnowledgeBase(mockKbId, 'other-user')).rejects.toThrow(
+        'Not authorized'
+      );
     });
 
     test('should return if public even if not owner', async () => {
@@ -205,9 +205,9 @@ describe('Knowledge Service', () => {
 
     test('should throw if knowledge base not found', async () => {
       knowledgeRepository.findKbById.mockResolvedValue(null);
-      await expect(
-        knowledgeService.getKnowledgeBase(mockKbId, mockUserId)
-      ).rejects.toThrow('Knowledge base not found');
+      await expect(knowledgeService.getKnowledgeBase(mockKbId, mockUserId)).rejects.toThrow(
+        'Knowledge base not found'
+      );
     });
   });
 
@@ -226,9 +226,9 @@ describe('Knowledge Service', () => {
 
     test('should throw if no valid fields to update', async () => {
       knowledgeRepository.findKbById.mockResolvedValue(mockKb);
-      await expect(
-        knowledgeService.updateKnowledgeBase(mockKbId, mockUserId, {})
-      ).rejects.toThrow('No valid fields to update');
+      await expect(knowledgeService.updateKnowledgeBase(mockKbId, mockUserId, {})).rejects.toThrow(
+        'No valid fields to update'
+      );
     });
   });
 

@@ -9,7 +9,16 @@ class KnowledgeController {
    */
   async create(req, res, next) {
     try {
-      const { name, description, isPublic, embeddingModel, providerId, chunkSize, chunkOverlap, topK } = req.body;
+      const {
+        name,
+        description,
+        isPublic,
+        embeddingModel,
+        providerId,
+        chunkSize,
+        chunkOverlap,
+        topK,
+      } = req.body;
       const kb = await knowledgeService.createKnowledgeBase(req.user.id, {
         name,
         description,
@@ -51,10 +60,7 @@ class KnowledgeController {
    */
   async getOne(req, res, next) {
     try {
-      const kb = await knowledgeService.getKnowledgeBase(
-        req.params.id,
-        req.user.id
-      );
+      const kb = await knowledgeService.getKnowledgeBase(req.params.id, req.user.id);
 
       res.json({
         success: true,
@@ -76,11 +82,7 @@ class KnowledgeController {
    */
   async update(req, res, next) {
     try {
-      const kb = await knowledgeService.updateKnowledgeBase(
-        req.params.id,
-        req.user.id,
-        req.body
-      );
+      const kb = await knowledgeService.updateKnowledgeBase(req.params.id, req.user.id, req.body);
 
       res.json({
         success: true,
@@ -135,11 +137,7 @@ class KnowledgeController {
         });
       }
 
-      const result = await knowledgeService.uploadFiles(
-        req.params.id,
-        req.user.id,
-        req.files
-      );
+      const result = await knowledgeService.uploadFiles(req.params.id, req.user.id, req.files);
 
       res.json({
         success: true,
@@ -193,10 +191,7 @@ class KnowledgeController {
    */
   async listDocuments(req, res, next) {
     try {
-      const documents = await knowledgeService.listDocumentSources(
-        req.params.id,
-        req.user.id
-      );
+      const documents = await knowledgeService.listDocumentSources(req.params.id, req.user.id);
 
       res.json({
         success: true,
@@ -219,11 +214,7 @@ class KnowledgeController {
   async search(req, res, next) {
     try {
       const { query, topK } = req.body;
-      const results = await knowledgeService.searchKnowledgeBase(
-        req.params.id,
-        query,
-        { topK }
-      );
+      const results = await knowledgeService.searchKnowledgeBase(req.params.id, query, { topK });
 
       res.json({
         success: true,

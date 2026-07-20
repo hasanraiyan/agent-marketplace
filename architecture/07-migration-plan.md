@@ -12,7 +12,7 @@ During every migration step, the developer must:
 3. **Continuous Testing**: After every step, run the following verification sequence:
    * **Jest Test Suite**: `pnpm test` (Must achieve 100% pass)
    * **Prettier formatting**: `pnpm run format`
-   * **Verification Stack**: `pnpm run ai:verify`
+   * **Verification Stack**: `pnpm run ai:verify` (Deprecated; no longer run since `src/ai` was deleted in commit 4076d3a)
 4. **Rollback Trigger**: If tests break and imports become circular, revert using `git checkout` or `git reset --hard` before proceeding.
 
 ---

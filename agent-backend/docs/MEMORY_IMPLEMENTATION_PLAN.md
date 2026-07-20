@@ -9,6 +9,7 @@ This document outlines the step-by-step roadmap to implement persistent, product
 Currently, `globalStore` in `agentFactory.js` uses `InMemoryStore`, which resets on server restarts. We will replace this with a custom MongoDB-backed store implementing LangGraph's `BaseStore` interface.
 
 ### Step 1.1: Create the MongoDB Store
+
 Create a new file [agent-backend/src/utils/mongoStore.js](file:///D:/projects/agent-marketplace/agent-backend/src/utils/mongoStore.js) to store agent-level long-term state:
 
 ```javascript
@@ -49,7 +50,7 @@ export class MongoDBStore extends BaseStore {
     const coll = this.getCollection();
     const cursor = coll.find({ namespace });
     const docs = await cursor.toArray();
-    return docs.map(d => ({ key: d.key, value: d.value }));
+    return docs.map((d) => ({ key: d.key, value: d.value }));
   }
 
   // Search namespaces with metadata / queries if needed
@@ -58,12 +59,13 @@ export class MongoDBStore extends BaseStore {
     const coll = this.getCollection();
     const cursor = coll.find({ $text: { $search: query } }).limit(limit);
     const docs = await cursor.toArray();
-    return docs.map(d => ({ namespace: d.namespace, key: d.key, value: d.value }));
+    return docs.map((d) => ({ namespace: d.namespace, key: d.key, value: d.value }));
   }
 }
 ```
 
 ### Step 1.2: Initialize and Inject in `agentFactory.js`
+
 Modify [src/factories/agentFactory.js](file:///D:/projects/agent-marketplace/agent-backend/src/factories/agentFactory.js):
 
 1. Import the newly created `MongoDBStore` and `checkpointService` (to access the shared `mongoClient`).
@@ -85,7 +87,9 @@ Modify [src/factories/agentFactory.js](file:///D:/projects/agent-marketplace/age
 +  return globalStore;
 +}
 ```
+
 And inside `buildAgent`:
+
 ```diff
      const agentInstance = await createDeepAgent({
        model: llm,
@@ -103,6 +107,7 @@ And inside `buildAgent`:
 To remember user details (name, job, tech stack, tone preferences) across all agents, we will extend the User document model and create an automated compilation step.
 
 ### Step 2.1: Update the User Model Schema
+
 Modify [src/models/User.js](file:///D:/projects/agent-marketplace/agent-backend/src/models/User.js) to support structured profile metadata:
 
 ```javascript
@@ -125,6 +130,7 @@ profile: {
 ```
 
 ### Step 2.2: Add Dynamic Profile Injection in Agent Setup
+
 When compiling an agent, we will read the user's saved preferences and append them to the agent's prompt, customizing its behavior.
 
 Modify `buildAgent` in [src/factories/agentFactory.js](file:///D:/projects/agent-marketplace/agent-backend/src/factories/agentFactory.js):
@@ -142,7 +148,7 @@ Modify `buildAgent` in [src/factories/agentFactory.js](file:///D:/projects/agent
       for (const [key, val] of user.profile.preferences.entries()) {
         profileContext += `- ${key}: ${val}\n`;
       }
-      
+
       personalizedPrompt = `${agent.systemPrompt}${profileContext}`;
     }
 
@@ -159,6 +165,7 @@ Modify `buildAgent` in [src/factories/agentFactory.js](file:///D:/projects/agent
 To keep the User Profile updated without forcing the user to edit settings, a background task will periodically evaluate conversations to extract new facts.
 
 ### Step 3.1: Create Profile Summarization Service
+
 Create a new file `agent-backend/src/services/memoryCollector.service.js`:
 
 ```javascript
@@ -193,7 +200,7 @@ export async function extractAndSaveMemory(userId, chatHistory, llmConfig) {
   try {
     const response = await llm.invoke(prompt);
     const result = JSON.parse(response.content.trim());
-    
+
     // Update user profile in database
     await userRepository.updateUserProfile(userId, result);
   } catch (err) {
@@ -203,6 +210,7 @@ export async function extractAndSaveMemory(userId, chatHistory, llmConfig) {
 ```
 
 ### Step 3.2: Hook Collector into Message Stream
+
 Add a trigger inside [src/routes/agui.routes.js](file:///D:/projects/agent-marketplace/agent-backend/src/routes/agui.routes.js) that runs asynchronously after a message finishes:
 
 ```javascript

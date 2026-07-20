@@ -94,7 +94,7 @@ describe('Cron - deleteInactiveUsers', () => {
     const mockUserId = new mongoose.Types.ObjectId();
     mockUserFind.mockResolvedValue([{ _id: mockUserId }]);
     mockConversationFind.mockReturnValue({
-        select: jest.fn().mockResolvedValue([{ threadId: 't1' }])
+      select: jest.fn().mockResolvedValue([{ threadId: 't1' }]),
     });
     mockCleanupThreads.mockResolvedValue();
     mockConversationDeleteMany.mockResolvedValue();
@@ -138,11 +138,13 @@ describe('Cron - deleteInactiveUsers', () => {
     mockUserFind.mockResolvedValue([{ _id: mockUserId1 }, { _id: mockUserId2 }]);
 
     // Fail first user
-    mockConversationFind.mockImplementationOnce(() => { throw new Error('DB Error'); });
+    mockConversationFind.mockImplementationOnce(() => {
+      throw new Error('DB Error');
+    });
 
     // Succeed second user
     mockConversationFind.mockReturnValueOnce({
-        select: jest.fn().mockResolvedValue([])
+      select: jest.fn().mockResolvedValue([]),
     });
     mockAgentDeleteMany.mockResolvedValue();
     mockSkillDeleteMany.mockResolvedValue();

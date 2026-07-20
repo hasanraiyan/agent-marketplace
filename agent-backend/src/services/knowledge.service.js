@@ -101,9 +101,7 @@ class KnowledgeService {
   async _getVectorStore(collectionName, embeddingModel, providerId) {
     const apiKey = config.knowledge.qdrantApiKey;
     if (!apiKey) {
-      throw new Error(
-        'QDRANT_API_KEY is not configured. Set it in your environment variables.'
-      );
+      throw new Error('QDRANT_API_KEY is not configured. Set it in your environment variables.');
     }
     let provider = null;
     if (providerId) {
@@ -144,7 +142,9 @@ class KnowledgeService {
       },
     });
 
-    logger.info(`[KnowledgeService] Created Qdrant collection: ${collectionName} with size ${size}`);
+    logger.info(
+      `[KnowledgeService] Created Qdrant collection: ${collectionName} with size ${size}`
+    );
   }
 
   /**
@@ -218,7 +218,10 @@ class KnowledgeService {
    * Flow: save MongoDB record first → build collection name from its _id →
    * create Qdrant collection via REST API → update record with collection name.
    */
-  async createKnowledgeBase(userId, { name, description, isPublic, embeddingModel, providerId, chunkSize, chunkOverlap, topK }) {
+  async createKnowledgeBase(
+    userId,
+    { name, description, isPublic, embeddingModel, providerId, chunkSize, chunkOverlap, topK }
+  ) {
     let resolvedProviderId = providerId;
     if (!resolvedProviderId) {
       const userProviders = await providerRepository.findByUser(userId);
@@ -229,7 +232,9 @@ class KnowledgeService {
     }
 
     if (!resolvedProviderId) {
-      throw new Error('No AI provider found. Please configure a provider in settings before creating a knowledge base.');
+      throw new Error(
+        'No AI provider found. Please configure a provider in settings before creating a knowledge base.'
+      );
     }
 
     // 1. Create a placeholder KB record in Mongo to get the _id
@@ -297,7 +302,8 @@ class KnowledgeService {
     if (updateData.name !== undefined) sanitized.name = updateData.name;
     if (updateData.description !== undefined) sanitized.description = updateData.description;
     if (updateData.isPublic !== undefined) sanitized.isPublic = updateData.isPublic;
-    if (updateData.embeddingModel !== undefined) sanitized.embeddingModel = updateData.embeddingModel;
+    if (updateData.embeddingModel !== undefined)
+      sanitized.embeddingModel = updateData.embeddingModel;
     if (updateData.providerId !== undefined) sanitized.providerId = updateData.providerId;
     if (updateData.chunkSize !== undefined) sanitized.chunkSize = updateData.chunkSize;
     if (updateData.chunkOverlap !== undefined) sanitized.chunkOverlap = updateData.chunkOverlap;
@@ -345,7 +351,11 @@ class KnowledgeService {
     // Ensure the Qdrant collection exists
     await this._createQdrantCollection(kb.qdrantCollectionName, kb.embeddingModel);
 
-    const vectorStore = await this._getVectorStore(kb.qdrantCollectionName, kb.embeddingModel, kb.providerId);
+    const vectorStore = await this._getVectorStore(
+      kb.qdrantCollectionName,
+      kb.embeddingModel,
+      kb.providerId
+    );
     const allDocs = [];
     const processedFiles = [];
 
@@ -383,9 +393,7 @@ class KnowledgeService {
           chunkCount: chunks.length,
         });
 
-        logger.info(
-          `[KnowledgeService] Processed "${fileName}": ${chunks.length} chunks`
-        );
+        logger.info(`[KnowledgeService] Processed "${fileName}": ${chunks.length} chunks`);
       } catch (err) {
         logger.error(`[KnowledgeService] Failed to process "${fileName}":`, err.message);
         throw new Error(`Failed to process "${fileName}": ${err.message}`);
@@ -400,11 +408,11 @@ class KnowledgeService {
     const BATCH_SIZE = 100;
     const uploadPromises = [];
     const totalBatches = Math.ceil(allDocs.length / BATCH_SIZE);
-    
+
     logger.info(
       `[KnowledgeService] Starting parallel vector upload to Qdrant: ${totalBatches} batches (${allDocs.length} chunks)...`
     );
-    
+
     for (let i = 0; i < allDocs.length; i += BATCH_SIZE) {
       const batchDocs = allDocs.slice(i, i + BATCH_SIZE);
       const promise = vectorStore.addDocuments(
@@ -416,7 +424,7 @@ class KnowledgeService {
       );
       uploadPromises.push(promise);
     }
-    
+
     await Promise.all(uploadPromises);
     logger.info(`[KnowledgeService] Successfully uploaded all ${totalBatches} batches to Qdrant.`);
 
@@ -488,12 +496,18 @@ class KnowledgeService {
     );
 
     const k = topK || kb.topK || config.knowledge.topK;
-    const vectorStore = await this._getVectorStore(kb.qdrantCollectionName, kb.embeddingModel, kb.providerId);
+    const vectorStore = await this._getVectorStore(
+      kb.qdrantCollectionName,
+      kb.embeddingModel,
+      kb.providerId
+    );
 
     // Perform similarity search
     const results = await vectorStore.similaritySearch(query, k);
-    
-    logger.info(`[KnowledgeService] Found ${results ? results.length : 0} results for query "${query}"`);
+
+    logger.info(
+      `[KnowledgeService] Found ${results ? results.length : 0} results for query "${query}"`
+    );
 
     // Enrich results with chunk metadata from MongoDB
     return results.map((result) => ({
@@ -521,9 +535,7 @@ class KnowledgeService {
     }
 
     // 2. Delete points from Qdrant
-    const pointIds = allChunks
-      .map((c) => c.qdrantPointId)
-      .filter(Boolean);
+    const pointIds = allChunks.map((c) => c.qdrantPointId).filter(Boolean);
 
     if (pointIds.length > 0) {
       try {
@@ -541,9 +553,7 @@ class KnowledgeService {
     await knowledgeRepository.deleteChunksBySource(kbId, sourceName);
 
     // 4. Remove the document from the KB's embedded documents array
-    const remainingDocs = (kb.documents || []).filter(
-      (d) => d.fileName !== sourceName
-    );
+    const remainingDocs = (kb.documents || []).filter((d) => d.fileName !== sourceName);
     const totalChunks = await knowledgeRepository.countChunksByKbId(kbId);
 
     const updatedKb = await knowledgeRepository.updateKb(kbId, {

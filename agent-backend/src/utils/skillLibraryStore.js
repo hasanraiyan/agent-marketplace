@@ -1,11 +1,7 @@
 import { BaseStore } from '@langchain/langgraph';
 import Skill from '../models/Skill.js';
 import { buildSkillFiles, slugifySkillName } from './skillMarkdown.js';
-import {
-  SKILL_LIMITS,
-  normalizeSkillFilePath,
-  mimeTypeForSkillPath,
-} from './skillValidation.js';
+import { SKILL_LIMITS, normalizeSkillFilePath, mimeTypeForSkillPath } from './skillValidation.js';
 
 /**
  * Writable BaseStore facade over the user's whole skill library, used by the
@@ -314,7 +310,9 @@ export class SkillLibraryStore extends BaseStore {
       Buffer.byteLength(String(skill.instructions ?? ''), 'utf8')
     );
     if (totalBytes > SKILL_LIMITS.MAX_TOTAL_BYTES) {
-      throw new Error(`Skill bundle is too large; max ${SKILL_LIMITS.MAX_TOTAL_BYTES} bytes total.`);
+      throw new Error(
+        `Skill bundle is too large; max ${SKILL_LIMITS.MAX_TOTAL_BYTES} bytes total.`
+      );
     }
 
     skill.files = files;

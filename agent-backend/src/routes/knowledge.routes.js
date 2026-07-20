@@ -1,6 +1,6 @@
 import express from 'express';
 import multer from 'multer';
-import authMiddleware from '../middlewares/auth.middleware.js';
+import authMiddleware from '../modules/auth/auth.middleware.js';
 import { validateBody } from '../middlewares/validationMiddleware.js';
 import {
   createKnowledgeBaseSchema,
@@ -58,11 +58,7 @@ router.patch('/:id', validateBody(updateKnowledgeBaseSchema), knowledgeControlle
 router.delete('/:id', knowledgeController.remove);
 
 // File upload (multipart)
-router.post(
-  '/:id/upload',
-  upload.array('files', 10),
-  knowledgeController.upload
-);
+router.post('/:id/upload', upload.array('files', 10), knowledgeController.upload);
 
 // Documents & Search
 router.get('/:id/documents', knowledgeController.listDocuments);

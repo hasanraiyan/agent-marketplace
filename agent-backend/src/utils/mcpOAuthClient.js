@@ -47,7 +47,9 @@ export async function dynamicClientRegistration({
 
     if (!res.ok) {
       throw new Error(
-        data.error_description || data.error || `Dynamic client registration failed with status ${res.status}`
+        data.error_description ||
+          data.error ||
+          `Dynamic client registration failed with status ${res.status}`
       );
     }
 

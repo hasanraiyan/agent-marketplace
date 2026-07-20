@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import authMiddleware from '../middlewares/auth.middleware.js';
+import authMiddleware from '../modules/auth/auth.middleware.js';
 import rateLimiter, { RATE_LIMITS } from '../middlewares/rateLimiter.middleware.js';
 import memoryController from '../controllers/memory.controller.js';
 

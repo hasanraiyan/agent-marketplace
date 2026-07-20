@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { EventType } from '@ag-ui/core';
 import { HumanMessage } from '@langchain/core/messages';
 import { Command } from '@langchain/langgraph';
-import authMiddleware from '../middlewares/auth.middleware.js';
+import authMiddleware from '../modules/auth/auth.middleware.js';
 import rateLimiter, { RATE_LIMITS } from '../middlewares/rateLimiter.middleware.js';
 import rateLimiterService from '../services/rateLimiter.service.js';
 import RateLimitError from '../utils/errors/RateLimitError.js';

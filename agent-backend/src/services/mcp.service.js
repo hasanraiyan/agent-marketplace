@@ -44,7 +44,8 @@ class McpService {
     };
   }
 
-  async createMcp(userId, data) { /* unchanged */ const mcpData = {
+  async createMcp(userId, data) {
+    /* unchanged */ const mcpData = {
       ownerId: userId,
       name: data.name,
       description: data.description || '',
@@ -58,7 +59,9 @@ class McpService {
       const discovered = await discoverOAuthEndpoints(data.url);
       if (data.useDynamicRegistration) {
         if (!discovered.registrationEndpoint) {
-          throw new ValidationError('This MCP server does not support Dynamic Client Registration. Please provide a Client ID and Client Secret manually.');
+          throw new ValidationError(
+            'This MCP server does not support Dynamic Client Registration. Please provide a Client ID and Client Secret manually.'
+          );
         }
         const registered = await dynamicClientRegistration({
           registrationEndpoint: discovered.registrationEndpoint,
@@ -68,7 +71,9 @@ class McpService {
         });
         mcpData.oauth = {
           clientId: registered.clientId,
-          clientSecretEncrypted: registered.clientSecret ? encryption.encrypt(registered.clientSecret) : null,
+          clientSecretEncrypted: registered.clientSecret
+            ? encryption.encrypt(registered.clientSecret)
+            : null,
           authorizationEndpoint: discovered.authorizationEndpoint,
           tokenEndpoint: discovered.tokenEndpoint,
           scopes: discovered.scopesSupported,
@@ -77,7 +82,9 @@ class McpService {
         };
       } else {
         if (!data.oauth?.clientId || !data.oauth?.clientSecret) {
-          throw new ValidationError('Client ID and Client Secret are required when auth type is oauth');
+          throw new ValidationError(
+            'Client ID and Client Secret are required when auth type is oauth'
+          );
         }
         mcpData.oauth = {
           clientId: data.oauth.clientId,
@@ -115,7 +122,9 @@ class McpService {
     const resolvedAuthType = data.authType || existing.authType;
     if (resolvedAuthType === 'oauth') {
       const needsDiscovery = data.url || !existing.oauth?.authorizationEndpoint;
-      const discovered = needsDiscovery ? await discoverOAuthEndpoints(data.url || existing.url) : null;
+      const discovered = needsDiscovery
+        ? await discoverOAuthEndpoints(data.url || existing.url)
+        : null;
       const clientId = data.oauth?.clientId || existing.oauth?.clientId;
       const isDcr = existing.oauth?.dynamicallyRegistered;
       if (!clientId) throw new ValidationError('Client ID is required when auth type is oauth');
@@ -124,8 +133,11 @@ class McpService {
       }
       updateData.oauth = {
         clientId,
-        clientSecretEncrypted: data.oauth?.clientSecret ? encryption.encrypt(data.oauth.clientSecret) : existing.oauth.clientSecretEncrypted,
-        authorizationEndpoint: discovered?.authorizationEndpoint || existing.oauth.authorizationEndpoint,
+        clientSecretEncrypted: data.oauth?.clientSecret
+          ? encryption.encrypt(data.oauth.clientSecret)
+          : existing.oauth.clientSecretEncrypted,
+        authorizationEndpoint:
+          discovered?.authorizationEndpoint || existing.oauth.authorizationEndpoint,
         tokenEndpoint: discovered?.tokenEndpoint || existing.oauth.tokenEndpoint,
         scopes: data.oauth?.scopes || existing.oauth?.scopes || [],
         dynamicallyRegistered: existing.oauth?.dynamicallyRegistered || false,
@@ -158,7 +170,9 @@ class McpService {
 
   async _invalidateAgentsUsingMcp(mcpId) {
     const agents = await Agent.find({ mcps: mcpId }, '_id');
-    logger.info(`[MCP] Invalidating cache for ${agents.length} agents using MCP server (id: ${mcpId})`);
+    logger.info(
+      `[MCP] Invalidating cache for ${agents.length} agents using MCP server (id: ${mcpId})`
+    );
     for (const agent of agents) agentFactory.invalidate(agent._id);
   }
 
@@ -168,15 +182,19 @@ class McpService {
   // resources/read 404 on MCP Apps servers (e.g. Canva) when called through it.
   async _connectAppsClient(mcp, headers) {
     const { Client: McpClient } = await import('@modelcontextprotocol/sdk/client/index.js');
-    const { StreamableHTTPClientTransport } = await import('@modelcontextprotocol/sdk/client/streamableHttp.js');
+    const { StreamableHTTPClientTransport } =
+      await import('@modelcontextprotocol/sdk/client/streamableHttp.js');
     const { SSEClientTransport } = await import('@modelcontextprotocol/sdk/client/sse.js');
 
     const parsedUrl = new URL(mcp.url);
     const hasHeaders = Object.keys(headers).length > 0;
 
-    const transport = mcp.transport === 'sse'
-      ? new SSEClientTransport(parsedUrl, { requestInit: hasHeaders ? { headers } : undefined })
-      : new StreamableHTTPClientTransport(parsedUrl, { requestInit: hasHeaders ? { headers } : undefined });
+    const transport =
+      mcp.transport === 'sse'
+        ? new SSEClientTransport(parsedUrl, { requestInit: hasHeaders ? { headers } : undefined })
+        : new StreamableHTTPClientTransport(parsedUrl, {
+            requestInit: hasHeaders ? { headers } : undefined,
+          });
 
     const client = new McpClient({
       name: 'agent-marketplace',
@@ -198,9 +216,10 @@ class McpService {
   async _resolveAuthHeaders(mcp, userId, actionLabel) {
     const headers = {};
     if (mcp.authType === 'oauth') {
-      const token = mcp.authMode === 'owner'
-        ? await mcpTokenService.getOwnerAccessToken(mcp)
-        : await mcpTokenService.getUserAccessToken(mcp, userId);
+      const token =
+        mcp.authMode === 'owner'
+          ? await mcpTokenService.getOwnerAccessToken(mcp)
+          : await mcpTokenService.getUserAccessToken(mcp, userId);
       if (!token) {
         throw new ValidationError(
           mcp.authMode === 'owner'
@@ -212,7 +231,9 @@ class McpService {
     } else if (mcp.authType === 'apiKey') {
       const token = mcpTokenService.getApiKeyToken(mcp);
       if (!token) {
-        throw new ValidationError('This MCP server has no API key configured. Add one in its settings first.');
+        throw new ValidationError(
+          'This MCP server has no API key configured. Add one in its settings first.'
+        );
       }
       headers.Authorization = `Bearer ${token}`;
     }
@@ -273,19 +294,26 @@ class McpService {
             templateSummaries.push({
               uriTemplate: rawTool._meta.ui.resourceUri,
               name: rawTool.name || '',
-              description: (rawTool._meta.ui.description || rawTool.description || '').substring(0, 200),
+              description: (rawTool._meta.ui.description || rawTool.description || '').substring(
+                0,
+                200
+              ),
               mimeType: rawTool._meta.ui.mimeType || 'text/html',
               toolName: rawTool.name,
             });
           }
         }
       } catch (mcErr) {
-        logger.debug(`[MCP] Could not extract _meta.ui templates for "${mcp.name}": ${mcErr?.message}`);
+        logger.debug(
+          `[MCP] Could not extract _meta.ui templates for "${mcp.name}": ${mcErr?.message}`
+        );
       } finally {
         try {
           await appsClient?.transport.close();
           await appsClient?.client.close();
-        } catch { /* best-effort cleanup */ }
+        } catch {
+          /* best-effort cleanup */
+        }
       }
     } catch (err) {
       logger.warn(`[MCP] Failed to list tools for "${mcp.name}": ${err?.message}`);
@@ -293,7 +321,9 @@ class McpService {
       await adapterClient.close?.();
     }
 
-    logger.info(`[MCP] Test connection for "${mcp.name}": ${toolSummaries.length} tools, ${resourceSummaries.length} resources, ${templateSummaries.length} templates`);
+    logger.info(
+      `[MCP] Test connection for "${mcp.name}": ${toolSummaries.length} tools, ${resourceSummaries.length} resources, ${templateSummaries.length} templates`
+    );
 
     await mcpRepository.update(id, userId, {
       tools: toolSummaries,
@@ -306,14 +336,23 @@ class McpService {
     // them up, the same as any other config change to this connector.
     await this._invalidateAgentsUsingMcp(id);
 
-    return { tools: toolSummaries, resources: resourceSummaries, resourceTemplates: templateSummaries };
+    return {
+      tools: toolSummaries,
+      resources: resourceSummaries,
+      resourceTemplates: templateSummaries,
+    };
   }
 
   async getOwnerAuthorizationUrl(id, userId) {
     const mcp = await this.getMcpById(id, userId);
     if (mcp.authType !== 'oauth') throw new ValidationError('This MCP server does not use OAuth');
     const { codeVerifier, codeChallenge } = generatePkcePair();
-    const state = signOAuthState({ mcpId: String(id), userId: String(userId), mode: 'owner', codeVerifier });
+    const state = signOAuthState({
+      mcpId: String(id),
+      userId: String(userId),
+      mode: 'owner',
+      codeVerifier,
+    });
     return buildAuthorizationUrl({
       authorizationEndpoint: mcp.oauth.authorizationEndpoint,
       clientId: mcp.oauth.clientId,
@@ -326,11 +365,14 @@ class McpService {
 
   async handleOwnerCallback(code, state) {
     const decoded = verifyOAuthState(state);
-    if (decoded.mode !== 'owner') throw new ValidationError('OAuth state does not match this request');
+    if (decoded.mode !== 'owner')
+      throw new ValidationError('OAuth state does not match this request');
     const id = decoded.mcpId;
     const mcp = await mcpRepository.findById(id);
     if (!mcp) throw new NotFoundError('MCP server not found');
-    const clientSecret = mcp.oauth.clientSecretEncrypted ? encryption.decrypt(mcp.oauth.clientSecretEncrypted) : null;
+    const clientSecret = mcp.oauth.clientSecretEncrypted
+      ? encryption.decrypt(mcp.oauth.clientSecretEncrypted)
+      : null;
     const tokenResponse = await exchangeCodeForToken({
       tokenEndpoint: mcp.oauth.tokenEndpoint,
       clientId: mcp.oauth.clientId,
@@ -339,13 +381,17 @@ class McpService {
       redirectUri: redirectUriFor('owner'),
       codeVerifier: decoded.codeVerifier,
     });
-    const expiresAt = tokenResponse.expires_in ? new Date(Date.now() + tokenResponse.expires_in * 1000) : null;
+    const expiresAt = tokenResponse.expires_in
+      ? new Date(Date.now() + tokenResponse.expires_in * 1000)
+      : null;
     await mcpRepository.update(id, decoded.userId, {
       oauth: {
         ...mcp.oauth.toObject(),
         ownerToken: {
           accessTokenEncrypted: encryption.encrypt(tokenResponse.access_token),
-          refreshTokenEncrypted: tokenResponse.refresh_token ? encryption.encrypt(tokenResponse.refresh_token) : null,
+          refreshTokenEncrypted: tokenResponse.refresh_token
+            ? encryption.encrypt(tokenResponse.refresh_token)
+            : null,
           expiresAt,
         },
       },
@@ -361,7 +407,13 @@ class McpService {
       throw new ValidationError('This MCP server is not configured for per-user authentication');
     }
     const { codeVerifier, codeChallenge } = generatePkcePair();
-    const state = signOAuthState({ mcpId: String(id), userId: String(userId), mode: 'user', codeVerifier, returnTo: returnTo || config.websiteUrl });
+    const state = signOAuthState({
+      mcpId: String(id),
+      userId: String(userId),
+      mode: 'user',
+      codeVerifier,
+      returnTo: returnTo || config.websiteUrl,
+    });
     return buildAuthorizationUrl({
       authorizationEndpoint: mcp.oauth.authorizationEndpoint,
       clientId: mcp.oauth.clientId,
@@ -374,11 +426,14 @@ class McpService {
 
   async handleUserCallback(code, state) {
     const decoded = verifyOAuthState(state);
-    if (decoded.mode !== 'user') throw new ValidationError('OAuth state does not match this request');
+    if (decoded.mode !== 'user')
+      throw new ValidationError('OAuth state does not match this request');
     const id = decoded.mcpId;
     const mcp = await mcpRepository.findById(id);
     if (!mcp) throw new NotFoundError('MCP server not found');
-    const clientSecret = mcp.oauth.clientSecretEncrypted ? encryption.decrypt(mcp.oauth.clientSecretEncrypted) : null;
+    const clientSecret = mcp.oauth.clientSecretEncrypted
+      ? encryption.decrypt(mcp.oauth.clientSecretEncrypted)
+      : null;
     const tokenResponse = await exchangeCodeForToken({
       tokenEndpoint: mcp.oauth.tokenEndpoint,
       clientId: mcp.oauth.clientId,
@@ -387,10 +442,14 @@ class McpService {
       redirectUri: redirectUriFor('user'),
       codeVerifier: decoded.codeVerifier,
     });
-    const expiresAt = tokenResponse.expires_in ? new Date(Date.now() + tokenResponse.expires_in * 1000) : null;
+    const expiresAt = tokenResponse.expires_in
+      ? new Date(Date.now() + tokenResponse.expires_in * 1000)
+      : null;
     await mcpUserConnectionRepository.upsert(id, decoded.userId, {
       accessTokenEncrypted: encryption.encrypt(tokenResponse.access_token),
-      refreshTokenEncrypted: tokenResponse.refresh_token ? encryption.encrypt(tokenResponse.refresh_token) : null,
+      refreshTokenEncrypted: tokenResponse.refresh_token
+        ? encryption.encrypt(tokenResponse.refresh_token)
+        : null,
       expiresAt,
     });
     await this._invalidateAgentsUsingMcp(id);
@@ -448,7 +507,9 @@ class McpService {
       try {
         await transport.close();
         await client.close();
-      } catch { /* best-effort cleanup */ }
+      } catch {
+        /* best-effort cleanup */
+      }
     }
   }
 
@@ -466,7 +527,9 @@ class McpService {
       try {
         await transport.close();
         await client.close();
-      } catch { /* best-effort cleanup */ }
+      } catch {
+        /* best-effort cleanup */
+      }
     }
   }
 }

@@ -20,7 +20,7 @@ export class MongoDBStore extends BaseStore {
       const coll = this.getCollection();
       await coll.createIndex({ namespace: 1, key: 1 }, { unique: true });
       // Create index on value for general search capabilities
-      await coll.createIndex({ "value": "text" });
+      await coll.createIndex({ value: 'text' });
       this._initialized = true;
     } catch (err) {
       // Ignore text index conflicts
@@ -36,13 +36,17 @@ export class MongoDBStore extends BaseStore {
       if ('key' in op && 'namespace' in op && !('value' in op)) {
         // GET OPERATION
         const doc = await coll.findOne({ namespace: op.namespace, key: op.key });
-        results.push(doc ? {
-          value: doc.value,
-          key: doc.key,
-          namespace: doc.namespace,
-          createdAt: doc.createdAt,
-          updatedAt: doc.updatedAt
-        } : null);
+        results.push(
+          doc
+            ? {
+                value: doc.value,
+                key: doc.key,
+                namespace: doc.namespace,
+                createdAt: doc.createdAt,
+                updatedAt: doc.updatedAt,
+              }
+            : null
+        );
       } else if ('value' in op) {
         // PUT / DELETE OPERATION
         const now = new Date();
@@ -54,11 +58,11 @@ export class MongoDBStore extends BaseStore {
             {
               $set: {
                 value: op.value,
-                updatedAt: now
+                updatedAt: now,
               },
               $setOnInsert: {
-                createdAt: now
-              }
+                createdAt: now,
+              },
             },
             { upsert: true }
           );
@@ -72,7 +76,7 @@ export class MongoDBStore extends BaseStore {
             queryDoc[`namespace.${idx}`] = part;
           });
         }
-        
+
         if (op.query) {
           queryDoc.$text = { $search: op.query };
         }
@@ -82,21 +86,26 @@ export class MongoDBStore extends BaseStore {
         if (op.limit !== undefined) cursor = cursor.limit(op.limit);
 
         const docs = await cursor.toArray();
-        results.push(docs.map(doc => ({
-          value: doc.value,
-          key: doc.key,
-          namespace: doc.namespace,
-          createdAt: doc.createdAt,
-          updatedAt: doc.updatedAt
-        })));
-      } else if ('matchConditions' in op || (!('key' in op) && !('value' in op) && !('namespacePrefix' in op))) {
+        results.push(
+          docs.map((doc) => ({
+            value: doc.value,
+            key: doc.key,
+            namespace: doc.namespace,
+            createdAt: doc.createdAt,
+            updatedAt: doc.updatedAt,
+          }))
+        );
+      } else if (
+        'matchConditions' in op ||
+        (!('key' in op) && !('value' in op) && !('namespacePrefix' in op))
+      ) {
         // LIST NAMESPACES OPERATION
         const distinctNamespaces = await coll.distinct('namespace');
-        let namespaces = distinctNamespaces.map(ns => Array.isArray(ns) ? ns : [ns]);
+        let namespaces = distinctNamespaces.map((ns) => (Array.isArray(ns) ? ns : [ns]));
 
         if (op.matchConditions && op.matchConditions.length > 0) {
-          namespaces = namespaces.filter(ns => 
-            op.matchConditions.every(cond => {
+          namespaces = namespaces.filter((ns) =>
+            op.matchConditions.every((cond) => {
               const path = cond.path.join(':');
               const nsStr = ns.join(':');
               if (cond.matchType === 'prefix') {
@@ -111,12 +120,12 @@ export class MongoDBStore extends BaseStore {
 
         if (op.maxDepth !== undefined) {
           namespaces = Array.from(
-            new Set(namespaces.map(ns => ns.slice(0, op.maxDepth).join(':')))
-          ).map(nsStr => nsStr.split(':'));
+            new Set(namespaces.map((ns) => ns.slice(0, op.maxDepth).join(':')))
+          ).map((nsStr) => nsStr.split(':'));
         }
 
         namespaces.sort((a, b) => a.join(':').localeCompare(b.join(':')));
-        
+
         const offset = op.offset ?? 0;
         const limit = op.limit ?? namespaces.length;
         results.push(namespaces.slice(offset, offset + limit));

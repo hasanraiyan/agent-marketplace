@@ -85,7 +85,6 @@ describe('Thread Controller', () => {
     });
   });
 
-
   describe('delete all threads', () => {
     test('should delete all threads for user', async () => {
       threadRepository.deleteAllByUser.mockResolvedValue({ deletedCount: 5 });

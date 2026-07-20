@@ -75,7 +75,7 @@ describe('Thread Repository', () => {
       const mockThreads = [{ threadId: 't1' }, { threadId: 't2' }];
 
       jest.spyOn(Conversation, 'find').mockReturnValue({
-        select: jest.fn().mockResolvedValue(mockThreads)
+        select: jest.fn().mockResolvedValue(mockThreads),
       });
       const deleteManySpy = jest
         .spyOn(Conversation, 'deleteMany')

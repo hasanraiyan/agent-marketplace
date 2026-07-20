@@ -2,10 +2,7 @@ import crypto from 'crypto';
 import threadRepository from '../repositories/threadRepository.js';
 import agentRepository from '../repositories/agentRepository.js';
 import checkpointService from '../services/checkpoint.service.js';
-import {
-  createThreadSchema,
-  updateThreadTitleSchema,
-} from '../validators/thread.validator.js';
+import { createThreadSchema, updateThreadTitleSchema } from '../validators/thread.validator.js';
 
 class ThreadController {
   async create(req, res, next) {
@@ -124,7 +121,6 @@ class ThreadController {
       next(error);
     }
   }
-
 }
 
 export default new ThreadController();

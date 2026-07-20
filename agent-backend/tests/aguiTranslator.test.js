@@ -108,7 +108,7 @@ describe('translateLangGraphStream', () => {
     );
   });
 
-  test("unwraps the tool tracer's { input: \"<json>\" } envelope around args", async () => {
+  test('unwraps the tool tracer\'s { input: "<json>" } envelope around args', async () => {
     // LangChain's tool tracer stringifies tool args and wraps them as
     // { input: "<json>" } — the client must receive the real args
     // (file_path, old_string, ...), or diff/file cards can't parse them.
@@ -133,7 +133,12 @@ describe('translateLangGraphStream', () => {
     // silently drop it or the client's tool card is stranded "running" forever.
     const events = [
       { event: 'on_tool_start', run_id: 'a', name: 'search_web', data: { input: { query: 'x' } } },
-      { event: 'on_tool_error', run_id: 'a', name: 'search_web', data: { error: new Error('boom') } },
+      {
+        event: 'on_tool_error',
+        run_id: 'a',
+        name: 'search_web',
+        data: { error: new Error('boom') },
+      },
       { event: 'on_chat_model_stream', data: { chunk: { content: 'Recovering.' } } },
     ];
 
@@ -184,8 +189,18 @@ describe('translateLangGraphStream', () => {
     });
     toolMessage.artifact = [{ type: 'mcp_structured_content', data: { hostname: 'box' } }];
     const events = [
-      { event: 'on_tool_start', run_id: 'mcp1', name: 'system__get-system-info', data: { input: {} } },
-      { event: 'on_tool_end', run_id: 'mcp1', name: 'system__get-system-info', data: { output: toolMessage } },
+      {
+        event: 'on_tool_start',
+        run_id: 'mcp1',
+        name: 'system__get-system-info',
+        data: { input: {} },
+      },
+      {
+        event: 'on_tool_end',
+        run_id: 'mcp1',
+        name: 'system__get-system-info',
+        data: { output: toolMessage },
+      },
     ];
     const out = await collect(translateLangGraphStream(fakeStream(events)));
     const result = out.find((e) => e.type === 'TOOL_CALL_RESULT');
@@ -411,7 +426,9 @@ describe('incremental tool-arg streaming', () => {
         data: {
           chunk: {
             content: '',
-            tool_call_chunks: [{ index: 0, id: 'call_g', name: 'upsert_agent', args: '{"name":"Bot"}' }],
+            tool_call_chunks: [
+              { index: 0, id: 'call_g', name: 'upsert_agent', args: '{"name":"Bot"}' },
+            ],
           },
         },
       },
@@ -445,7 +462,9 @@ describe('incremental tool-arg streaming', () => {
         data: {
           chunk: {
             content: '',
-            tool_call_chunks: [{ index: 0, id: 'c1', name: 'ask_clarification', args: '{"questions":[]}' }],
+            tool_call_chunks: [
+              { index: 0, id: 'c1', name: 'ask_clarification', args: '{"questions":[]}' },
+            ],
           },
         },
       },
@@ -515,7 +534,12 @@ describe('reasoning streaming', () => {
 describe('nested (subagent) stream filtering', () => {
   test('drops model tokens streamed while a tool is executing', async () => {
     const events = [
-      { event: 'on_tool_start', run_id: 'task1', name: 'task', data: { input: { description: 'go' } } },
+      {
+        event: 'on_tool_start',
+        run_id: 'task1',
+        name: 'task',
+        data: { input: { description: 'go' } },
+      },
       { event: 'on_chat_model_stream', data: { chunk: { content: 'subagent prose' } } },
       { event: 'on_tool_end', run_id: 'task1', name: 'task', data: { output: 'done' } },
       { event: 'on_chat_model_stream', data: { chunk: { content: 'Main reply.' } } },
@@ -570,11 +594,18 @@ describe('nested (subagent) stream filtering', () => {
         data: {
           chunk: {
             content: '',
-            tool_call_chunks: [{ index: 0, id: 'call_task', name: 'task', args: '{"description":"go"}' }],
+            tool_call_chunks: [
+              { index: 0, id: 'call_task', name: 'task', args: '{"description":"go"}' },
+            ],
           },
         },
       },
-      { event: 'on_tool_start', run_id: 'run_task', name: 'task', data: { input: { description: 'go' } } },
+      {
+        event: 'on_tool_start',
+        run_id: 'run_task',
+        name: 'task',
+        data: { input: { description: 'go' } },
+      },
       { event: 'on_chat_model_stream', data: { chunk: { content: 'inner' } } },
       { event: 'on_tool_end', run_id: 'run_task', name: 'task', data: { output: 'done' } },
     ];
@@ -608,7 +639,9 @@ describe('nested (subagent) stream filtering', () => {
         data: {
           chunk: {
             content: '',
-            tool_call_chunks: [{ index: 0, id: 'call_main', name: 'write_file', args: '{"file_path":"/a.md"}' }],
+            tool_call_chunks: [
+              { index: 0, id: 'call_main', name: 'write_file', args: '{"file_path":"/a.md"}' },
+            ],
           },
         },
       },
@@ -631,9 +664,14 @@ describe('nested (subagent) stream filtering', () => {
     expect(chunkIds).toEqual(['call_main']);
   });
 
-  test("a failed subagent internal tool closes its timeline entry instead of staying stuck running", async () => {
+  test('a failed subagent internal tool closes its timeline entry instead of staying stuck running', async () => {
     const events = [
-      { event: 'on_tool_start', run_id: 'task1', name: 'task', data: { input: { description: 'go' } } },
+      {
+        event: 'on_tool_start',
+        run_id: 'task1',
+        name: 'task',
+        data: { input: { description: 'go' } },
+      },
       {
         event: 'on_tool_start',
         run_id: 'inner1',
@@ -654,12 +692,20 @@ describe('nested (subagent) stream filtering', () => {
     const out = await collect(translateLangGraphStream(fakeStream(events)));
     const activity = out.filter((e) => e.type === 'CUSTOM' && e.name === 'subagent_activity');
     expect(activity.map((e) => e.value.kind)).toEqual(['tool_start', 'tool_result']);
-    expect(JSON.parse(activity[1].value.result)).toEqual({ status: 'error', message: 'rate limited' });
+    expect(JSON.parse(activity[1].value.result)).toEqual({
+      status: 'error',
+      message: 'rate limited',
+    });
   });
 
   test("a subagent's internal tool calls become timeline entries on the task card", async () => {
     const events = [
-      { event: 'on_tool_start', run_id: 'task1', name: 'task', data: { input: { description: 'go' } } },
+      {
+        event: 'on_tool_start',
+        run_id: 'task1',
+        name: 'task',
+        data: { input: { description: 'go' } },
+      },
       { event: 'on_chat_model_stream', data: { chunk: { content: 'planning ' } } },
       {
         event: 'on_tool_start',
@@ -682,7 +728,12 @@ describe('nested (subagent) stream filtering', () => {
     const out = await collect(translateLangGraphStream(fakeStream(events)));
 
     const activity = out.filter((e) => e.type === 'CUSTOM' && e.name === 'subagent_activity');
-    expect(activity.map((e) => e.value.kind)).toEqual(['text', 'tool_start', 'tool_result', 'text']);
+    expect(activity.map((e) => e.value.kind)).toEqual([
+      'text',
+      'tool_start',
+      'tool_result',
+      'text',
+    ]);
     expect(activity.every((e) => e.value.toolCallId === 'task1')).toBe(true);
     expect(activity[1].value).toMatchObject({
       toolName: 'search_web',
@@ -731,7 +782,12 @@ describe('parallel subagent correlation (run ancestry)', () => {
       { event: 'on_chat_model_stream', run_id: 'modelA', data: { chunk: { content: 'from A' } } },
       { event: 'on_chat_model_stream', run_id: 'modelB', data: { chunk: { content: 'from B' } } },
       // A's internal tool call, no namespace metadata at all.
-      { event: 'on_tool_start', run_id: 'innerA', name: 'search_web', data: { input: { query: 'a' } } },
+      {
+        event: 'on_tool_start',
+        run_id: 'innerA',
+        name: 'search_web',
+        data: { input: { query: 'a' } },
+      },
       { event: 'on_tool_end', run_id: 'innerA', name: 'search_web', data: { output: 'ra' } },
       { event: 'on_tool_end', run_id: 'taskB', name: 'task', data: { output: 'done b' } },
       { event: 'on_tool_end', run_id: 'taskA', name: 'task', data: { output: 'done a' } },
@@ -827,9 +883,9 @@ describe('duplicate event delivery (LangSmith tracing side effect)', () => {
     const activity = out.filter((e) => e.type === 'CUSTOM' && e.name === 'subagent_activity');
     expect(activity.filter((a) => a.value.kind === 'tool_start')).toHaveLength(1);
     expect(activity.filter((a) => a.value.kind === 'tool_result')).toHaveLength(1);
-    expect(
-      activity.filter((a) => a.value.kind === 'text').map((a) => a.value.delta)
-    ).toEqual(['still nested']);
+    expect(activity.filter((a) => a.value.kind === 'text').map((a) => a.value.delta)).toEqual([
+      'still nested',
+    ]);
     const text = out.filter((e) => e.type === 'TEXT_MESSAGE_CHUNK').map((e) => e.delta);
     expect(text).toEqual(['Main.']);
   });
@@ -876,7 +932,9 @@ describe('model turn boundaries', () => {
         data: {
           chunk: {
             content: '',
-            tool_call_chunks: [{ index: 0, id: 'call_1', name: 'write_todos', args: '{"todos":[]}' }],
+            tool_call_chunks: [
+              { index: 0, id: 'call_1', name: 'write_todos', args: '{"todos":[]}' },
+            ],
           },
         },
       },
@@ -895,7 +953,9 @@ describe('model turn boundaries', () => {
         data: {
           chunk: {
             content: '',
-            tool_call_chunks: [{ index: 0, id: null, name: 'write_todos', args: '{"todos":[{"content":"x"}]}' }],
+            tool_call_chunks: [
+              { index: 0, id: null, name: 'write_todos', args: '{"todos":[{"content":"x"}]}' },
+            ],
           },
         },
       },

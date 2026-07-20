@@ -45,9 +45,7 @@ app.use((req, res, next) => {
   res.on('finish', () => {
     const ms = Date.now() - start;
     const query = Object.keys(req.query).length ? ` ${JSON.stringify(req.query)}` : '';
-    logger.info(
-      `${req.method} ${req.originalUrl}${query} → ${res.statusCode} (${ms}ms)`,
-    );
+    logger.info(`${req.method} ${req.originalUrl}${query} → ${res.statusCode} (${ms}ms)`);
   });
   next();
 });

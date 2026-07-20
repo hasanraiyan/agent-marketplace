@@ -98,19 +98,21 @@ describe('HITL interrupt translation', () => {
       kind: 'hitl',
       actionCount: 1,
     });
-    expect(describeInterrupt([{ value: { questions: [{ text: 'Which model?' }] } }])).toMatchObject({
-      kind: 'clarification',
-      actionCount: 0,
-      questions: [
-        {
-          id: 'question_1',
-          text: 'Which model?',
-          options: [],
-          required: true,
-          allowCustom: true,
-        },
-      ],
-    });
+    expect(describeInterrupt([{ value: { questions: [{ text: 'Which model?' }] } }])).toMatchObject(
+      {
+        kind: 'clarification',
+        actionCount: 0,
+        questions: [
+          {
+            id: 'question_1',
+            text: 'Which model?',
+            options: [],
+            required: true,
+            allowCustom: true,
+          },
+        ],
+      }
+    );
   });
 
   test('buildInterruptNotice renders pending actions for HITL interrupts', () => {
@@ -148,7 +150,11 @@ describe('HITL interrupt translation', () => {
   test('clarification interrupts emit a structured CUSTOM event', async () => {
     const interruptError = Object.assign(new Error('GraphInterrupt'), {
       name: 'GraphInterrupt',
-      interrupts: [{ value: { questions: [{ id: 'model', text: 'Which model?', options: ['GPT', 'Claude'] }] } }],
+      interrupts: [
+        {
+          value: { questions: [{ id: 'model', text: 'Which model?', options: ['GPT', 'Claude'] }] },
+        },
+      ],
     });
     const onInterrupt = jest.fn();
 
