@@ -35,7 +35,7 @@ const mockConversationFind = jest.fn();
 const mockConversationDeleteMany = jest.fn();
 const mockCleanupThreads = jest.fn();
 
-jest.unstable_mockModule('../src/models/User.js', () => ({
+jest.unstable_mockModule('../src/modules/users/user.model.js', () => ({
   default: {
     find: mockUserFind,
     findByIdAndDelete: mockUserFindByIdAndDelete,

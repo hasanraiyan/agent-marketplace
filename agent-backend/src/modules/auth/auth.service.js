@@ -1,5 +1,5 @@
 import { clerkClient } from '@clerk/express';
-import userRepository from '../../repositories/userRepository.js';
+import userRepository from '../users/user.repository.js';
 import { loggerService } from '../../utils/index.js';
 import { NotFoundError } from '../../utils/errors/index.js';
 import BaseError from '../../utils/errors/BaseError.js';

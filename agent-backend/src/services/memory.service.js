@@ -1,7 +1,7 @@
 import Agent from '../models/Agent.js';
 import MemoryFile from '../models/MemoryFile.js';
 import checkpointService from './checkpoint.service.js';
-import userRepository from '../repositories/userRepository.js';
+import userRepository from '../modules/users/user.repository.js';
 import {
   normalizeMemoryKey,
   userMemoryNamespace,

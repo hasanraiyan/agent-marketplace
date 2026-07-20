@@ -28,6 +28,10 @@ class ProviderRepository {
       { $set: { isDefault: false } }
     );
   }
+
+  async deleteManyByOwner(ownerId) {
+    return await Provider.deleteMany({ ownerId });
+  }
 }
 
 export default new ProviderRepository();

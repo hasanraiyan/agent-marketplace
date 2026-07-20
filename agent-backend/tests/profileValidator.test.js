@@ -1,4 +1,7 @@
-import { updateProfileSchema, changePasswordSchema } from '../src/validators/profile.validator.js';
+import {
+  updateProfileSchema,
+  changePasswordSchema,
+} from '../src/modules/users/profile.validator.js';
 
 describe('Profile Validator', () => {
   describe('updateProfileSchema', () => {

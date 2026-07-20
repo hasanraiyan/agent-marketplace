@@ -1,4 +1,4 @@
-import userRepository from '../../repositories/userRepository.js';
+import userRepository from '../users/user.repository.js';
 import { loggerService } from '../../utils/index.js';
 import { NotFoundError, ValidationError } from '../../utils/errors/index.js';
 

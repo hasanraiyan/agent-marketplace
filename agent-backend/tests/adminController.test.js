@@ -15,12 +15,19 @@ jest.unstable_mockModule('../src/utils/logger/index.js', () => ({
 const mockUserFindById = jest.fn();
 const mockUserDelete = jest.fn();
 const mockUserFindAll = jest.fn();
+const mockDeleteUser = jest.fn();
 
-jest.unstable_mockModule('../src/repositories/userRepository.js', () => ({
+jest.unstable_mockModule('../src/modules/users/user.repository.js', () => ({
   default: {
     findById: mockUserFindById,
     delete: mockUserDelete,
     findAll: mockUserFindAll,
+  },
+}));
+
+jest.unstable_mockModule('../src/modules/users/user.service.js', () => ({
+  default: {
+    deleteUser: mockDeleteUser,
   },
 }));
 
@@ -68,16 +75,16 @@ describe('Admin Controller', () => {
       };
 
       mockUserFindById.mockResolvedValue(targetUser);
-      mockUserDelete.mockResolvedValue(targetUser);
+      mockDeleteUser.mockResolvedValue(true);
 
       req.params = { id: '507f1f77bcf86cd799439011' };
 
-      const { deleteUser } = await import('../src/controllers/admin.controller.js');
+      const { deleteUser } = await import('../src/modules/users/admin.controller.js');
 
       await deleteUser(req, res, next);
 
       expect(mockUserFindById).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
-      expect(mockUserDelete).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
+      expect(mockDeleteUser).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
           success: true,
@@ -93,7 +100,7 @@ describe('Admin Controller', () => {
     test('should return 400 when admin tries to delete own account', async () => {
       req.params = { id: '507f1f77bcf86cd799439000' };
 
-      const { deleteUser } = await import('../src/controllers/admin.controller.js');
+      const { deleteUser } = await import('../src/modules/users/admin.controller.js');
 
       await deleteUser(req, res, next);
 
@@ -111,7 +118,7 @@ describe('Admin Controller', () => {
 
       req.params = { id: '507f1f77bcf86cd799439011' };
 
-      const { deleteUser } = await import('../src/controllers/admin.controller.js');
+      const { deleteUser } = await import('../src/modules/users/admin.controller.js');
 
       await deleteUser(req, res, next);
 
@@ -126,11 +133,11 @@ describe('Admin Controller', () => {
       };
 
       mockUserFindById.mockResolvedValue(targetUser);
-      mockUserDelete.mockRejectedValue(new Error('DB error'));
+      mockDeleteUser.mockRejectedValue(new Error('DB error'));
 
       req.params = { id: '507f1f77bcf86cd799439011' };
 
-      const { deleteUser } = await import('../src/controllers/admin.controller.js');
+      const { deleteUser } = await import('../src/modules/users/admin.controller.js');
 
       await deleteUser(req, res, next);
 
@@ -160,7 +167,7 @@ describe('Admin Controller', () => {
 
       req.query = { page: '1', limit: '20' };
 
-      const { listUsers } = await import('../src/controllers/admin.controller.js');
+      const { listUsers } = await import('../src/modules/users/admin.controller.js');
 
       await listUsers(req, res, next);
 
@@ -194,7 +201,7 @@ describe('Admin Controller', () => {
 
       req.query = { isActive: 'false' };
 
-      const { listUsers } = await import('../src/controllers/admin.controller.js');
+      const { listUsers } = await import('../src/modules/users/admin.controller.js');
 
       await listUsers(req, res, next);
 
@@ -211,7 +218,7 @@ describe('Admin Controller', () => {
         pagination: { page: 1, limit: 20, total: 0, pages: 0, hasNext: false, hasPrev: false },
       });
 
-      const { listUsers } = await import('../src/controllers/admin.controller.js');
+      const { listUsers } = await import('../src/modules/users/admin.controller.js');
 
       await listUsers(req, res, next);
 
@@ -225,7 +232,7 @@ describe('Admin Controller', () => {
     test('should call next when findAll throws', async () => {
       mockUserFindAll.mockRejectedValue(new Error('DB error'));
 
-      const { listUsers } = await import('../src/controllers/admin.controller.js');
+      const { listUsers } = await import('../src/modules/users/admin.controller.js');
 
       await listUsers(req, res, next);
 

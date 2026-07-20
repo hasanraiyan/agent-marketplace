@@ -1,0 +1,43 @@
+import userRepository from './user.repository.js';
+import threadRepository from '../../repositories/threadRepository.js';
+import checkpointService from '../../services/checkpoint.service.js';
+import agentRepository from '../../repositories/agentRepository.js';
+import skillRepository from '../skills/skill.repository.js';
+import providerRepository from '../providers/provider.repository.js';
+import mcpRepository from '../../repositories/mcpRepository.js';
+import mcpUserConnectionRepository from '../../repositories/mcpUserConnectionRepository.js';
+import { loggerService } from '../../utils/index.js';
+
+const logger = loggerService.getLogger();
+
+class UserService {
+  /**
+   * Deletes a user profile and cleans up all associated resources (agents, skills, providers, threads, etc.).
+   */
+  async deleteUser(userId) {
+    logger.info('User requested account deletion via service', { userId });
+
+    // 1. Cleanup threads and their LangGraph checkpoints
+    const { threadIds } = await threadRepository.deleteAllByUser(userId);
+    if (threadIds && threadIds.length > 0) {
+      await checkpointService.cleanupThreads(threadIds);
+    }
+
+    // 2. Delete all other user owned resources via repository calls
+    await Promise.all([
+      agentRepository.deleteManyByOwner(userId),
+      skillRepository.deleteManyByOwner(userId),
+      providerRepository.deleteManyByOwner(userId),
+      mcpRepository.deleteManyByOwner(userId),
+      mcpUserConnectionRepository.deleteManyByUser(userId),
+    ]);
+
+    // 3. Finally delete the user document
+    await userRepository.delete(userId);
+
+    logger.info('Account and all associated data deleted successfully via service', { userId });
+    return true;
+  }
+}
+
+export default new UserService();

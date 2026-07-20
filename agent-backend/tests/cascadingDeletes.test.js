@@ -6,7 +6,7 @@ import agentRepository from '../src/repositories/agentRepository.js';
 import Conversation from '../src/models/Conversation.js';
 import Agent from '../src/models/Agent.js';
 import deleteInactiveUsers from '../src/cron/deleteInactiveUsers.js';
-import User from '../src/models/User.js';
+import User from '../src/modules/users/user.model.js';
 import Provider from '../src/modules/providers/provider.model.js';
 import Skill from '../src/modules/skills/skill.model.js';
 import Mcp from '../src/models/Mcp.js';

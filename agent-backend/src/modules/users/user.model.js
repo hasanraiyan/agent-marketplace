@@ -67,13 +67,6 @@ const userMongooseSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
-    username: {
-      type: String,
-      unique: true,
-      sparse: true,
-      trim: true,
-      index: true,
-    },
     profile: {
       preferences: {
         type: Map,

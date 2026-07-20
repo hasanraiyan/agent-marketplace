@@ -1,6 +1,6 @@
-import User from '../models/User.js';
-import { userSchema } from '../models/User.js';
-import { NotFoundError, ValidationError } from '../utils/errors/index.js';
+import User from './user.model.js';
+import { userSchema } from './user.model.js';
+import { NotFoundError, ValidationError } from '../../utils/errors/index.js';
 
 /**
  * User repository for database operations
@@ -201,6 +201,5 @@ class UserRepository {
   }
 }
 
-// Create and export a singleton instance
 const userRepository = new UserRepository();
 export default userRepository;

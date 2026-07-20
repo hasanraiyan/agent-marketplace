@@ -14,7 +14,7 @@ jest.unstable_mockModule('../src/utils/logger/index.js', () => ({
 
 const mockUserFindById = jest.fn();
 
-jest.unstable_mockModule('../src/models/User.js', () => ({
+jest.unstable_mockModule('../src/modules/users/user.model.js', () => ({
   default: {
     findById: mockUserFindById,
   },

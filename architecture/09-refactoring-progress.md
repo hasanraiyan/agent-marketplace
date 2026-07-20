@@ -14,7 +14,7 @@ This document contains a highly granular, step-by-step checklist for the refacto
   - **Step 4: Clerk Webhook**: [x] Completed
   - **Step 5: Skills Module**: [x] Completed
   - **Step 6: Providers Module**: [x] Completed
-  - **Step 7: Users & Profile Module**: [ ] Pending
+  - **Step 7: Users & Profile Module**: [x] Completed
   - **Step 8: Threads & Checkpoints**: [ ] Pending
   - **Step 9: MCP Module**: [ ] Pending
   - **Step 10: Agents & Memory Module**: [ ] Pending
@@ -97,20 +97,20 @@ This document contains a highly granular, step-by-step checklist for the refacto
   - [x] Update imports and the mount path in `src/index.js`.
   - [x] Run `pnpm test`.
 
-### [ ] Step 7: Users & Profile Module Refactor
+### [x] Step 7: Users & Profile Module Refactor
 * **Objective**: Move user/profile modules to `src/modules/users/`, clean schema definitions, and extract service.
 * **Tasks**:
-  - [ ] Move `src/routes/profile.routes.js` and `admin.routes.js` to `src/modules/users/`.
-  - [ ] Move `src/controllers/profile.controller.js` and `admin.controller.js` to `src/modules/users/`.
-  - [ ] Move `src/repositories/userRepository.js` to `src/modules/users/user.repository.js`.
-  - [ ] Move `src/models/User.js` to `src/modules/users/user.model.js`.
-  - [ ] Move `src/validators/profile.validator.js` to `src/modules/users/profile.validator.js`.
-  - [ ] Delete the duplicate definition of the `username` property in `user.model.js`.
-  - [ ] Create `src/modules/users/user.service.js`.
-  - [ ] Move the account deletion logic from `profile.controller.js` to `user.service.js`. Call child domains' repositories (e.g. `agentRepository.deleteManyByOwner`) rather than direct models.
-  - [ ] Clean up controllers so they only talk to repositories and services.
-  - [ ] Update route mounts in `src/index.js`.
-  - [ ] Run `pnpm test`.
+  - [x] Move `src/routes/profile.routes.js` and `admin.routes.js` to `src/modules/users/`.
+  - [x] Move `src/controllers/profile.controller.js` and `admin.controller.js` to `src/modules/users/`.
+  - [x] Move `src/repositories/userRepository.js` to `src/modules/users/user.repository.js`.
+  - [x] Move `src/models/User.js` to `src/modules/users/user.model.js`.
+  - [x] Move `src/validators/profile.validator.js` to `src/modules/users/profile.validator.js`.
+  - [x] Delete the duplicate definition of the `username` property in `user.model.js`.
+  - [x] Create `src/modules/users/user.service.js`.
+  - [x] Move the account deletion logic from `profile.controller.js` to `user.service.js`. Call child domains' repositories (e.g. `agentRepository.deleteManyByOwner`) rather than direct models.
+  - [x] Clean up controllers so they only talk to repositories and services.
+  - [x] Update route mounts in `src/index.js`.
+  - [x] Run `pnpm test`.
 
 ### [ ] Step 8: Threads & Checkpoints Module Refactor
 * **Objective**: Move thread/checkpoint logic to `src/modules/threads/`.
@@ -364,6 +364,61 @@ This document contains a highly granular, step-by-step checklist for the refacto
   * `src/repositories/providerRepository.js` (deleted)
   * `src/models/Provider.js` (deleted)
   * `src/validators/provider.validator.js` (deleted)
+* **Verification performed**:
+  * Executed Jest test suite (`pnpm test`) pre-deletion and post-deletion of original files.
+* **Pass/Fail status**:
+  * Pass (588/588 tests passed successfully on all runs).
+* **Issues discovered**:
+  * None.
+
+#### Step 7: Users & Profile Module Refactor
+* **What was changed**:
+  * Created modular user files under `src/modules/users/`: `user.model.js`, `user.repository.js`, `user.service.js`, `profile.controller.js`, `profile.routes.js`, `profile.validator.js`, `admin.controller.js`, and `admin.routes.js`.
+  * Removed duplicate definition of the `username` property inside `user.model.js`.
+  * Extracted cascading account deletion logic from `profile.controller.js` to a new `userService.deleteUser` method inside `user.service.js`.
+  * Refactored `userService.deleteUser` to perform resource cleanup using domain repository calls (`threadRepository.deleteAllByUser`, `agentRepository.deleteManyByOwner`, `skillRepository.deleteManyByOwner`, `providerRepository.deleteManyByOwner`, `mcpRepository.deleteManyByOwner`, `mcpUserConnectionRepository.deleteManyByUser`) rather than direct Mongoose model operations (satisfying Finding 2.1 encapsulation).
+  * Refactored `adminController.deleteUser` to also leverage `userService.deleteUser` to prevent orphaning resources when deleted by administrators.
+  * Updated imports in `src/index.js`, `src/repositories/index.js`, `src/modules/auth/auth.service.js`, `src/modules/webhooks/webhook.service.js`, `src/services/memory.service.js`, `src/services/agent.service.js`, `scripts/db-check.js`, `scripts/migrate-memories-to-files.js`, and `src/cron/deleteInactiveUsers.js`.
+  * Corrected imports and mock paths in tests (`tests/adminController.test.js`, `tests/profileValidator.test.js`, `tests/adminMiddleware.test.js`, `tests/agentService.test.js`, `tests/cascadingDeletes.test.js`, and `tests/cronDeleteInactiveUsers.test.js`).
+  * Deleted legacy technical-layered files.
+* **Why it was changed**:
+  * Grouped the Users, Profile, and Admin functionalities into `src/modules/users/` to form a cohesive domain boundary, simplified the Mongoose model schema, and encapsulated cross-domain deletions within `user.service.js`.
+* **Files affected**:
+  * `src/modules/users/user.model.js` (created)
+  * `src/modules/users/user.repository.js` (created)
+  * `src/modules/users/user.service.js` (created)
+  * `src/modules/users/profile.controller.js` (created)
+  * `src/modules/users/profile.routes.js` (created)
+  * `src/modules/users/profile.validator.js` (created)
+  * `src/modules/users/admin.controller.js` (created)
+  * `src/modules/users/admin.routes.js` (created)
+  * `src/repositories/agentRepository.js`
+  * `src/modules/skills/skill.repository.js`
+  * `src/modules/providers/provider.repository.js`
+  * `src/repositories/mcpRepository.js`
+  * `src/repositories/mcpUserConnectionRepository.js`
+  * `src/index.js`
+  * `src/repositories/index.js`
+  * `src/modules/auth/auth.service.js`
+  * `src/modules/webhooks/webhook.service.js`
+  * `src/services/memory.service.js`
+  * `src/services/agent.service.js`
+  * `scripts/db-check.js`
+  * `scripts/migrate-memories-to-files.js`
+  * `src/cron/deleteInactiveUsers.js`
+  * `tests/adminController.test.js`
+  * `tests/profileValidator.test.js`
+  * `tests/adminMiddleware.test.js`
+  * `tests/agentService.test.js`
+  * `tests/cascadingDeletes.test.js`
+  * `tests/cronDeleteInactiveUsers.test.js`
+  * `src/routes/profile.routes.js` (deleted)
+  * `src/routes/admin.routes.js` (deleted)
+  * `src/controllers/profile.controller.js` (deleted)
+  * `src/controllers/admin.controller.js` (deleted)
+  * `src/repositories/userRepository.js` (deleted)
+  * `src/models/User.js` (deleted)
+  * `src/validators/profile.validator.js` (deleted)
 * **Verification performed**:
   * Executed Jest test suite (`pnpm test`) pre-deletion and post-deletion of original files.
 * **Pass/Fail status**:

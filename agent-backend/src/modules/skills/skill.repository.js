@@ -69,6 +69,10 @@ class SkillRepository {
     if (!skill) throw new NotFoundError('Skill not found or unauthorized');
     return skill;
   }
+
+  async deleteManyByOwner(ownerId) {
+    return await Skill.deleteMany({ ownerId });
+  }
 }
 
 export default new SkillRepository();

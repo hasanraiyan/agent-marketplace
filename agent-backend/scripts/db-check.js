@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import User from '../src/models/User.js';
+import User from '../src/modules/users/user.model.js';
 
 const mongoURI = 'mongodb://localhost:27017/agent-marketplace';
 

@@ -1,8 +1,8 @@
-import userRepository from '../repositories/userRepository.js';
-import { successFormatter } from '../utils/formatters/index.js';
-import { loggerService } from '../utils/index.js';
-import BaseError from '../utils/errors/BaseError.js';
-import { NotFoundError } from '../utils/errors/index.js';
+import userRepository from './user.repository.js';
+import userService from './user.service.js';
+import { successFormatter } from '../../utils/formatters/index.js';
+import { loggerService } from '../../utils/index.js';
+import BaseError from '../../utils/errors/BaseError.js';
 
 const logger = loggerService.getLogger();
 
@@ -16,7 +16,7 @@ export const deleteUser = async (req, res, next) => {
 
     const user = await userRepository.findById(id);
 
-    await userRepository.delete(id);
+    await userService.deleteUser(id);
 
     logger.info('User permanently deleted by admin', { userId: id, adminId: req.user.id });
 

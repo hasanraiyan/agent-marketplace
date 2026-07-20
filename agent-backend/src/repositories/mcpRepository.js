@@ -31,6 +31,10 @@ class McpRepository {
     if (!mcp) throw new NotFoundError('MCP server not found or unauthorized');
     return mcp;
   }
+
+  async deleteManyByOwner(ownerId) {
+    return await Mcp.deleteMany({ ownerId });
+  }
 }
 
 export default new McpRepository();

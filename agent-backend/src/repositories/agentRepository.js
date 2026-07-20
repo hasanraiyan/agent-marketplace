@@ -99,6 +99,10 @@ class AgentRepository {
     }
     return await query;
   }
+
+  async deleteManyByOwner(ownerId) {
+    return await Agent.deleteMany({ ownerId });
+  }
 }
 
 export default new AgentRepository();

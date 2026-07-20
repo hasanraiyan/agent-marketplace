@@ -20,6 +20,10 @@ class McpUserConnectionRepository {
   async deleteByMcp(mcpId) {
     return await McpUserConnection.deleteMany({ mcpId });
   }
+
+  async deleteManyByUser(userId) {
+    return await McpUserConnection.deleteMany({ userId });
+  }
 }
 
 export default new McpUserConnectionRepository();

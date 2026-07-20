@@ -1,5 +1,5 @@
 import agentRepository from '../repositories/agentRepository.js';
-import User from '../models/User.js';
+import User from '../modules/users/user.model.js';
 import crypto from 'crypto';
 
 class AgentService {

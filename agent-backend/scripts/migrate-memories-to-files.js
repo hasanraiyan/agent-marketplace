@@ -13,7 +13,7 @@
  */
 import 'dotenv/config';
 import mongoose from 'mongoose';
-import User from '../src/models/User.js';
+import User from '../src/modules/users/user.model.js';
 import Agent from '../src/models/Agent.js';
 import MemoryFile from '../src/models/MemoryFile.js';
 

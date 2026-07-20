@@ -13,14 +13,14 @@ jest.unstable_mockModule('../src/repositories/agentRepository.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/models/User.js', () => ({
+jest.unstable_mockModule('../src/modules/users/user.model.js', () => ({
   default: {
     findById: jest.fn(),
   },
 }));
 
 const agentRepository = (await import('../src/repositories/agentRepository.js')).default;
-const User = (await import('../src/models/User.js')).default;
+const User = (await import('../src/modules/users/user.model.js')).default;
 const agentService = (await import('../src/services/agent.service.js')).default;
 
 describe('Agent Service', () => {
