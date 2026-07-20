@@ -15,7 +15,7 @@ import { knowledgeRouter } from './modules/knowledge/index.js';
 import { memoryRouter } from './modules/memory/index.js';
 import errorHandler from './middlewares/errorHandler.js';
 import swaggerUi from 'swagger-ui-express';
-import openapiSpec from './docs/openapi.js';
+import openapiSpec from './docs/swagger.config.js';
 import config from './config/index.js';
 import database from './config/database.js';
 import { loggerService } from './utils/index.js';
