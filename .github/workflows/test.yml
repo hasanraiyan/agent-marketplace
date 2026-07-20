@@ -34,6 +34,9 @@ jobs:
       - name: Run tests (backend)
         run: cd agent-backend && pnpm test
 
+      - name: Validate OpenAPI spec compilation
+        run: cd agent-backend && pnpm run validate:openapi
+
       - name: Install dependencies (deep-agent)
         run: cd deep-agent && pnpm install
 
