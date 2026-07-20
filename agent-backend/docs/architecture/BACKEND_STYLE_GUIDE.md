@@ -41,7 +41,7 @@
 | Framework       | Express 5            |
 | Database        | MongoDB + Mongoose   |
 | Validation      | Zod                  |
-| Auth            | JWT + bcrypt         |
+| Auth            | Clerk (external auth provider) |
 | Email           | Resend + Mailgen     |
 | Testing         | Jest + Supertest     |
 | Formatting      | Prettier             |
@@ -58,38 +58,31 @@ src/
 ├── config/              # Environment & service configs
 │   ├── index.js         # Main config (env parsing, defaults)
 │   ├── database.js      # MongoDB singleton connection
-│   ├── jwt.config.js    # JWT settings
+│   ├── jwt.config.js    # JWT / OAuth state signing config
 │   └── mail.config.js   # Email provider setup
-│
-├── controllers/         # HTTP request handlers
-│   ├── auth.controller.js
-│   └── healthController.js
 │
 ├── middlewares/         # Express middleware
 │   ├── errorHandler.js
-│   ├── auth.middleware.js
-│   ├── validationMiddleware.js
-│   └── rateLimiter.middleware.js
+│   └── validationMiddleware.js
 │
-├── models/              # Mongoose schemas + Zod schemas
-│   ├── User.js
-│   └── index.js
-│
-├── repositories/        # Database access layer
-│   ├── userRepository.js
-│   ├── healthRepository.js
-│   ├── rateLimiter.repository.js
-│   └── index.js
-│
-├── routes/              # Express routers
-│   ├── auth.routes.js
-│   └── health.js
-│
-├── services/            # Business logic layer
-│   ├── auth.service.js
-│   ├── mail.service.js
-│   ├── healthService.js
-│   └── rateLimiter.service.js
+├── modules/             # Domain modules
+│   ├── agents/          # AI agent CRUD, factory, search
+│   ├── agui/            # AG-UI SSE streaming protocol
+│   ├── auth/            # Clerk authentication middleware
+│   ├── cron/            # Scheduled background jobs
+│   ├── health/          # Health check endpoints
+│   ├── knowledge/       # RAG knowledge bases (Qdrant)
+│   ├── mail/            # Email sending (Resend)
+│   ├── mcp/             # MCP server connectors + OAuth
+│   ├── memory/          # File-based persistent memory
+│   ├── providers/       # LLM provider credentials
+│   ├── rateLimiter/     # API rate limiting
+│   ├── skills/          # Agent skill library
+│   ├── threads/         # Conversation threads + checkpoints
+│   ├── tools/           # Agent tool registration
+│   ├── upload/          # File uploads
+│   ├── users/           # User profiles + admin
+│   └── webhooks/        # Clerk webhook ingestion
 │
 ├── utils/               # Shared utilities
 │   ├── errors/          # Custom error classes
@@ -100,13 +93,20 @@ src/
 │   ├── constants.js
 │   └── index.js         # Central re-exports
 │
-├── validators/          # Zod schemas for request bodies
-│   └── auth.validator.js
-│
-├── docs/                # OpenAPI/Swagger spec
-│   └── openapi.js
-│
 └── index.js             # App entry point
+```
+
+Every module follows a consistent layered structure:
+
+```
+src/modules/<module>/
+├── index.js                  # Barrel exports
+├── <module>.routes.js        # Express Router
+├── <module>.controller.js    # HTTP handlers
+├── <module>.service.js       # Business logic
+├── <module>.repository.js    # Database access
+├── <module>.model.js         # Mongoose schema
+└── <module>.validator.js     # Zod validation schemas (if needed)
 ```
 
 ---
@@ -152,12 +152,12 @@ Model (Mongoose schema)
 
 **Pattern**: Config is a plain object, not a class. Singleton for database.
 
-### 2. Models (`src/models/`)
+### 2. Models (`src/modules/<module>/<module>.model.js`)
 
-- Define **both** Mongoose schemas and Zod schemas in the same file.
-- Zod schemas are used for request validation; Mongoose schemas for DB operations.
+- Define Mongoose schemas in the model file within the owning module.
+- Zod schemas for request validation live in the module's validator file.
 - Sensitive fields use `select: false` in Mongoose.
-- Export both named and default exports.
+- Export the model as default export.
 
 ```js
 // Example pattern
@@ -168,7 +168,7 @@ const User = mongoose.model('User', userMongooseSchema);
 export default User;
 ```
 
-### 3. Repositories (`src/repositories/`)
+### 3. Repositories (`src/modules/<module>/<module>.repository.js`)
 
 - **Classes** for complex repos, plain objects for simple ones.
 - Exported as **singleton instances**.
@@ -186,20 +186,21 @@ async findById(id) {
 }
 ```
 
-### 4. Services (`src/services/`)
+### 4. Services (`src/modules/<module>/<module>.service.js`)
 
 - **Business logic only** — no HTTP concerns (no req/res).
-- Can be plain functions (e.g., `auth.service.js`) or classes (e.g., `rateLimiter.service.js`).
+- Can be plain functions (e.g., `thread.validator.js`) or classes (e.g., `rateLimiter.service.js`).
 - Depend on repositories via injection or import.
 - Never import controllers or routes.
+- Access other modules' data through their services (not repositories or models).
 
-### 5. Controllers (`src/controllers/`)
+### 5. Controllers (`src/modules/<module>/<module>.controller.js`)
 
 - Async functions with `(req, res, next)` signature.
 - Wrap everything in `try/catch`, pass errors to `next(error)`.
 - Use `successFormatter.formatSuccess()` for responses.
 - Use `loggerService.getLogger()` for logging.
-- Call services and repositories — never models directly.
+- Call services — never models or repositories directly.
 
 ```js
 export const register = async (req, res, next) => {
@@ -213,27 +214,31 @@ export const register = async (req, res, next) => {
 };
 ```
 
-### 6. Routes (`src/routes/`)
+### 6. Routes (`src/modules/<module>/<module>.routes.js`)
 
 - Use `express.Router()`.
-- Stack middleware before the controller: `rateLimiter → validateBody → authMiddleware → controller`.
+- Stack middleware before the controller: `auth → rateLimiter → validateBody → controller`.
 - Export the router as default.
+- Import auth middleware from `../auth/auth.middleware.js`.
+- Import rate limiter from `../rateLimiter/rateLimiter.middleware.js`.
 
 ```js
 router.post(
-  '/register',
-  rateLimiter('register', RATE_LIMITS.REGISTER),
-  validateBody(registerSchema),
-  authController.register
+  '/',
+  authMiddleware,
+  rateLimiter('MUTATE', RATE_LIMITS.MUTATE),
+  validateBody(createSchema),
+  controller.create
 );
 ```
 
-### 7. Middlewares (`src/middlewares/`)
+### 7. Middlewares (`src/middlewares/` and `src/modules/<module>/`)
 
-- **errorHandler.js** — Final middleware. Logs errors, formats responses via `errorFormatter`.
-- **auth.middleware.js** — Verifies JWT, attaches `req.user`.
-- **validationMiddleware.js** — Validates req body/query/params with Zod.
-- **rateLimiter.middleware.js** — Per-endpoint rate limiting with presets.
+- **errorHandler.js** (`src/middlewares/`) — Final middleware. Logs errors, formats responses via `errorFormatter`.
+- **validationMiddleware.js** (`src/middlewares/`) — Validates req body/query/params with Zod.
+- **auth.middleware.js** (`src/modules/auth/`) — Verifies Clerk session, attaches `req.user`.
+- **rateLimiter.middleware.js** (`src/modules/rateLimiter/`) — Per-endpoint rate limiting with presets.
+- **admin.middleware.js** (`src/modules/users/`) — Admin role authorization check.
 
 ---
 
@@ -403,23 +408,23 @@ All errors flow to `errorHandler.js` which:
 
 ### Zod Schemas
 
-Defined in `src/validators/` for request bodies and in `src/models/` for data models.
+Defined in each module's validator file (`src/modules/<module>/<module>.validator.js`).
 
 ```js
-export const registerSchema = z.object({
+export const createSchema = z.object({
   name: z.string().min(2).max(100),
-  email: z.string().email(),
-  password: z.string().min(8),
+  description: z.string().max(500).optional(),
+  visibility: z.enum(['private', 'unlisted', 'public']).default('private'),
 });
 ```
 
 ### Validation Middleware
 
 ```js
-import { validateBody } from '../middlewares/validationMiddleware.js';
+import { validateBody } from '../../middlewares/validationMiddleware.js';
 
 // In route definition:
-router.post('/register', validateBody(registerSchema), authController.register);
+router.post('/', validateBody(createSchema), controller.create);
 ```
 
 ### Schema Validator Utilities
@@ -434,30 +439,34 @@ router.post('/register', validateBody(registerSchema), authController.register);
 
 ### Flow
 
-1. Client sends `Authorization: Bearer <token>` header.
-2. `auth.middleware.js` extracts and verifies JWT.
-3. Finds user in DB, attaches to `req.user`.
-4. Controller uses `req.user.id` for operations.
+1. Client authenticates via **Clerk** (handles login, signup, session management).
+2. Clerk session token is verified by `auth.middleware.js` (`src/modules/auth/`).
+3. User is auto-synced to local MongoDB via `authService.syncUser(clerkId)`.
+4. User object is attached to `req.user`.
+5. Controller uses `req.user._id` for operations.
 
-### Token Types
+### Middleware Levels
 
-| Token         | Secret               | Expiry | Purpose            |
-| ------------- | -------------------- | ------ | ------------------ |
-| Access Token  | `JWT_SECRET`         | 15m    | API authentication |
-| Refresh Token | `JWT_REFRESH_SECRET` | 7d     | Token renewal      |
-
-### Password Handling
-
-- Hashed with `bcrypt` (10 salt rounds).
-- Stored with `select: false` in Mongoose schema.
-- Retrieved explicitly with `.select('+password')`.
+| Middleware | File | Behavior |
+| ---------- | ---- | -------- |
+| `authMiddleware` | `src/modules/auth/auth.middleware.js` | Required — returns 401 if no valid session |
+| `optionalAuthMiddleware` | `src/modules/auth/optional-auth.middleware.js` | Sets `req.user` if authenticated, continues if not |
+| `adminMiddleware` | `src/modules/users/admin.middleware.js` | Checks `role === 'admin'` (use after `authMiddleware`) |
 
 ### Role-Based Access
 
 ```js
+// src/modules/users/user.model.js
 export const UserRole = z.enum(['normal', 'admin']);
-// Admin users created only via CLI script
 ```
+
+### Webhook-Based User Sync
+
+Clerk sends lifecycle events (user.created, user.updated, user.deleted) to:
+```
+POST /api/v1/webhooks/clerk
+```
+Verified with Svix signatures. See `src/modules/webhooks/`.
 
 ---
 
@@ -473,19 +482,17 @@ Middleware → Service → Repository (Store)
 
 ```js
 export const RATE_LIMITS = {
-  LOGIN: { maxRequests: 5, windowMs: 15 * 60 * 1000 },
-  REGISTER: { maxRequests: 3, windowMs: 60 * 60 * 1000 },
-  FORGOT_PASSWORD: { maxRequests: 3, windowMs: 60 * 60 * 1000 },
-  RESET_PASSWORD: { maxRequests: 5, windowMs: 15 * 60 * 1000 },
-  RESEND_OTP: { maxRequests: 3, windowMs: 5 * 60 * 1000 },
-  VERIFY_OTP: { maxRequests: 5, windowMs: 15 * 60 * 1000 },
+  CHAT: { maxRequests: 20, windowMs: 60 * 1000 },   // Chat/streaming
+  MUTATE: { maxRequests: 30, windowMs: 60 * 1000 },  // Create/update/delete
 };
 ```
 
 ### Usage
 
 ```js
-rateLimiter('login', RATE_LIMITS.LOGIN);
+import rateLimiter, { RATE_LIMITS } from '../modules/rateLimiter/rateLimiter.middleware.js';
+
+router.post('/', rateLimiter('MUTATE', RATE_LIMITS.MUTATE), controller.create);
 ```
 
 ### Headers
@@ -699,176 +706,224 @@ pnpm admin:create
 
 ## Adding a New Feature (Step-by-Step)
 
-### Example: Adding a "Profile" feature
+### Example: Adding a "Widgets" module
 
-#### 1. Define the Model (`src/models/Profile.js`)
+#### 1. Create Module Directory
+
+```bash
+mkdir src/modules/widgets
+```
+
+#### 2. Define the Model (`src/modules/widgets/widget.model.js`)
 
 ```js
 import mongoose from 'mongoose';
-import { z } from 'zod';
 
-export const profileSchema = z.object({
-  bio: z.string().max(500).optional(),
-  avatar: z.string().url().optional(),
-});
-
-const profileMongooseSchema = new mongoose.Schema(
+const widgetSchema = new mongoose.Schema(
   {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
-    bio: { type: String, maxlength: 500 },
-    avatar: { type: String },
+    ownerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true,
+    },
+    name: {
+      type: String,
+      required: true,
+      maxlength: 100,
+    },
+    config: {
+      type: Map,
+      of: String,
+      default: new Map(),
+    },
   },
-  { timestamps: true, versionKey: false }
+  { timestamps: true }
 );
 
-const Profile = mongoose.model('Profile', profileMongooseSchema);
-export default Profile;
+widgetSchema.index({ ownerId: 1, name: 1 }, { unique: true });
+
+const Widget = mongoose.model('Widget', widgetSchema);
+export default Widget;
 ```
 
-#### 2. Create the Repository (`src/repositories/profileRepository.js`)
+#### 3. Create the Validator (`src/modules/widgets/widget.validator.js`)
 
 ```js
-import Profile from '../models/Profile.js';
-import { NotFoundError } from '../utils/errors/index.js';
+import { z } from 'zod';
 
-class ProfileRepository {
-  async create(userId, data) {
-    const profile = new Profile({ userId, ...data });
-    return await profile.save();
+export const createWidgetSchema = z.object({
+  name: z.string().min(2).max(100),
+  config: z.record(z.string()).optional(),
+});
+
+export const updateWidgetSchema = z.object({
+  name: z.string().min(2).max(100).optional(),
+  config: z.record(z.string()).optional(),
+});
+```
+
+#### 4. Create the Repository (`src/modules/widgets/widget.repository.js`)
+
+```js
+import Widget from './widget.model.js';
+
+class WidgetRepository {
+  async create(data) {
+    return Widget.create(data);
   }
 
-  async findByUserId(userId) {
-    const profile = await Profile.findOne({ userId });
-    if (!profile) {
-      throw new NotFoundError(`Profile for user ${userId} not found`);
-    }
-    return profile;
+  async findById(id) {
+    return Widget.findById(id);
   }
 
-  async update(userId, data) {
-    const profile = await Profile.findOneAndUpdate(
-      { userId },
-      { ...data, updatedAt: new Date() },
-      { new: true, runValidators: true }
-    );
-    if (!profile) {
-      throw new NotFoundError(`Profile for user ${userId} not found`);
-    }
-    return profile;
+  async findByOwner(ownerId, skip = 0, limit = 10) {
+    return Widget.find({ ownerId })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+  }
+
+  async count(ownerId) {
+    return Widget.countDocuments({ ownerId });
+  }
+
+  async update(id, data) {
+    return Widget.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+  }
+
+  async delete(id) {
+    return Widget.findByIdAndDelete(id);
   }
 }
 
-const profileRepository = new ProfileRepository();
-export default profileRepository;
+export default new WidgetRepository();
 ```
 
-#### 3. Create the Service (`src/services/profileService.js`)
+#### 5. Create the Service (`src/modules/widgets/widget.service.js`)
 
 ```js
-import profileRepository from '../repositories/profileRepository.js';
+import widgetRepository from './widget.repository.js';
 
-export const getProfile = async (userId) => {
-  return await profileRepository.findByUserId(userId);
-};
-
-export const updateProfile = async (userId, data) => {
-  return await profileRepository.update(userId, data);
-};
-
-export default { getProfile, updateProfile };
-```
-
-#### 4. Create the Controller (`src/controllers/profile.controller.js`)
-
-```js
-import profileService from '../services/profileService.js';
-import { successFormatter } from '../utils/formatters/index.js';
-import { loggerService } from '../utils/index.js';
-
-const logger = loggerService.getLogger();
-
-export const getProfile = async (req, res, next) => {
-  try {
-    const profile = await profileService.getProfile(req.user.id);
-    res.json(successFormatter.formatSuccess(profile));
-  } catch (error) {
-    next(error);
+class WidgetService {
+  async create(data, userId) {
+    return widgetRepository.create({ ...data, ownerId: userId });
   }
-};
 
-export const updateProfile = async (req, res, next) => {
-  try {
-    const profile = await profileService.updateProfile(req.user.id, req.body);
-    logger.info('Profile updated', { userId: req.user.id });
-    res.json(successFormatter.formatSuccess(profile, 'Profile updated successfully'));
-  } catch (error) {
-    next(error);
+  async getAll(userId, page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const [items, total] = await Promise.all([
+      widgetRepository.findByOwner(userId, skip, limit),
+      widgetRepository.count(userId),
+    ]);
+    return { items, total };
   }
-};
 
-export default { getProfile, updateProfile };
+  async getById(id, userId) {
+    const widget = await widgetRepository.findById(id);
+    if (!widget || widget.ownerId.toString() !== userId.toString()) {
+      throw new NotFoundError('Widget not found');
+    }
+    return widget;
+  }
+
+  async update(id, userId, data) {
+    await this.getById(id, userId); // ownership check
+    return widgetRepository.update(id, data);
+  }
+
+  async delete(id, userId) {
+    await this.getById(id, userId); // ownership check
+    return widgetRepository.delete(id);
+  }
+}
+
+export default new WidgetService();
 ```
 
-#### 5. Create the Validator (`src/validators/profile.validator.js`)
+#### 6. Create the Controller (`src/modules/widgets/widget.controller.js`)
 
 ```js
-import { z } from 'zod';
+import widgetService from './widget.service.js';
+import { formatters } from '../../utils/index.js';
 
-export const updateProfileSchema = z.object({
-  bio: z.string().max(500).optional(),
-  avatar: z.string().url().optional(),
-});
+class WidgetController {
+  async create(req, res, next) {
+    try {
+      const result = await widgetService.create(req.body, req.user._id);
+      res.status(201).json(formatters.formatSuccess(result, 'Created'));
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getAll(req, res, next) {
+    try {
+      const { page, limit } = req.query;
+      const result = await widgetService.getAll(req.user._id, +page, +limit);
+      res.json(formatters.formatList(result.items, result.total, +page || 1, +limit || 10));
+    } catch (err) {
+      next(err);
+    }
+  }
+}
+
+export default new WidgetController();
 ```
 
-#### 6. Create the Routes (`src/routes/profile.routes.js`)
+#### 7. Create the Routes (`src/modules/widgets/widget.routes.js`)
 
 ```js
 import express from 'express';
-import profileController from '../controllers/profile.controller.js';
-import authMiddleware from '../middlewares/auth.middleware.js';
-import { validateBody } from '../middlewares/validationMiddleware.js';
-import { updateProfileSchema } from '../validators/profile.validator.js';
+import authMiddleware from '../auth/auth.middleware.js';
+import rateLimiter, { RATE_LIMITS } from '../rateLimiter/rateLimiter.middleware.js';
+import { validateBody } from '../../middlewares/validationMiddleware.js';
+import { createWidgetSchema, updateWidgetSchema } from './widget.validator.js';
+import controller from './widget.controller.js';
 
 const router = express.Router();
 
-router.get('/', authMiddleware, profileController.getProfile);
-router.patch(
-  '/',
-  authMiddleware,
-  validateBody(updateProfileSchema),
-  profileController.updateProfile
-);
+router.use(authMiddleware);
+
+const mutateLimiter = rateLimiter('MUTATE', RATE_LIMITS.MUTATE);
+
+router.get('/', controller.getAll);
+router.get('/:id', controller.getById);
+router.post('/', mutateLimiter, validateBody(createWidgetSchema), controller.create);
+router.patch('/:id', mutateLimiter, validateBody(updateWidgetSchema), controller.update);
+router.delete('/:id', mutateLimiter, controller.delete);
 
 export default router;
 ```
 
-#### 7. Register Routes (`src/index.js`)
+#### 8. Create Barrel Exports (`src/modules/widgets/index.js`)
 
 ```js
-import profileRouter from './routes/profile.routes.js';
-
-app.use('/api/v1/profile', profileRouter);
+export { default as widgetRouter } from './widget.routes.js';
+export { default as widgetService } from './widget.service.js';
 ```
 
-#### 8. Update Models Index (`src/models/index.js`)
+#### 9. Register Routes (`src/index.js`)
 
 ```js
-import Profile, { profileSchema } from './Profile.js';
+import { widgetRouter } from './modules/widgets/index.js';
 
-export { User, userSchema, UserRole, Profile, profileSchema };
-```
-
-#### 9. Update Repositories Index (`src/repositories/index.js`)
-
-```js
-import profileRepository from './profileRepository.js';
-
-export { healthRepository, userRepository, InMemoryRateLimitStore, profileRepository };
+app.use('/api/v1/widgets', widgetRouter);
 ```
 
 #### 10. Write Tests
 
-Create `tests/profileRepository.test.js`, `tests/profileService.test.js`, `tests/profileController.test.js`, etc.
+```bash
+touch tests/widgetController.test.js
+tests/widgetService.test.js
+tests/widgetRepository.test.js
+```
+
+#### 11. Add Documentation
+
+```bash
+touch docs/modules/widgets.md
+```
 
 ---
 
@@ -876,18 +931,18 @@ Create `tests/profileRepository.test.js`, `tests/profileService.test.js`, `tests
 
 When adding a new route, verify:
 
-- [ ] Zod validator schema created in `src/validators/`
+- [ ] Zod validator schema created in module's validator file
 - [ ] `validateBody(schema)` middleware added to route
-- [ ] Rate limiter added if applicable (`rateLimiter('endpoint', RATE_LIMITS.PRESET)`)
-- [ ] Auth middleware added if route requires authentication
+- [ ] Rate limiter added for mutation endpoints
+- [ ] Auth middleware applied (`authMiddleware` or `optionalAuthMiddleware`)
 - [ ] Controller uses `try/catch` with `next(error)`
-- [ ] Response uses `successFormatter.formatSuccess()`
+- [ ] Response uses `formatters.formatSuccess()`
 - [ ] Errors use custom error classes (`BaseError`, `NotFoundError`, etc.)
 - [ ] Logging added for important actions (`logger.info`, `logger.error`)
 - [ ] Route registered in `src/index.js`
-- [ ] OpenAPI spec updated in `src/docs/openapi.js`
 - [ ] Tests written for repository, service, and controller
 - [ ] Prettier formatting applied (`pnpm format`)
+- [ ] Module documentation added to `docs/modules/<module>.md`
 
 ---
 
@@ -919,17 +974,22 @@ git push -u origin feature/new-feature
 // From utils (central index)
 import { loggerService, errors, formatters } from '../utils/index.js';
 
-// From specific modules
+// From specific utilities
 import { NotFoundError } from '../utils/errors/index.js';
-import { successFormatter } from '../utils/formatters/index.js';
+import { formatters } from '../../utils/index.js';
 
 // Config
-import config from '../config/index.js';
-import database from '../config/database.js';
+import config from '../../config/index.js';
+import database from '../../config/database.js';
 
-// Singleton repositories/services
-import userRepository from '../repositories/userRepository.js';
-import rateLimiterService from '../services/rateLimiter.service.js';
+// Within a module — relative imports
+import repository from './<module>.repository.js';
+import service from '../other-module/other.service.js';
+
+// Cross-module — via barrel exports
+import { agentService } from '../agents/index.js';
+import { authMiddleware } from '../auth/index.js';
+import { rateLimiterService } from '../rateLimiter/index.js';
 ```
 
 ### Common Error Codes
@@ -946,4 +1006,4 @@ import rateLimiterService from '../services/rateLimiter.service.js';
 
 ---
 
-_Last updated: April 2026_
+_Last updated: July 2026_
