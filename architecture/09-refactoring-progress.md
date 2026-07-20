@@ -11,7 +11,7 @@ This document contains a highly granular, step-by-step checklist for the refacto
   - **Step 1: Setup & Auth Service**: [x] Completed
   - **Step 2: Health Module**: [x] Completed
   - **Step 3: Upload Module**: [x] Completed
-  - **Step 4: Clerk Webhook**: [ ] Pending
+  - **Step 4: Clerk Webhook**: [x] Completed
   - **Step 5: Skills Module**: [ ] Pending
   - **Step 6: Providers Module**: [ ] Pending
   - **Step 7: Users & Profile Module**: [ ] Pending
@@ -58,15 +58,15 @@ This document contains a highly granular, step-by-step checklist for the refacto
   - [x] Verify image uploading via `/api/v1/upload/avatar` still works.
   - [x] Run `pnpm test`.
 
-### [ ] Step 4: Clerk Webhook Module Refactor
+### [x] Step 4: Clerk Webhook Module Refactor
 * **Objective**: Decouple Clerk webhook route from business/data-access logic.
 * **Tasks**:
-  - [ ] Move `src/routes/webhook.routes.js` to `src/modules/webhooks/webhook.routes.js`.
-  - [ ] Create `src/modules/webhooks/webhook.controller.js` to process SVIX events.
-  - [ ] Create `src/modules/webhooks/webhook.service.js` to encapsulate creating/updating/deleting synchronized users.
-  - [ ] Replace direct `User` model queries inside the webhook handler with calls to `userRepository` from `webhook.service.js`.
-  - [ ] Update route mount in `src/index.js`.
-  - [ ] Run `pnpm test`.
+  - [x] Move `src/routes/webhook.routes.js` to `src/modules/webhooks/webhook.routes.js`.
+  - [x] Create `src/modules/webhooks/webhook.controller.js` to process SVIX events.
+  - [x] Create `src/modules/webhooks/webhook.service.js` to encapsulate creating/updating/deleting synchronized users.
+  - [x] Replace direct `User` model queries inside the webhook handler with calls to `userRepository` from `webhook.service.js`.
+  - [x] Update route mount in `src/index.js`.
+  - [x] Run `pnpm test`.
 
 ### [ ] Step 5: Skills Module Refactor
 * **Objective**: Move skills to `src/modules/skills/` and resolve cross-domain database coupling.
@@ -255,6 +255,28 @@ This document contains a highly granular, step-by-step checklist for the refacto
   * `src/modules/upload/upload.routes.js` (created)
   * `src/index.js`
   * `src/routes/upload.routes.js` (deleted)
+* **Verification performed**:
+  * Executed Jest test suite (`pnpm test`) pre-deletion and post-deletion of original files.
+* **Pass/Fail status**:
+  * Pass (588/588 tests passed successfully on all runs).
+* **Issues discovered**:
+  * None.
+
+#### Step 4: Clerk Webhook Module Refactor
+* **What was changed**:
+  * Moved webhook routing to `src/modules/webhooks/webhook.routes.js`.
+  * Created `webhook.controller.js` to verify SVIX signature and handle route extraction.
+  * Created `webhook.service.js` to run data persistence queries through `userRepository` (rather than direct imports of the `User` model, resolving Finding 2.1).
+  * Updated `src/index.js` to mount the new modular webhook routes.
+  * Deleted the original deprecated routes file `src/routes/webhook.routes.js`.
+* **Why it was changed**:
+  * Adhered to the Single Responsibility Principle and MVC boundaries by decoupling HTTP routing concerns from SVIX signature checking and repository persistence workflows.
+* **Files affected**:
+  * `src/modules/webhooks/webhook.routes.js` (created)
+  * `src/modules/webhooks/webhook.controller.js` (created)
+  * `src/modules/webhooks/webhook.service.js` (created)
+  * `src/index.js`
+  * `src/routes/webhook.routes.js` (deleted)
 * **Verification performed**:
   * Executed Jest test suite (`pnpm test`) pre-deletion and post-deletion of original files.
 * **Pass/Fail status**:
