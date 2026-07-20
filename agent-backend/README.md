@@ -129,7 +129,7 @@ This backend now includes a production-oriented JavaScript AI stack:
 > [!IMPORTANT]
 > This project depends on the `/v2` preview API of CopilotKit 1.56.x. Dependencies are pinned to exact version `1.56.3`. Any version bump must be treated as a migration, not a patch bump, as the `/v2` exports may move or change in future versions.
 
-The offline examples and verification suite live in `src/ai/`, `scripts/verify-ai-stack.js`, and `tests/aiExamples.test.js`.
+The offline verification suite lives in `scripts/verify-ai-stack.js` and `tests/test_deepagents.test.js`.
 
 Detailed implementation guidance is documented in [docs/architecture/langchain-javascript-backend-implementation.md](docs/architecture/langchain-javascript-backend-implementation.md).
 

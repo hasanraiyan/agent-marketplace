@@ -161,3 +161,9 @@ For AI coding agents working on this codebase, see [AGENTS.md](/AGENTS.md) at th
 - Update route docs when adding/changing endpoints
 - Keep environment variable docs in sync with `src/config/index.js`
 - Run `pnpm test` before documenting new features
+
+---
+
+*Documentation updated to commit [`fe1445f`](https://github.com/hasanraiyan/agent-marketplace/commit/fe1445f) — July 2026*
+
+> This docs revision covers the full modular architecture refactoring. If the backend has been significantly restructured since this commit, the docs should be re-audited for accuracy.
