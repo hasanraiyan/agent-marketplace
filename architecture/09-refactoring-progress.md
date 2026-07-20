@@ -13,7 +13,7 @@ This document contains a highly granular, step-by-step checklist for the refacto
   - **Step 3: Upload Module**: [x] Completed
   - **Step 4: Clerk Webhook**: [x] Completed
   - **Step 5: Skills Module**: [x] Completed
-  - **Step 6: Providers Module**: [ ] Pending
+  - **Step 6: Providers Module**: [x] Completed
   - **Step 7: Users & Profile Module**: [ ] Pending
   - **Step 8: Threads & Checkpoints**: [ ] Pending
   - **Step 9: MCP Module**: [ ] Pending
@@ -83,19 +83,19 @@ This document contains a highly granular, step-by-step checklist for the refacto
   - [x] Update `src/index.js` route mount.
   - [x] Run `pnpm test`.
 
-### [ ] Step 6: Providers Module Refactor
+### [x] Step 6: Providers Module Refactor
 * **Objective**: Move provider files to `src/modules/providers/` and resolve agent model coupling.
 * **Tasks**:
-  - [ ] Move `src/routes/provider.routes.js` to `src/modules/providers/provider.routes.js`.
-  - [ ] Move `src/controllers/provider.controller.js` to `src/modules/providers/provider.controller.js`.
-  - [ ] Move `src/services/provider.service.js` to `src/modules/providers/provider.service.js`.
-  - [ ] Move `src/repositories/providerRepository.js` to `src/modules/providers/provider.repository.js`.
-  - [ ] Move `src/models/Provider.js` to `src/modules/providers/provider.model.js`.
-  - [ ] Move `src/validators/provider.validator.js` to `src/modules/providers/provider.validator.js`.
-  - [ ] Add `findByProviderId` and `countByProviderId` to `agentRepository`.
-  - [ ] Remove `Agent` model imports from `provider.service.js` and use `agentRepository` methods.
-  - [ ] Update imports and the mount path in `src/index.js`.
-  - [ ] Run `pnpm test`.
+  - [x] Move `src/routes/provider.routes.js` to `src/modules/providers/provider.routes.js`.
+  - [x] Move `src/controllers/provider.controller.js` to `src/modules/providers/provider.controller.js`.
+  - [x] Move `src/services/provider.service.js` to `src/modules/providers/provider.service.js`.
+  - [x] Move `src/repositories/providerRepository.js` to `src/modules/providers/provider.repository.js`.
+  - [x] Move `src/models/Provider.js` to `src/modules/providers/provider.model.js`.
+  - [x] Move `src/validators/provider.validator.js` to `src/modules/providers/provider.validator.js`.
+  - [x] Add `findAgentsUsingProvider` to `agentRepository`.
+  - [x] Remove `Agent` model imports from `provider.service.js` and use `agentRepository` methods.
+  - [x] Update imports and the mount path in `src/index.js`.
+  - [x] Run `pnpm test`.
 
 ### [ ] Step 7: Users & Profile Module Refactor
 * **Objective**: Move user/profile modules to `src/modules/users/`, clean schema definitions, and extract service.
@@ -318,6 +318,52 @@ This document contains a highly granular, step-by-step checklist for the refacto
   * `src/repositories/skillRepository.js` (deleted)
   * `src/models/Skill.js` (deleted)
   * `src/validators/skill.validator.js` (deleted)
+* **Verification performed**:
+  * Executed Jest test suite (`pnpm test`) pre-deletion and post-deletion of original files.
+* **Pass/Fail status**:
+  * Pass (588/588 tests passed successfully on all runs).
+* **Issues discovered**:
+  * None.
+
+#### Step 6: Providers Module Refactor
+* **What was changed**:
+  * Created modular provider files (`provider.model.js`, `provider.validator.js`, `provider.repository.js`, `provider.service.js`, `provider.controller.js`, `provider.routes.js`) under `src/modules/providers/`.
+  * Added `findAgentsUsingProvider` to `agentRepository`.
+  * In `provider.service.js`, replaced all direct imports and queries to the `Agent` model with calls to `agentRepository` (resolving cross-domain db queries, Finding 2.1).
+  * Updated imports in `src/index.js`, `src/factories/agentFactory.js`, `src/services/knowledge.service.js`, `src/tools/builder.tools.js`, `src/controllers/profile.controller.js`, and `src/cron/deleteInactiveUsers.js`.
+  * Updated imports and mock definitions in test files (`tests/providerService.test.js`, `tests/providerController.test.js`, `tests/providerRepository.test.js`, `tests/providerValidator.test.js`, `tests/architect_improvement.test.js`, `tests/builderFlow.test.js`, `tests/knowledgeService.test.js`, `tests/cascadingDeletes.test.js`, and `tests/cronDeleteInactiveUsers.test.js`).
+  * Deleted all old deprecated provider files in technical layers.
+* **Why it was changed**:
+  * Unified the Providers domain within `src/modules/providers/` and encapsulated model access inside repositories to enforce clean architectural boundaries.
+* **Files affected**:
+  * `src/modules/providers/provider.model.js` (created)
+  * `src/modules/providers/provider.validator.js` (created)
+  * `src/modules/providers/provider.repository.js` (created)
+  * `src/modules/providers/provider.service.js` (created)
+  * `src/modules/providers/provider.controller.js` (created)
+  * `src/modules/providers/provider.routes.js` (created)
+  * `src/repositories/agentRepository.js`
+  * `src/index.js`
+  * `src/factories/agentFactory.js`
+  * `src/services/knowledge.service.js`
+  * `src/tools/builder.tools.js`
+  * `src/controllers/profile.controller.js`
+  * `src/cron/deleteInactiveUsers.js`
+  * `tests/providerService.test.js`
+  * `tests/providerController.test.js`
+  * `tests/providerRepository.test.js`
+  * `tests/providerValidator.test.js`
+  * `tests/architect_improvement.test.js`
+  * `tests/builderFlow.test.js`
+  * `tests/knowledgeService.test.js`
+  * `tests/cascadingDeletes.test.js`
+  * `tests/cronDeleteInactiveUsers.test.js`
+  * `src/routes/provider.routes.js` (deleted)
+  * `src/controllers/provider.controller.js` (deleted)
+  * `src/services/provider.service.js` (deleted)
+  * `src/repositories/providerRepository.js` (deleted)
+  * `src/models/Provider.js` (deleted)
+  * `src/validators/provider.validator.js` (deleted)
 * **Verification performed**:
   * Executed Jest test suite (`pnpm test`) pre-deletion and post-deletion of original files.
 * **Pass/Fail status**:

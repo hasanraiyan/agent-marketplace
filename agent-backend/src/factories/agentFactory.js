@@ -19,7 +19,7 @@ import { skillLibraryStore, skillLibraryNamespace } from '../utils/skillLibraryS
 import checkpointService from '../services/checkpoint.service.js';
 import { LRUCache } from 'lru-cache';
 import agentRepository from '../repositories/agentRepository.js';
-import providerRepository from '../repositories/providerRepository.js';
+import providerRepository from '../modules/providers/provider.repository.js';
 import encryption from '../utils/encryption.js';
 
 import { resolveAgentTools } from '../tools/index.js';

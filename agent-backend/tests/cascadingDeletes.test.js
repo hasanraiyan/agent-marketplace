@@ -7,7 +7,7 @@ import Conversation from '../src/models/Conversation.js';
 import Agent from '../src/models/Agent.js';
 import deleteInactiveUsers from '../src/cron/deleteInactiveUsers.js';
 import User from '../src/models/User.js';
-import Provider from '../src/models/Provider.js';
+import Provider from '../src/modules/providers/provider.model.js';
 import Skill from '../src/modules/skills/skill.model.js';
 import Mcp from '../src/models/Mcp.js';
 import McpUserConnection from '../src/models/McpUserConnection.js';

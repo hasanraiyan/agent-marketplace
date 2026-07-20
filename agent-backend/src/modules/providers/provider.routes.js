@@ -1,13 +1,13 @@
 import express from 'express';
-import providerController from '../controllers/provider.controller.js';
-import authMiddleware from '../modules/auth/auth.middleware.js';
-import rateLimiter, { RATE_LIMITS } from '../middlewares/rateLimiter.middleware.js';
-import { validateBody } from '../middlewares/validationMiddleware.js';
+import providerController from './provider.controller.js';
+import authMiddleware from '../auth/auth.middleware.js';
+import rateLimiter, { RATE_LIMITS } from '../../middlewares/rateLimiter.middleware.js';
+import { validateBody } from '../../middlewares/validationMiddleware.js';
 import {
   createProviderSchema,
   updateProviderSchema,
   testConnectionSchema,
-} from '../validators/provider.validator.js';
+} from './provider.validator.js';
 
 const router = express.Router();
 

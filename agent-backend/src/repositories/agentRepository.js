@@ -91,6 +91,14 @@ class AgentRepository {
   async removeSkillFromAgents(skillId) {
     return await Agent.updateMany({ skills: skillId }, { $pull: { skills: skillId } });
   }
+
+  async findAgentsUsingProvider(providerId, projection = null) {
+    let query = Agent.find({ providerId });
+    if (projection) {
+      query = query.select(projection);
+    }
+    return await query;
+  }
 }
 
 export default new AgentRepository();

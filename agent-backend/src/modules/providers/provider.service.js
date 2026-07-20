@@ -1,9 +1,8 @@
-import providerRepository from '../repositories/providerRepository.js';
-import agentRepository from '../repositories/agentRepository.js';
-import agentFactory from '../factories/agentFactory.js';
-import Agent from '../models/Agent.js';
-import encryption from '../utils/encryption.js';
-import { ARCHITECT_AGENT_ID } from '../tools/index.js';
+import providerRepository from './provider.repository.js';
+import agentRepository from '../../repositories/agentRepository.js';
+import agentFactory from '../../factories/agentFactory.js';
+import encryption from '../../utils/encryption.js';
+import { ARCHITECT_AGENT_ID } from '../../tools/index.js';
 
 class ProviderService {
   /**
@@ -97,7 +96,7 @@ class ProviderService {
     const updatedProvider = await providerRepository.update(providerId, updateData);
 
     // Invalidate factory cache for all agents using this provider
-    const agents = await Agent.find({ providerId }, '_id');
+    const agents = await agentRepository.findAgentsUsingProvider(providerId, '_id');
     for (const agent of agents) {
       agentFactory.invalidate(agent._id);
     }

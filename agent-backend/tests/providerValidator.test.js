@@ -1,7 +1,7 @@
 import {
   createProviderSchema,
   updateProviderSchema,
-} from '../src/validators/provider.validator.js';
+} from '../src/modules/providers/provider.validator.js';
 
 describe('Provider Validator', () => {
   describe('createProviderSchema', () => {

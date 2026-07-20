@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 import { EventType } from '@ag-ui/core';
 import agentService from '../src/services/agent.service.js';
-import providerRepository from '../src/repositories/providerRepository.js';
+import providerRepository from '../src/modules/providers/provider.repository.js';
 import { upsertAgentTool } from '../src/tools/builder.tools.js';
 import {
   translateLangGraphStream,

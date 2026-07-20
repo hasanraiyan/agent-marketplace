@@ -35,7 +35,7 @@ jest.unstable_mockModule('../src/repositories/knowledgeRepository.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/repositories/providerRepository.js', () => ({
+jest.unstable_mockModule('../src/modules/providers/provider.repository.js', () => ({
   default: {
     findById: jest.fn(),
     findByUser: jest.fn(),
@@ -91,7 +91,8 @@ jest.unstable_mockModule('@qdrant/js-client-rest', () => ({
 
 const config = (await import('../src/config/index.js')).default;
 const knowledgeRepository = (await import('../src/repositories/knowledgeRepository.js')).default;
-const providerRepository = (await import('../src/repositories/providerRepository.js')).default;
+const providerRepository = (await import('../src/modules/providers/provider.repository.js'))
+  .default;
 const encryption = (await import('../src/utils/encryption.js')).default;
 const { PDFParse } = await import('pdf-parse');
 const { OpenAIEmbeddings } = await import('@langchain/openai');

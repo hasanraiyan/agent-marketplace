@@ -4,7 +4,7 @@ import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import crypto from 'crypto';
 import config from '../config/index.js';
 import knowledgeRepository from '../repositories/knowledgeRepository.js';
-import providerRepository from '../repositories/providerRepository.js';
+import providerRepository from '../modules/providers/provider.repository.js';
 import encryption from '../utils/encryption.js';
 import { loggerService } from '../utils/index.js';
 

@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
-import providerRepository from '../src/repositories/providerRepository.js';
-import Provider from '../src/models/Provider.js';
+import providerRepository from '../src/modules/providers/provider.repository.js';
+import Provider from '../src/modules/providers/provider.model.js';
 
 describe('Provider Repository', () => {
   let mockProvider;

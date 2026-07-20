@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 
 // Mock dependencies before importing the service
-jest.unstable_mockModule('../src/repositories/providerRepository.js', () => ({
+jest.unstable_mockModule('../src/modules/providers/provider.repository.js', () => ({
   default: {
     create: jest.fn(),
     findById: jest.fn(),
@@ -15,18 +15,13 @@ jest.unstable_mockModule('../src/repositories/providerRepository.js', () => ({
 jest.unstable_mockModule('../src/repositories/agentRepository.js', () => ({
   default: {
     count: jest.fn(),
+    findAgentsUsingProvider: jest.fn(),
   },
 }));
 
 jest.unstable_mockModule('../src/factories/agentFactory.js', () => ({
   default: {
     invalidate: jest.fn(),
-  },
-}));
-
-jest.unstable_mockModule('../src/models/Agent.js', () => ({
-  default: {
-    find: jest.fn(),
   },
 }));
 
@@ -38,13 +33,13 @@ jest.unstable_mockModule('../src/utils/encryption.js', () => ({
   },
 }));
 
-const providerRepository = (await import('../src/repositories/providerRepository.js')).default;
+const providerRepository = (await import('../src/modules/providers/provider.repository.js'))
+  .default;
 const agentRepository = (await import('../src/repositories/agentRepository.js')).default;
 const agentFactory = (await import('../src/factories/agentFactory.js')).default;
-const Agent = (await import('../src/models/Agent.js')).default;
 const encryption = (await import('../src/utils/encryption.js')).default;
 const { ARCHITECT_AGENT_ID } = await import('../src/tools/index.js');
-const providerService = (await import('../src/services/provider.service.js')).default;
+const providerService = (await import('../src/modules/providers/provider.service.js')).default;
 
 describe('Provider Service', () => {
   let mockProvider;
@@ -142,7 +137,7 @@ describe('Provider Service', () => {
         apiKeyEncrypted: 'new-encrypted-token',
         label: 'New Label',
       });
-      Agent.find.mockResolvedValue([]);
+      agentRepository.findAgentsUsingProvider.mockResolvedValue([]);
 
       await providerService.updateProvider(mockUserId, mockProvider._id, {
         apiKey: 'new-raw-key',
@@ -159,14 +154,14 @@ describe('Provider Service', () => {
     test('should run clearUserDefaultKeys if isDefault is true', async () => {
       providerRepository.findById.mockResolvedValue(mockProvider);
       providerRepository.update.mockResolvedValue(mockProvider);
-      Agent.find.mockResolvedValue([{ _id: mockProvider._id }]);
+      agentRepository.findAgentsUsingProvider.mockResolvedValue([{ _id: mockProvider._id }]);
 
       await providerService.updateProvider(mockUserId, mockProvider._id, {
         isDefault: true,
       });
 
       expect(providerRepository.clearUserDefaultKeys).toHaveBeenCalledWith(mockUserId);
-      expect(Agent.find).toHaveBeenCalled();
+      expect(agentRepository.findAgentsUsingProvider).toHaveBeenCalled();
       expect(agentFactory.invalidate).toHaveBeenCalledWith(mockProvider._id); // for standard agent
       expect(agentFactory.invalidate).toHaveBeenCalledWith(ARCHITECT_AGENT_ID); // for architect
     });
@@ -174,7 +169,10 @@ describe('Provider Service', () => {
     test('should invalidate all dependent agents', async () => {
       providerRepository.findById.mockResolvedValue(mockProvider);
       providerRepository.update.mockResolvedValue(mockProvider);
-      Agent.find.mockResolvedValue([{ _id: 'agent1' }, { _id: 'agent2' }]);
+      agentRepository.findAgentsUsingProvider.mockResolvedValue([
+        { _id: 'agent1' },
+        { _id: 'agent2' },
+      ]);
 
       await providerService.updateProvider(mockUserId, mockProvider._id, {
         label: 'New Label',

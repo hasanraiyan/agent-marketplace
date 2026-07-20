@@ -4,7 +4,7 @@ import { loggerService } from '../utils/index.js';
 import BaseError from '../utils/errors/BaseError.js';
 import Agent from '../models/Agent.js';
 import Skill from '../modules/skills/skill.model.js';
-import Provider from '../models/Provider.js';
+import Provider from '../modules/providers/provider.model.js';
 import Mcp from '../models/Mcp.js';
 import McpUserConnection from '../models/McpUserConnection.js';
 import Conversation from '../models/Conversation.js';

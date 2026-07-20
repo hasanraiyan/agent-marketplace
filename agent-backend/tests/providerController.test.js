@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 
 // Mock the service layer
-jest.unstable_mockModule('../src/services/provider.service.js', () => ({
+jest.unstable_mockModule('../src/modules/providers/provider.service.js', () => ({
   default: {
     getUserProviders: jest.fn(),
     createProvider: jest.fn(),
@@ -12,7 +12,7 @@ jest.unstable_mockModule('../src/services/provider.service.js', () => ({
 }));
 
 // Mock the validator to pass validation automatically for controller testing
-jest.unstable_mockModule('../src/validators/provider.validator.js', () => ({
+jest.unstable_mockModule('../src/modules/providers/provider.validator.js', () => ({
   createProviderSchema: {
     parse: jest.fn().mockImplementation((data) => data),
   },
@@ -24,8 +24,9 @@ jest.unstable_mockModule('../src/validators/provider.validator.js', () => ({
   },
 }));
 
-const providerService = (await import('../src/services/provider.service.js')).default;
-const providerController = (await import('../src/controllers/provider.controller.js')).default;
+const providerService = (await import('../src/modules/providers/provider.service.js')).default;
+const providerController = (await import('../src/modules/providers/provider.controller.js'))
+  .default;
 
 describe('Provider Controller', () => {
   let mockReq;

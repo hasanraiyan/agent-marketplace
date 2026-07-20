@@ -54,7 +54,7 @@ jest.unstable_mockModule('../src/modules/skills/skill.model.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/models/Provider.js', () => ({
+jest.unstable_mockModule('../src/modules/providers/provider.model.js', () => ({
   default: {
     deleteMany: mockProviderDeleteMany,
   },

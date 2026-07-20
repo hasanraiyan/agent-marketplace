@@ -4,7 +4,7 @@ import path from 'path';
 import healthRouter from './modules/health/health.routes.js';
 import profileRouter from './routes/profile.routes.js';
 import adminRouter from './routes/admin.routes.js';
-import providerRouter from './routes/provider.routes.js';
+import providerRouter from './modules/providers/provider.routes.js';
 import agentRouter from './routes/agent.routes.js';
 import threadRouter from './routes/thread.routes.js'; // Added
 import skillRouter from './modules/skills/skill.routes.js';
