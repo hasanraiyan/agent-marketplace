@@ -1,5 +1,5 @@
 import { BaseStore } from '@langchain/langgraph';
-import Skill from '../models/Skill.js';
+import Skill from '../modules/skills/skill.model.js';
 import { buildSkillFiles, slugifySkillName } from './skillMarkdown.js';
 import { SKILL_LIMITS, normalizeSkillFilePath, mimeTypeForSkillPath } from './skillValidation.js';
 

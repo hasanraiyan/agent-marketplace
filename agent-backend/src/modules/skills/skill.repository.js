@@ -1,5 +1,5 @@
-import Skill from '../models/Skill.js';
-import NotFoundError from '../utils/errors/NotFoundError.js';
+import Skill from './skill.model.js';
+import NotFoundError from '../../utils/errors/NotFoundError.js';
 
 class SkillRepository {
   async create(skillData) {

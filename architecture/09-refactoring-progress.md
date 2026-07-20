@@ -12,7 +12,7 @@ This document contains a highly granular, step-by-step checklist for the refacto
   - **Step 2: Health Module**: [x] Completed
   - **Step 3: Upload Module**: [x] Completed
   - **Step 4: Clerk Webhook**: [x] Completed
-  - **Step 5: Skills Module**: [ ] Pending
+  - **Step 5: Skills Module**: [x] Completed
   - **Step 6: Providers Module**: [ ] Pending
   - **Step 7: Users & Profile Module**: [ ] Pending
   - **Step 8: Threads & Checkpoints**: [ ] Pending
@@ -68,20 +68,20 @@ This document contains a highly granular, step-by-step checklist for the refacto
   - [x] Update route mount in `src/index.js`.
   - [x] Run `pnpm test`.
 
-### [ ] Step 5: Skills Module Refactor
+### [x] Step 5: Skills Module Refactor
 * **Objective**: Move skills to `src/modules/skills/` and resolve cross-domain database coupling.
 * **Tasks**:
-  - [ ] Move `src/routes/skill.routes.js` to `src/modules/skills/skill.routes.js`.
-  - [ ] Move `src/controllers/skill.controller.js` to `src/modules/skills/skill.controller.js`.
-  - [ ] Move `src/services/skill.service.js` to `src/modules/skills/skill.service.js`.
-  - [ ] Move `src/repositories/skillRepository.js` to `src/modules/skills/skill.repository.js`.
-  - [ ] Move `src/models/Skill.js` to `src/modules/skills/skill.model.js`.
-  - [ ] Move `src/validators/skill.validator.js` to `src/modules/skills/skill.validator.js`.
-  - [ ] Add `removeSkillFromAgents` and `findAgentsUsingSkill` to `agentRepository`.
-  - [ ] In `skill.service.js`, remove the direct import of `Agent` model and call the new repository methods.
-  - [ ] Update all relative imports inside these files.
-  - [ ] Update `src/index.js` route mount.
-  - [ ] Run `pnpm test`.
+  - [x] Move `src/routes/skill.routes.js` to `src/modules/skills/skill.routes.js`.
+  - [x] Move `src/controllers/skill.controller.js` to `src/modules/skills/skill.controller.js`.
+  - [x] Move `src/services/skill.service.js` to `src/modules/skills/skill.service.js`.
+  - [x] Move `src/repositories/skillRepository.js` to `src/modules/skills/skill.repository.js`.
+  - [x] Move `src/models/Skill.js` to `src/modules/skills/skill.model.js`.
+  - [x] Move `src/validators/skill.validator.js` to `src/modules/skills/skill.validator.js`.
+  - [x] Add `removeSkillFromAgents` and `findAgentsUsingSkill` to `agentRepository`.
+  - [x] In `skill.service.js`, remove the direct import of `Agent` model and call the new repository methods.
+  - [x] Update all relative imports inside these files.
+  - [x] Update `src/index.js` route mount.
+  - [x] Run `pnpm test`.
 
 ### [ ] Step 6: Providers Module Refactor
 * **Objective**: Move provider files to `src/modules/providers/` and resolve agent model coupling.
@@ -277,6 +277,47 @@ This document contains a highly granular, step-by-step checklist for the refacto
   * `src/modules/webhooks/webhook.service.js` (created)
   * `src/index.js`
   * `src/routes/webhook.routes.js` (deleted)
+* **Verification performed**:
+  * Executed Jest test suite (`pnpm test`) pre-deletion and post-deletion of original files.
+* **Pass/Fail status**:
+  * Pass (588/588 tests passed successfully on all runs).
+* **Issues discovered**:
+  * None.
+
+#### Step 5: Skills Module Refactor
+* **What was changed**:
+  * Created `skill.model.js`, `skill.validator.js`, `skill.repository.js`, `skill.service.js`, `skill.controller.js`, and `skill.routes.js` under `src/modules/skills/`.
+  * Added `findAgentsUsingSkill` and `removeSkillFromAgents` to `agentRepository` to decouple database queries from the services.
+  * In `skill.service.js`, replaced all direct imports and queries to the `Agent` model with calls to `agentRepository` (resolving cross-domain db queries, Finding 2.1).
+  * Updated imports in `src/index.js`, `src/controllers/profile.controller.js`, `src/cron/deleteInactiveUsers.js`, `src/utils/skillLibraryStore.js`, `scripts/migrate-skill-snippets-to-files.js`, and `src/tools/builder.tools.js`.
+  * Updated imports and mock definitions in test files (`tests/cascadingDeletes.test.js`, `tests/cronDeleteInactiveUsers.test.js`, `tests/skillLibrary.test.js`, and `tests/architect_improvement.test.js`).
+  * Deleted all old deprecated skill files in technical layers.
+* **Why it was changed**:
+  * Unified the Skills domain within `src/modules/skills/` and successfully encapsulated model access inside their respective repositories to enforce clean architectural boundaries.
+* **Files affected**:
+  * `src/modules/skills/skill.model.js` (created)
+  * `src/modules/skills/skill.validator.js` (created)
+  * `src/modules/skills/skill.repository.js` (created)
+  * `src/modules/skills/skill.service.js` (created)
+  * `src/modules/skills/skill.controller.js` (created)
+  * `src/modules/skills/skill.routes.js` (created)
+  * `src/repositories/agentRepository.js`
+  * `src/index.js`
+  * `src/controllers/profile.controller.js`
+  * `src/cron/deleteInactiveUsers.js`
+  * `src/utils/skillLibraryStore.js`
+  * `scripts/migrate-skill-snippets-to-files.js`
+  * `src/tools/builder.tools.js`
+  * `tests/cascadingDeletes.test.js`
+  * `tests/cronDeleteInactiveUsers.test.js`
+  * `tests/skillLibrary.test.js`
+  * `tests/architect_improvement.test.js`
+  * `src/routes/skill.routes.js` (deleted)
+  * `src/controllers/skill.controller.js` (deleted)
+  * `src/services/skill.service.js` (deleted)
+  * `src/repositories/skillRepository.js` (deleted)
+  * `src/models/Skill.js` (deleted)
+  * `src/validators/skill.validator.js` (deleted)
 * **Verification performed**:
   * Executed Jest test suite (`pnpm test`) pre-deletion and post-deletion of original files.
 * **Pass/Fail status**:

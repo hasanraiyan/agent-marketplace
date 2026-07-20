@@ -1,5 +1,5 @@
-import skillService from '../services/skill.service.js';
-import NotFoundError from '../utils/errors/NotFoundError.js';
+import skillService from './skill.service.js';
+import NotFoundError from '../../utils/errors/NotFoundError.js';
 
 class SkillController {
   async create(req, res, next) {

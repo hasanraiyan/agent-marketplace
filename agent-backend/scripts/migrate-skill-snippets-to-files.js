@@ -9,7 +9,7 @@
  */
 import 'dotenv/config';
 import mongoose from 'mongoose';
-import Skill from '../src/models/Skill.js';
+import Skill from '../src/modules/skills/skill.model.js';
 import { normalizeSkillFilePath, mimeTypeForSkillPath } from '../src/utils/skillValidation.js';
 
 const mongoURI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/agent-marketplace';

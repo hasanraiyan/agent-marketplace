@@ -1,6 +1,6 @@
-import skillRepository from '../repositories/skillRepository.js';
-import Agent from '../models/Agent.js';
-import agentFactory from '../factories/agentFactory.js';
+import skillRepository from './skill.repository.js';
+import agentRepository from '../../repositories/agentRepository.js';
+import agentFactory from '../../factories/agentFactory.js';
 
 class SkillService {
   /**
@@ -62,7 +62,7 @@ class SkillService {
     const skill = await skillRepository.update(id, userId, updateData);
 
     // Invalidate factory cache for all agents using this skill
-    const agents = await Agent.find({ skills: id }, '_id');
+    const agents = await agentRepository.findAgentsUsingSkill(id, '_id');
     for (const agent of agents) {
       agentFactory.invalidate(agent._id);
     }
@@ -81,10 +81,10 @@ class SkillService {
       throw new Error('Unauthorized to delete this skill');
     }
 
-    const agents = await Agent.find({ skills: id }, '_id');
+    const agents = await agentRepository.findAgentsUsingSkill(id, '_id');
 
     // 2. Remove skill from all agents
-    await Agent.updateMany({ skills: id }, { $pull: { skills: id } });
+    await agentRepository.removeSkillFromAgents(id);
 
     // 3. Invalidate factory cache for each affected agent
     for (const agent of agents) {
@@ -99,7 +99,7 @@ class SkillService {
    * Fetches all agents that use a specific skill
    */
   async getAgentsBySkill(id) {
-    return await Agent.find({ skills: id }).select('name slug avatar visibility');
+    return await agentRepository.findAgentsUsingSkill(id, 'name slug avatar visibility');
   }
 }
 

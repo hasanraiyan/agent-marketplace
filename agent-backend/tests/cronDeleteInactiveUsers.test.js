@@ -48,7 +48,7 @@ jest.unstable_mockModule('../src/models/Agent.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/models/Skill.js', () => ({
+jest.unstable_mockModule('../src/modules/skills/skill.model.js', () => ({
   default: {
     deleteMany: mockSkillDeleteMany,
   },

@@ -7,7 +7,7 @@ import encryption from '../src/utils/encryption.js';
 // Mock dependencies
 jest.mock('../src/repositories/providerRepository.js');
 jest.mock('../src/repositories/agentRepository.js');
-jest.mock('../src/repositories/skillRepository.js');
+jest.mock('../src/modules/skills/skill.repository.js');
 jest.mock('../src/utils/encryption.js');
 
 describe('Architect Improvements', () => {

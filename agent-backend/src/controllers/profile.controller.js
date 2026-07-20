@@ -3,7 +3,7 @@ import { successFormatter } from '../utils/formatters/index.js';
 import { loggerService } from '../utils/index.js';
 import BaseError from '../utils/errors/BaseError.js';
 import Agent from '../models/Agent.js';
-import Skill from '../models/Skill.js';
+import Skill from '../modules/skills/skill.model.js';
 import Provider from '../models/Provider.js';
 import Mcp from '../models/Mcp.js';
 import McpUserConnection from '../models/McpUserConnection.js';

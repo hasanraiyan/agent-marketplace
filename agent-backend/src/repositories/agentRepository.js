@@ -79,6 +79,18 @@ class AgentRepository {
   async count(filters) {
     return await Agent.countDocuments(filters);
   }
+
+  async findAgentsUsingSkill(skillId, projection = null) {
+    let query = Agent.find({ skills: skillId });
+    if (projection) {
+      query = query.select(projection);
+    }
+    return await query;
+  }
+
+  async removeSkillFromAgents(skillId) {
+    return await Agent.updateMany({ skills: skillId }, { $pull: { skills: skillId } });
+  }
 }
 
 export default new AgentRepository();

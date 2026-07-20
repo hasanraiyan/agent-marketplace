@@ -7,7 +7,7 @@ import adminRouter from './routes/admin.routes.js';
 import providerRouter from './routes/provider.routes.js';
 import agentRouter from './routes/agent.routes.js';
 import threadRouter from './routes/thread.routes.js'; // Added
-import skillRouter from './routes/skill.routes.js';
+import skillRouter from './modules/skills/skill.routes.js';
 import mcpRouter from './routes/mcp.routes.js';
 import aguiRouter from './routes/agui.routes.js';
 import webhookRouter from './modules/webhooks/webhook.routes.js';

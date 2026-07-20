@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 
-jest.unstable_mockModule('../src/models/Skill.js', () => ({
+jest.unstable_mockModule('../src/modules/skills/skill.model.js', () => ({
   default: {
     find: jest.fn(),
     findOne: jest.fn(),
@@ -8,7 +8,7 @@ jest.unstable_mockModule('../src/models/Skill.js', () => ({
   },
 }));
 
-const Skill = (await import('../src/models/Skill.js')).default;
+const Skill = (await import('../src/modules/skills/skill.model.js')).default;
 const { SKILL_LIMITS, normalizeSkillFilePath, mimeTypeForSkillPath, validateSkillFiles } =
   await import('../src/utils/skillValidation.js');
 const { parseSkillLibraryKey, parseSkillMdContent, SkillLibraryStore, skillLibraryNamespace } =

@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import authMiddleware from '../modules/auth/auth.middleware.js';
-import rateLimiter, { RATE_LIMITS } from '../middlewares/rateLimiter.middleware.js';
-import { validateBody } from '../middlewares/validationMiddleware.js';
-import { createSkillSchema, updateSkillSchema } from '../validators/skill.validator.js';
-import skillController from '../controllers/skill.controller.js';
+import authMiddleware from '../auth/auth.middleware.js';
+import rateLimiter, { RATE_LIMITS } from '../../middlewares/rateLimiter.middleware.js';
+import { validateBody } from '../../middlewares/validationMiddleware.js';
+import { createSkillSchema, updateSkillSchema } from './skill.validator.js';
+import skillController from './skill.controller.js';
 
 const router = Router();
 const mutateLimiter = rateLimiter('MUTATE', RATE_LIMITS.MUTATE);
