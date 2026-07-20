@@ -19,14 +19,14 @@ jest.unstable_mockModule('../src/modules/mcp/mcp-user-connection.repository.js',
   },
 }));
 
-jest.unstable_mockModule('../src/repositories/agentRepository.js', () => ({
+jest.unstable_mockModule('../src/modules/agents/agent.repository.js', () => ({
   default: {
     findAgentsUsingMcp: jest.fn(),
     removeMcpFromAgents: jest.fn(),
   },
 }));
 
-jest.unstable_mockModule('../src/factories/agentFactory.js', () => ({
+jest.unstable_mockModule('../src/modules/agents/agent.factory.js', () => ({
   default: {
     invalidate: jest.fn(),
   },
@@ -73,8 +73,8 @@ const mcpRepository = (await import('../src/modules/mcp/mcp.repository.js')).def
 const mcpUserConnectionRepository = (
   await import('../src/modules/mcp/mcp-user-connection.repository.js')
 ).default;
-const agentRepository = (await import('../src/repositories/agentRepository.js')).default;
-const agentFactory = (await import('../src/factories/agentFactory.js')).default;
+const agentRepository = (await import('../src/modules/agents/agent.repository.js')).default;
+const agentFactory = (await import('../src/modules/agents/agent.factory.js')).default;
 const encryption = (await import('../src/utils/encryption.js')).default;
 const mcpTokenService = (await import('../src/modules/mcp/mcp-token.service.js')).default;
 const { signOAuthState, verifyOAuthState } = await import('../src/modules/mcp/oauth-state.js');

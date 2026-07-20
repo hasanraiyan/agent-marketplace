@@ -1,5 +1,5 @@
 import User from '../modules/users/user.model.js';
-import Agent from '../models/Agent.js';
+import Agent from '../modules/agents/agent.model.js';
 import Skill from '../modules/skills/skill.model.js';
 import Provider from '../modules/providers/provider.model.js';
 import Mcp from '../modules/mcp/mcp.model.js';

@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
-import agentRepository from '../src/repositories/agentRepository.js';
-import Agent from '../src/models/Agent.js';
+import agentRepository from '../src/modules/agents/agent.repository.js';
+import Agent from '../src/modules/agents/agent.model.js';
 
 describe('Agent Repository', () => {
   let mockAgent;

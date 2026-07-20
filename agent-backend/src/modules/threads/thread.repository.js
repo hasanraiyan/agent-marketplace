@@ -1,5 +1,5 @@
 import Conversation from './thread.model.js';
-import Agent from '../../models/Agent.js';
+import Agent from '../agents/agent.model.js';
 
 function idLooksLikeObjectId(id) {
   if (id == null) return false;

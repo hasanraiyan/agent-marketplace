@@ -1,5 +1,5 @@
 import { BaseStore } from '@langchain/langgraph';
-import MemoryFile from '../models/MemoryFile.js';
+import MemoryFile from './memory-file.model.js';
 
 /**
  * BaseStore over the `memoryfiles` collection: one document per virtual memory

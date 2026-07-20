@@ -1,12 +1,12 @@
 import { jest } from '@jest/globals';
 import { ARCHITECT_AGENT_ID } from '../src/tools/index.js';
-import agentFactory, { agentSkillsStore } from '../src/factories/agentFactory.js';
+import agentFactory, { agentSkillsStore } from '../src/modules/agents/agent.factory.js';
 import providerRepository from '../src/modules/providers/provider.repository.js';
 import encryption from '../src/utils/encryption.js';
 
 // Mock dependencies
 jest.mock('../src/modules/providers/provider.repository.js');
-jest.mock('../src/repositories/agentRepository.js');
+jest.mock('../src/modules/agents/agent.repository.js');
 jest.mock('../src/modules/skills/skill.repository.js');
 jest.mock('../src/utils/encryption.js');
 

@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 
-jest.unstable_mockModule('../src/services/agent.service.js', () => ({
+jest.unstable_mockModule('../src/modules/agents/agent.service.js', () => ({
   default: {
     createAgent: jest.fn(),
     getAgentById: jest.fn(),
@@ -12,7 +12,7 @@ jest.unstable_mockModule('../src/services/agent.service.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/validators/agent.validator.js', () => ({
+jest.unstable_mockModule('../src/modules/agents/agent.validator.js', () => ({
   createAgentSchema: { parse: jest.fn().mockImplementation((data) => data) },
   updateAgentSchema: { parse: jest.fn().mockImplementation((data) => data) },
   searchAgentSchema: {
@@ -23,8 +23,8 @@ jest.unstable_mockModule('../src/validators/agent.validator.js', () => ({
   countAgentSchema: { parse: jest.fn().mockImplementation((data) => data) },
 }));
 
-const agentService = (await import('../src/services/agent.service.js')).default;
-const agentController = (await import('../src/controllers/agent.controller.js')).default;
+const agentService = (await import('../src/modules/agents/agent.service.js')).default;
+const agentController = (await import('../src/modules/agents/agent.controller.js')).default;
 
 describe('Agent Controller', () => {
   let mockReq;
@@ -48,8 +48,8 @@ describe('Agent Controller', () => {
     mockNext = jest.fn();
   });
 
-  test('search converts validator output into filters and pagination', async () => {
-    mockReq.body = { category: 'coding' };
+  test('search passes body fields as filters and pagination', async () => {
+    mockReq.body = { category: 'coding', page: 1, limit: 10, sortBy: 'newest' };
     agentService.searchAgents.mockResolvedValue(['mock1']);
 
     await agentController.search(mockReq, mockRes, mockNext);

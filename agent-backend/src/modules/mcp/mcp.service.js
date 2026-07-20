@@ -1,8 +1,8 @@
 import { MultiServerMCPClient } from '@langchain/mcp-adapters';
 import mcpRepository from './mcp.repository.js';
 import mcpUserConnectionRepository from './mcp-user-connection.repository.js';
-import agentRepository from '../../repositories/agentRepository.js';
-import agentFactory from '../../factories/agentFactory.js';
+import agentRepository from '../agents/agent.repository.js';
+import agentFactory from '../agents/agent.factory.js';
 import encryption from '../../utils/encryption.js';
 import mcpTokenService from './mcp-token.service.js';
 import { signOAuthState, verifyOAuthState } from './oauth-state.js';

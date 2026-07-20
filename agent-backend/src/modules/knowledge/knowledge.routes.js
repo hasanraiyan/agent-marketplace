@@ -1,14 +1,14 @@
 import express from 'express';
 import multer from 'multer';
-import authMiddleware from '../modules/auth/auth.middleware.js';
-import { validateBody } from '../middlewares/validationMiddleware.js';
+import authMiddleware from '../auth/auth.middleware.js';
+import { validateBody } from '../../middlewares/validationMiddleware.js';
 import {
   createKnowledgeBaseSchema,
   updateKnowledgeBaseSchema,
   searchKnowledgeBaseSchema,
-} from '../validators/knowledge.validator.js';
-import knowledgeController from '../controllers/knowledge.controller.js';
-import BaseError from '../utils/errors/BaseError.js';
+} from './knowledge.validator.js';
+import knowledgeController from './knowledge.controller.js';
+import BaseError from '../../utils/errors/BaseError.js';
 
 const router = express.Router();
 

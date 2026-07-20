@@ -1,6 +1,6 @@
 import skillRepository from './skill.repository.js';
-import agentRepository from '../../repositories/agentRepository.js';
-import agentFactory from '../../factories/agentFactory.js';
+import agentRepository from '../agents/agent.repository.js';
+import agentFactory from '../agents/agent.factory.js';
 
 class SkillService {
   /**

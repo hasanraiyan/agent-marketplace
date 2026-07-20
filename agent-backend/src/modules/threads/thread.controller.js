@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import threadRepository from './thread.repository.js';
-import agentRepository from '../../repositories/agentRepository.js';
+import agentRepository from '../agents/agent.repository.js';
 import checkpointService from './checkpoint.service.js';
 import { createThreadSchema, updateThreadTitleSchema } from './thread.validator.js';
 

@@ -1,6 +1,6 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
-import agentService from '../services/agent.service.js';
+import agentService from '../modules/agents/agent.service.js';
 import skillService from '../modules/skills/skill.service.js';
 import providerRepository from '../modules/providers/provider.repository.js';
 

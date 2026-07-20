@@ -17,7 +17,7 @@ jest.unstable_mockModule('../src/config/index.js', () => ({
 }));
 
 // Mock repositories
-jest.unstable_mockModule('../src/repositories/knowledgeRepository.js', () => ({
+jest.unstable_mockModule('../src/modules/knowledge/knowledge.repository.js', () => ({
   default: {
     createKb: jest.fn(),
     findKbById: jest.fn(),
@@ -90,7 +90,7 @@ jest.unstable_mockModule('@qdrant/js-client-rest', () => ({
 }));
 
 const config = (await import('../src/config/index.js')).default;
-const knowledgeRepository = (await import('../src/repositories/knowledgeRepository.js')).default;
+const knowledgeRepository = (await import('../src/modules/knowledge/knowledge.repository.js')).default;
 const providerRepository = (await import('../src/modules/providers/provider.repository.js'))
   .default;
 const encryption = (await import('../src/utils/encryption.js')).default;
@@ -99,7 +99,7 @@ const { OpenAIEmbeddings } = await import('@langchain/openai');
 const { QdrantVectorStore } = await import('@langchain/qdrant');
 const { QdrantClient } = await import('@qdrant/js-client-rest');
 
-const { default: knowledgeService } = await import('../src/services/knowledge.service.js');
+const { default: knowledgeService } = await import('../src/modules/knowledge/knowledge.service.js');
 
 describe('Knowledge Service', () => {
   const mockUserId = '507f1f77bcf86cd799439011';

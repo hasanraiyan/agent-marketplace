@@ -10,7 +10,7 @@ jest.unstable_mockModule('../src/modules/threads/thread.repository.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/factories/agentFactory.js', () => ({
+jest.unstable_mockModule('../src/modules/agents/agent.factory.js', () => ({
   default: {
     buildAgent: jest.fn(),
   },
@@ -45,7 +45,7 @@ jest.unstable_mockModule('../src/modules/auth/auth.middleware.js', () => ({
   },
 }));
 
-const agentFactory = (await import('../src/factories/agentFactory.js')).default;
+const agentFactory = (await import('../src/modules/agents/agent.factory.js')).default;
 const threadRepository = (await import('../src/modules/threads/thread.repository.js')).default;
 const aguiRouterModule = await import('../src/routes/agui.routes.js');
 const aguiRouter = aguiRouterModule.default;

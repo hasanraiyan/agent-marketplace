@@ -5,15 +5,15 @@ import healthRouter from './modules/health/health.routes.js';
 import profileRouter from './modules/users/profile.routes.js';
 import adminRouter from './modules/users/admin.routes.js';
 import providerRouter from './modules/providers/provider.routes.js';
-import agentRouter from './routes/agent.routes.js';
+import agentRouter from './modules/agents/agent.routes.js';
 import threadRouter from './modules/threads/thread.routes.js'; // Added
 import skillRouter from './modules/skills/skill.routes.js';
 import mcpRouter from './modules/mcp/mcp.routes.js';
 import aguiRouter from './routes/agui.routes.js';
 import webhookRouter from './modules/webhooks/webhook.routes.js';
 import uploadRouter from './modules/upload/upload.routes.js';
-import knowledgeRouter from './routes/knowledge.routes.js';
-import memoryRouter from './routes/memory.routes.js';
+import knowledgeRouter from './modules/knowledge/knowledge.routes.js';
+import memoryRouter from './modules/agents/memory.routes.js';
 import errorHandler from './middlewares/errorHandler.js';
 import swaggerUi from 'swagger-ui-express';
 import openapiSpec from './docs/openapi.js';

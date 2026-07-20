@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import authMiddleware from '../modules/auth/auth.middleware.js';
-import rateLimiter, { RATE_LIMITS } from '../middlewares/rateLimiter.middleware.js';
-import memoryController from '../controllers/memory.controller.js';
+import authMiddleware from '../auth/auth.middleware.js';
+import rateLimiter, { RATE_LIMITS } from '../../middlewares/rateLimiter.middleware.js';
+import memoryController from './memory.controller.js';
 
 const router = Router();
 const mutateLimiter = rateLimiter('MUTATE', RATE_LIMITS.MUTATE);

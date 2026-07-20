@@ -12,14 +12,14 @@ jest.unstable_mockModule('../src/modules/providers/provider.repository.js', () =
   },
 }));
 
-jest.unstable_mockModule('../src/repositories/agentRepository.js', () => ({
+jest.unstable_mockModule('../src/modules/agents/agent.repository.js', () => ({
   default: {
     count: jest.fn(),
     findAgentsUsingProvider: jest.fn(),
   },
 }));
 
-jest.unstable_mockModule('../src/factories/agentFactory.js', () => ({
+jest.unstable_mockModule('../src/modules/agents/agent.factory.js', () => ({
   default: {
     invalidate: jest.fn(),
   },
@@ -35,8 +35,8 @@ jest.unstable_mockModule('../src/utils/encryption.js', () => ({
 
 const providerRepository = (await import('../src/modules/providers/provider.repository.js'))
   .default;
-const agentRepository = (await import('../src/repositories/agentRepository.js')).default;
-const agentFactory = (await import('../src/factories/agentFactory.js')).default;
+const agentRepository = (await import('../src/modules/agents/agent.repository.js')).default;
+const agentFactory = (await import('../src/modules/agents/agent.factory.js')).default;
 const encryption = (await import('../src/utils/encryption.js')).default;
 const { ARCHITECT_AGENT_ID } = await import('../src/tools/index.js');
 const providerService = (await import('../src/modules/providers/provider.service.js')).default;

@@ -42,7 +42,7 @@ jest.unstable_mockModule('../src/modules/users/user.model.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/models/Agent.js', () => ({
+jest.unstable_mockModule('../src/modules/agents/agent.model.js', () => ({
   default: {
     deleteMany: mockAgentDeleteMany,
   },

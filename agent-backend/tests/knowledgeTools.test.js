@@ -1,21 +1,21 @@
 import { jest } from '@jest/globals';
 
 // Mock repositories and services
-jest.unstable_mockModule('../src/repositories/knowledgeRepository.js', () => ({
+jest.unstable_mockModule('../src/modules/knowledge/knowledge.repository.js', () => ({
   default: {
     findKbsByIds: jest.fn(),
   },
 }));
 
-jest.unstable_mockModule('../src/services/knowledge.service.js', () => ({
+jest.unstable_mockModule('../src/modules/knowledge/knowledge.service.js', () => ({
   default: {
     searchKnowledgeBase: jest.fn(),
     listDocumentSources: jest.fn(),
   },
 }));
 
-const knowledgeRepository = (await import('../src/repositories/knowledgeRepository.js')).default;
-const knowledgeService = (await import('../src/services/knowledge.service.js')).default;
+const knowledgeRepository = (await import('../src/modules/knowledge/knowledge.repository.js')).default;
+const knowledgeService = (await import('../src/modules/knowledge/knowledge.service.js')).default;
 const { resolveKnowledgeBaseTools } = await import('../src/tools/knowledge.tools.js');
 
 describe('resolveKnowledgeBaseTools', () => {

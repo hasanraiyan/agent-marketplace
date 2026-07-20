@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { BaseStore } from '@langchain/langgraph';
-import Agent from '../models/Agent.js';
+import Agent from '../modules/agents/agent.model.js';
 import { buildSkillFiles } from './skillMarkdown.js';
 import loggerService from './logger/index.js';
 

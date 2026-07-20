@@ -1,22 +1,15 @@
-import agentService from '../services/agent.service.js';
-import agentFactory from '../factories/agentFactory.js';
-import MemoryFile from '../models/MemoryFile.js';
-import { normalizeMemoryKey, agentMemoryNamespace } from '../utils/memoryFilesStore.js';
-import { loggerService } from '../utils/index.js';
-import {
-  createAgentSchema,
-  updateAgentSchema,
-  searchAgentSchema,
-  countAgentSchema,
-} from '../validators/agent.validator.js';
+import agentService from './agent.service.js';
+import agentFactory from './agent.factory.js';
+import MemoryFile from './memory-file.model.js';
+import { normalizeMemoryKey, agentMemoryNamespace } from './memory-files-store.js';
+import { loggerService } from '../../utils/index.js';
 
 const logger = loggerService.getLogger();
 
 class AgentController {
   async create(req, res, next) {
     try {
-      const validatedData = createAgentSchema.parse(req.body);
-      const agent = await agentService.createAgent(req.user.id, validatedData);
+      const agent = await agentService.createAgent(req.user.id, req.body);
 
       res.status(201).json({
         success: true,
@@ -67,8 +60,7 @@ class AgentController {
 
   async update(req, res, next) {
     try {
-      const validatedData = updateAgentSchema.parse(req.body);
-      const agent = await agentService.updateAgent(req.params.id, req.user.id, validatedData);
+      const agent = await agentService.updateAgent(req.params.id, req.user.id, req.body);
 
       // Clear factory cache so new config picked up immediately
       agentFactory.invalidate(req.params.id);
@@ -100,7 +92,7 @@ class AgentController {
 
   async search(req, res, next) {
     try {
-      const { page, limit, sortBy, ...filters } = searchAgentSchema.parse(req.body);
+      const { page, limit, sortBy, ...filters } = req.body;
       const userId = req.user ? req.user.id : null;
 
       const agents = await agentService.searchAgents(filters, { page, limit, sortBy }, userId);
@@ -122,7 +114,7 @@ class AgentController {
 
   async count(req, res, next) {
     try {
-      const filters = countAgentSchema.parse(req.body);
+      const filters = req.body;
       const userId = req.user ? req.user.id : null;
 
       const total = await agentService.countAgents(filters, userId);

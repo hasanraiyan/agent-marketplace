@@ -7,7 +7,7 @@ import authMiddleware from '../modules/auth/auth.middleware.js';
 import rateLimiter, { RATE_LIMITS } from '../middlewares/rateLimiter.middleware.js';
 import rateLimiterService from '../services/rateLimiter.service.js';
 import RateLimitError from '../utils/errors/RateLimitError.js';
-import agentFactory from '../factories/agentFactory.js';
+import agentFactory from '../modules/agents/agent.factory.js';
 import threadRepository from '../modules/threads/thread.repository.js';
 import checkpointService from '../modules/threads/checkpoint.service.js';
 import { loggerService } from '../utils/index.js';

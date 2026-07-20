@@ -2,7 +2,7 @@ import {
   createKnowledgeBaseSchema,
   updateKnowledgeBaseSchema,
   searchKnowledgeBaseSchema,
-} from '../src/validators/knowledge.validator.js';
+} from '../src/modules/knowledge/knowledge.validator.js';
 
 describe('Knowledge Validator', () => {
   describe('createKnowledgeBaseSchema', () => {

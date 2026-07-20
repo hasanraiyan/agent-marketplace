@@ -1,13 +1,13 @@
-import Agent from '../models/Agent.js';
-import MemoryFile from '../models/MemoryFile.js';
-import checkpointService from '../modules/threads/checkpoint.service.js';
-import userRepository from '../modules/users/user.repository.js';
+import Agent from './agent.model.js';
+import MemoryFile from './memory-file.model.js';
+import checkpointService from '../threads/checkpoint.service.js';
+import userRepository from '../users/user.repository.js';
 import {
   normalizeMemoryKey,
   userMemoryNamespace,
   agentMemoryNamespace,
-} from '../utils/memoryFilesStore.js';
-import { loggerService } from '../utils/index.js';
+} from './memory-files-store.js';
+import { loggerService } from '../../utils/index.js';
 
 const logger = loggerService.getLogger();
 

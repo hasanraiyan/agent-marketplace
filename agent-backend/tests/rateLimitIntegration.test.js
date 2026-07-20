@@ -16,7 +16,7 @@ const mockCheckpointService = {
 
 // We need to mock the rateLimiterService because it's a singleton
 // and we want to control its state across tests.
-jest.unstable_mockModule('../src/factories/agentFactory.js', () => ({
+jest.unstable_mockModule('../src/modules/agents/agent.factory.js', () => ({
   default: mockAgentFactory,
 }));
 jest.unstable_mockModule('../src/modules/threads/thread.repository.js', () => ({

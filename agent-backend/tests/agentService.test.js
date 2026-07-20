@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 
-jest.unstable_mockModule('../src/repositories/agentRepository.js', () => ({
+jest.unstable_mockModule('../src/modules/agents/agent.repository.js', () => ({
   default: {
     create: jest.fn(),
     findById: jest.fn(),
@@ -19,9 +19,9 @@ jest.unstable_mockModule('../src/modules/users/user.model.js', () => ({
   },
 }));
 
-const agentRepository = (await import('../src/repositories/agentRepository.js')).default;
+const agentRepository = (await import('../src/modules/agents/agent.repository.js')).default;
 const User = (await import('../src/modules/users/user.model.js')).default;
-const agentService = (await import('../src/services/agent.service.js')).default;
+const agentService = (await import('../src/modules/agents/agent.service.js')).default;
 
 describe('Agent Service', () => {
   let mockAgent;

@@ -14,8 +14,8 @@
 import 'dotenv/config';
 import mongoose from 'mongoose';
 import User from '../src/modules/users/user.model.js';
-import Agent from '../src/models/Agent.js';
-import MemoryFile from '../src/models/MemoryFile.js';
+import Agent from '../src/modules/agents/agent.model.js';
+import MemoryFile from '../src/modules/agents/memory-file.model.js';
 
 const mongoURI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/agent-marketplace';
 

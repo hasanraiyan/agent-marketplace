@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 
 // Mock the service layer
-jest.unstable_mockModule('../src/services/knowledge.service.js', () => ({
+jest.unstable_mockModule('../src/modules/knowledge/knowledge.service.js', () => ({
   default: {
     createKnowledgeBase: jest.fn(),
     listKnowledgeBases: jest.fn(),
@@ -15,8 +15,8 @@ jest.unstable_mockModule('../src/services/knowledge.service.js', () => ({
   },
 }));
 
-const knowledgeService = (await import('../src/services/knowledge.service.js')).default;
-const knowledgeController = (await import('../src/controllers/knowledge.controller.js')).default;
+const knowledgeService = (await import('../src/modules/knowledge/knowledge.service.js')).default;
+const knowledgeController = (await import('../src/modules/knowledge/knowledge.controller.js')).default;
 
 describe('Knowledge Controller', () => {
   let mockReq;

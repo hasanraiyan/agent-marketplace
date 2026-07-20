@@ -1,4 +1,4 @@
-import { searchAgentSchema, createAgentSchema } from '../src/validators/agent.validator.js';
+import { searchAgentSchema, createAgentSchema } from '../src/modules/agents/agent.validator.js';
 
 describe('Agent Validator', () => {
   describe('createAgentSchema', () => {

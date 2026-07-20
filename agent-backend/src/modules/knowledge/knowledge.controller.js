@@ -1,5 +1,5 @@
-import knowledgeService from '../services/knowledge.service.js';
-import { loggerService } from '../utils/index.js';
+import knowledgeService from './knowledge.service.js';
+import { loggerService } from '../../utils/index.js';
 
 const logger = loggerService.getLogger();
 

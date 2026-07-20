@@ -17,7 +17,7 @@ jest.unstable_mockModule('../src/modules/threads/thread.repository.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/repositories/agentRepository.js', () => ({
+jest.unstable_mockModule('../src/modules/agents/agent.repository.js', () => ({
   default: {
     findById: jest.fn(),
   },
@@ -31,7 +31,7 @@ jest.unstable_mockModule('../src/modules/threads/thread.validator.js', () => ({
 
 const threadController = (await import('../src/modules/threads/thread.controller.js')).default;
 const threadRepository = (await import('../src/modules/threads/thread.repository.js')).default;
-const agentRepository = (await import('../src/repositories/agentRepository.js')).default;
+const agentRepository = (await import('../src/modules/agents/agent.repository.js')).default;
 const checkpointService = (await import('../src/modules/threads/checkpoint.service.js')).default;
 
 describe('Thread Controller', () => {

@@ -1,15 +1,15 @@
 import express from 'express';
-import agentController from '../controllers/agent.controller.js';
-import authMiddleware from '../modules/auth/auth.middleware.js';
-import rateLimiter, { RATE_LIMITS } from '../middlewares/rateLimiter.middleware.js';
-import optionalAuthMiddleware from '../modules/auth/optional-auth.middleware.js';
-import { validateBody } from '../middlewares/validationMiddleware.js';
+import agentController from './agent.controller.js';
+import authMiddleware from '../auth/auth.middleware.js';
+import rateLimiter, { RATE_LIMITS } from '../../middlewares/rateLimiter.middleware.js';
+import optionalAuthMiddleware from '../auth/optional-auth.middleware.js';
+import { validateBody } from '../../middlewares/validationMiddleware.js';
 import {
   createAgentSchema,
   updateAgentSchema,
   searchAgentSchema,
   countAgentSchema,
-} from '../validators/agent.validator.js';
+} from './agent.validator.js';
 
 const router = express.Router();
 

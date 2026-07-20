@@ -5,27 +5,27 @@ import {
   StoreBackend,
   DEFAULT_GENERAL_PURPOSE_DESCRIPTION,
 } from 'deepagents';
-import { MongoDBStore } from '../utils/mongoStore.js';
-import { VersionedStateBackend } from '../utils/versionedStateBackend.js';
-import { AgentSkillsStore } from '../utils/agentSkillsStore.js';
-import { readonlyBackend } from '../utils/readonlyBackend.js';
-import { gracefulBackend } from '../utils/gracefulBackend.js';
+import { MongoDBStore } from '../../utils/mongoStore.js';
+import { VersionedStateBackend } from '../../utils/versionedStateBackend.js';
+import { AgentSkillsStore } from '../../utils/agentSkillsStore.js';
+import { readonlyBackend } from '../../utils/readonlyBackend.js';
+import { gracefulBackend } from '../../utils/gracefulBackend.js';
 import {
   memoryFilesStore,
   userMemoryNamespace,
   agentMemoryNamespace,
-} from '../utils/memoryFilesStore.js';
-import { skillLibraryStore, skillLibraryNamespace } from '../utils/skillLibraryStore.js';
-import checkpointService from '../modules/threads/checkpoint.service.js';
+} from './memory-files-store.js';
+import { skillLibraryStore, skillLibraryNamespace } from '../../utils/skillLibraryStore.js';
+import checkpointService from '../threads/checkpoint.service.js';
 import { LRUCache } from 'lru-cache';
-import agentRepository from '../repositories/agentRepository.js';
-import providerRepository from '../modules/providers/provider.repository.js';
-import encryption from '../utils/encryption.js';
+import agentRepository from './agent.repository.js';
+import providerRepository from '../providers/provider.repository.js';
+import encryption from '../../utils/encryption.js';
 
-import { resolveAgentTools } from '../tools/index.js';
-import { ARCHITECT_AGENT_ID } from '../utils/architectConstants.js';
-import { loggerService } from '../utils/index.js';
-import { ARCHITECT_SKILL } from '../skills/architectSkill.js';
+import { resolveAgentTools } from '../../tools/index.js';
+import { ARCHITECT_AGENT_ID } from '../../utils/architectConstants.js';
+import { loggerService } from '../../utils/index.js';
+import { ARCHITECT_SKILL } from '../../skills/architectSkill.js';
 
 const logger = loggerService.getLogger();
 

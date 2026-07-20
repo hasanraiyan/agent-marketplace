@@ -1,4 +1,4 @@
-import memoryService from '../services/memory.service.js';
+import memoryService from './memory.service.js';
 
 class MemoryController {
   async getAll(req, res, next) {

@@ -1,5 +1,5 @@
-import KnowledgeBase from '../models/KnowledgeBase.js';
-import KnowledgeChunk from '../models/KnowledgeChunk.js';
+import KnowledgeBase from './knowledge-base.model.js';
+import KnowledgeChunk from './knowledge-chunk.model.js';
 
 class KnowledgeRepository {
   // ── Knowledge Base ────────────────────────────────────────────────
