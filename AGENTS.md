@@ -1,0 +1,273 @@
+# AI Coding Agent Guide
+
+This guide helps AI coding agents understand and modify the **Persona.ai Backend** repository.
+
+## Repository Overview
+
+**Purpose:** REST API for an AI agent orchestration platform (Express 5 + MongoDB)
+**Location:** `agent-backend/`
+**Package Manager:** `pnpm`
+**Runtime:** Node.js 22+ (ES Modules)
+**Framework:** Express 5
+**Database:** MongoDB via Mongoose 9
+**Auth:** Clerk (external)
+**AI Stack:** LangChain, LangGraph, Deep Agents
+
+## Directory Structure
+
+```
+agent-backend/
+├── src/
+│   ├── index.js                    # Express app entry + route registration
+│   ├── config/                     # Environment configuration
+│   │   ├── index.js                # Central environment config loader
+│   │   ├── database.js             # MongoDB connection singleton
+│   │   ├── ai.config.js            # AI provider config helpers
+│   │   ├── jwt.config.js           # JWT config for OAuth state signing
+│   │   └── mail.config.js          # Email provider (Resend) config
+│   ├── middlewares/                 # Global middleware
+│   │   ├── errorHandler.js         # Global error handler
+│   │   └── validationMiddleware.js  # Zod validation middleware factory
+│   ├── modules/                    # Domain modules (17 total)
+│   │   ├── agents/                 # AI agent configurations
+│   │   ├── agui/                   # AG-UI SSE streaming protocol
+│   │   ├── auth/                   # Clerk authentication middleware
+│   │   ├── cron/                   # Scheduled background jobs
+│   │   ├── health/                 # Health check endpoints
+│   │   ├── knowledge/              # RAG knowledge bases (Qdrant)
+│   │   ├── mail/                   # Email sending (Resend + Mailgen)
+│   │   ├── mcp/                    # MCP server connectors + OAuth
+│   │   ├── memory/                 # File-based persistent memory
+│   │   ├── providers/              # LLM provider credentials
+│   │   ├── rateLimiter/            # API rate limiting
+│   │   ├── skills/                 # Agent skill library
+│   │   ├── threads/                # Conversation threads + checkpoints
+│   │   ├── tools/                  # Agent tool registration
+│   │   ├── upload/                 # File uploads (Multer)
+│   │   ├── users/                  # User profiles + admin
+│   │   └── webhooks/               # Clerk webhook ingestion
+│   └── utils/                      # Shared utilities
+│       ├── errors/                 # Custom error classes
+│       ├── formatters/             # Response formatters
+│       ├── logger/                 # Logger abstraction
+│       ├── validators/             # Zod validation helpers
+│       ├── encryption.js           # AES-256-GCM encryption
+│       └── constants.js            # HTTP status codes, error codes
+├── tests/                          # Jest test suite
+├── scripts/                        # CLI utility scripts
+└── docs/                           # Documentation
+```
+
+## Module Structure
+
+Every module follows this pattern (not all files are required):
+
+```
+src/modules/<name>/
+├── index.js              # Barrel exports (public API)
+├── <name>.routes.js      # Express Router
+├── <name>.controller.js  # HTTP request handlers
+├── <name>.service.js     # Business logic
+├── <name>.repository.js  # Database access
+├── <name>.model.js       # Mongoose schema
+└── <name>.validator.js   # Zod validation schemas
+```
+
+## Module Boundaries
+
+### Allowed Dependencies
+- Route → Controller, Middleware
+- Controller → Service
+- Service → Service (cross-module), Repository
+- Repository → Model
+
+### Forbidden Dependencies
+- Route → Model, Repository, Service (direct)
+- Controller → Model, Repository
+- Repository → Service, Controller
+
+### Cross-Module Access
+- Import another module via its barrel (`index.js`) only
+- Access data through services/repositories, never models directly
+- No circular dependencies between modules
+
+## Coding Conventions
+
+### 1. ES Modules
+```javascript
+import express from 'express';
+export default router;
+```
+
+### 2. Singleton Pattern
+Services and repositories use singleton pattern:
+```javascript
+class MyService { ... }
+export default new MyService();
+```
+
+### 3. Error Handling
+Services throw errors; controllers catch and pass to `next(err)`:
+```javascript
+// Service
+if (!entity) throw new NotFoundError('Entity not found');
+
+// Controller
+async getById(req, res, next) {
+  try {
+    const result = await service.getById(req.params.id);
+    res.json(formatters.formatSuccess(result));
+  } catch (err) {
+    next(err);
+  }
+}
+```
+
+### 4. Response Format
+Always use standard formatters:
+```javascript
+import { formatters } from '../../utils/index.js';
+res.json(formatters.formatSuccess(data, 'Message'));
+res.json(formatters.formatList(items, total, page, limit));
+```
+
+### 5. Validation
+Use Zod schemas via `validateBody()` middleware:
+```javascript
+router.post('/', validateBody(createSchema), controller.create);
+```
+
+## How to Add Features
+
+### Adding a New Module
+1. Create `src/modules/<name>/` directory
+2. Create model, validator, repository, service, controller, routes, index.js
+3. Register routes in `src/index.js`
+4. Add tests in `tests/`
+5. Add documentation in `docs/modules/`
+
+### Adding an Endpoint to Existing Module
+1. Add route in `<module>.routes.js` (with appropriate auth + rate limiting)
+2. Add validation schema in `<module>.validator.js` (if accepting input)
+3. Add controller method in `<module>.controller.js`
+4. Add service method in `<module>.service.js`
+5. Add repository method in `<module>.repository.js` (if accessing DB)
+6. Add tests
+
+## Testing Requirements
+
+```bash
+# Run all tests
+pnpm test
+
+# Watch mode
+pnpm run test:watch
+```
+
+- Tests live in `agent-backend/tests/`
+- Use Jest + Supertest for integration tests
+- Every module should have tests for controller, service, and repository layers
+
+## Verification Commands
+
+```bash
+# Start development server
+pnpm run dev
+
+# Run tests with coverage
+pnpm test
+
+# Format code
+pnpm run format
+
+# Check formatting
+pnpm run format:check
+
+# Verify AI stack (no API keys)
+pnpm run ai:verify
+```
+
+## API Compatibility Rules
+
+1. **Never remove or rename an existing endpoint** without explicit approval
+2. **Never change response format** (success/data/message/timestamp envelope is required)
+3. **Never add required query params** to existing endpoints (backward compat)
+4. **Never remove fields from response objects** without explicit approval
+5. **New functionality must use new endpoints** — don't overload existing ones with breaking changes
+6. **Versioning is via URL prefix** (`/api/v1/`) — do not add custom versioning
+
+## Security Rules
+
+1. **All API keys encrypted at rest** (AES-256-GCM via `src/utils/encryption.js`)
+2. **All mutation endpoints behind rate limiting**
+3. **Never log secrets, API keys, tokens** — use `maskedKey` patterns
+4. **Authentication via Clerk** — never implement custom auth
+5. **Admin endpoints require double auth** (`authMiddleware` + `adminMiddleware`)
+6. **OAuth state tokens are signed** (HMAC-SHA256) with expiry
+
+## Documentation Requirements
+
+1. Every module must have a doc file in `docs/modules/`
+2. API route tables must stay in sync with actual routes
+3. Environment variables must be documented in `docs/operations/environment-variables.md`
+4. Architecture diagrams must reflect actual code
+
+## Things You Must Not Do
+
+1. **Do not bypass service/repository boundaries** — controllers must not access models directly
+2. **Do not import Mongoose models directly into controllers** — always go through service → repository
+3. **Do not put business logic in routes** — routes only chain middleware and call controllers
+4. **Do not change API contracts without explicit approval** — response format must remain consistent
+5. **Do not introduce cross-domain model imports** — access other modules through their barrel exports
+6. **Do not skip tests** — every change should have corresponding test updates
+7. **Do not blindly create abstractions** — not every module needs all layers; keep simple modules simple
+8. **Do not mix ES Modules and CommonJS** — no `require()`, use `import`/`export`
+9. **Do not store secrets in code** — all secrets come from environment variables
+10. **Do not create circular dependencies** — Module A → Module B → Module A
+
+## Agent Memory Implementation Note
+
+The memory system uses a **file-based store** backed by MongoDB (not `InMemoryStore`). Memory survives restarts.
+
+- `/memories/user/` — User-level (shared across all agents)
+- `/memories/agent/` — Agent-level (per user-agent pair)
+- `/skills/` — Read-only skill filesystem
+- `/skill-library/` — Read-write skill authoring
+
+## Key Entry Points
+
+| File | Purpose |
+|------|---------|
+| `src/index.js` | Express app setup, middleware, route mounting |
+| `src/config/index.js` | Environment variable loading and defaults |
+| `src/modules/agents/agent.factory.js` | Agent graph compilation (most complex file) |
+| `src/modules/agui/aguiTranslator.js` | LangGraph → AG-UI event translation |
+| `src/middlewares/errorHandler.js` | Global error handling |
+| `src/utils/encryption.js` | AES-256-GCM encryption/decryption |
+
+## Configuration
+
+All environment variables are loaded in `src/config/index.js`. Key ones:
+
+```
+MONGODB_URI          — MongoDB connection string
+CLERK_SECRET_KEY     — Clerk secret for auth
+JWT_SECRET           — Used for OAuth state signing
+OPENAI_API_KEY       — Default AI provider
+ANTHROPIC_API_KEY    — Alternative AI provider
+QDRANT_URL           — Vector store URL
+RESEND_API_KEY       — Email delivery
+TAVILY_API_KEY       — Web search
+```
+
+See `docs/operations/environment-variables.md` for complete reference.
+
+## Documentation
+
+Full documentation is available in `docs/README.md` and includes:
+- Getting started guides
+- Architecture documentation
+- Module documentation (all 17 modules)
+- API reference
+- Development how-to guides
+- Operations guides

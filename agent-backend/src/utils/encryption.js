@@ -2,6 +2,28 @@ import crypto from 'crypto';
 import config from '../config/index.js';
 import { DecryptionError } from './errors/index.js';
 
+/**
+ * AES-256-GCM field-level encryption with versioned key rotation support.
+ *
+ * Encrypted values use this format, which encodes everything needed for
+ * decryption except the key material itself:
+ *   `enc:v1:<keyId>:<iv_b64>:<tag_b64>:<ciphertext_b64>`
+ *
+ * Key rotation is supported by keeping a map of key IDs → key material in
+ * the DB_ENCRYPTION_KEYS env var. The active key (DB_ENCRYPTION_ACTIVE_KEY_ID)
+ * is used for NEW encryptions; old key IDs remain decryptable. Callers detect
+ * stale ciphertexts via `needsReencryption()` and can re-encrypt at read time.
+ *
+ * The AAD (Additional Authenticated Data) for each ciphertext is the token
+ * header (enc:v1:<keyId>), binding the key ID to the ciphertext so that an
+ * attacker who swaps a key ID in a stored token triggers an auth tag mismatch.
+ *
+ * Payload type (string vs JSON) is encoded in the first byte of the plaintext
+ * so `encrypt` and `decrypt` transparently handle both strings and objects.
+ *
+ * In development, a missing active key emits a warning but allows operation
+ * in plaintext mode. In production, missing keys throw at startup.
+ */
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
@@ -192,10 +214,21 @@ function decryptVersionedToken(token) {
   return decryptCurrentPlaintext(plaintext);
 }
 
+/**
+ * @returns {boolean} Whether encryption is enabled (active key configured)
+ */
 export function isEnabled() {
   return enabled;
 }
 
+/**
+ * Checks whether a token was encrypted with a key that is no longer the
+ * active key. Used during reads to detect values that should be re-encrypted
+ * with the current active key as part of a key rotation migration.
+ *
+ * @param {string} token - The encrypted token to check
+ * @returns {boolean} True if the token should be re-encrypted
+ */
 export function needsReencryption(token) {
   if (!enabled || !activeKey || typeof token !== 'string') {
     return false;
