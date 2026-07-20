@@ -103,6 +103,18 @@ class AgentRepository {
   async deleteManyByOwner(ownerId) {
     return await Agent.deleteMany({ ownerId });
   }
+
+  async findAgentsUsingMcp(mcpId, projection = null) {
+    let query = Agent.find({ mcps: mcpId });
+    if (projection) {
+      query = query.select(projection);
+    }
+    return await query;
+  }
+
+  async removeMcpFromAgents(mcpId) {
+    return await Agent.updateMany({ mcps: mcpId }, { $pull: { mcps: mcpId } });
+  }
 }
 
 export default new AgentRepository();

@@ -1,22 +1,22 @@
 import { MultiServerMCPClient } from '@langchain/mcp-adapters';
-import mcpRepository from '../repositories/mcpRepository.js';
-import mcpUserConnectionRepository from '../repositories/mcpUserConnectionRepository.js';
-import Agent from '../models/Agent.js';
-import agentFactory from '../factories/agentFactory.js';
-import encryption from '../utils/encryption.js';
-import mcpTokenService from './mcpToken.service.js';
-import { signOAuthState, verifyOAuthState } from '../utils/oauthState.js';
+import mcpRepository from './mcp.repository.js';
+import mcpUserConnectionRepository from './mcp-user-connection.repository.js';
+import agentRepository from '../../repositories/agentRepository.js';
+import agentFactory from '../../factories/agentFactory.js';
+import encryption from '../../utils/encryption.js';
+import mcpTokenService from './mcp-token.service.js';
+import { signOAuthState, verifyOAuthState } from './oauth-state.js';
 import {
   discoverOAuthEndpoints,
   dynamicClientRegistration,
   generatePkcePair,
   buildAuthorizationUrl,
   exchangeCodeForToken,
-} from '../utils/mcpOAuthClient.js';
-import config from '../config/index.js';
-import NotFoundError from '../utils/errors/NotFoundError.js';
-import ValidationError from '../utils/errors/ValidationError.js';
-import { loggerService } from '../utils/index.js';
+} from './mcp-oauth-client.js';
+import config from '../../config/index.js';
+import NotFoundError from '../../utils/errors/NotFoundError.js';
+import ValidationError from '../../utils/errors/ValidationError.js';
+import { loggerService } from '../../utils/index.js';
 
 const logger = loggerService.getLogger();
 
@@ -45,7 +45,7 @@ class McpService {
   }
 
   async createMcp(userId, data) {
-    /* unchanged */ const mcpData = {
+    const mcpData = {
       ownerId: userId,
       name: data.name,
       description: data.description || '',
@@ -161,25 +161,21 @@ class McpService {
 
   async deleteMcp(id, userId) {
     const mcp = await this.getMcpById(id, userId);
-    const agents = await Agent.find({ mcps: id }, '_id');
-    await Agent.updateMany({ mcps: id }, { $pull: { mcps: id } });
+    const agents = await agentRepository.findAgentsUsingMcp(id, '_id');
+    await agentRepository.removeMcpFromAgents(id);
     await mcpUserConnectionRepository.deleteByMcp(id);
     for (const agent of agents) agentFactory.invalidate(agent._id);
     return await mcpRepository.delete(id, userId);
   }
 
   async _invalidateAgentsUsingMcp(mcpId) {
-    const agents = await Agent.find({ mcps: mcpId }, '_id');
+    const agents = await agentRepository.findAgentsUsingMcp(mcpId, '_id');
     logger.info(
       `[MCP] Invalidating cache for ${agents.length} agents using MCP server (id: ${mcpId})`
     );
     for (const agent of agents) agentFactory.invalidate(agent._id);
   }
 
-  // Raw SDK client declaring the capabilities Claude Desktop/ChatGPT send
-  // (roots, sampling, the mcp_apps experimental flag). MultiServerMCPClient's
-  // internal client declares none of these, which is why resources/list and
-  // resources/read 404 on MCP Apps servers (e.g. Canva) when called through it.
   async _connectAppsClient(mcp, headers) {
     const { Client: McpClient } = await import('@modelcontextprotocol/sdk/client/index.js');
     const { StreamableHTTPClientTransport } =
@@ -210,9 +206,6 @@ class McpService {
     return { client, transport };
   }
 
-  // Builds the request headers for connecting to an MCP server under any
-  // supported authType. Shared by testConnection() and readResource() so
-  // adding/fixing an auth method only has to happen in one place.
   async _resolveAuthHeaders(mcp, userId, actionLabel) {
     const headers = {};
     if (mcp.authType === 'oauth') {
@@ -273,13 +266,10 @@ class McpService {
         logger.warn(`[MCP] Failed to list resources for "${mcp.name}": ${resErr?.message}`);
       }
 
-      // Try to extract _meta.ui templates from tools using a raw SDK client
-      // with standard MCP capabilities (matching what Claude Desktop/ChatGPT send)
       let appsClient;
       try {
         appsClient = await this._connectAppsClient(mcp, headers);
 
-        // Fetch tools to check for _meta.ui.resourceUri
         let toolsResponse;
         const allMcpTools = [];
         do {
@@ -331,9 +321,6 @@ class McpService {
       resourceTemplates: templateSummaries,
       lastTestedAt: new Date(),
     });
-    // The templates just discovered feed the agent build's tool->widget map
-    // (see tools/mcp.tools.js) - agents using this server must rebuild to pick
-    // them up, the same as any other config change to this connector.
     await this._invalidateAgentsUsingMcp(id);
 
     return {
@@ -481,16 +468,12 @@ class McpService {
   }
 
   async getAgentsByMcp(id) {
-    return await Agent.find({ mcps: id }).select('name slug avatar visibility');
+    return await agentRepository.findAgentsUsingMcp(id, 'name slug avatar visibility');
   }
 
   async readResource(id, userId, resourceUri) {
     const mcp = await this.getMcpById(id, userId);
     const headers = await this._resolveAuthHeaders(mcp, userId, 'connecting');
-
-    // Use the same capability-declaring client as testConnection()'s _meta.ui
-    // extraction - MultiServerMCPClient's bare client (no declared capabilities)
-    // gets "Method not found" from MCP Apps servers like Canva's.
     const { client, transport } = await this._connectAppsClient(mcp, headers);
 
     try {
@@ -513,9 +496,6 @@ class McpService {
     }
   }
 
-  // Proxies a `tools/call` for an MCP App widget's `app.callServerTool()`.
-  // The widget runs in the browser and has no credentials of its own - this
-  // keeps auth (OAuth tokens, API keys) server-side like every other MCP call.
   async callTool(id, userId, toolName, args) {
     const mcp = await this.getMcpById(id, userId);
     const headers = await this._resolveAuthHeaders(mcp, userId, 'connecting');

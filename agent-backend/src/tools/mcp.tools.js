@@ -1,7 +1,7 @@
 import { MultiServerMCPClient } from '@langchain/mcp-adapters';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
-import mcpTokenService from '../services/mcpToken.service.js';
+import mcpTokenService from '../modules/mcp/mcp-token.service.js';
 import { loggerService } from '../utils/index.js';
 
 const logger = loggerService.getLogger();

@@ -1,5 +1,5 @@
-import mcpService from '../services/mcp.service.js';
-import config from '../config/index.js';
+import mcpService from './mcp.service.js';
+import config from '../../config/index.js';
 
 class McpController {
   async create(req, res, next) {

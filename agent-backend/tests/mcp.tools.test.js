@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 
-jest.unstable_mockModule('../src/services/mcpToken.service.js', () => ({
+jest.unstable_mockModule('../src/modules/mcp/mcp-token.service.js', () => ({
   default: {
     getOwnerAccessToken: jest.fn(),
     getUserAccessToken: jest.fn(),
@@ -15,7 +15,7 @@ jest.unstable_mockModule('@langchain/mcp-adapters', () => ({
   })),
 }));
 
-const mcpTokenService = (await import('../src/services/mcpToken.service.js')).default;
+const mcpTokenService = (await import('../src/modules/mcp/mcp-token.service.js')).default;
 const { MultiServerMCPClient } = await import('@langchain/mcp-adapters');
 const { resolveMcpTools } = await import('../src/tools/mcp.tools.js');
 

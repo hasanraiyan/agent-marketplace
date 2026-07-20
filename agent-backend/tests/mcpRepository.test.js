@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
-import mcpRepository from '../src/repositories/mcpRepository.js';
-import Mcp from '../src/models/Mcp.js';
+import mcpRepository from '../src/modules/mcp/mcp.repository.js';
+import Mcp from '../src/modules/mcp/mcp.model.js';
 
 describe('Mcp Repository', () => {
   let mockMcp;

@@ -1,5 +1,5 @@
-import Mcp from '../models/Mcp.js';
-import NotFoundError from '../utils/errors/NotFoundError.js';
+import Mcp from './mcp.model.js';
+import NotFoundError from '../../utils/errors/NotFoundError.js';
 
 class McpRepository {
   async create(mcpData) {

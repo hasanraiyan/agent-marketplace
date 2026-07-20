@@ -1,4 +1,4 @@
-import McpUserConnection from '../models/McpUserConnection.js';
+import McpUserConnection from './mcp-user-connection.model.js';
 
 class McpUserConnectionRepository {
   async findByMcpAndUser(mcpId, userId) {

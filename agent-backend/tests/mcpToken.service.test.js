@@ -1,12 +1,12 @@
 import { jest } from '@jest/globals';
 
-jest.unstable_mockModule('../src/repositories/mcpRepository.js', () => ({
+jest.unstable_mockModule('../src/modules/mcp/mcp.repository.js', () => ({
   default: {
     update: jest.fn(),
   },
 }));
 
-jest.unstable_mockModule('../src/repositories/mcpUserConnectionRepository.js', () => ({
+jest.unstable_mockModule('../src/modules/mcp/mcp-user-connection.repository.js', () => ({
   default: {
     findByMcpAndUser: jest.fn(),
     upsert: jest.fn(),
@@ -20,17 +20,17 @@ jest.unstable_mockModule('../src/utils/encryption.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/utils/mcpOAuthClient.js', () => ({
+jest.unstable_mockModule('../src/modules/mcp/mcp-oauth-client.js', () => ({
   refreshAccessToken: jest.fn(),
 }));
 
-const mcpRepository = (await import('../src/repositories/mcpRepository.js')).default;
+const mcpRepository = (await import('../src/modules/mcp/mcp.repository.js')).default;
 const mcpUserConnectionRepository = (
-  await import('../src/repositories/mcpUserConnectionRepository.js')
+  await import('../src/modules/mcp/mcp-user-connection.repository.js')
 ).default;
 const encryption = (await import('../src/utils/encryption.js')).default;
-const { refreshAccessToken } = await import('../src/utils/mcpOAuthClient.js');
-const mcpTokenService = (await import('../src/services/mcpToken.service.js')).default;
+const { refreshAccessToken } = await import('../src/modules/mcp/mcp-oauth-client.js');
+const mcpTokenService = (await import('../src/modules/mcp/mcp-token.service.js')).default;
 
 describe('McpToken Service', () => {
   beforeEach(() => {

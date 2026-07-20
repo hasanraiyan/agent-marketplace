@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 
-jest.unstable_mockModule('../src/repositories/mcpRepository.js', () => ({
+jest.unstable_mockModule('../src/modules/mcp/mcp.repository.js', () => ({
   default: {
     create: jest.fn(),
     findById: jest.fn(),
@@ -10,7 +10,7 @@ jest.unstable_mockModule('../src/repositories/mcpRepository.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/repositories/mcpUserConnectionRepository.js', () => ({
+jest.unstable_mockModule('../src/modules/mcp/mcp-user-connection.repository.js', () => ({
   default: {
     findByMcpAndUser: jest.fn(),
     upsert: jest.fn(),
@@ -19,10 +19,10 @@ jest.unstable_mockModule('../src/repositories/mcpUserConnectionRepository.js', (
   },
 }));
 
-jest.unstable_mockModule('../src/models/Agent.js', () => ({
+jest.unstable_mockModule('../src/repositories/agentRepository.js', () => ({
   default: {
-    find: jest.fn(),
-    updateMany: jest.fn(),
+    findAgentsUsingMcp: jest.fn(),
+    removeMcpFromAgents: jest.fn(),
   },
 }));
 
@@ -39,7 +39,7 @@ jest.unstable_mockModule('../src/utils/encryption.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/services/mcpToken.service.js', () => ({
+jest.unstable_mockModule('../src/modules/mcp/mcp-token.service.js', () => ({
   default: {
     getOwnerAccessToken: jest.fn(),
     getUserAccessToken: jest.fn(),
@@ -47,12 +47,12 @@ jest.unstable_mockModule('../src/services/mcpToken.service.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/utils/oauthState.js', () => ({
+jest.unstable_mockModule('../src/modules/mcp/oauth-state.js', () => ({
   signOAuthState: jest.fn(() => 'signed-state'),
   verifyOAuthState: jest.fn(),
 }));
 
-jest.unstable_mockModule('../src/utils/mcpOAuthClient.js', () => ({
+jest.unstable_mockModule('../src/modules/mcp/mcp-oauth-client.js', () => ({
   discoverOAuthEndpoints: jest.fn(),
   dynamicClientRegistration: jest.fn(),
   generatePkcePair: jest.fn(() => ({ codeVerifier: 'verifier', codeChallenge: 'challenge' })),
@@ -69,18 +69,18 @@ jest.unstable_mockModule('@langchain/mcp-adapters', () => ({
   })),
 }));
 
-const mcpRepository = (await import('../src/repositories/mcpRepository.js')).default;
+const mcpRepository = (await import('../src/modules/mcp/mcp.repository.js')).default;
 const mcpUserConnectionRepository = (
-  await import('../src/repositories/mcpUserConnectionRepository.js')
+  await import('../src/modules/mcp/mcp-user-connection.repository.js')
 ).default;
-const Agent = (await import('../src/models/Agent.js')).default;
+const agentRepository = (await import('../src/repositories/agentRepository.js')).default;
 const agentFactory = (await import('../src/factories/agentFactory.js')).default;
 const encryption = (await import('../src/utils/encryption.js')).default;
-const mcpTokenService = (await import('../src/services/mcpToken.service.js')).default;
-const { signOAuthState, verifyOAuthState } = await import('../src/utils/oauthState.js');
+const mcpTokenService = (await import('../src/modules/mcp/mcp-token.service.js')).default;
+const { signOAuthState, verifyOAuthState } = await import('../src/modules/mcp/oauth-state.js');
 const { discoverOAuthEndpoints, exchangeCodeForToken } =
-  await import('../src/utils/mcpOAuthClient.js');
-const mcpService = (await import('../src/services/mcp.service.js')).default;
+  await import('../src/modules/mcp/mcp-oauth-client.js');
+const mcpService = (await import('../src/modules/mcp/mcp.service.js')).default;
 
 describe('Mcp Service', () => {
   const mockUserId = '507f1f77bcf86cd799439011';
@@ -90,11 +90,11 @@ describe('Mcp Service', () => {
     jest.clearAllMocks();
     encryption.encrypt.mockImplementation((v) => `enc:${v}`);
     encryption.decrypt.mockImplementation((v) => String(v).replace(/^enc:/, ''));
-    // Deterministic baseline: several code paths call Agent.find to invalidate
+    // Deterministic baseline: several code paths call agentRepository.findAgentsUsingMcp to invalidate
     // caches; without this, tests only pass when an implementation leaks in
     // from an earlier test (clearAllMocks clears calls, not implementations).
-    Agent.find.mockResolvedValue([]);
-    Agent.updateMany.mockResolvedValue({});
+    agentRepository.findAgentsUsingMcp.mockResolvedValue([]);
+    agentRepository.removeMcpFromAgents.mockResolvedValue({});
 
     mockMcp = {
       _id: '507f1f77bcf86cd799439022',
@@ -245,7 +245,7 @@ describe('Mcp Service', () => {
     it('encrypts a new API key when switching to apiKey', async () => {
       mcpRepository.findById.mockResolvedValue(mockMcp);
       mcpRepository.update.mockResolvedValue({ ...mockMcp, authType: 'apiKey' });
-      Agent.find.mockResolvedValue([]);
+      agentRepository.findAgentsUsingMcp.mockResolvedValue([]);
 
       await mcpService.updateMcp(mockMcp._id, mockUserId, {
         authType: 'apiKey',
@@ -265,7 +265,7 @@ describe('Mcp Service', () => {
       const apiKeyMcp = { ...mockMcp, authType: 'apiKey', apiKeyEncrypted: 'enc:existing-key' };
       mcpRepository.findById.mockResolvedValue(apiKeyMcp);
       mcpRepository.update.mockResolvedValue(apiKeyMcp);
-      Agent.find.mockResolvedValue([]);
+      agentRepository.findAgentsUsingMcp.mockResolvedValue([]);
 
       await mcpService.updateMcp(mockMcp._id, mockUserId, { description: 'updated desc' });
 
@@ -276,7 +276,7 @@ describe('Mcp Service', () => {
     it('invalidates dependent agents after a successful update', async () => {
       mcpRepository.findById.mockResolvedValue(mockMcp);
       mcpRepository.update.mockResolvedValue({ ...mockMcp, name: 'Renamed' });
-      Agent.find.mockResolvedValue([{ _id: 'agent1' }]);
+      agentRepository.findAgentsUsingMcp.mockResolvedValue([{ _id: 'agent1' }]);
 
       await mcpService.updateMcp(mockMcp._id, mockUserId, { name: 'Renamed' });
 
@@ -287,15 +287,12 @@ describe('Mcp Service', () => {
   describe('deleteMcp', () => {
     it('pulls the mcp from agents, deletes user connections, and invalidates caches', async () => {
       mcpRepository.findById.mockResolvedValue(mockMcp);
-      Agent.find.mockResolvedValue([{ _id: 'agent1' }, { _id: 'agent2' }]);
+      agentRepository.findAgentsUsingMcp.mockResolvedValue([{ _id: 'agent1' }, { _id: 'agent2' }]);
       mcpRepository.delete.mockResolvedValue(mockMcp);
 
       await mcpService.deleteMcp(mockMcp._id, mockUserId);
 
-      expect(Agent.updateMany).toHaveBeenCalledWith(
-        { mcps: mockMcp._id },
-        { $pull: { mcps: mockMcp._id } }
-      );
+      expect(agentRepository.removeMcpFromAgents).toHaveBeenCalledWith(mockMcp._id);
       expect(mcpUserConnectionRepository.deleteByMcp).toHaveBeenCalledWith(mockMcp._id);
       expect(agentFactory.invalidate).toHaveBeenCalledWith('agent1');
       expect(agentFactory.invalidate).toHaveBeenCalledWith('agent2');
@@ -365,7 +362,7 @@ describe('Mcp Service', () => {
         refresh_token: 'refresh1',
         expires_in: 3600,
       });
-      Agent.find.mockResolvedValue([]);
+      agentRepository.findAgentsUsingMcp.mockResolvedValue([]);
 
       const redirectTo = await mcpService.handleOwnerCallback('code', 'state');
 

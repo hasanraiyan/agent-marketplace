@@ -1,7 +1,7 @@
-import mcpRepository from '../repositories/mcpRepository.js';
-import mcpUserConnectionRepository from '../repositories/mcpUserConnectionRepository.js';
-import encryption from '../utils/encryption.js';
-import { refreshAccessToken } from '../utils/mcpOAuthClient.js';
+import mcpRepository from './mcp.repository.js';
+import mcpUserConnectionRepository from './mcp-user-connection.repository.js';
+import encryption from '../../utils/encryption.js';
+import { refreshAccessToken } from './mcp-oauth-client.js';
 
 const TOKEN_REFRESH_SKEW_MS = 60 * 1000;
 

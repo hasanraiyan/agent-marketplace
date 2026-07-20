@@ -60,13 +60,13 @@ jest.unstable_mockModule('../src/modules/providers/provider.model.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/models/Mcp.js', () => ({
+jest.unstable_mockModule('../src/modules/mcp/mcp.model.js', () => ({
   default: {
     deleteMany: mockMcpDeleteMany,
   },
 }));
 
-jest.unstable_mockModule('../src/models/McpUserConnection.js', () => ({
+jest.unstable_mockModule('../src/modules/mcp/mcp-user-connection.model.js', () => ({
   default: {
     deleteMany: mockMcpUserConnectionDeleteMany,
   },

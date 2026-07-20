@@ -16,7 +16,7 @@ This document contains a highly granular, step-by-step checklist for the refacto
   - **Step 6: Providers Module**: [x] Completed
   - **Step 7: Users & Profile Module**: [x] Completed
   - **Step 8: Threads & Checkpoints**: [x] Completed
-  - **Step 9: MCP Module**: [ ] Pending
+  - **Step 9: MCP Module**: [x] Completed
   - **Step 10: Agents & Memory Module**: [ ] Pending
   - **Step 11: AGUI SSE Chat Stream**: [ ] Pending
   - **Step 12: Knowledge Module**: [ ] Pending
@@ -123,13 +123,13 @@ This document contains a highly granular, step-by-step checklist for the refacto
   - [x] Move `src/services/checkpoint.service.js` to `src/modules/threads/checkpoint.service.js`.
   - [x] Fix imports, update mounts in `src/index.js`, and run `pnpm test`.
 
-### [ ] Step 9: MCP Module Refactor
-* **Objective**: Move MCP logic to `src/modules/mcps/` and decouple Agent model references.
+### [x] Step 9: MCP Module Refactor
+* **Objective**: Move MCP logic to `src/modules/mcp/` and decouple Agent model references.
 * **Tasks**:
-  - [ ] Move MCP routes, controllers, services, repositories, and models.
-  - [ ] Move token services and helper scripts under `src/modules/mcps/`.
-  - [ ] Replace direct `Agent` Mongoose updates in `mcp.service.js` with delegation methods in `agentRepository`.
-  - [ ] Fix internal imports, update mounts in `src/index.js`, and run `pnpm test`.
+  - [x] Move MCP routes, controllers, services, repositories, and models.
+  - [x] Move token services and helper scripts under `src/modules/mcp/`.
+  - [x] Replace direct `Agent` Mongoose updates in `mcp.service.js` with delegation methods in `agentRepository`.
+  - [x] Fix internal imports, update mounts in `src/index.js`, and run `pnpm test`.
 
 ### [ ] Step 10: Agents & Memory Module Refactor
 * **Objective**: Move agent logic to `src/modules/agents/` and remove redundant validations.
@@ -460,6 +460,59 @@ This document contains a highly granular, step-by-step checklist for the refacto
   * `src/models/Conversation.js` (deleted)
   * `src/validators/thread.validator.js` (deleted)
   * `src/services/checkpoint.service.js` (deleted)
+* **Verification performed**:
+  * Executed Jest test suite (`pnpm test`) pre-deletion and post-deletion of original files.
+* **Pass/Fail status**:
+  * Pass (588/588 tests passed successfully on all runs).
+* **Issues discovered**:
+  * None.
+
+#### Step 9: MCP Module Refactor
+* **What was changed**:
+  * Created modular MCP files under `src/modules/mcp/`: `mcp.model.js`, `mcp-user-connection.model.js`, `mcp.validator.js`, `mcp.repository.js`, `mcp-user-connection.repository.js`, `mcp.service.js`, `mcp-token.service.js`, `mcp.controller.js`, `mcp.routes.js`, `mcp-oauth-client.js`, and `oauth-state.js`.
+  * Decoupled `mcp.service.js` from direct Mongoose calls to `Agent` by adding `findAgentsUsingMcp` and `removeMcpFromAgents` to `agentRepository.js`.
+  * Updated relative imports inside modular files.
+  * Updated imports in `src/index.js`, `src/cron/deleteInactiveUsers.js`, `src/tools/mcp.tools.js`, and `src/modules/users/user.service.js`.
+  * Updated imports, mocks, and test assertions in test files (`tests/cascadingDeletes.test.js`, `tests/cronDeleteInactiveUsers.test.js`, `tests/mcpRepository.test.js`, `tests/mcpUserConnectionRepository.test.js`, `tests/mcpToken.service.test.js`, `tests/mcp.tools.test.js`, `tests/mcp.validator.test.js`, and `tests/mcp.service.test.js`).
+  * Deleted legacy technical-layered files.
+* **Why it was changed**:
+  * Co-located MCP client, oauth, token, and database operations inside `src/modules/mcp/` to enforce modular domain boundaries and encapsulation of Mongoose model queries behind repositories.
+* **Files affected**:
+  * `src/modules/mcp/mcp.model.js` (created)
+  * `src/modules/mcp/mcp-user-connection.model.js` (created)
+  * `src/modules/mcp/mcp.validator.js` (created)
+  * `src/modules/mcp/mcp.repository.js` (created)
+  * `src/modules/mcp/mcp-user-connection.repository.js` (created)
+  * `src/modules/mcp/mcp.service.js` (created)
+  * `src/modules/mcp/mcp-token.service.js` (created)
+  * `src/modules/mcp/mcp.controller.js` (created)
+  * `src/modules/mcp/mcp.routes.js` (created)
+  * `src/modules/mcp/mcp-oauth-client.js` (created)
+  * `src/modules/mcp/oauth-state.js` (created)
+  * `src/repositories/agentRepository.js`
+  * `src/cron/deleteInactiveUsers.js`
+  * `src/tools/mcp.tools.js`
+  * `src/index.js`
+  * `src/modules/users/user.service.js`
+  * `tests/cascadingDeletes.test.js`
+  * `tests/cronDeleteInactiveUsers.test.js`
+  * `tests/mcpRepository.test.js`
+  * `tests/mcpUserConnectionRepository.test.js`
+  * `tests/mcpToken.service.test.js`
+  * `tests/mcp.tools.test.js`
+  * `tests/mcp.validator.test.js`
+  * `tests/mcp.service.test.js`
+  * `src/routes/mcp.routes.js` (deleted)
+  * `src/controllers/mcp.controller.js` (deleted)
+  * `src/repositories/mcpRepository.js` (deleted)
+  * `src/repositories/mcpUserConnectionRepository.js` (deleted)
+  * `src/models/Mcp.js` (deleted)
+  * `src/models/McpUserConnection.js` (deleted)
+  * `src/validators/mcp.validator.js` (deleted)
+  * `src/services/mcp.service.js` (deleted)
+  * `src/services/mcpToken.service.js` (deleted)
+  * `src/utils/mcpOAuthClient.js` (deleted)
+  * `src/utils/oauthState.js` (deleted)
 * **Verification performed**:
   * Executed Jest test suite (`pnpm test`) pre-deletion and post-deletion of original files.
 * **Pass/Fail status**:

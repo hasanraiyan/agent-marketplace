@@ -9,8 +9,8 @@ import deleteInactiveUsers from '../src/cron/deleteInactiveUsers.js';
 import User from '../src/modules/users/user.model.js';
 import Provider from '../src/modules/providers/provider.model.js';
 import Skill from '../src/modules/skills/skill.model.js';
-import Mcp from '../src/models/Mcp.js';
-import McpUserConnection from '../src/models/McpUserConnection.js';
+import Mcp from '../src/modules/mcp/mcp.model.js';
+import McpUserConnection from '../src/modules/mcp/mcp-user-connection.model.js';
 
 describe('Cascading Deletes Integration', () => {
   const mockUserId = new mongoose.Types.ObjectId();

@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import config from '../config/index.js';
+import config from '../../config/index.js';
 
 const ALGORITHM = 'sha256';
 const DEFAULT_TTL_SECONDS = 600; // 10 minutes

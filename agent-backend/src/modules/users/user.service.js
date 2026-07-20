@@ -4,8 +4,8 @@ import checkpointService from '../threads/checkpoint.service.js';
 import agentRepository from '../../repositories/agentRepository.js';
 import skillRepository from '../skills/skill.repository.js';
 import providerRepository from '../providers/provider.repository.js';
-import mcpRepository from '../../repositories/mcpRepository.js';
-import mcpUserConnectionRepository from '../../repositories/mcpUserConnectionRepository.js';
+import mcpRepository from '../mcp/mcp.repository.js';
+import mcpUserConnectionRepository from '../mcp/mcp-user-connection.repository.js';
 import { loggerService } from '../../utils/index.js';
 
 const logger = loggerService.getLogger();

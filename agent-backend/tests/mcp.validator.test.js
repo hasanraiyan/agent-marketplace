@@ -1,4 +1,4 @@
-import { createMcpSchema, updateMcpSchema } from '../src/validators/mcp.validator.js';
+import { createMcpSchema, updateMcpSchema } from '../src/modules/mcp/mcp.validator.js';
 
 describe('Mcp Validator', () => {
   describe('createMcpSchema', () => {

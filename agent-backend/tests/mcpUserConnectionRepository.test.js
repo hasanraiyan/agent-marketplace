@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
-import mcpUserConnectionRepository from '../src/repositories/mcpUserConnectionRepository.js';
-import McpUserConnection from '../src/models/McpUserConnection.js';
+import mcpUserConnectionRepository from '../src/modules/mcp/mcp-user-connection.repository.js';
+import McpUserConnection from '../src/modules/mcp/mcp-user-connection.model.js';
 
 describe('McpUserConnection Repository', () => {
   let mockConnection;
