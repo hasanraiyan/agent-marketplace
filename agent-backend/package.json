@@ -45,7 +45,7 @@
     "lru-cache": "^11.3.5",
     "mailgen": "^2.0.32",
     "mongodb": "^7.1.1",
-    "mongoose": "^9.3.3",
+    "mongoose": "^9.7.4",
     "multer": "^2.2.0",
     "node-cron": "^4.2.1",
     "pdf-parse": "^2.4.5",
