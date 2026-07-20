@@ -49,7 +49,7 @@
     "multer": "^2.2.0",
     "node-cron": "^4.2.1",
     "pdf-parse": "^2.4.5",
-    "resend": "^6.12.0",
+    "resend": "^6.17.2",
     "svix": "^1.95.2",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
