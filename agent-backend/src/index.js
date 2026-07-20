@@ -9,7 +9,7 @@ import agentRouter from './modules/agents/agent.routes.js';
 import threadRouter from './modules/threads/thread.routes.js'; // Added
 import skillRouter from './modules/skills/skill.routes.js';
 import mcpRouter from './modules/mcp/mcp.routes.js';
-import aguiRouter from './routes/agui.routes.js';
+import aguiRouter from './modules/agui/agui.routes.js';
 import webhookRouter from './modules/webhooks/webhook.routes.js';
 import uploadRouter from './modules/upload/upload.routes.js';
 import knowledgeRouter from './modules/knowledge/knowledge.routes.js';

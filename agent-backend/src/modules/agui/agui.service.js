@@ -1,30 +1,25 @@
-import express from 'express';
-import crypto from 'crypto';
-import { EventType } from '@ag-ui/core';
 import { HumanMessage } from '@langchain/core/messages';
 import { Command } from '@langchain/langgraph';
-import authMiddleware from '../modules/auth/auth.middleware.js';
-import rateLimiter, { RATE_LIMITS } from '../middlewares/rateLimiter.middleware.js';
-import rateLimiterService from '../services/rateLimiter.service.js';
-import RateLimitError from '../utils/errors/RateLimitError.js';
-import agentFactory from '../modules/agents/agent.factory.js';
-import threadRepository from '../modules/threads/thread.repository.js';
-import checkpointService from '../modules/threads/checkpoint.service.js';
-import { loggerService } from '../utils/index.js';
+import agentFactory from '../agents/agent.factory.js';
+import threadRepository from '../threads/thread.repository.js';
+import checkpointService from '../threads/checkpoint.service.js';
+import { loggerService } from '../../utils/index.js';
 import {
   translateLangGraphStream,
   emitTextNotice,
   formatRuntimeError,
   buildResumeValue,
   describeInterrupt,
-} from '../utils/aguiTranslator.js';
-import { RunScopeTracker } from '../utils/RunScopeTracker.js';
-import { foldSubagentEvent, settleTrace } from '../utils/subagentTrace.js';
+} from '../../utils/aguiTranslator.js';
+import { RunScopeTracker } from '../../utils/RunScopeTracker.js';
 
 const logger = loggerService.getLogger();
-const aguiRouter = express.Router();
 
-async function readJsonBody(req) {
+/**
+ * Read the raw JSON body from the request, parsing the stream manually
+ * (AGUI reads its own body before express.json() consumes it).
+ */
+export async function readJsonBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
 
   const chunks = [];
@@ -36,7 +31,11 @@ async function readJsonBody(req) {
   return JSON.parse(raw);
 }
 
-function getLastUserText(messages) {
+/**
+ * Extracts the last user message text from a messages array,
+ * handling both string and structured content.
+ */
+export function getLastUserText(messages) {
   const lastHuman = [...(messages || [])].reverse().find((message) => message.role === 'user');
   const content = lastHuman?.content;
 
@@ -47,39 +46,12 @@ function getLastUserText(messages) {
   return '';
 }
 
-aguiRouter.use(async (req, res, next) => {
-  if (req.method === 'OPTIONS') return next();
-
-  try {
-    await new Promise((resolve, reject) => {
-      authMiddleware(req, res, (err) => (err ? reject(err) : resolve()));
-    });
-
-    const userId = req.user._id;
-    const agentId = req.headers['x-agent-id'] || req.query.agentId;
-    const threadDbId = req.headers['x-thread-id'] || req.query.threadId;
-
-    let langGraphThreadId = agentId ? `agui-${agentId}-${userId}` : null;
-    if (agentId && threadDbId) {
-      try {
-        const thread = await threadRepository.findById(threadDbId);
-        if (thread && thread.userId.toString() === userId.toString()) {
-          langGraphThreadId = thread.threadId;
-          await threadRepository.touchLastMessageAt(thread._id);
-        }
-      } catch {
-        // Fall back to deterministic thread id.
-      }
-    }
-
-    req.aguiContext = { userId, agentId, langGraphThreadId, threadDbId };
-    next();
-  } catch (err) {
-    next(err);
-  }
-});
-
-async function* runAgentAsAguiEvents({
+/**
+ * Core AGUI event stream generator — builds the agent from its factory,
+ * checks for pending interrupts, auto-titles threads, runs the LangGraph
+ * stream through the translator, and emits AGUI events.
+ */
+export async function* runAgentAsAguiEvents({
   agentId,
   userId,
   langGraphThreadId,
@@ -220,88 +192,3 @@ async function* runAgentAsAguiEvents({
     }
   }
 }
-
-aguiRouter.get('/', (req, res) => {
-  res.json({
-    protocol: 'ag-ui',
-    transport: 'sse',
-    status: 'ok',
-  });
-});
-
-aguiRouter.post('/', rateLimiter('CHAT', RATE_LIMITS.CHAT), async (req, res, next) => {
-  const context = req.aguiContext || {};
-  const identifier = context.userId || req.ip;
-  const concurrencyKey = `concurrency:CHAT:${identifier}`;
-
-  if (rateLimiterService.getConcurrency(concurrencyKey) >= 2) {
-    return next(new RateLimitError(30));
-  }
-
-  rateLimiterService.incrementConcurrency(concurrencyKey);
-
-  try {
-    const input = await readJsonBody(req);
-    const threadId = input.threadId || context.langGraphThreadId || 'default';
-    const runId = input.runId || crypto.randomUUID();
-
-    res.status(200);
-    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-cache, no-transform');
-    res.setHeader('Connection', 'keep-alive');
-    res.flushHeaders?.();
-
-    const controller = new AbortController();
-    res.on('close', () => controller.abort());
-
-    const send = (event) => {
-      if (res.destroyed) return;
-      res.write(`data: ${JSON.stringify(event)}\n\n`);
-    };
-
-    // Subagent timelines exist only in the live stream (checkpoints hold just
-    // the main thread's messages) — fold them here and persist per task call
-    // so the subagent's transcript survives thread reloads.
-    const subagentTraces = {};
-
-    send({ type: EventType.RUN_STARTED, threadId, runId });
-    for await (const event of runAgentAsAguiEvents({
-      ...context,
-      messages: input.messages || [],
-      resume: input.resume,
-      signal: controller.signal,
-    })) {
-      if (res.destroyed) break;
-      if (event?.type === EventType.CUSTOM && event.name === 'subagent_activity') {
-        const callId = event.value?.toolCallId;
-        if (callId) {
-          foldSubagentEvent((subagentTraces[callId] ??= []), event.value);
-        }
-      }
-      send(event);
-    }
-    send({ type: EventType.RUN_FINISHED, threadId, runId });
-    res.end();
-
-    if (context.threadDbId && Object.keys(subagentTraces).length > 0) {
-      // Per-key $set merges this run's traces with earlier turns' instead of
-      // replacing the whole map. Fire-and-forget — persistence must not
-      // delay or fail the response.
-      const setOps = {};
-      for (const [callId, items] of Object.entries(subagentTraces)) {
-        setOps[`subagentTraces.${callId}`] = settleTrace(items);
-      }
-      threadRepository
-        .update(context.threadDbId, { $set: setOps })
-        .catch((err) =>
-          logger.warn('[AG-UI] failed to persist subagent traces', { err: err.message })
-        );
-    }
-  } catch (err) {
-    next(err);
-  } finally {
-    rateLimiterService.decrementConcurrency(concurrencyKey);
-  }
-});
-
-export default aguiRouter;

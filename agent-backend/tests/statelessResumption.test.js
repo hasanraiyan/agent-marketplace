@@ -47,7 +47,7 @@ jest.unstable_mockModule('../src/modules/auth/auth.middleware.js', () => ({
 
 const agentFactory = (await import('../src/modules/agents/agent.factory.js')).default;
 const threadRepository = (await import('../src/modules/threads/thread.repository.js')).default;
-const aguiRouterModule = await import('../src/routes/agui.routes.js');
+const aguiRouterModule = await import('../src/modules/agui/agui.routes.js');
 const aguiRouter = aguiRouterModule.default;
 
 describe('Stateless Resumption Logic in agui.routes.js', () => {
