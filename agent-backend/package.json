@@ -16,7 +16,8 @@
     "format": "prettier --write \"**/*.{js,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,json,md}\"",
     "test": "cross-env NODE_ENV=test node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "validate:openapi": "node scripts/validate-openapi.js"
   },
   "keywords": [],
   "author": "",
@@ -64,6 +65,11 @@
     "supertest": "^7.2.2"
   },
   "lint-staged": {
+    "*.routes.js": [
+      "node scripts/validate-openapi.js",
+      "prettier --write",
+      "git add"
+    ],
     "*.{js,json,md}": [
       "prettier --write",
       "git add"
