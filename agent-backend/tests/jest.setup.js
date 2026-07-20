@@ -17,7 +17,8 @@ afterAll(async () => {
   }
   // Clean up rate limiter setInterval timer
   try {
-    const { default: rateLimiterService } = await import('../src/modules/rateLimiter/rateLimiter.service.js');
+    const { default: rateLimiterService } =
+      await import('../src/modules/rateLimiter/rateLimiter.service.js');
     rateLimiterService.destroy();
   } catch (err) {
     // Ignore
