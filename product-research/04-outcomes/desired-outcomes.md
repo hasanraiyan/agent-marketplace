@@ -1,4 +1,7 @@
-# Desired Outcomes — All Three Personas
+# Desired Outcomes — Career Launchpad (Primary) / Other Agents (Archived)
+
+> **⚠️ Strategic Pivot (July 2026):** Persona.ai now focuses exclusively on the **💼 Career Launchpad**.
+> The 🚀 Startup Thinker and 🌍 Study Abroad Navigator outcomes below are **archived for reference only**.
 
 > **Status:** HYPOTHESIS — grounded in research + founder specification
 > **Date:** July 19, 2026
@@ -7,7 +10,7 @@
 
 ---
 
-## 🚀 Startup Thinker — Desired Outcomes
+## 🚀 Startup Thinker — Desired Outcomes (⚠️ ARCHIVED)
 
 ### Outcome ST-O1: Confident Idea Validation
 
@@ -41,7 +44,7 @@
 
 ---
 
-## 🌍 Study Abroad Navigator — Desired Outcomes
+## 🌍 Study Abroad Navigator — Desired Outcomes (⚠️ ARCHIVED)
 
 ### Outcome SA-O1: Complete Journey Ownership
 
@@ -75,7 +78,7 @@
 
 ---
 
-## 💼 Career Launchpad — Desired Outcomes
+## 💼 Career Launchpad — Desired Outcomes (✅ ACTIVE)
 
 ### Outcome CL-O1: Clear Career Direction
 

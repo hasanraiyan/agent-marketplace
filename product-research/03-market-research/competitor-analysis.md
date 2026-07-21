@@ -1,4 +1,8 @@
-# Competitor Analysis — All Three Agent Verticals
+# Competitor Analysis — Career Launchpad Focus
+
+> **⚠️ Strategic Pivot (July 2026):** Persona.ai now focuses exclusively on the **💼 Career Launchpad**.
+> The vertical competitor analyses for 🚀 Startup Thinker and 🌍 Study Abroad Navigator below are preserved for reference.
+> All competitive strategy is centered on the Career Launchpad / career readiness space.
 
 > **Status:** EVIDENCE — based on web research + founder input
 > **Date:** July 19, 2026
@@ -7,10 +11,10 @@
 
 ## ⚠️ Important Distinction
 
-Persona AI occupies a unique position: it's a **platform** (Creators build agents) AND it has **first-party agents** (the 3 launch agents). Competitors are analyzed at both levels:
+Persona AI occupies a unique position: it's a **platform** (Creators build agents) AND it has a **first-party agent** (the Career Launchpad). Competitors are analyzed at both levels:
 
 1. **Platform competitors** — other AI agent marketplaces/platforms
-2. **Vertical competitors** — solutions in each of the 3 problem spaces
+2. **Vertical competitors** — solutions in the career readiness space
 
 ---
 
@@ -38,7 +42,7 @@ Persona AI occupies a unique position: it's a **platform** (Creators build agent
 
 ---
 
-## 2. Startup Thinker — Vertical Competitors
+## 2. Startup Thinker — Vertical Competitors (⚠️ ARCHIVED)
 
 ### Direct Competitors (Startup Validation Tools)
 
@@ -63,7 +67,7 @@ Persona AI occupies a unique position: it's a **platform** (Creators build agent
 
 ---
 
-## 3. Study Abroad Navigator — Vertical Competitors
+## 3. Study Abroad Navigator — Vertical Competitors (⚠️ ARCHIVED)
 
 ### Direct Competitors (Study Abroad Tools)
 
@@ -90,7 +94,7 @@ Persona AI occupies a unique position: it's a **platform** (Creators build agent
 
 ---
 
-## 4. Career Launchpad — Vertical Competitors
+## 4. Career Launchpad — Vertical Competitors (✅ ACTIVE)
 
 ### Direct Competitors (Career Readiness Tools)
 
@@ -135,24 +139,18 @@ Persona AI occupies a unique position: it's a **platform** (Creators build agent
 
 | Weakness | Mitigation |
 |----------|-----------|
-| **No brand recognition vs. ChatGPT, LinkedIn** | Start narrow with one vertical and win through depth |
-| **User acquisition cost for 3 different audiences** | Focus on one persona first, then expand |
-| **Accuracy critical for high-stakes domains (visas, careers)** | Clear disclaimers, use official sources, human-in-the-loop where needed |
-| **Creator adoption** | Need enough creators to make marketplace viable — start with first-party agents |
-| **Information freshness** | Scholarships, visas, job markets change — web research + proactive updates needed |
+| **No brand recognition vs. ChatGPT, LinkedIn** | Start narrow — win through depth in one vertical |
+| **User acquisition cost** | Focus on university partnerships and graduate communities |
+| **Accuracy critical for career advice** | Clear disclaimers, use official sources, market data validation |
+| **Creator adoption** | Start with first-party agent; add creator marketplace in later phases |
+| **Information freshness** | Job markets change — web research + proactive updates needed |
 
 ### Blue Ocean Strategy
 
-Persona AI's position is unique because **no competitor combines all of**:
+Persona AI's position in the career readiness space is unique because **no competitor combines all of**:
 
-1. ✅ Deeply specialized agents (not generic chatbots)
-2. ✅ Full journey orchestration (not one-off answers)
-3. ✅ Creator empowerment (domain experts can build agents)
-4. ✅ File system with persistent artifacts
-5. ✅ Two-sided marketplace (future: leads for creators)
-
-The closest competitor in each dimension:
-- **Specialized agents** → Custom GPTs (but they lack depth)
-- **Journey orchestration** → Study abroad consultants (but expensive)
-- **Creator empowerment** → Poe/Cozé (but agents are shallow)
-- **File/artifact system** → Notion (but not AI-powered)
+1. ✅ Deeply specialized career agent (not a generic chatbot or broad platform)
+2. ✅ Full journey orchestration (profile → assessment → roadmap → resume → interview → offer)
+3. ✅ Real-time market comparison (compares candidate skills to actual job posting requirements)
+4. ✅ File system with persistent artifacts (roadmaps, improved resume, interview notes)
+5. ✅ Honest, specific feedback that recruiters and generic tools won't provide

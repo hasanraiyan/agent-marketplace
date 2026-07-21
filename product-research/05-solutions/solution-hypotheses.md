@@ -1,4 +1,7 @@
-# Solution Hypotheses — All Three Agents
+# Solution Hypotheses — Career Launchpad (Primary) / Other Agents (Archived)
+
+> **⚠️ Strategic Pivot (July 2026):** Persona.ai now focuses exclusively on the **💼 Career Launchpad**.
+> The 🚀 Startup Thinker and 🌍 Study Abroad Navigator solutions below are **archived for reference only**.
 
 > **Status:** HYPOTHESIS — intended to be validated
 > **Date:** July 19, 2026
@@ -7,7 +10,7 @@
 
 ---
 
-## 🚀 Startup Thinker — Solution Hypotheses
+## 🚀 Startup Thinker — Solution Hypotheses (⚠️ ARCHIVED)
 
 ### Solution ST-S1: Structured Idea Validation Engine
 
@@ -41,7 +44,7 @@
 
 ---
 
-## 🌍 Study Abroad Navigator — Solution Hypotheses
+## 🌍 Study Abroad Navigator — Solution Hypotheses (⚠️ ARCHIVED)
 
 ### Solution SA-S1: Complete Journey Orchestration
 
@@ -90,7 +93,7 @@
 
 ---
 
-## 💼 Career Launchpad — Solution Hypotheses
+## 💼 Career Launchpad — Solution Hypotheses (✅ ACTIVE)
 
 ### Solution CL-S1: Holistic Career Readiness Assessment
 
@@ -141,15 +144,24 @@
 
 ## Solution Hypotheses → Traceability Map
 
+### ✅ Active (Career Launchpad)
+
 ```
-Solution Hypothesis          Related Persona     Problems Solved         Desired Outcomes
-─────────────────────────────────────────────────────────────────────────────────────
-ST-S1: Validation Engine     Alex (Consumer)      ST-P1, ST-P2           ST-O1
-ST-S2: Execution Planning    Alex (Consumer)      ST-P3, ST-P4           ST-O2, ST-O3
-SA-S1: Journey Orchestration Priya (Consumer)     SA-P1, SA-P2, SA-P3    SA-O1, SA-O2, SA-O3
-SA-S2: Modular 22 Skills     Priya (Consumer)     SA-P1                  SA-O1
-SA-S3: KB + Web Hybrid       Priya (Consumer)     SA-P2, SA-P3           SA-O2, SA-O3
-CL-S1: Readiness Assessment  Jordan (Consumer)    CL-P1, CL-P2, CL-P3    CL-O1, CL-O2
-CL-S2: Comprehensive Skills  Jordan (Consumer)    CL-P1, CL-P2, CL-P3, CL-P4  CL-O1, CL-O2, CL-O3
-CL-S3: Interview Simulation  Jordan (Consumer)    CL-P4                  CL-O3
+Solution Hypothesis               Persona         Problems Solved           Desired Outcomes
+───────────────────────────────────────────────────────────────────────────────────────────
+CL-S1: Readiness Assessment       Jordan          CL-P1, CL-P2, CL-P3       CL-O1, CL-O2
+CL-S2: Comprehensive 42 Skills    Jordan          CL-P1, CL-P2, CL-P3,CL-P4 CL-O1, CL-O2, CL-O3
+CL-S3: Interview Simulation       Jordan          CL-P4                     CL-O3
+```
+
+### ⚠️ Archived (Other Agents)
+
+```
+Solution Hypothesis          Persona     Problems Solved      Desired Outcomes
+───────────────────────────────────────────────────────────────────────────────
+ST-S1: Validation Engine     Alex        ST-P1, ST-P2          ST-O1
+ST-S2: Execution Planning    Alex        ST-P3, ST-P4          ST-O2, ST-O3
+SA-S1: Journey Orchestration Priya       SA-P1, SA-P2, SA-P3   SA-O1, SA-O2, SA-O3
+SA-S2: Modular 22 Skills     Priya       SA-P1                 SA-O1
+SA-S3: KB + Web Hybrid       Priya       SA-P2, SA-P3          SA-O2, SA-O3
 ```

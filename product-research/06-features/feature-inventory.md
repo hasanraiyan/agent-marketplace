@@ -1,4 +1,7 @@
-# Feature Inventory — All Three Agents
+# Feature Inventory — Career Launchpad (Primary) / Other Agents (Archived)
+
+> **⚠️ Strategic Pivot (July 2026):** Persona.ai now focuses exclusively on the **💼 Career Launchpad**.
+> The 🚀 Startup Thinker and 🌍 Study Abroad Navigator features below are **archived for reference only**.
 
 > **Status:** HYPOTHESIS — grounded in founder specification
 > **Date:** July 19, 2026
@@ -13,7 +16,7 @@ Features below the main list that don't yet trace to a documented problem are in
 
 ---
 
-## 🚀 Startup Thinker — Features
+## 🚀 Startup Thinker — Features (⚠️ ARCHIVED)
 
 ### ST-F1: Idea Submission & Deep Challenge
 
@@ -89,7 +92,7 @@ Features below the main list that don't yet trace to a documented problem are in
 
 ---
 
-## 🌍 Study Abroad Navigator — Features
+## 🌍 Study Abroad Navigator — Features (⚠️ ARCHIVED)
 
 ### SA-F1: Comprehensive Student Profile
 
@@ -183,7 +186,7 @@ Features below the main list that don't yet trace to a documented problem are in
 
 ---
 
-## 💼 Career Launchpad — Features
+## 💼 Career Launchpad — Features (✅ ACTIVE)
 
 ### CL-F1: Candidate Profile Assessment
 
@@ -279,6 +282,18 @@ Features below the main list that don't yet trace to a documented problem are in
 
 ## Features → Traceability Map
 
+### ✅ Active (Career Launchpad)
+
+| Feature | Problem | Outcome | Priority |
+|---------|---------|---------|----------|
+| CL-F1: Candidate Assessment | CL-P1, CL-P2 | CL-O1, CL-O2 | P0 |
+| CL-F2: Skill Gap Analysis | CL-P2 | CL-O2 | P0 |
+| CL-F3: Resume Optimization | CL-P3 | CL-O2 | P0 |
+| CL-F4: Mock Interview | CL-P4 | CL-O3 | P1 |
+| CL-F5: Career Roadmap | CL-P1, CL-P2, CL-P4 | CL-O1, CL-O2, CL-O3 | P0 |
+
+### ⚠️ Archived (Other Agents)
+
 | Feature | Problem | Outcome | Priority |
 |---------|---------|---------|----------|
 | ST-F1: Idea Deep Challenge | ST-P1, ST-P2 | ST-O1 | P0 |
@@ -290,11 +305,6 @@ Features below the main list that don't yet trace to a documented problem are in
 | SA-F3: Scholarship Matching | SA-P2 | SA-O2 | P0 |
 | SA-F4: Journey Roadmap | SA-P1, SA-P3 | SA-O1, SA-O3 | P0 |
 | SA-F5: Visa Guide | SA-P3 | SA-O3 | P1 |
-| CL-F1: Candidate Assessment | CL-P1, CL-P2 | CL-O1, CL-O2 | P0 |
-| CL-F2: Skill Gap Analysis | CL-P2 | CL-O2 | P0 |
-| CL-F3: Resume Optimization | CL-P3 | CL-O2 | P0 |
-| CL-F4: Mock Interview | CL-P4 | CL-O3 | P1 |
-| CL-F5: Career Roadmap | CL-P1, CL-P2, CL-P4 | CL-O1, CL-O2, CL-O3 | P0 |
 
 ---
 

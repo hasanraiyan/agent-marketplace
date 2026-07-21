@@ -1,11 +1,14 @@
-     ## User Journey Maps — All Three Agents
+     ## User Journey Maps — Career Launchpad (Primary) / Other Agents (Archived)
+
+     > **⚠️ Strategic Pivot (July 2026):** Persona.ai now focuses exclusively on the **💼 Career Launchpad**.
+     > The 🚀 Startup Thinker and 🌍 Study Abroad Navigator journeys below are **archived for reference only**.
 
      > **Status:** HYPOTHESIS — based on founder specification + research
      > **Date:** July 19, 2026
 
      ---
 
-     ## 🚀 Startup Thinker — User Journey
+     ## 🚀 Startup Thinker — User Journey (⚠️ ARCHIVED)
 
      ### Persona: Alex Chen (First-time Founder)
 
@@ -89,7 +92,7 @@
 
      ---
 
-     ## 🌍 Study Abroad Navigator — User Journey
+     ## 🌍 Study Abroad Navigator — User Journey (⚠️ ARCHIVED)
 
      ### Persona: Priya Sharma (Indian Engineering Student)
 
@@ -183,7 +186,7 @@
 
      ---
 
-     ## 💼 Career Launchpad — User Journey
+     ## 💼 Career Launchpad — User Journey (✅ ACTIVE)
 
      ### Persona: Jordan Williams (Engineering Student)
 

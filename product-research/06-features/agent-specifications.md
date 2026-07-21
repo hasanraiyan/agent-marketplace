@@ -1,4 +1,8 @@
-# Agent Specifications — The Three Persona AI Agents
+# Agent Specifications — Career Launchpad (Primary) / Other Agents (Archived)
+
+> **⚠️ Strategic Pivot (July 2026):** Persona.ai now focuses exclusively on the **💼 Career Launchpad**.
+> The 🚀 Startup Thinker and 🌍 Study Abroad Navigator specs below are **archived for reference only**.
+> All development and product design is centered on the Career Launchpad.
 
 > **Status:** FACT — defined by founder
 > **Date:** July 19, 2026
@@ -34,7 +38,9 @@ The user starts with a messy real-world problem, and the agent:
 
 ---
 
-# 🚀 Agent 1: The Startup Thinker
+# 🚀 Agent 1: The Startup Thinker (⚠️ ARCHIVED)
+
+> *This agent is parked. The spec is preserved for future reference.*
 
 ## Purpose
 Help founders go from **"I have an idea"** to **"I know what assumptions I need to test and what I should do next."**
@@ -99,7 +105,9 @@ Persona AI isn't there to agree with your startup idea. The Startup Thinker exis
 
 ---
 
-# 🌍 Agent 2: Study Abroad Navigator
+# 🌍 Agent 2: Study Abroad Navigator (⚠️ ARCHIVED)
+
+> *This agent is parked. The spec is preserved for future reference.*
 
 ## Purpose
 Help students navigate from **"I want to study abroad"** to **"I know exactly where I'm going, why, and what I need to do next."**
@@ -187,7 +195,9 @@ The Study Abroad Navigator doesn't just answer one study-abroad question. It can
 
 ---
 
-# 💼 Agent 3: The Career Launchpad
+# 💼 Agent 3: The Career Launchpad (✅ ACTIVE)
+
+> *🚀 THIS is the agent Persona.ai is building. Single focus. Full depth.*
 
 ## Purpose
 Help someone go from **"I want this career"** to **"I know what's missing, what I need to do, and how to become job-ready."**
@@ -258,22 +268,15 @@ Then the Deep Agent:
 ```
                     PERSONA AI
                         │
-             User chooses an Agent
+              User chooses Career Launchpad
                         │
-        ┌───────────────┼───────────────┐
-        │               │               │
-   🚀 Startup       🌍 Study        💼 Career
-     Thinker          Abroad          Launchpad
-                      Navigator
-        │               │               │
-        ▼               ▼               ▼
-     Skills          Skills          Skills
-        │               │               │
-        ▼               ▼               ▼
-   Knowledge        Knowledge       Knowledge
-      Base             Base            Base
-        │               │               │
-        └───────────────┼───────────────┘
+                        ▼
+                    Skills
+                   (42 skills)
+                        │
+                        ▼
+                  Knowledge
+                     Base
                         │
                         ▼
                    Deep Agent
@@ -294,22 +297,25 @@ Then the Deep Agent:
                Persistent Artifacts
 ```
 
+> *The architecture is identical for archived agents (🚀 Startup Thinker, 🌍 Study Abroad Navigator) —
+>  they simply have different skills, knowledge bases, and orchestrator logic.*
+
 ---
 
 # Core Product Story
 
-### The Three Core Promises
+### The Core Promise
 
 | Agent | Problem | Promise |
 |-------|---------|---------|
-| 🚀 Startup Thinker | *"I have an idea. Help me figure out if it's worth building."* | Challenge assumptions, validate ideas, plan execution |
-| 🌍 Study Abroad Navigator | *"I have a dream. Help me figure out how to get there."* | Complete journey guidance from dream to campus |
-| 💼 Career Launchpad | *"I have a career goal. Help me become ready for it."* | Skill gap analysis, resume prep, interview readiness |
+| 💼 **Career Launchpad** (✅ ACTIVE) | *"I have a career goal. Help me become ready for it."* | Skill gap analysis, resume prep, interview readiness, personalized roadmap |
+
+> *The 🚀 Startup Thinker and 🌍 Study Abroad Navigator (⚠️ ARCHIVED) followed the same pattern — one agent, one journey, one promise — but are parked for future consideration.*
 
 ### The Differentiator
 
 > You don't come to Persona AI because you need **one answer**. You come because you have a **journey**.
 
-The agent stays specialized in that journey — using skills, knowledge, context, research, tools, sub-agents, deep reasoning, and files to help you move forward.
+The Career Launchpad stays specialized in that journey — using skills, knowledge, context, research, tools, sub-agents, deep reasoning, and files to help a graduate go from uncertain to hired.
 
-**The persona is the interface, but the agentic system underneath is the real value.**
+**The career journey is the interface. The agentic system underneath is the real value.**

@@ -1,11 +1,15 @@
-# Problem Inventory — All Three Personas
+# Problem Inventory — Career Launchpad (Primary) / Other Agents (Archived)
+
+> **⚠️ Strategic Pivot (July 2026):** Persona.ai now focuses exclusively on the **💼 Career Launchpad**.
+> The 🚀 Startup Thinker and 🌍 Study Abroad Navigator problems below are **archived for reference only** —
+> they are not being actively pursued. All development focus is on Career Launchpad problems (CL-P*).
 
 > **Status:** HYPOTHESIS — grounded in research + founder specification, not yet validated with real users
 > **Date:** July 19, 2026
 
 ---
 
-## 🚀 Startup Thinker — Problems
+## 🚀 Startup Thinker — Problems (⚠️ ARCHIVED)
 
 ### ST-P1: Idea Validation Uncertainty
 
@@ -77,7 +81,7 @@
 
 ---
 
-## 🌍 Study Abroad Navigator — Problems
+## 🌍 Study Abroad Navigator — Problems (⚠️ ARCHIVED)
 
 ### SA-P1: No Single Source of Truth for the Journey
 

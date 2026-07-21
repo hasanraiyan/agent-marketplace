@@ -1,9 +1,13 @@
 # User Personas — Persona.ai
 
+> **⚠️ Strategic Pivot (July 2026):** Persona.ai now focuses exclusively on the **💼 Career Launchpad**.
+> All 6 personas below are preserved for reference. The active persona is **Jordan Williams (Consumer)**
+> and **Rachel Okonkwo (Creator)** for the Career Launchpad. Alex/Maya and Priya/Dr. Kenji are archived.
+
 > **Status:** HYPOTHESIS — based on research + founder input, not yet validated with real users
 > **Created:** July 19, 2026
 >
-> **6 personas total: 3 Consumers + 3 Creators (one Creator per agent type)**
+> **6 personas total: 3 Consumers + 3 Creators (one Creator per agent type) — only Career Launchpad pair is active**
 
 ---
 
@@ -14,6 +18,9 @@
 │                        Persona.ai Platform                        │
 │                                                                   │
 │  Domain Expert (Creator) ───builds──▶ AI Agent ───used by──▶ Consumer  │
+│                                                                   │
+│  🎯 Active: Career Launchpad (Rachel Okonkwo → Jordan Williams)   │
+│  ⏸️  Archived: Startup Thinker, Study Abroad Navigator           │
 │                                                                   │
 │  Creator encodes expertise using:                                 │
 │    • Memory (their knowledge/experience)                          │
@@ -27,7 +34,7 @@
 
 ---
 
-## Pair 1: 🚀 The Startup Thinker
+## Pair 1: 🚀 The Startup Thinker (⚠️ ARCHIVED)
 
 ### Consumer: Alex Chen
 
@@ -80,7 +87,7 @@
 
 ---
 
-### Creator: Maya Torres (Startup Thinker Creator)
+### Creator: Maya Torres (Startup Thinker Creator) (⚠️ ARCHIVED)
 
 | Attribute | Detail |
 |-----------|--------|
@@ -121,7 +128,7 @@
 
 ---
 
-## Pair 2: 🌍 Study Abroad Navigator
+## Pair 2: 🌍 Study Abroad Navigator (⚠️ ARCHIVED)
 
 ### Consumer: Priya Sharma
 
@@ -169,7 +176,7 @@
 
 ---
 
-### Creator: Dr. Kenji Tanaka (Study Abroad Navigator Creator)
+### Creator: Dr. Kenji Tanaka (Study Abroad Navigator Creator) (⚠️ ARCHIVED)
 
 | Attribute | Detail |
 |-----------|--------|
@@ -210,7 +217,7 @@
 
 ---
 
-## Pair 3: 💼 The Career Launchpad
+## Pair 3: 💼 The Career Launchpad (✅ ACTIVE)
 
 ### Consumer: Jordan Williams
 
@@ -261,7 +268,7 @@
 
 ---
 
-### Creator: Rachel Okonkwo (Career Launchpad Creator)
+### Creator: Rachel Okonkwo (Career Launchpad Creator) (✅ ACTIVE)
 
 | Attribute | Detail |
 |-----------|--------|
