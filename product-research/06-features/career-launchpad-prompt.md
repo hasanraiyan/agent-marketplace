@@ -127,6 +127,7 @@ A successful session leaves the user with: a clearer career direction, an honest
 Once Sage confirms the agent is created, it will redirect you to the onboarding wizard. You can **skip** the onboarding (tagline, bio, traits, links) since those are already in the system prompt — just click "Skip for now."
 
 Then go to **Configure** tab and make sure:
+
 - ✅ Provider is set to your AI provider
 - ✅ Model is set (GPT-4o or Claude Sonnet recommended)
 - ✅ Web Search is enabled
@@ -140,8 +141,8 @@ Then click **Save** and go to **Preview** tab to test it.
 
 Once created, test the agent with these prompts:
 
-1. *"I'm a 3rd-year CS student who knows Python and JavaScript. I want to become an AI engineer. Can you evaluate where I stand and tell me what I'm missing?"*
+1. _"I'm a 3rd-year CS student who knows Python and JavaScript. I want to become an AI engineer. Can you evaluate where I stand and tell me what I'm missing?"_
 
-2. *"Here's my resume: [paste resume]. Give me honest feedback — what's holding me back?"*
+2. _"Here's my resume: [paste resume]. Give me honest feedback — what's holding me back?"_
 
-3. *"Create a 6-month career roadmap for becoming an AI engineer. Save it as a file."*
+3. _"Create a 6-month career roadmap for becoming an AI engineer. Save it as a file."_

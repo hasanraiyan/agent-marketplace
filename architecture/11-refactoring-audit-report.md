@@ -12,16 +12,16 @@ A comprehensive audit was performed on the architecture refactoring of the Perso
 
 ### Key Findings
 
-| Metric | Value |
-|--------|-------|
-| **Refactoring commits** | 6 refactoring commits across 6 PRs |
-| **Steps claimed completed** | 5 of 13 (Steps 1-5 per migration plan) |
-| **Steps actually completed** | 5 of 13 (Steps 1-5 verified ✅) |
-| **Step in progress** | Step 6 (Providers) — uncommitted changes detected |
-| **Test suites** | 60/60 passing (588/588 tests) |
-| **Layer boundary violations found** | 5 critical violations remain |
-| **Migrated modules** | Auth, Health, Upload, Webhooks, Skills, Providers (WIP) |
-| **Not yet migrated modules** | Users & Profile, Threads, MCP, Agents, AGUI, Knowledge |
+| Metric                              | Value                                                   |
+| ----------------------------------- | ------------------------------------------------------- |
+| **Refactoring commits**             | 6 refactoring commits across 6 PRs                      |
+| **Steps claimed completed**         | 5 of 13 (Steps 1-5 per migration plan)                  |
+| **Steps actually completed**        | 5 of 13 (Steps 1-5 verified ✅)                         |
+| **Step in progress**                | Step 6 (Providers) — uncommitted changes detected       |
+| **Test suites**                     | 60/60 passing (588/588 tests)                           |
+| **Layer boundary violations found** | 5 critical violations remain                            |
+| **Migrated modules**                | Auth, Health, Upload, Webhooks, Skills, Providers (WIP) |
+| **Not yet migrated modules**        | Users & Profile, Threads, MCP, Agents, AGUI, Knowledge  |
 
 ### Bottom Line
 
@@ -42,6 +42,7 @@ The first code-refactoring commit is `064f045` (`refactor(auth): modularize auth
 ### Baseline State (at `7629339`)
 
 At baseline:
+
 - All source code lived in `src/` (controllers, models, routes, services, etc.)
 - No `agent-backend/src/modules/` directory existed
 - Architecture docs at `architecture/01` through `architecture/09` were research-only (no code moves)
@@ -59,15 +60,15 @@ At baseline:
 
 ### Refactoring-Specific Commits Only
 
-| Commit | Description | Files Changed | Insertions | Deletions |
-|--------|-------------|---------------|------------|-----------|
-| `064f045` | Refactor auth | 62 | 944 | 617 |
-| `f6736b7` | Refactor health | 10 | 59 | 25 |
-| `f323b66` | Refactor upload | 3 | 30 | 11 |
-| `d66350a` | Refactor webhooks | 6 | 205 | 122 |
-| `768a428` | Refactor skills | 18 | 94 | 41 |
-| `45e853e` | Remove legacy codeSnippets | 6 | 20 | 106 |
-| **Total** | | **105** | **1,352** | **922** |
+| Commit    | Description                | Files Changed | Insertions | Deletions |
+| --------- | -------------------------- | ------------- | ---------- | --------- |
+| `064f045` | Refactor auth              | 62            | 944        | 617       |
+| `f6736b7` | Refactor health            | 10            | 59         | 25        |
+| `f323b66` | Refactor upload            | 3             | 30         | 11        |
+| `d66350a` | Refactor webhooks          | 6             | 205        | 122       |
+| `768a428` | Refactor skills            | 18            | 94         | 41        |
+| `45e853e` | Remove legacy codeSnippets | 6             | 20         | 106       |
+| **Total** |                            | **105**       | **1,352**  | **922**   |
 
 ### Net Impact of Refactoring (all commits)
 
@@ -88,6 +89,7 @@ The refactoring progress document (`09-refactoring-progress.md`) claims Steps 1-
 **Claimed**: Completed — Verified: ✅
 
 **What changed**:
+
 - Created `src/modules/auth/auth.service.js` with consolidated `AuthService.syncUser` logic
 - Moved `src/middlewares/auth.middleware.js` → `src/modules/auth/auth.middleware.js`
 - Moved `src/middlewares/optionalAuthMiddleware.js` → `src/modules/auth/optional-auth.middleware.js`
@@ -96,6 +98,7 @@ The refactoring progress document (`09-refactoring-progress.md`) claims Steps 1-
 - Updated 10+ route files with new import paths
 
 **Logic extracted**:
+
 - **Middlewares → Service**: Duplicated Clerk user synchronization logic extracted from `auth.middleware.js` and `optionalAuthMiddleware.js` into `auth.service.js`, consolidating two nearly-identical code paths into a single `AuthService.syncUser()` method.
 - **Service → Repository**: `AuthService.syncUser()` queries the database through `userRepository` rather than importing Mongoose models directly.
 
@@ -108,6 +111,7 @@ The refactoring progress document (`09-refactoring-progress.md`) claims Steps 1-
 **Claimed**: Completed — Verified: ✅
 
 **What changed**:
+
 - `src/routes/health.js` → `src/modules/health/health.routes.js`
 - `src/controllers/healthController.js` → `src/modules/health/health.controller.js`
 - `src/services/healthService.js` → `src/modules/health/health.service.js`
@@ -124,6 +128,7 @@ The refactoring progress document (`09-refactoring-progress.md`) claims Steps 1-
 **Claimed**: Completed — Verified: ✅
 
 **What changed**:
+
 - `src/routes/upload.routes.js` → `src/modules/upload/upload.routes.js`
 - Updated imports and index.js mount
 - Deleted original file
@@ -133,6 +138,7 @@ The refactoring progress document (`09-refactoring-progress.md`) claims Steps 1-
 **Claimed**: Completed — Verified: ✅
 
 **What changed**:
+
 - Created `src/modules/webhooks/webhook.controller.js` (68 lines)
 - Created `src/modules/webhooks/webhook.service.js` (93 lines)
 - Moved `src/routes/webhook.routes.js` → `src/modules/webhooks/webhook.routes.js` (thinned to 13 lines)
@@ -140,6 +146,7 @@ The refactoring progress document (`09-refactoring-progress.md`) claims Steps 1-
 - Replaced direct `User` model queries in webhook handler with `userRepository` calls
 
 **Logic extracted**:
+
 - **Route → Controller + Service**: The original `src/routes/webhook.routes.js` (113 lines) contained SVIX signature verification, Clerk event parsing (`user.created`, `user.updated`, `user.deleted`), and direct `User` model queries. These were split into:
   - `webhook.controller.js` (68 lines) — HTTP handling + SVIX verification
   - `webhook.service.js` (93 lines) — business logic via `userRepository`
@@ -152,6 +159,7 @@ The refactoring progress document (`09-refactoring-progress.md`) claims Steps 1-
 **Claimed**: Completed — Verified: ✅
 
 **What changed**:
+
 - Created 6 files under `src/modules/skills/`: model, validator, repository, service, controller, routes
 - Added `findAgentsUsingSkill` and `removeSkillFromAgents` to `agentRepository`
 - Removed direct `Agent` model imports from `skill.service.js`
@@ -159,6 +167,7 @@ The refactoring progress document (`09-refactoring-progress.md`) claims Steps 1-
 - Updated imports in profile.controller.js, deleteInactiveUsers.js, skillLibraryStore.js, builder.tools.js
 
 **Logic extracted**:
+
 - **Service → Repository**: `skill.service.js` previously imported and queried `Agent` model directly (cross-domain violation). These queries were extracted into new `agentRepository` methods:
   - `agentRepository.findAgentsUsingSkill(skillId)`
   - `agentRepository.removeSkillFromAgents(skillId)`
@@ -173,6 +182,7 @@ The refactoring progress document (`09-refactoring-progress.md`) claims Steps 1-
 **Claimed**: Pending — **Actual status**: Substantially advanced in working tree
 
 **What exists in working tree** (not yet committed):
+
 - `src/modules/providers/provider.model.js` — created (moved from `src/models/Provider.js`)
 - `src/modules/providers/provider.repository.js` — created (moved from `src/repositories/providerRepository.js`)
 - `src/modules/providers/provider.validator.js` — created (moved from `src/validators/provider.validator.js`)
@@ -269,56 +279,57 @@ agent-backend/src/
 
 ### Auth Module (`src/modules/auth/`)
 
-| File | Type | Status |
-|------|------|--------|
-| `auth.middleware.js` | Moved from `src/middlewares/auth.middleware.js` | ✅ Committed |
-| `auth.service.js` | Created (new consolidated sync logic) | ✅ Committed |
+| File                          | Type                                                   | Status       |
+| ----------------------------- | ------------------------------------------------------ | ------------ |
+| `auth.middleware.js`          | Moved from `src/middlewares/auth.middleware.js`        | ✅ Committed |
+| `auth.service.js`             | Created (new consolidated sync logic)                  | ✅ Committed |
 | `optional-auth.middleware.js` | Moved from `src/middlewares/optionalAuthMiddleware.js` | ✅ Committed |
 
 **Key logic change**: Both `auth.middleware.js` and `optional-auth.middleware.js` now call `authService.syncUser()` instead of duplicating the user retrieval/sync logic. The `auth.service.js` uses `userRepository` for database queries.
 
 ### Health Module (`src/modules/health/`)
 
-| File | Type | Status |
-|------|------|--------|
-| `health.controller.js` | Moved from `src/controllers/healthController.js` | ✅ Committed |
+| File                   | Type                                              | Status       |
+| ---------------------- | ------------------------------------------------- | ------------ |
+| `health.controller.js` | Moved from `src/controllers/healthController.js`  | ✅ Committed |
 | `health.repository.js` | Moved from `src/repositories/healthRepository.js` | ✅ Committed |
-| `health.routes.js` | Moved from `src/routes/health.js` | ✅ Committed |
-| `health.service.js` | Moved from `src/services/healthService.js` | ✅ Committed |
+| `health.routes.js`     | Moved from `src/routes/health.js`                 | ✅ Committed |
+| `health.service.js`    | Moved from `src/services/healthService.js`        | ✅ Committed |
 
 **No logic changes** — pure move with import path updates.
 
 ### Upload Module (`src/modules/upload/`)
 
-| File | Type | Status |
-|------|------|--------|
+| File               | Type                                     | Status       |
+| ------------------ | ---------------------------------------- | ------------ |
 | `upload.routes.js` | Moved from `src/routes/upload.routes.js` | ✅ Committed |
 
 **No logic changes** — pure move with import path updates.
 
 ### Webhooks Module (`src/modules/webhooks/`)
 
-| File | Type | Status |
-|------|------|--------|
-| `webhook.controller.js` | Created (new) | ✅ Committed |
-| `webhook.routes.js` | Moved from `src/routes/webhook.routes.js` | ✅ Committed |
-| `webhook.service.js` | Created (new) | ✅ Committed |
+| File                    | Type                                      | Status       |
+| ----------------------- | ----------------------------------------- | ------------ |
+| `webhook.controller.js` | Created (new)                             | ✅ Committed |
+| `webhook.routes.js`     | Moved from `src/routes/webhook.routes.js` | ✅ Committed |
+| `webhook.service.js`    | Created (new)                             | ✅ Committed |
 
 **Key logic change**: The original `src/routes/webhook.routes.js` (113 lines) contained inline SVIX verification, event parsing, and direct `User` model queries. The new architecture splits this into:
+
 - `webhook.routes.js` (13 lines) — only routing
 - `webhook.controller.js` (68 lines) — HTTP handling, SVIX verification
 - `webhook.service.js` (93 lines) — business logic via `userRepository`
 
 ### Skills Module (`src/modules/skills/`)
 
-| File | Type | Status |
-|------|------|--------|
+| File                  | Type                                             | Status       |
+| --------------------- | ------------------------------------------------ | ------------ |
 | `skill.controller.js` | Moved from `src/controllers/skill.controller.js` | ✅ Committed |
-| `skill.model.js` | Moved from `src/models/Skill.js` | ✅ Committed |
+| `skill.model.js`      | Moved from `src/models/Skill.js`                 | ✅ Committed |
 | `skill.repository.js` | Moved from `src/repositories/skillRepository.js` | ✅ Committed |
-| `skill.routes.js` | Moved from `src/routes/skill.routes.js` | ✅ Committed |
-| `skill.service.js` | Moved from `src/services/skill.service.js` | ✅ Committed |
-| `skill.validator.js` | Moved from `src/validators/skill.validator.js` | ✅ Committed |
+| `skill.routes.js`     | Moved from `src/routes/skill.routes.js`          | ✅ Committed |
+| `skill.service.js`    | Moved from `src/services/skill.service.js`       | ✅ Committed |
+| `skill.validator.js`  | Moved from `src/validators/skill.validator.js`   | ✅ Committed |
 
 **Key logic change**: `skill.service.js` previously imported `Agent` model directly. Now it calls `agentRepository.removeSkillFromAgents()` and `agentRepository.findAgentsUsingSkill()`. Two methods were added to `agentRepository` to support this.
 
@@ -326,14 +337,14 @@ agent-backend/src/
 
 ### Providers Module (Uncommitted)
 
-| File | Type | Status |
-|------|------|--------|
+| File                     | Type                                                | Status         |
+| ------------------------ | --------------------------------------------------- | -------------- |
 | `provider.controller.js` | Moved from `src/controllers/provider.controller.js` | 🔄 Uncommitted |
-| `provider.model.js` | Moved from `src/models/Provider.js` | 🔄 Uncommitted |
+| `provider.model.js`      | Moved from `src/models/Provider.js`                 | 🔄 Uncommitted |
 | `provider.repository.js` | Moved from `src/repositories/providerRepository.js` | 🔄 Uncommitted |
-| `provider.routes.js` | Moved from `src/routes/provider.routes.js` | 🔄 Uncommitted |
-| `provider.service.js` | Moved from `src/services/provider.service.js` | 🔄 Uncommitted |
-| `provider.validator.js` | Moved from `src/validators/provider.validator.js` | 🔄 Uncommitted |
+| `provider.routes.js`     | Moved from `src/routes/provider.routes.js`          | 🔄 Uncommitted |
+| `provider.service.js`    | Moved from `src/services/provider.service.js`       | 🔄 Uncommitted |
+| `provider.validator.js`  | Moved from `src/validators/provider.validator.js`   | 🔄 Uncommitted |
 
 **Key logic change**: Old `provider.service.js` imported `Agent` from `../models/Agent.js`. New `modules/providers/provider.service.js` does NOT — it uses `agentRepository` instead. The method `findAgentsUsingProvider()` was added to `agentRepository` to support this decoupling.
 
@@ -344,12 +355,14 @@ agent-backend/src/
 Per `05-architecture-problems.md`, the following findings have been addressed:
 
 ### Finding 2.1: Clerk Webhook Handler Contains All Logic Inline
+
 - **Status**: ✅ **RESOLVED**
 - **Original**: `src/routes/webhook.routes.js` contained SVIX verification, event parsing, and direct DB queries inline
 - **Current**: Split across `webhook.routes.js` (routing only), `webhook.controller.js` (SVIX check), and `webhook.service.js` (repository calls)
 - **Evidence**: `webhook.routes.js` is now 13 lines; business logic is in controller and service files
 
 ### Finding 2.2: Cross-Domain Database Leakage in Services
+
 - **Status**: 🔶 **PARTIALLY RESOLVED**
 - **Original**: `skill.service.js`, `mcp.service.js`, `provider.service.js` imported `Agent` model directly
 - **Current**:
@@ -360,24 +373,29 @@ Per `05-architecture-problems.md`, the following findings have been addressed:
   - ❌ `provider.service.js` (old, in `src/services/`) — still exists on disk and imports `Agent`
 
 ### Finding 2.3: Direct Database Access from Controllers
+
 - **Status**: ❌ **NOT RESOLVED**
 - **Original**: `profile.controller.js` directly uses `Conversation.deleteMany()`, `Agent.deleteMany()`, etc.
 - **Current**: Same file still contains ALL of these direct model operations (lines 97-106)
 - **Evidence**: Confirmed by grep: `profile.controller.js` imports Agent, Provider, Mcp, McpUserConnection, Conversation models and calls `deleteMany()` directly
 
 ### Finding 3.1: Redundant Request Validation
+
 - **Status**: ❌ **NOT RESOLVED**
 - Both route middleware and controller still run validation on the same schemas
 
 ### Finding 3.2: Duplicated Authentication User Sync Logic
+
 - **Status**: ✅ **RESOLVED**
 - Consolidated into `auth.service.js`
 
 ### Finding 3.3: Duplicate Field Definition in Mongoose Schema
+
 - **Status**: ❌ **NOT RESOLVED**
 - `src/models/User.js` still has the duplicate `username` definition
 
 ### Finding 4.1: Leftover Debug Filesystem Loggers
+
 - **Status**: ✅ **RESOLVED**
 - Removed from `optional-auth.middleware.js` during the move
 
@@ -385,16 +403,16 @@ Per `05-architecture-problems.md`, the following findings have been addressed:
 
 ## 8. Architecture Problems Still Open
 
-| Finding | Severity | Status | Module |
-|---------|----------|--------|--------|
-| 1.1: Business logic in routing layer (agui.routes.js — 307 lines of SSE stream logic) | 🔴 CRITICAL | ❌ NOT RESOLVED | AGUI |
-| 2.2: Cross-domain Agent model imports | 🔴 HIGH | 🔶 PARTIALLY RESOLVED | MCP, Memory, Provider(old) |
-| 2.3: Direct DB access in profile.controller.js | 🔴 HIGH | ❌ NOT RESOLVED | Profile/Users |
-| 3.1: Redundant validation | 🟡 MEDIUM | ❌ NOT RESOLVED | Agents |
-| 3.3: Duplicate username field | 🟡 MEDIUM | ❌ NOT RESOLVED | User Model |
-| 2.2 (cont.): mcp.service.js imports Agent | 🔴 HIGH | ❌ NOT RESOLVED | MCP |
-| 2.2 (cont.): memory.service.js imports Agent | 🔴 HIGH | ❌ NOT RESOLVED | Memory |
-| agui.routes.js: Importing utility files with SSE/business logic | 🔴 CRITICAL | ❌ NOT RESOLVED | AGUI |
+| Finding                                                                               | Severity    | Status                | Module                     |
+| ------------------------------------------------------------------------------------- | ----------- | --------------------- | -------------------------- |
+| 1.1: Business logic in routing layer (agui.routes.js — 307 lines of SSE stream logic) | 🔴 CRITICAL | ❌ NOT RESOLVED       | AGUI                       |
+| 2.2: Cross-domain Agent model imports                                                 | 🔴 HIGH     | 🔶 PARTIALLY RESOLVED | MCP, Memory, Provider(old) |
+| 2.3: Direct DB access in profile.controller.js                                        | 🔴 HIGH     | ❌ NOT RESOLVED       | Profile/Users              |
+| 3.1: Redundant validation                                                             | 🟡 MEDIUM   | ❌ NOT RESOLVED       | Agents                     |
+| 3.3: Duplicate username field                                                         | 🟡 MEDIUM   | ❌ NOT RESOLVED       | User Model                 |
+| 2.2 (cont.): mcp.service.js imports Agent                                             | 🔴 HIGH     | ❌ NOT RESOLVED       | MCP                        |
+| 2.2 (cont.): memory.service.js imports Agent                                          | 🔴 HIGH     | ❌ NOT RESOLVED       | Memory                     |
+| agui.routes.js: Importing utility files with SSE/business logic                       | 🔴 CRITICAL | ❌ NOT RESOLVED       | AGUI                       |
 
 ---
 
@@ -406,21 +424,21 @@ The target architecture requires: `Route → Controller → Service → Reposito
 
 #### 🔴 CRITICAL VIOLATIONS
 
-| Violation | Location | What it does wrong |
-|-----------|----------|-------------------|
-| **Controller imports Model** | `src/controllers/profile.controller.js` | Imports Agent, Provider, Mcp, McpUserConnection, Conversation models and calls `deleteMany()` directly — violates Rule 1 (controllers must not import models) |
-| **Controller imports Model** | `src/controllers/agent.controller.js` | Imports MemoryFile model directly |
-| **Route contains business logic** | `src/routes/agui.routes.js` (307 lines) | Contains LangGraph stream orchestration, AbortController logic, SSE mapping, subagent trace folding — violates the route's role (path matching only) |
-| **Service imports cross-domain Model** | `src/services/mcp.service.js` | Imports `Agent` model directly (violates Rule 2) |
-| **Service imports cross-domain Model** | `src/services/memory.service.js` | Imports `Agent` model directly |
-| **Service imports cross-domain Model** | `src/services/provider.service.js` (old file) | Imports `Agent` model directly |
+| Violation                              | Location                                      | What it does wrong                                                                                                                                            |
+| -------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Controller imports Model**           | `src/controllers/profile.controller.js`       | Imports Agent, Provider, Mcp, McpUserConnection, Conversation models and calls `deleteMany()` directly — violates Rule 1 (controllers must not import models) |
+| **Controller imports Model**           | `src/controllers/agent.controller.js`         | Imports MemoryFile model directly                                                                                                                             |
+| **Route contains business logic**      | `src/routes/agui.routes.js` (307 lines)       | Contains LangGraph stream orchestration, AbortController logic, SSE mapping, subagent trace folding — violates the route's role (path matching only)          |
+| **Service imports cross-domain Model** | `src/services/mcp.service.js`                 | Imports `Agent` model directly (violates Rule 2)                                                                                                              |
+| **Service imports cross-domain Model** | `src/services/memory.service.js`              | Imports `Agent` model directly                                                                                                                                |
+| **Service imports cross-domain Model** | `src/services/provider.service.js` (old file) | Imports `Agent` model directly                                                                                                                                |
 
 #### 🟡 MODERATE VIOLATIONS
 
-| Violation | Location | Detail |
-|-----------|----------|--------|
-| **Utility imports Model** | `src/utils/agentSkillsStore.js` | Imports Agent model — utility files should not depend on domain models |
-| **Cron imports Model** | `src/cron/deleteInactiveUsers.js` | Imports Agent model directly |
+| Violation                               | Location                               | Detail                                                                    |
+| --------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------- |
+| **Utility imports Model**               | `src/utils/agentSkillsStore.js`        | Imports Agent model — utility files should not depend on domain models    |
+| **Cron imports Model**                  | `src/cron/deleteInactiveUsers.js`      | Imports Agent model directly                                              |
 | **Repository import cross-referencing** | `src/repositories/threadRepository.js` | Imports Agent model (this is acceptable for queries, but should be noted) |
 
 #### Violations NOT Found (Good)
@@ -436,24 +454,24 @@ The target architecture requires: `Route → Controller → Service → Reposito
 
 ### Comparison Against `08-api-compatibility.md`
 
-| Endpoint | Method | Path Changed? | Auth Changed? | Schema Changed? | Status |
-|----------|--------|---------------|---------------|-----------------|--------|
-| `/` | GET | No | No | No | ✅ Compatible |
-| `/api/v1/health` | GET | No | No | No | ✅ Compatible |
-| `/api/v1/health/db` | GET | No | No | No | ✅ Compatible |
-| `/api/v1/profile` | GET/PATCH/DELETE | No | No | No | ✅ Compatible |
-| `/api/v1/admin/users` | GET/DELETE | No | No | No | ✅ Compatible |
-| `/api/v1/providers` | GET/POST | No | No | No | ✅ Compatible |
-| `/api/v1/providers/:id` | Various | No | No | No | ✅ Compatible |
-| `/api/v1/agents` | POST | No | No | No | ✅ Compatible |
-| `/api/v1/agents/search` | POST | No | No | No | ✅ Compatible |
-| `/api/v1/threads` | GET/POST | No | No | No | ✅ Compatible |
-| `/api/v1/mcps` | Various | No | No | No | ✅ Compatible |
-| `/api/v1/agui` | POST | No | No | No | ✅ Compatible |
-| `/api/v1/webhooks/clerk` | POST | No | No | No | ✅ Compatible |
-| `/api/v1/skills` | Various | No | No | No | ✅ Compatible |
-| `/api/v1/upload/avatar` | POST | No | No | No | ✅ Compatible |
-| `/api/v1/knowledge` | Various | No | No | No | ✅ Compatible |
+| Endpoint                 | Method           | Path Changed? | Auth Changed? | Schema Changed? | Status        |
+| ------------------------ | ---------------- | ------------- | ------------- | --------------- | ------------- |
+| `/`                      | GET              | No            | No            | No              | ✅ Compatible |
+| `/api/v1/health`         | GET              | No            | No            | No              | ✅ Compatible |
+| `/api/v1/health/db`      | GET              | No            | No            | No              | ✅ Compatible |
+| `/api/v1/profile`        | GET/PATCH/DELETE | No            | No            | No              | ✅ Compatible |
+| `/api/v1/admin/users`    | GET/DELETE       | No            | No            | No              | ✅ Compatible |
+| `/api/v1/providers`      | GET/POST         | No            | No            | No              | ✅ Compatible |
+| `/api/v1/providers/:id`  | Various          | No            | No            | No              | ✅ Compatible |
+| `/api/v1/agents`         | POST             | No            | No            | No              | ✅ Compatible |
+| `/api/v1/agents/search`  | POST             | No            | No            | No              | ✅ Compatible |
+| `/api/v1/threads`        | GET/POST         | No            | No            | No              | ✅ Compatible |
+| `/api/v1/mcps`           | Various          | No            | No            | No              | ✅ Compatible |
+| `/api/v1/agui`           | POST             | No            | No            | No              | ✅ Compatible |
+| `/api/v1/webhooks/clerk` | POST             | No            | No            | No              | ✅ Compatible |
+| `/api/v1/skills`         | Various          | No            | No            | No              | ✅ Compatible |
+| `/api/v1/upload/avatar`  | POST             | No            | No            | No              | ✅ Compatible |
+| `/api/v1/knowledge`      | Various          | No            | No            | No              | ✅ Compatible |
 
 ### Breaking Change Risk
 
@@ -469,41 +487,41 @@ The webhook module refactoring (Step 4) changed how SVIX verification and user s
 
 ### Test Run
 
-| Metric | Result |
-|--------|--------|
-| Test command | `node --experimental-vm-modules ./node_modules/jest/bin/jest.js --no-coverage` |
-| Test suites | **60/60 PASS** |
-| Individual tests | **588/588 PASS** |
+| Metric                                                                                                                                              | Result                                                                         |
+| --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Test command                                                                                                                                        | `node --experimental-vm-modules ./node_modules/jest/bin/jest.js --no-coverage` |
+| Test suites                                                                                                                                         | **60/60 PASS**                                                                 |
+| Individual tests                                                                                                                                    | **588/588 PASS**                                                               |
 | **Note**: `pnpm test` fails due to `cross-env` not being available in PATH. All tests pass when run directly with `node --experimental-vm-modules`. |
 
 ### Individual Test Results (Refactoring-Affected)
 
-| Test File | Status |
-|-----------|--------|
-| `tests/healthController.test.js` | ✅ PASS |
-| `tests/healthRepository.test.js` | ✅ PASS |
-| `tests/healthService.test.js` | ✅ PASS |
-| `tests/adminMiddleware.test.js` | ✅ PASS |
-| `tests/agentRepository.test.js` | ✅ PASS |
-| `tests/agentService.test.js` | ✅ PASS |
-| `tests/agentController.test.js` | ✅ PASS |
-| `tests/providerController.test.js` | ✅ PASS |
-| `tests/providerService.test.js` | ✅ PASS |
-| `tests/providerRepository.test.js` | ✅ PASS |
-| `tests/providerValidator.test.js` | ✅ PASS |
-| `tests/skillLibrary.test.js` | ✅ PASS |
-| `tests/cascadingDeletes.test.js` | ✅ PASS |
-| `tests/architect_improvement.test.js` | ✅ PASS |
+| Test File                               | Status  |
+| --------------------------------------- | ------- |
+| `tests/healthController.test.js`        | ✅ PASS |
+| `tests/healthRepository.test.js`        | ✅ PASS |
+| `tests/healthService.test.js`           | ✅ PASS |
+| `tests/adminMiddleware.test.js`         | ✅ PASS |
+| `tests/agentRepository.test.js`         | ✅ PASS |
+| `tests/agentService.test.js`            | ✅ PASS |
+| `tests/agentController.test.js`         | ✅ PASS |
+| `tests/providerController.test.js`      | ✅ PASS |
+| `tests/providerService.test.js`         | ✅ PASS |
+| `tests/providerRepository.test.js`      | ✅ PASS |
+| `tests/providerValidator.test.js`       | ✅ PASS |
+| `tests/skillLibrary.test.js`            | ✅ PASS |
+| `tests/cascadingDeletes.test.js`        | ✅ PASS |
+| `tests/architect_improvement.test.js`   | ✅ PASS |
 | `tests/cronDeleteInactiveUsers.test.js` | ✅ PASS |
-| `tests/builderFlow.test.js` | ✅ PASS |
+| `tests/builderFlow.test.js`             | ✅ PASS |
 
 ### Lint / Typecheck
 
-| Tool | Status | Notes |
-|------|--------|-------|
-| ESLint | ⚠️ NOT AVAILABLE | No ESLint configuration found in agent-backend |
-| Prettier | ⚠️ NOT AVAILABLE | `pnpm run format` command exists but was not run per audit scope (no-breaking-change policy) |
-| Typecheck | ⚠️ NOT AVAILABLE | Pure JavaScript project (no TypeScript) |
+| Tool      | Status           | Notes                                                                                        |
+| --------- | ---------------- | -------------------------------------------------------------------------------------------- |
+| ESLint    | ⚠️ NOT AVAILABLE | No ESLint configuration found in agent-backend                                               |
+| Prettier  | ⚠️ NOT AVAILABLE | `pnpm run format` command exists but was not run per audit scope (no-breaking-change policy) |
+| Typecheck | ⚠️ NOT AVAILABLE | Pure JavaScript project (no TypeScript)                                                      |
 
 ---
 
@@ -638,26 +656,26 @@ agent-backend/src/
 
 ### 🔴 CRITICAL RISKS
 
-| # | Risk | Description | Impact |
-|---|------|-------------|--------|
-| R1 | **Providers migration incomplete**: Working tree has deleted old files AND created new module files, but the old `src/services/provider.service.js` may still exist on disk with the `Agent` model import | If both old and new files exist, there will be duplicate module resolution confusion. Tests still pass (588/588), suggesting the old file may not be imported by anything anymore |
-| R2 | **AGUI route still monolithic**: `agui.routes.js` (307 lines) is the highest-risk file in the codebase. It still contains LangGraph stream orchestration, SSE setup, AbortController management, and subagent trace persistence | This is the most complex code path and hasn't been refactored at all yet |
+| #   | Risk                                                                                                                                                                                                                            | Description                                                                                                                                                                       | Impact |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| R1  | **Providers migration incomplete**: Working tree has deleted old files AND created new module files, but the old `src/services/provider.service.js` may still exist on disk with the `Agent` model import                       | If both old and new files exist, there will be duplicate module resolution confusion. Tests still pass (588/588), suggesting the old file may not be imported by anything anymore |
+| R2  | **AGUI route still monolithic**: `agui.routes.js` (307 lines) is the highest-risk file in the codebase. It still contains LangGraph stream orchestration, SSE setup, AbortController management, and subagent trace persistence | This is the most complex code path and hasn't been refactored at all yet                                                                                                          |
 
 ### 🟡 HIGH RISKS
 
-| # | Risk | Description | Impact |
-|---|------|-------------|--------|
-| R3 | **Cross-domain coupling in remaining services**: `mcp.service.js`, `memory.service.js` still import `Agent` model directly | Changes to Agent model schema will cascade to MCP and Memory services |
-| R4 | **profile.controller.js has direct DB operations**: Still calls `deleteMany()` on 6 different models with no transaction safety | Partial deletion failures can leave orphan data |
-| R5 | **Duplicate file problem**: The Providers module has both old and possibly new files on disk simultaneously. The `src/index.js` points to the new path, but old files might still be picked up by some imports | Import resolution confusion; one of the file sets may be stale |
+| #   | Risk                                                                                                                                                                                                           | Description                                                           | Impact |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------ |
+| R3  | **Cross-domain coupling in remaining services**: `mcp.service.js`, `memory.service.js` still import `Agent` model directly                                                                                     | Changes to Agent model schema will cascade to MCP and Memory services |
+| R4  | **profile.controller.js has direct DB operations**: Still calls `deleteMany()` on 6 different models with no transaction safety                                                                                | Partial deletion failures can leave orphan data                       |
+| R5  | **Duplicate file problem**: The Providers module has both old and possibly new files on disk simultaneously. The `src/index.js` points to the new path, but old files might still be picked up by some imports | Import resolution confusion; one of the file sets may be stale        |
 
 ### 🟢 LOW RISKS
 
-| # | Risk | Description | Impact |
-|---|------|-------------|--------|
-| R6 | **Test command discrepancy**: `pnpm test` fails because `cross-env` isn't in PATH (requires npx). Tests only pass with direct `node --experimental-vm-modules` invocation | Developer friction; CI would need proper configuration |
-| R7 | **User model still has duplicate `username` field**: Not yet fixed per migration plan Step 7 | Schema confusion, no runtime impact |
-| R8 | **Webhook refactoring changed code path substantially**: 113 lines became 174 lines across 3 files | Higher surface area for bugs in webhook processing |
+| #   | Risk                                                                                                                                                                      | Description                                            | Impact |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------ |
+| R6  | **Test command discrepancy**: `pnpm test` fails because `cross-env` isn't in PATH (requires npx). Tests only pass with direct `node --experimental-vm-modules` invocation | Developer friction; CI would need proper configuration |
+| R7  | **User model still has duplicate `username` field**: Not yet fixed per migration plan Step 7                                                                              | Schema confusion, no runtime impact                    |
+| R8  | **Webhook refactoring changed code path substantially**: 113 lines became 174 lines across 3 files                                                                        | Higher surface area for bugs in webhook processing     |
 
 ---
 
@@ -665,16 +683,16 @@ agent-backend/src/
 
 Per the migration plan (`07-migration-plan.md`), the following steps remain:
 
-| Step | Module | Planned Order | Actual Order Needed | Complexity |
-|------|--------|---------------|---------------------|------------|
-| 6 | Providers | 6 | 🟢 Already in progress; complete and commit | Low |
-| 7 | Users & Profile | 7 | Next logical step | Medium (data cleanup complexity) |
-| 8 | Threads & Checkpoints | 8 | After Users | Low |
-| 9 | MCP | 9 | After Threads | High (cross-domain Agent coupling) |
-| 10 | Agents & Memory | 10 | After MCP | High (Agent model is the most coupled entity) |
-| 11 | AGUI | 11 | After Agents | Critical (SSE stream complexity) |
-| 12 | Knowledge | 12 | After AGUI | Low |
-| 13 | Final Cleanup | 13 | Last | Low |
+| Step | Module                | Planned Order | Actual Order Needed                         | Complexity                                    |
+| ---- | --------------------- | ------------- | ------------------------------------------- | --------------------------------------------- |
+| 6    | Providers             | 6             | 🟢 Already in progress; complete and commit | Low                                           |
+| 7    | Users & Profile       | 7             | Next logical step                           | Medium (data cleanup complexity)              |
+| 8    | Threads & Checkpoints | 8             | After Users                                 | Low                                           |
+| 9    | MCP                   | 9             | After Threads                               | High (cross-domain Agent coupling)            |
+| 10   | Agents & Memory       | 10            | After MCP                                   | High (Agent model is the most coupled entity) |
+| 11   | AGUI                  | 11            | After Agents                                | Critical (SSE stream complexity)              |
+| 12   | Knowledge             | 12            | After AGUI                                  | Low                                           |
+| 13   | Final Cleanup         | 13            | Last                                        | Low                                           |
 
 **Total remaining**: 8 migration steps (Steps 6-13)
 
@@ -694,6 +712,7 @@ The Providers module migration is substantially complete in the working tree wit
 ### Safety Assessment for Next Step
 
 **It is safe to proceed** with completing Step 6 (Providers) because:
+
 - The module files are already created
 - The index.js already points to the new paths
 - The agentRepository already has the new `findAgentsUsingProvider()` method

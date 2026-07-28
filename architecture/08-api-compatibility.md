@@ -7,9 +7,10 @@ This document records the existing public API contracts of the Persona.ai backen
 ## 1. Global & Utility Endpoints
 
 ### GET `/`
-* **Auth**: None
-* **Description**: Root status info.
-* **Success Response (200 OK)**:
+
+- **Auth**: None
+- **Description**: Root status info.
+- **Success Response (200 OK)**:
   ```json
   {
     "message": "Welcome to Persona.ai API",
@@ -23,8 +24,9 @@ This document records the existing public API contracts of the Persona.ai backen
 ## 2. Health Module
 
 ### GET `/api/v1/health`
-* **Auth**: None
-* **Success Response (200 OK)**:
+
+- **Auth**: None
+- **Success Response (200 OK)**:
   ```json
   {
     "success": true,
@@ -39,8 +41,9 @@ This document records the existing public API contracts of the Persona.ai backen
   ```
 
 ### GET `/api/v1/health/db`
-* **Auth**: None
-* **Success Response (200 OK)**:
+
+- **Auth**: None
+- **Success Response (200 OK)**:
   ```json
   {
     "success": true,
@@ -59,8 +62,9 @@ This document records the existing public API contracts of the Persona.ai backen
 ## 3. Profile Module
 
 ### GET `/api/v1/profile`
-* **Auth**: Required
-* **Success Response (200 OK)**:
+
+- **Auth**: Required
+- **Success Response (200 OK)**:
   ```json
   {
     "success": true,
@@ -81,8 +85,9 @@ This document records the existing public API contracts of the Persona.ai backen
   ```
 
 ### PATCH `/api/v1/profile`
-* **Auth**: Required
-* **Request Body**:
+
+- **Auth**: Required
+- **Request Body**:
   ```json
   {
     "name": "Updated Name",
@@ -93,11 +98,12 @@ This document records the existing public API contracts of the Persona.ai backen
     }
   }
   ```
-* **Success Response (200 OK)**: Returns updated profile structure.
+- **Success Response (200 OK)**: Returns updated profile structure.
 
 ### DELETE `/api/v1/profile`
-* **Auth**: Required
-* **Success Response (200 OK)**:
+
+- **Auth**: Required
+- **Success Response (200 OK)**:
   ```json
   {
     "success": true,
@@ -111,9 +117,10 @@ This document records the existing public API contracts of the Persona.ai backen
 ## 4. Admin Module
 
 ### GET `/api/v1/admin/users`
-* **Auth**: Required (Admin role)
-* **Query Params**: `page` (default 1), `limit` (default 20), `isActive` ("true" / "false")
-* **Success Response (200 OK)**:
+
+- **Auth**: Required (Admin role)
+- **Query Params**: `page` (default 1), `limit` (default 20), `isActive` ("true" / "false")
+- **Success Response (200 OK)**:
   ```json
   {
     "success": true,
@@ -125,8 +132,9 @@ This document records the existing public API contracts of the Persona.ai backen
   ```
 
 ### DELETE `/api/v1/admin/users/:id`
-* **Auth**: Required (Admin role)
-* **Success Response (200 OK)**:
+
+- **Auth**: Required (Admin role)
+- **Success Response (200 OK)**:
   ```json
   {
     "success": true,
@@ -140,12 +148,14 @@ This document records the existing public API contracts of the Persona.ai backen
 ## 5. Provider Module
 
 ### GET `/api/v1/providers`
-* **Auth**: Required
-* **Success Response (200 OK)**: Returns list of user's active provider metadata (excluding raw API keys).
+
+- **Auth**: Required
+- **Success Response (200 OK)**: Returns list of user's active provider metadata (excluding raw API keys).
 
 ### POST `/api/v1/providers`
-* **Auth**: Required
-* **Request Body**:
+
+- **Auth**: Required
+- **Request Body**:
   ```json
   {
     "label": "OpenAI Custom",
@@ -157,8 +167,9 @@ This document records the existing public API contracts of the Persona.ai backen
   ```
 
 ### POST `/api/v1/providers/test-connection`
-* **Auth**: Required
-* **Request Body**:
+
+- **Auth**: Required
+- **Request Body**:
   ```json
   {
     "baseURL": "https://api.openai.com/v1",
@@ -167,20 +178,23 @@ This document records the existing public API contracts of the Persona.ai backen
   ```
 
 ### POST `/api/v1/providers/:id/test`
-* **Auth**: Required
-* **Success Response (200 OK)**: `{ "success": true, "message": "Connection successful." }`
+
+- **Auth**: Required
+- **Success Response (200 OK)**: `{ "success": true, "message": "Connection successful." }`
 
 ### GET `/api/v1/providers/:id/models`
-* **Auth**: Required
-* **Success Response (200 OK)**: `{ "success": true, "data": [ { "id": "model-name" } ] }`
+
+- **Auth**: Required
+- **Success Response (200 OK)**: `{ "success": true, "data": [ { "id": "model-name" } ] }`
 
 ---
 
 ## 6. Agent Module
 
 ### POST `/api/v1/agents/search`
-* **Auth**: Optional
-* **Request Body**:
+
+- **Auth**: Optional
+- **Request Body**:
   ```json
   {
     "page": 1,
@@ -195,8 +209,9 @@ This document records the existing public API contracts of the Persona.ai backen
   ```
 
 ### POST `/api/v1/agents`
-* **Auth**: Required
-* **Request Body**:
+
+- **Auth**: Required
+- **Request Body**:
   ```json
   {
     "name": "Agent Name",
@@ -209,20 +224,23 @@ This document records the existing public API contracts of the Persona.ai backen
   ```
 
 ### GET `/api/v1/agents/:id/memory`
-* **Auth**: Required
-* **Success Response (200 OK)**: Returns array of user memory files metadata for this agent.
+
+- **Auth**: Required
+- **Success Response (200 OK)**: Returns array of user memory files metadata for this agent.
 
 ---
 
 ## 7. Thread / Conversation Module
 
 ### GET `/api/v1/threads`
-* **Auth**: Required
-* **Success Response (200 OK)**: Returns list of user conversation threads.
+
+- **Auth**: Required
+- **Success Response (200 OK)**: Returns list of user conversation threads.
 
 ### POST `/api/v1/threads`
-* **Auth**: Required
-* **Request Body**:
+
+- **Auth**: Required
+- **Request Body**:
   ```json
   {
     "agentId": "agent_id_string",
@@ -231,24 +249,28 @@ This document records the existing public API contracts of the Persona.ai backen
   ```
 
 ### GET `/api/v1/threads/:id/messages`
-* **Auth**: Required
-* **Success Response (200 OK)**: Returns LangGraph history array of messages + subagentTraces.
+
+- **Auth**: Required
+- **Success Response (200 OK)**: Returns LangGraph history array of messages + subagentTraces.
 
 ---
 
 ## 8. MCP Module
 
 ### GET `/api/v1/mcps/oauth/owner/callback`
-* **Auth**: None (External callback)
-* **Query Params**: `code`, `state`
+
+- **Auth**: None (External callback)
+- **Query Params**: `code`, `state`
 
 ### GET `/api/v1/mcps/oauth/user/callback`
-* **Auth**: None (External callback)
-* **Query Params**: `code`, `state`
+
+- **Auth**: None (External callback)
+- **Query Params**: `code`, `state`
 
 ### POST `/api/v1/mcps`
-* **Auth**: Required
-* **Request Body**:
+
+- **Auth**: Required
+- **Request Body**:
   ```json
   {
     "name": "MCP Server",
@@ -264,24 +286,26 @@ This document records the existing public API contracts of the Persona.ai backen
 ## 9. AGUI Module
 
 ### POST `/api/v1/agui`
-* **Auth**: Required
-* **Headers**: `x-agent-id`, `x-thread-id`
-* **Request Body**:
+
+- **Auth**: Required
+- **Headers**: `x-agent-id`, `x-thread-id`
+- **Request Body**:
   ```json
   {
-    "messages": [ { "role": "user", "content": "hello" } ],
+    "messages": [{ "role": "user", "content": "hello" }],
     "resume": "...",
     "threadId": "...",
     "runId": "..."
   }
   ```
-* **Success Response (200 OK)**: Text/event-stream (SSE) connection chunk outputs.
+- **Success Response (200 OK)**: Text/event-stream (SSE) connection chunk outputs.
 
 ---
 
 ## 10. Webhooks Module
 
 ### POST `/api/v1/webhooks/clerk`
-* **Auth**: None (SVIX signature headers required)
-* **Request Body**: Raw Clerk event payload.
-* **Success Response (200 OK)**: `{ "success": true, "message": "Webhook received" }`
+
+- **Auth**: None (SVIX signature headers required)
+- **Request Body**: Raw Clerk event payload.
+- **Success Response (200 OK)**: `{ "success": true, "message": "Webhook received" }`
