@@ -5,11 +5,6 @@ import { studioRoutes } from "@/lib/studio-routes";
 import { useState, useEffect, useMemo } from "react";
 import { Plus, Bot, SearchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
@@ -29,6 +24,13 @@ import { getProfile } from "@/lib/api/profile";
 import { OwnedAgentGrid } from "@/components/agents/owned-agent-grid";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
 
+const VISIBILITY_FILTERS = [
+  { value: "all", label: "All" },
+  { value: "public", label: "Public" },
+  { value: "unlisted", label: "Unlisted" },
+  { value: "private", label: "Private" },
+];
+
 export default function MyAgentsPage() {
   const { isLoaded, isSignedIn } = useAuth();
   const [agents, setAgents] = useState([]);
@@ -36,47 +38,35 @@ export default function MyAgentsPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [search, setSearch] = useState("");
+  const [visibility, setVisibility] = useState("all");
 
   useDashboardHeader(
     {
       title: "My Agents",
-      description: "Manage and track the agents you've created.",
+      description: "Your agents, ready when you need them.",
       actions: (
-        <div className="flex items-center gap-2">
-          <div className="hidden w-72 md:block">
-            <InputGroup>
-              <InputGroupAddon align="inline-start">
-                <SearchIcon className="size-4" />
-              </InputGroupAddon>
-              <InputGroupInput
-                placeholder="Search your agents..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="text-base"
-              />
-            </InputGroup>
-          </div>
-          <Link href={studioRoutes.agentNew}>
-            <Button size="sm" className="rounded-full px-4 font-bold shadow-sm transition-all active:scale-98">
-              <Plus className="mr-1.5 size-4" />
-              Build an Agent
-            </Button>
-          </Link>
-        </div>
+        <Link href={studioRoutes.home}>
+          <Button size="sm" className="rounded-full px-4 font-bold shadow-sm transition-all active:scale-98">
+            Agent Studio
+          </Button>
+        </Link>
       ),
     },
-    [search, agents.length],
+    [],
   );
 
   const filteredAgents = useMemo(() => {
     const q = (search || "").trim().toLowerCase();
-    if (!q) return agents;
     return agents.filter((a) => {
-      const name = (a.name || "").toLowerCase();
-      const desc = (a.description || "").toLowerCase();
-      return name.includes(q) || desc.includes(q);
+      const matchesSearch =
+        !q ||
+        (a.name || "").toLowerCase().includes(q) ||
+        (a.description || "").toLowerCase().includes(q);
+      const matchesVisibility =
+        visibility === "all" || a.visibility === visibility;
+      return matchesSearch && matchesVisibility;
     });
-  }, [agents, search]);
+  }, [agents, search, visibility]);
 
   const fetchMyAgents = async () => {
     try {
@@ -128,25 +118,45 @@ export default function MyAgentsPage() {
 
   return (
     <div className="@container/main flex flex-1 flex-col py-4 md:py-6 overflow-y-auto min-h-0">
-      <section className="mb-4 px-4 md:hidden lg:px-6">
-        <InputGroup>
-          <InputGroupAddon align="inline-start">
-            <SearchIcon className="size-4" />
-          </InputGroupAddon>
-          <InputGroupInput
-            placeholder="Search your agents..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="text-base"
-          />
-        </InputGroup>
-      </section>
+      <div className="w-full max-w-7xl mx-auto px-4 md:px-8 lg:px-10 flex flex-col flex-1">
+        <section className="mb-6 flex flex-col gap-4">
+          <div className="relative w-full sm:max-w-sm">
+            <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 size-4.5 text-zinc-500 dark:text-zinc-400" />
+            <input
+              type="text"
+              placeholder="Search your agents..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-transparent border border-zinc-200 dark:border-zinc-800 rounded-full py-2.5 pl-11 pr-5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-zinc-900 dark:text-zinc-100 placeholder-zinc-500 dark:placeholder-zinc-400 font-medium"
+            />
+          </div>
 
-      <section className="px-4 lg:px-6">
+          {agents.length > 0 && (
+            <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar">
+              {VISIBILITY_FILTERS.map((f) => {
+                const isActive = visibility === f.value;
+                return (
+                  <button
+                    key={f.value}
+                    onClick={() => setVisibility(f.value)}
+                    className={`rounded-full px-5 py-2 text-[13px] transition-all whitespace-nowrap cursor-pointer select-none ${
+                      isActive
+                        ? "bg-primary text-primary-foreground font-bold shadow-sm"
+                        : "bg-zinc-100/80 hover:bg-zinc-200/80 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 font-medium"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
         {loading ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-64 rounded-xl" />
+              <Skeleton key={i} className="h-[300px] sm:h-[360px] rounded-[24px] sm:rounded-[32px]" />
             ))}
           </div>
         ) : agents.length === 0 ? (
@@ -176,10 +186,17 @@ export default function MyAgentsPage() {
               No agents match
             </h3>
             <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2 max-w-sm leading-relaxed font-medium">
-              Try a different search term or clear the search to see all of your agents.
+              Try a different search term or filter to see more of your agents.
             </p>
-            <Button variant="outline" onClick={() => setSearch("")} className="mt-6 rounded-full px-6 font-bold transition-all active:scale-98">
-              Clear search
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearch("");
+                setVisibility("all");
+              }}
+              className="mt-6 rounded-full px-6 font-bold transition-all active:scale-98"
+            >
+              Clear filters
             </Button>
           </div>
         ) : (
@@ -191,7 +208,7 @@ export default function MyAgentsPage() {
             primaryLabel="Launch"
           />
         )}
-      </section>
+      </div>
 
       <AlertDialog
         open={!!deleteTarget}
