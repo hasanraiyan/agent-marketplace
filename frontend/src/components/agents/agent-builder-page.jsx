@@ -42,10 +42,22 @@ function agentIdFromToolOutput(output) {
  * Canonical builder workspace shared by the create and edit flows.
  *
  * @param {"create"|"edit"} mode  create: no agent exists yet; the architect or
- *   form creates one and navigates to /dashboard/agents/:id/builder.
+ *   form creates one and navigates to <basePath>/:id/builder.
  *   edit: loads `agentId` and keeps form/architect/preview in sync.
+ * @param {string} basePath  route prefix for the agent list and per-agent
+ *   routes. `/dashboard/agents` for the consumer dashboard, `/studio/agents`
+ *   when the builder is mounted inside Agent Studio.
+ * @param {string} backLabel  label for the "back to list" link in the header.
+ * @param {string} runSegment  sub-route that runs the agent: "run" in the
+ *   dashboard, "test" in Studio's playground.
  */
-export function AgentBuilderPage({ mode = "create", agentId = null }) {
+export function AgentBuilderPage({
+  mode = "create",
+  agentId = null,
+  basePath = "/dashboard/agents",
+  backLabel = "My Agents",
+  runSegment = "run",
+}) {
   const isEdit = mode === "edit" && Boolean(agentId);
   const router = useRouter();
 
@@ -202,7 +214,7 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
 
         if (!isEdit) {
           toast.success("Agent created by Architect");
-          router.push(`/dashboard/agents/${resultAgentId}/onboarding`);
+          router.push(`${basePath}/${resultAgentId}/onboarding`);
           return;
         }
 
@@ -211,7 +223,7 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
         console.error("Failed to parse architect tool output", error);
       }
     },
-    [agentId, isEdit, refreshAgent, router],
+    [agentId, basePath, isEdit, refreshAgent, router],
   );
 
   const handleManualSave = async (formData) => {
@@ -225,7 +237,7 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
         const res = await createAgent(formData);
         const newAgent = res.data?.data;
         toast.success("Agent created");
-        router.push(`/dashboard/agents/${newAgent.id || newAgent._id}/onboarding`);
+        router.push(`${basePath}/${newAgent.id || newAgent._id}/onboarding`);
       }
     } catch (err) {
       toast.error(err.response?.data?.message || "Save failed");
@@ -278,11 +290,11 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
       actions: (
         <>
           <Link
-            href="/dashboard/agents"
+            href={basePath}
             className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="size-4" />
-            My Agents
+            {backLabel}
           </Link>
           <Badge
             variant="outline"
@@ -291,7 +303,7 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
             {isEdit ? agent?.visibility || "private" : "Draft"}
           </Badge>
           {isEdit ? (
-            <Link href={`/dashboard/agents/${agentId}/run`}>
+            <Link href={`${basePath}/${agentId}/${runSegment}`}>
               <Button size="sm" className="h-8 rounded-full px-4 font-bold">
                 <Play className="mr-1 size-3.5" />
                 Run
@@ -301,7 +313,7 @@ export function AgentBuilderPage({ mode = "create", agentId = null }) {
         </>
       ),
     },
-    [activeTab, agent, agentId, isEdit],
+    [activeTab, agent, agentId, basePath, backLabel, runSegment, isEdit],
   );
 
   if (loading) {

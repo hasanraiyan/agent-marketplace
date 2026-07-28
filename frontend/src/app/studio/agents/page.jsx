@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { Plus, Bot, SearchIcon } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useAuth } from "@clerk/nextjs";
+import { BotIcon, PlusIcon, SearchIcon, SettingsIcon } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   InputGroup,
@@ -19,26 +22,29 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import Link from "next/link";
-import { useAuth } from "@clerk/nextjs";
-import { toast } from "sonner";
+import { OwnedAgentGrid } from "@/components/agents/owned-agent-grid";
 import { searchAgents, deleteAgent } from "@/lib/api/agents";
 import { getProfile } from "@/lib/api/profile";
-import { OwnedAgentGrid } from "@/components/agents/owned-agent-grid";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
 
-export default function MyAgentsPage() {
+/**
+ * Studio agent management — the agents this creator owns.
+ *
+ * Same data and same cards as the dashboard "My Agents" list, but the primary
+ * action opens the agent's creator workspace instead of a chat.
+ */
+export default function StudioAgentsPage() {
   const { isLoaded, isSignedIn } = useAuth();
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
-  const [search, setSearch] = useState("");
 
   useDashboardHeader(
     {
-      title: "My Agents",
-      description: "Manage and track the agents you've created.",
+      title: "Agents",
+      description: "Agents you own — build, test, and publish them here.",
       actions: (
         <div className="flex items-center gap-2">
           <div className="hidden w-72 md:block">
@@ -54,27 +60,17 @@ export default function MyAgentsPage() {
               />
             </InputGroup>
           </div>
-          <Link href="/dashboard/agents/create">
-            <Button size="sm" className="rounded-full px-4 font-bold shadow-sm transition-all active:scale-98">
-              <Plus className="mr-1.5 size-4" />
-              Build an Agent
+          <Link href="/studio/agents/new">
+            <Button size="sm" className="rounded-full px-4 font-bold">
+              <PlusIcon className="mr-1.5 size-4" />
+              New Agent
             </Button>
           </Link>
         </div>
       ),
     },
-    [search, agents.length],
+    [search],
   );
-
-  const filteredAgents = useMemo(() => {
-    const q = (search || "").trim().toLowerCase();
-    if (!q) return agents;
-    return agents.filter((a) => {
-      const name = (a.name || "").toLowerCase();
-      const desc = (a.description || "").toLowerCase();
-      return name.includes(q) || desc.includes(q);
-    });
-  }, [agents, search]);
 
   const fetchMyAgents = async () => {
     try {
@@ -104,10 +100,18 @@ export default function MyAgentsPage() {
   };
 
   useEffect(() => {
-    if (isLoaded && isSignedIn) {
-      fetchMyAgents();
-    }
+    if (isLoaded && isSignedIn) fetchMyAgents();
   }, [isLoaded, isSignedIn]);
+
+  const filteredAgents = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return agents;
+    return agents.filter(
+      (a) =>
+        (a.name || "").toLowerCase().includes(q) ||
+        (a.description || "").toLowerCase().includes(q),
+    );
+  }, [agents, search]);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -125,7 +129,7 @@ export default function MyAgentsPage() {
   };
 
   return (
-    <div className="@container/main flex flex-1 flex-col py-4 md:py-6 overflow-y-auto min-h-0">
+    <div className="@container/main flex min-h-0 flex-1 flex-col overflow-y-auto py-4 md:py-6">
       <section className="mb-4 px-4 md:hidden lg:px-6">
         <InputGroup>
           <InputGroupAddon align="inline-start">
@@ -148,45 +152,54 @@ export default function MyAgentsPage() {
             ))}
           </div>
         ) : agents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 px-6 border border-zinc-150/60 dark:border-zinc-900 rounded-[28px] bg-zinc-50/50 dark:bg-zinc-900/10 text-center select-none max-w-2xl mx-auto mt-8">
-            <div className="size-16 rounded-3xl bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center mb-5 text-zinc-400 dark:text-zinc-600">
-              <Bot className="size-8" />
+          <div className="mx-auto mt-8 flex max-w-2xl flex-col items-center justify-center rounded-[28px] border border-slate-150/70 bg-slate-50/50 px-6 py-20 text-center select-none dark:border-slate-850/60 dark:bg-slate-950/20">
+            <div className="mb-5 flex size-16 items-center justify-center rounded-3xl bg-slate-100 text-slate-400 dark:bg-slate-900 dark:text-slate-600">
+              <BotIcon className="size-8" />
             </div>
-            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-150">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
               No agents yet
             </h3>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2 max-w-sm leading-relaxed font-medium">
-              You haven&apos;t created any agents yet. Start by creating one now to bring your ideas to life!
+            <p className="mt-2 max-w-sm text-sm leading-relaxed font-medium text-slate-500 dark:text-slate-400">
+              Studio is where you build them. Describe what you want to Sage, or
+              configure everything by hand.
             </p>
-            <Link href="/dashboard/agents/create" className="mt-6">
-              <Button className="rounded-full px-6 py-2.5 font-bold shadow-sm active:scale-98 transition-all">
-                <Plus className="mr-1.5 size-4" />
-                Build Your First Agent
+            <Link href="/studio/agents/new" className="mt-6">
+              <Button className="rounded-full px-6 py-2.5 font-bold">
+                <PlusIcon className="mr-1.5 size-4" />
+                Build your first agent
               </Button>
             </Link>
           </div>
         ) : filteredAgents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 px-6 border border-zinc-150/60 dark:border-zinc-900 rounded-[28px] bg-zinc-50/50 dark:bg-zinc-900/10 text-center select-none max-w-2xl mx-auto mt-8">
-            <div className="size-16 rounded-3xl bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center mb-5 text-zinc-400 dark:text-zinc-650">
+          <div className="mx-auto mt-8 flex max-w-2xl flex-col items-center justify-center rounded-[28px] border border-slate-150/70 bg-slate-50/50 px-6 py-20 text-center select-none dark:border-slate-850/60 dark:bg-slate-950/20">
+            <div className="mb-5 flex size-16 items-center justify-center rounded-3xl bg-slate-100 text-slate-400 dark:bg-slate-900 dark:text-slate-600">
               <SearchIcon className="size-8" />
             </div>
-            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-150">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
               No agents match
             </h3>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2 max-w-sm leading-relaxed font-medium">
-              Try a different search term or clear the search to see all of your agents.
+            <p className="mt-2 max-w-sm text-sm leading-relaxed font-medium text-slate-500 dark:text-slate-400">
+              Try a different search term or clear the search to see all of your
+              agents.
             </p>
-            <Button variant="outline" onClick={() => setSearch("")} className="mt-6 rounded-full px-6 font-bold transition-all active:scale-98">
+            <Button
+              variant="outline"
+              onClick={() => setSearch("")}
+              className="mt-6 rounded-full px-6 font-bold"
+            >
               Clear search
             </Button>
           </div>
         ) : (
           <OwnedAgentGrid
             agents={filteredAgents}
-            openHref={(id) => `/dashboard/agents/${id}/run`}
-            editHref={(id) => `/dashboard/agents/${id}/builder`}
+            openHref={(id) => `/studio/agents/${id}`}
+            editHref={(id) => `/studio/agents/${id}/build`}
             onDelete={setDeleteTarget}
-            primaryLabel="Launch"
+            primaryLabel="Manage"
+            primaryIcon={SettingsIcon}
+            primaryIconClassName=""
+            editLabel="Open builder"
           />
         )}
       </section>
@@ -200,7 +213,7 @@ export default function MyAgentsPage() {
             <AlertDialogTitle>Delete this agent?</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete{" "}
-              <span className="font-medium text-foreground">
+              <span className="text-foreground font-medium">
                 {deleteTarget?.name}
               </span>
               . This action cannot be undone and all conversation history will

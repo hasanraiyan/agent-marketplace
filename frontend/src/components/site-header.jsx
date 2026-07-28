@@ -8,7 +8,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDashboardHeaderState } from "@/components/dashboard-header-context";
 
-const routeMap = [
+const DASHBOARD_ROUTE_MAP = [
   { path: "/dashboard/agents/create", title: "Create Agent" },
   { path: "/dashboard/agents", title: "My Agents" },
   { path: "/dashboard/connectors", title: "Connectors" },
@@ -20,13 +20,26 @@ const routeMap = [
   { path: "/dashboard", title: "Explore" },
 ];
 
-export function SiteHeader() {
+const DASHBOARD_FALLBACK = {
+  routeMap: DASHBOARD_ROUTE_MAP,
+  title: "Intelligence Hub",
+  // Creator entry point: sends people into the Studio workspace rather than
+  // straight into a single creation form.
+  action: { href: "/studio", label: "Agent Studio" },
+};
+
+/**
+ * Shared page header. Pages drive the title/description/actions through
+ * useDashboardHeader(); `fallback` only supplies what a page leaves unset, and
+ * lets Agent Studio reuse this header without inheriting dashboard defaults.
+ */
+export function SiteHeader({ fallback = DASHBOARD_FALLBACK }) {
   const pathname = usePathname();
   const pageHeader = useDashboardHeaderState();
 
-  // Find the matching title from routeMap
+  // Find the matching title from the fallback route map.
   // We sort by length descending to match the most specific path first
-  const activeRoute = routeMap
+  const activeRoute = [...(fallback.routeMap || [])]
     .sort((a, b) => b.path.length - a.path.length)
     .find((route) =>
       route.path === "/"
@@ -34,16 +47,17 @@ export function SiteHeader() {
         : pathname === route.path || pathname.startsWith(`${route.path}/`),
     );
 
-  const title =
-    pageHeader.title || (activeRoute ? activeRoute.title : "Intelligence Hub");
+  const title = pageHeader.title || (activeRoute ? activeRoute.title : fallback.title);
+  const fallbackAction = fallback.action;
   const actions =
     pageHeader.actions !== null && pageHeader.actions !== undefined
       ? pageHeader.actions
-      : pathname !== "/dashboard/agents/create" && (
-          <Link href="/dashboard/agents/create">
+      : fallbackAction &&
+        pathname !== fallbackAction.href && (
+          <Link href={fallbackAction.href}>
             <Button size="sm">
               <Plus data-icon="inline-start" />
-              Create Agent
+              {fallbackAction.label}
             </Button>
           </Link>
         );

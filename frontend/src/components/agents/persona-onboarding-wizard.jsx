@@ -36,7 +36,16 @@ const MAX_TRAITS = 5;
 
 const STEPS = ["tagline", "bio", "traits", "links"];
 
-export function PersonaOnboardingWizard({ agentId, agentName }) {
+/**
+ * @param {string} doneHref  where to land once the wizard finishes or is
+ *   skipped. Defaults to the dashboard agent page; Studio points it at the
+ *   agent's creator workspace.
+ */
+export function PersonaOnboardingWizard({
+  agentId,
+  agentName,
+  doneHref = `/dashboard/agents/${agentId}`,
+}) {
   const router = useRouter();
   const [stepIndex, setStepIndex] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -102,7 +111,7 @@ export function PersonaOnboardingWizard({ agentId, agentName }) {
       console.error("Failed to save persona profile:", err);
       toast.error(err.response?.data?.message || "Failed to save your profile");
     } finally {
-      router.push(`/dashboard/agents/${agentId}`);
+      router.push(doneHref);
     }
   };
 

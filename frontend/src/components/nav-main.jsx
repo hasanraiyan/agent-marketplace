@@ -9,7 +9,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { PlusIcon, UserIcon } from "lucide-react";
+import { SlidersHorizontalIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function NavMain({ items, myAgentId }) {
@@ -20,9 +20,11 @@ export function NavMain({ items, myAgentId }) {
     return pathname === url || pathname.startsWith(`${url}/`);
   };
 
-  const ctaHref = "/dashboard/agents/create";
-  const ctaLabel = "Create Agent";
-  const CtaIcon = PlusIcon;
+  // Creator entry point. Points at the Studio workspace rather than a single
+  // creation form — /dashboard/agents/create still works and is unchanged.
+  const ctaHref = "/studio";
+  const ctaLabel = "Agent Studio";
+  const CtaIcon = SlidersHorizontalIcon;
 
   return (
     <SidebarGroup className="p-0">
@@ -35,7 +37,7 @@ export function NavMain({ items, myAgentId }) {
               className="h-10 w-full justify-center gap-2 rounded-xl !bg-[#1E60FF] !text-white hover:!bg-[#154ed0] hover:!text-white font-bold text-sm tracking-wide shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none"
             >
               <Link href={ctaHref}>
-                <CtaIcon className="size-4 shrink-0 transition-transform duration-300 group-hover/menu-button:rotate-90" />
+                <CtaIcon className="size-4 shrink-0" />
                 <span>{ctaLabel}</span>
               </Link>
             </SidebarMenuButton>
