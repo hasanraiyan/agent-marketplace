@@ -1,5 +1,7 @@
 "use client";
 
+import { studioRoutes } from "@/lib/studio-routes";
+
 import { use, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { getAgent } from "@/lib/api/agents";
@@ -37,7 +39,7 @@ export default function Page({ params }) {
     <PersonaOnboardingWizard
       agentId={id}
       agentName={agentName}
-      doneHref={`/studio/agents/${id}`}
+      doneHref={studioRoutes.agent(id)}
     />
   );
 }

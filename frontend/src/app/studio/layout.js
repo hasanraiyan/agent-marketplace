@@ -2,6 +2,7 @@ import { DashboardHeaderProvider } from "@/components/dashboard-header-context";
 import { SiteHeader } from "@/components/site-header";
 import { StudioSidebar } from "@/components/studio/studio-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { studioRoutes } from "@/lib/studio-routes";
 
 export const metadata = {
   title: "Agent Studio · Persona.ai",
@@ -10,12 +11,17 @@ export const metadata = {
 
 const STUDIO_HEADER_FALLBACK = {
   routeMap: [
-    { path: "/studio/agents/new", title: "New Agent" },
-    { path: "/studio/agents", title: "Agents" },
-    { path: "/studio", title: "Agent Studio" },
+    { path: studioRoutes.agentNew, title: "New Agent" },
+    { path: studioRoutes.agents, title: "Agents" },
+    { path: studioRoutes.skills, title: "Skills" },
+    { path: studioRoutes.knowledge, title: "Knowledge" },
+    { path: studioRoutes.connectors, title: "Connectors" },
+    { path: studioRoutes.memory, title: "Memory" },
+    { path: studioRoutes.providers, title: "Providers" },
+    { path: studioRoutes.home, title: "Agent Studio" },
   ],
   title: "Agent Studio",
-  action: { href: "/studio/agents/new", label: "New Agent" },
+  action: { href: studioRoutes.agentNew, label: "New Agent" },
 };
 
 /**

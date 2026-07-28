@@ -1,5 +1,7 @@
 "use client";
 
+import { studioRoutes } from "@/lib/studio-routes";
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { BookText, Loader2, Sliders } from "lucide-react";
@@ -10,7 +12,7 @@ import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { getProviders } from "@/lib/api/providers";
 import { toast } from "sonner";
-import { useConnectors } from "../../connectors-context";
+import { useConnectors } from "@/components/connectors/connectors-context";
 
 export default function NewKnowledgeBasePage() {
   const router = useRouter();
@@ -69,7 +71,7 @@ export default function NewKnowledgeBasePage() {
         topK: parseInt(topK, 10) || 5,
       });
       toast.success("Knowledge base created!");
-      router.push(`/dashboard/connectors/knowledge/${kb._id || kb.id}`);
+      router.push(studioRoutes.knowledgeBase(kb._id || kb.id));
     } catch (err) {
       // Toast already handles this
     } finally {
@@ -134,7 +136,7 @@ export default function NewKnowledgeBasePage() {
               You need to configure an AI provider first to generate vector embeddings.{" "}
               <button
                 type="button"
-                onClick={() => router.push("/dashboard/settings/providers")}
+                onClick={() => router.push(studioRoutes.providers)}
                 className="underline font-semibold hover:opacity-80 transition-opacity"
               >
                 Go to Provider Settings

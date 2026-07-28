@@ -1,7 +1,9 @@
 "use client";
 
+import { studioRoutes } from "@/lib/studio-routes";
+
 import { useState, useEffect, useCallback } from "react";
-import { useConnectors } from "@/app/dashboard/connectors/connectors-context";
+import { useConnectors } from "@/components/connectors/connectors-context";
 import { testMcp, getOwnerAuthorizeUrl, getUserAuthorizeUrl, getUsedByAgents, disconnectOwnerConnection, disconnectUserConnection, getUserConnectionStatus } from "@/lib/api/mcps";
 import { toast } from "sonner";
 import {
@@ -163,7 +165,7 @@ export function McpDetail({ mcp }) {
     await deleteMcp(mcp._id);
     setShowDeleteDialog(false);
     setIsDeleting(false);
-    router.push("/dashboard/connectors/mcps");
+    router.push(studioRoutes.connectors);
   };
 
   return (
@@ -578,7 +580,7 @@ export function McpDetail({ mcp }) {
                   />
                 </div>
 
-                <Link href={`/dashboard/connectors/mcps/${mcp._id}/edit`}>
+                <Link href={studioRoutes.connectorEdit(mcp._id)}>
                   <Button variant="outline" className="w-full h-10 font-bold text-sm rounded-full border border-zinc-150/60 dark:border-zinc-800 shadow-none uppercase tracking-wider">
                     <Settings className="mr-2 size-4" />
                     Configure

@@ -1,5 +1,7 @@
 "use client";
 
+import { studioRoutes } from "@/lib/studio-routes";
+
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { getProviders, deleteProvider, testProviderConnection } from "@/lib/api/providers";
@@ -138,7 +140,7 @@ export default function ProvidersSettingsPage() {
             Manage your AI model integrations.
           </p>
         </div>
-        <Link href="/dashboard/settings/providers/new">
+        <Link href={studioRoutes.providerNew}>
           <Button>
             <Plus className="mr-2 h-4 w-4" />
             Add Provider
@@ -208,7 +210,7 @@ export default function ProvidersSettingsPage() {
                       >
                         <Play className="h-4 w-4" />
                       </Button>
-                      <Link href={`/dashboard/settings/providers/${provider.id}/edit`}>
+                      <Link href={studioRoutes.providerEdit(provider.id)}>
                         <Button variant="ghost" size="icon" title="Edit">
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -238,7 +240,7 @@ export default function ProvidersSettingsPage() {
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Link href="/dashboard/settings/providers/new">
+            <Link href={studioRoutes.providerNew}>
               <Button variant="outline">
                 <Plus className="mr-2 h-4 w-4" />
                 Add your first provider

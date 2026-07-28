@@ -7,8 +7,8 @@ import { useUser } from "@clerk/nextjs";
 import {
   ArrowLeftIcon,
   BookTextIcon,
+  BrainIcon,
   CpuIcon,
-  ExternalLinkIcon,
   LayoutDashboardIcon,
   PlugIcon,
   PlusIcon,
@@ -30,37 +30,29 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { NavUser } from "@/components/nav-user";
+import { personaRoutes, studioRoutes } from "@/lib/studio-routes";
 import { cn } from "@/lib/utils";
 
-// Studio-owned sections. Everything here lives under /studio.
+// Studio-owned sections. Everything below lives under /studio.
 const STUDIO_NAV = [
-  { title: "Overview", url: "/studio", icon: LayoutDashboardIcon },
-  { title: "Agents", url: "/studio/agents", icon: UsersIcon },
+  { title: "Overview", url: studioRoutes.home, icon: LayoutDashboardIcon },
+  { title: "Agents", url: studioRoutes.agents, icon: UsersIcon },
 ];
 
-// Creator resources that still live in their existing dashboard routes. They
-// are linked rather than duplicated — Phase 2 moves these route trees under
-// /studio. The arrow marks that the link leaves the Studio shell.
+// Creator building blocks — all native Studio routes since Phase 2A.
 const CREATOR_RESOURCES = [
-  { title: "Skills", url: "/dashboard/connectors/skills", icon: CpuIcon },
-  {
-    title: "Knowledge",
-    url: "/dashboard/connectors/knowledge",
-    icon: BookTextIcon,
-  },
-  { title: "Connectors", url: "/dashboard/connectors/mcps", icon: PlugIcon },
+  { title: "Skills", url: studioRoutes.skills, icon: CpuIcon },
+  { title: "Knowledge", url: studioRoutes.knowledge, icon: BookTextIcon },
+  { title: "Connectors", url: studioRoutes.connectors, icon: PlugIcon },
+  { title: "Memory", url: studioRoutes.memory, icon: BrainIcon },
   {
     title: "Providers",
-    url: "/dashboard/settings/providers",
+    url: studioRoutes.providers,
     icon: SlidersHorizontalIcon,
   },
 ];
 
-const STUDIO_SECONDARY = [
-  { title: "Settings", url: "/dashboard/settings", icon: Settings2Icon },
-];
-
-function StudioNavLink({ item, active, external = false }) {
+function StudioNavLink({ item, active }) {
   const Icon = item.icon;
   return (
     <SidebarMenuItem>
@@ -83,9 +75,6 @@ function StudioNavLink({ item, active, external = false }) {
             )}
           />
           <span className="text-xs font-semibold">{item.title}</span>
-          {external ? (
-            <ExternalLinkIcon className="ml-auto size-3 text-slate-350 dark:text-slate-600" />
-          ) : null}
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -179,8 +168,7 @@ export function StudioSidebar({ ...props }) {
                 <StudioNavLink
                   key={item.title}
                   item={item}
-                  active={false}
-                  external
+                  active={isActive(item.url)}
                 />
               ))}
             </SidebarMenu>
@@ -190,14 +178,14 @@ export function StudioSidebar({ ...props }) {
         <SidebarGroup className="mt-auto border-t border-slate-150/50 p-0 pt-3 dark:border-slate-850/40">
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
-              {STUDIO_SECONDARY.map((item) => (
-                <StudioNavLink
-                  key={item.title}
-                  item={item}
-                  active={false}
-                  external
-                />
-              ))}
+              <StudioNavLink
+                item={{
+                  title: "Settings",
+                  url: personaRoutes.settings,
+                  icon: Settings2Icon,
+                }}
+                active={false}
+              />
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild

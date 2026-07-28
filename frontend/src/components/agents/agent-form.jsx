@@ -723,7 +723,7 @@ export function AgentForm({
               <p className="text-sm text-muted-foreground mb-3">
                 No skills created yet.
               </p>
-              <Link href="/dashboard/connectors/skills">
+              <Link href="/studio/skills">
                 <Button variant="outline" size="sm">
                   Create a Skill
                 </Button>
@@ -791,7 +791,7 @@ export function AgentForm({
               <p className="text-sm text-muted-foreground mb-3">
                 No MCP servers configured yet.
               </p>
-              <Link href="/dashboard/connectors/mcps">
+              <Link href="/studio/connectors">
                 <Button variant="outline" size="sm">
                   Add an MCP Server
                 </Button>
@@ -866,7 +866,7 @@ export function AgentForm({
               <p className="text-sm text-muted-foreground mb-3">
                 No knowledge bases created yet.
               </p>
-              <Link href="/dashboard/connectors/knowledge">
+              <Link href="/studio/knowledge">
                 <Button variant="outline" size="sm">
                   Create a Knowledge Base
                 </Button>
@@ -977,7 +977,7 @@ export function AgentForm({
                 Add an LLM provider (API key) before creating an agent.
               </p>
               <Link
-                href="/dashboard/settings/providers"
+                href="/studio/providers"
                 className="inline-block font-medium text-primary underline-offset-2 hover:underline"
               >
                 Go to provider settings

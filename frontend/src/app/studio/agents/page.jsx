@@ -1,5 +1,7 @@
 "use client";
 
+import { studioRoutes } from "@/lib/studio-routes";
+
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
@@ -60,7 +62,7 @@ export default function StudioAgentsPage() {
               />
             </InputGroup>
           </div>
-          <Link href="/studio/agents/new">
+          <Link href={studioRoutes.agentNew}>
             <Button size="sm" className="rounded-full px-4 font-bold">
               <PlusIcon className="mr-1.5 size-4" />
               New Agent
@@ -163,7 +165,7 @@ export default function StudioAgentsPage() {
               Studio is where you build them. Describe what you want to Sage, or
               configure everything by hand.
             </p>
-            <Link href="/studio/agents/new" className="mt-6">
+            <Link href={studioRoutes.agentNew} className="mt-6">
               <Button className="rounded-full px-6 py-2.5 font-bold">
                 <PlusIcon className="mr-1.5 size-4" />
                 Build your first agent
@@ -193,8 +195,8 @@ export default function StudioAgentsPage() {
         ) : (
           <OwnedAgentGrid
             agents={filteredAgents}
-            openHref={(id) => `/studio/agents/${id}`}
-            editHref={(id) => `/studio/agents/${id}/build`}
+            openHref={studioRoutes.agent}
+            editHref={studioRoutes.agentBuild}
             onDelete={setDeleteTarget}
             primaryLabel="Manage"
             primaryIcon={SettingsIcon}

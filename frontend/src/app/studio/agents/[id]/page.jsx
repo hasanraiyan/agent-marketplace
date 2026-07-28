@@ -1,5 +1,7 @@
 "use client";
 
+import { studioRoutes } from "@/lib/studio-routes";
+
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -208,7 +210,7 @@ export default function StudioAgentOverviewPage({ params }) {
       tabs: <StudioAgentTabs agentId={agentId} active="overview" />,
       actions: (
         <>
-          <Link href={`/studio/agents/${agentId}/build`}>
+          <Link href={studioRoutes.agentBuild(agentId)}>
             <Button
               variant="outline"
               size="sm"
@@ -218,7 +220,7 @@ export default function StudioAgentOverviewPage({ params }) {
               Build
             </Button>
           </Link>
-          <Link href={`/studio/agents/${agentId}/test`}>
+          <Link href={studioRoutes.agentTest(agentId)}>
             <Button size="sm" className="rounded-full px-4 font-bold">
               <PlayIcon className="mr-1.5 size-3.5 fill-current" />
               Test
@@ -251,7 +253,7 @@ export default function StudioAgentOverviewPage({ params }) {
           <p className="text-sm text-slate-500 dark:text-slate-400">
             It may have been deleted, or you may not own it.
           </p>
-          <Link href="/studio/agents">
+          <Link href={studioRoutes.agents}>
             <Button variant="outline" className="rounded-full font-bold">
               Back to agents
             </Button>
@@ -276,7 +278,7 @@ export default function StudioAgentOverviewPage({ params }) {
           title="Identity"
           description="How this agent introduces itself."
           action={
-            <Link href={`/studio/agents/${agentId}/build`}>
+            <Link href={studioRoutes.agentBuild(agentId)}>
               <Button
                 variant="ghost"
                 size="sm"
@@ -415,7 +417,7 @@ export default function StudioAgentOverviewPage({ params }) {
             title="Configuration"
             description="What powers this agent."
             action={
-              <Link href={`/studio/agents/${agentId}/build`}>
+              <Link href={studioRoutes.agentBuild(agentId)}>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -489,7 +491,7 @@ export default function StudioAgentOverviewPage({ params }) {
           title="Capabilities"
           description="Skills, knowledge, and connectors attached to this agent."
           action={
-            <Link href={`/studio/agents/${agentId}/build`}>
+            <Link href={studioRoutes.agentBuild(agentId)}>
               <Button
                 variant="ghost"
                 size="sm"
@@ -505,19 +507,19 @@ export default function StudioAgentOverviewPage({ params }) {
               icon={CpuIcon}
               label="Skills"
               count={skills.length}
-              href="/dashboard/connectors/skills"
+              href={studioRoutes.skills}
             />
             <CapabilityLink
               icon={BookTextIcon}
               label="Knowledge"
               count={knowledgeBases.length}
-              href="/dashboard/connectors/knowledge"
+              href={studioRoutes.knowledge}
             />
             <CapabilityLink
               icon={PlugIcon}
               label="Connectors"
               count={mcps.length}
-              href="/dashboard/connectors/mcps"
+              href={studioRoutes.connectors}
             />
           </div>
         </Card>

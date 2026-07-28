@@ -50,6 +50,10 @@ function agentIdFromToolOutput(output) {
  * @param {string} backLabel  label for the "back to list" link in the header.
  * @param {string} runSegment  sub-route that runs the agent: "run" in the
  *   dashboard, "test" in Studio's playground.
+ * @param {React.ReactNode} workspaceNav  optional navigation rendered in the
+ *   header. Studio passes its Overview/Build/Test switcher so an existing
+ *   agent keeps consistent workspace navigation while it is being built. When
+ *   supplied it replaces the back-link and Run button, which it supersedes.
  */
 export function AgentBuilderPage({
   mode = "create",
@@ -57,6 +61,7 @@ export function AgentBuilderPage({
   basePath = "/dashboard/agents",
   backLabel = "My Agents",
   runSegment = "run",
+  workspaceNav = null,
 }) {
   const isEdit = mode === "edit" && Boolean(agentId);
   const router = useRouter();
@@ -289,20 +294,22 @@ export function AgentBuilderPage({
       ),
       actions: (
         <>
-          <Link
-            href={basePath}
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" />
-            {backLabel}
-          </Link>
+          {workspaceNav ?? (
+            <Link
+              href={basePath}
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="size-4" />
+              {backLabel}
+            </Link>
+          )}
           <Badge
             variant="outline"
             className="h-5 rounded-md py-0 text-[10px] uppercase"
           >
             {isEdit ? agent?.visibility || "private" : "Draft"}
           </Badge>
-          {isEdit ? (
+          {isEdit && !workspaceNav ? (
             <Link href={`${basePath}/${agentId}/${runSegment}`}>
               <Button size="sm" className="h-8 rounded-full px-4 font-bold">
                 <Play className="mr-1 size-3.5" />
@@ -313,7 +320,16 @@ export function AgentBuilderPage({
         </>
       ),
     },
-    [activeTab, agent, agentId, basePath, backLabel, runSegment, isEdit],
+    [
+      activeTab,
+      agent,
+      agentId,
+      basePath,
+      backLabel,
+      runSegment,
+      isEdit,
+      workspaceNav,
+    ],
   );
 
   if (loading) {
@@ -336,7 +352,7 @@ export function AgentBuilderPage({
             Agents need an LLM provider (API key) to run. Add one in settings,
             then come back to build your agent.
           </p>
-          <Link href="/dashboard/settings/providers">
+          <Link href="/studio/providers">
             <Button className="rounded-full px-6 font-bold">
               Go to provider settings
             </Button>

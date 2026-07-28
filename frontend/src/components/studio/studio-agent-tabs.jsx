@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { studioRoutes } from "@/lib/studio-routes";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { key: "overview", label: "Overview", segment: "" },
-  { key: "build", label: "Build", segment: "/build" },
-  { key: "test", label: "Test", segment: "/test" },
+  { key: "overview", label: "Overview", href: studioRoutes.agent },
+  { key: "build", label: "Build", href: studioRoutes.agentBuild },
+  { key: "test", label: "Test", href: studioRoutes.agentTest },
 ];
 
 /**
@@ -20,7 +21,7 @@ export function StudioAgentTabs({ agentId, active }) {
       {TABS.map((tab) => (
         <Link
           key={tab.key}
-          href={`/studio/agents/${agentId}${tab.segment}`}
+          href={tab.href(agentId)}
           className={cn(
             "h-7 rounded-md px-3 text-xs leading-7 font-semibold transition-colors",
             active === tab.key

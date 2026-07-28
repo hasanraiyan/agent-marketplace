@@ -342,7 +342,7 @@ export default function ProfileSettingsPage() {
                   View, edit, and delete everything your agents remember from the Memory Dashboard.
                 </p>
                 <Button type="button" variant="outline" size="sm" asChild>
-                  <Link href="/dashboard/connectors/memory">
+                  <Link href="/studio/memory">
                     <Sparkles className="size-4 mr-1.5 text-indigo-500" />
                     Open Memory Dashboard
                   </Link>
@@ -378,7 +378,7 @@ export default function ProfileSettingsPage() {
                 </Link>
 
                 <Link
-                  href="/dashboard/settings/providers"
+                  href="/studio/providers"
                   className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
                 >
                   <div className="flex items-center gap-3">

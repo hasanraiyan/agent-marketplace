@@ -1,5 +1,7 @@
 "use client";
 
+import { studioRoutes } from "@/lib/studio-routes";
+
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -55,7 +57,7 @@ export default function KnowledgeBaseDetailPage() {
       setKb(res.data?.data);
     } catch (err) {
       toast.error("Failed to load knowledge base");
-      router.push("/dashboard/connectors/knowledge");
+      router.push(studioRoutes.knowledge);
     }
   }, [id, router]);
 
@@ -174,7 +176,7 @@ export default function KnowledgeBaseDetailPage() {
     try {
       await deleteKnowledgeBase(id);
       toast.success("Knowledge base deleted");
-      router.push("/dashboard/connectors/knowledge");
+      router.push(studioRoutes.knowledge);
     } catch (err) {
       toast.error("Failed to delete knowledge base");
       setDeleting(false);
@@ -223,7 +225,7 @@ export default function KnowledgeBaseDetailPage() {
       {/* Back button */}
       <div className="px-6 pt-4 pb-2">
         <Link
-          href="/dashboard/connectors/knowledge"
+          href={studioRoutes.knowledge}
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="size-4" />

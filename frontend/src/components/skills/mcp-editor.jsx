@@ -1,7 +1,9 @@
 "use client";
 
+import { studioRoutes } from "@/lib/studio-routes";
+
 import { useState } from "react";
-import { useConnectors } from "@/app/dashboard/connectors/connectors-context";
+import { useConnectors } from "@/components/connectors/connectors-context";
 import { toast } from "sonner";
 import {
   Server,
@@ -109,10 +111,10 @@ export function McpEditor({ mcp, mode = "new" }) {
     try {
       if (isCreating) {
         const created = await createMcp(payload);
-        router.push(`/dashboard/connectors/mcps/${created._id}`);
+        router.push(studioRoutes.connector(created._id));
       } else {
         await updateMcp(mcp._id, payload);
-        router.push(`/dashboard/connectors/mcps/${mcp._id}`);
+        router.push(studioRoutes.connector(mcp._id));
       }
     } catch {
       // toasts are already shown by the context
@@ -123,9 +125,9 @@ export function McpEditor({ mcp, mode = "new" }) {
 
   const handleCancel = () => {
     if (isCreating) {
-      router.push("/dashboard/connectors/mcps");
+      router.push(studioRoutes.connectors);
     } else {
-      router.push(`/dashboard/connectors/mcps/${mcp._id}`);
+      router.push(studioRoutes.connector(mcp._id));
     }
   };
 

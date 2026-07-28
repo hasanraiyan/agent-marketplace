@@ -1,6 +1,8 @@
 "use client";
 
-import { useConnectors } from "../../connectors-context";
+import { studioRoutes } from "@/lib/studio-routes";
+
+import { useConnectors } from "@/components/connectors/connectors-context";
 import { Cpu, Globe, ExternalLink, User, SearchIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -134,7 +136,7 @@ export default function PublicSkillsPage() {
               return (
                 <Link
                   key={skill._id || skill.id}
-                  href={`/dashboard/connectors/skills/${skill._id || skill.id}`}
+                  href={studioRoutes.skill(skill._id || skill.id)}
                   className="group flex flex-col p-5 rounded-3xl border border-zinc-150/60 dark:border-zinc-900/60 bg-card hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 active:scale-[0.98]"
                 >
                   {/* Top: Icon + Name + Badge */}

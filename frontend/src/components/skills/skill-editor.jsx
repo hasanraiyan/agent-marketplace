@@ -1,5 +1,7 @@
 "use client";
 
+import { studioRoutes } from "@/lib/studio-routes";
+
 import { useState, useEffect, useRef } from "react";
 import {
   Cpu,
@@ -24,7 +26,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { createSkill, updateSkill } from "@/lib/api/skills";
 import { useRouter } from "next/navigation";
-import { useConnectors } from "@/app/dashboard/connectors/connectors-context";
+import { useConnectors } from "@/components/connectors/connectors-context";
 import Link from "next/link";
 import Editor from "react-simple-code-editor";
 import { highlight, languages } from "prismjs";
@@ -255,7 +257,7 @@ export function SkillEditor({ skill, mode = "edit" }) {
       const newSkillId = res.data?.data?._id || res.data?.data?.id;
       setIsDirty(false);
       refreshSkills();
-      router.push(`/dashboard/connectors/skills/${newSkillId}`);
+      router.push(studioRoutes.skill(newSkillId));
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to save skill");
     } finally {
@@ -283,7 +285,7 @@ export function SkillEditor({ skill, mode = "edit" }) {
 
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" asChild disabled={loading}>
-            <Link href={mode === "edit" ? `/dashboard/connectors/skills/${skill._id || skill.id}` : "/dashboard/connectors/skills"}>
+            <Link href={mode === "edit" ? studioRoutes.skill(skill._id || skill.id) : studioRoutes.skills}>
               <X className="size-4 mr-2" />
               Cancel
             </Link>

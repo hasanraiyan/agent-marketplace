@@ -18,7 +18,7 @@ export default function SkillsRedirect({ params }) {
         const mcpId = url.searchParams.get("mcpId");
         const connected = url.searchParams.get("connected");
         const error = url.searchParams.get("error");
-        let target = "/dashboard/connectors/mcps";
+        let target = "/studio/connectors";
         const params = new URLSearchParams();
         if (mcpId) params.set("mcpId", mcpId);
         if (connected) params.set("connected", connected);
@@ -31,12 +31,12 @@ export default function SkillsRedirect({ params }) {
     }
 
     if (!slug || slug.length === 0) {
-      router.replace("/dashboard/connectors/skills");
+      router.replace("/studio/skills");
       return;
     }
 
     const path = slug.join("/");
-    router.replace(`/dashboard/connectors/skills/${path}`);
+    router.replace(`/studio/skills/${path}`);
   }, [slug, router]);
 
   return null;

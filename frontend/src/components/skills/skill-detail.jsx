@@ -1,5 +1,7 @@
 "use client";
 
+import { studioRoutes } from "@/lib/studio-routes";
+
 import { useState, useEffect } from "react";
 import {
   Cpu,
@@ -40,7 +42,7 @@ import { FolderOpen, FileText, FileCode, ChevronDown, ChevronRight } from "lucid
 import { toast } from "sonner";
 import { deleteSkill, getUsedByAgents } from "@/lib/api/skills";
 import { useRouter } from "next/navigation";
-import { useConnectors } from "@/app/dashboard/connectors/connectors-context";
+import { useConnectors } from "@/components/connectors/connectors-context";
 import Link from "next/link";
 
 export function SkillDetail({ skill }) {
@@ -81,7 +83,7 @@ export function SkillDetail({ skill }) {
       await deleteSkill(skill._id || skill.id);
       toast.success("Skill deleted successfully");
       refreshSkills();
-      router.push("/dashboard/connectors/skills");
+      router.push(studioRoutes.skills);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to delete skill");
     } finally {
@@ -318,7 +320,7 @@ export function SkillDetail({ skill }) {
               <div className="flex flex-col gap-2">
                 {isOwner && (
                   <>
-                    <Link href={`/dashboard/connectors/skills/${skillId}/edit`}>
+                    <Link href={studioRoutes.skillEdit(skillId)}>
                       <Button
                         variant="outline"
                         className="w-full h-10 font-bold text-sm rounded-full border border-zinc-150/60 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-all uppercase tracking-wider shadow-none"

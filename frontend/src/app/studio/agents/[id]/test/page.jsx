@@ -1,5 +1,7 @@
 "use client";
 
+import { studioRoutes } from "@/lib/studio-routes";
+
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
@@ -189,7 +191,7 @@ export default function StudioAgentTestPage({ params }) {
           >
             <RotateCcw className="size-4" />
           </Button>
-          <Link href={`/studio/agents/${agentId}/build`}>
+          <Link href={studioRoutes.agentBuild(agentId)}>
             <Button
               variant="outline"
               size="sm"
@@ -234,7 +236,7 @@ export default function StudioAgentTestPage({ params }) {
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
             The agent needs a configured model provider before it can run.
           </p>
-          <Link href={`/studio/agents/${agentId}/build`}>
+          <Link href={studioRoutes.agentBuild(agentId)}>
             <Button variant="outline" className="rounded-full font-bold">
               Open the builder
             </Button>

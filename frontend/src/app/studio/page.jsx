@@ -1,5 +1,7 @@
 "use client";
 
+import { studioRoutes } from "@/lib/studio-routes";
+
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
@@ -103,7 +105,7 @@ export default function StudioHomePage() {
       title: "Agent Studio",
       description: "Build, configure, test, and publish your agents.",
       actions: (
-        <Link href="/studio/agents/new">
+        <Link href={studioRoutes.agentNew}>
           <Button size="sm" className="rounded-full px-4 font-bold">
             <PlusIcon className="mr-1.5 size-4" />
             New Agent
@@ -222,7 +224,7 @@ export default function StudioHomePage() {
                 </div>
               </div>
             </div>
-            <Link href="/dashboard/settings/providers">
+            <Link href={studioRoutes.providers}>
               <Button
                 size="sm"
                 variant="outline"
@@ -268,7 +270,7 @@ export default function StudioHomePage() {
                 return (
                   <Link
                     key={id}
-                    href={`/studio/agents/${id}`}
+                    href={studioRoutes.agent(id)}
                     className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/40"
                   >
                     <AlertTriangleIcon className="size-4 shrink-0 text-amber-500" />
@@ -301,7 +303,7 @@ export default function StudioHomePage() {
               Recently modified
             </h2>
             <Link
-              href="/studio/agents"
+              href={studioRoutes.agents}
               className="text-xs font-bold text-[#1E60FF] hover:underline"
             >
               All agents
@@ -326,7 +328,7 @@ export default function StudioHomePage() {
                 Create your first agent — describe it to Sage or fill in the
                 configuration yourself.
               </p>
-              <Link href="/studio/agents/new" className="mt-5">
+              <Link href={studioRoutes.agentNew} className="mt-5">
                 <Button className="rounded-full px-6 font-bold">
                   <PlusIcon className="mr-1.5 size-4" />
                   New Agent
@@ -342,7 +344,7 @@ export default function StudioHomePage() {
                 return (
                   <Link
                     key={id}
-                    href={`/studio/agents/${id}`}
+                    href={studioRoutes.agent(id)}
                     className="group flex flex-col gap-2 rounded-2xl border border-slate-150/70 bg-white p-4 transition-all hover:border-slate-250 dark:border-slate-850/60 dark:bg-slate-950/40 dark:hover:border-slate-700"
                   >
                     <div className="flex items-center gap-3">
@@ -395,28 +397,28 @@ export default function StudioHomePage() {
           </h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <ResourceCard
-              href="/dashboard/connectors/skills"
+              href={studioRoutes.skills}
               title="Skills"
               icon={CpuIcon}
               count={resources.skills}
               loading={loadingResources}
             />
             <ResourceCard
-              href="/dashboard/connectors/knowledge"
+              href={studioRoutes.knowledge}
               title="Knowledge bases"
               icon={BookTextIcon}
               count={resources.kbs}
               loading={loadingResources}
             />
             <ResourceCard
-              href="/dashboard/connectors/mcps"
+              href={studioRoutes.connectors}
               title="Connectors (MCP)"
               icon={PlugIcon}
               count={resources.mcps}
               loading={loadingResources}
             />
             <ResourceCard
-              href="/dashboard/settings/providers"
+              href={studioRoutes.providers}
               title="Model providers"
               icon={SlidersHorizontalIcon}
               count={providers.length}

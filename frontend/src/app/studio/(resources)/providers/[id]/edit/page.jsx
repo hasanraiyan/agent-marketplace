@@ -1,5 +1,7 @@
 "use client";
 
+import { studioRoutes } from "@/lib/studio-routes";
+
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -81,7 +83,7 @@ export default function ProviderEditorPage({ params: paramsPromise }) {
             fetchModels(provider.id);
           } else {
             toast.error("Provider not found");
-            router.push("/dashboard/settings/providers");
+            router.push(studioRoutes.providers);
           }
         } catch (err) {
           toast.error("Failed to load provider");
@@ -157,7 +159,7 @@ export default function ProviderEditorPage({ params: paramsPromise }) {
         await createProvider(dataToSubmit);
         toast.success("Provider created successfully");
       }
-      router.push("/dashboard/settings/providers");
+      router.push(studioRoutes.providers);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to save provider");
     } finally {
@@ -185,7 +187,7 @@ export default function ProviderEditorPage({ params: paramsPromise }) {
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
       <div className="flex items-center gap-4">
-        <Link href="/dashboard/settings/providers">
+        <Link href={studioRoutes.providers}>
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -331,7 +333,7 @@ export default function ProviderEditorPage({ params: paramsPromise }) {
             </FieldGroup>
           </CardContent>
           <CardFooter className="flex justify-between border-t p-6">
-            <Link href="/dashboard/settings/providers">
+            <Link href={studioRoutes.providers}>
               <Button variant="outline">Cancel</Button>
             </Link>
             <Button type="submit" disabled={saving}>
