@@ -10,6 +10,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { SlidersHorizontalIcon } from "lucide-react";
+import { studioRoutes } from "@/lib/studio-routes";
 import { cn } from "@/lib/utils";
 
 export function NavMain({ items, myAgentId }) {
@@ -21,8 +22,8 @@ export function NavMain({ items, myAgentId }) {
   };
 
   // Creator entry point. Points at the Studio workspace rather than a single
-  // creation form — /dashboard/agents/create still works and is unchanged.
-  const ctaHref = "/studio";
+  // creation form; the old create route now redirects there too.
+  const ctaHref = studioRoutes.home;
   const ctaLabel = "Agent Studio";
   const CtaIcon = SlidersHorizontalIcon;
 

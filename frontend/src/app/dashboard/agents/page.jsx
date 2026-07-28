@@ -1,5 +1,7 @@
 "use client";
 
+import { studioRoutes } from "@/lib/studio-routes";
+
 import { useState, useEffect, useMemo } from "react";
 import { Plus, Bot, SearchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -54,7 +56,7 @@ export default function MyAgentsPage() {
               />
             </InputGroup>
           </div>
-          <Link href="/dashboard/agents/create">
+          <Link href={studioRoutes.agentNew}>
             <Button size="sm" className="rounded-full px-4 font-bold shadow-sm transition-all active:scale-98">
               <Plus className="mr-1.5 size-4" />
               Build an Agent
@@ -158,7 +160,7 @@ export default function MyAgentsPage() {
             <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2 max-w-sm leading-relaxed font-medium">
               You haven&apos;t created any agents yet. Start by creating one now to bring your ideas to life!
             </p>
-            <Link href="/dashboard/agents/create" className="mt-6">
+            <Link href={studioRoutes.agentNew} className="mt-6">
               <Button className="rounded-full px-6 py-2.5 font-bold shadow-sm active:scale-98 transition-all">
                 <Plus className="mr-1.5 size-4" />
                 Build Your First Agent
@@ -184,7 +186,7 @@ export default function MyAgentsPage() {
           <OwnedAgentGrid
             agents={filteredAgents}
             openHref={(id) => `/dashboard/agents/${id}/run`}
-            editHref={(id) => `/dashboard/agents/${id}/builder`}
+            editHref={studioRoutes.agentBuild}
             onDelete={setDeleteTarget}
             primaryLabel="Launch"
           />

@@ -1,5 +1,7 @@
 "use client";
 
+import { studioRoutes } from "@/lib/studio-routes";
+
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -390,7 +392,7 @@ export default function RunAgentPage() {
           >
             <NewChatIcon className="size-4" />
           </Button>
-          <Link href={`/dashboard/agents/${agentId}/builder`}>
+          <Link href={studioRoutes.agentBuild(agentId)}>
             <Button variant="outline" size="sm" className="rounded-full">
               Edit
             </Button>

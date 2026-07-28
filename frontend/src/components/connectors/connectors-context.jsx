@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 import { getMySkills, getPublicSkills } from "@/lib/api/skills";
 import {
   getMyMcps,
@@ -113,11 +119,13 @@ export function ConnectorsProvider({ children }) {
         }
         toast.success("MCP server deleted");
       } catch (err) {
-        toast.error(err.response?.data?.message || "Failed to delete MCP server");
+        toast.error(
+          err.response?.data?.message || "Failed to delete MCP server",
+        );
         throw err;
       }
     },
-    [selectedMcpId]
+    [selectedMcpId],
   );
 
   const toggleMcp = useCallback(
@@ -126,7 +134,7 @@ export function ConnectorsProvider({ children }) {
       if (!current) return;
       await updateMcp(id, { isEnabled: !current.isEnabled });
     },
-    [mcps, updateMcp]
+    [mcps, updateMcp],
   );
 
   // Knowledge Base operations
@@ -149,7 +157,9 @@ export function ConnectorsProvider({ children }) {
       toast.success(`Knowledge base "${created.name}" created`);
       return created;
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to create knowledge base");
+      toast.error(
+        err.response?.data?.message || "Failed to create knowledge base",
+      );
       throw err;
     }
   }, []);
@@ -160,22 +170,27 @@ export function ConnectorsProvider({ children }) {
       setKnowledgeBases((prev) => prev.filter((kb) => kb._id !== id));
       toast.success("Knowledge base deleted");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to delete knowledge base");
+      toast.error(
+        err.response?.data?.message || "Failed to delete knowledge base",
+      );
       throw err;
     }
   }, []);
 
-  const uploadKbFiles = useCallback(async (id, files) => {
-    try {
-      const res = await uploadFilesApi(id, files);
-      // Refresh the KB list to get updated counts
-      fetchKnowledgeBases();
-      return res.data?.data;
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to upload files");
-      throw err;
-    }
-  }, [fetchKnowledgeBases]);
+  const uploadKbFiles = useCallback(
+    async (id, files) => {
+      try {
+        const res = await uploadFilesApi(id, files);
+        // Refresh the KB list to get updated counts
+        fetchKnowledgeBases();
+        return res.data?.data;
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Failed to upload files");
+        throw err;
+      }
+    },
+    [fetchKnowledgeBases],
+  );
 
   const fetchMemory = useCallback(async () => {
     setLoadingMemory(true);
@@ -189,28 +204,38 @@ export function ConnectorsProvider({ children }) {
     }
   }, []);
 
-  const writeMemoryFile = useCallback(async (data) => {
-    try {
-      const res = await writeMemoryFileApi(data);
-      toast.success("Memory file saved");
-      fetchMemory();
-      return res.data?.data;
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to save memory file");
-      throw err;
-    }
-  }, [fetchMemory]);
+  const writeMemoryFile = useCallback(
+    async (data) => {
+      try {
+        const res = await writeMemoryFileApi(data);
+        toast.success("Memory file saved");
+        fetchMemory();
+        return res.data?.data;
+      } catch (err) {
+        toast.error(
+          err.response?.data?.message || "Failed to save memory file",
+        );
+        throw err;
+      }
+    },
+    [fetchMemory],
+  );
 
-  const deleteMemoryFile = useCallback(async (data) => {
-    try {
-      await deleteMemoryFileApi(data);
-      toast.success("Memory file deleted");
-      fetchMemory();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to delete memory file");
-      throw err;
-    }
-  }, [fetchMemory]);
+  const deleteMemoryFile = useCallback(
+    async (data) => {
+      try {
+        await deleteMemoryFileApi(data);
+        toast.success("Memory file deleted");
+        fetchMemory();
+      } catch (err) {
+        toast.error(
+          err.response?.data?.message || "Failed to delete memory file",
+        );
+        throw err;
+      }
+    },
+    [fetchMemory],
+  );
 
   const fetchSkills = useCallback(async () => {
     try {

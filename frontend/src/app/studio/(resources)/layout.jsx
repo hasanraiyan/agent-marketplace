@@ -85,9 +85,15 @@ function ResourcesLayoutContent({ children }) {
         <div className="flex items-center gap-2">
           {inSkills ? (
             <Link
-              href={isPublicSkills ? studioRoutes.skills : studioRoutes.skillsPublic}
+              href={
+                isPublicSkills ? studioRoutes.skills : studioRoutes.skillsPublic
+              }
             >
-              <Button variant="outline" size="sm" className="rounded-full font-bold">
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full font-bold"
+              >
                 <GlobeIcon className="mr-1.5 size-3.5" />
                 {isPublicSkills ? "My Skills" : "Browse Public"}
               </Button>

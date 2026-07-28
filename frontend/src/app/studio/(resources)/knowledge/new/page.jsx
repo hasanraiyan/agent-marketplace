@@ -9,7 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
 import { getProviders } from "@/lib/api/providers";
 import { toast } from "sonner";
 import { useConnectors } from "@/components/connectors/connectors-context";
@@ -19,7 +22,9 @@ export default function NewKnowledgeBasePage() {
   const { createKb } = useConnectors();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [embeddingModel, setEmbeddingModel] = useState("text-embedding-3-small");
+  const [embeddingModel, setEmbeddingModel] = useState(
+    "text-embedding-3-small",
+  );
   const [providerId, setProviderId] = useState("");
   const [providers, setProviders] = useState([]);
   const [loadingProviders, setLoadingProviders] = useState(true);
@@ -35,7 +40,7 @@ export default function NewKnowledgeBasePage() {
         const res = await getProviders();
         const data = res.data?.data || [];
         setProviders(data);
-        const defaultProv = data.find(p => p.isDefault) || data[0];
+        const defaultProv = data.find((p) => p.isDefault) || data[0];
         if (defaultProv) {
           setProviderId(defaultProv._id || defaultProv.id);
         }
@@ -120,20 +125,24 @@ export default function NewKnowledgeBasePage() {
             className="bg-muted/20"
           />
           <FieldDescription className="text-xs">
-            A clear description helps your agent understand when to search this knowledge base.
+            A clear description helps your agent understand when to search this
+            knowledge base.
           </FieldDescription>
         </Field>
 
         {/* Provider */}
         <Field>
-          <FieldLabel className="text-sm font-bold">AI Provider (Embedding Key Source)</FieldLabel>
+          <FieldLabel className="text-sm font-bold">
+            AI Provider (Embedding Key Source)
+          </FieldLabel>
           {loadingProviders ? (
             <div className="text-sm text-muted-foreground pt-1.5 flex items-center gap-1.5">
               <Loader2 className="size-3.5 animate-spin" /> Loading providers...
             </div>
           ) : providers.length === 0 ? (
             <div className="text-sm border border-amber-200 dark:border-amber-900/50 bg-amber-500/10 p-3 rounded-xl text-amber-800 dark:text-amber-300 mt-1">
-              You need to configure an AI provider first to generate vector embeddings.{" "}
+              You need to configure an AI provider first to generate vector
+              embeddings.{" "}
               <button
                 type="button"
                 onClick={() => router.push(studioRoutes.providers)}
@@ -151,15 +160,20 @@ export default function NewKnowledgeBasePage() {
                 required
               >
                 {providers.map((prov) => (
-                  <NativeSelectOption key={prov._id || prov.id} value={prov._id || prov.id}>
-                    {prov.label} ({prov.defaultModel}){prov.isDefault ? " - Default" : ""}
+                  <NativeSelectOption
+                    key={prov._id || prov.id}
+                    value={prov._id || prov.id}
+                  >
+                    {prov.label} ({prov.defaultModel})
+                    {prov.isDefault ? " - Default" : ""}
                   </NativeSelectOption>
                 ))}
               </NativeSelect>
             </div>
           )}
           <FieldDescription className="text-xs">
-            The API key of the selected provider is used to generate embeddings (vectors) for files you upload.
+            The API key of the selected provider is used to generate embeddings
+            (vectors) for files you upload.
           </FieldDescription>
         </Field>
 
@@ -171,7 +185,9 @@ export default function NewKnowledgeBasePage() {
             className="flex items-center gap-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:opacity-80 transition-opacity"
           >
             <Sliders className="size-4" />
-            {showAdvanced ? "Hide Advanced Vector Settings" : "Configure Custom Vector Settings (Optional)"}
+            {showAdvanced
+              ? "Hide Advanced Vector Settings"
+              : "Configure Custom Vector Settings (Optional)"}
           </button>
         </div>
 
@@ -180,7 +196,9 @@ export default function NewKnowledgeBasePage() {
           <div className="space-y-6 p-5 border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/50 dark:bg-zinc-900/30">
             {/* Embedding Model */}
             <Field>
-              <FieldLabel className="text-sm font-bold">Embedding Model</FieldLabel>
+              <FieldLabel className="text-sm font-bold">
+                Embedding Model
+              </FieldLabel>
               <div className="mt-1.5 w-full">
                 <NativeSelect
                   value={embeddingModel}
@@ -206,7 +224,9 @@ export default function NewKnowledgeBasePage() {
             <div className="grid grid-cols-2 gap-4">
               {/* Chunk Size */}
               <Field>
-                <FieldLabel className="text-sm font-bold">Chunk Size</FieldLabel>
+                <FieldLabel className="text-sm font-bold">
+                  Chunk Size
+                </FieldLabel>
                 <Input
                   type="number"
                   placeholder="800"
@@ -222,7 +242,9 @@ export default function NewKnowledgeBasePage() {
 
               {/* Chunk Overlap */}
               <Field>
-                <FieldLabel className="text-sm font-bold">Chunk Overlap</FieldLabel>
+                <FieldLabel className="text-sm font-bold">
+                  Chunk Overlap
+                </FieldLabel>
                 <Input
                   type="number"
                   placeholder="100"
@@ -239,7 +261,9 @@ export default function NewKnowledgeBasePage() {
 
             {/* Top K */}
             <Field>
-              <FieldLabel className="text-sm font-bold">Top K Results</FieldLabel>
+              <FieldLabel className="text-sm font-bold">
+                Top K Results
+              </FieldLabel>
               <Input
                 type="number"
                 placeholder="5"

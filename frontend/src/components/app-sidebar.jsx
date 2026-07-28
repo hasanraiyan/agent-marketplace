@@ -25,10 +25,12 @@ import {
   Settings2Icon,
   CircleHelpIcon,
   SparklesIcon,
-  CpuIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
+// Persona is the consumer experience: discover an agent, use it, keep talking.
+// Creator infrastructure (skills, knowledge, connectors, providers) lives in
+// Agent Studio and is reached through the Agent Studio entry point above.
 const NAV_MAIN = [
   {
     title: "Explore",
@@ -39,11 +41,6 @@ const NAV_MAIN = [
     title: "My Agents",
     url: "/dashboard/agents",
     icon: <UserIcon />,
-  },
-  {
-    title: "Connectors",
-    url: "/dashboard/connectors",
-    icon: <CpuIcon />,
   },
 ];
 

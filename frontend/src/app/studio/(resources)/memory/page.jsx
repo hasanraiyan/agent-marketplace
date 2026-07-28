@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { getAllMemory, writeMemoryFile, deleteMemoryFile, clearAllMemory } from "@/lib/api/memory";
+import {
+  getAllMemory,
+  writeMemoryFile,
+  deleteMemoryFile,
+  clearAllMemory,
+} from "@/lib/api/memory";
 import { getMyMcps } from "@/lib/api/mcps";
 import { toast } from "sonner";
 import {
@@ -20,7 +25,13 @@ import {
   FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -41,7 +52,15 @@ function fileId(file) {
   return `${file.scope}:${file.agentId || ""}:${file.path}`;
 }
 
-function MemoryFileRow({ file, agentName, editing, onStartEdit, onCancelEdit, onSave, onDelete }) {
+function MemoryFileRow({
+  file,
+  agentName,
+  editing,
+  onStartEdit,
+  onCancelEdit,
+  onSave,
+  onDelete,
+}) {
   const [draft, setDraft] = useState(file.content);
   const [saving, setSaving] = useState(false);
 
@@ -69,7 +88,10 @@ function MemoryFileRow({ file, agentName, editing, onStartEdit, onCancelEdit, on
               {file.path}
             </span>
             {agentName && (
-              <Badge variant="outline" className="text-[9px] font-bold px-1.5 py-0 rounded-full">
+              <Badge
+                variant="outline"
+                className="text-[9px] font-bold px-1.5 py-0 rounded-full"
+              >
                 <Bot className="size-2.5 mr-1" />
                 {agentName}
               </Badge>
@@ -149,7 +171,12 @@ export default function MemoryDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [agents, setAgents] = useState([]);
   const [showNewForm, setShowNewForm] = useState(false);
-  const [newFile, setNewFile] = useState({ scope: "user", agentId: "", path: "", content: "" });
+  const [newFile, setNewFile] = useState({
+    scope: "user",
+    agentId: "",
+    path: "",
+    content: "",
+  });
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [search, setSearch] = useState("");
@@ -176,7 +203,10 @@ export default function MemoryDashboardPage() {
     fetchData();
   }, [fetchData]);
 
-  const userFiles = (data?.userFiles || []).map((f) => ({ ...f, scope: "user" }));
+  const userFiles = (data?.userFiles || []).map((f) => ({
+    ...f,
+    scope: "user",
+  }));
   const agentGroups = data?.agentMemories || [];
 
   // Derive agent options from both agents list AND any agents already in memories
@@ -207,10 +237,15 @@ export default function MemoryDashboardPage() {
   const filteredAgentGroups = agentGroups
     .map((group) => ({
       ...group,
-      files: (group.files || []).filter((f) => matchesSearch(f, group.agentName)),
+      files: (group.files || []).filter((f) =>
+        matchesSearch(f, group.agentName),
+      ),
     }))
     .filter((group) => group.files.length > 0);
-  const agentFileCount = agentGroups.reduce((sum, g) => sum + (g.files?.length || 0), 0);
+  const agentFileCount = agentGroups.reduce(
+    (sum, g) => sum + (g.files?.length || 0),
+    0,
+  );
 
   const handleCreate = async () => {
     if (!newFile.path.trim() || !newFile.content.trim()) {
@@ -251,13 +286,20 @@ export default function MemoryDashboardPage() {
       toast.success("Memory file updated");
       fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to update memory file");
+      toast.error(
+        err.response?.data?.message || "Failed to update memory file",
+      );
       throw err;
     }
   };
 
   const handleDelete = async (file) => {
-    if (!window.confirm(`Delete memory file "${file.path}"? This cannot be undone.`)) return;
+    if (
+      !window.confirm(
+        `Delete memory file "${file.path}"? This cannot be undone.`,
+      )
+    )
+      return;
     try {
       await deleteMemoryFile({
         scope: file.scope,
@@ -267,7 +309,9 @@ export default function MemoryDashboardPage() {
       toast.success("Memory file deleted");
       fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to delete memory file");
+      toast.error(
+        err.response?.data?.message || "Failed to delete memory file",
+      );
     }
   };
 
@@ -306,7 +350,8 @@ export default function MemoryDashboardPage() {
             AI Memory Dashboard
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Memory is stored as markdown files your agents read and update across conversations.
+            Memory is stored as markdown files your agents read and update
+            across conversations.
           </p>
         </div>
         <Button
@@ -329,10 +374,14 @@ export default function MemoryDashboardPage() {
             </h3>
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Scope</label>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                  Scope
+                </label>
                 <select
                   value={newFile.scope}
-                  onChange={(e) => setNewFile((p) => ({ ...p, scope: e.target.value }))}
+                  onChange={(e) =>
+                    setNewFile((p) => ({ ...p, scope: e.target.value }))
+                  }
                   className="w-full h-9 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-background px-3 text-xs"
                 >
                   <option value="user">User (all agents)</option>
@@ -341,10 +390,14 @@ export default function MemoryDashboardPage() {
               </div>
               {newFile.scope === "agent" && (
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Agent</label>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                    Agent
+                  </label>
                   <select
                     value={newFile.agentId}
-                    onChange={(e) => setNewFile((p) => ({ ...p, agentId: e.target.value }))}
+                    onChange={(e) =>
+                      setNewFile((p) => ({ ...p, agentId: e.target.value }))
+                    }
                     className="w-full h-9 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-background px-3 text-xs"
                   >
                     <option value="">Select agent...</option>
@@ -363,7 +416,9 @@ export default function MemoryDashboardPage() {
                 <Input
                   placeholder="e.g. /preferences.md"
                   value={newFile.path}
-                  onChange={(e) => setNewFile((p) => ({ ...p, path: e.target.value }))}
+                  onChange={(e) =>
+                    setNewFile((p) => ({ ...p, path: e.target.value }))
+                  }
                   className="h-9 text-xs font-mono"
                 />
               </div>
@@ -373,9 +428,13 @@ export default function MemoryDashboardPage() {
                 Content (markdown)
               </label>
               <Textarea
-                placeholder={"- Prefers concise answers\n- Works with Next.js and Tailwind"}
+                placeholder={
+                  "- Prefers concise answers\n- Works with Next.js and Tailwind"
+                }
                 value={newFile.content}
-                onChange={(e) => setNewFile((p) => ({ ...p, content: e.target.value }))}
+                onChange={(e) =>
+                  setNewFile((p) => ({ ...p, content: e.target.value }))
+                }
                 className="text-xs font-mono min-h-[100px]"
               />
             </div>
@@ -386,7 +445,9 @@ export default function MemoryDashboardPage() {
                 disabled={creating}
                 className="rounded-full font-bold"
               >
-                {creating && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
+                {creating && (
+                  <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                )}
                 Save File
               </Button>
               <Button
@@ -411,8 +472,8 @@ export default function MemoryDashboardPage() {
             No memories stored yet
           </h3>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2 max-w-sm leading-relaxed font-medium">
-            Agents save memory files automatically as they learn during conversations, or you can
-            create files manually.
+            Agents save memory files automatically as they learn during
+            conversations, or you can create files manually.
           </p>
         </div>
       ) : (
@@ -515,20 +576,29 @@ export default function MemoryDashboardPage() {
                             {group.agentName || "Unknown Agent"}
                           </Badge>
                           <span className="text-[10px] text-muted-foreground">
-                            {group.files.length} file{group.files.length === 1 ? "" : "s"}
+                            {group.files.length} file
+                            {group.files.length === 1 ? "" : "s"}
                           </span>
                         </div>
                         <div className="space-y-2">
                           {group.files.map((file) => {
-                            const enriched = { ...file, scope: "agent", agentId: group.agentId };
+                            const enriched = {
+                              ...file,
+                              scope: "agent",
+                              agentId: group.agentId,
+                            };
                             return (
                               <MemoryFileRow
                                 key={fileId(enriched)}
                                 file={enriched}
                                 editing={editingId === fileId(enriched)}
-                                onStartEdit={() => setEditingId(fileId(enriched))}
+                                onStartEdit={() =>
+                                  setEditingId(fileId(enriched))
+                                }
                                 onCancelEdit={() => setEditingId(null)}
-                                onSave={(content) => handleSaveEdit(enriched, content)}
+                                onSave={(content) =>
+                                  handleSaveEdit(enriched, content)
+                                }
                                 onDelete={() => handleDelete(enriched)}
                               />
                             );
@@ -551,21 +621,27 @@ export default function MemoryDashboardPage() {
               </h3>
               <div className="space-y-3 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">User Memory Files</span>
+                  <span className="text-muted-foreground">
+                    User Memory Files
+                  </span>
                   <Badge variant="secondary" className="rounded-full">
                     {userFiles.length}
                   </Badge>
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Agent Memory Files</span>
+                  <span className="text-muted-foreground">
+                    Agent Memory Files
+                  </span>
                   <Badge variant="secondary" className="rounded-full">
                     {agentFileCount}
                   </Badge>
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Agents with Memory</span>
+                  <span className="text-muted-foreground">
+                    Agents with Memory
+                  </span>
                   <Badge variant="secondary" className="rounded-full">
                     {agentGroups.length}
                   </Badge>
@@ -580,18 +656,28 @@ export default function MemoryDashboardPage() {
               </h3>
               <div className="text-xs text-muted-foreground leading-relaxed space-y-2">
                 <p>
-                  <strong className="text-zinc-700 dark:text-zinc-300">User Memory</strong> — Markdown
-                  files under <code className="font-mono">/memories/user/</code>, shared across all
-                  your agents. The <code className="font-mono">index.md</code> file is loaded into
-                  every conversation automatically.
+                  <strong className="text-zinc-700 dark:text-zinc-300">
+                    User Memory
+                  </strong>{" "}
+                  — Markdown files under{" "}
+                  <code className="font-mono">/memories/user/</code>, shared
+                  across all your agents. The{" "}
+                  <code className="font-mono">index.md</code> file is loaded
+                  into every conversation automatically.
                 </p>
                 <p>
-                  <strong className="text-zinc-700 dark:text-zinc-300">Agent Memory</strong> — Files
-                  under <code className="font-mono">/memories/agent/</code>, kept separately for each
-                  agent you talk to. Agents update these with the same file tools they use for
-                  everything else.
+                  <strong className="text-zinc-700 dark:text-zinc-300">
+                    Agent Memory
+                  </strong>{" "}
+                  — Files under{" "}
+                  <code className="font-mono">/memories/agent/</code>, kept
+                  separately for each agent you talk to. Agents update these
+                  with the same file tools they use for everything else.
                 </p>
-                <p>You can view, edit, and delete any memory file from this dashboard.</p>
+                <p>
+                  You can view, edit, and delete any memory file from this
+                  dashboard.
+                </p>
               </div>
             </Card>
 
@@ -602,8 +688,8 @@ export default function MemoryDashboardPage() {
                 Danger Zone
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Permanently delete every memory file — user memory and all per-agent memories. This
-                action cannot be undone.
+                Permanently delete every memory file — user memory and all
+                per-agent memories. This action cannot be undone.
               </p>
               <Button
                 variant="ghost"
@@ -627,7 +713,8 @@ export default function MemoryDashboardPage() {
               Clear All Memory?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete <strong>all</strong> of the following:
+              This will permanently delete <strong>all</strong> of the
+              following:
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="text-xs text-muted-foreground space-y-2 px-1">

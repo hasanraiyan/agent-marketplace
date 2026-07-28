@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
+import { studioRoutes } from "@/lib/studio-routes";
 
-// Legacy alias of the create flow. The canonical routes are
-// /dashboard/agents/create and /dashboard/agents/:id/builder.
+// Legacy alias of the create flow, which now lives in Agent Studio.
 export default function Page() {
-  redirect("/dashboard/agents/create");
+  redirect(studioRoutes.agentNew);
 }

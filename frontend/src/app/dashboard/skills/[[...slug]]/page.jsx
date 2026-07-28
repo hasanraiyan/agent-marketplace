@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { studioRoutes } from "@/lib/studio-routes";
 
 export default function SkillsRedirect({ params }) {
   const router = useRouter();
@@ -18,7 +19,7 @@ export default function SkillsRedirect({ params }) {
         const mcpId = url.searchParams.get("mcpId");
         const connected = url.searchParams.get("connected");
         const error = url.searchParams.get("error");
-        let target = "/studio/connectors";
+        let target = studioRoutes.connectors;
         const params = new URLSearchParams();
         if (mcpId) params.set("mcpId", mcpId);
         if (connected) params.set("connected", connected);
@@ -31,12 +32,12 @@ export default function SkillsRedirect({ params }) {
     }
 
     if (!slug || slug.length === 0) {
-      router.replace("/studio/skills");
+      router.replace(studioRoutes.skills);
       return;
     }
 
     const path = slug.join("/");
-    router.replace(`/studio/skills/${path}`);
+    router.replace(studioRoutes.skill(path));
   }, [slug, router]);
 
   return null;

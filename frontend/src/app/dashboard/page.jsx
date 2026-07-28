@@ -22,6 +22,7 @@ import { TiltCard } from "@/components/ui/tilt-card";
 import { toast } from "sonner";
 import { searchAgents, createAgent } from "@/lib/api/agents";
 import { getProviders } from "@/lib/api/providers";
+import { studioRoutes } from "@/lib/studio-routes";
 
 const CATEGORIES = [
   { value: "all", label: "All" },
@@ -248,11 +249,13 @@ export default function ExplorePage() {
             </svg>
           </div>
         </div>
+        {/* Creator entry point: crossing into the build experience, not
+            opening a single form. */}
         <button
-          onClick={() => router.push("/dashboard/agents/create")}
+          onClick={() => router.push(studioRoutes.home)}
           className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-5 py-2.5 text-[13px] font-bold transition-all active:scale-98 cursor-pointer shadow-sm shrink-0"
         >
-          Build an Agent
+          Agent Studio
         </button>
       </div>
 
@@ -489,7 +492,7 @@ export default function ExplorePage() {
         </Link>
 
         {/* Plus / Create */}
-        <Link href="/dashboard/agents/create" className="flex items-center justify-center">
+        <Link href={studioRoutes.agentNew} className="flex items-center justify-center">
           <div className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-850 dark:text-zinc-200 rounded-full p-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-900 shadow-sm transition-colors active:scale-95">
             <PlusIcon className="size-5.5" />
           </div>

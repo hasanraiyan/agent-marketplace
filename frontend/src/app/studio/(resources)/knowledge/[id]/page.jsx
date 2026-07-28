@@ -100,7 +100,7 @@ export default function KnowledgeBaseDetailPage() {
       const res = await uploadFiles(id, files);
       const result = res.data?.data;
       toast.success(
-        `${result?.files?.length || files.length} file(s) uploaded successfully`
+        `${result?.files?.length || files.length} file(s) uploaded successfully`,
       );
       setFiles([]);
       await Promise.all([fetchKb(), fetchDocs()]);
@@ -149,7 +149,7 @@ export default function KnowledgeBaseDetailPage() {
   const handleDeleteDocument = async (sourceName) => {
     if (
       !confirm(
-        `Delete "${sourceName}"? This will permanently remove its ${documents.find((d) => d.fileName === sourceName)?.chunkCount || 0} chunks from the knowledge base.`
+        `Delete "${sourceName}"? This will permanently remove its ${documents.find((d) => d.fileName === sourceName)?.chunkCount || 0} chunks from the knowledge base.`,
       )
     ) {
       return;
@@ -168,7 +168,11 @@ export default function KnowledgeBaseDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this knowledge base? This will permanently remove all uploaded documents.")) {
+    if (
+      !confirm(
+        "Are you sure you want to delete this knowledge base? This will permanently remove all uploaded documents.",
+      )
+    ) {
       return;
     }
 
@@ -201,7 +205,9 @@ export default function KnowledgeBaseDetailPage() {
       setFiles((prev) => [...prev, ...validFiles]);
     }
     if (validFiles.length !== droppedFiles.length) {
-      toast.warning("Some files were skipped. Supported: PDF, TXT, MD, JSON, CSV");
+      toast.warning(
+        "Some files were skipped. Supported: PDF, TXT, MD, JSON, CSV",
+      );
     }
   };
 
@@ -302,27 +308,48 @@ export default function KnowledgeBaseDetailPage() {
                     {kb.description || "No description"}
                   </p>
                   <div className="flex items-center gap-3 mt-3">
-                    <Badge variant="secondary" className="rounded-full text-xs font-bold px-3">
+                    <Badge
+                      variant="secondary"
+                      className="rounded-full text-xs font-bold px-3"
+                    >
                       {kb.documentCount || 0} documents
                     </Badge>
-                    <Badge variant="secondary" className="rounded-full text-xs font-bold px-3">
+                    <Badge
+                      variant="secondary"
+                      className="rounded-full text-xs font-bold px-3"
+                    >
                       {kb.chunkCount || 0} chunks
                     </Badge>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 mt-2">
-                    <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mr-1">Settings:</span>
-                    <Badge variant="outline" className="rounded-full text-[11px] font-medium px-2 py-0.5 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
+                    <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mr-1">
+                      Settings:
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className="rounded-full text-[11px] font-medium px-2 py-0.5 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400"
+                    >
                       Model: {kb.embeddingModel || "text-embedding-3-small"}
                     </Badge>
                     {kb.providerId?.label && (
-                      <Badge variant="outline" className="rounded-full text-[11px] font-medium px-2 py-0.5 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
+                      <Badge
+                        variant="outline"
+                        className="rounded-full text-[11px] font-medium px-2 py-0.5 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400"
+                      >
                         Provider: {kb.providerId.label}
                       </Badge>
                     )}
-                    <Badge variant="outline" className="rounded-full text-[11px] font-medium px-2 py-0.5 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
-                      Chunk: {kb.chunkSize || 800} (overlap {kb.chunkOverlap ?? 100})
+                    <Badge
+                      variant="outline"
+                      className="rounded-full text-[11px] font-medium px-2 py-0.5 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400"
+                    >
+                      Chunk: {kb.chunkSize || 800} (overlap{" "}
+                      {kb.chunkOverlap ?? 100})
                     </Badge>
-                    <Badge variant="outline" className="rounded-full text-[11px] font-medium px-2 py-0.5 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
+                    <Badge
+                      variant="outline"
+                      className="rounded-full text-[11px] font-medium px-2 py-0.5 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400"
+                    >
                       Top K: {kb.topK || 5}
                     </Badge>
                   </div>
@@ -369,7 +396,10 @@ export default function KnowledgeBaseDetailPage() {
 
           {/* Drop zone */}
           <div
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
             className={`relative rounded-2xl border-2 border-dashed p-8 text-center transition-all ${

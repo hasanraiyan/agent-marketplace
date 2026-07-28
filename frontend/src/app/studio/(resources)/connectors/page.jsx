@@ -116,7 +116,7 @@ export default function McpsListPage() {
                   <PowerOff className="size-3.5 text-muted-foreground shrink-0" />
                 )}
               </div>
-              
+
               <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 flex-1">
                 {mcp.description || mcp.url || "No description or URL"}
               </p>

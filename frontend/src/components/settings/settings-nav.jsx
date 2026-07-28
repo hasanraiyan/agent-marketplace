@@ -7,11 +7,13 @@ import {
   UserIcon,
   PaletteIcon,
   CpuIcon,
+  SlidersHorizontalIcon,
   Trash2Icon,
   SearchIcon,
   XIcon,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { studioRoutes } from "@/lib/studio-routes";
 import { cn } from "@/lib/utils";
 
 const NAV_GROUPS = [
@@ -35,14 +37,24 @@ const NAV_GROUPS = [
     ],
   },
   {
-    label: "Integrations",
+    // Provider API keys are creator configuration and now live in Agent
+    // Studio. The entry stays searchable here so people who look for it in
+    // settings still find their way there.
+    label: "Creator",
     items: [
       {
         id: "providers",
         label: "AI Providers",
         icon: CpuIcon,
-        href: "/dashboard/settings/providers",
+        href: studioRoutes.providers,
         keywords: ["api key", "openai", "model", "base url", "provider", "llm"],
+      },
+      {
+        id: "studio",
+        label: "Agent Studio",
+        icon: SlidersHorizontalIcon,
+        href: studioRoutes.home,
+        keywords: ["build", "create", "agent", "skills", "knowledge", "mcp"],
       },
     ],
   },

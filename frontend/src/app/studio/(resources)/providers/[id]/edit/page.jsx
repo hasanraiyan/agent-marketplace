@@ -107,11 +107,7 @@ export default function ProviderEditorPage({ params: paramsPromise }) {
     setLoadingModels(true);
     try {
       let res;
-      if (
-        existingId &&
-        !formData.apiKey &&
-        (isEditing && formData.baseURL)
-      ) {
+      if (existingId && !formData.apiKey && isEditing && formData.baseURL) {
         // Fetch models using existing provider credentials on the backend
         res = await getProviderModels(existingId);
       } else {
@@ -202,7 +198,8 @@ export default function ProviderEditorPage({ params: paramsPromise }) {
           <CardHeader>
             <CardTitle>Provider Configuration</CardTitle>
             <CardDescription>
-              Enter the connection details for your OpenAI-compatible AI provider.
+              Enter the connection details for your OpenAI-compatible AI
+              provider.
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -4,10 +4,13 @@ import { studioRoutes } from "@/lib/studio-routes";
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { getProviders, deleteProvider, testProviderConnection } from "@/lib/api/providers";
+import {
+  getProviders,
+  deleteProvider,
+  testProviderConnection,
+} from "@/lib/api/providers";
 import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
-import { useDashboardHeader } from "@/components/dashboard-header-context";
 import {
   Table,
   TableBody,
@@ -55,10 +58,8 @@ export default function ProvidersSettingsPage() {
   const [deleteId, setDeleteId] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  useDashboardHeader({
-    title: "AI Providers",
-    description: "Configure OpenAI-compatible providers to power your AI models.",
-  });
+  // Title, description and the "Add Provider" action come from the Studio
+  // resources layout so every creator section reads the same way.
 
   const fetchProviders = async () => {
     try {
@@ -122,7 +123,10 @@ export default function ProvidersSettingsPage() {
         </div>
         <div className="border rounded-md">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center gap-4 p-4 border-b last:border-0">
+            <div
+              key={i}
+              className="flex items-center gap-4 p-4 border-b last:border-0"
+            >
               <Skeleton className="h-6 w-full" />
             </div>
           ))}
@@ -133,21 +137,6 @@ export default function ProvidersSettingsPage() {
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">AI Providers</h2>
-          <p className="text-muted-foreground">
-            Manage your AI model integrations.
-          </p>
-        </div>
-        <Link href={studioRoutes.providerNew}>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Provider
-          </Button>
-        </Link>
-      </div>
-
       {providers.length > 0 ? (
         <div className="rounded-md border bg-card">
           <Table>
@@ -155,7 +144,9 @@ export default function ProvidersSettingsPage() {
               <TableRow>
                 <TableHead>Provider</TableHead>
                 <TableHead className="hidden md:table-cell">Base URL</TableHead>
-                <TableHead className="hidden sm:table-cell">Default Model</TableHead>
+                <TableHead className="hidden sm:table-cell">
+                  Default Model
+                </TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -171,7 +162,10 @@ export default function ProvidersSettingsPage() {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell max-w-[200px] truncate text-muted-foreground" title={provider.baseURL}>
+                  <TableCell
+                    className="hidden md:table-cell max-w-[200px] truncate text-muted-foreground"
+                    title={provider.baseURL}
+                  >
                     {provider.baseURL}
                   </TableCell>
                   <TableCell className="hidden sm:table-cell text-muted-foreground">
@@ -184,17 +178,26 @@ export default function ProvidersSettingsPage() {
                         Testing
                       </Badge>
                     ) : testResults[provider.id] === "success" ? (
-                      <Badge variant="success" className="bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/20 border-emerald-500/20">
+                      <Badge
+                        variant="success"
+                        className="bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/20 border-emerald-500/20"
+                      >
                         <CheckCircle2 className="mr-1 h-3 w-3" />
                         Online
                       </Badge>
                     ) : testResults[provider.id] === "error" ? (
-                      <Badge variant="destructive" className="bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/20">
+                      <Badge
+                        variant="destructive"
+                        className="bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/20"
+                      >
                         <XCircle className="mr-1 h-3 w-3" />
                         Failed
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-muted-foreground">
+                      <Badge
+                        variant="outline"
+                        className="text-muted-foreground"
+                      >
                         Untested
                       </Badge>
                     )}
@@ -250,12 +253,16 @@ export default function ProvidersSettingsPage() {
         </Empty>
       )}
 
-      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+      <AlertDialog
+        open={!!deleteId}
+        onOpenChange={(open) => !open && setDeleteId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Provider</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this provider? Any agents using this provider will stop working until updated.
+              Are you sure you want to delete this provider? Any agents using
+              this provider will stop working until updated.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

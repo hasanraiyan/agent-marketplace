@@ -27,7 +27,9 @@ const getSkillIcon = (name) => {
     "from-indigo-500 to-violet-600",
     "from-lime-500 to-green-600",
   ];
-  const hash = (name || "").split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const hash = (name || "")
+    .split("")
+    .reduce((acc, c) => acc + c.charCodeAt(0), 0);
   return colors[hash % colors.length];
 };
 
@@ -42,7 +44,7 @@ export default function PublicSkillsPage() {
       (s) =>
         (s.name || "").toLowerCase().includes(q) ||
         (s.description || "").toLowerCase().includes(q) ||
-        (s.ownerId?.username || "").toLowerCase().includes(q)
+        (s.ownerId?.username || "").toLowerCase().includes(q),
     );
   }, [skills, search]);
 
@@ -90,7 +92,10 @@ export default function PublicSkillsPage() {
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="flex flex-col gap-4 p-5 border rounded-3xl">
+              <div
+                key={i}
+                className="flex flex-col gap-4 p-5 border rounded-3xl"
+              >
                 <div className="flex items-center gap-3">
                   <Skeleton className="size-12 rounded-xl" />
                   <div className="space-y-2 flex-1">

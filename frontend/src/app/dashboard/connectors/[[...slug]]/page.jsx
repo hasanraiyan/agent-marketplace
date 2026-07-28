@@ -1,8 +1,5 @@
 import { redirect } from "next/navigation";
-import {
-  LEGACY_CONNECTOR_SECTIONS,
-  studioRoutes,
-} from "@/lib/studio-routes";
+import { LEGACY_CONNECTOR_SECTIONS, studioRoutes } from "@/lib/studio-routes";
 
 /**
  * Compatibility redirect for the pre-Studio connector routes.
