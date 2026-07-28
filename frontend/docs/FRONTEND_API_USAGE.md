@@ -1,97 +1,174 @@
 # Frontend — Backend API Usage Mapping
 
-This document maps frontend pages/components to backend API endpoints (Express routes) the frontend calls, and lists backend routes that are not currently referenced by the frontend.
+This document maps frontend pages/components to backend API endpoints (Express routes) the frontend calls.
 
-Summary:
+**Architecture:** Persona.ai has two frontend experiences sharing one backend.
 
-- Frontend implements several API helper modules under `src/lib/api/*` for agents, providers, threads, skills, profile, admin and health.
-- Not all helper functions are used by existing pages/components yet; many endpoints are scaffolded for future features.
+| Experience                 | URL Prefix       | Audience       | Purpose                                 |
+| -------------------------- | ---------------- | -------------- | --------------------------------------- |
+| **Persona** (Consumer)     | `/dashboard/...` | End users      | Discover, use, converse with agents     |
+| **Agent Studio** (Creator) | `/studio/...`    | Agent builders | Create, configure, test, publish agents |
 
-Pages and API usage
+---
 
-- `/` (Home)
-  - Components: `FeaturedAgentsSection`, `HeroSection`, etc.
-  - Backend: No API calls (static demo content)
+## Persona (Consumer) Routes
 
-- `/agents`
-  - File: `src/app/agents/page.jsx`
-  - Calls: `searchAgents()` -> POST `/agents/search`
-    `countAgents()` -> POST `/agents/count`
-  - Notes: Agent cards link to `/agents/:id` but there is no detail page implemented yet.
+### `/dashboard` — Discover Agents
 
-- `/dashboard`
-  - File: `src/app/dashboard/page.jsx`
-  - Calls: none (uses local `data.json` and UI components)
+- **File:** `src/app/dashboard/page.jsx`
+- **Calls:**
+  - `searchAgents()` → POST `/api/v1/agents/search` — browse/search public agents
+  - `getProviders()` → GET `/api/v1/providers` — check if providers exist (for Studio entry visibility)
+- **Description:** Landing page with search, category filters, featured slider, trending list
 
-- `/dashboard/agents`
-  - File: `src/app/dashboard/agents/page.jsx`
-  - Calls: none (TODO: intended to fetch user's agents from a user-scoped endpoint)
+### `/dashboard/agents` — My Agents
 
-- `/dashboard/settings`
-  - File: `src/app/dashboard/settings/page.jsx`
-  - Calls: `getProviders()` -> GET `/providers`
-  - Subcomponents:
-    - `ProviderList` (uses `deleteProvider(id)` -> DELETE `/providers/:id`, and `testProviderConnection(id)` -> POST `/providers/:id/test`)
-    - `ProviderForm` (uses `createProvider()` -> POST `/providers`, `updateProvider()` -> PUT `/providers/:id`, `testProviderCredentials(baseURL, apiKey)` -> POST `/providers/test-connection`, and `getProviderModels(id)` -> GET `/providers/:id/models`)
+- **File:** `src/app/dashboard/agents/page.jsx`
+- **Calls:**
+  - `getProfile()` → GET `/api/v1/profile` — resolve current user
+  - `searchAgents({ ownerId, ... })` → POST `/api/v1/agents/search` — fetch user's owned agents
+  - `deleteAgent(id)` → DELETE `/api/v1/agents/:id` — delete owned agent
+- **Note:** Currently shows **owned agents**, not installed agents (see known product gap below)
 
-- Auth pages
-  - `src/app/(auth)/sign-in` and `sign-up` are handled by Clerk; frontend does not call server webhooks directly.
+### `/dashboard/agents/[id]` — Agent Profile (Consumer)
 
-API helper modules present but not yet used by pages
+- **File:** `src/app/dashboard/agents/[id]/page.jsx`
+- **Calls:**
+  - `getAgent(id)` → GET `/api/v1/agents/:id` — fetch agent detail
+  - `getProfile()` → GET `/api/v1/profile` — check ownership for "Manage in Studio" link
+- **Description:** Consumer-facing agent detail with plain-language capability summary
 
-- `src/lib/api/agents.js` — functions exist: `getAgentBySlug`, `getAgent`, `createAgent`, `updateAgent`, `deleteAgent` — only `searchAgents` and `countAgents` are used.
-- `src/lib/api/threads.js` — defined but no page currently calls thread APIs.
-- `src/lib/api/skills.js` — defined but not referenced by pages.
-- `src/lib/api/profile.js` — defined (`getProfile`, `updateProfile`) but settings/profile page not implemented.
-- `src/lib/api/admin.js` — admin functions defined but no admin UI implemented.
-- `src/lib/api/health.js` — defined for diagnostics; not used by UI.
+### `/dashboard/agents/[id]/run` — Agent Chat
 
-Backend routes that are actively used by frontend
+- **File:** `src/app/dashboard/agents/[id]/run/page.jsx`
+- **Calls:**
+  - AG-UI SSE streaming → POST `/api/v1/threads/:id/stream` — streaming chat
+  - `createThread()` → POST `/api/v1/threads` — start new conversation
+- **Description:** Full AG-UI protocol chat interface with tool calls, reasoning traces, sub-agent dialogs
 
-- POST `/agents/search` (used by `/agents` page)
-- POST `/agents/count` (used by `/agents` page)
-- GET `/providers` (used by settings page)
-- POST `/providers` (create provider via form)
-- POST `/providers/test-connection` (test credentials when adding provider)
-- POST `/providers/:id/test` (provider list "Test" action)
-- GET `/providers/:id/models` (fetch models for provider)
-- PUT `/providers/:id` (update provider)
-- DELETE `/providers/:id` (delete provider)
+### `/dashboard/settings` — User Settings
 
-Backend routes present but not referenced in frontend (candidates to implement or remove)
+- **Calls:**
+  - `getProfile()` → GET `/api/v1/profile`
+  - `updateProfile()` → PATCH `/api/v1/profile`
 
-- Agent detail and management
-  - GET `/agents/:id` — defined but not fetched by any page
-  - GET `/agents/slug/:slug` — not used
-  - POST `/agents` — UI create endpoint not wired into dashboard create page
-  - PATCH `/agents/:id` — edit page not implemented
-  - DELETE `/agents/:id` — delete from dashboard not implemented (TODO exists)
+### Legacy Creative Routes (Redirect to Studio)
 
-- Threads/chat
-  - All `/threads` endpoints (`POST /threads`, `GET /threads`, `GET /threads/:id`, streaming endpoints) are not used yet — chat UI missing
+The following dashboard routes are **redirects** to Agent Studio:
 
-- Skills
-  - `/skills/*` endpoints are not used by current pages
+| Legacy Route                                | Redirects To                |
+| ------------------------------------------- | --------------------------- | --------- | ---------- | ------- |
+| `/dashboard/agents/create`                  | `/studio/agents/new`        |
+| `/dashboard/agents/builder`                 | `/studio/agents/new`        |
+| `/dashboard/agents/[id]/builder`            | `/studio/agents/[id]/build` |
+| `/dashboard/agents/[id]/edit`               | `/studio/agents/[id]/build` |
+| `/dashboard/connectors/[[...slug]]`         | `/studio/skills             | knowledge | connectors | memory` |
+| `/dashboard/skills/[[...slug]]`             | `/studio/skills/...`        |
+| `/dashboard/settings/providers/[[...slug]]` | `/studio/providers/...`     |
 
-- Profile
-  - `/profile` endpoints exist but the settings profile subpage is not implemented
+---
 
-- Admin
-  - `/admin/users` and `/admin/users/:id` are not referenced by UI
+## Agent Studio (Creator) Routes
 
-- Health
-  - `/health` and `/health/db` not used by UI (diagnostic only)
+### `/studio` — Studio Home
 
-Recommendations / Next steps
+- **File:** `src/app/studio/page.jsx`
+- **Calls:**
+  - `getProfile()` → GET `/api/v1/profile`
+  - `searchAgents({ ownerId, ... })` → POST `/api/v1/agents/search` — fetch creator's agents
+  - `getProviders()` → GET `/api/v1/providers`
+  - `getMySkills()` → GET `/api/v1/skills`
+  - `getMyMcps()` → GET `/api/v1/mcps`
+  - `getMyKnowledgeBases()` → GET `/api/v1/knowledge`
+- **Description:** Dashboard showing agent stats, needs-attention list, resource counts
 
-- Implement agent detail page `/agents/[id]` or `/agents/[slug]` to consume `GET /agents/:id` or `GET /agents/slug/:slug`.
-- Wire dashboard agent creation/edit pages to `POST /agents` and `PATCH /agents/:id`.
-- Build chat UI to use `/threads` endpoints and SSE streaming endpoint.
-- Add a profile settings page to call `/profile` endpoints.
-- Remove or document unused API helpers if not intended for frontend.
+### `/studio/agents` — Agent Management
 
-If you want, I can:
+- **Calls:** Same as `/dashboard/agents` (owns agent listing)
 
-- Create this file in the repo (done), or update it with more detail per-component.
-- Generate a Postman collection for the endpoints the frontend actually uses.
-- Open PR with the docs file and suggested TODOs.
+### `/studio/agents/new` — Create Agent
+
+- **Calls:** `createAgent()` → POST `/api/v1/agents`
+
+### `/studio/agents/[id]/build` — Agent Builder
+
+- **Calls:**
+  - `getAgent(id)` → GET `/api/v1/agents/:id`
+  - `updateAgent(id)` → PATCH `/api/v1/agents/:id`
+  - `getProviders()` → GET `/api/v1/providers`
+  - `getProviderModels(id)` → GET `/api/v1/providers/:id/models`
+
+### `/studio/agents/[id]/test` — Test Agent
+
+- **Calls:** AG-UI streaming on a test thread
+
+### `/studio/skills` — Skill Management
+
+- **Calls:**
+  - `getMySkills()` → GET `/api/v1/skills`
+  - `createSkill()` → POST `/api/v1/skills`
+  - `updateSkill(id)` → PATCH `/api/v1/skills/:id`
+  - `deleteSkill(id)` → DELETE `/api/v1/skills/:id`
+
+### `/studio/knowledge` — Knowledge Bases
+
+- **Calls:**
+  - `getMyKnowledgeBases()` → GET `/api/v1/knowledge`
+  - `createKnowledgeBase()` → POST `/api/v1/knowledge`
+  - `deleteKnowledgeBase(id)` → DELETE `/api/v1/knowledge/:id`
+  - File upload → POST `/api/v1/upload/knowledge`
+
+### `/studio/connectors` — MCP Connectors
+
+- **Calls:**
+  - `getMyMcps()` → GET `/api/v1/mcps`
+  - `createMcp()` → POST `/api/v1/mcps`
+  - `updateMcp(id)` → PATCH `/api/v1/mcps/:id`
+  - `deleteMcp(id)` → DELETE `/api/v1/mcps/:id`
+
+### `/studio/memory` — Memory Management
+
+- **Calls:** Memory CRUD via `/api/v1/memories`
+
+### `/studio/providers` — LLM Providers
+
+- **Calls:**
+  - `getProviders()` → GET `/api/v1/providers`
+  - `createProvider()` → POST `/api/v1/providers`
+  - `updateProvider(id)` → PUT `/api/v1/providers/:id`
+  - `deleteProvider(id)` → DELETE `/api/v1/providers/:id`
+  - `testProviderConnection(id)` → POST `/api/v1/providers/:id/test`
+
+---
+
+## API Module Organization
+
+API helpers live in `src/lib/api/`:
+
+| Module    | File           | Functions                                                                                                                                      |
+| --------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Agents    | `agents.js`    | `searchAgents`, `getAgent`, `getAgentBySlug`, `createAgent`, `updateAgent`, `deleteAgent`                                                      |
+| Threads   | `threads.js`   | `createThread`, `getThreads`, `getThread`, `deleteThread`, `updateThreadTitle`, `getMessages`                                                  |
+| Skills    | `skills.js`    | `getMySkills`, `getSkill`, `createSkill`, `updateSkill`, `deleteSkill`, `getPublicSkills`                                                      |
+| Providers | `providers.js` | `getProviders`, `createProvider`, `updateProvider`, `deleteProvider`, `testProviderConnection`, `getProviderModels`, `testProviderCredentials` |
+| MCPs      | `mcps.js`      | `getMyMcps`, `getMcp`, `createMcp`, `updateMcp`, `deleteMcp`, `getMcpTools`                                                                    |
+| Knowledge | `knowledge.js` | `getMyKnowledgeBases`, `getKnowledgeBase`, `createKnowledgeBase`, `deleteKnowledgeBase`                                                        |
+| Memory    | `memory.js`    | Memory CRUD operations                                                                                                                         |
+| Profile   | `profile.js`   | `getProfile`, `updateProfile`                                                                                                                  |
+| Admin     | `admin.js`     | Admin user management                                                                                                                          |
+| Health    | `health.js`    | Server diagnostics                                                                                                                             |
+| Upload    | `upload.js`    | File upload helpers                                                                                                                            |
+
+---
+
+## Known Product Gaps
+
+### Marketplace Architecture
+
+Persona does **not** yet have a proper Add/Install relationship for marketplace agents.
+
+- **"My Agents" currently shows agents the user OWNS**, not agents they have installed from the marketplace.
+- There is no installation schema, agent instance model, subscription system, or fork mechanism.
+- Monetization, ratings, reviews infrastructure, and analytics are **not implemented**.
+
+This is a **known product gap** that should be explicitly tracked.

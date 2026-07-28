@@ -1,6 +1,7 @@
      ## User Journey Maps — Career Launchpad (Primary) / Other Agents (Archived)
 
-     > **⚠️ Strategic Pivot (July 2026):** Persona.ai now focuses exclusively on the **💼 Career Launchpad**.
+     > **🔄 Updated Framing (July 2026):** Persona.ai is an **agent marketplace + agent creation platform**.
+     > **💼 Career Launchpad** is a **reference/dogfooding agent** built *on* Persona.ai.
      > The 🚀 Startup Thinker and 🌍 Study Abroad Navigator journeys below are **archived for reference only**.
 
      > **Status:** HYPOTHESIS — based on founder specification + research
@@ -14,14 +15,14 @@
 
      ```
      PHASE 1: DISCOVERY ──────────────── PHASE 2: VALIDATION ────────────── PHASE 3: PLANNING ────────────── PHASE 4: EXECUTION
-                                                                                                              
-     Trigger:                                    Agent analyzes idea,          Agent creates:                   Alex executes plan,            
-     "I have an idea"    ──▶  "How do I know     challenges assumptions,       startup-validation-plan.md       returns to agent              
-                         if people want      asks hard questions           customer-interview-              weekly for check-ins          
-                         this?"                                             questions.md                                                        
-                                                                           30-day-founder-plan.md                                            
-                              │                         │                            │                            │                            
-                              ▼                         ▼                            ▼                            ▼                            
+
+     Trigger:                                    Agent analyzes idea,          Agent creates:                   Alex executes plan,
+     "I have an idea"    ──▶  "How do I know     challenges assumptions,       startup-validation-plan.md       returns to agent
+                         if people want      asks hard questions           customer-interview-              weekly for check-ins
+                         this?"                                             questions.md
+                                                                           30-day-founder-plan.md
+                              │                         │                            │                            │
+                              ▼                         ▼                            ▼                            ▼
      ┌─────────────────┐  ┌──────────────────┐  ┌────────────────────┐  ┌────────────────────┐  ┌────────────────────┐  ┌──────────────────┐
      │                 │  │                  │  │                    │  │                    │  │                    │  │                  │
      │ Alex has a      │  │ Alex discovers   │  │ Alex describes     │  │ Agent challenges   │  │ Agent creates      │  │ Alex follows      │
@@ -99,11 +100,11 @@
      ```
      PHASE 1: DISCOVERY ──── PHASE 2: PROFILING ───── PHASE 3: MATCHING ───── PHASE 4: PLANNING ────── PHASE 5: EXECUTION ───── PHASE 6: DEPARTURE
 
-     Trigger:                 Agent builds profile:   Agent recommends:       Agent creates:          Priya follows:          Priya departs,            
-     "I want to study         degree, CGPA, budget,   best-fit countries,     my-study-abroad-        monthly action          agent becomes             
-     abroad"     ──▶          preferred countries,    universities,           roadmap.md              checklists, applies,     post-arrival              
-                              career goals            scholarships            with monthly steps       gets visa                companion                 
-                                                                                                                                  
+     Trigger:                 Agent builds profile:   Agent recommends:       Agent creates:          Priya follows:          Priya departs,
+     "I want to study         degree, CGPA, budget,   best-fit countries,     my-study-abroad-        monthly action          agent becomes
+     abroad"     ──▶          preferred countries,    universities,           roadmap.md              checklists, applies,     post-arrival
+                              career goals            scholarships            with monthly steps       gets visa                companion
+
           │                        │                        │                        │                        │                        │
           ▼                        ▼                        ▼                        ▼                        ▼                        ▼
      ┌────────────┐         ┌──────────────┐        ┌──────────────┐        ┌──────────────┐        ┌──────────────┐        ┌──────────────┐
@@ -193,11 +194,11 @@
      ```
      PHASE 1: DISCOVERY ──── PHASE 2: EVALUATION ──── PHASE 3: GAP ANALYSIS ──── PHASE 4: ROADMAP ────── PHASE 5: APPLICATION ────── PHASE 6: INTERVIEW → JOB
 
-     Trigger:                 Agent builds profile:  Agent researches         Agent creates:          Jordan applies       Jordan interviews,           
-     "I want to be an         skills, projects,      job market, compares      my-ai-engineer-         with improved        gets offer,                   
-     AI engineer"   ──▶       resume, GitHub,        to requirements,         career-roadmap.md       resume, targeted     agent helps                   
-                              career goal            identifies gaps          plus improved resume    applications         negotiate                     
-                                                                                                                             
+     Trigger:                 Agent builds profile:  Agent researches         Agent creates:          Jordan applies       Jordan interviews,
+     "I want to be an         skills, projects,      job market, compares      my-ai-engineer-         with improved        gets offer,
+     AI engineer"   ──▶       resume, GitHub,        to requirements,         career-roadmap.md       resume, targeted     agent helps
+                              career goal            identifies gaps          plus improved resume    applications         negotiate
+
           │                        │                        │                        │                        │                        │
           ▼                        ▼                        ▼                        ▼                        ▼                        ▼
      ┌────────────┐         ┌──────────────┐        ┌──────────────┐        ┌──────────────┐        ┌──────────────┐        ┌──────────────┐

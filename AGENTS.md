@@ -1,19 +1,59 @@
 # AI Coding Agent Guide
 
-This guide helps AI coding agents understand and modify the **Persona.ai Backend** repository.
+This guide helps AI coding agents understand and modify the **Persona.ai** repository.
+
+> **Current Architecture (July 2026):** Persona.ai has two intentionally separate frontend experiences
+> sharing one backend. See "Frontend Architecture" below.
 
 ## Repository Overview
 
-**Purpose:** REST API for an AI agent orchestration platform (Express 5 + MongoDB)
-**Location:** `agent-backend/`
+**Purpose:** Agent marketplace + agent creation/runtime platform
+**Backend Location:** `agent-backend/`
+**Frontend Location:** `frontend/`
 **Package Manager:** `pnpm`
 **Runtime:** Node.js 22+ (ES Modules)
-**Framework:** Express 5
+**Backend Framework:** Express 5
+**Frontend Framework:** Next.js (App Router)
 **Database:** MongoDB via Mongoose 9
 **Auth:** Clerk (external)
 **AI Stack:** LangChain, LangGraph, Deep Agents
 
-## Directory Structure
+## Frontend Architecture
+
+### Two Experiences, One Platform
+
+| Experience                 | URL Prefix     | Audience       | Purpose                             |
+| -------------------------- | -------------- | -------------- | ----------------------------------- |
+| **Persona** (Consumer)     | `/dashboard/*` | End users      | Discover, use, converse with agents |
+| **Agent Studio** (Creator) | `/studio/*`    | Agent builders | Build, configure, test, publish     |
+
+Both sit on the **same backend**, use the **same authentication**, and share the **same agent runtime** (AG-UI protocol). Agent Studio is NOT a separate product.
+
+### Frontend Routes
+
+**Persona (Consumer):**
+
+- `/dashboard` — Discover agents (search, browse, trending)
+- `/dashboard/agents` — My Agents (owned agents list)
+- `/dashboard/agents/[id]` — Agent profile (consumer detail page)
+- `/dashboard/agents/[id]/run` — AG-UI streaming chat
+
+**Agent Studio (Creator):**
+
+- `/studio` — Studio home (stats, recent agents, resources)
+- `/studio/agents` — Agent management
+- `/studio/agents/new` — Create agent
+- `/studio/agents/[id]/build` — Agent builder (instructions, model, provider, skills, etc.)
+- `/studio/agents/[id]/test` — Agent testing
+- `/studio/skills` — Skill management + public marketplace
+- `/studio/knowledge` — Knowledge bases (RAG)
+- `/studio/connectors` — MCP connector management
+- `/studio/memory` — Persistent memory
+- `/studio/providers` — LLM provider configuration
+
+**Legacy redirects:** Several `/dashboard/*` creator routes now redirect to their `/studio/*` equivalents.
+
+## Backend Directory Structure
 
 ```
 agent-backend/
@@ -76,17 +116,20 @@ src/modules/<name>/
 ## Module Boundaries
 
 ### Allowed Dependencies
+
 - Route → Controller, Middleware
 - Controller → Service
 - Service → Service (cross-module), Repository
 - Repository → Model
 
 ### Forbidden Dependencies
+
 - Route → Model, Repository, Service (direct)
 - Controller → Model, Repository
 - Repository → Service, Controller
 
 ### Cross-Module Access
+
 - Import another module via its barrel (`index.js`) only
 - Access data through services/repositories, never models directly
 - No circular dependencies between modules
@@ -94,20 +137,25 @@ src/modules/<name>/
 ## Coding Conventions
 
 ### 1. ES Modules
+
 ```javascript
-import express from 'express';
+import express from "express";
 export default router;
 ```
 
 ### 2. Singleton Pattern
+
 Services and repositories use singleton pattern:
+
 ```javascript
 class MyService { ... }
 export default new MyService();
 ```
 
 ### 3. Error Handling
+
 Services throw errors; controllers catch and pass to `next(err)`:
+
 ```javascript
 // Service
 if (!entity) throw new NotFoundError('Entity not found');
@@ -124,10 +172,12 @@ async getById(req, res, next) {
 ```
 
 ### 4. Response Format
+
 Always use standard formatters:
+
 ```javascript
-import { formatters } from '../../utils/index.js';
-res.json(formatters.formatSuccess(data, 'Message'));
+import { formatters } from "../../utils/index.js";
+res.json(formatters.formatSuccess(data, "Message"));
 res.json(formatters.formatList(items, total, page, limit));
 ```
 
@@ -165,7 +215,7 @@ There is no separate OpenAPI file to update.
  *       401:
  *         description: Unauthorized
  */
-router.post('/', controller.create);
+router.post("/", controller.create);
 ```
 
 ### Rules
@@ -182,14 +232,17 @@ router.post('/', controller.create);
 - **Tags** must match the module name (e.g. `[Agents]`, `[MCP]`, `[Knowledge]`)
 
 ### 6. Validation
+
 Use Zod schemas via `validateBody()` middleware:
+
 ```javascript
-router.post('/', validateBody(createSchema), controller.create);
+router.post("/", validateBody(createSchema), controller.create);
 ```
 
 ## How to Add Features
 
 ### Adding a New Module
+
 1. Create `src/modules/<name>/` directory
 2. Create model, validator, repository, service, controller, routes, index.js
 3. Register routes in `src/index.js`
@@ -197,6 +250,7 @@ router.post('/', validateBody(createSchema), controller.create);
 5. Add documentation in `docs/modules/`
 
 ### Adding an Endpoint to Existing Module
+
 1. Add route in `<module>.routes.js` (with appropriate auth + rate limiting)
 2. Add validation schema in `<module>.validator.js` (if accepting input)
 3. Add controller method in `<module>.controller.js`
@@ -286,14 +340,16 @@ The memory system uses a **file-based store** backed by MongoDB (not `InMemorySt
 
 ## Key Entry Points
 
-| File | Purpose |
-|------|---------|
-| `src/index.js` | Express app setup, middleware, route mounting |
-| `src/config/index.js` | Environment variable loading and defaults |
-| `src/modules/agents/agent.factory.js` | Agent graph compilation (most complex file) |
-| `src/modules/agui/aguiTranslator.js` | LangGraph → AG-UI event translation |
-| `src/middlewares/errorHandler.js` | Global error handling |
-| `src/utils/encryption.js` | AES-256-GCM encryption/decryption |
+| File                                                | Purpose                                       |
+| --------------------------------------------------- | --------------------------------------------- |
+| `agent-backend/src/index.js`                        | Express app setup, middleware, route mounting |
+| `agent-backend/src/config/index.js`                 | Environment variable loading and defaults     |
+| `agent-backend/src/modules/agents/agent.factory.js` | Agent graph compilation (most complex file)   |
+| `agent-backend/src/modules/agui/aguiTranslator.js`  | LangGraph → AG-UI event translation           |
+| `agent-backend/src/middlewares/errorHandler.js`     | Global error handling                         |
+| `frontend/src/lib/studio-routes.js`                 | Canonical Studio route definitions            |
+| `frontend/src/app/dashboard/page.jsx`               | Persona consumer home (agent discovery)       |
+| `frontend/src/app/studio/page.jsx`                  | Agent Studio home                             |
 
 ## Configuration
 
@@ -315,6 +371,7 @@ See `docs/operations/environment-variables.md` for complete reference.
 ## Documentation
 
 Full documentation is available in `docs/README.md` and includes:
+
 - Getting started guides
 - Architecture documentation
 - Module documentation (all 17 modules)

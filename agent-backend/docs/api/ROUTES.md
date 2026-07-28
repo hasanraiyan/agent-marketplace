@@ -88,12 +88,52 @@ All routes are prefixed with `/api/v1` unless noted otherwise.
 
 | Method | Path             | Purpose                             | Auth     |
 | ------ | ---------------- | ----------------------------------- | -------- |
-| GET    | `/skills/public` | Get publicly available skills       | Required |
+| GET    | `/skills/public` | Get publicly available skills       | Optional |
 | GET    | `/skills`        | Get authenticated user's own skills | Required |
 | POST   | `/skills`        | Create a new skill                  | Required |
 | GET    | `/skills/:id`    | Get a specific skill by ID          | Required |
 | PATCH  | `/skills/:id`    | Update an existing skill            | Required |
 | DELETE | `/skills/:id`    | Delete a skill                      | Required |
+
+---
+
+## MCP (Model Context Protocol) — `/api/v1/mcps`
+
+| Method | Path                   | Purpose                                    | Auth     |
+| ------ | ---------------------- | ------------------------------------------ | -------- |
+| GET    | `/mcps`                | Get all MCP servers for authenticated user | Required |
+| POST   | `/mcps`                | Register a new MCP server                  | Required |
+| GET    | `/mcps/:id`            | Get a specific MCP server                  | Required |
+| PATCH  | `/mcps/:id`            | Update an existing MCP server              | Required |
+| DELETE | `/mcps/:id`            | Delete an MCP server                       | Required |
+| GET    | `/mcps/:id/tools`      | List tools exposed by an MCP server        | Required |
+| POST   | `/mcps/:id/connect`    | Connect user to an MCP server              | Required |
+| DELETE | `/mcps/:id/disconnect` | Disconnect user from an MCP server         | Required |
+| GET    | `/mcps/connections`    | Get all user-MCP connections               | Required |
+
+---
+
+## Knowledge Bases — `/api/v1/knowledge`
+
+| Method | Path                    | Purpose                                        | Auth     |
+| ------ | ----------------------- | ---------------------------------------------- | -------- |
+| GET    | `/knowledge`            | Get all knowledge bases for authenticated user | Required |
+| POST   | `/knowledge`            | Create a new knowledge base                    | Required |
+| GET    | `/knowledge/:id`        | Get a specific knowledge base                  | Required |
+| DELETE | `/knowledge/:id`        | Delete a knowledge base                        | Required |
+| POST   | `/knowledge/:id/upload` | Upload documents to a knowledge base           | Required |
+| POST   | `/knowledge/:id/search` | Search within a knowledge base (RAG)           | Required |
+
+---
+
+## Memory — `/api/v1/memories`
+
+| Method | Path                  | Purpose                                 | Auth     |
+| ------ | --------------------- | --------------------------------------- | -------- |
+| GET    | `/memories`           | Get all memories for authenticated user | Required |
+| POST   | `/memories`           | Create or update a memory entry         | Required |
+| DELETE | `/memories/:id`       | Delete a specific memory entry          | Required |
+| GET    | `/memories/agent/:id` | Get memories scoped to a specific agent | Required |
 
 ---
 
@@ -110,6 +150,16 @@ All routes are prefixed with `/api/v1` unless noted otherwise.
 
 ---
 
+## Upload — `/api/v1/upload`
+
+| Method | Path                | Purpose                          | Auth     |
+| ------ | ------------------- | -------------------------------- | -------- |
+| POST   | `/upload`           | Upload a file (avatar, document) | Required |
+| POST   | `/upload/avatar`    | Upload agent avatar image        | Required |
+| POST   | `/upload/knowledge` | Upload knowledge document        | Required |
+
+---
+
 ## Summary
 
 | Group       | Routes |
@@ -122,8 +172,12 @@ All routes are prefixed with `/api/v1` unless noted otherwise.
 | Agents      | 7      |
 | Threads     | 8      |
 | Skills      | 6      |
+| MCP         | 9      |
+| Knowledge   | 6      |
+| Memory      | 4      |
 | Webhooks    | 1      |
-| **Total**   | **38** |
+| Upload      | 3      |
+| **Total**   | **60** |
 
 **Auth levels:**
 

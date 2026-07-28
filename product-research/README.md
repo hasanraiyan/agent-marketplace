@@ -1,10 +1,15 @@
 # Product Research — Persona.ai
 
-> **⚠️ Strategic Pivot: Single-Agent Focus (July 2026)**
-> Persona.ai launches with **one agent only**: the **💼 Career Launchpad**.
-> All product research, problems, outcomes, and features are now centered on this single agent.
-> The previous 3-agent / 6-persona model is parked. Full traceability runs through one chain:
-> **Jordan Williams → Career Launchpad → Job readiness.**
+> **🔄 Product Architecture (July 2026)**
+> Persona.ai is an **agent marketplace + agent creation platform** with two intentionally separate experiences:
+>
+> - **Persona** (consumer) — Discover, use, and have conversations with agents
+> - **Agent Studio** (creator) — Build, configure, test, and publish agents
+>
+> **💼 Career Launchpad** is a **reference/dogfooding agent** — built _on_ Persona using its agent-building system.
+> It is NOT the product itself. Its purpose is to test Persona's agent-building capabilities and serve as a proof point.
+> Earlier agents (🚀 Startup Thinker, 🌍 Study Abroad Navigator) are preserved as historical research.
+> Full product research spans the platform; Career Launchpad specs provide the dogfooding validation.
 
 This directory is the **living source of truth** for product decisions in the Persona.ai platform.
 
@@ -52,13 +57,13 @@ If a feature cannot be traced back to a documented problem and persona, it is fl
 
 Throughout these documents, we distinguish:
 
-| Label | Meaning |
-|-------|---------|
-| **FACT** | Something confirmed by the user or team |
-| **EVIDENCE** | Supported by research, interviews, analytics, or external sources |
-| **ASSUMPTION** | Currently believed but not validated |
-| **HYPOTHESIS** | Intended to be tested |
-| **UNKNOWN** | Still needs to be discovered |
+| Label          | Meaning                                                           |
+| -------------- | ----------------------------------------------------------------- |
+| **FACT**       | Something confirmed by the user or team                           |
+| **EVIDENCE**   | Supported by research, interviews, analytics, or external sources |
+| **ASSUMPTION** | Currently believed but not validated                              |
+| **HYPOTHESIS** | Intended to be tested                                             |
+| **UNKNOWN**    | Still needs to be discovered                                      |
 
 ## Directory Structure
 
@@ -76,15 +81,18 @@ product-research/
 └── 09-validation/            Acceptance criteria & persona validation
 ```
 
-## Current Focus: Career Launchpad
+## Current Focus: Persona.ai Platform + Career Launchpad (Dogfooding)
 
-| Element | Detail |
-|---------|--------|
-| **Agent** | 💼 Career Launchpad |
-| **Target User** | Jordan Williams — recent graduate, CS degree, struggling to break into AI engineering |
-| **Core Problem** | No honest feedback on job readiness. Generic advice. Spray-and-pray applications. Invisible to recruiters. |
-| **Solution** | Personalized skill gap analysis + resume optimization + mock interviews + career roadmap — all driven by real market data |
-| **Key Differentiator** | Specific, honest, data-backed feedback. Comparison to real job market requirements. Prioritized action plan. |
+| Element                 | Detail                                                                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **Platform**            | Persona.ai — Agent Marketplace + Agent Studio                                                                             |
+| **Consumer Experience** | Discover agents → Agent Profile → Conversation                                                                            |
+| **Creator Experience**  | Agent Studio: Build → Configure → Resources → Test → Publish                                                              |
+| **Reference Agent**     | 💼 Career Launchpad — built on Persona to validate the agent-building system                                              |
+| **Target User**         | Jordan Williams — recent graduate, CS degree, struggling to break into AI engineering                                     |
+| **Core Problem**        | No honest feedback on job readiness. Generic advice. Spray-and-pray applications. Invisible to recruiters.                |
+| **Solution**            | Personalized skill gap analysis + resume optimization + mock interviews + career roadmap — all driven by real market data |
+| **Key Differentiator**  | Specific, honest, data-backed feedback. Comparison to real job market requirements. Prioritized action plan.              |
 
-> The other two agents (🚀 Startup Thinker, 🌍 Study Abroad Navigator) are **parked** for future consideration.
-> They are not being removed — their research is preserved for reference — but all development focus is on the Career Launchpad.
+> The other two agents (🚀 Startup Thinker, 🌍 Study Abroad Navigator) are **parked** as historical research.
+> They are preserved for reference — all active development is on the Persona platform and the Career Launchpad reference agent.
