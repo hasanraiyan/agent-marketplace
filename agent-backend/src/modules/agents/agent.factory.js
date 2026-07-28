@@ -19,6 +19,7 @@ import { skillLibraryStore, skillLibraryNamespace } from '../skills/skillLibrary
 import checkpointService from '../threads/checkpoint.service.js';
 import { LRUCache } from 'lru-cache';
 import agentRepository from './agent.repository.js';
+import agentService from './agent.service.js';
 import providerRepository from '../providers/provider.repository.js';
 import encryption from '../../utils/encryption.js';
 
@@ -192,10 +193,12 @@ class AgentFactory {
     } else {
       // 1.5 Fetch Standard Configuration from DB
       agent = await agentRepository.findById(agentId);
-      if (agent && typeof agent.populate === 'function') {
+      if (!agent || !agentService.canUserExecuteAgent(agent, userId)) {
+        throw new Error('Agent deleted or unavailable');
+      }
+      if (typeof agent.populate === 'function') {
         await agent.populate(['skills', 'mcps', 'knowledgeBases']);
       }
-      if (!agent) throw new Error('Agent deleted or unavailable');
 
       if (!agent.providerId) throw new Error('Agent has no valid provider configured.');
       provider = await providerRepository.findById(agent.providerId);

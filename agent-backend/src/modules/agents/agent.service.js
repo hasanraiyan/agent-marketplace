@@ -169,16 +169,49 @@ class AgentService {
     }
   }
 
-  async getAgentById(id, userId) {
-    const agent = await agentRepository.findById(id);
-    if (!agent) throw new Error('Agent not found');
+  /**
+   * Evaluates execution authorization for a user against an agent object.
+   * Central source of truth for agent availability and access control.
+   *
+   * @param {Object} agent - Agent document or plain object
+   * @param {string|ObjectId} userId - Authenticated user ID (optional)
+   * @returns {boolean} True if execution is allowed, false otherwise
+   */
+  canUserExecuteAgent(agent, userId) {
+    if (!agent) return false;
+
+    // Virtual system agents (e.g. Architect agent) are always executable
+    if (agent.isVirtual === true || agent._id === '000000000000000000000000') {
+      return true;
+    }
+
+    // Soft-deleted agents are never executable by anyone (owner or non-owner)
+    if (agent.deletedAt) {
+      return false;
+    }
 
     const ownerIdStr = agent.ownerId ? agent.ownerId.toString() : null;
-    const isOwner = userId && ownerIdStr === userId.toString();
-    const isVirtual = agent.isVirtual === true || agent._id === '000000000000000000000000';
+    const requestingIdStr = userId ? userId.toString() : null;
+    const isOwner = Boolean(requestingIdStr && ownerIdStr === requestingIdStr);
 
-    if (!isOwner && !isVirtual && agent.visibility === 'private') {
-      throw new Error('Agent not found or is private'); // Ambiguous error for privacy
+    // Inactive agents can only be executed by their owner (e.g. Studio testing)
+    if (agent.isActive === false && !isOwner) {
+      return false;
+    }
+
+    // Private agents can only be executed by their owner
+    if (agent.visibility === 'private' && !isOwner) {
+      return false;
+    }
+
+    // Public and unlisted active agents (and owner access) are allowed
+    return true;
+  }
+
+  async getAgentById(id, userId) {
+    const agent = await agentRepository.findById(id);
+    if (!agent || !this.canUserExecuteAgent(agent, userId)) {
+      throw new Error('Agent not found or is private');
     }
 
     if (typeof agent.populate === 'function') {
@@ -192,13 +225,7 @@ class AgentService {
 
   async getAgentBySlug(slug, userId) {
     const agent = await agentRepository.findBySlug(slug);
-    if (!agent) throw new Error('Agent not found');
-
-    const ownerIdStr = agent.ownerId ? agent.ownerId.toString() : null;
-    const isOwner = userId && ownerIdStr === userId.toString();
-    const isVirtual = agent.isVirtual === true || agent._id === '000000000000000000000000';
-
-    if (!isOwner && !isVirtual && agent.visibility === 'private') {
+    if (!agent || !this.canUserExecuteAgent(agent, userId)) {
       throw new Error('Agent not found or is private');
     }
 

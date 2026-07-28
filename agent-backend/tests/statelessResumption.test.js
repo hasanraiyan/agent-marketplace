@@ -10,6 +10,12 @@ jest.unstable_mockModule('../src/modules/threads/thread.repository.js', () => ({
   },
 }));
 
+jest.unstable_mockModule('../src/modules/agents/agent.repository.js', () => ({
+  default: {
+    findById: jest.fn(),
+  },
+}));
+
 jest.unstable_mockModule('../src/modules/agents/agent.factory.js', () => ({
   default: {
     buildAgent: jest.fn(),
@@ -46,6 +52,7 @@ jest.unstable_mockModule('../src/modules/auth/auth.middleware.js', () => ({
 }));
 
 const agentFactory = (await import('../src/modules/agents/agent.factory.js')).default;
+const agentRepository = (await import('../src/modules/agents/agent.repository.js')).default;
 const threadRepository = (await import('../src/modules/threads/thread.repository.js')).default;
 const aguiRouterModule = await import('../src/modules/agui/agui.routes.js');
 const aguiRouter = aguiRouterModule.default;
@@ -58,6 +65,13 @@ describe('Stateless Resumption Logic in agui.routes.js', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    agentRepository.findById.mockResolvedValue({
+      _id: 'agent_1',
+      ownerId: 'user_1',
+      visibility: 'public',
+      isActive: true,
+      deletedAt: null,
+    });
     mockAgentInstance = {
       getState: jest.fn(),
       streamEvents: jest.fn().mockReturnValue((async function* () {})()),

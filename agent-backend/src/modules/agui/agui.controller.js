@@ -2,7 +2,10 @@ import crypto from 'crypto';
 import { EventType } from '@ag-ui/core';
 import rateLimiterService from '../rateLimiter/rateLimiter.service.js';
 import RateLimitError from '../../utils/errors/RateLimitError.js';
+import NotFoundError from '../../utils/errors/NotFoundError.js';
 import threadRepository from '../threads/thread.repository.js';
+import agentRepository from '../agents/agent.repository.js';
+import agentService from '../agents/agent.service.js';
 import { loggerService } from '../../utils/index.js';
 import { foldSubagentEvent, settleTrace } from './subagentTrace.js';
 import { readJsonBody, runAgentAsAguiEvents } from './agui.service.js';
@@ -41,6 +44,23 @@ class AguiController {
     rateLimiterService.incrementConcurrency(concurrencyKey);
 
     try {
+      if (!context.agentId) {
+        throw new NotFoundError('Agent ID is required');
+      }
+
+      // Check authorization BEFORE starting the SSE response stream
+      let agent;
+      try {
+        agent = await agentRepository.findById(context.agentId);
+      } catch {
+        // Bad object ID format or database error -> treat as not found
+        agent = null;
+      }
+
+      if (!agent || !agentService.canUserExecuteAgent(agent, context.userId)) {
+        throw new NotFoundError('Agent not found');
+      }
+
       const input = await readJsonBody(req);
       const threadId = input.threadId || context.langGraphThreadId || 'default';
       const runId = input.runId || crypto.randomUUID();
