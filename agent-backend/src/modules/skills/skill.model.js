@@ -2,6 +2,20 @@ import mongoose from 'mongoose';
 
 const skillSchema = new mongoose.Schema(
   {
+    // Developer Platform (AD-03, AD-04 §18): same additive pattern as
+    // Agent (agent.model.js) — defaults keep every existing/unmodified
+    // creation path correct with zero controller changes. See that file
+    // for the full rationale; not repeated here.
+    domain: {
+      type: String,
+      default: 'persona',
+      index: true,
+    },
+    ownerType: {
+      type: String,
+      enum: ['PersonaUser', 'Project', 'ExternalUser'],
+      default: 'PersonaUser',
+    },
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

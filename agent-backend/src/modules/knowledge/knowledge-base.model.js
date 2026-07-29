@@ -12,6 +12,18 @@ const knowledgeBaseSchema = new mongoose.Schema(
       default: '',
       maxlength: 1000,
     },
+    // Developer Platform (AD-03, AD-04 §18): same additive pattern as
+    // Agent (agent.model.js) — see that file for the full rationale.
+    domain: {
+      type: String,
+      default: 'persona',
+      index: true,
+    },
+    ownerType: {
+      type: String,
+      enum: ['PersonaUser', 'Project', 'ExternalUser'],
+      default: 'PersonaUser',
+    },
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

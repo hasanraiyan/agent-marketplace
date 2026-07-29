@@ -2,6 +2,21 @@ import mongoose from 'mongoose';
 
 const providerSchema = new mongoose.Schema(
   {
+    // Developer Platform (AD-03, AD-04 §18 / AD-06 §21: Provider
+    // ownership is narrower than most resources — PersonaUser/Project
+    // only, ExternalUser explicitly "not decided" and NOT included here):
+    // same additive pattern as Agent (agent.model.js) — see that file
+    // for the full rationale.
+    domain: {
+      type: String,
+      default: 'persona',
+      index: true,
+    },
+    ownerType: {
+      type: String,
+      enum: ['PersonaUser', 'Project'],
+      default: 'PersonaUser',
+    },
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
