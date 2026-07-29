@@ -85,8 +85,15 @@ product-research/
 > **Note:** `10-developer-platform/` is a separate requirements track from the Career Launchpad
 > traceability chain (00-09) above. It captures FUTURE requirements for exposing Persona's agent
 > infrastructure to external products (Beyond Campus, Coursify, OpenFounder, etc.) via a future
-> Developer Platform / Developer Studio. It is explicitly not yet architected or implemented — see
-> `10-developer-platform/developer-platform-requirements.md`.
+> Developer Platform / Developer Studio. Requirements are in
+> `10-developer-platform/developer-platform-requirements.md`; the codebase readiness synthesis is in
+> `10-developer-platform/05-codebase-readiness-synthesis.md`; the approved architecture (AD-01–AD-08:
+> Project auth, external-user identity, Domain model, ownership/authority, persistence/tenant
+> isolation, Provider architecture, Developer API/runtime contract, Project lifecycle/membership/
+> credentials) is in `10-developer-platform/architecture/`; the master implementation blueprint
+> reconciling that architecture with the current codebase is in
+> `10-developer-platform/implementation/01-master-implementation-blueprint.md`. **No implementation
+> has begun** — the blueprint is planning only, pending approval of its recommended first PR.
 
 ## Current Focus: Persona.ai Platform + Career Launchpad (Dogfooding)
 
