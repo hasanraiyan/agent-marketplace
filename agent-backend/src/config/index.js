@@ -28,6 +28,11 @@ const config = {
   mongodbUri: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/agent-marketplace',
   dbEncryptionKeys: parseJsonEnv(process.env.DB_ENCRYPTION_KEYS, 'DB_ENCRYPTION_KEYS'),
   dbEncryptionActiveKeyId: process.env.DB_ENCRYPTION_ACTIVE_KEY_ID || null,
+  // Pepper for one-way hashing of Developer Platform Project credential secrets
+  // (AD-01 §9.3) — deliberately separate from JWT_SECRET and DB_ENCRYPTION_KEYS,
+  // since it protects a different secret class with a different (one-way,
+  // never-reversible) storage model. See utils/credentialSecret.js.
+  projectCredentialHashSecret: process.env.PROJECT_CREDENTIAL_HASH_SECRET || null,
   jwt: {
     secret: process.env.JWT_SECRET,
     expiresIn: process.env.JWT_EXPIRES_IN || '15m',
