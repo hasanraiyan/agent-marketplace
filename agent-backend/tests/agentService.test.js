@@ -21,7 +21,8 @@ jest.unstable_mockModule('../src/modules/users/user.model.js', () => ({
 
 const agentRepository = (await import('../src/modules/agents/agent.repository.js')).default;
 const User = (await import('../src/modules/users/user.model.js')).default;
-const agentService = (await import('../src/modules/agents/agent.service.js')).default;
+const { default: agentService, personaExecutionContext } =
+  await import('../src/modules/agents/agent.service.js');
 
 describe('Agent Service', () => {
   let mockAgent;
@@ -214,6 +215,57 @@ describe('Agent Service', () => {
       expect(agentRepository.search).toHaveBeenCalledWith(
         expect.objectContaining({ domain: 'some-project-id' }),
         expect.anything()
+      );
+    });
+  });
+
+  describe('personaExecutionContext', () => {
+    test('wraps a Persona userId with the Persona Domain', () => {
+      expect(personaExecutionContext(mockUserId)).toEqual({
+        domain: 'persona',
+        personaUserId: mockUserId,
+      });
+    });
+
+    test('tolerates a falsy userId (anonymous/guest access)', () => {
+      expect(personaExecutionContext(undefined)).toEqual({
+        domain: 'persona',
+        personaUserId: undefined,
+      });
+    });
+  });
+
+  describe('canUserExecuteAgent — domain check (AD-04, blueprint §12)', () => {
+    test('allows access when the agent has no domain set (pre-backfill data)', () => {
+      const agent = { ...mockAgent, domain: undefined };
+      expect(agentService.canUserExecuteAgent(agent, personaExecutionContext(mockUserId))).toBe(
+        true
+      );
+    });
+
+    test('allows access when the context carries no domain', () => {
+      const agent = { ...mockAgent, domain: 'persona' };
+      expect(agentService.canUserExecuteAgent(agent, { personaUserId: mockUserId })).toBe(true);
+    });
+
+    test('allows access when the agent and context Domains match', () => {
+      const agent = { ...mockAgent, domain: 'persona' };
+      expect(agentService.canUserExecuteAgent(agent, personaExecutionContext(mockUserId))).toBe(
+        true
+      );
+    });
+
+    test('denies access — not-found, not forbidden — when the agent and context Domains differ, even for the owner', () => {
+      const agent = { ...mockAgent, domain: 'some-other-project-id' };
+      expect(agentService.canUserExecuteAgent(agent, personaExecutionContext(mockUserId))).toBe(
+        false
+      );
+    });
+
+    test('denies access when the agent and context Domains differ, for a public agent', () => {
+      const agent = { ...mockAgent, domain: 'some-other-project-id', visibility: 'public' };
+      expect(agentService.canUserExecuteAgent(agent, personaExecutionContext(guestUserId))).toBe(
+        false
       );
     });
   });

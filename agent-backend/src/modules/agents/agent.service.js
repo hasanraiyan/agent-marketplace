@@ -3,6 +3,17 @@ import User from '../users/user.model.js';
 import crypto from 'crypto';
 import { PERSONA_DOMAIN } from '../auth/personaPrincipalContext.js';
 
+/**
+ * Wraps a bare Persona userId (the only identity shape every current
+ * caller of `canUserExecuteAgent` has available) into the minimal
+ * execution-authorization context it now expects. `userId` may be
+ * falsy — anonymous/guest access to a public agent is a legitimate,
+ * pre-existing case this must keep supporting.
+ */
+export function personaExecutionContext(userId) {
+  return { domain: PERSONA_DOMAIN, personaUserId: userId };
+}
+
 class AgentService {
   /**
    * Generates a unique URL-friendly slug based on the agent name
@@ -179,14 +190,28 @@ class AgentService {
   }
 
   /**
-   * Evaluates execution authorization for a user against an agent object.
-   * Central source of truth for agent availability and access control.
+   * Evaluates execution authorization for a requester against an agent
+   * object. Central source of truth for agent availability and access
+   * control.
+   *
+   * Developer Platform (AD-04, AD-07 §29, blueprint §12): `context` is a
+   * minimal execution-authorization context — `{ domain, personaUserId }`
+   * today (every current caller is a Persona-domain request; see
+   * `personaExecutionContext` above). The domain check runs first and
+   * collapses a mismatch to the same "not executable" result as every
+   * other rejection reason here, matching the existing 404-not-403,
+   * existence-hiding pattern this function already used for private
+   * agents. It only ever fires when BOTH sides carry a domain — every
+   * mock/fixture that omits `agent.domain` (pre-backfill data, or tests
+   * that don't set it) is unaffected, and every real Agent today has
+   * `domain === context.domain === 'persona'`, so this is a zero
+   * observable behavior change for all current data.
    *
    * @param {Object} agent - Agent document or plain object
-   * @param {string|ObjectId} userId - Authenticated user ID (optional)
+   * @param {{domain?: string, personaUserId?: string|ObjectId}} [context] - Execution-authorization context
    * @returns {boolean} True if execution is allowed, false otherwise
    */
-  canUserExecuteAgent(agent, userId) {
+  canUserExecuteAgent(agent, context) {
     if (!agent) return false;
 
     // Virtual system agents (e.g. Architect agent) are always executable
@@ -199,8 +224,12 @@ class AgentService {
       return false;
     }
 
+    if (agent.domain && context?.domain && agent.domain !== context.domain) {
+      return false;
+    }
+
     const ownerIdStr = agent.ownerId ? agent.ownerId.toString() : null;
-    const requestingIdStr = userId ? userId.toString() : null;
+    const requestingIdStr = context?.personaUserId ? context.personaUserId.toString() : null;
     const isOwner = Boolean(requestingIdStr && ownerIdStr === requestingIdStr);
 
     // Inactive agents can only be executed by their owner (e.g. Studio testing)
@@ -219,7 +248,7 @@ class AgentService {
 
   async getAgentById(id, userId) {
     const agent = await agentRepository.findById(id);
-    if (!agent || !this.canUserExecuteAgent(agent, userId)) {
+    if (!agent || !this.canUserExecuteAgent(agent, personaExecutionContext(userId))) {
       throw new Error('Agent not found or is private');
     }
 
@@ -234,7 +263,7 @@ class AgentService {
 
   async getAgentBySlug(slug, userId) {
     const agent = await agentRepository.findBySlug(slug);
-    if (!agent || !this.canUserExecuteAgent(agent, userId)) {
+    if (!agent || !this.canUserExecuteAgent(agent, personaExecutionContext(userId))) {
       throw new Error('Agent not found or is private');
     }
 

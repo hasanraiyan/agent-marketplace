@@ -5,7 +5,7 @@ import RateLimitError from '../../utils/errors/RateLimitError.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
 import threadRepository from '../threads/thread.repository.js';
 import agentRepository from '../agents/agent.repository.js';
-import agentService from '../agents/agent.service.js';
+import agentService, { personaExecutionContext } from '../agents/agent.service.js';
 import { loggerService } from '../../utils/index.js';
 import { foldSubagentEvent, settleTrace } from './subagentTrace.js';
 import { readJsonBody, runAgentAsAguiEvents } from './agui.service.js';
@@ -57,7 +57,10 @@ class AguiController {
         agent = null;
       }
 
-      if (!agent || !agentService.canUserExecuteAgent(agent, context.userId)) {
+      if (
+        !agent ||
+        !agentService.canUserExecuteAgent(agent, personaExecutionContext(context.userId))
+      ) {
         throw new NotFoundError('Agent not found');
       }
 
