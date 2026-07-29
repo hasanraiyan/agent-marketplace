@@ -1,45 +1,51 @@
 import projectCredentialService from '../projects/projectCredential.service.js';
 import projectService from '../projects/project.service.js';
 import { PROJECT_STATUS } from '../projects/project.model.js';
-import { createProjectMachineContext } from './projectPrincipalContext.js';
+import externalUserService from '../externalUsers/externalUser.service.js';
+import {
+  createProjectMachineContext,
+  createProjectRuntimeContext,
+} from './projectPrincipalContext.js';
 import BaseError from '../../utils/errors/BaseError.js';
 
 /**
- * Developer API machine authentication (AD-01, AD-07 §8, AD-08 §25).
+ * Developer API machine authentication (AD-01, AD-02, AD-07 §8, AD-08 §25).
  *
  * Parses a Project credential from the Authorization header, verifies it
  * (`projectCredentialService.verifyCredential`), checks the Project's
- * status, and attaches a `ProjectMachineContext` to `req.projectContext`.
- * Raw headers/credentials never reach anything downstream of this
- * middleware — only the constructed context object does (AD-07 §8's
- * "downstream code must always know which context type it received").
+ * status, and attaches either a `ProjectMachineContext` or (when an
+ * external user is asserted) a `ProjectRuntimeContext` to
+ * `req.projectContext`. Raw headers/credentials never reach anything
+ * downstream of this middleware — only the constructed context object
+ * does (AD-07 §8's "downstream code must always know which context type
+ * it received").
  *
  * Validation order follows the master implementation blueprint §8
- * precisely: credential validity → Project status → (external-user
- * handling, see SCOPE below) — checking Project status only after the
- * credential itself is proven valid avoids doing further work for an
- * unauthenticated caller, and avoids revealing anything about
- * feature availability before authentication succeeds.
+ * precisely: credential validity → Project status → external-user
+ * resolution — checking Project status only after the credential itself
+ * is proven valid avoids doing further work for an unauthenticated
+ * caller, and avoids revealing anything about feature availability
+ * before authentication succeeds.
  *
  * WIRE FORMAT — an implementation-phase decision (AD-01 §17 explicitly
  * left this open; decided here): the credential is presented as a single
  * bearer token shaped `<keyId>.<secret>`, split on the first `.`. `keyId`
  * is safe to log; `secret` never is, and is never logged by this module.
  *
- * SCOPE, deliberately narrowed from the originally-recommended
- * "Developer auth middleware" (see this PR's own description for the
- * reasoning):
- *   - Constructs ONLY `ProjectMachineContext` in this PR.
- *   - `ProjectRuntimeContext` (an externalUserId header layered on top,
- *     AD-02) is explicitly NOT handled yet — it requires the
- *     ExternalUser/Subject module (blueprint Phase 5), which does not
- *     exist yet. If the externalUserId header is present on an otherwise
- *     validly-authenticated request, this middleware rejects rather than
- *     silently ignoring the header and treating the call as if no
- *     external user had been asserted — a silent downgrade would be a
- *     real, security-relevant behavior change the caller didn't ask for.
+ * EXTERNAL USER HANDLING (AD-02 §11.1, unblocked by PR-6's ExternalUser
+ * module): when the `x-persona-external-user-id` header is present on an
+ * otherwise validly-authenticated request, the raw asserted id is
+ * resolved-or-created via `externalUserService.resolveOrCreate` (a JIT
+ * upsert scoped to this Project), then `ProjectRuntimeContext` is built
+ * from the header's raw string — never from the resolved record's
+ * internal `_id`. The resolve call exists to anchor/track the external
+ * user for future resource-ownership references; it is not part of the
+ * trust chain, which is "the Project's own credential asserts this id"
+ * (AD-02 §14).
+ *
+ * SCOPE, still deliberately narrowed:
  *   - `ProjectAdminContext` (Clerk session + verified ProjectMembership)
- *     is also not built here — it needs a settled convention for which
+ *     is not built here — it needs a settled convention for which
  *     Project a given request targets, which depends on the Developer
  *     API route design (blueprint Phase 9), not yet decided.
  *
@@ -93,18 +99,16 @@ export default async function developerMachineAuthMiddleware(req, res, next) {
       throw new BaseError('This Project is not currently active', 403, 'PROJECT_NOT_ACTIVE');
     }
 
-    if (req.headers[EXTERNAL_USER_HEADER]) {
-      throw new BaseError(
-        'External user assertion is not yet supported by this Developer API deployment',
-        501,
-        'NOT_IMPLEMENTED'
-      );
-    }
+    const domain = String(verified.project);
+    const credentialId = String(verified.credentialId);
+    const externalUserId = req.headers[EXTERNAL_USER_HEADER];
 
-    req.projectContext = createProjectMachineContext({
-      domain: String(verified.project),
-      credentialId: String(verified.credentialId),
-    });
+    if (externalUserId) {
+      await externalUserService.resolveOrCreate(domain, externalUserId);
+      req.projectContext = createProjectRuntimeContext({ domain, credentialId, externalUserId });
+    } else {
+      req.projectContext = createProjectMachineContext({ domain, credentialId });
+    }
 
     next();
   } catch (error) {

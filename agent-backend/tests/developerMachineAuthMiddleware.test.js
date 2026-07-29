@@ -12,10 +12,18 @@ jest.unstable_mockModule('../src/modules/projects/project.service.js', () => ({
   },
 }));
 
+jest.unstable_mockModule('../src/modules/externalUsers/externalUser.service.js', () => ({
+  default: {
+    resolveOrCreate: jest.fn(),
+  },
+}));
+
 const projectCredentialService = (
   await import('../src/modules/projects/projectCredential.service.js')
 ).default;
 const projectService = (await import('../src/modules/projects/project.service.js')).default;
+const externalUserService = (await import('../src/modules/externalUsers/externalUser.service.js'))
+  .default;
 const { default: developerMachineAuthMiddleware, parseProjectCredential } =
   await import('../src/modules/auth/developerMachineAuth.middleware.js');
 
@@ -147,18 +155,50 @@ describe('developerMachineAuthMiddleware', () => {
     expect(projectService.getProjectById).not.toHaveBeenCalled();
   });
 
-  it('rejects with 501 when an externalUserId header is present, even on an otherwise valid, ACTIVE-project credential', async () => {
+  it('resolves-or-creates the external user and attaches a ProjectRuntimeContext when the externalUserId header is present on an otherwise valid, ACTIVE-project credential', async () => {
     req.headers['x-persona-external-user-id'] = 'sabik';
     projectCredentialService.verifyCredential.mockResolvedValue({
       credentialId,
       project: projectId,
     });
     projectService.getProjectById.mockResolvedValue({ _id: projectId, status: 'ACTIVE' });
+    externalUserService.resolveOrCreate.mockResolvedValue({
+      _id: 'external-user-doc-id',
+      project: projectId,
+      externalUserId: 'sabik',
+    });
 
     await developerMachineAuthMiddleware(req, res, next);
 
-    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 501 }));
-    expect(req.projectContext).toBeUndefined();
+    expect(externalUserService.resolveOrCreate).toHaveBeenCalledWith(projectId, 'sabik');
+    expect(req.projectContext).toEqual({
+      domain: projectId,
+      principalType: 'ProjectRuntime',
+      credentialId,
+      externalUserId: 'sabik',
+    });
+    expect(next).toHaveBeenCalledWith();
+  });
+
+  it("builds ProjectRuntimeContext from the raw header value, not the resolved ExternalUser record's internal _id", async () => {
+    req.headers['x-persona-external-user-id'] = 'sabik';
+    projectCredentialService.verifyCredential.mockResolvedValue({
+      credentialId,
+      project: projectId,
+    });
+    projectService.getProjectById.mockResolvedValue({ _id: projectId, status: 'ACTIVE' });
+    externalUserService.resolveOrCreate.mockResolvedValue({
+      _id: 'some-internal-mongo-id-never-exposed',
+      project: projectId,
+      externalUserId: 'sabik',
+    });
+
+    await developerMachineAuthMiddleware(req, res, next);
+
+    expect(req.projectContext.externalUserId).toBe('sabik');
+    expect(JSON.stringify(req.projectContext)).not.toContain(
+      'some-internal-mongo-id-never-exposed'
+    );
   });
 
   it('does not evaluate the externalUserId header until after authentication and status checks succeed', async () => {
@@ -169,9 +209,26 @@ describe('developerMachineAuthMiddleware', () => {
 
     await developerMachineAuthMiddleware(req, res, next);
 
+    expect(externalUserService.resolveOrCreate).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith(
       expect.objectContaining({ statusCode: 401, message: 'Invalid Project credential' })
     );
+  });
+
+  it('propagates a failure from resolveOrCreate to next() rather than throwing', async () => {
+    req.headers['x-persona-external-user-id'] = 'sabik';
+    projectCredentialService.verifyCredential.mockResolvedValue({
+      credentialId,
+      project: projectId,
+    });
+    projectService.getProjectById.mockResolvedValue({ _id: projectId, status: 'ACTIVE' });
+    const resolveError = new Error('database unavailable');
+    externalUserService.resolveOrCreate.mockRejectedValue(resolveError);
+
+    await developerMachineAuthMiddleware(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(resolveError);
+    expect(req.projectContext).toBeUndefined();
   });
 
   it('propagates unexpected errors (e.g. Project lookup failure) to next() rather than throwing', async () => {
