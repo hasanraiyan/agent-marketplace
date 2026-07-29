@@ -10,6 +10,7 @@ jest.unstable_mockModule('../src/modules/agents/agent.service.js', () => ({
     searchAgents: jest.fn(),
     countAgents: jest.fn(),
   },
+  personaExecutionContext: (userId) => ({ domain: 'persona', personaUserId: userId }),
 }));
 
 jest.unstable_mockModule('../src/modules/agents/agent.validator.js', () => ({

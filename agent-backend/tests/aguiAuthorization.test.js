@@ -44,7 +44,8 @@ jest.unstable_mockModule('../src/modules/auth/auth.middleware.js', () => ({
 }));
 
 const agentRepository = (await import('../src/modules/agents/agent.repository.js')).default;
-const agentService = (await import('../src/modules/agents/agent.service.js')).default;
+const { default: agentService, personaExecutionContext } =
+  await import('../src/modules/agents/agent.service.js');
 const agentFactory = (await import('../src/modules/agents/agent.factory.js')).default;
 const aguiController = (await import('../src/modules/agui/agui.controller.js')).default;
 
@@ -59,26 +60,34 @@ describe('AG-UI Execution Authorization & Policy Hardening', () => {
   describe('canUserExecuteAgent Access Policy Matrix', () => {
     test('Public + active + not deleted: allowed for both owner and non-owner', () => {
       const agent = { ownerId, visibility: 'public', isActive: true, deletedAt: null };
-      expect(agentService.canUserExecuteAgent(agent, ownerId)).toBe(true);
-      expect(agentService.canUserExecuteAgent(agent, consumerId)).toBe(true);
+      expect(agentService.canUserExecuteAgent(agent, personaExecutionContext(ownerId))).toBe(true);
+      expect(agentService.canUserExecuteAgent(agent, personaExecutionContext(consumerId))).toBe(
+        true
+      );
     });
 
     test('Unlisted + active + not deleted: allowed for both owner and non-owner', () => {
       const agent = { ownerId, visibility: 'unlisted', isActive: true, deletedAt: null };
-      expect(agentService.canUserExecuteAgent(agent, ownerId)).toBe(true);
-      expect(agentService.canUserExecuteAgent(agent, consumerId)).toBe(true);
+      expect(agentService.canUserExecuteAgent(agent, personaExecutionContext(ownerId))).toBe(true);
+      expect(agentService.canUserExecuteAgent(agent, personaExecutionContext(consumerId))).toBe(
+        true
+      );
     });
 
     test('Private + active + not deleted: allowed for owner, denied for non-owner', () => {
       const agent = { ownerId, visibility: 'private', isActive: true, deletedAt: null };
-      expect(agentService.canUserExecuteAgent(agent, ownerId)).toBe(true);
-      expect(agentService.canUserExecuteAgent(agent, consumerId)).toBe(false);
+      expect(agentService.canUserExecuteAgent(agent, personaExecutionContext(ownerId))).toBe(true);
+      expect(agentService.canUserExecuteAgent(agent, personaExecutionContext(consumerId))).toBe(
+        false
+      );
     });
 
     test('Inactive (isActive: false, deletedAt: null): allowed for owner (Studio testing), denied for non-owner', () => {
       const agent = { ownerId, visibility: 'public', isActive: false, deletedAt: null };
-      expect(agentService.canUserExecuteAgent(agent, ownerId)).toBe(true);
-      expect(agentService.canUserExecuteAgent(agent, consumerId)).toBe(false);
+      expect(agentService.canUserExecuteAgent(agent, personaExecutionContext(ownerId))).toBe(true);
+      expect(agentService.canUserExecuteAgent(agent, personaExecutionContext(consumerId))).toBe(
+        false
+      );
     });
 
     test('Soft-deleted (deletedAt set): denied for both owner and non-owner', () => {
@@ -88,18 +97,37 @@ describe('AG-UI Execution Authorization & Policy Hardening', () => {
         isActive: false,
         deletedAt: new Date('2026-01-01'),
       };
-      expect(agentService.canUserExecuteAgent(agent, ownerId)).toBe(false);
-      expect(agentService.canUserExecuteAgent(agent, consumerId)).toBe(false);
+      expect(agentService.canUserExecuteAgent(agent, personaExecutionContext(ownerId))).toBe(false);
+      expect(agentService.canUserExecuteAgent(agent, personaExecutionContext(consumerId))).toBe(
+        false
+      );
     });
 
     test('Virtual system agents (e.g. Architect agent): allowed for any user', () => {
       const virtualAgent = { _id: '000000000000000000000000', isVirtual: true };
-      expect(agentService.canUserExecuteAgent(virtualAgent, consumerId)).toBe(true);
+      expect(
+        agentService.canUserExecuteAgent(virtualAgent, personaExecutionContext(consumerId))
+      ).toBe(true);
     });
 
     test('Null or undefined agent: denied', () => {
-      expect(agentService.canUserExecuteAgent(null, consumerId)).toBe(false);
-      expect(agentService.canUserExecuteAgent(undefined, consumerId)).toBe(false);
+      expect(agentService.canUserExecuteAgent(null, personaExecutionContext(consumerId))).toBe(
+        false
+      );
+      expect(agentService.canUserExecuteAgent(undefined, personaExecutionContext(consumerId))).toBe(
+        false
+      );
+    });
+
+    test('denies access — not-found, not forbidden — when the agent Domain and context Domain differ, even for the owner (AD-04, blueprint §12)', () => {
+      const agent = {
+        ownerId,
+        visibility: 'private',
+        isActive: true,
+        deletedAt: null,
+        domain: 'some-other-project-id',
+      };
+      expect(agentService.canUserExecuteAgent(agent, personaExecutionContext(ownerId))).toBe(false);
     });
   });
 

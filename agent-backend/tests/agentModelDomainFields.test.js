@@ -35,6 +35,11 @@ describe('Agent model — domain/ownerType fields', () => {
     expect(agent.ownerType).toBe('Project');
   });
 
+  test('accepts an explicit ownerType of "ExternalUser" (AD-04 §18: Agents are the richest resource type)', () => {
+    const agent = new Agent({ ...minimalValidAgent, ownerType: 'ExternalUser' });
+    expect(agent.ownerType).toBe('ExternalUser');
+  });
+
   test('rejects an ownerType outside the supported enum', async () => {
     const agent = new Agent({ ...minimalValidAgent, ownerType: 'NotARealOwnerType' });
     await expect(agent.validate()).rejects.toThrow();

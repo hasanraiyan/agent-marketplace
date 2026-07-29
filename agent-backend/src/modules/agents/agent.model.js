@@ -15,13 +15,17 @@ const agentSchema = new mongoose.Schema(
       default: 'persona',
       index: true,
     },
-    // Developer Platform (AD-04): who structurally owns this Agent.
-    // Every Agent ownership path in the current codebase is a Persona
-    // Clerk user via `ownerId`, so that is the correct default; a
-    // Project-owned Agent is not yet possible anywhere in this codebase.
+    // Developer Platform (AD-04 §18, blueprint §12): who structurally owns
+    // this Agent. Agents are AD-04's "richest resource type" — all three
+    // owner types apply (System/Project Agents = Project, User-owned
+    // Agents = PersonaUser or, once a Project's external user creates
+    // one, ExternalUser). Every Agent ownership path in the current
+    // codebase is a Persona Clerk user via `ownerId`, so 'PersonaUser'
+    // is the correct default; no creation path sets 'Project' or
+    // 'ExternalUser' yet.
     ownerType: {
       type: String,
-      enum: ['PersonaUser', 'Project'],
+      enum: ['PersonaUser', 'Project', 'ExternalUser'],
       default: 'PersonaUser',
     },
     ownerId: {
