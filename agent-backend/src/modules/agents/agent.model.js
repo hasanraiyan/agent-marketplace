@@ -2,6 +2,28 @@ import mongoose from 'mongoose';
 
 const agentSchema = new mongoose.Schema(
   {
+    // Developer Platform (AD-03, AD-04): the Domain this Agent belongs to.
+    // Defaults to Persona's own fixed first-party Domain so every
+    // existing/unmodified creation path is automatically correct with no
+    // controller changes. Existing documents predating this field will
+    // read as `undefined` until a separate backfill migration sets it
+    // explicitly — this PR is schema-only and does not query, enforce, or
+    // backfill on this field yet (master implementation blueprint §34
+    // Phase 3).
+    domain: {
+      type: String,
+      default: 'persona',
+      index: true,
+    },
+    // Developer Platform (AD-04): who structurally owns this Agent.
+    // Every Agent ownership path in the current codebase is a Persona
+    // Clerk user via `ownerId`, so that is the correct default; a
+    // Project-owned Agent is not yet possible anywhere in this codebase.
+    ownerType: {
+      type: String,
+      enum: ['PersonaUser', 'Project'],
+      default: 'PersonaUser',
+    },
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
