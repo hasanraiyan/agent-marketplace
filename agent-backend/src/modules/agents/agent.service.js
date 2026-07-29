@@ -1,6 +1,7 @@
 import agentRepository from './agent.repository.js';
 import User from '../users/user.model.js';
 import crypto from 'crypto';
+import { PERSONA_DOMAIN } from '../auth/personaPrincipalContext.js';
 
 class AgentService {
   /**
@@ -125,6 +126,14 @@ class AgentService {
         throw new Error('Can only search marketplace for public agents');
       }
       match.visibility = 'public';
+      // Developer Platform (AD-03, blueprint Phase 3): scope marketplace
+      // search to a Domain instead of leaking every Domain's public agents
+      // into one global result set. Defaults to Persona's own Domain,
+      // which is every current caller's behavior today (no caller passes
+      // `filters.domain` yet, and every existing/backfilled Agent has
+      // domain: PERSONA_DOMAIN) — a zero-observable-change default that
+      // closes the gap for whenever a Project-scoped caller exists.
+      match.domain = filters.domain || PERSONA_DOMAIN;
     }
 
     return match;

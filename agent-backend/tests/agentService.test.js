@@ -190,5 +190,31 @@ describe('Agent Service', () => {
         )
       ).rejects.toThrow('Not authorized to search other users private agents');
     });
+
+    test('general marketplace search defaults to the Persona Domain (AD-03) when no domain filter is given', async () => {
+      agentRepository.search.mockResolvedValue([mockAgent]);
+
+      await agentService.searchAgents({ category: 'coding' }, { page: 1 }, null);
+
+      expect(agentRepository.search).toHaveBeenCalledWith(
+        expect.objectContaining({ domain: 'persona' }),
+        expect.anything()
+      );
+    });
+
+    test('general marketplace search respects an explicit domain filter', async () => {
+      agentRepository.search.mockResolvedValue([mockAgent]);
+
+      await agentService.searchAgents(
+        { category: 'coding', domain: 'some-project-id' },
+        { page: 1 },
+        null
+      );
+
+      expect(agentRepository.search).toHaveBeenCalledWith(
+        expect.objectContaining({ domain: 'some-project-id' }),
+        expect.anything()
+      );
+    });
   });
 });
