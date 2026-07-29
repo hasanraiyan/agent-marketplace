@@ -1,5 +1,6 @@
 import Skill from './skill.model.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
+import { PERSONA_DOMAIN } from '../auth/personaPrincipalContext.js';
 
 class SkillRepository {
   async create(skillData) {
@@ -16,7 +17,14 @@ class SkillRepository {
   }
 
   async findPublicSkills(query = {}, skip = 0, limit = 20) {
-    const filter = { ...query, isPublic: true };
+    const { domain, ...restQuery } = query;
+    // Developer Platform (AD-03, blueprint Phase 4): same fix as Agent's
+    // marketplace search (PR-9) — scope to a Domain instead of leaking
+    // every Domain's public skills into one global result set. Defaults
+    // to Persona's own Domain, matching every current caller's behavior
+    // today (zero observable change: no caller passes `query.domain` yet,
+    // and every existing/backfilled Skill has domain: PERSONA_DOMAIN).
+    const filter = { ...restQuery, isPublic: true, domain: domain || PERSONA_DOMAIN };
 
     // Support regex name search if query provides string name
     if (filter.name && typeof filter.name === 'string') {
@@ -41,9 +49,15 @@ class SkillRepository {
     };
   }
 
-  async searchSkills(userId, { q, scope = 'mine', limit = 30 } = {}) {
+  async searchSkills(userId, { q, scope = 'mine', limit = 30, domain } = {}) {
+    // Developer Platform (AD-03, blueprint Phase 4): the non-'mine' branch
+    // is a second occurrence of the same unscoped-global-public-search
+    // pattern findPublicSkills had — same fix, same zero-observable-change
+    // rationale (see findPublicSkills above).
     const filter = {
-      ...(scope === 'mine' ? { ownerId: userId } : { isPublic: true }),
+      ...(scope === 'mine'
+        ? { ownerId: userId }
+        : { isPublic: true, domain: domain || PERSONA_DOMAIN }),
       $or: [
         { name: { $regex: q, $options: 'i' } },
         { description: { $regex: q, $options: 'i' } },
