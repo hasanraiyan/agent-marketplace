@@ -29,6 +29,19 @@ const oauthSchema = new mongoose.Schema(
 
 const mcpSchema = new mongoose.Schema(
   {
+    // Developer Platform (AD-03, AD-04 §18: MCP definitions support
+    // PersonaUser/Project/ExternalUser): same additive pattern as Agent
+    // (agent.model.js) — see that file for the full rationale.
+    domain: {
+      type: String,
+      default: 'persona',
+      index: true,
+    },
+    ownerType: {
+      type: String,
+      enum: ['PersonaUser', 'Project', 'ExternalUser'],
+      default: 'PersonaUser',
+    },
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
