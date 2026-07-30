@@ -7,6 +7,20 @@ import knowledgeRepository from './knowledge.repository.js';
 import providerRepository from '../providers/provider.repository.js';
 import encryption from '../../utils/encryption.js';
 import { loggerService } from '../../utils/index.js';
+import { PERSONA_DOMAIN } from '../auth/personaPrincipalContext.js';
+import { isResourceOwner, ownerFieldsForContext } from '../../utils/resourceOwnership.js';
+
+/**
+ * Deliberately NOT imported from `agent.service.js` — that module's
+ * `personaExecutionContext` is otherwise identical, but importing it here
+ * would transitively pull in `agent.repository.js` -> `tools/index.js` ->
+ * the full agent/tool runtime stack (including `agent.factory.js`'s
+ * `ChatOpenAI` dependency) just for one trivial object literal. Knowledge
+ * has no reason to depend on Agent's service module.
+ */
+function personaExecutionContext(userId) {
+  return { domain: PERSONA_DOMAIN, principalType: 'PersonaUser', personaUserId: userId };
+}
 
 const logger = loggerService.getLogger();
 
@@ -218,12 +232,27 @@ class KnowledgeService {
    * Flow: save MongoDB record first → build collection name from its _id →
    * create Qdrant collection via REST API → update record with collection name.
    */
+  /**
+   * `context` defaults to `personaExecutionContext(userId)` — zero
+   * behavior change for the existing Persona caller. The "find my
+   * default Provider" auto-resolution (when `providerId` is omitted) is
+   * Persona-specific — a Project/ExternalUser context has no equivalent
+   * "my default provider" concept defined yet (AD-06 §11's Project
+   * default Provider isn't built), so an explicit `providerId` is
+   * required for those contexts rather than silently guessing.
+   */
   async createKnowledgeBase(
     userId,
-    { name, description, isPublic, embeddingModel, providerId, chunkSize, chunkOverlap, topK }
+    { name, description, isPublic, embeddingModel, providerId, chunkSize, chunkOverlap, topK },
+    context = personaExecutionContext(userId)
   ) {
     let resolvedProviderId = providerId;
     if (!resolvedProviderId) {
+      if (context.principalType !== 'PersonaUser') {
+        throw new Error(
+          'providerId is required when creating a Knowledge Base via the Developer API'
+        );
+      }
       const userProviders = await providerRepository.findByUser(userId);
       const defaultProvider = userProviders.find((p) => p.isDefault) || userProviders[0];
       if (defaultProvider) {
@@ -243,7 +272,7 @@ class KnowledgeService {
       name,
       description,
       isPublic,
-      ownerId: userId,
+      ...ownerFieldsForContext(context),
       qdrantCollectionName: tempCollectionName,
       embeddingModel,
       providerId: resolvedProviderId,
@@ -277,12 +306,14 @@ class KnowledgeService {
   }
 
   /**
-   * Gets a single knowledge base by ID (with ownership check).
+   * Gets a single knowledge base by ID (with ownership check). `context`
+   * defaults to `personaExecutionContext(userId)` — zero behavior change
+   * for every existing caller.
    */
-  async getKnowledgeBase(kbId, userId) {
+  async getKnowledgeBase(kbId, userId, context = personaExecutionContext(userId)) {
     const kb = await knowledgeRepository.findKbById(kbId);
     if (!kb) throw new Error('Knowledge base not found');
-    if (kb.ownerId.toString() !== userId.toString() && !kb.isPublic) {
+    if (!isResourceOwner(kb, context) && !kb.isPublic) {
       throw new Error('Not authorized to access this knowledge base');
     }
     return kb;
@@ -290,11 +321,12 @@ class KnowledgeService {
 
   /**
    * Updates a knowledge base's metadata (name, description, isPublic).
+   * `context` defaults to `personaExecutionContext(userId)`.
    */
-  async updateKnowledgeBase(kbId, userId, updateData) {
+  async updateKnowledgeBase(kbId, userId, updateData, context = personaExecutionContext(userId)) {
     const kb = await knowledgeRepository.findKbById(kbId);
     if (!kb) throw new Error('Knowledge base not found');
-    if (kb.ownerId.toString() !== userId.toString()) {
+    if (!isResourceOwner(kb, context)) {
       throw new Error('Not authorized to update this knowledge base');
     }
 
@@ -319,11 +351,12 @@ class KnowledgeService {
 
   /**
    * Deletes a knowledge base, its chunks, and the Qdrant collection.
+   * `context` defaults to `personaExecutionContext(userId)`.
    */
-  async deleteKnowledgeBase(kbId, userId) {
+  async deleteKnowledgeBase(kbId, userId, context = personaExecutionContext(userId)) {
     const kb = await knowledgeRepository.findKbById(kbId);
     if (!kb) throw new Error('Knowledge base not found');
-    if (kb.ownerId.toString() !== userId.toString()) {
+    if (!isResourceOwner(kb, context)) {
       throw new Error('Not authorized to delete this knowledge base');
     }
 
