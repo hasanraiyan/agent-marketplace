@@ -43,6 +43,46 @@ router.post('/', validateBody(createAgentSchema), developerAgentController.creat
 
 /**
  * @openapi
+ * /api/v1/developer/agents:
+ *   get:
+ *     tags: [Developer]
+ *     summary: Discover Agents (blueprint Phase 9, PR-43, AD-07 §19)
+ *     description: >
+ *       A genuinely separate code path from Persona's marketplace search
+ *       (never the same service function, per the Discovery Contract).
+ *       For a bare Project credential (ProjectMachineContext/
+ *       ProjectAdminContext): every Agent in this Project's own Domain,
+ *       any owner type — "Project discovery". For a credential paired
+ *       with x-persona-external-user-id (ProjectRuntimeContext):
+ *       `scope=mine` returns only that external user's own Agents;
+ *       omitting it returns this Domain's public Agents only
+ *       ("Project-public browse"). systemPrompt/providerId are stripped
+ *       from any result the caller doesn't own.
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         schema: { type: integer }
+ *       - name: limit
+ *         in: query
+ *         schema: { type: integer }
+ *       - name: search
+ *         in: query
+ *         schema: { type: string }
+ *       - name: category
+ *         in: query
+ *         schema: { type: string }
+ *       - name: scope
+ *         in: query
+ *         schema: { type: string, enum: [mine] }
+ *         description: ProjectRuntimeContext only — "mine" restricts to the asserted external user's own Agents.
+ *     responses:
+ *       200: { description: List of Agents }
+ */
+router.get('/', developerAgentController.discover);
+
+/**
+ * @openapi
  * /api/v1/developer/agents/{agentId}:
  *   get:
  *     tags: [Developer]

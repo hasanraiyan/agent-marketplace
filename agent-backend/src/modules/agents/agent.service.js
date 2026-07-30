@@ -3,6 +3,7 @@ import providerRepository from '../providers/provider.repository.js';
 import User from '../users/user.model.js';
 import crypto from 'crypto';
 import { PERSONA_DOMAIN } from '../auth/personaPrincipalContext.js';
+import { scopedFilter } from '../../utils/domainQuery.js';
 
 /**
  * Developer Platform (AD-06 §23, §12; blueprint Phase 9, PR-25): validates
@@ -496,6 +497,83 @@ class AgentService {
 
   async countAgents(filters, userId) {
     const match = this._buildSearchFilter(filters, userId);
+    return await agentRepository.count(match);
+  }
+
+  /**
+   * Developer Platform (AD-07 §19, blueprint Phase 9, PR-43): the Discovery
+   * Contract — Developer API discovery must be an ENTIRELY SEPARATE code
+   * path from Persona's marketplace search (`_buildSearchFilter`/
+   * `searchAgents` above), even though both are ultimately Domain-scoped
+   * $match builders. Sharing the actual search/discovery *function* would
+   * create a single point where a future change could reintroduce
+   * cross-Domain leakage in both surfaces at once — so this is a fresh,
+   * independent filter builder, not a generalization of the Persona one.
+   *
+   * Three distinct modes, matching AD-07 §15's capability matrix exactly:
+   *   - `ProjectMachineContext`/`ProjectAdminContext` ("Project discovery"):
+   *     every Agent in this Project's own Domain, any owner type — a
+   *     Project's admin/machine credential can see everything happening
+   *     under its own Domain, not just what it directly owns.
+   *   - `ProjectRuntimeContext` with `filters.scope === 'mine'`
+   *     ("my Agents"): Domain- AND Subject-scoped — only this specific
+   *     external user's own Agents.
+   *   - `ProjectRuntimeContext` otherwise ("Project-public browse"):
+   *     Domain-scoped, public Agents only — mirrors Persona's marketplace
+   *     visibility rule, but scoped to this Project's Domain instead of a
+   *     global result set.
+   */
+  _buildDeveloperDiscoveryFilter(context, filters = {}) {
+    const extra = { isActive: true };
+
+    if (filters.search) {
+      extra.name = { $regex: filters.search, $options: 'i' };
+    }
+    if (filters.category) {
+      extra.category = filters.category;
+    }
+    if (filters.tags && filters.tags.length > 0) {
+      extra.tags = { $in: filters.tags };
+    }
+
+    if (context?.principalType === 'ProjectMachine' || context?.principalType === 'ProjectAdmin') {
+      return scopedFilter(context.domain, extra);
+    }
+
+    if (filters.scope === 'mine') {
+      return scopedFilter(context?.domain, {
+        ...extra,
+        ownerType: 'ExternalUser',
+        externalOwnerId: context?.externalUserId,
+      });
+    }
+
+    return scopedFilter(context?.domain, { ...extra, visibility: 'public' });
+  }
+
+  /**
+   * Strips `systemPrompt`/`providerId` from a discovery result the
+   * requesting context doesn't own — same secret-hiding intent as
+   * `_formatSafe`, but Context-aware (Project/ExternalUser, not just a
+   * bare Persona `userId`) via the shared `isAgentOwner` helper.
+   */
+  _formatDiscoveryResult(agent, context) {
+    const obj = agent.toObject ? agent.toObject() : agent;
+    if (!isAgentOwner(agent, context)) {
+      delete obj.systemPrompt;
+      delete obj.providerId;
+    }
+    return obj;
+  }
+
+  async discoverAgents(context, filters, pagination) {
+    const match = this._buildDeveloperDiscoveryFilter(context, filters);
+    const agents = await agentRepository.search(match, pagination);
+    return agents.map((agent) => this._formatDiscoveryResult(agent, context));
+  }
+
+  async countDiscoverAgents(context, filters) {
+    const match = this._buildDeveloperDiscoveryFilter(context, filters);
     return await agentRepository.count(match);
   }
 }
