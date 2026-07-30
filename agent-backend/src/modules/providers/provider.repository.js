@@ -22,9 +22,20 @@ class ProviderRepository {
     return await Provider.findByIdAndDelete(id);
   }
 
-  async clearUserDefaultKeys(userId) {
+  /**
+   * Developer Platform (blueprint Phase 9, PR-37): `ownerFilter` replaces
+   * the previous bare `userId` — build it with
+   * `resourceOwnership.ownerFilterForContext(context)`. For a Persona
+   * caller this is exactly `{ ownerId: userId }`, byte-for-byte the same
+   * filter this method built inline before. "Default provider" is scoped
+   * per-owner regardless of owner type: a Project's own default should
+   * only ever be cleared by that Project creating/promoting its own new
+   * default, never by an unrelated Persona User's or another Project's
+   * write.
+   */
+  async clearDefaultKeys(ownerFilter) {
     return await Provider.updateMany(
-      { ownerId: userId, isDefault: true },
+      { ...ownerFilter, isDefault: true },
       { $set: { isDefault: false } }
     );
   }

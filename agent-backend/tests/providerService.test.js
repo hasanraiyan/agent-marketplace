@@ -8,7 +8,7 @@ jest.unstable_mockModule('../src/modules/providers/provider.repository.js', () =
     findByUser: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
-    clearUserDefaultKeys: jest.fn(),
+    clearDefaultKeys: jest.fn(),
   },
 }));
 
@@ -83,6 +83,7 @@ describe('Provider Service', () => {
         baseURL: 'https://api.openai.com/v1',
         defaultModel: 'gpt-4o',
         isDefault: false,
+        ownerType: 'PersonaUser',
         ownerId: mockUserId,
         apiKeyEncrypted: 'encrypted-token',
       });
@@ -105,7 +106,7 @@ describe('Provider Service', () => {
         isDefault: true,
       });
 
-      expect(providerRepository.clearUserDefaultKeys).toHaveBeenCalledWith(mockUserId);
+      expect(providerRepository.clearDefaultKeys).toHaveBeenCalledWith({ ownerId: mockUserId });
     });
   });
 
@@ -151,7 +152,7 @@ describe('Provider Service', () => {
       });
     });
 
-    test('should run clearUserDefaultKeys if isDefault is true', async () => {
+    test('should run clearDefaultKeys if isDefault is true', async () => {
       providerRepository.findById.mockResolvedValue(mockProvider);
       providerRepository.update.mockResolvedValue(mockProvider);
       agentRepository.findAgentsUsingProvider.mockResolvedValue([{ _id: mockProvider._id }]);
@@ -160,7 +161,7 @@ describe('Provider Service', () => {
         isDefault: true,
       });
 
-      expect(providerRepository.clearUserDefaultKeys).toHaveBeenCalledWith(mockUserId);
+      expect(providerRepository.clearDefaultKeys).toHaveBeenCalledWith({ ownerId: mockUserId });
       expect(agentRepository.findAgentsUsingProvider).toHaveBeenCalled();
       expect(agentFactory.invalidate).toHaveBeenCalledWith(mockProvider._id); // for standard agent
       expect(agentFactory.invalidate).toHaveBeenCalledWith(ARCHITECT_AGENT_ID); // for architect
@@ -339,6 +340,135 @@ describe('Provider Service', () => {
       await expect(
         providerService.getAvailableModels(mockProvider._id, mockUserId)
       ).rejects.toThrow('Unauthorized to access this provider');
+    });
+  });
+
+  describe('ownership generalization (blueprint Phase 9, PR-37)', () => {
+    const projectContext = { domain: 'project-1', principalType: 'ProjectMachine' };
+
+    describe('createProvider', () => {
+      test('creates a Project-owned Provider for a ProjectMachineContext', async () => {
+        encryption.encrypt.mockReturnValue('encrypted-token');
+        providerRepository.create.mockResolvedValue(mockProvider);
+
+        await providerService.createProvider(
+          'irrelevant',
+          {
+            label: 'Support Provider',
+            baseURL: 'https://api.example.com',
+            apiKey: 'key',
+            defaultModel: 'gpt-4o',
+          },
+          projectContext
+        );
+
+        expect(providerRepository.create).toHaveBeenCalledWith(
+          expect.objectContaining({ domain: 'project-1', ownerType: 'Project' })
+        );
+        const [createArg] = providerRepository.create.mock.calls[0];
+        expect(createArg.ownerId).toBeUndefined();
+      });
+    });
+
+    describe('getProviderById', () => {
+      test('recognizes the Project owner via ProjectMachineContext', async () => {
+        const projectProvider = {
+          ...mockProvider,
+          ownerId: undefined,
+          domain: 'project-1',
+          ownerType: 'Project',
+        };
+        providerRepository.findById.mockResolvedValue(projectProvider);
+
+        const result = await providerService.getProviderById(
+          mockProvider._id,
+          'irrelevant',
+          projectContext
+        );
+
+        expect(result.id).toBe(mockProvider._id);
+      });
+
+      test('rejects a Project-owned Provider from a different Domain', async () => {
+        const otherProjectProvider = {
+          ...mockProvider,
+          ownerId: undefined,
+          domain: 'project-2',
+          ownerType: 'Project',
+        };
+        providerRepository.findById.mockResolvedValue(otherProjectProvider);
+
+        await expect(
+          providerService.getProviderById(mockProvider._id, 'irrelevant', projectContext)
+        ).rejects.toThrow('Provider not found');
+      });
+    });
+
+    describe('updateProvider', () => {
+      test('lets a Project owner update its own Provider', async () => {
+        const projectProvider = {
+          ...mockProvider,
+          ownerId: undefined,
+          domain: 'project-1',
+          ownerType: 'Project',
+        };
+        providerRepository.findById.mockResolvedValue(projectProvider);
+        providerRepository.update.mockResolvedValue({ ...projectProvider, label: 'Renamed' });
+        agentRepository.findAgentsUsingProvider.mockResolvedValue([]);
+
+        await providerService.updateProvider(
+          'irrelevant',
+          mockProvider._id,
+          { label: 'Renamed' },
+          projectContext
+        );
+
+        expect(providerRepository.update).toHaveBeenCalledWith(
+          mockProvider._id,
+          expect.objectContaining({ label: 'Renamed' })
+        );
+      });
+
+      test('rejects a different Project updating this Project-owned Provider', async () => {
+        const otherProjectProvider = {
+          ...mockProvider,
+          ownerId: undefined,
+          domain: 'project-2',
+          ownerType: 'Project',
+        };
+        providerRepository.findById.mockResolvedValue(otherProjectProvider);
+
+        await expect(
+          providerService.updateProvider(
+            'irrelevant',
+            mockProvider._id,
+            { label: 'hijack' },
+            projectContext
+          )
+        ).rejects.toThrow('Unauthorized to update this provider');
+      });
+    });
+
+    describe('deleteProvider', () => {
+      test('lets a Project owner delete its own Provider', async () => {
+        const projectProvider = {
+          ...mockProvider,
+          ownerId: undefined,
+          domain: 'project-1',
+          ownerType: 'Project',
+        };
+        providerRepository.findById.mockResolvedValue(projectProvider);
+        agentRepository.count.mockResolvedValue(0);
+        providerRepository.delete.mockResolvedValue(projectProvider);
+
+        const result = await providerService.deleteProvider(
+          'irrelevant',
+          mockProvider._id,
+          projectContext
+        );
+
+        expect(result).toBe(true);
+      });
     });
   });
 });
