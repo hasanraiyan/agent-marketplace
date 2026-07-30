@@ -114,4 +114,58 @@ describe('AgentFactory.buildAgent — executionContext generalization', () => {
       'Agent deleted or unavailable'
     );
   });
+
+  describe('identity key domain-qualification (PR-23a)', () => {
+    test('two different Projects with the same externalUserId string do not collide in the compiled-instance cache', async () => {
+      const agentA = makeAgent({
+        domain: 'project-alpha',
+        visibility: 'public',
+        updatedAt: new Date(),
+      });
+      const agentB = makeAgent({
+        domain: 'project-beta',
+        visibility: 'public',
+        updatedAt: agentA.updatedAt,
+      });
+      agentFactory.invalidate('agent-1');
+
+      agentRepository.findById = jest.fn().mockResolvedValue(agentA);
+      const buildAlpha = await agentFactory.buildAgent('agent-1', 'sabik', null, {
+        domain: 'project-alpha',
+        principalType: 'ProjectRuntime',
+        externalUserId: 'sabik',
+      });
+      expect(buildAlpha.cacheHit).toBe(false);
+
+      // Same agentId, same raw externalUserId string ("sabik"), different
+      // Project — this must NOT be a cache hit against Project Alpha's
+      // build, or the two Projects' agent instances (and their memory
+      // namespaces) would collide.
+      agentRepository.findById = jest.fn().mockResolvedValue(agentB);
+      const buildBeta = await agentFactory.buildAgent('agent-1', 'sabik', null, {
+        domain: 'project-beta',
+        principalType: 'ProjectRuntime',
+        externalUserId: 'sabik',
+      });
+      expect(buildBeta.cacheHit).toBe(false);
+    });
+
+    test('the same (domain, externalUserId) pair does hit cache on a second call', async () => {
+      const agent = makeAgent({ domain: 'project-alpha', visibility: 'public' });
+      agentFactory.invalidate('agent-1');
+      agentRepository.findById = jest.fn().mockResolvedValue(agent);
+
+      const context = {
+        domain: 'project-alpha',
+        principalType: 'ProjectRuntime',
+        externalUserId: 'sabik',
+      };
+
+      const first = await agentFactory.buildAgent('agent-1', 'sabik', null, context);
+      expect(first.cacheHit).toBe(false);
+
+      const second = await agentFactory.buildAgent('agent-1', 'sabik', null, context);
+      expect(second.cacheHit).toBe(true);
+    });
+  });
 });
