@@ -356,7 +356,8 @@ describe('Mcp Service', () => {
       verifyOAuthState.mockReturnValue({
         mode: 'owner',
         mcpId: String(mockMcp._id),
-        userId: mockUserId,
+        principalType: 'PersonaUser',
+        personaUserId: mockUserId,
         codeVerifier: 'verifier',
       });
       exchangeCodeForToken.mockResolvedValue({
@@ -673,6 +674,81 @@ describe('Mcp Service', () => {
 
       expect(mcpRepository.count).toHaveBeenCalledWith({ domain: 'project-1' });
       expect(total).toBe(4);
+    });
+  });
+
+  describe('OAuth/connection Subject generalization (blueprint Phase 9, PR-47c)', () => {
+    const runtimeContext = {
+      domain: 'project-1',
+      principalType: 'ProjectRuntime',
+      externalUserId: 'sabik',
+    };
+
+    test('getUserConnectionStatus builds an ExternalUser Subject filter, not a bare userId', async () => {
+      mcpUserConnectionRepository.findByMcpAndUser.mockResolvedValue({ _id: 'conn1' });
+
+      const status = await mcpService.getUserConnectionStatus(
+        mockMcp._id,
+        'irrelevant',
+        runtimeContext
+      );
+
+      expect(mcpUserConnectionRepository.findByMcpAndUser).toHaveBeenCalledWith(mockMcp._id, {
+        domain: 'project-1',
+        externalUserId: 'sabik',
+      });
+      expect(status).toEqual({ connected: true });
+    });
+
+    test('disconnectUserConnection builds an ExternalUser Subject filter', async () => {
+      await mcpService.disconnectUserConnection(mockMcp._id, 'irrelevant', runtimeContext);
+
+      expect(mcpUserConnectionRepository.deleteByMcpAndUser).toHaveBeenCalledWith(mockMcp._id, {
+        domain: 'project-1',
+        externalUserId: 'sabik',
+      });
+    });
+
+    test('getOwnerAuthorizationUrl signs state carrying the Project context, not a bare userId', async () => {
+      const projectMcp = {
+        ...mockMcp,
+        ownerId: undefined,
+        domain: 'project-1',
+        ownerType: 'Project',
+        authType: 'oauth',
+        oauth: {
+          authorizationEndpoint: 'https://idp.example.com/authorize',
+          clientId: 'c1',
+          scopes: [],
+        },
+      };
+      mcpRepository.findById.mockResolvedValue(projectMcp);
+      const machineContext = { domain: 'project-1', principalType: 'ProjectMachine' };
+
+      await mcpService.getOwnerAuthorizationUrl(mockMcp._id, 'irrelevant', machineContext);
+
+      expect(signOAuthState).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mcpId: String(mockMcp._id),
+          mode: 'owner',
+          domain: 'project-1',
+          principalType: 'ProjectMachine',
+        })
+      );
+    });
+
+    test('getUserAuthorizationUrl rejects a cross-Domain Subject as not-found', async () => {
+      const projectMcp = {
+        ...mockMcp,
+        domain: 'project-2',
+        authType: 'oauth',
+        authMode: 'user',
+      };
+      mcpRepository.findById.mockResolvedValue(projectMcp);
+
+      await expect(
+        mcpService.getUserAuthorizationUrl(mockMcp._id, 'irrelevant', undefined, runtimeContext)
+      ).rejects.toThrow('MCP server not found');
     });
   });
 });

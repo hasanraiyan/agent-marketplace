@@ -114,4 +114,172 @@ router.get('/:mcpId', developerMcpController.getOne);
 router.patch('/:mcpId', validateBody(updateMcpSchema), developerMcpController.update);
 router.delete('/:mcpId', developerMcpController.remove);
 
+/**
+ * @openapi
+ * /api/v1/developer/mcps/{mcpId}/test:
+ *   post:
+ *     tags: [Developer]
+ *     summary: Test an MCP server's connection (owner only, blueprint Phase 9, PR-47c)
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: mcpId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Discovered tools/resources }
+ *       404: { description: MCP server not found or unauthorized }
+ */
+router.post('/:mcpId/test', developerMcpController.testConnection);
+
+/**
+ * @openapi
+ * /api/v1/developer/mcps/{mcpId}/resource:
+ *   get:
+ *     tags: [Developer]
+ *     summary: Read an MCP resource (owner only)
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: mcpId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: uri
+ *         in: query
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Resource content }
+ *       400: { description: Missing uri }
+ *       404: { description: MCP server not found or unauthorized }
+ */
+router.get('/:mcpId/resource', developerMcpController.readResource);
+
+/**
+ * @openapi
+ * /api/v1/developer/mcps/{mcpId}/call-tool:
+ *   post:
+ *     tags: [Developer]
+ *     summary: Call an MCP tool (owner only)
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: mcpId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name]
+ *             properties:
+ *               name: { type: string }
+ *               arguments: { type: object }
+ *     responses:
+ *       200: { description: Tool result }
+ *       400: { description: Missing tool name }
+ *       404: { description: MCP server not found or unauthorized }
+ */
+router.post('/:mcpId/call-tool', developerMcpController.callTool);
+
+/**
+ * @openapi
+ * /api/v1/developer/mcps/{mcpId}/oauth/owner/authorize:
+ *   get:
+ *     tags: [Developer]
+ *     summary: Start the owner OAuth flow (owner only, blueprint Phase 9, PR-47c)
+ *     description: >
+ *       No separate Developer callback route exists — the OAuth redirect
+ *       URI is a single, pre-registered URL that completes via the
+ *       existing Persona callback route regardless of who initiated the
+ *       flow, since the signed state alone carries the initiating context.
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: mcpId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Authorization URL }
+ *       404: { description: MCP server not found or unauthorized }
+ */
+router.get('/:mcpId/oauth/owner/authorize', developerMcpController.getOwnerAuthorizeUrl);
+
+/**
+ * @openapi
+ * /api/v1/developer/mcps/{mcpId}/oauth/user/authorize:
+ *   get:
+ *     tags: [Developer]
+ *     summary: Start the per-user OAuth flow (ProjectRuntimeContext only)
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: mcpId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: x-persona-external-user-id
+ *         in: header
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Authorization URL }
+ *       400: { description: No asserted external user }
+ *       404: { description: MCP server not found, wrong Domain, or not configured for per-user auth }
+ */
+router.get('/:mcpId/oauth/user/authorize', developerMcpController.getUserAuthorizeUrl);
+
+/**
+ * @openapi
+ * /api/v1/developer/mcps/{mcpId}/oauth/user/status:
+ *   get:
+ *     tags: [Developer]
+ *     summary: Get the calling Subject's own per-user connection status
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: mcpId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Connection status }
+ */
+router.get('/:mcpId/oauth/user/status', developerMcpController.getUserConnectionStatus);
+
+/**
+ * @openapi
+ * /api/v1/developer/mcps/{mcpId}/oauth/user/connection:
+ *   delete:
+ *     tags: [Developer]
+ *     summary: Disconnect the calling Subject's own per-user connection
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: mcpId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Disconnected }
+ */
+router.delete('/:mcpId/oauth/user/connection', developerMcpController.disconnectUserConnection);
+
+/**
+ * @openapi
+ * /api/v1/developer/mcps/{mcpId}/oauth/owner/connection:
+ *   delete:
+ *     tags: [Developer]
+ *     summary: Disconnect the owner-mode connection (owner only)
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: mcpId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Owner connection disconnected }
+ *       404: { description: MCP server not found or unauthorized }
+ */
+router.delete('/:mcpId/oauth/owner/connection', developerMcpController.disconnectOwnerConnection);
+
 export default router;

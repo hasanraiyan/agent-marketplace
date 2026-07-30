@@ -24,6 +24,10 @@ jest.unstable_mockModule('../src/modules/knowledge/knowledge.service.js', () => 
     updateKnowledgeBase: jest.fn(),
     deleteKnowledgeBase: jest.fn(),
     discoverKnowledgeBases: jest.fn(),
+    uploadFiles: jest.fn(),
+    searchKnowledgeBase: jest.fn(),
+    deleteDocumentFromKb: jest.fn(),
+    listDocumentSources: jest.fn(),
   },
 }));
 
@@ -117,5 +121,86 @@ describe('developerKnowledge.routes.js — mount integration', () => {
       undefined,
       expect.any(Object)
     );
+  });
+
+  test('POST /:kbId/documents uploads a real multipart file to the controller (PR-47b)', async () => {
+    knowledgeService.uploadFiles.mockResolvedValue({ files: [{ name: 'verify.txt' }] });
+
+    const res = await request(app)
+      .post('/api/v1/developer/knowledge/kb1/documents')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .attach('files', Buffer.from('hello world'), 'verify.txt');
+
+    expect(res.status).toBe(200);
+    expect(knowledgeService.uploadFiles).toHaveBeenCalledWith(
+      'kb1',
+      undefined,
+      expect.arrayContaining([expect.objectContaining({ originalname: 'verify.txt' })]),
+      expect.objectContaining({ domain: 'project-1', principalType: 'ProjectMachine' })
+    );
+  });
+
+  test('POST /:kbId/documents 400s with no files attached', async () => {
+    const res = await request(app)
+      .post('/api/v1/developer/knowledge/kb1/documents')
+      .set('Authorization', 'Bearer pk_test.secret');
+
+    expect(res.status).toBe(400);
+    expect(knowledgeService.uploadFiles).not.toHaveBeenCalled();
+  });
+
+  test('GET /:kbId/documents reaches the controller and returns the list', async () => {
+    knowledgeService.listDocumentSources.mockResolvedValue(['verify.txt']);
+
+    const res = await request(app)
+      .get('/api/v1/developer/knowledge/kb1/documents')
+      .set('Authorization', 'Bearer pk_test.secret');
+
+    expect(res.status).toBe(200);
+    expect(knowledgeService.listDocumentSources).toHaveBeenCalledWith(
+      'kb1',
+      undefined,
+      expect.objectContaining({ domain: 'project-1', principalType: 'ProjectMachine' })
+    );
+  });
+
+  test('DELETE /:kbId/documents/:sourceName reaches the controller', async () => {
+    knowledgeService.deleteDocumentFromKb.mockResolvedValue({ removedChunks: 1 });
+
+    const res = await request(app)
+      .delete('/api/v1/developer/knowledge/kb1/documents/verify.txt')
+      .set('Authorization', 'Bearer pk_test.secret');
+
+    expect(res.status).toBe(200);
+    expect(knowledgeService.deleteDocumentFromKb).toHaveBeenCalledWith(
+      'kb1',
+      undefined,
+      'verify.txt',
+      expect.objectContaining({ domain: 'project-1', principalType: 'ProjectMachine' })
+    );
+  });
+
+  test('POST /:kbId/search reaches the controller and returns results', async () => {
+    knowledgeService.searchKnowledgeBase.mockResolvedValue([{ text: 'apples' }]);
+
+    const res = await request(app)
+      .post('/api/v1/developer/knowledge/kb1/search')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .send({ query: 'apples' });
+
+    expect(res.status).toBe(200);
+    expect(knowledgeService.searchKnowledgeBase).toHaveBeenCalledWith(
+      'kb1',
+      'apples',
+      { topK: undefined },
+      expect.objectContaining({ domain: 'project-1', principalType: 'ProjectMachine' })
+    );
+  });
+
+  test('document routes 401 without a Project credential, never reaching the controller', async () => {
+    const res = await request(app).get('/api/v1/developer/knowledge/kb1/documents');
+
+    expect(res.status).toBe(401);
+    expect(knowledgeService.listDocumentSources).not.toHaveBeenCalled();
   });
 });

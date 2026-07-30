@@ -375,10 +375,15 @@ class KnowledgeService {
    * Uploads files to a knowledge base — extracts text, chunks, embeds, indexes.
    * Supports multiple files in a single call.
    */
-  async uploadFiles(kbId, userId, files) {
+  /**
+   * Developer Platform (blueprint Phase 9, PR-47b): `context` defaults to
+   * `personaExecutionContext(userId)` — zero behavior change for the
+   * existing Persona upload route.
+   */
+  async uploadFiles(kbId, userId, files, context = personaExecutionContext(userId)) {
     const kb = await knowledgeRepository.findKbById(kbId);
     if (!kb) throw new Error('Knowledge base not found');
-    if (kb.ownerId.toString() !== userId.toString()) {
+    if (!isResourceOwner(kb, context)) {
       throw new Error('Not authorized to upload to this knowledge base');
     }
 
@@ -498,9 +503,24 @@ class KnowledgeService {
     };
   }
 
-  async searchKnowledgeBase(kbId, rawQuery, { topK } = {}) {
+  /**
+   * Developer Platform (blueprint Phase 9, PR-47b): `context` is OPTIONAL
+   * and OMITTED by default — unlike every other generalized method in this
+   * codebase, the existing Persona `search` route (`knowledge.controller.js`)
+   * calls this with no ownership check at all today (a pre-existing gap,
+   * not introduced or widened here — preserved exactly as-is so this
+   * change stays zero-behavior-change for that route). When the Developer
+   * search route passes a `context` explicitly, this enforces the same
+   * owner-or-public rule `getKnowledgeBase` already uses — the new
+   * Developer code path is therefore MORE strictly checked than the
+   * pre-existing Persona one, never less.
+   */
+  async searchKnowledgeBase(kbId, rawQuery, { topK } = {}, context) {
     const kb = await knowledgeRepository.findKbById(kbId);
     if (!kb) throw new Error('Knowledge base not found');
+    if (context && !isResourceOwner(kb, context) && !kb.isPublic) {
+      throw new Error('Not authorized to access this knowledge base');
+    }
 
     // Extract search query if passed as an object or JSON string from LangChain tools
     let query = rawQuery;
@@ -555,10 +575,11 @@ class KnowledgeService {
    * Deletes a single document (source file) and its chunks from a KB.
    * Removes corresponding points from the Qdrant collection.
    */
-  async deleteDocumentFromKb(kbId, userId, sourceName) {
+  /** See `uploadFiles`'s doc comment — identical `context` generalization. */
+  async deleteDocumentFromKb(kbId, userId, sourceName, context = personaExecutionContext(userId)) {
     const kb = await knowledgeRepository.findKbById(kbId);
     if (!kb) throw new Error('Knowledge base not found');
-    if (kb.ownerId.toString() !== userId.toString()) {
+    if (!isResourceOwner(kb, context)) {
       throw new Error('Not authorized to modify this knowledge base');
     }
 
@@ -608,12 +629,13 @@ class KnowledgeService {
   }
 
   /**
-   * Lists the source documents in a knowledge base.
+   * Lists the source documents in a knowledge base. See `uploadFiles`'s doc
+   * comment — identical `context` generalization (owner-or-public rule).
    */
-  async listDocumentSources(kbId, userId) {
+  async listDocumentSources(kbId, userId, context = personaExecutionContext(userId)) {
     const kb = await knowledgeRepository.findKbById(kbId);
     if (!kb) throw new Error('Knowledge base not found');
-    if (kb.ownerId.toString() !== userId.toString() && !kb.isPublic) {
+    if (!isResourceOwner(kb, context) && !kb.isPublic) {
       throw new Error('Not authorized');
     }
     return kb.documents || [];

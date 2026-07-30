@@ -6,6 +6,8 @@ jest.unstable_mockModule('../src/modules/providers/provider.service.js', () => (
     getProviderById: jest.fn(),
     updateProvider: jest.fn(),
     deleteProvider: jest.fn(),
+    testConnection: jest.fn(),
+    getAvailableModels: jest.fn(),
   },
 }));
 
@@ -31,6 +33,68 @@ describe('Developer Provider Controller', () => {
     mockReq = { projectContext: machineContext, body: {}, params: {} };
     mockRes = { status: jest.fn().mockReturnThis(), json: jest.fn() };
     next = jest.fn();
+  });
+
+  describe('testConnection', () => {
+    test('tests via providerService.testConnection, forwarding req.projectContext', async () => {
+      mockReq.params = { providerId: 'p1' };
+      providerService.testConnection.mockResolvedValue({ success: true, message: 'ok' });
+
+      await developerProviderController.testConnection(mockReq, mockRes, next);
+
+      expect(providerService.testConnection).toHaveBeenCalledWith('p1', undefined, machineContext);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: { success: true, message: 'ok' },
+      });
+    });
+
+    test('collapses "Provider not found" to a 404, existence-hiding', async () => {
+      mockReq.params = { providerId: 'p1' };
+      providerService.testConnection.mockRejectedValue(new Error('Provider not found'));
+
+      await developerProviderController.testConnection(mockReq, mockRes, next);
+
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+    });
+
+    test('maps a real connection failure to a 400', async () => {
+      mockReq.params = { providerId: 'p1' };
+      providerService.testConnection.mockRejectedValue(
+        new Error('Connection test failed: timeout')
+      );
+
+      await developerProviderController.testConnection(mockReq, mockRes, next);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+    });
+  });
+
+  describe('getModels', () => {
+    test('fetches models via providerService.getAvailableModels, forwarding req.projectContext', async () => {
+      mockReq.params = { providerId: 'p1' };
+      providerService.getAvailableModels.mockResolvedValue([{ id: 'gpt-4o' }]);
+
+      await developerProviderController.getModels(mockReq, mockRes, next);
+
+      expect(providerService.getAvailableModels).toHaveBeenCalledWith(
+        'p1',
+        undefined,
+        machineContext
+      );
+      expect(mockRes.json).toHaveBeenCalledWith({ success: true, data: [{ id: 'gpt-4o' }] });
+    });
+
+    test('collapses "Unauthorized to access this provider" to a 404, existence-hiding', async () => {
+      mockReq.params = { providerId: 'p1' };
+      providerService.getAvailableModels.mockRejectedValue(
+        new Error('Unauthorized to access this provider')
+      );
+
+      await developerProviderController.getModels(mockReq, mockRes, next);
+
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+    });
   });
 
   describe('create', () => {

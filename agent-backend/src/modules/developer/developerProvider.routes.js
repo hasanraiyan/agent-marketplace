@@ -83,4 +83,41 @@ router.patch(
 );
 router.delete('/:providerId', developerProviderController.remove);
 
+/**
+ * @openapi
+ * /api/v1/developer/providers/{providerId}/test-connection:
+ *   post:
+ *     tags: [Developer]
+ *     summary: Test a Provider's credentials (owner only, blueprint Phase 9, PR-47a)
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: providerId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Connection successful }
+ *       400: { description: Connection failed }
+ *       404: { description: Provider not found or unauthorized }
+ */
+router.post('/:providerId/test-connection', developerProviderController.testConnection);
+
+/**
+ * @openapi
+ * /api/v1/developer/providers/{providerId}/models:
+ *   get:
+ *     tags: [Developer]
+ *     summary: List a Provider's available models (owner only, blueprint Phase 9, PR-47a)
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: providerId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Model list }
+ *       404: { description: Provider not found or unauthorized }
+ */
+router.get('/:providerId/models', developerProviderController.getModels);
+
 export default router;

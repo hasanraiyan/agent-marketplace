@@ -20,10 +20,12 @@ describe('McpUserConnection Repository', () => {
   });
 
   describe('findByMcpAndUser', () => {
-    test('should look up a connection by mcpId + userId', async () => {
+    test('should look up a connection by mcpId + subjectFilter', async () => {
       jest.spyOn(McpUserConnection, 'findOne').mockResolvedValue(mockConnection);
 
-      const result = await mcpUserConnectionRepository.findByMcpAndUser(mockMcpId, mockUserId);
+      const result = await mcpUserConnectionRepository.findByMcpAndUser(mockMcpId, {
+        userId: mockUserId,
+      });
 
       expect(McpUserConnection.findOne).toHaveBeenCalledWith({
         mcpId: mockMcpId,
@@ -34,11 +36,15 @@ describe('McpUserConnection Repository', () => {
   });
 
   describe('upsert', () => {
-    test('should upsert token data for the mcpId + userId pair', async () => {
+    test('should upsert token data for the mcpId + subjectFilter pair', async () => {
       jest.spyOn(McpUserConnection, 'findOneAndUpdate').mockResolvedValue(mockConnection);
 
       const tokenData = { accessTokenEncrypted: 'enc-access', expiresAt: mockConnection.expiresAt };
-      const result = await mcpUserConnectionRepository.upsert(mockMcpId, mockUserId, tokenData);
+      const result = await mcpUserConnectionRepository.upsert(
+        mockMcpId,
+        { userId: mockUserId },
+        tokenData
+      );
 
       expect(McpUserConnection.findOneAndUpdate).toHaveBeenCalledWith(
         { mcpId: mockMcpId, userId: mockUserId },
@@ -53,7 +59,9 @@ describe('McpUserConnection Repository', () => {
     test('should delete a single connection', async () => {
       jest.spyOn(McpUserConnection, 'findOneAndDelete').mockResolvedValue(mockConnection);
 
-      const result = await mcpUserConnectionRepository.deleteByMcpAndUser(mockMcpId, mockUserId);
+      const result = await mcpUserConnectionRepository.deleteByMcpAndUser(mockMcpId, {
+        userId: mockUserId,
+      });
 
       expect(McpUserConnection.findOneAndDelete).toHaveBeenCalledWith({
         mcpId: mockMcpId,

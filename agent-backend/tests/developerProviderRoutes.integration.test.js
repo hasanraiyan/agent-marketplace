@@ -23,6 +23,8 @@ jest.unstable_mockModule('../src/modules/providers/provider.service.js', () => (
     getProviderById: jest.fn(),
     updateProvider: jest.fn(),
     deleteProvider: jest.fn(),
+    testConnection: jest.fn(),
+    getAvailableModels: jest.fn(),
   },
 }));
 
@@ -128,6 +130,36 @@ describe('developerProvider.routes.js — mount integration', () => {
 
     expect(res.status).toBe(200);
     expect(providerService.getProviderById).toHaveBeenCalledWith(
+      'p1',
+      undefined,
+      expect.any(Object)
+    );
+  });
+
+  test('POST /:providerId/test-connection reaches the controller', async () => {
+    providerService.testConnection.mockResolvedValue({ success: true, message: 'ok' });
+
+    const res = await request(app)
+      .post('/api/v1/developer/providers/p1/test-connection')
+      .set('Authorization', 'Bearer pk_test.secret');
+
+    expect(res.status).toBe(200);
+    expect(providerService.testConnection).toHaveBeenCalledWith(
+      'p1',
+      undefined,
+      expect.any(Object)
+    );
+  });
+
+  test('GET /:providerId/models reaches the controller', async () => {
+    providerService.getAvailableModels.mockResolvedValue([{ id: 'gpt-4o' }]);
+
+    const res = await request(app)
+      .get('/api/v1/developer/providers/p1/models')
+      .set('Authorization', 'Bearer pk_test.secret');
+
+    expect(res.status).toBe(200);
+    expect(providerService.getAvailableModels).toHaveBeenCalledWith(
       'p1',
       undefined,
       expect.any(Object)

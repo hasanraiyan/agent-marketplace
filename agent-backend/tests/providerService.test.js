@@ -280,6 +280,23 @@ describe('Provider Service', () => {
         'Unauthorized to test this provider'
       );
     });
+
+    test('blueprint Phase 9, PR-47a: rejects a different Project testing a Project-owned Provider', async () => {
+      const projectProvider = {
+        ...mockProvider,
+        ownerId: undefined,
+        domain: 'project-1',
+        ownerType: 'Project',
+      };
+      providerRepository.findById.mockResolvedValue(projectProvider);
+
+      await expect(
+        providerService.testConnection(mockProvider._id, 'irrelevant', {
+          domain: 'project-2',
+          principalType: 'ProjectMachine',
+        })
+      ).rejects.toThrow('Unauthorized to test this provider');
+    });
   });
 
   describe('testConnectionWithCredentials', () => {
@@ -340,6 +357,26 @@ describe('Provider Service', () => {
       await expect(
         providerService.getAvailableModels(mockProvider._id, mockUserId)
       ).rejects.toThrow('Unauthorized to access this provider');
+    });
+
+    test('blueprint Phase 9, PR-47a: a Project owner can fetch models for its own Provider', async () => {
+      const projectProvider = {
+        ...mockProvider,
+        ownerId: undefined,
+        domain: 'project-1',
+        ownerType: 'Project',
+      };
+      providerRepository.findById.mockResolvedValue(projectProvider);
+      encryption.decrypt.mockReturnValue('raw-api-key');
+      global.fetch = jest.fn(() =>
+        Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [{ id: 'gpt-4' }] }) })
+      );
+
+      const models = await providerService.getAvailableModels(mockProvider._id, 'irrelevant', {
+        domain: 'project-1',
+        principalType: 'ProjectMachine',
+      });
+      expect(models).toEqual([{ id: 'gpt-4' }]);
     });
   });
 
