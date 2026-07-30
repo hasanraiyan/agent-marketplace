@@ -158,22 +158,26 @@ class AgentFactory {
    * removes the previous hardcoding that made `buildAgent` reject any
    * Project-domain Agent outright, regardless of who was asking.
    *
-   * SCOPE, deliberately narrowed: this generalizes the AUTHORIZATION check
-   * only. Every other identity-bearing operation below — the compiled-
-   * instance cache key, memory namespace construction
-   * (`userMemoryNamespace`/`agentMemoryNamespace`), and per-user MCP token
-   * resolution (`resolveAgentTools`) — still takes the raw `userId`
-   * parameter exactly as before, unchanged. Those namespaces are rooted at
-   * `['users', userId]` with no Domain dimension (blueprint Phase 6's
-   * memory re-keying, and the analogous MCP `(domain,subject,mcpId)`
-   * re-keying, blueprint Phase 7) — both deliberately deferred, since
-   * nothing in this codebase calls `buildAgent` for a non-Persona
-   * `executionContext` yet. Passing a real `ProjectRuntimeContext` here
-   * today would pass authorization but would NOT yet get Domain-isolated
-   * memory/cache/MCP state — that generalization is required before this
-   * function is actually safe to call for a Project Agent, and must land
-   * before (or alongside) the Developer AG-UI route that would be its
-   * first real caller.
+   * UPDATE (blueprint Phase 8, PR-23a): the compiled-instance cache key and
+   * memory namespaces (`userMemoryNamespace`/`agentMemoryNamespace`) are now
+   * built from `identityKey` (below), not the raw `userId` — Domain-
+   * qualified for a `ProjectRuntime` caller (`${domain}:${externalUserId}`),
+   * unchanged for a Persona caller. This is additive-safe with no migration
+   * needed: no Project has ever built an agent before this PR existed, so
+   * there is no pre-existing Project-shaped data under the old, unqualified
+   * key form to reconcile.
+   *
+   * REMAINING GAP, not yet closed: per-user MCP token resolution
+   * (`resolveAgentTools` → `resolveMcpTools` → `mcp-user-connection`
+   * lookups) still takes the raw `userId` and expects it to cast to a
+   * Persona User ObjectId. For a Project caller this only matters if the
+   * Agent has a user-auth-mode MCP attached — `resolveMcpTools` already
+   * short-circuits to `{ tools: [], mcpAppMap: {} }` when `agent.mcps` is
+   * empty (the common case for a newly-created Project Agent), so this is a
+   * narrow, real, and DOCUMENTED limitation — not a silent one — rather
+   * than the blocking gap it was before this PR. Closing it fully requires
+   * the MCP `(domain,subject,mcpId)` re-keying deferred in blueprint Phase
+   * 7, still pending a concrete need.
    */
   async buildAgent(
     agentId,
@@ -184,6 +188,24 @@ class AgentFactory {
     if (!agentId) throw new Error('Agent ID is required to build an agent');
 
     const agentIdStr = agentId._id ? agentId._id.toString() : agentId.toString();
+
+    // Developer Platform (blueprint Phase 8, PR-23a): the identity key used
+    // for the compiled-instance cache and memory namespaces. Persona callers
+    // (the only kind that exist until this PR) get exactly `String(userId)`
+    // — byte-for-byte what these namespaces already used. A ProjectRuntime
+    // caller's `userId` argument is a raw externalUserId string with no
+    // Domain qualification of its own, so it's composed with the context's
+    // `domain` here — `${domain}:${externalUserId}` — to guarantee two
+    // different Projects' external users can never collide on the same key,
+    // even if both happen to use the identical externalUserId string. This
+    // is NOT the memory-namespace-root re-keying deferred in blueprint
+    // Phase 6 (no existing data needs migrating: no Project has ever built
+    // an agent before this PR existed) — it only shapes new keys going
+    // forward.
+    const identityKey =
+      executionContext?.principalType === 'ProjectRuntime'
+        ? `${executionContext.domain}:${executionContext.externalUserId}`
+        : String(userId);
 
     // Cache key: For standard agents it is the agentId. For Architect, it is namespaced by userId
     // because the Architect's toolbox and provider are user-specific.
@@ -240,7 +262,7 @@ class AgentFactory {
       usesPerUserMcp = (agent.mcps || []).some((mcp) => mcp.authMode === 'user');
     }
 
-    const effectiveCacheKey = `${cacheKey}:${userId}`;
+    const effectiveCacheKey = `${cacheKey}:${identityKey}`;
 
     // 2. Cache Validation
     const cached = agentCache.get(effectiveCacheKey);
@@ -353,13 +375,13 @@ class AgentFactory {
       '/memories/user/': gracefulBackend(
         new StoreBackend({
           store: memoryFilesStore,
-          namespace: userMemoryNamespace(userId),
+          namespace: userMemoryNamespace(identityKey),
         })
       ),
       '/memories/agent/': gracefulBackend(
         new StoreBackend({
           store: memoryFilesStore,
-          namespace: agentMemoryNamespace(userId, agentIdStr),
+          namespace: agentMemoryNamespace(identityKey, agentIdStr),
         })
       ),
     };

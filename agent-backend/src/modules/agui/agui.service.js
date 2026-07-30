@@ -51,6 +51,13 @@ export function getLastUserText(messages) {
  * Core AGUI event stream generator — builds the agent from its factory,
  * checks for pending interrupts, auto-titles threads, runs the LangGraph
  * stream through the translator, and emits AGUI events.
+ *
+ * Developer Platform (blueprint Phase 8, PR-23a): `executionContext` is
+ * forwarded to `agentFactory.buildAgent` as-is; it defaults to
+ * `personaExecutionContext(userId)`, so the existing Persona AG-UI route
+ * (which already passes it explicitly, PR-21) and any caller that omits it
+ * get identical behavior. The Developer AG-UI route passes a
+ * `ProjectRuntimeContext` here instead.
  */
 export async function* runAgentAsAguiEvents({
   agentId,
@@ -60,6 +67,7 @@ export async function* runAgentAsAguiEvents({
   messages,
   resume,
   signal,
+  executionContext = personaExecutionContext(userId),
 }) {
   if (!agentId) {
     logger.warn('[AG-UI] run rejected: missing agentId');
@@ -95,7 +103,7 @@ export async function* runAgentAsAguiEvents({
       agentId,
       userId,
       checkpointService.checkpointer,
-      personaExecutionContext(userId)
+      executionContext
     );
   } catch (err) {
     logger.error(`[AG-UI] agent build failed: ${err?.message}`, { agentId });
