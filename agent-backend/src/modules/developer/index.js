@@ -10,3 +10,5 @@ export { default as developerKnowledgeRouter } from './developerKnowledge.routes
 export { default as developerKnowledgeController } from './developerKnowledge.controller.js';
 export { default as developerMcpRouter } from './developerMcp.routes.js';
 export { default as developerMcpController } from './developerMcp.controller.js';
+export { default as developerProviderRouter } from './developerProvider.routes.js';
+export { default as developerProviderController } from './developerProvider.controller.js';
