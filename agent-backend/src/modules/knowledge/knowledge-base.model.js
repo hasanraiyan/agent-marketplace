@@ -24,10 +24,25 @@ const knowledgeBaseSchema = new mongoose.Schema(
       enum: ['PersonaUser', 'Project', 'ExternalUser'],
       default: 'PersonaUser',
     },
+    // Developer Platform (AD-04, blueprint Phase 9, PR-30): same
+    // conditional-required generalization as Agent (PR-24) / Skill
+    // (PR-27) — only required for `ownerType: 'PersonaUser'`.
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      required: function () {
+        return this.ownerType === 'PersonaUser';
+      },
+      index: true,
+    },
+    // Developer Platform (AD-02 §11.1, blueprint Phase 9, PR-30): mirrors
+    // Agent's/Skill's own `externalOwnerId` exactly.
+    externalOwnerId: {
+      type: String,
+      default: null,
+      required: function () {
+        return this.ownerType === 'ExternalUser';
+      },
       index: true,
     },
     isPublic: {
