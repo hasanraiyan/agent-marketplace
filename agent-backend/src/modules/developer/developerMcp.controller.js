@@ -17,8 +17,28 @@ import mcpService from '../mcp/mcp.service.js';
  * OAuth/runtime endpoints (test connection, authorize URLs, callbacks,
  * tool/resource calls) are deliberately NOT included here — same scoped-
  * follow-up treatment as Knowledge's document upload/search (PR-32).
+ *
+ * `discover` (blueprint Phase 9, PR-46) serves listing — a genuinely
+ * separate code path per AD-07 §19, mirroring the Agent/Skill/Knowledge
+ * Developer discover methods (PR-43/44/45). See
+ * `mcpService.discoverMcps`'s doc comment for why Mcp's two non-`mine`
+ * modes collapse into one (no `isPublic`/`visibility` field exists).
  */
 class DeveloperMcpController {
+  async discover(req, res, next) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 20;
+      const filters = { search: req.query.search, scope: req.query.scope };
+
+      const mcps = await mcpService.discoverMcps(req.projectContext, filters, { page, limit });
+
+      res.json({ success: true, data: mcps.map((mcp) => mcpService.toSafeJson(mcp)) });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async create(req, res, next) {
     try {
       const mcp = await mcpService.createMcp(undefined, req.body, req.projectContext);

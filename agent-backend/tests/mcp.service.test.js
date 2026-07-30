@@ -7,6 +7,8 @@ jest.unstable_mockModule('../src/modules/mcp/mcp.repository.js', () => ({
     findByOwner: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+    search: jest.fn(),
+    count: jest.fn(),
   },
 }));
 
@@ -623,6 +625,54 @@ describe('Mcp Service', () => {
           externalOwnerId: 'sabik',
         });
       });
+    });
+  });
+
+  describe('discoverMcps / countDiscoverMcps (blueprint Phase 9, PR-46, AD-07 §19)', () => {
+    const machineContext = { domain: 'project-1', principalType: 'ProjectMachine' };
+    const runtimeContext = {
+      domain: 'project-1',
+      principalType: 'ProjectRuntime',
+      externalUserId: 'sabik',
+    };
+
+    test('ProjectMachineContext scopes to the Domain only, every owner type', async () => {
+      mcpRepository.search.mockResolvedValue([]);
+
+      await mcpService.discoverMcps(machineContext, {}, { page: 1, limit: 20 });
+
+      expect(mcpRepository.search).toHaveBeenCalledWith(
+        { domain: 'project-1' },
+        { page: 1, limit: 20 }
+      );
+    });
+
+    test('ProjectRuntimeContext without scope=mine ALSO sees the whole Domain (no isPublic field exists)', async () => {
+      mcpRepository.search.mockResolvedValue([]);
+
+      await mcpService.discoverMcps(runtimeContext, {}, {});
+
+      expect(mcpRepository.search).toHaveBeenCalledWith({ domain: 'project-1' }, {});
+    });
+
+    test("ProjectRuntimeContext with scope=mine restricts to that external user's own Mcps", async () => {
+      mcpRepository.search.mockResolvedValue([]);
+
+      await mcpService.discoverMcps(runtimeContext, { scope: 'mine' }, {});
+
+      expect(mcpRepository.search).toHaveBeenCalledWith(
+        { domain: 'project-1', ownerType: 'ExternalUser', externalOwnerId: 'sabik' },
+        {}
+      );
+    });
+
+    test('countDiscoverMcps uses the identical filter-building logic', async () => {
+      mcpRepository.count.mockResolvedValue(4);
+
+      const total = await mcpService.countDiscoverMcps(machineContext, {});
+
+      expect(mcpRepository.count).toHaveBeenCalledWith({ domain: 'project-1' });
+      expect(total).toBe(4);
     });
   });
 });
