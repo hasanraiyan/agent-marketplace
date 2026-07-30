@@ -23,6 +23,7 @@ jest.unstable_mockModule('../src/modules/skills/skill.service.js', () => ({
     getSkillById: jest.fn(),
     updateSkill: jest.fn(),
     deleteSkill: jest.fn(),
+    discoverSkills: jest.fn(),
   },
 }));
 
@@ -87,6 +88,21 @@ describe('developerSkill.routes.js — mount integration', () => {
       undefined,
       expect.objectContaining({ name: 'test-skill' }),
       expect.objectContaining({ domain: 'project-1', principalType: 'ProjectMachine' })
+    );
+  });
+
+  test('GET / (discover) reaches the controller and returns the list', async () => {
+    skillService.discoverSkills.mockResolvedValue([{ _id: 's1' }]);
+
+    const res = await request(app)
+      .get('/api/v1/developer/skills')
+      .set('Authorization', 'Bearer pk_test.secret');
+
+    expect(res.status).toBe(200);
+    expect(skillService.discoverSkills).toHaveBeenCalledWith(
+      expect.objectContaining({ domain: 'project-1', principalType: 'ProjectMachine' }),
+      expect.any(Object),
+      expect.any(Object)
     );
   });
 

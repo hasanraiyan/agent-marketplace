@@ -7,6 +7,7 @@ import {
   ownerFilterForContext,
   ownerFieldsForContext,
 } from '../../utils/resourceOwnership.js';
+import { scopedFilter } from '../../utils/domainQuery.js';
 
 class SkillService {
   /**
@@ -124,6 +125,57 @@ class SkillService {
    */
   async getAgentsBySkill(id) {
     return await agentRepository.findAgentsUsingSkill(id, 'name slug avatar visibility');
+  }
+
+  /**
+   * Developer Platform (AD-07 §19, blueprint Phase 9, PR-44): the Discovery
+   * Contract — a GENUINELY SEPARATE code path from Persona's marketplace
+   * search (`searchPublicSkills`/`searchSkills` above), mirroring Agent's
+   * PR-43 treatment exactly. Three modes, matching AD-07 §15's capability
+   * matrix:
+   *   - `ProjectMachineContext`/`ProjectAdminContext` ("Project
+   *     discovery"): every Skill in this Project's own Domain, any owner
+   *     type.
+   *   - `ProjectRuntimeContext` with `filters.scope === 'mine'`
+   *     ("my Skills"): Domain- and Subject-scoped to just that external
+   *     user's own Skills.
+   *   - `ProjectRuntimeContext` otherwise ("Project-public browse"):
+   *     Domain-scoped, public (`isPublic: true`) Skills only.
+   *
+   * Unlike Agent, no secret-stripping is needed here — Skill has no
+   * "strip for non-owner" concept (PR-29): a Skill is either fully visible
+   * (public or owned) or not returned at all, and the filter above already
+   * guarantees every result is one the requester is allowed to see in full.
+   */
+  _buildDeveloperDiscoveryFilter(context, filters = {}) {
+    const extra = {};
+    if (filters.search) {
+      extra.name = { $regex: filters.search, $options: 'i' };
+    }
+
+    if (context?.principalType === 'ProjectMachine' || context?.principalType === 'ProjectAdmin') {
+      return scopedFilter(context.domain, extra);
+    }
+
+    if (filters.scope === 'mine') {
+      return scopedFilter(context?.domain, {
+        ...extra,
+        ownerType: 'ExternalUser',
+        externalOwnerId: context?.externalUserId,
+      });
+    }
+
+    return scopedFilter(context?.domain, { ...extra, isPublic: true });
+  }
+
+  async discoverSkills(context, filters, pagination) {
+    const match = this._buildDeveloperDiscoveryFilter(context, filters);
+    return await skillRepository.search(match, pagination);
+  }
+
+  async countDiscoverSkills(context, filters) {
+    const match = this._buildDeveloperDiscoveryFilter(context, filters);
+    return await skillRepository.count(match);
   }
 }
 

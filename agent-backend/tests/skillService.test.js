@@ -9,6 +9,8 @@ jest.unstable_mockModule('../src/modules/skills/skill.repository.js', () => ({
     searchSkills: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+    search: jest.fn(),
+    count: jest.fn(),
   },
 }));
 
@@ -259,6 +261,62 @@ describe('Skill Service — ownership generalization (blueprint Phase 9, PR-28)'
       await expect(skillService.deleteSkill('s1', 'someone_else')).rejects.toThrow(
         'Unauthorized to delete this skill'
       );
+    });
+  });
+
+  describe('discoverSkills / countDiscoverSkills (blueprint Phase 9, PR-44, AD-07 §19)', () => {
+    const machineContext = { domain: 'project-1', principalType: 'ProjectMachine' };
+    const runtimeContext = {
+      domain: 'project-1',
+      principalType: 'ProjectRuntime',
+      externalUserId: 'sabik',
+    };
+
+    test('ProjectMachineContext ("Project discovery") scopes to the Domain only', async () => {
+      skillRepository.search.mockResolvedValue([]);
+
+      await skillService.discoverSkills(machineContext, {}, { page: 1, limit: 20 });
+
+      expect(skillRepository.search).toHaveBeenCalledWith(
+        { domain: 'project-1' },
+        { page: 1, limit: 20 }
+      );
+    });
+
+    test("ProjectRuntimeContext with scope=mine restricts to that external user's own Skills", async () => {
+      skillRepository.search.mockResolvedValue([]);
+
+      await skillService.discoverSkills(runtimeContext, { scope: 'mine' }, {});
+
+      expect(skillRepository.search).toHaveBeenCalledWith(
+        { domain: 'project-1', ownerType: 'ExternalUser', externalOwnerId: 'sabik' },
+        {}
+      );
+    });
+
+    test('ProjectRuntimeContext without scope=mine is "Project-public browse" — public Skills only', async () => {
+      skillRepository.search.mockResolvedValue([]);
+
+      await skillService.discoverSkills(runtimeContext, {}, {});
+
+      expect(skillRepository.search).toHaveBeenCalledWith(
+        { domain: 'project-1', isPublic: true },
+        {}
+      );
+    });
+
+    test('countDiscoverSkills uses the identical filter-building logic', async () => {
+      skillRepository.count.mockResolvedValue(5);
+
+      const total = await skillService.countDiscoverSkills(machineContext, {});
+
+      expect(skillRepository.count).toHaveBeenCalledWith({ domain: 'project-1' });
+      expect(total).toBe(5);
+    });
+
+    test('this is a genuinely separate code path from searchSkills/searchPublicSkills (AD-07 §19)', () => {
+      expect(skillService.discoverSkills).not.toBe(skillService.searchSkills);
+      expect(skillService.discoverSkills).not.toBe(skillService.searchPublicSkills);
     });
   });
 });
