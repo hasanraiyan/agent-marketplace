@@ -51,16 +51,16 @@ describe('Cascading Deletes Integration', () => {
       const mockThreadIds = ['id-1', 'id-2'];
       const mockDeleteResult = { deletedCount: 2, threadIds: mockThreadIds };
 
-      jest.spyOn(threadRepository, 'deleteAllByUser').mockResolvedValue(mockDeleteResult);
+      jest.spyOn(threadRepository, 'deleteAllBySubject').mockResolvedValue(mockDeleteResult);
       const cleanupSpy = jest.spyOn(checkpointService, 'cleanupThreads').mockResolvedValue();
 
-      // In thread.controller.js:
-      const result = await threadRepository.deleteAllByUser(mockUserId);
+      // In thread.controller.js (via thread.service.js):
+      const result = await threadRepository.deleteAllBySubject({ userId: mockUserId });
       if (result && result.threadIds && result.threadIds.length > 0) {
         await checkpointService.cleanupThreads(result.threadIds);
       }
 
-      expect(threadRepository.deleteAllByUser).toHaveBeenCalledWith(mockUserId);
+      expect(threadRepository.deleteAllBySubject).toHaveBeenCalledWith({ userId: mockUserId });
       expect(cleanupSpy).toHaveBeenCalledWith(mockThreadIds);
     });
   });

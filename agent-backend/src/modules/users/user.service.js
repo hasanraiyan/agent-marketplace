@@ -18,7 +18,7 @@ class UserService {
     logger.info('User requested account deletion via service', { userId });
 
     // 1. Cleanup threads and their LangGraph checkpoints
-    const { threadIds } = await threadRepository.deleteAllByUser(userId);
+    const { threadIds } = await threadRepository.deleteAllBySubject({ userId });
     if (threadIds && threadIds.length > 0) {
       await checkpointService.cleanupThreads(threadIds);
     }

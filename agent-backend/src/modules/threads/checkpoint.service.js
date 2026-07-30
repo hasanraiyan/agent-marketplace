@@ -3,6 +3,7 @@ import threadRepository from './thread.repository.js';
 import { MongoDBSaver } from '@langchain/langgraph-checkpoint-mongodb';
 import { MongoClient } from 'mongodb';
 import { loggerService } from '../../utils/index.js';
+import { personaExecutionContext, isThreadSubject } from './thread.service.js';
 
 const logger = loggerService.getLogger();
 
@@ -66,10 +67,15 @@ class CheckpointService {
     }
   }
 
-  async getMessages(threadId, userId) {
+  /**
+   * Developer Platform (blueprint Phase 9, PR-39): `context` defaults to
+   * `personaExecutionContext(userId)` — zero behavior change for the
+   * existing Persona `GET /threads/:id/messages` route.
+   */
+  async getMessages(threadId, userId, context = personaExecutionContext(userId)) {
     const thread = await threadRepository.findById(threadId);
     if (!thread) throw new Error('Thread not found');
-    if (thread.userId.toString() !== userId.toString()) throw new Error('Unauthorized');
+    if (!isThreadSubject(thread, context)) throw new Error('Unauthorized');
 
     const snapshot = await this.checkpointer.getTuple({
       configurable: { thread_id: thread.threadId },

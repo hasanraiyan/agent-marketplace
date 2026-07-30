@@ -27,9 +27,16 @@ class ThreadRepository {
     return await Conversation.findOne(query).populate('agentId', 'name avatar slug');
   }
 
-  async findByUser(userId, { page = 1, limit = 20 } = {}) {
+  /**
+   * Developer Platform (blueprint Phase 9, PR-39): `subjectFilter` replaces
+   * the previous bare `userId` — build it with
+   * `thread.service.js`'s `subjectFilterForContext(context)`. For a Persona
+   * caller this is exactly `{ userId }`, byte-for-byte the same filter this
+   * method built inline before.
+   */
+  async findBySubject(subjectFilter, { page = 1, limit = 20 } = {}) {
     const skip = (page - 1) * limit;
-    return await Conversation.find({ userId, isArchived: false })
+    return await Conversation.find({ ...subjectFilter, isArchived: false })
       .sort({ lastMessageAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -55,9 +62,10 @@ class ThreadRepository {
     return deletedThread;
   }
 
-  async deleteAllByUser(userId) {
+  /** See `findBySubject`'s doc comment — identical `subjectFilter` generalization. */
+  async deleteAllBySubject(subjectFilter) {
     // We need to find all threadIds first so we can cleanup checkpoints later
-    const threads = await Conversation.find({ userId }).select('threadId agentId');
+    const threads = await Conversation.find({ ...subjectFilter }).select('threadId agentId');
     const threadIds = threads.map((t) => t.threadId);
 
     const agentCounts = {};
@@ -67,7 +75,7 @@ class ThreadRepository {
       }
     }
 
-    const result = await Conversation.deleteMany({ userId });
+    const result = await Conversation.deleteMany({ ...subjectFilter });
 
     for (const [agentId, count] of Object.entries(agentCounts)) {
       await Agent.findByIdAndUpdate(agentId, { $inc: { messageCount: -count } });
