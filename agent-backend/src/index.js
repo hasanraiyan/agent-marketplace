@@ -5,7 +5,11 @@ import { healthRouter } from './modules/health/index.js';
 import { profileRouter, adminRouter } from './modules/users/index.js';
 import { providerRouter } from './modules/providers/index.js';
 import { projectRouter } from './modules/projects/index.js';
-import { developerRouter, developerAguiRouter } from './modules/developer/index.js';
+import {
+  developerRouter,
+  developerAguiRouter,
+  developerAgentRouter,
+} from './modules/developer/index.js';
 import { agentRouter } from './modules/agents/index.js';
 import { threadRouter } from './modules/threads/index.js';
 import { skillRouter } from './modules/skills/index.js';
@@ -73,6 +77,10 @@ app.use('/api/v1/profile', profileRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/providers', providerRouter);
 app.use('/api/v1/projects', projectRouter);
+// Mounted before the generic /api/v1/developer prefix (below) so a more
+// specific path always matches first, avoiding double authentication via
+// prefix fallthrough.
+app.use('/api/v1/developer/agents', developerAgentRouter);
 app.use('/api/v1/developer', developerRouter);
 app.use('/api/v1/agents', agentRouter);
 app.use('/api/v1/threads', threadRouter);

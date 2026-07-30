@@ -1,0 +1,127 @@
+import { jest } from '@jest/globals';
+
+jest.unstable_mockModule('../src/modules/agents/agent.service.js', () => ({
+  default: {
+    createDeveloperAgent: jest.fn(),
+    getDeveloperAgentById: jest.fn(),
+    updateAgent: jest.fn(),
+    deleteAgent: jest.fn(),
+  },
+}));
+
+const agentService = (await import('../src/modules/agents/agent.service.js')).default;
+const developerAgentController = (
+  await import('../src/modules/developer/developerAgent.controller.js')
+).default;
+
+describe('Developer Agent Controller', () => {
+  const machineContext = { domain: 'project-1', principalType: 'ProjectMachine' };
+
+  let mockReq;
+  let mockRes;
+  let next;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockReq = { projectContext: machineContext, body: {}, params: {} };
+    mockRes = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    next = jest.fn();
+  });
+
+  describe('create', () => {
+    test('creates via agentService.createDeveloperAgent using req.projectContext, never a client-supplied context', async () => {
+      mockReq.body = { name: 'Support Bot' };
+      agentService.createDeveloperAgent.mockResolvedValue({ _id: 'a1', name: 'Support Bot' });
+
+      await developerAgentController.create(mockReq, mockRes, next);
+
+      expect(agentService.createDeveloperAgent).toHaveBeenCalledWith(machineContext, {
+        name: 'Support Bot',
+      });
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: { _id: 'a1', name: 'Support Bot' },
+      });
+    });
+
+    test('passes errors to next', async () => {
+      const err = new Error('boom');
+      agentService.createDeveloperAgent.mockRejectedValue(err);
+
+      await developerAgentController.create(mockReq, mockRes, next);
+
+      expect(next).toHaveBeenCalledWith(err);
+    });
+  });
+
+  describe('getOne', () => {
+    test('returns the Agent using the :agentId param and req.projectContext', async () => {
+      mockReq.params = { agentId: 'a1' };
+      agentService.getDeveloperAgentById.mockResolvedValue({ _id: 'a1' });
+
+      await developerAgentController.getOne(mockReq, mockRes, next);
+
+      expect(agentService.getDeveloperAgentById).toHaveBeenCalledWith('a1', machineContext);
+      expect(mockRes.json).toHaveBeenCalledWith({ success: true, data: { _id: 'a1' } });
+    });
+
+    test('collapses "Agent not found or is private" to a 404, existence-hiding', async () => {
+      mockReq.params = { agentId: 'a1' };
+      agentService.getDeveloperAgentById.mockRejectedValue(
+        new Error('Agent not found or is private')
+      );
+
+      await developerAgentController.getOne(mockReq, mockRes, next);
+
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    test('passes other errors to next unchanged', async () => {
+      mockReq.params = { agentId: 'a1' };
+      const err = new Error('database exploded');
+      agentService.getDeveloperAgentById.mockRejectedValue(err);
+
+      await developerAgentController.getOne(mockReq, mockRes, next);
+
+      expect(next).toHaveBeenCalledWith(err);
+    });
+  });
+
+  describe('update', () => {
+    test('updates via agentService.updateAgent, forwarding req.projectContext as the 4th positional arg', async () => {
+      mockReq.params = { agentId: 'a1' };
+      mockReq.body = { name: 'New Name' };
+      agentService.updateAgent.mockResolvedValue({ _id: 'a1', name: 'New Name' });
+
+      await developerAgentController.update(mockReq, mockRes, next);
+
+      expect(agentService.updateAgent).toHaveBeenCalledWith(
+        'a1',
+        undefined,
+        { name: 'New Name' },
+        machineContext
+      );
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: { _id: 'a1', name: 'New Name' },
+      });
+    });
+  });
+
+  describe('remove', () => {
+    test('deletes via agentService.deleteAgent, forwarding req.projectContext', async () => {
+      mockReq.params = { agentId: 'a1' };
+      agentService.deleteAgent.mockResolvedValue(true);
+
+      await developerAgentController.remove(mockReq, mockRes, next);
+
+      expect(agentService.deleteAgent).toHaveBeenCalledWith('a1', undefined, machineContext);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        message: 'Agent deleted successfully',
+      });
+    });
+  });
+});
