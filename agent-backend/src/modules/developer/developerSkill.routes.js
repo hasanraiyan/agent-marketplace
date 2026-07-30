@@ -38,6 +38,39 @@ router.post('/', validateBody(createSkillSchema), developerSkillController.creat
 
 /**
  * @openapi
+ * /api/v1/developer/skills:
+ *   get:
+ *     tags: [Developer]
+ *     summary: Discover Skills (blueprint Phase 9, PR-44, AD-07 §19)
+ *     description: >
+ *       A genuinely separate code path from Persona's marketplace search.
+ *       For a bare Project credential (ProjectMachineContext/
+ *       ProjectAdminContext): every Skill in this Project's own Domain,
+ *       any owner type. For a credential paired with
+ *       x-persona-external-user-id (ProjectRuntimeContext): scope=mine
+ *       returns only that external user's own Skills; omitting it
+ *       returns this Domain's public Skills only.
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         schema: { type: integer }
+ *       - name: limit
+ *         in: query
+ *         schema: { type: integer }
+ *       - name: search
+ *         in: query
+ *         schema: { type: string }
+ *       - name: scope
+ *         in: query
+ *         schema: { type: string, enum: [mine] }
+ *     responses:
+ *       200: { description: List of Skills }
+ */
+router.get('/', developerSkillController.discover);
+
+/**
+ * @openapi
  * /api/v1/developer/skills/{skillId}:
  *   get:
  *     tags: [Developer]

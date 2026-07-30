@@ -6,6 +6,7 @@ jest.unstable_mockModule('../src/modules/skills/skill.service.js', () => ({
     getSkillById: jest.fn(),
     updateSkill: jest.fn(),
     deleteSkill: jest.fn(),
+    discoverSkills: jest.fn(),
   },
 }));
 
@@ -23,9 +24,34 @@ describe('Developer Skill Controller', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockReq = { projectContext: machineContext, body: {}, params: {} };
+    mockReq = { projectContext: machineContext, body: {}, params: {}, query: {} };
     mockRes = { status: jest.fn().mockReturnThis(), json: jest.fn() };
     next = jest.fn();
+  });
+
+  describe('discover', () => {
+    test('discovers via skillService.discoverSkills using req.projectContext', async () => {
+      mockReq.query = { search: 'support', scope: 'mine' };
+      skillService.discoverSkills.mockResolvedValue([{ _id: 's1' }]);
+
+      await developerSkillController.discover(mockReq, mockRes, next);
+
+      expect(skillService.discoverSkills).toHaveBeenCalledWith(
+        machineContext,
+        { search: 'support', scope: 'mine' },
+        { page: 1, limit: 20 }
+      );
+      expect(mockRes.json).toHaveBeenCalledWith({ success: true, data: [{ _id: 's1' }] });
+    });
+
+    test('passes errors to next', async () => {
+      const err = new Error('boom');
+      skillService.discoverSkills.mockRejectedValue(err);
+
+      await developerSkillController.discover(mockReq, mockRes, next);
+
+      expect(next).toHaveBeenCalledWith(err);
+    });
   });
 
   describe('create', () => {

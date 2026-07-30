@@ -98,6 +98,23 @@ class SkillRepository {
   async deleteManyByOwner(ownerId) {
     return await Skill.deleteMany({ ownerId });
   }
+
+  /**
+   * Developer Platform (blueprint Phase 9, PR-44): a generic, filter-driven
+   * list — the low-level primitive AD-07 §19 permits sharing between
+   * Persona's marketplace search and Developer discovery, since it does no
+   * scoping/visibility reasoning of its own (that lives entirely in the
+   * caller-supplied `filter`). Distinct from `findPublicSkills`/
+   * `searchSkills` above, which bake in Persona's own visibility rules.
+   */
+  async search(filter, { page = 1, limit = 20 } = {}) {
+    const skip = (page - 1) * limit;
+    return await Skill.find(filter).sort({ updatedAt: -1 }).skip(skip).limit(limit);
+  }
+
+  async count(filter) {
+    return await Skill.countDocuments(filter);
+  }
 }
 
 export default new SkillRepository();

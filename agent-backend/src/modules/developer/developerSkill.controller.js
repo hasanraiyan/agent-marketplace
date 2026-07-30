@@ -13,8 +13,29 @@ import skillService from '../skills/skill.service.js';
  * non-owners" concept (a Skill is either fully visible — public or
  * owned — or not visible at all), so this reuses it directly rather than
  * needing a `getDeveloperSkillById` counterpart.
+ *
+ * `discover` (blueprint Phase 9, PR-44) serves listing — a genuinely
+ * separate code path from Persona's marketplace search, per AD-07 §19,
+ * mirroring `developerAgentController.discover`'s (PR-43) three modes.
  */
 class DeveloperSkillController {
+  async discover(req, res, next) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 20;
+      const filters = { search: req.query.search, scope: req.query.scope };
+
+      const skills = await skillService.discoverSkills(req.projectContext, filters, {
+        page,
+        limit,
+      });
+
+      res.json({ success: true, data: skills });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async create(req, res, next) {
     try {
       const skill = await skillService.createSkill(undefined, req.body, req.projectContext);
