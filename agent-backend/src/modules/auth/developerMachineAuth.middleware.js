@@ -45,12 +45,13 @@ import BaseError from '../../utils/errors/BaseError.js';
  *
  * SCOPE, still deliberately narrowed:
  *   - `ProjectAdminContext` (Clerk session + verified ProjectMembership)
- *     is not built here — it needs a settled convention for which
- *     Project a given request targets, which depends on the Developer
- *     API route design (blueprint Phase 9), not yet decided.
+ *     is not built here — that's projectAdminAuth.middleware.js, a
+ *     separate, Clerk-authenticated chain for the admin control plane
+ *     (project.routes.js). This module is the runtime/machine-auth chain
+ *     only, never blended with Clerk auth on the same route (AD-01 §13).
  *
- * Not mounted on any route in this PR — see the master implementation
- * blueprint §8, §34 Phase 2/9.
+ * Mounted at /api/v1/developer (developer.routes.js, blueprint Phase 8,
+ * PR-20) — see the master implementation blueprint §8, §20, §34 Phase 8.
  */
 
 const EXTERNAL_USER_HEADER = 'x-persona-external-user-id';
