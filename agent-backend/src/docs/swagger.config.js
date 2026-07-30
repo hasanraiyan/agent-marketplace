@@ -28,13 +28,19 @@ const options = {
           bearerFormat: 'JWT',
           description: 'Clerk session token (send as Bearer token or via __session cookie)',
         },
+        projectCredential: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: '<keyId>.<secret>',
+          description:
+            'Developer Platform Project credential, minted via POST /api/v1/projects/{projectId}/credentials. ' +
+            'Send as `Authorization: Bearer <keyId>.<secret>`. Optionally pair with the ' +
+            "`x-persona-external-user-id` header to act on behalf of one of the Project's own external users.",
+        },
       },
     },
   },
-  apis: [
-    './src/modules/**/*.routes.js',
-    './src/docs/swagger.schemas.js',
-  ],
+  apis: ['./src/modules/**/*.routes.js', './src/docs/swagger.schemas.js'],
 };
 
 const spec = swaggerJsdoc(options);
