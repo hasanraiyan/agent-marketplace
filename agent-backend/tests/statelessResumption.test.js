@@ -85,6 +85,7 @@ describe('Stateless Resumption Logic in agui.routes.js', () => {
       _id: 'thread_1',
       threadId: 'uuid_1',
       userId: 'user_1',
+      agentId: 'agent_1',
       title: 'Existing Conversation',
     });
 
