@@ -16,6 +16,14 @@ jest.unstable_mockModule('../src/modules/agents/agent.factory.js', () => ({
 jest.unstable_mockModule('../src/modules/threads/thread.repository.js', () => ({
   default: {
     findById: jest.fn(),
+    touchLastMessageAt: jest.fn(),
+    update: jest.fn(),
+  },
+}));
+
+jest.unstable_mockModule('../src/modules/threads/thread.service.js', () => ({
+  default: {
+    getThreadById: jest.fn(),
   },
 }));
 
@@ -38,6 +46,8 @@ jest.unstable_mockModule('../src/modules/agui/aguiTranslator.js', () => ({
 
 const agentRepository = (await import('../src/modules/agents/agent.repository.js')).default;
 const agentFactory = (await import('../src/modules/agents/agent.factory.js')).default;
+const threadRepository = (await import('../src/modules/threads/thread.repository.js')).default;
+const threadService = (await import('../src/modules/threads/thread.service.js')).default;
 const developerAguiController = (
   await import('../src/modules/developer/developerAgui.controller.js')
 ).default;
@@ -188,5 +198,86 @@ describe('Developer AG-UI Controller — runAgent', () => {
     expect(mockRes.write).toHaveBeenCalledWith(
       expect.stringContaining('"threadId":"agui-project-2-agent-1-sabik"')
     );
+  });
+
+  describe('Thread resume (blueprint Phase 9, PR-41)', () => {
+    beforeEach(() => {
+      agentRepository.findById.mockResolvedValue({
+        _id: 'agent-1',
+        domain: 'project-1',
+        visibility: 'public',
+        isActive: true,
+        deletedAt: null,
+      });
+      agentFactory.buildAgent.mockResolvedValue({
+        agentInstance: {
+          getState: jest.fn().mockResolvedValue({ tasks: [] }),
+          streamEvents: jest.fn().mockReturnValue((async function* () {})()),
+        },
+        agentConfig: {},
+        providerConfig: {},
+        llm: {},
+        mcpAppMap: {},
+      });
+    });
+
+    test('resumes a matching-Subject, matching-Agent Thread via x-thread-id', async () => {
+      mockReq.headers['x-thread-id'] = 'thread-mongo-id-1';
+      threadService.getThreadById.mockResolvedValue({
+        _id: 'thread-mongo-id-1',
+        threadId: 'real-langgraph-thread-uuid',
+        agentId: 'agent-1',
+      });
+
+      await developerAguiController.runAgent(mockReq, mockRes, next);
+
+      expect(threadService.getThreadById).toHaveBeenCalledWith(
+        'thread-mongo-id-1',
+        undefined,
+        runtimeContext
+      );
+      expect(threadRepository.touchLastMessageAt).toHaveBeenCalledWith('thread-mongo-id-1');
+      expect(mockRes.write).toHaveBeenCalledWith(
+        expect.stringContaining('"threadId":"real-langgraph-thread-uuid"')
+      );
+    });
+
+    test('falls back to the deterministic thread id when the Thread belongs to a different Agent', async () => {
+      mockReq.headers['x-thread-id'] = 'thread-mongo-id-1';
+      threadService.getThreadById.mockResolvedValue({
+        _id: 'thread-mongo-id-1',
+        threadId: 'real-langgraph-thread-uuid',
+        agentId: 'a-different-agent',
+      });
+
+      await developerAguiController.runAgent(mockReq, mockRes, next);
+
+      expect(threadRepository.touchLastMessageAt).not.toHaveBeenCalled();
+      expect(mockRes.write).toHaveBeenCalledWith(
+        expect.stringContaining('"threadId":"agui-project-1-agent-1-sabik"')
+      );
+    });
+
+    test("falls back to the deterministic thread id when the Thread is not this Subject's (no error surfaced)", async () => {
+      mockReq.headers['x-thread-id'] = 'thread-mongo-id-1';
+      threadService.getThreadById.mockRejectedValue(new Error('Thread not found'));
+
+      await developerAguiController.runAgent(mockReq, mockRes, next);
+
+      expect(next).not.toHaveBeenCalled();
+      expect(threadRepository.touchLastMessageAt).not.toHaveBeenCalled();
+      expect(mockRes.write).toHaveBeenCalledWith(
+        expect.stringContaining('"threadId":"agui-project-1-agent-1-sabik"')
+      );
+    });
+
+    test('omitting x-thread-id keeps the deterministic id and never calls threadService.getThreadById', async () => {
+      await developerAguiController.runAgent(mockReq, mockRes, next);
+
+      expect(threadService.getThreadById).not.toHaveBeenCalled();
+      expect(mockRes.write).toHaveBeenCalledWith(
+        expect.stringContaining('"threadId":"agui-project-1-agent-1-sabik"')
+      );
+    });
   });
 });

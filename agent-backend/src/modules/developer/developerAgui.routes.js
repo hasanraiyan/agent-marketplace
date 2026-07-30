@@ -36,10 +36,13 @@ router.use(developerMachineAuthMiddleware);
  *       Requires a ProjectRuntimeContext — the credential must be paired
  *       with the x-persona-external-user-id header asserting which of the
  *       Project's own external users is running the Agent. Reuses the
- *       exact same runtime as the Persona AG-UI route. No explicit Thread
- *       resumption yet (see developerAgui.controller.js) — conversation
- *       continuity is automatic via a Domain-extended deterministic
- *       thread id, one implicit conversation per (Agent, external user).
+ *       exact same runtime as the Persona AG-UI route. Pass x-thread-id
+ *       (a Thread id from POST /api/v1/developer/threads) to resume a
+ *       named conversation — omit it to keep using the implicit,
+ *       Domain-extended deterministic thread id (one conversation per
+ *       Agent + external user). An unrecognized/foreign/wrong-agent
+ *       x-thread-id silently falls back to the deterministic id rather
+ *       than erroring (same contract as the Persona AG-UI route).
  *     security: [{ projectCredential: [] }]
  *     parameters:
  *       - name: x-agent-id
@@ -52,6 +55,12 @@ router.use(developerMachineAuthMiddleware);
  *         required: true
  *         schema:
  *           type: string
+ *       - name: x-thread-id
+ *         in: header
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: A Thread id from the Developer Thread CRUD API — resumes that conversation instead of the implicit deterministic one.
  *     requestBody:
  *       required: true
  *       content:
