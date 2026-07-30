@@ -149,8 +149,38 @@ class AgentFactory {
   /**
    * Factory Method: Builds and returns the compiled DeepAgent graph instance.
    * Leverages LRU caching to avoid expensive recompilation for the same agent.
+   *
+   * Developer Platform (AD-04, blueprint Phase 8, PR-21): `executionContext`
+   * is the authorization context passed to `canUserExecuteAgent` — it
+   * defaults to `personaExecutionContext(userId)`, so every existing
+   * caller (today, exclusively the Persona AG-UI route) that omits it gets
+   * byte-for-byte the same behavior as before this parameter existed. This
+   * removes the previous hardcoding that made `buildAgent` reject any
+   * Project-domain Agent outright, regardless of who was asking.
+   *
+   * SCOPE, deliberately narrowed: this generalizes the AUTHORIZATION check
+   * only. Every other identity-bearing operation below — the compiled-
+   * instance cache key, memory namespace construction
+   * (`userMemoryNamespace`/`agentMemoryNamespace`), and per-user MCP token
+   * resolution (`resolveAgentTools`) — still takes the raw `userId`
+   * parameter exactly as before, unchanged. Those namespaces are rooted at
+   * `['users', userId]` with no Domain dimension (blueprint Phase 6's
+   * memory re-keying, and the analogous MCP `(domain,subject,mcpId)`
+   * re-keying, blueprint Phase 7) — both deliberately deferred, since
+   * nothing in this codebase calls `buildAgent` for a non-Persona
+   * `executionContext` yet. Passing a real `ProjectRuntimeContext` here
+   * today would pass authorization but would NOT yet get Domain-isolated
+   * memory/cache/MCP state — that generalization is required before this
+   * function is actually safe to call for a Project Agent, and must land
+   * before (or alongside) the Developer AG-UI route that would be its
+   * first real caller.
    */
-  async buildAgent(agentId, userId, checkpointer) {
+  async buildAgent(
+    agentId,
+    userId,
+    checkpointer,
+    executionContext = personaExecutionContext(userId)
+  ) {
     if (!agentId) throw new Error('Agent ID is required to build an agent');
 
     const agentIdStr = agentId._id ? agentId._id.toString() : agentId.toString();
@@ -193,7 +223,7 @@ class AgentFactory {
     } else {
       // 1.5 Fetch Standard Configuration from DB
       agent = await agentRepository.findById(agentId);
-      if (!agent || !agentService.canUserExecuteAgent(agent, personaExecutionContext(userId))) {
+      if (!agent || !agentService.canUserExecuteAgent(agent, executionContext)) {
         throw new Error('Agent deleted or unavailable');
       }
       if (typeof agent.populate === 'function') {

@@ -1,6 +1,7 @@
 import { HumanMessage } from '@langchain/core/messages';
 import { Command } from '@langchain/langgraph';
 import agentFactory from '../agents/agent.factory.js';
+import { personaExecutionContext } from '../agents/agent.service.js';
 import threadRepository from '../threads/thread.repository.js';
 import checkpointService from '../threads/checkpoint.service.js';
 import { loggerService } from '../../utils/index.js';
@@ -90,7 +91,12 @@ export async function* runAgentAsAguiEvents({
 
   let agentBuild;
   try {
-    agentBuild = await agentFactory.buildAgent(agentId, userId, checkpointService.checkpointer);
+    agentBuild = await agentFactory.buildAgent(
+      agentId,
+      userId,
+      checkpointService.checkpointer,
+      personaExecutionContext(userId)
+    );
   } catch (err) {
     logger.error(`[AG-UI] agent build failed: ${err?.message}`, { agentId });
     yield* emitTextNotice(`*(Error: ${formatRuntimeError(err)})*`);
