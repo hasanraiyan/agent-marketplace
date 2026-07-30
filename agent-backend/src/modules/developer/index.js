@@ -12,3 +12,5 @@ export { default as developerMcpRouter } from './developerMcp.routes.js';
 export { default as developerMcpController } from './developerMcp.controller.js';
 export { default as developerProviderRouter } from './developerProvider.routes.js';
 export { default as developerProviderController } from './developerProvider.controller.js';
+export { default as developerThreadRouter } from './developerThread.routes.js';
+export { default as developerThreadController } from './developerThread.controller.js';
