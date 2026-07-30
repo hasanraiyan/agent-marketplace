@@ -174,6 +174,40 @@ describe('Knowledge Service', () => {
         knowledgeService.createKnowledgeBase(mockUserId, { name: 'KB' })
       ).rejects.toThrow('No AI provider found');
     });
+
+    test('Developer Platform (PR-31): creates a Project-owned KB for a ProjectMachineContext with an explicit providerId', async () => {
+      knowledgeRepository.createKb.mockResolvedValue(mockKb);
+      knowledgeRepository.updateKb.mockResolvedValue(mockKb);
+      const context = { domain: 'project-1', principalType: 'ProjectMachine' };
+
+      await knowledgeService.createKnowledgeBase(
+        'irrelevant',
+        { name: 'Support KB', providerId: mockProvider._id },
+        context
+      );
+
+      expect(knowledgeRepository.createKb).toHaveBeenCalledWith(
+        expect.objectContaining({ domain: 'project-1', ownerType: 'Project' })
+      );
+      // Persona's own-provider auto-resolution must never run for a
+      // non-Persona context.
+      expect(providerRepository.findByUser).not.toHaveBeenCalled();
+    });
+
+    test('Developer Platform (PR-31): rejects a ProjectRuntimeContext that omits providerId — no "my default provider" concept exists for it', async () => {
+      const context = {
+        domain: 'project-1',
+        principalType: 'ProjectRuntime',
+        externalUserId: 'sabik',
+      };
+
+      await expect(
+        knowledgeService.createKnowledgeBase('irrelevant', { name: 'My KB' }, context)
+      ).rejects.toThrow(
+        'providerId is required when creating a Knowledge Base via the Developer API'
+      );
+      expect(knowledgeRepository.createKb).not.toHaveBeenCalled();
+    });
   });
 
   describe('listKnowledgeBases', () => {
@@ -211,6 +245,43 @@ describe('Knowledge Service', () => {
         'Knowledge base not found'
       );
     });
+
+    test('Developer Platform (PR-31): the owning ExternalUser context can see its own private KB', async () => {
+      knowledgeRepository.findKbById.mockResolvedValue({
+        ...mockKb,
+        ownerId: undefined,
+        ownerType: 'ExternalUser',
+        externalOwnerId: 'sabik',
+        domain: 'project-1',
+      });
+      const context = {
+        domain: 'project-1',
+        principalType: 'ProjectRuntime',
+        externalUserId: 'sabik',
+      };
+
+      const result = await knowledgeService.getKnowledgeBase(mockKbId, 'irrelevant', context);
+      expect(result).toBeDefined();
+    });
+
+    test('Developer Platform (PR-31): a different external user cannot see the private KB', async () => {
+      knowledgeRepository.findKbById.mockResolvedValue({
+        ...mockKb,
+        ownerId: undefined,
+        ownerType: 'ExternalUser',
+        externalOwnerId: 'sabik',
+        domain: 'project-1',
+      });
+      const context = {
+        domain: 'project-1',
+        principalType: 'ProjectRuntime',
+        externalUserId: 'someone_else',
+      };
+
+      await expect(
+        knowledgeService.getKnowledgeBase(mockKbId, 'irrelevant', context)
+      ).rejects.toThrow('Not authorized to access this knowledge base');
+    });
   });
 
   describe('updateKnowledgeBase', () => {
@@ -232,6 +303,41 @@ describe('Knowledge Service', () => {
         'No valid fields to update'
       );
     });
+
+    test('Developer Platform (PR-31): a ProjectMachineContext can update its own Project-owned KB', async () => {
+      const projectKb = {
+        ...mockKb,
+        ownerId: undefined,
+        ownerType: 'Project',
+        domain: 'project-1',
+      };
+      knowledgeRepository.findKbById.mockResolvedValue(projectKb);
+      knowledgeRepository.updateKb.mockResolvedValue({ ...projectKb, name: 'Renamed' });
+      const context = { domain: 'project-1', principalType: 'ProjectMachine' };
+
+      const result = await knowledgeService.updateKnowledgeBase(
+        mockKbId,
+        'irrelevant',
+        { name: 'Renamed' },
+        context
+      );
+      expect(result.name).toBe('Renamed');
+    });
+
+    test('Developer Platform (PR-31): a ProjectMachineContext from a DIFFERENT Domain is rejected', async () => {
+      const projectKb = {
+        ...mockKb,
+        ownerId: undefined,
+        ownerType: 'Project',
+        domain: 'project-1',
+      };
+      knowledgeRepository.findKbById.mockResolvedValue(projectKb);
+      const context = { domain: 'project-2', principalType: 'ProjectMachine' };
+
+      await expect(
+        knowledgeService.updateKnowledgeBase(mockKbId, 'irrelevant', { name: 'Renamed' }, context)
+      ).rejects.toThrow('Not authorized to update this knowledge base');
+    });
   });
 
   describe('deleteKnowledgeBase', () => {
@@ -246,6 +352,48 @@ describe('Knowledge Service', () => {
       expect(knowledgeRepository.deleteKb).toHaveBeenCalledWith(mockKbId);
       expect(mockDeleteCollection).toHaveBeenCalledWith(mockKb.qdrantCollectionName);
       expect(result).toBe(true);
+    });
+
+    test('Developer Platform (PR-31): an ExternalUser context can delete its own KB', async () => {
+      const externalKb = {
+        ...mockKb,
+        ownerId: undefined,
+        ownerType: 'ExternalUser',
+        externalOwnerId: 'sabik',
+        domain: 'project-1',
+      };
+      knowledgeRepository.findKbById.mockResolvedValue(externalKb);
+      knowledgeRepository.deleteChunksByKbId.mockResolvedValue({});
+      knowledgeRepository.deleteKb.mockResolvedValue(externalKb);
+      const context = {
+        domain: 'project-1',
+        principalType: 'ProjectRuntime',
+        externalUserId: 'sabik',
+      };
+
+      const result = await knowledgeService.deleteKnowledgeBase(mockKbId, 'irrelevant', context);
+      expect(result).toBe(true);
+    });
+
+    test('Developer Platform (PR-31): a different external user is rejected before any deletion side effects', async () => {
+      const externalKb = {
+        ...mockKb,
+        ownerId: undefined,
+        ownerType: 'ExternalUser',
+        externalOwnerId: 'sabik',
+        domain: 'project-1',
+      };
+      knowledgeRepository.findKbById.mockResolvedValue(externalKb);
+      const context = {
+        domain: 'project-1',
+        principalType: 'ProjectRuntime',
+        externalUserId: 'someone_else',
+      };
+
+      await expect(
+        knowledgeService.deleteKnowledgeBase(mockKbId, 'irrelevant', context)
+      ).rejects.toThrow('Not authorized to delete this knowledge base');
+      expect(knowledgeRepository.deleteKb).not.toHaveBeenCalled();
     });
   });
 
