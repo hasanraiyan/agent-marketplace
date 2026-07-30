@@ -74,7 +74,20 @@ function sanitizeMcpTool(tool) {
   });
 }
 
-export async function resolveMcpTools(agent, userId) {
+/**
+ * Developer Platform (blueprint Phase 9, PR-48): `context` closes the
+ * Phase 7 gap this file's callers have carried since PR-23a — defaults to
+ * a Persona-shaped context built from `userId` (zero behavior change for
+ * every existing caller), forwarded to `mcpTokenService.getUserAccessToken`
+ * so an `authMode: 'user'` MCP resolves the right Subject's own connection
+ * regardless of whether the caller is a Persona User or a Project's
+ * external user.
+ */
+export async function resolveMcpTools(
+  agent,
+  userId,
+  context = { principalType: 'PersonaUser', personaUserId: userId }
+) {
   if (!agent.mcps || agent.mcps.length === 0) {
     logger.info(`[MCP] No MCP servers attached to agent ${agent._id || agent.id}`);
     return { tools: [], mcpAppMap: {} };
@@ -101,7 +114,7 @@ export async function resolveMcpTools(agent, userId) {
         token =
           mcp.authMode === 'owner'
             ? await mcpTokenService.getOwnerAccessToken(mcp)
-            : await mcpTokenService.getUserAccessToken(mcp, userId);
+            : await mcpTokenService.getUserAccessToken(mcp, userId, context);
 
         if (!token) {
           logger.info(

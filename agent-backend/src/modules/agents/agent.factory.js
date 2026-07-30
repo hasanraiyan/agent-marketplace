@@ -167,17 +167,14 @@ class AgentFactory {
    * there is no pre-existing Project-shaped data under the old, unqualified
    * key form to reconcile.
    *
-   * REMAINING GAP, not yet closed: per-user MCP token resolution
-   * (`resolveAgentTools` → `resolveMcpTools` → `mcp-user-connection`
-   * lookups) still takes the raw `userId` and expects it to cast to a
-   * Persona User ObjectId. For a Project caller this only matters if the
-   * Agent has a user-auth-mode MCP attached — `resolveMcpTools` already
-   * short-circuits to `{ tools: [], mcpAppMap: {} }` when `agent.mcps` is
-   * empty (the common case for a newly-created Project Agent), so this is a
-   * narrow, real, and DOCUMENTED limitation — not a silent one — rather
-   * than the blocking gap it was before this PR. Closing it fully requires
-   * the MCP `(domain,subject,mcpId)` re-keying deferred in blueprint Phase
-   * 7, still pending a concrete need.
+   * CLOSED (blueprint Phase 9, PR-48): per-user MCP token resolution
+   * (`resolveAgentTools` → `resolveMcpTools` → `mcpTokenService.
+   * getUserAccessToken` → `mcp-user-connection` lookups) now receives this
+   * same `executionContext` instead of the raw `userId` alone, so an
+   * `authMode: 'user'` MCP resolves the calling Subject's own connection
+   * correctly — `{ userId }` for a Persona caller, `{ domain,
+   * externalUserId }` for a `ProjectRuntime` caller — rather than assuming
+   * every caller is a Persona User ObjectId.
    */
   async buildAgent(
     agentId,
@@ -291,7 +288,11 @@ class AgentFactory {
     const llm = await this._buildLLM(agent, provider);
 
     // Completely abstracted Tool Registry injection
-    const { tools: dynamicTools, mcpAppMap } = await resolveAgentTools(agent, userId);
+    const { tools: dynamicTools, mcpAppMap } = await resolveAgentTools(
+      agent,
+      userId,
+      executionContext
+    );
 
     // 4. Assemble Custom DeepAgent Runtime
     // Wrap checkpointer with a Proxy to preserve prototype methods (e.g. getTuple)

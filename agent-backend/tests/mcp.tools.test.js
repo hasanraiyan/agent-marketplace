@@ -100,6 +100,37 @@ describe('resolveMcpTools', () => {
     expect(MultiServerMCPClient).not.toHaveBeenCalled();
   });
 
+  it('forwards the execution context to getUserAccessToken (blueprint Phase 9, PR-48)', async () => {
+    mcpTokenService.getUserAccessToken.mockResolvedValue('ext-user-token');
+    mockGetTools.mockResolvedValue([]);
+
+    const agent = {
+      mcps: [
+        {
+          _id: 'mcp1',
+          name: 'User MCP',
+          transport: 'http',
+          url: 'https://x.com/mcp',
+          authType: 'oauth',
+          authMode: 'user',
+        },
+      ],
+    };
+    const context = {
+      principalType: 'ProjectRuntime',
+      domain: 'project-1',
+      externalUserId: 'sabik',
+    };
+
+    await resolveMcpTools(agent, undefined, context);
+
+    expect(mcpTokenService.getUserAccessToken).toHaveBeenCalledWith(
+      agent.mcps[0],
+      undefined,
+      context
+    );
+  });
+
   it('does not let one broken server fail tool resolution for the rest', async () => {
     mcpTokenService.getOwnerAccessToken.mockRejectedValueOnce(new Error('boom'));
     mockGetTools.mockResolvedValue([{ name: 'tool_b' }]);

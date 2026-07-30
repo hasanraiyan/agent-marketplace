@@ -1,5 +1,7 @@
 import mcpRepository from './mcp.repository.js';
-import mcpUserConnectionRepository from './mcp-user-connection.repository.js';
+import mcpUserConnectionRepository, {
+  subjectFilterForContext,
+} from './mcp-user-connection.repository.js';
 import encryption from '../../utils/encryption.js';
 import { refreshAccessToken } from './mcp-oauth-client.js';
 
@@ -69,11 +71,25 @@ class McpTokenService {
    * Returns a ready-to-use bearer token for a specific end-user's own
    * connection to a user-mode MCP, refreshing it if near expiry. Returns
    * null if the user hasn't connected (caller should skip this MCP's tools).
+   *
+   * Developer Platform (blueprint Phase 9, PR-48): `context` closes the
+   * Phase 7 gap flagged since PR-47c — this is the actual runtime
+   * tool-execution call site (`agent.factory.js` -> `resolveAgentTools` ->
+   * `resolveMcpTools` -> here), so an `ExternalUser` Subject's own
+   * connection (stored by `domain` + `externalUserId`, not `userId`) now
+   * resolves correctly instead of never matching. Defaults to a
+   * Persona-shaped context built from `userId` — zero behavior change for
+   * every existing caller that omits it.
    */
-  async getUserAccessToken(mcp, userId) {
+  async getUserAccessToken(
+    mcp,
+    userId,
+    context = { principalType: 'PersonaUser', personaUserId: userId }
+  ) {
     if (mcp.authType !== 'oauth' || mcp.authMode !== 'user') return null;
 
-    const connection = await mcpUserConnectionRepository.findByMcpAndUser(mcp._id, { userId });
+    const subjectFilter = subjectFilterForContext(context);
+    const connection = await mcpUserConnectionRepository.findByMcpAndUser(mcp._id, subjectFilter);
     if (!connection) return null;
 
     const expiresAt = connection.expiresAt ? new Date(connection.expiresAt).getTime() : 0;
@@ -98,17 +114,13 @@ class McpTokenService {
       ? new Date(Date.now() + refreshed.expires_in * 1000)
       : null;
 
-    await mcpUserConnectionRepository.upsert(
-      mcp._id,
-      { userId },
-      {
-        accessTokenEncrypted: encryption.encrypt(refreshed.access_token),
-        refreshTokenEncrypted: refreshed.refresh_token
-          ? encryption.encrypt(refreshed.refresh_token)
-          : connection.refreshTokenEncrypted,
-        expiresAt: newExpiresAt,
-      }
-    );
+    await mcpUserConnectionRepository.upsert(mcp._id, subjectFilter, {
+      accessTokenEncrypted: encryption.encrypt(refreshed.access_token),
+      refreshTokenEncrypted: refreshed.refresh_token
+        ? encryption.encrypt(refreshed.refresh_token)
+        : connection.refreshTokenEncrypted,
+      expiresAt: newExpiresAt,
+    });
 
     return refreshed.access_token;
   }

@@ -11,6 +11,12 @@ jest.unstable_mockModule('../src/modules/mcp/mcp-user-connection.repository.js',
     findByMcpAndUser: jest.fn(),
     upsert: jest.fn(),
   },
+  subjectFilterForContext: (context) => {
+    if (context?.principalType === 'ProjectRuntime') {
+      return { domain: context.domain, externalUserId: context.externalUserId };
+    }
+    return { userId: context?.personaUserId };
+  },
 }));
 
 jest.unstable_mockModule('../src/utils/encryption.js', () => ({
@@ -181,6 +187,64 @@ describe('McpToken Service', () => {
         expect.objectContaining({ accessTokenEncrypted: 'enc:new-user-access' })
       );
       expect(result).toBe('new-user-access');
+    });
+
+    describe('context-aware Subject resolution (blueprint Phase 9, PR-48)', () => {
+      it('looks up an ExternalUser Subject connection by { domain, externalUserId }, not { userId }', async () => {
+        mcpUserConnectionRepository.findByMcpAndUser.mockResolvedValue({
+          accessTokenEncrypted: 'enc:ext-user-access',
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        });
+
+        const result = await mcpTokenService.getUserAccessToken(
+          { _id: 'mcp1', authType: 'oauth', authMode: 'user' },
+          undefined,
+          { principalType: 'ProjectRuntime', domain: 'project-1', externalUserId: 'sabik' }
+        );
+
+        expect(mcpUserConnectionRepository.findByMcpAndUser).toHaveBeenCalledWith('mcp1', {
+          domain: 'project-1',
+          externalUserId: 'sabik',
+        });
+        expect(result).toBe('ext-user-access');
+      });
+
+      it('persists a refreshed ExternalUser Subject token by { domain, externalUserId }', async () => {
+        mcpUserConnectionRepository.findByMcpAndUser.mockResolvedValue({
+          accessTokenEncrypted: 'enc:old-ext-access',
+          refreshTokenEncrypted: 'enc:old-ext-refresh',
+          expiresAt: new Date(Date.now() + 5 * 1000),
+        });
+        refreshAccessToken.mockResolvedValue({
+          access_token: 'new-ext-access',
+          refresh_token: 'new-ext-refresh',
+          expires_in: 3600,
+        });
+
+        const mcp = {
+          _id: 'mcp1',
+          authType: 'oauth',
+          authMode: 'user',
+          oauth: {
+            clientId: 'client1',
+            clientSecretEncrypted: 'enc:secret1',
+            tokenEndpoint: 'https://example.com/token',
+          },
+        };
+
+        const result = await mcpTokenService.getUserAccessToken(mcp, undefined, {
+          principalType: 'ProjectRuntime',
+          domain: 'project-1',
+          externalUserId: 'sabik',
+        });
+
+        expect(mcpUserConnectionRepository.upsert).toHaveBeenCalledWith(
+          'mcp1',
+          { domain: 'project-1', externalUserId: 'sabik' },
+          expect.objectContaining({ accessTokenEncrypted: 'enc:new-ext-access' })
+        );
+        expect(result).toBe('new-ext-access');
+      });
     });
   });
 });

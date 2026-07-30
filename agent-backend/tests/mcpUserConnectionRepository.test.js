@@ -1,5 +1,7 @@
 import { jest } from '@jest/globals';
-import mcpUserConnectionRepository from '../src/modules/mcp/mcp-user-connection.repository.js';
+import mcpUserConnectionRepository, {
+  subjectFilterForContext,
+} from '../src/modules/mcp/mcp-user-connection.repository.js';
 import McpUserConnection from '../src/modules/mcp/mcp-user-connection.model.js';
 
 describe('McpUserConnection Repository', () => {
@@ -79,6 +81,28 @@ describe('McpUserConnection Repository', () => {
 
       expect(McpUserConnection.deleteMany).toHaveBeenCalledWith({ mcpId: mockMcpId });
       expect(result.deletedCount).toBe(3);
+    });
+  });
+
+  describe('subjectFilterForContext (blueprint Phase 9, PR-48)', () => {
+    test('builds a { userId } filter for a Persona context', () => {
+      expect(
+        subjectFilterForContext({ principalType: 'PersonaUser', personaUserId: mockUserId })
+      ).toEqual({ userId: mockUserId });
+    });
+
+    test('builds a { domain, externalUserId } filter for a ProjectRuntime context', () => {
+      expect(
+        subjectFilterForContext({
+          principalType: 'ProjectRuntime',
+          domain: 'project-1',
+          externalUserId: 'sabik',
+        })
+      ).toEqual({ domain: 'project-1', externalUserId: 'sabik' });
+    });
+
+    test('falls back to { userId: undefined } for a missing/undefined context', () => {
+      expect(subjectFilterForContext(undefined)).toEqual({ userId: undefined });
     });
   });
 });

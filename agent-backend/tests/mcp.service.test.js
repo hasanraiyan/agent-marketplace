@@ -19,6 +19,12 @@ jest.unstable_mockModule('../src/modules/mcp/mcp-user-connection.repository.js',
     deleteByMcpAndUser: jest.fn(),
     deleteByMcp: jest.fn(),
   },
+  subjectFilterForContext: (context) => {
+    if (context?.principalType === 'ProjectRuntime') {
+      return { domain: context.domain, externalUserId: context.externalUserId };
+    }
+    return { userId: context?.personaUserId };
+  },
 }));
 
 jest.unstable_mockModule('../src/modules/agents/agent.repository.js', () => ({

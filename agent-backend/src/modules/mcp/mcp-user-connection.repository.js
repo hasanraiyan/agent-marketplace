@@ -1,17 +1,30 @@
 import McpUserConnection from './mcp-user-connection.model.js';
 
+/**
+ * Developer Platform (blueprint Phase 9, PR-47c/PR-48): shared by
+ * `mcp.service.js` (OAuth connect/disconnect flows) and
+ * `mcp-token.service.js` (runtime token resolution, `mcp-token.service.js`
+ * can't import `mcp.service.js` — see that file's own doc comment on why,
+ * an import cycle back through `agentFactory.js`). Kept here, a true leaf
+ * module both already depend on, rather than duplicated in each. For a
+ * Persona caller this is exactly `{ userId }`, byte-for-byte the same
+ * filter this repository built inline before Subject-splitting —
+ * deliberately NOT including `subjectType` in the filter itself (mirrors
+ * `resourceOwnership.js`/`thread.service.js`'s identical choice), so
+ * pre-existing connection documents that predate the `subjectType` field
+ * still match correctly.
+ */
+export function subjectFilterForContext(context) {
+  if (context?.principalType === 'ProjectRuntime') {
+    return { domain: context.domain, externalUserId: context.externalUserId };
+  }
+  return { userId: context?.personaUserId };
+}
+
 class McpUserConnectionRepository {
   /**
-   * Developer Platform (blueprint Phase 9, PR-47c): `subjectFilter`
-   * replaces the previous bare `userId` — build it with
-   * `mcp.service.js`'s local `connectionSubjectFilter(context)`, or pass
-   * `{ userId }` directly for the out-of-scope Persona-only runtime call
-   * site (`mcp-token.service.js`). For a Persona caller this is exactly
-   * `{ userId }`, byte-for-byte the same filter this method built inline
-   * before — deliberately NOT including `subjectType` in the filter itself
-   * (mirrors `resourceOwnership.js`/`thread.service.js`'s identical
-   * choice), so pre-existing connection documents that predate the
-   * `subjectType` field still match correctly.
+   * `subjectFilter` — build it with `subjectFilterForContext(context)`
+   * above, or pass `{ userId }` directly for a known-Persona caller.
    */
   async findByMcpAndUser(mcpId, subjectFilter) {
     return await McpUserConnection.findOne({ mcpId, ...subjectFilter });
