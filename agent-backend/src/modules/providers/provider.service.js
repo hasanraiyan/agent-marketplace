@@ -123,8 +123,15 @@ class ProviderService {
       throw new Error('Unauthorized to delete this provider');
     }
 
-    // Block deletion if any of the user's agents still reference this provider
-    const dependentCount = await agentRepository.count({ providerId, ownerId: userId });
+    // Developer Platform (AD-06 §22): scoped to providerId alone, not
+    // ownerId — a Provider can only ever be referenced by its own owner's
+    // Agents today (attachment-time ownership check, agent.service.js
+    // assertOwnsProvider), but scoping the count to providerId directly is
+    // the correct, defense-in-depth fix: it doesn't silently undercount if
+    // that invariant is ever loosened (e.g. future Project-shared
+    // Providers), and it's exactly as cheap to compute for the current
+    // single-owner case.
+    const dependentCount = await agentRepository.count({ providerId });
     if (dependentCount > 0) {
       throw new Error(
         `Cannot delete this provider — ${dependentCount} agent${dependentCount === 1 ? '' : 's'} ` +

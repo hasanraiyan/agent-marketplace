@@ -219,6 +219,28 @@ describe('Provider Service', () => {
         'Unauthorized to delete this provider'
       );
     });
+
+    test('AD-06 §22: dependency count is scoped to providerId alone, not ownerId', async () => {
+      providerRepository.findById.mockResolvedValue(mockProvider);
+      agentRepository.count.mockResolvedValue(0);
+      providerRepository.delete.mockResolvedValue(mockProvider);
+
+      await providerService.deleteProvider(mockUserId, mockProvider._id);
+
+      expect(agentRepository.count).toHaveBeenCalledWith({ providerId: mockProvider._id });
+      const callArg = agentRepository.count.mock.calls[0][0];
+      expect(callArg.ownerId).toBeUndefined();
+    });
+
+    test('blocks deletion when any agent (regardless of owner) still references the provider', async () => {
+      providerRepository.findById.mockResolvedValue(mockProvider);
+      agentRepository.count.mockResolvedValue(2);
+
+      await expect(providerService.deleteProvider(mockUserId, mockProvider._id)).rejects.toThrow(
+        /2 agents/
+      );
+      expect(providerRepository.delete).not.toHaveBeenCalled();
+    });
   });
 
   describe('testConnection', () => {

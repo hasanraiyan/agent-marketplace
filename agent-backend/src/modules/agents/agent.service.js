@@ -1,7 +1,27 @@
 import agentRepository from './agent.repository.js';
+import providerRepository from '../providers/provider.repository.js';
 import User from '../users/user.model.js';
 import crypto from 'crypto';
 import { PERSONA_DOMAIN } from '../auth/personaPrincipalContext.js';
+
+/**
+ * Developer Platform (AD-06 §23): validates that a `providerId` an Agent
+ * wants to attach actually belongs to the same owner before accepting it.
+ * Previously unvalidated — any authenticated user could set another user's
+ * Provider ID on their own Agent, silently borrowing it (no plaintext key
+ * exposure, since decryption stays server-internal, but it let one user's
+ * Agent depend on a Provider record they had no authority over, and made
+ * the delete-dependency count — scoped to the deleting user's own agents,
+ * §22 — silently undercount that dependent). Skips the check when
+ * `providerId` is absent/unchanged.
+ */
+async function assertOwnsProvider(userId, providerId) {
+  if (!providerId) return;
+  const provider = await providerRepository.findById(providerId);
+  if (!provider || provider.ownerId.toString() !== userId.toString()) {
+    throw new Error('Invalid provider');
+  }
+}
 
 /**
  * Wraps a bare Persona userId (the only identity shape every current
@@ -154,6 +174,8 @@ class AgentService {
     const user = await User.findById(userId);
     if (!user) throw new Error('User not found');
 
+    await assertOwnsProvider(userId, data.providerId);
+
     const mainAgent = await agentRepository.findOne({
       ownerId: userId,
       isMainAgent: true,
@@ -283,6 +305,8 @@ class AgentService {
     if (existing.ownerId.toString() !== userId.toString()) {
       throw new Error('Unauthorized to update this agent');
     }
+
+    await assertOwnsProvider(userId, updateData.providerId);
 
     // Never allow updating ownerId or slug directly via this route
     delete updateData.ownerId;

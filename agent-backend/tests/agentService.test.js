@@ -19,7 +19,15 @@ jest.unstable_mockModule('../src/modules/users/user.model.js', () => ({
   },
 }));
 
+jest.unstable_mockModule('../src/modules/providers/provider.repository.js', () => ({
+  default: {
+    findById: jest.fn(),
+  },
+}));
+
 const agentRepository = (await import('../src/modules/agents/agent.repository.js')).default;
+const providerRepository = (await import('../src/modules/providers/provider.repository.js'))
+  .default;
 const User = (await import('../src/modules/users/user.model.js')).default;
 const { default: agentService, personaExecutionContext } =
   await import('../src/modules/agents/agent.service.js');
@@ -267,6 +275,79 @@ describe('Agent Service', () => {
       expect(agentService.canUserExecuteAgent(agent, personaExecutionContext(guestUserId))).toBe(
         false
       );
+    });
+  });
+
+  describe('provider ownership validation (AD-06 §23) — createAgent/updateAgent', () => {
+    test('createAgent allows attaching a providerId the requesting user owns', async () => {
+      providerRepository.findById.mockResolvedValue({ _id: 'prov_1', ownerId: mockUserId });
+      agentRepository.findOne.mockResolvedValue({ _id: 'main_agent' });
+      agentRepository.findBySlug.mockResolvedValue(null);
+      agentRepository.create.mockResolvedValue(mockAgent);
+
+      await agentService.createAgent(mockUserId, { name: 'My Bot', providerId: 'prov_1' });
+
+      expect(providerRepository.findById).toHaveBeenCalledWith('prov_1');
+      expect(agentRepository.create).toHaveBeenCalled();
+    });
+
+    test('createAgent rejects a providerId owned by a different user', async () => {
+      providerRepository.findById.mockResolvedValue({ _id: 'prov_1', ownerId: 'someone_else' });
+
+      await expect(
+        agentService.createAgent(mockUserId, { name: 'My Bot', providerId: 'prov_1' })
+      ).rejects.toThrow('Invalid provider');
+      expect(agentRepository.create).not.toHaveBeenCalled();
+    });
+
+    test('createAgent rejects a providerId that does not exist', async () => {
+      providerRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        agentService.createAgent(mockUserId, { name: 'My Bot', providerId: 'nonexistent' })
+      ).rejects.toThrow('Invalid provider');
+    });
+
+    test('createAgent skips the provider check entirely when no providerId is given', async () => {
+      agentRepository.findOne.mockResolvedValue({ _id: 'main_agent' });
+      agentRepository.findBySlug.mockResolvedValue(null);
+      agentRepository.create.mockResolvedValue(mockAgent);
+
+      await agentService.createAgent(mockUserId, { name: 'My Bot' });
+
+      expect(providerRepository.findById).not.toHaveBeenCalled();
+      expect(agentRepository.create).toHaveBeenCalled();
+    });
+
+    test('updateAgent allows attaching a providerId the requesting user owns', async () => {
+      agentRepository.findById.mockResolvedValue(mockAgent);
+      providerRepository.findById.mockResolvedValue({ _id: 'prov_2', ownerId: mockUserId });
+      agentRepository.update.mockResolvedValue({ ...mockAgent, providerId: 'prov_2' });
+
+      await agentService.updateAgent('agent_1', mockUserId, { providerId: 'prov_2' });
+
+      expect(providerRepository.findById).toHaveBeenCalledWith('prov_2');
+      expect(agentRepository.update).toHaveBeenCalled();
+    });
+
+    test('updateAgent rejects a providerId owned by a different user', async () => {
+      agentRepository.findById.mockResolvedValue(mockAgent);
+      providerRepository.findById.mockResolvedValue({ _id: 'prov_2', ownerId: 'someone_else' });
+
+      await expect(
+        agentService.updateAgent('agent_1', mockUserId, { providerId: 'prov_2' })
+      ).rejects.toThrow('Invalid provider');
+      expect(agentRepository.update).not.toHaveBeenCalled();
+    });
+
+    test('updateAgent skips the provider check when providerId is not part of the update', async () => {
+      agentRepository.findById.mockResolvedValue(mockAgent);
+      agentRepository.update.mockResolvedValue(mockAgent);
+
+      await agentService.updateAgent('agent_1', mockUserId, { name: 'Renamed' });
+
+      expect(providerRepository.findById).not.toHaveBeenCalled();
+      expect(agentRepository.update).toHaveBeenCalled();
     });
   });
 });
