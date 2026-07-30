@@ -397,10 +397,17 @@ class AgentFactory {
       agentConfig: agent,
       updatedAt: agent.updatedAt,
       llm,
+      // Developer Platform (AD-06 §16.4, blueprint Phase 7): no decrypted
+      // plaintext key here. `_buildLLM` (above) is the only place the
+      // decrypted credential is needed to construct the model client; every
+      // downstream consumer of this cached providerConfig (agui.service.js,
+      // aguiTranslator.js's formatRuntimeError) only ever reads `.label` for
+      // a friendlier error message. Keeping the plaintext out of this
+      // long-lived LRU-cached object minimizes how long/where it lingers in
+      // memory, even though it never crossed a trust boundary before this.
       providerConfig: {
         id: provider._id?.toString?.() || provider._id,
         label: provider.label,
-        apiKey: encryption.decrypt(provider.apiKeyEncrypted),
         baseURL: provider.baseURL,
         modelName: agent.modelName || provider.defaultModel || 'gpt-3.5-turbo',
       },

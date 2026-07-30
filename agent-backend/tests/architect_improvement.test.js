@@ -43,6 +43,12 @@ describe('Architect Improvements', () => {
     expect(providerConfig.modelName).toBe('gpt-4o-custom');
   });
 
+  test('Developer Platform PR-18 (AD-06 §16.4): cached providerConfig never carries the decrypted plaintext key', async () => {
+    const { providerConfig } = await agentFactory.buildAgent(ARCHITECT_AGENT_ID, userId, null);
+    expect(providerConfig.apiKey).toBeUndefined();
+    expect('apiKey' in providerConfig).toBe(false);
+  });
+
   test('T6: Architect has interruptOn for builder actions', async () => {
     const { agentConfig } = await agentFactory.buildAgent(ARCHITECT_AGENT_ID, userId, null);
     expect(agentConfig.interruptOn).toEqual({
