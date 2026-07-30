@@ -13,9 +13,17 @@ export { ARCHITECT_AGENT_ID };
 /**
  * @param {Object} agentConfig - The Mongoose Agent document or System Agent object
  * @param {string} userId - The ID of the user interacting with the agent
+ * @param {Object} [context] - Execution context (blueprint Phase 9, PR-48);
+ *   defaults to a Persona-shaped context built from `userId` — forwarded to
+ *   `resolveMcpTools` so per-user OAuth MCP tools resolve the calling
+ *   Subject's own connection correctly, Persona or Project external user.
  * @returns {Promise<Array>} Array of initialized LangChain Tools
  */
-export const resolveAgentTools = async (agentConfig, userId) => {
+export const resolveAgentTools = async (
+  agentConfig,
+  userId,
+  context = { principalType: 'PersonaUser', personaUserId: userId }
+) => {
   const clarificationTool = askClarificationTool();
 
   // 1. If it is the Specialized Architect, give it the Builder Toolbox
@@ -37,7 +45,7 @@ export const resolveAgentTools = async (agentConfig, userId) => {
   // 3. MCP connector tools (owner-shared or per-user, depending on each
   // attached connector's authMode). mcpAppMap maps a tool name to the MCP App
   // widget (resourceUri + mcpId) the AG-UI stream should render when it's called.
-  const { tools: mcpTools, mcpAppMap } = await resolveMcpTools(agentConfig, userId);
+  const { tools: mcpTools, mcpAppMap } = await resolveMcpTools(agentConfig, userId, context);
   tools.push(...mcpTools);
 
   // 4. Knowledge Base tools (semantic search + list sources per KB)

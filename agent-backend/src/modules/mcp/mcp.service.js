@@ -1,6 +1,8 @@
 import { MultiServerMCPClient } from '@langchain/mcp-adapters';
 import mcpRepository from './mcp.repository.js';
-import mcpUserConnectionRepository from './mcp-user-connection.repository.js';
+import mcpUserConnectionRepository, {
+  subjectFilterForContext,
+} from './mcp-user-connection.repository.js';
 import agentRepository from '../agents/agent.repository.js';
 import agentFactory from '../agents/agent.factory.js';
 import encryption from '../../utils/encryption.js';
@@ -34,22 +36,13 @@ function redirectUriFor(mode) {
 /**
  * Developer Platform (AD-05 §17, blueprint Phase 9, PR-47c): a
  * McpUserConnection belongs to a Subject (who connected their own
- * account), not an Owner — same distinction as Thread (AD-04 §15.3), kept
- * local here (not shared with `resourceOwnership.js`'s Owner-shaped
- * helpers) for the same reasons `thread.service.js` keeps its own Subject
- * helpers local. Deliberately excludes `subjectType` from the FILTER
- * shape (only includes it when building fields to persist) — mirrors
- * every other Owner/Subject filter helper in this codebase, so
- * pre-existing connection documents that predate the `subjectType` field
- * still match correctly.
+ * account), not an Owner — same distinction as Thread (AD-04 §15.3). The
+ * filter half of this (`subjectFilterForContext`) now lives in
+ * `mcp-user-connection.repository.js` — shared with `mcp-token.service.js`
+ * (PR-48) — this fields-shaped half stays local since only the OAuth
+ * connect flow (not runtime token resolution) needs to persist
+ * `subjectType`.
  */
-function connectionSubjectFilter(context) {
-  if (context?.principalType === 'ProjectRuntime') {
-    return { domain: context.domain, externalUserId: context.externalUserId };
-  }
-  return { userId: context?.personaUserId };
-}
-
 function connectionSubjectFields(context) {
   if (context?.principalType === 'ProjectRuntime') {
     return {
@@ -336,15 +329,11 @@ class McpService {
   }
 
   /**
-   * Developer Platform (blueprint Phase 9, PR-47c): `context` is optional
-   * and only consulted for the `authMode: 'user'` branch. Per-user OAuth
-   * token resolution (`mcpTokenService.getUserAccessToken`) is deliberately
-   * NOT generalized in this pass — it's the runtime tool-execution path
-   * (`agent.factory.js`'s `resolveMcpTools` still casts its identity
-   * param to a Persona User ObjectId, a separately-tracked gap from
-   * Phase 7). Rather than let a non-Persona Subject's raw string id hit
-   * that ObjectId-typed query and surface as an opaque Mongoose
-   * CastError/500, fail closed here with a clear, intentional error.
+   * Developer Platform (blueprint Phase 9, PR-47c/PR-48): `context` is
+   * optional and only consulted for the `authMode: 'user'` branch — passed
+   * straight through to `mcpTokenService.getUserAccessToken`, which builds
+   * the correct Subject filter for any principal type (PR-48 closed the
+   * Phase 7 gap this used to fail closed against).
    */
   async _resolveAuthHeaders(mcp, userId, actionLabel, context) {
     const headers = {};
@@ -352,12 +341,8 @@ class McpService {
       let token;
       if (mcp.authMode === 'owner') {
         token = await mcpTokenService.getOwnerAccessToken(mcp);
-      } else if (context && context.principalType !== 'PersonaUser') {
-        throw new ValidationError(
-          'Per-user MCP connections are not yet supported for external-user Subjects via the Developer API'
-        );
       } else {
-        token = await mcpTokenService.getUserAccessToken(mcp, userId);
+        token = await mcpTokenService.getUserAccessToken(mcp, userId, context);
       }
       if (!token) {
         throw new ValidationError(
@@ -617,7 +602,7 @@ class McpService {
       ? new Date(Date.now() + tokenResponse.expires_in * 1000)
       : null;
     const callbackContext = contextFromOAuthState(decoded);
-    await mcpUserConnectionRepository.upsert(id, connectionSubjectFilter(callbackContext), {
+    await mcpUserConnectionRepository.upsert(id, subjectFilterForContext(callbackContext), {
       ...connectionSubjectFields(callbackContext),
       accessTokenEncrypted: encryption.encrypt(tokenResponse.access_token),
       refreshTokenEncrypted: tokenResponse.refresh_token
@@ -632,13 +617,13 @@ class McpService {
   async getUserConnectionStatus(id, userId, context = personaExecutionContext(userId)) {
     const connection = await mcpUserConnectionRepository.findByMcpAndUser(
       id,
-      connectionSubjectFilter(context)
+      subjectFilterForContext(context)
     );
     return { connected: Boolean(connection) };
   }
 
   async disconnectUserConnection(id, userId, context = personaExecutionContext(userId)) {
-    await mcpUserConnectionRepository.deleteByMcpAndUser(id, connectionSubjectFilter(context));
+    await mcpUserConnectionRepository.deleteByMcpAndUser(id, subjectFilterForContext(context));
     await this._invalidateAgentsUsingMcp(id);
   }
 
