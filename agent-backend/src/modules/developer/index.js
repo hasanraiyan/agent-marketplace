@@ -8,3 +8,5 @@ export { default as developerSkillRouter } from './developerSkill.routes.js';
 export { default as developerSkillController } from './developerSkill.controller.js';
 export { default as developerKnowledgeRouter } from './developerKnowledge.routes.js';
 export { default as developerKnowledgeController } from './developerKnowledge.controller.js';
+export { default as developerMcpRouter } from './developerMcp.routes.js';
+export { default as developerMcpController } from './developerMcp.controller.js';

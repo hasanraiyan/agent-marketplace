@@ -1,0 +1,105 @@
+import request from 'supertest';
+import express from 'express';
+import { jest } from '@jest/globals';
+
+/**
+ * Route-level integration test (blueprint Phase 9, PR-35): proves
+ * developerMcp.routes.js actually wires developerMachineAuthMiddleware +
+ * Zod validation + the controller together.
+ */
+
+jest.unstable_mockModule('../src/modules/projects/projectCredential.service.js', () => ({
+  default: { verifyCredential: jest.fn() },
+}));
+jest.unstable_mockModule('../src/modules/projects/project.service.js', () => ({
+  default: { getProjectById: jest.fn() },
+}));
+jest.unstable_mockModule('../src/modules/externalUsers/externalUser.service.js', () => ({
+  default: { resolveOrCreate: jest.fn() },
+}));
+jest.unstable_mockModule('../src/modules/mcp/mcp.service.js', () => ({
+  default: {
+    createMcp: jest.fn(),
+    getMcpById: jest.fn(),
+    updateMcp: jest.fn(),
+    deleteMcp: jest.fn(),
+    toSafeJson: jest.fn((mcp) => mcp),
+  },
+}));
+
+const projectCredentialService = (
+  await import('../src/modules/projects/projectCredential.service.js')
+).default;
+const projectService = (await import('../src/modules/projects/project.service.js')).default;
+const mcpService = (await import('../src/modules/mcp/mcp.service.js')).default;
+const { default: developerMcpRouter } =
+  await import('../src/modules/developer/developerMcp.routes.js');
+
+describe('developerMcp.routes.js — mount integration', () => {
+  let app;
+
+  beforeAll(() => {
+    app = express();
+    app.use(express.json());
+    app.use('/api/v1/developer/mcps', developerMcpRouter);
+    app.use((err, req, res, next) => {
+      res.status(err.statusCode || 500).json({ success: false, message: err.message });
+    });
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mcpService.toSafeJson.mockImplementation((mcp) => mcp);
+    projectCredentialService.verifyCredential.mockResolvedValue({
+      credentialId: 'cred-1',
+      project: 'project-1',
+    });
+    projectService.getProjectById.mockResolvedValue({ _id: 'project-1', status: 'ACTIVE' });
+  });
+
+  test('401s without a Project credential, never reaching the controller', async () => {
+    const res = await request(app)
+      .post('/api/v1/developer/mcps')
+      .send({ name: 'Test MCP', transport: 'http', url: 'https://example.com/mcp' });
+
+    expect(res.status).toBe(401);
+    expect(mcpService.createMcp).not.toHaveBeenCalled();
+  });
+
+  test('400s on an invalid body (url is not a valid URL)', async () => {
+    const res = await request(app)
+      .post('/api/v1/developer/mcps')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .send({ name: 'Test MCP', transport: 'http', url: 'not-a-url' });
+
+    expect(res.status).toBe(400);
+    expect(mcpService.createMcp).not.toHaveBeenCalled();
+  });
+
+  test('creates an Mcp for a valid credential + valid body', async () => {
+    mcpService.createMcp.mockResolvedValue({ _id: 'm1', name: 'Test MCP' });
+
+    const res = await request(app)
+      .post('/api/v1/developer/mcps')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .send({ name: 'Test MCP', transport: 'http', url: 'https://example.com/mcp' });
+
+    expect(res.status).toBe(201);
+    expect(mcpService.createMcp).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({ name: 'Test MCP' }),
+      expect.objectContaining({ domain: 'project-1', principalType: 'ProjectMachine' })
+    );
+  });
+
+  test('GET /:mcpId reaches the controller and returns the Mcp', async () => {
+    mcpService.getMcpById.mockResolvedValue({ _id: 'm1' });
+
+    const res = await request(app)
+      .get('/api/v1/developer/mcps/m1')
+      .set('Authorization', 'Bearer pk_test.secret');
+
+    expect(res.status).toBe(200);
+    expect(mcpService.getMcpById).toHaveBeenCalledWith('m1', undefined, expect.any(Object));
+  });
+});
