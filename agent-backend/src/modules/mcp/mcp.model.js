@@ -42,10 +42,26 @@ const mcpSchema = new mongoose.Schema(
       enum: ['PersonaUser', 'Project', 'ExternalUser'],
       default: 'PersonaUser',
     },
+    // Developer Platform (AD-04, blueprint Phase 9, PR-33): same
+    // conditional-required generalization as Agent (PR-24) / Skill
+    // (PR-27) / KnowledgeBase (PR-30) — only required for
+    // `ownerType: 'PersonaUser'`.
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      required: function () {
+        return this.ownerType === 'PersonaUser';
+      },
+      index: true,
+    },
+    // Developer Platform (AD-02 §11.1, blueprint Phase 9, PR-33): mirrors
+    // Agent's/Skill's/KnowledgeBase's own `externalOwnerId` exactly.
+    externalOwnerId: {
+      type: String,
+      default: null,
+      required: function () {
+        return this.ownerType === 'ExternalUser';
+      },
       index: true,
     },
     name: {
@@ -121,7 +137,15 @@ const mcpSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-mcpSchema.index({ ownerId: 1, name: 1 }, { unique: true });
+// Developer Platform (blueprint Phase 9, PR-33): scoped with a
+// partialFilterExpression — see skill.model.js's identical PR-27 fix for
+// the full rationale (a non-partial unique index would otherwise treat
+// every Project-/ExternalUser-owned Mcp's missing `ownerId` as `null`,
+// colliding across unrelated documents that merely share a `name`).
+mcpSchema.index(
+  { ownerId: 1, name: 1 },
+  { unique: true, partialFilterExpression: { ownerId: { $exists: true } } }
+);
 
 const Mcp = mongoose.model('Mcp', mcpSchema);
 
