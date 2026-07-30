@@ -14,3 +14,5 @@ export { default as developerProviderRouter } from './developerProvider.routes.j
 export { default as developerProviderController } from './developerProvider.controller.js';
 export { default as developerThreadRouter } from './developerThread.routes.js';
 export { default as developerThreadController } from './developerThread.controller.js';
+export { default as developerFileRouter } from './developerFile.routes.js';
+export { default as developerFileController } from './developerFile.controller.js';

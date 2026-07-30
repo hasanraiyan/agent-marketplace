@@ -28,11 +28,50 @@ import providerService from '../providers/provider.service.js';
  * existence-hiding special-case is needed — `next(error)` maps it through
  * the default error handler.
  *
- * OAuth/runtime endpoints (test connection, fetch available models) are
- * deliberately NOT included here — same scoped-follow-up treatment as
- * Mcp's testConnection/callTool (PR-35).
+ * `testConnection`/`getModels` (blueprint Phase 9, PR-47a) round out the
+ * Developer Provider runtime surface — `providerService`'s own methods
+ * were generalized alongside this controller change, same treatment as
+ * every other Developer runtime endpoint added this pass.
  */
 class DeveloperProviderController {
+  async testConnection(req, res, next) {
+    try {
+      const result = await providerService.testConnection(
+        req.params.providerId,
+        undefined,
+        req.projectContext
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      if (
+        error.message === 'Provider not found' ||
+        error.message === 'Unauthorized to test this provider'
+      ) {
+        return res.status(404).json({ success: false, message: 'Provider not found' });
+      }
+      res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  async getModels(req, res, next) {
+    try {
+      const models = await providerService.getAvailableModels(
+        req.params.providerId,
+        undefined,
+        req.projectContext
+      );
+      res.json({ success: true, data: models });
+    } catch (error) {
+      if (
+        error.message === 'Provider not found' ||
+        error.message === 'Unauthorized to access this provider'
+      ) {
+        return res.status(404).json({ success: false, message: 'Provider not found' });
+      }
+      res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
   async create(req, res, next) {
     try {
       if (req.projectContext?.principalType === 'ProjectRuntime') {

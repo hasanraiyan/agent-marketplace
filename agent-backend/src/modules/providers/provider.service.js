@@ -221,14 +221,22 @@ class ProviderService {
     return { success: true, models };
   }
 
-  async getAvailableModels(providerId, userId) {
+  /**
+   * Developer Platform (blueprint Phase 9, PR-47a): `context` defaults to
+   * `personaExecutionContext(userId)` — zero behavior change for the
+   * existing Persona route. Deliberately deferred out of PR-37 alongside
+   * `testConnection` below (both are outbound-network runtime operations,
+   * same category as MCP's testConnection/OAuth flows) — generalized now
+   * as part of completing the Developer Provider runtime surface.
+   */
+  async getAvailableModels(providerId, userId, context = personaExecutionContext(userId)) {
     let provider = await providerRepository.findById(providerId);
 
     if (!provider) {
       throw new Error('Provider not found');
     }
 
-    if (provider.ownerId.toString() !== userId.toString()) {
+    if (!isResourceOwner(provider, context)) {
       throw new Error('Unauthorized to access this provider');
     }
 
@@ -238,14 +246,15 @@ class ProviderService {
     return this.fetchModelsFromApi(provider.baseURL, apiKey);
   }
 
-  async testConnection(providerId, userId) {
+  /** See `getAvailableModels`'s doc comment — identical `context` generalization. */
+  async testConnection(providerId, userId, context = personaExecutionContext(userId)) {
     let provider = await providerRepository.findById(providerId);
 
     if (!provider) {
       throw new Error('Provider not found');
     }
 
-    if (provider.ownerId.toString() !== userId.toString()) {
+    if (!isResourceOwner(provider, context)) {
       throw new Error('Unauthorized to test this provider');
     }
 

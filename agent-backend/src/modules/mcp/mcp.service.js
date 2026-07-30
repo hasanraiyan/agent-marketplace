@@ -31,6 +31,50 @@ function redirectUriFor(mode) {
   return `${config.backendUrl}/api/v1/mcps/oauth/${mode}/callback`;
 }
 
+/**
+ * Developer Platform (AD-05 §17, blueprint Phase 9, PR-47c): a
+ * McpUserConnection belongs to a Subject (who connected their own
+ * account), not an Owner — same distinction as Thread (AD-04 §15.3), kept
+ * local here (not shared with `resourceOwnership.js`'s Owner-shaped
+ * helpers) for the same reasons `thread.service.js` keeps its own Subject
+ * helpers local. Deliberately excludes `subjectType` from the FILTER
+ * shape (only includes it when building fields to persist) — mirrors
+ * every other Owner/Subject filter helper in this codebase, so
+ * pre-existing connection documents that predate the `subjectType` field
+ * still match correctly.
+ */
+function connectionSubjectFilter(context) {
+  if (context?.principalType === 'ProjectRuntime') {
+    return { domain: context.domain, externalUserId: context.externalUserId };
+  }
+  return { userId: context?.personaUserId };
+}
+
+function connectionSubjectFields(context) {
+  if (context?.principalType === 'ProjectRuntime') {
+    return {
+      domain: context.domain,
+      subjectType: 'ExternalUser',
+      externalUserId: context.externalUserId,
+    };
+  }
+  return { subjectType: 'PersonaUser', userId: context?.personaUserId };
+}
+
+/**
+ * Reconstructs an execution-context-shaped object from a verified,
+ * signed OAuth state payload (never from raw, caller-supplied
+ * domain/subject on the live callback request — AD-02 §16, AD-07 §25).
+ */
+function contextFromOAuthState(decoded) {
+  return {
+    domain: decoded.domain,
+    principalType: decoded.principalType,
+    personaUserId: decoded.personaUserId,
+    externalUserId: decoded.externalUserId,
+  };
+}
+
 class McpService {
   toSafeJson(mcp) {
     const obj = mcp.toObject ? mcp.toObject() : mcp;
@@ -291,13 +335,30 @@ class McpService {
     return { client, transport };
   }
 
-  async _resolveAuthHeaders(mcp, userId, actionLabel) {
+  /**
+   * Developer Platform (blueprint Phase 9, PR-47c): `context` is optional
+   * and only consulted for the `authMode: 'user'` branch. Per-user OAuth
+   * token resolution (`mcpTokenService.getUserAccessToken`) is deliberately
+   * NOT generalized in this pass — it's the runtime tool-execution path
+   * (`agent.factory.js`'s `resolveMcpTools` still casts its identity
+   * param to a Persona User ObjectId, a separately-tracked gap from
+   * Phase 7). Rather than let a non-Persona Subject's raw string id hit
+   * that ObjectId-typed query and surface as an opaque Mongoose
+   * CastError/500, fail closed here with a clear, intentional error.
+   */
+  async _resolveAuthHeaders(mcp, userId, actionLabel, context) {
     const headers = {};
     if (mcp.authType === 'oauth') {
-      const token =
-        mcp.authMode === 'owner'
-          ? await mcpTokenService.getOwnerAccessToken(mcp)
-          : await mcpTokenService.getUserAccessToken(mcp, userId);
+      let token;
+      if (mcp.authMode === 'owner') {
+        token = await mcpTokenService.getOwnerAccessToken(mcp);
+      } else if (context && context.principalType !== 'PersonaUser') {
+        throw new ValidationError(
+          'Per-user MCP connections are not yet supported for external-user Subjects via the Developer API'
+        );
+      } else {
+        token = await mcpTokenService.getUserAccessToken(mcp, userId);
+      }
       if (!token) {
         throw new ValidationError(
           mcp.authMode === 'owner'
@@ -318,9 +379,14 @@ class McpService {
     return headers;
   }
 
-  async testConnection(id, userId) {
-    const mcp = await this.getMcpById(id, userId);
-    const headers = await this._resolveAuthHeaders(mcp, userId, 'testing');
+  /**
+   * Developer Platform (blueprint Phase 9, PR-47c): `context` defaults to
+   * `personaExecutionContext(userId)` — zero behavior change for the
+   * existing Persona route.
+   */
+  async testConnection(id, userId, context = personaExecutionContext(userId)) {
+    const mcp = await this.getMcpById(id, userId, context);
+    const headers = await this._resolveAuthHeaders(mcp, userId, 'testing', context);
 
     const adapterClient = new MultiServerMCPClient({
       mcpServers: {
@@ -400,16 +466,12 @@ class McpService {
       `[MCP] Test connection for "${mcp.name}": ${toolSummaries.length} tools, ${resourceSummaries.length} resources, ${templateSummaries.length} templates`
     );
 
-    await mcpRepository.update(
-      id,
-      { ownerId: userId },
-      {
-        tools: toolSummaries,
-        resources: resourceSummaries,
-        resourceTemplates: templateSummaries,
-        lastTestedAt: new Date(),
-      }
-    );
+    await mcpRepository.update(id, ownerFilterForContext(context), {
+      tools: toolSummaries,
+      resources: resourceSummaries,
+      resourceTemplates: templateSummaries,
+      lastTestedAt: new Date(),
+    });
     await this._invalidateAgentsUsingMcp(id);
 
     return {
@@ -419,14 +481,27 @@ class McpService {
     };
   }
 
-  async getOwnerAuthorizationUrl(id, userId) {
-    const mcp = await this.getMcpById(id, userId);
+  /**
+   * Developer Platform (blueprint Phase 9, PR-47c, AD-07 §25): `context`
+   * defaults to `personaExecutionContext(userId)` — zero behavior change
+   * for the existing Persona route. The Owner OAuth flow's shared token is
+   * used by everyone who invokes the MCP's tools regardless of Subject, so
+   * this stays an Owner-model (not Subject-model) operation — the signed
+   * state carries enough of `context` to reconstruct it for the
+   * unauthenticated callback (never trusting a caller-supplied
+   * domain/subject on the callback request itself, AD-02 §16).
+   */
+  async getOwnerAuthorizationUrl(id, userId, context = personaExecutionContext(userId)) {
+    const mcp = await this.getMcpById(id, userId, context);
     if (mcp.authType !== 'oauth') throw new ValidationError('This MCP server does not use OAuth');
     const { codeVerifier, codeChallenge } = generatePkcePair();
     const state = signOAuthState({
       mcpId: String(id),
-      userId: String(userId),
       mode: 'owner',
+      domain: context.domain,
+      principalType: context.principalType,
+      personaUserId: context.personaUserId ? String(context.personaUserId) : undefined,
+      externalUserId: context.externalUserId,
       codeVerifier,
     });
     return buildAuthorizationUrl({
@@ -446,6 +521,10 @@ class McpService {
     const id = decoded.mcpId;
     const mcp = await mcpRepository.findById(id);
     if (!mcp) throw new NotFoundError('MCP server not found');
+    const callbackContext = contextFromOAuthState(decoded);
+    if (!isResourceOwner(mcp, callbackContext)) {
+      throw new ValidationError('OAuth state does not match this request');
+    }
     const clientSecret = mcp.oauth.clientSecretEncrypted
       ? encryption.decrypt(mcp.oauth.clientSecretEncrypted)
       : null;
@@ -460,37 +539,49 @@ class McpService {
     const expiresAt = tokenResponse.expires_in
       ? new Date(Date.now() + tokenResponse.expires_in * 1000)
       : null;
-    await mcpRepository.update(
-      id,
-      { ownerId: decoded.userId },
-      {
-        oauth: {
-          ...mcp.oauth.toObject(),
-          ownerToken: {
-            accessTokenEncrypted: encryption.encrypt(tokenResponse.access_token),
-            refreshTokenEncrypted: tokenResponse.refresh_token
-              ? encryption.encrypt(tokenResponse.refresh_token)
-              : null,
-            expiresAt,
-          },
+    await mcpRepository.update(id, ownerFilterForContext(callbackContext), {
+      oauth: {
+        ...mcp.oauth.toObject(),
+        ownerToken: {
+          accessTokenEncrypted: encryption.encrypt(tokenResponse.access_token),
+          refreshTokenEncrypted: tokenResponse.refresh_token
+            ? encryption.encrypt(tokenResponse.refresh_token)
+            : null,
+          expiresAt,
         },
-      }
-    );
+      },
+    });
     await this._invalidateAgentsUsingMcp(id);
     return `${config.websiteUrl.replace(/\/+$/, '')}/dashboard/connectors/mcps?mcpId=${id}&connected=owner`;
   }
 
-  async getUserAuthorizationUrl(id, userId, returnTo) {
+  /**
+   * Developer Platform (blueprint Phase 9, PR-47c): `context` defaults to
+   * `personaExecutionContext(userId)` — zero behavior change for the
+   * existing Persona route. Per-user connections are Subject-scoped
+   * (AD-05 §17) — restricted to the MCP's own Domain, same
+   * Domain-boundary reasoning `assertOwnsProvider` already established
+   * for Provider attachment (AD-06 §12): any Subject within the MCP's
+   * Domain may connect their own account, existence-hidden to a 404 for a
+   * cross-Domain attempt rather than a distinguishable error.
+   */
+  async getUserAuthorizationUrl(id, userId, returnTo, context = personaExecutionContext(userId)) {
     const mcp = await mcpRepository.findById(id);
     if (!mcp) throw new NotFoundError('MCP server not found');
+    if (mcp.domain && context.domain && mcp.domain !== context.domain) {
+      throw new NotFoundError('MCP server not found');
+    }
     if (mcp.authType !== 'oauth' || mcp.authMode !== 'user') {
       throw new ValidationError('This MCP server is not configured for per-user authentication');
     }
     const { codeVerifier, codeChallenge } = generatePkcePair();
     const state = signOAuthState({
       mcpId: String(id),
-      userId: String(userId),
       mode: 'user',
+      domain: context.domain,
+      principalType: context.principalType,
+      personaUserId: context.personaUserId ? String(context.personaUserId) : undefined,
+      externalUserId: context.externalUserId,
       codeVerifier,
       returnTo: returnTo || config.websiteUrl,
     });
@@ -525,7 +616,9 @@ class McpService {
     const expiresAt = tokenResponse.expires_in
       ? new Date(Date.now() + tokenResponse.expires_in * 1000)
       : null;
-    await mcpUserConnectionRepository.upsert(id, decoded.userId, {
+    const callbackContext = contextFromOAuthState(decoded);
+    await mcpUserConnectionRepository.upsert(id, connectionSubjectFilter(callbackContext), {
+      ...connectionSubjectFields(callbackContext),
       accessTokenEncrypted: encryption.encrypt(tokenResponse.access_token),
       refreshTokenEncrypted: tokenResponse.refresh_token
         ? encryption.encrypt(tokenResponse.refresh_token)
@@ -536,31 +629,30 @@ class McpService {
     return decoded.returnTo || config.websiteUrl;
   }
 
-  async getUserConnectionStatus(id, userId) {
-    const connection = await mcpUserConnectionRepository.findByMcpAndUser(id, userId);
+  async getUserConnectionStatus(id, userId, context = personaExecutionContext(userId)) {
+    const connection = await mcpUserConnectionRepository.findByMcpAndUser(
+      id,
+      connectionSubjectFilter(context)
+    );
     return { connected: Boolean(connection) };
   }
 
-  async disconnectUserConnection(id, userId) {
-    await mcpUserConnectionRepository.deleteByMcpAndUser(id, userId);
+  async disconnectUserConnection(id, userId, context = personaExecutionContext(userId)) {
+    await mcpUserConnectionRepository.deleteByMcpAndUser(id, connectionSubjectFilter(context));
     await this._invalidateAgentsUsingMcp(id);
   }
 
-  async disconnectOwnerConnection(id, userId) {
-    const mcp = await this.getMcpById(id, userId);
+  async disconnectOwnerConnection(id, userId, context = personaExecutionContext(userId)) {
+    const mcp = await this.getMcpById(id, userId, context);
     if (!mcp.oauth?.ownerToken?.accessTokenEncrypted) {
       throw new ValidationError('No owner connection to disconnect');
     }
-    await mcpRepository.update(
-      id,
-      { ownerId: userId },
-      {
-        oauth: {
-          ...mcp.oauth.toObject(),
-          ownerToken: {},
-        },
-      }
-    );
+    await mcpRepository.update(id, ownerFilterForContext(context), {
+      oauth: {
+        ...mcp.oauth.toObject(),
+        ownerToken: {},
+      },
+    });
     await this._invalidateAgentsUsingMcp(id);
   }
 
@@ -568,9 +660,9 @@ class McpService {
     return await agentRepository.findAgentsUsingMcp(id, 'name slug avatar visibility');
   }
 
-  async readResource(id, userId, resourceUri) {
-    const mcp = await this.getMcpById(id, userId);
-    const headers = await this._resolveAuthHeaders(mcp, userId, 'connecting');
+  async readResource(id, userId, resourceUri, context = personaExecutionContext(userId)) {
+    const mcp = await this.getMcpById(id, userId, context);
+    const headers = await this._resolveAuthHeaders(mcp, userId, 'connecting', context);
     const { client, transport } = await this._connectAppsClient(mcp, headers);
 
     try {
@@ -593,9 +685,9 @@ class McpService {
     }
   }
 
-  async callTool(id, userId, toolName, args) {
-    const mcp = await this.getMcpById(id, userId);
-    const headers = await this._resolveAuthHeaders(mcp, userId, 'connecting');
+  async callTool(id, userId, toolName, args, context = personaExecutionContext(userId)) {
+    const mcp = await this.getMcpById(id, userId, context);
+    const headers = await this._resolveAuthHeaders(mcp, userId, 'connecting', context);
     const { client, transport } = await this._connectAppsClient(mcp, headers);
 
     try {

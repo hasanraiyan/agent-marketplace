@@ -15,16 +15,112 @@ import knowledgeService from '../knowledge/knowledge.service.js';
  * this (no "my default provider" concept exists for a Project/
  * ExternalUser context), surfaced here as a plain validation-shaped error.
  *
- * Document upload/search/delete-document/list-sources are deliberately
- * NOT included in this first version — those are Knowledge-specific
- * runtime operations (file handling, Qdrant interaction) that deserve
- * their own scoped follow-up, not bundled into a CRUD pass.
- *
  * `discover` (blueprint Phase 9, PR-45) serves listing — a genuinely
  * separate code path per AD-07 §19, mirroring the Agent/Skill Developer
  * discover methods (PR-43/44).
+ *
+ * `upload`/`search`/`deleteDocument`/`listDocuments` (blueprint Phase 9,
+ * PR-47b) round out the Developer Knowledge runtime surface, reusing
+ * `knowledgeService`'s document methods generalized alongside this
+ * controller change.
  */
 class DeveloperKnowledgeController {
+  async upload(req, res, next) {
+    try {
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'No files uploaded. Please select at least one file.',
+        });
+      }
+
+      const result = await knowledgeService.uploadFiles(
+        req.params.kbId,
+        undefined,
+        req.files,
+        req.projectContext
+      );
+
+      res.json({
+        success: true,
+        data: result,
+        message: `${result.files.length} file(s) processed successfully`,
+      });
+    } catch (error) {
+      if (
+        error.message === 'Knowledge base not found' ||
+        error.message === 'Not authorized to upload to this knowledge base'
+      ) {
+        return res.status(404).json({ success: false, message: 'Knowledge base not found' });
+      }
+      next(error);
+    }
+  }
+
+  async search(req, res, next) {
+    try {
+      const { query, topK } = req.body;
+      const results = await knowledgeService.searchKnowledgeBase(
+        req.params.kbId,
+        query,
+        { topK },
+        req.projectContext
+      );
+      res.json({ success: true, data: results });
+    } catch (error) {
+      if (
+        error.message === 'Knowledge base not found' ||
+        error.message === 'Not authorized to access this knowledge base'
+      ) {
+        return res.status(404).json({ success: false, message: 'Knowledge base not found' });
+      }
+      next(error);
+    }
+  }
+
+  async deleteDocument(req, res, next) {
+    try {
+      const sourceName = decodeURIComponent(req.params.sourceName);
+      const result = await knowledgeService.deleteDocumentFromKb(
+        req.params.kbId,
+        undefined,
+        sourceName,
+        req.projectContext
+      );
+      res.json({
+        success: true,
+        data: result,
+        message: `Document deleted. ${result.removedChunks} chunk(s) removed.`,
+      });
+    } catch (error) {
+      if (
+        error.message === 'Knowledge base not found' ||
+        error.message === 'Not authorized to modify this knowledge base'
+      ) {
+        return res.status(404).json({ success: false, message: 'Knowledge base not found' });
+      }
+      if (error.message?.startsWith('Document')) {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      next(error);
+    }
+  }
+
+  async listDocuments(req, res, next) {
+    try {
+      const documents = await knowledgeService.listDocumentSources(
+        req.params.kbId,
+        undefined,
+        req.projectContext
+      );
+      res.json({ success: true, data: documents });
+    } catch (error) {
+      if (error.message === 'Knowledge base not found' || error.message === 'Not authorized') {
+        return res.status(404).json({ success: false, message: 'Knowledge base not found' });
+      }
+      next(error);
+    }
+  }
   async discover(req, res, next) {
     try {
       const page = parseInt(req.query.page) || 1;

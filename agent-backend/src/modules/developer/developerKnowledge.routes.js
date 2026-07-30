@@ -1,4 +1,5 @@
 import express from 'express';
+import multer from 'multer';
 import developerMachineAuthMiddleware from '../auth/developerMachineAuth.middleware.js';
 import { validateBody } from '../../middlewares/validationMiddleware.js';
 import {
@@ -11,8 +12,38 @@ import developerKnowledgeController from './developerKnowledge.controller.js';
  * Developer Knowledge CRUD routes (blueprint Phase 9, PR-32). Reuses the
  * existing Persona createKnowledgeBaseSchema/updateKnowledgeBaseSchema
  * unmodified — same reasoning as the Agent/Skill Developer routes.
+ *
+ * Document upload/search/delete/list (blueprint Phase 9, PR-47b) reuse the
+ * exact same multer memory-storage configuration as the Persona route
+ * (knowledge.routes.js) — files are processed in memory and never written
+ * to disk, so no additional storage-access-control surface is introduced.
  */
 const router = express.Router();
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 20 * 1024 * 1024, // 20MB per file
+    files: 10, // Max 10 files per request
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = [
+      'application/pdf',
+      'text/plain',
+      'text/markdown',
+      'text/csv',
+      'application/json',
+    ];
+    const allowedExts = /\.(pdf|txt|md|json|csv)$/i;
+    const extOk = allowedExts.test(file.originalname);
+    const mimeOk = allowedMimes.includes(file.mimetype);
+
+    if (extOk || mimeOk) {
+      return cb(null, true);
+    }
+    cb(new Error('Unsupported file type. Allowed: PDF, TXT, MD, CSV, JSON'));
+  },
+});
 
 router.use(developerMachineAuthMiddleware);
 
@@ -120,5 +151,96 @@ router.patch(
   developerKnowledgeController.update
 );
 router.delete('/:kbId', developerKnowledgeController.remove);
+
+/**
+ * @openapi
+ * /api/v1/developer/knowledge/{kbId}/documents:
+ *   post:
+ *     tags: [Developer]
+ *     summary: Upload documents to a Knowledge Base (owner only, blueprint Phase 9, PR-47b)
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: kbId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               files:
+ *                 type: array
+ *                 items: { type: string, format: binary }
+ *     responses:
+ *       200: { description: Documents processed }
+ *       404: { description: Knowledge Base not found or unauthorized }
+ *   get:
+ *     tags: [Developer]
+ *     summary: List a Knowledge Base's source documents (owner or public)
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: kbId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Document list }
+ *       404: { description: Knowledge Base not found or unauthorized }
+ */
+router.post('/:kbId/documents', upload.array('files', 10), developerKnowledgeController.upload);
+router.get('/:kbId/documents', developerKnowledgeController.listDocuments);
+
+/**
+ * @openapi
+ * /api/v1/developer/knowledge/{kbId}/documents/{sourceName}:
+ *   delete:
+ *     tags: [Developer]
+ *     summary: Delete a single document from a Knowledge Base (owner only)
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: kbId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: sourceName
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Document deleted }
+ *       404: { description: Knowledge Base or document not found, or unauthorized }
+ */
+router.delete('/:kbId/documents/:sourceName', developerKnowledgeController.deleteDocument);
+
+/**
+ * @openapi
+ * /api/v1/developer/knowledge/{kbId}/search:
+ *   post:
+ *     tags: [Developer]
+ *     summary: Semantic search within a Knowledge Base (owner or public)
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: kbId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [query]
+ *             properties:
+ *               query: { type: string }
+ *               topK: { type: integer }
+ *     responses:
+ *       200: { description: Search results }
+ *       404: { description: Knowledge Base not found or unauthorized }
+ */
+router.post('/:kbId/search', developerKnowledgeController.search);
 
 export default router;

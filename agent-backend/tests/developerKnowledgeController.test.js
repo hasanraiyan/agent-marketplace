@@ -7,6 +7,10 @@ jest.unstable_mockModule('../src/modules/knowledge/knowledge.service.js', () => 
     updateKnowledgeBase: jest.fn(),
     deleteKnowledgeBase: jest.fn(),
     discoverKnowledgeBases: jest.fn(),
+    uploadFiles: jest.fn(),
+    searchKnowledgeBase: jest.fn(),
+    deleteDocumentFromKb: jest.fn(),
+    listDocumentSources: jest.fn(),
   },
 }));
 
@@ -24,9 +28,108 @@ describe('Developer Knowledge Controller', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockReq = { projectContext: machineContext, body: {}, params: {}, query: {} };
+    mockReq = { projectContext: machineContext, body: {}, params: {}, query: {}, files: [] };
     mockRes = { status: jest.fn().mockReturnThis(), json: jest.fn() };
     next = jest.fn();
+  });
+
+  describe('upload', () => {
+    test('400s with no service call when no files are attached', async () => {
+      mockReq.files = [];
+
+      await developerKnowledgeController.upload(mockReq, mockRes, next);
+
+      expect(knowledgeService.uploadFiles).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+    });
+
+    test('uploads via knowledgeService.uploadFiles, forwarding req.projectContext', async () => {
+      mockReq.params = { kbId: 'kb1' };
+      mockReq.files = [{ originalname: 'test.txt' }];
+      knowledgeService.uploadFiles.mockResolvedValue({ files: [{ fileName: 'test.txt' }] });
+
+      await developerKnowledgeController.upload(mockReq, mockRes, next);
+
+      expect(knowledgeService.uploadFiles).toHaveBeenCalledWith(
+        'kb1',
+        undefined,
+        mockReq.files,
+        machineContext
+      );
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+    });
+
+    test('collapses "Not authorized to upload to this knowledge base" to a 404', async () => {
+      mockReq.params = { kbId: 'kb1' };
+      mockReq.files = [{ originalname: 'test.txt' }];
+      knowledgeService.uploadFiles.mockRejectedValue(
+        new Error('Not authorized to upload to this knowledge base')
+      );
+
+      await developerKnowledgeController.upload(mockReq, mockRes, next);
+
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+    });
+  });
+
+  describe('search', () => {
+    test('searches via knowledgeService.searchKnowledgeBase, forwarding req.projectContext', async () => {
+      mockReq.params = { kbId: 'kb1' };
+      mockReq.body = { query: 'hello', topK: 3 };
+      knowledgeService.searchKnowledgeBase.mockResolvedValue([{ text: 'match' }]);
+
+      await developerKnowledgeController.search(mockReq, mockRes, next);
+
+      expect(knowledgeService.searchKnowledgeBase).toHaveBeenCalledWith(
+        'kb1',
+        'hello',
+        { topK: 3 },
+        machineContext
+      );
+      expect(mockRes.json).toHaveBeenCalledWith({ success: true, data: [{ text: 'match' }] });
+    });
+
+    test('collapses "Not authorized to access this knowledge base" to a 404', async () => {
+      mockReq.params = { kbId: 'kb1' };
+      knowledgeService.searchKnowledgeBase.mockRejectedValue(
+        new Error('Not authorized to access this knowledge base')
+      );
+
+      await developerKnowledgeController.search(mockReq, mockRes, next);
+
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+    });
+  });
+
+  describe('deleteDocument', () => {
+    test('deletes via knowledgeService.deleteDocumentFromKb, forwarding req.projectContext', async () => {
+      mockReq.params = { kbId: 'kb1', sourceName: 'test.txt' };
+      knowledgeService.deleteDocumentFromKb.mockResolvedValue({ removedChunks: 2 });
+
+      await developerKnowledgeController.deleteDocument(mockReq, mockRes, next);
+
+      expect(knowledgeService.deleteDocumentFromKb).toHaveBeenCalledWith(
+        'kb1',
+        undefined,
+        'test.txt',
+        machineContext
+      );
+    });
+  });
+
+  describe('listDocuments', () => {
+    test('lists via knowledgeService.listDocumentSources, forwarding req.projectContext', async () => {
+      mockReq.params = { kbId: 'kb1' };
+      knowledgeService.listDocumentSources.mockResolvedValue([{ fileName: 'test.txt' }]);
+
+      await developerKnowledgeController.listDocuments(mockReq, mockRes, next);
+
+      expect(knowledgeService.listDocumentSources).toHaveBeenCalledWith(
+        'kb1',
+        undefined,
+        machineContext
+      );
+    });
   });
 
   describe('discover', () => {

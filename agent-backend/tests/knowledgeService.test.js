@@ -456,6 +456,24 @@ describe('Knowledge Service', () => {
         knowledgeService.uploadFiles(mockKbId, mockUserId, [mockUnsupportedFile])
       ).rejects.toThrow('Unsupported file type');
     });
+
+    test('blueprint Phase 9, PR-47b: rejects a different Project uploading to a Project-owned KB', async () => {
+      knowledgeRepository.findKbById.mockResolvedValue({
+        ...mockKb,
+        ownerId: undefined,
+        domain: 'project-1',
+        ownerType: 'Project',
+      });
+
+      await expect(
+        knowledgeService.uploadFiles(
+          mockKbId,
+          'irrelevant',
+          [{ buffer: Buffer.from('x'), originalname: 'test.txt', mimetype: 'text/plain', size: 1 }],
+          { domain: 'project-2', principalType: 'ProjectMachine' }
+        )
+      ).rejects.toThrow('Not authorized to upload to this knowledge base');
+    });
   });
 
   describe('searchKnowledgeBase', () => {
@@ -482,6 +500,37 @@ describe('Knowledge Service', () => {
 
       await knowledgeService.searchKnowledgeBase(mockKbId, JSON.stringify({ query: 'hello' }));
       expect(mockSimilaritySearch).toHaveBeenCalledWith('hello', 5);
+    });
+
+    test('blueprint Phase 9, PR-47b: no context (Persona call site) skips the ownership check entirely, unchanged', async () => {
+      knowledgeRepository.findKbById.mockResolvedValue({ ...mockKb, ownerId: 'someone-else' });
+      mockSimilaritySearch.mockResolvedValue([]);
+
+      await expect(knowledgeService.searchKnowledgeBase(mockKbId, 'test query')).resolves.toEqual(
+        []
+      );
+    });
+
+    test('blueprint Phase 9, PR-47b: an explicit context enforces owner-or-public', async () => {
+      knowledgeRepository.findKbById.mockResolvedValue({
+        ...mockKb,
+        ownerId: undefined,
+        domain: 'project-1',
+        ownerType: 'Project',
+        isPublic: false,
+      });
+
+      await expect(
+        knowledgeService.searchKnowledgeBase(
+          mockKbId,
+          'test query',
+          {},
+          {
+            domain: 'project-2',
+            principalType: 'ProjectMachine',
+          }
+        )
+      ).rejects.toThrow('Not authorized to access this knowledge base');
     });
   });
 
@@ -510,6 +559,22 @@ describe('Knowledge Service', () => {
       expect(knowledgeRepository.deleteChunksBySource).toHaveBeenCalledWith(mockKbId, 'test.txt');
       expect(result.removedChunks).toBe(2);
     });
+
+    test('blueprint Phase 9, PR-47b: rejects a different Project deleting a document from a Project-owned KB', async () => {
+      knowledgeRepository.findKbById.mockResolvedValue({
+        ...mockKb,
+        ownerId: undefined,
+        domain: 'project-1',
+        ownerType: 'Project',
+      });
+
+      await expect(
+        knowledgeService.deleteDocumentFromKb(mockKbId, 'irrelevant', 'test.txt', {
+          domain: 'project-2',
+          principalType: 'ProjectMachine',
+        })
+      ).rejects.toThrow('Not authorized to modify this knowledge base');
+    });
   });
 
   describe('listDocumentSources', () => {
@@ -521,6 +586,23 @@ describe('Knowledge Service', () => {
       const result = await knowledgeService.listDocumentSources(mockKbId, mockUserId);
       expect(result).toHaveLength(1);
       expect(result[0].fileName).toBe('test.txt');
+    });
+
+    test('blueprint Phase 9, PR-47b: a Project owner can list its own private KB documents', async () => {
+      knowledgeRepository.findKbById.mockResolvedValue({
+        ...mockKb,
+        ownerId: undefined,
+        domain: 'project-1',
+        ownerType: 'Project',
+        isPublic: false,
+        documents: [{ fileName: 'test.txt', fileSize: 100 }],
+      });
+
+      const result = await knowledgeService.listDocumentSources(mockKbId, 'irrelevant', {
+        domain: 'project-1',
+        principalType: 'ProjectMachine',
+      });
+      expect(result).toHaveLength(1);
     });
   });
 

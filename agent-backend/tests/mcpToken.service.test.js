@@ -177,7 +177,7 @@ describe('McpToken Service', () => {
 
       expect(mcpUserConnectionRepository.upsert).toHaveBeenCalledWith(
         'mcp1',
-        'user1',
+        { userId: 'user1' },
         expect.objectContaining({ accessTokenEncrypted: 'enc:new-user-access' })
       );
       expect(result).toBe('new-user-access');
