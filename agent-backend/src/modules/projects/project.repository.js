@@ -14,6 +14,14 @@ class ProjectRepository {
     return await Project.findOne({ slug });
   }
 
+  async findByIds(ids) {
+    return await Project.find({ _id: { $in: ids } });
+  }
+
+  async delete(id) {
+    return await Project.findByIdAndDelete(id);
+  }
+
   async updateMetadata(id, updateData) {
     return await Project.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
   }

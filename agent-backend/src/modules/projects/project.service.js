@@ -16,14 +16,15 @@ class ProjectService {
    * personaPrincipalContext.js) — any authenticated Persona User may
    * create a Project (AD-08 §6); no additional authority is required.
    *
-   * KNOWN LIMITATION (flagged, not silently ignored — see the master
-   * implementation blueprint §42): these are two sequential writes, not a
-   * single Mongo transaction (this codebase has no transaction
-   * infrastructure configured). If the membership write fails after the
-   * Project write succeeds, a Project could momentarily exist with zero
-   * memberships. This service is not reachable from any route yet;
-   * closing this gap is a required hardening step before it is wired to a
-   * real endpoint.
+   * KNOWN LIMITATION, now wired to `POST /api/v1/projects` (blueprint §42):
+   * these are two sequential writes, not a single Mongo transaction (this
+   * codebase has no transaction infrastructure configured). If the
+   * membership write fails after the Project write succeeds, this method
+   * makes a best-effort compensating delete of the just-created Project
+   * before rethrowing — not a true atomic rollback (the delete itself
+   * could fail too, e.g. on a connection drop), but it closes the common
+   * case instead of leaving an admin-less Project as the default outcome
+   * of any membership-write failure.
    */
   async createProject(personaContext, { name, description, slug } = {}) {
     if (!personaContext?.personaUserId) {
@@ -37,11 +38,20 @@ class ProjectService {
       createdBy: personaContext.personaUserId,
     });
 
-    await projectMembershipRepository.create({
-      project: project._id,
-      personaUserId: personaContext.personaUserId,
-      role: MEMBERSHIP_ROLE.ADMIN,
-    });
+    try {
+      await projectMembershipRepository.create({
+        project: project._id,
+        personaUserId: personaContext.personaUserId,
+        role: MEMBERSHIP_ROLE.ADMIN,
+      });
+    } catch (membershipError) {
+      try {
+        await projectRepository.delete(project._id);
+      } catch (rollbackError) {
+        // Best-effort only — surface the original failure either way.
+      }
+      throw membershipError;
+    }
 
     return project;
   }
@@ -60,6 +70,20 @@ class ProjectService {
       throw new NotFoundError('Project not found', 'Project');
     }
     return project;
+  }
+
+  /**
+   * Lists every Project the given Persona User holds a membership in
+   * (any role — v1 only has Admin, but this deliberately doesn't hardcode
+   * that assumption). Used for "my Projects" — there is no concept of
+   * listing every Project platform-wide via this method.
+   */
+  async listProjectsForUser(personaUserId) {
+    const memberships = await projectMembershipRepository.findByUser(personaUserId);
+    if (memberships.length === 0) return [];
+
+    const projectIds = memberships.map((m) => m.project);
+    return await projectRepository.findByIds(projectIds);
   }
 }
 

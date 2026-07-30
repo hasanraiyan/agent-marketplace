@@ -14,6 +14,10 @@ class ProjectMembershipRepository {
     return await ProjectMembership.find({ project: projectId }).sort({ createdAt: 1 });
   }
 
+  async findByUser(personaUserId) {
+    return await ProjectMembership.find({ personaUserId }).sort({ createdAt: 1 });
+  }
+
   async countAdminsByProject(projectId) {
     return await ProjectMembership.countDocuments({ project: projectId, role: 'Admin' });
   }
