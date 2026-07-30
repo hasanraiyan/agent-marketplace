@@ -5,7 +5,7 @@ import { healthRouter } from './modules/health/index.js';
 import { profileRouter, adminRouter } from './modules/users/index.js';
 import { providerRouter } from './modules/providers/index.js';
 import { projectRouter } from './modules/projects/index.js';
-import { developerRouter } from './modules/developer/index.js';
+import { developerRouter, developerAguiRouter } from './modules/developer/index.js';
 import { agentRouter } from './modules/agents/index.js';
 import { threadRouter } from './modules/threads/index.js';
 import { skillRouter } from './modules/skills/index.js';
@@ -58,6 +58,7 @@ app.use(clerkMiddleware());
 
 // AG-UI reads its own raw request body before express.json() consumes the stream.
 app.use('/api/v1/agui', aguiRouter);
+app.use('/api/v1/developer/agui', developerAguiRouter);
 
 app.use(express.json());
 
