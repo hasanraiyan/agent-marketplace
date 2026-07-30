@@ -28,10 +28,33 @@ const agentSchema = new mongoose.Schema(
       enum: ['PersonaUser', 'Project', 'ExternalUser'],
       default: 'PersonaUser',
     },
+    // Developer Platform (AD-04, blueprint Phase 9, PR-24): only required
+    // for `ownerType: 'PersonaUser'`. A `Project`-owned Agent needs no
+    // separate owner identity — the Project's own Domain (`domain` above)
+    // already IS the owner, unambiguous within its own Domain. An
+    // `ExternalUser`-owned Agent's identity lives in `externalOwnerId`
+    // below instead, since it's a raw string (never a Persona User
+    // ObjectId this field could actually reference).
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      required: function () {
+        return this.ownerType === 'PersonaUser';
+      },
+      index: true,
+    },
+    // Developer Platform (AD-02 §11.1, blueprint Phase 9, PR-24): the raw
+    // asserted externalUserId string for an ExternalUser-owned Agent —
+    // mirrors Thread's own `externalUserId` field (PR-22) and
+    // ProjectRuntimeContext's `externalUserId` exactly (never an internal
+    // ExternalUser document `_id`). `null` for every existing/PersonaUser-
+    // or Project-owned Agent.
+    externalOwnerId: {
+      type: String,
+      default: null,
+      required: function () {
+        return this.ownerType === 'ExternalUser';
+      },
       index: true,
     },
     name: {
