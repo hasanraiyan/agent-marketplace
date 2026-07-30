@@ -5,20 +5,36 @@ import crypto from 'crypto';
 import { PERSONA_DOMAIN } from '../auth/personaPrincipalContext.js';
 
 /**
- * Developer Platform (AD-06 §23): validates that a `providerId` an Agent
- * wants to attach actually belongs to the same owner before accepting it.
- * Previously unvalidated — any authenticated user could set another user's
- * Provider ID on their own Agent, silently borrowing it (no plaintext key
- * exposure, since decryption stays server-internal, but it let one user's
- * Agent depend on a Provider record they had no authority over, and made
- * the delete-dependency count — scoped to the deleting user's own agents,
- * §22 — silently undercount that dependent). Skips the check when
+ * Developer Platform (AD-06 §23, §12; blueprint Phase 9, PR-25): validates
+ * that a `providerId` an Agent wants to attach is actually usable by the
+ * requesting context before accepting it. Skips the check when
  * `providerId` is absent/unchanged.
+ *
+ * Two distinct rules, per AD-06 §12's "Domain-boundary-is-sufficient-
+ * policy" finding:
+ *   - Persona caller: unchanged, exact `provider.ownerId` match — Persona
+ *     Domain hosts many independent Persona Users, so Domain alone is NOT
+ *     sufficient; a Persona user must own the Provider outright.
+ *   - Project/ExternalUser caller: `provider.domain` match — a Project's
+ *     own Providers may be used by ANY of that Project's own Agents
+ *     (System-owned or ExternalUser-owned), since `ExternalUser` cannot
+ *     itself own a Provider (AD-04 §17) and cross-Domain references are
+ *     already forbidden — the Domain boundary is already the correct,
+ *     minimal choice set with no separate allow-list needed.
  */
-async function assertOwnsProvider(userId, providerId) {
+async function assertOwnsProvider(context, providerId) {
   if (!providerId) return;
   const provider = await providerRepository.findById(providerId);
-  if (!provider || provider.ownerId.toString() !== userId.toString()) {
+  if (!provider) throw new Error('Invalid provider');
+
+  if (context?.principalType && context.principalType !== 'PersonaUser') {
+    if (provider.domain !== context.domain) {
+      throw new Error('Invalid provider');
+    }
+    return;
+  }
+
+  if (provider.ownerId.toString() !== String(context?.personaUserId)) {
     throw new Error('Invalid provider');
   }
 }
@@ -31,7 +47,47 @@ async function assertOwnsProvider(userId, providerId) {
  * pre-existing case this must keep supporting.
  */
 export function personaExecutionContext(userId) {
-  return { domain: PERSONA_DOMAIN, personaUserId: userId };
+  return { domain: PERSONA_DOMAIN, principalType: 'PersonaUser', personaUserId: userId };
+}
+
+/**
+ * Developer Platform (AD-04 §18, blueprint Phase 9, PR-25): true if
+ * `context` represents the actual owner of `agent`, across all three
+ * owner types — the single shared definition of "owner" now used by
+ * execution authorization (`canUserExecuteAgent`), management
+ * authorization (`updateAgent`/`deleteAgent`), and — once PR-26 needs it —
+ * safe-formatting. Domain-qualified first: a same-shaped identity in a
+ * DIFFERENT Domain is never treated as the owner, closing the same class
+ * of gap `canUserExecuteAgent`'s existing domain check already closes for
+ * execution.
+ *
+ * Before this helper existed, only the `PersonaUser` case was ever
+ * checked (a bare `ownerId` string comparison) — meaning a Project or
+ * ExternalUser context could never be recognized as the owner of its own
+ * Project-owned/ExternalUser-owned Agent, incorrectly denying owner-only
+ * actions (testing a private/inactive Agent, updating, deleting) to the
+ * very context that created it.
+ */
+function isAgentOwner(agent, context) {
+  if (!agent || !context) return false;
+  if (agent.domain && context.domain && agent.domain !== context.domain) return false;
+
+  switch (agent.ownerType) {
+    case 'Project':
+      return context.principalType === 'ProjectMachine' || context.principalType === 'ProjectAdmin';
+    case 'ExternalUser':
+      return (
+        context.principalType === 'ProjectRuntime' &&
+        Boolean(agent.externalOwnerId) &&
+        String(agent.externalOwnerId) === String(context.externalUserId)
+      );
+    case 'PersonaUser':
+    default: {
+      const ownerIdStr = agent.ownerId ? agent.ownerId.toString() : null;
+      const requestingIdStr = context.personaUserId ? context.personaUserId.toString() : null;
+      return Boolean(requestingIdStr && ownerIdStr === requestingIdStr);
+    }
+  }
 }
 
 class AgentService {
@@ -174,7 +230,7 @@ class AgentService {
     const user = await User.findById(userId);
     if (!user) throw new Error('User not found');
 
-    await assertOwnsProvider(userId, data.providerId);
+    await assertOwnsProvider(personaExecutionContext(userId), data.providerId);
 
     const mainAgent = await agentRepository.findOne({
       ownerId: userId,
@@ -217,20 +273,28 @@ class AgentService {
    * control.
    *
    * Developer Platform (AD-04, AD-07 §29, blueprint §12): `context` is a
-   * minimal execution-authorization context — `{ domain, personaUserId }`
-   * today (every current caller is a Persona-domain request; see
-   * `personaExecutionContext` above). The domain check runs first and
+   * minimal execution-authorization context (see `personaExecutionContext`
+   * above, and the Project-side context factories in
+   * `projectPrincipalContext.js`). The domain check runs first and
    * collapses a mismatch to the same "not executable" result as every
    * other rejection reason here, matching the existing 404-not-403,
    * existence-hiding pattern this function already used for private
    * agents. It only ever fires when BOTH sides carry a domain — every
    * mock/fixture that omits `agent.domain` (pre-backfill data, or tests
-   * that don't set it) is unaffected, and every real Agent today has
-   * `domain === context.domain === 'persona'`, so this is a zero
-   * observable behavior change for all current data.
+   * that don't set it) is unaffected.
+   *
+   * UPDATE (blueprint Phase 9, PR-25): owner detection now goes through
+   * the shared `isAgentOwner` helper instead of a Persona-only inline
+   * check. Previously a Project or ExternalUser context could never be
+   * recognized as the owner of its own Agent — meaning a Project could
+   * never test its own private/inactive Agent, the same "owner testing"
+   * allowance Persona users already had. Zero behavior change for
+   * PersonaUser-owned Agents: `isAgentOwner`'s PersonaUser branch is the
+   * exact same `ownerId` string comparison this function used inline
+   * before.
    *
    * @param {Object} agent - Agent document or plain object
-   * @param {{domain?: string, personaUserId?: string|ObjectId}} [context] - Execution-authorization context
+   * @param {Object} [context] - Execution-authorization context
    * @returns {boolean} True if execution is allowed, false otherwise
    */
   canUserExecuteAgent(agent, context) {
@@ -250,9 +314,7 @@ class AgentService {
       return false;
     }
 
-    const ownerIdStr = agent.ownerId ? agent.ownerId.toString() : null;
-    const requestingIdStr = context?.personaUserId ? context.personaUserId.toString() : null;
-    const isOwner = Boolean(requestingIdStr && ownerIdStr === requestingIdStr);
+    const isOwner = isAgentOwner(agent, context);
 
     // Inactive agents can only be executed by their owner (e.g. Studio testing)
     if (agent.isActive === false && !isOwner) {
@@ -298,18 +360,31 @@ class AgentService {
     return this._formatSafe(agent, userId);
   }
 
-  async updateAgent(id, userId, updateData) {
+  /**
+   * Developer Platform (blueprint Phase 9, PR-25): `context` defaults to
+   * `personaExecutionContext(userId)`, so every existing caller (the
+   * Persona `PUT /agents/:id` route, the Architect's `upsert_agent` tool)
+   * that omits it gets byte-for-byte identical behavior — same
+   * `isAgentOwner` check `canUserExecuteAgent` already uses, generalized
+   * from the previous raw `ownerId` string-equality so a Project/
+   * ExternalUser context can now manage its own Agent too.
+   */
+  async updateAgent(id, userId, updateData, context = personaExecutionContext(userId)) {
     const existing = await agentRepository.findById(id);
 
     if (!existing) throw new Error('Agent not found');
-    if (existing.ownerId.toString() !== userId.toString()) {
+    if (!isAgentOwner(existing, context)) {
       throw new Error('Unauthorized to update this agent');
     }
 
-    await assertOwnsProvider(userId, updateData.providerId);
+    await assertOwnsProvider(context, updateData.providerId);
 
-    // Never allow updating ownerId or slug directly via this route
+    // Never allow updating ownerId, externalOwnerId, ownerType, domain, or
+    // slug directly via this route.
     delete updateData.ownerId;
+    delete updateData.externalOwnerId;
+    delete updateData.ownerType;
+    delete updateData.domain;
     delete updateData.slug;
 
     // If changing the name, regenerate slug if explicitly requested?
@@ -319,16 +394,57 @@ class AgentService {
     return this._formatSafe(updated, userId);
   }
 
-  async deleteAgent(id, userId) {
+  /** See `updateAgent`'s doc comment — identical `context` generalization. */
+  async deleteAgent(id, userId, context = personaExecutionContext(userId)) {
     const existing = await agentRepository.findById(id);
 
     if (!existing) throw new Error('Agent not found');
-    if (existing.ownerId.toString() !== userId.toString()) {
+    if (!isAgentOwner(existing, context)) {
       throw new Error('Unauthorized to delete this agent');
     }
 
     await agentRepository.delete(id);
     return true;
+  }
+
+  /**
+   * Developer Platform (blueprint Phase 9, PR-25): creates a Project-owned
+   * or ExternalUser-owned Agent — the Developer Platform counterpart to
+   * `createAgent`, which is Persona-onboarding-shaped (the "first Agent
+   * becomes your Main Agent/Clone" flow) and has no Project/ExternalUser
+   * equivalent, so this deliberately does NOT reuse `createAgent`'s body
+   * rather than bolting a conditional onto it.
+   */
+  async createDeveloperAgent(context, data) {
+    let ownerType;
+    if (context?.principalType === 'ProjectRuntime') {
+      ownerType = 'ExternalUser';
+    } else if (
+      context?.principalType === 'ProjectMachine' ||
+      context?.principalType === 'ProjectAdmin'
+    ) {
+      ownerType = 'Project';
+    } else {
+      throw new Error(
+        'createDeveloperAgent requires a ProjectMachine, ProjectAdmin, or ProjectRuntime context'
+      );
+    }
+
+    await assertOwnsProvider(context, data.providerId);
+
+    const agentData = {
+      ...data,
+      domain: context.domain,
+      ownerType,
+      isMainAgent: false,
+      slug: await this._generateSlug(data.name),
+    };
+    if (ownerType === 'ExternalUser') {
+      agentData.externalOwnerId = context.externalUserId;
+    }
+
+    const agent = await agentRepository.create(agentData);
+    return agent.toObject ? agent.toObject() : agent;
   }
 
   async searchAgents(filters, pagination, userId) {
