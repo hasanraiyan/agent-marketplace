@@ -16,10 +16,30 @@ const skillSchema = new mongoose.Schema(
       enum: ['PersonaUser', 'Project', 'ExternalUser'],
       default: 'PersonaUser',
     },
+    // Developer Platform (AD-04, blueprint Phase 9, PR-27): same
+    // conditional-required generalization as Agent (agent.model.js) — only
+    // required for `ownerType: 'PersonaUser'`. No separate identity field
+    // is needed for `ownerType: 'Project'` (the Skill's own `domain`
+    // already IS the Project's identity); `externalOwnerId` below covers
+    // `ownerType: 'ExternalUser'`.
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      required: function () {
+        return this.ownerType === 'PersonaUser';
+      },
+      index: true,
+    },
+    // Developer Platform (AD-02 §11.1, blueprint Phase 9, PR-27): mirrors
+    // Agent's own `externalOwnerId` (PR-24) and Thread's `externalUserId`
+    // (PR-22) exactly — the raw asserted externalUserId string, never an
+    // internal ExternalUser document `_id`.
+    externalOwnerId: {
+      type: String,
+      default: null,
+      required: function () {
+        return this.ownerType === 'ExternalUser';
+      },
       index: true,
     },
     name: {
@@ -61,8 +81,21 @@ const skillSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Prevent users from creating two skills with the exact same name
-skillSchema.index({ ownerId: 1, name: 1 }, { unique: true });
+// Prevent a Persona User from creating two skills with the exact same
+// name. Developer Platform (blueprint Phase 9, PR-27): scoped with a
+// partialFilterExpression so it only applies when `ownerId` is actually
+// set. Before PR-27, `ownerId` was unconditionally required, so this was
+// a no-op change for every existing document. Without the partial filter,
+// a non-sparse unique index treats a *missing* `ownerId` as `null` on
+// every document that lacks one — meaning two different Project- or
+// ExternalUser-owned Skills sharing the same `name` (a real, likely
+// scenario once those owner types exist, e.g. two Projects both naming a
+// skill "customer-support") would collide with each other on this index
+// and fail to save, even though they have nothing to do with one another.
+skillSchema.index(
+  { ownerId: 1, name: 1 },
+  { unique: true, partialFilterExpression: { ownerId: { $exists: true } } }
+);
 
 const Skill = mongoose.model('Skill', skillSchema);
 
