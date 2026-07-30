@@ -45,18 +45,22 @@ class McpTokenService {
       ? new Date(Date.now() + refreshed.expires_in * 1000)
       : null;
 
-    await mcpRepository.update(mcp._id, mcp.ownerId, {
-      oauth: {
-        ...(mcp.oauth.toObject?.() || mcp.oauth),
-        ownerToken: {
-          accessTokenEncrypted: encryption.encrypt(refreshed.access_token),
-          refreshTokenEncrypted: refreshed.refresh_token
-            ? encryption.encrypt(refreshed.refresh_token)
-            : ownerToken.refreshTokenEncrypted,
-          expiresAt: newExpiresAt,
+    await mcpRepository.update(
+      mcp._id,
+      { ownerId: mcp.ownerId },
+      {
+        oauth: {
+          ...(mcp.oauth.toObject?.() || mcp.oauth),
+          ownerToken: {
+            accessTokenEncrypted: encryption.encrypt(refreshed.access_token),
+            refreshTokenEncrypted: refreshed.refresh_token
+              ? encryption.encrypt(refreshed.refresh_token)
+              : ownerToken.refreshTokenEncrypted,
+            expiresAt: newExpiresAt,
+          },
         },
-      },
-    });
+      }
+    );
 
     return refreshed.access_token;
   }

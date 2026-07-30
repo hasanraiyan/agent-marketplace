@@ -254,7 +254,7 @@ describe('Mcp Service', () => {
 
       expect(mcpRepository.update).toHaveBeenCalledWith(
         mockMcp._id,
-        mockUserId,
+        { ownerId: mockUserId },
         expect.objectContaining({ apiKeyEncrypted: 'enc:new-key' })
       );
       const [, , updateArg] = mcpRepository.update.mock.calls[0];
@@ -296,7 +296,7 @@ describe('Mcp Service', () => {
       expect(mcpUserConnectionRepository.deleteByMcp).toHaveBeenCalledWith(mockMcp._id);
       expect(agentFactory.invalidate).toHaveBeenCalledWith('agent1');
       expect(agentFactory.invalidate).toHaveBeenCalledWith('agent2');
-      expect(mcpRepository.delete).toHaveBeenCalledWith(mockMcp._id, mockUserId);
+      expect(mcpRepository.delete).toHaveBeenCalledWith(mockMcp._id, { ownerId: mockUserId });
     });
   });
 
@@ -368,7 +368,7 @@ describe('Mcp Service', () => {
 
       expect(mcpRepository.update).toHaveBeenCalledWith(
         mockMcp._id,
-        mockUserId,
+        { ownerId: mockUserId },
         expect.objectContaining({
           oauth: expect.objectContaining({
             ownerToken: expect.objectContaining({
@@ -414,7 +414,7 @@ describe('Mcp Service', () => {
       expect(result.resourceTemplates).toEqual([]);
       expect(mcpRepository.update).toHaveBeenCalledWith(
         mockMcp._id,
-        mockUserId,
+        { ownerId: mockUserId },
         expect.objectContaining({
           tools: [{ name: 'tool_a', description: 'does a thing' }],
           resources: [],
@@ -461,6 +461,168 @@ describe('Mcp Service', () => {
       mcpRepository.findById.mockResolvedValue(mockMcp);
 
       await expect(mcpService.callTool(mockMcp._id, mockUserId, 'some-tool', {})).rejects.toThrow();
+    });
+  });
+
+  describe('ownership generalization (blueprint Phase 9, PR-34)', () => {
+    const projectContext = { domain: 'project-1', principalType: 'ProjectMachine' };
+    const runtimeContext = {
+      domain: 'project-1',
+      principalType: 'ProjectRuntime',
+      externalUserId: 'sabik',
+    };
+
+    describe('createMcp', () => {
+      it('defaults to a PersonaUser-owned Mcp when no context is given', async () => {
+        mcpRepository.create.mockResolvedValue(mockMcp);
+
+        await mcpService.createMcp(mockUserId, {
+          name: 'My MCP',
+          transport: 'http',
+          url: 'https://example.com/mcp',
+        });
+
+        expect(mcpRepository.create).toHaveBeenCalledWith(
+          expect.objectContaining({ ownerType: 'PersonaUser', ownerId: mockUserId })
+        );
+      });
+
+      it('creates a Project-owned Mcp for a ProjectMachineContext', async () => {
+        mcpRepository.create.mockResolvedValue(mockMcp);
+
+        await mcpService.createMcp(
+          'irrelevant',
+          { name: 'Support MCP', transport: 'http', url: 'https://example.com/mcp' },
+          projectContext
+        );
+
+        expect(mcpRepository.create).toHaveBeenCalledWith(
+          expect.objectContaining({ domain: 'project-1', ownerType: 'Project' })
+        );
+        const [createArg] = mcpRepository.create.mock.calls[0];
+        expect(createArg.ownerId).toBeUndefined();
+      });
+
+      it('creates an ExternalUser-owned Mcp for a ProjectRuntimeContext', async () => {
+        mcpRepository.create.mockResolvedValue(mockMcp);
+
+        await mcpService.createMcp(
+          'irrelevant',
+          { name: 'My MCP', transport: 'http', url: 'https://example.com/mcp' },
+          runtimeContext
+        );
+
+        expect(mcpRepository.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            domain: 'project-1',
+            ownerType: 'ExternalUser',
+            externalOwnerId: 'sabik',
+          })
+        );
+      });
+    });
+
+    describe('getMcpById', () => {
+      it('recognizes the Project owner via ProjectMachineContext', async () => {
+        const projectMcp = {
+          ...mockMcp,
+          ownerId: undefined,
+          domain: 'project-1',
+          ownerType: 'Project',
+        };
+        mcpRepository.findById.mockResolvedValue(projectMcp);
+
+        await expect(
+          mcpService.getMcpById(mockMcp._id, 'irrelevant', projectContext)
+        ).resolves.toEqual(projectMcp);
+      });
+
+      it('recognizes the ExternalUser owner via ProjectRuntimeContext', async () => {
+        const externalMcp = {
+          ...mockMcp,
+          ownerId: undefined,
+          domain: 'project-1',
+          ownerType: 'ExternalUser',
+          externalOwnerId: 'sabik',
+        };
+        mcpRepository.findById.mockResolvedValue(externalMcp);
+
+        await expect(
+          mcpService.getMcpById(mockMcp._id, 'irrelevant', runtimeContext)
+        ).resolves.toEqual(externalMcp);
+      });
+
+      it('rejects a different ExternalUser in the same Project', async () => {
+        const externalMcp = {
+          ...mockMcp,
+          ownerId: undefined,
+          domain: 'project-1',
+          ownerType: 'ExternalUser',
+          externalOwnerId: 'someone-else',
+        };
+        mcpRepository.findById.mockResolvedValue(externalMcp);
+
+        await expect(
+          mcpService.getMcpById(mockMcp._id, 'irrelevant', runtimeContext)
+        ).rejects.toThrow('MCP server not found');
+      });
+
+      it('rejects a Project-owned Mcp from a different Domain', async () => {
+        const otherProjectMcp = {
+          ...mockMcp,
+          ownerId: undefined,
+          domain: 'project-2',
+          ownerType: 'Project',
+        };
+        mcpRepository.findById.mockResolvedValue(otherProjectMcp);
+
+        await expect(
+          mcpService.getMcpById(mockMcp._id, 'irrelevant', projectContext)
+        ).rejects.toThrow('MCP server not found');
+      });
+    });
+
+    describe('updateMcp', () => {
+      it('filters the repository update by the Project owner filter', async () => {
+        const projectMcp = {
+          ...mockMcp,
+          ownerId: undefined,
+          domain: 'project-1',
+          ownerType: 'Project',
+        };
+        mcpRepository.findById.mockResolvedValue(projectMcp);
+        mcpRepository.update.mockResolvedValue({ ...projectMcp, name: 'Renamed' });
+
+        await mcpService.updateMcp(mockMcp._id, 'irrelevant', { name: 'Renamed' }, projectContext);
+
+        expect(mcpRepository.update).toHaveBeenCalledWith(
+          mockMcp._id,
+          { domain: 'project-1', ownerType: 'Project' },
+          expect.objectContaining({ name: 'Renamed' })
+        );
+      });
+    });
+
+    describe('deleteMcp', () => {
+      it('filters the repository delete by the ExternalUser owner filter', async () => {
+        const externalMcp = {
+          ...mockMcp,
+          ownerId: undefined,
+          domain: 'project-1',
+          ownerType: 'ExternalUser',
+          externalOwnerId: 'sabik',
+        };
+        mcpRepository.findById.mockResolvedValue(externalMcp);
+        mcpRepository.delete.mockResolvedValue(externalMcp);
+
+        await mcpService.deleteMcp(mockMcp._id, 'irrelevant', runtimeContext);
+
+        expect(mcpRepository.delete).toHaveBeenCalledWith(mockMcp._id, {
+          domain: 'project-1',
+          ownerType: 'ExternalUser',
+          externalOwnerId: 'sabik',
+        });
+      });
     });
   });
 });

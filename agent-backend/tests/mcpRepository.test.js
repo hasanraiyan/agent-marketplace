@@ -68,7 +68,11 @@ describe('Mcp Repository', () => {
       const updated = { ...mockMcp, name: 'Renamed' };
       jest.spyOn(Mcp, 'findOneAndUpdate').mockResolvedValue(updated);
 
-      const result = await mcpRepository.update(mockMcp._id, mockUserId, { name: 'Renamed' });
+      const result = await mcpRepository.update(
+        mockMcp._id,
+        { ownerId: mockUserId },
+        { name: 'Renamed' }
+      );
 
       expect(Mcp.findOneAndUpdate).toHaveBeenCalledWith(
         { _id: mockMcp._id, ownerId: mockUserId },
@@ -81,7 +85,7 @@ describe('Mcp Repository', () => {
     test('should throw NotFoundError if no document matched', async () => {
       jest.spyOn(Mcp, 'findOneAndUpdate').mockResolvedValue(null);
 
-      await expect(mcpRepository.update(mockMcp._id, mockUserId, {})).rejects.toThrow(
+      await expect(mcpRepository.update(mockMcp._id, { ownerId: mockUserId }, {})).rejects.toThrow(
         'MCP server not found or unauthorized'
       );
     });
@@ -91,7 +95,7 @@ describe('Mcp Repository', () => {
     test('should delete an MCP server owned by the user', async () => {
       jest.spyOn(Mcp, 'findOneAndDelete').mockResolvedValue(mockMcp);
 
-      const result = await mcpRepository.delete(mockMcp._id, mockUserId);
+      const result = await mcpRepository.delete(mockMcp._id, { ownerId: mockUserId });
 
       expect(Mcp.findOneAndDelete).toHaveBeenCalledWith({
         _id: mockMcp._id,
@@ -103,7 +107,7 @@ describe('Mcp Repository', () => {
     test('should throw NotFoundError if no document matched', async () => {
       jest.spyOn(Mcp, 'findOneAndDelete').mockResolvedValue(null);
 
-      await expect(mcpRepository.delete(mockMcp._id, mockUserId)).rejects.toThrow(
+      await expect(mcpRepository.delete(mockMcp._id, { ownerId: mockUserId })).rejects.toThrow(
         'MCP server not found or unauthorized'
       );
     });
