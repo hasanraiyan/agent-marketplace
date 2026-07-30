@@ -116,6 +116,19 @@ describe('ProjectMembership Repository', () => {
     });
   });
 
+  describe('findByUser', () => {
+    test('lists all memberships for a Persona User across Projects, oldest first', async () => {
+      jest.spyOn(ProjectMembership, 'find').mockReturnValue({
+        sort: jest.fn().mockResolvedValue([mockMembership]),
+      });
+
+      const result = await projectMembershipRepository.findByUser(personaUserId);
+
+      expect(ProjectMembership.find).toHaveBeenCalledWith({ personaUserId });
+      expect(result).toEqual([mockMembership]);
+    });
+  });
+
   describe('deleteAllByUser', () => {
     test('deletes every membership for a Persona User across all Projects', async () => {
       jest.spyOn(ProjectMembership, 'deleteMany').mockResolvedValue({ deletedCount: 2 });

@@ -27,15 +27,18 @@ class ProjectMembershipService {
    * only one admin somewhere." Removing a non-admin, or removing one of
    * several admins, is always allowed.
    *
-   * KNOWN LIMITATION (flagged, not silently ignored — see the master
-   * implementation blueprint §42): this is a check-then-act sequence
-   * (read membership, count admins, then delete), not a single atomic
-   * operation. Under concurrent removal requests there is a theoretical
-   * race window where two simultaneous removals could both pass the count
-   * check and jointly bring the Project to zero Admins. This module is
-   * not reachable from any route yet; making this genuinely atomic (e.g.
-   * via a Mongo transaction, or a single-collection conditional update) is
-   * a required hardening step before a "remove Admin" endpoint is exposed.
+   * KNOWN LIMITATION, accepted for v1 and now wired to
+   * `DELETE /api/v1/projects/:projectId/members/:personaUserId` (blueprint
+   * §42): this is a check-then-act sequence (read membership, count
+   * admins, then delete), not a single atomic operation. Under concurrent
+   * removal requests there is a theoretical race window where two
+   * simultaneous removals could both pass the count check and jointly
+   * bring the Project to zero Admins. Given this codebase has no
+   * transaction infrastructure and Projects realistically have a handful
+   * of Admins performing infrequent membership changes, true atomicity
+   * (a Mongo transaction, or a single-collection conditional update) is
+   * deferred rather than blocking this endpoint — revisit if concurrent
+   * membership management ever becomes a real usage pattern.
    */
   async removeMember(projectId, personaUserId) {
     const membership = await projectMembershipRepository.findByProjectAndUser(

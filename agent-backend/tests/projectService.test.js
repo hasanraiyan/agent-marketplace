@@ -5,8 +5,10 @@ jest.unstable_mockModule('../src/modules/projects/project.repository.js', () => 
     create: jest.fn(),
     findById: jest.fn(),
     findBySlug: jest.fn(),
+    findByIds: jest.fn(),
     updateMetadata: jest.fn(),
     updateStatus: jest.fn(),
+    delete: jest.fn(),
   },
 }));
 
@@ -15,6 +17,7 @@ jest.unstable_mockModule('../src/modules/projects/projectMembership.repository.j
     create: jest.fn(),
     findByProjectAndUser: jest.fn(),
     findByProject: jest.fn(),
+    findByUser: jest.fn(),
     countAdminsByProject: jest.fn(),
     delete: jest.fn(),
   },
@@ -91,6 +94,56 @@ describe('Project Service', () => {
       await expect(projectService.createProject(undefined, { name: 'x' })).rejects.toThrow(
         /PersonaPrincipalContext with personaUserId is required/
       );
+    });
+
+    test('compensating rollback: deletes the just-created Project when the membership write fails', async () => {
+      projectRepository.create.mockResolvedValue(mockProject);
+      const membershipError = new Error('membership write failed');
+      projectMembershipRepository.create.mockRejectedValue(membershipError);
+      projectRepository.delete.mockResolvedValue(mockProject);
+
+      await expect(
+        projectService.createProject(personaContext, { name: 'Beyond Campus' })
+      ).rejects.toThrow('membership write failed');
+
+      expect(projectRepository.delete).toHaveBeenCalledWith(mockProject._id);
+    });
+
+    test('rollback is best-effort: the original membership error still propagates even if the compensating delete also fails', async () => {
+      projectRepository.create.mockResolvedValue(mockProject);
+      const membershipError = new Error('membership write failed');
+      projectMembershipRepository.create.mockRejectedValue(membershipError);
+      projectRepository.delete.mockRejectedValue(new Error('delete also failed'));
+
+      await expect(
+        projectService.createProject(personaContext, { name: 'Beyond Campus' })
+      ).rejects.toThrow('membership write failed');
+    });
+  });
+
+  describe('listProjectsForUser', () => {
+    test('resolves memberships to their Projects', async () => {
+      const otherProjectId = '507f1f77bcf86cd799439088';
+      projectMembershipRepository.findByUser.mockResolvedValue([
+        { project: mockProject._id, personaUserId, role: 'Admin' },
+        { project: otherProjectId, personaUserId, role: 'Admin' },
+      ]);
+      projectRepository.findByIds.mockResolvedValue([mockProject]);
+
+      const result = await projectService.listProjectsForUser(personaUserId);
+
+      expect(projectMembershipRepository.findByUser).toHaveBeenCalledWith(personaUserId);
+      expect(projectRepository.findByIds).toHaveBeenCalledWith([mockProject._id, otherProjectId]);
+      expect(result).toEqual([mockProject]);
+    });
+
+    test('returns an empty array without querying Projects when the user has no memberships', async () => {
+      projectMembershipRepository.findByUser.mockResolvedValue([]);
+
+      const result = await projectService.listProjectsForUser(personaUserId);
+
+      expect(result).toEqual([]);
+      expect(projectRepository.findByIds).not.toHaveBeenCalled();
     });
   });
 

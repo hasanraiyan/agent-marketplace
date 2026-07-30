@@ -94,4 +94,26 @@ describe('Project Repository', () => {
       expect(result).toEqual(updated);
     });
   });
+
+  describe('findByIds', () => {
+    test('finds Projects by a list of ids', async () => {
+      jest.spyOn(Project, 'find').mockResolvedValue([mockProject]);
+
+      const result = await projectRepository.findByIds([mockProject._id]);
+
+      expect(Project.find).toHaveBeenCalledWith({ _id: { $in: [mockProject._id] } });
+      expect(result).toEqual([mockProject]);
+    });
+  });
+
+  describe('delete', () => {
+    test('deletes a Project by id', async () => {
+      jest.spyOn(Project, 'findByIdAndDelete').mockResolvedValue(mockProject);
+
+      const result = await projectRepository.delete(mockProject._id);
+
+      expect(Project.findByIdAndDelete).toHaveBeenCalledWith(mockProject._id);
+      expect(result).toEqual(mockProject);
+    });
+  });
 });
