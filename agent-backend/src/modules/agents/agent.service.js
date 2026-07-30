@@ -391,6 +391,16 @@ class AgentService {
     // In MVP, we keep the original slug out of simplicity to not break old links.
 
     const updated = await agentRepository.update(id, updateData);
+
+    // `_formatSafe` only ever recognizes a bare Persona `userId` as owner
+    // (deliberately left untouched in PR-25 — see `getDeveloperAgentById`'s
+    // doc comment). For a Project/ExternalUser context the `isAgentOwner`
+    // check above has already proven this caller IS the owner by the time
+    // we reach this line, so return the full object directly rather than
+    // have `_formatSafe` incorrectly strip it for a non-Persona `userId`.
+    if (context.principalType && context.principalType !== 'PersonaUser') {
+      return updated.toObject ? updated.toObject() : updated;
+    }
     return this._formatSafe(updated, userId);
   }
 
@@ -445,6 +455,36 @@ class AgentService {
 
     const agent = await agentRepository.create(agentData);
     return agent.toObject ? agent.toObject() : agent;
+  }
+
+  /**
+   * Developer Platform (blueprint Phase 9, PR-26): the context-aware
+   * counterpart to `getAgentById` — same visibility rules
+   * (`canUserExecuteAgent`: public/unlisted visible to anyone in-Domain,
+   * private visible only to the owner), but the "is this the owner"
+   * secret-stripping check goes through `isAgentOwner` so a Project/
+   * ExternalUser context correctly sees its own Agent's full details
+   * (`_formatSafe` can't be reused here — it only ever recognizes a bare
+   * Persona `userId` as owner, deliberately left untouched in PR-25).
+   */
+  async getDeveloperAgentById(id, context) {
+    const agent = await agentRepository.findById(id);
+    if (!agent || !this.canUserExecuteAgent(agent, context)) {
+      throw new Error('Agent not found or is private');
+    }
+
+    if (typeof agent.populate === 'function') {
+      await agent.populate('skills', 'name description isPublic');
+      await agent.populate('mcps', 'name description transport authType authMode isEnabled');
+      await agent.populate('knowledgeBases', 'name description documentCount chunkCount');
+    }
+
+    const obj = agent.toObject ? agent.toObject() : agent;
+    if (!isAgentOwner(agent, context)) {
+      delete obj.systemPrompt;
+      delete obj.providerId;
+    }
+    return obj;
   }
 
   async searchAgents(filters, pagination, userId) {

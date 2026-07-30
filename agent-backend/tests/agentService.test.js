@@ -431,7 +431,7 @@ describe('Agent Service', () => {
   });
 
   describe('updateAgent / deleteAgent — generalized ownership (PR-25)', () => {
-    test('updateAgent allows a ProjectMachineContext to update its own Project-owned Agent', async () => {
+    test('updateAgent allows a ProjectMachineContext to update its own Project-owned Agent, returning full details (not stripped)', async () => {
       const projectAgent = {
         ...mockAgent,
         ownerType: 'Project',
@@ -442,9 +442,18 @@ describe('Agent Service', () => {
       agentRepository.update.mockResolvedValue({ ...projectAgent, name: 'New Name' });
 
       const context = { domain: 'project-1', principalType: 'ProjectMachine' };
-      await agentService.updateAgent('agent_1', 'irrelevant', { name: 'New Name' }, context);
+      const result = await agentService.updateAgent(
+        'agent_1',
+        'irrelevant',
+        { name: 'New Name' },
+        context
+      );
 
       expect(agentRepository.update).toHaveBeenCalled();
+      // Regression: _formatSafe only recognizes Persona ownerId, which
+      // would have incorrectly stripped these for the Project owner.
+      expect(result.systemPrompt).toBeDefined();
+      expect(result.providerId).toBeDefined();
     });
 
     test('updateAgent rejects a ProjectMachineContext from a DIFFERENT Project', async () => {
@@ -656,6 +665,91 @@ describe('Agent Service', () => {
       ).rejects.toThrow(/requires a ProjectMachine, ProjectAdmin, or ProjectRuntime context/);
       await expect(agentService.createDeveloperAgent(undefined, { name: 'x' })).rejects.toThrow();
       expect(agentRepository.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getDeveloperAgentById (PR-26)', () => {
+    function makeContextAwareAgent(overrides = {}) {
+      return {
+        _id: 'agent_1',
+        ownerType: 'ExternalUser',
+        externalOwnerId: 'sabik',
+        domain: 'project-1',
+        systemPrompt: 'Secret stuff',
+        providerId: 'prov_1',
+        visibility: 'public',
+        isActive: true,
+        deletedAt: null,
+        toObject: function () {
+          return { ...this };
+        },
+        ...overrides,
+      };
+    }
+
+    test('the owning ExternalUser context sees full details (systemPrompt/providerId retained)', async () => {
+      agentRepository.findById.mockResolvedValue(makeContextAwareAgent());
+      const context = {
+        domain: 'project-1',
+        principalType: 'ProjectRuntime',
+        externalUserId: 'sabik',
+      };
+
+      const result = await agentService.getDeveloperAgentById('agent_1', context);
+
+      expect(result.systemPrompt).toBe('Secret stuff');
+      expect(result.providerId).toBe('prov_1');
+    });
+
+    test('a non-owner in the same Domain sees a public Agent but with secrets stripped', async () => {
+      agentRepository.findById.mockResolvedValue(makeContextAwareAgent());
+      const otherContext = {
+        domain: 'project-1',
+        principalType: 'ProjectRuntime',
+        externalUserId: 'someone_else',
+      };
+
+      const result = await agentService.getDeveloperAgentById('agent_1', otherContext);
+
+      expect(result.systemPrompt).toBeUndefined();
+      expect(result.providerId).toBeUndefined();
+    });
+
+    test('a non-owner cannot see a private Agent at all', async () => {
+      agentRepository.findById.mockResolvedValue(makeContextAwareAgent({ visibility: 'private' }));
+      const otherContext = {
+        domain: 'project-1',
+        principalType: 'ProjectRuntime',
+        externalUserId: 'someone_else',
+      };
+
+      await expect(agentService.getDeveloperAgentById('agent_1', otherContext)).rejects.toThrow(
+        'Agent not found or is private'
+      );
+    });
+
+    test('the owner CAN see their own private Agent', async () => {
+      agentRepository.findById.mockResolvedValue(makeContextAwareAgent({ visibility: 'private' }));
+      const context = {
+        domain: 'project-1',
+        principalType: 'ProjectRuntime',
+        externalUserId: 'sabik',
+      };
+
+      const result = await agentService.getDeveloperAgentById('agent_1', context);
+      expect(result.systemPrompt).toBe('Secret stuff');
+    });
+
+    test('a cross-Domain context cannot see the Agent, even if it would otherwise be public', async () => {
+      agentRepository.findById.mockResolvedValue(makeContextAwareAgent());
+      const crossDomainContext = {
+        domain: 'a-different-project',
+        principalType: 'ProjectMachine',
+      };
+
+      await expect(
+        agentService.getDeveloperAgentById('agent_1', crossDomainContext)
+      ).rejects.toThrow('Agent not found or is private');
     });
   });
 });
