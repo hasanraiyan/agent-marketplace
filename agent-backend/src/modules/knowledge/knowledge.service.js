@@ -9,6 +9,7 @@ import encryption from '../../utils/encryption.js';
 import { loggerService } from '../../utils/index.js';
 import { PERSONA_DOMAIN } from '../auth/personaPrincipalContext.js';
 import { isResourceOwner, ownerFieldsForContext } from '../../utils/resourceOwnership.js';
+import { scopedFilter } from '../../utils/domainQuery.js';
 
 /**
  * Deliberately NOT imported from `agent.service.js` — that module's
@@ -616,6 +617,60 @@ class KnowledgeService {
       throw new Error('Not authorized');
     }
     return kb.documents || [];
+  }
+
+  /**
+   * Developer Platform (AD-07 §19, blueprint Phase 9, PR-45): the Discovery
+   * Contract — a GENUINELY SEPARATE code path from any Persona listing
+   * (Knowledge has no marketplace-browse function today at all, unlike
+   * Agent/Skill — `getUserKnowledgeBases` below only ever lists "my own",
+   * so there's nothing existing to accidentally reuse), mirroring Agent's
+   * PR-43 / Skill's PR-44 treatment exactly for consistency and to keep
+   * this genuinely independent should Persona ever grow its own browse
+   * feature later. Three modes, matching AD-07 §15's capability matrix:
+   *   - `ProjectMachineContext`/`ProjectAdminContext` ("Project
+   *     discovery"): every Knowledge Base in this Project's own Domain,
+   *     any owner type.
+   *   - `ProjectRuntimeContext` with `filters.scope === 'mine'`
+   *     ("my Knowledge Bases"): Domain- and Subject-scoped to just that
+   *     external user's own Knowledge Bases.
+   *   - `ProjectRuntimeContext` otherwise ("Project-public browse"):
+   *     Domain-scoped, public (`isPublic: true`) Knowledge Bases only.
+   *
+   * No secret-stripping formatter is needed — a KnowledgeBase's fields
+   * (name, description, embeddingModel, chunkSize, etc.) are all metadata,
+   * nothing as sensitive as an Agent's `systemPrompt`; the filter itself
+   * already guarantees every result is one the requester may see.
+   */
+  _buildDeveloperDiscoveryFilter(context, filters = {}) {
+    const extra = {};
+    if (filters.search) {
+      extra.name = { $regex: filters.search, $options: 'i' };
+    }
+
+    if (context?.principalType === 'ProjectMachine' || context?.principalType === 'ProjectAdmin') {
+      return scopedFilter(context.domain, extra);
+    }
+
+    if (filters.scope === 'mine') {
+      return scopedFilter(context?.domain, {
+        ...extra,
+        ownerType: 'ExternalUser',
+        externalOwnerId: context?.externalUserId,
+      });
+    }
+
+    return scopedFilter(context?.domain, { ...extra, isPublic: true });
+  }
+
+  async discoverKnowledgeBases(context, filters, pagination) {
+    const match = this._buildDeveloperDiscoveryFilter(context, filters);
+    return await knowledgeRepository.searchKbs(match, pagination);
+  }
+
+  async countDiscoverKnowledgeBases(context, filters) {
+    const match = this._buildDeveloperDiscoveryFilter(context, filters);
+    return await knowledgeRepository.countKbs(match);
   }
 }
 

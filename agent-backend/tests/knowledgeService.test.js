@@ -32,6 +32,8 @@ jest.unstable_mockModule('../src/modules/knowledge/knowledge.repository.js', () 
     deleteChunksByKbId: jest.fn(),
     getDocumentList: jest.fn(),
     deleteChunksBySource: jest.fn(),
+    searchKbs: jest.fn(),
+    countKbs: jest.fn(),
   },
 }));
 
@@ -519,6 +521,57 @@ describe('Knowledge Service', () => {
       const result = await knowledgeService.listDocumentSources(mockKbId, mockUserId);
       expect(result).toHaveLength(1);
       expect(result[0].fileName).toBe('test.txt');
+    });
+  });
+
+  describe('discoverKnowledgeBases / countDiscoverKnowledgeBases (blueprint Phase 9, PR-45, AD-07 §19)', () => {
+    const machineContext = { domain: 'project-1', principalType: 'ProjectMachine' };
+    const runtimeContext = {
+      domain: 'project-1',
+      principalType: 'ProjectRuntime',
+      externalUserId: 'sabik',
+    };
+
+    test('ProjectMachineContext ("Project discovery") scopes to the Domain only', async () => {
+      knowledgeRepository.searchKbs.mockResolvedValue([]);
+
+      await knowledgeService.discoverKnowledgeBases(machineContext, {}, { page: 1, limit: 20 });
+
+      expect(knowledgeRepository.searchKbs).toHaveBeenCalledWith(
+        { domain: 'project-1' },
+        { page: 1, limit: 20 }
+      );
+    });
+
+    test("ProjectRuntimeContext with scope=mine restricts to that external user's own KBs", async () => {
+      knowledgeRepository.searchKbs.mockResolvedValue([]);
+
+      await knowledgeService.discoverKnowledgeBases(runtimeContext, { scope: 'mine' }, {});
+
+      expect(knowledgeRepository.searchKbs).toHaveBeenCalledWith(
+        { domain: 'project-1', ownerType: 'ExternalUser', externalOwnerId: 'sabik' },
+        {}
+      );
+    });
+
+    test('ProjectRuntimeContext without scope=mine is "Project-public browse" — public KBs only', async () => {
+      knowledgeRepository.searchKbs.mockResolvedValue([]);
+
+      await knowledgeService.discoverKnowledgeBases(runtimeContext, {}, {});
+
+      expect(knowledgeRepository.searchKbs).toHaveBeenCalledWith(
+        { domain: 'project-1', isPublic: true },
+        {}
+      );
+    });
+
+    test('countDiscoverKnowledgeBases uses the identical filter-building logic', async () => {
+      knowledgeRepository.countKbs.mockResolvedValue(2);
+
+      const total = await knowledgeService.countDiscoverKnowledgeBases(machineContext, {});
+
+      expect(knowledgeRepository.countKbs).toHaveBeenCalledWith({ domain: 'project-1' });
+      expect(total).toBe(2);
     });
   });
 });

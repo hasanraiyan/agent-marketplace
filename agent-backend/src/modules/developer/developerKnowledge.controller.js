@@ -19,8 +19,29 @@ import knowledgeService from '../knowledge/knowledge.service.js';
  * NOT included in this first version — those are Knowledge-specific
  * runtime operations (file handling, Qdrant interaction) that deserve
  * their own scoped follow-up, not bundled into a CRUD pass.
+ *
+ * `discover` (blueprint Phase 9, PR-45) serves listing — a genuinely
+ * separate code path per AD-07 §19, mirroring the Agent/Skill Developer
+ * discover methods (PR-43/44).
  */
 class DeveloperKnowledgeController {
+  async discover(req, res, next) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 20;
+      const filters = { search: req.query.search, scope: req.query.scope };
+
+      const kbs = await knowledgeService.discoverKnowledgeBases(req.projectContext, filters, {
+        page,
+        limit,
+      });
+
+      res.json({ success: true, data: kbs });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async create(req, res, next) {
     try {
       const kb = await knowledgeService.createKnowledgeBase(

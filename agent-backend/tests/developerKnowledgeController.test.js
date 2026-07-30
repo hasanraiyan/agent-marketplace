@@ -6,6 +6,7 @@ jest.unstable_mockModule('../src/modules/knowledge/knowledge.service.js', () => 
     getKnowledgeBase: jest.fn(),
     updateKnowledgeBase: jest.fn(),
     deleteKnowledgeBase: jest.fn(),
+    discoverKnowledgeBases: jest.fn(),
   },
 }));
 
@@ -23,9 +24,34 @@ describe('Developer Knowledge Controller', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockReq = { projectContext: machineContext, body: {}, params: {} };
+    mockReq = { projectContext: machineContext, body: {}, params: {}, query: {} };
     mockRes = { status: jest.fn().mockReturnThis(), json: jest.fn() };
     next = jest.fn();
+  });
+
+  describe('discover', () => {
+    test('discovers via knowledgeService.discoverKnowledgeBases using req.projectContext', async () => {
+      mockReq.query = { search: 'docs', scope: 'mine' };
+      knowledgeService.discoverKnowledgeBases.mockResolvedValue([{ _id: 'kb1' }]);
+
+      await developerKnowledgeController.discover(mockReq, mockRes, next);
+
+      expect(knowledgeService.discoverKnowledgeBases).toHaveBeenCalledWith(
+        machineContext,
+        { search: 'docs', scope: 'mine' },
+        { page: 1, limit: 20 }
+      );
+      expect(mockRes.json).toHaveBeenCalledWith({ success: true, data: [{ _id: 'kb1' }] });
+    });
+
+    test('passes errors to next', async () => {
+      const err = new Error('boom');
+      knowledgeService.discoverKnowledgeBases.mockRejectedValue(err);
+
+      await developerKnowledgeController.discover(mockReq, mockRes, next);
+
+      expect(next).toHaveBeenCalledWith(err);
+    });
   });
 
   describe('create', () => {

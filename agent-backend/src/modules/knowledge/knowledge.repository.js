@@ -32,6 +32,21 @@ class KnowledgeRepository {
     return await KnowledgeBase.find({ _id: { $in: ids } });
   }
 
+  /**
+   * Developer Platform (blueprint Phase 9, PR-45): a generic, filter-driven
+   * list/count pair — the low-level primitive AD-07 §19 permits sharing
+   * (it does no scoping/visibility reasoning of its own), used by
+   * `knowledge.service.js`'s Developer discovery methods.
+   */
+  async searchKbs(filter, { page = 1, limit = 20 } = {}) {
+    const skip = (page - 1) * limit;
+    return await KnowledgeBase.find(filter).sort({ updatedAt: -1 }).skip(skip).limit(limit);
+  }
+
+  async countKbs(filter) {
+    return await KnowledgeBase.countDocuments(filter);
+  }
+
   // ── Chunks ────────────────────────────────────────────────────────
 
   async insertChunks(chunks) {

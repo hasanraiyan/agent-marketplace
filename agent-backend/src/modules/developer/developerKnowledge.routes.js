@@ -44,6 +44,39 @@ router.post('/', validateBody(createKnowledgeBaseSchema), developerKnowledgeCont
 
 /**
  * @openapi
+ * /api/v1/developer/knowledge:
+ *   get:
+ *     tags: [Developer]
+ *     summary: Discover Knowledge Bases (blueprint Phase 9, PR-45, AD-07 §19)
+ *     description: >
+ *       A genuinely separate code path — Knowledge has no Persona
+ *       marketplace-browse feature to accidentally reuse. For a bare
+ *       Project credential: every Knowledge Base in this Project's own
+ *       Domain, any owner type. For a credential paired with
+ *       x-persona-external-user-id: scope=mine returns only that
+ *       external user's own Knowledge Bases; omitting it returns this
+ *       Domain's public Knowledge Bases only.
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         schema: { type: integer }
+ *       - name: limit
+ *         in: query
+ *         schema: { type: integer }
+ *       - name: search
+ *         in: query
+ *         schema: { type: string }
+ *       - name: scope
+ *         in: query
+ *         schema: { type: string, enum: [mine] }
+ *     responses:
+ *       200: { description: List of Knowledge Bases }
+ */
+router.get('/', developerKnowledgeController.discover);
+
+/**
+ * @openapi
  * /api/v1/developer/knowledge/{kbId}:
  *   get:
  *     tags: [Developer]

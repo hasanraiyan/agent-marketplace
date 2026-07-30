@@ -23,6 +23,7 @@ jest.unstable_mockModule('../src/modules/knowledge/knowledge.service.js', () => 
     getKnowledgeBase: jest.fn(),
     updateKnowledgeBase: jest.fn(),
     deleteKnowledgeBase: jest.fn(),
+    discoverKnowledgeBases: jest.fn(),
   },
 }));
 
@@ -85,6 +86,21 @@ describe('developerKnowledge.routes.js — mount integration', () => {
       undefined,
       expect.objectContaining({ name: 'test-kb' }),
       expect.objectContaining({ domain: 'project-1', principalType: 'ProjectMachine' })
+    );
+  });
+
+  test('GET / (discover) reaches the controller and returns the list', async () => {
+    knowledgeService.discoverKnowledgeBases.mockResolvedValue([{ _id: 'kb1' }]);
+
+    const res = await request(app)
+      .get('/api/v1/developer/knowledge')
+      .set('Authorization', 'Bearer pk_test.secret');
+
+    expect(res.status).toBe(200);
+    expect(knowledgeService.discoverKnowledgeBases).toHaveBeenCalledWith(
+      expect.objectContaining({ domain: 'project-1', principalType: 'ProjectMachine' }),
+      expect.any(Object),
+      expect.any(Object)
     );
   });
 
