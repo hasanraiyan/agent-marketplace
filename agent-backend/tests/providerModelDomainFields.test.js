@@ -47,4 +47,28 @@ describe('Provider model — domain/ownerType fields', () => {
     const provider = new Provider(minimalValidProvider);
     await expect(provider.validate()).resolves.toBeUndefined();
   });
+
+  /**
+   * Developer Platform PR-36 (blueprint Phase 9): `ownerId` generalization
+   * — same conditional-required treatment as Agent/Skill/KnowledgeBase/Mcp.
+   * No `externalOwnerId` counterpart: Provider's `ownerType` enum never
+   * includes `'ExternalUser'` (AD-06 §21), so only two owner shapes exist.
+   */
+  test('existing behavior unaffected: ownerId is still required for a (default) PersonaUser-owned Provider', async () => {
+    const provider = new Provider({ ...minimalValidProvider, ownerId: undefined });
+    await expect(provider.validate()).rejects.toThrow();
+  });
+
+  test('a Project-owned Provider validates without an ownerId', async () => {
+    const provider = new Provider({
+      label: 'Support Provider',
+      baseURL: 'https://api.example.com',
+      apiKeyEncrypted: 'encrypted-value',
+      defaultModel: 'gpt-4o',
+      domain: '507f1f77bcf86cd799439099',
+      ownerType: 'Project',
+    });
+    await expect(provider.validate()).resolves.toBeUndefined();
+    expect(provider.ownerId).toBeUndefined();
+  });
 });
