@@ -6,6 +6,7 @@ jest.unstable_mockModule('../src/modules/mcp/mcp.service.js', () => ({
     getMcpById: jest.fn(),
     updateMcp: jest.fn(),
     deleteMcp: jest.fn(),
+    discoverMcps: jest.fn(),
     toSafeJson: jest.fn((mcp) => mcp),
   },
 }));
@@ -24,9 +25,34 @@ describe('Developer Mcp Controller', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mcpService.toSafeJson.mockImplementation((mcp) => mcp);
-    mockReq = { projectContext: machineContext, body: {}, params: {} };
+    mockReq = { projectContext: machineContext, body: {}, params: {}, query: {} };
     mockRes = { status: jest.fn().mockReturnThis(), json: jest.fn() };
     next = jest.fn();
+  });
+
+  describe('discover', () => {
+    test('discovers via mcpService.discoverMcps, formatting each result via toSafeJson', async () => {
+      mockReq.query = { search: 'support', scope: 'mine' };
+      mcpService.discoverMcps.mockResolvedValue([{ _id: 'm1', apiKeyEncrypted: 'secret' }]);
+
+      await developerMcpController.discover(mockReq, mockRes, next);
+
+      expect(mcpService.discoverMcps).toHaveBeenCalledWith(
+        machineContext,
+        { search: 'support', scope: 'mine' },
+        { page: 1, limit: 20 }
+      );
+      expect(mcpService.toSafeJson).toHaveBeenCalledWith({ _id: 'm1', apiKeyEncrypted: 'secret' });
+    });
+
+    test('passes errors to next', async () => {
+      const err = new Error('boom');
+      mcpService.discoverMcps.mockRejectedValue(err);
+
+      await developerMcpController.discover(mockReq, mockRes, next);
+
+      expect(next).toHaveBeenCalledWith(err);
+    });
   });
 
   describe('create', () => {

@@ -45,6 +45,21 @@ class McpRepository {
   async deleteManyByOwner(ownerId) {
     return await Mcp.deleteMany({ ownerId });
   }
+
+  /**
+   * Developer Platform (blueprint Phase 9, PR-46): a generic, filter-driven
+   * list/count pair — the low-level primitive AD-07 §19 permits sharing
+   * (it does no scoping/visibility reasoning of its own), used by
+   * `mcp.service.js`'s Developer discovery methods.
+   */
+  async search(filter, { page = 1, limit = 20 } = {}) {
+    const skip = (page - 1) * limit;
+    return await Mcp.find(filter).sort({ updatedAt: -1 }).skip(skip).limit(limit);
+  }
+
+  async count(filter) {
+    return await Mcp.countDocuments(filter);
+  }
 }
 
 export default new McpRepository();

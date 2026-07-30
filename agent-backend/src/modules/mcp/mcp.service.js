@@ -23,6 +23,7 @@ import {
   ownerFilterForContext,
   ownerFieldsForContext,
 } from '../../utils/resourceOwnership.js';
+import { scopedFilter } from '../../utils/domainQuery.js';
 
 const logger = loggerService.getLogger();
 
@@ -120,6 +121,56 @@ class McpService {
 
   async getMyMcps(userId) {
     return await mcpRepository.findByOwner(userId);
+  }
+
+  /**
+   * Developer Platform (AD-07 §19, blueprint Phase 9, PR-46): the Discovery
+   * Contract — a GENUINELY SEPARATE code path from `getMyMcps` above (which
+   * only ever lists the Persona caller's own MCPs), mirroring Agent's
+   * PR-43 / Skill's PR-44 / Knowledge's PR-45 treatment.
+   *
+   * Unlike those three resources, Mcp has NO `isPublic`/`visibility` field
+   * at all — an MCP definition has no "browse other people's MCP servers"
+   * product concept the way an Agent/Skill/Knowledge Base does; MCPs exist
+   * to be attached to Agents, not consumed directly. Attachment itself
+   * already uses a Domain-boundary-is-sufficient policy (mirrors
+   * `agent.service.js`'s `assertOwnsProvider`, AD-06 §12 — any of a
+   * Project's own Agents may use any MCP owned within that same Domain,
+   * not just ones the same Subject created). Discovery follows the exact
+   * same reasoning: there is no third "public browse" subset to carve out
+   * of "everything in the Domain" — so the two non-`mine` modes below
+   * collapse to the same Domain-scoped, unrestricted-by-owner filter.
+   *   - `ProjectMachineContext`/`ProjectAdminContext` OR
+   *     `ProjectRuntimeContext` without `filters.scope === 'mine'`: every
+   *     MCP in this Project's own Domain, any owner type.
+   *   - `ProjectRuntimeContext` with `filters.scope === 'mine'`: Domain-
+   *     and Subject-scoped to just that external user's own MCPs.
+   */
+  _buildDeveloperDiscoveryFilter(context, filters = {}) {
+    const extra = {};
+    if (filters.search) {
+      extra.name = { $regex: filters.search, $options: 'i' };
+    }
+
+    if (context?.principalType === 'ProjectRuntime' && filters.scope === 'mine') {
+      return scopedFilter(context.domain, {
+        ...extra,
+        ownerType: 'ExternalUser',
+        externalOwnerId: context.externalUserId,
+      });
+    }
+
+    return scopedFilter(context?.domain, extra);
+  }
+
+  async discoverMcps(context, filters, pagination) {
+    const match = this._buildDeveloperDiscoveryFilter(context, filters);
+    return await mcpRepository.search(match, pagination);
+  }
+
+  async countDiscoverMcps(context, filters) {
+    const match = this._buildDeveloperDiscoveryFilter(context, filters);
+    return await mcpRepository.count(match);
   }
 
   /**
