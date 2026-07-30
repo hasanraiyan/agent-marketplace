@@ -67,9 +67,19 @@ class SkillRepository {
     return await Skill.find(filter).limit(limit).sort({ updatedAt: -1 });
   }
 
-  async update(id, userId, updateData) {
+  /**
+   * Developer Platform (blueprint Phase 9, PR-28): `ownerFilter` replaces
+   * the previous bare `userId` — build it with
+   * `resourceOwnership.ownerFilterForContext(context)`. For a Persona
+   * caller this is exactly `{ ownerId: userId }`, byte-for-byte the same
+   * filter this method built inline before. The ownership check stays
+   * atomic (one `findOneAndUpdate`, not fetch-then-check), just built from
+   * a caller-supplied filter object instead of hardcoding the `ownerId`
+   * shape here.
+   */
+  async update(id, ownerFilter, updateData) {
     const skill = await Skill.findOneAndUpdate(
-      { _id: id, ownerId: userId },
+      { _id: id, ...ownerFilter },
       { $set: updateData },
       { returnDocument: 'after', runValidators: true }
     );
@@ -78,8 +88,9 @@ class SkillRepository {
     return skill;
   }
 
-  async delete(id, userId) {
-    const skill = await Skill.findOneAndDelete({ _id: id, ownerId: userId });
+  /** See `update`'s doc comment — identical `ownerFilter` generalization. */
+  async delete(id, ownerFilter) {
+    const skill = await Skill.findOneAndDelete({ _id: id, ...ownerFilter });
     if (!skill) throw new NotFoundError('Skill not found or unauthorized');
     return skill;
   }
