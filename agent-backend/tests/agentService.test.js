@@ -752,4 +752,96 @@ describe('Agent Service', () => {
       ).rejects.toThrow('Agent not found or is private');
     });
   });
+
+  describe('discoverAgents / countDiscoverAgents (blueprint Phase 9, PR-43, AD-07 §19)', () => {
+    function makeDiscoveryAgent(overrides = {}) {
+      return {
+        _id: 'agent_1',
+        ownerType: 'ExternalUser',
+        externalOwnerId: 'sabik',
+        domain: 'project-1',
+        systemPrompt: 'Secret stuff',
+        providerId: 'prov_1',
+        visibility: 'public',
+        isActive: true,
+        toObject: function () {
+          return { ...this };
+        },
+        ...overrides,
+      };
+    }
+
+    const machineContext = { domain: 'project-1', principalType: 'ProjectMachine' };
+    const runtimeContext = {
+      domain: 'project-1',
+      principalType: 'ProjectRuntime',
+      externalUserId: 'sabik',
+    };
+
+    test('ProjectMachineContext ("Project discovery") scopes to the Domain only, no visibility restriction', async () => {
+      agentRepository.search.mockResolvedValue([]);
+
+      await agentService.discoverAgents(machineContext, {}, { page: 1, limit: 20 });
+
+      const [match] = agentRepository.search.mock.calls[0];
+      expect(match).toEqual({ isActive: true, domain: 'project-1' });
+    });
+
+    test("ProjectRuntimeContext with scope=mine restricts to that external user's own Agents", async () => {
+      agentRepository.search.mockResolvedValue([]);
+
+      await agentService.discoverAgents(runtimeContext, { scope: 'mine' }, { page: 1, limit: 20 });
+
+      const [match] = agentRepository.search.mock.calls[0];
+      expect(match).toEqual({
+        isActive: true,
+        domain: 'project-1',
+        ownerType: 'ExternalUser',
+        externalOwnerId: 'sabik',
+      });
+    });
+
+    test('ProjectRuntimeContext without scope=mine is "Project-public browse" — Domain-scoped, public only', async () => {
+      agentRepository.search.mockResolvedValue([]);
+
+      await agentService.discoverAgents(runtimeContext, {}, { page: 1, limit: 20 });
+
+      const [match] = agentRepository.search.mock.calls[0];
+      expect(match).toEqual({ isActive: true, domain: 'project-1', visibility: 'public' });
+    });
+
+    test('strips systemPrompt/providerId from results the requesting context does not own', async () => {
+      agentRepository.search.mockResolvedValue([
+        makeDiscoveryAgent({ externalOwnerId: 'someone-else' }),
+      ]);
+
+      const [result] = await agentService.discoverAgents(runtimeContext, {}, {});
+
+      expect(result.systemPrompt).toBeUndefined();
+      expect(result.providerId).toBeUndefined();
+    });
+
+    test('keeps systemPrompt/providerId for a result the requesting context DOES own', async () => {
+      agentRepository.search.mockResolvedValue([makeDiscoveryAgent({ externalOwnerId: 'sabik' })]);
+
+      const [result] = await agentService.discoverAgents(runtimeContext, {}, {});
+
+      expect(result.systemPrompt).toBe('Secret stuff');
+      expect(result.providerId).toBe('prov_1');
+    });
+
+    test('countDiscoverAgents uses the identical filter-building logic', async () => {
+      agentRepository.count.mockResolvedValue(3);
+
+      const total = await agentService.countDiscoverAgents(machineContext, {});
+
+      expect(agentRepository.count).toHaveBeenCalledWith({ isActive: true, domain: 'project-1' });
+      expect(total).toBe(3);
+    });
+
+    test('this is a genuinely separate code path from searchAgents/_buildSearchFilter (AD-07 §19)', () => {
+      expect(agentService.discoverAgents).not.toBe(agentService.searchAgents);
+      expect(agentService._buildDeveloperDiscoveryFilter).not.toBe(agentService._buildSearchFilter);
+    });
+  });
 });

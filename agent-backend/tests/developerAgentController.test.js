@@ -6,6 +6,7 @@ jest.unstable_mockModule('../src/modules/agents/agent.service.js', () => ({
     getDeveloperAgentById: jest.fn(),
     updateAgent: jest.fn(),
     deleteAgent: jest.fn(),
+    discoverAgents: jest.fn(),
   },
 }));
 
@@ -23,9 +24,45 @@ describe('Developer Agent Controller', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockReq = { projectContext: machineContext, body: {}, params: {} };
+    mockReq = { projectContext: machineContext, body: {}, params: {}, query: {} };
     mockRes = { status: jest.fn().mockReturnThis(), json: jest.fn() };
     next = jest.fn();
+  });
+
+  describe('discover', () => {
+    test('discovers via agentService.discoverAgents using req.projectContext and query params', async () => {
+      mockReq.query = { page: '2', limit: '10', search: 'support', category: 'productivity' };
+      agentService.discoverAgents.mockResolvedValue([{ _id: 'a1' }]);
+
+      await developerAgentController.discover(mockReq, mockRes, next);
+
+      expect(agentService.discoverAgents).toHaveBeenCalledWith(
+        machineContext,
+        { search: 'support', category: 'productivity', scope: undefined },
+        { page: 2, limit: 10 }
+      );
+      expect(mockRes.json).toHaveBeenCalledWith({ success: true, data: [{ _id: 'a1' }] });
+    });
+
+    test('defaults page/limit when omitted', async () => {
+      agentService.discoverAgents.mockResolvedValue([]);
+
+      await developerAgentController.discover(mockReq, mockRes, next);
+
+      expect(agentService.discoverAgents).toHaveBeenCalledWith(machineContext, expect.any(Object), {
+        page: 1,
+        limit: 20,
+      });
+    });
+
+    test('passes errors to next', async () => {
+      const err = new Error('boom');
+      agentService.discoverAgents.mockRejectedValue(err);
+
+      await developerAgentController.discover(mockReq, mockRes, next);
+
+      expect(next).toHaveBeenCalledWith(err);
+    });
   });
 
   describe('create', () => {

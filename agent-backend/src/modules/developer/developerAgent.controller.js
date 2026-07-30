@@ -16,12 +16,35 @@ import agentService from '../agents/agent.service.js';
  * each case via the shared `isAgentOwner`/`canUserExecuteAgent` checks —
  * this controller does no authorization logic of its own.
  *
- * List/discovery ("Project's own Agents", "my Agents") is deliberately
- * NOT included here — AD-07 §19 requires Developer discovery to be an
- * entirely separate code path from Persona's marketplace search, which is
- * its own scoped follow-up, not bolted onto CRUD.
+ * List/discovery ("Project's own Agents", "my Agents", "Project-public
+ * browse") is served by `discover` below — a genuinely separate code path
+ * from Persona's marketplace search (`agentService.searchAgents`/
+ * `_buildSearchFilter`), per AD-07 §19's explicit discovery contract. See
+ * `agentService.discoverAgents`'s doc comment for the three discovery
+ * modes this maps to depending on `req.projectContext`.
  */
 class DeveloperAgentController {
+  async discover(req, res, next) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 20;
+      const filters = {
+        search: req.query.search,
+        category: req.query.category,
+        scope: req.query.scope,
+      };
+
+      const agents = await agentService.discoverAgents(req.projectContext, filters, {
+        page,
+        limit,
+      });
+
+      res.json({ success: true, data: agents });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async create(req, res, next) {
     try {
       const agent = await agentService.createDeveloperAgent(req.projectContext, req.body);
