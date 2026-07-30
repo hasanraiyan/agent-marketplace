@@ -12,6 +12,7 @@ import {
   developerSkillRouter,
   developerKnowledgeRouter,
   developerMcpRouter,
+  developerProviderRouter,
 } from './modules/developer/index.js';
 import { agentRouter } from './modules/agents/index.js';
 import { threadRouter } from './modules/threads/index.js';
@@ -87,6 +88,7 @@ app.use('/api/v1/developer/agents', developerAgentRouter);
 app.use('/api/v1/developer/skills', developerSkillRouter);
 app.use('/api/v1/developer/knowledge', developerKnowledgeRouter);
 app.use('/api/v1/developer/mcps', developerMcpRouter);
+app.use('/api/v1/developer/providers', developerProviderRouter);
 app.use('/api/v1/developer', developerRouter);
 app.use('/api/v1/agents', agentRouter);
 app.use('/api/v1/threads', threadRouter);
