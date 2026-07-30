@@ -23,7 +23,18 @@ aguiRouter.use(async (req, res, next) => {
     if (agentId && threadDbId) {
       try {
         const thread = await threadRepository.findById(threadDbId);
-        if (thread && thread.userId.toString() === userId.toString()) {
+        // Developer Platform (blueprint §33 architecture debt, Phase 6): a
+        // thread must match both the requesting user AND the agent it was
+        // created with. Without the agentId check, a caller could resume a
+        // thread's checkpoint history (and persist new messages onto it)
+        // under a different agent's config by simply sending a different
+        // x-agent-id — same fallback as the userId mismatch below: treat it
+        // as no valid thread was given rather than surfacing an error.
+        if (
+          thread &&
+          thread.userId.toString() === userId.toString() &&
+          String(thread.agentId) === String(agentId)
+        ) {
           langGraphThreadId = thread.threadId;
           await threadRepository.touchLastMessageAt(thread._id);
         }
