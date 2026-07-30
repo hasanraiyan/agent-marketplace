@@ -100,11 +100,11 @@ describe('Provider Repository', () => {
     });
   });
 
-  describe('clearUserDefaultKeys', () => {
-    test('should clear default keys for user', async () => {
+  describe('clearDefaultKeys', () => {
+    test('should clear default keys for the given ownerFilter', async () => {
       jest.spyOn(Provider, 'updateMany').mockResolvedValue({ modifiedCount: 1 });
 
-      const result = await providerRepository.clearUserDefaultKeys(mockUserId);
+      const result = await providerRepository.clearDefaultKeys({ ownerId: mockUserId });
 
       expect(Provider.updateMany).toHaveBeenCalledWith(
         { ownerId: mockUserId, isDefault: true },

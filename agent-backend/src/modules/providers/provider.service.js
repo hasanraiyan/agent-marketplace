@@ -3,6 +3,12 @@ import agentRepository from '../agents/agent.repository.js';
 import agentFactory from '../agents/agent.factory.js';
 import encryption from '../../utils/encryption.js';
 import { ARCHITECT_AGENT_ID } from '../tools/index.js';
+import { personaExecutionContext } from '../agents/agent.service.js';
+import {
+  isResourceOwner,
+  ownerFilterForContext,
+  ownerFieldsForContext,
+} from '../../utils/resourceOwnership.js';
 
 class ProviderService {
   /**
@@ -50,9 +56,18 @@ class ProviderService {
     };
   }
 
-  async createProvider(userId, providerData) {
+  /**
+   * Developer Platform (blueprint Phase 9, PR-37): `context` defaults to
+   * `personaExecutionContext(userId)`, so every existing caller (the
+   * Persona `POST /providers` route) that omits it gets byte-for-byte
+   * identical behavior. Same treatment as Skill's `createSkill` (PR-28) —
+   * Provider creation has no Persona-only onboarding complexity, so this
+   * one method serves both owner types directly (Provider has no
+   * `ExternalUser` case — AD-06 §21).
+   */
+  async createProvider(userId, providerData, context = personaExecutionContext(userId)) {
     if (providerData.isDefault) {
-      await providerRepository.clearUserDefaultKeys(userId);
+      await providerRepository.clearDefaultKeys(ownerFilterForContext(context));
     }
 
     const { apiKey, ...rest } = providerData;
@@ -62,21 +77,39 @@ class ProviderService {
 
     const provider = await providerRepository.create({
       ...rest,
-      ownerId: userId,
+      ...ownerFieldsForContext(context),
       apiKeyEncrypted,
     });
 
     return this._formatProvider(provider);
   }
 
-  async updateProvider(userId, providerId, updateData) {
+  /**
+   * Fetches a Provider by ID with an ownership check, formatted for
+   * external consumption (never returns `apiKeyEncrypted`). `context`
+   * defaults to `personaExecutionContext(userId)`.
+   */
+  async getProviderById(id, userId, context = personaExecutionContext(userId)) {
+    const provider = await providerRepository.findById(id);
+    if (!provider || !isResourceOwner(provider, context)) {
+      throw new Error('Provider not found');
+    }
+    return this._formatProvider(provider);
+  }
+
+  /**
+   * Updates an existing Provider. `context` defaults to
+   * `personaExecutionContext(userId)` — zero behavior change for every
+   * existing caller.
+   */
+  async updateProvider(userId, providerId, updateData, context = personaExecutionContext(userId)) {
     let provider = await providerRepository.findById(providerId);
 
     if (!provider) {
       throw new Error('Provider not found');
     }
 
-    if (provider.ownerId.toString() !== userId.toString()) {
+    if (!isResourceOwner(provider, context)) {
       throw new Error('Unauthorized to update this provider');
     }
 
@@ -84,7 +117,7 @@ class ProviderService {
     provider = await this._ensureLatestEncryption(provider);
 
     if (updateData.isDefault) {
-      await providerRepository.clearUserDefaultKeys(userId);
+      await providerRepository.clearDefaultKeys(ownerFilterForContext(context));
     }
 
     // Handle apiKey update if provided
@@ -112,14 +145,18 @@ class ProviderService {
     return providers.map((p) => this._formatProvider(p));
   }
 
-  async deleteProvider(userId, providerId) {
+  /**
+   * Deletes a Provider. `context` defaults to `personaExecutionContext(userId)`
+   * — zero behavior change for every existing caller.
+   */
+  async deleteProvider(userId, providerId, context = personaExecutionContext(userId)) {
     const provider = await providerRepository.findById(providerId);
 
     if (!provider) {
       throw new Error('Provider not found');
     }
 
-    if (provider.ownerId.toString() !== userId.toString()) {
+    if (!isResourceOwner(provider, context)) {
       throw new Error('Unauthorized to delete this provider');
     }
 
