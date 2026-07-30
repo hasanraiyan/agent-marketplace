@@ -30,10 +30,25 @@ aguiRouter.use(async (req, res, next) => {
         // under a different agent's config by simply sending a different
         // x-agent-id — same fallback as the userId mismatch below: treat it
         // as no valid thread was given rather than surfacing an error.
+        //
+        // Bug fix (blueprint Phase 9, PR-42): `thread.agentId` comes back
+        // POPULATED (thread.repository.js's findById always populates it
+        // for display purposes), so `String(thread.agentId)` never equaled
+        // a bare `agentId` string — it stringified to a multi-line object
+        // dump instead. That meant this check ALWAYS failed silently and
+        // this route ALWAYS fell back to the deterministic thread id
+        // (`agui-${agentId}-${userId}`, scoped only to agent+user, not to
+        // any specific thread) — so every one of a user's conversations
+        // with the same agent has been sharing one LangGraph checkpoint,
+        // regardless of which named thread the client thought it was
+        // resuming. Comparing the populated document's `._id` instead
+        // fixes the match without changing anything else about the
+        // fallback contract.
+        const threadAgentId = thread?.agentId?._id ?? thread?.agentId;
         if (
           thread &&
           thread.userId.toString() === userId.toString() &&
-          String(thread.agentId) === String(agentId)
+          String(threadAgentId) === String(agentId)
         ) {
           langGraphThreadId = thread.threadId;
           await threadRepository.touchLastMessageAt(thread._id);

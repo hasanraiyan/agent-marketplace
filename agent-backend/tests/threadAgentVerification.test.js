@@ -77,12 +77,16 @@ describe('AG-UI thread resolution — thread.agentId verified against x-agent-id
     next = jest.fn();
   });
 
-  test('uses the thread when agentId and userId both match', async () => {
+  test('uses the thread when agentId and userId both match (agentId comes back POPULATED, not a bare string)', async () => {
+    // thread.repository.js's findById always does
+    // `.populate('agentId', 'name avatar slug')` — a bare-string mock here
+    // (as this test used before PR-42) doesn't reflect real Mongoose
+    // behavior and would have hidden the exact bug PR-42 fixed.
     threadRepository.findById.mockResolvedValue({
       _id: 'thread_1',
       threadId: 'uuid_1',
       userId: 'user_1',
-      agentId: 'agent_1',
+      agentId: { _id: 'agent_1', name: 'Test Agent', slug: 'test-agent' },
     });
 
     const middleware = getContextMiddleware();
@@ -97,7 +101,9 @@ describe('AG-UI thread resolution — thread.agentId verified against x-agent-id
       _id: 'thread_1',
       threadId: 'uuid_1',
       userId: 'user_1',
-      agentId: 'agent_2', // thread was created against a different agent
+      // thread was created against a different agent — still populated,
+      // matching real findById behavior.
+      agentId: { _id: 'agent_2', name: 'A Different Agent', slug: 'a-different-agent' },
     });
 
     const middleware = getContextMiddleware();
@@ -107,12 +113,27 @@ describe('AG-UI thread resolution — thread.agentId verified against x-agent-id
     expect(threadRepository.touchLastMessageAt).not.toHaveBeenCalled();
   });
 
+  test('PR-42 regression guard: a bare (unpopulated) agentId string still matches correctly too', async () => {
+    threadRepository.findById.mockResolvedValue({
+      _id: 'thread_1',
+      threadId: 'uuid_1',
+      userId: 'user_1',
+      agentId: 'agent_1',
+    });
+
+    const middleware = getContextMiddleware();
+    await middleware(mockReq, mockRes, next);
+
+    expect(mockReq.aguiContext.langGraphThreadId).toBe('uuid_1');
+    expect(threadRepository.touchLastMessageAt).toHaveBeenCalledWith('thread_1');
+  });
+
   test('falls back to a deterministic thread id when the thread belongs to a different user', async () => {
     threadRepository.findById.mockResolvedValue({
       _id: 'thread_1',
       threadId: 'uuid_1',
       userId: 'someone_else',
-      agentId: 'agent_1',
+      agentId: { _id: 'agent_1', name: 'Test Agent', slug: 'test-agent' },
     });
 
     const middleware = getContextMiddleware();
