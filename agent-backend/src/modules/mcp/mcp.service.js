@@ -17,6 +17,12 @@ import config from '../../config/index.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
 import ValidationError from '../../utils/errors/ValidationError.js';
 import { loggerService } from '../../utils/index.js';
+import { personaExecutionContext } from '../agents/agent.service.js';
+import {
+  isResourceOwner,
+  ownerFilterForContext,
+  ownerFieldsForContext,
+} from '../../utils/resourceOwnership.js';
 
 const logger = loggerService.getLogger();
 
@@ -44,9 +50,17 @@ class McpService {
     };
   }
 
-  async createMcp(userId, data) {
+  /**
+   * Developer Platform (blueprint Phase 9, PR-34): `context` defaults to
+   * `personaExecutionContext(userId)`, so every existing caller (the
+   * Persona `POST /mcps` route) that omits it gets byte-for-byte identical
+   * behavior. Same treatment as Skill's `createSkill` (PR-28) — MCP
+   * creation has no Persona-only onboarding complexity, so this one method
+   * serves all three owner types directly.
+   */
+  async createMcp(userId, data, context = personaExecutionContext(userId)) {
     const mcpData = {
-      ownerId: userId,
+      ...ownerFieldsForContext(context),
       name: data.name,
       description: data.description || '',
       transport: data.transport,
@@ -108,16 +122,31 @@ class McpService {
     return await mcpRepository.findByOwner(userId);
   }
 
-  async getMcpById(id, userId) {
+  /**
+   * Fetches an MCP by ID with an ownership check. `context` defaults to
+   * `personaExecutionContext(userId)` — zero behavior change for every
+   * existing (Persona) caller, including the many internal call sites below
+   * (testConnection, readResource, callTool, etc.) that stay Persona-only
+   * and call this with just `(id, userId)`.
+   */
+  async getMcpById(id, userId, context = personaExecutionContext(userId)) {
     const mcp = await mcpRepository.findById(id);
-    if (!mcp || mcp.ownerId.toString() !== userId.toString()) {
+    if (!mcp || !isResourceOwner(mcp, context)) {
       throw new NotFoundError('MCP server not found');
     }
     return mcp;
   }
 
-  async updateMcp(id, userId, data) {
-    const existing = await this.getMcpById(id, userId);
+  /**
+   * Updates an existing MCP. `context` defaults to
+   * `personaExecutionContext(userId)` — zero behavior change for every
+   * existing caller. Repository enforces ownership atomically via
+   * `ownerFilterForContext(context)`, replacing the previous hardcoded
+   * `{ ownerId: userId }` shape (Persona callers get the exact same filter
+   * as before).
+   */
+  async updateMcp(id, userId, data, context = personaExecutionContext(userId)) {
+    const existing = await this.getMcpById(id, userId, context);
     const updateData = { ...data };
     const resolvedAuthType = data.authType || existing.authType;
     if (resolvedAuthType === 'oauth') {
@@ -154,18 +183,23 @@ class McpService {
       updateData.oauth = {};
       updateData.apiKeyEncrypted = null;
     }
-    const mcp = await mcpRepository.update(id, userId, updateData);
+    const mcp = await mcpRepository.update(id, ownerFilterForContext(context), updateData);
     await this._invalidateAgentsUsingMcp(id);
     return mcp;
   }
 
-  async deleteMcp(id, userId) {
-    const mcp = await this.getMcpById(id, userId);
+  /**
+   * Deletes an MCP and removes it from all agents. `context` defaults to
+   * `personaExecutionContext(userId)` — zero behavior change for every
+   * existing caller.
+   */
+  async deleteMcp(id, userId, context = personaExecutionContext(userId)) {
+    const mcp = await this.getMcpById(id, userId, context);
     const agents = await agentRepository.findAgentsUsingMcp(id, '_id');
     await agentRepository.removeMcpFromAgents(id);
     await mcpUserConnectionRepository.deleteByMcp(id);
     for (const agent of agents) agentFactory.invalidate(agent._id);
-    return await mcpRepository.delete(id, userId);
+    return await mcpRepository.delete(id, ownerFilterForContext(context));
   }
 
   async _invalidateAgentsUsingMcp(mcpId) {
@@ -315,12 +349,16 @@ class McpService {
       `[MCP] Test connection for "${mcp.name}": ${toolSummaries.length} tools, ${resourceSummaries.length} resources, ${templateSummaries.length} templates`
     );
 
-    await mcpRepository.update(id, userId, {
-      tools: toolSummaries,
-      resources: resourceSummaries,
-      resourceTemplates: templateSummaries,
-      lastTestedAt: new Date(),
-    });
+    await mcpRepository.update(
+      id,
+      { ownerId: userId },
+      {
+        tools: toolSummaries,
+        resources: resourceSummaries,
+        resourceTemplates: templateSummaries,
+        lastTestedAt: new Date(),
+      }
+    );
     await this._invalidateAgentsUsingMcp(id);
 
     return {
@@ -371,18 +409,22 @@ class McpService {
     const expiresAt = tokenResponse.expires_in
       ? new Date(Date.now() + tokenResponse.expires_in * 1000)
       : null;
-    await mcpRepository.update(id, decoded.userId, {
-      oauth: {
-        ...mcp.oauth.toObject(),
-        ownerToken: {
-          accessTokenEncrypted: encryption.encrypt(tokenResponse.access_token),
-          refreshTokenEncrypted: tokenResponse.refresh_token
-            ? encryption.encrypt(tokenResponse.refresh_token)
-            : null,
-          expiresAt,
+    await mcpRepository.update(
+      id,
+      { ownerId: decoded.userId },
+      {
+        oauth: {
+          ...mcp.oauth.toObject(),
+          ownerToken: {
+            accessTokenEncrypted: encryption.encrypt(tokenResponse.access_token),
+            refreshTokenEncrypted: tokenResponse.refresh_token
+              ? encryption.encrypt(tokenResponse.refresh_token)
+              : null,
+            expiresAt,
+          },
         },
-      },
-    });
+      }
+    );
     await this._invalidateAgentsUsingMcp(id);
     return `${config.websiteUrl.replace(/\/+$/, '')}/dashboard/connectors/mcps?mcpId=${id}&connected=owner`;
   }
@@ -458,12 +500,16 @@ class McpService {
     if (!mcp.oauth?.ownerToken?.accessTokenEncrypted) {
       throw new ValidationError('No owner connection to disconnect');
     }
-    await mcpRepository.update(id, userId, {
-      oauth: {
-        ...mcp.oauth.toObject(),
-        ownerToken: {},
-      },
-    });
+    await mcpRepository.update(
+      id,
+      { ownerId: userId },
+      {
+        oauth: {
+          ...mcp.oauth.toObject(),
+          ownerToken: {},
+        },
+      }
+    );
     await this._invalidateAgentsUsingMcp(id);
   }
 
