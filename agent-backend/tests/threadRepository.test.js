@@ -70,7 +70,7 @@ describe('Thread Repository', () => {
       );
     });
 
-    test('should delete all conversations by user id', async () => {
+    test('should delete all conversations matching a subjectFilter', async () => {
       const mockUserId = new mongoose.Types.ObjectId();
       const mockThreads = [{ threadId: 't1' }, { threadId: 't2' }];
 
@@ -81,7 +81,7 @@ describe('Thread Repository', () => {
         .spyOn(Conversation, 'deleteMany')
         .mockResolvedValue({ deletedCount: 2 });
 
-      const result = await threadRepository.deleteAllByUser(mockUserId);
+      const result = await threadRepository.deleteAllBySubject({ userId: mockUserId });
 
       expect(deleteManySpy).toHaveBeenCalledWith({ userId: mockUserId });
       expect(result).toEqual({ deletedCount: 2, threadIds: ['t1', 't2'] });

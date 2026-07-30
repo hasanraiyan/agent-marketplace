@@ -1,7 +1,7 @@
 import crypto from 'crypto';
-import threadRepository from './thread.repository.js';
 import agentRepository from '../agents/agent.repository.js';
 import checkpointService from './checkpoint.service.js';
+import threadService from './thread.service.js';
 import { createThreadSchema, updateThreadTitleSchema } from './thread.validator.js';
 
 class ThreadController {
@@ -19,11 +19,7 @@ class ThreadController {
       // We explicitly generate a user friendly unique token for thread sharing potentially later
       const threadId = crypto.randomUUID();
 
-      const thread = await threadRepository.create({
-        agentId,
-        userId,
-        threadId,
-      });
+      const thread = await threadService.createThread(userId, { agentId, threadId });
 
       res.status(201).json({ success: true, data: thread });
     } catch (error) {
@@ -36,7 +32,7 @@ class ThreadController {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
 
-      const threads = await threadRepository.findByUser(req.user.id, { page, limit });
+      const threads = await threadService.getThreadsForSubject(req.user.id, { page, limit });
 
       res.json({ success: true, data: threads });
     } catch (error) {
@@ -46,27 +42,20 @@ class ThreadController {
 
   async getOne(req, res, next) {
     try {
-      const thread = await threadRepository.findById(req.params.id);
-
-      if (!thread || thread.userId.toString() !== req.user.id) {
-        return res.status(404).json({ success: false, message: 'Thread not found' });
-      }
+      const thread = await threadService.getThreadById(req.params.id, req.user.id);
 
       res.json({ success: true, data: thread });
     } catch (error) {
+      if (error.message === 'Thread not found') {
+        return res.status(404).json({ success: false, message: 'Thread not found' });
+      }
       next(error);
     }
   }
 
   async delete(req, res, next) {
     try {
-      const thread = await threadRepository.findById(req.params.id);
-
-      if (!thread || thread.userId.toString() !== req.user.id) {
-        return res.status(404).json({ success: false, message: 'Thread not found' });
-      }
-
-      const deletedThread = await threadRepository.delete(req.params.id);
+      const deletedThread = await threadService.deleteThread(req.params.id, req.user.id);
 
       // Cascading cleanup of LangGraph checkpoints
       if (deletedThread && deletedThread.threadId) {
@@ -75,13 +64,16 @@ class ThreadController {
 
       res.json({ success: true, message: 'Thread permanently removed' });
     } catch (error) {
+      if (error.message === 'Thread not found') {
+        return res.status(404).json({ success: false, message: 'Thread not found' });
+      }
       next(error);
     }
   }
 
   async deleteAll(req, res, next) {
     try {
-      const result = await threadRepository.deleteAllByUser(req.user.id);
+      const result = await threadService.deleteAllThreadsForSubject(req.user.id);
 
       // Cascading cleanup of LangGraph checkpoints
       if (result && result.threadIds && result.threadIds.length > 0) {
@@ -98,14 +90,12 @@ class ThreadController {
     try {
       const { title } = updateThreadTitleSchema.parse(req.body);
 
-      const thread = await threadRepository.findById(req.params.id);
-      if (!thread || thread.userId.toString() !== req.user.id) {
-        return res.status(404).json({ success: false, message: 'Thread not found' });
-      }
-
-      const updated = await threadRepository.update(req.params.id, { title });
+      const updated = await threadService.updateThreadTitle(req.params.id, req.user.id, title);
       res.json({ success: true, data: updated });
     } catch (error) {
+      if (error.message === 'Thread not found') {
+        return res.status(404).json({ success: false, message: 'Thread not found' });
+      }
       next(error);
     }
   }
