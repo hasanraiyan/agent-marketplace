@@ -6,3 +6,5 @@ export { default as developerAgentRouter } from './developerAgent.routes.js';
 export { default as developerAgentController } from './developerAgent.controller.js';
 export { default as developerSkillRouter } from './developerSkill.routes.js';
 export { default as developerSkillController } from './developerSkill.controller.js';
+export { default as developerKnowledgeRouter } from './developerKnowledge.routes.js';
+export { default as developerKnowledgeController } from './developerKnowledge.controller.js';
