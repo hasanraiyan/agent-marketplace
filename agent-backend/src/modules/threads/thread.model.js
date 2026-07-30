@@ -20,10 +20,40 @@ const conversationSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    // Developer Platform (AD-02, blueprint Phase 8, PR-22): which kind of
+    // Subject this Thread belongs to. Defaults to 'PersonaUser' so every
+    // existing/unmodified creation path keeps requiring `userId` exactly as
+    // before — additive only, not yet read by any controller/service.
+    subjectType: {
+      type: String,
+      enum: ['PersonaUser', 'ExternalUser'],
+      default: 'PersonaUser',
+    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      // Only required for PersonaUser-subject Threads — an ExternalUser
+      // subject (a Project's own runtime user) has no Persona User _id to
+      // reference at all, only `externalUserId` below.
+      required: function () {
+        return this.subjectType === 'PersonaUser';
+      },
+      index: true,
+    },
+    // Developer Platform (AD-02 §11.1, blueprint Phase 8, PR-22): the raw
+    // asserted externalUserId string for an ExternalUser-subject Thread —
+    // mirrors ProjectRuntimeContext's own `externalUserId` field exactly
+    // (never the ExternalUser document's internal Mongo `_id`, same
+    // trust-chain rule developerMachineAuth.middleware.js already
+    // established). `null` for every existing/PersonaUser-subject Thread.
+    externalUserId: {
+      type: String,
+      default: null,
+      // Only required for ExternalUser-subject Threads — mirrors userId's
+      // conditional-required rule above, in the opposite direction.
+      required: function () {
+        return this.subjectType === 'ExternalUser';
+      },
       index: true,
     },
     threadId: {
