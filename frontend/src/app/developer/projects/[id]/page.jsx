@@ -30,6 +30,11 @@ import {
   getProjectCredentials,
   mintProjectCredential,
   revokeProjectCredential,
+  getProjectAgents,
+  getProjectSkills,
+  getProjectKnowledge,
+  getProjectMcps,
+  getProjectProviders,
 } from "@/lib/api/projects";
 import { developerRoutes } from "@/lib/developer-routes";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
@@ -102,6 +107,49 @@ const CREDENTIAL_BADGE_VARIANT = {
   REVOKED: "secondary",
 };
 
+// Agents/Skills/Knowledge/Connectors all share a name+description+createdAt
+// shape for read-only browsing — one small table renderer instead of
+// repeating the same JSX four times.
+function NameDescriptionTable({ items, loading, emptyLabel }) {
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
+      </div>
+    );
+  }
+  if (items.length === 0) {
+    return <p className="text-sm text-muted-foreground">{emptyLabel}</p>;
+  }
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Name</TableHead>
+          <TableHead>Description</TableHead>
+          <TableHead className="hidden md:table-cell">Created</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {items.map((item) => (
+          <TableRow key={item._id || item.id}>
+            <TableCell className="font-medium">{item.name}</TableCell>
+            <TableCell className="max-w-md truncate text-muted-foreground">
+              {item.description || "—"}
+            </TableCell>
+            <TableCell className="hidden text-muted-foreground md:table-cell">
+              {item.createdAt
+                ? new Date(item.createdAt).toLocaleDateString()
+                : "—"}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
 export default function ProjectDetailPage({ params: paramsPromise }) {
   const params = React.use(paramsPromise);
   const projectId = params.id;
@@ -141,6 +189,17 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   const [mintedSecret, setMintedSecret] = useState(null);
   const [revokeTarget, setRevokeTarget] = useState(null);
   const [revoking, setRevoking] = useState(false);
+
+  const [agents, setAgents] = useState([]);
+  const [agentsLoading, setAgentsLoading] = useState(true);
+  const [skills, setSkills] = useState([]);
+  const [skillsLoading, setSkillsLoading] = useState(true);
+  const [knowledgeBases, setKnowledgeBases] = useState([]);
+  const [knowledgeLoading, setKnowledgeLoading] = useState(true);
+  const [mcps, setMcps] = useState([]);
+  const [mcpsLoading, setMcpsLoading] = useState(true);
+  const [providers, setProviders] = useState([]);
+  const [providersLoading, setProvidersLoading] = useState(true);
 
   useDashboardHeader(
     {
@@ -199,6 +258,95 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
         );
       } finally {
         setCredentialsLoading(false);
+      }
+    })();
+  }, [isLoaded, isSignedIn, projectId]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    (async () => {
+      try {
+        setAgentsLoading(true);
+        const res = await getProjectAgents(projectId);
+        if (res.data?.success) {
+          setAgents(res.data.data);
+        }
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Failed to load Agents.");
+      } finally {
+        setAgentsLoading(false);
+      }
+    })();
+  }, [isLoaded, isSignedIn, projectId]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    (async () => {
+      try {
+        setSkillsLoading(true);
+        const res = await getProjectSkills(projectId);
+        if (res.data?.success) {
+          setSkills(res.data.data);
+        }
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Failed to load Skills.");
+      } finally {
+        setSkillsLoading(false);
+      }
+    })();
+  }, [isLoaded, isSignedIn, projectId]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    (async () => {
+      try {
+        setKnowledgeLoading(true);
+        const res = await getProjectKnowledge(projectId);
+        if (res.data?.success) {
+          setKnowledgeBases(res.data.data);
+        }
+      } catch (err) {
+        toast.error(
+          err.response?.data?.message || "Failed to load Knowledge Bases.",
+        );
+      } finally {
+        setKnowledgeLoading(false);
+      }
+    })();
+  }, [isLoaded, isSignedIn, projectId]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    (async () => {
+      try {
+        setMcpsLoading(true);
+        const res = await getProjectMcps(projectId);
+        if (res.data?.success) {
+          setMcps(res.data.data);
+        }
+      } catch (err) {
+        toast.error(
+          err.response?.data?.message || "Failed to load Connectors.",
+        );
+      } finally {
+        setMcpsLoading(false);
+      }
+    })();
+  }, [isLoaded, isSignedIn, projectId]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    (async () => {
+      try {
+        setProvidersLoading(true);
+        const res = await getProjectProviders(projectId);
+        if (res.data?.success) {
+          setProviders(res.data.data);
+        }
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Failed to load Providers.");
+      } finally {
+        setProvidersLoading(false);
       }
     })();
   }, [isLoaded, isSignedIn, projectId]);
@@ -429,6 +577,11 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="credentials">Credentials</TabsTrigger>
+          <TabsTrigger value="agents">Agents</TabsTrigger>
+          <TabsTrigger value="skills">Skills</TabsTrigger>
+          <TabsTrigger value="knowledge">Knowledge</TabsTrigger>
+          <TabsTrigger value="connectors">Connectors</TabsTrigger>
+          <TabsTrigger value="providers">Providers</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-6 flex flex-col gap-6">
@@ -711,6 +864,139 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
               ) : (
                 <p className="text-sm text-muted-foreground">
                   No credentials yet.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="agents" className="mt-6">
+          <Card className="max-w-2xl">
+            <CardHeader>
+              <CardTitle>Agents</CardTitle>
+              <CardDescription>
+                Agents this Project owns — read-only. Creating and editing
+                Agents stays an SDK/API-key operation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <NameDescriptionTable
+                items={agents}
+                loading={agentsLoading}
+                emptyLabel="No Agents yet."
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="skills" className="mt-6">
+          <Card className="max-w-2xl">
+            <CardHeader>
+              <CardTitle>Skills</CardTitle>
+              <CardDescription>
+                Skills this Project owns — read-only. Creating and editing
+                Skills stays an SDK/API-key operation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <NameDescriptionTable
+                items={skills}
+                loading={skillsLoading}
+                emptyLabel="No Skills yet."
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="knowledge" className="mt-6">
+          <Card className="max-w-2xl">
+            <CardHeader>
+              <CardTitle>Knowledge</CardTitle>
+              <CardDescription>
+                Knowledge Bases this Project owns — read-only. Creating and
+                editing Knowledge Bases stays an SDK/API-key operation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <NameDescriptionTable
+                items={knowledgeBases}
+                loading={knowledgeLoading}
+                emptyLabel="No Knowledge Bases yet."
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="connectors" className="mt-6">
+          <Card className="max-w-2xl">
+            <CardHeader>
+              <CardTitle>Connectors</CardTitle>
+              <CardDescription>
+                MCP connectors this Project owns — read-only. Creating and
+                editing connectors stays an SDK/API-key operation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <NameDescriptionTable
+                items={mcps}
+                loading={mcpsLoading}
+                emptyLabel="No Connectors yet."
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="providers" className="mt-6">
+          <Card className="max-w-2xl">
+            <CardHeader>
+              <CardTitle>Providers</CardTitle>
+              <CardDescription>
+                AI providers this Project owns — read-only. Creating and editing
+                Providers stays an SDK/API-key operation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {providersLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ) : providers.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Label</TableHead>
+                      <TableHead>Base URL</TableHead>
+                      <TableHead className="hidden md:table-cell">
+                        Default Model
+                      </TableHead>
+                      <TableHead className="hidden md:table-cell">
+                        Created
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {providers.map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-medium">{p.label}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {p.baseURL}
+                        </TableCell>
+                        <TableCell className="hidden text-muted-foreground md:table-cell">
+                          {p.defaultModel || "—"}
+                        </TableCell>
+                        <TableCell className="hidden text-muted-foreground md:table-cell">
+                          {p.createdAt
+                            ? new Date(p.createdAt).toLocaleDateString()
+                            : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No Providers yet.
                 </p>
               )}
             </CardContent>
