@@ -5,9 +5,14 @@ jest.unstable_mockModule('../src/modules/projects/projectMembership.repository.j
     create: jest.fn(),
     findByProjectAndUser: jest.fn(),
     findByProject: jest.fn(),
+    findByUser: jest.fn(),
     countAdminsByProject: jest.fn(),
     delete: jest.fn(),
   },
+}));
+
+jest.unstable_mockModule('../src/modules/projects/project.repository.js', () => ({
+  default: { findById: jest.fn() },
 }));
 
 jest.unstable_mockModule('../src/modules/audit/auditLog.service.js', () => ({
@@ -17,6 +22,7 @@ jest.unstable_mockModule('../src/modules/audit/auditLog.service.js', () => ({
 const projectMembershipRepository = (
   await import('../src/modules/projects/projectMembership.repository.js')
 ).default;
+const projectRepository = (await import('../src/modules/projects/project.repository.js')).default;
 const auditLogService = (await import('../src/modules/audit/auditLog.service.js')).default;
 const projectMembershipService = (
   await import('../src/modules/projects/projectMembership.service.js')
@@ -145,6 +151,67 @@ describe('ProjectMembership Service', () => {
 
       expect(projectMembershipRepository.findByProject).toHaveBeenCalledWith(projectId);
       expect(result).toEqual(members);
+    });
+  });
+
+  describe('findSoleActiveAdminProject (blueprint Phase 10, PR-54, AD-08 §13)', () => {
+    test('returns the ACTIVE Project when the user is its sole Admin', async () => {
+      projectMembershipRepository.findByUser.mockResolvedValue([
+        { project: projectId, personaUserId: raiyanId, role: 'Admin' },
+      ]);
+      projectRepository.findById.mockResolvedValue({
+        _id: projectId,
+        name: 'Beyond Campus',
+        status: 'ACTIVE',
+      });
+      projectMembershipRepository.countAdminsByProject.mockResolvedValue(1);
+
+      const result = await projectMembershipService.findSoleActiveAdminProject(raiyanId);
+
+      expect(result).toEqual(expect.objectContaining({ _id: projectId, name: 'Beyond Campus' }));
+    });
+
+    test('returns null when another Admin also exists', async () => {
+      projectMembershipRepository.findByUser.mockResolvedValue([
+        { project: projectId, personaUserId: raiyanId, role: 'Admin' },
+      ]);
+      projectRepository.findById.mockResolvedValue({ _id: projectId, status: 'ACTIVE' });
+      projectMembershipRepository.countAdminsByProject.mockResolvedValue(2);
+
+      const result = await projectMembershipService.findSoleActiveAdminProject(raiyanId);
+
+      expect(result).toBeNull();
+    });
+
+    test('returns null when the sole-Admin Project is not ACTIVE (e.g. SUSPENDED)', async () => {
+      projectMembershipRepository.findByUser.mockResolvedValue([
+        { project: projectId, personaUserId: raiyanId, role: 'Admin' },
+      ]);
+      projectRepository.findById.mockResolvedValue({ _id: projectId, status: 'SUSPENDED' });
+
+      const result = await projectMembershipService.findSoleActiveAdminProject(raiyanId);
+
+      expect(result).toBeNull();
+      expect(projectMembershipRepository.countAdminsByProject).not.toHaveBeenCalled();
+    });
+
+    test('ignores non-Admin memberships entirely', async () => {
+      projectMembershipRepository.findByUser.mockResolvedValue([
+        { project: projectId, personaUserId: raiyanId, role: 'Member' },
+      ]);
+
+      const result = await projectMembershipService.findSoleActiveAdminProject(raiyanId);
+
+      expect(result).toBeNull();
+      expect(projectRepository.findById).not.toHaveBeenCalled();
+    });
+
+    test('returns null when the user has no memberships at all', async () => {
+      projectMembershipRepository.findByUser.mockResolvedValue([]);
+
+      const result = await projectMembershipService.findSoleActiveAdminProject(raiyanId);
+
+      expect(result).toBeNull();
     });
   });
 });

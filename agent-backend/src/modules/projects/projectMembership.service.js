@@ -1,5 +1,7 @@
 import projectMembershipRepository from './projectMembership.repository.js';
+import projectRepository from './project.repository.js';
 import { MEMBERSHIP_ROLE } from './projectMembership.model.js';
+import { PROJECT_STATUS } from './project.model.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
 import ValidationError from '../../utils/errors/ValidationError.js';
 import auditLogService from '../audit/auditLog.service.js';
@@ -93,6 +95,34 @@ class ProjectMembershipService {
 
   async listMembers(projectId) {
     return await projectMembershipRepository.findByProject(projectId);
+  }
+
+  /**
+   * Developer Platform (blueprint Phase 10, PR-54, AD-08 §13): the indirect
+   * path to the same last-Admin invariant `removeMember` enforces directly
+   * — Persona account deletion must not silently orphan a Project the way
+   * an unmodified `userService.deleteUser`/`deleteInactiveUsers` cascade
+   * would. Returns the first ACTIVE Project where this user is the sole
+   * remaining Admin, or `null` if none (the common case: no memberships,
+   * only non-Admin memberships, or every Admin-held Project has another
+   * Admin / isn't ACTIVE). Callers use this to block or skip deletion —
+   * this method itself only answers the question, it takes no action.
+   */
+  async findSoleActiveAdminProject(personaUserId) {
+    const memberships = await projectMembershipRepository.findByUser(personaUserId);
+    const adminMemberships = memberships.filter((m) => m.role === MEMBERSHIP_ROLE.ADMIN);
+
+    for (const membership of adminMemberships) {
+      const project = await projectRepository.findById(membership.project);
+      if (!project || project.status !== PROJECT_STATUS.ACTIVE) continue;
+
+      const adminCount = await projectMembershipRepository.countAdminsByProject(membership.project);
+      if (adminCount <= 1) {
+        return project;
+      }
+    }
+
+    return null;
   }
 }
 
