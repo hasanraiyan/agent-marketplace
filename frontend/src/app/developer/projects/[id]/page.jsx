@@ -37,6 +37,7 @@ import {
   getProjectMcps,
   getProjectProviders,
   deleteProjectProvider,
+  deleteProjectSkill,
 } from "@/lib/api/projects";
 import { developerRoutes } from "@/lib/developer-routes";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
@@ -112,7 +113,13 @@ const CREDENTIAL_BADGE_VARIANT = {
 // Agents/Skills/Knowledge/Connectors all share a name+description+createdAt
 // shape for read-only browsing — one small table renderer instead of
 // repeating the same JSX four times.
-function NameDescriptionTable({ items, loading, emptyLabel }) {
+function NameDescriptionTable({
+  items,
+  loading,
+  emptyLabel,
+  getEditHref,
+  onDelete,
+}) {
   if (loading) {
     return (
       <div className="space-y-2">
@@ -124,6 +131,7 @@ function NameDescriptionTable({ items, loading, emptyLabel }) {
   if (items.length === 0) {
     return <p className="text-sm text-muted-foreground">{emptyLabel}</p>;
   }
+  const showActions = !!(getEditHref || onDelete);
   return (
     <Table>
       <TableHeader>
@@ -131,22 +139,49 @@ function NameDescriptionTable({ items, loading, emptyLabel }) {
           <TableHead>Name</TableHead>
           <TableHead>Description</TableHead>
           <TableHead className="hidden md:table-cell">Created</TableHead>
+          {showActions && <TableHead className="text-right">Actions</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
-        {items.map((item) => (
-          <TableRow key={item._id || item.id}>
-            <TableCell className="font-medium">{item.name}</TableCell>
-            <TableCell className="max-w-md truncate text-muted-foreground">
-              {item.description || "—"}
-            </TableCell>
-            <TableCell className="hidden text-muted-foreground md:table-cell">
-              {item.createdAt
-                ? new Date(item.createdAt).toLocaleDateString()
-                : "—"}
-            </TableCell>
-          </TableRow>
-        ))}
+        {items.map((item) => {
+          const id = item._id || item.id;
+          return (
+            <TableRow key={id}>
+              <TableCell className="font-medium">{item.name}</TableCell>
+              <TableCell className="max-w-md truncate text-muted-foreground">
+                {item.description || "—"}
+              </TableCell>
+              <TableCell className="hidden text-muted-foreground md:table-cell">
+                {item.createdAt
+                  ? new Date(item.createdAt).toLocaleDateString()
+                  : "—"}
+              </TableCell>
+              {showActions && (
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-1">
+                    {getEditHref && (
+                      <Link href={getEditHref(id)}>
+                        <Button variant="ghost" size="sm">
+                          Edit
+                        </Button>
+                      </Link>
+                    )}
+                    {onDelete && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => onDelete(item)}
+                      >
+                        Delete
+                      </Button>
+                    )}
+                  </div>
+                </TableCell>
+              )}
+            </TableRow>
+          );
+        })}
       </TableBody>
     </Table>
   );
@@ -196,6 +231,8 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   const [agentsLoading, setAgentsLoading] = useState(true);
   const [skills, setSkills] = useState([]);
   const [skillsLoading, setSkillsLoading] = useState(true);
+  const [deleteSkillTarget, setDeleteSkillTarget] = useState(null);
+  const [deletingSkill, setDeletingSkill] = useState(false);
   const [knowledgeBases, setKnowledgeBases] = useState([]);
   const [knowledgeLoading, setKnowledgeLoading] = useState(true);
   const [mcps, setMcps] = useState([]);
@@ -544,6 +581,22 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
       toast.error(err.response?.data?.message || "Failed to delete Provider.");
     } finally {
       setDeletingProvider(false);
+    }
+  };
+
+  const handleDeleteSkill = async () => {
+    if (!deleteSkillTarget) return;
+    setDeletingSkill(true);
+    try {
+      const targetId = deleteSkillTarget._id || deleteSkillTarget.id;
+      await deleteProjectSkill(projectId, targetId);
+      setSkills((prev) => prev.filter((s) => (s._id || s.id) !== targetId));
+      toast.success("Skill deleted.");
+      setDeleteSkillTarget(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete Skill.");
+    } finally {
+      setDeletingSkill(false);
     }
   };
 
@@ -912,18 +965,27 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
 
         <TabsContent value="skills" className="mt-6">
           <Card className="max-w-2xl">
-            <CardHeader>
-              <CardTitle>Skills</CardTitle>
-              <CardDescription>
-                Skills this Project owns — read-only. Creating and editing
-                Skills stays an SDK/API-key operation.
-              </CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div>
+                <CardTitle>Skills</CardTitle>
+                <CardDescription>Skills this Project owns.</CardDescription>
+              </div>
+              <Link href={developerRoutes.projectSkillNew(projectId)}>
+                <Button size="sm">
+                  <Plus className="mr-1.5 size-3.5" />
+                  New Skill
+                </Button>
+              </Link>
             </CardHeader>
             <CardContent>
               <NameDescriptionTable
                 items={skills}
                 loading={skillsLoading}
                 emptyLabel="No Skills yet."
+                getEditHref={(id) =>
+                  developerRoutes.projectSkillEdit(projectId, id)
+                }
+                onDelete={(skill) => setDeleteSkillTarget(skill)}
               />
             </CardContent>
           </Card>
@@ -1492,6 +1554,42 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deletingProvider ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete skill */}
+      <AlertDialog
+        open={!!deleteSkillTarget}
+        onOpenChange={(open) => !open && setDeleteSkillTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this Skill?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteSkillTarget?.name} will be permanently deleted. Any Agents
+              still referencing it will lose access to it. This cannot be
+              undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingSkill}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteSkill();
+              }}
+              disabled={deletingSkill}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingSkill ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 "Delete"

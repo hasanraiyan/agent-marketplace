@@ -67,3 +67,13 @@ export const testProjectProviderConnection = (projectId, providerId) =>
   api.post(`/projects/${projectId}/providers/${providerId}/test-connection`);
 export const getProjectProviderModels = (projectId, providerId) =>
   api.get(`/projects/${projectId}/providers/${providerId}/models`);
+
+// Skill full CRUD (blueprint Phase 11.5, PR-60 — already merged on the
+// backend). No single-item GET route — same find-by-id-from-list
+// convention as Providers above.
+export const createProjectSkill = (projectId, data) =>
+  api.post(`/projects/${projectId}/skills`, data);
+export const updateProjectSkill = (projectId, skillId, data) =>
+  api.patch(`/projects/${projectId}/skills/${skillId}`, data);
+export const deleteProjectSkill = (projectId, skillId) =>
+  api.delete(`/projects/${projectId}/skills/${skillId}`);
