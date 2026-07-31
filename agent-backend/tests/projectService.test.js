@@ -254,4 +254,73 @@ describe('Project Service', () => {
       expect(projectRepository.updateStatus).not.toHaveBeenCalled();
     });
   });
+
+  describe('platformSuspendProject (blueprint Phase 10, PR-50)', () => {
+    test('suspends an ACTIVE Project, recording PlatformAdmin authority', async () => {
+      projectRepository.findById.mockResolvedValue({ ...mockProject, status: 'ACTIVE' });
+      const suspended = { ...mockProject, status: 'SUSPENDED' };
+      projectRepository.updateStatus.mockResolvedValue(suspended);
+
+      const result = await projectService.platformSuspendProject(mockProject._id);
+
+      expect(projectRepository.updateStatus).toHaveBeenCalledWith(mockProject._id, 'SUSPENDED', {
+        suspendedAt: expect.any(Date),
+        suspendedByAuthority: 'PlatformAdmin',
+        suspendedByPersonaUserId: null,
+      });
+      expect(result).toEqual(suspended);
+    });
+
+    test('rejects suspending a non-ACTIVE Project', async () => {
+      projectRepository.findById.mockResolvedValue({ ...mockProject, status: 'DELETING' });
+
+      await expect(projectService.platformSuspendProject(mockProject._id)).rejects.toThrow(
+        'Only an ACTIVE Project can be suspended'
+      );
+      expect(projectRepository.updateStatus).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('platformRestoreProject (blueprint Phase 10, PR-50)', () => {
+    test('restores a Project suspended by Platform Admin authority', async () => {
+      projectRepository.findById.mockResolvedValue({
+        ...mockProject,
+        status: 'SUSPENDED',
+        suspendedByAuthority: 'PlatformAdmin',
+      });
+      const restored = { ...mockProject, status: 'ACTIVE' };
+      projectRepository.updateStatus.mockResolvedValue(restored);
+
+      const result = await projectService.platformRestoreProject(mockProject._id);
+
+      expect(projectRepository.updateStatus).toHaveBeenCalledWith(mockProject._id, 'ACTIVE', {
+        suspendedAt: null,
+        suspendedByAuthority: null,
+        suspendedByPersonaUserId: null,
+      });
+      expect(result).toEqual(restored);
+    });
+
+    test('rejects restoring a Project that is not SUSPENDED', async () => {
+      projectRepository.findById.mockResolvedValue({ ...mockProject, status: 'ACTIVE' });
+
+      await expect(projectService.platformRestoreProject(mockProject._id)).rejects.toThrow(
+        'Only a SUSPENDED Project can be restored'
+      );
+      expect(projectRepository.updateStatus).not.toHaveBeenCalled();
+    });
+
+    test('rejects Platform Admin restoring a Project a ProjectAdmin self-suspended (AD-08 §26 restore-symmetry)', async () => {
+      projectRepository.findById.mockResolvedValue({
+        ...mockProject,
+        status: 'SUSPENDED',
+        suspendedByAuthority: 'ProjectAdmin',
+      });
+
+      await expect(projectService.platformRestoreProject(mockProject._id)).rejects.toThrow(
+        'can only be restored by one'
+      );
+      expect(projectRepository.updateStatus).not.toHaveBeenCalled();
+    });
+  });
 });

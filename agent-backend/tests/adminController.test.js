@@ -31,6 +31,16 @@ jest.unstable_mockModule('../src/modules/users/user.service.js', () => ({
   },
 }));
 
+const mockPlatformSuspendProject = jest.fn();
+const mockPlatformRestoreProject = jest.fn();
+
+jest.unstable_mockModule('../src/modules/projects/project.service.js', () => ({
+  default: {
+    platformSuspendProject: mockPlatformSuspendProject,
+    platformRestoreProject: mockPlatformRestoreProject,
+  },
+}));
+
 jest.unstable_mockModule('../src/utils/index.js', () => ({
   errors: {},
   validators: {},
@@ -235,6 +245,66 @@ describe('Admin Controller', () => {
       const { listUsers } = await import('../src/modules/users/admin.controller.js');
 
       await listUsers(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(Error));
+    });
+  });
+
+  describe('suspendProject (blueprint Phase 10, PR-50)', () => {
+    test('suspends the Project via req.params.projectId', async () => {
+      mockPlatformSuspendProject.mockResolvedValue({
+        _id: 'project_1',
+        status: 'SUSPENDED',
+        suspendedByAuthority: 'PlatformAdmin',
+      });
+      req.params = { projectId: 'project_1' };
+
+      const { suspendProject } = await import('../src/modules/users/admin.controller.js');
+      await suspendProject(req, res, next);
+
+      expect(mockPlatformSuspendProject).toHaveBeenCalledWith('project_1');
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+          data: expect.objectContaining({ status: 'SUSPENDED' }),
+        })
+      );
+    });
+
+    test('passes errors to next', async () => {
+      mockPlatformSuspendProject.mockRejectedValue(new Error('boom'));
+      req.params = { projectId: 'project_1' };
+
+      const { suspendProject } = await import('../src/modules/users/admin.controller.js');
+      await suspendProject(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(Error));
+    });
+  });
+
+  describe('restoreProject (blueprint Phase 10, PR-50)', () => {
+    test('restores the Project via req.params.projectId', async () => {
+      mockPlatformRestoreProject.mockResolvedValue({ _id: 'project_1', status: 'ACTIVE' });
+      req.params = { projectId: 'project_1' };
+
+      const { restoreProject } = await import('../src/modules/users/admin.controller.js');
+      await restoreProject(req, res, next);
+
+      expect(mockPlatformRestoreProject).toHaveBeenCalledWith('project_1');
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+          data: expect.objectContaining({ status: 'ACTIVE' }),
+        })
+      );
+    });
+
+    test('passes errors to next', async () => {
+      mockPlatformRestoreProject.mockRejectedValue(new Error('boom'));
+      req.params = { projectId: 'project_1' };
+
+      const { restoreProject } = await import('../src/modules/users/admin.controller.js');
+      await restoreProject(req, res, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(Error));
     });

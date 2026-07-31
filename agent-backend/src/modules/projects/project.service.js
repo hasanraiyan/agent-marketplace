@@ -133,6 +133,51 @@ class ProjectService {
       suspendedByPersonaUserId: null,
     });
   }
+
+  /**
+   * Developer Platform (blueprint Phase 10, PR-50): the Platform Admin half
+   * of AD-08 §33's narrow, explicit, separately-authorized enforcement
+   * authority — suspend any Project regardless of its own Admins' wishes.
+   * Same reversible, non-destructive semantics as `suspendProject`; only
+   * the recorded authority differs, which is what makes the §26
+   * restore-symmetry rule enforceable.
+   */
+  async platformSuspendProject(projectId) {
+    const project = await this.getProjectById(projectId);
+    if (project.status !== PROJECT_STATUS.ACTIVE) {
+      throw new ValidationError('Only an ACTIVE Project can be suspended');
+    }
+
+    return await projectRepository.updateStatus(projectId, PROJECT_STATUS.SUSPENDED, {
+      suspendedAt: new Date(),
+      suspendedByAuthority: SUSPENSION_AUTHORITY.PLATFORM_ADMIN,
+      suspendedByPersonaUserId: null,
+    });
+  }
+
+  /**
+   * Developer Platform (blueprint Phase 10, PR-50): the other half of the
+   * §26 restore-symmetry rule — only Platform Admin authority may restore a
+   * Project it (or another Platform Admin) suspended; a ProjectAdmin cannot
+   * use this path (see `reactivateProject`'s own symmetric rejection).
+   */
+  async platformRestoreProject(projectId) {
+    const project = await this.getProjectById(projectId);
+    if (project.status !== PROJECT_STATUS.SUSPENDED) {
+      throw new ValidationError('Only a SUSPENDED Project can be restored');
+    }
+    if (project.suspendedByAuthority !== SUSPENSION_AUTHORITY.PLATFORM_ADMIN) {
+      throw new ValidationError(
+        'This Project was suspended by its own Project Admin and can only be restored by one'
+      );
+    }
+
+    return await projectRepository.updateStatus(projectId, PROJECT_STATUS.ACTIVE, {
+      suspendedAt: null,
+      suspendedByAuthority: null,
+      suspendedByPersonaUserId: null,
+    });
+  }
 }
 
 export default new ProjectService();

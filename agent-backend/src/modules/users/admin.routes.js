@@ -67,4 +67,65 @@ router.get('/users', authMiddleware, adminMiddleware, adminController.listUsers)
  */
 router.delete('/users/:id', authMiddleware, adminMiddleware, adminController.deleteUser);
 
+/**
+ * @openapi
+ * /api/v1/admin/projects/{projectId}/suspend:
+ *   post:
+ *     tags: [Admin]
+ *     summary: Suspend a Project as Platform Admin (blueprint Phase 10, AD-08 §33)
+ *     description: >
+ *       Platform-level enforcement — suspends a Project regardless of its own
+ *       Admins' wishes. Only a Project suspended via this path can later be
+ *       restored via the matching restore endpoint (AD-08 §26 restore-symmetry).
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Project suspended }
+ *       400: { description: Project is not currently ACTIVE }
+ *       401: { description: Unauthorized }
+ *       403: { description: Forbidden — requires admin role }
+ *       404: { description: Project not found }
+ */
+router.post(
+  '/projects/:projectId/suspend',
+  authMiddleware,
+  adminMiddleware,
+  adminController.suspendProject
+);
+
+/**
+ * @openapi
+ * /api/v1/admin/projects/{projectId}/restore:
+ *   post:
+ *     tags: [Admin]
+ *     summary: Restore a Platform-suspended Project (blueprint Phase 10, AD-08 §33)
+ *     description: >
+ *       Only valid for a Project suspended via the Platform Admin suspend
+ *       endpoint — a Project a ProjectAdmin suspended itself must be
+ *       reactivated via the Project's own reactivate endpoint instead
+ *       (AD-08 §26 restore-symmetry).
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Project restored }
+ *       400: { description: Not currently SUSPENDED, or suspended by a Project Admin }
+ *       401: { description: Unauthorized }
+ *       403: { description: Forbidden — requires admin role }
+ *       404: { description: Project not found }
+ */
+router.post(
+  '/projects/:projectId/restore',
+  authMiddleware,
+  adminMiddleware,
+  adminController.restoreProject
+);
+
 export default router;
