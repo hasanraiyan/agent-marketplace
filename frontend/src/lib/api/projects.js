@@ -37,3 +37,17 @@ export const mintProjectCredential = (projectId, label) =>
   api.post(`/projects/${projectId}/credentials`, label ? { label } : {});
 export const revokeProjectCredential = (projectId, credentialId) =>
   api.delete(`/projects/${projectId}/credentials/${credentialId}`);
+
+// Resource browsing (blueprint Phase 11, PR-55 — already merged on the
+// backend). Read-only visibility only — creating/editing a Project's own
+// resources stays an SDK/API-key operation, never a Studio one.
+export const getProjectAgents = (projectId) =>
+  api.get(`/projects/${projectId}/agents`);
+export const getProjectSkills = (projectId) =>
+  api.get(`/projects/${projectId}/skills`);
+export const getProjectKnowledge = (projectId) =>
+  api.get(`/projects/${projectId}/knowledge`);
+export const getProjectMcps = (projectId) =>
+  api.get(`/projects/${projectId}/mcps`);
+export const getProjectProviders = (projectId) =>
+  api.get(`/projects/${projectId}/providers`);
