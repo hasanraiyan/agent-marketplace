@@ -612,6 +612,46 @@ class ProjectController {
       next(error);
     }
   }
+
+  /**
+   * Developer Platform (Phase 11.5, PR-61): full create/edit/delete for a
+   * Project's own Agents from Developer Studio. Same reasoning as PR-60 —
+   * `agentService.createDeveloperAgent`/`updateAgent`/`deleteAgent` already
+   * accept `ProjectAdminContext` via the shared `isAgentOwner` helper, so
+   * this is a thin pass-through mirroring `developerAgent.controller.js`
+   * exactly, with `req.projectAdminContext` in place of `req.projectContext`.
+   */
+  async createAgent(req, res, next) {
+    try {
+      const agent = await agentService.createDeveloperAgent(req.projectAdminContext, req.body);
+      res.status(201).json({ success: true, data: agent });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateAgent(req, res, next) {
+    try {
+      const agent = await agentService.updateAgent(
+        req.params.agentId,
+        undefined,
+        req.body,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: agent });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteAgent(req, res, next) {
+    try {
+      await agentService.deleteAgent(req.params.agentId, undefined, req.projectAdminContext);
+      res.json({ success: true, message: 'Agent deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export default new ProjectController();

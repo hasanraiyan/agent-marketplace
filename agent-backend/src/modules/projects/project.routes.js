@@ -18,6 +18,7 @@ import {
   updateKnowledgeBaseSchema,
 } from '../knowledge/knowledge.validator.js';
 import { createMcpSchema, updateMcpSchema } from '../mcp/mcp.validator.js';
+import { createAgentSchema, updateAgentSchema } from '../agents/agent.validator.js';
 
 const router = express.Router();
 const mutateLimiter = rateLimiter('MUTATE', RATE_LIMITS.MUTATE);
@@ -394,6 +395,26 @@ adminRouter.delete('/credentials/:credentialId', mutateLimiter, projectControlle
  *       200: { description: List of Agents }
  */
 adminRouter.get('/agents', projectController.listAgents);
+
+/**
+ * Full create/edit/delete for a Project's own Agents from Developer Studio
+ * (Phase 11.5, PR-61) — same pass-through reasoning as the Skills/Knowledge/
+ * MCP/Providers write routes below (PR-60): `agentService.createDeveloperAgent`/
+ * `updateAgent`/`deleteAgent` already accept `ProjectAdminContext`.
+ */
+adminRouter.post(
+  '/agents',
+  mutateLimiter,
+  validateBody(createAgentSchema),
+  projectController.createAgent
+);
+adminRouter.patch(
+  '/agents/:agentId',
+  mutateLimiter,
+  validateBody(updateAgentSchema),
+  projectController.updateAgent
+);
+adminRouter.delete('/agents/:agentId', mutateLimiter, projectController.deleteAgent);
 
 /**
  * Full create/edit/delete for a Project's own Skills/Knowledge/MCP/
