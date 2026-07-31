@@ -537,7 +537,16 @@ class McpService {
       },
     });
     await this._invalidateAgentsUsingMcp(id);
-    return `${config.websiteUrl.replace(/\/+$/, '')}/dashboard/connectors/mcps?mcpId=${id}&connected=owner`;
+    const siteUrl = config.websiteUrl.replace(/\/+$/, '');
+    // Phase 11.5 (PR-66): owner-connect can now be initiated from Developer
+    // Studio (ProjectMachine/ProjectAdmin), not just the Persona dashboard —
+    // land back on the right one. PersonaUser behavior is byte-for-byte
+    // unchanged from before this branch existed.
+    const redirectPath =
+      callbackContext.principalType === 'PersonaUser'
+        ? '/dashboard/connectors/mcps'
+        : `/developer/projects/${callbackContext.domain}/mcps/${id}/edit`;
+    return `${siteUrl}${redirectPath}?mcpId=${id}&connected=owner`;
   }
 
   /**

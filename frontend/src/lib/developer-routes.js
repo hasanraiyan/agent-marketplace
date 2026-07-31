@@ -26,4 +26,6 @@ export const developerRoutes = {
   projectKnowledgeNew: (id) => `/developer/projects/${id}/knowledge/new`,
   projectKnowledgeDetail: (id, kbId) =>
     `/developer/projects/${id}/knowledge/${kbId}`,
+  projectMcpNew: (id) => `/developer/projects/${id}/mcps/new`,
+  projectMcpEdit: (id, mcpId) => `/developer/projects/${id}/mcps/${mcpId}/edit`,
 };

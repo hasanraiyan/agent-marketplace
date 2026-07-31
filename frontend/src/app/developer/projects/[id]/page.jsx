@@ -38,6 +38,7 @@ import {
   getProjectProviders,
   deleteProjectProvider,
   deleteProjectSkill,
+  deleteProjectMcp,
 } from "@/lib/api/projects";
 import { developerRoutes } from "@/lib/developer-routes";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
@@ -237,6 +238,8 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   const [knowledgeLoading, setKnowledgeLoading] = useState(true);
   const [mcps, setMcps] = useState([]);
   const [mcpsLoading, setMcpsLoading] = useState(true);
+  const [deleteMcpTarget, setDeleteMcpTarget] = useState(null);
+  const [deletingMcp, setDeletingMcp] = useState(false);
   const [providers, setProviders] = useState([]);
   const [providersLoading, setProvidersLoading] = useState(true);
   const [deleteProviderTarget, setDeleteProviderTarget] = useState(null);
@@ -597,6 +600,22 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
       toast.error(err.response?.data?.message || "Failed to delete Skill.");
     } finally {
       setDeletingSkill(false);
+    }
+  };
+
+  const handleDeleteMcp = async () => {
+    if (!deleteMcpTarget) return;
+    setDeletingMcp(true);
+    try {
+      const targetId = deleteMcpTarget._id || deleteMcpTarget.id;
+      await deleteProjectMcp(projectId, targetId);
+      setMcps((prev) => prev.filter((m) => (m._id || m.id) !== targetId));
+      toast.success("Connector deleted.");
+      setDeleteMcpTarget(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete Connector.");
+    } finally {
+      setDeletingMcp(false);
     }
   };
 
@@ -1022,18 +1041,29 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
 
         <TabsContent value="connectors" className="mt-6">
           <Card className="max-w-2xl">
-            <CardHeader>
-              <CardTitle>Connectors</CardTitle>
-              <CardDescription>
-                MCP connectors this Project owns — read-only. Creating and
-                editing connectors stays an SDK/API-key operation.
-              </CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div>
+                <CardTitle>Connectors</CardTitle>
+                <CardDescription>
+                  MCP connectors this Project owns.
+                </CardDescription>
+              </div>
+              <Link href={developerRoutes.projectMcpNew(projectId)}>
+                <Button size="sm">
+                  <Plus className="mr-1.5 size-3.5" />
+                  New Connector
+                </Button>
+              </Link>
             </CardHeader>
             <CardContent>
               <NameDescriptionTable
                 items={mcps}
                 loading={mcpsLoading}
                 emptyLabel="No Connectors yet."
+                getEditHref={(id) =>
+                  developerRoutes.projectMcpEdit(projectId, id)
+                }
+                onDelete={(mcp) => setDeleteMcpTarget(mcp)}
               />
             </CardContent>
           </Card>
@@ -1600,6 +1630,40 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deletingSkill ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete connector */}
+      <AlertDialog
+        open={!!deleteMcpTarget}
+        onOpenChange={(open) => !open && setDeleteMcpTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this Connector?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteMcpTarget?.name} will be permanently deleted, including any
+              owner OAuth connection. Any Agents still attaching it will lose
+              access to its tools. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingMcp}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteMcp();
+              }}
+              disabled={deletingMcp}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingMcp ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 "Delete"
