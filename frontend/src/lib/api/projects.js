@@ -102,3 +102,20 @@ export const deleteProjectKnowledgeDocument = (projectId, kbId, sourceName) =>
   api.delete(
     `/projects/${projectId}/knowledge/${kbId}/documents/${encodeURIComponent(sourceName)}`,
   );
+
+// MCP full CRUD + OAuth owner-connect (blueprint Phase 11.5, PR-60 —
+// already merged on the backend). No single-item GET route — same
+// find-by-id-from-list convention as the other resource types above.
+// Per-user OAuth (authMode: "user") stays SDK/ProjectRuntime-only — that's
+// this Project's own external end-users connecting their own OAuth, not
+// something a Project Admin does from Studio.
+export const createProjectMcp = (projectId, data) =>
+  api.post(`/projects/${projectId}/mcps`, data);
+export const updateProjectMcp = (projectId, mcpId, data) =>
+  api.patch(`/projects/${projectId}/mcps/${mcpId}`, data);
+export const deleteProjectMcp = (projectId, mcpId) =>
+  api.delete(`/projects/${projectId}/mcps/${mcpId}`);
+export const getProjectMcpOwnerAuthorizeUrl = (projectId, mcpId) =>
+  api.get(`/projects/${projectId}/mcps/${mcpId}/oauth/owner/authorize`);
+export const disconnectProjectMcpOwnerConnection = (projectId, mcpId) =>
+  api.delete(`/projects/${projectId}/mcps/${mcpId}/oauth/owner/connection`);

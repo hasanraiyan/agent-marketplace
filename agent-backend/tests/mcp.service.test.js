@@ -388,6 +388,46 @@ describe('Mcp Service', () => {
         })
       );
       expect(redirectTo).toContain(`mcpId=${mockMcp._id}`);
+      expect(redirectTo).toContain('/dashboard/connectors/mcps?');
+    });
+
+    it('redirects to the Project-scoped Studio page for a ProjectAdmin-initiated connection (Phase 11.5, PR-66)', async () => {
+      const projectDomain = '507f1f77bcf86cd799439099';
+      const oauthMcp = {
+        ...mockMcp,
+        ownerId: undefined,
+        domain: projectDomain,
+        ownerType: 'Project',
+        authType: 'oauth',
+        oauth: {
+          clientId: 'client1',
+          clientSecretEncrypted: 'enc:secret1',
+          tokenEndpoint: 'https://idp.example.com/token',
+          toObject: () => ({ clientId: 'client1', tokenEndpoint: 'https://idp.example.com/token' }),
+        },
+      };
+      mcpRepository.findById.mockResolvedValue(oauthMcp);
+      verifyOAuthState.mockReturnValue({
+        mode: 'owner',
+        mcpId: String(mockMcp._id),
+        principalType: 'ProjectAdmin',
+        domain: projectDomain,
+        codeVerifier: 'verifier',
+      });
+      exchangeCodeForToken.mockResolvedValue({
+        access_token: 'access1',
+        refresh_token: 'refresh1',
+        expires_in: 3600,
+      });
+      agentRepository.findAgentsUsingMcp.mockResolvedValue([]);
+
+      const redirectTo = await mcpService.handleOwnerCallback('code', 'state');
+
+      expect(redirectTo).toContain(
+        `/developer/projects/${projectDomain}/mcps/${mockMcp._id}/edit?`
+      );
+      expect(redirectTo).toContain(`mcpId=${mockMcp._id}`);
+      expect(redirectTo).not.toContain('/dashboard/connectors/mcps');
     });
   });
 
