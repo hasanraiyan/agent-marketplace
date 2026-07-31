@@ -24,7 +24,7 @@ import providerRepository from '../providers/provider.repository.js';
 import encryption from '../../utils/encryption.js';
 
 import { resolveAgentTools } from '../tools/index.js';
-import { ARCHITECT_AGENT_ID } from './architectConstants.js';
+import { ARCHITECT_AGENT_ID, PROJECT_ARCHITECT_AGENT_ID } from './architectConstants.js';
 import { loggerService } from '../../utils/index.js';
 import { ARCHITECT_SKILL } from '../skills/architectSkill.js';
 
@@ -70,6 +70,34 @@ Your goal is to help the user design, build, and optimize their own custom AI ag
 -   **Descriptions**: Keep descriptions punchy and informative (1-2 sentences).
 -   **Skills**: The user's skill library is mounted read-write at \`/skill-library/\`. Author skills as folders there with your file tools (\`write_file\` a \`/skill-library/<name>/SKILL.md\` with YAML frontmatter, plus optional \`references/\` files). Consult your agent-architecture skill for the full workflow; \`manage_skill\` is only for list/delete/visibility.
 -   **Transparency**: When you call a tool, briefly explain what you are setting (e.g., "I'm setting up your coding assistant with the GPT-4o model and web search enabled.").
+-   **No Keys**: You CANNOT view or manage API keys.
+`;
+
+// Project Agent Architect (blueprint Phase 11.5, PR-62) — a dedicated,
+// Domain-aware sibling of the Persona Architect above. Narrower scope than
+// the Persona prompt: no /skill-library/ authoring workflow is wired up for
+// this sentinel (see agent.factory.js's PROJECT_ARCHITECT_AGENT_ID branch),
+// so this prompt never references it — Skill content is created via the
+// Project's own Skills tab in Studio or the SDK, not through this chat.
+const PROJECT_ARCHITECT_SYSTEM_PROMPT = `
+You are the **Project Agent Architect**, a senior software engineer and AI specialized in building highly effective agents for this Developer Platform Project.
+Your goal is to help the Project Admin design, build, and optimize Agents this Project will own and expose to its own users.
+
+### YOUR WORKFLOW
+1.  **Understand**: Ask questions to understand the purpose, personality, and capabilities of the agent being built.
+    *   Use the \`ask_clarification\` tool when a small set of choices would help the Admin answer faster, especially for agent purpose, tone/personality, capabilities, category, or output format. Prefer 2-4 questions; never ask more than 12.
+    *   Prefer 2-4 clear options and avoid asking trivial questions you can safely infer.
+2.  **Propose & Execute**: Once you have enough info (Name, Goal), use the \`upsert_agent\` tool to create or update the agent.
+    *   **NEVER** just say you will do it. **ALWAYS** call the tool immediately.
+    *   If creating a new agent, ensure you've called \`list_my_providers\` first to pick a valid providerId — this Project's own Providers only.
+3.  **Refine**: After updating the agent configuration, tell the Admin what you changed and ask if they'd like to adjust anything (e.g., system prompt, model, visibility).
+
+### GUIDELINES
+-   **System Prompts**: Draft high-quality, professional system prompts that use expert-level instructions.
+-   **Descriptions**: Keep descriptions punchy and informative (1-2 sentences).
+-   **Skills**: You can attach existing Skills to an agent by id (\`upsert_agent\`'s \`skills\` field) and use \`manage_skill\` to list/delete/toggle visibility of this Project's own Skills. To CREATE new Skill content, use the Project's Skills tab in Studio or the SDK — that is not done through this chat.
+-   **Everything you build belongs to this Project**, not to you personally — any of this Project's Admins can manage it afterward.
+-   **Transparency**: When you call a tool, briefly explain what you are setting (e.g., "I'm setting up your support agent with the GPT-4o model and web search enabled.").
 -   **No Keys**: You CANNOT view or manage API keys.
 `;
 
@@ -204,10 +232,18 @@ class AgentFactory {
         ? `${executionContext.domain}:${executionContext.externalUserId}`
         : String(userId);
 
-    // Cache key: For standard agents it is the agentId. For Architect, it is namespaced by userId
-    // because the Architect's toolbox and provider are user-specific.
+    // Cache key: For standard agents it is the agentId. For either Architect,
+    // it is namespaced by identity because the toolbox/provider set is
+    // identity-specific — the Persona Architect by userId, the Project
+    // Architect by Domain (shared across that Project's own Admins, not
+    // per-individual-admin, since the Agents it builds belong to the
+    // Project, not to whichever Admin happens to be chatting).
     const cacheKey =
-      agentIdStr === ARCHITECT_AGENT_ID ? `${ARCHITECT_AGENT_ID}:${userId}` : agentIdStr;
+      agentIdStr === ARCHITECT_AGENT_ID
+        ? `${ARCHITECT_AGENT_ID}:${userId}`
+        : agentIdStr === PROJECT_ARCHITECT_AGENT_ID
+          ? `${PROJECT_ARCHITECT_AGENT_ID}:${executionContext.domain}`
+          : agentIdStr;
 
     let agent;
     let provider;
@@ -232,6 +268,36 @@ class AgentFactory {
         providerId: provider._id,
         modelName: provider.defaultModel || 'gpt-4o', // The architect should be high-intelligence
         updatedAt: new Date(0), // Version 0 (static)
+        skills: [],
+        interruptOn: {
+          upsert_agent: true,
+          manage_skill: true,
+          delete_agent: true,
+        },
+      };
+    } else if (agentIdStr === PROJECT_ARCHITECT_AGENT_ID) {
+      // 1b. Project Agent Architect (blueprint Phase 11.5, PR-62) — a
+      // dedicated, Domain-aware sibling of the branch above. Resolves its
+      // provider by Domain, never by a bare Persona userId — this sentinel
+      // is only ever reachable via a route that resolves ProjectAdminContext
+      // (see project.controller.js's runProjectArchitect), so
+      // executionContext.domain is always the calling Project's own domain.
+      const domainProviders = await providerRepository.findByDomain(executionContext.domain);
+      const defaultProvider = domainProviders.find((p) => p.isDefault) || domainProviders[0];
+
+      if (!defaultProvider)
+        throw new Error(
+          'No Provider configured for this Project. Add one from the Providers tab first.'
+        );
+
+      provider = defaultProvider;
+      agent = {
+        _id: PROJECT_ARCHITECT_AGENT_ID,
+        name: 'Project Agent Architect',
+        systemPrompt: PROJECT_ARCHITECT_SYSTEM_PROMPT,
+        providerId: provider._id,
+        modelName: provider.defaultModel || 'gpt-4o',
+        updatedAt: new Date(0),
         skills: [],
         interruptOn: {
           upsert_agent: true,
