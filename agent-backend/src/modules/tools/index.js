@@ -1,5 +1,6 @@
 import { getSearchTool } from './search.tool.js';
 import { getBuilderToolbox } from './builder.tools.js';
+import { getProjectBuilderToolbox } from './projectBuilder.tools.js';
 import { askClarificationTool } from './clarification.tool.js';
 import { resolveMcpTools } from '../mcp/mcp.tools.js';
 import { resolveKnowledgeBaseTools } from '../knowledge/knowledge.tools.js';
@@ -7,8 +8,8 @@ import { presentFileTool } from './present.tool.js';
 
 // Defined in a leaf constants module so consumers that sit inside import
 // cycles with this module (e.g. agentFactory) can import it safely.
-import { ARCHITECT_AGENT_ID } from '../agents/architectConstants.js';
-export { ARCHITECT_AGENT_ID };
+import { ARCHITECT_AGENT_ID, PROJECT_ARCHITECT_AGENT_ID } from '../agents/architectConstants.js';
+export { ARCHITECT_AGENT_ID, PROJECT_ARCHITECT_AGENT_ID };
 
 /**
  * @param {Object} agentConfig - The Mongoose Agent document or System Agent object
@@ -29,6 +30,15 @@ export const resolveAgentTools = async (
   // 1. If it is the Specialized Architect, give it the Builder Toolbox
   if (agentConfig._id?.toString() === ARCHITECT_AGENT_ID) {
     return { tools: [clarificationTool, ...getBuilderToolbox(userId)], mcpAppMap: {} };
+  }
+
+  // 1b. Project Agent Architect (blueprint Phase 11.5) — a dedicated,
+  // Domain-aware sibling of the Persona Architect above. Never the same
+  // sentinel, never the same toolbox: `context` here is always a
+  // `ProjectAdminContext` (enforced by the route that resolves this
+  // sentinel), not a bare Persona userId.
+  if (agentConfig._id?.toString() === PROJECT_ARCHITECT_AGENT_ID) {
+    return { tools: [clarificationTool, ...getProjectBuilderToolbox(context)], mcpAppMap: {} };
   }
 
   // Long-term memory is file-based now: the agent persists memories through
