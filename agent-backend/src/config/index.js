@@ -51,6 +51,15 @@ const config = {
     cleanExpiredOTPs: process.env.CRON_CLEAN_EXPIRED_OTPS || '0 */6 * * *',
     retentionDays: parseInt(process.env.ACCOUNT_RETENTION_DAYS, 10) || 30,
   },
+  projects: {
+    // Developer Platform (blueprint Phase 10, PR-52, AD-08 §28/§41): the
+    // grace period between a Project deletion request (status: DELETING)
+    // and its data actually being purged. AD-08 leaves the exact duration
+    // explicitly open ("no requirement specifies one") — 7 days is a
+    // concrete default, mirroring this codebase's own ACCOUNT_RETENTION_DAYS
+    // convention, not a value derived from the architecture docs themselves.
+    deletionGracePeriodDays: parseInt(process.env.PROJECT_DELETION_GRACE_PERIOD_DAYS, 10) || 7,
+  },
   ai: {
     openAiApiKey: process.env.OPENAI_API_KEY || null,
     openAiModel: process.env.OPENAI_MODEL || 'gpt-4.1-mini',

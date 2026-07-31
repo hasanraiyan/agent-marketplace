@@ -8,6 +8,8 @@ jest.unstable_mockModule('../src/modules/projects/project.service.js', () => ({
     updateMetadata: jest.fn(),
     suspendProject: jest.fn(),
     reactivateProject: jest.fn(),
+    requestDeletion: jest.fn(),
+    cancelDeletion: jest.fn(),
   },
 }));
 
@@ -175,6 +177,52 @@ describe('Project Controller', () => {
       projectService.reactivateProject.mockRejectedValue(err);
 
       await projectController.reactivate(mockReq, mockRes, next);
+
+      expect(next).toHaveBeenCalledWith(err);
+    });
+  });
+
+  describe('requestDeletion', () => {
+    test('requests deletion using req.projectAdminContext.domain + personaUserId', async () => {
+      projectService.requestDeletion.mockResolvedValue({ _id: projectId, status: 'DELETING' });
+
+      await projectController.requestDeletion(mockReq, mockRes, next);
+
+      expect(projectService.requestDeletion).toHaveBeenCalledWith(projectId, personaUserId);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: { _id: projectId, status: 'DELETING' },
+      });
+    });
+
+    test('passes errors to next', async () => {
+      const err = new Error('boom');
+      projectService.requestDeletion.mockRejectedValue(err);
+
+      await projectController.requestDeletion(mockReq, mockRes, next);
+
+      expect(next).toHaveBeenCalledWith(err);
+    });
+  });
+
+  describe('cancelDeletion', () => {
+    test('cancels deletion using req.projectAdminContext.domain + personaUserId', async () => {
+      projectService.cancelDeletion.mockResolvedValue({ _id: projectId, status: 'ACTIVE' });
+
+      await projectController.cancelDeletion(mockReq, mockRes, next);
+
+      expect(projectService.cancelDeletion).toHaveBeenCalledWith(projectId, personaUserId);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: { _id: projectId, status: 'ACTIVE' },
+      });
+    });
+
+    test('passes errors to next', async () => {
+      const err = new Error('boom');
+      projectService.cancelDeletion.mockRejectedValue(err);
+
+      await projectController.cancelDeletion(mockReq, mockRes, next);
 
       expect(next).toHaveBeenCalledWith(err);
     });
