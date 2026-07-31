@@ -15,6 +15,7 @@
 - - admin.js: Administrative API functions
 - - profile.js: User profile API functions
 - - health.js: Health check API functions
+- - projects.js: Developer Platform Project API functions
 -
 - Usage:
 - // Import all functions (backward compatible)

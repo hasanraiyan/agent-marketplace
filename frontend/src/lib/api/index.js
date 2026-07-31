@@ -24,3 +24,6 @@ export * from "./skills";
 
 // Knowledge Base API
 export * from "./knowledge";
+
+// Developer Platform — Project API
+export * from "./projects";
