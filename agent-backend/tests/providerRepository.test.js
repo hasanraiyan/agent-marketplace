@@ -124,4 +124,17 @@ describe('Provider Repository', () => {
       expect(result.deletedCount).toBe(1);
     });
   });
+
+  describe('findByDomain (blueprint Phase 11, PR-55)', () => {
+    test('finds every Provider in a Domain regardless of owner type', async () => {
+      const mockSort = jest.fn().mockResolvedValue([{ _id: 'p1' }]);
+      jest.spyOn(Provider, 'find').mockReturnValue({ sort: mockSort });
+
+      const result = await providerRepository.findByDomain('project-1');
+
+      expect(Provider.find).toHaveBeenCalledWith({ domain: 'project-1' });
+      expect(mockSort).toHaveBeenCalledWith({ createdAt: -1 });
+      expect(result).toEqual([{ _id: 'p1' }]);
+    });
+  });
 });

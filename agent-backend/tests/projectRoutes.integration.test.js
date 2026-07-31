@@ -37,10 +37,32 @@ jest.unstable_mockModule('../src/modules/projects/project.service.js', () => ({
   },
 }));
 
+// Developer Platform (blueprint Phase 11, PR-55): project.routes.js now
+// wires in the resource-browsing controller methods, which import these
+// services for real — mcp.service.js in particular transitively pulls in
+// agent.factory.js's heavy LangChain/DeepAgents chain (the same problem
+// PR-31 hit and solved by mocking at this boundary instead).
+jest.unstable_mockModule('../src/modules/agents/agent.service.js', () => ({
+  default: { discoverAgents: jest.fn() },
+}));
+jest.unstable_mockModule('../src/modules/skills/skill.service.js', () => ({
+  default: { discoverSkills: jest.fn() },
+}));
+jest.unstable_mockModule('../src/modules/knowledge/knowledge.service.js', () => ({
+  default: { discoverKnowledgeBases: jest.fn() },
+}));
+jest.unstable_mockModule('../src/modules/mcp/mcp.service.js', () => ({
+  default: { discoverMcps: jest.fn(), toSafeJson: jest.fn((mcp) => mcp) },
+}));
+jest.unstable_mockModule('../src/modules/providers/provider.service.js', () => ({
+  default: { listProvidersForProject: jest.fn() },
+}));
+
 const projectMembershipRepository = (
   await import('../src/modules/projects/projectMembership.repository.js')
 ).default;
 const projectService = (await import('../src/modules/projects/project.service.js')).default;
+const agentService = (await import('../src/modules/agents/agent.service.js')).default;
 const { default: projectRouter } = await import('../src/modules/projects/project.routes.js');
 
 describe('project.routes.js — nested :projectId param propagation', () => {
@@ -175,5 +197,33 @@ describe('project.routes.js — nested :projectId param propagation', () => {
     expect(res.status).toBe(200);
     expect(projectMembershipRepository.findByProjectAndUser).not.toHaveBeenCalled();
     expect(res.body.data).toEqual([{ _id: 'p1' }]);
+  });
+
+  test('GET /:projectId/agents reaches the controller with the correct project id (blueprint Phase 11, PR-55)', async () => {
+    projectMembershipRepository.findByProjectAndUser.mockResolvedValue({
+      project: 'project_abc',
+      personaUserId: 'user_123',
+      role: 'Admin',
+    });
+    agentService.discoverAgents.mockResolvedValue([{ _id: 'agent1' }]);
+
+    const res = await request(app).get('/api/v1/projects/project_abc/agents');
+
+    expect(res.status).toBe(200);
+    expect(agentService.discoverAgents).toHaveBeenCalledWith(
+      expect.objectContaining({ domain: 'project_abc', principalType: 'ProjectAdmin' }),
+      expect.any(Object),
+      expect.any(Object)
+    );
+    expect(res.body.data).toEqual([{ _id: 'agent1' }]);
+  });
+
+  test('GET /:projectId/agents 404s when the caller has no membership for that Project', async () => {
+    projectMembershipRepository.findByProjectAndUser.mockResolvedValue(null);
+
+    const res = await request(app).get('/api/v1/projects/not-my-project/agents');
+
+    expect(res.status).toBe(404);
+    expect(agentService.discoverAgents).not.toHaveBeenCalled();
   });
 });

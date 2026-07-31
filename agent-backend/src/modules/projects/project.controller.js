@@ -4,6 +4,11 @@ import projectCredentialService from './projectCredential.service.js';
 import userRepository from '../users/user.repository.js';
 import { createPersonaPrincipalContext } from '../auth/personaPrincipalContext.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
+import agentService from '../agents/agent.service.js';
+import skillService from '../skills/skill.service.js';
+import knowledgeService from '../knowledge/knowledge.service.js';
+import mcpService from '../mcp/mcp.service.js';
+import providerService from '../providers/provider.service.js';
 
 class ProjectController {
   async create(req, res, next) {
@@ -183,6 +188,93 @@ class ProjectController {
       );
 
       res.json({ success: true, data: credential });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Developer Platform (blueprint Phase 11, PR-55): read-only
+   * resource-browsing for Developer Studio — `req.projectAdminContext` is
+   * already an accepted `principalType` in each service's
+   * `_buildDeveloperDiscoveryFilter` (built in PR-43-46), so these are thin
+   * pass-throughs, not new authorization logic. Studio never uses a
+   * Project's own machine credential — this is the Clerk-session-only read
+   * path the user explicitly asked for.
+   */
+  async listAgents(req, res, next) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 20;
+      const filters = { search: req.query.search, category: req.query.category };
+
+      const agents = await agentService.discoverAgents(req.projectAdminContext, filters, {
+        page,
+        limit,
+      });
+
+      res.json({ success: true, data: agents });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async listSkills(req, res, next) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 20;
+      const filters = { search: req.query.search };
+
+      const skills = await skillService.discoverSkills(req.projectAdminContext, filters, {
+        page,
+        limit,
+      });
+
+      res.json({ success: true, data: skills });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async listKnowledge(req, res, next) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 20;
+      const filters = { search: req.query.search };
+
+      const kbs = await knowledgeService.discoverKnowledgeBases(req.projectAdminContext, filters, {
+        page,
+        limit,
+      });
+
+      res.json({ success: true, data: kbs });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async listMcps(req, res, next) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 20;
+      const filters = { search: req.query.search };
+
+      const mcps = await mcpService.discoverMcps(req.projectAdminContext, filters, {
+        page,
+        limit,
+      });
+
+      res.json({ success: true, data: mcps.map((mcp) => mcpService.toSafeJson(mcp)) });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async listProviders(req, res, next) {
+    try {
+      const providers = await providerService.listProvidersForProject(req.projectAdminContext);
+
+      res.json({ success: true, data: providers });
     } catch (error) {
       next(error);
     }
