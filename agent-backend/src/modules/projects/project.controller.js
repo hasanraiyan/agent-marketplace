@@ -279,6 +279,339 @@ class ProjectController {
       next(error);
     }
   }
+
+  /**
+   * Developer Platform (Phase 11.5): full create/edit/delete for a
+   * Project's own resources from Developer Studio (Clerk session), not
+   * just the PR-55 read-only browse. Every method below is a thin
+   * pass-through calling the exact same service method the SDK's
+   * `developer*.controller.js` files already call, with
+   * `req.projectAdminContext` in place of `req.projectContext` — no new
+   * authorization logic, since `isResourceOwner`/`ownerFilterForContext`/
+   * `ownerFieldsForContext` (and Agent's own `isAgentOwner`) already treat
+   * `ProjectAdmin` identically to `ProjectMachine`.
+   */
+  async createProvider(req, res, next) {
+    try {
+      const provider = await providerService.createProvider(
+        undefined,
+        req.body,
+        req.projectAdminContext
+      );
+      res.status(201).json({ success: true, data: provider });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateProvider(req, res, next) {
+    try {
+      const provider = await providerService.updateProvider(
+        undefined,
+        req.params.providerId,
+        req.body,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: provider });
+    } catch (error) {
+      if (
+        error.message === 'Provider not found' ||
+        error.message === 'Unauthorized to update this provider'
+      ) {
+        return res.status(404).json({ success: false, message: 'Provider not found' });
+      }
+      next(error);
+    }
+  }
+
+  async deleteProvider(req, res, next) {
+    try {
+      await providerService.deleteProvider(
+        undefined,
+        req.params.providerId,
+        req.projectAdminContext
+      );
+      res.json({ success: true, message: 'Provider deleted successfully' });
+    } catch (error) {
+      if (
+        error.message === 'Provider not found' ||
+        error.message === 'Unauthorized to delete this provider'
+      ) {
+        return res.status(404).json({ success: false, message: 'Provider not found' });
+      }
+      next(error);
+    }
+  }
+
+  async testProviderConnection(req, res, next) {
+    try {
+      const result = await providerService.testConnection(
+        req.params.providerId,
+        undefined,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      if (
+        error.message === 'Provider not found' ||
+        error.message === 'Unauthorized to test this provider'
+      ) {
+        return res.status(404).json({ success: false, message: 'Provider not found' });
+      }
+      res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  async getProviderModels(req, res, next) {
+    try {
+      const models = await providerService.getAvailableModels(
+        req.params.providerId,
+        undefined,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: models });
+    } catch (error) {
+      if (
+        error.message === 'Provider not found' ||
+        error.message === 'Unauthorized to access this provider'
+      ) {
+        return res.status(404).json({ success: false, message: 'Provider not found' });
+      }
+      res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  async createSkill(req, res, next) {
+    try {
+      const skill = await skillService.createSkill(undefined, req.body, req.projectAdminContext);
+      res.status(201).json({ success: true, data: skill });
+    } catch (error) {
+      if (error.code === 11000) {
+        return res
+          .status(409)
+          .json({ success: false, message: 'A Skill with this exact name already exists' });
+      }
+      next(error);
+    }
+  }
+
+  async updateSkill(req, res, next) {
+    try {
+      const skill = await skillService.updateSkill(
+        req.params.skillId,
+        undefined,
+        req.body,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: skill });
+    } catch (error) {
+      if (error.code === 11000) {
+        return res
+          .status(409)
+          .json({ success: false, message: 'Another Skill with this name already exists' });
+      }
+      next(error);
+    }
+  }
+
+  async deleteSkill(req, res, next) {
+    try {
+      await skillService.deleteSkill(req.params.skillId, undefined, req.projectAdminContext);
+      res.json({ success: true, message: 'Skill deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async createKnowledge(req, res, next) {
+    try {
+      const kb = await knowledgeService.createKnowledgeBase(
+        undefined,
+        req.body,
+        req.projectAdminContext
+      );
+      res.status(201).json({ success: true, data: kb });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateKnowledge(req, res, next) {
+    try {
+      const kb = await knowledgeService.updateKnowledgeBase(
+        req.params.kbId,
+        undefined,
+        req.body,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: kb });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteKnowledge(req, res, next) {
+    try {
+      await knowledgeService.deleteKnowledgeBase(
+        req.params.kbId,
+        undefined,
+        req.projectAdminContext
+      );
+      res.json({ success: true, message: 'Knowledge base deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async uploadKnowledgeDocuments(req, res, next) {
+    try {
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'No files uploaded. Please select at least one file.',
+        });
+      }
+
+      const result = await knowledgeService.uploadFiles(
+        req.params.kbId,
+        undefined,
+        req.files,
+        req.projectAdminContext
+      );
+
+      res.json({
+        success: true,
+        data: result,
+        message: `${result.files.length} file(s) processed successfully`,
+      });
+    } catch (error) {
+      if (
+        error.message === 'Knowledge base not found' ||
+        error.message === 'Not authorized to upload to this knowledge base'
+      ) {
+        return res.status(404).json({ success: false, message: 'Knowledge base not found' });
+      }
+      next(error);
+    }
+  }
+
+  async listKnowledgeDocuments(req, res, next) {
+    try {
+      const documents = await knowledgeService.listDocumentSources(
+        req.params.kbId,
+        undefined,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: documents });
+    } catch (error) {
+      if (error.message === 'Knowledge base not found' || error.message === 'Not authorized') {
+        return res.status(404).json({ success: false, message: 'Knowledge base not found' });
+      }
+      next(error);
+    }
+  }
+
+  async deleteKnowledgeDocument(req, res, next) {
+    try {
+      const sourceName = decodeURIComponent(req.params.sourceName);
+      const result = await knowledgeService.deleteDocumentFromKb(
+        req.params.kbId,
+        undefined,
+        sourceName,
+        req.projectAdminContext
+      );
+      res.json({
+        success: true,
+        data: result,
+        message: `Document deleted. ${result.removedChunks} chunk(s) removed.`,
+      });
+    } catch (error) {
+      if (
+        error.message === 'Knowledge base not found' ||
+        error.message === 'Not authorized to modify this knowledge base'
+      ) {
+        return res.status(404).json({ success: false, message: 'Knowledge base not found' });
+      }
+      if (error.message?.startsWith('Document')) {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      next(error);
+    }
+  }
+
+  async createMcp(req, res, next) {
+    try {
+      const mcp = await mcpService.createMcp(undefined, req.body, req.projectAdminContext);
+      res.status(201).json({ success: true, data: mcpService.toSafeJson(mcp) });
+    } catch (error) {
+      if (error.code === 11000) {
+        return res
+          .status(409)
+          .json({ success: false, message: 'An MCP server with this exact name already exists' });
+      }
+      next(error);
+    }
+  }
+
+  async updateMcp(req, res, next) {
+    try {
+      const mcp = await mcpService.updateMcp(
+        req.params.mcpId,
+        undefined,
+        req.body,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: mcpService.toSafeJson(mcp) });
+    } catch (error) {
+      if (error.code === 11000) {
+        return res
+          .status(409)
+          .json({ success: false, message: 'Another MCP server with this name already exists' });
+      }
+      next(error);
+    }
+  }
+
+  async deleteMcp(req, res, next) {
+    try {
+      await mcpService.deleteMcp(req.params.mcpId, undefined, req.projectAdminContext);
+      res.json({ success: true, message: 'MCP server deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getMcpOwnerAuthorizeUrl(req, res, next) {
+    try {
+      const url = await mcpService.getOwnerAuthorizationUrl(
+        req.params.mcpId,
+        undefined,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: { url } });
+    } catch (error) {
+      if (error.message === 'MCP server not found') {
+        return res.status(404).json({ success: false, message: 'MCP server not found' });
+      }
+      next(error);
+    }
+  }
+
+  async disconnectMcpOwnerConnection(req, res, next) {
+    try {
+      await mcpService.disconnectOwnerConnection(
+        req.params.mcpId,
+        undefined,
+        req.projectAdminContext
+      );
+      res.json({ success: true, message: 'Owner connection disconnected' });
+    } catch (error) {
+      if (error.message === 'MCP server not found') {
+        return res.status(404).json({ success: false, message: 'MCP server not found' });
+      }
+      next(error);
+    }
+  }
 }
 
 export default new ProjectController();
