@@ -993,18 +993,28 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
 
         <TabsContent value="knowledge" className="mt-6">
           <Card className="max-w-2xl">
-            <CardHeader>
-              <CardTitle>Knowledge</CardTitle>
-              <CardDescription>
-                Knowledge Bases this Project owns — read-only. Creating and
-                editing Knowledge Bases stays an SDK/API-key operation.
-              </CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div>
+                <CardTitle>Knowledge</CardTitle>
+                <CardDescription>
+                  Knowledge Bases this Project owns.
+                </CardDescription>
+              </div>
+              <Link href={developerRoutes.projectKnowledgeNew(projectId)}>
+                <Button size="sm">
+                  <Plus className="mr-1.5 size-3.5" />
+                  New Knowledge Base
+                </Button>
+              </Link>
             </CardHeader>
             <CardContent>
               <NameDescriptionTable
                 items={knowledgeBases}
                 loading={knowledgeLoading}
                 emptyLabel="No Knowledge Bases yet."
+                getEditHref={(id) =>
+                  developerRoutes.projectKnowledgeDetail(projectId, id)
+                }
               />
             </CardContent>
           </Card>
