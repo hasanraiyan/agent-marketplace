@@ -177,4 +177,81 @@ describe('Project Service', () => {
       ).rejects.toThrow('Project not found');
     });
   });
+
+  describe('suspendProject (blueprint Phase 10, PR-49)', () => {
+    test('suspends an ACTIVE Project, recording ProjectAdmin authority', async () => {
+      projectRepository.findById.mockResolvedValue({ ...mockProject, status: 'ACTIVE' });
+      const suspended = { ...mockProject, status: 'SUSPENDED' };
+      projectRepository.updateStatus.mockResolvedValue(suspended);
+
+      const result = await projectService.suspendProject(personaUserId, mockProject._id);
+
+      expect(projectRepository.updateStatus).toHaveBeenCalledWith(mockProject._id, 'SUSPENDED', {
+        suspendedAt: expect.any(Date),
+        suspendedByAuthority: 'ProjectAdmin',
+        suspendedByPersonaUserId: personaUserId,
+      });
+      expect(result).toEqual(suspended);
+    });
+
+    test('rejects suspending a non-ACTIVE Project', async () => {
+      projectRepository.findById.mockResolvedValue({ ...mockProject, status: 'SUSPENDED' });
+
+      await expect(projectService.suspendProject(personaUserId, mockProject._id)).rejects.toThrow(
+        'Only an ACTIVE Project can be suspended'
+      );
+      expect(projectRepository.updateStatus).not.toHaveBeenCalled();
+    });
+
+    test('throws NotFoundError for a nonexistent Project', async () => {
+      projectRepository.findById.mockResolvedValue(null);
+
+      await expect(projectService.suspendProject(personaUserId, 'missing-id')).rejects.toThrow(
+        'Project not found'
+      );
+    });
+  });
+
+  describe('reactivateProject (blueprint Phase 10, PR-49)', () => {
+    test('reactivates a Project suspended by its own ProjectAdmin', async () => {
+      projectRepository.findById.mockResolvedValue({
+        ...mockProject,
+        status: 'SUSPENDED',
+        suspendedByAuthority: 'ProjectAdmin',
+      });
+      const reactivated = { ...mockProject, status: 'ACTIVE' };
+      projectRepository.updateStatus.mockResolvedValue(reactivated);
+
+      const result = await projectService.reactivateProject(mockProject._id);
+
+      expect(projectRepository.updateStatus).toHaveBeenCalledWith(mockProject._id, 'ACTIVE', {
+        suspendedAt: null,
+        suspendedByAuthority: null,
+        suspendedByPersonaUserId: null,
+      });
+      expect(result).toEqual(reactivated);
+    });
+
+    test('rejects reactivating a Project that is not SUSPENDED', async () => {
+      projectRepository.findById.mockResolvedValue({ ...mockProject, status: 'ACTIVE' });
+
+      await expect(projectService.reactivateProject(mockProject._id)).rejects.toThrow(
+        'Only a SUSPENDED Project can be reactivated'
+      );
+      expect(projectRepository.updateStatus).not.toHaveBeenCalled();
+    });
+
+    test('rejects a ProjectAdmin restoring a Platform-suspended Project (AD-08 §26 restore-symmetry)', async () => {
+      projectRepository.findById.mockResolvedValue({
+        ...mockProject,
+        status: 'SUSPENDED',
+        suspendedByAuthority: 'PlatformAdmin',
+      });
+
+      await expect(projectService.reactivateProject(mockProject._id)).rejects.toThrow(
+        'can only be restored by one'
+      );
+      expect(projectRepository.updateStatus).not.toHaveBeenCalled();
+    });
+  });
 });

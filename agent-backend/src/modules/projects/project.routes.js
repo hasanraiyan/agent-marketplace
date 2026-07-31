@@ -104,6 +104,52 @@ adminRouter.patch(
 
 /**
  * @openapi
+ * /api/v1/projects/{projectId}/suspend:
+ *   post:
+ *     tags: [Projects]
+ *     summary: Suspend a Project (Admin only, blueprint Phase 10)
+ *     description: >
+ *       A reversible, non-destructive kill switch (AD-08 §26) — data is never touched.
+ *       Immediately halts credential authentication and runtime execution (enforced by
+ *       existing status-check middleware). Only valid from ACTIVE.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Project suspended }
+ *       400: { description: Project is not currently ACTIVE }
+ *       404: { description: Project not found }
+ */
+adminRouter.post('/suspend', mutateLimiter, projectController.suspend);
+
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/reactivate:
+ *   post:
+ *     tags: [Projects]
+ *     summary: Reactivate a suspended Project (Admin only, blueprint Phase 10)
+ *     description: >
+ *       Only valid for a Project the caller's own Admin authority suspended
+ *       (AD-08 §26 restore-symmetry) — a Platform-suspended Project can only
+ *       be restored by Platform Admin.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Project reactivated }
+ *       400: { description: Not currently SUSPENDED, or suspended by Platform Admin authority }
+ *       404: { description: Project not found }
+ */
+adminRouter.post('/reactivate', mutateLimiter, projectController.reactivate);
+
+/**
+ * @openapi
  * /api/v1/projects/{projectId}/members:
  *   get:
  *     tags: [Projects]

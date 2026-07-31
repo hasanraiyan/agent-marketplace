@@ -6,6 +6,8 @@ jest.unstable_mockModule('../src/modules/projects/project.service.js', () => ({
     listProjectsForUser: jest.fn(),
     getProjectById: jest.fn(),
     updateMetadata: jest.fn(),
+    suspendProject: jest.fn(),
+    reactivateProject: jest.fn(),
   },
 }));
 
@@ -125,6 +127,52 @@ describe('Project Controller', () => {
       await projectController.updateMetadata(mockReq, mockRes, next);
 
       expect(projectService.updateMetadata).toHaveBeenCalledWith(projectId, { name: 'New Name' });
+    });
+  });
+
+  describe('suspend', () => {
+    test('suspends using req.projectAdminContext.personaUserId + domain', async () => {
+      projectService.suspendProject.mockResolvedValue({ _id: projectId, status: 'SUSPENDED' });
+
+      await projectController.suspend(mockReq, mockRes, next);
+
+      expect(projectService.suspendProject).toHaveBeenCalledWith(personaUserId, projectId);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: { _id: projectId, status: 'SUSPENDED' },
+      });
+    });
+
+    test('passes errors to next', async () => {
+      const err = new Error('boom');
+      projectService.suspendProject.mockRejectedValue(err);
+
+      await projectController.suspend(mockReq, mockRes, next);
+
+      expect(next).toHaveBeenCalledWith(err);
+    });
+  });
+
+  describe('reactivate', () => {
+    test('reactivates using req.projectAdminContext.domain', async () => {
+      projectService.reactivateProject.mockResolvedValue({ _id: projectId, status: 'ACTIVE' });
+
+      await projectController.reactivate(mockReq, mockRes, next);
+
+      expect(projectService.reactivateProject).toHaveBeenCalledWith(projectId);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: { _id: projectId, status: 'ACTIVE' },
+      });
+    });
+
+    test('passes errors to next', async () => {
+      const err = new Error('boom');
+      projectService.reactivateProject.mockRejectedValue(err);
+
+      await projectController.reactivate(mockReq, mockRes, next);
+
+      expect(next).toHaveBeenCalledWith(err);
     });
   });
 

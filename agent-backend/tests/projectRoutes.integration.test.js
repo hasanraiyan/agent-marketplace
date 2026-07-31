@@ -30,6 +30,8 @@ jest.unstable_mockModule('../src/modules/projects/project.service.js', () => ({
     listProjectsForUser: jest.fn(),
     getProjectById: jest.fn(),
     updateMetadata: jest.fn(),
+    suspendProject: jest.fn(),
+    reactivateProject: jest.fn(),
   },
 }));
 
@@ -81,6 +83,46 @@ describe('project.routes.js — nested :projectId param propagation', () => {
 
     expect(res.status).toBe(404);
     expect(projectService.getProjectById).not.toHaveBeenCalled();
+  });
+
+  test('POST /:projectId/suspend reaches the controller with the correct project id + caller (blueprint Phase 10, PR-49)', async () => {
+    projectMembershipRepository.findByProjectAndUser.mockResolvedValue({
+      project: 'project_abc',
+      personaUserId: 'user_123',
+      role: 'Admin',
+    });
+    projectService.suspendProject.mockResolvedValue({ _id: 'project_abc', status: 'SUSPENDED' });
+
+    const res = await request(app).post('/api/v1/projects/project_abc/suspend');
+
+    expect(res.status).toBe(200);
+    expect(projectService.suspendProject).toHaveBeenCalledWith('user_123', 'project_abc');
+  });
+
+  test('POST /:projectId/reactivate reaches the controller with the correct project id (blueprint Phase 10, PR-49)', async () => {
+    projectMembershipRepository.findByProjectAndUser.mockResolvedValue({
+      project: 'project_abc',
+      personaUserId: 'user_123',
+      role: 'Admin',
+    });
+    projectService.reactivateProject.mockResolvedValue({ _id: 'project_abc', status: 'ACTIVE' });
+
+    const res = await request(app).post('/api/v1/projects/project_abc/reactivate');
+
+    expect(res.status).toBe(200);
+    expect(projectService.reactivateProject).toHaveBeenCalledWith('project_abc');
+  });
+
+  test('suspend/reactivate 404 when the caller has no membership for that Project', async () => {
+    projectMembershipRepository.findByProjectAndUser.mockResolvedValue(null);
+
+    const suspendRes = await request(app).post('/api/v1/projects/not-my-project/suspend');
+    const reactivateRes = await request(app).post('/api/v1/projects/not-my-project/reactivate');
+
+    expect(suspendRes.status).toBe(404);
+    expect(reactivateRes.status).toBe(404);
+    expect(projectService.suspendProject).not.toHaveBeenCalled();
+    expect(projectService.reactivateProject).not.toHaveBeenCalled();
   });
 
   test('GET / (list mine) does not require projectAdminAuthMiddleware at all', async () => {
