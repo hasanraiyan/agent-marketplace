@@ -100,6 +100,14 @@ class SkillRepository {
   }
 
   /**
+   * Developer Platform (blueprint Phase 10, PR-53, AD-08 §29): Domain-scoped
+   * bulk delete for a Project's async deletion cascade.
+   */
+  async deleteManyByDomain(domain) {
+    return await Skill.deleteMany({ domain });
+  }
+
+  /**
    * Developer Platform (blueprint Phase 9, PR-44): a generic, filter-driven
    * list — the low-level primitive AD-07 §19 permits sharing between
    * Persona's marketplace search and Developer discovery, since it does no

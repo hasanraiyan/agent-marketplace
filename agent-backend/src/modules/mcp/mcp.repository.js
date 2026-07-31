@@ -47,6 +47,14 @@ class McpRepository {
   }
 
   /**
+   * Developer Platform (blueprint Phase 10, PR-53, AD-08 §29): Domain-scoped
+   * bulk delete for a Project's async deletion cascade.
+   */
+  async deleteManyByDomain(domain) {
+    return await Mcp.deleteMany({ domain });
+  }
+
+  /**
    * Developer Platform (blueprint Phase 9, PR-46): a generic, filter-driven
    * list/count pair — the low-level primitive AD-07 §19 permits sharing
    * (it does no scoping/visibility reasoning of its own), used by

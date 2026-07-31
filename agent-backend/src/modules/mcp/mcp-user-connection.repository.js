@@ -49,6 +49,16 @@ class McpUserConnectionRepository {
   async deleteManyByUser(userId) {
     return await McpUserConnection.deleteMany({ userId });
   }
+
+  /**
+   * Developer Platform (blueprint Phase 10, PR-53, AD-08 §29): Domain-scoped
+   * bulk delete for a Project's async deletion cascade — every
+   * ExternalUser-subject connection tied to this Domain (PersonaUser-subject
+   * rows have no `domain`, so this never touches those).
+   */
+  async deleteManyByDomain(domain) {
+    return await McpUserConnection.deleteMany({ domain });
+  }
 }
 
 export default new McpUserConnectionRepository();

@@ -112,4 +112,15 @@ describe('Mcp Repository', () => {
       );
     });
   });
+
+  describe('deleteManyByDomain (blueprint Phase 10, PR-53)', () => {
+    test('deletes every Mcp in a Domain regardless of owner type', async () => {
+      jest.spyOn(Mcp, 'deleteMany').mockResolvedValue({ deletedCount: 2 });
+
+      const result = await mcpRepository.deleteManyByDomain('project-1');
+
+      expect(Mcp.deleteMany).toHaveBeenCalledWith({ domain: 'project-1' });
+      expect(result.deletedCount).toBe(2);
+    });
+  });
 });

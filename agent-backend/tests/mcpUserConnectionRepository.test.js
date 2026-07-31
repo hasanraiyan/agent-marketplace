@@ -105,4 +105,15 @@ describe('McpUserConnection Repository', () => {
       expect(subjectFilterForContext(undefined)).toEqual({ userId: undefined });
     });
   });
+
+  describe('deleteManyByDomain (blueprint Phase 10, PR-53)', () => {
+    test('deletes every ExternalUser-subject connection tied to a Domain', async () => {
+      jest.spyOn(McpUserConnection, 'deleteMany').mockResolvedValue({ deletedCount: 2 });
+
+      const result = await mcpUserConnectionRepository.deleteManyByDomain('project-1');
+
+      expect(McpUserConnection.deleteMany).toHaveBeenCalledWith({ domain: 'project-1' });
+      expect(result.deletedCount).toBe(2);
+    });
+  });
 });

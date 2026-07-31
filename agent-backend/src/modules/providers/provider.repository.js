@@ -43,6 +43,14 @@ class ProviderRepository {
   async deleteManyByOwner(ownerId) {
     return await Provider.deleteMany({ ownerId });
   }
+
+  /**
+   * Developer Platform (blueprint Phase 10, PR-53, AD-08 §29): Domain-scoped
+   * bulk delete for a Project's async deletion cascade.
+   */
+  async deleteManyByDomain(domain) {
+    return await Provider.deleteMany({ domain });
+  }
 }
 
 export default new ProviderRepository();

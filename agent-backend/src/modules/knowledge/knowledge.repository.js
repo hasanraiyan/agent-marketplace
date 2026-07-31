@@ -17,6 +17,15 @@ class KnowledgeRepository {
     return await KnowledgeBase.find({ ownerId: userId }).sort({ updatedAt: -1 });
   }
 
+  /**
+   * Developer Platform (blueprint Phase 10, PR-53, AD-08 §29): unpaginated
+   * — every KnowledgeBase in a Domain, for the Project deletion cascade
+   * (which must enumerate all of them, not a page at a time).
+   */
+  async findKbsByDomain(domain) {
+    return await KnowledgeBase.find({ domain });
+  }
+
   async updateKb(id, updateData) {
     return await KnowledgeBase.findByIdAndUpdate(id, updateData, {
       new: true,
@@ -26,6 +35,16 @@ class KnowledgeRepository {
 
   async deleteKb(id) {
     return await KnowledgeBase.findByIdAndDelete(id);
+  }
+
+  /**
+   * Developer Platform (blueprint Phase 10, PR-53, AD-08 §29): bulk delete
+   * for the Project deletion cascade — the caller (`deleteAllByDomain`)
+   * has already deleted each KB's chunks/Qdrant collection individually;
+   * this just removes the now-empty KnowledgeBase documents themselves.
+   */
+  async deleteMany(filter) {
+    return await KnowledgeBase.deleteMany(filter);
   }
 
   async findKbsByIds(ids) {

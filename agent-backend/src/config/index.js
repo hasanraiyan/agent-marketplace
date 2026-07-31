@@ -50,6 +50,10 @@ const config = {
     deleteInactiveUsers: process.env.CRON_DELETE_INACTIVE_USERS || '0 3 * * *',
     cleanExpiredOTPs: process.env.CRON_CLEAN_EXPIRED_OTPS || '0 */6 * * *',
     retentionDays: parseInt(process.env.ACCOUNT_RETENTION_DAYS, 10) || 30,
+    // Developer Platform (blueprint Phase 10, PR-53, AD-08 §28): the
+    // discovery-trigger schedule only — the actual cleanup runs as a
+    // durable Agenda job, not inside this cron tick itself.
+    discoverExpiredDeletions: process.env.CRON_DISCOVER_EXPIRED_DELETIONS || '0 * * * *',
   },
   projects: {
     // Developer Platform (blueprint Phase 10, PR-52, AD-08 §28/§41): the
