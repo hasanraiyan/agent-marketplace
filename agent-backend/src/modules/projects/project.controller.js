@@ -48,6 +48,29 @@ class ProjectController {
     }
   }
 
+  async suspend(req, res, next) {
+    try {
+      const project = await projectService.suspendProject(
+        req.projectAdminContext.personaUserId,
+        req.projectAdminContext.domain
+      );
+
+      res.json({ success: true, data: project });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async reactivate(req, res, next) {
+    try {
+      const project = await projectService.reactivateProject(req.projectAdminContext.domain);
+
+      res.json({ success: true, data: project });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async listMembers(req, res, next) {
     try {
       const members = await projectMembershipService.listMembers(req.projectAdminContext.domain);

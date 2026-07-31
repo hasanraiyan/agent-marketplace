@@ -1,7 +1,9 @@
 import projectRepository from './project.repository.js';
 import projectMembershipRepository from './projectMembership.repository.js';
 import { MEMBERSHIP_ROLE } from './projectMembership.model.js';
+import { PROJECT_STATUS, SUSPENSION_AUTHORITY } from './project.model.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
+import ValidationError from '../../utils/errors/ValidationError.js';
 
 class ProjectService {
   /**
@@ -84,6 +86,52 @@ class ProjectService {
 
     const projectIds = memberships.map((m) => m.project);
     return await projectRepository.findByIds(projectIds);
+  }
+
+  /**
+   * Developer Platform (blueprint Phase 10, PR-49): a Project Admin
+   * self-suspends their own Project — a reversible, non-destructive
+   * kill switch (AD-08 §26). Only valid from `ACTIVE`. Suspension's
+   * "immediate halt" requirement (AD-08 §25) needs no enforcement code
+   * here — `developerMachineAuthMiddleware` already rejects any non-ACTIVE
+   * Project, so setting the flag is sufficient.
+   */
+  async suspendProject(personaUserId, projectId) {
+    const project = await this.getProjectById(projectId);
+    if (project.status !== PROJECT_STATUS.ACTIVE) {
+      throw new ValidationError('Only an ACTIVE Project can be suspended');
+    }
+
+    return await projectRepository.updateStatus(projectId, PROJECT_STATUS.SUSPENDED, {
+      suspendedAt: new Date(),
+      suspendedByAuthority: SUSPENSION_AUTHORITY.PROJECT_ADMIN,
+      suspendedByPersonaUserId: personaUserId,
+    });
+  }
+
+  /**
+   * Developer Platform (blueprint Phase 10, PR-49): restore-symmetry
+   * (AD-08 §26) — a Project Admin may only restore a Project it suspended
+   * itself; a Platform-suspended Project requires Platform Admin authority
+   * (see `platformRestoreProject`, PR-50), otherwise a Project could
+   * trivially undo its own platform-level enforcement action.
+   */
+  async reactivateProject(projectId) {
+    const project = await this.getProjectById(projectId);
+    if (project.status !== PROJECT_STATUS.SUSPENDED) {
+      throw new ValidationError('Only a SUSPENDED Project can be reactivated');
+    }
+    if (project.suspendedByAuthority !== SUSPENSION_AUTHORITY.PROJECT_ADMIN) {
+      throw new ValidationError(
+        'This Project was suspended by a Platform Admin and can only be restored by one'
+      );
+    }
+
+    return await projectRepository.updateStatus(projectId, PROJECT_STATUS.ACTIVE, {
+      suspendedAt: null,
+      suspendedByAuthority: null,
+      suspendedByPersonaUserId: null,
+    });
   }
 }
 
