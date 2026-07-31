@@ -3,12 +3,13 @@ import mongoose from 'mongoose';
 
 const mockLoggerInfo = jest.fn();
 const mockLoggerError = jest.fn();
+const mockLoggerWarn = jest.fn();
 
 jest.unstable_mockModule('../src/utils/index.js', () => ({
   loggerService: {
     getLogger: () => ({
       info: mockLoggerInfo,
-      warn: jest.fn(),
+      warn: mockLoggerWarn,
       error: mockLoggerError,
       debug: jest.fn(),
     }),
@@ -85,9 +86,15 @@ jest.unstable_mockModule('../src/modules/threads/checkpoint.service.js', () => (
   },
 }));
 
+const mockFindSoleActiveAdminProject = jest.fn();
+jest.unstable_mockModule('../src/modules/projects/projectMembership.service.js', () => ({
+  default: { findSoleActiveAdminProject: mockFindSoleActiveAdminProject },
+}));
+
 describe('Cron - deleteInactiveUsers', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockFindSoleActiveAdminProject.mockResolvedValue(null);
   });
 
   test('should delete inactive users older than retention period', async () => {
@@ -162,5 +169,54 @@ describe('Cron - deleteInactiveUsers', () => {
 
     expect(result.deletedCount).toBe(1);
     expect(mockLoggerError).toHaveBeenCalled();
+  });
+
+  describe('blueprint Phase 10, PR-54, AD-08 §13, §42 open question #5 — last-Admin precondition', () => {
+    test('skips (never purges) an inactive user who is the sole Admin of an ACTIVE Project', async () => {
+      const mockUserId = new mongoose.Types.ObjectId();
+      mockUserFind.mockResolvedValue([{ _id: mockUserId }]);
+      mockFindSoleActiveAdminProject.mockResolvedValue({
+        _id: 'project_1',
+        name: 'Beyond Campus',
+      });
+
+      const deleteInactiveUsers = (await import('../src/modules/cron/deleteInactiveUsers.js'))
+        .default;
+
+      const result = await deleteInactiveUsers();
+
+      expect(mockFindSoleActiveAdminProject).toHaveBeenCalledWith(mockUserId);
+      expect(mockConversationFind).not.toHaveBeenCalled();
+      expect(mockUserFindByIdAndDelete).not.toHaveBeenCalled();
+      expect(result.deletedCount).toBe(0);
+      expect(mockLoggerWarn).toHaveBeenCalledWith(expect.stringContaining('Beyond Campus'));
+    });
+
+    test('purges every other inactive user normally when one is skipped for the last-Admin precondition', async () => {
+      const blockedUserId = new mongoose.Types.ObjectId();
+      const normalUserId = new mongoose.Types.ObjectId();
+      mockUserFind.mockResolvedValue([{ _id: blockedUserId }, { _id: normalUserId }]);
+      mockFindSoleActiveAdminProject.mockImplementation(async (userId) =>
+        String(userId) === String(blockedUserId)
+          ? { _id: 'project_1', name: 'Beyond Campus' }
+          : null
+      );
+      mockConversationFind.mockReturnValue({ select: jest.fn().mockResolvedValue([]) });
+      mockAgentDeleteMany.mockResolvedValue();
+      mockSkillDeleteMany.mockResolvedValue();
+      mockProviderDeleteMany.mockResolvedValue();
+      mockMcpDeleteMany.mockResolvedValue();
+      mockMcpUserConnectionDeleteMany.mockResolvedValue();
+      mockUserFindByIdAndDelete.mockResolvedValue();
+
+      const deleteInactiveUsers = (await import('../src/modules/cron/deleteInactiveUsers.js'))
+        .default;
+
+      const result = await deleteInactiveUsers();
+
+      expect(result.deletedCount).toBe(1);
+      expect(mockUserFindByIdAndDelete).toHaveBeenCalledWith(normalUserId);
+      expect(mockUserFindByIdAndDelete).not.toHaveBeenCalledWith(blockedUserId);
+    });
   });
 });

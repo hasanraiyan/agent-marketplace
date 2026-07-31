@@ -11,6 +11,7 @@ import Provider from '../src/modules/providers/provider.model.js';
 import Skill from '../src/modules/skills/skill.model.js';
 import Mcp from '../src/modules/mcp/mcp.model.js';
 import McpUserConnection from '../src/modules/mcp/mcp-user-connection.model.js';
+import ProjectMembership from '../src/modules/projects/projectMembership.model.js';
 
 describe('Cascading Deletes Integration', () => {
   const mockUserId = new mongoose.Types.ObjectId();
@@ -91,6 +92,14 @@ describe('Cascading Deletes Integration', () => {
       const mockUser = { _id: mockUserId, isActive: false, updatedAt: new Date(0) };
 
       jest.spyOn(User, 'find').mockResolvedValue([mockUser]);
+      // Developer Platform (blueprint Phase 10, PR-54): deleteInactiveUsers
+      // now consults the last-Admin precondition before purging — no Admin
+      // memberships here, so it proceeds exactly as before this PR existed.
+      // findByUser chains .sort(...) after .find(...), so the mock must
+      // return a chainable object, not resolve directly.
+      jest.spyOn(ProjectMembership, 'find').mockReturnValue({
+        sort: jest.fn().mockResolvedValue([]),
+      });
       jest.spyOn(Conversation, 'find').mockReturnValue({
         select: jest.fn().mockResolvedValue([{ threadId: 'thread-1' }]),
       });
