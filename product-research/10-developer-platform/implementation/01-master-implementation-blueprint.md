@@ -785,7 +785,9 @@ rollback path by design. *Exit criteria:* Gates 7–8 pass; a full create→use�
 is E2E-tested.
 
 **Phase 11 — Developer Studio (frontend).** Not designed here; depends on Phase 9's API surface
-being stable. **Phase 12 — SDK / integration tooling.** Not designed here; depends on Phase 9.
+being stable.
+
+**Phase 12 — SDK / integration tooling.** Not designed here; depends on Phase 9.
 
 ---
 
