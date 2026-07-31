@@ -1,4 +1,5 @@
 import express from 'express';
+import multer from 'multer';
 import authMiddleware from '../auth/auth.middleware.js';
 import projectAdminAuthMiddleware from '../auth/projectAdminAuth.middleware.js';
 import rateLimiter, { RATE_LIMITS } from '../rateLimiter/rateLimiter.middleware.js';
@@ -10,9 +11,43 @@ import {
   addMemberSchema,
   createCredentialSchema,
 } from './project.validator.js';
+import { createProviderSchema, updateProviderSchema } from '../providers/provider.validator.js';
+import { createSkillSchema, updateSkillSchema } from '../skills/skill.validator.js';
+import {
+  createKnowledgeBaseSchema,
+  updateKnowledgeBaseSchema,
+} from '../knowledge/knowledge.validator.js';
+import { createMcpSchema, updateMcpSchema } from '../mcp/mcp.validator.js';
 
 const router = express.Router();
 const mutateLimiter = rateLimiter('MUTATE', RATE_LIMITS.MUTATE);
+
+// Mirrors developerKnowledge.routes.js's exact upload config — memory
+// storage only, never written to disk, same size/type limits.
+const knowledgeUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 20 * 1024 * 1024,
+    files: 10,
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = [
+      'application/pdf',
+      'text/plain',
+      'text/markdown',
+      'text/csv',
+      'application/json',
+    ];
+    const allowedExts = /\.(pdf|txt|md|json|csv)$/i;
+    const extOk = allowedExts.test(file.originalname);
+    const mimeOk = allowedMimes.includes(file.mimetype);
+
+    if (extOk || mimeOk) {
+      return cb(null, true);
+    }
+    cb(new Error('Unsupported file type. Allowed: PDF, TXT, MD, CSV, JSON'));
+  },
+});
 
 // Every Project route requires an authenticated Persona User (Clerk).
 // Admin-only sub-routes additionally require projectAdminAuthMiddleware,
@@ -359,6 +394,94 @@ adminRouter.delete('/credentials/:credentialId', mutateLimiter, projectControlle
  *       200: { description: List of Agents }
  */
 adminRouter.get('/agents', projectController.listAgents);
+
+/**
+ * Full create/edit/delete for a Project's own Skills/Knowledge/MCP/
+ * Providers from Developer Studio (Phase 11.5) — the read-only PR-55
+ * `list*` routes above stay as-is; these are new siblings on the same
+ * `adminRouter`, reusing the identical service methods and Zod validators
+ * the SDK's `developer*.routes.js` files already import, just with
+ * `req.projectAdminContext` (Clerk session) instead of `req.projectContext`
+ * (machine credential/API key).
+ */
+adminRouter.post(
+  '/providers',
+  mutateLimiter,
+  validateBody(createProviderSchema),
+  projectController.createProvider
+);
+adminRouter.patch(
+  '/providers/:providerId',
+  mutateLimiter,
+  validateBody(updateProviderSchema),
+  projectController.updateProvider
+);
+adminRouter.delete('/providers/:providerId', mutateLimiter, projectController.deleteProvider);
+adminRouter.post(
+  '/providers/:providerId/test-connection',
+  projectController.testProviderConnection
+);
+adminRouter.get('/providers/:providerId/models', projectController.getProviderModels);
+
+adminRouter.post(
+  '/skills',
+  mutateLimiter,
+  validateBody(createSkillSchema),
+  projectController.createSkill
+);
+adminRouter.patch(
+  '/skills/:skillId',
+  mutateLimiter,
+  validateBody(updateSkillSchema),
+  projectController.updateSkill
+);
+adminRouter.delete('/skills/:skillId', mutateLimiter, projectController.deleteSkill);
+
+adminRouter.post(
+  '/knowledge',
+  mutateLimiter,
+  validateBody(createKnowledgeBaseSchema),
+  projectController.createKnowledge
+);
+adminRouter.patch(
+  '/knowledge/:kbId',
+  mutateLimiter,
+  validateBody(updateKnowledgeBaseSchema),
+  projectController.updateKnowledge
+);
+adminRouter.delete('/knowledge/:kbId', mutateLimiter, projectController.deleteKnowledge);
+adminRouter.post(
+  '/knowledge/:kbId/documents',
+  mutateLimiter,
+  knowledgeUpload.array('files', 10),
+  projectController.uploadKnowledgeDocuments
+);
+adminRouter.get('/knowledge/:kbId/documents', projectController.listKnowledgeDocuments);
+adminRouter.delete(
+  '/knowledge/:kbId/documents/:sourceName',
+  mutateLimiter,
+  projectController.deleteKnowledgeDocument
+);
+
+adminRouter.post(
+  '/mcps',
+  mutateLimiter,
+  validateBody(createMcpSchema),
+  projectController.createMcp
+);
+adminRouter.patch(
+  '/mcps/:mcpId',
+  mutateLimiter,
+  validateBody(updateMcpSchema),
+  projectController.updateMcp
+);
+adminRouter.delete('/mcps/:mcpId', mutateLimiter, projectController.deleteMcp);
+adminRouter.get('/mcps/:mcpId/oauth/owner/authorize', projectController.getMcpOwnerAuthorizeUrl);
+adminRouter.delete(
+  '/mcps/:mcpId/oauth/owner/connection',
+  mutateLimiter,
+  projectController.disconnectMcpOwnerConnection
+);
 
 /**
  * @openapi
