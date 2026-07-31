@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft } from "lucide-react";
+import { AguiAgentChat } from "@/components/agents/agui-agent-chat";
 import {
   getProjectAgents,
   createProjectAgent,
@@ -53,6 +55,21 @@ const CATEGORIES = [
   "other",
 ];
 
+const BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
+// Matches architectConstants.js's PROJECT_ARCHITECT_AGENT_ID on the
+// backend — inert client-side (the backend route always targets this
+// sentinel regardless of what's sent), kept in sync for clarity/debugging.
+const PROJECT_ARCHITECT_AGENT_ID = "000000000000000000000001";
+
+// Architect tool results are JSON strings shaped { status, agentId?, data? }
+// — same shape as the Persona Architect's, since projectBuilder.tools.js
+// mirrors builder.tools.js's payload construction exactly.
+function agentIdFromToolOutput(output) {
+  const raw = output?.agentId || output?.data?.id || output?.data?._id;
+  return raw ? String(raw) : null;
+}
+
 function AttachmentPicker({ label, items, selected, onToggle, renderBadge }) {
   return (
     <div className="space-y-2">
@@ -89,6 +106,10 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
   const agentId = params.agentId;
   const isEditing = agentId !== "new";
   const router = useRouter();
+  const { isLoaded, isSignedIn, getToken } = useAuth();
+
+  const [authToken, setAuthToken] = useState(null);
+  const handledArchitectTools = useRef(new Set());
 
   const [providers, setProviders] = useState([]);
   const [skills, setSkills] = useState([]);
@@ -118,6 +139,24 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
       "Configure an Agent this Project owns and exposes to its own users.",
   });
 
+  // The Architect chat talks over raw fetch (SSE), not the axios `api`
+  // instance, so it needs its own Clerk token — same 40s refresh interval
+  // as the Persona Sage builder page.
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    const refreshToken = async () => {
+      try {
+        const token = await getToken();
+        if (token) setAuthToken(token);
+      } catch (err) {
+        console.error("Failed to refresh token:", err);
+      }
+    };
+    refreshToken();
+    const interval = setInterval(refreshToken, 40000);
+    return () => clearInterval(interval);
+  }, [getToken, isLoaded, isSignedIn]);
+
   useEffect(() => {
     (async () => {
       try {
@@ -138,22 +177,7 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
           const agents = agentsRes.data?.data || [];
           const agent = agents.find((a) => (a._id || a.id) === agentId);
           if (agent) {
-            setFormData({
-              name: agent.name || "",
-              description: agent.description || "",
-              systemPrompt: agent.systemPrompt || "",
-              providerId: agent.providerId || "",
-              modelName: agent.modelName || "",
-              category: agent.category || "other",
-              visibility: agent.visibility || "private",
-              webSearchEnabled: agent.webSearchEnabled || false,
-              isActive: agent.isActive !== false,
-              skills: (agent.skills || []).map((s) => s._id || s),
-              mcps: (agent.mcps || []).map((m) => m._id || m),
-              knowledgeBases: (agent.knowledgeBases || []).map(
-                (k) => k._id || k,
-              ),
-            });
+            applyAgentToForm(agent);
           } else {
             toast.error("Agent not found");
             router.push(developerRoutes.project(projectId));
@@ -190,6 +214,88 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
         : [...prev[field], id],
     }));
   };
+
+  const applyAgentToForm = (agent) => {
+    setFormData({
+      name: agent.name || "",
+      description: agent.description || "",
+      systemPrompt: agent.systemPrompt || "",
+      providerId: agent.providerId || "",
+      modelName: agent.modelName || "",
+      category: agent.category || "other",
+      visibility: agent.visibility || "private",
+      webSearchEnabled: agent.webSearchEnabled || false,
+      isActive: agent.isActive !== false,
+      skills: (agent.skills || []).map((s) => s._id || s),
+      mcps: (agent.mcps || []).map((m) => m._id || m),
+      knowledgeBases: (agent.knowledgeBases || []).map((k) => k._id || k),
+    });
+  };
+
+  const refreshAgentFromServer = useCallback(
+    async (targetAgentId) => {
+      try {
+        const res = await getProjectAgents(projectId);
+        const agents = res.data?.data || [];
+        const agent = agents.find((a) => (a._id || a.id) === targetAgentId);
+        if (agent) applyAgentToForm(agent);
+      } catch (err) {
+        console.error("Agent refresh failed", err);
+      }
+    },
+    [projectId],
+  );
+
+  // Mirrors the Persona Sage builder page's handleArchitectToolResult:
+  // upsert_agent's result tells us whether the Architect just created a new
+  // Agent (switch this page into editing it) or updated the one already
+  // open here (refresh the form to show what changed).
+  const handleArchitectToolResult = useCallback(
+    (tool) => {
+      if (
+        (tool.name !== "upsert_agent" && tool.name !== "get_agent") ||
+        handledArchitectTools.current.has(tool.id)
+      ) {
+        return;
+      }
+      handledArchitectTools.current.add(tool.id);
+
+      try {
+        const output =
+          typeof tool.resultText === "string"
+            ? JSON.parse(tool.resultText)
+            : tool.resultText;
+        if (output?.status !== "success") return;
+
+        const resultAgentId = agentIdFromToolOutput(output);
+        if (!resultAgentId) return;
+
+        if (tool.name === "get_agent") {
+          if (isEditing && resultAgentId === String(agentId) && output.data) {
+            applyAgentToForm(output.data);
+          }
+          return;
+        }
+
+        if (!isEditing) {
+          toast.success("Agent created by the Architect");
+          router.push(
+            developerRoutes.projectAgentEdit(projectId, resultAgentId),
+          );
+          return;
+        }
+
+        if (resultAgentId === String(agentId)) {
+          refreshAgentFromServer(agentId).then(() =>
+            toast.success("Configuration synced"),
+          );
+        }
+      } catch (err) {
+        console.error("Failed to parse Architect tool output", err);
+      }
+    },
+    [agentId, isEditing, projectId, refreshAgentFromServer, router],
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -233,6 +339,8 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
     );
   }
 
+  const runtimeUrl = `${BASE_URL}/projects/${projectId}/architect/agui`;
+
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
       <div className="flex items-center gap-4">
@@ -246,213 +354,249 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
         </h2>
       </div>
 
-      <form onSubmit={handleSubmit}>
-        <Card className="max-w-2xl">
-          <CardHeader>
-            <CardTitle>Agent Configuration</CardTitle>
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <Card className="flex h-[560px] w-full flex-col overflow-hidden lg:w-[380px] lg:shrink-0">
+          <CardHeader className="border-b py-3">
+            <CardTitle className="text-base">Project Agent Architect</CardTitle>
             <CardDescription>
-              Owned by this Project — any of its Admins can manage it afterward.
-              Want an AI co-pilot to build this instead? That lands in a
-              follow-up.
+              {isEditing
+                ? "Tell it what to change about this Agent."
+                : "Tell it what kind of Agent to build."}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="name">Name</FieldLabel>
-                <Input
-                  id="name"
-                  name="name"
-                  placeholder="e.g. Support Assistant"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                  maxLength={100}
-                />
-              </Field>
+          <CardContent className="min-h-0 flex-1 p-0">
+            {authToken ? (
+              <AguiAgentChat
+                url={runtimeUrl}
+                agentId={PROJECT_ARCHITECT_AGENT_ID}
+                threadId={projectId}
+                title="Architect"
+                emptyTitle="Project Agent Architect"
+                emptyDescription={
+                  isEditing
+                    ? "Tell it what you want to change about this Agent."
+                    : "Tell it what kind of Agent this Project needs."
+                }
+                headers={{ Authorization: `Bearer ${authToken}` }}
+                onToolResult={handleArchitectToolResult}
+                showHeader={false}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                <Loader2 className="size-6 animate-spin text-muted-foreground" />
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-              <Field>
-                <FieldLabel htmlFor="description">Description</FieldLabel>
-                <Textarea
-                  id="description"
-                  name="description"
-                  placeholder="What does this Agent do?"
-                  value={formData.description}
-                  onChange={handleChange}
-                  maxLength={500}
-                  rows={2}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="systemPrompt">System Prompt</FieldLabel>
-                <Textarea
-                  id="systemPrompt"
-                  name="systemPrompt"
-                  placeholder="The primary instructions defining this Agent's behavior..."
-                  value={formData.systemPrompt}
-                  onChange={handleChange}
-                  required
-                  minLength={10}
-                  rows={8}
-                  className="font-mono text-sm"
-                />
-              </Field>
-
-              <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={handleSubmit} className="min-w-0 flex-1">
+          <Card className="max-w-2xl">
+            <CardHeader>
+              <CardTitle>Agent Configuration</CardTitle>
+              <CardDescription>
+                Owned by this Project — any of its Admins can manage it
+                afterward. Use the Architect alongside this form, or fill it in
+                yourself — either way works.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FieldGroup>
                 <Field>
-                  <FieldLabel htmlFor="providerId">Provider</FieldLabel>
-                  <Select
-                    value={formData.providerId}
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({ ...prev, providerId: value }))
-                    }
-                  >
-                    <SelectTrigger id="providerId" className="w-full">
-                      <SelectValue
-                        placeholder={
-                          providers.length > 0
-                            ? "Select a Provider"
-                            : "No Providers yet"
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {providers.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="modelName">Model</FieldLabel>
+                  <FieldLabel htmlFor="name">Name</FieldLabel>
                   <Input
-                    id="modelName"
-                    name="modelName"
-                    placeholder="Uses Provider's default"
-                    value={formData.modelName}
+                    id="name"
+                    name="name"
+                    placeholder="e.g. Support Assistant"
+                    value={formData.name}
                     onChange={handleChange}
+                    required
+                    maxLength={100}
                   />
                 </Field>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3">
                 <Field>
-                  <FieldLabel htmlFor="category">Category</FieldLabel>
-                  <Select
-                    value={formData.category}
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({ ...prev, category: value }))
-                    }
-                  >
-                    <SelectTrigger id="category" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIES.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FieldLabel htmlFor="description">Description</FieldLabel>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    placeholder="What does this Agent do?"
+                    value={formData.description}
+                    onChange={handleChange}
+                    maxLength={500}
+                    rows={2}
+                  />
                 </Field>
+
                 <Field>
-                  <FieldLabel htmlFor="visibility">Visibility</FieldLabel>
-                  <Select
-                    value={formData.visibility}
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({ ...prev, visibility: value }))
-                    }
-                  >
-                    <SelectTrigger id="visibility" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="private">Private</SelectItem>
-                      <SelectItem value="unlisted">Unlisted</SelectItem>
-                      <SelectItem value="public">Public</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FieldDescription>
-                    Within this Project&apos;s own Domain.
-                  </FieldDescription>
+                  <FieldLabel htmlFor="systemPrompt">System Prompt</FieldLabel>
+                  <Textarea
+                    id="systemPrompt"
+                    name="systemPrompt"
+                    placeholder="The primary instructions defining this Agent's behavior..."
+                    value={formData.systemPrompt}
+                    onChange={handleChange}
+                    required
+                    minLength={10}
+                    rows={8}
+                    className="font-mono text-sm"
+                  />
                 </Field>
-              </div>
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">Web search</p>
-                  <p className="text-sm text-muted-foreground">
-                    Let this Agent search the web when needed.
-                  </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field>
+                    <FieldLabel htmlFor="providerId">Provider</FieldLabel>
+                    <Select
+                      value={formData.providerId}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, providerId: value }))
+                      }
+                    >
+                      <SelectTrigger id="providerId" className="w-full">
+                        <SelectValue
+                          placeholder={
+                            providers.length > 0
+                              ? "Select a Provider"
+                              : "No Providers yet"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {providers.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="modelName">Model</FieldLabel>
+                    <Input
+                      id="modelName"
+                      name="modelName"
+                      placeholder="Uses Provider's default"
+                      value={formData.modelName}
+                      onChange={handleChange}
+                    />
+                  </Field>
                 </div>
-                <Switch
-                  checked={formData.webSearchEnabled}
-                  onCheckedChange={(checked) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      webSearchEnabled: checked,
-                    }))
-                  }
-                />
-              </div>
 
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">Active</p>
-                  <p className="text-sm text-muted-foreground">
-                    Inactive Agents cannot be executed.
-                  </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field>
+                    <FieldLabel htmlFor="category">Category</FieldLabel>
+                    <Select
+                      value={formData.category}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, category: value }))
+                      }
+                    >
+                      <SelectTrigger id="category" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CATEGORIES.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="visibility">Visibility</FieldLabel>
+                    <Select
+                      value={formData.visibility}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, visibility: value }))
+                      }
+                    >
+                      <SelectTrigger id="visibility" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="private">Private</SelectItem>
+                        <SelectItem value="unlisted">Unlisted</SelectItem>
+                        <SelectItem value="public">Public</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FieldDescription>
+                      Within this Project&apos;s own Domain.
+                    </FieldDescription>
+                  </Field>
                 </div>
-                <Switch
-                  checked={formData.isActive}
-                  onCheckedChange={(checked) =>
-                    setFormData((prev) => ({ ...prev, isActive: checked }))
-                  }
-                />
-              </div>
 
-              <div className="space-y-4 border-t pt-4">
-                <AttachmentPicker
-                  label="Skills"
-                  items={skills}
-                  selected={formData.skills}
-                  onToggle={(id) => toggleAttachment("skills", id)}
-                />
-                <AttachmentPicker
-                  label="MCP Connectors"
-                  items={mcps}
-                  selected={formData.mcps}
-                  onToggle={(id) => toggleAttachment("mcps", id)}
-                  renderBadge={(mcp) => (
-                    <span className="text-xs text-muted-foreground">
-                      {mcp.authMode}
-                    </span>
-                  )}
-                />
-                <AttachmentPicker
-                  label="Knowledge Bases"
-                  items={knowledgeBases}
-                  selected={formData.knowledgeBases}
-                  onToggle={(id) => toggleAttachment("knowledgeBases", id)}
-                />
-              </div>
-            </FieldGroup>
-          </CardContent>
-          <CardFooter className="flex justify-between border-t p-6">
-            <Link href={developerRoutes.project(projectId)}>
-              <Button variant="outline">Cancel</Button>
-            </Link>
-            <Button type="submit" disabled={saving}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEditing ? "Update Agent" : "Create Agent"}
-            </Button>
-          </CardFooter>
-        </Card>
-      </form>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Web search</p>
+                    <p className="text-sm text-muted-foreground">
+                      Let this Agent search the web when needed.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={formData.webSearchEnabled}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        webSearchEnabled: checked,
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Active</p>
+                    <p className="text-sm text-muted-foreground">
+                      Inactive Agents cannot be executed.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={formData.isActive}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({ ...prev, isActive: checked }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-4 border-t pt-4">
+                  <AttachmentPicker
+                    label="Skills"
+                    items={skills}
+                    selected={formData.skills}
+                    onToggle={(id) => toggleAttachment("skills", id)}
+                  />
+                  <AttachmentPicker
+                    label="MCP Connectors"
+                    items={mcps}
+                    selected={formData.mcps}
+                    onToggle={(id) => toggleAttachment("mcps", id)}
+                    renderBadge={(mcp) => (
+                      <span className="text-xs text-muted-foreground">
+                        {mcp.authMode}
+                      </span>
+                    )}
+                  />
+                  <AttachmentPicker
+                    label="Knowledge Bases"
+                    items={knowledgeBases}
+                    selected={formData.knowledgeBases}
+                    onToggle={(id) => toggleAttachment("knowledgeBases", id)}
+                  />
+                </div>
+              </FieldGroup>
+            </CardContent>
+            <CardFooter className="flex justify-between border-t p-6">
+              <Link href={developerRoutes.project(projectId)}>
+                <Button variant="outline">Cancel</Button>
+              </Link>
+              <Button type="submit" disabled={saving}>
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isEditing ? "Update Agent" : "Create Agent"}
+              </Button>
+            </CardFooter>
+          </Card>
+        </form>
+      </div>
     </div>
   );
 }
