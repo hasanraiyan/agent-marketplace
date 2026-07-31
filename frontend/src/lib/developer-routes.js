@@ -15,4 +15,9 @@ export const developerRoutes = {
   projects: "/developer/projects",
   projectNew: "/developer/projects/new",
   project: (id) => `/developer/projects/${id}`,
+
+  // ── Project resources (blueprint Phase 11.5) ─────────────────────────────
+  projectProviderNew: (id) => `/developer/projects/${id}/providers/new`,
+  projectProviderEdit: (id, providerId) =>
+    `/developer/projects/${id}/providers/${providerId}/edit`,
 };

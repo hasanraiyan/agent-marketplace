@@ -39,8 +39,9 @@ export const revokeProjectCredential = (projectId, credentialId) =>
   api.delete(`/projects/${projectId}/credentials/${credentialId}`);
 
 // Resource browsing (blueprint Phase 11, PR-55 — already merged on the
-// backend). Read-only visibility only — creating/editing a Project's own
-// resources stays an SDK/API-key operation, never a Studio one.
+// backend). Phase 11.5 (PR-60+) added full create/edit/delete siblings
+// below — Studio is now a second, independent, full capability path to a
+// Project's own resources, parallel to the SDK, not a read-only sibling.
 export const getProjectAgents = (projectId) =>
   api.get(`/projects/${projectId}/agents`);
 export const getProjectSkills = (projectId) =>
@@ -51,3 +52,18 @@ export const getProjectMcps = (projectId) =>
   api.get(`/projects/${projectId}/mcps`);
 export const getProjectProviders = (projectId) =>
   api.get(`/projects/${projectId}/providers`);
+
+// Provider full CRUD (blueprint Phase 11.5, PR-60 — already merged on the
+// backend). No single-item GET route exists — same convention as
+// studio/(resources)/providers/[id]/edit/page.jsx, find by id from the
+// already-fetched list.
+export const createProjectProvider = (projectId, data) =>
+  api.post(`/projects/${projectId}/providers`, data);
+export const updateProjectProvider = (projectId, providerId, data) =>
+  api.patch(`/projects/${projectId}/providers/${providerId}`, data);
+export const deleteProjectProvider = (projectId, providerId) =>
+  api.delete(`/projects/${projectId}/providers/${providerId}`);
+export const testProjectProviderConnection = (projectId, providerId) =>
+  api.post(`/projects/${projectId}/providers/${providerId}/test-connection`);
+export const getProjectProviderModels = (projectId, providerId) =>
+  api.get(`/projects/${projectId}/providers/${providerId}/models`);
