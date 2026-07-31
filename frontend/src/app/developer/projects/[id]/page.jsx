@@ -13,6 +13,9 @@ import {
   PlayCircle,
   Trash2,
   Undo2,
+  UserPlus,
+  KeyRound,
+  Copy,
 } from "lucide-react";
 import {
   getProject,
@@ -21,6 +24,12 @@ import {
   reactivateProject,
   requestProjectDeletion,
   cancelProjectDeletion,
+  getProjectMembers,
+  addProjectMember,
+  removeProjectMember,
+  getProjectCredentials,
+  mintProjectCredential,
+  revokeProjectCredential,
 } from "@/lib/api/projects";
 import { developerRoutes } from "@/lib/developer-routes";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
@@ -37,6 +46,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Field,
   FieldGroup,
@@ -76,6 +93,15 @@ const STATUS_BADGE_VARIANT = {
   DELETED: "outline",
 };
 
+const CREDENTIAL_BADGE_CLASSNAME = {
+  ACTIVE:
+    "bg-emerald-500/15 text-emerald-600 border-emerald-500/20 dark:text-emerald-400",
+};
+const CREDENTIAL_BADGE_VARIANT = {
+  ACTIVE: "outline",
+  REVOKED: "secondary",
+};
+
 export default function ProjectDetailPage({ params: paramsPromise }) {
   const params = React.use(paramsPromise);
   const projectId = params.id;
@@ -99,6 +125,23 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
 
+  const [members, setMembers] = useState([]);
+  const [membersLoading, setMembersLoading] = useState(true);
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
+  const [newMemberId, setNewMemberId] = useState("");
+  const [addingMember, setAddingMember] = useState(false);
+  const [removeMemberTarget, setRemoveMemberTarget] = useState(null);
+  const [removingMember, setRemovingMember] = useState(false);
+
+  const [credentials, setCredentials] = useState([]);
+  const [credentialsLoading, setCredentialsLoading] = useState(true);
+  const [mintOpen, setMintOpen] = useState(false);
+  const [mintLabel, setMintLabel] = useState("");
+  const [minting, setMinting] = useState(false);
+  const [mintedSecret, setMintedSecret] = useState(null);
+  const [revokeTarget, setRevokeTarget] = useState(null);
+  const [revoking, setRevoking] = useState(false);
+
   useDashboardHeader(
     {
       title: project?.name || "Project",
@@ -120,6 +163,42 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
         toast.error(err.response?.data?.message || "Failed to load Project.");
       } finally {
         setLoading(false);
+      }
+    })();
+  }, [isLoaded, isSignedIn, projectId]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    (async () => {
+      try {
+        setMembersLoading(true);
+        const res = await getProjectMembers(projectId);
+        if (res.data?.success) {
+          setMembers(res.data.data);
+        }
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Failed to load Members.");
+      } finally {
+        setMembersLoading(false);
+      }
+    })();
+  }, [isLoaded, isSignedIn, projectId]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    (async () => {
+      try {
+        setCredentialsLoading(true);
+        const res = await getProjectCredentials(projectId);
+        if (res.data?.success) {
+          setCredentials(res.data.data);
+        }
+      } catch (err) {
+        toast.error(
+          err.response?.data?.message || "Failed to load Credentials.",
+        );
+      } finally {
+        setCredentialsLoading(false);
       }
     })();
   }, [isLoaded, isSignedIn, projectId]);
@@ -218,6 +297,87 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
     }
   };
 
+  const handleAddMember = async (e) => {
+    e.preventDefault();
+    if (!newMemberId.trim()) return;
+    setAddingMember(true);
+    try {
+      const res = await addProjectMember(projectId, newMemberId.trim());
+      setMembers((prev) => [...prev, res.data.data]);
+      toast.success("Admin added.");
+      setAddMemberOpen(false);
+      setNewMemberId("");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to add Admin.");
+    } finally {
+      setAddingMember(false);
+    }
+  };
+
+  const handleRemoveMember = async () => {
+    if (!removeMemberTarget) return;
+    setRemovingMember(true);
+    try {
+      await removeProjectMember(projectId, removeMemberTarget.personaUserId);
+      setMembers((prev) =>
+        prev.filter(
+          (m) => m.personaUserId !== removeMemberTarget.personaUserId,
+        ),
+      );
+      toast.success("Member removed.");
+      setRemoveMemberTarget(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to remove member.");
+    } finally {
+      setRemovingMember(false);
+    }
+  };
+
+  const handleMintCredential = async (e) => {
+    e.preventDefault();
+    setMinting(true);
+    try {
+      const res = await mintProjectCredential(
+        projectId,
+        mintLabel.trim() || undefined,
+      );
+      const created = res.data.data;
+      setCredentials((prev) => [created, ...prev]);
+      setMintedSecret({ keyId: created.keyId, secret: created.secret });
+      setMintOpen(false);
+      setMintLabel("");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to mint credential.");
+    } finally {
+      setMinting(false);
+    }
+  };
+
+  const handleRevokeCredential = async () => {
+    if (!revokeTarget) return;
+    setRevoking(true);
+    try {
+      const res = await revokeProjectCredential(projectId, revokeTarget.id);
+      setCredentials((prev) =>
+        prev.map((c) => (c.id === res.data.data.id ? res.data.data : c)),
+      );
+      toast.success("Credential revoked.");
+      setRevokeTarget(null);
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message || "Failed to revoke credential.",
+      );
+    } finally {
+      setRevoking(false);
+    }
+  };
+
+  const handleCopySecret = () => {
+    if (!mintedSecret) return;
+    navigator.clipboard.writeText(mintedSecret.secret);
+    toast.success("Copied to clipboard");
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
@@ -267,6 +427,8 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="members">Members</TabsTrigger>
+          <TabsTrigger value="credentials">Credentials</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-6 flex flex-col gap-6">
@@ -404,6 +566,152 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                     Delete
                   </Button>
                 </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="members" className="mt-6">
+          <Card className="max-w-2xl">
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div>
+                <CardTitle>Members</CardTitle>
+                <CardDescription>
+                  Admins who can manage this Project via their own Clerk
+                  session. v1 adds by internal Persona User id only — no email
+                  lookup yet.
+                </CardDescription>
+              </div>
+              <Button size="sm" onClick={() => setAddMemberOpen(true)}>
+                <UserPlus className="mr-1.5 size-3.5" />
+                Add Admin
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {membersLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ) : members.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Persona User ID</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Joined</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {members.map((m) => (
+                      <TableRow key={m.personaUserId}>
+                        <TableCell className="font-mono text-xs">
+                          {m.personaUserId}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{m.role}</Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {m.createdAt
+                            ? new Date(m.createdAt).toLocaleDateString()
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setRemoveMemberTarget(m)}
+                          >
+                            Remove
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-sm text-muted-foreground">No members yet.</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="credentials" className="mt-6">
+          <Card className="max-w-2xl">
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div>
+                <CardTitle>Credentials</CardTitle>
+                <CardDescription>
+                  API credentials this Project&apos;s SDK uses to authenticate —
+                  separate from your own Clerk session used here in Studio.
+                </CardDescription>
+              </div>
+              <Button size="sm" onClick={() => setMintOpen(true)}>
+                <KeyRound className="mr-1.5 size-3.5" />
+                Mint new
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {credentialsLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ) : credentials.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Key ID</TableHead>
+                      <TableHead>Label</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Last used</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {credentials.map((c) => (
+                      <TableRow key={c.id}>
+                        <TableCell className="font-mono text-xs">
+                          {c.keyId}
+                        </TableCell>
+                        <TableCell>{c.label || "—"}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              CREDENTIAL_BADGE_VARIANT[c.status] || "outline"
+                            }
+                            className={CREDENTIAL_BADGE_CLASSNAME[c.status]}
+                          >
+                            {c.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {c.lastUsedAt
+                            ? new Date(c.lastUsedAt).toLocaleString()
+                            : "Never"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {c.status === "ACTIVE" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setRevokeTarget(c)}
+                            >
+                              Revoke
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No credentials yet.
+                </p>
               )}
             </CardContent>
           </Card>
@@ -612,6 +920,208 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 "Delete Project"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Add Admin */}
+      <Dialog open={addMemberOpen} onOpenChange={setAddMemberOpen}>
+        <DialogContent>
+          <form onSubmit={handleAddMember}>
+            <DialogHeader>
+              <DialogTitle>Add Admin</DialogTitle>
+              <DialogDescription>
+                Grants Admin membership to an existing Persona User by their
+                internal id.
+              </DialogDescription>
+            </DialogHeader>
+            <FieldGroup className="py-4">
+              <Field>
+                <FieldLabel htmlFor="new-member-id">Persona User ID</FieldLabel>
+                <Input
+                  id="new-member-id"
+                  value={newMemberId}
+                  onChange={(e) => setNewMemberId(e.target.value)}
+                  placeholder="e.g. 64f1c2..."
+                  required
+                />
+                <FieldDescription>
+                  v1 has no email lookup — use the internal Persona User id.
+                </FieldDescription>
+              </Field>
+            </FieldGroup>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAddMemberOpen(false)}
+                disabled={addingMember}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={addingMember}>
+                {addingMember && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Add
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove member */}
+      <AlertDialog
+        open={!!removeMemberTarget}
+        onOpenChange={(open) => !open && setRemoveMemberTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this member?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {removeMemberTarget?.personaUserId} will lose Admin access to this
+              Project. The last remaining Admin cannot be removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removingMember}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleRemoveMember();
+              }}
+              disabled={removingMember}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {removingMember ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                "Remove"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Mint credential */}
+      <Dialog open={mintOpen} onOpenChange={setMintOpen}>
+        <DialogContent>
+          <form onSubmit={handleMintCredential}>
+            <DialogHeader>
+              <DialogTitle>Mint new credential</DialogTitle>
+              <DialogDescription>
+                The secret is shown exactly once right after this — copy it
+                immediately, it can never be retrieved again.
+              </DialogDescription>
+            </DialogHeader>
+            <FieldGroup className="py-4">
+              <Field>
+                <FieldLabel htmlFor="mint-label">Label</FieldLabel>
+                <Input
+                  id="mint-label"
+                  value={mintLabel}
+                  onChange={(e) => setMintLabel(e.target.value)}
+                  placeholder="e.g. Production backend"
+                  maxLength={100}
+                />
+                <FieldDescription>
+                  Optional — helps you identify this credential later.
+                </FieldDescription>
+              </Field>
+            </FieldGroup>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setMintOpen(false)}
+                disabled={minting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={minting}>
+                {minting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Mint
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* One-time secret reveal */}
+      <Dialog
+        open={!!mintedSecret}
+        onOpenChange={(open) => !open && setMintedSecret(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Save this secret now
+            </DialogTitle>
+            <DialogDescription>
+              This is the only time this secret will ever be shown. Store it
+              somewhere safe.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <p className="text-xs text-muted-foreground">Key ID</p>
+              <p className="font-mono text-sm">{mintedSecret?.keyId}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Secret</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 break-all rounded-md border bg-muted px-3 py-2 font-mono text-sm">
+                  {mintedSecret?.secret}
+                </code>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={handleCopySecret}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setMintedSecret(null)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Revoke credential */}
+      <AlertDialog
+        open={!!revokeTarget}
+        onOpenChange={(open) => !open && setRevokeTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke this credential?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {revokeTarget?.label || revokeTarget?.keyId} will immediately stop
+              authenticating. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={revoking}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleRevokeCredential();
+              }}
+              disabled={revoking}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {revoking ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                "Revoke"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
