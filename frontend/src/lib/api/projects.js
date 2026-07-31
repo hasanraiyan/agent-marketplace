@@ -77,3 +77,28 @@ export const updateProjectSkill = (projectId, skillId, data) =>
   api.patch(`/projects/${projectId}/skills/${skillId}`, data);
 export const deleteProjectSkill = (projectId, skillId) =>
   api.delete(`/projects/${projectId}/skills/${skillId}`);
+
+// Knowledge Base full CRUD + document management (blueprint Phase 11.5,
+// PR-60 — already merged on the backend). No single-item GET route — same
+// find-by-id-from-list convention as Providers/Skills above.
+export const createProjectKnowledge = (projectId, data) =>
+  api.post(`/projects/${projectId}/knowledge`, data);
+export const updateProjectKnowledge = (projectId, kbId, data) =>
+  api.patch(`/projects/${projectId}/knowledge/${kbId}`, data);
+export const deleteProjectKnowledge = (projectId, kbId) =>
+  api.delete(`/projects/${projectId}/knowledge/${kbId}`);
+export const getProjectKnowledgeDocuments = (projectId, kbId) =>
+  api.get(`/projects/${projectId}/knowledge/${kbId}/documents`);
+export const uploadProjectKnowledgeDocuments = (projectId, kbId, files) => {
+  const formData = new FormData();
+  files.forEach((file) => formData.append("files", file));
+  return api.post(
+    `/projects/${projectId}/knowledge/${kbId}/documents`,
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+};
+export const deleteProjectKnowledgeDocument = (projectId, kbId, sourceName) =>
+  api.delete(
+    `/projects/${projectId}/knowledge/${kbId}/documents/${encodeURIComponent(sourceName)}`,
+  );
