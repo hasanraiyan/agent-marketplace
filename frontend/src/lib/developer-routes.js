@@ -28,4 +28,7 @@ export const developerRoutes = {
     `/developer/projects/${id}/knowledge/${kbId}`,
   projectMcpNew: (id) => `/developer/projects/${id}/mcps/new`,
   projectMcpEdit: (id, mcpId) => `/developer/projects/${id}/mcps/${mcpId}/edit`,
+  projectAgentNew: (id) => `/developer/projects/${id}/agents/new`,
+  projectAgentEdit: (id, agentId) =>
+    `/developer/projects/${id}/agents/${agentId}/edit`,
 };

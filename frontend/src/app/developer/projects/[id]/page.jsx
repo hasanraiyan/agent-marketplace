@@ -39,6 +39,7 @@ import {
   deleteProjectProvider,
   deleteProjectSkill,
   deleteProjectMcp,
+  deleteProjectAgent,
 } from "@/lib/api/projects";
 import { developerRoutes } from "@/lib/developer-routes";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
@@ -230,6 +231,8 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
 
   const [agents, setAgents] = useState([]);
   const [agentsLoading, setAgentsLoading] = useState(true);
+  const [deleteAgentTarget, setDeleteAgentTarget] = useState(null);
+  const [deletingAgent, setDeletingAgent] = useState(false);
   const [skills, setSkills] = useState([]);
   const [skillsLoading, setSkillsLoading] = useState(true);
   const [deleteSkillTarget, setDeleteSkillTarget] = useState(null);
@@ -619,6 +622,22 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
     }
   };
 
+  const handleDeleteAgent = async () => {
+    if (!deleteAgentTarget) return;
+    setDeletingAgent(true);
+    try {
+      const targetId = deleteAgentTarget._id || deleteAgentTarget.id;
+      await deleteProjectAgent(projectId, targetId);
+      setAgents((prev) => prev.filter((a) => (a._id || a.id) !== targetId));
+      toast.success("Agent deleted.");
+      setDeleteAgentTarget(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete Agent.");
+    } finally {
+      setDeletingAgent(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
@@ -965,18 +984,27 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
 
         <TabsContent value="agents" className="mt-6">
           <Card className="max-w-2xl">
-            <CardHeader>
-              <CardTitle>Agents</CardTitle>
-              <CardDescription>
-                Agents this Project owns — read-only. Creating and editing
-                Agents stays an SDK/API-key operation.
-              </CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div>
+                <CardTitle>Agents</CardTitle>
+                <CardDescription>Agents this Project owns.</CardDescription>
+              </div>
+              <Link href={developerRoutes.projectAgentNew(projectId)}>
+                <Button size="sm">
+                  <Plus className="mr-1.5 size-3.5" />
+                  New Agent
+                </Button>
+              </Link>
             </CardHeader>
             <CardContent>
               <NameDescriptionTable
                 items={agents}
                 loading={agentsLoading}
                 emptyLabel="No Agents yet."
+                getEditHref={(id) =>
+                  developerRoutes.projectAgentEdit(projectId, id)
+                }
+                onDelete={(agent) => setDeleteAgentTarget(agent)}
               />
             </CardContent>
           </Card>
@@ -1664,6 +1692,41 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deletingMcp ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete agent */}
+      <AlertDialog
+        open={!!deleteAgentTarget}
+        onOpenChange={(open) => !open && setDeleteAgentTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this Agent?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteAgentTarget?.name} will be permanently deleted. This cannot
+              be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingAgent}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteAgent();
+              }}
+              disabled={deletingAgent}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingAgent ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 "Delete"
