@@ -35,6 +35,22 @@ jest.unstable_mockModule('../src/modules/users/user.repository.js', () => ({
   },
 }));
 
+jest.unstable_mockModule('../src/modules/agents/agent.service.js', () => ({
+  default: { discoverAgents: jest.fn() },
+}));
+jest.unstable_mockModule('../src/modules/skills/skill.service.js', () => ({
+  default: { discoverSkills: jest.fn() },
+}));
+jest.unstable_mockModule('../src/modules/knowledge/knowledge.service.js', () => ({
+  default: { discoverKnowledgeBases: jest.fn() },
+}));
+jest.unstable_mockModule('../src/modules/mcp/mcp.service.js', () => ({
+  default: { discoverMcps: jest.fn(), toSafeJson: jest.fn((mcp) => ({ ...mcp, safe: true })) },
+}));
+jest.unstable_mockModule('../src/modules/providers/provider.service.js', () => ({
+  default: { listProvidersForProject: jest.fn() },
+}));
+
 const projectService = (await import('../src/modules/projects/project.service.js')).default;
 const projectMembershipService = (
   await import('../src/modules/projects/projectMembership.service.js')
@@ -43,6 +59,11 @@ const projectCredentialService = (
   await import('../src/modules/projects/projectCredential.service.js')
 ).default;
 const userRepository = (await import('../src/modules/users/user.repository.js')).default;
+const agentService = (await import('../src/modules/agents/agent.service.js')).default;
+const skillService = (await import('../src/modules/skills/skill.service.js')).default;
+const knowledgeService = (await import('../src/modules/knowledge/knowledge.service.js')).default;
+const mcpService = (await import('../src/modules/mcp/mcp.service.js')).default;
+const providerService = (await import('../src/modules/providers/provider.service.js')).default;
 const projectController = (await import('../src/modules/projects/project.controller.js')).default;
 
 describe('Project Controller', () => {
@@ -65,6 +86,7 @@ describe('Project Controller', () => {
       user: { _id: personaUserId },
       body: {},
       params: {},
+      query: {},
       projectAdminContext: adminContext,
     };
     mockRes = { status: jest.fn().mockReturnThis(), json: jest.fn() };
@@ -331,6 +353,80 @@ describe('Project Controller', () => {
       await projectController.listMembers(mockReq, mockRes, next);
 
       expect(projectMembershipService.listMembers).toHaveBeenCalledWith(projectId);
+    });
+  });
+
+  describe('resource-browsing (blueprint Phase 11, PR-55)', () => {
+    test('listAgents forwards req.projectAdminContext, never a machine credential context', async () => {
+      mockReq.query = { search: 'foo', page: '2', limit: '5' };
+      agentService.discoverAgents.mockResolvedValue([{ _id: 'agent1' }]);
+
+      await projectController.listAgents(mockReq, mockRes, next);
+
+      expect(agentService.discoverAgents).toHaveBeenCalledWith(
+        adminContext,
+        { search: 'foo', category: undefined },
+        { page: 2, limit: 5 }
+      );
+      expect(mockRes.json).toHaveBeenCalledWith({ success: true, data: [{ _id: 'agent1' }] });
+    });
+
+    test('listSkills forwards req.projectAdminContext', async () => {
+      skillService.discoverSkills.mockResolvedValue([{ _id: 'skill1' }]);
+
+      await projectController.listSkills(mockReq, mockRes, next);
+
+      expect(skillService.discoverSkills).toHaveBeenCalledWith(
+        adminContext,
+        expect.any(Object),
+        expect.any(Object)
+      );
+    });
+
+    test('listKnowledge forwards req.projectAdminContext', async () => {
+      knowledgeService.discoverKnowledgeBases.mockResolvedValue([{ _id: 'kb1' }]);
+
+      await projectController.listKnowledge(mockReq, mockRes, next);
+
+      expect(knowledgeService.discoverKnowledgeBases).toHaveBeenCalledWith(
+        adminContext,
+        expect.any(Object),
+        expect.any(Object)
+      );
+    });
+
+    test('listMcps forwards req.projectAdminContext and strips secrets via toSafeJson', async () => {
+      mcpService.discoverMcps.mockResolvedValue([{ _id: 'mcp1', apiKeyEncrypted: 'enc:x' }]);
+
+      await projectController.listMcps(mockReq, mockRes, next);
+
+      expect(mcpService.discoverMcps).toHaveBeenCalledWith(
+        adminContext,
+        expect.any(Object),
+        expect.any(Object)
+      );
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: [{ _id: 'mcp1', apiKeyEncrypted: 'enc:x', safe: true }],
+      });
+    });
+
+    test('listProviders forwards req.projectAdminContext (no pagination, Provider has no discovery filter)', async () => {
+      providerService.listProvidersForProject.mockResolvedValue([{ _id: 'provider1' }]);
+
+      await projectController.listProviders(mockReq, mockRes, next);
+
+      expect(providerService.listProvidersForProject).toHaveBeenCalledWith(adminContext);
+      expect(mockRes.json).toHaveBeenCalledWith({ success: true, data: [{ _id: 'provider1' }] });
+    });
+
+    test('passes errors to next for each new method', async () => {
+      const err = new Error('boom');
+      agentService.discoverAgents.mockRejectedValue(err);
+
+      await projectController.listAgents(mockReq, mockRes, next);
+
+      expect(next).toHaveBeenCalledWith(err);
     });
   });
 });

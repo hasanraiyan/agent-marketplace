@@ -329,6 +329,109 @@ adminRouter.post(
  */
 adminRouter.delete('/credentials/:credentialId', mutateLimiter, projectController.revokeCredential);
 
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/agents:
+ *   get:
+ *     tags: [Projects]
+ *     summary: List this Project's Agents (Admin only, blueprint Phase 11)
+ *     description: >
+ *       Read-only resource browsing for Developer Studio — reuses the same
+ *       Discovery Contract `agentService.discoverAgents` built in PR-43,
+ *       just called with `ProjectAdminContext` (Clerk session) instead of a
+ *       machine credential. Studio never touches a Project's own API key.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: page
+ *         in: query
+ *         schema: { type: integer }
+ *       - name: limit
+ *         in: query
+ *         schema: { type: integer }
+ *       - name: search
+ *         in: query
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: List of Agents }
+ */
+adminRouter.get('/agents', projectController.listAgents);
+
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/skills:
+ *   get:
+ *     tags: [Projects]
+ *     summary: List this Project's Skills (Admin only, blueprint Phase 11)
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: List of Skills }
+ */
+adminRouter.get('/skills', projectController.listSkills);
+
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/knowledge:
+ *   get:
+ *     tags: [Projects]
+ *     summary: List this Project's Knowledge Bases (Admin only, blueprint Phase 11)
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: List of Knowledge Bases }
+ */
+adminRouter.get('/knowledge', projectController.listKnowledge);
+
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/mcps:
+ *   get:
+ *     tags: [Projects]
+ *     summary: List this Project's MCP connectors (Admin only, blueprint Phase 11)
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: List of MCP connectors }
+ */
+adminRouter.get('/mcps', projectController.listMcps);
+
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/providers:
+ *   get:
+ *     tags: [Projects]
+ *     summary: List this Project's Providers (Admin only, blueprint Phase 11)
+ *     description: >
+ *       Provider has no Discovery Contract equivalent (AD-04 — control-plane
+ *       only, no public-browse concept) — this is a plain Domain-scoped
+ *       list via `providerService.listProvidersForProject`.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: List of Providers (never includes decrypted API keys) }
+ */
+adminRouter.get('/providers', projectController.listProviders);
+
 router.use('/:projectId', adminRouter);
 
 export default router;

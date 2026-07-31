@@ -146,6 +146,19 @@ class ProviderService {
   }
 
   /**
+   * Developer Platform (blueprint Phase 11, PR-55): every Provider in a
+   * Project's Domain, for Developer Studio's read-only resource-browsing
+   * tab — a genuinely separate code path from `getUserProviders` above
+   * (which is Persona-only, scoped by `ownerId`, never by Domain).
+   * `context` is a `ProjectAdminContext` (Clerk session, never a machine
+   * credential — Studio never touches a Project's own API key).
+   */
+  async listProvidersForProject(context) {
+    const providers = await providerRepository.findByDomain(context.domain);
+    return providers.map((p) => this._formatProvider(p));
+  }
+
+  /**
    * Deletes a Provider. `context` defaults to `personaExecutionContext(userId)`
    * — zero behavior change for every existing caller.
    */

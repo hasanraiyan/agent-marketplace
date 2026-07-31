@@ -14,6 +14,18 @@ class ProviderRepository {
     return await Provider.find({ ownerId: userId }).sort({ createdAt: -1 });
   }
 
+  /**
+   * Developer Platform (blueprint Phase 11, PR-55): every Provider in a
+   * Domain, regardless of owner type — for Developer Studio's read-only
+   * "browse this Project's resources" tab. Provider has no
+   * `_buildDeveloperDiscoveryFilter`/discovery concept the way Agent/Skill/
+   * Knowledge/Mcp do (AD-04: control-plane-only, no public-browse form),
+   * so this is a plain Domain-scoped list rather than a discovery method.
+   */
+  async findByDomain(domain) {
+    return await Provider.find({ domain }).sort({ createdAt: -1 });
+  }
+
   async update(id, updateData) {
     return await Provider.findByIdAndUpdate(id, updateData, { new: true });
   }

@@ -6,6 +6,7 @@ jest.unstable_mockModule('../src/modules/providers/provider.repository.js', () =
     create: jest.fn(),
     findById: jest.fn(),
     findByUser: jest.fn(),
+    findByDomain: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
     clearDefaultKeys: jest.fn(),
@@ -195,6 +196,20 @@ describe('Provider Service', () => {
       expect(results).toHaveLength(1);
       expect(results[0].id).toBe(mockProvider._id);
       expect(results[0].apiKeyEncrypted).toBeUndefined(); // Should be stripped by mapping
+    });
+  });
+
+  describe('listProvidersForProject (blueprint Phase 11, PR-55)', () => {
+    test('lists every Provider in the context Domain, stripping secrets the same as getUserProviders', async () => {
+      providerRepository.findByDomain.mockResolvedValue([mockProvider]);
+      const context = { domain: 'project-1', principalType: 'ProjectAdmin' };
+
+      const results = await providerService.listProvidersForProject(context);
+
+      expect(providerRepository.findByDomain).toHaveBeenCalledWith('project-1');
+      expect(results).toHaveLength(1);
+      expect(results[0].id).toBe(mockProvider._id);
+      expect(results[0].apiKeyEncrypted).toBeUndefined();
     });
   });
 
