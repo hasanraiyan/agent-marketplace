@@ -1,5 +1,6 @@
 import userRepository from './user.repository.js';
 import userService from './user.service.js';
+import projectService from '../projects/project.service.js';
 import { successFormatter } from '../../utils/formatters/index.js';
 import { loggerService } from '../../utils/index.js';
 import BaseError from '../../utils/errors/BaseError.js';
@@ -64,7 +65,34 @@ export const listUsers = async (req, res, next) => {
   }
 };
 
+/**
+ * Developer Platform (blueprint Phase 10, PR-50, AD-08 §33): Platform
+ * Admin's narrow, explicit, separately-authorized Project enforcement
+ * authority — suspend/restore any Project. Reuses the exact same
+ * `authMiddleware` + `adminMiddleware` chain as every other route in this
+ * file; not a new auth concept.
+ */
+export const suspendProject = async (req, res, next) => {
+  try {
+    const project = await projectService.platformSuspendProject(req.params.projectId);
+    res.json(successFormatter.formatSuccess(project));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const restoreProject = async (req, res, next) => {
+  try {
+    const project = await projectService.platformRestoreProject(req.params.projectId);
+    res.json(successFormatter.formatSuccess(project));
+  } catch (error) {
+    next(error);
+  }
+};
+
 export default {
   deleteUser,
   listUsers,
+  suspendProject,
+  restoreProject,
 };
