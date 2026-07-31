@@ -18,3 +18,22 @@ export const requestProjectDeletion = (projectId) =>
   api.post(`/projects/${projectId}/delete`);
 export const cancelProjectDeletion = (projectId) =>
   api.post(`/projects/${projectId}/cancel-deletion`);
+
+// Members (blueprint Phase 10 — already merged on the backend). v1 adds an
+// existing Persona User by internal id only, no email lookup.
+export const getProjectMembers = (projectId) =>
+  api.get(`/projects/${projectId}/members`);
+export const addProjectMember = (projectId, personaUserId) =>
+  api.post(`/projects/${projectId}/members`, { personaUserId });
+export const removeProjectMember = (projectId, personaUserId) =>
+  api.delete(`/projects/${projectId}/members/${personaUserId}`);
+
+// Credentials (blueprint Phase 10 — already merged on the backend). Minting
+// returns the plaintext secret exactly once (AD-01 §9.2) — never retrievable
+// again after that response.
+export const getProjectCredentials = (projectId) =>
+  api.get(`/projects/${projectId}/credentials`);
+export const mintProjectCredential = (projectId, label) =>
+  api.post(`/projects/${projectId}/credentials`, label ? { label } : {});
+export const revokeProjectCredential = (projectId, credentialId) =>
+  api.delete(`/projects/${projectId}/credentials/${credentialId}`);
