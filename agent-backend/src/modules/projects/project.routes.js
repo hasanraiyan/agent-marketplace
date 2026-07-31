@@ -150,6 +150,54 @@ adminRouter.post('/reactivate', mutateLimiter, projectController.reactivate);
 
 /**
  * @openapi
+ * /api/v1/projects/{projectId}/delete:
+ *   post:
+ *     tags: [Projects]
+ *     summary: Request Project deletion (Admin only, blueprint Phase 10)
+ *     description: >
+ *       Immediately halts credential authentication and runtime execution
+ *       (enforced by existing status-check middleware, same as suspension).
+ *       Starts a grace period during which deletion may still be cancelled
+ *       (AD-08 §28) — actual data cleanup is asynchronous and not performed
+ *       by this endpoint. Valid from ACTIVE or SUSPENDED.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Project deletion requested }
+ *       400: { description: Project is not ACTIVE or SUSPENDED }
+ *       404: { description: Project not found }
+ */
+adminRouter.post('/delete', mutateLimiter, projectController.requestDeletion);
+
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/cancel-deletion:
+ *   post:
+ *     tags: [Projects]
+ *     summary: Cancel a pending Project deletion (Admin only, blueprint Phase 10)
+ *     description: >
+ *       Only valid while the deletion grace period hasn't elapsed. Always
+ *       returns the Project to ACTIVE, regardless of whether it was
+ *       SUSPENDED before the deletion request.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Project deletion cancelled, Project restored to ACTIVE }
+ *       400: { description: Not pending deletion, or the grace period has already elapsed }
+ *       404: { description: Project not found }
+ */
+adminRouter.post('/cancel-deletion', mutateLimiter, projectController.cancelDeletion);
+
+/**
+ * @openapi
  * /api/v1/projects/{projectId}/members:
  *   get:
  *     tags: [Projects]

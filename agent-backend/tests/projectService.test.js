@@ -368,4 +368,107 @@ describe('Project Service', () => {
       expect(projectRepository.updateStatus).not.toHaveBeenCalled();
     });
   });
+
+  describe('requestDeletion (blueprint Phase 10, PR-52)', () => {
+    test('requests deletion from an ACTIVE Project', async () => {
+      projectRepository.findById.mockResolvedValue({ ...mockProject, status: 'ACTIVE' });
+      const deleting = { ...mockProject, status: 'DELETING' };
+      projectRepository.updateStatus.mockResolvedValue(deleting);
+
+      const result = await projectService.requestDeletion(mockProject._id, personaUserId);
+
+      expect(projectRepository.updateStatus).toHaveBeenCalledWith(mockProject._id, 'DELETING', {
+        deletionRequestedAt: expect.any(Date),
+      });
+      expect(result).toEqual(deleting);
+      expect(auditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'project.deletion_requested',
+          actorIdentity: personaUserId,
+          targetDomain: mockProject._id,
+        })
+      );
+    });
+
+    test('requests deletion from a SUSPENDED Project', async () => {
+      projectRepository.findById.mockResolvedValue({ ...mockProject, status: 'SUSPENDED' });
+      projectRepository.updateStatus.mockResolvedValue({ ...mockProject, status: 'DELETING' });
+
+      await projectService.requestDeletion(mockProject._id, personaUserId);
+
+      expect(projectRepository.updateStatus).toHaveBeenCalledWith(
+        mockProject._id,
+        'DELETING',
+        expect.any(Object)
+      );
+    });
+
+    test('rejects requesting deletion of an already-DELETING Project', async () => {
+      projectRepository.findById.mockResolvedValue({ ...mockProject, status: 'DELETING' });
+
+      await expect(projectService.requestDeletion(mockProject._id, personaUserId)).rejects.toThrow(
+        'Only an ACTIVE or SUSPENDED Project can be deleted'
+      );
+      expect(projectRepository.updateStatus).not.toHaveBeenCalled();
+    });
+
+    test('rejects requesting deletion of an already-DELETED Project', async () => {
+      projectRepository.findById.mockResolvedValue({ ...mockProject, status: 'DELETED' });
+
+      await expect(projectService.requestDeletion(mockProject._id, personaUserId)).rejects.toThrow(
+        'Only an ACTIVE or SUSPENDED Project can be deleted'
+      );
+    });
+  });
+
+  describe('cancelDeletion (blueprint Phase 10, PR-52)', () => {
+    test('cancels within the grace period, returning the Project to ACTIVE', async () => {
+      projectRepository.findById.mockResolvedValue({
+        ...mockProject,
+        status: 'DELETING',
+        deletionRequestedAt: new Date(), // just now — well within the 7-day default
+      });
+      const reactivated = { ...mockProject, status: 'ACTIVE' };
+      projectRepository.updateStatus.mockResolvedValue(reactivated);
+
+      const result = await projectService.cancelDeletion(mockProject._id, personaUserId);
+
+      expect(projectRepository.updateStatus).toHaveBeenCalledWith(mockProject._id, 'ACTIVE', {
+        deletionRequestedAt: null,
+        suspendedAt: null,
+        suspendedByAuthority: null,
+        suspendedByPersonaUserId: null,
+      });
+      expect(result).toEqual(reactivated);
+      expect(auditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'project.deletion_cancelled',
+          actorIdentity: personaUserId,
+        })
+      );
+    });
+
+    test('rejects cancelling a Project that is not DELETING', async () => {
+      projectRepository.findById.mockResolvedValue({ ...mockProject, status: 'ACTIVE' });
+
+      await expect(projectService.cancelDeletion(mockProject._id, personaUserId)).rejects.toThrow(
+        'Only a Project pending deletion can have its deletion cancelled'
+      );
+      expect(projectRepository.updateStatus).not.toHaveBeenCalled();
+    });
+
+    test('rejects cancelling once the grace period has elapsed', async () => {
+      const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+      projectRepository.findById.mockResolvedValue({
+        ...mockProject,
+        status: 'DELETING',
+        deletionRequestedAt: eightDaysAgo,
+      });
+
+      await expect(projectService.cancelDeletion(mockProject._id, personaUserId)).rejects.toThrow(
+        'grace period has already elapsed'
+      );
+      expect(projectRepository.updateStatus).not.toHaveBeenCalled();
+    });
+  });
 });

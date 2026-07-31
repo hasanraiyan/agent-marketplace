@@ -78,6 +78,32 @@ class ProjectController {
     }
   }
 
+  async requestDeletion(req, res, next) {
+    try {
+      const project = await projectService.requestDeletion(
+        req.projectAdminContext.domain,
+        req.projectAdminContext.personaUserId
+      );
+
+      res.json({ success: true, data: project });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async cancelDeletion(req, res, next) {
+    try {
+      const project = await projectService.cancelDeletion(
+        req.projectAdminContext.domain,
+        req.projectAdminContext.personaUserId
+      );
+
+      res.json({ success: true, data: project });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async listMembers(req, res, next) {
     try {
       const members = await projectMembershipService.listMembers(req.projectAdminContext.domain);

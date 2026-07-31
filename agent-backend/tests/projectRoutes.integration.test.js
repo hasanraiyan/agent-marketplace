@@ -32,6 +32,8 @@ jest.unstable_mockModule('../src/modules/projects/project.service.js', () => ({
     updateMetadata: jest.fn(),
     suspendProject: jest.fn(),
     reactivateProject: jest.fn(),
+    requestDeletion: jest.fn(),
+    cancelDeletion: jest.fn(),
   },
 }));
 
@@ -123,6 +125,46 @@ describe('project.routes.js — nested :projectId param propagation', () => {
     expect(reactivateRes.status).toBe(404);
     expect(projectService.suspendProject).not.toHaveBeenCalled();
     expect(projectService.reactivateProject).not.toHaveBeenCalled();
+  });
+
+  test('POST /:projectId/delete reaches the controller with the correct project id (blueprint Phase 10, PR-52)', async () => {
+    projectMembershipRepository.findByProjectAndUser.mockResolvedValue({
+      project: 'project_abc',
+      personaUserId: 'user_123',
+      role: 'Admin',
+    });
+    projectService.requestDeletion.mockResolvedValue({ _id: 'project_abc', status: 'DELETING' });
+
+    const res = await request(app).post('/api/v1/projects/project_abc/delete');
+
+    expect(res.status).toBe(200);
+    expect(projectService.requestDeletion).toHaveBeenCalledWith('project_abc', 'user_123');
+  });
+
+  test('POST /:projectId/cancel-deletion reaches the controller with the correct project id (blueprint Phase 10, PR-52)', async () => {
+    projectMembershipRepository.findByProjectAndUser.mockResolvedValue({
+      project: 'project_abc',
+      personaUserId: 'user_123',
+      role: 'Admin',
+    });
+    projectService.cancelDeletion.mockResolvedValue({ _id: 'project_abc', status: 'ACTIVE' });
+
+    const res = await request(app).post('/api/v1/projects/project_abc/cancel-deletion');
+
+    expect(res.status).toBe(200);
+    expect(projectService.cancelDeletion).toHaveBeenCalledWith('project_abc', 'user_123');
+  });
+
+  test('delete/cancel-deletion 404 when the caller has no membership for that Project', async () => {
+    projectMembershipRepository.findByProjectAndUser.mockResolvedValue(null);
+
+    const deleteRes = await request(app).post('/api/v1/projects/not-my-project/delete');
+    const cancelRes = await request(app).post('/api/v1/projects/not-my-project/cancel-deletion');
+
+    expect(deleteRes.status).toBe(404);
+    expect(cancelRes.status).toBe(404);
+    expect(projectService.requestDeletion).not.toHaveBeenCalled();
+    expect(projectService.cancelDeletion).not.toHaveBeenCalled();
   });
 
   test('GET / (list mine) does not require projectAdminAuthMiddleware at all', async () => {

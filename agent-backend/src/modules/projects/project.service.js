@@ -5,6 +5,7 @@ import { PROJECT_STATUS, SUSPENSION_AUTHORITY } from './project.model.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
 import ValidationError from '../../utils/errors/ValidationError.js';
 import auditLogService from '../audit/auditLog.service.js';
+import config from '../../config/index.js';
 
 class ProjectService {
   /**
@@ -225,6 +226,75 @@ class ProjectService {
     await auditLogService.record({
       eventType: 'project.platform_restored',
       actorContextType: 'PlatformAdmin',
+      actorIdentity: actorPersonaUserId,
+      targetDomain: projectId,
+    });
+
+    return updated;
+  }
+
+  /**
+   * Developer Platform (blueprint Phase 10, PR-52, AD-08 §28): requests
+   * Project deletion — valid from `ACTIVE` or `SUSPENDED`. Immediately
+   * transitions to `DELETING`, which `developerMachineAuthMiddleware`
+   * already rejects the same as any non-ACTIVE status — the "immediate
+   * halt" requirement needs no new enforcement code, same as suspension.
+   * Async, cross-storage-type cleanup and the terminal `DELETED` state are
+   * NOT built by this method (PR-53) — this only starts the grace period.
+   */
+  async requestDeletion(projectId, actorPersonaUserId) {
+    const project = await this.getProjectById(projectId);
+    if (project.status !== PROJECT_STATUS.ACTIVE && project.status !== PROJECT_STATUS.SUSPENDED) {
+      throw new ValidationError('Only an ACTIVE or SUSPENDED Project can be deleted');
+    }
+
+    const updated = await projectRepository.updateStatus(projectId, PROJECT_STATUS.DELETING, {
+      deletionRequestedAt: new Date(),
+    });
+
+    await auditLogService.record({
+      eventType: 'project.deletion_requested',
+      actorContextType: 'ProjectAdmin',
+      actorIdentity: actorPersonaUserId,
+      targetDomain: projectId,
+    });
+
+    return updated;
+  }
+
+  /**
+   * Developer Platform (blueprint Phase 10, PR-52, AD-08 §28): cancels a
+   * pending deletion, returning the Project to `ACTIVE` — only while the
+   * grace period hasn't elapsed. Deliberately always lands on `ACTIVE`
+   * regardless of whether the Project was `SUSPENDED` before the deletion
+   * request, rather than restoring the prior suspended state — a simpler
+   * v1 behavior than tracking a second "status before DELETING" field for
+   * a narrow edge case.
+   */
+  async cancelDeletion(projectId, actorPersonaUserId) {
+    const project = await this.getProjectById(projectId);
+    if (project.status !== PROJECT_STATUS.DELETING) {
+      throw new ValidationError('Only a Project pending deletion can have its deletion cancelled');
+    }
+
+    const gracePeriodMs = config.projects.deletionGracePeriodDays * 24 * 60 * 60 * 1000;
+    const elapsedMs = Date.now() - new Date(project.deletionRequestedAt).getTime();
+    if (elapsedMs > gracePeriodMs) {
+      throw new ValidationError(
+        "This Project's deletion grace period has already elapsed — it can no longer be cancelled"
+      );
+    }
+
+    const updated = await projectRepository.updateStatus(projectId, PROJECT_STATUS.ACTIVE, {
+      deletionRequestedAt: null,
+      suspendedAt: null,
+      suspendedByAuthority: null,
+      suspendedByPersonaUserId: null,
+    });
+
+    await auditLogService.record({
+      eventType: 'project.deletion_cancelled',
+      actorContextType: 'ProjectAdmin',
       actorIdentity: actorPersonaUserId,
       targetDomain: projectId,
     });
