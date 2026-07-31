@@ -16,6 +16,7 @@ import {
   UserPlus,
   KeyRound,
   Copy,
+  Plus,
 } from "lucide-react";
 import {
   getProject,
@@ -35,6 +36,7 @@ import {
   getProjectKnowledge,
   getProjectMcps,
   getProjectProviders,
+  deleteProjectProvider,
 } from "@/lib/api/projects";
 import { developerRoutes } from "@/lib/developer-routes";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
@@ -200,6 +202,8 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   const [mcpsLoading, setMcpsLoading] = useState(true);
   const [providers, setProviders] = useState([]);
   const [providersLoading, setProvidersLoading] = useState(true);
+  const [deleteProviderTarget, setDeleteProviderTarget] = useState(null);
+  const [deletingProvider, setDeletingProvider] = useState(false);
 
   useDashboardHeader(
     {
@@ -524,6 +528,23 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
     if (!mintedSecret) return;
     navigator.clipboard.writeText(mintedSecret.secret);
     toast.success("Copied to clipboard");
+  };
+
+  const handleDeleteProvider = async () => {
+    if (!deleteProviderTarget) return;
+    setDeletingProvider(true);
+    try {
+      await deleteProjectProvider(projectId, deleteProviderTarget.id);
+      setProviders((prev) =>
+        prev.filter((p) => p.id !== deleteProviderTarget.id),
+      );
+      toast.success("Provider deleted.");
+      setDeleteProviderTarget(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete Provider.");
+    } finally {
+      setDeletingProvider(false);
+    }
   };
 
   if (loading) {
@@ -948,12 +969,19 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
 
         <TabsContent value="providers" className="mt-6">
           <Card className="max-w-2xl">
-            <CardHeader>
-              <CardTitle>Providers</CardTitle>
-              <CardDescription>
-                AI providers this Project owns — read-only. Creating and editing
-                Providers stays an SDK/API-key operation.
-              </CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div>
+                <CardTitle>Providers</CardTitle>
+                <CardDescription>
+                  AI providers this Project owns.
+                </CardDescription>
+              </div>
+              <Link href={developerRoutes.projectProviderNew(projectId)}>
+                <Button size="sm">
+                  <Plus className="mr-1.5 size-3.5" />
+                  New Provider
+                </Button>
+              </Link>
             </CardHeader>
             <CardContent>
               {providersLoading ? (
@@ -973,6 +1001,7 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                       <TableHead className="hidden md:table-cell">
                         Created
                       </TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -989,6 +1018,28 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                           {p.createdAt
                             ? new Date(p.createdAt).toLocaleDateString()
                             : "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Link
+                              href={developerRoutes.projectProviderEdit(
+                                projectId,
+                                p.id,
+                              )}
+                            >
+                              <Button variant="ghost" size="sm">
+                                Edit
+                              </Button>
+                            </Link>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setDeleteProviderTarget(p)}
+                            >
+                              Delete
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1408,6 +1459,42 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 "Revoke"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete provider */}
+      <AlertDialog
+        open={!!deleteProviderTarget}
+        onOpenChange={(open) => !open && setDeleteProviderTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this Provider?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteProviderTarget?.label} will be permanently deleted. Any
+              Agents still using it will need a new Provider assigned. This
+              cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingProvider}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteProvider();
+              }}
+              disabled={deletingProvider}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingProvider ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                "Delete"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
