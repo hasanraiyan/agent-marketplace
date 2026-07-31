@@ -104,6 +104,15 @@ class AgentRepository {
     return await Agent.deleteMany({ ownerId });
   }
 
+  /**
+   * Developer Platform (blueprint Phase 10, PR-53, AD-08 §29): Domain-scoped
+   * bulk delete for a Project's async deletion cascade — every Agent in the
+   * Domain, regardless of owner type, unlike `deleteManyByOwner` above.
+   */
+  async deleteManyByDomain(domain) {
+    return await Agent.deleteMany({ domain });
+  }
+
   async findAgentsUsingMcp(mcpId, projection = null) {
     let query = Agent.find({ mcps: mcpId });
     if (projection) {

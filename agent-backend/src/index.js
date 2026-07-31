@@ -32,6 +32,10 @@ import config from './config/index.js';
 import database from './config/database.js';
 import { loggerService } from './utils/index.js';
 import { startAllCronJobs, stopAllCronJobs } from './modules/cron/index.js';
+import { startAgenda, stopAgenda } from './modules/jobs/agenda.js';
+// Imported for its side effect: registers the cleanup-deleted-project job
+// definition on the shared Agenda instance before agenda.start() runs.
+import './modules/jobs/cleanupDeletedProject.job.js';
 
 import { clerkMiddleware } from '@clerk/express';
 
@@ -138,17 +142,23 @@ async function startServer() {
     // Start cron jobs
     startAllCronJobs();
 
+    // Start the Agenda job queue (blueprint Phase 10, PR-53) — the durable
+    // executor `discoverExpiredDeletions` enqueues into.
+    if (!isTest) {
+      await startAgenda();
+    }
+
     // Handle process termination (skip in test to avoid open handles)
     if (!isTest) {
       process.on('SIGINT', () => {
         logger.info('SIGINT received, shutting down gracefully...');
         stopAllCronJobs();
-        database.closeConnection().then(() => process.exit(0));
+        stopAgenda().finally(() => database.closeConnection().then(() => process.exit(0)));
       });
       process.on('SIGTERM', () => {
         logger.info('SIGTERM received, shutting down gracefully...');
         stopAllCronJobs();
-        database.closeConnection().then(() => process.exit(0));
+        stopAgenda().finally(() => database.closeConnection().then(() => process.exit(0)));
       });
     }
 

@@ -18,6 +18,19 @@ class FileRepository {
   async deleteById(id) {
     return await DeveloperFile.findByIdAndDelete(id);
   }
+
+  /**
+   * Developer Platform (blueprint Phase 10, PR-53, AD-08 §29): unpaginated
+   * — every DeveloperFile in a Domain, for the Project deletion cascade
+   * (which needs every `storageKey` to unlink from disk, not a page).
+   */
+  async findByDomain(domain) {
+    return await DeveloperFile.find({ domain });
+  }
+
+  async deleteMany(filter) {
+    return await DeveloperFile.deleteMany(filter);
+  }
 }
 
 export default new FileRepository();

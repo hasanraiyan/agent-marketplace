@@ -104,4 +104,15 @@ describe('Agent Repository', () => {
       expect(count).toBe(42);
     });
   });
+
+  describe('deleteManyByDomain (blueprint Phase 10, PR-53)', () => {
+    test('deletes every Agent in a Domain regardless of owner type', async () => {
+      jest.spyOn(Agent, 'deleteMany').mockResolvedValue({ deletedCount: 3 });
+
+      const result = await agentRepository.deleteManyByDomain('project-1');
+
+      expect(Agent.deleteMany).toHaveBeenCalledWith({ domain: 'project-1' });
+      expect(result.deletedCount).toBe(3);
+    });
+  });
 });

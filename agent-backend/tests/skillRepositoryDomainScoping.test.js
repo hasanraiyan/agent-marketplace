@@ -75,4 +75,15 @@ describe('Skill Repository — Domain scoping for public/marketplace search', ()
       expect(calledFilter.isPublic).toBeUndefined();
     });
   });
+
+  describe('deleteManyByDomain (blueprint Phase 10, PR-53)', () => {
+    test('deletes every Skill in a Domain regardless of owner type', async () => {
+      const deleteManySpy = jest.spyOn(Skill, 'deleteMany').mockResolvedValue({ deletedCount: 4 });
+
+      const result = await skillRepository.deleteManyByDomain('project-1');
+
+      expect(deleteManySpy).toHaveBeenCalledWith({ domain: 'project-1' });
+      expect(result.deletedCount).toBe(4);
+    });
+  });
 });

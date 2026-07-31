@@ -34,6 +34,8 @@ jest.unstable_mockModule('../src/modules/knowledge/knowledge.repository.js', () 
     deleteChunksBySource: jest.fn(),
     searchKbs: jest.fn(),
     countKbs: jest.fn(),
+    findKbsByDomain: jest.fn(),
+    deleteMany: jest.fn(),
   },
 }));
 
@@ -396,6 +398,37 @@ describe('Knowledge Service', () => {
         knowledgeService.deleteKnowledgeBase(mockKbId, 'irrelevant', context)
       ).rejects.toThrow('Not authorized to delete this knowledge base');
       expect(knowledgeRepository.deleteKb).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteAllByDomain (blueprint Phase 10, PR-53)', () => {
+    test('deletes every KB in a Domain — chunks + Qdrant collection per KB, then bulk-deletes the KB docs, no ownership check', async () => {
+      const kbA = { ...mockKb, _id: 'kb_a', qdrantCollectionName: 'kb_a_coll' };
+      const kbB = { ...mockKb, _id: 'kb_b', qdrantCollectionName: 'kb_b_coll' };
+      knowledgeRepository.findKbsByDomain.mockResolvedValue([kbA, kbB]);
+      knowledgeRepository.deleteChunksByKbId.mockResolvedValue({});
+      knowledgeRepository.deleteMany.mockResolvedValue({ deletedCount: 2 });
+
+      const result = await knowledgeService.deleteAllByDomain('project-1');
+
+      expect(knowledgeRepository.findKbsByDomain).toHaveBeenCalledWith('project-1');
+      expect(knowledgeRepository.deleteChunksByKbId).toHaveBeenCalledWith('kb_a');
+      expect(knowledgeRepository.deleteChunksByKbId).toHaveBeenCalledWith('kb_b');
+      expect(mockDeleteCollection).toHaveBeenCalledWith('kb_a_coll');
+      expect(mockDeleteCollection).toHaveBeenCalledWith('kb_b_coll');
+      expect(knowledgeRepository.deleteMany).toHaveBeenCalledWith({ domain: 'project-1' });
+      expect(result).toBe(2);
+    });
+
+    test('returns 0 and does nothing further when the Domain has no Knowledge Bases', async () => {
+      knowledgeRepository.findKbsByDomain.mockResolvedValue([]);
+      knowledgeRepository.deleteMany.mockResolvedValue({ deletedCount: 0 });
+
+      const result = await knowledgeService.deleteAllByDomain('empty-project');
+
+      expect(knowledgeRepository.deleteChunksByKbId).not.toHaveBeenCalled();
+      expect(mockDeleteCollection).not.toHaveBeenCalled();
+      expect(result).toBe(0);
     });
   });
 

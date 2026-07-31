@@ -372,6 +372,25 @@ class KnowledgeService {
   }
 
   /**
+   * Developer Platform (blueprint Phase 10, PR-53, AD-08 §29): the Project
+   * deletion cascade's Knowledge step — every KnowledgeBase in a Domain,
+   * regardless of owner, unlike `deleteKnowledgeBase` above (which is
+   * Subject/owner-scoped and not appropriate for a full Domain purge).
+   * Reuses the same per-KB chunk + Qdrant-collection deletion logic that
+   * method already has, just without the ownership check and looped across
+   * every KB in the Domain instead of a single one.
+   */
+  async deleteAllByDomain(domain) {
+    const kbs = await knowledgeRepository.findKbsByDomain(domain);
+    for (const kb of kbs) {
+      await knowledgeRepository.deleteChunksByKbId(kb._id);
+      await this._deleteQdrantCollection(kb.qdrantCollectionName);
+    }
+    await knowledgeRepository.deleteMany({ domain });
+    return kbs.length;
+  }
+
+  /**
    * Uploads files to a knowledge base — extracts text, chunks, embeds, indexes.
    * Supports multiple files in a single call.
    */
