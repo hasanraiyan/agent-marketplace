@@ -2,6 +2,7 @@ import projectMembershipRepository from './projectMembership.repository.js';
 import { MEMBERSHIP_ROLE } from './projectMembership.model.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
 import ValidationError from '../../utils/errors/ValidationError.js';
+import auditLogService from '../audit/auditLog.service.js';
 
 class ProjectMembershipService {
   /**
@@ -11,8 +12,23 @@ class ProjectMembershipService {
    * pending-invitation workflow for users without an account yet is
    * explicitly deferred (AD-08 §11).
    */
-  async addMember(projectId, personaUserId, role = MEMBERSHIP_ROLE.ADMIN) {
-    return await projectMembershipRepository.create({ project: projectId, personaUserId, role });
+  async addMember(projectId, personaUserId, role = MEMBERSHIP_ROLE.ADMIN, actorPersonaUserId) {
+    const membership = await projectMembershipRepository.create({
+      project: projectId,
+      personaUserId,
+      role,
+    });
+
+    await auditLogService.record({
+      eventType: 'membership.added',
+      actorContextType: 'ProjectAdmin',
+      actorIdentity: actorPersonaUserId,
+      targetDomain: projectId,
+      targetResourceId: personaUserId,
+      metadata: { role },
+    });
+
+    return membership;
   }
 
   /**
@@ -40,7 +56,7 @@ class ProjectMembershipService {
    * deferred rather than blocking this endpoint — revisit if concurrent
    * membership management ever becomes a real usage pattern.
    */
-  async removeMember(projectId, personaUserId) {
+  async removeMember(projectId, personaUserId, actorPersonaUserId) {
     const membership = await projectMembershipRepository.findByProjectAndUser(
       projectId,
       personaUserId
@@ -62,6 +78,16 @@ class ProjectMembershipService {
     }
 
     await projectMembershipRepository.delete(projectId, personaUserId);
+
+    await auditLogService.record({
+      eventType: 'membership.removed',
+      actorContextType: 'ProjectAdmin',
+      actorIdentity: actorPersonaUserId,
+      targetDomain: projectId,
+      targetResourceId: personaUserId,
+      metadata: { role: membership.role },
+    });
+
     return membership;
   }
 

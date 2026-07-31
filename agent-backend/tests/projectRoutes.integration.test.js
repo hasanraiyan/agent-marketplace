@@ -110,7 +110,7 @@ describe('project.routes.js — nested :projectId param propagation', () => {
     const res = await request(app).post('/api/v1/projects/project_abc/reactivate');
 
     expect(res.status).toBe(200);
-    expect(projectService.reactivateProject).toHaveBeenCalledWith('project_abc');
+    expect(projectService.reactivateProject).toHaveBeenCalledWith('project_abc', 'user_123');
   });
 
   test('suspend/reactivate 404 when the caller has no membership for that Project', async () => {

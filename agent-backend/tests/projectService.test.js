@@ -23,10 +23,15 @@ jest.unstable_mockModule('../src/modules/projects/projectMembership.repository.j
   },
 }));
 
+jest.unstable_mockModule('../src/modules/audit/auditLog.service.js', () => ({
+  default: { record: jest.fn() },
+}));
+
 const projectRepository = (await import('../src/modules/projects/project.repository.js')).default;
 const projectMembershipRepository = (
   await import('../src/modules/projects/projectMembership.repository.js')
 ).default;
+const auditLogService = (await import('../src/modules/audit/auditLog.service.js')).default;
 const projectService = (await import('../src/modules/projects/project.service.js')).default;
 
 describe('Project Service', () => {
@@ -66,6 +71,14 @@ describe('Project Service', () => {
         role: 'Admin',
       });
       expect(result).toEqual(mockProject);
+      expect(auditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'project.created',
+          actorContextType: 'PersonaUser',
+          actorIdentity: personaUserId,
+          targetDomain: mockProject._id,
+        })
+      );
     });
 
     test('never accepts a caller-supplied createdBy — it always comes from personaContext.personaUserId', async () => {
@@ -166,14 +179,26 @@ describe('Project Service', () => {
     test('returns the updated Project', async () => {
       const updated = { ...mockProject, name: 'New Name' };
       projectRepository.updateMetadata.mockResolvedValue(updated);
-      const result = await projectService.updateMetadata(mockProject._id, { name: 'New Name' });
+      const result = await projectService.updateMetadata(
+        mockProject._id,
+        { name: 'New Name' },
+        personaUserId
+      );
       expect(result).toEqual(updated);
+      expect(auditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'project.metadata_updated',
+          actorContextType: 'ProjectAdmin',
+          actorIdentity: personaUserId,
+          targetDomain: mockProject._id,
+        })
+      );
     });
 
     test('throws NotFoundError when the Project does not exist', async () => {
       projectRepository.updateMetadata.mockResolvedValue(null);
       await expect(
-        projectService.updateMetadata('missing-id', { name: 'New Name' })
+        projectService.updateMetadata('missing-id', { name: 'New Name' }, personaUserId)
       ).rejects.toThrow('Project not found');
     });
   });
@@ -192,6 +217,9 @@ describe('Project Service', () => {
         suspendedByPersonaUserId: personaUserId,
       });
       expect(result).toEqual(suspended);
+      expect(auditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({ eventType: 'project.suspended', actorIdentity: personaUserId })
+      );
     });
 
     test('rejects suspending a non-ACTIVE Project', async () => {
@@ -222,7 +250,7 @@ describe('Project Service', () => {
       const reactivated = { ...mockProject, status: 'ACTIVE' };
       projectRepository.updateStatus.mockResolvedValue(reactivated);
 
-      const result = await projectService.reactivateProject(mockProject._id);
+      const result = await projectService.reactivateProject(mockProject._id, personaUserId);
 
       expect(projectRepository.updateStatus).toHaveBeenCalledWith(mockProject._id, 'ACTIVE', {
         suspendedAt: null,
@@ -230,6 +258,9 @@ describe('Project Service', () => {
         suspendedByPersonaUserId: null,
       });
       expect(result).toEqual(reactivated);
+      expect(auditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({ eventType: 'project.reactivated', actorIdentity: personaUserId })
+      );
     });
 
     test('rejects reactivating a Project that is not SUSPENDED', async () => {
@@ -261,7 +292,7 @@ describe('Project Service', () => {
       const suspended = { ...mockProject, status: 'SUSPENDED' };
       projectRepository.updateStatus.mockResolvedValue(suspended);
 
-      const result = await projectService.platformSuspendProject(mockProject._id);
+      const result = await projectService.platformSuspendProject(mockProject._id, personaUserId);
 
       expect(projectRepository.updateStatus).toHaveBeenCalledWith(mockProject._id, 'SUSPENDED', {
         suspendedAt: expect.any(Date),
@@ -269,6 +300,13 @@ describe('Project Service', () => {
         suspendedByPersonaUserId: null,
       });
       expect(result).toEqual(suspended);
+      expect(auditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'project.platform_suspended',
+          actorContextType: 'PlatformAdmin',
+          actorIdentity: personaUserId,
+        })
+      );
     });
 
     test('rejects suspending a non-ACTIVE Project', async () => {
@@ -291,7 +329,7 @@ describe('Project Service', () => {
       const restored = { ...mockProject, status: 'ACTIVE' };
       projectRepository.updateStatus.mockResolvedValue(restored);
 
-      const result = await projectService.platformRestoreProject(mockProject._id);
+      const result = await projectService.platformRestoreProject(mockProject._id, personaUserId);
 
       expect(projectRepository.updateStatus).toHaveBeenCalledWith(mockProject._id, 'ACTIVE', {
         suspendedAt: null,
@@ -299,6 +337,13 @@ describe('Project Service', () => {
         suspendedByPersonaUserId: null,
       });
       expect(result).toEqual(restored);
+      expect(auditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'project.platform_restored',
+          actorContextType: 'PlatformAdmin',
+          actorIdentity: personaUserId,
+        })
+      );
     });
 
     test('rejects restoring a Project that is not SUSPENDED', async () => {

@@ -262,7 +262,10 @@ describe('Admin Controller', () => {
       const { suspendProject } = await import('../src/modules/users/admin.controller.js');
       await suspendProject(req, res, next);
 
-      expect(mockPlatformSuspendProject).toHaveBeenCalledWith('project_1');
+      expect(mockPlatformSuspendProject).toHaveBeenCalledWith(
+        'project_1',
+        '507f1f77bcf86cd799439000'
+      );
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
           success: true,
@@ -290,7 +293,10 @@ describe('Admin Controller', () => {
       const { restoreProject } = await import('../src/modules/users/admin.controller.js');
       await restoreProject(req, res, next);
 
-      expect(mockPlatformRestoreProject).toHaveBeenCalledWith('project_1');
+      expect(mockPlatformRestoreProject).toHaveBeenCalledWith(
+        'project_1',
+        '507f1f77bcf86cd799439000'
+      );
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
           success: true,

@@ -74,7 +74,10 @@ export const listUsers = async (req, res, next) => {
  */
 export const suspendProject = async (req, res, next) => {
   try {
-    const project = await projectService.platformSuspendProject(req.params.projectId);
+    const project = await projectService.platformSuspendProject(
+      req.params.projectId,
+      req.user.id ?? req.user._id
+    );
     res.json(successFormatter.formatSuccess(project));
   } catch (error) {
     next(error);
@@ -83,7 +86,10 @@ export const suspendProject = async (req, res, next) => {
 
 export const restoreProject = async (req, res, next) => {
   try {
-    const project = await projectService.platformRestoreProject(req.params.projectId);
+    const project = await projectService.platformRestoreProject(
+      req.params.projectId,
+      req.user.id ?? req.user._id
+    );
     res.json(successFormatter.formatSuccess(project));
   } catch (error) {
     next(error);

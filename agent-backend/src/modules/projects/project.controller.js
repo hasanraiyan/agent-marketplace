@@ -40,7 +40,11 @@ class ProjectController {
 
   async updateMetadata(req, res, next) {
     try {
-      const project = await projectService.updateMetadata(req.projectAdminContext.domain, req.body);
+      const project = await projectService.updateMetadata(
+        req.projectAdminContext.domain,
+        req.body,
+        req.projectAdminContext.personaUserId
+      );
 
       res.json({ success: true, data: project });
     } catch (error) {
@@ -63,7 +67,10 @@ class ProjectController {
 
   async reactivate(req, res, next) {
     try {
-      const project = await projectService.reactivateProject(req.projectAdminContext.domain);
+      const project = await projectService.reactivateProject(
+        req.projectAdminContext.domain,
+        req.projectAdminContext.personaUserId
+      );
 
       res.json({ success: true, data: project });
     } catch (error) {
@@ -94,7 +101,9 @@ class ProjectController {
 
       const membership = await projectMembershipService.addMember(
         req.projectAdminContext.domain,
-        personaUserId
+        personaUserId,
+        undefined,
+        req.projectAdminContext.personaUserId
       );
 
       res.status(201).json({ success: true, data: membership });
@@ -107,7 +116,8 @@ class ProjectController {
     try {
       const membership = await projectMembershipService.removeMember(
         req.projectAdminContext.domain,
-        req.params.personaUserId
+        req.params.personaUserId,
+        req.projectAdminContext.personaUserId
       );
 
       res.json({ success: true, data: membership });

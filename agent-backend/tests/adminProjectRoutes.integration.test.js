@@ -58,7 +58,7 @@ describe('admin.routes.js — Project suspend/restore (blueprint Phase 10, PR-50
     const res = await request(app).post('/api/v1/admin/projects/project_1/suspend');
 
     expect(res.status).toBe(200);
-    expect(projectService.platformSuspendProject).toHaveBeenCalledWith('project_1');
+    expect(projectService.platformSuspendProject).toHaveBeenCalledWith('project_1', 'user_123');
   });
 
   test('POST /projects/:projectId/restore reaches the controller for an admin', async () => {
@@ -67,7 +67,7 @@ describe('admin.routes.js — Project suspend/restore (blueprint Phase 10, PR-50
     const res = await request(app).post('/api/v1/admin/projects/project_1/restore');
 
     expect(res.status).toBe(200);
-    expect(projectService.platformRestoreProject).toHaveBeenCalledWith('project_1');
+    expect(projectService.platformRestoreProject).toHaveBeenCalledWith('project_1', 'user_123');
   });
 
   test('403s for a non-admin caller, never reaching the service', async () => {
