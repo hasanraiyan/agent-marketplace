@@ -119,3 +119,15 @@ export const getProjectMcpOwnerAuthorizeUrl = (projectId, mcpId) =>
   api.get(`/projects/${projectId}/mcps/${mcpId}/oauth/owner/authorize`);
 export const disconnectProjectMcpOwnerConnection = (projectId, mcpId) =>
   api.delete(`/projects/${projectId}/mcps/${mcpId}/oauth/owner/connection`);
+
+// Agent full CRUD — structured form only (blueprint Phase 11.5, PR-61 —
+// already merged on the backend). No single-item GET route — same
+// find-by-id-from-list convention as the other resource types above. The
+// Project Agent Architect co-pilot (PR-62 backend, PR-68 frontend) is a
+// separate, additive way to build an Agent — not required to use this form.
+export const createProjectAgent = (projectId, data) =>
+  api.post(`/projects/${projectId}/agents`, data);
+export const updateProjectAgent = (projectId, agentId, data) =>
+  api.patch(`/projects/${projectId}/agents/${agentId}`, data);
+export const deleteProjectAgent = (projectId, agentId) =>
+  api.delete(`/projects/${projectId}/agents/${agentId}`);
