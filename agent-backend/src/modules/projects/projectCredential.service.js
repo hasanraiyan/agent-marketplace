@@ -2,6 +2,7 @@ import projectCredentialRepository from './projectCredential.repository.js';
 import credentialSecret from '../../utils/credentialSecret.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
 import ValidationError from '../../utils/errors/ValidationError.js';
+import auditLogService from '../audit/auditLog.service.js';
 
 /**
  * ProjectCredential service — AD-01 (key-ID + hashed-secret lifecycle) and
@@ -63,6 +64,15 @@ class ProjectCredentialService {
       createdBy: adminContext.personaUserId,
     });
 
+    await auditLogService.record({
+      eventType: 'credential.created',
+      actorContextType: 'ProjectAdmin',
+      actorIdentity: adminContext.personaUserId,
+      targetDomain: adminContext.domain,
+      targetResourceId: credential._id,
+      metadata: { keyId, label: label || '' },
+    });
+
     return {
       ...this._formatCredential(credential),
       secret, // shown once — the only response that will ever include it
@@ -108,6 +118,16 @@ class ProjectCredentialService {
       // revocation is idempotent from the caller's point of view.
       return this._formatCredential(existing);
     }
+
+    await auditLogService.record({
+      eventType: 'credential.revoked',
+      actorContextType: context.principalType,
+      // A self-revoking ProjectMachineContext has no personaUserId — its
+      // own credentialId IS the actor identity in that case.
+      actorIdentity: isAdmin ? context.personaUserId : context.credentialId,
+      targetDomain: context.domain,
+      targetResourceId: credentialId,
+    });
 
     return this._formatCredential(revoked);
   }

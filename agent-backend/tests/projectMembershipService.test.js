@@ -10,9 +10,14 @@ jest.unstable_mockModule('../src/modules/projects/projectMembership.repository.j
   },
 }));
 
+jest.unstable_mockModule('../src/modules/audit/auditLog.service.js', () => ({
+  default: { record: jest.fn() },
+}));
+
 const projectMembershipRepository = (
   await import('../src/modules/projects/projectMembership.repository.js')
 ).default;
+const auditLogService = (await import('../src/modules/audit/auditLog.service.js')).default;
 const projectMembershipService = (
   await import('../src/modules/projects/projectMembership.service.js')
 ).default;
@@ -34,13 +39,21 @@ describe('ProjectMembership Service', () => {
         role: 'Admin',
       });
 
-      await projectMembershipService.addMember(projectId, raiyanId);
+      await projectMembershipService.addMember(projectId, raiyanId, undefined, sabikId);
 
       expect(projectMembershipRepository.create).toHaveBeenCalledWith({
         project: projectId,
         personaUserId: raiyanId,
         role: 'Admin',
       });
+      expect(auditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'membership.added',
+          actorIdentity: sabikId,
+          targetDomain: projectId,
+          targetResourceId: raiyanId,
+        })
+      );
     });
   });
 
@@ -72,10 +85,18 @@ describe('ProjectMembership Service', () => {
         role: 'Admin',
       });
 
-      const result = await projectMembershipService.removeMember(projectId, raiyanId);
+      const result = await projectMembershipService.removeMember(projectId, raiyanId, sabikId);
 
       expect(projectMembershipRepository.delete).toHaveBeenCalledWith(projectId, raiyanId);
       expect(result.personaUserId).toBe(raiyanId);
+      expect(auditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'membership.removed',
+          actorIdentity: sabikId,
+          targetDomain: projectId,
+          targetResourceId: raiyanId,
+        })
+      );
     });
 
     test('skips the admin-count check entirely when the target membership is not an Admin', async () => {

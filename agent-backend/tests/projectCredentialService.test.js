@@ -21,10 +21,15 @@ jest.unstable_mockModule('../src/utils/credentialSecret.js', () => ({
   },
 }));
 
+jest.unstable_mockModule('../src/modules/audit/auditLog.service.js', () => ({
+  default: { record: jest.fn() },
+}));
+
 const projectCredentialRepository = (
   await import('../src/modules/projects/projectCredential.repository.js')
 ).default;
 const credentialSecret = (await import('../src/utils/credentialSecret.js')).default;
+const auditLogService = (await import('../src/modules/audit/auditLog.service.js')).default;
 const projectCredentialService = (
   await import('../src/modules/projects/projectCredential.service.js')
 ).default;
@@ -88,6 +93,14 @@ describe('ProjectCredential Service', () => {
       expect(result.secret).toBe('raw-plaintext-secret');
       expect(result.keyId).toBe('pk_generated123');
       expect(result).not.toHaveProperty('secretHash');
+      expect(auditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'credential.created',
+          actorContextType: 'ProjectAdmin',
+          actorIdentity: raiyanId,
+          targetDomain: projectId,
+        })
+      );
     });
 
     test('derives the Project from adminContext.domain, never from a separate parameter', async () => {
@@ -143,6 +156,14 @@ describe('ProjectCredential Service', () => {
       );
       expect(projectCredentialRepository.revoke).toHaveBeenCalledWith(credentialId);
       expect(result.status).toBe('REVOKED');
+      expect(auditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'credential.revoked',
+          actorContextType: 'ProjectAdmin',
+          actorIdentity: raiyanId,
+          targetResourceId: credentialId,
+        })
+      );
     });
 
     test('a machine credential may revoke itself', async () => {
@@ -157,6 +178,13 @@ describe('ProjectCredential Service', () => {
 
       expect(projectCredentialRepository.revoke).toHaveBeenCalledWith(credentialId);
       expect(result.status).toBe('REVOKED');
+      expect(auditLogService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'credential.revoked',
+          actorContextType: 'ProjectMachine',
+          actorIdentity: credentialId,
+        })
+      );
     });
 
     test('a machine credential may NOT revoke a different credential', async () => {

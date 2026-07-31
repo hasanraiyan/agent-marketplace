@@ -4,6 +4,7 @@ import { MEMBERSHIP_ROLE } from './projectMembership.model.js';
 import { PROJECT_STATUS, SUSPENSION_AUTHORITY } from './project.model.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
 import ValidationError from '../../utils/errors/ValidationError.js';
+import auditLogService from '../audit/auditLog.service.js';
 
 class ProjectService {
   /**
@@ -55,6 +56,13 @@ class ProjectService {
       throw membershipError;
     }
 
+    await auditLogService.record({
+      eventType: 'project.created',
+      actorContextType: 'PersonaUser',
+      actorIdentity: personaContext.personaUserId,
+      targetDomain: project._id,
+    });
+
     return project;
   }
 
@@ -66,11 +74,20 @@ class ProjectService {
     return project;
   }
 
-  async updateMetadata(projectId, updateData) {
+  async updateMetadata(projectId, updateData, actorPersonaUserId) {
     const project = await projectRepository.updateMetadata(projectId, updateData);
     if (!project) {
       throw new NotFoundError('Project not found', 'Project');
     }
+
+    await auditLogService.record({
+      eventType: 'project.metadata_updated',
+      actorContextType: 'ProjectAdmin',
+      actorIdentity: actorPersonaUserId,
+      targetDomain: projectId,
+      metadata: { fields: Object.keys(updateData || {}) },
+    });
+
     return project;
   }
 
@@ -102,11 +119,20 @@ class ProjectService {
       throw new ValidationError('Only an ACTIVE Project can be suspended');
     }
 
-    return await projectRepository.updateStatus(projectId, PROJECT_STATUS.SUSPENDED, {
+    const updated = await projectRepository.updateStatus(projectId, PROJECT_STATUS.SUSPENDED, {
       suspendedAt: new Date(),
       suspendedByAuthority: SUSPENSION_AUTHORITY.PROJECT_ADMIN,
       suspendedByPersonaUserId: personaUserId,
     });
+
+    await auditLogService.record({
+      eventType: 'project.suspended',
+      actorContextType: 'ProjectAdmin',
+      actorIdentity: personaUserId,
+      targetDomain: projectId,
+    });
+
+    return updated;
   }
 
   /**
@@ -116,7 +142,7 @@ class ProjectService {
    * (see `platformRestoreProject`, PR-50), otherwise a Project could
    * trivially undo its own platform-level enforcement action.
    */
-  async reactivateProject(projectId) {
+  async reactivateProject(projectId, actorPersonaUserId) {
     const project = await this.getProjectById(projectId);
     if (project.status !== PROJECT_STATUS.SUSPENDED) {
       throw new ValidationError('Only a SUSPENDED Project can be reactivated');
@@ -127,11 +153,20 @@ class ProjectService {
       );
     }
 
-    return await projectRepository.updateStatus(projectId, PROJECT_STATUS.ACTIVE, {
+    const updated = await projectRepository.updateStatus(projectId, PROJECT_STATUS.ACTIVE, {
       suspendedAt: null,
       suspendedByAuthority: null,
       suspendedByPersonaUserId: null,
     });
+
+    await auditLogService.record({
+      eventType: 'project.reactivated',
+      actorContextType: 'ProjectAdmin',
+      actorIdentity: actorPersonaUserId,
+      targetDomain: projectId,
+    });
+
+    return updated;
   }
 
   /**
@@ -142,17 +177,26 @@ class ProjectService {
    * the recorded authority differs, which is what makes the §26
    * restore-symmetry rule enforceable.
    */
-  async platformSuspendProject(projectId) {
+  async platformSuspendProject(projectId, actorPersonaUserId) {
     const project = await this.getProjectById(projectId);
     if (project.status !== PROJECT_STATUS.ACTIVE) {
       throw new ValidationError('Only an ACTIVE Project can be suspended');
     }
 
-    return await projectRepository.updateStatus(projectId, PROJECT_STATUS.SUSPENDED, {
+    const updated = await projectRepository.updateStatus(projectId, PROJECT_STATUS.SUSPENDED, {
       suspendedAt: new Date(),
       suspendedByAuthority: SUSPENSION_AUTHORITY.PLATFORM_ADMIN,
       suspendedByPersonaUserId: null,
     });
+
+    await auditLogService.record({
+      eventType: 'project.platform_suspended',
+      actorContextType: 'PlatformAdmin',
+      actorIdentity: actorPersonaUserId,
+      targetDomain: projectId,
+    });
+
+    return updated;
   }
 
   /**
@@ -161,7 +205,7 @@ class ProjectService {
    * Project it (or another Platform Admin) suspended; a ProjectAdmin cannot
    * use this path (see `reactivateProject`'s own symmetric rejection).
    */
-  async platformRestoreProject(projectId) {
+  async platformRestoreProject(projectId, actorPersonaUserId) {
     const project = await this.getProjectById(projectId);
     if (project.status !== PROJECT_STATUS.SUSPENDED) {
       throw new ValidationError('Only a SUSPENDED Project can be restored');
@@ -172,11 +216,20 @@ class ProjectService {
       );
     }
 
-    return await projectRepository.updateStatus(projectId, PROJECT_STATUS.ACTIVE, {
+    const updated = await projectRepository.updateStatus(projectId, PROJECT_STATUS.ACTIVE, {
       suspendedAt: null,
       suspendedByAuthority: null,
       suspendedByPersonaUserId: null,
     });
+
+    await auditLogService.record({
+      eventType: 'project.platform_restored',
+      actorContextType: 'PlatformAdmin',
+      actorIdentity: actorPersonaUserId,
+      targetDomain: projectId,
+    });
+
+    return updated;
   }
 }
 

@@ -126,7 +126,11 @@ describe('Project Controller', () => {
 
       await projectController.updateMetadata(mockReq, mockRes, next);
 
-      expect(projectService.updateMetadata).toHaveBeenCalledWith(projectId, { name: 'New Name' });
+      expect(projectService.updateMetadata).toHaveBeenCalledWith(
+        projectId,
+        { name: 'New Name' },
+        personaUserId
+      );
     });
   });
 
@@ -159,7 +163,7 @@ describe('Project Controller', () => {
 
       await projectController.reactivate(mockReq, mockRes, next);
 
-      expect(projectService.reactivateProject).toHaveBeenCalledWith(projectId);
+      expect(projectService.reactivateProject).toHaveBeenCalledWith(projectId, personaUserId);
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
         data: { _id: projectId, status: 'ACTIVE' },
@@ -189,7 +193,12 @@ describe('Project Controller', () => {
       await projectController.addMember(mockReq, mockRes, next);
 
       expect(userRepository.findById).toHaveBeenCalledWith('target_1');
-      expect(projectMembershipService.addMember).toHaveBeenCalledWith(projectId, 'target_1');
+      expect(projectMembershipService.addMember).toHaveBeenCalledWith(
+        projectId,
+        'target_1',
+        undefined,
+        personaUserId
+      );
       expect(mockRes.status).toHaveBeenCalledWith(201);
     });
 
@@ -211,7 +220,11 @@ describe('Project Controller', () => {
 
       await projectController.removeMember(mockReq, mockRes, next);
 
-      expect(projectMembershipService.removeMember).toHaveBeenCalledWith(projectId, 'target_1');
+      expect(projectMembershipService.removeMember).toHaveBeenCalledWith(
+        projectId,
+        'target_1',
+        personaUserId
+      );
     });
   });
 
