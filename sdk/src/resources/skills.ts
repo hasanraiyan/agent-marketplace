@@ -1,0 +1,40 @@
+import type { HttpClient } from '../http.js';
+import type {
+  CreateSkillInput,
+  DiscoverSkillsParams,
+  Skill,
+  UpdateSkillInput,
+} from '../types/skill.js';
+
+/**
+ * Skills (`/api/v1/developer/skills`) — Project-owned or, when this client
+ * asserts an external user, owned by that end user.
+ */
+export class SkillsResource {
+  constructor(private readonly http: HttpClient) {}
+
+  async create(input: CreateSkillInput): Promise<Skill> {
+    return this.http.request<Skill>('POST', '/api/v1/developer/skills', { body: input });
+  }
+
+  /** Note: returns a bare array — this endpoint has no pagination envelope. */
+  async list(params: DiscoverSkillsParams = {}): Promise<Skill[]> {
+    return this.http.request<Skill[]>('GET', '/api/v1/developer/skills', {
+      query: { ...params },
+    });
+  }
+
+  async get(skillId: string): Promise<Skill> {
+    return this.http.request<Skill>('GET', `/api/v1/developer/skills/${skillId}`);
+  }
+
+  async update(skillId: string, input: UpdateSkillInput): Promise<Skill> {
+    return this.http.request<Skill>('PATCH', `/api/v1/developer/skills/${skillId}`, {
+      body: input,
+    });
+  }
+
+  async delete(skillId: string): Promise<void> {
+    await this.http.request<unknown>('DELETE', `/api/v1/developer/skills/${skillId}`);
+  }
+}

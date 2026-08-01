@@ -1,5 +1,7 @@
 import { HttpClient, type HttpClientOptions } from './http.js';
 import type { PrincipalContext } from './types/principal.js';
+import { ProvidersResource } from './resources/providers.js';
+import { SkillsResource } from './resources/skills.js';
 
 export type PersonaClientOptions = HttpClientOptions;
 
@@ -13,8 +15,13 @@ export type PersonaClientOptions = HttpClientOptions;
 export class PersonaClient {
   private readonly http: HttpClient;
 
+  readonly providers: ProvidersResource;
+  readonly skills: SkillsResource;
+
   constructor(options: PersonaClientOptions) {
     this.http = new HttpClient(options);
+    this.providers = new ProvidersResource(this.http);
+    this.skills = new SkillsResource(this.http);
   }
 
   /**
