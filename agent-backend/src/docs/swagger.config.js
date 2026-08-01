@@ -12,7 +12,12 @@ const options = {
         'an `Authorization: Bearer <token>` header.\n' +
         'Some endpoints (agent search, get) work with optional auth — unauthenticated\n' +
         'requests see only public data.\n' +
-        'Admin endpoints require the user to have `role: admin`.',
+        'Admin endpoints require the user to have `role: admin`.\n\n' +
+        '**Developer Platform (`/api/v1/developer/*`)** endpoints use a separate ' +
+        '`projectCredential` scheme instead of Clerk — see the security scheme below ' +
+        'for the wire format. For guidance on *where in your own stack* to call these ' +
+        'endpoints from (backend vs. frontend, and how to act on behalf of your own ' +
+        'end users), see `docs/developer-api-integration-guide.md` in the repository.',
     },
     servers: [
       {

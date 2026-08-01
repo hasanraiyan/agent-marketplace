@@ -75,9 +75,29 @@ router.use(developerMachineAuthMiddleware);
  *                   properties:
  *                     role: { type: string, enum: [user, assistant] }
  *                     content: { type: string }
+ *               resume:
+ *                 type: object
+ *                 description: >
+ *                   Resume data for a Thread paused on a human-in-the-loop
+ *                   interrupt (e.g. an agent-management tool the Agent's
+ *                   `interruptOn` config requires confirming). Pass
+ *                   { type: "decision", decision: "continue" | "reject" }
+ *                   to approve/deny a pending tool call, or an object
+ *                   shaped for the specific clarification the interrupted
+ *                   run is waiting on.
  *     responses:
  *       200:
- *         description: SSE event stream of AG-UI protocol events
+ *         description: >
+ *           A `text/event-stream` SSE stream of AG-UI protocol events (the
+ *           standard `@ag-ui/core` EventType values): RUN_STARTED once at
+ *           the start of the run; TEXT_MESSAGE_CHUNK for streamed assistant
+ *           text deltas; REASONING_MESSAGE_START/CONTENT/END for models
+ *           that expose reasoning; TOOL_CALL_CHUNK/TOOL_CALL_RESULT for
+ *           tool invocations and their results; STATE_SNAPSHOT for
+ *           full-state updates; CUSTOM for Persona-specific side-channel
+ *           events (e.g. subagent traces, MCP structured content); and
+ *           RUN_FINISHED once at the end. Each event is a JSON object sent
+ *           as one `data: ` line per SSE convention.
  *       400:
  *         description: Missing x-agent-id, or credential has no asserted external user
  *       401:

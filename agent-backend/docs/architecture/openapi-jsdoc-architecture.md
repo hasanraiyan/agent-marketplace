@@ -1,8 +1,12 @@
 # OpenAPI Auto-Generation via JSDoc Annotations
 
-> **Status:** Proposal  
+> **Status:** IMPLEMENTED. `src/docs/openapi.js` was removed and every route file (including all 9
+> `developer*.routes.js` Developer Platform files) now carries `@openapi` JSDoc blocks, compiled by
+> `src/docs/swagger.config.js` and served at `/docs` (Swagger UI) and `/openapi.json`. This document
+> is kept as the annotation-pattern reference (§5–§10 below); the "Migration Plan" (§7) describes
+> work that has already happened, not work still pending.
 > **Target:** Replace manual `src/docs/openapi.js` with auto-generated spec from route-file annotations  
-> **Date:** July 2026
+> **Date:** July 2026 (implemented; confirmed still accurate August 2026)
 
 ---
 
@@ -14,13 +18,13 @@ The OpenAPI spec is a single large JavaScript object at `src/docs/openapi.js` (~
 
 ### Why this doesn't scale
 
-| Issue | Impact |
-|-------|--------|
-| **Drift** | The old spec had 7 fake auth endpoints (register/login/logout etc.) and was missing ~40 real routes. This happened once and will happen again. |
-| **Cognitive separation** | Developers edit route files but must remember to update a separate spec file. Humans forget. |
-| **No ownership** | The spec file is not owned by any module. It's a lonely file that everyone ignores. |
-| **Duplicate detail** | Route paths, HTTP methods, parameter names, and auth requirements are already defined in route files. The spec re-declares them. |
-| **No type safety** | The spec is just a runtime JS object. A typo in a path string silently produces a missing endpoint in Swagger UI. |
+| Issue                    | Impact                                                                                                                                         |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Drift**                | The old spec had 7 fake auth endpoints (register/login/logout etc.) and was missing ~40 real routes. This happened once and will happen again. |
+| **Cognitive separation** | Developers edit route files but must remember to update a separate spec file. Humans forget.                                                   |
+| **No ownership**         | The spec file is not owned by any module. It's a lonely file that everyone ignores.                                                            |
+| **Duplicate detail**     | Route paths, HTTP methods, parameter names, and auth requirements are already defined in route files. The spec re-declares them.               |
+| **No type safety**       | The spec is just a runtime JS object. A typo in a path string silently produces a missing endpoint in Swagger UI.                              |
 
 ### Root cause
 
@@ -115,8 +119,8 @@ const options = {
   apis: [
     // Glob patterns to scan for @openapi annotations
     './src/modules/**/*.routes.js',
-    './src/docs/swagger.schemas.js',  // Shared schema definitions
-    './src/modules/agui/agui.routes.js',  // Explicit path needed if glob doesn't match
+    './src/docs/swagger.schemas.js', // Shared schema definitions
+    './src/modules/agui/agui.routes.js', // Explicit path needed if glob doesn't match
   ],
 };
 
@@ -503,7 +507,12 @@ router.get('/db', healthController.getDbHealth);
  *         description: Unauthorized
  */
 router.get('/', authMiddleware, profileController.getProfile);
-router.patch('/', authMiddleware, validateBody(updateProfileSchema), profileController.updateProfile);
+router.patch(
+  '/',
+  authMiddleware,
+  validateBody(updateProfileSchema),
+  profileController.updateProfile
+);
 router.delete('/', authMiddleware, mutateLimiter, profileController.deleteProfile);
 ```
 
@@ -753,7 +762,12 @@ router.delete('/:id', mutateLimiter, providerController.remove);
  *             schema:
  *               $ref: '#/components/schemas/SuccessResponse'
  */
-router.post('/search', optionalAuthMiddleware, validateBody(searchAgentSchema), agentController.search);
+router.post(
+  '/search',
+  optionalAuthMiddleware,
+  validateBody(searchAgentSchema),
+  agentController.search
+);
 
 /**
  * @openapi
@@ -1008,7 +1022,11 @@ aguiRouter.post('/', rateLimiter('CHAT', RATE_LIMITS.CHAT), aguiController.runAg
  *       400:
  *         description: Invalid signature or payload
  */
-router.post('/clerk', express.raw({ type: 'application/json' }), webhookController.handleClerkWebhook);
+router.post(
+  '/clerk',
+  express.raw({ type: 'application/json' }),
+  webhookController.handleClerkWebhook
+);
 ```
 
 ### 5.9 Knowledge Routes (`knowledge.routes.js`)
@@ -1067,6 +1085,7 @@ router.post('/:id/upload', upload.array('files', 10), knowledgeController.upload
 ## 6. Annotation Patterns Reference
 
 ### Pattern 1: Simple GET (no auth, no params)
+
 ```javascript
 /**
  * @openapi
@@ -1081,6 +1100,7 @@ router.post('/:id/upload', upload.array('files', 10), knowledgeController.upload
 ```
 
 ### Pattern 2: Auth-only GET (with path parameter)
+
 ```javascript
 /**
  * @openapi
@@ -1106,6 +1126,7 @@ router.post('/:id/upload', upload.array('files', 10), knowledgeController.upload
 ```
 
 ### Pattern 3: POST with request body
+
 ```javascript
 /**
  * @openapi
@@ -1135,6 +1156,7 @@ router.post('/:id/upload', upload.array('files', 10), knowledgeController.upload
 ```
 
 ### Pattern 4: Multipart file upload
+
 ```javascript
 /**
  * @openapi
@@ -1165,6 +1187,7 @@ router.post('/:id/upload', upload.array('files', 10), knowledgeController.upload
 ```
 
 ### Pattern 5: No auth (webhooks, OAuth callbacks)
+
 ```javascript
 /**
  * @openapi
@@ -1178,9 +1201,11 @@ router.post('/:id/upload', upload.array('files', 10), knowledgeController.upload
  *         description: Processed
  */
 ```
+
 **No `security` key** means the endpoint is unauthenticated in Swagger UI.
 
 ### Pattern 6: Combined path (PUT + DELETE on same path)
+
 ```javascript
 /**
  * @openapi
@@ -1219,31 +1244,34 @@ router.post('/:id/upload', upload.array('files', 10), knowledgeController.upload
 ## 7. Migration Plan
 
 ### Phase 1: Setup (5 minutes)
+
 1. Install `swagger-jsdoc`
 2. Create `src/docs/swagger.config.js` with spec metadata and glob patterns
 3. Create `src/docs/swagger.schemas.js` with all shared schemas
 4. Update `src/index.js` to import from `swagger.config.js`
 
 ### Phase 2: Annotate route files (one per module)
+
 Each route file gets `@openapi` JSDoc blocks added. Estimated effort per file:
 
-| File | Endpoints | Complexity | Est. Time |
-|------|-----------|------------|-----------|
-| `health.routes.js` | 2 | Simple (no auth, no body) | 5 min |
-| `profile.routes.js` | 3 | Medium (auth, body) | 10 min |
-| `admin.routes.js` | 2 | Simple (auth, admin check) | 5 min |
-| `provider.routes.js` | 7 | Medium (auth, body, params) | 20 min |
-| `agent.routes.js` | 9 | Complex (mixed auth, search filters) | 25 min |
-| `thread.routes.js` | 7 | Medium (auth, params) | 15 min |
-| `skill.routes.js` | 8 | Medium (auth, params) | 20 min |
-| `mcp.routes.js` | 16 | Complex (OAuth, nested paths) | 35 min |
-| `agui.routes.js` | 2 | Complex (SSE, headers, custom parser) | 10 min |
-| `knowledge.routes.js` | 9 | Complex (multipart, RAG) | 25 min |
-| `memory.routes.js` | 4 | Simple (auth, params) | 10 min |
-| `webhook.routes.js` | 1 | Simple (no auth, raw body) | 5 min |
-| `upload.routes.js` | 1 | Simple (multipart) | 5 min |
+| File                  | Endpoints | Complexity                            | Est. Time |
+| --------------------- | --------- | ------------------------------------- | --------- |
+| `health.routes.js`    | 2         | Simple (no auth, no body)             | 5 min     |
+| `profile.routes.js`   | 3         | Medium (auth, body)                   | 10 min    |
+| `admin.routes.js`     | 2         | Simple (auth, admin check)            | 5 min     |
+| `provider.routes.js`  | 7         | Medium (auth, body, params)           | 20 min    |
+| `agent.routes.js`     | 9         | Complex (mixed auth, search filters)  | 25 min    |
+| `thread.routes.js`    | 7         | Medium (auth, params)                 | 15 min    |
+| `skill.routes.js`     | 8         | Medium (auth, params)                 | 20 min    |
+| `mcp.routes.js`       | 16        | Complex (OAuth, nested paths)         | 35 min    |
+| `agui.routes.js`      | 2         | Complex (SSE, headers, custom parser) | 10 min    |
+| `knowledge.routes.js` | 9         | Complex (multipart, RAG)              | 25 min    |
+| `memory.routes.js`    | 4         | Simple (auth, params)                 | 10 min    |
+| `webhook.routes.js`   | 1         | Simple (no auth, raw body)            | 5 min     |
+| `upload.routes.js`    | 1         | Simple (multipart)                    | 5 min     |
 
 ### Phase 3: Verification
+
 1. Start the server
 2. Visit `/docs` — confirm all routes are listed with correct methods and paths
 3. Visit `/openapi.json` — confirm the JSON parses correctly
@@ -1251,6 +1279,7 @@ Each route file gets `@openapi` JSDoc blocks added. Estimated effort per file:
 5. Remove `src/docs/openapi.js`
 
 ### Phase 4: Developer onboarding
+
 1. Add a note to `docs/development/adding-an-endpoint.md` about adding JSDoc annotations
 2. Add a section to `AGENTS.md` about the annotation convention
 3. Remove the old `openapi.js` from the codebase
@@ -1259,25 +1288,27 @@ Each route file gets `@openapi` JSDoc blocks added. Estimated effort per file:
 
 ## 8. Why This Is Better
 
-| Aspect | Before (manual openapi.js) | After (JSDoc + swagger-jsdoc) |
-|--------|---------------------------|-------------------------------|
-| **Source of truth** | Two places (routes + spec file) | One place (route file) |
-| **Sync mechanism** | Developer must remember | Automatic at startup |
-| **Adding an endpoint** | Write route + update openapi.js | Write route + add JSDoc block above it |
-| **Drift detection** | None (found when docs reviewed) | Impossible — spec is derived from routes |
-| **Module ownership** | Nobody owns the spec file | Each module owns its own annotations |
-| **Per-module detail** | Generic descriptions | Route-specific details (param validation, allowed values) |
-| **Review burden** | PR must check both files | PR checks one file, diff shows both route + docs |
-| **Startup cost** | None | ~50ms to scan and compile spec |
+| Aspect                 | Before (manual openapi.js)      | After (JSDoc + swagger-jsdoc)                             |
+| ---------------------- | ------------------------------- | --------------------------------------------------------- |
+| **Source of truth**    | Two places (routes + spec file) | One place (route file)                                    |
+| **Sync mechanism**     | Developer must remember         | Automatic at startup                                      |
+| **Adding an endpoint** | Write route + update openapi.js | Write route + add JSDoc block above it                    |
+| **Drift detection**    | None (found when docs reviewed) | Impossible — spec is derived from routes                  |
+| **Module ownership**   | Nobody owns the spec file       | Each module owns its own annotations                      |
+| **Per-module detail**  | Generic descriptions            | Route-specific details (param validation, allowed values) |
+| **Review burden**      | PR must check both files        | PR checks one file, diff shows both route + docs          |
+| **Startup cost**       | None                            | ~50ms to scan and compile spec                            |
 
 ---
 
 ## 9. Things to Watch For
 
 ### YAML indentation is strict
+
 The JSDoc block uses YAML inside the comment. Indentation matters — two spaces per level. A misaligned line silently drops that property from the spec.
 
 **Bad:**
+
 ```javascript
 /**
  * @openapi
@@ -1289,6 +1320,7 @@ The JSDoc block uses YAML inside the comment. Indentation matters — two spaces
 ```
 
 **Good:**
+
 ```javascript
 /**
  * @openapi
@@ -1302,15 +1334,19 @@ The JSDoc block uses YAML inside the comment. Indentation matters — two spaces
 ```
 
 ### Multiple methods on the same path
+
 When a path has both `PUT` and `DELETE`, both go under the same path key. This is idiomatic in OpenAPI but requires careful YAML indentation.
 
 ### Header parameters
+
 AG-UI uses `x-agent-id` and `x-thread-id` HTTP headers. These are declared under `parameters` with `in: header` — not `in: path` or `in: query`.
 
 ### No auth ≠ missing annotation
+
 Webhooks and MCP OAuth callbacks deliberately have no Clerk auth. Their JSDoc annotations should explicitly exclude the `security` key. swagger-jsdoc only applies the global default `security` if one is set — in our config we don't set a global default, so endpoints without `security` are unauthenticated.
 
 ### Shared schemas must be referenced correctly
+
 Use `$ref: '#/components/schemas/SchemaName'` consistently. The schema name must match exactly what's defined in `swagger.schemas.js` — OpenAPI `$ref` is case-sensitive.
 
 ---
