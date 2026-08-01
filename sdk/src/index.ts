@@ -44,3 +44,21 @@ export type {
   DeleteDocumentResult,
   KnowledgeSearchResult,
 } from './types/knowledge.js';
+export { McpsResource, McpOAuthResource } from './resources/mcp.js';
+export type {
+  Mcp,
+  McpTransport,
+  McpAuthType,
+  McpAuthMode,
+  McpTool,
+  McpResourceSummary,
+  McpResourceTemplate,
+  McpOAuthConfig,
+  McpOAuthInput,
+  CreateMcpInput,
+  UpdateMcpInput,
+  DiscoverMcpsParams,
+  McpTestConnectionResult,
+  McpReadResourceResult,
+  McpUserConnectionStatus,
+} from './types/mcp.js';
