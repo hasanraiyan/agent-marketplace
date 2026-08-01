@@ -4,6 +4,7 @@ import { ProvidersResource } from './resources/providers.js';
 import { SkillsResource } from './resources/skills.js';
 import { AgentsResource } from './resources/agents.js';
 import { KnowledgeResource } from './resources/knowledge.js';
+import { McpsResource } from './resources/mcp.js';
 
 export type PersonaClientOptions = HttpClientOptions;
 
@@ -21,6 +22,7 @@ export class PersonaClient {
   readonly skills: SkillsResource;
   readonly agents: AgentsResource;
   readonly knowledge: KnowledgeResource;
+  readonly mcps: McpsResource;
 
   constructor(options: PersonaClientOptions) {
     this.http = new HttpClient(options);
@@ -28,6 +30,7 @@ export class PersonaClient {
     this.skills = new SkillsResource(this.http);
     this.agents = new AgentsResource(this.http);
     this.knowledge = new KnowledgeResource(this.http);
+    this.mcps = new McpsResource(this.http);
   }
 
   /**
