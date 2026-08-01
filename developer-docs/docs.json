@@ -11,7 +11,7 @@
     "tabs": [
       {
         "tab": "Guides",
-        "pages": ["introduction", "guides/integration-guide"]
+        "pages": ["developer-docs/introduction", "guides/integration-guide"]
       },
       {
         "tab": "API Reference",
