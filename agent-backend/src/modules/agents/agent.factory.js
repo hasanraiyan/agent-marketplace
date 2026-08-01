@@ -16,6 +16,10 @@ import {
   agentMemoryNamespace,
 } from '../memory/memory-files-store.js';
 import { skillLibraryStore, skillLibraryNamespace } from '../skills/skillLibraryStore.js';
+import {
+  projectSkillLibraryStore,
+  projectSkillLibraryNamespace,
+} from '../skills/projectSkillLibraryStore.js';
 import checkpointService from '../threads/checkpoint.service.js';
 import { LRUCache } from 'lru-cache';
 import agentRepository from './agent.repository.js';
@@ -45,6 +49,7 @@ function getGlobalStore() {
 export const agentSkillsStore = new AgentSkillsStore({
   staticSkillFiles: {
     [ARCHITECT_AGENT_ID]: { '/agent-architecture/SKILL.md': ARCHITECT_SKILL },
+    [PROJECT_ARCHITECT_AGENT_ID]: { '/agent-architecture/SKILL.md': ARCHITECT_SKILL },
   },
 });
 
@@ -73,12 +78,11 @@ Your goal is to help the user design, build, and optimize their own custom AI ag
 -   **No Keys**: You CANNOT view or manage API keys.
 `;
 
-// Project Agent Architect (blueprint Phase 11.5, PR-62) — a dedicated,
-// Domain-aware sibling of the Persona Architect above. Narrower scope than
-// the Persona prompt: no /skill-library/ authoring workflow is wired up for
-// this sentinel (see agent.factory.js's PROJECT_ARCHITECT_AGENT_ID branch),
-// so this prompt never references it — Skill content is created via the
-// Project's own Skills tab in Studio or the SDK, not through this chat.
+// Project Agent Architect (blueprint Phase 11.5, PR-62; skill-authoring
+// parity follow-up) — a dedicated, Domain-aware sibling of the Persona
+// Architect above. Now has the same /skill-library/ authoring workflow as
+// Sage (see this file's PROJECT_ARCHITECT_AGENT_ID backendRoutes branch),
+// scoped to this Project's own Skills instead of a Persona User's.
 const PROJECT_ARCHITECT_SYSTEM_PROMPT = `
 You are the **Project Agent Architect**, a senior software engineer and AI specialized in building highly effective agents for this Developer Platform Project.
 Your goal is to help the Project Admin design, build, and optimize Agents this Project will own and expose to its own users.
@@ -95,7 +99,7 @@ Your goal is to help the Project Admin design, build, and optimize Agents this P
 ### GUIDELINES
 -   **System Prompts**: Draft high-quality, professional system prompts that use expert-level instructions.
 -   **Descriptions**: Keep descriptions punchy and informative (1-2 sentences).
--   **Skills**: You can attach existing Skills to an agent by id (\`upsert_agent\`'s \`skills\` field) and use \`manage_skill\` to list/delete/toggle visibility of this Project's own Skills. To CREATE new Skill content, use the Project's Skills tab in Studio or the SDK — that is not done through this chat.
+-   **Skills**: This Project's skill library is mounted read-write at \`/skill-library/\`. Author skills as folders there with your file tools (\`write_file\` a \`/skill-library/<name>/SKILL.md\` with YAML frontmatter, plus optional \`references/\` files). Consult your agent-architecture skill for the full workflow. Attach existing Skills to an agent by id (\`upsert_agent\`'s \`skills\` field); \`manage_skill\` is only for list/delete/visibility, not content creation.
 -   **Everything you build belongs to this Project**, not to you personally — any of this Project's Admins can manage it afterward.
 -   **Transparency**: When you call a tool, briefly explain what you are setting (e.g., "I'm setting up your support agent with the GPT-4o model and web search enabled.").
 -   **No Keys**: You CANNOT view or manage API keys.
@@ -464,6 +468,18 @@ class AgentFactory {
         new StoreBackend({
           store: skillLibraryStore,
           namespace: skillLibraryNamespace(userId),
+        })
+      );
+    }
+
+    // Project Agent Architect's own /skill-library/ (skill-authoring parity
+    // follow-up) — same pattern as the Persona branch above, backed by this
+    // Project's own Skills instead of a Persona User's.
+    if (agentIdStr === PROJECT_ARCHITECT_AGENT_ID) {
+      backendRoutes['/skill-library/'] = gracefulBackend(
+        new StoreBackend({
+          store: projectSkillLibraryStore,
+          namespace: projectSkillLibraryNamespace(executionContext.domain),
         })
       );
     }
