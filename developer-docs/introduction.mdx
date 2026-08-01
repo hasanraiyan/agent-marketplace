@@ -1,0 +1,34 @@
+---
+title: Introduction
+description: Integrate your product with Persona's agent infrastructure.
+---
+
+Persona's Developer Platform lets your product ("a Project," in our terms — Beyond Campus,
+Coursify, and OpenFounder are our own first three) own and run AI Agents, Skills, Knowledge bases,
+and MCP connectors through a single REST + streaming API.
+
+<CardGroup cols={2}>
+  <Card
+    title="Integration Guide"
+    icon="signs-post"
+    href="/guides/integration-guide"
+  >
+    Start here — where to call each endpoint from (backend vs. frontend), and
+    how control-plane vs. runtime-plane requests work.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference">
+    Every Developer Platform endpoint, with request/response schemas.
+  </Card>
+</CardGroup>
+
+## The short version
+
+Every endpoint in this API is a server-to-server call. Your backend calls Persona's backend — your
+browser or mobile app never does, because the credential that authenticates these calls is a
+server-side secret (see the [Integration Guide](/guides/integration-guide) for why).
+
+## What you can build
+
+- **Agents** your Project owns, or that your own end users create for themselves.
+- **Skills, Knowledge bases, and MCP connectors** attached to those Agents.
+- **Live chat** with an Agent, streamed over Server-Sent Events, with full per-end-user isolation.

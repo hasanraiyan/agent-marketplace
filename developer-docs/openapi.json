@@ -1,0 +1,2273 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Persona.ai Developer Platform API",
+    "version": "1.0.0",
+    "description": "REST + AG-UI API for integrating your product with Persona's agent infrastructure.\n\nEvery endpoint here is a server-to-server call — see the Integration Guide for where in your own stack to call each one from, and how the same endpoint serves both Project-level and per-end-user requests via the `x-persona-external-user-id` header."
+  },
+  "servers": [
+    {
+      "url": "https://api.personaai.com",
+      "description": "Production"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "projectCredential": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "<keyId>.<secret>",
+        "description": "Developer Platform Project credential, minted via POST /api/v1/projects/{projectId}/credentials. Send as `Authorization: Bearer <keyId>.<secret>`. Optionally pair with the `x-persona-external-user-id` header to act on behalf of one of the Project's own external users. This credential is a server-side secret — see the Integration Guide."
+      }
+    },
+    "schemas": {
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "statusCode": {
+            "type": "number",
+            "example": 200
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "status": {
+            "type": "string",
+            "example": "error"
+          },
+          "statusCode": {
+            "type": "number",
+            "example": 400
+          },
+          "message": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "example": "VALIDATION_ERROR"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PaginatedResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "number"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "pagination": {
+                "type": "object",
+                "properties": {
+                  "total": {
+                    "type": "integer"
+                  },
+                  "page": {
+                    "type": "integer"
+                  },
+                  "limit": {
+                    "type": "integer"
+                  },
+                  "pages": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "clerkId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "admin"
+            ]
+          },
+          "username": {
+            "type": "string",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Agent": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "systemPrompt": {
+            "type": "string"
+          },
+          "modelName": {
+            "type": "string"
+          },
+          "webSearchEnabled": {
+            "type": "boolean"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "unlisted",
+              "public"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "productivity",
+              "coding",
+              "creative",
+              "research",
+              "roleplay",
+              "other"
+            ]
+          },
+          "isMainAgent": {
+            "type": "boolean"
+          },
+          "messageCount": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Thread": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "agentId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "threadId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "lastMessageAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isArchived": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Provider": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "baseURL": {
+            "type": "string"
+          },
+          "defaultModel": {
+            "type": "string"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Skill": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "instructions": {
+            "type": "string"
+          },
+          "isPublic": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Mcp": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "transport": {
+            "type": "string",
+            "enum": [
+              "http",
+              "sse"
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "authType": {
+            "type": "string",
+            "enum": [
+              "none",
+              "oauth",
+              "apiKey"
+            ]
+          },
+          "authMode": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "user"
+            ]
+          },
+          "isEnabled": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "KnowledgeBase": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "isPublic": {
+            "type": "boolean"
+          },
+          "documentCount": {
+            "type": "integer"
+          },
+          "chunkCount": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/developer/threads": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Create a Thread for the asserted external user",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-persona-external-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "agentId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Thread created"
+          },
+          "400": {
+            "description": "Validation error",
+            "or no asserted external user": null
+          },
+          "404": {
+            "description": "Agent not found (or not executable by this Domain/Subject)"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "List the asserted external user's own Threads",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-persona-external-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of Threads"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/threads/{threadId}": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Get a Thread",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "threadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-persona-external-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thread"
+          },
+          "404": {
+            "description": "Thread not found (or not visible to this Domain/Subject)"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Update a Thread's title (Subject only)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "threadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated Thread"
+          },
+          "404": {
+            "description": "Thread not found or unauthorized"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete a Thread (Subject only)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "threadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thread deleted"
+          },
+          "404": {
+            "description": "Thread not found or unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/threads/{threadId}/messages": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Get a Thread's message history",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "threadId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Message list with subagent traces"
+          },
+          "404": {
+            "description": "Thread not found or unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/skills": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Create a Skill (Project-owned or ExternalUser-owned)",
+        "description": "Which kind gets created depends on the credential's asserted identity, same as Developer Agent creation.",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "description",
+                  "instructions"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Skill created"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "409": {
+            "description": "A Skill with this exact name already exists"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Discover Skills (blueprint Phase 9, PR-44, AD-07 §19)",
+        "description": "A genuinely separate code path from Persona's marketplace search. For a bare Project credential (ProjectMachineContext/ ProjectAdminContext): every Skill in this Project's own Domain, any owner type. For a credential paired with x-persona-external-user-id (ProjectRuntimeContext): scope=mine returns only that external user's own Skills; omitting it returns this Domain's public Skills only.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "mine"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of Skills"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/skills/{skillId}": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Get a Skill",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "skillId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Skill"
+          },
+          "404": {
+            "description": "Skill not found (or not visible to this Domain/Subject)"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Update a Skill (owner only)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "skillId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated Skill"
+          },
+          "404": {
+            "description": "Skill not found or unauthorized"
+          },
+          "409": {
+            "description": "Another Skill with this name already exists"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete a Skill (owner only)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "skillId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Skill deleted"
+          },
+          "404": {
+            "description": "Skill not found or unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/providers": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Create a Provider (Project-owned)",
+        "description": "Provider ownership is narrower than other Developer resources (AD-06 §21) — PersonaUser/Project only, never ExternalUser.",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "label",
+                  "baseURL",
+                  "apiKey",
+                  "defaultModel"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Provider created"
+          },
+          "400": {
+            "description": "Validation error",
+            "or an ExternalUser-asserted request (unsupported for Providers)": null
+          }
+        }
+      }
+    },
+    "/api/v1/developer/providers/{providerId}": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Get a Provider",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "providerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Provider"
+          },
+          "404": {
+            "description": "Provider not found (or not visible to this Domain)"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Update a Provider (owner only)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "providerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated Provider"
+          },
+          "404": {
+            "description": "Provider not found or unauthorized"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete a Provider (owner only)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "providerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Provider deleted"
+          },
+          "404": {
+            "description": "Provider not found or unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/providers/{providerId}/test-connection": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Test a Provider's credentials (owner only, blueprint Phase 9, PR-47a)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "providerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Connection successful"
+          },
+          "400": {
+            "description": "Connection failed"
+          },
+          "404": {
+            "description": "Provider not found or unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/providers/{providerId}/models": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "List a Provider's available models (owner only, blueprint Phase 9, PR-47a)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "providerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Model list"
+          },
+          "404": {
+            "description": "Provider not found or unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/mcps": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Create an MCP server (Project-owned or ExternalUser-owned)",
+        "description": "Which kind gets created depends on the credential's asserted identity, same as Developer Agent creation.",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "transport",
+                  "url"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "MCP server created"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "409": {
+            "description": "An MCP server with this exact name already exists"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Discover MCP servers (blueprint Phase 9, PR-46, AD-07 §19)",
+        "description": "A genuinely separate code path from any Persona listing. Mcp has no isPublic/visibility field, so unlike Agent/Skill/Knowledge there is no separate \"public browse\" subset — a bare Project credential OR a ProjectRuntimeContext without scope=mine both see every MCP in this Project's own Domain, any owner type. scope=mine (ProjectRuntimeContext only) narrows to just that external user's own MCPs.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "mine"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of MCP servers"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/mcps/{mcpId}": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Get an MCP server",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mcpId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "MCP server"
+          },
+          "404": {
+            "description": "MCP server not found (or not visible to this Domain/Subject)"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Update an MCP server (owner only)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mcpId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated MCP server"
+          },
+          "404": {
+            "description": "MCP server not found or unauthorized"
+          },
+          "409": {
+            "description": "Another MCP server with this name already exists"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete an MCP server (owner only)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mcpId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "MCP server deleted"
+          },
+          "404": {
+            "description": "MCP server not found or unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/mcps/{mcpId}/test": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Test an MCP server's connection (owner only, blueprint Phase 9, PR-47c)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mcpId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Discovered tools/resources"
+          },
+          "404": {
+            "description": "MCP server not found or unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/mcps/{mcpId}/resource": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Read an MCP resource (owner only)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mcpId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "uri",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resource content"
+          },
+          "400": {
+            "description": "Missing uri"
+          },
+          "404": {
+            "description": "MCP server not found or unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/mcps/{mcpId}/call-tool": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Call an MCP tool (owner only)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mcpId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "arguments": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tool result"
+          },
+          "400": {
+            "description": "Missing tool name"
+          },
+          "404": {
+            "description": "MCP server not found or unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/mcps/{mcpId}/oauth/owner/authorize": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Start the owner OAuth flow (owner only, blueprint Phase 9, PR-47c)",
+        "description": "No separate Developer callback route exists — the OAuth redirect URI is a single, pre-registered URL that completes via the existing Persona callback route regardless of who initiated the flow, since the signed state alone carries the initiating context.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mcpId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorization URL"
+          },
+          "404": {
+            "description": "MCP server not found or unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/mcps/{mcpId}/oauth/user/authorize": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Start the per-user OAuth flow (ProjectRuntimeContext only)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mcpId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-persona-external-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorization URL"
+          },
+          "400": {
+            "description": "No asserted external user"
+          },
+          "404": {
+            "description": "MCP server not found",
+            "wrong Domain": null,
+            "or not configured for per-user auth": null
+          }
+        }
+      }
+    },
+    "/api/v1/developer/mcps/{mcpId}/oauth/user/status": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Get the calling Subject's own per-user connection status",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mcpId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Connection status"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/mcps/{mcpId}/oauth/user/connection": {
+      "delete": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Disconnect the calling Subject's own per-user connection",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mcpId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disconnected"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/mcps/{mcpId}/oauth/owner/connection": {
+      "delete": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Disconnect the owner-mode connection (owner only)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mcpId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owner connection disconnected"
+          },
+          "404": {
+            "description": "MCP server not found or unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/knowledge": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Create a Knowledge Base (Project-owned or ExternalUser-owned)",
+        "description": "Which kind gets created depends on the credential's asserted identity. providerId is REQUIRED here (unlike the Persona route, which can auto-resolve the caller's default Provider) — no equivalent \"default Provider\" concept exists for a Project or ExternalUser yet.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "providerId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Knowledge Base created"
+          },
+          "400": {
+            "description": "Validation error",
+            "or missing providerId": null
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Discover Knowledge Bases (blueprint Phase 9, PR-45, AD-07 §19)",
+        "description": "A genuinely separate code path — Knowledge has no Persona marketplace-browse feature to accidentally reuse. For a bare Project credential: every Knowledge Base in this Project's own Domain, any owner type. For a credential paired with x-persona-external-user-id: scope=mine returns only that external user's own Knowledge Bases; omitting it returns this Domain's public Knowledge Bases only.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "mine"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of Knowledge Bases"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/knowledge/{kbId}": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Get a Knowledge Base",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kbId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Knowledge Base"
+          },
+          "404": {
+            "description": "Knowledge Base not found (or not visible to this Domain/Subject)"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Update a Knowledge Base (owner only)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kbId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated Knowledge Base"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete a Knowledge Base (owner only)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kbId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Knowledge Base deleted"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/knowledge/{kbId}/documents": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Upload documents to a Knowledge Base (owner only, blueprint Phase 9, PR-47b)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kbId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Documents processed"
+          },
+          "404": {
+            "description": "Knowledge Base not found or unauthorized"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "List a Knowledge Base's source documents (owner or public)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kbId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document list"
+          },
+          "404": {
+            "description": "Knowledge Base not found or unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/knowledge/{kbId}/documents/{sourceName}": {
+      "delete": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete a single document from a Knowledge Base (owner only)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kbId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sourceName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document deleted"
+          },
+          "404": {
+            "description": "Knowledge Base or document not found",
+            "or unauthorized": null
+          }
+        }
+      }
+    },
+    "/api/v1/developer/knowledge/{kbId}/search": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Semantic search within a Knowledge Base (owner or public)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kbId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "query"
+                ],
+                "properties": {
+                  "query": {
+                    "type": "string"
+                  },
+                  "topK": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Search results"
+          },
+          "404": {
+            "description": "Knowledge Base not found or unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/files": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Upload a file (blueprint Phase 9, PR-47d)",
+        "description": "Requires a ProjectRuntimeContext. Retrieval is always mediated through GET /api/v1/developer/files/{fileId} — never a bare static URL.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-persona-external-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "agentId": {
+                    "type": "string"
+                  },
+                  "threadId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "File uploaded"
+          },
+          "400": {
+            "description": "No file uploaded",
+            "or no asserted external user": null
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "List the asserted external user's own uploaded files",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-persona-external-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of files"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/files/{fileId}": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Download a file (mediated access — Subject only)",
+        "description": "Never a bare static URL — the requester's own (domain, externalUserId) must match the file's, or this existence-hides to the same 404 as a nonexistent file.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File content stream"
+          },
+          "404": {
+            "description": "File not found (or not visible to this Domain/Subject)"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete a file (Subject only)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File deleted"
+          },
+          "404": {
+            "description": "File not found or unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/agui": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Developer AG-UI protocol information",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Protocol information"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Run an Agent as an external user, streaming AG-UI events (SSE)",
+        "description": "Requires a ProjectRuntimeContext — the credential must be paired with the x-persona-external-user-id header asserting which of the Project's own external users is running the Agent. Reuses the exact same runtime as the Persona AG-UI route. Pass x-thread-id (a Thread id from POST /api/v1/developer/threads) to resume a named conversation — omit it to keep using the implicit, Domain-extended deterministic thread id (one conversation per Agent + external user). An unrecognized/foreign/wrong-agent x-thread-id silently falls back to the deterministic id rather than erroring (same contract as the Persona AG-UI route).\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-agent-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-persona-external-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-thread-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "A Thread id from the Developer Thread CRUD API — resumes that conversation instead of the implicit deterministic one."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "messages": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "user",
+                            "assistant"
+                          ]
+                        },
+                        "content": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "resume": {
+                    "type": "object",
+                    "description": "Resume data for a Thread paused on a human-in-the-loop interrupt (e.g. an agent-management tool the Agent's `interruptOn` config requires confirming). Pass { type: \"decision\", decision: \"continue\" | \"reject\" } to approve/deny a pending tool call, or an object shaped for the specific clarification the interrupted run is waiting on.\n"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A `text/event-stream` SSE stream of AG-UI protocol events (the standard `@ag-ui/core` EventType values): RUN_STARTED once at the start of the run; TEXT_MESSAGE_CHUNK for streamed assistant text deltas; REASONING_MESSAGE_START/CONTENT/END for models that expose reasoning; TOOL_CALL_CHUNK/TOOL_CALL_RESULT for tool invocations and their results; STATE_SNAPSHOT for full-state updates; CUSTOM for Persona-specific side-channel events (e.g. subagent traces, MCP structured content); and RUN_FINISHED once at the end. Each event is a JSON object sent as one `data: ` line per SSE convention.\n"
+          },
+          "400": {
+            "description": "Missing x-agent-id, or credential has no asserted external user"
+          },
+          "401": {
+            "description": "Missing or invalid Project credential"
+          },
+          "403": {
+            "description": "Project is not currently ACTIVE"
+          },
+          "404": {
+            "description": "Agent not found (or not executable by this Domain/Subject)"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/agents": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Create an Agent (Project-owned or ExternalUser-owned)",
+        "description": "Which kind of Agent gets created depends on the credential's asserted identity: a bare Project credential creates a Project-owned Agent; pairing it with x-persona-external-user-id creates an Agent owned by that external user.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "systemPrompt",
+                  "providerId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Agent created"
+          },
+          "400": {
+            "description": "Validation error",
+            "or invalid Provider": null
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Discover Agents (blueprint Phase 9, PR-43, AD-07 §19)",
+        "description": "A genuinely separate code path from Persona's marketplace search (never the same service function, per the Discovery Contract). For a bare Project credential (ProjectMachineContext/ ProjectAdminContext): every Agent in this Project's own Domain, any owner type — \"Project discovery\". For a credential paired with x-persona-external-user-id (ProjectRuntimeContext): `scope=mine` returns only that external user's own Agents; omitting it returns this Domain's public Agents only (\"Project-public browse\"). systemPrompt/providerId are stripped from any result the caller doesn't own.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "mine"
+              ]
+            },
+            "description": "ProjectRuntimeContext only — \"mine\" restricts to the asserted external user's own Agents."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of Agents"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/agents/{agentId}": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Get an Agent",
+        "description": "Same visibility rules as Persona (public/unlisted visible in-Domain, private only to the owner). The owner sees full details; non-owners never see systemPrompt/providerId.",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent"
+          },
+          "404": {
+            "description": "Agent not found (or not visible to this Domain/Subject)"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Update an Agent (owner only)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated Agent"
+          },
+          "401": {
+            "description": "Unauthorized (not the owner)"
+          },
+          "404": {
+            "description": "Agent not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete (soft-delete) an Agent (owner only)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent deleted"
+          },
+          "401": {
+            "description": "Unauthorized (not the owner)"
+          },
+          "404": {
+            "description": "Agent not found"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/whoami": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Resolve the current Project principal context",
+        "description": "Authenticates a Project credential (Authorization Bearer <keyId>.<secret>, optionally with x-persona-external-user-id) and returns the resolved ProjectMachineContext or ProjectRuntimeContext. No side effects beyond external-user JIT resolution already performed by the auth middleware itself.",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resolved principal context"
+          },
+          "401": {
+            "description": "Missing or invalid Project credential"
+          },
+          "403": {
+            "description": "Project is not currently ACTIVE"
+          }
+        }
+      }
+    }
+  },
+  "tags": []
+}

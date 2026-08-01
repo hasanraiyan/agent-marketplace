@@ -1,0 +1,33 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Persona.ai Developer Platform",
+  "colors": {
+    "primary": "#1E60FF",
+    "light": "#5B8DFF",
+    "dark": "#154ED0"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guides",
+        "pages": ["introduction", "guides/integration-guide"]
+      },
+      {
+        "tab": "API Reference",
+        "openapi": "openapi.json"
+      }
+    ]
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Support",
+        "href": "mailto:support@personaai.com"
+      }
+    ]
+  },
+  "footer": {
+    "socials": {}
+  }
+}
