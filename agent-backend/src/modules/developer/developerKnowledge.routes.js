@@ -69,7 +69,7 @@ router.use(developerMachineAuthMiddleware);
  *             required: [name, providerId]
  *     responses:
  *       201: { description: Knowledge Base created }
- *       400: { description: Validation error, or missing providerId }
+ *       400: { description: "Validation error, or missing providerId" }
  */
 router.post('/', validateBody(createKnowledgeBaseSchema), developerKnowledgeController.create);
 
@@ -211,7 +211,7 @@ router.get('/:kbId/documents', developerKnowledgeController.listDocuments);
  *         schema: { type: string }
  *     responses:
  *       200: { description: Document deleted }
- *       404: { description: Knowledge Base or document not found, or unauthorized }
+ *       404: { description: "Knowledge Base or document not found, or unauthorized" }
  */
 router.delete('/:kbId/documents/:sourceName', developerKnowledgeController.deleteDocument);
 

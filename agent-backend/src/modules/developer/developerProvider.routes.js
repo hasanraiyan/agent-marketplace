@@ -31,7 +31,7 @@ router.use(developerMachineAuthMiddleware);
  *             required: [label, baseURL, apiKey, defaultModel]
  *     responses:
  *       201: { description: Provider created }
- *       400: { description: Validation error, or an ExternalUser-asserted request (unsupported for Providers) }
+ *       400: { description: "Validation error, or an ExternalUser-asserted request (unsupported for Providers)" }
  */
 router.post('/', validateBody(createProviderSchema), developerProviderController.create);
 

@@ -421,8 +421,7 @@
             "description": "Thread created"
           },
           "400": {
-            "description": "Validation error",
-            "or no asserted external user": null
+            "description": "Validation error, or no asserted external user"
           },
           "404": {
             "description": "Agent not found (or not executable by this Domain/Subject)"
@@ -813,8 +812,7 @@
             "description": "Provider created"
           },
           "400": {
-            "description": "Validation error",
-            "or an ExternalUser-asserted request (unsupported for Providers)": null
+            "description": "Validation error, or an ExternalUser-asserted request (unsupported for Providers)"
           }
         }
       }
@@ -1352,9 +1350,7 @@
             "description": "No asserted external user"
           },
           "404": {
-            "description": "MCP server not found",
-            "wrong Domain": null,
-            "or not configured for per-user auth": null
+            "description": "MCP server not found, wrong Domain, or not configured for per-user auth"
           }
         }
       }
@@ -1477,8 +1473,7 @@
             "description": "Knowledge Base created"
           },
           "400": {
-            "description": "Validation error",
-            "or missing providerId": null
+            "description": "Validation error, or missing providerId"
           }
         }
       },
@@ -1729,8 +1724,7 @@
             "description": "Document deleted"
           },
           "404": {
-            "description": "Knowledge Base or document not found",
-            "or unauthorized": null
+            "description": "Knowledge Base or document not found, or unauthorized"
           }
         }
       }
@@ -1836,8 +1830,7 @@
             "description": "File uploaded"
           },
           "400": {
-            "description": "No file uploaded",
-            "or no asserted external user": null
+            "description": "No file uploaded, or no asserted external user"
           }
         }
       },
@@ -2083,8 +2076,7 @@
             "description": "Agent created"
           },
           "400": {
-            "description": "Validation error",
-            "or invalid Provider": null
+            "description": "Validation error, or invalid Provider"
           }
         }
       },

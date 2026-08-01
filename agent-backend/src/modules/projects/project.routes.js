@@ -179,7 +179,7 @@ adminRouter.post('/suspend', mutateLimiter, projectController.suspend);
  *         schema: { type: string }
  *     responses:
  *       200: { description: Project reactivated }
- *       400: { description: Not currently SUSPENDED, or suspended by Platform Admin authority }
+ *       400: { description: "Not currently SUSPENDED, or suspended by Platform Admin authority" }
  *       404: { description: Project not found }
  */
 adminRouter.post('/reactivate', mutateLimiter, projectController.reactivate);
@@ -226,8 +226,8 @@ adminRouter.post('/delete', mutateLimiter, projectController.requestDeletion);
  *         required: true
  *         schema: { type: string }
  *     responses:
- *       200: { description: Project deletion cancelled, Project restored to ACTIVE }
- *       400: { description: Not pending deletion, or the grace period has already elapsed }
+ *       200: { description: "Project deletion cancelled, Project restored to ACTIVE" }
+ *       400: { description: "Not pending deletion, or the grace period has already elapsed" }
  *       404: { description: Project not found }
  */
 adminRouter.post('/cancel-deletion', mutateLimiter, projectController.cancelDeletion);
@@ -333,7 +333,7 @@ adminRouter.delete('/members/:personaUserId', mutateLimiter, projectController.r
  *             properties:
  *               label: { type: string }
  *     responses:
- *       201: { description: Credential created, secret shown once }
+ *       201: { description: "Credential created, secret shown once" }
  */
 adminRouter.get('/credentials', projectController.listCredentials);
 adminRouter.post(

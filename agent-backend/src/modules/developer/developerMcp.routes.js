@@ -226,7 +226,7 @@ router.get('/:mcpId/oauth/owner/authorize', developerMcpController.getOwnerAutho
  *     responses:
  *       200: { description: Authorization URL }
  *       400: { description: No asserted external user }
- *       404: { description: MCP server not found, wrong Domain, or not configured for per-user auth }
+ *       404: { description: "MCP server not found, wrong Domain, or not configured for per-user auth" }
  */
 router.get('/:mcpId/oauth/user/authorize', developerMcpController.getUserAuthorizeUrl);
 

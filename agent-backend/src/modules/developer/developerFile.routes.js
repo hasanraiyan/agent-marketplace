@@ -82,7 +82,7 @@ router.use((req, res, next) => {
  *               threadId: { type: string }
  *     responses:
  *       201: { description: File uploaded }
- *       400: { description: No file uploaded, or no asserted external user }
+ *       400: { description: "No file uploaded, or no asserted external user" }
  *   get:
  *     tags: [Developer]
  *     summary: List the asserted external user's own uploaded files
