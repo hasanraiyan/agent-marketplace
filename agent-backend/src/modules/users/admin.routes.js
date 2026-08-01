@@ -116,7 +116,7 @@ router.post(
  *         schema: { type: string }
  *     responses:
  *       200: { description: Project restored }
- *       400: { description: Not currently SUSPENDED, or suspended by a Project Admin }
+ *       400: { description: "Not currently SUSPENDED, or suspended by a Project Admin" }
  *       401: { description: Unauthorized }
  *       403: { description: Forbidden — requires admin role }
  *       404: { description: Project not found }

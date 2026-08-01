@@ -53,7 +53,7 @@ router.use((req, res, next) => {
  *             required: [agentId]
  *     responses:
  *       201: { description: Thread created }
- *       400: { description: Validation error, or no asserted external user }
+ *       400: { description: "Validation error, or no asserted external user" }
  *       404: { description: Agent not found (or not executable by this Domain/Subject) }
  *   get:
  *     tags: [Developer]

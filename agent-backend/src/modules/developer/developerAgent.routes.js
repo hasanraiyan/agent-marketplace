@@ -37,7 +37,7 @@ router.use(developerMachineAuthMiddleware);
  *             required: [name, systemPrompt, providerId]
  *     responses:
  *       201: { description: Agent created }
- *       400: { description: Validation error, or invalid Provider }
+ *       400: { description: "Validation error, or invalid Provider" }
  */
 router.post('/', validateBody(createAgentSchema), developerAgentController.create);
 
