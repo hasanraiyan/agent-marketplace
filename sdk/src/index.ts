@@ -32,3 +32,15 @@ export type {
   UpdateAgentInput,
   DiscoverAgentsParams,
 } from './types/agent.js';
+export { KnowledgeResource } from './resources/knowledge.js';
+export type {
+  KnowledgeBase,
+  KnowledgeDocument,
+  CreateKnowledgeBaseInput,
+  UpdateKnowledgeBaseInput,
+  DiscoverKnowledgeBasesParams,
+  UploadFileInput,
+  UploadDocumentsResult,
+  DeleteDocumentResult,
+  KnowledgeSearchResult,
+} from './types/knowledge.js';
