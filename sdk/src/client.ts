@@ -2,6 +2,7 @@ import { HttpClient, type HttpClientOptions } from './http.js';
 import type { PrincipalContext } from './types/principal.js';
 import { ProvidersResource } from './resources/providers.js';
 import { SkillsResource } from './resources/skills.js';
+import { AgentsResource } from './resources/agents.js';
 
 export type PersonaClientOptions = HttpClientOptions;
 
@@ -17,11 +18,13 @@ export class PersonaClient {
 
   readonly providers: ProvidersResource;
   readonly skills: SkillsResource;
+  readonly agents: AgentsResource;
 
   constructor(options: PersonaClientOptions) {
     this.http = new HttpClient(options);
     this.providers = new ProvidersResource(this.http);
     this.skills = new SkillsResource(this.http);
+    this.agents = new AgentsResource(this.http);
   }
 
   /**

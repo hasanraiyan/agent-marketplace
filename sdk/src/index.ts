@@ -22,3 +22,13 @@ export type {
   UpdateSkillInput,
   DiscoverSkillsParams,
 } from './types/skill.js';
+export { AgentsResource } from './resources/agents.js';
+export type {
+  Agent,
+  AgentSocialLinks,
+  AgentVisibility,
+  AgentCategory,
+  CreateAgentInput,
+  UpdateAgentInput,
+  DiscoverAgentsParams,
+} from './types/agent.js';
