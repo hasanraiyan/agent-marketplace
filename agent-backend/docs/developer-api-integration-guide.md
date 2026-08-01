@@ -1,0 +1,78 @@
+# Developer API Integration Guide — Where Do I Call This From?
+
+This guide answers a question the [OpenAPI reference](/docs) doesn't: not _what_ each endpoint
+does, but _where in your own stack_ you're supposed to call it from. It assumes you're integrating
+your product (a "Project" in Persona terms — Beyond Campus, Coursify, and OpenFounder are our own
+first three) with Persona's agent infrastructure via `/api/v1/developer/*`.
+
+The short version: **every endpoint in this API is a server-to-server call.** Your backend calls
+Persona's backend. Your browser/mobile app never does.
+
+## 1. Your Project credential is a server-side secret
+
+When you mint a credential (`POST /api/v1/projects/{projectId}/credentials`, from your own
+Clerk-authenticated admin session — see the separate admin/control-plane docs), you get back a
+`keyId` and a `secret`. Every call to `/api/v1/developer/*` authenticates with
+
+```
+Authorization: Bearer <keyId>.<secret>
+```
+
+This is architecturally decided, not a suggestion: **a Project credential must never be usable from
+a browser context.** Treat it exactly like a Stripe _secret_ key, not a _publishable_ key — it lives
+in your backend's environment (env var, secrets manager), and it never ships inside a frontend
+bundle, a mobile app binary, or a URL a browser can see. If your integration needs any of this API's
+data or behavior visible to an end user, your own backend fetches it and relays it onward in
+whatever form your frontend already expects (a JSON response from your own API, a WebSocket
+message, etc.) — Persona is never called directly from code running in someone else's browser.
+
+## 2. The same endpoint serves two different purposes, and you choose which
+
+Most Developer endpoints (Agents, Skills, Knowledge, MCP, Threads) don't have separate "admin" and
+"end-user" URLs. The same route behaves differently depending on one thing: whether your request
+also carries
+
+```
+x-persona-external-user-id: <your own user id for this person>
+```
+
+- **Omit the header** → the call acts on behalf of your _Project itself_ — use this for actions your
+  own team or admin tooling initiates: provisioning an Agent when your product launches a new
+  feature, wiring up a Knowledge base, configuring a Provider. This is "control-plane" usage.
+- **Include the header** → the call acts on behalf of _one of your own end users_ — use this when
+  your backend is handling a request that a specific logged-in person of yours triggered: Sabik
+  opening a chat, Rahul uploading a document to a Knowledge base. This is "runtime-plane" usage.
+
+Critically: **your backend decides which case applies and sets the header itself**, after _your own_
+auth system has already confirmed who's making the request. Never take a raw user id out of a
+browser request and forward it verbatim — Persona trusts whatever identity your credential asserts,
+so that assertion has to come from a step your backend actually verified.
+
+## 3. AG-UI chat/streaming is a server-to-server call too
+
+`POST /api/v1/developer/agui` streams an agent's response as Server-Sent Events. If you want live,
+streaming chat UX in your own product's frontend, the pattern is: your backend opens the SSE
+connection to Persona, reads the stream, and relays it onward to your own browser client over
+whatever channel you already use to talk to your frontend (your own SSE endpoint, a WebSocket, a
+GraphQL subscription — your choice), authenticated however you already authenticate your users. A
+browser never connects to `/api/v1/developer/agui` directly — doing so would require shipping your
+Project credential to that browser, which point 1 above rules out.
+
+## 4. Per-resource quick reference
+
+| Resource / routes                                                     | Typical caller                                         | When                                                                                                                                 | Beyond Campus example                                                                                                                                                                       |
+| --------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Agents (`/developer/agents`)                                          | Your backend, both modes                               | Control-plane: provisioning at setup/deploy time. Runtime: rarely — end users don't usually create Agents themselves.                | Ops team provisions the "Career Launchpad" Agent once at launch.                                                                                                                            |
+| Skills / Knowledge / MCP (`/developer/skills`, `/knowledge`, `/mcps`) | Your backend, both modes                               | Control-plane: setting up shared resources. Runtime: an end user managing their own uploaded resources, if your product allows that. | Ops uploads the placement-office FAQ as a Knowledge base once; Sabik later uploads his own resume to a personal Knowledge base — that second call carries his `x-persona-external-user-id`. |
+| Providers (`/developer/providers`)                                    | Your backend, control-plane only                       | Setup/admin time. No `ExternalUser` ownership exists for Providers — see the OpenAPI 400 response for this endpoint.                 | Ops configures the OpenAI Provider once.                                                                                                                                                    |
+| Threads (`/developer/threads`)                                        | Your backend, runtime-plane only (requires the header) | Whenever an end user starts/resumes/lists their own conversations.                                                                   | Sabik's chat history with Career Launchpad.                                                                                                                                                 |
+| Files (`/developer/files`)                                            | Your backend, runtime-plane only (requires the header) | Whenever an end user uploads/downloads a file as part of a conversation.                                                             | Sabik attaches his resume to a chat message.                                                                                                                                                |
+| AG-UI (`/developer/agui`)                                             | Your backend, runtime-plane only (requires the header) | Every time an end user sends a chat message, relayed onward per §3.                                                                  | Sabik's live chat with Career Launchpad.                                                                                                                                                    |
+
+## 5. Where an SDK fits
+
+A Node.js/TypeScript SDK is planned (Phase 12) as an ergonomic wrapper around exactly the rules
+above — typed resource clients plus a streaming chat client. It changes nothing about where code
+runs: **the SDK itself is a server-side package**, meant to be installed in your backend's
+`node_modules`, never bundled into a frontend build. Its own README states this directly rather than
+assuming it's obvious.
