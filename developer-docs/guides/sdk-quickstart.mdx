@@ -19,6 +19,37 @@ and a streaming chat client, all wrapping the same REST + AG-UI API described in
 
 ## Install
 
+<Note>
+  **Public npm package coming soon.** `@personaai/sdk` isn't published to the
+  npm registry yet — `npm install @personaai/sdk` won't resolve until it is.
+  Until then, build it locally from source:
+</Note>
+
+```bash
+git clone https://github.com/hasanraiyan/agent-marketplace.git
+cd agent-marketplace/sdk
+npm install
+npm run build      # compiles src/ -> dist/ (ESM + CJS + .d.ts)
+```
+
+Then consume it from another local project either by pointing `npm install` at the folder directly:
+
+```bash
+npm install /path/to/agent-marketplace/sdk
+```
+
+or by linking it, if you're iterating on the SDK itself alongside a consumer:
+
+```bash
+# in agent-marketplace/sdk
+npm link
+
+# in your project
+npm link @personaai/sdk
+```
+
+Once published, installing will be the usual one-liner:
+
 ```bash
 npm install @personaai/sdk
 ```
