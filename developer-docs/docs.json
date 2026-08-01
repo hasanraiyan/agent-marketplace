@@ -11,7 +11,11 @@
     "tabs": [
       {
         "tab": "Guides",
-        "pages": ["introduction", "guides/integration-guide"]
+        "pages": [
+          "introduction",
+          "guides/integration-guide",
+          "guides/sdk-quickstart"
+        ]
       },
       {
         "tab": "API Reference",
@@ -33,5 +37,4 @@
   "api": {
     "openapi": "openapi.json"
   }
-
 }

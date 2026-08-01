@@ -74,8 +74,9 @@ Project credential to that browser, which point 1 above rules out.
 
 ## 5. Where the SDK fits
 
-A Node.js/TypeScript SDK is planned as an ergonomic wrapper around exactly the rules above — typed
-resource clients plus a streaming chat client. It changes nothing about where code runs: **the SDK
-itself is a server-side package**, meant to be installed in your backend's `node_modules`, never
-bundled into a frontend build. Its own README states this directly rather than assuming it's
-obvious.
+If you're integrating from Node.js, [`@personaai/sdk`](/guides/sdk-quickstart) is the ergonomic
+wrapper around exactly the rules above — typed resource clients plus a streaming chat client. It
+changes nothing about where code runs: **the SDK itself is a server-side package**, meant to be
+installed in your backend's `node_modules`, never bundled into a frontend build. Its own docs state
+this directly rather than assuming it's obvious — see the SDK guide's Next.js section in
+particular, since that's the one framework people actually get this wrong in.

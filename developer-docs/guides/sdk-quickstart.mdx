@@ -1,0 +1,220 @@
+---
+title: Node.js SDK
+description: The official TypeScript/Node.js client — auth, resources, and streaming chat, wrapped.
+---
+
+`@personaai/sdk` is the official Node.js/TypeScript client for everything on this page — auth
+header injection, typed resource methods for Agents/Skills/Knowledge/MCP/Providers/Threads/Files,
+and a streaming chat client, all wrapping the same REST + AG-UI API described in the
+[API Reference](/api-reference). If you're integrating from Node.js, start here instead of calling
+`fetch` yourself.
+
+<Warning>
+  **Server-side only, same as everything else on this page.** The SDK sends your
+  Project's credential on every call — a server-side secret. Never construct
+  `PersonaClient` in a browser bundle, a mobile app, or a Next.js Client
+  Component. See the [Integration Guide](/guides/integration-guide) for the full
+  reasoning.
+</Warning>
+
+## Install
+
+```bash
+npm install @personaai/sdk
+```
+
+Requires Node.js 18+ (uses the built-in `fetch`/`FormData`/`ReadableStream` — no heavy HTTP client
+dependency).
+
+## Quickstart
+
+```ts
+import { PersonaClient } from "@personaai/sdk";
+
+const persona = new PersonaClient({
+  baseUrl: "https://api.personaai.com",
+  credential: process.env.PERSONA_CREDENTIAL!, // "<keyId>.<secret>", minted via Studio
+});
+
+const who = await persona.whoami();
+console.log(who.principalType, who.domain);
+
+const agent = await persona.agents.create({
+  name: "Career Launchpad",
+  systemPrompt: "You help students find internships.",
+  providerId: "...", // an existing Provider's id
+  visibility: "unlisted",
+});
+```
+
+### Acting on behalf of one of your own end users
+
+Construct a second client scoped to whoever is actually using your product right now — after
+_your own_ auth has confirmed who that is. This maps directly onto the
+[control-plane vs. runtime-plane](/guides/integration-guide#2-the-same-endpoint-serves-two-different-purposes-and-you-choose-which)
+distinction from the Integration Guide.
+
+```ts
+const userClient = new PersonaClient({
+  baseUrl: "https://api.personaai.com",
+  credential: process.env.PERSONA_CREDENTIAL!,
+  externalUserId: currentUser.id,
+});
+
+const thread = await userClient.threads.create({ agentId: agent._id });
+```
+
+### Chat, streamed
+
+```ts
+// Full event stream, for building your own UI.
+for await (const event of userClient.chat.stream(agent._id, {
+  messages: [{ role: "user", content: "What internships are open right now?" }],
+})) {
+  if (event.type === "TEXT_MESSAGE_CHUNK" && event.delta)
+    process.stdout.write(event.delta);
+}
+
+// Or the convenience wrapper — drains the stream, returns the final text.
+const result = await userClient.chat.sendMessage(agent._id, {
+  messages: [{ role: "user", content: "What internships are open right now?" }],
+});
+console.log(result.text);
+```
+
+If a run pauses on a human-in-the-loop decision, `result.interrupt` is set instead of the run
+finishing normally — resume it on the next call:
+
+```ts
+if (result.interrupt) {
+  await userClient.chat.sendMessage(agent._id, {
+    messages: [],
+    resume: { decisions: [{ action: "delete_agent", decision: "approve" }] },
+  });
+}
+```
+
+## Resources
+
+| Client property           | Wraps                                                              |
+| ------------------------- | ------------------------------------------------------------------ |
+| `.agents`                 | `/api/v1/developer/agents`                                         |
+| `.skills`                 | `/api/v1/developer/skills`                                         |
+| `.knowledge`              | `/api/v1/developer/knowledge` (incl. document upload/search)       |
+| `.mcps` (+ `.mcps.oauth`) | `/api/v1/developer/mcps` (incl. OAuth owner/user connection flows) |
+| `.providers`              | `/api/v1/developer/providers`                                      |
+| `.threads`                | `/api/v1/developer/threads`                                        |
+| `.files`                  | `/api/v1/developer/files`                                          |
+| `.chat`                   | `/api/v1/developer/agui` (streaming)                               |
+
+Every method mirrors the real REST endpoint 1:1 — check the [API Reference](/api-reference) for
+exact request/response shapes; the SDK adds no behavior beyond typing and auth/streaming
+plumbing. Project/Members/Credentials management is out of scope for the SDK — those are
+Clerk-session (human admin) operations, not machine-credential calls; manage them from
+[Developer Studio](https://app.personaai.com/developer) instead.
+
+## Framework recipes
+
+### Express
+
+Construct the client once at module scope and use it in your route handlers — no special handling
+needed.
+
+```ts
+// persona.ts
+export function personaFor(externalUserId?: string) {
+  return new PersonaClient({
+    baseUrl: process.env.PERSONA_BASE_URL!,
+    credential: process.env.PERSONA_CREDENTIAL!,
+    externalUserId,
+  });
+}
+
+// routes/chat.ts
+app.post("/api/chat", async (req, res) => {
+  const persona = personaFor(req.user.id);
+  const result = await persona.chat.sendMessage(req.body.agentId, {
+    messages: req.body.messages,
+  });
+  res.json(result);
+});
+```
+
+### NestJS
+
+Wrap `PersonaClient` in an `@Injectable()` provider so it plugs into Nest's DI container like any
+other third-party client — the SDK itself needs no Nest-specific support.
+
+```ts
+// persona.service.ts
+import { Injectable } from "@nestjs/common";
+import { PersonaClient } from "@personaai/sdk";
+
+@Injectable()
+export class PersonaService {
+  forUser(externalUserId: string) {
+    return new PersonaClient({
+      baseUrl: process.env.PERSONA_BASE_URL!,
+      credential: process.env.PERSONA_CREDENTIAL!,
+      externalUserId,
+    });
+  }
+}
+```
+
+### Next.js — read this one carefully
+
+Next.js blurs server and client code in one codebase more than Express or Nest does, which makes it
+the one framework people actually leak the credential in by accident.
+
+<Warning>
+  **Only import this SDK in Server Components, Route Handlers
+  (`app/api/.../route.ts`), or Server Actions. Never in a `"use client"`
+  component.** Constructing `PersonaClient` in client code bundles your Project
+  credential straight into the JavaScript shipped to the browser.
+</Warning>
+
+```ts
+// app/api/chat/route.ts — Route Handler, runs server-side only
+import { PersonaClient } from "@personaai/sdk";
+
+export async function POST(req: Request) {
+  const { agentId, messages } = await req.json();
+  const userId = await getCurrentUserId(req); // your own auth
+  const persona = new PersonaClient({
+    baseUrl: process.env.PERSONA_BASE_URL!,
+    credential: process.env.PERSONA_CREDENTIAL!,
+    externalUserId: userId,
+  });
+  const result = await persona.chat.sendMessage(agentId, { messages });
+  return Response.json(result);
+}
+```
+
+Because the SDK uses native `fetch`, it also works in Next.js's **Edge runtime**, not just Node —
+no extra configuration needed. For a live-streaming chat UI, a Route Handler can return a
+`ReadableStream` directly, relaying the AG-UI event stream onward to your own browser client:
+
+```ts
+export async function POST(req: Request) {
+  const { agentId, messages } = await req.json();
+  const persona = new PersonaClient({
+    /* ... */ externalUserId: await getCurrentUserId(req),
+  });
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder();
+      for await (const event of persona.chat.stream(agentId, { messages })) {
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify(event)}\n\n`),
+        );
+      }
+      controller.close();
+    },
+  });
+  return new Response(stream, {
+    headers: { "Content-Type": "text/event-stream" },
+  });
+}
+```
