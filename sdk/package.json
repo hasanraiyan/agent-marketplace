@@ -37,6 +37,9 @@
     "agents"
   ],
   "license": "MIT",
+  "dependencies": {
+    "@ag-ui/core": "^0.0.57"
+  },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
     "@types/node": "^22.10.7",
