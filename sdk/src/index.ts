@@ -62,3 +62,12 @@ export type {
   McpReadResourceResult,
   McpUserConnectionStatus,
 } from './types/mcp.js';
+export { ThreadsResource } from './resources/threads.js';
+export type {
+  Thread,
+  CreateThreadInput,
+  ListThreadsParams,
+  ThreadMessages,
+} from './types/thread.js';
+export { FilesResource } from './resources/files.js';
+export type { PersonaFile, UploadFilePayload, ListFilesParams } from './types/file.js';
