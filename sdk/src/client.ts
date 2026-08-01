@@ -7,6 +7,7 @@ import { KnowledgeResource } from './resources/knowledge.js';
 import { McpsResource } from './resources/mcp.js';
 import { ThreadsResource } from './resources/threads.js';
 import { FilesResource } from './resources/files.js';
+import { ChatClient } from './chat/chat-client.js';
 
 export type PersonaClientOptions = HttpClientOptions;
 
@@ -27,6 +28,7 @@ export class PersonaClient {
   readonly mcps: McpsResource;
   readonly threads: ThreadsResource;
   readonly files: FilesResource;
+  readonly chat: ChatClient;
 
   constructor(options: PersonaClientOptions) {
     this.http = new HttpClient(options);
@@ -37,6 +39,7 @@ export class PersonaClient {
     this.mcps = new McpsResource(this.http);
     this.threads = new ThreadsResource(this.http);
     this.files = new FilesResource(this.http);
+    this.chat = new ChatClient(this.http);
   }
 
   /**
