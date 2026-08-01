@@ -112,6 +112,13 @@ const CREDENTIAL_BADGE_VARIANT = {
   REVOKED: "secondary",
 };
 
+// Matches the brand-blue CTA treatment used throughout the sidebar
+// (nav-main.jsx, developer-sidebar.jsx) — applied to this page's primary
+// "New X" / mutating actions so Studio's own content reads as consistent
+// with the rest of the app, not just its nav.
+const PRIMARY_CTA_CLASSNAME =
+  "!bg-[#1E60FF] !text-white font-bold shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] hover:!bg-[#154ed0] active:scale-[0.98]";
+
 // Agents/Skills/Knowledge/Connectors all share a name+description+createdAt
 // shape for read-only browsing — one small table renderer instead of
 // repeating the same JSX four times.
@@ -252,8 +259,25 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
     {
       title: project?.name || "Project",
       description: "Manage this Project's metadata and lifecycle.",
+      actions: project ? (
+        <div className="flex items-center gap-3">
+          <Link
+            href={developerRoutes.projects}
+            className="mr-1 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" />
+            Projects
+          </Link>
+          <Badge
+            variant={STATUS_BADGE_VARIANT[project.status] || "outline"}
+            className={STATUS_BADGE_CLASSNAME[project.status]}
+          >
+            {project.status}
+          </Badge>
+        </div>
+      ) : null,
     },
-    [project?.name],
+    [project?.name, project?.status],
   );
 
   useEffect(() => {
@@ -669,23 +693,8 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
-      <div className="flex items-center gap-4">
-        <Link href={developerRoutes.projects}>
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <h2 className="text-2xl font-bold tracking-tight">{project.name}</h2>
-        <Badge
-          variant={STATUS_BADGE_VARIANT[project.status] || "outline"}
-          className={STATUS_BADGE_CLASSNAME[project.status]}
-        >
-          {project.status}
-        </Badge>
-      </div>
-
       <Tabs defaultValue="overview">
-        <TabsList>
+        <TabsList variant="pill">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="credentials">Credentials</TabsTrigger>
@@ -847,7 +856,11 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                   lookup yet.
                 </CardDescription>
               </div>
-              <Button size="sm" onClick={() => setAddMemberOpen(true)}>
+              <Button
+                size="sm"
+                className={PRIMARY_CTA_CLASSNAME}
+                onClick={() => setAddMemberOpen(true)}
+              >
                 <UserPlus className="mr-1.5 size-3.5" />
                 Add Admin
               </Button>
@@ -913,7 +926,11 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                   separate from your own Clerk session used here in Studio.
                 </CardDescription>
               </div>
-              <Button size="sm" onClick={() => setMintOpen(true)}>
+              <Button
+                size="sm"
+                className={PRIMARY_CTA_CLASSNAME}
+                onClick={() => setMintOpen(true)}
+              >
                 <KeyRound className="mr-1.5 size-3.5" />
                 Mint new
               </Button>
@@ -990,7 +1007,7 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                 <CardDescription>Agents this Project owns.</CardDescription>
               </div>
               <Link href={developerRoutes.projectAgentNew(projectId)}>
-                <Button size="sm">
+                <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
                   <Plus className="mr-1.5 size-3.5" />
                   New Agent
                 </Button>
@@ -1018,7 +1035,7 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                 <CardDescription>Skills this Project owns.</CardDescription>
               </div>
               <Link href={developerRoutes.projectSkillNew(projectId)}>
-                <Button size="sm">
+                <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
                   <Plus className="mr-1.5 size-3.5" />
                   New Skill
                 </Button>
@@ -1048,7 +1065,7 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                 </CardDescription>
               </div>
               <Link href={developerRoutes.projectKnowledgeNew(projectId)}>
-                <Button size="sm">
+                <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
                   <Plus className="mr-1.5 size-3.5" />
                   New Knowledge Base
                 </Button>
@@ -1077,7 +1094,7 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                 </CardDescription>
               </div>
               <Link href={developerRoutes.projectMcpNew(projectId)}>
-                <Button size="sm">
+                <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
                   <Plus className="mr-1.5 size-3.5" />
                   New Connector
                 </Button>
@@ -1107,7 +1124,7 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                 </CardDescription>
               </div>
               <Link href={developerRoutes.projectProviderNew(projectId)}>
-                <Button size="sm">
+                <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
                   <Plus className="mr-1.5 size-3.5" />
                   New Provider
                 </Button>
@@ -1241,7 +1258,11 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={saving}>
+              <Button
+                type="submit"
+                disabled={saving}
+                className={PRIMARY_CTA_CLASSNAME}
+              >
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save
               </Button>
@@ -1428,7 +1449,11 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={addingMember}>
+              <Button
+                type="submit"
+                disabled={addingMember}
+                className={PRIMARY_CTA_CLASSNAME}
+              >
                 {addingMember && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
@@ -1509,7 +1534,11 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={minting}>
+              <Button
+                type="submit"
+                disabled={minting}
+                className={PRIMARY_CTA_CLASSNAME}
+              >
                 {minting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Mint
               </Button>

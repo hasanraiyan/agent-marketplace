@@ -54,7 +54,10 @@ export default function ProjectsPage() {
         "Developer Platform Projects you administer — external consumers of Persona's agent infrastructure.",
       actions: (
         <Link href={developerRoutes.projectNew}>
-          <Button size="sm" className="rounded-full px-4 font-bold">
+          <Button
+            size="sm"
+            className="rounded-full px-4 font-bold !bg-[#1E60FF] !text-white shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] hover:!bg-[#154ed0] active:scale-[0.98]"
+          >
             <Plus className="mr-1.5 size-4" />
             New Project
           </Button>

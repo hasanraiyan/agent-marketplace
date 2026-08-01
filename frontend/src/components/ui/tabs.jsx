@@ -21,12 +21,16 @@ function Tabs({ className, orientation = "horizontal", ...props }) {
 }
 
 const tabsListVariants = cva(
-  "group/tabs-list inline-flex w-fit items-center justify-center rounded-lg p-[3px] text-muted-foreground group-data-horizontal/tabs:h-8 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col data-[variant=line]:rounded-none",
+  "group/tabs-list inline-flex w-fit items-center justify-center rounded-lg p-[3px] text-muted-foreground group-data-horizontal/tabs:h-8 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col data-[variant=line]:rounded-none data-[variant=pill]:h-auto data-[variant=pill]:flex-wrap data-[variant=pill]:rounded-full data-[variant=pill]:p-0",
   {
     variants: {
       variant: {
         default: "bg-muted",
         line: "gap-1 bg-transparent",
+        // Rounded, individually-filled pill tabs (active = solid brand
+        // color, inactive = muted chips) — e.g. a Discover-style filter
+        // bar, not a boxed segmented control.
+        pill: "gap-2 bg-transparent",
       },
     },
     defaultVariants: {
@@ -55,6 +59,7 @@ function TabsTrigger({ className, ...props }) {
         "group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-active:bg-transparent dark:group-data-[variant=line]/tabs-list:data-active:border-transparent dark:group-data-[variant=line]/tabs-list:data-active:bg-transparent",
         "data-active:bg-background data-active:text-foreground dark:data-active:border-input dark:data-active:bg-input/30 dark:data-active:text-foreground",
         "after:absolute after:bg-foreground after:opacity-0 after:transition-opacity group-data-horizontal/tabs:after:inset-x-0 group-data-horizontal/tabs:after:bottom-[-5px] group-data-horizontal/tabs:after:h-0.5 group-data-vertical/tabs:after:inset-y-0 group-data-vertical/tabs:after:-right-1 group-data-vertical/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-active:after:opacity-100",
+        "group-data-[variant=pill]/tabs-list:h-9 group-data-[variant=pill]/tabs-list:flex-none group-data-[variant=pill]/tabs-list:cursor-pointer group-data-[variant=pill]/tabs-list:rounded-full group-data-[variant=pill]/tabs-list:border-0 group-data-[variant=pill]/tabs-list:bg-slate-100/70 group-data-[variant=pill]/tabs-list:px-4 group-data-[variant=pill]/tabs-list:py-0 group-data-[variant=pill]/tabs-list:font-semibold group-data-[variant=pill]/tabs-list:text-slate-650 group-data-[variant=pill]/tabs-list:transition-all group-data-[variant=pill]/tabs-list:duration-200 group-data-[variant=pill]/tabs-list:after:hidden group-data-[variant=pill]/tabs-list:hover:bg-slate-200/70 group-data-[variant=pill]/tabs-list:hover:text-slate-950 group-data-[variant=pill]/tabs-list:data-active:!bg-[#1E60FF] group-data-[variant=pill]/tabs-list:data-active:!text-white group-data-[variant=pill]/tabs-list:data-active:shadow-md group-data-[variant=pill]/tabs-list:data-active:shadow-[#1E60FF]/15 group-data-[variant=pill]/tabs-list:data-active:hover:!bg-[#154ed0] group-data-[variant=pill]/tabs-list:disabled:cursor-not-allowed dark:group-data-[variant=pill]/tabs-list:bg-slate-800/30 dark:group-data-[variant=pill]/tabs-list:text-slate-400 dark:group-data-[variant=pill]/tabs-list:hover:bg-slate-800/60 dark:group-data-[variant=pill]/tabs-list:hover:text-slate-100",
         className,
       )}
       {...props}

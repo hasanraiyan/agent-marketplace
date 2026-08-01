@@ -39,6 +39,15 @@ export default function NewProjectPage() {
     title: "New Project",
     description:
       "A Project is an external consumer of Persona's agent infrastructure — its own Admins, credentials, and owned resources.",
+    actions: (
+      <Link
+        href={developerRoutes.projects}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        Projects
+      </Link>
+    ),
   });
 
   const handleChange = (e) => {
@@ -67,15 +76,6 @@ export default function NewProjectPage() {
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
-      <div className="flex items-center gap-4">
-        <Link href={developerRoutes.projects}>
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <h2 className="text-2xl font-bold tracking-tight">New Project</h2>
-      </div>
-
       <form onSubmit={handleSubmit}>
         <Card className="max-w-2xl">
           <CardHeader>
@@ -137,7 +137,11 @@ export default function NewProjectPage() {
             <Link href={developerRoutes.projects}>
               <Button variant="outline">Cancel</Button>
             </Link>
-            <Button type="submit" disabled={saving}>
+            <Button
+              type="submit"
+              disabled={saving}
+              className="!bg-[#1E60FF] !text-white shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] hover:!bg-[#154ed0] active:scale-[0.98]"
+            >
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Project
             </Button>
