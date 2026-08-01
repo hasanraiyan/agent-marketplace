@@ -29,5 +29,9 @@
   },
   "footer": {
     "socials": {}
+  },
+  "api": {
+    "openapi": "openapi.json"
   }
+
 }
