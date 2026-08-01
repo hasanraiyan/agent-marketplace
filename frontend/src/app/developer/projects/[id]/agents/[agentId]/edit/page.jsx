@@ -137,6 +137,15 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
     title: isEditing ? "Edit Agent" : "Add Agent",
     description:
       "Configure an Agent this Project owns and exposes to its own users.",
+    actions: (
+      <Link
+        href={developerRoutes.project(projectId)}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        Back
+      </Link>
+    ),
   });
 
   // The Architect chat talks over raw fetch (SSE), not the axios `api`
@@ -342,20 +351,9 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
   const runtimeUrl = `${BASE_URL}/projects/${projectId}/architect/agui`;
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
-      <div className="flex items-center gap-4">
-        <Link href={developerRoutes.project(projectId)}>
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <h2 className="text-2xl font-bold tracking-tight">
-          {isEditing ? "Edit Agent" : "New Agent"}
-        </h2>
-      </div>
-
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        <Card className="flex h-[560px] w-full flex-col overflow-hidden lg:w-[380px] lg:shrink-0">
+    <div className="flex h-[calc(100vh-var(--header-height))] max-h-[calc(100vh-var(--header-height))] flex-col overflow-hidden p-4 md:p-6 lg:p-8">
+      <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row">
+        <Card className="flex h-[420px] w-full flex-col overflow-hidden lg:h-full lg:w-[380px] lg:shrink-0">
           <CardHeader className="border-b py-3">
             <CardTitle className="text-base">Project Agent Architect</CardTitle>
             <CardDescription>
@@ -380,6 +378,7 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
                 headers={{ Authorization: `Bearer ${authToken}` }}
                 onToolResult={handleArchitectToolResult}
                 showHeader={false}
+                emptyStateVariant="simple"
               />
             ) : (
               <div className="flex h-full items-center justify-center">
@@ -389,7 +388,10 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
           </CardContent>
         </Card>
 
-        <form onSubmit={handleSubmit} className="min-w-0 flex-1">
+        <form
+          onSubmit={handleSubmit}
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto"
+        >
           <Card className="max-w-2xl">
             <CardHeader>
               <CardTitle>Agent Configuration</CardTitle>
@@ -589,7 +591,11 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
               <Link href={developerRoutes.project(projectId)}>
                 <Button variant="outline">Cancel</Button>
               </Link>
-              <Button type="submit" disabled={saving}>
+              <Button
+                type="submit"
+                disabled={saving}
+                className="!bg-[#1E60FF] !text-white shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] hover:!bg-[#154ed0] active:scale-[0.98]"
+              >
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isEditing ? "Update Agent" : "Create Agent"}
               </Button>

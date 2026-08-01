@@ -86,6 +86,18 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
   useDashboardHeader({
     title: kb?.name || "Knowledge Base",
     description: "Manage this Knowledge Base's metadata and documents.",
+    actions: (
+      <div className="flex items-center gap-3">
+        <Link
+          href={developerRoutes.project(projectId)}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" />
+          Back
+        </Link>
+        {kb ? <Badge variant="outline">{kb.embeddingModel}</Badge> : null}
+      </div>
+    ),
   });
 
   useEffect(() => {
@@ -221,16 +233,6 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
-      <div className="flex items-center gap-4">
-        <Link href={developerRoutes.project(projectId)}>
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <h2 className="text-2xl font-bold tracking-tight">{kb.name}</h2>
-        <Badge variant="outline">{kb.embeddingModel}</Badge>
-      </div>
-
       <Card className="max-w-2xl">
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>
@@ -293,7 +295,11 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={saving}>
+                <Button
+                  type="submit"
+                  disabled={saving}
+                  className="!bg-[#1E60FF] !text-white shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] hover:!bg-[#154ed0] active:scale-[0.98]"
+                >
                   {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Save
                 </Button>
@@ -338,6 +344,7 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
             <Button
               onClick={handleUpload}
               disabled={pendingFiles.length === 0 || uploading}
+              className="!bg-[#1E60FF] !text-white shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] hover:!bg-[#154ed0] active:scale-[0.98]"
             >
               {uploading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
