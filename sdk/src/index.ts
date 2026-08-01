@@ -6,3 +6,19 @@ export type {
   ProjectMachineContext,
   ProjectRuntimeContext,
 } from './types/principal.js';
+export { ProvidersResource } from './resources/providers.js';
+export type {
+  Provider,
+  CreateProviderInput,
+  UpdateProviderInput,
+  ProviderModel,
+  ProviderTestConnectionResult,
+} from './types/provider.js';
+export { SkillsResource } from './resources/skills.js';
+export type {
+  Skill,
+  SkillFile,
+  CreateSkillInput,
+  UpdateSkillInput,
+  DiscoverSkillsParams,
+} from './types/skill.js';
