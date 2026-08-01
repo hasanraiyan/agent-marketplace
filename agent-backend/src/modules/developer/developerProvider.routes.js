@@ -20,7 +20,7 @@ router.use(developerMachineAuthMiddleware);
  *   post:
  *     tags: [Developer]
  *     summary: Create a Provider (Project-owned)
- *     description: Provider ownership is narrower than other Developer resources (AD-06 §21) — PersonaUser/Project only, never ExternalUser.
+ *     description: Provider ownership is narrower than other Developer resources — PersonaUser/Project only, never ExternalUser.
  *     security: [{ projectCredential: [] }]
  *     requestBody:
  *       required: true
@@ -88,7 +88,7 @@ router.delete('/:providerId', developerProviderController.remove);
  * /api/v1/developer/providers/{providerId}/test-connection:
  *   post:
  *     tags: [Developer]
- *     summary: Test a Provider's credentials (owner only, blueprint Phase 9, PR-47a)
+ *     summary: Test a Provider's credentials (owner only)
  *     security: [{ projectCredential: [] }]
  *     parameters:
  *       - name: providerId
@@ -107,7 +107,7 @@ router.post('/:providerId/test-connection', developerProviderController.testConn
  * /api/v1/developer/providers/{providerId}/models:
  *   get:
  *     tags: [Developer]
- *     summary: List a Provider's available models (owner only, blueprint Phase 9, PR-47a)
+ *     summary: List a Provider's available models (owner only)
  *     security: [{ projectCredential: [] }]
  *     parameters:
  *       - name: providerId

@@ -41,7 +41,7 @@ router.post('/', validateBody(createMcpSchema), developerMcpController.create);
  * /api/v1/developer/mcps:
  *   get:
  *     tags: [Developer]
- *     summary: Discover MCP servers (blueprint Phase 9, PR-46, AD-07 §19)
+ *     summary: Discover MCP servers
  *     description: >
  *       A genuinely separate code path from any Persona listing. Mcp has
  *       no isPublic/visibility field, so unlike Agent/Skill/Knowledge
@@ -119,7 +119,7 @@ router.delete('/:mcpId', developerMcpController.remove);
  * /api/v1/developer/mcps/{mcpId}/test:
  *   post:
  *     tags: [Developer]
- *     summary: Test an MCP server's connection (owner only, blueprint Phase 9, PR-47c)
+ *     summary: Test an MCP server's connection (owner only)
  *     security: [{ projectCredential: [] }]
  *     parameters:
  *       - name: mcpId
@@ -189,7 +189,7 @@ router.post('/:mcpId/call-tool', developerMcpController.callTool);
  * /api/v1/developer/mcps/{mcpId}/oauth/owner/authorize:
  *   get:
  *     tags: [Developer]
- *     summary: Start the owner OAuth flow (owner only, blueprint Phase 9, PR-47c)
+ *     summary: Start the owner OAuth flow (owner only)
  *     description: >
  *       No separate Developer callback route exists — the OAuth redirect
  *       URI is a single, pre-registered URL that completes via the

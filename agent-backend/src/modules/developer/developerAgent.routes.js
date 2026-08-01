@@ -46,10 +46,10 @@ router.post('/', validateBody(createAgentSchema), developerAgentController.creat
  * /api/v1/developer/agents:
  *   get:
  *     tags: [Developer]
- *     summary: Discover Agents (blueprint Phase 9, PR-43, AD-07 §19)
+ *     summary: Discover Agents
  *     description: >
- *       A genuinely separate code path from Persona's marketplace search
- *       (never the same service function, per the Discovery Contract).
+ *       Results are always scoped to your own Domain — never leaked across
+ *       Projects.
  *       For a bare Project credential (ProjectMachineContext/
  *       ProjectAdminContext): every Agent in this Project's own Domain,
  *       any owner type — "Project discovery". For a credential paired

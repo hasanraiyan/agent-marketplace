@@ -640,7 +640,7 @@
         "tags": [
           "Developer"
         ],
-        "summary": "Discover Skills (blueprint Phase 9, PR-44, AD-07 §19)",
+        "summary": "Discover Skills",
         "description": "A genuinely separate code path from Persona's marketplace search. For a bare Project credential (ProjectMachineContext/ ProjectAdminContext): every Skill in this Project's own Domain, any owner type. For a credential paired with x-persona-external-user-id (ProjectRuntimeContext): scope=mine returns only that external user's own Skills; omitting it returns this Domain's public Skills only.\n",
         "security": [
           {
@@ -785,7 +785,7 @@
           "Developer"
         ],
         "summary": "Create a Provider (Project-owned)",
-        "description": "Provider ownership is narrower than other Developer resources (AD-06 §21) — PersonaUser/Project only, never ExternalUser.",
+        "description": "Provider ownership is narrower than other Developer resources — PersonaUser/Project only, never ExternalUser.",
         "security": [
           {
             "projectCredential": []
@@ -911,7 +911,7 @@
         "tags": [
           "Developer"
         ],
-        "summary": "Test a Provider's credentials (owner only, blueprint Phase 9, PR-47a)",
+        "summary": "Test a Provider's credentials (owner only)",
         "security": [
           {
             "projectCredential": []
@@ -945,7 +945,7 @@
         "tags": [
           "Developer"
         ],
-        "summary": "List a Provider's available models (owner only, blueprint Phase 9, PR-47a)",
+        "summary": "List a Provider's available models (owner only)",
         "security": [
           {
             "projectCredential": []
@@ -1014,7 +1014,7 @@
         "tags": [
           "Developer"
         ],
-        "summary": "Discover MCP servers (blueprint Phase 9, PR-46, AD-07 §19)",
+        "summary": "Discover MCP servers",
         "description": "A genuinely separate code path from any Persona listing. Mcp has no isPublic/visibility field, so unlike Agent/Skill/Knowledge there is no separate \"public browse\" subset — a bare Project credential OR a ProjectRuntimeContext without scope=mine both see every MCP in this Project's own Domain, any owner type. scope=mine (ProjectRuntimeContext only) narrows to just that external user's own MCPs.\n",
         "security": [
           {
@@ -1158,7 +1158,7 @@
         "tags": [
           "Developer"
         ],
-        "summary": "Test an MCP server's connection (owner only, blueprint Phase 9, PR-47c)",
+        "summary": "Test an MCP server's connection (owner only)",
         "security": [
           {
             "projectCredential": []
@@ -1286,7 +1286,7 @@
         "tags": [
           "Developer"
         ],
-        "summary": "Start the owner OAuth flow (owner only, blueprint Phase 9, PR-47c)",
+        "summary": "Start the owner OAuth flow (owner only)",
         "description": "No separate Developer callback route exists — the OAuth redirect URI is a single, pre-registered URL that completes via the existing Persona callback route regardless of who initiated the flow, since the signed state alone carries the initiating context.\n",
         "security": [
           {
@@ -1481,7 +1481,7 @@
         "tags": [
           "Developer"
         ],
-        "summary": "Discover Knowledge Bases (blueprint Phase 9, PR-45, AD-07 §19)",
+        "summary": "Discover Knowledge Bases",
         "description": "A genuinely separate code path — Knowledge has no Persona marketplace-browse feature to accidentally reuse. For a bare Project credential: every Knowledge Base in this Project's own Domain, any owner type. For a credential paired with x-persona-external-user-id: scope=mine returns only that external user's own Knowledge Bases; omitting it returns this Domain's public Knowledge Bases only.\n",
         "security": [
           {
@@ -1616,7 +1616,7 @@
         "tags": [
           "Developer"
         ],
-        "summary": "Upload documents to a Knowledge Base (owner only, blueprint Phase 9, PR-47b)",
+        "summary": "Upload documents to a Knowledge Base (owner only)",
         "security": [
           {
             "projectCredential": []
@@ -1786,7 +1786,7 @@
         "tags": [
           "Developer"
         ],
-        "summary": "Upload a file (blueprint Phase 9, PR-47d)",
+        "summary": "Upload a file",
         "description": "Requires a ProjectRuntimeContext. Retrieval is always mediated through GET /api/v1/developer/files/{fileId} — never a bare static URL.\n",
         "security": [
           {
@@ -2084,8 +2084,8 @@
         "tags": [
           "Developer"
         ],
-        "summary": "Discover Agents (blueprint Phase 9, PR-43, AD-07 §19)",
-        "description": "A genuinely separate code path from Persona's marketplace search (never the same service function, per the Discovery Contract). For a bare Project credential (ProjectMachineContext/ ProjectAdminContext): every Agent in this Project's own Domain, any owner type — \"Project discovery\". For a credential paired with x-persona-external-user-id (ProjectRuntimeContext): `scope=mine` returns only that external user's own Agents; omitting it returns this Domain's public Agents only (\"Project-public browse\"). systemPrompt/providerId are stripped from any result the caller doesn't own.\n",
+        "summary": "Discover Agents",
+        "description": "Results are always scoped to your own Domain — never leaked across Projects. For a bare Project credential (ProjectMachineContext/ ProjectAdminContext): every Agent in this Project's own Domain, any owner type — \"Project discovery\". For a credential paired with x-persona-external-user-id (ProjectRuntimeContext): `scope=mine` returns only that external user's own Agents; omitting it returns this Domain's public Agents only (\"Project-public browse\"). systemPrompt/providerId are stripped from any result the caller doesn't own.\n",
         "security": [
           {
             "projectCredential": []

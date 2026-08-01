@@ -78,7 +78,7 @@ router.post('/', validateBody(createKnowledgeBaseSchema), developerKnowledgeCont
  * /api/v1/developer/knowledge:
  *   get:
  *     tags: [Developer]
- *     summary: Discover Knowledge Bases (blueprint Phase 9, PR-45, AD-07 §19)
+ *     summary: Discover Knowledge Bases
  *     description: >
  *       A genuinely separate code path — Knowledge has no Persona
  *       marketplace-browse feature to accidentally reuse. For a bare
@@ -157,7 +157,7 @@ router.delete('/:kbId', developerKnowledgeController.remove);
  * /api/v1/developer/knowledge/{kbId}/documents:
  *   post:
  *     tags: [Developer]
- *     summary: Upload documents to a Knowledge Base (owner only, blueprint Phase 9, PR-47b)
+ *     summary: Upload documents to a Knowledge Base (owner only)
  *     security: [{ projectCredential: [] }]
  *     parameters:
  *       - name: kbId

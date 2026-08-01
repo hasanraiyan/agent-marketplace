@@ -41,7 +41,7 @@ router.post('/', validateBody(createSkillSchema), developerSkillController.creat
  * /api/v1/developer/skills:
  *   get:
  *     tags: [Developer]
- *     summary: Discover Skills (blueprint Phase 9, PR-44, AD-07 §19)
+ *     summary: Discover Skills
  *     description: >
  *       A genuinely separate code path from Persona's marketplace search.
  *       For a bare Project credential (ProjectMachineContext/

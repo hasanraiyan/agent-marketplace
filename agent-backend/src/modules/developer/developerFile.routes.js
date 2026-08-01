@@ -59,7 +59,7 @@ router.use((req, res, next) => {
  * /api/v1/developer/files:
  *   post:
  *     tags: [Developer]
- *     summary: Upload a file (blueprint Phase 9, PR-47d)
+ *     summary: Upload a file
  *     description: >
  *       Requires a ProjectRuntimeContext. Retrieval is always mediated
  *       through GET /api/v1/developer/files/{fileId} — never a bare
