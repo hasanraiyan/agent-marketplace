@@ -37,6 +37,18 @@
     "agents"
   ],
   "license": "MIT",
+  "homepage": "https://github.com/hasanraiyan/agent-marketplace/tree/feat/ai/sdk#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hasanraiyan/agent-marketplace.git",
+    "directory": "sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/hasanraiyan/agent-marketplace/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@ag-ui/core": "^0.0.57"
   },
