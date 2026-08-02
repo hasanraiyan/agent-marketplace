@@ -3,6 +3,7 @@ from .client import PersonaClient
 from .errors import PersonaApiError, PersonaAuthError, PersonaValidationError
 from .resources.agents import Agents, AsyncAgents
 from .resources.knowledge import AsyncKnowledge, Knowledge
+from .resources.mcp import AsyncMcpOAuth, AsyncMcps, McpOAuth, Mcps
 from .resources.providers import AsyncProviders, Providers
 from .resources.skills import AsyncSkills, Skills
 from .types.agent import (
@@ -24,6 +25,25 @@ from .types.knowledge import (
     UpdateKnowledgeBaseInput,
     UploadDocumentsResult,
     UploadFileInput,
+)
+from .types.mcp import (
+    CreateMcpInput,
+    DiscoverMcpsParams,
+    Mcp,
+    McpAuthMode,
+    McpAuthorizeUrl,
+    McpAuthType,
+    McpOAuthConfig,
+    McpOAuthInput,
+    McpReadResourceResult,
+    McpResourceSummary,
+    McpResourceTemplate,
+    McpTestConnectionResult,
+    McpTool,
+    McpTransport,
+    McpUserConnectionStatus,
+    PartialMcpOAuthInput,
+    UpdateMcpInput,
 )
 from .types.principal import PrincipalContext, ProjectMachineContext, ProjectRuntimeContext
 from .types.provider import (
@@ -86,4 +106,25 @@ __all__ = [
     "UploadDocumentsResult",
     "DeleteDocumentResult",
     "KnowledgeSearchResult",
+    "Mcps",
+    "AsyncMcps",
+    "McpOAuth",
+    "AsyncMcpOAuth",
+    "Mcp",
+    "McpTransport",
+    "McpAuthType",
+    "McpAuthMode",
+    "McpTool",
+    "McpResourceSummary",
+    "McpResourceTemplate",
+    "McpOAuthConfig",
+    "McpOAuthInput",
+    "PartialMcpOAuthInput",
+    "CreateMcpInput",
+    "UpdateMcpInput",
+    "DiscoverMcpsParams",
+    "McpTestConnectionResult",
+    "McpReadResourceResult",
+    "McpUserConnectionStatus",
+    "McpAuthorizeUrl",
 ]

@@ -16,6 +16,7 @@ from ._base import TransportConfig
 from ._sync_http import SyncTransport
 from .resources.agents import Agents
 from .resources.knowledge import Knowledge
+from .resources.mcp import Mcps
 from .resources.providers import Providers
 from .resources.skills import Skills
 from .types.principal import PrincipalContext
@@ -42,6 +43,7 @@ class PersonaClient:
         self.skills = Skills(self._transport)
         self.agents = Agents(self._transport)
         self.knowledge = Knowledge(self._transport)
+        self.mcps = Mcps(self._transport)
 
     def close(self) -> None:
         self._transport.close()
