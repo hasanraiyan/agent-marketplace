@@ -1,4 +1,5 @@
 from .async_client import AsyncPersonaClient
+from .chat.client import AsyncChatClient, ChatClient
 from .client import PersonaClient
 from .errors import PersonaApiError, PersonaAuthError, PersonaValidationError
 from .resources.agents import Agents, AsyncAgents
@@ -16,6 +17,14 @@ from .types.agent import (
     CreateAgentInput,
     DiscoverAgentsParams,
     UpdateAgentInput,
+)
+from .types.chat import (
+    AguiEvent,
+    ChatInterrupt,
+    ChatMessageInput,
+    ChatResult,
+    ChatResume,
+    EventType,
 )
 from .types.file import ListFilesParams, PersonaFile, UploadFilePayload
 from .types.knowledge import (
@@ -149,4 +158,12 @@ __all__ = [
     "PersonaFile",
     "UploadFilePayload",
     "ListFilesParams",
+    "ChatClient",
+    "AsyncChatClient",
+    "EventType",
+    "AguiEvent",
+    "ChatMessageInput",
+    "ChatResume",
+    "ChatInterrupt",
+    "ChatResult",
 ]

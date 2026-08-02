@@ -14,6 +14,7 @@ import httpx
 
 from ._base import TransportConfig
 from ._sync_http import SyncTransport
+from .chat.client import ChatClient
 from .resources.agents import Agents
 from .resources.files import Files
 from .resources.knowledge import Knowledge
@@ -48,6 +49,7 @@ class PersonaClient:
         self.mcps = Mcps(self._transport)
         self.threads = Threads(self._transport)
         self.files = Files(self._transport)
+        self.chat = ChatClient(self._transport)
 
     def close(self) -> None:
         self._transport.close()
