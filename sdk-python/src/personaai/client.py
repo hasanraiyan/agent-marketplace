@@ -14,6 +14,7 @@ import httpx
 
 from ._base import TransportConfig
 from ._sync_http import SyncTransport
+from .resources.agents import Agents
 from .resources.providers import Providers
 from .resources.skills import Skills
 from .types.principal import PrincipalContext
@@ -38,6 +39,7 @@ class PersonaClient:
         self._transport = SyncTransport(config, http_client)
         self.providers = Providers(self._transport)
         self.skills = Skills(self._transport)
+        self.agents = Agents(self._transport)
 
     def close(self) -> None:
         self._transport.close()

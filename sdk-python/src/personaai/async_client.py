@@ -13,6 +13,7 @@ import httpx
 
 from ._async_http import AsyncTransport
 from ._base import TransportConfig
+from .resources.agents import AsyncAgents
 from .resources.providers import AsyncProviders
 from .resources.skills import AsyncSkills
 from .types.principal import PrincipalContext
@@ -37,6 +38,7 @@ class AsyncPersonaClient:
         self._transport = AsyncTransport(config, http_client)
         self.providers = AsyncProviders(self._transport)
         self.skills = AsyncSkills(self._transport)
+        self.agents = AsyncAgents(self._transport)
 
     async def aclose(self) -> None:
         await self._transport.aclose()
