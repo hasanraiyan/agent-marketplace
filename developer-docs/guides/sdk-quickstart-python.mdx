@@ -1,0 +1,737 @@
+---
+title: Python SDK
+description: The official Python client — sync and async, auth, resources, and streaming chat, wrapped.
+---
+
+`personaai` is the official Python client for everything on this page — auth header injection,
+typed resource methods for Agents/Skills/Knowledge/MCP/Providers/Threads/Files, and a streaming
+chat client, all wrapping the same REST + AG-UI API described in the
+[API Reference](/api-reference). It ships **both a sync client** (`PersonaClient`) **and an async
+client** (`AsyncPersonaClient`) built on the same [`httpx`](https://www.python-httpx.org/)-based
+transport — use whichever matches your framework. Every method on every resource client is a thin,
+typed 1:1 wrapper over a real endpoint — there's no hidden behavior, so this page doubles as a
+complete method-by-method reference of the client surface.
+
+<Warning>
+  **Server-side only, same as everything else on this page.** The SDK sends your
+  Project's credential on every call — a server-side secret. Never construct
+  `PersonaClient`/`AsyncPersonaClient` in code an untrusted party can read (a
+  Jupyter notebook you share publicly, a serverless function that logs its
+  environment, etc.). See the [Integration Guide](/guides/integration-guide) for
+  the full reasoning.
+</Warning>
+
+## Install
+
+<Note>
+  **Public PyPI package coming soon.** `personaai` isn't published to PyPI yet —
+  `pip install personaai` won't resolve until it is. Until then, build it
+  locally from source:
+</Note>
+
+```bash
+git clone https://github.com/hasanraiyan/agent-marketplace.git
+cd agent-marketplace/sdk-python
+python -m venv .venv
+.venv/Scripts/pip install .   # .venv/bin/pip on macOS/Linux
+```
+
+Or install it editable into another local project you're working on:
+
+```bash
+pip install -e /path/to/agent-marketplace/sdk-python
+```
+
+Once published, installing will be the usual one-liner:
+
+```bash
+pip install personaai
+```
+
+Requires Python 3.9+. Depends on [`httpx`](https://www.python-httpx.org/) only — no `requests`, no
+`aiohttp`, and no separate AG-UI protocol package (see [Chat, streamed](#chat-streamed) for why).
+
+## Configuration
+
+`PersonaClient` (sync) and `AsyncPersonaClient` (async) take the same constructor shape:
+
+| Parameter          | Type                                        | Required | Description                                                                                                                                                 |
+| ------------------ | ------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `base_url`         | `str` (positional)                          | Yes      | Base URL of the Developer Platform API, e.g. `https://api.personaai.com`. Trailing slashes are stripped automatically.                                      |
+| `credential`       | `str` (positional)                          | Yes      | Your Project credential, shaped `"<keyId>.<secret>"`. Sent as `Authorization: Bearer <credential>` on every call. Read from an env var — never hardcode it. |
+| `external_user_id` | `str \| None` (keyword)                     | No       | Asserts this client acts on behalf of one of your own end users (sent as `x-persona-external-user-id`). Omit for Project-level (control-plane) calls.       |
+| `max_retries`      | `int` (keyword)                             | No       | Maximum automatic retries on `429 Too Many Requests` responses. Defaults to `2`. See [Retries and rate limits](#retries-and-rate-limits).                   |
+| `http_client`      | `httpx.Client \| httpx.AsyncClient \| None` | No       | Overrides the underlying `httpx` client (mainly for tests). Defaults to a new one constructed for you.                                                      |
+
+Constructing a client is cheap and stateless beyond these options, so it's fine to construct a
+fresh, per-request client scoped to whoever is making the request (see
+[Framework recipes](#framework-recipes)) rather than trying to share a single instance across
+users.
+
+```python
+import os
+from personaai import PersonaClient
+
+# Control-plane client — acts as the Project itself.
+persona = PersonaClient(os.environ["PERSONA_BASE_URL"], credential=os.environ["PERSONA_CREDENTIAL"])
+
+# Runtime-plane client — acts as one specific end user of yours.
+user_persona = PersonaClient(
+    os.environ["PERSONA_BASE_URL"],
+    credential=os.environ["PERSONA_CREDENTIAL"],
+    external_user_id=current_user.id,
+)
+```
+
+Both clients also work as context managers — `with PersonaClient(...) as persona:` /
+`async with AsyncPersonaClient(...) as persona:` — which closes the underlying `httpx` client for
+you on exit.
+
+## Quickstart
+
+```python
+from personaai import PersonaClient
+
+persona = PersonaClient(
+    "https://api.personaai.com",
+    credential="<keyId>.<secret>",  # minted via Studio
+)
+
+who = persona.whoami()
+print(who["principalType"], who["domain"])
+
+agent = persona.agents.create(
+    {
+        "name": "Career Launchpad",
+        "systemPrompt": "You help students find internships.",
+        "providerId": "...",  # an existing Provider's id
+        "visibility": "unlisted",
+    }
+)
+```
+
+Or async, identical shape:
+
+```python
+import asyncio
+from personaai import AsyncPersonaClient
+
+async def main():
+    async with AsyncPersonaClient("https://api.personaai.com", credential="<keyId>.<secret>") as persona:
+        who = await persona.whoami()
+        print(who["principalType"], who["domain"])
+
+asyncio.run(main())
+```
+
+### Acting on behalf of one of your own end users
+
+Construct a second client scoped to whoever is actually using your product right now — after
+_your own_ auth has confirmed who that is. This maps directly onto the
+[control-plane vs. runtime-plane](/guides/integration-guide#2-the-same-endpoint-serves-two-different-purposes-and-you-choose-which)
+distinction from the Integration Guide.
+
+```python
+user_persona = PersonaClient(
+    "https://api.personaai.com",
+    credential="<keyId>.<secret>",
+    external_user_id=current_user.id,
+)
+
+thread = user_persona.threads.create({"agentId": agent["_id"]})
+```
+
+## Authentication & principal context
+
+`persona.whoami()` resolves the principal context your credential (and optional
+`external_user_id`) maps to — a side-effect-free way to sanity-check auth wiring before making real
+calls:
+
+```python
+who = persona.whoami()
+```
+
+The returned dict's shape depends on whether the client was constructed with `external_user_id`:
+
+| `principalType`  | Shape                                                   | When you get it                                             |
+| ---------------- | ------------------------------------------------------- | ----------------------------------------------------------- |
+| `ProjectMachine` | `{domain, principalType, credentialId}`                 | `external_user_id` omitted — acting as the Project itself.  |
+| `ProjectRuntime` | `{domain, principalType, credentialId, externalUserId}` | `external_user_id` set — acting on behalf of that end user. |
+
+There is no third `ProjectAdmin` variant reachable from the SDK — that context only comes from a
+Clerk-authenticated human admin session (Developer Studio), a completely different auth model the
+SDK deliberately doesn't implement (see [Out of scope](#out-of-scope)).
+
+## Error handling
+
+Every non-2xx response, or a `{success:false}` JSON envelope on a 2xx, raises a typed exception
+instead of returning normally. All error classes are exported from the package root:
+
+```python
+from personaai import PersonaApiError, PersonaAuthError, PersonaValidationError
+```
+
+| Class                    | When it's raised                                                            | Extra attributes                                                                    |
+| ------------------------ | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `PersonaApiError`        | Base class — any other non-2xx/`{success:false}` response.                  | `status_code: int`, `code: str`, `response: Any` (the parsed error body, or `None`) |
+| `PersonaAuthError`       | `401` or `403` — invalid/missing credential, or the Project isn't `ACTIVE`. | Same attributes (subclass — `isinstance(err, PersonaApiError)` also matches).       |
+| `PersonaValidationError` | `400` — request validation failed (bad/missing fields).                     | Same attributes.                                                                    |
+
+`code` mirrors the backend's own machine-readable error code (e.g. `VALIDATION_ERROR`,
+`UNAUTHORIZED`, `PROJECT_NOT_ACTIVE`, `NOT_FOUND`) — check the [API Reference](/api-reference) for
+each endpoint's documented error responses. `message` (available via `str(err)` or `err.args[0]`)
+is the human-readable string from the same envelope, safe to log or (after your own review)
+surface to a user.
+
+```python
+try:
+    persona.agents.create({"name": "", "systemPrompt": "...", "providerId": "..."})
+except PersonaValidationError as err:
+    print(f"Bad request ({err.code}): {err}")
+except PersonaAuthError as err:
+    print(f"Auth problem ({err.status_code}): {err}")
+except PersonaApiError as err:
+    print(f"API error ({err.status_code}/{err.code}): {err}")
+```
+
+## Retries and rate limits
+
+Every resource call goes through the shared transport, which automatically retries `429 Too Many
+Requests` responses: it reads the response's `Retry-After` header (seconds), waits that long, and
+retries — up to `max_retries` times (default `2`) before giving up and raising a `PersonaApiError`
+with `status_code: 429`. If `Retry-After` is absent it falls back to a 1-second wait. This is a
+fixed per-attempt wait, not exponential backoff, matching the API's own `Retry-After` contract
+rather than guessing at a backoff curve. The same retry logic covers `chat.stream()`'s streaming
+requests, not just regular JSON calls.
+
+```python
+patient_client = PersonaClient(
+    "...", credential="...", max_retries=5  # retry up to 5 times on 429 before raising
+)
+```
+
+**Only 429 is retried automatically.** Any other error (`400`, `401`, `403`, `404`, `500`, etc.)
+raises immediately on the first attempt, since retrying those wouldn't change the outcome.
+
+<Note>
+  There is no request-cancellation parameter (no `AbortSignal` equivalent) in
+  v1. For the async client, wrap a call in `asyncio.wait_for(...)` or cancel the
+  enclosing `asyncio.Task` yourself if you need a timeout/cancellation — this is
+  a documented gap, not a hidden one.
+</Note>
+
+## Resources
+
+| Client property           | Wraps                                                              | Ownership scoping                                                      |
+| ------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| `.providers`              | `/api/v1/developer/providers`                                      | Control-plane only — no per-user Providers.                            |
+| `.skills`                 | `/api/v1/developer/skills`                                         | Project or, with `external_user_id`, that end user.                    |
+| `.agents`                 | `/api/v1/developer/agents`                                         | Project or, with `external_user_id`, that end user.                    |
+| `.knowledge`              | `/api/v1/developer/knowledge` (incl. document upload/search)       | Project or, with `external_user_id`, that end user.                    |
+| `.mcps` (+ `.mcps.oauth`) | `/api/v1/developer/mcps` (incl. OAuth owner/user connection flows) | Project or, with `external_user_id`, that end user.                    |
+| `.threads`                | `/api/v1/developer/threads`                                        | Requires `external_user_id` — a Thread always belongs to one end user. |
+| `.files`                  | `/api/v1/developer/files`                                          | Requires `external_user_id` — a File always belongs to one end user.   |
+| `.chat`                   | `/api/v1/developer/agui` (streaming)                               | Requires `external_user_id` — a chat run always runs as one end user.  |
+
+Two real backend quirks show up across the typed responses below, documented rather than papered
+over:
+
+- **`_id` vs. `id`.** Skill/Agent/Knowledge/Thread/Mcp responses use the raw MongoDB document shape
+  (`_id`). Provider/File responses go through a clean formatted DTO (`id`). Check each type below
+  for which one applies.
+- **Bare lists, not a pagination envelope.** Every `list()`-style method (`skills.list()`,
+  `agents.list()`, `knowledge.list()`, `mcps.list()`, `threads.list()`, `files.list()`) returns a
+  plain list, not `{items, pagination}` — despite accepting `page`/`limit` params. Fetch a page,
+  check the returned list's length against `limit` to infer whether there's more.
+
+All resource types are `TypedDict`s — plain `dict`s at runtime, typed purely for editor/type-
+checker support (`mypy`/`pyright`). Request bodies keep the API's own camelCase field names
+(`providerId`, `systemPrompt`, ...) even though method and parameter names are Pythonic snake_case
+— see [Python types](#python-types).
+
+### Providers
+
+Control-plane only — there is no list/discover endpoint for Providers, and no `ExternalUser`
+ownership concept (an end user can never own a Provider).
+
+| Method                                   | Wraps                                  | Returns                             |
+| ---------------------------------------- | -------------------------------------- | ----------------------------------- |
+| `providers.create(input)`                | `POST /providers`                      | `Provider`                          |
+| `providers.get(provider_id)`             | `GET /providers/{id}`                  | `Provider`                          |
+| `providers.update(provider_id, input)`   | `PATCH /providers/{id}`                | `Provider`                          |
+| `providers.delete(provider_id)`          | `DELETE /providers/{id}`               | `None`                              |
+| `providers.test_connection(provider_id)` | `POST /providers/{id}/test-connection` | `{success: bool, message: str}`     |
+| `providers.get_models(provider_id)`      | `GET /providers/{id}/models`           | `list[ProviderModel]` (`{id: str}`) |
+
+```python
+provider = persona.providers.create(
+    {
+        "label": "OpenAI (production)",
+        "baseURL": "https://api.openai.com/v1",
+        "apiKey": os.environ["OPENAI_API_KEY"],  # encrypted at rest, never returned in any response
+        "defaultModel": "gpt-4o-mini",
+        "isDefault": True,
+    }
+)
+
+result = persona.providers.test_connection(provider["id"])
+models = persona.providers.get_models(provider["id"])
+```
+
+`CreateProviderInput`/`UpdateProviderInput` fields: `label`, `baseURL`, `apiKey` (create only,
+required), `defaultModel`, `isDefault` (optional). `apiKey` is write-only — it's never present on
+the `Provider` object returned from any call.
+
+### Skills
+
+```python
+skill = persona.skills.create(
+    {
+        "name": "Resume Reviewer",
+        "description": "Reviews a resume and suggests concrete edits.",
+        "instructions": "You are an expert resume reviewer...",
+        "isPublic": False,
+        "files": [{"path": "rubric.md", "content": "# Scoring rubric\n..."}],
+    }
+)
+
+mine = user_persona.skills.list({"scope": "mine", "search": "resume"})
+full = persona.skills.get(skill["_id"])
+persona.skills.update(skill["_id"], {"description": "Updated description."})
+persona.skills.delete(skill["_id"])
+```
+
+| Method                           | Wraps                 | Returns       |
+| -------------------------------- | --------------------- | ------------- |
+| `skills.create(input)`           | `POST /skills`        | `Skill`       |
+| `skills.list(params=None)`       | `GET /skills`         | `list[Skill]` |
+| `skills.get(skill_id)`           | `GET /skills/{id}`    | `Skill`       |
+| `skills.update(skill_id, input)` | `PATCH /skills/{id}`  | `Skill`       |
+| `skills.delete(skill_id)`        | `DELETE /skills/{id}` | `None`        |
+
+`DiscoverSkillsParams`: `page`, `limit`, `search`, `scope: "mine"` (restricts to the asserted end
+user's own Skills — only meaningful on a runtime-plane client), all optional. `Skill["isOwner"]` is
+present only on the result of `get()`, not `list()`/`create()`/`update()`.
+
+### Agents
+
+```python
+agent = persona.agents.create(
+    {
+        "name": "Career Launchpad",
+        "systemPrompt": "You help students find internships.",
+        "providerId": provider["id"],
+        "description": "Your internship search co-pilot.",
+        "category": "productivity",
+        "visibility": "unlisted",
+        "webSearchEnabled": True,
+        "skills": [skill["_id"]],
+    }
+)
+
+discovered = persona.agents.list({"category": "productivity", "search": "career"})
+full = persona.agents.get(agent["_id"])  # skills/mcps/knowledgeBases populated as objects
+persona.agents.update(agent["_id"], {"tagline": "Find your next internship."})
+persona.agents.delete(agent["_id"])
+```
+
+| Method                           | Wraps                 | Returns       |
+| -------------------------------- | --------------------- | ------------- |
+| `agents.create(input)`           | `POST /agents`        | `Agent`       |
+| `agents.list(params=None)`       | `GET /agents`         | `list[Agent]` |
+| `agents.get(agent_id)`           | `GET /agents/{id}`    | `Agent`       |
+| `agents.update(agent_id, input)` | `PATCH /agents/{id}`  | `Agent`       |
+| `agents.delete(agent_id)`        | `DELETE /agents/{id}` | `None`        |
+
+Notes on the `Agent` shape:
+
+- `visibility`: `"private" | "unlisted" | "public"`. `category`: `"productivity" | "coding" |
+"creative" | "research" | "roleplay" | "other"`.
+- `agents.get()` populates `skills`/`mcps`/`knowledgeBases` as full objects; `create()`/`update()`/
+  `list()` return them as bare id strings (or omit them) — typed loosely (`list[object]`) to
+  reflect that real difference.
+- `systemPrompt` and `providerId` are absent from the response entirely when the calling identity
+  doesn't own the Agent (e.g. browsing a `public` Agent that belongs to someone else) — both keys
+  are optional in the `Agent` TypedDict for exactly this reason.
+- `DiscoverAgentsParams` adds `category` on top of the usual `page`/`limit`/`search`/`scope`.
+
+### Knowledge
+
+```python
+kb = persona.knowledge.create(
+    {
+        "name": "Placement Office FAQ",
+        "providerId": provider["id"],  # required — no "my default provider" concept on this API
+        "chunkSize": 1000,
+        "chunkOverlap": 200,
+        "topK": 5,
+    }
+)
+
+with open("faq.pdf", "rb") as f:
+    result = persona.knowledge.upload_documents(
+        kb["_id"], [{"filename": "faq.pdf", "content": f.read(), "contentType": "application/pdf"}]
+    )
+# result: {"documentCount": ..., "chunkCount": ..., "files": [{"fileName", "fileSize", "mimeType", "chunkCount"}]}
+
+docs = persona.knowledge.list_documents(kb["_id"])
+persona.knowledge.delete_document(kb["_id"], "faq.pdf")
+
+hits = persona.knowledge.search(kb["_id"], "What's the deadline to apply?", top_k=3)
+# hits: [{"text", "source", "score"}, ...]
+```
+
+| Method                                          | Wraps                                            | Returns                       |
+| ----------------------------------------------- | ------------------------------------------------ | ----------------------------- |
+| `knowledge.create(input)`                       | `POST /knowledge`                                | `KnowledgeBase`               |
+| `knowledge.list(params=None)`                   | `GET /knowledge`                                 | `list[KnowledgeBase]`         |
+| `knowledge.get(kb_id)`                          | `GET /knowledge/{id}`                            | `KnowledgeBase`               |
+| `knowledge.update(kb_id, input)`                | `PATCH /knowledge/{id}`                          | `KnowledgeBase`               |
+| `knowledge.delete(kb_id)`                       | `DELETE /knowledge/{id}`                         | `None`                        |
+| `knowledge.upload_documents(kb_id, files)`      | `POST /knowledge/{id}/documents` (multipart)     | `UploadDocumentsResult`       |
+| `knowledge.list_documents(kb_id)`               | `GET /knowledge/{id}/documents`                  | `list[KnowledgeDocument]`     |
+| `knowledge.delete_document(kb_id, source_name)` | `DELETE /knowledge/{id}/documents/{source_name}` | `DeleteDocumentResult`        |
+| `knowledge.search(kb_id, query, top_k=None)`    | `POST /knowledge/{id}/search`                    | `list[KnowledgeSearchResult]` |
+
+Limits: up to 10 files per `upload_documents()` call, 20MB each, restricted to
+PDF/TXT/MD/JSON/CSV. `providerId` is **required** on `CreateKnowledgeBaseInput` — unlike Persona's
+own (non-Developer) Knowledge routes, there's no "use my default Provider" fallback for a Project
+or ExternalUser caller. Each file's `content` is `bytes` or a binary file object (`BinaryIO`).
+`search()`'s `top_k` overrides the KnowledgeBase's own configured `topK` for that one call only.
+
+### MCP connectors
+
+```python
+mcp = persona.mcps.create(
+    {
+        "name": "Internal Ticketing",
+        "transport": "http",
+        "url": "https://mcp.example.com",
+        "authType": "apiKey",
+        "apiKey": os.environ["TICKETING_MCP_KEY"],
+    }
+)
+
+connection = persona.mcps.test_connection(mcp["_id"])
+result = persona.mcps.call_tool(mcp["_id"], "create_ticket", {"title": "Bug report"})
+resource = persona.mcps.read_resource(mcp["_id"], connection["resources"][0]["uri"])
+```
+
+| Method                                         | Wraps                             | Returns                                          |
+| ---------------------------------------------- | --------------------------------- | ------------------------------------------------ |
+| `mcps.create(input)`                           | `POST /mcps`                      | `Mcp`                                            |
+| `mcps.list(params=None)`                       | `GET /mcps`                       | `list[Mcp]`                                      |
+| `mcps.get(mcp_id)`                             | `GET /mcps/{id}`                  | `Mcp`                                            |
+| `mcps.update(mcp_id, input)`                   | `PATCH /mcps/{id}`                | `Mcp`                                            |
+| `mcps.delete(mcp_id)`                          | `DELETE /mcps/{id}`               | `None`                                           |
+| `mcps.test_connection(mcp_id)`                 | `POST /mcps/{id}/test`            | `{tools, resources, resourceTemplates}`          |
+| `mcps.read_resource(mcp_id, uri)`              | `GET /mcps/{id}/resource?uri=...` | `{text: str, mimeType: str}`                     |
+| `mcps.call_tool(mcp_id, name, arguments=None)` | `POST /mcps/{id}/call-tool`       | `Any` (shape depends on the underlying MCP tool) |
+
+`transport`: `"http" | "sse"`. `authType`: `"none" | "oauth" | "apiKey"`. `authMode`: `"owner" |
+"user"` (owner-mode shares one connection across everyone; user-mode gives each external user their
+own). `apiKey` is required when `authType: "apiKey"`; `oauth` (or `useDynamicRegistration: True`)
+is required when `authType: "oauth"`.
+
+<Note>
+  Creating an `authType: "oauth"` MCP synchronously probes the target URL's
+  OAuth discovery endpoints — pointing it at a URL that doesn't actually
+  implement OAuth discovery will fail the `create()` call itself, not just a
+  later connection test.
+</Note>
+
+#### OAuth connection flows (`mcps.oauth`)
+
+For `authType: "oauth"` MCPs, `mcps.oauth` drives the owner- and user-mode authorization flows:
+
+| Method                                                      | Wraps                                      | Returns             |
+| ----------------------------------------------------------- | ------------------------------------------ | ------------------- |
+| `mcps.oauth.get_owner_authorize_url(mcp_id)`                | `GET /mcps/{id}/oauth/owner/authorize`     | `{url: str}`        |
+| `mcps.oauth.get_user_authorize_url(mcp_id, return_to=None)` | `GET /mcps/{id}/oauth/user/authorize`      | `{url: str}`        |
+| `mcps.oauth.get_user_connection_status(mcp_id)`             | `GET /mcps/{id}/oauth/user/status`         | `{connected: bool}` |
+| `mcps.oauth.disconnect_user_connection(mcp_id)`             | `DELETE /mcps/{id}/oauth/user/connection`  | `None`              |
+| `mcps.oauth.disconnect_owner_connection(mcp_id)`            | `DELETE /mcps/{id}/oauth/owner/connection` | `None`              |
+
+Owner-mode authorizes the MCP itself, shared by every user of your Project — call
+`get_owner_authorize_url()` from a control-plane client and redirect your admin through it once.
+User-mode authorizes one specific end user's own token — call `get_user_authorize_url()` from a
+runtime-plane client (`external_user_id` set) and redirect that user through it; `return_to` is an
+optional client-chosen URL to send them back to once the flow completes.
+
+### Threads
+
+Every method requires the client to have been constructed with `external_user_id` — a Thread's
+Subject is always a specific end user, so a bare Project credential is rejected with a `400
+EXTERNAL_USER_REQUIRED` `PersonaValidationError`.
+
+```python
+thread = user_persona.threads.create({"agentId": agent["_id"]})
+mine = user_persona.threads.list({"page": 1, "limit": 20})
+user_persona.threads.update_title(thread["_id"], "Summer internship search")
+messages = user_persona.threads.get_messages(thread["_id"])
+user_persona.threads.delete(thread["_id"])
+```
+
+| Method                                   | Wraps                        | Returns          |
+| ---------------------------------------- | ---------------------------- | ---------------- |
+| `threads.create(input)`                  | `POST /threads`              | `Thread`         |
+| `threads.list(params=None)`              | `GET /threads`               | `list[Thread]`   |
+| `threads.get(thread_id)`                 | `GET /threads/{id}`          | `Thread`         |
+| `threads.update_title(thread_id, title)` | `PATCH /threads/{id}`        | `Thread`         |
+| `threads.delete(thread_id)`              | `DELETE /threads/{id}`       | `None`           |
+| `threads.get_messages(thread_id)`        | `GET /threads/{id}/messages` | `ThreadMessages` |
+
+`Thread["agentId"]` is populated as `{_id, name, avatar, slug}` on `list()`, but a bare id string
+on `create()`/`get()` — check which call produced the value before assuming a shape.
+`ThreadMessages["messages"]` holds raw LangChain-style message objects (role/content/tool_calls
+vary by message type) and is intentionally typed as `list[Any]` rather than guessing at a shape the
+SDK doesn't own — inspect it at runtime if you need to render history yourself, or prefer
+`chat.stream()`'s events for anything you're building a live UI around.
+
+### Files
+
+Every method requires the client to have been constructed with `external_user_id`, same
+requirement and rejection behavior as Threads — a File's Subject is always a specific end user.
+
+```python
+with open("resume.pdf", "rb") as f:
+    file = user_persona.files.upload(
+        {
+            "filename": "resume.pdf",
+            "content": f.read(),
+            "contentType": "application/pdf",
+            "threadId": thread["_id"],  # optional — associates the file with a conversation
+        }
+    )
+
+mine = user_persona.files.list({"page": 1, "limit": 20})
+
+response = user_persona.files.download(file["id"])  # raw httpx.Response, not JSON
+bytes_ = response.content
+
+user_persona.files.delete(file["id"])
+```
+
+| Method                    | Wraps                     | Returns                          |
+| ------------------------- | ------------------------- | -------------------------------- |
+| `files.upload(input)`     | `POST /files` (multipart) | `PersonaFile`                    |
+| `files.list(params=None)` | `GET /files`              | `list[PersonaFile]`              |
+| `files.download(file_id)` | `GET /files/{id}`         | `httpx.Response` (raw, not JSON) |
+| `files.delete(file_id)`   | `DELETE /files/{id}`      | `None`                           |
+
+`files.download()` is the one method on the whole client that doesn't return parsed JSON — it
+returns the raw `httpx.Response` so you can read `.content`/`.text`/`.iter_bytes()` as your
+application needs.
+
+## Chat, streamed
+
+`chat` requires the client to have been constructed with `external_user_id` — a chat run always
+executes as a specific end user. `ChatClient.stream()` (sync) is a regular generator;
+`AsyncChatClient.stream()` (async) is an async generator — the natural per-language idiom for the
+same AG-UI event stream.
+
+```python
+from personaai import EventType
+
+# Full event stream, for building your own UI.
+for event in user_persona.chat.stream(
+    agent["_id"], [{"role": "user", "content": "What internships are open right now?"}]
+):
+    if event["type"] == EventType.TEXT_MESSAGE_CHUNK and event.get("delta"):
+        print(event["delta"], end="")
+
+# Or the convenience wrapper — drains the stream, returns the final text.
+result = user_persona.chat.send_message(
+    agent["_id"], [{"role": "user", "content": "What internships are open right now?"}]
+)
+print(result["text"])
+```
+
+Async is the same shape:
+
+```python
+async for event in user_persona.chat.stream(agent["_id"], messages):
+    ...
+
+result = await user_persona.chat.send_message(agent["_id"], messages)
+```
+
+| Method                                                                  | Returns                                            | Description                                                                     |
+| ----------------------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `chat.stream(agent_id, messages, *, thread_id=None, resume=None)`       | `Iterator[AguiEvent]` / `AsyncIterator[AguiEvent]` | The raw event sequence, as it arrives — full control for a custom UI.           |
+| `chat.send_message(agent_id, messages, *, thread_id=None, resume=None)` | `ChatResult`                                       | Drains `stream()` for you; returns assembled text plus interrupt/events detail. |
+
+`messages`: `list[{"role": "user" | "assistant", "content": str}]`. `thread_id` resumes a named
+Thread from `threads.create()` instead of the implicit deterministic one-conversation-per-Agent-
+per-user thread. `resume` — see [Human-in-the-loop](#human-in-the-loop-interrupts-and-resuming)
+below.
+
+### AG-UI event types
+
+Events are typed as a loose `AguiEvent = dict[str, Any]` rather than pulling in an AG-UI protocol
+package — this SDK doesn't depend on one, mirroring the Node SDK's own call to reject
+`@ag-ui/client`'s heavier dependency chain in favor of a hand-rolled parser. `EventType` is a plain
+class of string constants for comparing against `event["type"]` — not a real Python `enum`, so no
+`.value` unwrapping needed:
+
+| Event type                                      | Meaning                                                                                                                                                                                |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RUN_STARTED`                                   | Emitted once, at the start of the run.                                                                                                                                                 |
+| `TEXT_MESSAGE_CHUNK`                            | A streamed assistant text delta (`event["delta"]`).                                                                                                                                    |
+| `REASONING_MESSAGE_START` / `_CONTENT` / `_END` | Streamed model reasoning, for models that expose it.                                                                                                                                   |
+| `TOOL_CALL_CHUNK`                               | A streamed tool-call invocation (arguments arrive incrementally).                                                                                                                      |
+| `TOOL_CALL_RESULT`                              | The result of a completed tool call.                                                                                                                                                   |
+| `STATE_SNAPSHOT`                                | A full-state update.                                                                                                                                                                   |
+| `CUSTOM`                                        | Persona-specific side-channel events — subagent traces, MCP structured content, and this SDK's own human-in-the-loop signaling (`hitl_request` / `clarification_request` — see below). |
+| `RUN_FINISHED`                                  | Emitted once, at the end of the run (omitted if the run paused on an interrupt instead).                                                                                               |
+
+```python
+for event in user_persona.chat.stream(agent["_id"], messages):
+    if event["type"] == EventType.TEXT_MESSAGE_CHUNK:
+        print(event.get("delta", ""), end="")
+    elif event["type"] == EventType.TOOL_CALL_RESULT:
+        print("tool result:", event)
+    elif event["type"] == EventType.RUN_FINISHED:
+        print("done")
+```
+
+### Human-in-the-loop: interrupts and resuming
+
+If an Agent's configuration requires confirming a sensitive tool call, or the run needs a
+clarifying answer from the user, the run pauses instead of finishing normally and emits a `CUSTOM`
+event instead of `RUN_FINISHED`. `send_message()` detects this for you and sets
+`result["interrupt"]`:
+
+```python
+result = user_persona.chat.send_message(agent["_id"], messages)
+
+if result["interrupt"]:
+    print(result["interrupt"]["kind"])   # "hitl" | "clarification"
+    print(result["interrupt"]["value"])  # whatever detail the interrupt carries
+```
+
+| `interrupt["kind"]` | Triggering `CUSTOM` event name | Resume with                                                           |
+| ------------------- | ------------------------------ | --------------------------------------------------------------------- |
+| `"hitl"`            | `hitl_request`                 | `{"decisions": [{"action": ..., "decision": "approve" \| "reject"}]}` |
+| `"clarification"`   | `clarification_request`        | `{"answers": [...], "text": ...}`                                     |
+
+Resume on the **next** `send_message()`/`stream()` call for the same Thread, with `messages=[]`
+(no new user message — you're answering the interrupt, not starting a new turn) and `resume` set:
+
+```python
+if result["interrupt"]:
+    user_persona.chat.send_message(
+        agent["_id"],
+        [],
+        thread_id=thread["_id"],
+        resume={"decisions": [{"action": "delete_agent", "decision": "approve"}]},
+    )
+```
+
+`ChatResult` also exposes `events: list[AguiEvent]` — every raw event received during that call, in
+order, for anything `text`/`interrupt` don't already surface.
+
+## Python types
+
+Every public type is exported from the package root (`from personaai import ...`) — both client
+classes, every resource client (`Providers`/`AsyncProviders`, `Skills`/`AsyncSkills`,
+`Agents`/`AsyncAgents`, `Knowledge`/`AsyncKnowledge`, `Mcps`/`AsyncMcps`,
+`McpOAuth`/`AsyncMcpOAuth`, `Threads`/`AsyncThreads`, `Files`/`AsyncFiles`,
+`ChatClient`/`AsyncChatClient`), every create/update/list-params/result `TypedDict` referenced in
+the tables above, `PrincipalContext` and its two variants, `AguiEvent`/`EventType`, and the error
+classes from [Error handling](#error-handling). There's no separate submodule to remember — one
+`from personaai import ...` covers the client, every resource, and every type.
+
+Unlike a validating model library (Pydantic, etc.), these types are plain `TypedDict`s — zero
+runtime behavior, purely for `mypy`/`pyright` support — consistent with "every method mirrors the
+real REST endpoint 1:1, no hidden behavior."
+
+## Out of scope
+
+Project/Members/Credentials management (creating Projects, inviting Members, minting/revoking
+credentials) is intentionally **not** part of this SDK — those routes are Clerk-session
+(human-admin) authenticated, a structurally different auth model than the machine-credential calls
+this SDK makes end to end. Manage them from
+[Developer Studio](https://app.personaai.com/developer) instead.
+
+## Framework recipes
+
+### Flask
+
+No special handling — construct the client once at module scope and use it in your view functions.
+
+```python
+# persona.py
+import os
+from personaai import PersonaClient
+
+persona = PersonaClient(os.environ["PERSONA_BASE_URL"], credential=os.environ["PERSONA_CREDENTIAL"])
+```
+
+```python
+# app.py
+import os
+from flask import Flask, request, jsonify
+from personaai import PersonaClient
+
+app = Flask(__name__)
+
+@app.post("/api/chat")
+def chat():
+    user_persona = PersonaClient(
+        os.environ["PERSONA_BASE_URL"],
+        credential=os.environ["PERSONA_CREDENTIAL"],
+        external_user_id=request.json["userId"],
+    )
+    result = user_persona.chat.send_message(request.json["agentId"], request.json["messages"])
+    return jsonify(result)
+```
+
+### FastAPI
+
+Construct the client per-request via a `Depends()` provider so it plugs into FastAPI's own
+dependency-injection system — the SDK itself needs no FastAPI-specific support, and this uses the
+async client since FastAPI route handlers are `async def`.
+
+```python
+# deps.py
+import os
+from personaai import AsyncPersonaClient
+
+def get_persona(external_user_id: str | None = None) -> AsyncPersonaClient:
+    return AsyncPersonaClient(
+        os.environ["PERSONA_BASE_URL"],
+        credential=os.environ["PERSONA_CREDENTIAL"],
+        external_user_id=external_user_id,
+    )
+```
+
+```python
+# main.py
+from fastapi import Depends, FastAPI
+from deps import get_persona
+
+app = FastAPI()
+
+@app.post("/api/chat")
+async def chat(body: dict, current_user_id: str = Depends(get_current_user_id)):
+    async with get_persona(external_user_id=current_user_id) as persona:
+        return await persona.chat.send_message(body["agentId"], body["messages"])
+```
+
+### Django
+
+Wire a module-level singleton, same idea as Flask — Django views are sync by default, so the sync
+`PersonaClient` is the natural fit.
+
+```python
+# yourapp/persona.py
+from django.conf import settings
+from personaai import PersonaClient
+
+persona = PersonaClient(settings.PERSONA_BASE_URL, credential=settings.PERSONA_CREDENTIAL)
+```
+
+Keep `PERSONA_CREDENTIAL` in your environment / secrets manager and read it into `settings.py`
+(`os.environ["PERSONA_CREDENTIAL"]`) — never commit it, and never expose it via a template context
+processor a browser can read.
