@@ -2,10 +2,12 @@ from .async_client import AsyncPersonaClient
 from .client import PersonaClient
 from .errors import PersonaApiError, PersonaAuthError, PersonaValidationError
 from .resources.agents import Agents, AsyncAgents
+from .resources.files import AsyncFiles, Files
 from .resources.knowledge import AsyncKnowledge, Knowledge
 from .resources.mcp import AsyncMcpOAuth, AsyncMcps, McpOAuth, Mcps
 from .resources.providers import AsyncProviders, Providers
 from .resources.skills import AsyncSkills, Skills
+from .resources.threads import AsyncThreads, Threads
 from .types.agent import (
     Agent,
     AgentCategory,
@@ -15,6 +17,7 @@ from .types.agent import (
     DiscoverAgentsParams,
     UpdateAgentInput,
 )
+from .types.file import ListFilesParams, PersonaFile, UploadFilePayload
 from .types.knowledge import (
     CreateKnowledgeBaseInput,
     DeleteDocumentResult,
@@ -60,6 +63,13 @@ from .types.skill import (
     SkillFile,
     SkillFileInput,
     UpdateSkillInput,
+)
+from .types.thread import (
+    CreateThreadInput,
+    ListThreadsParams,
+    Thread,
+    ThreadAgentRef,
+    ThreadMessages,
 )
 
 __all__ = [
@@ -127,4 +137,16 @@ __all__ = [
     "McpReadResourceResult",
     "McpUserConnectionStatus",
     "McpAuthorizeUrl",
+    "Threads",
+    "AsyncThreads",
+    "Thread",
+    "ThreadAgentRef",
+    "CreateThreadInput",
+    "ListThreadsParams",
+    "ThreadMessages",
+    "Files",
+    "AsyncFiles",
+    "PersonaFile",
+    "UploadFilePayload",
+    "ListFilesParams",
 ]
