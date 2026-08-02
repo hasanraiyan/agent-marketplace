@@ -10,7 +10,7 @@ All environment variables are loaded in `src/config/index.js` using `dotenv`. Va
 |----------|----------|---------|-------------|
 | `PORT` | No | `3000` | Server port |
 | `NODE_ENV` | No | `development` | Environment (`development`, `test`, `production`) |
-| `BACKEND_URL` | No | `http://localhost:3000` | Public URL (used for MCP OAuth redirect URIs) |
+| `BACKEND_URL` | No | `https://api.persona.hasanraiyan.me` | Public URL (used for MCP OAuth redirect URIs) |
 | `WEBSITE_URL` | No | `https://persona.ai/` | Frontend URL (used in email links) |
 | `DISABLE_CRON` | No | `false` | Set to `true` to disable all scheduled jobs |
 

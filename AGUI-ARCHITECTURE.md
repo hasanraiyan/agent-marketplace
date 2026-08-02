@@ -694,7 +694,7 @@ src/
 
 ```env
 # Frontend runtime URL for the AG-UI SSE endpoint
-NEXT_PUBLIC_AGUI_RUNTIME_URL=https://api.example.com/api/v1/agui
+NEXT_PUBLIC_AGUI_RUNTIME_URL=https://api.persona.hasanraiyan.me/api/v1/agui
 # Falls back to: {NEXT_PUBLIC_API_URL}/agui
 ```
 

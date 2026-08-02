@@ -25,7 +25,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { PersonaClient, EventType } from '../../src/index.js';
 
 const RUN = process.env.PERSONA_SDK_INTEGRATION_TEST === '1';
-const baseUrl = process.env.PERSONA_TEST_BASE_URL ?? 'http://localhost:3000';
+const baseUrl = process.env.PERSONA_TEST_BASE_URL ?? 'https://api.persona.hasanraiyan.me';
 const credential = process.env.PERSONA_TEST_CREDENTIAL;
 const providerId = process.env.PERSONA_TEST_PROVIDER_ID;
 

@@ -21,6 +21,10 @@ const options = {
     },
     servers: [
       {
+        url: process.env.BACKEND_URL || 'https://api.persona.hasanraiyan.me',
+        description: 'Production API server',
+      },
+      {
         url: `http://localhost:${process.env.PORT || 3000}`,
         description: 'Local development server',
       },

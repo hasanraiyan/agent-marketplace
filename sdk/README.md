@@ -224,7 +224,7 @@ Project.
 
 ```bash
 PERSONA_SDK_INTEGRATION_TEST=1 \
-PERSONA_TEST_BASE_URL=http://localhost:3000 \
+PERSONA_TEST_BASE_URL=https://api.persona.hasanraiyan.me \
 PERSONA_TEST_CREDENTIAL=<keyId>.<secret> \
 PERSONA_TEST_PROVIDER_ID=<provider-id> \
 pnpm test test/integration/live.test.ts

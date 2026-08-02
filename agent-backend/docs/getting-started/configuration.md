@@ -65,7 +65,7 @@ Required for transactional emails (verification, password reset).
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `PORT` | `3000` | Server port |
-| `BACKEND_URL` | `http://localhost:3000` | Public URL for OAuth redirects |
+| `BACKEND_URL` | `https://api.persona.hasanraiyan.me` | Public URL for OAuth redirects |
 | `WEBSITE_URL` | `https://persona.ai/` | Frontend URL for email links |
 | `LANGSMITH_API_KEY` | — | LangSmith observability |
 | `QDRANT_URL` | `https://your-cluster.cloud.qdrant.io` | Vector store URL |

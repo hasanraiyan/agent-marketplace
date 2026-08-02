@@ -45,7 +45,7 @@ const config = {
   },
   websiteUrl: process.env.WEBSITE_URL || 'https://persona.ai/',
   backendUrl:
-    process.env.BACKEND_URL || `http://localhost:${parseInt(process.env.PORT, 10) || 3000}`,
+    process.env.BACKEND_URL || 'https://api.persona.hasanraiyan.me',
   cron: {
     deleteInactiveUsers: process.env.CRON_DELETE_INACTIVE_USERS || '0 3 * * *',
     cleanExpiredOTPs: process.env.CRON_CLEAN_EXPIRED_OTPS || '0 */6 * * *',

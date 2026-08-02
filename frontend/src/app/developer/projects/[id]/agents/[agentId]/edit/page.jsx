@@ -56,7 +56,7 @@ const CATEGORIES = [
 ];
 
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
+  process.env.NEXT_PUBLIC_API_URL || "https://api.persona.hasanraiyan.me/api/v1";
 // Matches architectConstants.js's PROJECT_ARCHITECT_AGENT_ID on the
 // backend — inert client-side (the backend route always targets this
 // sentinel regardless of what's sent), kept in sync for clarity/debugging.

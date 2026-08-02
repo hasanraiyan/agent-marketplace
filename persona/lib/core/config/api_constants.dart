@@ -10,9 +10,9 @@ class ApiConstants {
   ///   Android emulator               → http://10.0.2.2:3000/api/v1
   static String get baseUrl {
     try {
-      return dotenv.env['API_BASE_URL'] ?? 'http://localhost:3000/api/v1';
+      return dotenv.env['API_BASE_URL'] ?? 'https://api.persona.hasanraiyan.me/api/v1';
     } catch (_) {
-      return 'http://localhost:3000/api/v1';
+      return 'https://api.persona.hasanraiyan.me/api/v1';
     }
   }
 

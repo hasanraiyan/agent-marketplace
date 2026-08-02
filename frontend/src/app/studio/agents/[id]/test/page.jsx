@@ -27,7 +27,7 @@ import { useDashboardHeader } from "@/components/dashboard-header-context";
 import { StudioAgentTabs } from "@/components/studio/studio-agent-tabs";
 
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
+  process.env.NEXT_PUBLIC_API_URL || "https://api.persona.hasanraiyan.me/api/v1";
 const AGUI_RUNTIME_URL =
   process.env.NEXT_PUBLIC_AGUI_RUNTIME_URL || `${BASE_URL}/agui`;
 
