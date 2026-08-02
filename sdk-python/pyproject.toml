@@ -53,6 +53,12 @@ target-version = "py39"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 
+[tool.ruff.lint.per-file-ignores]
+# This module defines a `list()` method; combined with `from __future__
+# import annotations`, mypy resolves bare `list[X]` elsewhere in the same
+# file to that method instead of the builtin. `typing.List` sidesteps it.
+"src/personaai/resources/knowledge.py" = ["UP006", "UP035"]
+
 [tool.mypy]
 # mypy 2.x can no longer type-check against a 3.9 target (min supported is
 # 3.10) even though the package itself still supports 3.9 (requires-python

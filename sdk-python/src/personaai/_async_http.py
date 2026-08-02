@@ -40,14 +40,19 @@ class AsyncTransport:
         *,
         query: Mapping[str, Any] | None = None,
         json: Any = None,
+        files: Any = None,
         headers: Mapping[str, str] | None = None,
     ) -> Any:
         url = build_url(self._config.base_url, path, query)
+        # `files` implies multipart — httpx sets its own Content-Type (with
+        # boundary) for that, so only force `application/json` for `json`.
         request_headers = build_headers(self._config, headers, json is not None)
 
         attempt = 0
         while True:
-            response = await self._client.request(method, url, json=json, headers=request_headers)
+            response = await self._client.request(
+                method, url, json=json, files=files, headers=request_headers
+            )
 
             if response.status_code == 429 and attempt < self._config.max_retries:
                 retry_after = response.headers.get("Retry-After")

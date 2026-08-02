@@ -2,6 +2,7 @@ from .async_client import AsyncPersonaClient
 from .client import PersonaClient
 from .errors import PersonaApiError, PersonaAuthError, PersonaValidationError
 from .resources.agents import Agents, AsyncAgents
+from .resources.knowledge import AsyncKnowledge, Knowledge
 from .resources.providers import AsyncProviders, Providers
 from .resources.skills import AsyncSkills, Skills
 from .types.agent import (
@@ -12,6 +13,17 @@ from .types.agent import (
     CreateAgentInput,
     DiscoverAgentsParams,
     UpdateAgentInput,
+)
+from .types.knowledge import (
+    CreateKnowledgeBaseInput,
+    DeleteDocumentResult,
+    DiscoverKnowledgeBasesParams,
+    KnowledgeBase,
+    KnowledgeDocument,
+    KnowledgeSearchResult,
+    UpdateKnowledgeBaseInput,
+    UploadDocumentsResult,
+    UploadFileInput,
 )
 from .types.principal import PrincipalContext, ProjectMachineContext, ProjectRuntimeContext
 from .types.provider import (
@@ -63,4 +75,15 @@ __all__ = [
     "CreateAgentInput",
     "UpdateAgentInput",
     "DiscoverAgentsParams",
+    "Knowledge",
+    "AsyncKnowledge",
+    "KnowledgeBase",
+    "KnowledgeDocument",
+    "CreateKnowledgeBaseInput",
+    "UpdateKnowledgeBaseInput",
+    "DiscoverKnowledgeBasesParams",
+    "UploadFileInput",
+    "UploadDocumentsResult",
+    "DeleteDocumentResult",
+    "KnowledgeSearchResult",
 ]
