@@ -14,10 +14,12 @@ import httpx
 from ._async_http import AsyncTransport
 from ._base import TransportConfig
 from .resources.agents import AsyncAgents
+from .resources.files import AsyncFiles
 from .resources.knowledge import AsyncKnowledge
 from .resources.mcp import AsyncMcps
 from .resources.providers import AsyncProviders
 from .resources.skills import AsyncSkills
+from .resources.threads import AsyncThreads
 from .types.principal import PrincipalContext
 
 
@@ -43,6 +45,8 @@ class AsyncPersonaClient:
         self.agents = AsyncAgents(self._transport)
         self.knowledge = AsyncKnowledge(self._transport)
         self.mcps = AsyncMcps(self._transport)
+        self.threads = AsyncThreads(self._transport)
+        self.files = AsyncFiles(self._transport)
 
     async def aclose(self) -> None:
         await self._transport.aclose()
