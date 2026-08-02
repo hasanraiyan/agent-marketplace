@@ -13,6 +13,7 @@ import httpx
 
 from ._async_http import AsyncTransport
 from ._base import TransportConfig
+from .chat.client import AsyncChatClient
 from .resources.agents import AsyncAgents
 from .resources.files import AsyncFiles
 from .resources.knowledge import AsyncKnowledge
@@ -47,6 +48,7 @@ class AsyncPersonaClient:
         self.mcps = AsyncMcps(self._transport)
         self.threads = AsyncThreads(self._transport)
         self.files = AsyncFiles(self._transport)
+        self.chat = AsyncChatClient(self._transport)
 
     async def aclose(self) -> None:
         await self._transport.aclose()
