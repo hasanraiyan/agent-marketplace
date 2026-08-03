@@ -23,10 +23,21 @@ from ._base import (
 class SyncTransport:
     def __init__(self, config: TransportConfig, client: httpx.Client | None = None) -> None:
         self._config = config
+        # Whether this transport created its own httpx.Client (and so must
+        # close it) vs. received one from the caller (who owns its
+        # lifecycle — typically a single httpx.Client shared across many
+        # PersonaClient instances for connection-pool reuse; see
+        # `http_client=` in PersonaClient's docstring).
+        self._owns_client = client is None
         self._client = client or httpx.Client()
 
     def close(self) -> None:
-        self._client.close()
+        """Closes the underlying httpx.Client — but only if this transport
+        created it itself. A caller-supplied client (`http_client=`) is
+        never closed here, since the caller may still be using it for
+        other PersonaClient instances."""
+        if self._owns_client:
+            self._client.close()
 
     def __enter__(self) -> SyncTransport:
         return self
