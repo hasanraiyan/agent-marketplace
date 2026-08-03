@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://api.personaai.com",
+      "url": "https://api.persona.hasanraiyan.me",
       "description": "Production"
     }
   ],
@@ -135,10 +135,7 @@
           },
           "role": {
             "type": "string",
-            "enum": [
-              "normal",
-              "admin"
-            ]
+            "enum": ["normal", "admin"]
           },
           "username": {
             "type": "string",
@@ -186,11 +183,7 @@
           },
           "visibility": {
             "type": "string",
-            "enum": [
-              "private",
-              "unlisted",
-              "public"
-            ]
+            "enum": ["private", "unlisted", "public"]
           },
           "category": {
             "type": "string",
@@ -317,28 +310,18 @@
           },
           "transport": {
             "type": "string",
-            "enum": [
-              "http",
-              "sse"
-            ]
+            "enum": ["http", "sse"]
           },
           "url": {
             "type": "string"
           },
           "authType": {
             "type": "string",
-            "enum": [
-              "none",
-              "oauth",
-              "apiKey"
-            ]
+            "enum": ["none", "oauth", "apiKey"]
           },
           "authMode": {
             "type": "string",
-            "enum": [
-              "owner",
-              "user"
-            ]
+            "enum": ["owner", "user"]
           },
           "isEnabled": {
             "type": "boolean"
@@ -384,9 +367,7 @@
   "paths": {
     "/api/v1/developer/threads": {
       "post": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Create a Thread for the asserted external user",
         "security": [
           {
@@ -409,9 +390,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "agentId"
-                ]
+                "required": ["agentId"]
               }
             }
           }
@@ -429,9 +408,7 @@
         }
       },
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "List the asserted external user's own Threads",
         "security": [
           {
@@ -471,9 +448,7 @@
     },
     "/api/v1/developer/threads/{threadId}": {
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Get a Thread",
         "security": [
           {
@@ -508,9 +483,7 @@
         }
       },
       "patch": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Update a Thread's title (Subject only)",
         "security": [
           {
@@ -537,9 +510,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Delete a Thread (Subject only)",
         "security": [
           {
@@ -568,9 +539,7 @@
     },
     "/api/v1/developer/threads/{threadId}/messages": {
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Get a Thread's message history",
         "security": [
           {
@@ -599,9 +568,7 @@
     },
     "/api/v1/developer/skills": {
       "post": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Create a Skill (Project-owned or ExternalUser-owned)",
         "description": "Which kind gets created depends on the credential's asserted identity, same as Developer Agent creation.",
         "security": [
@@ -615,11 +582,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "name",
-                  "description",
-                  "instructions"
-                ]
+                "required": ["name", "description", "instructions"]
               }
             }
           }
@@ -637,9 +600,7 @@
         }
       },
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Discover Skills",
         "description": "A genuinely separate code path from Persona's marketplace search. For a bare Project credential (ProjectMachineContext/ ProjectAdminContext): every Skill in this Project's own Domain, any owner type. For a credential paired with x-persona-external-user-id (ProjectRuntimeContext): scope=mine returns only that external user's own Skills; omitting it returns this Domain's public Skills only.\n",
         "security": [
@@ -674,9 +635,7 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": [
-                "mine"
-              ]
+              "enum": ["mine"]
             }
           }
         ],
@@ -689,9 +648,7 @@
     },
     "/api/v1/developer/skills/{skillId}": {
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Get a Skill",
         "security": [
           {
@@ -718,9 +675,7 @@
         }
       },
       "patch": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Update a Skill (owner only)",
         "security": [
           {
@@ -750,9 +705,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Delete a Skill (owner only)",
         "security": [
           {
@@ -781,9 +734,7 @@
     },
     "/api/v1/developer/providers": {
       "post": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Create a Provider (Project-owned)",
         "description": "Provider ownership is narrower than other Developer resources — PersonaUser/Project only, never ExternalUser.",
         "security": [
@@ -797,12 +748,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "label",
-                  "baseURL",
-                  "apiKey",
-                  "defaultModel"
-                ]
+                "required": ["label", "baseURL", "apiKey", "defaultModel"]
               }
             }
           }
@@ -819,9 +765,7 @@
     },
     "/api/v1/developer/providers/{providerId}": {
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Get a Provider",
         "security": [
           {
@@ -848,9 +792,7 @@
         }
       },
       "patch": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Update a Provider (owner only)",
         "security": [
           {
@@ -877,9 +819,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Delete a Provider (owner only)",
         "security": [
           {
@@ -908,9 +848,7 @@
     },
     "/api/v1/developer/providers/{providerId}/test-connection": {
       "post": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Test a Provider's credentials (owner only)",
         "security": [
           {
@@ -942,9 +880,7 @@
     },
     "/api/v1/developer/providers/{providerId}/models": {
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "List a Provider's available models (owner only)",
         "security": [
           {
@@ -973,9 +909,7 @@
     },
     "/api/v1/developer/mcps": {
       "post": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Create an MCP server (Project-owned or ExternalUser-owned)",
         "description": "Which kind gets created depends on the credential's asserted identity, same as Developer Agent creation.",
         "security": [
@@ -989,11 +923,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "name",
-                  "transport",
-                  "url"
-                ]
+                "required": ["name", "transport", "url"]
               }
             }
           }
@@ -1011,9 +941,7 @@
         }
       },
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Discover MCP servers",
         "description": "A genuinely separate code path from any Persona listing. Mcp has no isPublic/visibility field, so unlike Agent/Skill/Knowledge there is no separate \"public browse\" subset — a bare Project credential OR a ProjectRuntimeContext without scope=mine both see every MCP in this Project's own Domain, any owner type. scope=mine (ProjectRuntimeContext only) narrows to just that external user's own MCPs.\n",
         "security": [
@@ -1048,9 +976,7 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": [
-                "mine"
-              ]
+              "enum": ["mine"]
             }
           }
         ],
@@ -1063,9 +989,7 @@
     },
     "/api/v1/developer/mcps/{mcpId}": {
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Get an MCP server",
         "security": [
           {
@@ -1092,9 +1016,7 @@
         }
       },
       "patch": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Update an MCP server (owner only)",
         "security": [
           {
@@ -1124,9 +1046,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Delete an MCP server (owner only)",
         "security": [
           {
@@ -1155,9 +1075,7 @@
     },
     "/api/v1/developer/mcps/{mcpId}/test": {
       "post": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Test an MCP server's connection (owner only)",
         "security": [
           {
@@ -1186,9 +1104,7 @@
     },
     "/api/v1/developer/mcps/{mcpId}/resource": {
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Read an MCP resource (owner only)",
         "security": [
           {
@@ -1228,9 +1144,7 @@
     },
     "/api/v1/developer/mcps/{mcpId}/call-tool": {
       "post": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Call an MCP tool (owner only)",
         "security": [
           {
@@ -1253,9 +1167,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "name"
-                ],
+                "required": ["name"],
                 "properties": {
                   "name": {
                     "type": "string"
@@ -1283,9 +1195,7 @@
     },
     "/api/v1/developer/mcps/{mcpId}/oauth/owner/authorize": {
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Start the owner OAuth flow (owner only)",
         "description": "No separate Developer callback route exists — the OAuth redirect URI is a single, pre-registered URL that completes via the existing Persona callback route regardless of who initiated the flow, since the signed state alone carries the initiating context.\n",
         "security": [
@@ -1315,9 +1225,7 @@
     },
     "/api/v1/developer/mcps/{mcpId}/oauth/user/authorize": {
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Start the per-user OAuth flow (ProjectRuntimeContext only)",
         "security": [
           {
@@ -1357,9 +1265,7 @@
     },
     "/api/v1/developer/mcps/{mcpId}/oauth/user/status": {
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Get the calling Subject's own per-user connection status",
         "security": [
           {
@@ -1385,9 +1291,7 @@
     },
     "/api/v1/developer/mcps/{mcpId}/oauth/user/connection": {
       "delete": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Disconnect the calling Subject's own per-user connection",
         "security": [
           {
@@ -1413,9 +1317,7 @@
     },
     "/api/v1/developer/mcps/{mcpId}/oauth/owner/connection": {
       "delete": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Disconnect the owner-mode connection (owner only)",
         "security": [
           {
@@ -1444,9 +1346,7 @@
     },
     "/api/v1/developer/knowledge": {
       "post": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Create a Knowledge Base (Project-owned or ExternalUser-owned)",
         "description": "Which kind gets created depends on the credential's asserted identity. providerId is REQUIRED here (unlike the Persona route, which can auto-resolve the caller's default Provider) — no equivalent \"default Provider\" concept exists for a Project or ExternalUser yet.\n",
         "security": [
@@ -1460,10 +1360,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "name",
-                  "providerId"
-                ]
+                "required": ["name", "providerId"]
               }
             }
           }
@@ -1478,9 +1375,7 @@
         }
       },
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Discover Knowledge Bases",
         "description": "A genuinely separate code path — Knowledge has no Persona marketplace-browse feature to accidentally reuse. For a bare Project credential: every Knowledge Base in this Project's own Domain, any owner type. For a credential paired with x-persona-external-user-id: scope=mine returns only that external user's own Knowledge Bases; omitting it returns this Domain's public Knowledge Bases only.\n",
         "security": [
@@ -1515,9 +1410,7 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": [
-                "mine"
-              ]
+              "enum": ["mine"]
             }
           }
         ],
@@ -1530,9 +1423,7 @@
     },
     "/api/v1/developer/knowledge/{kbId}": {
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Get a Knowledge Base",
         "security": [
           {
@@ -1559,9 +1450,7 @@
         }
       },
       "patch": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Update a Knowledge Base (owner only)",
         "security": [
           {
@@ -1585,9 +1474,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Delete a Knowledge Base (owner only)",
         "security": [
           {
@@ -1613,9 +1500,7 @@
     },
     "/api/v1/developer/knowledge/{kbId}/documents": {
       "post": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Upload documents to a Knowledge Base (owner only)",
         "security": [
           {
@@ -1661,9 +1546,7 @@
         }
       },
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "List a Knowledge Base's source documents (owner or public)",
         "security": [
           {
@@ -1692,9 +1575,7 @@
     },
     "/api/v1/developer/knowledge/{kbId}/documents/{sourceName}": {
       "delete": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Delete a single document from a Knowledge Base (owner only)",
         "security": [
           {
@@ -1731,9 +1612,7 @@
     },
     "/api/v1/developer/knowledge/{kbId}/search": {
       "post": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Semantic search within a Knowledge Base (owner or public)",
         "security": [
           {
@@ -1756,9 +1635,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "query"
-                ],
+                "required": ["query"],
                 "properties": {
                   "query": {
                     "type": "string"
@@ -1783,9 +1660,7 @@
     },
     "/api/v1/developer/files": {
       "post": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Upload a file",
         "description": "Requires a ProjectRuntimeContext. Retrieval is always mediated through GET /api/v1/developer/files/{fileId} — never a bare static URL.\n",
         "security": [
@@ -1835,9 +1710,7 @@
         }
       },
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "List the asserted external user's own uploaded files",
         "security": [
           {
@@ -1877,9 +1750,7 @@
     },
     "/api/v1/developer/files/{fileId}": {
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Download a file (mediated access — Subject only)",
         "description": "Never a bare static URL — the requester's own (domain, externalUserId) must match the file's, or this existence-hides to the same 404 as a nonexistent file.\n",
         "security": [
@@ -1907,9 +1778,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Delete a file (Subject only)",
         "security": [
           {
@@ -1938,9 +1807,7 @@
     },
     "/api/v1/developer/agui": {
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Developer AG-UI protocol information",
         "security": [
           {
@@ -1954,9 +1821,7 @@
         }
       },
       "post": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Run an Agent as an external user, streaming AG-UI events (SSE)",
         "description": "Requires a ProjectRuntimeContext — the credential must be paired with the x-persona-external-user-id header asserting which of the Project's own external users is running the Agent. Reuses the exact same runtime as the Persona AG-UI route. Pass x-thread-id (a Thread id from POST /api/v1/developer/threads) to resume a named conversation — omit it to keep using the implicit, Domain-extended deterministic thread id (one conversation per Agent + external user). An unrecognized/foreign/wrong-agent x-thread-id silently falls back to the deterministic id rather than erroring (same contract as the Persona AG-UI route).\n",
         "security": [
@@ -2005,10 +1870,7 @@
                       "properties": {
                         "role": {
                           "type": "string",
-                          "enum": [
-                            "user",
-                            "assistant"
-                          ]
+                          "enum": ["user", "assistant"]
                         },
                         "content": {
                           "type": "string"
@@ -2046,9 +1908,7 @@
     },
     "/api/v1/developer/agents": {
       "post": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Create an Agent (Project-owned or ExternalUser-owned)",
         "description": "Which kind of Agent gets created depends on the credential's asserted identity: a bare Project credential creates a Project-owned Agent; pairing it with x-persona-external-user-id creates an Agent owned by that external user.\n",
         "security": [
@@ -2062,11 +1922,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "name",
-                  "systemPrompt",
-                  "providerId"
-                ]
+                "required": ["name", "systemPrompt", "providerId"]
               }
             }
           }
@@ -2081,9 +1937,7 @@
         }
       },
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Discover Agents",
         "description": "Results are always scoped to your own Domain — never leaked across Projects. For a bare Project credential (ProjectMachineContext/ ProjectAdminContext): every Agent in this Project's own Domain, any owner type — \"Project discovery\". For a credential paired with x-persona-external-user-id (ProjectRuntimeContext): `scope=mine` returns only that external user's own Agents; omitting it returns this Domain's public Agents only (\"Project-public browse\"). systemPrompt/providerId are stripped from any result the caller doesn't own.\n",
         "security": [
@@ -2125,9 +1979,7 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": [
-                "mine"
-              ]
+              "enum": ["mine"]
             },
             "description": "ProjectRuntimeContext only — \"mine\" restricts to the asserted external user's own Agents."
           }
@@ -2141,9 +1993,7 @@
     },
     "/api/v1/developer/agents/{agentId}": {
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Get an Agent",
         "description": "Same visibility rules as Persona (public/unlisted visible in-Domain, private only to the owner). The owner sees full details; non-owners never see systemPrompt/providerId.",
         "security": [
@@ -2171,9 +2021,7 @@
         }
       },
       "patch": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Update an Agent (owner only)",
         "security": [
           {
@@ -2203,9 +2051,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Delete (soft-delete) an Agent (owner only)",
         "security": [
           {
@@ -2237,9 +2083,7 @@
     },
     "/api/v1/developer/whoami": {
       "get": {
-        "tags": [
-          "Developer"
-        ],
+        "tags": ["Developer"],
         "summary": "Resolve the current Project principal context",
         "description": "Authenticates a Project credential (Authorization Bearer <keyId>.<secret>, optionally with x-persona-external-user-id) and returns the resolved ProjectMachineContext or ProjectRuntimeContext. No side effects beyond external-user JIT resolution already performed by the auth middleware itself.",
         "security": [

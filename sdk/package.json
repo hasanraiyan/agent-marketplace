@@ -1,6 +1,6 @@
 {
   "name": "@personaai/sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Node.js/TypeScript SDK for the Persona.ai Developer Platform API. Server-side only — never bundle into a browser app.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -40,7 +40,7 @@
   "homepage": "https://github.com/hasanraiyan/agent-marketplace/tree/feat/ai/sdk#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/hasanraiyan/agent-marketplace.git",
+    "url": "git+https://github.com/hasanraiyan/agent-marketplace.git",
     "directory": "sdk"
   },
   "bugs": {

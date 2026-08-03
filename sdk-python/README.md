@@ -1,11 +1,11 @@
 # personaai
 
-Python SDK for the [Persona.ai](https://personaai.com) Developer Platform API — Agents, Skills,
+Python SDK for the [Persona.ai](https://persona.hasanraiyan.me) Developer Platform API — Agents, Skills,
 Knowledge bases, MCP connectors, and streaming chat, from your own backend.
 
 > **Server-side only.** Every method on this SDK sends your Project's credential — a server-side
 > secret, not something client-side code is ever allowed to see. See
-> [Where do I call this from?](../developer-docs/guides/integration-guide.mdx) for the full
+> [Where do I call this from?](https://dev-docs.persona.hasanraiyan.me/guides/integration-guide) for the full
 > reasoning and a per-resource "who calls this, and when" table.
 
 ## Install
@@ -30,7 +30,7 @@ whichever matches your framework (Flask/Django vs. FastAPI/`asyncio`).
 from personaai import PersonaClient
 
 persona = PersonaClient(
-    "https://api.personaai.com",
+    "https://api.persona.hasanraiyan.me",
     credential="<keyId>.<secret>",  # minted via Studio; a server-side secret, see warning above
 )
 
@@ -56,7 +56,7 @@ import asyncio
 from personaai import AsyncPersonaClient
 
 async def main():
-    async with AsyncPersonaClient("https://api.personaai.com", credential="<keyId>.<secret>") as persona:
+    async with AsyncPersonaClient("https://api.persona.hasanraiyan.me", credential="<keyId>.<secret>") as persona:
         who = await persona.whoami()
         print(who["principalType"], who["domain"])
 
@@ -75,7 +75,7 @@ using your product right now — after *your own* auth has confirmed who that is
 
 ```python
 user_persona = PersonaClient(
-    "https://api.personaai.com",
+    "https://api.persona.hasanraiyan.me",
     credential="<keyId>.<secret>",
     external_user_id=current_user.id,  # your own user id for this person
 )
@@ -149,7 +149,7 @@ root — see each resource file under `src/personaai/resources/` for the exact m
 
 **Out of scope for this SDK**: Project/Members/Credentials management. Those are Clerk-session
 (human admin) operations, a completely different auth model than the machine-credential calls this
-SDK makes — manage them from [Developer Studio](https://app.personaai.com/developer) instead.
+SDK makes — manage them from [Developer Studio](https://persona.hasanraiyan.me/developer) instead.
 
 ## Framework recipes
 

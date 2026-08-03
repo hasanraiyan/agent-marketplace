@@ -58,7 +58,7 @@ Every entry point takes the same options shape (`PersonaClientOptions`, re-expor
 
 | Option           | Type           | Required | Description                                                                                                                                                 |
 | ---------------- | -------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `baseUrl`        | `string`       | Yes      | Base URL of the Developer Platform API, e.g. `https://api.personaai.com`. Trailing slashes are stripped automatically.                                      |
+| `baseUrl`        | `string`       | Yes      | Base URL of the Developer Platform API, e.g. `https://api.persona.hasanraiyan.me`. Trailing slashes are stripped automatically.                             |
 | `credential`     | `string`       | Yes      | Your Project credential, shaped `"<keyId>.<secret>"`. Sent as `Authorization: Bearer <credential>` on every call. Read from an env var — never hardcode it. |
 | `externalUserId` | `string`       | No       | Asserts this client acts on behalf of one of your own end users (sent as `x-persona-external-user-id`). Omit for Project-level (control-plane) calls.       |
 | `fetch`          | `typeof fetch` | No       | Overrides the `fetch` implementation. Defaults to the global `fetch`. Mainly useful for tests or non-standard runtimes.                                     |
@@ -92,7 +92,7 @@ const userClient = new PersonaClient({
 import { PersonaClient } from "@personaai/sdk";
 
 const persona = new PersonaClient({
-  baseUrl: "https://api.personaai.com",
+  baseUrl: "https://api.persona.hasanraiyan.me",
   credential: process.env.PERSONA_CREDENTIAL!, // "<keyId>.<secret>", minted via Studio
 });
 
@@ -116,7 +116,7 @@ distinction from the Integration Guide.
 
 ```ts
 const userClient = new PersonaClient({
-  baseUrl: "https://api.personaai.com",
+  baseUrl: "https://api.persona.hasanraiyan.me",
   credential: process.env.PERSONA_CREDENTIAL!,
   externalUserId: currentUser.id,
 });
@@ -647,7 +647,7 @@ Project/Members/Credentials management (creating Projects, inviting Members, min
 credentials) is intentionally **not** part of this SDK — those routes are Clerk-session
 (human-admin) authenticated, a structurally different auth model than the machine-credential calls
 this SDK makes end to end. Manage them from
-[Developer Studio](https://app.personaai.com/developer) instead.
+[Developer Studio](https://persona.hasanraiyan.me/developer) instead.
 
 ## Framework recipes
 
