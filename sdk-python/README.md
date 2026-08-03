@@ -11,8 +11,12 @@ Knowledge bases, MCP connectors, and streaming chat, from your own backend.
 ## Install
 
 ```bash
-pip install personaai
+pip install persona-agent-sdk
 ```
+
+> Installed as `persona-agent-sdk` on PyPI (the name `personaai` was already too close to an
+> unrelated existing PyPI project); imported as `personaai` in code — `from personaai import
+> PersonaClient`.
 
 Requires Python 3.9+. Depends on [`httpx`](https://www.python-httpx.org/) only — no `requests`,
 no `aiohttp`, no AG-UI protocol package (see [Chat, streamed](#chat-streamed) for why).
