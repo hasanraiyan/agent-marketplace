@@ -1,7 +1,7 @@
 import { errorFromResponse, PersonaApiError } from './errors.js';
 
 export interface HttpClientOptions {
-  /** Base URL of the Persona Developer Platform API, e.g. "https://api.personaai.com". */
+  /** Base URL of the Persona Developer Platform API, e.g. "https://api.persona.hasanraiyan.me". */
   baseUrl: string;
   /** Project credential, shaped "<keyId>.<secret>" — never expose this to a browser. */
   credential: string;

@@ -1,12 +1,12 @@
 # @personaai/sdk
 
-Node.js/TypeScript SDK for the [Persona.ai](https://personaai.com) Developer Platform API — Agents,
+Node.js/TypeScript SDK for the [Persona.ai](https://persona.hasanraiyan.me) Developer Platform API — Agents,
 Skills, Knowledge bases, MCP connectors, and streaming chat, from your own backend.
 
 > **Server-side only.** Every method on this SDK sends your Project's credential — a server-side
 > secret, not something a browser is ever allowed to see. **Never** construct `PersonaClient` in a
 > browser bundle, a mobile app, or a Next.js Client Component. See
-> [Where do I call this from?](../developer-docs/guides/integration-guide.mdx) for the full reasoning
+> [Where do I call this from?](https://dev-docs.persona.hasanraiyan.me/guides/integration-guide) for the full reasoning
 > and a per-resource "who calls this, and when" table.
 
 ## Install
@@ -24,7 +24,7 @@ Requires Node.js 18+ (uses the built-in `fetch`/`FormData`/`ReadableStream`).
 import { PersonaClient } from '@personaai/sdk';
 
 const persona = new PersonaClient({
-  baseUrl: 'https://api.personaai.com',
+  baseUrl: 'https://api.persona.hasanraiyan.me',
   credential: process.env.PERSONA_CREDENTIAL!, // "<keyId>.<secret>", minted via Studio
 });
 
@@ -49,7 +49,7 @@ using your product right now — after *your own* auth has confirmed who that is
 
 ```ts
 const userClient = new PersonaClient({
-  baseUrl: 'https://api.personaai.com',
+  baseUrl: 'https://api.persona.hasanraiyan.me',
   credential: process.env.PERSONA_CREDENTIAL!,
   externalUserId: currentUser.id, // your own user id for this person
 });
@@ -101,7 +101,7 @@ the package root; see each resource file under `src/resources/` for the exact me
 
 **Out of scope for this SDK**: Project/Members/Credentials management. Those are Clerk-session
 (human admin) operations, a completely different auth model than the machine-credential calls this
-SDK makes — manage them from [Developer Studio](https://app.personaai.com/developer) instead.
+SDK makes — manage them from [Developer Studio](https://persona.hasanraiyan.me/developer) instead.
 
 ## Framework recipes
 
@@ -161,7 +161,7 @@ the one framework people actually leak the credential in by accident.
 > **Only import this SDK in Server Components, Route Handlers (`app/api/.../route.ts`), or Server
 > Actions. Never in a `"use client"` component.** If you construct `PersonaClient` inside client
 > code, Next.js bundles your Project credential straight into the JavaScript shipped to the
-> browser — exactly the leak the [Integration Guide](../developer-docs/guides/integration-guide.mdx)
+> browser — exactly the leak the [Integration Guide](https://dev-docs.persona.hasanraiyan.me/guides/integration-guide)
 > warns about, just easier to trip into here.
 
 ```ts

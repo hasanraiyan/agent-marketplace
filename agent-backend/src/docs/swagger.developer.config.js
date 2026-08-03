@@ -26,7 +26,7 @@ const options = {
     },
     servers: [
       {
-        url: 'https://api.personaai.com',
+        url: 'https://api.persona.hasanraiyan.me',
         description: 'Production',
       },
     ],

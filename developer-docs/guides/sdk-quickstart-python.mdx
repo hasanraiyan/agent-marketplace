@@ -56,7 +56,7 @@ pip install -e /path/to/agent-marketplace/sdk-python
 
 | Parameter          | Type                                        | Required | Description                                                                                                                                                 |
 | ------------------ | ------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `base_url`         | `str` (positional)                          | Yes      | Base URL of the Developer Platform API, e.g. `https://api.personaai.com`. Trailing slashes are stripped automatically.                                      |
+| `base_url`         | `str` (positional)                          | Yes      | Base URL of the Developer Platform API, e.g. `https://api.persona.hasanraiyan.me`. Trailing slashes are stripped automatically.                             |
 | `credential`       | `str` (positional)                          | Yes      | Your Project credential, shaped `"<keyId>.<secret>"`. Sent as `Authorization: Bearer <credential>` on every call. Read from an env var — never hardcode it. |
 | `external_user_id` | `str \| None` (keyword)                     | No       | Asserts this client acts on behalf of one of your own end users (sent as `x-persona-external-user-id`). Omit for Project-level (control-plane) calls.       |
 | `max_retries`      | `int` (keyword)                             | No       | Maximum automatic retries on `429 Too Many Requests` responses. Defaults to `2`. See [Retries and rate limits](#retries-and-rate-limits).                   |
@@ -92,7 +92,7 @@ you on exit.
 from personaai import PersonaClient
 
 persona = PersonaClient(
-    "https://api.personaai.com",
+    "https://api.persona.hasanraiyan.me",
     credential="<keyId>.<secret>",  # minted via Studio
 )
 
@@ -116,7 +116,7 @@ import asyncio
 from personaai import AsyncPersonaClient
 
 async def main():
-    async with AsyncPersonaClient("https://api.personaai.com", credential="<keyId>.<secret>") as persona:
+    async with AsyncPersonaClient("https://api.persona.hasanraiyan.me", credential="<keyId>.<secret>") as persona:
         who = await persona.whoami()
         print(who["principalType"], who["domain"])
 
@@ -132,7 +132,7 @@ distinction from the Integration Guide.
 
 ```python
 user_persona = PersonaClient(
-    "https://api.personaai.com",
+    "https://api.persona.hasanraiyan.me",
     credential="<keyId>.<secret>",
     external_user_id=current_user.id,
 )
@@ -651,7 +651,7 @@ Project/Members/Credentials management (creating Projects, inviting Members, min
 credentials) is intentionally **not** part of this SDK — those routes are Clerk-session
 (human-admin) authenticated, a structurally different auth model than the machine-credential calls
 this SDK makes end to end. Manage them from
-[Developer Studio](https://app.personaai.com/developer) instead.
+[Developer Studio](https://persona.hasanraiyan.me/developer) instead.
 
 ## Framework recipes
 
