@@ -26,6 +26,7 @@ from ..types.knowledge import (
     UploadDocumentsResult,
     UploadFileInput,
 )
+from ..types.usage import ResourceUsage
 
 if TYPE_CHECKING:
     from .._async_http import AsyncTransport
@@ -66,6 +67,15 @@ class Knowledge:
 
     def delete(self, kb_id: str) -> None:
         self._transport.request("DELETE", f"/api/v1/developer/knowledge/{kb_id}")
+
+    def get_usage(self, kb_id: str) -> ResourceUsage:
+        """Agents referencing this Knowledge base. Note: unlike
+        Providers/Skills/MCP, Knowledge base deletion does not currently
+        block on in-use Agents — this is informational only."""
+        return cast(
+            ResourceUsage,
+            self._transport.request("GET", f"/api/v1/developer/knowledge/{kb_id}/usage"),
+        )
 
     def upload_documents(self, kb_id: str, files: List[UploadFileInput]) -> UploadDocumentsResult:
         """Up to 10 files, 20MB each; PDF/TXT/MD/JSON/CSV."""
@@ -139,6 +149,15 @@ class AsyncKnowledge:
 
     async def delete(self, kb_id: str) -> None:
         await self._transport.request("DELETE", f"/api/v1/developer/knowledge/{kb_id}")
+
+    async def get_usage(self, kb_id: str) -> ResourceUsage:
+        """Agents referencing this Knowledge base. Note: unlike
+        Providers/Skills/MCP, Knowledge base deletion does not currently
+        block on in-use Agents — this is informational only."""
+        return cast(
+            ResourceUsage,
+            await self._transport.request("GET", f"/api/v1/developer/knowledge/{kb_id}/usage"),
+        )
 
     async def upload_documents(
         self, kb_id: str, files: List[UploadFileInput]

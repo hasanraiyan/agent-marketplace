@@ -81,6 +81,7 @@ from .types.thread import (
     ThreadMessages,
     UpdateThreadInput,
 )
+from .types.usage import ResourceUsage, ResourceUsageAgent
 
 __all__ = [
     "PersonaClient",
@@ -168,4 +169,6 @@ __all__ = [
     "ChatResume",
     "ChatInterrupt",
     "ChatResult",
+    "ResourceUsage",
+    "ResourceUsageAgent",
 ]

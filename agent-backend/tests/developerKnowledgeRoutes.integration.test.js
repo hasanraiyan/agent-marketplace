@@ -28,6 +28,7 @@ jest.unstable_mockModule('../src/modules/knowledge/knowledge.service.js', () => 
     searchKnowledgeBase: jest.fn(),
     deleteDocumentFromKb: jest.fn(),
     listDocumentSources: jest.fn(),
+    getKnowledgeBaseUsage: jest.fn(),
   },
 }));
 
@@ -117,6 +118,28 @@ describe('developerKnowledge.routes.js — mount integration', () => {
 
     expect(res.status).toBe(200);
     expect(knowledgeService.getKnowledgeBase).toHaveBeenCalledWith(
+      'kb1',
+      undefined,
+      expect.any(Object)
+    );
+  });
+
+  test('GET /:kbId/usage reaches the controller and returns usage', async () => {
+    knowledgeService.getKnowledgeBaseUsage.mockResolvedValue({
+      agentCount: 1,
+      agents: [{ _id: 'a1', name: 'Agent One' }],
+    });
+
+    const res = await request(app)
+      .get('/api/v1/developer/knowledge/kb1/usage')
+      .set('Authorization', 'Bearer pk_test.secret');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      success: true,
+      data: { agentCount: 1, agents: [{ _id: 'a1', name: 'Agent One' }] },
+    });
+    expect(knowledgeService.getKnowledgeBaseUsage).toHaveBeenCalledWith(
       'kb1',
       undefined,
       expect.any(Object)

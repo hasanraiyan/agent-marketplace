@@ -114,4 +114,26 @@ router.get('/:skillId', developerSkillController.getOne);
 router.patch('/:skillId', validateBody(updateSkillSchema), developerSkillController.update);
 router.delete('/:skillId', developerSkillController.remove);
 
+/**
+ * @openapi
+ * /api/v1/developer/skills/{skillId}/usage:
+ *   get:
+ *     tags: [Developer]
+ *     summary: See what's using this Skill, before attempting to delete it
+ *     description: >
+ *       Answers "what's using this" proactively, rather than only finding
+ *       out via a rejected delete call. `agents` is a preview (capped at
+ *       20); `agentCount` is the real total.
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: skillId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: "{ agentCount, agents: [{ _id, name }] }" }
+ *       404: { description: Skill not found or unauthorized }
+ */
+router.get('/:skillId/usage', developerSkillController.getUsage);
+
 export default router;

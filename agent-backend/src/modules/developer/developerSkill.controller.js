@@ -68,6 +68,22 @@ class DeveloperSkillController {
     }
   }
 
+  async getUsage(req, res, next) {
+    try {
+      const usage = await skillService.getSkillUsage(
+        req.params.skillId,
+        undefined,
+        req.projectContext
+      );
+      res.json({ success: true, data: usage });
+    } catch (error) {
+      if (error.message === 'Skill not found or private') {
+        return res.status(404).json({ success: false, message: 'Skill not found' });
+      }
+      next(error);
+    }
+  }
+
   async update(req, res, next) {
     try {
       const skill = await skillService.updateSkill(

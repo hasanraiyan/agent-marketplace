@@ -278,6 +278,7 @@ discovery concept, so it's a plain bare-array Domain-scoped list.
 | `providers.delete(providerId)`         | `DELETE /providers/{id}`               | `void`                                  |
 | `providers.testConnection(providerId)` | `POST /providers/{id}/test-connection` | `{ success: boolean, message: string }` |
 | `providers.getModels(providerId)`      | `GET /providers/{id}/models`           | `ProviderModel[]` (`{ id: string }[]`)  |
+| `providers.getUsage(providerId)`       | `GET /providers/{id}/usage`            | `ResourceUsage`                         |
 
 ```ts
 const provider = await persona.providers.create({
@@ -294,11 +295,19 @@ const { success, message } = await persona.providers.testConnection(
   provider.id,
 );
 const models = await persona.providers.getModels(provider.id);
+
+// Check before delete() — a Provider still referenced by an Agent rejects the delete.
+const { agentCount, agents } = await persona.providers.getUsage(provider.id);
 ```
 
 `CreateProviderInput`/`UpdateProviderInput` fields: `label`, `baseURL`, `apiKey` (create only,
 required), `defaultModel`, `isDefault?`. `apiKey` is write-only — it's never present on the
 `Provider` object returned from any call.
+
+`getUsage()` returns `ResourceUsage` — `{ agentCount: number, agents: { _id, name }[] }` — the
+Agents currently referencing this Provider. `agents` is a preview capped at 20 entries;
+`agentCount` is the real total. Available on Providers/Skills/MCP/Knowledge — check it before
+`delete()` to avoid a blocked-delete error.
 
 ### Skills
 
@@ -314,16 +323,18 @@ const skill = await persona.skills.create({
 const mine = await userClient.skills.list({ scope: "mine", search: "resume" });
 const full = await persona.skills.get(skill._id);
 await persona.skills.update(skill._id, { description: "Updated description." });
+const usage = await persona.skills.getUsage(skill._id); // check before delete()
 await persona.skills.delete(skill._id);
 ```
 
-| Method                     | Wraps                 | Returns   |
-| -------------------------- | --------------------- | --------- |
-| `skills.create(input)`     | `POST /skills`        | `Skill`   |
-| `skills.list(params?)`     | `GET /skills`         | `Skill[]` |
-| `skills.get(skillId)`      | `GET /skills/{id}`    | `Skill`   |
-| `skills.update(id, input)` | `PATCH /skills/{id}`  | `Skill`   |
-| `skills.delete(skillId)`   | `DELETE /skills/{id}` | `void`    |
+| Method                     | Wraps                    | Returns         |
+| -------------------------- | ------------------------ | --------------- |
+| `skills.create(input)`     | `POST /skills`           | `Skill`         |
+| `skills.list(params?)`     | `GET /skills`            | `Skill[]`       |
+| `skills.get(skillId)`      | `GET /skills/{id}`       | `Skill`         |
+| `skills.update(id, input)` | `PATCH /skills/{id}`     | `Skill`         |
+| `skills.delete(skillId)`   | `DELETE /skills/{id}`    | `void`          |
+| `skills.getUsage(skillId)` | `GET /skills/{id}/usage` | `ResourceUsage` |
 
 `DiscoverSkillsParams`: `page?`, `limit?`, `search?`, `scope?: 'mine'` (restricts to the asserted
 end user's own Skills — only meaningful on a `ProjectRuntimeContext` client). `Skill.isOwner` is
@@ -401,6 +412,8 @@ const hits = await persona.knowledge.search(
   { topK: 3 },
 );
 // hits: { text, source, score }[]
+
+const usage = await persona.knowledge.getUsage(kb._id); // check before delete()
 ```
 
 | Method                                       | Wraps                                           | Returns                   |
@@ -414,12 +427,19 @@ const hits = await persona.knowledge.search(
 | `knowledge.listDocuments(kbId)`              | `GET /knowledge/{id}/documents`                 | `KnowledgeDocument[]`     |
 | `knowledge.deleteDocument(kbId, sourceName)` | `DELETE /knowledge/{id}/documents/{sourceName}` | `DeleteDocumentResult`    |
 | `knowledge.search(kbId, query, options?)`    | `POST /knowledge/{id}/search`                   | `KnowledgeSearchResult[]` |
+| `knowledge.getUsage(kbId)`                   | `GET /knowledge/{id}/usage`                     | `ResourceUsage`           |
 
 Limits: up to 10 files per `uploadDocuments()` call, 20MB each, restricted to
 PDF/TXT/MD/JSON/CSV. `providerId` is **required** on `CreateKnowledgeBaseInput` — unlike Persona's
 own (non-Developer) Knowledge routes, there's no "use my default Provider" fallback for a Project or
 ExternalUser caller. `search()`'s `options.topK` overrides the KnowledgeBase's own configured
 `topK` for that one call only.
+
+<Note>
+  Unlike Providers/Skills/MCP, deleting a Knowledge base does not currently
+  block on in-use Agents — `getUsage()` here is informational only, not a
+  guarantee that `delete()` will reject while `agentCount > 0`.
+</Note>
 
 ### MCP connectors
 
@@ -441,6 +461,8 @@ const { text, mimeType } = await persona.mcps.readResource(
   mcp._id,
   resources[0].uri,
 );
+
+const usage = await persona.mcps.getUsage(mcp._id); // check before delete()
 ```
 
 | Method                              | Wraps                             | Returns                                              |
@@ -453,6 +475,7 @@ const { text, mimeType } = await persona.mcps.readResource(
 | `mcps.testConnection(mcpId)`        | `POST /mcps/{id}/test`            | `{ tools, resources, resourceTemplates }`            |
 | `mcps.readResource(mcpId, uri)`     | `GET /mcps/{id}/resource?uri=...` | `{ text: string, mimeType: string }`                 |
 | `mcps.callTool(mcpId, name, args?)` | `POST /mcps/{id}/call-tool`       | `unknown` (shape depends on the underlying MCP tool) |
+| `mcps.getUsage(mcpId)`              | `GET /mcps/{id}/usage`            | `ResourceUsage`                                      |
 
 `transport`: `'http' | 'sse'`. `authType`: `'none' | 'oauth' | 'apiKey'`. `authMode`: `'owner' |
 'user'` (owner-mode shares one connection across everyone; user-mode gives each external user their

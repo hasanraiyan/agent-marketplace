@@ -226,6 +226,21 @@ class McpService {
   }
 
   /**
+   * Feature 2 (dependency/usage lookup, gap-fill audit): "what's using
+   * this MCP" — answerable before attempting delete. Existence/ownership
+   * check reuses getMcpById so this 404s identically to every other
+   * single-resource read.
+   */
+  async getMcpUsage(id, userId, context = personaExecutionContext(userId)) {
+    await this.getMcpById(id, userId, context);
+    const [agentCount, agents] = await Promise.all([
+      agentRepository.count({ mcps: id }),
+      agentRepository.findAgentsUsingMcp(id, '_id name', 20),
+    ]);
+    return { agentCount, agents };
+  }
+
+  /**
    * Updates an existing MCP. `context` defaults to
    * `personaExecutionContext(userId)` — zero behavior change for every
    * existing caller. Repository enforces ownership atomically via

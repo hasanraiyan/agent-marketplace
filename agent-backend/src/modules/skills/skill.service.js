@@ -47,6 +47,21 @@ class SkillService {
   }
 
   /**
+   * Feature 2 (dependency/usage lookup, gap-fill audit): "what's using
+   * this Skill" — answerable before attempting delete. Existence/
+   * ownership check reuses getSkillById so this 404s identically to every
+   * other single-resource read.
+   */
+  async getSkillUsage(id, userId, context = personaExecutionContext(userId)) {
+    await this.getSkillById(id, userId, context);
+    const [agentCount, agents] = await Promise.all([
+      agentRepository.count({ skills: id }),
+      agentRepository.findAgentsUsingSkill(id, '_id name', 20),
+    ]);
+    return { agentCount, agents };
+  }
+
+  /**
    * Lists all skills owned by a user
    */
   async getMySkills(userId) {

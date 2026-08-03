@@ -172,6 +172,25 @@ class DeveloperKnowledgeController {
     }
   }
 
+  async getUsage(req, res, next) {
+    try {
+      const usage = await knowledgeService.getKnowledgeBaseUsage(
+        req.params.kbId,
+        undefined,
+        req.projectContext
+      );
+      res.json({ success: true, data: usage });
+    } catch (error) {
+      if (error.message === 'Not authorized to access this knowledge base') {
+        return res.status(404).json({ success: false, message: 'Knowledge base not found' });
+      }
+      if (error.message === 'Knowledge base not found') {
+        return res.status(404).json({ success: false, message: 'Knowledge base not found' });
+      }
+      next(error);
+    }
+  }
+
   async update(req, res, next) {
     try {
       const kb = await knowledgeService.updateKnowledgeBase(

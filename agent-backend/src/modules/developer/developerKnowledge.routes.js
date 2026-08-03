@@ -154,6 +154,29 @@ router.delete('/:kbId', developerKnowledgeController.remove);
 
 /**
  * @openapi
+ * /api/v1/developer/knowledge/{kbId}/usage:
+ *   get:
+ *     tags: [Developer]
+ *     summary: See what's using this Knowledge base, before attempting to delete it
+ *     description: >
+ *       Answers "what's using this" proactively. Unlike Provider/Skill/MCP,
+ *       deleting a Knowledge base doesn't currently block on in-use Agents
+ *       either — this is informational only. `agents` is a preview (capped
+ *       at 20); `agentCount` is the real total.
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: kbId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: "{ agentCount, agents: [{ _id, name }] }" }
+ *       404: { description: Knowledge base not found or unauthorized }
+ */
+router.get('/:kbId/usage', developerKnowledgeController.getUsage);
+
+/**
+ * @openapi
  * /api/v1/developer/knowledge/{kbId}/documents:
  *   post:
  *     tags: [Developer]

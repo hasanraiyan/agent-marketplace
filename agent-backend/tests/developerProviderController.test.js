@@ -9,6 +9,7 @@ jest.unstable_mockModule('../src/modules/providers/provider.service.js', () => (
     testConnection: jest.fn(),
     getAvailableModels: jest.fn(),
     listProvidersForProject: jest.fn(),
+    getProviderUsage: jest.fn(),
   },
 }));
 
@@ -177,6 +178,38 @@ describe('Developer Provider Controller', () => {
       providerService.getProviderById.mockRejectedValue(new Error('Provider not found'));
 
       await developerProviderController.getOne(mockReq, mockRes, next);
+
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+      expect(next).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getUsage', () => {
+    test('returns usage via providerService.getProviderUsage', async () => {
+      mockReq.params = { providerId: 'p1' };
+      providerService.getProviderUsage.mockResolvedValue({
+        agentCount: 2,
+        agents: [{ _id: 'a1', name: 'Agent One' }],
+      });
+
+      await developerProviderController.getUsage(mockReq, mockRes, next);
+
+      expect(providerService.getProviderUsage).toHaveBeenCalledWith(
+        'p1',
+        undefined,
+        machineContext
+      );
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: { agentCount: 2, agents: [{ _id: 'a1', name: 'Agent One' }] },
+      });
+    });
+
+    test('collapses "Provider not found" to a 404, existence-hiding', async () => {
+      mockReq.params = { providerId: 'p1' };
+      providerService.getProviderUsage.mockRejectedValue(new Error('Provider not found'));
+
+      await developerProviderController.getUsage(mockReq, mockRes, next);
 
       expect(mockRes.status).toHaveBeenCalledWith(404);
       expect(next).not.toHaveBeenCalled();

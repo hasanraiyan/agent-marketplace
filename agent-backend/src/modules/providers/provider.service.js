@@ -98,6 +98,22 @@ class ProviderService {
   }
 
   /**
+   * Feature 2 (dependency/usage lookup, gap-fill audit): "what's using
+   * this Provider" — answerable *before* attempting delete, rather than
+   * only finding out via deleteProvider's own in-use rejection. Existence/
+   * ownership check reuses getProviderById so this 404s identically to
+   * every other single-resource read.
+   */
+  async getProviderUsage(id, userId, context = personaExecutionContext(userId)) {
+    await this.getProviderById(id, userId, context);
+    const [agentCount, agents] = await Promise.all([
+      agentRepository.count({ providerId: id }),
+      agentRepository.findAgentsUsingProvider(id, '_id name', 20),
+    ]);
+    return { agentCount, agents };
+  }
+
+  /**
    * Updates an existing Provider. `context` defaults to
    * `personaExecutionContext(userId)` — zero behavior change for every
    * existing caller.

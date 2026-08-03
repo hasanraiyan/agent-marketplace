@@ -26,6 +26,7 @@ jest.unstable_mockModule('../src/modules/providers/provider.service.js', () => (
     testConnection: jest.fn(),
     getAvailableModels: jest.fn(),
     listProvidersForProject: jest.fn(),
+    getProviderUsage: jest.fn(),
   },
 }));
 
@@ -163,6 +164,28 @@ describe('developerProvider.routes.js — mount integration', () => {
 
     expect(res.status).toBe(200);
     expect(providerService.getProviderById).toHaveBeenCalledWith(
+      'p1',
+      undefined,
+      expect.any(Object)
+    );
+  });
+
+  test('GET /:providerId/usage reaches the controller and returns usage', async () => {
+    providerService.getProviderUsage.mockResolvedValue({
+      agentCount: 1,
+      agents: [{ _id: 'a1', name: 'Agent One' }],
+    });
+
+    const res = await request(app)
+      .get('/api/v1/developer/providers/p1/usage')
+      .set('Authorization', 'Bearer pk_test.secret');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      success: true,
+      data: { agentCount: 1, agents: [{ _id: 'a1', name: 'Agent One' }] },
+    });
+    expect(providerService.getProviderUsage).toHaveBeenCalledWith(
       'p1',
       undefined,
       expect.any(Object)

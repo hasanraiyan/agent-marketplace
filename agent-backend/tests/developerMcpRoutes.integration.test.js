@@ -25,6 +25,7 @@ jest.unstable_mockModule('../src/modules/mcp/mcp.service.js', () => ({
     deleteMcp: jest.fn(),
     discoverMcps: jest.fn(),
     toSafeJson: jest.fn((mcp) => mcp),
+    getMcpUsage: jest.fn(),
   },
 }));
 
@@ -117,5 +118,23 @@ describe('developerMcp.routes.js — mount integration', () => {
 
     expect(res.status).toBe(200);
     expect(mcpService.getMcpById).toHaveBeenCalledWith('m1', undefined, expect.any(Object));
+  });
+
+  test('GET /:mcpId/usage reaches the controller and returns usage', async () => {
+    mcpService.getMcpUsage.mockResolvedValue({
+      agentCount: 1,
+      agents: [{ _id: 'a1', name: 'Agent One' }],
+    });
+
+    const res = await request(app)
+      .get('/api/v1/developer/mcps/m1/usage')
+      .set('Authorization', 'Bearer pk_test.secret');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      success: true,
+      data: { agentCount: 1, agents: [{ _id: 'a1', name: 'Agent One' }] },
+    });
+    expect(mcpService.getMcpUsage).toHaveBeenCalledWith('m1', undefined, expect.any(Object));
   });
 });

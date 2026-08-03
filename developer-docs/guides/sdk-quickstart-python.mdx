@@ -277,6 +277,7 @@ discovery concept, so it's a plain bare-list Domain-scoped list.
 | `providers.delete(provider_id)`          | `DELETE /providers/{id}`               | `None`                              |
 | `providers.test_connection(provider_id)` | `POST /providers/{id}/test-connection` | `{success: bool, message: str}`     |
 | `providers.get_models(provider_id)`      | `GET /providers/{id}/models`           | `list[ProviderModel]` (`{id: str}`) |
+| `providers.get_usage(provider_id)`       | `GET /providers/{id}/usage`            | `ResourceUsage`                     |
 
 ```python
 provider = persona.providers.create(
@@ -293,11 +294,19 @@ provider = persona.providers.create(
 all_providers = persona.providers.list()
 result = persona.providers.test_connection(provider["id"])
 models = persona.providers.get_models(provider["id"])
+
+# Check before delete() — a Provider still referenced by an Agent rejects the delete.
+usage = persona.providers.get_usage(provider["id"])
 ```
 
 `CreateProviderInput`/`UpdateProviderInput` fields: `label`, `baseURL`, `apiKey` (create only,
 required), `defaultModel`, `isDefault` (optional). `apiKey` is write-only — it's never present on
 the `Provider` object returned from any call.
+
+`get_usage()` returns `ResourceUsage` — `{"agentCount": int, "agents": [{"_id", "name"}, ...]}` —
+the Agents currently referencing this Provider. `agents` is a preview capped at 20 entries;
+`agentCount` is the real total. Available on Providers/Skills/MCP/Knowledge — check it before
+`delete()` to avoid a blocked-delete error.
 
 ### Skills
 
@@ -315,16 +324,18 @@ skill = persona.skills.create(
 mine = user_persona.skills.list({"scope": "mine", "search": "resume"})
 full = persona.skills.get(skill["_id"])
 persona.skills.update(skill["_id"], {"description": "Updated description."})
+usage = persona.skills.get_usage(skill["_id"])  # check before delete()
 persona.skills.delete(skill["_id"])
 ```
 
-| Method                           | Wraps                 | Returns       |
-| -------------------------------- | --------------------- | ------------- |
-| `skills.create(input)`           | `POST /skills`        | `Skill`       |
-| `skills.list(params=None)`       | `GET /skills`         | `list[Skill]` |
-| `skills.get(skill_id)`           | `GET /skills/{id}`    | `Skill`       |
-| `skills.update(skill_id, input)` | `PATCH /skills/{id}`  | `Skill`       |
-| `skills.delete(skill_id)`        | `DELETE /skills/{id}` | `None`        |
+| Method                           | Wraps                    | Returns         |
+| -------------------------------- | ------------------------ | --------------- |
+| `skills.create(input)`           | `POST /skills`           | `Skill`         |
+| `skills.list(params=None)`       | `GET /skills`            | `list[Skill]`   |
+| `skills.get(skill_id)`           | `GET /skills/{id}`       | `Skill`         |
+| `skills.update(skill_id, input)` | `PATCH /skills/{id}`     | `Skill`         |
+| `skills.delete(skill_id)`        | `DELETE /skills/{id}`    | `None`          |
+| `skills.get_usage(skill_id)`     | `GET /skills/{id}/usage` | `ResourceUsage` |
 
 `DiscoverSkillsParams`: `page`, `limit`, `search`, `scope: "mine"` (restricts to the asserted end
 user's own Skills — only meaningful on a runtime-plane client), all optional. `Skill["isOwner"]` is
@@ -396,6 +407,8 @@ persona.knowledge.delete_document(kb["_id"], "faq.pdf")
 
 hits = persona.knowledge.search(kb["_id"], "What's the deadline to apply?", top_k=3)
 # hits: [{"text", "source", "score"}, ...]
+
+usage = persona.knowledge.get_usage(kb["_id"])  # check before delete()
 ```
 
 | Method                                          | Wraps                                            | Returns                       |
@@ -409,12 +422,19 @@ hits = persona.knowledge.search(kb["_id"], "What's the deadline to apply?", top_
 | `knowledge.list_documents(kb_id)`               | `GET /knowledge/{id}/documents`                  | `list[KnowledgeDocument]`     |
 | `knowledge.delete_document(kb_id, source_name)` | `DELETE /knowledge/{id}/documents/{source_name}` | `DeleteDocumentResult`        |
 | `knowledge.search(kb_id, query, top_k=None)`    | `POST /knowledge/{id}/search`                    | `list[KnowledgeSearchResult]` |
+| `knowledge.get_usage(kb_id)`                    | `GET /knowledge/{id}/usage`                      | `ResourceUsage`               |
 
 Limits: up to 10 files per `upload_documents()` call, 20MB each, restricted to
 PDF/TXT/MD/JSON/CSV. `providerId` is **required** on `CreateKnowledgeBaseInput` — unlike Persona's
 own (non-Developer) Knowledge routes, there's no "use my default Provider" fallback for a Project
 or ExternalUser caller. Each file's `content` is `bytes` or a binary file object (`BinaryIO`).
 `search()`'s `top_k` overrides the KnowledgeBase's own configured `topK` for that one call only.
+
+<Note>
+  Unlike Providers/Skills/MCP, deleting a Knowledge base does not currently
+  block on in-use Agents — `get_usage()` here is informational only, not a
+  guarantee that `delete()` will reject while `agentCount > 0`.
+</Note>
 
 ### MCP connectors
 
@@ -432,6 +452,8 @@ mcp = persona.mcps.create(
 connection = persona.mcps.test_connection(mcp["_id"])
 result = persona.mcps.call_tool(mcp["_id"], "create_ticket", {"title": "Bug report"})
 resource = persona.mcps.read_resource(mcp["_id"], connection["resources"][0]["uri"])
+
+usage = persona.mcps.get_usage(mcp["_id"])  # check before delete()
 ```
 
 | Method                                         | Wraps                             | Returns                                          |
@@ -444,6 +466,7 @@ resource = persona.mcps.read_resource(mcp["_id"], connection["resources"][0]["ur
 | `mcps.test_connection(mcp_id)`                 | `POST /mcps/{id}/test`            | `{tools, resources, resourceTemplates}`          |
 | `mcps.read_resource(mcp_id, uri)`              | `GET /mcps/{id}/resource?uri=...` | `{text: str, mimeType: str}`                     |
 | `mcps.call_tool(mcp_id, name, arguments=None)` | `POST /mcps/{id}/call-tool`       | `Any` (shape depends on the underlying MCP tool) |
+| `mcps.get_usage(mcp_id)`                       | `GET /mcps/{id}/usage`            | `ResourceUsage`                                  |
 
 `transport`: `"http" | "sse"`. `authType`: `"none" | "oauth" | "apiKey"`. `authMode`: `"owner" |
 "user"` (owner-mode shares one connection across everyone; user-mode gives each external user their

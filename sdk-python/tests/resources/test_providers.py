@@ -93,6 +93,22 @@ def test_get_models():
 
 
 @respx.mock
+def test_get_usage():
+    respx.get(f"{BASE_URL}/api/v1/developer/providers/p1/usage").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {"agentCount": 1, "agents": [{"_id": "a1", "name": "Agent One"}]},
+            },
+        )
+    )
+    client = PersonaClient(BASE_URL, "keyId.secret")
+    usage = client.providers.get_usage("p1")
+    assert usage == {"agentCount": 1, "agents": [{"_id": "a1", "name": "Agent One"}]}
+
+
+@respx.mock
 async def test_async_create():
     respx.post(f"{BASE_URL}/api/v1/developer/providers").mock(
         return_value=httpx.Response(200, json={"success": True, "data": PROVIDER})
@@ -136,3 +152,19 @@ async def test_async_get_models():
     async with AsyncPersonaClient(BASE_URL, "keyId.secret") as client:
         models = await client.providers.get_models("p1")
         assert models == [{"id": "gpt-4o"}]
+
+
+@respx.mock
+async def test_async_get_usage():
+    respx.get(f"{BASE_URL}/api/v1/developer/providers/p1/usage").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {"agentCount": 1, "agents": [{"_id": "a1", "name": "Agent One"}]},
+            },
+        )
+    )
+    async with AsyncPersonaClient(BASE_URL, "keyId.secret") as client:
+        usage = await client.providers.get_usage("p1")
+        assert usage == {"agentCount": 1, "agents": [{"_id": "a1", "name": "Agent One"}]}

@@ -5,6 +5,7 @@ import type {
   Skill,
   UpdateSkillInput,
 } from '../types/skill.js';
+import type { ResourceUsage } from '../types/usage.js';
 
 /**
  * Skills (`/api/v1/developer/skills`) — Project-owned or, when this client
@@ -36,5 +37,10 @@ export class SkillsResource {
 
   async delete(skillId: string): Promise<void> {
     await this.http.request<unknown>('DELETE', `/api/v1/developer/skills/${skillId}`);
+  }
+
+  /** Agents referencing this Skill — check before `delete()` to avoid a blocked-delete error. */
+  async getUsage(skillId: string): Promise<ResourceUsage> {
+    return this.http.request<ResourceUsage>('GET', `/api/v1/developer/skills/${skillId}/usage`);
   }
 }

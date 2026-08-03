@@ -208,6 +208,15 @@ class DeveloperMcpController {
     }
   }
 
+  async getUsage(req, res, next) {
+    try {
+      const usage = await mcpService.getMcpUsage(req.params.mcpId, undefined, req.projectContext);
+      res.json({ success: true, data: usage });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async update(req, res, next) {
     try {
       const mcp = await mcpService.updateMcp(

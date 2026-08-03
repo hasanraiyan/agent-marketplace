@@ -7,6 +7,7 @@ jest.unstable_mockModule('../src/modules/skills/skill.service.js', () => ({
     updateSkill: jest.fn(),
     deleteSkill: jest.fn(),
     discoverSkills: jest.fn(),
+    getSkillUsage: jest.fn(),
   },
 }));
 
@@ -97,6 +98,34 @@ describe('Developer Skill Controller', () => {
       skillService.getSkillById.mockRejectedValue(new Error('Skill not found or private'));
 
       await developerSkillController.getOne(mockReq, mockRes, next);
+
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+      expect(next).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getUsage', () => {
+    test('returns usage via skillService.getSkillUsage', async () => {
+      mockReq.params = { skillId: 's1' };
+      skillService.getSkillUsage.mockResolvedValue({
+        agentCount: 1,
+        agents: [{ _id: 'a1', name: 'Agent One' }],
+      });
+
+      await developerSkillController.getUsage(mockReq, mockRes, next);
+
+      expect(skillService.getSkillUsage).toHaveBeenCalledWith('s1', undefined, machineContext);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: { agentCount: 1, agents: [{ _id: 'a1', name: 'Agent One' }] },
+      });
+    });
+
+    test('collapses "Skill not found or private" to a 404, existence-hiding', async () => {
+      mockReq.params = { skillId: 's1' };
+      skillService.getSkillUsage.mockRejectedValue(new Error('Skill not found or private'));
+
+      await developerSkillController.getUsage(mockReq, mockRes, next);
 
       expect(mockRes.status).toHaveBeenCalledWith(404);
       expect(next).not.toHaveBeenCalled();

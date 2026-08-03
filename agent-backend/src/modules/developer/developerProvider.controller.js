@@ -138,6 +138,22 @@ class DeveloperProviderController {
     }
   }
 
+  async getUsage(req, res, next) {
+    try {
+      const usage = await providerService.getProviderUsage(
+        req.params.providerId,
+        undefined,
+        req.projectContext
+      );
+      res.json({ success: true, data: usage });
+    } catch (error) {
+      if (error.message === 'Provider not found') {
+        return res.status(404).json({ success: false, message: 'Provider not found' });
+      }
+      next(error);
+    }
+  }
+
   async update(req, res, next) {
     try {
       const provider = await providerService.updateProvider(

@@ -16,6 +16,7 @@ from ..types.mcp import (
     McpUserConnectionStatus,
     UpdateMcpInput,
 )
+from ..types.usage import ResourceUsage
 
 if TYPE_CHECKING:
     from .._async_http import AsyncTransport
@@ -135,6 +136,13 @@ class Mcps:
     def delete(self, mcp_id: str) -> None:
         self._transport.request("DELETE", f"/api/v1/developer/mcps/{mcp_id}")
 
+    def get_usage(self, mcp_id: str) -> ResourceUsage:
+        """Agents referencing this MCP — check before ``delete()`` to avoid a blocked delete."""
+        return cast(
+            ResourceUsage,
+            self._transport.request("GET", f"/api/v1/developer/mcps/{mcp_id}/usage"),
+        )
+
     def test_connection(self, mcp_id: str) -> McpTestConnectionResult:
         """Connects, lists tools/resources/templates, and persists the
         summary onto the MCP document."""
@@ -189,6 +197,13 @@ class AsyncMcps:
 
     async def delete(self, mcp_id: str) -> None:
         await self._transport.request("DELETE", f"/api/v1/developer/mcps/{mcp_id}")
+
+    async def get_usage(self, mcp_id: str) -> ResourceUsage:
+        """Agents referencing this MCP — check before ``delete()`` to avoid a blocked delete."""
+        return cast(
+            ResourceUsage,
+            await self._transport.request("GET", f"/api/v1/developer/mcps/{mcp_id}/usage"),
+        )
 
     async def test_connection(self, mcp_id: str) -> McpTestConnectionResult:
         """Connects, lists tools/resources/templates, and persists the

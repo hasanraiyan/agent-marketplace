@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import config from '../../config/index.js';
 import knowledgeRepository from './knowledge.repository.js';
 import providerRepository from '../providers/provider.repository.js';
+import agentRepository from '../agents/agent.repository.js';
 import encryption from '../../utils/encryption.js';
 import { loggerService } from '../../utils/index.js';
 import { PERSONA_DOMAIN } from '../auth/personaPrincipalContext.js';
@@ -318,6 +319,23 @@ class KnowledgeService {
       throw new Error('Not authorized to access this knowledge base');
     }
     return kb;
+  }
+
+  /**
+   * Feature 2 (dependency/usage lookup, gap-fill audit): "what's using
+   * this Knowledge base" — answerable before attempting delete. Existence/
+   * ownership check reuses getKnowledgeBase so this 404s identically to
+   * every other single-resource read. Unlike Provider/Skill/MCP,
+   * deleteKnowledgeBase doesn't currently block on in-use Agents either —
+   * this is read-only usage visibility, not a new delete-time restriction.
+   */
+  async getKnowledgeBaseUsage(kbId, userId, context = personaExecutionContext(userId)) {
+    await this.getKnowledgeBase(kbId, userId, context);
+    const [agentCount, agents] = await Promise.all([
+      agentRepository.count({ knowledgeBases: kbId }),
+      agentRepository.findAgentsUsingKnowledgeBase(kbId, '_id name', 20),
+    ]);
+    return { agentCount, agents };
   }
 
   /**

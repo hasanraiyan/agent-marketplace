@@ -120,4 +120,20 @@ describe('ProvidersResource', () => {
     const [url] = fetchMock.mock.calls[0] as [string];
     expect(url).toBe('https://api.example.com/api/v1/developer/providers/p1/models');
   });
+
+  it('getUsage() GETs the usage sub-route and returns agent count + preview', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({
+        success: true,
+        data: { agentCount: 1, agents: [{ _id: 'a1', name: 'Agent One' }] },
+      })
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    const usage = await client.providers.getUsage('p1');
+    expect(usage).toEqual({ agentCount: 1, agents: [{ _id: 'a1', name: 'Agent One' }] });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.example.com/api/v1/developer/providers/p1/usage');
+    expect(init.method).toBe('GET');
+  });
 });

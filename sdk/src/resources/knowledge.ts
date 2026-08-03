@@ -10,6 +10,7 @@ import type {
   UploadDocumentsResult,
   UploadFileInput,
 } from '../types/knowledge.js';
+import type { ResourceUsage } from '../types/usage.js';
 
 /**
  * Knowledge bases (`/api/v1/developer/knowledge`) — Project-owned, or, when
@@ -43,6 +44,15 @@ export class KnowledgeResource {
 
   async delete(kbId: string): Promise<void> {
     await this.http.request<unknown>('DELETE', `/api/v1/developer/knowledge/${kbId}`);
+  }
+
+  /**
+   * Agents referencing this Knowledge base. Note: unlike Providers/Skills/MCP,
+   * Knowledge base deletion does not currently block on in-use Agents — this
+   * is informational only.
+   */
+  async getUsage(kbId: string): Promise<ResourceUsage> {
+    return this.http.request<ResourceUsage>('GET', `/api/v1/developer/knowledge/${kbId}/usage`);
   }
 
   /** Up to 10 files, 20MB each; PDF/TXT/MD/JSON/CSV. */

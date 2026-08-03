@@ -82,6 +82,22 @@ def test_delete():
 
 
 @respx.mock
+def test_get_usage():
+    respx.get(f"{BASE_URL}/api/v1/developer/skills/s1/usage").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {"agentCount": 1, "agents": [{"_id": "a1", "name": "Agent One"}]},
+            },
+        )
+    )
+    client = PersonaClient(BASE_URL, "keyId.secret")
+    usage = client.skills.get_usage("s1")
+    assert usage == {"agentCount": 1, "agents": [{"_id": "a1", "name": "Agent One"}]}
+
+
+@respx.mock
 async def test_async_create():
     respx.post(f"{BASE_URL}/api/v1/developer/skills").mock(
         return_value=httpx.Response(200, json={"success": True, "data": SKILL})
@@ -115,3 +131,19 @@ async def test_async_delete():
     async with AsyncPersonaClient(BASE_URL, "keyId.secret") as client:
         await client.skills.delete("s1")
     assert route.called
+
+
+@respx.mock
+async def test_async_get_usage():
+    respx.get(f"{BASE_URL}/api/v1/developer/skills/s1/usage").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {"agentCount": 1, "agents": [{"_id": "a1", "name": "Agent One"}]},
+            },
+        )
+    )
+    async with AsyncPersonaClient(BASE_URL, "keyId.secret") as client:
+        usage = await client.skills.get_usage("s1")
+        assert usage == {"agentCount": 1, "agents": [{"_id": "a1", "name": "Agent One"}]}
