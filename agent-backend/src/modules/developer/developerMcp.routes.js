@@ -116,6 +116,28 @@ router.delete('/:mcpId', developerMcpController.remove);
 
 /**
  * @openapi
+ * /api/v1/developer/mcps/{mcpId}/usage:
+ *   get:
+ *     tags: [Developer]
+ *     summary: See what's using this MCP, before attempting to delete it
+ *     description: >
+ *       Answers "what's using this" proactively, rather than only finding
+ *       out via a rejected delete call. `agents` is a preview (capped at
+ *       20); `agentCount` is the real total.
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: mcpId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: "{ agentCount, agents: [{ _id, name }] }" }
+ *       404: { description: MCP server not found or unauthorized }
+ */
+router.get('/:mcpId/usage', developerMcpController.getUsage);
+
+/**
+ * @openapi
  * /api/v1/developer/mcps/{mcpId}/test:
  *   post:
  *     tags: [Developer]

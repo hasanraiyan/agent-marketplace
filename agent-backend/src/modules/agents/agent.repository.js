@@ -80,10 +80,13 @@ class AgentRepository {
     return await Agent.countDocuments(filters);
   }
 
-  async findAgentsUsingSkill(skillId, projection = null) {
+  async findAgentsUsingSkill(skillId, projection = null, limit = null) {
     let query = Agent.find({ skills: skillId });
     if (projection) {
       query = query.select(projection);
+    }
+    if (limit) {
+      query = query.limit(limit);
     }
     return await query;
   }
@@ -92,10 +95,13 @@ class AgentRepository {
     return await Agent.updateMany({ skills: skillId }, { $pull: { skills: skillId } });
   }
 
-  async findAgentsUsingProvider(providerId, projection = null) {
+  async findAgentsUsingProvider(providerId, projection = null, limit = null) {
     let query = Agent.find({ providerId });
     if (projection) {
       query = query.select(projection);
+    }
+    if (limit) {
+      query = query.limit(limit);
     }
     return await query;
   }
@@ -113,10 +119,32 @@ class AgentRepository {
     return await Agent.deleteMany({ domain });
   }
 
-  async findAgentsUsingMcp(mcpId, projection = null) {
+  async findAgentsUsingMcp(mcpId, projection = null, limit = null) {
     let query = Agent.find({ mcps: mcpId });
     if (projection) {
       query = query.select(projection);
+    }
+    if (limit) {
+      query = query.limit(limit);
+    }
+    return await query;
+  }
+
+  /**
+   * Feature 2 (dependency/usage lookup, gap-fill audit): mirrors the
+   * existing findAgentsUsing{Skill,Provider,Mcp} shape exactly — no
+   * equivalent existed for Knowledge bases before this (Knowledge base
+   * deletion, unlike Provider/Skill/MCP, doesn't currently block on
+   * in-use Agents either; this is read-only usage visibility only, not a
+   * new delete-time restriction).
+   */
+  async findAgentsUsingKnowledgeBase(knowledgeBaseId, projection = null, limit = null) {
+    let query = Agent.find({ knowledgeBases: knowledgeBaseId });
+    if (projection) {
+      query = query.select(projection);
+    }
+    if (limit) {
+      query = query.limit(limit);
     }
     return await query;
   }

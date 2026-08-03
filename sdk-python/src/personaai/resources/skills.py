@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 from ..types.skill import CreateSkillInput, DiscoverSkillsParams, Skill, UpdateSkillInput
+from ..types.usage import ResourceUsage
 
 if TYPE_CHECKING:
     from .._async_http import AsyncTransport
@@ -38,6 +39,13 @@ class Skills:
 
     def delete(self, skill_id: str) -> None:
         self._transport.request("DELETE", f"/api/v1/developer/skills/{skill_id}")
+
+    def get_usage(self, skill_id: str) -> ResourceUsage:
+        """Agents referencing this Skill — check before ``delete()`` to avoid a blocked delete."""
+        return cast(
+            ResourceUsage,
+            self._transport.request("GET", f"/api/v1/developer/skills/{skill_id}/usage"),
+        )
 
 
 class AsyncSkills:
@@ -71,3 +79,10 @@ class AsyncSkills:
 
     async def delete(self, skill_id: str) -> None:
         await self._transport.request("DELETE", f"/api/v1/developer/skills/{skill_id}")
+
+    async def get_usage(self, skill_id: str) -> ResourceUsage:
+        """Agents referencing this Skill — check before ``delete()`` to avoid a blocked delete."""
+        return cast(
+            ResourceUsage,
+            await self._transport.request("GET", f"/api/v1/developer/skills/{skill_id}/usage"),
+        )

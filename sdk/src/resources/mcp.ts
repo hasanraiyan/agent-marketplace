@@ -8,6 +8,7 @@ import type {
   McpUserConnectionStatus,
   UpdateMcpInput,
 } from '../types/mcp.js';
+import type { ResourceUsage } from '../types/usage.js';
 
 /**
  * OAuth sub-surface for a Project's own MCP servers. Owner-mode connects
@@ -86,6 +87,11 @@ export class McpsResource {
 
   async delete(mcpId: string): Promise<void> {
     await this.http.request<unknown>('DELETE', `/api/v1/developer/mcps/${mcpId}`);
+  }
+
+  /** Agents referencing this MCP — check before `delete()` to avoid a blocked-delete error. */
+  async getUsage(mcpId: string): Promise<ResourceUsage> {
+    return this.http.request<ResourceUsage>('GET', `/api/v1/developer/mcps/${mcpId}/usage`);
   }
 
   /** Connects, lists tools/resources/templates, and persists the summary onto the MCP document. */

@@ -16,6 +16,7 @@ jest.unstable_mockModule('../src/modules/mcp/mcp.service.js', () => ({
     getUserConnectionStatus: jest.fn(),
     disconnectUserConnection: jest.fn(),
     disconnectOwnerConnection: jest.fn(),
+    getMcpUsage: jest.fn(),
   },
 }));
 
@@ -116,6 +117,35 @@ describe('Developer Mcp Controller', () => {
       mcpService.getMcpById.mockRejectedValue(err);
 
       await developerMcpController.getOne(mockReq, mockRes, next);
+
+      expect(next).toHaveBeenCalledWith(err);
+      expect(mockRes.status).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getUsage', () => {
+    test('returns usage via mcpService.getMcpUsage', async () => {
+      mockReq.params = { mcpId: 'm1' };
+      mcpService.getMcpUsage.mockResolvedValue({
+        agentCount: 1,
+        agents: [{ _id: 'a1', name: 'Agent One' }],
+      });
+
+      await developerMcpController.getUsage(mockReq, mockRes, next);
+
+      expect(mcpService.getMcpUsage).toHaveBeenCalledWith('m1', undefined, machineContext);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: { agentCount: 1, agents: [{ _id: 'a1', name: 'Agent One' }] },
+      });
+    });
+
+    test('passes a NotFoundError straight through to next (no special-casing needed)', async () => {
+      mockReq.params = { mcpId: 'm1' };
+      const err = new Error('MCP server not found');
+      mcpService.getMcpUsage.mockRejectedValue(err);
+
+      await developerMcpController.getUsage(mockReq, mockRes, next);
 
       expect(next).toHaveBeenCalledWith(err);
       expect(mockRes.status).not.toHaveBeenCalled();

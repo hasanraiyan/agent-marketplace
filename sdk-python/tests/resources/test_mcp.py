@@ -74,6 +74,22 @@ def test_delete():
 
 
 @respx.mock
+def test_get_usage():
+    respx.get(f"{BASE_URL}/api/v1/developer/mcps/m1/usage").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {"agentCount": 1, "agents": [{"_id": "a1", "name": "Agent One"}]},
+            },
+        )
+    )
+    client = PersonaClient(BASE_URL, "keyId.secret")
+    usage = client.mcps.get_usage("m1")
+    assert usage == {"agentCount": 1, "agents": [{"_id": "a1", "name": "Agent One"}]}
+
+
+@respx.mock
 def test_test_connection():
     respx.post(f"{BASE_URL}/api/v1/developer/mcps/m1/test").mock(
         return_value=httpx.Response(
@@ -193,3 +209,19 @@ async def test_async_oauth_disconnect_owner_connection():
     async with AsyncPersonaClient(BASE_URL, "keyId.secret") as client:
         await client.mcps.oauth.disconnect_owner_connection("m1")
     assert route.called
+
+
+@respx.mock
+async def test_async_get_usage():
+    respx.get(f"{BASE_URL}/api/v1/developer/mcps/m1/usage").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {"agentCount": 1, "agents": [{"_id": "a1", "name": "Agent One"}]},
+            },
+        )
+    )
+    async with AsyncPersonaClient(BASE_URL, "keyId.secret") as client:
+        usage = await client.mcps.get_usage("m1")
+        assert usage == {"agentCount": 1, "agents": [{"_id": "a1", "name": "Agent One"}]}

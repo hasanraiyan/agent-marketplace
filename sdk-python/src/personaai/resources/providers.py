@@ -21,6 +21,7 @@ from ..types.provider import (
     ProviderTestConnectionResult,
     UpdateProviderInput,
 )
+from ..types.usage import ResourceUsage
 
 if TYPE_CHECKING:
     from .._async_http import AsyncTransport
@@ -74,6 +75,13 @@ class Providers:
             self._transport.request("GET", f"/api/v1/developer/providers/{provider_id}/models"),
         )
 
+    def get_usage(self, provider_id: str) -> ResourceUsage:
+        """Agents referencing this Provider — check before ``delete()`` to avoid a block."""
+        return cast(
+            ResourceUsage,
+            self._transport.request("GET", f"/api/v1/developer/providers/{provider_id}/usage"),
+        )
+
 
 class AsyncProviders:
     def __init__(self, transport: AsyncTransport) -> None:
@@ -125,5 +133,14 @@ class AsyncProviders:
             List[ProviderModel],
             await self._transport.request(
                 "GET", f"/api/v1/developer/providers/{provider_id}/models"
+            ),
+        )
+
+    async def get_usage(self, provider_id: str) -> ResourceUsage:
+        """Agents referencing this Provider — check before ``delete()`` to avoid a block."""
+        return cast(
+            ResourceUsage,
+            await self._transport.request(
+                "GET", f"/api/v1/developer/providers/{provider_id}/usage"
             ),
         )

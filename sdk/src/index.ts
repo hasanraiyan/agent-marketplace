@@ -6,6 +6,7 @@ export type {
   ProjectMachineContext,
   ProjectRuntimeContext,
 } from './types/principal.js';
+export type { ResourceUsage } from './types/usage.js';
 export { ProvidersResource } from './resources/providers.js';
 export type {
   Provider,

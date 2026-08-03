@@ -24,6 +24,7 @@ jest.unstable_mockModule('../src/modules/skills/skill.service.js', () => ({
     updateSkill: jest.fn(),
     deleteSkill: jest.fn(),
     discoverSkills: jest.fn(),
+    getSkillUsage: jest.fn(),
   },
 }));
 
@@ -115,5 +116,23 @@ describe('developerSkill.routes.js — mount integration', () => {
 
     expect(res.status).toBe(200);
     expect(skillService.getSkillById).toHaveBeenCalledWith('s1', undefined, expect.any(Object));
+  });
+
+  test('GET /:skillId/usage reaches the controller and returns usage', async () => {
+    skillService.getSkillUsage.mockResolvedValue({
+      agentCount: 1,
+      agents: [{ _id: 'a1', name: 'Agent One' }],
+    });
+
+    const res = await request(app)
+      .get('/api/v1/developer/skills/s1/usage')
+      .set('Authorization', 'Bearer pk_test.secret');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      success: true,
+      data: { agentCount: 1, agents: [{ _id: 'a1', name: 'Agent One' }] },
+    });
+    expect(skillService.getSkillUsage).toHaveBeenCalledWith('s1', undefined, expect.any(Object));
   });
 });

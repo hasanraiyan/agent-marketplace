@@ -104,6 +104,28 @@ router.delete('/:providerId', developerProviderController.remove);
 
 /**
  * @openapi
+ * /api/v1/developer/providers/{providerId}/usage:
+ *   get:
+ *     tags: [Developer]
+ *     summary: See what's using this Provider, before attempting to delete it
+ *     description: >
+ *       Answers "what's using this" proactively, rather than only finding
+ *       out via a rejected delete call. `agents` is a preview (capped at
+ *       20); `agentCount` is the real total.
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: providerId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: "{ agentCount, agents: [{ _id, name }] }" }
+ *       404: { description: Provider not found or unauthorized }
+ */
+router.get('/:providerId/usage', developerProviderController.getUsage);
+
+/**
+ * @openapi
  * /api/v1/developer/providers/{providerId}/test-connection:
  *   post:
  *     tags: [Developer]

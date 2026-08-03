@@ -11,6 +11,7 @@ jest.unstable_mockModule('../src/modules/knowledge/knowledge.service.js', () => 
     searchKnowledgeBase: jest.fn(),
     deleteDocumentFromKb: jest.fn(),
     listDocumentSources: jest.fn(),
+    getKnowledgeBaseUsage: jest.fn(),
   },
 }));
 
@@ -216,6 +217,40 @@ describe('Developer Knowledge Controller', () => {
       knowledgeService.getKnowledgeBase.mockRejectedValue(new Error('Knowledge base not found'));
 
       await developerKnowledgeController.getOne(mockReq, mockRes, next);
+
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+      expect(next).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getUsage', () => {
+    test('returns usage via knowledgeService.getKnowledgeBaseUsage', async () => {
+      mockReq.params = { kbId: 'kb1' };
+      knowledgeService.getKnowledgeBaseUsage.mockResolvedValue({
+        agentCount: 1,
+        agents: [{ _id: 'a1', name: 'Agent One' }],
+      });
+
+      await developerKnowledgeController.getUsage(mockReq, mockRes, next);
+
+      expect(knowledgeService.getKnowledgeBaseUsage).toHaveBeenCalledWith(
+        'kb1',
+        undefined,
+        machineContext
+      );
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: { agentCount: 1, agents: [{ _id: 'a1', name: 'Agent One' }] },
+      });
+    });
+
+    test('collapses "Not authorized to access this knowledge base" to a 404, existence-hiding', async () => {
+      mockReq.params = { kbId: 'kb1' };
+      knowledgeService.getKnowledgeBaseUsage.mockRejectedValue(
+        new Error('Not authorized to access this knowledge base')
+      );
+
+      await developerKnowledgeController.getUsage(mockReq, mockRes, next);
 
       expect(mockRes.status).toHaveBeenCalledWith(404);
       expect(next).not.toHaveBeenCalled();

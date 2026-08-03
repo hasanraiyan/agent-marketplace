@@ -6,6 +6,7 @@ import type {
   ProviderTestConnectionResult,
   UpdateProviderInput,
 } from '../types/provider.js';
+import type { ResourceUsage } from '../types/usage.js';
 
 /**
  * Providers this Project owns (`/api/v1/developer/providers`). Control-plane
@@ -53,6 +54,14 @@ export class ProvidersResource {
     return this.http.request<ProviderModel[]>(
       'GET',
       `/api/v1/developer/providers/${providerId}/models`
+    );
+  }
+
+  /** Agents referencing this Provider — check before `delete()` to avoid a blocked-delete error. */
+  async getUsage(providerId: string): Promise<ResourceUsage> {
+    return this.http.request<ResourceUsage>(
+      'GET',
+      `/api/v1/developer/providers/${providerId}/usage`
     );
   }
 }

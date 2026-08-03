@@ -72,6 +72,22 @@ def test_delete():
 
 
 @respx.mock
+def test_get_usage():
+    respx.get(f"{BASE_URL}/api/v1/developer/knowledge/kb1/usage").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {"agentCount": 1, "agents": [{"_id": "a1", "name": "Agent One"}]},
+            },
+        )
+    )
+    client = PersonaClient(BASE_URL, "keyId.secret")
+    usage = client.knowledge.get_usage("kb1")
+    assert usage == {"agentCount": 1, "agents": [{"_id": "a1", "name": "Agent One"}]}
+
+
+@respx.mock
 def test_upload_documents_sends_multipart():
     upload_result = {
         "documentCount": 1,
@@ -172,3 +188,19 @@ async def test_async_delete():
     async with AsyncPersonaClient(BASE_URL, "keyId.secret") as client:
         await client.knowledge.delete("kb1")
     assert route.called
+
+
+@respx.mock
+async def test_async_get_usage():
+    respx.get(f"{BASE_URL}/api/v1/developer/knowledge/kb1/usage").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {"agentCount": 1, "agents": [{"_id": "a1", "name": "Agent One"}]},
+            },
+        )
+    )
+    async with AsyncPersonaClient(BASE_URL, "keyId.secret") as client:
+        usage = await client.knowledge.get_usage("kb1")
+        assert usage == {"agentCount": 1, "agents": [{"_id": "a1", "name": "Agent One"}]}
