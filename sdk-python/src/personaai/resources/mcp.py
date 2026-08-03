@@ -4,8 +4,9 @@ client asserts an external user, owned by that end user. Ported from
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, List, cast
 
+from ..types.bulk_delete import BulkDeleteResult
 from ..types.mcp import (
     CreateMcpInput,
     DiscoverMcpsParams,
@@ -143,6 +144,15 @@ class Mcps:
             self._transport.request("GET", f"/api/v1/developer/mcps/{mcp_id}/usage"),
         )
 
+    def bulk_delete(self, ids: List[str]) -> BulkDeleteResult:
+        """Best-effort batch delete — up to 100 ids per call; partial failures don't raise."""
+        return cast(
+            BulkDeleteResult,
+            self._transport.request(
+                "POST", "/api/v1/developer/mcps/bulk-delete", json={"ids": ids}
+            ),
+        )
+
     def test_connection(self, mcp_id: str) -> McpTestConnectionResult:
         """Connects, lists tools/resources/templates, and persists the
         summary onto the MCP document."""
@@ -203,6 +213,15 @@ class AsyncMcps:
         return cast(
             ResourceUsage,
             await self._transport.request("GET", f"/api/v1/developer/mcps/{mcp_id}/usage"),
+        )
+
+    async def bulk_delete(self, ids: List[str]) -> BulkDeleteResult:
+        """Best-effort batch delete — up to 100 ids per call; partial failures don't raise."""
+        return cast(
+            BulkDeleteResult,
+            await self._transport.request(
+                "POST", "/api/v1/developer/mcps/bulk-delete", json={"ids": ids}
+            ),
         )
 
     async def test_connection(self, mcp_id: str) -> McpTestConnectionResult:

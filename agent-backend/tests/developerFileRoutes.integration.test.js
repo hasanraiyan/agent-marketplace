@@ -43,6 +43,7 @@ describe('developerFile.routes.js — mount integration', () => {
 
   beforeAll(() => {
     app = express();
+    app.use(express.json());
     app.use('/api/v1/developer/files', developerFileRouter);
     app.use((err, req, res, next) => {
       res.status(err.statusCode || 500).json({ success: false, message: err.message });
@@ -137,5 +138,35 @@ describe('developerFile.routes.js — mount integration', () => {
     expect(fileService.getFileForDownload).toHaveBeenCalledWith('f1', expect.any(Object));
     expect(res.status).not.toBe(401);
     expect(res.status).not.toBe(400);
+  });
+
+  test('POST /bulk-delete reaches the controller and returns { deleted, failed }', async () => {
+    fileService.deleteFile.mockImplementation(async (id) => {
+      if (id === 'f2') throw new Error('File not found');
+      return true;
+    });
+
+    const res = await request(app)
+      .post('/api/v1/developer/files/bulk-delete')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('x-persona-external-user-id', 'sabik')
+      .send({ ids: ['f1', 'f2'] });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      success: true,
+      data: { deleted: ['f1'], failed: [{ id: 'f2', reason: expect.any(String) }] },
+    });
+  });
+
+  test('POST /bulk-delete 400s on an empty ids array, never reaching the controller', async () => {
+    const res = await request(app)
+      .post('/api/v1/developer/files/bulk-delete')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('x-persona-external-user-id', 'sabik')
+      .send({ ids: [] });
+
+    expect(res.status).toBe(400);
+    expect(fileService.deleteFile).not.toHaveBeenCalled();
   });
 });

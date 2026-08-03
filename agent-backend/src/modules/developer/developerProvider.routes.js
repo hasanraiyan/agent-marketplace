@@ -2,6 +2,7 @@ import express from 'express';
 import developerMachineAuthMiddleware from '../auth/developerMachineAuth.middleware.js';
 import { validateBody } from '../../middlewares/validationMiddleware.js';
 import { createProviderSchema, updateProviderSchema } from '../providers/provider.validator.js';
+import { bulkDeleteSchema } from '../../utils/validators/bulkDeleteSchema.js';
 import developerProviderController from './developerProvider.controller.js';
 
 /**
@@ -123,6 +124,34 @@ router.delete('/:providerId', developerProviderController.remove);
  *       404: { description: Provider not found or unauthorized }
  */
 router.get('/:providerId/usage', developerProviderController.getUsage);
+
+/**
+ * @openapi
+ * /api/v1/developer/providers/bulk-delete:
+ *   post:
+ *     tags: [Developer]
+ *     summary: Delete multiple Providers in one call
+ *     description: >
+ *       Best-effort batch delete — one blocked/not-found id doesn't abort
+ *       the rest. Up to 100 ids per request.
+ *     security: [{ projectCredential: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [ids]
+ *             properties:
+ *               ids:
+ *                 type: array
+ *                 items: { type: string }
+ *                 maxItems: 100
+ *     responses:
+ *       200: { description: "{ deleted: string[], failed: [{ id, reason }] }" }
+ *       400: { description: "ids missing, empty, or over 100 entries" }
+ */
+router.post('/bulk-delete', validateBody(bulkDeleteSchema), developerProviderController.bulkDelete);
 
 /**
  * @openapi

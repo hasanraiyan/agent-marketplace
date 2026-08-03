@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, List, cast
 
+from ..types.bulk_delete import BulkDeleteResult
 from ..types.provider import (
     CreateProviderInput,
     Provider,
@@ -82,6 +83,15 @@ class Providers:
             self._transport.request("GET", f"/api/v1/developer/providers/{provider_id}/usage"),
         )
 
+    def bulk_delete(self, ids: List[str]) -> BulkDeleteResult:
+        """Best-effort batch delete — up to 100 ids per call; partial failures don't raise."""
+        return cast(
+            BulkDeleteResult,
+            self._transport.request(
+                "POST", "/api/v1/developer/providers/bulk-delete", json={"ids": ids}
+            ),
+        )
+
 
 class AsyncProviders:
     def __init__(self, transport: AsyncTransport) -> None:
@@ -142,5 +152,14 @@ class AsyncProviders:
             ResourceUsage,
             await self._transport.request(
                 "GET", f"/api/v1/developer/providers/{provider_id}/usage"
+            ),
+        )
+
+    async def bulk_delete(self, ids: List[str]) -> BulkDeleteResult:
+        """Best-effort batch delete — up to 100 ids per call; partial failures don't raise."""
+        return cast(
+            BulkDeleteResult,
+            await self._transport.request(
+                "POST", "/api/v1/developer/providers/bulk-delete", json={"ids": ids}
             ),
         )

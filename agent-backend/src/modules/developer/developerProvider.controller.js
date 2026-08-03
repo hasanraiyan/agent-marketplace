@@ -1,4 +1,5 @@
 import providerService from '../providers/provider.service.js';
+import { bulkDelete } from '../../utils/bulkDelete.js';
 
 /**
  * Developer Platform Provider CRUD (blueprint Phase 9, PR-38, AD-06 §21 —
@@ -185,6 +186,17 @@ class DeveloperProviderController {
       if (error.message === 'Unauthorized to delete this provider') {
         return res.status(404).json({ success: false, message: 'Provider not found' });
       }
+      next(error);
+    }
+  }
+
+  async bulkDelete(req, res, next) {
+    try {
+      const result = await bulkDelete(req.body.ids, (id) =>
+        providerService.deleteProvider(undefined, id, req.projectContext)
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
       next(error);
     }
   }

@@ -146,6 +146,34 @@ describe('developerKnowledge.routes.js — mount integration', () => {
     );
   });
 
+  test('POST /bulk-delete reaches the controller and returns { deleted, failed }', async () => {
+    knowledgeService.deleteKnowledgeBase.mockImplementation(async (id) => {
+      if (id === 'kb2') throw new Error('Knowledge base not found');
+      return true;
+    });
+
+    const res = await request(app)
+      .post('/api/v1/developer/knowledge/bulk-delete')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .send({ ids: ['kb1', 'kb2'] });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      success: true,
+      data: { deleted: ['kb1'], failed: [{ id: 'kb2', reason: expect.any(String) }] },
+    });
+  });
+
+  test('POST /bulk-delete 400s on an empty ids array, never reaching the controller', async () => {
+    const res = await request(app)
+      .post('/api/v1/developer/knowledge/bulk-delete')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .send({ ids: [] });
+
+    expect(res.status).toBe(400);
+    expect(knowledgeService.deleteKnowledgeBase).not.toHaveBeenCalled();
+  });
+
   test('POST /:kbId/documents uploads a real multipart file to the controller (PR-47b)', async () => {
     knowledgeService.uploadFiles.mockResolvedValue({ files: [{ name: 'verify.txt' }] });
 

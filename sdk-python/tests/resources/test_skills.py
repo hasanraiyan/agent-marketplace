@@ -98,6 +98,22 @@ def test_get_usage():
 
 
 @respx.mock
+def test_bulk_delete():
+    respx.post(f"{BASE_URL}/api/v1/developer/skills/bulk-delete").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {"deleted": ["s1"], "failed": [{"id": "s2", "reason": "not found"}]},
+            },
+        )
+    )
+    client = PersonaClient(BASE_URL, "keyId.secret")
+    result = client.skills.bulk_delete(["s1", "s2"])
+    assert result == {"deleted": ["s1"], "failed": [{"id": "s2", "reason": "not found"}]}
+
+
+@respx.mock
 async def test_async_create():
     respx.post(f"{BASE_URL}/api/v1/developer/skills").mock(
         return_value=httpx.Response(200, json={"success": True, "data": SKILL})
@@ -147,3 +163,19 @@ async def test_async_get_usage():
     async with AsyncPersonaClient(BASE_URL, "keyId.secret") as client:
         usage = await client.skills.get_usage("s1")
         assert usage == {"agentCount": 1, "agents": [{"_id": "a1", "name": "Agent One"}]}
+
+
+@respx.mock
+async def test_async_bulk_delete():
+    respx.post(f"{BASE_URL}/api/v1/developer/skills/bulk-delete").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {"deleted": ["s1"], "failed": [{"id": "s2", "reason": "not found"}]},
+            },
+        )
+    )
+    async with AsyncPersonaClient(BASE_URL, "keyId.secret") as client:
+        result = await client.skills.bulk_delete(["s1", "s2"])
+        assert result == {"deleted": ["s1"], "failed": [{"id": "s2", "reason": "not found"}]}

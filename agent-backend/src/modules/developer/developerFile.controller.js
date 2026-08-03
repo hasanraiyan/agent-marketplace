@@ -1,5 +1,6 @@
 import path from 'path';
 import fileService, { developerUploadDir } from '../files/file.service.js';
+import { bulkDelete } from '../../utils/bulkDelete.js';
 
 /**
  * Developer Platform file upload/mediated access (blueprint Phase 9 §15,
@@ -94,6 +95,17 @@ class DeveloperFileController {
       if (error.message === 'File not found') {
         return res.status(404).json({ success: false, message: 'File not found' });
       }
+      next(error);
+    }
+  }
+
+  async bulkDelete(req, res, next) {
+    try {
+      const result = await bulkDelete(req.body.ids, (id) =>
+        fileService.deleteFile(id, req.projectContext)
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
       next(error);
     }
   }

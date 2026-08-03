@@ -18,6 +18,7 @@ from .types.agent import (
     DiscoverAgentsParams,
     UpdateAgentInput,
 )
+from .types.bulk_delete import BulkDeleteFailure, BulkDeleteResult
 from .types.chat import (
     AguiEvent,
     ChatInterrupt,
@@ -171,4 +172,6 @@ __all__ = [
     "ChatResult",
     "ResourceUsage",
     "ResourceUsageAgent",
+    "BulkDeleteResult",
+    "BulkDeleteFailure",
 ]

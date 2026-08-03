@@ -195,6 +195,28 @@ describe('Developer Mcp Controller', () => {
     });
   });
 
+  describe('bulkDelete', () => {
+    test('deletes each id via mcpService.deleteMcp, splitting deleted/failed', async () => {
+      mockReq.body = { ids: ['m1', 'm2'] };
+      mcpService.deleteMcp.mockImplementation(async (id) => {
+        if (id === 'm2') throw new Error('MCP server not found');
+        return true;
+      });
+
+      await developerMcpController.bulkDelete(mockReq, mockRes, next);
+
+      expect(mcpService.deleteMcp).toHaveBeenCalledWith('m1', undefined, machineContext);
+      expect(mcpService.deleteMcp).toHaveBeenCalledWith('m2', undefined, machineContext);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          deleted: ['m1'],
+          failed: [{ id: 'm2', reason: expect.any(String) }],
+        },
+      });
+    });
+  });
+
   describe('testConnection', () => {
     test('tests via mcpService.testConnection, forwarding req.projectContext', async () => {
       mockReq.params = { mcpId: 'm1' };

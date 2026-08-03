@@ -4,8 +4,9 @@ client asserts an external user, owned by that end user. Ported from
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, List, cast
 
+from ..types.bulk_delete import BulkDeleteResult
 from ..types.skill import CreateSkillInput, DiscoverSkillsParams, Skill, UpdateSkillInput
 from ..types.usage import ResourceUsage
 
@@ -47,6 +48,15 @@ class Skills:
             self._transport.request("GET", f"/api/v1/developer/skills/{skill_id}/usage"),
         )
 
+    def bulk_delete(self, ids: List[str]) -> BulkDeleteResult:
+        """Best-effort batch delete — up to 100 ids per call; partial failures don't raise."""
+        return cast(
+            BulkDeleteResult,
+            self._transport.request(
+                "POST", "/api/v1/developer/skills/bulk-delete", json={"ids": ids}
+            ),
+        )
+
 
 class AsyncSkills:
     def __init__(self, transport: AsyncTransport) -> None:
@@ -85,4 +95,13 @@ class AsyncSkills:
         return cast(
             ResourceUsage,
             await self._transport.request("GET", f"/api/v1/developer/skills/{skill_id}/usage"),
+        )
+
+    async def bulk_delete(self, ids: List[str]) -> BulkDeleteResult:
+        """Best-effort batch delete — up to 100 ids per call; partial failures don't raise."""
+        return cast(
+            BulkDeleteResult,
+            await self._transport.request(
+                "POST", "/api/v1/developer/skills/bulk-delete", json={"ids": ids}
+            ),
         )

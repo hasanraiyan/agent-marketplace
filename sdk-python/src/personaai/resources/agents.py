@@ -4,9 +4,10 @@ client asserts an external user, owned by that end user. Ported from
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, List, cast
 
 from ..types.agent import Agent, CreateAgentInput, DiscoverAgentsParams, UpdateAgentInput
+from ..types.bulk_delete import BulkDeleteResult
 
 if TYPE_CHECKING:
     from .._async_http import AsyncTransport
@@ -40,6 +41,15 @@ class Agents:
 
     def delete(self, agent_id: str) -> None:
         self._transport.request("DELETE", f"/api/v1/developer/agents/{agent_id}")
+
+    def bulk_delete(self, ids: List[str]) -> BulkDeleteResult:
+        """Best-effort batch delete — up to 100 ids per call; partial failures don't raise."""
+        return cast(
+            BulkDeleteResult,
+            self._transport.request(
+                "POST", "/api/v1/developer/agents/bulk-delete", json={"ids": ids}
+            ),
+        )
 
 
 class AsyncAgents:
@@ -76,3 +86,12 @@ class AsyncAgents:
 
     async def delete(self, agent_id: str) -> None:
         await self._transport.request("DELETE", f"/api/v1/developer/agents/{agent_id}")
+
+    async def bulk_delete(self, ids: List[str]) -> BulkDeleteResult:
+        """Best-effort batch delete — up to 100 ids per call; partial failures don't raise."""
+        return cast(
+            BulkDeleteResult,
+            await self._transport.request(
+                "POST", "/api/v1/developer/agents/bulk-delete", json={"ids": ids}
+            ),
+        )

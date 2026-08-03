@@ -133,4 +133,32 @@ describe('developerAgent.routes.js — mount integration', () => {
       expect.anything()
     );
   });
+
+  test('POST /bulk-delete reaches the controller and returns { deleted, failed }', async () => {
+    agentService.deleteAgent.mockImplementation(async (id) => {
+      if (id === 'a2') throw new Error('Agent not found');
+      return true;
+    });
+
+    const res = await request(app)
+      .post('/api/v1/developer/agents/bulk-delete')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .send({ ids: ['a1', 'a2'] });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      success: true,
+      data: { deleted: ['a1'], failed: [{ id: 'a2', reason: expect.any(String) }] },
+    });
+  });
+
+  test('POST /bulk-delete 400s on an empty ids array, never reaching the controller', async () => {
+    const res = await request(app)
+      .post('/api/v1/developer/agents/bulk-delete')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .send({ ids: [] });
+
+    expect(res.status).toBe(400);
+    expect(agentService.deleteAgent).not.toHaveBeenCalled();
+  });
 });

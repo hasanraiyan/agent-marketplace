@@ -6,6 +6,7 @@ import {
   createKnowledgeBaseSchema,
   updateKnowledgeBaseSchema,
 } from '../knowledge/knowledge.validator.js';
+import { bulkDeleteSchema } from '../../utils/validators/bulkDeleteSchema.js';
 import developerKnowledgeController from './developerKnowledge.controller.js';
 
 /**
@@ -174,6 +175,38 @@ router.delete('/:kbId', developerKnowledgeController.remove);
  *       404: { description: Knowledge base not found or unauthorized }
  */
 router.get('/:kbId/usage', developerKnowledgeController.getUsage);
+
+/**
+ * @openapi
+ * /api/v1/developer/knowledge/bulk-delete:
+ *   post:
+ *     tags: [Developer]
+ *     summary: Delete multiple Knowledge Bases in one call
+ *     description: >
+ *       Best-effort batch delete — one not-found id doesn't abort the
+ *       rest. Up to 100 ids per request.
+ *     security: [{ projectCredential: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [ids]
+ *             properties:
+ *               ids:
+ *                 type: array
+ *                 items: { type: string }
+ *                 maxItems: 100
+ *     responses:
+ *       200: { description: "{ deleted: string[], failed: [{ id, reason }] }" }
+ *       400: { description: "ids missing, empty, or over 100 entries" }
+ */
+router.post(
+  '/bulk-delete',
+  validateBody(bulkDeleteSchema),
+  developerKnowledgeController.bulkDelete
+);
 
 /**
  * @openapi

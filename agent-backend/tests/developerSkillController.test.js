@@ -174,4 +174,26 @@ describe('Developer Skill Controller', () => {
       });
     });
   });
+
+  describe('bulkDelete', () => {
+    test('deletes each id via skillService.deleteSkill, splitting deleted/failed', async () => {
+      mockReq.body = { ids: ['s1', 's2'] };
+      skillService.deleteSkill.mockImplementation(async (id) => {
+        if (id === 's2') throw new Error('Skill not found or private');
+        return true;
+      });
+
+      await developerSkillController.bulkDelete(mockReq, mockRes, next);
+
+      expect(skillService.deleteSkill).toHaveBeenCalledWith('s1', undefined, machineContext);
+      expect(skillService.deleteSkill).toHaveBeenCalledWith('s2', undefined, machineContext);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          deleted: ['s1'],
+          failed: [{ id: 's2', reason: expect.any(String) }],
+        },
+      });
+    });
+  });
 });

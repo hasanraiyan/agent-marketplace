@@ -71,6 +71,21 @@ def test_delete():
 
 
 @respx.mock
+def test_bulk_delete():
+    respx.post(f"{BASE_URL}/api/v1/developer/files/bulk-delete").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {"deleted": ["f1"], "failed": [{"id": "f2", "reason": "not found"}]},
+            },
+        )
+    )
+    result = _client().files.bulk_delete(["f1", "f2"])
+    assert result == {"deleted": ["f1"], "failed": [{"id": "f2", "reason": "not found"}]}
+
+
+@respx.mock
 async def test_async_upload():
     respx.post(f"{BASE_URL}/api/v1/developer/files").mock(
         return_value=httpx.Response(200, json={"success": True, "data": FILE})
@@ -101,3 +116,19 @@ async def test_async_delete():
     async with AsyncPersonaClient(BASE_URL, "keyId.secret", external_user_id="u1") as client:
         await client.files.delete("f1")
     assert route.called
+
+
+@respx.mock
+async def test_async_bulk_delete():
+    respx.post(f"{BASE_URL}/api/v1/developer/files/bulk-delete").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {"deleted": ["f1"], "failed": [{"id": "f2", "reason": "not found"}]},
+            },
+        )
+    )
+    async with AsyncPersonaClient(BASE_URL, "keyId.secret", external_user_id="u1") as client:
+        result = await client.files.bulk_delete(["f1", "f2"])
+        assert result == {"deleted": ["f1"], "failed": [{"id": "f2", "reason": "not found"}]}

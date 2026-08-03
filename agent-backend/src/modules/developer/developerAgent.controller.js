@@ -1,4 +1,5 @@
 import agentService from '../agents/agent.service.js';
+import { bulkDelete } from '../../utils/bulkDelete.js';
 
 /**
  * Developer Platform Agent CRUD (blueprint Phase 9, PR-26, AD-07 §15/16/17).
@@ -90,6 +91,17 @@ class DeveloperAgentController {
     try {
       await agentService.deleteAgent(req.params.agentId, undefined, req.projectContext);
       res.json({ success: true, message: 'Agent deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async bulkDelete(req, res, next) {
+    try {
+      const result = await bulkDelete(req.body.ids, (id) =>
+        agentService.deleteAgent(id, undefined, req.projectContext)
+      );
+      res.json({ success: true, data: result });
     } catch (error) {
       next(error);
     }

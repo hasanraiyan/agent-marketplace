@@ -132,4 +132,26 @@ describe('Developer File Controller', () => {
       expect(mockRes.status).toHaveBeenCalledWith(404);
     });
   });
+
+  describe('bulkDelete', () => {
+    test('deletes each id via fileService.deleteFile, splitting deleted/failed', async () => {
+      mockReq.body = { ids: ['f1', 'f2'] };
+      fileService.deleteFile.mockImplementation(async (id) => {
+        if (id === 'f2') throw new Error('File not found');
+        return true;
+      });
+
+      await developerFileController.bulkDelete(mockReq, mockRes, next);
+
+      expect(fileService.deleteFile).toHaveBeenCalledWith('f1', runtimeContext);
+      expect(fileService.deleteFile).toHaveBeenCalledWith('f2', runtimeContext);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          deleted: ['f1'],
+          failed: [{ id: 'f2', reason: expect.any(String) }],
+        },
+      });
+    });
+  });
 });

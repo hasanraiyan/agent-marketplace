@@ -15,6 +15,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, List, cast
 from urllib.parse import quote
 
+from ..types.bulk_delete import BulkDeleteResult
 from ..types.knowledge import (
     CreateKnowledgeBaseInput,
     DeleteDocumentResult,
@@ -75,6 +76,15 @@ class Knowledge:
         return cast(
             ResourceUsage,
             self._transport.request("GET", f"/api/v1/developer/knowledge/{kb_id}/usage"),
+        )
+
+    def bulk_delete(self, ids: List[str]) -> BulkDeleteResult:
+        """Best-effort batch delete — up to 100 ids per call; partial failures don't raise."""
+        return cast(
+            BulkDeleteResult,
+            self._transport.request(
+                "POST", "/api/v1/developer/knowledge/bulk-delete", json={"ids": ids}
+            ),
         )
 
     def upload_documents(self, kb_id: str, files: List[UploadFileInput]) -> UploadDocumentsResult:
@@ -157,6 +167,15 @@ class AsyncKnowledge:
         return cast(
             ResourceUsage,
             await self._transport.request("GET", f"/api/v1/developer/knowledge/{kb_id}/usage"),
+        )
+
+    async def bulk_delete(self, ids: List[str]) -> BulkDeleteResult:
+        """Best-effort batch delete — up to 100 ids per call; partial failures don't raise."""
+        return cast(
+            BulkDeleteResult,
+            await self._transport.request(
+                "POST", "/api/v1/developer/knowledge/bulk-delete", json={"ids": ids}
+            ),
         )
 
     async def upload_documents(

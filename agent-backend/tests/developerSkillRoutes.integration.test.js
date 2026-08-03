@@ -135,4 +135,32 @@ describe('developerSkill.routes.js — mount integration', () => {
     });
     expect(skillService.getSkillUsage).toHaveBeenCalledWith('s1', undefined, expect.any(Object));
   });
+
+  test('POST /bulk-delete reaches the controller and returns { deleted, failed }', async () => {
+    skillService.deleteSkill.mockImplementation(async (id) => {
+      if (id === 's2') throw new Error('Skill not found or private');
+      return true;
+    });
+
+    const res = await request(app)
+      .post('/api/v1/developer/skills/bulk-delete')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .send({ ids: ['s1', 's2'] });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      success: true,
+      data: { deleted: ['s1'], failed: [{ id: 's2', reason: expect.any(String) }] },
+    });
+  });
+
+  test('POST /bulk-delete 400s on an empty ids array, never reaching the controller', async () => {
+    const res = await request(app)
+      .post('/api/v1/developer/skills/bulk-delete')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .send({ ids: [] });
+
+    expect(res.status).toBe(400);
+    expect(skillService.deleteSkill).not.toHaveBeenCalled();
+  });
 });

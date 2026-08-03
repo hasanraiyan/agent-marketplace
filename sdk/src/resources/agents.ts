@@ -5,6 +5,7 @@ import type {
   DiscoverAgentsParams,
   UpdateAgentInput,
 } from '../types/agent.js';
+import type { BulkDeleteResult } from '../types/bulkDelete.js';
 
 /**
  * Agents (`/api/v1/developer/agents`) — Project-owned, or, when this client
@@ -37,5 +38,12 @@ export class AgentsResource {
 
   async delete(agentId: string): Promise<void> {
     await this.http.request<unknown>('DELETE', `/api/v1/developer/agents/${agentId}`);
+  }
+
+  /** Best-effort batch delete — up to 100 ids per call; partial failures don't throw. */
+  async bulkDelete(ids: string[]): Promise<BulkDeleteResult> {
+    return this.http.request<BulkDeleteResult>('POST', '/api/v1/developer/agents/bulk-delete', {
+      body: { ids },
+    });
   }
 }

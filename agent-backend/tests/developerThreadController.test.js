@@ -211,6 +211,29 @@ describe('Developer Thread Controller', () => {
     });
   });
 
+  describe('bulkDelete', () => {
+    test('deletes each id via threadService.deleteThread, cleans up checkpoints, splits deleted/failed', async () => {
+      mockReq.body = { ids: ['t1', 't2'] };
+      threadService.deleteThread.mockImplementation(async (id) => {
+        if (id === 't2') throw new Error('Thread not found');
+        return { threadId: 'uuid-1' };
+      });
+
+      await developerThreadController.bulkDelete(mockReq, mockRes, next);
+
+      expect(threadService.deleteThread).toHaveBeenCalledWith('t1', undefined, runtimeContext);
+      expect(threadService.deleteThread).toHaveBeenCalledWith('t2', undefined, runtimeContext);
+      expect(checkpointService.cleanupThreads).toHaveBeenCalledWith('uuid-1');
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          deleted: ['t1'],
+          failed: [{ id: 't2', reason: expect.any(String) }],
+        },
+      });
+    });
+  });
+
   describe('getMessages', () => {
     test('returns messages via checkpointService.getMessages, forwarding req.projectContext', async () => {
       mockReq.params = { threadId: 't1' };

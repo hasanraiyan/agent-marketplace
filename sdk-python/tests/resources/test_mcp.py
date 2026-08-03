@@ -90,6 +90,22 @@ def test_get_usage():
 
 
 @respx.mock
+def test_bulk_delete():
+    respx.post(f"{BASE_URL}/api/v1/developer/mcps/bulk-delete").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {"deleted": ["m1"], "failed": [{"id": "m2", "reason": "not found"}]},
+            },
+        )
+    )
+    client = PersonaClient(BASE_URL, "keyId.secret")
+    result = client.mcps.bulk_delete(["m1", "m2"])
+    assert result == {"deleted": ["m1"], "failed": [{"id": "m2", "reason": "not found"}]}
+
+
+@respx.mock
 def test_test_connection():
     respx.post(f"{BASE_URL}/api/v1/developer/mcps/m1/test").mock(
         return_value=httpx.Response(
@@ -225,3 +241,19 @@ async def test_async_get_usage():
     async with AsyncPersonaClient(BASE_URL, "keyId.secret") as client:
         usage = await client.mcps.get_usage("m1")
         assert usage == {"agentCount": 1, "agents": [{"_id": "a1", "name": "Agent One"}]}
+
+
+@respx.mock
+async def test_async_bulk_delete():
+    respx.post(f"{BASE_URL}/api/v1/developer/mcps/bulk-delete").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {"deleted": ["m1"], "failed": [{"id": "m2", "reason": "not found"}]},
+            },
+        )
+    )
+    async with AsyncPersonaClient(BASE_URL, "keyId.secret") as client:
+        result = await client.mcps.bulk_delete(["m1", "m2"])
+        assert result == {"deleted": ["m1"], "failed": [{"id": "m2", "reason": "not found"}]}
