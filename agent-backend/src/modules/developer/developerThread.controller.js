@@ -5,6 +5,7 @@ import checkpointService from '../threads/checkpoint.service.js';
 import threadService from '../threads/thread.service.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
 import { bulkDelete } from '../../utils/bulkDelete.js';
+import { paginationEnvelope } from '../../utils/pagination.js';
 
 /**
  * Developer Platform Thread CRUD (blueprint Phase 9, PR-40, AD-04 §15.3).
@@ -67,13 +68,12 @@ class DeveloperThreadController {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
 
-      const threads = await threadService.getThreadsForSubject(
-        undefined,
-        { page, limit },
-        req.projectContext
-      );
+      const [threads, total] = await Promise.all([
+        threadService.getThreadsForSubject(undefined, { page, limit }, req.projectContext),
+        threadService.countThreadsForSubject(undefined, req.projectContext),
+      ]);
 
-      res.json({ success: true, data: threads });
+      res.json({ success: true, data: paginationEnvelope(threads, total, page, limit) });
     } catch (error) {
       next(error);
     }

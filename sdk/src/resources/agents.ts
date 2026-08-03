@@ -6,6 +6,7 @@ import type {
   UpdateAgentInput,
 } from '../types/agent.js';
 import type { BulkDeleteResult } from '../types/bulkDelete.js';
+import type { PaginatedResult } from '../types/pagination.js';
 
 /**
  * Agents (`/api/v1/developer/agents`) — Project-owned, or, when this client
@@ -18,9 +19,8 @@ export class AgentsResource {
     return this.http.request<Agent>('POST', '/api/v1/developer/agents', { body: input });
   }
 
-  /** Note: returns a bare array — this endpoint has no pagination envelope. */
-  async list(params: DiscoverAgentsParams = {}): Promise<Agent[]> {
-    return this.http.request<Agent[]>('GET', '/api/v1/developer/agents', {
+  async list(params: DiscoverAgentsParams = {}): Promise<PaginatedResult<Agent>> {
+    return this.http.request<PaginatedResult<Agent>>('GET', '/api/v1/developer/agents', {
       query: { ...params },
     });
   }

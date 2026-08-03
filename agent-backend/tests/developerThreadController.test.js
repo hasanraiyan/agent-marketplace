@@ -23,6 +23,7 @@ jest.unstable_mockModule('../src/modules/threads/thread.service.js', () => ({
     updateThreadTitle: jest.fn(),
     updateThread: jest.fn(),
     deleteThread: jest.fn(),
+    countThreadsForSubject: jest.fn(),
   },
 }));
 
@@ -93,8 +94,9 @@ describe('Developer Thread Controller', () => {
   });
 
   describe('getAll', () => {
-    test('lists via threadService.getThreadsForSubject using req.projectContext', async () => {
+    test('lists via threadService.getThreadsForSubject using req.projectContext, wrapped in a pagination envelope', async () => {
       threadService.getThreadsForSubject.mockResolvedValue([{ _id: 't1' }]);
+      threadService.countThreadsForSubject.mockResolvedValue(1);
 
       await developerThreadController.getAll(mockReq, mockRes, next);
 
@@ -103,7 +105,14 @@ describe('Developer Thread Controller', () => {
         { page: 1, limit: 20 },
         runtimeContext
       );
-      expect(mockRes.json).toHaveBeenCalledWith({ success: true, data: [{ _id: 't1' }] });
+      expect(threadService.countThreadsForSubject).toHaveBeenCalledWith(undefined, runtimeContext);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          items: [{ _id: 't1' }],
+          pagination: { total: 1, page: 1, limit: 20, pages: 1 },
+        },
+      });
     });
   });
 

@@ -38,10 +38,21 @@ def test_create():
 @respx.mock
 def test_list():
     respx.get(f"{BASE_URL}/api/v1/developer/mcps").mock(
-        return_value=httpx.Response(200, json={"success": True, "data": [MCP]})
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {
+                    "items": [MCP],
+                    "pagination": {"total": 1, "page": 1, "limit": 20, "pages": 1},
+                },
+            },
+        )
     )
     client = PersonaClient(BASE_URL, "keyId.secret")
-    assert client.mcps.list() == [MCP]
+    result = client.mcps.list()
+    assert result["items"] == [MCP]
+    assert result["pagination"] == {"total": 1, "page": 1, "limit": 20, "pages": 1}
 
 
 @respx.mock

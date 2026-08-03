@@ -31,6 +31,7 @@ jest.unstable_mockModule('../src/modules/threads/thread.service.js', () => ({
     createThread: jest.fn(),
     getThreadById: jest.fn(),
     getThreadsForSubject: jest.fn(),
+    countThreadsForSubject: jest.fn(),
     updateThreadTitle: jest.fn(),
     updateThread: jest.fn(),
     deleteThread: jest.fn(),
@@ -90,8 +91,9 @@ describe('developerThread.routes.js — mount integration', () => {
     expect(threadService.getThreadsForSubject).not.toHaveBeenCalled();
   });
 
-  test('lists Threads for a valid ProjectRuntimeContext', async () => {
+  test('lists Threads for a valid ProjectRuntimeContext, wrapped in a pagination envelope', async () => {
     threadService.getThreadsForSubject.mockResolvedValue([{ _id: 't1' }]);
+    threadService.countThreadsForSubject.mockResolvedValue(1);
 
     const res = await request(app)
       .get('/api/v1/developer/threads')
@@ -108,6 +110,13 @@ describe('developerThread.routes.js — mount integration', () => {
         externalUserId: 'sabik',
       })
     );
+    expect(res.body).toEqual({
+      success: true,
+      data: {
+        items: [{ _id: 't1' }],
+        pagination: { total: 1, page: 1, limit: 20, pages: 1 },
+      },
+    });
   });
 
   test('400s on an invalid body (missing agentId)', async () => {

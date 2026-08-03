@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, List, cast
 
 from ..types.bulk_delete import BulkDeleteResult
+from ..types.pagination import PaginatedResult
 from ..types.thread import (
     CreateThreadInput,
     ListThreadsParams,
@@ -32,10 +33,9 @@ class Threads:
             Thread, self._transport.request("POST", "/api/v1/developer/threads", json=input)
         )
 
-    def list(self, params: ListThreadsParams | None = None) -> list[Thread]:
-        """Note: returns a bare list — this endpoint has no pagination envelope."""
+    def list(self, params: ListThreadsParams | None = None) -> PaginatedResult[Thread]:
         return cast(
-            list[Thread],
+            PaginatedResult[Thread],
             self._transport.request("GET", "/api/v1/developer/threads", query=params),
         )
 
@@ -86,10 +86,9 @@ class AsyncThreads:
             await self._transport.request("POST", "/api/v1/developer/threads", json=input),
         )
 
-    async def list(self, params: ListThreadsParams | None = None) -> list[Thread]:
-        """Note: returns a bare list — this endpoint has no pagination envelope."""
+    async def list(self, params: ListThreadsParams | None = None) -> PaginatedResult[Thread]:
         return cast(
-            list[Thread],
+            PaginatedResult[Thread],
             await self._transport.request("GET", "/api/v1/developer/threads", query=params),
         )
 

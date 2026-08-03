@@ -24,6 +24,7 @@ jest.unstable_mockModule('../src/modules/agents/agent.service.js', () => ({
     updateAgent: jest.fn(),
     deleteAgent: jest.fn(),
     discoverAgents: jest.fn(),
+    countDiscoverAgents: jest.fn(),
   },
 }));
 
@@ -101,8 +102,9 @@ describe('developerAgent.routes.js — mount integration', () => {
     expect(agentService.getDeveloperAgentById).toHaveBeenCalledWith('a1', expect.any(Object));
   });
 
-  test('GET / (discover) reaches the controller and returns the list', async () => {
+  test('GET / (discover) reaches the controller and returns a pagination envelope', async () => {
     agentService.discoverAgents.mockResolvedValue([{ _id: 'a1' }]);
+    agentService.countDiscoverAgents.mockResolvedValue(1);
 
     const res = await request(app)
       .get('/api/v1/developer/agents')
@@ -114,6 +116,13 @@ describe('developerAgent.routes.js — mount integration', () => {
       expect.any(Object),
       expect.any(Object)
     );
+    expect(res.body).toEqual({
+      success: true,
+      data: {
+        items: [{ _id: 'a1' }],
+        pagination: { total: 1, page: 1, limit: 20, pages: 1 },
+      },
+    });
   });
 
   test('a ProjectRuntimeContext (x-persona-external-user-id present) is passed through to the service', async () => {

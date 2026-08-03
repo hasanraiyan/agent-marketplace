@@ -15,6 +15,10 @@ class FileRepository {
     return await DeveloperFile.find(subjectFilter).sort({ createdAt: -1 }).skip(skip).limit(limit);
   }
 
+  async countBySubject(subjectFilter) {
+    return await DeveloperFile.countDocuments(subjectFilter);
+  }
+
   async deleteById(id) {
     return await DeveloperFile.findByIdAndDelete(id);
   }

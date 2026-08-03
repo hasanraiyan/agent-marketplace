@@ -57,6 +57,14 @@ class FileService {
     );
   }
 
+  /** Developer Platform only (Feature 4, pagination envelope) — the real total behind `listFiles`'s page. */
+  async countFiles(context) {
+    return await fileRepository.countBySubject({
+      domain: context.domain,
+      externalUserId: context.externalUserId,
+    });
+  }
+
   async deleteFile(fileId, context) {
     const file = await this.getFileForDownload(fileId, context);
     const storagePath = path.join(developerUploadDir, file.storageKey);

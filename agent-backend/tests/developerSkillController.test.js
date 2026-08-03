@@ -7,6 +7,7 @@ jest.unstable_mockModule('../src/modules/skills/skill.service.js', () => ({
     updateSkill: jest.fn(),
     deleteSkill: jest.fn(),
     discoverSkills: jest.fn(),
+    countDiscoverSkills: jest.fn(),
     getSkillUsage: jest.fn(),
   },
 }));
@@ -31,9 +32,10 @@ describe('Developer Skill Controller', () => {
   });
 
   describe('discover', () => {
-    test('discovers via skillService.discoverSkills using req.projectContext', async () => {
+    test('discovers via skillService.discoverSkills using req.projectContext, wrapped in a pagination envelope', async () => {
       mockReq.query = { search: 'support', scope: 'mine' };
       skillService.discoverSkills.mockResolvedValue([{ _id: 's1' }]);
+      skillService.countDiscoverSkills.mockResolvedValue(1);
 
       await developerSkillController.discover(mockReq, mockRes, next);
 
@@ -42,7 +44,17 @@ describe('Developer Skill Controller', () => {
         { search: 'support', scope: 'mine' },
         { page: 1, limit: 20 }
       );
-      expect(mockRes.json).toHaveBeenCalledWith({ success: true, data: [{ _id: 's1' }] });
+      expect(skillService.countDiscoverSkills).toHaveBeenCalledWith(machineContext, {
+        search: 'support',
+        scope: 'mine',
+      });
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          items: [{ _id: 's1' }],
+          pagination: { total: 1, page: 1, limit: 20, pages: 1 },
+        },
+      });
     });
 
     test('passes errors to next', async () => {

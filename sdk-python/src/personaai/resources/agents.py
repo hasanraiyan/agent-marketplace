@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, List, cast
 
 from ..types.agent import Agent, CreateAgentInput, DiscoverAgentsParams, UpdateAgentInput
 from ..types.bulk_delete import BulkDeleteResult
+from ..types.pagination import PaginatedResult
 
 if TYPE_CHECKING:
     from .._async_http import AsyncTransport
@@ -21,10 +22,9 @@ class Agents:
     def create(self, input: CreateAgentInput) -> Agent:
         return cast(Agent, self._transport.request("POST", "/api/v1/developer/agents", json=input))
 
-    def list(self, params: DiscoverAgentsParams | None = None) -> list[Agent]:
-        """Note: returns a bare list — this endpoint has no pagination envelope."""
+    def list(self, params: DiscoverAgentsParams | None = None) -> PaginatedResult[Agent]:
         return cast(
-            list[Agent],
+            PaginatedResult[Agent],
             self._transport.request("GET", "/api/v1/developer/agents", query=params),
         )
 
@@ -62,10 +62,9 @@ class AsyncAgents:
             await self._transport.request("POST", "/api/v1/developer/agents", json=input),
         )
 
-    async def list(self, params: DiscoverAgentsParams | None = None) -> list[Agent]:
-        """Note: returns a bare list — this endpoint has no pagination envelope."""
+    async def list(self, params: DiscoverAgentsParams | None = None) -> PaginatedResult[Agent]:
         return cast(
-            list[Agent],
+            PaginatedResult[Agent],
             await self._transport.request("GET", "/api/v1/developer/agents", query=params),
         )
 

@@ -52,14 +52,20 @@ describe('AgentsResource', () => {
     expect(init.method).toBe('POST');
   });
 
-  it('list() returns a bare array and forwards discovery params', async () => {
+  it('list() returns a pagination envelope and forwards discovery params', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
-      jsonResponse({ success: true, data: [{ _id: 'a1' }] })
+      jsonResponse({
+        success: true,
+        data: { items: [{ _id: 'a1' }], pagination: { total: 1, page: 1, limit: 20, pages: 1 } },
+      })
     );
     const client = makeClient(fetchMock as unknown as typeof fetch, 'sabik-42');
 
     const result = await client.agents.list({ page: 1, category: 'coding', scope: 'mine' });
-    expect(result).toEqual([{ _id: 'a1' }]);
+    expect(result).toEqual({
+      items: [{ _id: 'a1' }],
+      pagination: { total: 1, page: 1, limit: 20, pages: 1 },
+    });
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe(
       'https://api.example.com/api/v1/developer/agents?page=1&category=coding&scope=mine'

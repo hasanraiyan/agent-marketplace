@@ -35,9 +35,20 @@ def test_create():
 @respx.mock
 def test_list():
     respx.get(f"{BASE_URL}/api/v1/developer/threads").mock(
-        return_value=httpx.Response(200, json={"success": True, "data": [THREAD]})
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {
+                    "items": [THREAD],
+                    "pagination": {"total": 1, "page": 1, "limit": 20, "pages": 1},
+                },
+            },
+        )
     )
-    assert _client().threads.list() == [THREAD]
+    result = _client().threads.list()
+    assert result["items"] == [THREAD]
+    assert result["pagination"] == {"total": 1, "page": 1, "limit": 20, "pages": 1}
 
 
 @respx.mock

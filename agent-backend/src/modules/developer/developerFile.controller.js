@@ -1,6 +1,7 @@
 import path from 'path';
 import fileService, { developerUploadDir } from '../files/file.service.js';
 import { bulkDelete } from '../../utils/bulkDelete.js';
+import { paginationEnvelope } from '../../utils/pagination.js';
 
 /**
  * Developer Platform file upload/mediated access (blueprint Phase 9 §15,
@@ -50,20 +51,21 @@ class DeveloperFileController {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
 
-      const files = await fileService.listFiles(req.projectContext, { page, limit });
+      const [files, total] = await Promise.all([
+        fileService.listFiles(req.projectContext, { page, limit }),
+        fileService.countFiles(req.projectContext),
+      ]);
+      const formatted = files.map((file) => ({
+        id: file._id,
+        originalName: file.originalName,
+        mimeType: file.mimeType,
+        size: file.size,
+        agentId: file.agentId,
+        threadId: file.threadId,
+        createdAt: file.createdAt,
+      }));
 
-      res.json({
-        success: true,
-        data: files.map((file) => ({
-          id: file._id,
-          originalName: file.originalName,
-          mimeType: file.mimeType,
-          size: file.size,
-          agentId: file.agentId,
-          threadId: file.threadId,
-          createdAt: file.createdAt,
-        })),
-      });
+      res.json({ success: true, data: paginationEnvelope(formatted, total, page, limit) });
     } catch (error) {
       next(error);
     }

@@ -24,6 +24,7 @@ jest.unstable_mockModule('../src/modules/skills/skill.service.js', () => ({
     updateSkill: jest.fn(),
     deleteSkill: jest.fn(),
     discoverSkills: jest.fn(),
+    countDiscoverSkills: jest.fn(),
     getSkillUsage: jest.fn(),
   },
 }));
@@ -92,8 +93,9 @@ describe('developerSkill.routes.js — mount integration', () => {
     );
   });
 
-  test('GET / (discover) reaches the controller and returns the list', async () => {
+  test('GET / (discover) reaches the controller and returns a pagination envelope', async () => {
     skillService.discoverSkills.mockResolvedValue([{ _id: 's1' }]);
+    skillService.countDiscoverSkills.mockResolvedValue(1);
 
     const res = await request(app)
       .get('/api/v1/developer/skills')
@@ -105,6 +107,13 @@ describe('developerSkill.routes.js — mount integration', () => {
       expect.any(Object),
       expect.any(Object)
     );
+    expect(res.body).toEqual({
+      success: true,
+      data: {
+        items: [{ _id: 's1' }],
+        pagination: { total: 1, page: 1, limit: 20, pages: 1 },
+      },
+    });
   });
 
   test('GET /:skillId reaches the controller and returns the Skill', async () => {

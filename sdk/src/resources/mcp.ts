@@ -10,6 +10,7 @@ import type {
 } from '../types/mcp.js';
 import type { ResourceUsage } from '../types/usage.js';
 import type { BulkDeleteResult } from '../types/bulkDelete.js';
+import type { PaginatedResult } from '../types/pagination.js';
 
 /**
  * OAuth sub-surface for a Project's own MCP servers. Owner-mode connects
@@ -73,9 +74,10 @@ export class McpsResource {
     return this.http.request<Mcp>('POST', '/api/v1/developer/mcps', { body: input });
   }
 
-  /** Note: returns a bare array — this endpoint has no pagination envelope. */
-  async list(params: DiscoverMcpsParams = {}): Promise<Mcp[]> {
-    return this.http.request<Mcp[]>('GET', '/api/v1/developer/mcps', { query: { ...params } });
+  async list(params: DiscoverMcpsParams = {}): Promise<PaginatedResult<Mcp>> {
+    return this.http.request<PaginatedResult<Mcp>>('GET', '/api/v1/developer/mcps', {
+      query: { ...params },
+    });
   }
 
   async get(mcpId: string): Promise<Mcp> {

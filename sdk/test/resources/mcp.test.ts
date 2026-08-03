@@ -53,14 +53,20 @@ describe('McpsResource', () => {
     expect(init.method).toBe('POST');
   });
 
-  it('list() returns a bare array and forwards query params', async () => {
+  it('list() returns a pagination envelope and forwards query params', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
-      jsonResponse({ success: true, data: [{ _id: 'm1' }] })
+      jsonResponse({
+        success: true,
+        data: { items: [{ _id: 'm1' }], pagination: { total: 1, page: 1, limit: 20, pages: 1 } },
+      })
     );
     const client = makeClient(fetchMock as unknown as typeof fetch, 'sabik-42');
 
     const result = await client.mcps.list({ scope: 'mine' });
-    expect(result).toEqual([{ _id: 'm1' }]);
+    expect(result).toEqual({
+      items: [{ _id: 'm1' }],
+      pagination: { total: 1, page: 1, limit: 20, pages: 1 },
+    });
     const [url] = fetchMock.mock.calls[0] as [string];
     expect(url).toBe('https://api.example.com/api/v1/developer/mcps?scope=mine');
   });

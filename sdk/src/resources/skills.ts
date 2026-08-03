@@ -7,6 +7,7 @@ import type {
 } from '../types/skill.js';
 import type { ResourceUsage } from '../types/usage.js';
 import type { BulkDeleteResult } from '../types/bulkDelete.js';
+import type { PaginatedResult } from '../types/pagination.js';
 
 /**
  * Skills (`/api/v1/developer/skills`) — Project-owned or, when this client
@@ -19,9 +20,8 @@ export class SkillsResource {
     return this.http.request<Skill>('POST', '/api/v1/developer/skills', { body: input });
   }
 
-  /** Note: returns a bare array — this endpoint has no pagination envelope. */
-  async list(params: DiscoverSkillsParams = {}): Promise<Skill[]> {
-    return this.http.request<Skill[]>('GET', '/api/v1/developer/skills', {
+  async list(params: DiscoverSkillsParams = {}): Promise<PaginatedResult<Skill>> {
+    return this.http.request<PaginatedResult<Skill>>('GET', '/api/v1/developer/skills', {
       query: { ...params },
     });
   }

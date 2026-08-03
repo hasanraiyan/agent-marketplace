@@ -33,13 +33,23 @@ def test_create():
 
 
 @respx.mock
-def test_list_returns_bare_array_and_forwards_query():
+def test_list_returns_a_pagination_envelope_and_forwards_query():
     route = respx.get(f"{BASE_URL}/api/v1/developer/agents").mock(
-        return_value=httpx.Response(200, json={"success": True, "data": [AGENT]})
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {
+                    "items": [AGENT],
+                    "pagination": {"total": 1, "page": 1, "limit": 20, "pages": 1},
+                },
+            },
+        )
     )
     client = PersonaClient(BASE_URL, "keyId.secret")
-    agents = client.agents.list({"category": "productivity", "scope": "mine"})
-    assert agents == [AGENT]
+    result = client.agents.list({"category": "productivity", "scope": "mine"})
+    assert result["items"] == [AGENT]
+    assert result["pagination"] == {"total": 1, "page": 1, "limit": 20, "pages": 1}
     sent = route.calls.last.request
     assert sent.url.params["category"] == "productivity"
     assert sent.url.params["scope"] == "mine"
@@ -105,10 +115,20 @@ async def test_async_create():
 @respx.mock
 async def test_async_list():
     respx.get(f"{BASE_URL}/api/v1/developer/agents").mock(
-        return_value=httpx.Response(200, json={"success": True, "data": [AGENT]})
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {
+                    "items": [AGENT],
+                    "pagination": {"total": 1, "page": 1, "limit": 20, "pages": 1},
+                },
+            },
+        )
     )
     async with AsyncPersonaClient(BASE_URL, "keyId.secret") as client:
-        assert await client.agents.list() == [AGENT]
+        result = await client.agents.list()
+        assert result["items"] == [AGENT]
 
 
 @respx.mock

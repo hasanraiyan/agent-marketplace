@@ -36,10 +36,21 @@ def test_create():
 @respx.mock
 def test_list():
     respx.get(f"{BASE_URL}/api/v1/developer/knowledge").mock(
-        return_value=httpx.Response(200, json={"success": True, "data": [KB]})
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {
+                    "items": [KB],
+                    "pagination": {"total": 1, "page": 1, "limit": 20, "pages": 1},
+                },
+            },
+        )
     )
     client = PersonaClient(BASE_URL, "keyId.secret")
-    assert client.knowledge.list() == [KB]
+    result = client.knowledge.list()
+    assert result["items"] == [KB]
+    assert result["pagination"] == {"total": 1, "page": 1, "limit": 20, "pages": 1}
 
 
 @respx.mock

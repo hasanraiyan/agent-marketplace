@@ -32,14 +32,20 @@ describe('KnowledgeResource', () => {
     expect(JSON.parse(init.body as string)).toEqual({ name: 'FAQ', providerId: 'p1' });
   });
 
-  it('list() returns a bare array and forwards query params', async () => {
+  it('list() returns a pagination envelope and forwards query params', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
-      jsonResponse({ success: true, data: [{ _id: 'kb1' }] })
+      jsonResponse({
+        success: true,
+        data: { items: [{ _id: 'kb1' }], pagination: { total: 1, page: 1, limit: 20, pages: 1 } },
+      })
     );
     const client = makeClient(fetchMock as unknown as typeof fetch);
 
     const result = await client.knowledge.list({ scope: 'mine' });
-    expect(result).toEqual([{ _id: 'kb1' }]);
+    expect(result).toEqual({
+      items: [{ _id: 'kb1' }],
+      pagination: { total: 1, page: 1, limit: 20, pages: 1 },
+    });
     const [url] = fetchMock.mock.calls[0] as [string];
     expect(url).toBe('https://api.example.com/api/v1/developer/knowledge?scope=mine');
   });

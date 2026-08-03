@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, List, cast
 
 from ..types.bulk_delete import BulkDeleteResult
+from ..types.pagination import PaginatedResult
 from ..types.skill import CreateSkillInput, DiscoverSkillsParams, Skill, UpdateSkillInput
 from ..types.usage import ResourceUsage
 
@@ -22,10 +23,9 @@ class Skills:
     def create(self, input: CreateSkillInput) -> Skill:
         return cast(Skill, self._transport.request("POST", "/api/v1/developer/skills", json=input))
 
-    def list(self, params: DiscoverSkillsParams | None = None) -> list[Skill]:
-        """Note: returns a bare list — this endpoint has no pagination envelope."""
+    def list(self, params: DiscoverSkillsParams | None = None) -> PaginatedResult[Skill]:
         return cast(
-            list[Skill],
+            PaginatedResult[Skill],
             self._transport.request("GET", "/api/v1/developer/skills", query=params),
         )
 
@@ -67,10 +67,9 @@ class AsyncSkills:
             Skill, await self._transport.request("POST", "/api/v1/developer/skills", json=input)
         )
 
-    async def list(self, params: DiscoverSkillsParams | None = None) -> list[Skill]:
-        """Note: returns a bare list — this endpoint has no pagination envelope."""
+    async def list(self, params: DiscoverSkillsParams | None = None) -> PaginatedResult[Skill]:
         return cast(
-            list[Skill],
+            PaginatedResult[Skill],
             await self._transport.request("GET", "/api/v1/developer/skills", query=params),
         )
 

@@ -7,6 +7,7 @@ import type {
   UpdateThreadInput,
 } from '../types/thread.js';
 import type { BulkDeleteResult } from '../types/bulkDelete.js';
+import type { PaginatedResult } from '../types/pagination.js';
 
 /**
  * Threads (`/api/v1/developer/threads`) — a Thread's Subject is a person
@@ -22,9 +23,8 @@ export class ThreadsResource {
     return this.http.request<Thread>('POST', '/api/v1/developer/threads', { body: input });
   }
 
-  /** Note: returns a bare array — this endpoint has no pagination envelope. */
-  async list(params: ListThreadsParams = {}): Promise<Thread[]> {
-    return this.http.request<Thread[]>('GET', '/api/v1/developer/threads', {
+  async list(params: ListThreadsParams = {}): Promise<PaginatedResult<Thread>> {
+    return this.http.request<PaginatedResult<Thread>>('GET', '/api/v1/developer/threads', {
       query: { ...params },
     });
   }

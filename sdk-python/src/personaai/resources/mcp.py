@@ -17,6 +17,7 @@ from ..types.mcp import (
     McpUserConnectionStatus,
     UpdateMcpInput,
 )
+from ..types.pagination import PaginatedResult
 from ..types.usage import ResourceUsage
 
 if TYPE_CHECKING:
@@ -119,10 +120,10 @@ class Mcps:
     def create(self, input: CreateMcpInput) -> Mcp:
         return cast(Mcp, self._transport.request("POST", "/api/v1/developer/mcps", json=input))
 
-    def list(self, params: DiscoverMcpsParams | None = None) -> list[Mcp]:
-        """Note: returns a bare list — this endpoint has no pagination envelope."""
+    def list(self, params: DiscoverMcpsParams | None = None) -> PaginatedResult[Mcp]:
         return cast(
-            list[Mcp], self._transport.request("GET", "/api/v1/developer/mcps", query=params)
+            PaginatedResult[Mcp],
+            self._transport.request("GET", "/api/v1/developer/mcps", query=params),
         )
 
     def get(self, mcp_id: str) -> Mcp:
@@ -189,10 +190,9 @@ class AsyncMcps:
             Mcp, await self._transport.request("POST", "/api/v1/developer/mcps", json=input)
         )
 
-    async def list(self, params: DiscoverMcpsParams | None = None) -> list[Mcp]:
-        """Note: returns a bare list — this endpoint has no pagination envelope."""
+    async def list(self, params: DiscoverMcpsParams | None = None) -> PaginatedResult[Mcp]:
         return cast(
-            list[Mcp],
+            PaginatedResult[Mcp],
             await self._transport.request("GET", "/api/v1/developer/mcps", query=params),
         )
 

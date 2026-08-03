@@ -66,7 +66,7 @@ router.post('/', validateBody(createMcpSchema), developerMcpController.create);
  *         in: query
  *         schema: { type: string, enum: [mine] }
  *     responses:
- *       200: { description: List of MCP servers }
+ *       200: { description: "{ items: Mcp[], pagination: { total, page, limit, pages } }" }
  */
 router.get('/', developerMcpController.discover);
 

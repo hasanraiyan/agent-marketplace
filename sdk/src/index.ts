@@ -8,6 +8,7 @@ export type {
 } from './types/principal.js';
 export type { ResourceUsage } from './types/usage.js';
 export type { BulkDeleteResult } from './types/bulkDelete.js';
+export type { PaginatedResult, PaginationInfo } from './types/pagination.js';
 export { ProvidersResource } from './resources/providers.js';
 export type {
   Provider,

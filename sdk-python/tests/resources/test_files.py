@@ -44,9 +44,20 @@ def test_upload_sends_multipart_with_optional_fields():
 @respx.mock
 def test_list():
     respx.get(f"{BASE_URL}/api/v1/developer/files").mock(
-        return_value=httpx.Response(200, json={"success": True, "data": [FILE]})
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {
+                    "items": [FILE],
+                    "pagination": {"total": 1, "page": 1, "limit": 20, "pages": 1},
+                },
+            },
+        )
     )
-    assert _client().files.list() == [FILE]
+    result = _client().files.list()
+    assert result["items"] == [FILE]
+    assert result["pagination"] == {"total": 1, "page": 1, "limit": 20, "pages": 1}
 
 
 @respx.mock

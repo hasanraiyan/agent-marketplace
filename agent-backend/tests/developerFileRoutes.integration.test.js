@@ -23,6 +23,7 @@ jest.unstable_mockModule('../src/modules/files/file.service.js', () => ({
     createFile: jest.fn(),
     getFileForDownload: jest.fn(),
     listFiles: jest.fn(),
+    countFiles: jest.fn(),
     deleteFile: jest.fn(),
   },
   developerUploadDir: '/tmp/developer-uploads-test',
@@ -77,8 +78,9 @@ describe('developerFile.routes.js — mount integration', () => {
     expect(fileService.listFiles).not.toHaveBeenCalled();
   });
 
-  test('lists files for a valid ProjectRuntimeContext', async () => {
+  test('lists files for a valid ProjectRuntimeContext, wrapped in a pagination envelope', async () => {
     fileService.listFiles.mockResolvedValue([]);
+    fileService.countFiles.mockResolvedValue(0);
 
     const res = await request(app)
       .get('/api/v1/developer/files')
@@ -94,6 +96,10 @@ describe('developerFile.routes.js — mount integration', () => {
       }),
       expect.any(Object)
     );
+    expect(res.body).toEqual({
+      success: true,
+      data: { items: [], pagination: { total: 0, page: 1, limit: 20, pages: 0 } },
+    });
   });
 
   test('uploads a real multipart file for a valid ProjectRuntimeContext', async () => {

@@ -66,7 +66,7 @@ router.post('/', validateBody(createSkillSchema), developerSkillController.creat
  *         in: query
  *         schema: { type: string, enum: [mine] }
  *     responses:
- *       200: { description: List of Skills }
+ *       200: { description: "{ items: Skill[], pagination: { total, page, limit, pages } }" }
  */
 router.get('/', developerSkillController.discover);
 
