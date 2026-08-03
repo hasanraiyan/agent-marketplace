@@ -37,6 +37,7 @@ class EventType:
 class ChatMessageInput(TypedDict):
     role: Literal["user", "assistant"]
     content: str
+    """Plain text — this SDK doesn't yet support multi-part/multimodal content on the way in."""
 
 
 # Approves/denies a pending human-in-the-loop interrupt, or answers a

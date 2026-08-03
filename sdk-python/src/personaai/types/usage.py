@@ -11,5 +11,7 @@ class ResourceUsageAgent(TypedDict):
 
 
 class ResourceUsage(TypedDict):
-    agentCount: int
-    agents: list[ResourceUsageAgent]
+    """A small preview of the Agents referencing a resource — ``agentCount`` is the real total."""
+
+    agentCount: int  # the real total count of referencing Agents — use this, not len(agents)
+    agents: list[ResourceUsageAgent]  # a preview list, capped at 20 — not necessarily every match

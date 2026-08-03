@@ -12,6 +12,7 @@ class AgentSocialLinks(TypedDict, total=False):
     linkedin: str
 
 
+# "unlisted" is reachable by direct link/id but excluded from public discovery listings.
 AgentVisibility = Literal["private", "unlisted", "public"]
 AgentCategory = Literal["productivity", "coding", "creative", "research", "roleplay", "other"]
 
@@ -21,12 +22,12 @@ class _AgentRequired(TypedDict):
     domain: str
     ownerType: Literal["PersonaUser", "Project", "ExternalUser"]
     name: str
-    slug: str
+    slug: str  # URL-safe, unique within the Domain; used in some public-facing routes
     webSearchEnabled: bool
     visibility: AgentVisibility
     category: AgentCategory
     isActive: bool
-    isMainAgent: bool
+    isMainAgent: bool  # whether this is the Project's designated default/primary Agent
     createdAt: str
     updatedAt: str
 
@@ -44,22 +45,24 @@ class Agent(_AgentRequired, total=False):
     description: str
     avatar: str
     tags: list[str]
-    tagline: str
-    bio: str
+    tagline: str  # short one-liner shown in list/card views
+    bio: str  # longer free-text bio shown on the Agent's own profile view
     personalityTraits: list[str]
     socialLinks: AgentSocialLinks
     systemPrompt: str  # stripped from the response when the caller doesn't own this Agent
     providerId: str  # stripped from the response when the caller doesn't own this Agent
-    modelName: str
-    skills: list[object]
-    mcps: list[object]
-    knowledgeBases: list[object]
+    modelName: str  # overrides the referenced Provider's defaultModel when set
+    skills: list[object]  # bare id strings on create/update/list; populated objects on get()
+    mcps: list[object]  # bare id strings on create/update/list; populated objects on get()
+    knowledgeBases: list[
+        object
+    ]  # bare id strings on create/update/list; populated objects on get()
 
 
 class _CreateAgentInputRequired(TypedDict):
     name: str
-    systemPrompt: str
-    providerId: str
+    systemPrompt: str  # the instructions that define this Agent's behavior/persona
+    providerId: str  # must reference a Provider already created via providers.create()
 
 
 class CreateAgentInput(_CreateAgentInputRequired, total=False):
@@ -70,17 +73,19 @@ class CreateAgentInput(_CreateAgentInputRequired, total=False):
     bio: str
     personalityTraits: list[str]
     socialLinks: AgentSocialLinks
-    modelName: str
-    webSearchEnabled: bool
-    visibility: AgentVisibility
-    category: AgentCategory
-    skills: list[str]
-    mcps: list[str]
-    knowledgeBases: list[str]
-    isActive: bool
+    modelName: str  # overrides the referenced Provider's defaultModel
+    webSearchEnabled: bool  # default: False
+    visibility: AgentVisibility  # default: 'private'
+    category: AgentCategory  # default: 'other'
+    skills: list[str]  # Skill ids to attach at creation time
+    mcps: list[str]  # MCP server ids to attach at creation time
+    knowledgeBases: list[str]  # Knowledge base ids to attach at creation time
+    isActive: bool  # default: True
 
 
 class UpdateAgentInput(TypedDict, total=False):
+    """All fields optional — only what you pass is changed."""
+
     name: str
     description: str
     avatar: str
@@ -93,17 +98,17 @@ class UpdateAgentInput(TypedDict, total=False):
     providerId: str
     modelName: str
     webSearchEnabled: bool
-    skills: list[str]
-    mcps: list[str]
-    knowledgeBases: list[str]
+    skills: list[str]  # replaces the entire list — this is not a merge/append
+    mcps: list[str]  # replaces the entire list — this is not a merge/append
+    knowledgeBases: list[str]  # replaces the entire list — this is not a merge/append
     visibility: AgentVisibility
     category: AgentCategory
     isActive: bool
 
 
 class DiscoverAgentsParams(TypedDict, total=False):
-    page: int
-    limit: int
-    search: str
+    page: int  # default: 1
+    limit: int  # default: 20
+    search: str  # free-text match against name/description/tagline
     category: AgentCategory
     scope: Literal["mine"]  # restricts to the asserted external user's own Agents (runtime-only)

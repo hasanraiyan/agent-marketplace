@@ -20,6 +20,7 @@ class _ThreadRequired(TypedDict):
     domain: str
     agentId: str | ThreadAgentRef  # {_id, name, avatar, slug} on list(); bare id on create()/get()
     subjectType: Literal["PersonaUser", "ExternalUser"]
+    # the deterministic AG-UI thread id used for streaming (x-thread-id) — distinct from _id
     threadId: str
     title: str
     lastMessageAt: str
@@ -38,17 +39,19 @@ class Thread(_ThreadRequired, total=False):
 
 
 class CreateThreadInput(TypedDict):
-    agentId: str
+    agentId: str  # the Agent this Thread's conversation is with
 
 
 class UpdateThreadInput(TypedDict, total=False):
+    """All fields optional — only what you pass is changed."""
+
     title: str
     isArchived: bool
 
 
 class ListThreadsParams(TypedDict, total=False):
-    page: int
-    limit: int
+    page: int  # default: 1
+    limit: int  # default: 20
 
 
 class ThreadMessages(TypedDict):

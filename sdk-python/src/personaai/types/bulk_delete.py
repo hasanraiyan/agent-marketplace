@@ -7,9 +7,13 @@ from typing import TypedDict
 
 class BulkDeleteFailure(TypedDict):
     id: str
+    # Generic reason (existence-hiding: never distinguishes "not found" from
+    # "not authorized" from "blocked by a dependency").
     reason: str
 
 
 class BulkDeleteResult(TypedDict):
-    deleted: list[str]
+    """Result of a ``bulk_delete()`` call — best-effort, partial failures don't raise."""
+
+    deleted: list[str]  # ids that were successfully deleted
     failed: list[BulkDeleteFailure]

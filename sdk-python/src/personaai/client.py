@@ -47,6 +47,24 @@ class PersonaClient:
         even via ``close()``/the ``with`` context manager), so sharing one
         this way is safe even if individual requests use ``with
         PersonaClient(...) as persona:``.
+
+        Args:
+            base_url: Base URL of the Persona Developer Platform API, e.g.
+                ``"https://api.persona.hasanraiyan.me"``.
+            credential: Project credential, shaped ``"<keyId>.<secret>"`` —
+                never expose this to a browser/frontend.
+            external_user_id: Asserts this client acts on behalf of one of
+                your own end users (sent as ``x-persona-external-user-id``).
+                Omit for Project-level (control-plane) calls only.
+            max_retries: Maximum number of retries on 429 responses. Defaults to ``2``.
+            http_client: An existing ``httpx.Client`` to reuse (see above);
+                a new one is created if omitted.
+
+        Example:
+            >>> client = PersonaClient(
+            ...     "https://api.persona.hasanraiyan.me",
+            ...     credential=os.environ["PERSONA_CREDENTIAL"],
+            ... )
         """
         config = TransportConfig(
             base_url=base_url,

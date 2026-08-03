@@ -8,10 +8,12 @@ T = TypeVar("T")
 
 
 class PaginationInfo(TypedDict):
-    total: int
-    page: int
-    limit: int
-    pages: int
+    """Pagination metadata attached to every ``PaginatedResult``."""
+
+    total: int  # total matching items across all pages — use this, not len(items)
+    page: int  # echoes back the requested page, or 1 if omitted
+    limit: int  # echoes back the requested limit, or the endpoint's default
+    pages: int  # total page count: ceil(total / limit)
 
 
 class PaginatedResult(TypedDict, Generic[T]):

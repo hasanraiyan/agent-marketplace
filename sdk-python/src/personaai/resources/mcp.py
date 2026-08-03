@@ -35,6 +35,15 @@ class McpOAuth:
         self._transport = transport
 
     def get_owner_authorize_url(self, mcp_id: str) -> McpAuthorizeUrl:
+        """Gets the URL to redirect the Project owner/admin to, to complete
+        the shared owner-mode OAuth connection for this MCP server.
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+
+        Returns:
+            ``{"url"}`` — redirect the owner's browser here.
+        """
         return cast(
             McpAuthorizeUrl,
             self._transport.request(
@@ -43,8 +52,16 @@ class McpOAuth:
         )
 
     def get_user_authorize_url(self, mcp_id: str, return_to: str | None = None) -> McpAuthorizeUrl:
-        """``return_to`` is an optional client-chosen redirect target after
-        the flow completes."""
+        """Gets the URL to redirect the asserted external user to, to
+        complete their own per-user OAuth connection for this MCP server.
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+            return_to: Optional client-chosen redirect target after the flow completes.
+
+        Returns:
+            ``{"url"}`` — redirect the end user's browser here.
+        """
         return cast(
             McpAuthorizeUrl,
             self._transport.request(
@@ -55,15 +72,31 @@ class McpOAuth:
         )
 
     def get_user_connection_status(self, mcp_id: str) -> McpUserConnectionStatus:
+        """Checks whether the asserted external user has completed their
+        own per-user OAuth connection for this MCP server.
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+        """
         return cast(
             McpUserConnectionStatus,
             self._transport.request("GET", f"/api/v1/developer/mcps/{mcp_id}/oauth/user/status"),
         )
 
     def disconnect_user_connection(self, mcp_id: str) -> None:
+        """Revokes the asserted external user's own per-user OAuth connection.
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+        """
         self._transport.request("DELETE", f"/api/v1/developer/mcps/{mcp_id}/oauth/user/connection")
 
     def disconnect_owner_connection(self, mcp_id: str) -> None:
+        """Revokes the shared owner-mode OAuth connection for this MCP server.
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+        """
         self._transport.request("DELETE", f"/api/v1/developer/mcps/{mcp_id}/oauth/owner/connection")
 
 
@@ -72,6 +105,15 @@ class AsyncMcpOAuth:
         self._transport = transport
 
     async def get_owner_authorize_url(self, mcp_id: str) -> McpAuthorizeUrl:
+        """Gets the URL to redirect the Project owner/admin to, to complete
+        the shared owner-mode OAuth connection for this MCP server.
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+
+        Returns:
+            ``{"url"}`` — redirect the owner's browser here.
+        """
         return cast(
             McpAuthorizeUrl,
             await self._transport.request(
@@ -82,8 +124,16 @@ class AsyncMcpOAuth:
     async def get_user_authorize_url(
         self, mcp_id: str, return_to: str | None = None
     ) -> McpAuthorizeUrl:
-        """``return_to`` is an optional client-chosen redirect target after
-        the flow completes."""
+        """Gets the URL to redirect the asserted external user to, to
+        complete their own per-user OAuth connection for this MCP server.
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+            return_to: Optional client-chosen redirect target after the flow completes.
+
+        Returns:
+            ``{"url"}`` — redirect the end user's browser here.
+        """
         return cast(
             McpAuthorizeUrl,
             await self._transport.request(
@@ -94,6 +144,12 @@ class AsyncMcpOAuth:
         )
 
     async def get_user_connection_status(self, mcp_id: str) -> McpUserConnectionStatus:
+        """Checks whether the asserted external user has completed their
+        own per-user OAuth connection for this MCP server.
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+        """
         return cast(
             McpUserConnectionStatus,
             await self._transport.request(
@@ -102,11 +158,21 @@ class AsyncMcpOAuth:
         )
 
     async def disconnect_user_connection(self, mcp_id: str) -> None:
+        """Revokes the asserted external user's own per-user OAuth connection.
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+        """
         await self._transport.request(
             "DELETE", f"/api/v1/developer/mcps/{mcp_id}/oauth/user/connection"
         )
 
     async def disconnect_owner_connection(self, mcp_id: str) -> None:
+        """Revokes the shared owner-mode OAuth connection for this MCP server.
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+        """
         await self._transport.request(
             "DELETE", f"/api/v1/developer/mcps/{mcp_id}/oauth/owner/connection"
         )
@@ -118,9 +184,19 @@ class Mcps:
         self.oauth = McpOAuth(transport)
 
     def create(self, input: CreateMcpInput, idempotency_key: str | None = None) -> Mcp:
-        """``idempotency_key``, if provided, is sent as the ``Idempotency-Key``
-        header — a safe retry with the same key replays the original
-        response instead of creating a duplicate MCP server."""
+        """Registers a new MCP server connection.
+
+        Args:
+            input: ``name``, ``transport``, ``url`` are required; set
+                ``authType``/``authMode``/``oauth``/``apiKey`` if the
+                server needs authentication.
+            idempotency_key: Sent as the ``Idempotency-Key`` header — a
+                safe retry with the same key replays the original response
+                instead of creating a duplicate MCP server.
+
+        Returns:
+            The created :class:`Mcp` (raw Mongo shape — ``_id``, not ``id``).
+        """
         headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
         return cast(
             Mcp,
@@ -128,32 +204,75 @@ class Mcps:
         )
 
     def list(self, params: DiscoverMcpsParams | None = None) -> PaginatedResult[Mcp]:
+        """Lists/searches MCP servers visible to this credential (this
+        Project's own, plus any public ones).
+
+        Args:
+            params: ``page`` (default ``1``), ``limit`` (default ``20``),
+                ``search`` (free-text), ``scope="mine"`` (restricts to the
+                asserted external user's own MCPs — runtime context only).
+
+        Returns:
+            ``{"items", "pagination": {"total", "page", "limit", "pages"}}``.
+        """
         return cast(
             PaginatedResult[Mcp],
             self._transport.request("GET", "/api/v1/developer/mcps", query=params),
         )
 
     def get(self, mcp_id: str) -> Mcp:
+        """Fetches a single MCP server by id.
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+        """
         return cast(Mcp, self._transport.request("GET", f"/api/v1/developer/mcps/{mcp_id}"))
 
     def update(self, mcp_id: str, input: UpdateMcpInput) -> Mcp:
+        """Partially updates an MCP server — only the fields you pass are changed.
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+        """
         return cast(
             Mcp,
             self._transport.request("PATCH", f"/api/v1/developer/mcps/{mcp_id}", json=input),
         )
 
     def delete(self, mcp_id: str) -> None:
+        """Deletes an MCP server. Raises ``PersonaApiError`` if any Agent
+        still references it — call ``get_usage()`` first to check.
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+        """
         self._transport.request("DELETE", f"/api/v1/developer/mcps/{mcp_id}")
 
     def get_usage(self, mcp_id: str) -> ResourceUsage:
-        """Agents referencing this MCP — check before ``delete()`` to avoid a blocked delete."""
+        """Agents referencing this MCP — check before ``delete()`` to avoid a blocked delete.
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+
+        Returns:
+            ``agentCount`` is the real total; ``agents`` is a preview capped at 20.
+        """
         return cast(
             ResourceUsage,
             self._transport.request("GET", f"/api/v1/developer/mcps/{mcp_id}/usage"),
         )
 
     def bulk_delete(self, ids: List[str]) -> BulkDeleteResult:
-        """Best-effort batch delete — up to 100 ids per call; partial failures don't raise."""
+        """Best-effort batch delete — partial failures (e.g. an MCP server
+        still referenced by an Agent) don't raise or abort the rest of the
+        batch.
+
+        Args:
+            ids: Up to 100 MCP server ids per call.
+
+        Returns:
+            ``{"deleted", "failed"}`` — check ``failed`` for per-id reasons.
+        """
         return cast(
             BulkDeleteResult,
             self._transport.request(
@@ -162,14 +281,26 @@ class Mcps:
         )
 
     def test_connection(self, mcp_id: str) -> McpTestConnectionResult:
-        """Connects, lists tools/resources/templates, and persists the
-        summary onto the MCP document."""
+        """Connects to the MCP server right now, lists its tools/resources/
+        resource templates, and persists that summary onto the stored MCP
+        document (so ``get()``/``list()`` reflect it afterward).
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+        """
         return cast(
             McpTestConnectionResult,
             self._transport.request("POST", f"/api/v1/developer/mcps/{mcp_id}/test"),
         )
 
     def read_resource(self, mcp_id: str, uri: str) -> McpReadResourceResult:
+        """Reads one MCP resource by URI (as opposed to calling a tool).
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+            uri: A resource ``uri``, from ``mcp["resources"]``/``resourceTemplates``
+                (after filling any template params).
+        """
         return cast(
             McpReadResourceResult,
             self._transport.request(
@@ -178,8 +309,16 @@ class Mcps:
         )
 
     def call_tool(self, mcp_id: str, name: str, arguments: dict[str, Any] | None = None) -> Any:
-        """Return shape is whatever the underlying MCP tool returns —
-        inherently dynamic."""
+        """Invokes one tool exposed by this MCP server.
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+            name: Tool name, from ``mcp["tools"]``.
+            arguments: Arguments matching that tool's own input schema.
+
+        Returns:
+            Return shape is whatever the underlying MCP tool returns — inherently dynamic.
+        """
         return self._transport.request(
             "POST",
             f"/api/v1/developer/mcps/{mcp_id}/call-tool",
@@ -193,9 +332,19 @@ class AsyncMcps:
         self.oauth = AsyncMcpOAuth(transport)
 
     async def create(self, input: CreateMcpInput, idempotency_key: str | None = None) -> Mcp:
-        """``idempotency_key``, if provided, is sent as the ``Idempotency-Key``
-        header — a safe retry with the same key replays the original
-        response instead of creating a duplicate MCP server."""
+        """Registers a new MCP server connection.
+
+        Args:
+            input: ``name``, ``transport``, ``url`` are required; set
+                ``authType``/``authMode``/``oauth``/``apiKey`` if the
+                server needs authentication.
+            idempotency_key: Sent as the ``Idempotency-Key`` header — a
+                safe retry with the same key replays the original response
+                instead of creating a duplicate MCP server.
+
+        Returns:
+            The created :class:`Mcp` (raw Mongo shape — ``_id``, not ``id``).
+        """
         headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
         return cast(
             Mcp,
@@ -205,32 +354,75 @@ class AsyncMcps:
         )
 
     async def list(self, params: DiscoverMcpsParams | None = None) -> PaginatedResult[Mcp]:
+        """Lists/searches MCP servers visible to this credential (this
+        Project's own, plus any public ones).
+
+        Args:
+            params: ``page`` (default ``1``), ``limit`` (default ``20``),
+                ``search`` (free-text), ``scope="mine"`` (restricts to the
+                asserted external user's own MCPs — runtime context only).
+
+        Returns:
+            ``{"items", "pagination": {"total", "page", "limit", "pages"}}``.
+        """
         return cast(
             PaginatedResult[Mcp],
             await self._transport.request("GET", "/api/v1/developer/mcps", query=params),
         )
 
     async def get(self, mcp_id: str) -> Mcp:
+        """Fetches a single MCP server by id.
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+        """
         return cast(Mcp, await self._transport.request("GET", f"/api/v1/developer/mcps/{mcp_id}"))
 
     async def update(self, mcp_id: str, input: UpdateMcpInput) -> Mcp:
+        """Partially updates an MCP server — only the fields you pass are changed.
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+        """
         return cast(
             Mcp,
             await self._transport.request("PATCH", f"/api/v1/developer/mcps/{mcp_id}", json=input),
         )
 
     async def delete(self, mcp_id: str) -> None:
+        """Deletes an MCP server. Raises ``PersonaApiError`` if any Agent
+        still references it — call ``get_usage()`` first to check.
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+        """
         await self._transport.request("DELETE", f"/api/v1/developer/mcps/{mcp_id}")
 
     async def get_usage(self, mcp_id: str) -> ResourceUsage:
-        """Agents referencing this MCP — check before ``delete()`` to avoid a blocked delete."""
+        """Agents referencing this MCP — check before ``delete()`` to avoid a blocked delete.
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+
+        Returns:
+            ``agentCount`` is the real total; ``agents`` is a preview capped at 20.
+        """
         return cast(
             ResourceUsage,
             await self._transport.request("GET", f"/api/v1/developer/mcps/{mcp_id}/usage"),
         )
 
     async def bulk_delete(self, ids: List[str]) -> BulkDeleteResult:
-        """Best-effort batch delete — up to 100 ids per call; partial failures don't raise."""
+        """Best-effort batch delete — partial failures (e.g. an MCP server
+        still referenced by an Agent) don't raise or abort the rest of the
+        batch.
+
+        Args:
+            ids: Up to 100 MCP server ids per call.
+
+        Returns:
+            ``{"deleted", "failed"}`` — check ``failed`` for per-id reasons.
+        """
         return cast(
             BulkDeleteResult,
             await self._transport.request(
@@ -239,14 +431,26 @@ class AsyncMcps:
         )
 
     async def test_connection(self, mcp_id: str) -> McpTestConnectionResult:
-        """Connects, lists tools/resources/templates, and persists the
-        summary onto the MCP document."""
+        """Connects to the MCP server right now, lists its tools/resources/
+        resource templates, and persists that summary onto the stored MCP
+        document (so ``get()``/``list()`` reflect it afterward).
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+        """
         return cast(
             McpTestConnectionResult,
             await self._transport.request("POST", f"/api/v1/developer/mcps/{mcp_id}/test"),
         )
 
     async def read_resource(self, mcp_id: str, uri: str) -> McpReadResourceResult:
+        """Reads one MCP resource by URI (as opposed to calling a tool).
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+            uri: A resource ``uri``, from ``mcp["resources"]``/``resourceTemplates``
+                (after filling any template params).
+        """
         return cast(
             McpReadResourceResult,
             await self._transport.request(
@@ -257,8 +461,16 @@ class AsyncMcps:
     async def call_tool(
         self, mcp_id: str, name: str, arguments: dict[str, Any] | None = None
     ) -> Any:
-        """Return shape is whatever the underlying MCP tool returns —
-        inherently dynamic."""
+        """Invokes one tool exposed by this MCP server.
+
+        Args:
+            mcp_id: The MCP server's ``_id``.
+            name: Tool name, from ``mcp["tools"]``.
+            arguments: Arguments matching that tool's own input schema.
+
+        Returns:
+            Return shape is whatever the underlying MCP tool returns — inherently dynamic.
+        """
         return await self._transport.request(
             "POST",
             f"/api/v1/developer/mcps/{mcp_id}/call-tool",

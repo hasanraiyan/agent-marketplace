@@ -6,6 +6,8 @@ from typing import Literal, TypedDict
 
 McpTransport = Literal["http", "sse"]
 McpAuthType = Literal["none", "oauth", "apiKey"]
+# "owner": one shared connection for the whole Project.
+# "user": each external user connects their own.
 McpAuthMode = Literal["owner", "user"]
 
 
@@ -22,6 +24,9 @@ class McpResourceSummary(TypedDict):
 
 
 class McpResourceTemplate(TypedDict):
+    """A resource whose ``uri`` has placeholder params to fill before
+    calling ``read_resource()``."""
+
     uriTemplate: str
     name: str
     description: str
@@ -50,9 +55,11 @@ class _McpRequired(TypedDict):
     authMode: McpAuthMode
     hasApiKey: bool
     isEnabled: bool
-    tools: list[McpTool]
-    resources: list[McpResourceSummary]
-    resourceTemplates: list[McpResourceTemplate]
+    tools: list[
+        McpTool
+    ]  # populated by test_connection(); empty until it's been called at least once
+    resources: list[McpResourceSummary]  # populated by test_connection()
+    resourceTemplates: list[McpResourceTemplate]  # populated by test_connection()
     createdAt: str
     updatedAt: str
 
@@ -93,15 +100,21 @@ class _CreateMcpInputRequired(TypedDict):
 
 class CreateMcpInput(_CreateMcpInputRequired, total=False):
     description: str
-    authType: McpAuthType
-    authMode: McpAuthMode
+    authType: McpAuthType  # default: 'none'
+    authMode: McpAuthMode  # default: 'owner'
     oauth: McpOAuthInput  # required when authType='oauth' and no dynamic registration
-    apiKey: str  # required when authType='apiKey'
-    useDynamicRegistration: bool
-    isEnabled: bool
+    # required when authType='apiKey'; sent as a static bearer token — always
+    # owner-shared, regardless of authMode
+    apiKey: str
+    useDynamicRegistration: (
+        bool  # RFC 7591 Dynamic Client Registration instead of a manual oauth block; default: False
+    )
+    isEnabled: bool  # default: True
 
 
 class UpdateMcpInput(TypedDict, total=False):
+    """All fields optional — only what you pass is changed."""
+
     name: str
     description: str
     transport: McpTransport
@@ -111,13 +124,13 @@ class UpdateMcpInput(TypedDict, total=False):
     isEnabled: bool
     useDynamicRegistration: bool
     oauth: PartialMcpOAuthInput
-    apiKey: str
+    apiKey: str  # replaces the stored key entirely; omit to leave the existing key untouched
 
 
 class DiscoverMcpsParams(TypedDict, total=False):
-    page: int
-    limit: int
-    search: str
+    page: int  # default: 1
+    limit: int  # default: 20
+    search: str  # free-text match against name/description
     scope: Literal["mine"]  # restricts to the asserted external user's own MCPs (runtime-only)
 
 

@@ -79,7 +79,19 @@ class ChatClient:
         resume: ChatResume | None = None,
     ) -> Iterator[AguiEvent]:
         """Full event stream, for building your own UI (text deltas, tool
-        calls, reasoning, custom events) rather than just the final text."""
+        calls, reasoning, custom events) rather than just the final text.
+
+        Args:
+            agent_id: The Agent to run.
+            messages: The conversation turn(s) to send.
+            thread_id: Resumes a named Thread (from ``threads.create()``)
+                instead of the implicit deterministic one.
+            resume: Answers a pending interrupt from a previous run (see
+                :class:`ChatInterrupt`); omit for a fresh message.
+
+        Yields:
+            Each raw :data:`AguiEvent` as it arrives.
+        """
         text_chunks = self._transport.stream_lines(
             "POST",
             _AGUI_PATH,
@@ -106,7 +118,26 @@ class ChatClient:
         """Convenience wrapper over ``stream()``: drains the full run and
         returns the assembled assistant text, plus a ``ChatInterrupt`` if
         the run paused on a human-in-the-loop decision instead of
-        finishing normally."""
+        finishing normally.
+
+        Args:
+            agent_id: The Agent to run.
+            messages: The conversation turn(s) to send.
+            thread_id: Resumes a named Thread instead of the implicit deterministic one.
+            resume: Answers a pending interrupt from a previous run.
+
+        Returns:
+            ``{"text", "interrupt", "events"}`` — ``interrupt`` is set
+            instead of the run finishing normally when a human-in-the-loop
+            decision is pending; resume it by calling this again with
+            ``resume`` set.
+
+        Example:
+            >>> result = client.chat.send_message(
+            ...     agent_id, [{"role": "user", "content": "Hello!"}]
+            ... )
+            >>> print(result["text"])
+        """
         events = list(self.stream(agent_id, messages, thread_id=thread_id, resume=resume))
         return _accumulate(events)
 
@@ -124,7 +155,19 @@ class AsyncChatClient:
         resume: ChatResume | None = None,
     ) -> AsyncIterator[AguiEvent]:
         """Full event stream, for building your own UI (text deltas, tool
-        calls, reasoning, custom events) rather than just the final text."""
+        calls, reasoning, custom events) rather than just the final text.
+
+        Args:
+            agent_id: The Agent to run.
+            messages: The conversation turn(s) to send.
+            thread_id: Resumes a named Thread (from ``threads.create()``)
+                instead of the implicit deterministic one.
+            resume: Answers a pending interrupt from a previous run (see
+                :class:`ChatInterrupt`); omit for a fresh message.
+
+        Yields:
+            Each raw :data:`AguiEvent` as it arrives.
+        """
         text_chunks = self._transport.stream_lines(
             "POST",
             _AGUI_PATH,
@@ -151,7 +194,20 @@ class AsyncChatClient:
         """Convenience wrapper over ``stream()``: drains the full run and
         returns the assembled assistant text, plus a ``ChatInterrupt`` if
         the run paused on a human-in-the-loop decision instead of
-        finishing normally."""
+        finishing normally.
+
+        Args:
+            agent_id: The Agent to run.
+            messages: The conversation turn(s) to send.
+            thread_id: Resumes a named Thread instead of the implicit deterministic one.
+            resume: Answers a pending interrupt from a previous run.
+
+        Returns:
+            ``{"text", "interrupt", "events"}`` — ``interrupt`` is set
+            instead of the run finishing normally when a human-in-the-loop
+            decision is pending; resume it by calling this again with
+            ``resume`` set.
+        """
         events = [
             event
             async for event in self.stream(agent_id, messages, thread_id=thread_id, resume=resume)

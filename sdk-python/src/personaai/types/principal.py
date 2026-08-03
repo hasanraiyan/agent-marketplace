@@ -9,18 +9,23 @@ from typing import Literal, TypedDict, Union
 class ProjectMachineContext(TypedDict):
     """Resolved from a bare Project credential — acting as the Project itself."""
 
-    domain: str
+    domain: (
+        str  # the Project's own scoping key — every resource this credential can see belongs here
+    )
     principalType: Literal["ProjectMachine"]
-    credentialId: str
+    credentialId: str  # the Project credential's own id (not a secret)
 
 
 class ProjectRuntimeContext(TypedDict):
-    """Resolved from a Project credential paired with ``x-persona-external-user-id``."""
+    """Resolved from a Project credential paired with ``x-persona-external-user-id``
+    (i.e. ``external_user_id`` was set when constructing the client)."""
 
     domain: str
     principalType: Literal["ProjectRuntime"]
     credentialId: str
-    externalUserId: str
+    externalUserId: str  # the asserted end user's id, as passed to the client constructor
 
 
+# Returned by client.whoami() — tells you which of the two shapes above this
+# client's credential resolved to.
 PrincipalContext = Union[ProjectMachineContext, ProjectRuntimeContext]
