@@ -29,12 +29,17 @@ jest.unstable_mockModule('../src/modules/providers/provider.service.js', () => (
     getProviderUsage: jest.fn(),
   },
 }));
+jest.unstable_mockModule('../src/modules/idempotency/idempotencyKey.model.js', () => ({
+  default: { findOne: jest.fn(), create: jest.fn() },
+}));
 
 const projectCredentialService = (
   await import('../src/modules/projects/projectCredential.service.js')
 ).default;
 const projectService = (await import('../src/modules/projects/project.service.js')).default;
 const providerService = (await import('../src/modules/providers/provider.service.js')).default;
+const idempotencyKeyModel = (await import('../src/modules/idempotency/idempotencyKey.model.js'))
+  .default;
 const { default: developerProviderRouter } =
   await import('../src/modules/developer/developerProvider.routes.js');
 
@@ -57,6 +62,8 @@ describe('developerProvider.routes.js — mount integration', () => {
       project: 'project-1',
     });
     projectService.getProjectById.mockResolvedValue({ _id: 'project-1', status: 'ACTIVE' });
+    idempotencyKeyModel.findOne.mockReturnValue({ lean: () => Promise.resolve(null) });
+    idempotencyKeyModel.create.mockResolvedValue({});
   });
 
   test('401s without a Project credential, never reaching the controller', async () => {
@@ -137,6 +144,38 @@ describe('developerProvider.routes.js — mount integration', () => {
       expect.objectContaining({ label: 'Test Provider' }),
       expect.objectContaining({ domain: 'project-1', principalType: 'ProjectMachine' })
     );
+  });
+
+  test('POST / with a repeated Idempotency-Key replays the cached response, never calling the service twice', async () => {
+    providerService.createProvider.mockResolvedValue({ id: 'p1', label: 'Test Provider' });
+    const body = {
+      label: 'Test Provider',
+      baseURL: 'https://api.example.com',
+      apiKey: 'key',
+      defaultModel: 'gpt-4o',
+    };
+
+    const first = await request(app)
+      .post('/api/v1/developer/providers')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('Idempotency-Key', 'test-key-1')
+      .send(body);
+    expect(first.status).toBe(201);
+    expect(providerService.createProvider).toHaveBeenCalledTimes(1);
+
+    idempotencyKeyModel.findOne.mockReturnValue({
+      lean: () => Promise.resolve({ statusCode: first.status, body: first.body }),
+    });
+
+    const second = await request(app)
+      .post('/api/v1/developer/providers')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('Idempotency-Key', 'test-key-1')
+      .send(body);
+
+    expect(second.status).toBe(first.status);
+    expect(second.body).toEqual(first.body);
+    expect(providerService.createProvider).toHaveBeenCalledTimes(1);
   });
 
   test('400s and skips the service when the request asserts an external user', async () => {

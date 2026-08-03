@@ -3,6 +3,7 @@ import developerMachineAuthMiddleware from '../auth/developerMachineAuth.middlew
 import { validateBody } from '../../middlewares/validationMiddleware.js';
 import { createAgentSchema, updateAgentSchema } from '../agents/agent.validator.js';
 import { bulkDeleteSchema } from '../../utils/validators/bulkDeleteSchema.js';
+import { idempotency } from '../../middlewares/idempotencyMiddleware.js';
 import developerAgentController from './developerAgent.controller.js';
 
 /**
@@ -29,6 +30,12 @@ router.use(developerMachineAuthMiddleware);
  *       Project-owned Agent; pairing it with x-persona-external-user-id
  *       creates an Agent owned by that external user.
  *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: Idempotency-Key
+ *         in: header
+ *         required: false
+ *         schema: { type: string }
+ *         description: Optional — a safe retry with the same key replays the original response instead of creating a duplicate Agent.
  *     requestBody:
  *       required: true
  *       content:
@@ -40,7 +47,7 @@ router.use(developerMachineAuthMiddleware);
  *       201: { description: Agent created }
  *       400: { description: "Validation error, or invalid Provider" }
  */
-router.post('/', validateBody(createAgentSchema), developerAgentController.create);
+router.post('/', idempotency(), validateBody(createAgentSchema), developerAgentController.create);
 
 /**
  * @openapi

@@ -43,10 +43,18 @@ class Knowledge:
     def __init__(self, transport: SyncTransport) -> None:
         self._transport = transport
 
-    def create(self, input: CreateKnowledgeBaseInput) -> KnowledgeBase:
+    def create(
+        self, input: CreateKnowledgeBaseInput, idempotency_key: str | None = None
+    ) -> KnowledgeBase:
+        """``idempotency_key``, if provided, is sent as the ``Idempotency-Key``
+        header — a safe retry with the same key replays the original
+        response instead of creating a duplicate Knowledge Base."""
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
         return cast(
             KnowledgeBase,
-            self._transport.request("POST", "/api/v1/developer/knowledge", json=input),
+            self._transport.request(
+                "POST", "/api/v1/developer/knowledge", json=input, headers=headers
+            ),
         )
 
     def list(
@@ -132,10 +140,18 @@ class AsyncKnowledge:
     def __init__(self, transport: AsyncTransport) -> None:
         self._transport = transport
 
-    async def create(self, input: CreateKnowledgeBaseInput) -> KnowledgeBase:
+    async def create(
+        self, input: CreateKnowledgeBaseInput, idempotency_key: str | None = None
+    ) -> KnowledgeBase:
+        """``idempotency_key``, if provided, is sent as the ``Idempotency-Key``
+        header — a safe retry with the same key replays the original
+        response instead of creating a duplicate Knowledge Base."""
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
         return cast(
             KnowledgeBase,
-            await self._transport.request("POST", "/api/v1/developer/knowledge", json=input),
+            await self._transport.request(
+                "POST", "/api/v1/developer/knowledge", json=input, headers=headers
+            ),
         )
 
     async def list(

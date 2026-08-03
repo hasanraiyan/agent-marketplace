@@ -31,6 +31,19 @@ def test_create():
 
 
 @respx.mock
+def test_create_sends_idempotency_key_header_when_provided():
+    route = respx.post(f"{BASE_URL}/api/v1/developer/skills").mock(
+        return_value=httpx.Response(200, json={"success": True, "data": SKILL})
+    )
+    client = PersonaClient(BASE_URL, "keyId.secret")
+    client.skills.create(
+        {"name": "Resume Reviewer", "description": "Reviews resumes", "instructions": "Review it."},
+        idempotency_key="idem-key-1",
+    )
+    assert route.calls.last.request.headers["Idempotency-Key"] == "idem-key-1"
+
+
+@respx.mock
 def test_list_returns_a_pagination_envelope_and_forwards_query():
     route = respx.get(f"{BASE_URL}/api/v1/developer/skills").mock(
         return_value=httpx.Response(
@@ -60,7 +73,10 @@ def test_list_with_no_params():
             200,
             json={
                 "success": True,
-                "data": {"items": [], "pagination": {"total": 0, "page": 1, "limit": 20, "pages": 0}},
+                "data": {
+                    "items": [],
+                    "pagination": {"total": 0, "page": 1, "limit": 20, "pages": 0},
+                },
             },
         )
     )

@@ -35,7 +35,11 @@ class Files:
     def __init__(self, transport: SyncTransport) -> None:
         self._transport = transport
 
-    def upload(self, input: UploadFilePayload) -> PersonaFile:
+    def upload(self, input: UploadFilePayload, idempotency_key: str | None = None) -> PersonaFile:
+        """``idempotency_key``, if provided, is sent as the ``Idempotency-Key``
+        header — a safe retry with the same key replays the original
+        response instead of uploading a duplicate file."""
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
         return cast(
             PersonaFile,
             self._transport.request(
@@ -43,6 +47,7 @@ class Files:
                 "/api/v1/developer/files",
                 files=_upload_files(input),
                 data=_upload_data(input),
+                headers=headers,
             ),
         )
 
@@ -77,7 +82,13 @@ class AsyncFiles:
     def __init__(self, transport: AsyncTransport) -> None:
         self._transport = transport
 
-    async def upload(self, input: UploadFilePayload) -> PersonaFile:
+    async def upload(
+        self, input: UploadFilePayload, idempotency_key: str | None = None
+    ) -> PersonaFile:
+        """``idempotency_key``, if provided, is sent as the ``Idempotency-Key``
+        header — a safe retry with the same key replays the original
+        response instead of uploading a duplicate file."""
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
         return cast(
             PersonaFile,
             await self._transport.request(
@@ -85,6 +96,7 @@ class AsyncFiles:
                 "/api/v1/developer/files",
                 files=_upload_files(input),
                 data=_upload_data(input),
+                headers=headers,
             ),
         )
 

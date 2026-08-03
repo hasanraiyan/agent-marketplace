@@ -32,12 +32,17 @@ jest.unstable_mockModule('../src/modules/knowledge/knowledge.service.js', () => 
     getKnowledgeBaseUsage: jest.fn(),
   },
 }));
+jest.unstable_mockModule('../src/modules/idempotency/idempotencyKey.model.js', () => ({
+  default: { findOne: jest.fn(), create: jest.fn() },
+}));
 
 const projectCredentialService = (
   await import('../src/modules/projects/projectCredential.service.js')
 ).default;
 const projectService = (await import('../src/modules/projects/project.service.js')).default;
 const knowledgeService = (await import('../src/modules/knowledge/knowledge.service.js')).default;
+const idempotencyKeyModel = (await import('../src/modules/idempotency/idempotencyKey.model.js'))
+  .default;
 const { default: developerKnowledgeRouter } =
   await import('../src/modules/developer/developerKnowledge.routes.js');
 
@@ -60,6 +65,8 @@ describe('developerKnowledge.routes.js — mount integration', () => {
       project: 'project-1',
     });
     projectService.getProjectById.mockResolvedValue({ _id: 'project-1', status: 'ACTIVE' });
+    idempotencyKeyModel.findOne.mockReturnValue({ lean: () => Promise.resolve(null) });
+    idempotencyKeyModel.create.mockResolvedValue({});
   });
 
   test('401s without a Project credential, never reaching the controller', async () => {
@@ -93,6 +100,33 @@ describe('developerKnowledge.routes.js — mount integration', () => {
       expect.objectContaining({ name: 'test-kb' }),
       expect.objectContaining({ domain: 'project-1', principalType: 'ProjectMachine' })
     );
+  });
+
+  test('POST / with a repeated Idempotency-Key replays the cached response, never calling the service twice', async () => {
+    knowledgeService.createKnowledgeBase.mockResolvedValue({ _id: 'kb1', name: 'test-kb' });
+    const body = { name: 'test-kb', providerId: '507f1f77bcf86cd799439011' };
+
+    const first = await request(app)
+      .post('/api/v1/developer/knowledge')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('Idempotency-Key', 'test-key-1')
+      .send(body);
+    expect(first.status).toBe(201);
+    expect(knowledgeService.createKnowledgeBase).toHaveBeenCalledTimes(1);
+
+    idempotencyKeyModel.findOne.mockReturnValue({
+      lean: () => Promise.resolve({ statusCode: first.status, body: first.body }),
+    });
+
+    const second = await request(app)
+      .post('/api/v1/developer/knowledge')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('Idempotency-Key', 'test-key-1')
+      .send(body);
+
+    expect(second.status).toBe(first.status);
+    expect(second.body).toEqual(first.body);
+    expect(knowledgeService.createKnowledgeBase).toHaveBeenCalledTimes(1);
   });
 
   test('GET / (discover) reaches the controller and returns a pagination envelope', async () => {

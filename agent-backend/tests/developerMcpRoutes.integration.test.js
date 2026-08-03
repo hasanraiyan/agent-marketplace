@@ -29,12 +29,17 @@ jest.unstable_mockModule('../src/modules/mcp/mcp.service.js', () => ({
     getMcpUsage: jest.fn(),
   },
 }));
+jest.unstable_mockModule('../src/modules/idempotency/idempotencyKey.model.js', () => ({
+  default: { findOne: jest.fn(), create: jest.fn() },
+}));
 
 const projectCredentialService = (
   await import('../src/modules/projects/projectCredential.service.js')
 ).default;
 const projectService = (await import('../src/modules/projects/project.service.js')).default;
 const mcpService = (await import('../src/modules/mcp/mcp.service.js')).default;
+const idempotencyKeyModel = (await import('../src/modules/idempotency/idempotencyKey.model.js'))
+  .default;
 const { default: developerMcpRouter } =
   await import('../src/modules/developer/developerMcp.routes.js');
 
@@ -58,6 +63,8 @@ describe('developerMcp.routes.js — mount integration', () => {
       project: 'project-1',
     });
     projectService.getProjectById.mockResolvedValue({ _id: 'project-1', status: 'ACTIVE' });
+    idempotencyKeyModel.findOne.mockReturnValue({ lean: () => Promise.resolve(null) });
+    idempotencyKeyModel.create.mockResolvedValue({});
   });
 
   test('401s without a Project credential, never reaching the controller', async () => {
@@ -93,6 +100,33 @@ describe('developerMcp.routes.js — mount integration', () => {
       expect.objectContaining({ name: 'Test MCP' }),
       expect.objectContaining({ domain: 'project-1', principalType: 'ProjectMachine' })
     );
+  });
+
+  test('POST / with a repeated Idempotency-Key replays the cached response, never calling the service twice', async () => {
+    mcpService.createMcp.mockResolvedValue({ _id: 'm1', name: 'Test MCP' });
+    const body = { name: 'Test MCP', transport: 'http', url: 'https://example.com/mcp' };
+
+    const first = await request(app)
+      .post('/api/v1/developer/mcps')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('Idempotency-Key', 'test-key-1')
+      .send(body);
+    expect(first.status).toBe(201);
+    expect(mcpService.createMcp).toHaveBeenCalledTimes(1);
+
+    idempotencyKeyModel.findOne.mockReturnValue({
+      lean: () => Promise.resolve({ statusCode: first.status, body: first.body }),
+    });
+
+    const second = await request(app)
+      .post('/api/v1/developer/mcps')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('Idempotency-Key', 'test-key-1')
+      .send(body);
+
+    expect(second.status).toBe(first.status);
+    expect(second.body).toEqual(first.body);
+    expect(mcpService.createMcp).toHaveBeenCalledTimes(1);
   });
 
   test('GET / (discover) reaches the controller and returns a pagination envelope', async () => {

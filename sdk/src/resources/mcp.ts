@@ -70,8 +70,16 @@ export class McpsResource {
     this.oauth = new McpOAuthResource(http);
   }
 
-  async create(input: CreateMcpInput): Promise<Mcp> {
-    return this.http.request<Mcp>('POST', '/api/v1/developer/mcps', { body: input });
+  /**
+   * `idempotencyKey`, if provided, is sent as the `Idempotency-Key` header —
+   * a safe retry with the same key replays the original response instead
+   * of creating a duplicate MCP server.
+   */
+  async create(input: CreateMcpInput, idempotencyKey?: string): Promise<Mcp> {
+    return this.http.request<Mcp>('POST', '/api/v1/developer/mcps', {
+      body: input,
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+    });
   }
 
   async list(params: DiscoverMcpsParams = {}): Promise<PaginatedResult<Mcp>> {

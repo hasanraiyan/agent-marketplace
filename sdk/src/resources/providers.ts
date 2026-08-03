@@ -16,8 +16,16 @@ import type { BulkDeleteResult } from '../types/bulkDelete.js';
 export class ProvidersResource {
   constructor(private readonly http: HttpClient) {}
 
-  async create(input: CreateProviderInput): Promise<Provider> {
-    return this.http.request<Provider>('POST', '/api/v1/developer/providers', { body: input });
+  /**
+   * `idempotencyKey`, if provided, is sent as the `Idempotency-Key` header —
+   * a safe retry with the same key replays the original response instead
+   * of creating a duplicate Provider.
+   */
+  async create(input: CreateProviderInput, idempotencyKey?: string): Promise<Provider> {
+    return this.http.request<Provider>('POST', '/api/v1/developer/providers', {
+      body: input,
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+    });
   }
 
   /**

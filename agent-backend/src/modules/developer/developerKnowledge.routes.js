@@ -7,6 +7,7 @@ import {
   updateKnowledgeBaseSchema,
 } from '../knowledge/knowledge.validator.js';
 import { bulkDeleteSchema } from '../../utils/validators/bulkDeleteSchema.js';
+import { idempotency } from '../../middlewares/idempotencyMiddleware.js';
 import developerKnowledgeController from './developerKnowledge.controller.js';
 
 /**
@@ -61,6 +62,12 @@ router.use(developerMachineAuthMiddleware);
  *       equivalent "default Provider" concept exists for a Project or
  *       ExternalUser yet.
  *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: Idempotency-Key
+ *         in: header
+ *         required: false
+ *         schema: { type: string }
+ *         description: Optional — a safe retry with the same key replays the original response instead of creating a duplicate Knowledge Base.
  *     requestBody:
  *       required: true
  *       content:
@@ -72,7 +79,12 @@ router.use(developerMachineAuthMiddleware);
  *       201: { description: Knowledge Base created }
  *       400: { description: "Validation error, or missing providerId" }
  */
-router.post('/', validateBody(createKnowledgeBaseSchema), developerKnowledgeController.create);
+router.post(
+  '/',
+  idempotency(),
+  validateBody(createKnowledgeBaseSchema),
+  developerKnowledgeController.create
+);
 
 /**
  * @openapi

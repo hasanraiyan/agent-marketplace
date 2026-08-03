@@ -45,6 +45,17 @@ describe('ThreadsResource', () => {
     expect((init.headers as Record<string, string>)['x-persona-external-user-id']).toBe('sabik-42');
   });
 
+  it('create() sends an Idempotency-Key header when provided', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ success: true, data: { _id: 't1' } }, 201)
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    await client.threads.create({ agentId: 'a1' }, 'idem-key-1');
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>)['Idempotency-Key']).toBe('idem-key-1');
+  });
+
   it('list() returns a pagination envelope with populated agentId objects', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       jsonResponse({

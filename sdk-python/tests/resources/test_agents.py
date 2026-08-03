@@ -33,6 +33,19 @@ def test_create():
 
 
 @respx.mock
+def test_create_sends_idempotency_key_header_when_provided():
+    route = respx.post(f"{BASE_URL}/api/v1/developer/agents").mock(
+        return_value=httpx.Response(200, json={"success": True, "data": AGENT})
+    )
+    client = PersonaClient(BASE_URL, "keyId.secret")
+    client.agents.create(
+        {"name": "Career Launchpad", "systemPrompt": "Help students.", "providerId": "p1"},
+        idempotency_key="idem-key-1",
+    )
+    assert route.calls.last.request.headers["Idempotency-Key"] == "idem-key-1"
+
+
+@respx.mock
 def test_list_returns_a_pagination_envelope_and_forwards_query():
     route = respx.get(f"{BASE_URL}/api/v1/developer/agents").mock(
         return_value=httpx.Response(

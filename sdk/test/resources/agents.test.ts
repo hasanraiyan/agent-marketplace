@@ -52,6 +52,24 @@ describe('AgentsResource', () => {
     expect(init.method).toBe('POST');
   });
 
+  it('create() sends an Idempotency-Key header when provided, omits it otherwise', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ success: true, data: { _id: 'a1' } }, 201)
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    await client.agents.create(
+      { name: 'X', systemPrompt: 'Y', providerId: 'p1' },
+      'idem-key-1'
+    );
+    const [, initWithKey] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((initWithKey.headers as Record<string, string>)['Idempotency-Key']).toBe('idem-key-1');
+
+    await client.agents.create({ name: 'X', systemPrompt: 'Y', providerId: 'p1' });
+    const [, initWithoutKey] = fetchMock.mock.calls[1] as [string, RequestInit];
+    expect((initWithoutKey.headers as Record<string, string>)['Idempotency-Key']).toBeUndefined();
+  });
+
   it('list() returns a pagination envelope and forwards discovery params', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       jsonResponse({

@@ -219,6 +219,26 @@ raises immediately on the first attempt, since retrying those wouldn't change th
   a documented gap, not a hidden one.
 </Note>
 
+## Idempotency keys
+
+Every resource's `create()` (and `files.upload()`) accepts an optional `idempotency_key` keyword
+argument, sent as the `Idempotency-Key` request header:
+
+```python
+skill = persona.skills.create(
+    {"name": "Resume Reviewer", "description": "...", "instructions": "..."},
+    idempotency_key="a-key-you-generate-once-per-logical-create",  # e.g. str(uuid.uuid4())
+)
+```
+
+Use it when a `create()` call might get retried after an ambiguous failure — a network timeout, a
+dropped connection — where you can't tell whether the original request actually reached the
+server. Retrying with the **same** key returns the exact original response instead of creating a
+second resource; retrying with a **different** (or omitted) key creates a new one as normal. Keys
+are scoped per `(domain, credential, external user if asserted)` and expire after 24 hours. This is
+fully opt-in — omitting the argument is identical to every version before this feature, no
+behavior change.
+
 ## Resources
 
 | Client property           | Wraps                                                              | Ownership scoping                                                      |
@@ -289,7 +309,8 @@ provider = persona.providers.create(
         "apiKey": os.environ["OPENAI_API_KEY"],  # encrypted at rest, never returned in any response
         "defaultModel": "gpt-4o-mini",
         "isDefault": True,
-    }
+    },
+    idempotency_key="optional-idempotency-key",  # safe retry after a timeout replays this result
 )
 
 # Use the control-plane client (no external_user_id) — see the note above.
@@ -327,7 +348,8 @@ skill = persona.skills.create(
         "instructions": "You are an expert resume reviewer...",
         "isPublic": False,
         "files": [{"path": "rubric.md", "content": "# Scoring rubric\n..."}],
-    }
+    },
+    idempotency_key="optional-idempotency-key",  # safe retry after a timeout replays this result
 )
 
 result = user_persona.skills.list({"scope": "mine", "search": "resume"})
@@ -366,7 +388,8 @@ agent = persona.agents.create(
         "visibility": "unlisted",
         "webSearchEnabled": True,
         "skills": [skill["_id"]],
-    }
+    },
+    idempotency_key="optional-idempotency-key",  # safe retry after a timeout replays this result
 )
 
 result = persona.agents.list({"category": "productivity", "search": "career"})
@@ -409,7 +432,8 @@ kb = persona.knowledge.create(
         "chunkSize": 1000,
         "chunkOverlap": 200,
         "topK": 5,
-    }
+    },
+    idempotency_key="optional-idempotency-key",  # safe retry after a timeout replays this result
 )
 
 with open("faq.pdf", "rb") as f:
@@ -466,7 +490,8 @@ mcp = persona.mcps.create(
         "url": "https://mcp.example.com",
         "authType": "apiKey",
         "apiKey": os.environ["TICKETING_MCP_KEY"],
-    }
+    },
+    idempotency_key="optional-idempotency-key",  # safe retry after a timeout replays this result
 )
 
 connection = persona.mcps.test_connection(mcp["_id"])
@@ -529,7 +554,10 @@ Subject is always a specific end user, so a bare Project credential is rejected 
 EXTERNAL_USER_REQUIRED` `PersonaValidationError`.
 
 ```python
-thread = user_persona.threads.create({"agentId": agent["_id"]})
+thread = user_persona.threads.create(
+    {"agentId": agent["_id"]},
+    idempotency_key="optional-idempotency-key",  # safe retry after a timeout replays this result
+)
 result = user_persona.threads.list({"page": 1, "limit": 20})
 mine = result["items"]
 user_persona.threads.update_title(thread["_id"], "Summer internship search")
@@ -574,7 +602,8 @@ with open("resume.pdf", "rb") as f:
             "content": f.read(),
             "contentType": "application/pdf",
             "threadId": thread["_id"],  # optional — associates the file with a conversation
-        }
+        },
+        idempotency_key="optional-idempotency-key",  # safe retry after a timeout replays this result
     )
 
 result = user_persona.files.list({"page": 1, "limit": 20})

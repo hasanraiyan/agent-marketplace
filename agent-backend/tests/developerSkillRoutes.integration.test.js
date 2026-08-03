@@ -28,12 +28,17 @@ jest.unstable_mockModule('../src/modules/skills/skill.service.js', () => ({
     getSkillUsage: jest.fn(),
   },
 }));
+jest.unstable_mockModule('../src/modules/idempotency/idempotencyKey.model.js', () => ({
+  default: { findOne: jest.fn(), create: jest.fn() },
+}));
 
 const projectCredentialService = (
   await import('../src/modules/projects/projectCredential.service.js')
 ).default;
 const projectService = (await import('../src/modules/projects/project.service.js')).default;
 const skillService = (await import('../src/modules/skills/skill.service.js')).default;
+const idempotencyKeyModel = (await import('../src/modules/idempotency/idempotencyKey.model.js'))
+  .default;
 const { default: developerSkillRouter } =
   await import('../src/modules/developer/developerSkill.routes.js');
 
@@ -56,6 +61,8 @@ describe('developerSkill.routes.js — mount integration', () => {
       project: 'project-1',
     });
     projectService.getProjectById.mockResolvedValue({ _id: 'project-1', status: 'ACTIVE' });
+    idempotencyKeyModel.findOne.mockReturnValue({ lean: () => Promise.resolve(null) });
+    idempotencyKeyModel.create.mockResolvedValue({});
   });
 
   test('401s without a Project credential, never reaching the controller', async () => {
@@ -91,6 +98,37 @@ describe('developerSkill.routes.js — mount integration', () => {
       expect.objectContaining({ name: 'test-skill' }),
       expect.objectContaining({ domain: 'project-1', principalType: 'ProjectMachine' })
     );
+  });
+
+  test('POST / with a repeated Idempotency-Key replays the cached response, never calling the service twice', async () => {
+    skillService.createSkill.mockResolvedValue({ _id: 's1', name: 'test-skill' });
+    const body = {
+      name: 'test-skill',
+      description: 'A test skill here.',
+      instructions: 'Do it well.',
+    };
+
+    const first = await request(app)
+      .post('/api/v1/developer/skills')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('Idempotency-Key', 'test-key-1')
+      .send(body);
+    expect(first.status).toBe(201);
+    expect(skillService.createSkill).toHaveBeenCalledTimes(1);
+
+    idempotencyKeyModel.findOne.mockReturnValue({
+      lean: () => Promise.resolve({ statusCode: first.status, body: first.body }),
+    });
+
+    const second = await request(app)
+      .post('/api/v1/developer/skills')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('Idempotency-Key', 'test-key-1')
+      .send(body);
+
+    expect(second.status).toBe(first.status);
+    expect(second.body).toEqual(first.body);
+    expect(skillService.createSkill).toHaveBeenCalledTimes(1);
   });
 
   test('GET / (discover) reaches the controller and returns a pagination envelope', async () => {

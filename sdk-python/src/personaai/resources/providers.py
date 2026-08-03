@@ -33,9 +33,16 @@ class Providers:
     def __init__(self, transport: SyncTransport) -> None:
         self._transport = transport
 
-    def create(self, input: CreateProviderInput) -> Provider:
+    def create(self, input: CreateProviderInput, idempotency_key: str | None = None) -> Provider:
+        """``idempotency_key``, if provided, is sent as the ``Idempotency-Key``
+        header — a safe retry with the same key replays the original
+        response instead of creating a duplicate Provider."""
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
         return cast(
-            Provider, self._transport.request("POST", "/api/v1/developer/providers", json=input)
+            Provider,
+            self._transport.request(
+                "POST", "/api/v1/developer/providers", json=input, headers=headers
+            ),
         )
 
     def list(self) -> List[Provider]:
@@ -97,10 +104,18 @@ class AsyncProviders:
     def __init__(self, transport: AsyncTransport) -> None:
         self._transport = transport
 
-    async def create(self, input: CreateProviderInput) -> Provider:
+    async def create(
+        self, input: CreateProviderInput, idempotency_key: str | None = None
+    ) -> Provider:
+        """``idempotency_key``, if provided, is sent as the ``Idempotency-Key``
+        header — a safe retry with the same key replays the original
+        response instead of creating a duplicate Provider."""
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
         return cast(
             Provider,
-            await self._transport.request("POST", "/api/v1/developer/providers", json=input),
+            await self._transport.request(
+                "POST", "/api/v1/developer/providers", json=input, headers=headers
+            ),
         )
 
     async def list(self) -> List[Provider]:

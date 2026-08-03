@@ -15,8 +15,16 @@ import type { PaginatedResult } from '../types/pagination.js';
 export class AgentsResource {
   constructor(private readonly http: HttpClient) {}
 
-  async create(input: CreateAgentInput): Promise<Agent> {
-    return this.http.request<Agent>('POST', '/api/v1/developer/agents', { body: input });
+  /**
+   * `idempotencyKey`, if provided, is sent as the `Idempotency-Key` header —
+   * a safe retry with the same key replays the original response instead
+   * of creating a duplicate Agent.
+   */
+  async create(input: CreateAgentInput, idempotencyKey?: string): Promise<Agent> {
+    return this.http.request<Agent>('POST', '/api/v1/developer/agents', {
+      body: input,
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+    });
   }
 
   async list(params: DiscoverAgentsParams = {}): Promise<PaginatedResult<Agent>> {

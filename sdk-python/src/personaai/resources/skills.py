@@ -20,8 +20,17 @@ class Skills:
     def __init__(self, transport: SyncTransport) -> None:
         self._transport = transport
 
-    def create(self, input: CreateSkillInput) -> Skill:
-        return cast(Skill, self._transport.request("POST", "/api/v1/developer/skills", json=input))
+    def create(self, input: CreateSkillInput, idempotency_key: str | None = None) -> Skill:
+        """``idempotency_key``, if provided, is sent as the ``Idempotency-Key``
+        header — a safe retry with the same key replays the original
+        response instead of creating a duplicate Skill."""
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
+        return cast(
+            Skill,
+            self._transport.request(
+                "POST", "/api/v1/developer/skills", json=input, headers=headers
+            ),
+        )
 
     def list(self, params: DiscoverSkillsParams | None = None) -> PaginatedResult[Skill]:
         return cast(
@@ -62,9 +71,16 @@ class AsyncSkills:
     def __init__(self, transport: AsyncTransport) -> None:
         self._transport = transport
 
-    async def create(self, input: CreateSkillInput) -> Skill:
+    async def create(self, input: CreateSkillInput, idempotency_key: str | None = None) -> Skill:
+        """``idempotency_key``, if provided, is sent as the ``Idempotency-Key``
+        header — a safe retry with the same key replays the original
+        response instead of creating a duplicate Skill."""
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
         return cast(
-            Skill, await self._transport.request("POST", "/api/v1/developer/skills", json=input)
+            Skill,
+            await self._transport.request(
+                "POST", "/api/v1/developer/skills", json=input, headers=headers
+            ),
         )
 
     async def list(self, params: DiscoverSkillsParams | None = None) -> PaginatedResult[Skill]:

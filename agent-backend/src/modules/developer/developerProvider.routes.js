@@ -3,6 +3,7 @@ import developerMachineAuthMiddleware from '../auth/developerMachineAuth.middlew
 import { validateBody } from '../../middlewares/validationMiddleware.js';
 import { createProviderSchema, updateProviderSchema } from '../providers/provider.validator.js';
 import { bulkDeleteSchema } from '../../utils/validators/bulkDeleteSchema.js';
+import { idempotency } from '../../middlewares/idempotencyMiddleware.js';
 import developerProviderController from './developerProvider.controller.js';
 
 /**
@@ -23,6 +24,12 @@ router.use(developerMachineAuthMiddleware);
  *     summary: Create a Provider (Project-owned)
  *     description: Provider ownership is narrower than other Developer resources — PersonaUser/Project only, never ExternalUser.
  *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: Idempotency-Key
+ *         in: header
+ *         required: false
+ *         schema: { type: string }
+ *         description: Optional — a safe retry with the same key replays the original response instead of creating a duplicate Provider.
  *     requestBody:
  *       required: true
  *       content:
@@ -34,7 +41,12 @@ router.use(developerMachineAuthMiddleware);
  *       201: { description: Provider created }
  *       400: { description: "Validation error, or an ExternalUser-asserted request (unsupported for Providers)" }
  */
-router.post('/', validateBody(createProviderSchema), developerProviderController.create);
+router.post(
+  '/',
+  idempotency(),
+  validateBody(createProviderSchema),
+  developerProviderController.create
+);
 
 /**
  * @openapi

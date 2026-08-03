@@ -117,8 +117,15 @@ class Mcps:
         self._transport = transport
         self.oauth = McpOAuth(transport)
 
-    def create(self, input: CreateMcpInput) -> Mcp:
-        return cast(Mcp, self._transport.request("POST", "/api/v1/developer/mcps", json=input))
+    def create(self, input: CreateMcpInput, idempotency_key: str | None = None) -> Mcp:
+        """``idempotency_key``, if provided, is sent as the ``Idempotency-Key``
+        header — a safe retry with the same key replays the original
+        response instead of creating a duplicate MCP server."""
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
+        return cast(
+            Mcp,
+            self._transport.request("POST", "/api/v1/developer/mcps", json=input, headers=headers),
+        )
 
     def list(self, params: DiscoverMcpsParams | None = None) -> PaginatedResult[Mcp]:
         return cast(
@@ -185,9 +192,16 @@ class AsyncMcps:
         self._transport = transport
         self.oauth = AsyncMcpOAuth(transport)
 
-    async def create(self, input: CreateMcpInput) -> Mcp:
+    async def create(self, input: CreateMcpInput, idempotency_key: str | None = None) -> Mcp:
+        """``idempotency_key``, if provided, is sent as the ``Idempotency-Key``
+        header — a safe retry with the same key replays the original
+        response instead of creating a duplicate MCP server."""
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
         return cast(
-            Mcp, await self._transport.request("POST", "/api/v1/developer/mcps", json=input)
+            Mcp,
+            await self._transport.request(
+                "POST", "/api/v1/developer/mcps", json=input, headers=headers
+            ),
         )
 
     async def list(self, params: DiscoverMcpsParams | None = None) -> PaginatedResult[Mcp]:

@@ -36,6 +36,19 @@ def test_create():
 
 
 @respx.mock
+def test_create_sends_idempotency_key_header_when_provided():
+    route = respx.post(f"{BASE_URL}/api/v1/developer/mcps").mock(
+        return_value=httpx.Response(200, json={"success": True, "data": MCP})
+    )
+    client = PersonaClient(BASE_URL, "keyId.secret")
+    client.mcps.create(
+        {"name": "Internship Board", "transport": "http", "url": "https://mcp.example.com"},
+        idempotency_key="idem-key-1",
+    )
+    assert route.calls.last.request.headers["Idempotency-Key"] == "idem-key-1"
+
+
+@respx.mock
 def test_list():
     respx.get(f"{BASE_URL}/api/v1/developer/mcps").mock(
         return_value=httpx.Response(

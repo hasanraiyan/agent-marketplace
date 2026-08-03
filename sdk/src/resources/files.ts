@@ -11,7 +11,12 @@ import type { PaginatedResult } from '../types/pagination.js';
 export class FilesResource {
   constructor(private readonly http: HttpClient) {}
 
-  async upload(input: UploadFilePayload): Promise<PersonaFile> {
+  /**
+   * `idempotencyKey`, if provided, is sent as the `Idempotency-Key` header —
+   * a safe retry with the same key replays the original response instead
+   * of uploading a duplicate file.
+   */
+  async upload(input: UploadFilePayload, idempotencyKey?: string): Promise<PersonaFile> {
     const form = new FormData();
     const blob =
       input.content instanceof Blob
@@ -21,7 +26,10 @@ export class FilesResource {
     if (input.agentId) form.append('agentId', input.agentId);
     if (input.threadId) form.append('threadId', input.threadId);
 
-    return this.http.request<PersonaFile>('POST', '/api/v1/developer/files', { body: form });
+    return this.http.request<PersonaFile>('POST', '/api/v1/developer/files', {
+      body: form,
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+    });
   }
 
   async list(params: ListFilesParams = {}): Promise<PaginatedResult<PersonaFile>> {

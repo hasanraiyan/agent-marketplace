@@ -3,6 +3,7 @@ import developerMachineAuthMiddleware from '../auth/developerMachineAuth.middlew
 import { validateBody } from '../../middlewares/validationMiddleware.js';
 import { createSkillSchema, updateSkillSchema } from '../skills/skill.validator.js';
 import { bulkDeleteSchema } from '../../utils/validators/bulkDeleteSchema.js';
+import { idempotency } from '../../middlewares/idempotencyMiddleware.js';
 import developerSkillController from './developerSkill.controller.js';
 
 /**
@@ -23,6 +24,12 @@ router.use(developerMachineAuthMiddleware);
  *     summary: Create a Skill (Project-owned or ExternalUser-owned)
  *     description: Which kind gets created depends on the credential's asserted identity, same as Developer Agent creation.
  *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: Idempotency-Key
+ *         in: header
+ *         required: false
+ *         schema: { type: string }
+ *         description: Optional — a safe retry with the same key replays the original response instead of creating a duplicate Skill.
  *     requestBody:
  *       required: true
  *       content:
@@ -35,7 +42,7 @@ router.use(developerMachineAuthMiddleware);
  *       400: { description: Validation error }
  *       409: { description: A Skill with this exact name already exists }
  */
-router.post('/', validateBody(createSkillSchema), developerSkillController.create);
+router.post('/', idempotency(), validateBody(createSkillSchema), developerSkillController.create);
 
 /**
  * @openapi

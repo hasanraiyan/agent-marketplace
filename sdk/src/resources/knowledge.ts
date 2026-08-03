@@ -21,9 +21,18 @@ import type { PaginatedResult } from '../types/pagination.js';
 export class KnowledgeResource {
   constructor(private readonly http: HttpClient) {}
 
-  async create(input: CreateKnowledgeBaseInput): Promise<KnowledgeBase> {
+  /**
+   * `idempotencyKey`, if provided, is sent as the `Idempotency-Key` header —
+   * a safe retry with the same key replays the original response instead
+   * of creating a duplicate Knowledge Base.
+   */
+  async create(
+    input: CreateKnowledgeBaseInput,
+    idempotencyKey?: string
+  ): Promise<KnowledgeBase> {
     return this.http.request<KnowledgeBase>('POST', '/api/v1/developer/knowledge', {
       body: input,
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
     });
   }
 
