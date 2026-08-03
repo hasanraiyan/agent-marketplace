@@ -7,6 +7,7 @@ export interface Thread {
   subjectType: 'PersonaUser' | 'ExternalUser';
   userId?: string;
   externalUserId?: string;
+  /** The deterministic AG-UI thread id used for streaming (`x-thread-id`) — distinct from `_id`. */
   threadId: string;
   title: string;
   lastMessageAt: string;
@@ -17,16 +18,20 @@ export interface Thread {
 }
 
 export interface CreateThreadInput {
+  /** The Agent this Thread's conversation is with. */
   agentId: string;
 }
 
+/** All fields optional — only what you pass is changed. */
 export interface UpdateThreadInput {
   title?: string;
   isArchived?: boolean;
 }
 
 export interface ListThreadsParams {
+  /** @default 1 */
   page?: number;
+  /** @default 20 */
   limit?: number;
 }
 

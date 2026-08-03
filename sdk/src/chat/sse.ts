@@ -10,6 +10,9 @@ import type { AguiEvent } from '../types/chat.js';
  * convention (`x-agent-id`/`x-thread-id`, confirmed by reading
  * `developerAgui.routes.js` directly) — spiked and rejected, not skipped.
  * `@ag-ui/core` alone (zod-only, no rxjs) supplies accurate event typing.
+ * @param response - A `Response` whose body is a `text/event-stream`.
+ * @yields Each parsed {@link AguiEvent}; malformed/partial SSE frames are
+ *   skipped rather than thrown.
  */
 export async function* parseAguiEventStream(response: Response): AsyncGenerator<AguiEvent> {
   if (!response.body) return;

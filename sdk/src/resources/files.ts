@@ -12,9 +12,22 @@ export class FilesResource {
   constructor(private readonly http: HttpClient) {}
 
   /**
-   * `idempotencyKey`, if provided, is sent as the `Idempotency-Key` header —
-   * a safe retry with the same key replays the original response instead
-   * of uploading a duplicate file.
+   * Uploads a file on behalf of the asserted external user, optionally
+   * associated with an Agent/Thread.
+   * @param input - `filename` + `content` are required; `contentType`,
+   *   `agentId`, `threadId` are optional context.
+   * @param idempotencyKey - Optional. Sent as the `Idempotency-Key` header —
+   *   a safe retry with the same key replays the original response instead
+   *   of uploading a duplicate file.
+   * @returns The created {@link PersonaFile}.
+   * @example
+   * ```ts
+   * const file = await client.files.upload({
+   *   filename: 'report.pdf',
+   *   content: buffer,
+   *   contentType: 'application/pdf',
+   * });
+   * ```
    */
   async upload(input: UploadFilePayload, idempotencyKey?: string): Promise<PersonaFile> {
     const form = new FormData();
@@ -32,6 +45,11 @@ export class FilesResource {
     });
   }
 
+  /**
+   * Lists the asserted external user's own uploaded files.
+   * @param params - `page` (default `1`), `limit` (default `20`).
+   * @returns `{ items, pagination: { total, page, limit, pages } }`.
+   */
   async list(params: ListFilesParams = {}): Promise<PaginatedResult<PersonaFile>> {
     return this.http.request<PaginatedResult<PersonaFile>>('GET', '/api/v1/developer/files', {
       query: { ...params },
@@ -39,18 +57,29 @@ export class FilesResource {
   }
 
   /**
-   * Returns the raw `Response` (a mediated file stream, never JSON) — call
-   * `.arrayBuffer()`/`.blob()` or pipe `.body` onward as your framework needs.
+   * Downloads a file's raw bytes.
+   * @param fileId - The file's `id`.
+   * @returns The raw `Response` (a mediated file stream, never JSON) — call
+   *   `.arrayBuffer()`/`.blob()` or pipe `.body` onward as your framework needs.
    */
   async download(fileId: string): Promise<Response> {
     return this.http.request<Response>('GET', `/api/v1/developer/files/${fileId}`);
   }
 
+  /**
+   * Deletes a file.
+   * @param fileId - The file's `id`.
+   */
   async delete(fileId: string): Promise<void> {
     await this.http.request<unknown>('DELETE', `/api/v1/developer/files/${fileId}`);
   }
 
-  /** Best-effort batch delete — up to 100 ids per call; partial failures don't throw. */
+  /**
+   * Best-effort batch delete — partial failures don't throw or abort the
+   * rest of the batch.
+   * @param ids - Up to 100 file ids per call.
+   * @returns `{ deleted, failed }` — check `failed` for per-id reasons.
+   */
   async bulkDelete(ids: string[]): Promise<BulkDeleteResult> {
     return this.http.request<BulkDeleteResult>('POST', '/api/v1/developer/files/bulk-delete', {
       body: { ids },

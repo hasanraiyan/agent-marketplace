@@ -32,6 +32,19 @@ export class PersonaClient {
   readonly auditLogs: AuditLogsResource;
   readonly chat: ChatClient;
 
+  /**
+   * @param options - `baseUrl` + `credential` are required. Set
+   *   `externalUserId` to act on behalf of one of your own end users
+   *   (required for `threads`/`files`/`chat`); omit it for Project-level
+   *   (control-plane) calls only.
+   * @example
+   * ```ts
+   * const client = new PersonaClient({
+   *   baseUrl: 'https://api.persona.hasanraiyan.me',
+   *   credential: process.env.PERSONA_CREDENTIAL!,
+   * });
+   * ```
+   */
   constructor(options: PersonaClientOptions) {
     this.http = new HttpClient(options);
     this.providers = new ProvidersResource(this.http);
