@@ -88,6 +88,22 @@ def test_get_usage():
 
 
 @respx.mock
+def test_bulk_delete():
+    respx.post(f"{BASE_URL}/api/v1/developer/knowledge/bulk-delete").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {"deleted": ["kb1"], "failed": [{"id": "kb2", "reason": "not found"}]},
+            },
+        )
+    )
+    client = PersonaClient(BASE_URL, "keyId.secret")
+    result = client.knowledge.bulk_delete(["kb1", "kb2"])
+    assert result == {"deleted": ["kb1"], "failed": [{"id": "kb2", "reason": "not found"}]}
+
+
+@respx.mock
 def test_upload_documents_sends_multipart():
     upload_result = {
         "documentCount": 1,
@@ -188,6 +204,22 @@ async def test_async_delete():
     async with AsyncPersonaClient(BASE_URL, "keyId.secret") as client:
         await client.knowledge.delete("kb1")
     assert route.called
+
+
+@respx.mock
+async def test_async_bulk_delete():
+    respx.post(f"{BASE_URL}/api/v1/developer/knowledge/bulk-delete").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {"deleted": ["kb1"], "failed": [{"id": "kb2", "reason": "not found"}]},
+            },
+        )
+    )
+    async with AsyncPersonaClient(BASE_URL, "keyId.secret") as client:
+        result = await client.knowledge.bulk_delete(["kb1", "kb2"])
+        assert result == {"deleted": ["kb1"], "failed": [{"id": "kb2", "reason": "not found"}]}
 
 
 @respx.mock

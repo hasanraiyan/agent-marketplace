@@ -1,4 +1,5 @@
 import knowledgeService from '../knowledge/knowledge.service.js';
+import { bulkDelete } from '../../utils/bulkDelete.js';
 
 /**
  * Developer Platform Knowledge CRUD (blueprint Phase 9, PR-32, AD-07 §18
@@ -209,6 +210,17 @@ class DeveloperKnowledgeController {
     try {
       await knowledgeService.deleteKnowledgeBase(req.params.kbId, undefined, req.projectContext);
       res.json({ success: true, message: 'Knowledge base deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async bulkDelete(req, res, next) {
+    try {
+      const result = await bulkDelete(req.body.ids, (id) =>
+        knowledgeService.deleteKnowledgeBase(id, undefined, req.projectContext)
+      );
+      res.json({ success: true, data: result });
     } catch (error) {
       next(error);
     }

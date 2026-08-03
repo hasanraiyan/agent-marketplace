@@ -279,6 +279,7 @@ discovery concept, so it's a plain bare-array Domain-scoped list.
 | `providers.testConnection(providerId)` | `POST /providers/{id}/test-connection` | `{ success: boolean, message: string }` |
 | `providers.getModels(providerId)`      | `GET /providers/{id}/models`           | `ProviderModel[]` (`{ id: string }[]`)  |
 | `providers.getUsage(providerId)`       | `GET /providers/{id}/usage`            | `ResourceUsage`                         |
+| `providers.bulkDelete(ids)`            | `POST /providers/bulk-delete`          | `BulkDeleteResult`                      |
 
 ```ts
 const provider = await persona.providers.create({
@@ -298,6 +299,7 @@ const models = await persona.providers.getModels(provider.id);
 
 // Check before delete() — a Provider still referenced by an Agent rejects the delete.
 const { agentCount, agents } = await persona.providers.getUsage(provider.id);
+await persona.providers.bulkDelete([provider.id]);
 ```
 
 `CreateProviderInput`/`UpdateProviderInput` fields: `label`, `baseURL`, `apiKey` (create only,
@@ -308,6 +310,12 @@ required), `defaultModel`, `isDefault?`. `apiKey` is write-only — it's never p
 Agents currently referencing this Provider. `agents` is a preview capped at 20 entries;
 `agentCount` is the real total. Available on Providers/Skills/MCP/Knowledge — check it before
 `delete()` to avoid a blocked-delete error.
+
+`bulkDelete(ids)` returns `BulkDeleteResult` — `{ deleted: string[], failed: { id: string,
+reason: string }[] }` — a best-effort batch delete, available on every resource below. One
+blocked/not-found id in the batch doesn't abort the rest; check `failed` for anything that didn't
+go through. Up to 100 ids per call — a request over that limit is rejected with a 400 before
+anything is deleted.
 
 ### Skills
 
@@ -325,16 +333,18 @@ const full = await persona.skills.get(skill._id);
 await persona.skills.update(skill._id, { description: "Updated description." });
 const usage = await persona.skills.getUsage(skill._id); // check before delete()
 await persona.skills.delete(skill._id);
+await persona.skills.bulkDelete([skill._id]); // { deleted: string[], failed: [{id, reason}] }
 ```
 
-| Method                     | Wraps                    | Returns         |
-| -------------------------- | ------------------------ | --------------- |
-| `skills.create(input)`     | `POST /skills`           | `Skill`         |
-| `skills.list(params?)`     | `GET /skills`            | `Skill[]`       |
-| `skills.get(skillId)`      | `GET /skills/{id}`       | `Skill`         |
-| `skills.update(id, input)` | `PATCH /skills/{id}`     | `Skill`         |
-| `skills.delete(skillId)`   | `DELETE /skills/{id}`    | `void`          |
-| `skills.getUsage(skillId)` | `GET /skills/{id}/usage` | `ResourceUsage` |
+| Method                     | Wraps                      | Returns            |
+| -------------------------- | -------------------------- | ------------------ |
+| `skills.create(input)`     | `POST /skills`             | `Skill`            |
+| `skills.list(params?)`     | `GET /skills`              | `Skill[]`          |
+| `skills.get(skillId)`      | `GET /skills/{id}`         | `Skill`            |
+| `skills.update(id, input)` | `PATCH /skills/{id}`       | `Skill`            |
+| `skills.delete(skillId)`   | `DELETE /skills/{id}`      | `void`             |
+| `skills.getUsage(skillId)` | `GET /skills/{id}/usage`   | `ResourceUsage`    |
+| `skills.bulkDelete(ids)`   | `POST /skills/bulk-delete` | `BulkDeleteResult` |
 
 `DiscoverSkillsParams`: `page?`, `limit?`, `search?`, `scope?: 'mine'` (restricts to the asserted
 end user's own Skills — only meaningful on a `ProjectRuntimeContext` client). `Skill.isOwner` is
@@ -363,15 +373,17 @@ await persona.agents.update(agent._id, {
   tagline: "Find your next internship.",
 });
 await persona.agents.delete(agent._id);
+await persona.agents.bulkDelete([agent._id]);
 ```
 
-| Method                     | Wraps                 | Returns   |
-| -------------------------- | --------------------- | --------- |
-| `agents.create(input)`     | `POST /agents`        | `Agent`   |
-| `agents.list(params?)`     | `GET /agents`         | `Agent[]` |
-| `agents.get(agentId)`      | `GET /agents/{id}`    | `Agent`   |
-| `agents.update(id, input)` | `PATCH /agents/{id}`  | `Agent`   |
-| `agents.delete(agentId)`   | `DELETE /agents/{id}` | `void`    |
+| Method                     | Wraps                      | Returns            |
+| -------------------------- | -------------------------- | ------------------ |
+| `agents.create(input)`     | `POST /agents`             | `Agent`            |
+| `agents.list(params?)`     | `GET /agents`              | `Agent[]`          |
+| `agents.get(agentId)`      | `GET /agents/{id}`         | `Agent`            |
+| `agents.update(id, input)` | `PATCH /agents/{id}`       | `Agent`            |
+| `agents.delete(agentId)`   | `DELETE /agents/{id}`      | `void`             |
+| `agents.bulkDelete(ids)`   | `POST /agents/bulk-delete` | `BulkDeleteResult` |
 
 Notes on the `Agent` shape:
 
@@ -414,6 +426,7 @@ const hits = await persona.knowledge.search(
 // hits: { text, source, score }[]
 
 const usage = await persona.knowledge.getUsage(kb._id); // check before delete()
+await persona.knowledge.bulkDelete([kb._id]);
 ```
 
 | Method                                       | Wraps                                           | Returns                   |
@@ -428,6 +441,7 @@ const usage = await persona.knowledge.getUsage(kb._id); // check before delete()
 | `knowledge.deleteDocument(kbId, sourceName)` | `DELETE /knowledge/{id}/documents/{sourceName}` | `DeleteDocumentResult`    |
 | `knowledge.search(kbId, query, options?)`    | `POST /knowledge/{id}/search`                   | `KnowledgeSearchResult[]` |
 | `knowledge.getUsage(kbId)`                   | `GET /knowledge/{id}/usage`                     | `ResourceUsage`           |
+| `knowledge.bulkDelete(ids)`                  | `POST /knowledge/bulk-delete`                   | `BulkDeleteResult`        |
 
 Limits: up to 10 files per `uploadDocuments()` call, 20MB each, restricted to
 PDF/TXT/MD/JSON/CSV. `providerId` is **required** on `CreateKnowledgeBaseInput` — unlike Persona's
@@ -463,6 +477,7 @@ const { text, mimeType } = await persona.mcps.readResource(
 );
 
 const usage = await persona.mcps.getUsage(mcp._id); // check before delete()
+await persona.mcps.bulkDelete([mcp._id]);
 ```
 
 | Method                              | Wraps                             | Returns                                              |
@@ -476,6 +491,7 @@ const usage = await persona.mcps.getUsage(mcp._id); // check before delete()
 | `mcps.readResource(mcpId, uri)`     | `GET /mcps/{id}/resource?uri=...` | `{ text: string, mimeType: string }`                 |
 | `mcps.callTool(mcpId, name, args?)` | `POST /mcps/{id}/call-tool`       | `unknown` (shape depends on the underlying MCP tool) |
 | `mcps.getUsage(mcpId)`              | `GET /mcps/{id}/usage`            | `ResourceUsage`                                      |
+| `mcps.bulkDelete(ids)`              | `POST /mcps/bulk-delete`          | `BulkDeleteResult`                                   |
 
 `transport`: `'http' | 'sse'`. `authType`: `'none' | 'oauth' | 'apiKey'`. `authMode`: `'owner' |
 'user'` (owner-mode shares one connection across everyone; user-mode gives each external user their
@@ -520,17 +536,19 @@ await userClient.threads.updateTitle(thread._id, "Summer internship search");
 await userClient.threads.update(thread._id, { isArchived: true }); // archive without touching the title
 const { messages, state } = await userClient.threads.getMessages(thread._id);
 await userClient.threads.delete(thread._id);
+await userClient.threads.bulkDelete([thread._id]);
 ```
 
-| Method                                 | Wraps                        | Returns          |
-| -------------------------------------- | ---------------------------- | ---------------- |
-| `threads.create(input)`                | `POST /threads`              | `Thread`         |
-| `threads.list(params?)`                | `GET /threads`               | `Thread[]`       |
-| `threads.get(threadId)`                | `GET /threads/{id}`          | `Thread`         |
-| `threads.update(threadId, input)`      | `PATCH /threads/{id}`        | `Thread`         |
-| `threads.updateTitle(threadId, title)` | `PATCH /threads/{id}`        | `Thread`         |
-| `threads.delete(threadId)`             | `DELETE /threads/{id}`       | `void`           |
-| `threads.getMessages(threadId)`        | `GET /threads/{id}/messages` | `ThreadMessages` |
+| Method                                 | Wraps                        | Returns            |
+| -------------------------------------- | ---------------------------- | ------------------ |
+| `threads.create(input)`                | `POST /threads`              | `Thread`           |
+| `threads.list(params?)`                | `GET /threads`               | `Thread[]`         |
+| `threads.get(threadId)`                | `GET /threads/{id}`          | `Thread`           |
+| `threads.update(threadId, input)`      | `PATCH /threads/{id}`        | `Thread`           |
+| `threads.updateTitle(threadId, title)` | `PATCH /threads/{id}`        | `Thread`           |
+| `threads.delete(threadId)`             | `DELETE /threads/{id}`       | `void`             |
+| `threads.bulkDelete(ids)`              | `POST /threads/bulk-delete`  | `BulkDeleteResult` |
+| `threads.getMessages(threadId)`        | `GET /threads/{id}/messages` | `ThreadMessages`   |
 
 `update()` is the general form — `{ title?, isArchived? }`, both optional, send just the one you
 want to change. `updateTitle(threadId, title)` is a convenience wrapper over `update()` for the
@@ -565,6 +583,7 @@ const response = await userClient.files.download(file.id); // raw Response, not 
 const bytes = await response.arrayBuffer();
 
 await userClient.files.delete(file.id);
+await userClient.files.bulkDelete([file.id]);
 ```
 
 | Method                   | Wraps                     | Returns                    |
@@ -573,6 +592,7 @@ await userClient.files.delete(file.id);
 | `files.list(params?)`    | `GET /files`              | `PersonaFile[]`            |
 | `files.download(fileId)` | `GET /files/{id}`         | `Response` (raw, not JSON) |
 | `files.delete(fileId)`   | `DELETE /files/{id}`      | `void`                     |
+| `files.bulkDelete(ids)`  | `POST /files/bulk-delete` | `BulkDeleteResult`         |
 
 `files.download()` is the one method on the whole client that doesn't return parsed JSON — it
 returns the raw `Response` so you can call `.arrayBuffer()`/`.blob()`, or pipe `.body` (a

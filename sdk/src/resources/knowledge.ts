@@ -11,6 +11,7 @@ import type {
   UploadFileInput,
 } from '../types/knowledge.js';
 import type { ResourceUsage } from '../types/usage.js';
+import type { BulkDeleteResult } from '../types/bulkDelete.js';
 
 /**
  * Knowledge bases (`/api/v1/developer/knowledge`) — Project-owned, or, when
@@ -53,6 +54,13 @@ export class KnowledgeResource {
    */
   async getUsage(kbId: string): Promise<ResourceUsage> {
     return this.http.request<ResourceUsage>('GET', `/api/v1/developer/knowledge/${kbId}/usage`);
+  }
+
+  /** Best-effort batch delete — up to 100 ids per call; partial failures don't throw. */
+  async bulkDelete(ids: string[]): Promise<BulkDeleteResult> {
+    return this.http.request<BulkDeleteResult>('POST', '/api/v1/developer/knowledge/bulk-delete', {
+      body: { ids },
+    });
   }
 
   /** Up to 10 files, 20MB each; PDF/TXT/MD/JSON/CSV. */

@@ -585,6 +585,60 @@
         }
       }
     },
+    "/api/v1/developer/threads/bulk-delete": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete multiple of the asserted external user's own Threads in one call",
+        "description": "Best-effort batch delete — one not-found id doesn't abort the rest. Up to 100 ids per request.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-persona-external-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ids"
+                ],
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{ deleted: string[], failed: [{ id, reason }] }"
+          },
+          "400": {
+            "description": "ids missing, empty, over 100 entries, or no asserted external user"
+          }
+        }
+      }
+    },
     "/api/v1/developer/threads/{threadId}/messages": {
       "get": {
         "tags": [
@@ -830,6 +884,50 @@
         }
       }
     },
+    "/api/v1/developer/skills/bulk-delete": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete multiple Skills in one call",
+        "description": "Best-effort batch delete — one blocked/not-found id doesn't abort the rest. Up to 100 ids per request.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ids"
+                ],
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{ deleted: string[], failed: [{ id, reason }] }"
+          },
+          "400": {
+            "description": "ids missing, empty, or over 100 entries"
+          }
+        }
+      }
+    },
     "/api/v1/developer/providers": {
       "post": {
         "tags": [
@@ -1002,6 +1100,50 @@
           },
           "404": {
             "description": "Provider not found or unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/providers/bulk-delete": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete multiple Providers in one call",
+        "description": "Best-effort batch delete — one blocked/not-found id doesn't abort the rest. Up to 100 ids per request.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ids"
+                ],
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{ deleted: string[], failed: [{ id, reason }] }"
+          },
+          "400": {
+            "description": "ids missing, empty, or over 100 entries"
           }
         }
       }
@@ -1281,6 +1423,50 @@
           },
           "404": {
             "description": "MCP server not found or unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/mcps/bulk-delete": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete multiple MCP servers in one call",
+        "description": "Best-effort batch delete — one blocked/not-found id doesn't abort the rest. Up to 100 ids per request.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ids"
+                ],
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{ deleted: string[], failed: [{ id, reason }] }"
+          },
+          "400": {
+            "description": "ids missing, empty, or over 100 entries"
           }
         }
       }
@@ -1775,6 +1961,50 @@
         }
       }
     },
+    "/api/v1/developer/knowledge/bulk-delete": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete multiple Knowledge Bases in one call",
+        "description": "Best-effort batch delete — one not-found id doesn't abort the rest. Up to 100 ids per request.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ids"
+                ],
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{ deleted: string[], failed: [{ id, reason }] }"
+          },
+          "400": {
+            "description": "ids missing, empty, or over 100 entries"
+          }
+        }
+      }
+    },
     "/api/v1/developer/knowledge/{kbId}/documents": {
       "post": {
         "tags": [
@@ -2100,6 +2330,60 @@
         }
       }
     },
+    "/api/v1/developer/files/bulk-delete": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete multiple of the asserted external user's own files in one call",
+        "description": "Best-effort batch delete — one not-found id doesn't abort the rest. Up to 100 ids per request.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-persona-external-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ids"
+                ],
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{ deleted: string[], failed: [{ id, reason }] }"
+          },
+          "400": {
+            "description": "ids missing, empty, over 100 entries, or no asserted external user"
+          }
+        }
+      }
+    },
     "/api/v1/developer/agui": {
       "get": {
         "tags": [
@@ -2395,6 +2679,50 @@
           },
           "404": {
             "description": "Agent not found"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/agents/bulk-delete": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete multiple Agents in one call",
+        "description": "Best-effort batch delete — one blocked/not-found id doesn't abort the rest. Up to 100 ids per request.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ids"
+                ],
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{ deleted: string[], failed: [{ id, reason }] }"
+          },
+          "400": {
+            "description": "ids missing, empty, or over 100 entries"
           }
         }
       }

@@ -271,4 +271,42 @@ describe('Developer Provider Controller', () => {
       expect(next).not.toHaveBeenCalled();
     });
   });
+
+  describe('bulkDelete', () => {
+    test('deletes each id via providerService.deleteProvider(undefined, id, context), splitting deleted/failed', async () => {
+      mockReq.body = { ids: ['p1', 'p2', 'p3'] };
+      providerService.deleteProvider.mockImplementation(async (userId, id) => {
+        if (id === 'p2') throw new Error('Unauthorized to delete this provider');
+        return true;
+      });
+
+      await developerProviderController.bulkDelete(mockReq, mockRes, next);
+
+      expect(providerService.deleteProvider).toHaveBeenCalledWith(undefined, 'p1', machineContext);
+      expect(providerService.deleteProvider).toHaveBeenCalledWith(undefined, 'p2', machineContext);
+      expect(providerService.deleteProvider).toHaveBeenCalledWith(undefined, 'p3', machineContext);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          deleted: ['p1', 'p3'],
+          failed: [{ id: 'p2', reason: expect.any(String) }],
+        },
+      });
+    });
+
+    test('passes an unexpected top-level error to next()', async () => {
+      mockReq.body = { ids: ['p1'] };
+      providerService.deleteProvider.mockImplementation(() => {
+        throw new TypeError('unexpected');
+      });
+      // Force Promise.allSettled itself to be bypassed isn't feasible here,
+      // so this just documents that a thrown error inside bulkDelete()'s own
+      // orchestration (not a per-id failure) still reaches next().
+      const badReq = { ...mockReq, body: null };
+
+      await developerProviderController.bulkDelete(badReq, mockRes, next);
+
+      expect(next).toHaveBeenCalled();
+    });
+  });
 });

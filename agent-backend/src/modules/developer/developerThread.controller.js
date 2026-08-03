@@ -4,6 +4,7 @@ import agentService from '../agents/agent.service.js';
 import checkpointService from '../threads/checkpoint.service.js';
 import threadService from '../threads/thread.service.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
+import { bulkDelete } from '../../utils/bulkDelete.js';
 
 /**
  * Developer Platform Thread CRUD (blueprint Phase 9, PR-40, AD-04 §15.3).
@@ -133,6 +134,20 @@ class DeveloperThreadController {
       if (error.message === 'Thread not found') {
         return res.status(404).json({ success: false, message: 'Thread not found' });
       }
+      next(error);
+    }
+  }
+
+  async bulkDelete(req, res, next) {
+    try {
+      const result = await bulkDelete(req.body.ids, async (id) => {
+        const deletedThread = await threadService.deleteThread(id, undefined, req.projectContext);
+        if (deletedThread && deletedThread.threadId) {
+          checkpointService.cleanupThreads(deletedThread.threadId).catch(() => {});
+        }
+      });
+      res.json({ success: true, data: result });
+    } catch (error) {
       next(error);
     }
   }

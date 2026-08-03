@@ -7,8 +7,9 @@ scope a conversation to; the server rejects it with 400
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, List, cast
 
+from ..types.bulk_delete import BulkDeleteResult
 from ..types.thread import (
     CreateThreadInput,
     ListThreadsParams,
@@ -59,6 +60,15 @@ class Threads:
     def delete(self, thread_id: str) -> None:
         self._transport.request("DELETE", f"/api/v1/developer/threads/{thread_id}")
 
+    def bulk_delete(self, ids: List[str]) -> BulkDeleteResult:
+        """Best-effort batch delete — up to 100 ids per call; partial failures don't raise."""
+        return cast(
+            BulkDeleteResult,
+            self._transport.request(
+                "POST", "/api/v1/developer/threads/bulk-delete", json={"ids": ids}
+            ),
+        )
+
     def get_messages(self, thread_id: str) -> ThreadMessages:
         return cast(
             ThreadMessages,
@@ -106,6 +116,15 @@ class AsyncThreads:
 
     async def delete(self, thread_id: str) -> None:
         await self._transport.request("DELETE", f"/api/v1/developer/threads/{thread_id}")
+
+    async def bulk_delete(self, ids: List[str]) -> BulkDeleteResult:
+        """Best-effort batch delete — up to 100 ids per call; partial failures don't raise."""
+        return cast(
+            BulkDeleteResult,
+            await self._transport.request(
+                "POST", "/api/v1/developer/threads/bulk-delete", json={"ids": ids}
+            ),
+        )
 
     async def get_messages(self, thread_id: str) -> ThreadMessages:
         return cast(

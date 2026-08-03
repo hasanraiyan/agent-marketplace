@@ -6,6 +6,7 @@ import type {
   ThreadMessages,
   UpdateThreadInput,
 } from '../types/thread.js';
+import type { BulkDeleteResult } from '../types/bulkDelete.js';
 
 /**
  * Threads (`/api/v1/developer/threads`) — a Thread's Subject is a person
@@ -47,6 +48,13 @@ export class ThreadsResource {
 
   async delete(threadId: string): Promise<void> {
     await this.http.request<unknown>('DELETE', `/api/v1/developer/threads/${threadId}`);
+  }
+
+  /** Best-effort batch delete — up to 100 ids per call; partial failures don't throw. */
+  async bulkDelete(ids: string[]): Promise<BulkDeleteResult> {
+    return this.http.request<BulkDeleteResult>('POST', '/api/v1/developer/threads/bulk-delete', {
+      body: { ids },
+    });
   }
 
   async getMessages(threadId: string): Promise<ThreadMessages> {

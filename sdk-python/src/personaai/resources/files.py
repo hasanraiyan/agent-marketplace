@@ -5,10 +5,11 @@ Ported from ``sdk/src/resources/files.ts``."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, List, cast
 
 import httpx
 
+from ..types.bulk_delete import BulkDeleteResult
 from ..types.file import ListFilesParams, PersonaFile, UploadFilePayload
 
 if TYPE_CHECKING:
@@ -62,6 +63,15 @@ class Files:
     def delete(self, file_id: str) -> None:
         self._transport.request("DELETE", f"/api/v1/developer/files/{file_id}")
 
+    def bulk_delete(self, ids: List[str]) -> BulkDeleteResult:
+        """Best-effort batch delete — up to 100 ids per call; partial failures don't raise."""
+        return cast(
+            BulkDeleteResult,
+            self._transport.request(
+                "POST", "/api/v1/developer/files/bulk-delete", json={"ids": ids}
+            ),
+        )
+
 
 class AsyncFiles:
     def __init__(self, transport: AsyncTransport) -> None:
@@ -96,3 +106,12 @@ class AsyncFiles:
 
     async def delete(self, file_id: str) -> None:
         await self._transport.request("DELETE", f"/api/v1/developer/files/{file_id}")
+
+    async def bulk_delete(self, ids: List[str]) -> BulkDeleteResult:
+        """Best-effort batch delete — up to 100 ids per call; partial failures don't raise."""
+        return cast(
+            BulkDeleteResult,
+            await self._transport.request(
+                "POST", "/api/v1/developer/files/bulk-delete", json={"ids": ids}
+            ),
+        )

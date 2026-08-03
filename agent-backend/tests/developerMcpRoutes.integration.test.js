@@ -137,4 +137,32 @@ describe('developerMcp.routes.js — mount integration', () => {
     });
     expect(mcpService.getMcpUsage).toHaveBeenCalledWith('m1', undefined, expect.any(Object));
   });
+
+  test('POST /bulk-delete reaches the controller and returns { deleted, failed }', async () => {
+    mcpService.deleteMcp.mockImplementation(async (id) => {
+      if (id === 'm2') throw new Error('MCP server not found');
+      return true;
+    });
+
+    const res = await request(app)
+      .post('/api/v1/developer/mcps/bulk-delete')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .send({ ids: ['m1', 'm2'] });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      success: true,
+      data: { deleted: ['m1'], failed: [{ id: 'm2', reason: expect.any(String) }] },
+    });
+  });
+
+  test('POST /bulk-delete 400s on an empty ids array, never reaching the controller', async () => {
+    const res = await request(app)
+      .post('/api/v1/developer/mcps/bulk-delete')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .send({ ids: [] });
+
+    expect(res.status).toBe(400);
+    expect(mcpService.deleteMcp).not.toHaveBeenCalled();
+  });
 });

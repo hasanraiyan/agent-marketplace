@@ -9,6 +9,7 @@ import type {
   UpdateMcpInput,
 } from '../types/mcp.js';
 import type { ResourceUsage } from '../types/usage.js';
+import type { BulkDeleteResult } from '../types/bulkDelete.js';
 
 /**
  * OAuth sub-surface for a Project's own MCP servers. Owner-mode connects
@@ -92,6 +93,13 @@ export class McpsResource {
   /** Agents referencing this MCP — check before `delete()` to avoid a blocked-delete error. */
   async getUsage(mcpId: string): Promise<ResourceUsage> {
     return this.http.request<ResourceUsage>('GET', `/api/v1/developer/mcps/${mcpId}/usage`);
+  }
+
+  /** Best-effort batch delete — up to 100 ids per call; partial failures don't throw. */
+  async bulkDelete(ids: string[]): Promise<BulkDeleteResult> {
+    return this.http.request<BulkDeleteResult>('POST', '/api/v1/developer/mcps/bulk-delete', {
+      body: { ids },
+    });
   }
 
   /** Connects, lists tools/resources/templates, and persists the summary onto the MCP document. */

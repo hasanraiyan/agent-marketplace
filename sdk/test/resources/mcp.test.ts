@@ -148,6 +148,26 @@ describe('McpsResource', () => {
     expect(url).toBe('https://api.example.com/api/v1/developer/mcps/m1/usage');
     expect(init.method).toBe('GET');
   });
+
+  it('bulkDelete() POSTs { ids } to the bulk-delete sub-route and returns { deleted, failed }', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({
+        success: true,
+        data: { deleted: ['m1'], failed: [{ id: 'm2', reason: 'MCP server not found' }] },
+      })
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    const result = await client.mcps.bulkDelete(['m1', 'm2']);
+    expect(result).toEqual({
+      deleted: ['m1'],
+      failed: [{ id: 'm2', reason: 'MCP server not found' }],
+    });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.example.com/api/v1/developer/mcps/bulk-delete');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({ ids: ['m1', 'm2'] });
+  });
 });
 
 describe('McpOAuthResource', () => {

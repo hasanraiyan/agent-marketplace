@@ -292,4 +292,34 @@ describe('Developer Knowledge Controller', () => {
       });
     });
   });
+
+  describe('bulkDelete', () => {
+    test('deletes each id via knowledgeService.deleteKnowledgeBase, splitting deleted/failed', async () => {
+      mockReq.body = { ids: ['kb1', 'kb2'] };
+      knowledgeService.deleteKnowledgeBase.mockImplementation(async (id) => {
+        if (id === 'kb2') throw new Error('Knowledge base not found');
+        return true;
+      });
+
+      await developerKnowledgeController.bulkDelete(mockReq, mockRes, next);
+
+      expect(knowledgeService.deleteKnowledgeBase).toHaveBeenCalledWith(
+        'kb1',
+        undefined,
+        machineContext
+      );
+      expect(knowledgeService.deleteKnowledgeBase).toHaveBeenCalledWith(
+        'kb2',
+        undefined,
+        machineContext
+      );
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          deleted: ['kb1'],
+          failed: [{ id: 'kb2', reason: expect.any(String) }],
+        },
+      });
+    });
+  });
 });

@@ -1,5 +1,6 @@
 import type { HttpClient } from '../http.js';
 import type { ListFilesParams, PersonaFile, UploadFilePayload } from '../types/file.js';
+import type { BulkDeleteResult } from '../types/bulkDelete.js';
 
 /**
  * Files (`/api/v1/developer/files`) — a file's Subject is a person, so
@@ -39,5 +40,12 @@ export class FilesResource {
 
   async delete(fileId: string): Promise<void> {
     await this.http.request<unknown>('DELETE', `/api/v1/developer/files/${fileId}`);
+  }
+
+  /** Best-effort batch delete — up to 100 ids per call; partial failures don't throw. */
+  async bulkDelete(ids: string[]): Promise<BulkDeleteResult> {
+    return this.http.request<BulkDeleteResult>('POST', '/api/v1/developer/files/bulk-delete', {
+      body: { ids },
+    });
   }
 }

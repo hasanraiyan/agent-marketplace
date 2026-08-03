@@ -45,6 +45,7 @@ const externalUserService = (await import('../src/modules/externalUsers/external
   .default;
 const agentRepository = (await import('../src/modules/agents/agent.repository.js')).default;
 const agentService = (await import('../src/modules/agents/agent.service.js')).default;
+const checkpointService = (await import('../src/modules/threads/checkpoint.service.js')).default;
 const threadService = (await import('../src/modules/threads/thread.service.js')).default;
 const { default: developerThreadRouter } =
   await import('../src/modules/developer/developerThread.routes.js');
@@ -69,6 +70,7 @@ describe('developerThread.routes.js — mount integration', () => {
     });
     projectService.getProjectById.mockResolvedValue({ _id: 'project-1', status: 'ACTIVE' });
     externalUserService.resolveOrCreate.mockResolvedValue({});
+    checkpointService.cleanupThreads.mockResolvedValue();
   });
 
   test('401s without a Project credential, never reaching the controller', async () => {
@@ -177,5 +179,35 @@ describe('developerThread.routes.js — mount integration', () => {
 
     expect(res.status).toBe(400);
     expect(threadService.updateThread).not.toHaveBeenCalled();
+  });
+
+  test('POST /bulk-delete reaches the controller and returns { deleted, failed }', async () => {
+    threadService.deleteThread.mockImplementation(async (id) => {
+      if (id === 't2') throw new Error('Thread not found');
+      return { threadId: 'uuid-1' };
+    });
+
+    const res = await request(app)
+      .post('/api/v1/developer/threads/bulk-delete')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('x-persona-external-user-id', 'sabik')
+      .send({ ids: ['t1', 't2'] });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      success: true,
+      data: { deleted: ['t1'], failed: [{ id: 't2', reason: expect.any(String) }] },
+    });
+  });
+
+  test('POST /bulk-delete 400s on an empty ids array, never reaching the controller', async () => {
+    const res = await request(app)
+      .post('/api/v1/developer/threads/bulk-delete')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('x-persona-external-user-id', 'sabik')
+      .send({ ids: [] });
+
+    expect(res.status).toBe(400);
+    expect(threadService.deleteThread).not.toHaveBeenCalled();
   });
 });

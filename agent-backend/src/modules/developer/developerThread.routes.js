@@ -2,6 +2,7 @@ import express from 'express';
 import developerMachineAuthMiddleware from '../auth/developerMachineAuth.middleware.js';
 import { validateBody } from '../../middlewares/validationMiddleware.js';
 import { createThreadSchema, updateThreadSchema } from '../threads/thread.validator.js';
+import { bulkDeleteSchema } from '../../utils/validators/bulkDeleteSchema.js';
 import developerThreadController from './developerThread.controller.js';
 import BaseError from '../../utils/errors/BaseError.js';
 
@@ -136,6 +137,39 @@ router.get('/', developerThreadController.getAll);
 router.get('/:threadId', developerThreadController.getOne);
 router.patch('/:threadId', validateBody(updateThreadSchema), developerThreadController.update);
 router.delete('/:threadId', developerThreadController.remove);
+
+/**
+ * @openapi
+ * /api/v1/developer/threads/bulk-delete:
+ *   post:
+ *     tags: [Developer]
+ *     summary: Delete multiple of the asserted external user's own Threads in one call
+ *     description: >
+ *       Best-effort batch delete — one not-found id doesn't abort the
+ *       rest. Up to 100 ids per request.
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: x-persona-external-user-id
+ *         in: header
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [ids]
+ *             properties:
+ *               ids:
+ *                 type: array
+ *                 items: { type: string }
+ *                 maxItems: 100
+ *     responses:
+ *       200: { description: "{ deleted: string[], failed: [{ id, reason }] }" }
+ *       400: { description: "ids missing, empty, over 100 entries, or no asserted external user" }
+ */
+router.post('/bulk-delete', validateBody(bulkDeleteSchema), developerThreadController.bulkDelete);
 
 /**
  * @openapi

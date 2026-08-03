@@ -161,4 +161,26 @@ describe('Developer Agent Controller', () => {
       });
     });
   });
+
+  describe('bulkDelete', () => {
+    test('deletes each id via agentService.deleteAgent, splitting deleted/failed', async () => {
+      mockReq.body = { ids: ['a1', 'a2'] };
+      agentService.deleteAgent.mockImplementation(async (id) => {
+        if (id === 'a2') throw new Error('Agent not found');
+        return true;
+      });
+
+      await developerAgentController.bulkDelete(mockReq, mockRes, next);
+
+      expect(agentService.deleteAgent).toHaveBeenCalledWith('a1', undefined, machineContext);
+      expect(agentService.deleteAgent).toHaveBeenCalledWith('a2', undefined, machineContext);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          deleted: ['a1'],
+          failed: [{ id: 'a2', reason: expect.any(String) }],
+        },
+      });
+    });
+  });
 });

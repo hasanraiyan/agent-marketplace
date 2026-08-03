@@ -1,4 +1,5 @@
 import mcpService from '../mcp/mcp.service.js';
+import { bulkDelete } from '../../utils/bulkDelete.js';
 
 /**
  * Developer Platform MCP CRUD (blueprint Phase 9, PR-35, AD-04 §18 — MCP
@@ -240,6 +241,17 @@ class DeveloperMcpController {
     try {
       await mcpService.deleteMcp(req.params.mcpId, undefined, req.projectContext);
       res.json({ success: true, message: 'MCP server deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async bulkDelete(req, res, next) {
+    try {
+      const result = await bulkDelete(req.body.ids, (id) =>
+        mcpService.deleteMcp(id, undefined, req.projectContext)
+      );
+      res.json({ success: true, data: result });
     } catch (error) {
       next(error);
     }

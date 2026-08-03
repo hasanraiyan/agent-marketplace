@@ -2,6 +2,7 @@ import express from 'express';
 import developerMachineAuthMiddleware from '../auth/developerMachineAuth.middleware.js';
 import { validateBody } from '../../middlewares/validationMiddleware.js';
 import { createAgentSchema, updateAgentSchema } from '../agents/agent.validator.js';
+import { bulkDeleteSchema } from '../../utils/validators/bulkDeleteSchema.js';
 import developerAgentController from './developerAgent.controller.js';
 
 /**
@@ -127,5 +128,33 @@ router.get('/', developerAgentController.discover);
 router.get('/:agentId', developerAgentController.getOne);
 router.patch('/:agentId', validateBody(updateAgentSchema), developerAgentController.update);
 router.delete('/:agentId', developerAgentController.remove);
+
+/**
+ * @openapi
+ * /api/v1/developer/agents/bulk-delete:
+ *   post:
+ *     tags: [Developer]
+ *     summary: Delete multiple Agents in one call
+ *     description: >
+ *       Best-effort batch delete — one blocked/not-found id doesn't abort
+ *       the rest. Up to 100 ids per request.
+ *     security: [{ projectCredential: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [ids]
+ *             properties:
+ *               ids:
+ *                 type: array
+ *                 items: { type: string }
+ *                 maxItems: 100
+ *     responses:
+ *       200: { description: "{ deleted: string[], failed: [{ id, reason }] }" }
+ *       400: { description: "ids missing, empty, or over 100 entries" }
+ */
+router.post('/bulk-delete', validateBody(bulkDeleteSchema), developerAgentController.bulkDelete);
 
 export default router;

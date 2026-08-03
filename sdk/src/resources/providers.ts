@@ -7,6 +7,7 @@ import type {
   UpdateProviderInput,
 } from '../types/provider.js';
 import type { ResourceUsage } from '../types/usage.js';
+import type { BulkDeleteResult } from '../types/bulkDelete.js';
 
 /**
  * Providers this Project owns (`/api/v1/developer/providers`). Control-plane
@@ -63,5 +64,12 @@ export class ProvidersResource {
       'GET',
       `/api/v1/developer/providers/${providerId}/usage`
     );
+  }
+
+  /** Best-effort batch delete — up to 100 ids per call; partial failures don't throw. */
+  async bulkDelete(ids: string[]): Promise<BulkDeleteResult> {
+    return this.http.request<BulkDeleteResult>('POST', '/api/v1/developer/providers/bulk-delete', {
+      body: { ids },
+    });
   }
 }

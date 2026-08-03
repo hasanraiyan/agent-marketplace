@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "persona-agent-sdk"
-version = "0.1.5"
+version = "0.1.6"
 description = "Python SDK for the Persona.ai Developer Platform API. Server-side only — never bundle into client-side/browser code."
 readme = "README.md"
 license = "MIT"
@@ -59,6 +59,11 @@ select = ["E", "F", "I", "UP", "B"]
 # file to that method instead of the builtin. `typing.List` sidesteps it.
 "src/personaai/resources/knowledge.py" = ["UP006", "UP035"]
 "src/personaai/resources/providers.py" = ["UP006", "UP035"]
+"src/personaai/resources/agents.py" = ["UP006", "UP035"]
+"src/personaai/resources/skills.py" = ["UP006", "UP035"]
+"src/personaai/resources/mcp.py" = ["UP006", "UP035"]
+"src/personaai/resources/threads.py" = ["UP006", "UP035"]
+"src/personaai/resources/files.py" = ["UP006", "UP035"]
 
 [tool.mypy]
 # mypy 2.x can no longer type-check against a 3.9 target (min supported is

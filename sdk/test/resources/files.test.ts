@@ -94,4 +94,21 @@ describe('FilesResource', () => {
     expect(url).toBe('https://api.example.com/api/v1/developer/files/f1');
     expect(init.method).toBe('DELETE');
   });
+
+  it('bulkDelete() POSTs { ids } to the bulk-delete sub-route and returns { deleted, failed }', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({
+        success: true,
+        data: { deleted: ['f1'], failed: [{ id: 'f2', reason: 'File not found' }] },
+      })
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    const result = await client.files.bulkDelete(['f1', 'f2']);
+    expect(result).toEqual({ deleted: ['f1'], failed: [{ id: 'f2', reason: 'File not found' }] });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.example.com/api/v1/developer/files/bulk-delete');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({ ids: ['f1', 'f2'] });
+  });
 });

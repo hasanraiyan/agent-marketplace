@@ -6,6 +6,7 @@ import type {
   UpdateSkillInput,
 } from '../types/skill.js';
 import type { ResourceUsage } from '../types/usage.js';
+import type { BulkDeleteResult } from '../types/bulkDelete.js';
 
 /**
  * Skills (`/api/v1/developer/skills`) — Project-owned or, when this client
@@ -42,5 +43,12 @@ export class SkillsResource {
   /** Agents referencing this Skill — check before `delete()` to avoid a blocked-delete error. */
   async getUsage(skillId: string): Promise<ResourceUsage> {
     return this.http.request<ResourceUsage>('GET', `/api/v1/developer/skills/${skillId}/usage`);
+  }
+
+  /** Best-effort batch delete — up to 100 ids per call; partial failures don't throw. */
+  async bulkDelete(ids: string[]): Promise<BulkDeleteResult> {
+    return this.http.request<BulkDeleteResult>('POST', '/api/v1/developer/skills/bulk-delete', {
+      body: { ids },
+    });
   }
 }

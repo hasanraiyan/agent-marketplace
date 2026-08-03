@@ -192,6 +192,34 @@ describe('developerProvider.routes.js — mount integration', () => {
     );
   });
 
+  test('POST /bulk-delete reaches the controller and returns { deleted, failed }', async () => {
+    providerService.deleteProvider.mockImplementation(async (userId, id) => {
+      if (id === 'p2') throw new Error('Provider not found');
+      return true;
+    });
+
+    const res = await request(app)
+      .post('/api/v1/developer/providers/bulk-delete')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .send({ ids: ['p1', 'p2'] });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      success: true,
+      data: { deleted: ['p1'], failed: [{ id: 'p2', reason: expect.any(String) }] },
+    });
+  });
+
+  test('POST /bulk-delete 400s on an empty ids array, never reaching the controller', async () => {
+    const res = await request(app)
+      .post('/api/v1/developer/providers/bulk-delete')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .send({ ids: [] });
+
+    expect(res.status).toBe(400);
+    expect(providerService.deleteProvider).not.toHaveBeenCalled();
+  });
+
   test('POST /:providerId/test-connection reaches the controller', async () => {
     providerService.testConnection.mockResolvedValue({ success: true, message: 'ok' });
 

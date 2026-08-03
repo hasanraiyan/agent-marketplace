@@ -111,4 +111,21 @@ describe('ThreadsResource', () => {
     const [url] = fetchMock.mock.calls[0] as [string];
     expect(url).toBe('https://api.example.com/api/v1/developer/threads/t1/messages');
   });
+
+  it('bulkDelete() POSTs { ids } to the bulk-delete sub-route and returns { deleted, failed }', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({
+        success: true,
+        data: { deleted: ['t1'], failed: [{ id: 't2', reason: 'Thread not found' }] },
+      })
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    const result = await client.threads.bulkDelete(['t1', 't2']);
+    expect(result).toEqual({ deleted: ['t1'], failed: [{ id: 't2', reason: 'Thread not found' }] });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.example.com/api/v1/developer/threads/bulk-delete');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({ ids: ['t1', 't2'] });
+  });
 });

@@ -1,4 +1,5 @@
 import skillService from '../skills/skill.service.js';
+import { bulkDelete } from '../../utils/bulkDelete.js';
 
 /**
  * Developer Platform Skill CRUD (blueprint Phase 9, PR-29, AD-07 §18 —
@@ -107,6 +108,17 @@ class DeveloperSkillController {
     try {
       await skillService.deleteSkill(req.params.skillId, undefined, req.projectContext);
       res.json({ success: true, message: 'Skill deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async bulkDelete(req, res, next) {
+    try {
+      const result = await bulkDelete(req.body.ids, (id) =>
+        skillService.deleteSkill(id, undefined, req.projectContext)
+      );
+      res.json({ success: true, data: result });
     } catch (error) {
       next(error);
     }

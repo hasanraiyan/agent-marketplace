@@ -2,6 +2,7 @@ import express from 'express';
 import developerMachineAuthMiddleware from '../auth/developerMachineAuth.middleware.js';
 import { validateBody } from '../../middlewares/validationMiddleware.js';
 import { createSkillSchema, updateSkillSchema } from '../skills/skill.validator.js';
+import { bulkDeleteSchema } from '../../utils/validators/bulkDeleteSchema.js';
 import developerSkillController from './developerSkill.controller.js';
 
 /**
@@ -135,5 +136,33 @@ router.delete('/:skillId', developerSkillController.remove);
  *       404: { description: Skill not found or unauthorized }
  */
 router.get('/:skillId/usage', developerSkillController.getUsage);
+
+/**
+ * @openapi
+ * /api/v1/developer/skills/bulk-delete:
+ *   post:
+ *     tags: [Developer]
+ *     summary: Delete multiple Skills in one call
+ *     description: >
+ *       Best-effort batch delete — one blocked/not-found id doesn't abort
+ *       the rest. Up to 100 ids per request.
+ *     security: [{ projectCredential: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [ids]
+ *             properties:
+ *               ids:
+ *                 type: array
+ *                 items: { type: string }
+ *                 maxItems: 100
+ *     responses:
+ *       200: { description: "{ deleted: string[], failed: [{ id, reason }] }" }
+ *       400: { description: "ids missing, empty, or over 100 entries" }
+ */
+router.post('/bulk-delete', validateBody(bulkDeleteSchema), developerSkillController.bulkDelete);
 
 export default router;
