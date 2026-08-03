@@ -1,11 +1,18 @@
 """Providers (``/api/v1/developer/providers``) — Project-owned. Control-plane
-only: no ``ExternalUser`` ownership exists for Providers, and there's no
-list/discover endpoint (the API surface has none; this client mirrors it
-1:1). Ported from ``sdk/src/resources/providers.ts``."""
+only: no ``ExternalUser`` ownership exists for Providers. Ported from
+``sdk/src/resources/providers.ts``.
+
+Note: this class defines its own method named ``list``, which (combined
+with ``from __future__ import annotations``) makes bare ``list[X]``
+annotations elsewhere in this file resolve to that method instead of the
+builtin under mypy's forward-ref resolution. ``typing.List`` sidesteps the
+collision — see the ``per-file-ignores`` entry for this file in
+``pyproject.toml``.
+"""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, List, cast
 
 from ..types.provider import (
     CreateProviderInput,
@@ -28,6 +35,14 @@ class Providers:
         return cast(
             Provider, self._transport.request("POST", "/api/v1/developer/providers", json=input)
         )
+
+    def list(self) -> List[Provider]:
+        """Every Provider in this credential's Domain. No pagination
+        envelope, no ``page``/``limit``/``search`` params — Providers have
+        no discovery concept, so this is a plain bare-list Domain-scoped
+        list, same result whether this client asserts an external user or
+        not."""
+        return cast(List[Provider], self._transport.request("GET", "/api/v1/developer/providers"))
 
     def get(self, provider_id: str) -> Provider:
         return cast(
@@ -53,9 +68,9 @@ class Providers:
             ),
         )
 
-    def get_models(self, provider_id: str) -> list[ProviderModel]:
+    def get_models(self, provider_id: str) -> List[ProviderModel]:
         return cast(
-            list[ProviderModel],
+            List[ProviderModel],
             self._transport.request("GET", f"/api/v1/developer/providers/{provider_id}/models"),
         )
 
@@ -68,6 +83,16 @@ class AsyncProviders:
         return cast(
             Provider,
             await self._transport.request("POST", "/api/v1/developer/providers", json=input),
+        )
+
+    async def list(self) -> List[Provider]:
+        """Every Provider in this credential's Domain. No pagination
+        envelope, no ``page``/``limit``/``search`` params — Providers have
+        no discovery concept, so this is a plain bare-list Domain-scoped
+        list, same result whether this client asserts an external user or
+        not."""
+        return cast(
+            List[Provider], await self._transport.request("GET", "/api/v1/developer/providers")
         )
 
     async def get(self, provider_id: str) -> Provider:
@@ -95,9 +120,9 @@ class AsyncProviders:
             ),
         )
 
-    async def get_models(self, provider_id: str) -> list[ProviderModel]:
+    async def get_models(self, provider_id: str) -> List[ProviderModel]:
         return cast(
-            list[ProviderModel],
+            List[ProviderModel],
             await self._transport.request(
                 "GET", f"/api/v1/developer/providers/{provider_id}/models"
             ),

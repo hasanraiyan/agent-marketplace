@@ -242,6 +242,8 @@ over:
   `agents.list()`, `knowledge.list()`, `mcps.list()`, `threads.list()`, `files.list()`) returns a
   plain list, not `{items, pagination}` — despite accepting `page`/`limit` params. Fetch a page,
   check the returned list's length against `limit` to infer whether there's more.
+  `providers.list()` is the same bare-list shape but takes no params at all — Providers have no
+  discovery concept, so there's nothing to page or filter by.
 
 All resource types are `TypedDict`s — plain `dict`s at runtime, typed purely for editor/type-
 checker support (`mypy`/`pyright`). Request bodies keep the API's own camelCase field names
@@ -250,12 +252,14 @@ checker support (`mypy`/`pyright`). Request bodies keep the API's own camelCase 
 
 ### Providers
 
-Control-plane only — there is no list/discover endpoint for Providers, and no `ExternalUser`
-ownership concept (an end user can never own a Provider).
+Control-plane only — no `ExternalUser` ownership concept (an end user can never own a Provider).
+`list()` has no pagination envelope, no `page`/`limit`/`search` params — Providers have no
+discovery concept, so it's a plain bare-list Domain-scoped list.
 
 | Method                                   | Wraps                                  | Returns                             |
 | ---------------------------------------- | -------------------------------------- | ----------------------------------- |
 | `providers.create(input)`                | `POST /providers`                      | `Provider`                          |
+| `providers.list()`                       | `GET /providers`                       | `list[Provider]`                    |
 | `providers.get(provider_id)`             | `GET /providers/{id}`                  | `Provider`                          |
 | `providers.update(provider_id, input)`   | `PATCH /providers/{id}`                | `Provider`                          |
 | `providers.delete(provider_id)`          | `DELETE /providers/{id}`               | `None`                              |
@@ -273,6 +277,7 @@ provider = persona.providers.create(
     }
 )
 
+mine = persona.providers.list()
 result = persona.providers.test_connection(provider["id"])
 models = persona.providers.get_models(provider["id"])
 ```

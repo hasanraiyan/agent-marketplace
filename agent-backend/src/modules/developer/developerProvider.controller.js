@@ -34,6 +34,25 @@ import providerService from '../providers/provider.service.js';
  * every other Developer runtime endpoint added this pass.
  */
 class DeveloperProviderController {
+  /**
+   * Lists every Provider in this credential's Domain — reuses
+   * `listProvidersForProject`, previously only called from Developer
+   * Studio's `ProjectAdminContext` path. That method only ever reads
+   * `context.domain`, which every context type carries, so it's a
+   * genuinely safe reuse rather than a widened-authorization risk: no
+   * per-user scoping exists for Providers anyway (AD-06 §21), so a
+   * `ProjectMachineContext` and a `ProjectRuntimeContext` see the exact
+   * same list.
+   */
+  async list(req, res, next) {
+    try {
+      const providers = await providerService.listProvidersForProject(req.projectContext);
+      res.json({ success: true, data: providers });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async testConnection(req, res, next) {
     try {
       const result = await providerService.testConnection(

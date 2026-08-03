@@ -9,15 +9,23 @@ import type {
 
 /**
  * Providers this Project owns (`/api/v1/developer/providers`). Control-plane
- * only — no `ExternalUser` ownership exists for Providers, and there is no
- * list/discover endpoint (the API surface has none; this client mirrors it
- * 1:1).
+ * only — no `ExternalUser` ownership exists for Providers.
  */
 export class ProvidersResource {
   constructor(private readonly http: HttpClient) {}
 
   async create(input: CreateProviderInput): Promise<Provider> {
     return this.http.request<Provider>('POST', '/api/v1/developer/providers', { body: input });
+  }
+
+  /**
+   * Every Provider in this credential's Domain. No pagination envelope, no
+   * `page`/`limit`/`search` params — Providers have no discovery concept
+   * (control-plane only), so this is a plain bare-array list, same result
+   * whether this client asserts an external user or not.
+   */
+  async list(): Promise<Provider[]> {
+    return this.http.request<Provider[]>('GET', '/api/v1/developer/providers');
   }
 
   async get(providerId: string): Promise<Provider> {

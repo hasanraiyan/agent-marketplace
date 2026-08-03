@@ -25,6 +25,7 @@ jest.unstable_mockModule('../src/modules/providers/provider.service.js', () => (
     deleteProvider: jest.fn(),
     testConnection: jest.fn(),
     getAvailableModels: jest.fn(),
+    listProvidersForProject: jest.fn(),
   },
 }));
 
@@ -67,6 +68,27 @@ describe('developerProvider.routes.js — mount integration', () => {
 
     expect(res.status).toBe(401);
     expect(providerService.createProvider).not.toHaveBeenCalled();
+  });
+
+  test('GET / 401s without a Project credential', async () => {
+    const res = await request(app).get('/api/v1/developer/providers');
+
+    expect(res.status).toBe(401);
+    expect(providerService.listProvidersForProject).not.toHaveBeenCalled();
+  });
+
+  test('GET / lists every Provider in the Domain for a valid credential', async () => {
+    providerService.listProvidersForProject.mockResolvedValue([{ id: 'p1' }, { id: 'p2' }]);
+
+    const res = await request(app)
+      .get('/api/v1/developer/providers')
+      .set('Authorization', 'Bearer pk_test.secret');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ success: true, data: [{ id: 'p1' }, { id: 'p2' }] });
+    expect(providerService.listProvidersForProject).toHaveBeenCalledWith(
+      expect.objectContaining({ domain: 'project-1', principalType: 'ProjectMachine' })
+    );
   });
 
   test('400s on an invalid body (baseURL is not a valid URL)', async () => {

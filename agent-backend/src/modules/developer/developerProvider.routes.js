@@ -37,6 +37,23 @@ router.post('/', validateBody(createProviderSchema), developerProviderController
 
 /**
  * @openapi
+ * /api/v1/developer/providers:
+ *   get:
+ *     tags: [Developer]
+ *     summary: List every Provider in this credential's Domain
+ *     description: >
+ *       No pagination envelope, no `page`/`limit`/`search` params — Providers
+ *       have no discovery concept (control-plane only, AD-06 §21), so this
+ *       is a plain bare-array Domain-scoped list, same result for a
+ *       ProjectMachineContext or ProjectRuntimeContext credential.
+ *     security: [{ projectCredential: [] }]
+ *     responses:
+ *       200: { description: Array of Providers in this Domain }
+ */
+router.get('/', developerProviderController.list);
+
+/**
+ * @openapi
  * /api/v1/developer/providers/{providerId}:
  *   get:
  *     tags: [Developer]
