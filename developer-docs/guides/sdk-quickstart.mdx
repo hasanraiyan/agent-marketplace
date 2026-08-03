@@ -494,6 +494,7 @@ EXTERNAL_USER_REQUIRED` `PersonaValidationError`.
 const thread = await userClient.threads.create({ agentId: agent._id });
 const mine = await userClient.threads.list({ page: 1, limit: 20 });
 await userClient.threads.updateTitle(thread._id, "Summer internship search");
+await userClient.threads.update(thread._id, { isArchived: true }); // archive without touching the title
 const { messages, state } = await userClient.threads.getMessages(thread._id);
 await userClient.threads.delete(thread._id);
 ```
@@ -503,9 +504,14 @@ await userClient.threads.delete(thread._id);
 | `threads.create(input)`                | `POST /threads`              | `Thread`         |
 | `threads.list(params?)`                | `GET /threads`               | `Thread[]`       |
 | `threads.get(threadId)`                | `GET /threads/{id}`          | `Thread`         |
+| `threads.update(threadId, input)`      | `PATCH /threads/{id}`        | `Thread`         |
 | `threads.updateTitle(threadId, title)` | `PATCH /threads/{id}`        | `Thread`         |
 | `threads.delete(threadId)`             | `DELETE /threads/{id}`       | `void`           |
 | `threads.getMessages(threadId)`        | `GET /threads/{id}/messages` | `ThreadMessages` |
+
+`update()` is the general form — `{ title?, isArchived? }`, both optional, send just the one you
+want to change. `updateTitle(threadId, title)` is a convenience wrapper over `update()` for the
+common title-only case; both still work.
 
 `Thread.agentId` is populated as `{ _id, name, avatar?, slug }` on `list()`, but a bare id string on
 `create()`/`get()` — check which call produced the value before assuming a shape.

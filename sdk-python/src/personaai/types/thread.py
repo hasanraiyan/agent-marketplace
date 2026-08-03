@@ -41,6 +41,11 @@ class CreateThreadInput(TypedDict):
     agentId: str
 
 
+class UpdateThreadInput(TypedDict, total=False):
+    title: str
+    isArchived: bool
+
+
 class ListThreadsParams(TypedDict, total=False):
     page: int
     limit: int

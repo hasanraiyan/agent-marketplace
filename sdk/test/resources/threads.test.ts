@@ -83,6 +83,20 @@ describe('ThreadsResource', () => {
     expect(deleteInit.method).toBe('DELETE');
   });
 
+  it('update() sends isArchived without requiring a title', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ success: true, data: { _id: 't1', isArchived: true } })
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    const result = await client.threads.update('t1', { isArchived: true });
+    expect(result.isArchived).toBe(true);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.example.com/api/v1/developer/threads/t1');
+    expect(init.method).toBe('PATCH');
+    expect(init.body).toBe(JSON.stringify({ isArchived: true }));
+  });
+
   it('getMessages() returns { messages, state, subagentTraces }', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       jsonResponse({

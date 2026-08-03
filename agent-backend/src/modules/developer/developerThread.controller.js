@@ -94,13 +94,17 @@ class DeveloperThreadController {
     }
   }
 
-  async updateTitle(req, res, next) {
+  async update(req, res, next) {
     try {
-      const { title } = req.body;
-      const updated = await threadService.updateThreadTitle(
+      const { title, isArchived } = req.body;
+      const updates = {};
+      if (title !== undefined) updates.title = title;
+      if (isArchived !== undefined) updates.isArchived = isArchived;
+
+      const updated = await threadService.updateThread(
         req.params.threadId,
         undefined,
-        title,
+        updates,
         req.projectContext
       );
       res.json({ success: true, data: updated });

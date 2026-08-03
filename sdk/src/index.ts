@@ -66,6 +66,7 @@ export { ThreadsResource } from './resources/threads.js';
 export type {
   Thread,
   CreateThreadInput,
+  UpdateThreadInput,
   ListThreadsParams,
   ThreadMessages,
 } from './types/thread.js';

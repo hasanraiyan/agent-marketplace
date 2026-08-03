@@ -21,6 +21,7 @@ jest.unstable_mockModule('../src/modules/threads/thread.service.js', () => ({
     getThreadById: jest.fn(),
     getThreadsForSubject: jest.fn(),
     updateThreadTitle: jest.fn(),
+    updateThread: jest.fn(),
     deleteThread: jest.fn(),
   },
 }));
@@ -128,18 +129,48 @@ describe('Developer Thread Controller', () => {
     });
   });
 
-  describe('updateTitle', () => {
-    test('updates via threadService.updateThreadTitle, forwarding req.projectContext', async () => {
+  describe('update', () => {
+    test('updates title only via threadService.updateThread', async () => {
       mockReq.params = { threadId: 't1' };
       mockReq.body = { title: 'New Title' };
-      threadService.updateThreadTitle.mockResolvedValue({ _id: 't1' });
+      threadService.updateThread.mockResolvedValue({ _id: 't1' });
 
-      await developerThreadController.updateTitle(mockReq, mockRes, next);
+      await developerThreadController.update(mockReq, mockRes, next);
 
-      expect(threadService.updateThreadTitle).toHaveBeenCalledWith(
+      expect(threadService.updateThread).toHaveBeenCalledWith(
         't1',
         undefined,
-        'New Title',
+        { title: 'New Title' },
+        runtimeContext
+      );
+    });
+
+    test('updates isArchived only via threadService.updateThread', async () => {
+      mockReq.params = { threadId: 't1' };
+      mockReq.body = { isArchived: true };
+      threadService.updateThread.mockResolvedValue({ _id: 't1', isArchived: true });
+
+      await developerThreadController.update(mockReq, mockRes, next);
+
+      expect(threadService.updateThread).toHaveBeenCalledWith(
+        't1',
+        undefined,
+        { isArchived: true },
+        runtimeContext
+      );
+    });
+
+    test('updates both title and isArchived together', async () => {
+      mockReq.params = { threadId: 't1' };
+      mockReq.body = { title: 'New Title', isArchived: false };
+      threadService.updateThread.mockResolvedValue({ _id: 't1' });
+
+      await developerThreadController.update(mockReq, mockRes, next);
+
+      expect(threadService.updateThread).toHaveBeenCalledWith(
+        't1',
+        undefined,
+        { title: 'New Title', isArchived: false },
         runtimeContext
       );
     });
@@ -147,9 +178,9 @@ describe('Developer Thread Controller', () => {
     test('collapses "Thread not found" to a 404', async () => {
       mockReq.params = { threadId: 't1' };
       mockReq.body = { title: 'New Title' };
-      threadService.updateThreadTitle.mockRejectedValue(new Error('Thread not found'));
+      threadService.updateThread.mockRejectedValue(new Error('Thread not found'));
 
-      await developerThreadController.updateTitle(mockReq, mockRes, next);
+      await developerThreadController.update(mockReq, mockRes, next);
 
       expect(mockRes.status).toHaveBeenCalledWith(404);
     });

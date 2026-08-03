@@ -484,7 +484,8 @@
       },
       "patch": {
         "tags": ["Developer"],
-        "summary": "Update a Thread's title (Subject only)",
+        "summary": "Update a Thread's title and/or archived status (Subject only)",
+        "description": "Both fields are optional — send just `{ isArchived: true }` to archive a Thread without touching its title, or just `{ title }` to rename it, or both together.\n",
         "security": [
           {
             "projectCredential": []
@@ -500,6 +501,24 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "isArchived": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Updated Thread"

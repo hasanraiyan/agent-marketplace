@@ -4,6 +4,7 @@ import type {
   ListThreadsParams,
   Thread,
   ThreadMessages,
+  UpdateThreadInput,
 } from '../types/thread.js';
 
 /**
@@ -31,10 +32,17 @@ export class ThreadsResource {
     return this.http.request<Thread>('GET', `/api/v1/developer/threads/${threadId}`);
   }
 
-  async updateTitle(threadId: string, title: string): Promise<Thread> {
+  /** General-purpose update — `{ title?, isArchived? }`. Send just `{ isArchived: true }` to
+   * archive a Thread without touching its title. */
+  async update(threadId: string, input: UpdateThreadInput): Promise<Thread> {
     return this.http.request<Thread>('PATCH', `/api/v1/developer/threads/${threadId}`, {
-      body: { title },
+      body: input,
     });
+  }
+
+  /** Convenience wrapper over `update()` for the common title-only case. */
+  async updateTitle(threadId: string, title: string): Promise<Thread> {
+    return this.update(threadId, { title });
   }
 
   async delete(threadId: string): Promise<void> {
