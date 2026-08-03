@@ -23,13 +23,21 @@ complete method-by-method reference of the client surface.
 
 ## Install
 
+```bash
+pip install persona-agent-sdk
+```
+
 <Note>
-  **Public PyPI package coming soon.** Once published, install with `pip install
-  persona-agent-sdk` — note the PyPI name is `persona-agent-sdk` (`personaai`
-  was already too close to an unrelated existing PyPI project's name), but it's
-  still imported as `personaai` in code: `from personaai import PersonaClient`.
-  Until published, build it locally from source:
+  Installed under the PyPI name `persona-agent-sdk` (`personaai` was already too
+  close to an unrelated existing PyPI project's name) but imported as
+  `personaai` in code — `from personaai import PersonaClient`.
 </Note>
+
+Requires Python 3.9+. Depends on [`httpx`](https://www.python-httpx.org/) only — no `requests`, no
+`aiohttp`, and no separate AG-UI protocol package (see [Chat, streamed](#chat-streamed) for why).
+
+If you're iterating on the SDK's own source instead of consuming the published package, build it
+locally and point another project at the folder directly:
 
 ```bash
 git clone https://github.com/hasanraiyan/agent-marketplace.git
@@ -38,20 +46,9 @@ python -m venv .venv
 .venv/Scripts/pip install .   # .venv/bin/pip on macOS/Linux
 ```
 
-Or install it editable into another local project you're working on:
-
 ```bash
 pip install -e /path/to/agent-marketplace/sdk-python
 ```
-
-Once published, installing will be the usual one-liner:
-
-```bash
-pip install persona-agent-sdk
-```
-
-Requires Python 3.9+. Depends on [`httpx`](https://www.python-httpx.org/) only — no `requests`, no
-`aiohttp`, and no separate AG-UI protocol package (see [Chat, streamed](#chat-streamed) for why).
 
 ## Configuration
 
