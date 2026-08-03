@@ -43,9 +43,11 @@ router.post('/', validateBody(createProviderSchema), developerProviderController
  *     summary: List every Provider in this credential's Domain
  *     description: >
  *       No pagination envelope, no `page`/`limit`/`search` params — Providers
- *       have no discovery concept (control-plane only, AD-06 §21), so this
- *       is a plain bare-array Domain-scoped list, same result for a
- *       ProjectMachineContext or ProjectRuntimeContext credential.
+ *       have no discovery concept (control-plane only, AD-06 §21). Returns
+ *       an empty array for a ProjectRuntimeContext credential (external user
+ *       asserted) — Providers can never be ExternalUser-owned, so nothing in
+ *       this list would be individually fetchable by that same credential
+ *       anyway; only a ProjectMachineContext credential sees the real list.
  *     security: [{ projectCredential: [] }]
  *     responses:
  *       200: { description: Array of Providers in this Domain }

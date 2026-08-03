@@ -49,13 +49,13 @@ describe('Developer Provider Controller', () => {
       });
     });
 
-    test('forwards a ProjectRuntimeContext through unchanged — same list either way', async () => {
+    test('short-circuits a ProjectRuntimeContext to an empty list, never calling the service', async () => {
       mockReq.projectContext = runtimeContext;
-      providerService.listProvidersForProject.mockResolvedValue([]);
 
       await developerProviderController.list(mockReq, mockRes, next);
 
-      expect(providerService.listProvidersForProject).toHaveBeenCalledWith(runtimeContext);
+      expect(providerService.listProvidersForProject).not.toHaveBeenCalled();
+      expect(mockRes.json).toHaveBeenCalledWith({ success: true, data: [] });
     });
 
     test('passes a thrown error to next()', async () => {

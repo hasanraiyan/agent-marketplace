@@ -91,6 +91,17 @@ describe('developerProvider.routes.js — mount integration', () => {
     );
   });
 
+  test('GET / returns an empty list for a ProjectRuntimeContext, never calling the service', async () => {
+    const res = await request(app)
+      .get('/api/v1/developer/providers')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('x-persona-external-user-id', 'sabik');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ success: true, data: [] });
+    expect(providerService.listProvidersForProject).not.toHaveBeenCalled();
+  });
+
   test('400s on an invalid body (baseURL is not a valid URL)', async () => {
     const res = await request(app)
       .post('/api/v1/developer/providers')
