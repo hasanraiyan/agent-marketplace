@@ -7,6 +7,7 @@ export { EventType };
 
 export interface ChatMessageInput {
   role: 'user' | 'assistant';
+  /** Plain text — this SDK doesn't yet support multi-part/multimodal content on the way in. */
   content: string;
 }
 

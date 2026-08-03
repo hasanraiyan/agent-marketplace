@@ -21,6 +21,14 @@ export class ChatClient {
    * Streams the raw AG-UI event sequence for a run — full control for
    * callers building their own UI (text deltas, tool calls, reasoning,
    * custom events) rather than just the final text.
+   * @param agentId - The Agent to run.
+   * @param options.messages - The conversation turn(s) to send.
+   * @param options.threadId - Resumes a named Thread (from `threads.create()`)
+   *   instead of the implicit deterministic one.
+   * @param options.resume - Answers a pending interrupt from a previous run
+   *   (see {@link ChatInterrupt}); omit for a fresh message.
+   * @param options.signal - Aborts the underlying request/stream.
+   * @yields Each raw {@link AguiEvent} as it arrives.
    */
   async *stream(agentId: string, options: SendMessageOptions): AsyncGenerator<AguiEvent> {
     const headers: Record<string, string> = { 'x-agent-id': agentId };
@@ -39,6 +47,18 @@ export class ChatClient {
    * Convenience wrapper over `stream()`: drains the full run and returns
    * the assembled assistant text, plus a `ChatInterrupt` if the run paused
    * on a human-in-the-loop decision instead of finishing normally.
+   * @param agentId - The Agent to run.
+   * @param options - Same shape as {@link ChatClient.stream}'s `options`.
+   * @returns `{ text, interrupt?, events }` — `interrupt` is set instead of
+   *   the run finishing normally when a human-in-the-loop decision is
+   *   pending; resume it by calling this again with `options.resume` set.
+   * @example
+   * ```ts
+   * const result = await client.chat.sendMessage(agentId, {
+   *   messages: [{ role: 'user', content: 'Hello!' }],
+   * });
+   * console.log(result.text);
+   * ```
    */
   async sendMessage(agentId: string, options: SendMessageOptions): Promise<ChatResult> {
     let text = '';

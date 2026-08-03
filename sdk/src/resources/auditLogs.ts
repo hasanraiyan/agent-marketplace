@@ -12,6 +12,16 @@ import type { PaginatedResult } from '../types/pagination.js';
 export class AuditLogsResource {
   constructor(private readonly http: HttpClient) {}
 
+  /**
+   * Lists Project-lifecycle audit events for this credential's Domain
+   * (credential minted/revoked, membership changes, suspend/restore) —
+   * NOT resource CRUD (Agent/Skill/Knowledge/Provider/MCP create/update/
+   * delete aren't logged here yet).
+   * @param params - `page` (default `1`), `limit` (default `20`), optional
+   *   exact-match `eventType` filter.
+   * @returns `{ items, pagination: { total, page, limit, pages} }` — empty
+   *   (not an error) when called from a `ProjectRuntimeContext` client.
+   */
   async list(params: ListAuditLogsParams = {}): Promise<PaginatedResult<AuditLogEntry>> {
     return this.http.request<PaginatedResult<AuditLogEntry>>(
       'GET',

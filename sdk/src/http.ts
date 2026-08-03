@@ -92,6 +92,19 @@ export class HttpClient {
     return headers;
   }
 
+  /**
+   * Low-level escape hatch — every resource method is a thin wrapper over
+   * this. Prefer the typed resource methods (`client.agents.create()` etc.)
+   * unless you're calling an endpoint this SDK doesn't wrap yet.
+   * @param method - HTTP method.
+   * @param path - Path relative to `baseUrl`, e.g. `/api/v1/developer/agents`.
+   * @param options - `query` params (undefined values are omitted), `body`
+   *   (plain object is JSON-serialized, `FormData` sent as multipart),
+   *   extra `headers`, and an optional `signal` for cancellation.
+   * @returns The parsed `data` field from the API's `{success, data}`
+   *   envelope. Throws {@link PersonaApiError} (or a subclass) on any
+   *   non-2xx or `{success:false}` response.
+   */
   async request<T>(
     method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE',
     path: string,

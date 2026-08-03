@@ -3,6 +3,12 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.2.3
+
+Docs-only release — every resource method and exported type now has full JSDoc (`@param`,
+`@returns`, defaults, `@example` where useful), so your editor's hover/autocomplete shows what to
+pass without needing to check the guide. No behavior or API surface changes.
+
 ## 0.2.2
 
 Added a new top-level `auditLogs` resource — `persona.auditLogs.list(params?)` — read-only,

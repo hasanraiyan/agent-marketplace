@@ -21,6 +21,12 @@ import type { PaginatedResult } from '../types/pagination.js';
 export class McpOAuthResource {
   constructor(private readonly http: HttpClient) {}
 
+  /**
+   * Gets the URL to redirect the Project owner/admin to, to complete the
+   * shared owner-mode OAuth connection for this MCP server.
+   * @param mcpId - The MCP server's `_id`.
+   * @returns `{ url }` — redirect the owner's browser here.
+   */
   async getOwnerAuthorizeUrl(mcpId: string): Promise<{ url: string }> {
     return this.http.request<{ url: string }>(
       'GET',
@@ -28,7 +34,13 @@ export class McpOAuthResource {
     );
   }
 
-  /** `returnTo` is an optional client-chosen redirect target after the flow completes. */
+  /**
+   * Gets the URL to redirect the asserted external user to, to complete
+   * their own per-user OAuth connection for this MCP server.
+   * @param mcpId - The MCP server's `_id`.
+   * @param returnTo - Optional client-chosen redirect target after the flow completes.
+   * @returns `{ url }` — redirect the end user's browser here.
+   */
   async getUserAuthorizeUrl(mcpId: string, returnTo?: string): Promise<{ url: string }> {
     return this.http.request<{ url: string }>(
       'GET',
@@ -37,6 +49,11 @@ export class McpOAuthResource {
     );
   }
 
+  /**
+   * Checks whether the asserted external user has completed their own
+   * per-user OAuth connection for this MCP server.
+   * @param mcpId - The MCP server's `_id`.
+   */
   async getUserConnectionStatus(mcpId: string): Promise<McpUserConnectionStatus> {
     return this.http.request<McpUserConnectionStatus>(
       'GET',
@@ -44,6 +61,11 @@ export class McpOAuthResource {
     );
   }
 
+  /**
+   * Revokes the asserted external user's own per-user OAuth connection for
+   * this MCP server.
+   * @param mcpId - The MCP server's `_id`.
+   */
   async disconnectUserConnection(mcpId: string): Promise<void> {
     await this.http.request<unknown>(
       'DELETE',
@@ -51,6 +73,10 @@ export class McpOAuthResource {
     );
   }
 
+  /**
+   * Revokes the shared owner-mode OAuth connection for this MCP server.
+   * @param mcpId - The MCP server's `_id`.
+   */
   async disconnectOwnerConnection(mcpId: string): Promise<void> {
     await this.http.request<unknown>(
       'DELETE',
@@ -64,6 +90,7 @@ export class McpOAuthResource {
  * client asserts an external user, owned by that end user.
  */
 export class McpsResource {
+  /** OAuth connect/disconnect/status calls for MCP servers — see {@link McpOAuthResource}. */
   readonly oauth: McpOAuthResource;
 
   constructor(private readonly http: HttpClient) {
@@ -71,9 +98,13 @@ export class McpsResource {
   }
 
   /**
-   * `idempotencyKey`, if provided, is sent as the `Idempotency-Key` header —
-   * a safe retry with the same key replays the original response instead
-   * of creating a duplicate MCP server.
+   * Registers a new MCP server connection.
+   * @param input - `name`, `transport`, `url` are required; set `authType`/
+   *   `authMode`/`oauth`/`apiKey` if the server needs authentication.
+   * @param idempotencyKey - Optional. Sent as the `Idempotency-Key` header —
+   *   a safe retry with the same key replays the original response instead
+   *   of creating a duplicate MCP server.
+   * @returns The created {@link Mcp} (raw Mongo shape — `_id`, not `id`).
    */
   async create(input: CreateMcpInput, idempotencyKey?: string): Promise<Mcp> {
     return this.http.request<Mcp>('POST', '/api/v1/developer/mcps', {
@@ -82,37 +113,73 @@ export class McpsResource {
     });
   }
 
+  /**
+   * Lists/searches MCP servers visible to this credential (this Project's
+   * own, plus any public ones).
+   * @param params - `page` (default `1`), `limit` (default `20`), `search`
+   *   (free-text), `scope: 'mine'` (restricts to the asserted external
+   *   user's own MCPs — `ProjectRuntimeContext` only).
+   * @returns `{ items, pagination: { total, page, limit, pages } }`.
+   */
   async list(params: DiscoverMcpsParams = {}): Promise<PaginatedResult<Mcp>> {
     return this.http.request<PaginatedResult<Mcp>>('GET', '/api/v1/developer/mcps', {
       query: { ...params },
     });
   }
 
+  /**
+   * Fetches a single MCP server by id.
+   * @param mcpId - The MCP server's `_id`.
+   */
   async get(mcpId: string): Promise<Mcp> {
     return this.http.request<Mcp>('GET', `/api/v1/developer/mcps/${mcpId}`);
   }
 
+  /**
+   * Partially updates an MCP server — only the fields you pass are changed.
+   * @param mcpId - The MCP server's `_id`.
+   */
   async update(mcpId: string, input: UpdateMcpInput): Promise<Mcp> {
     return this.http.request<Mcp>('PATCH', `/api/v1/developer/mcps/${mcpId}`, { body: input });
   }
 
+  /**
+   * Deletes an MCP server. Rejects with `PersonaApiError` if any Agent
+   * still references it — call {@link McpsResource.getUsage} first to check.
+   * @param mcpId - The MCP server's `_id`.
+   */
   async delete(mcpId: string): Promise<void> {
     await this.http.request<unknown>('DELETE', `/api/v1/developer/mcps/${mcpId}`);
   }
 
-  /** Agents referencing this MCP — check before `delete()` to avoid a blocked-delete error. */
+  /**
+   * Agents referencing this MCP — check before {@link McpsResource.delete}
+   * to avoid a blocked-delete error.
+   * @param mcpId - The MCP server's `_id`.
+   * @returns `agentCount` is the real total; `agents` is a preview capped at 20.
+   */
   async getUsage(mcpId: string): Promise<ResourceUsage> {
     return this.http.request<ResourceUsage>('GET', `/api/v1/developer/mcps/${mcpId}/usage`);
   }
 
-  /** Best-effort batch delete — up to 100 ids per call; partial failures don't throw. */
+  /**
+   * Best-effort batch delete — partial failures (e.g. an MCP server still
+   * referenced by an Agent) don't throw or abort the rest of the batch.
+   * @param ids - Up to 100 MCP server ids per call.
+   * @returns `{ deleted, failed }` — check `failed` for per-id reasons.
+   */
   async bulkDelete(ids: string[]): Promise<BulkDeleteResult> {
     return this.http.request<BulkDeleteResult>('POST', '/api/v1/developer/mcps/bulk-delete', {
       body: { ids },
     });
   }
 
-  /** Connects, lists tools/resources/templates, and persists the summary onto the MCP document. */
+  /**
+   * Connects to the MCP server right now, lists its tools/resources/
+   * resource templates, and persists that summary onto the stored MCP
+   * document (so `get()`/`list()` reflect it afterward).
+   * @param mcpId - The MCP server's `_id`.
+   */
   async testConnection(mcpId: string): Promise<McpTestConnectionResult> {
     return this.http.request<McpTestConnectionResult>(
       'POST',
@@ -120,6 +187,11 @@ export class McpsResource {
     );
   }
 
+  /**
+   * Reads one MCP resource by URI (as opposed to calling a tool).
+   * @param mcpId - The MCP server's `_id`.
+   * @param uri - A resource `uri`, from `mcp.resources`/`resourceTemplates` (after filling any template params).
+   */
   async readResource(mcpId: string, uri: string): Promise<McpReadResourceResult> {
     return this.http.request<McpReadResourceResult>(
       'GET',
@@ -128,7 +200,13 @@ export class McpsResource {
     );
   }
 
-  /** Return shape is whatever the underlying MCP tool returns — inherently dynamic. */
+  /**
+   * Invokes one tool exposed by this MCP server.
+   * @param mcpId - The MCP server's `_id`.
+   * @param name - Tool name, from `mcp.tools`.
+   * @param args - Arguments matching that tool's own input schema.
+   * @returns Return shape is whatever the underlying MCP tool returns — inherently dynamic.
+   */
   async callTool(mcpId: string, name: string, args?: Record<string, unknown>): Promise<unknown> {
     return this.http.request<unknown>('POST', `/api/v1/developer/mcps/${mcpId}/call-tool`, {
       body: { name, arguments: args },

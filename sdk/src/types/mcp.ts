@@ -1,5 +1,6 @@
 export type McpTransport = 'http' | 'sse';
 export type McpAuthType = 'none' | 'oauth' | 'apiKey';
+/** `owner`: one shared connection for the whole Project. `user`: each external user connects their own. */
 export type McpAuthMode = 'owner' | 'user';
 
 export interface McpTool {
@@ -14,6 +15,7 @@ export interface McpResourceSummary {
   mimeType: string;
 }
 
+/** A resource whose `uri` has placeholder params to fill before calling `readResource()`. */
 export interface McpResourceTemplate {
   uriTemplate: string;
   name: string;
@@ -54,8 +56,11 @@ export interface Mcp {
   hasApiKey: boolean;
   oauth?: McpOAuthConfig;
   isEnabled: boolean;
+  /** Populated by `testConnection()`; empty until it's been called at least once. */
   tools: McpTool[];
+  /** Populated by `testConnection()`; empty until it's been called at least once. */
   resources: McpResourceSummary[];
+  /** Populated by `testConnection()`; empty until it's been called at least once. */
   resourceTemplates: McpResourceTemplate[];
   createdAt: string;
   updatedAt: string;
@@ -72,16 +77,21 @@ export interface CreateMcpInput {
   transport: McpTransport;
   url: string;
   description?: string;
+  /** @default 'none' */
   authType?: McpAuthType;
+  /** @default 'owner' */
   authMode?: McpAuthMode;
   /** Required when `authType: 'oauth'` and `useDynamicRegistration` isn't set. */
   oauth?: McpOAuthInput;
-  /** Required when `authType: 'apiKey'`. */
+  /** Required when `authType: 'apiKey'`. Sent as a static bearer token — always owner-shared, regardless of `authMode`. */
   apiKey?: string;
+  /** Use RFC 7591 Dynamic Client Registration instead of a manually-configured `oauth` block. @default false */
   useDynamicRegistration?: boolean;
+  /** @default true */
   isEnabled?: boolean;
 }
 
+/** All fields optional — only what you pass is changed. */
 export interface UpdateMcpInput {
   name?: string;
   description?: string;
@@ -92,14 +102,18 @@ export interface UpdateMcpInput {
   isEnabled?: boolean;
   useDynamicRegistration?: boolean;
   oauth?: Partial<McpOAuthInput>;
+  /** Replaces the stored key entirely; omit to leave the existing key untouched. */
   apiKey?: string;
 }
 
 export interface DiscoverMcpsParams {
+  /** @default 1 */
   page?: number;
+  /** @default 20 */
   limit?: number;
+  /** Free-text match against `name`/`description`. */
   search?: string;
-  /** Restricts to the asserted external user's own MCPs (ProjectRuntimeContext only). */
+  /** Restricts to the asserted external user's own MCPs (`ProjectRuntimeContext` only). */
   scope?: 'mine';
 }
 
