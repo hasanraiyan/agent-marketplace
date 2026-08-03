@@ -31,13 +31,23 @@ def test_create():
 
 
 @respx.mock
-def test_list_returns_bare_array_and_forwards_query():
+def test_list_returns_a_pagination_envelope_and_forwards_query():
     route = respx.get(f"{BASE_URL}/api/v1/developer/skills").mock(
-        return_value=httpx.Response(200, json={"success": True, "data": [SKILL]})
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {
+                    "items": [SKILL],
+                    "pagination": {"total": 1, "page": 1, "limit": 20, "pages": 1},
+                },
+            },
+        )
     )
     client = PersonaClient(BASE_URL, "keyId.secret")
-    skills = client.skills.list({"page": 1, "scope": "mine"})
-    assert skills == [SKILL]
+    result = client.skills.list({"page": 1, "scope": "mine"})
+    assert result["items"] == [SKILL]
+    assert result["pagination"] == {"total": 1, "page": 1, "limit": 20, "pages": 1}
     sent = route.calls.last.request
     assert sent.url.params["page"] == "1"
     assert sent.url.params["scope"] == "mine"
@@ -46,10 +56,16 @@ def test_list_returns_bare_array_and_forwards_query():
 @respx.mock
 def test_list_with_no_params():
     respx.get(f"{BASE_URL}/api/v1/developer/skills").mock(
-        return_value=httpx.Response(200, json={"success": True, "data": []})
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {"items": [], "pagination": {"total": 0, "page": 1, "limit": 20, "pages": 0}},
+            },
+        )
     )
     client = PersonaClient(BASE_URL, "keyId.secret")
-    assert client.skills.list() == []
+    assert client.skills.list()["items"] == []
 
 
 @respx.mock
@@ -132,11 +148,20 @@ async def test_async_create():
 @respx.mock
 async def test_async_list():
     respx.get(f"{BASE_URL}/api/v1/developer/skills").mock(
-        return_value=httpx.Response(200, json={"success": True, "data": [SKILL]})
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {
+                    "items": [SKILL],
+                    "pagination": {"total": 1, "page": 1, "limit": 20, "pages": 1},
+                },
+            },
+        )
     )
     async with AsyncPersonaClient(BASE_URL, "keyId.secret") as client:
-        skills = await client.skills.list()
-        assert skills == [SKILL]
+        result = await client.skills.list()
+        assert result["items"] == [SKILL]
 
 
 @respx.mock

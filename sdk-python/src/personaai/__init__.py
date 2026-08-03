@@ -58,6 +58,7 @@ from .types.mcp import (
     PartialMcpOAuthInput,
     UpdateMcpInput,
 )
+from .types.pagination import PaginatedResult, PaginationInfo
 from .types.principal import PrincipalContext, ProjectMachineContext, ProjectRuntimeContext
 from .types.provider import (
     CreateProviderInput,
@@ -174,4 +175,6 @@ __all__ = [
     "ResourceUsageAgent",
     "BulkDeleteResult",
     "BulkDeleteFailure",
+    "PaginatedResult",
+    "PaginationInfo",
 ]

@@ -238,11 +238,12 @@ over:
 - **`_id` vs. `id`.** Skill/Agent/Knowledge/Thread/Mcp responses use the raw MongoDB document shape
   (`_id`). Provider/File responses go through a clean formatted DTO (`id`). Check each type below
   for which one applies.
-- **Bare lists, not a pagination envelope.** Every `list()`-style method (`skills.list()`,
-  `agents.list()`, `knowledge.list()`, `mcps.list()`, `threads.list()`, `files.list()`) returns a
-  plain list, not `{items, pagination}` — despite accepting `page`/`limit` params. Fetch a page,
-  check the returned list's length against `limit` to infer whether there's more.
-  `providers.list()` is the same bare-list shape but takes no params at all — Providers have no
+- **A real pagination envelope, except on Providers.** Every `list()`-style method
+  (`skills.list()`, `agents.list()`, `knowledge.list()`, `mcps.list()`, `threads.list()`,
+  `files.list()`) returns `PaginatedResult[T]` — `{"items": list[T], "pagination": {"total",
+"page", "limit", "pages"}}` — not a bare list. Check `pagination["pages"]` (or `["total"]`) to
+  know whether there's more, rather than inferring it from `len(items)` vs. `limit`.
+  `providers.list()` is the one exception: a plain bare list, no params at all — Providers have no
   discovery concept, so there's nothing to page or filter by.
 
 All resource types are `TypedDict`s — plain `dict`s at runtime, typed purely for editor/type-
@@ -329,7 +330,8 @@ skill = persona.skills.create(
     }
 )
 
-mine = user_persona.skills.list({"scope": "mine", "search": "resume"})
+result = user_persona.skills.list({"scope": "mine", "search": "resume"})
+mine = result["items"]
 full = persona.skills.get(skill["_id"])
 persona.skills.update(skill["_id"], {"description": "Updated description."})
 usage = persona.skills.get_usage(skill["_id"])  # check before delete()
@@ -337,15 +339,15 @@ persona.skills.delete(skill["_id"])
 persona.skills.bulk_delete([skill["_id"]])
 ```
 
-| Method                           | Wraps                      | Returns            |
-| -------------------------------- | -------------------------- | ------------------ |
-| `skills.create(input)`           | `POST /skills`             | `Skill`            |
-| `skills.list(params=None)`       | `GET /skills`              | `list[Skill]`      |
-| `skills.get(skill_id)`           | `GET /skills/{id}`         | `Skill`            |
-| `skills.update(skill_id, input)` | `PATCH /skills/{id}`       | `Skill`            |
-| `skills.delete(skill_id)`        | `DELETE /skills/{id}`      | `None`             |
-| `skills.get_usage(skill_id)`     | `GET /skills/{id}/usage`   | `ResourceUsage`    |
-| `skills.bulk_delete(ids)`        | `POST /skills/bulk-delete` | `BulkDeleteResult` |
+| Method                           | Wraps                      | Returns                  |
+| -------------------------------- | -------------------------- | ------------------------ |
+| `skills.create(input)`           | `POST /skills`             | `Skill`                  |
+| `skills.list(params=None)`       | `GET /skills`              | `PaginatedResult[Skill]` |
+| `skills.get(skill_id)`           | `GET /skills/{id}`         | `Skill`                  |
+| `skills.update(skill_id, input)` | `PATCH /skills/{id}`       | `Skill`                  |
+| `skills.delete(skill_id)`        | `DELETE /skills/{id}`      | `None`                   |
+| `skills.get_usage(skill_id)`     | `GET /skills/{id}/usage`   | `ResourceUsage`          |
+| `skills.bulk_delete(ids)`        | `POST /skills/bulk-delete` | `BulkDeleteResult`       |
 
 `DiscoverSkillsParams`: `page`, `limit`, `search`, `scope: "mine"` (restricts to the asserted end
 user's own Skills — only meaningful on a runtime-plane client), all optional. `Skill["isOwner"]` is
@@ -367,21 +369,23 @@ agent = persona.agents.create(
     }
 )
 
-discovered = persona.agents.list({"category": "productivity", "search": "career"})
+result = persona.agents.list({"category": "productivity", "search": "career"})
+discovered = result["items"]
+# result["pagination"]: {"total", "page", "limit", "pages"} — check "pages" instead of len() vs. limit
 full = persona.agents.get(agent["_id"])  # skills/mcps/knowledgeBases populated as objects
 persona.agents.update(agent["_id"], {"tagline": "Find your next internship."})
 persona.agents.delete(agent["_id"])
 persona.agents.bulk_delete([agent["_id"]])
 ```
 
-| Method                           | Wraps                      | Returns            |
-| -------------------------------- | -------------------------- | ------------------ |
-| `agents.create(input)`           | `POST /agents`             | `Agent`            |
-| `agents.list(params=None)`       | `GET /agents`              | `list[Agent]`      |
-| `agents.get(agent_id)`           | `GET /agents/{id}`         | `Agent`            |
-| `agents.update(agent_id, input)` | `PATCH /agents/{id}`       | `Agent`            |
-| `agents.delete(agent_id)`        | `DELETE /agents/{id}`      | `None`             |
-| `agents.bulk_delete(ids)`        | `POST /agents/bulk-delete` | `BulkDeleteResult` |
+| Method                           | Wraps                      | Returns                  |
+| -------------------------------- | -------------------------- | ------------------------ |
+| `agents.create(input)`           | `POST /agents`             | `Agent`                  |
+| `agents.list(params=None)`       | `GET /agents`              | `PaginatedResult[Agent]` |
+| `agents.get(agent_id)`           | `GET /agents/{id}`         | `Agent`                  |
+| `agents.update(agent_id, input)` | `PATCH /agents/{id}`       | `Agent`                  |
+| `agents.delete(agent_id)`        | `DELETE /agents/{id}`      | `None`                   |
+| `agents.bulk_delete(ids)`        | `POST /agents/bulk-delete` | `BulkDeleteResult`       |
 
 Notes on the `Agent` shape:
 
@@ -422,21 +426,23 @@ hits = persona.knowledge.search(kb["_id"], "What's the deadline to apply?", top_
 
 usage = persona.knowledge.get_usage(kb["_id"])  # check before delete()
 persona.knowledge.bulk_delete([kb["_id"]])
+
+bases = persona.knowledge.list({"scope": "mine"})["items"]
 ```
 
-| Method                                          | Wraps                                            | Returns                       |
-| ----------------------------------------------- | ------------------------------------------------ | ----------------------------- |
-| `knowledge.create(input)`                       | `POST /knowledge`                                | `KnowledgeBase`               |
-| `knowledge.list(params=None)`                   | `GET /knowledge`                                 | `list[KnowledgeBase]`         |
-| `knowledge.get(kb_id)`                          | `GET /knowledge/{id}`                            | `KnowledgeBase`               |
-| `knowledge.update(kb_id, input)`                | `PATCH /knowledge/{id}`                          | `KnowledgeBase`               |
-| `knowledge.delete(kb_id)`                       | `DELETE /knowledge/{id}`                         | `None`                        |
-| `knowledge.upload_documents(kb_id, files)`      | `POST /knowledge/{id}/documents` (multipart)     | `UploadDocumentsResult`       |
-| `knowledge.list_documents(kb_id)`               | `GET /knowledge/{id}/documents`                  | `list[KnowledgeDocument]`     |
-| `knowledge.delete_document(kb_id, source_name)` | `DELETE /knowledge/{id}/documents/{source_name}` | `DeleteDocumentResult`        |
-| `knowledge.search(kb_id, query, top_k=None)`    | `POST /knowledge/{id}/search`                    | `list[KnowledgeSearchResult]` |
-| `knowledge.get_usage(kb_id)`                    | `GET /knowledge/{id}/usage`                      | `ResourceUsage`               |
-| `knowledge.bulk_delete(ids)`                    | `POST /knowledge/bulk-delete`                    | `BulkDeleteResult`            |
+| Method                                          | Wraps                                            | Returns                          |
+| ----------------------------------------------- | ------------------------------------------------ | -------------------------------- |
+| `knowledge.create(input)`                       | `POST /knowledge`                                | `KnowledgeBase`                  |
+| `knowledge.list(params=None)`                   | `GET /knowledge`                                 | `PaginatedResult[KnowledgeBase]` |
+| `knowledge.get(kb_id)`                          | `GET /knowledge/{id}`                            | `KnowledgeBase`                  |
+| `knowledge.update(kb_id, input)`                | `PATCH /knowledge/{id}`                          | `KnowledgeBase`                  |
+| `knowledge.delete(kb_id)`                       | `DELETE /knowledge/{id}`                         | `None`                           |
+| `knowledge.upload_documents(kb_id, files)`      | `POST /knowledge/{id}/documents` (multipart)     | `UploadDocumentsResult`          |
+| `knowledge.list_documents(kb_id)`               | `GET /knowledge/{id}/documents`                  | `list[KnowledgeDocument]`        |
+| `knowledge.delete_document(kb_id, source_name)` | `DELETE /knowledge/{id}/documents/{source_name}` | `DeleteDocumentResult`           |
+| `knowledge.search(kb_id, query, top_k=None)`    | `POST /knowledge/{id}/search`                    | `list[KnowledgeSearchResult]`    |
+| `knowledge.get_usage(kb_id)`                    | `GET /knowledge/{id}/usage`                      | `ResourceUsage`                  |
+| `knowledge.bulk_delete(ids)`                    | `POST /knowledge/bulk-delete`                    | `BulkDeleteResult`               |
 
 Limits: up to 10 files per `upload_documents()` call, 20MB each, restricted to
 PDF/TXT/MD/JSON/CSV. `providerId` is **required** on `CreateKnowledgeBaseInput` — unlike Persona's
@@ -469,12 +475,14 @@ resource = persona.mcps.read_resource(mcp["_id"], connection["resources"][0]["ur
 
 usage = persona.mcps.get_usage(mcp["_id"])  # check before delete()
 persona.mcps.bulk_delete([mcp["_id"]])
+
+connectors = persona.mcps.list({"scope": "mine"})["items"]
 ```
 
 | Method                                         | Wraps                             | Returns                                          |
 | ---------------------------------------------- | --------------------------------- | ------------------------------------------------ |
 | `mcps.create(input)`                           | `POST /mcps`                      | `Mcp`                                            |
-| `mcps.list(params=None)`                       | `GET /mcps`                       | `list[Mcp]`                                      |
+| `mcps.list(params=None)`                       | `GET /mcps`                       | `PaginatedResult[Mcp]`                           |
 | `mcps.get(mcp_id)`                             | `GET /mcps/{id}`                  | `Mcp`                                            |
 | `mcps.update(mcp_id, input)`                   | `PATCH /mcps/{id}`                | `Mcp`                                            |
 | `mcps.delete(mcp_id)`                          | `DELETE /mcps/{id}`               | `None`                                           |
@@ -522,7 +530,8 @@ EXTERNAL_USER_REQUIRED` `PersonaValidationError`.
 
 ```python
 thread = user_persona.threads.create({"agentId": agent["_id"]})
-mine = user_persona.threads.list({"page": 1, "limit": 20})
+result = user_persona.threads.list({"page": 1, "limit": 20})
+mine = result["items"]
 user_persona.threads.update_title(thread["_id"], "Summer internship search")
 user_persona.threads.update(thread["_id"], {"isArchived": True})  # archive without touching title
 messages = user_persona.threads.get_messages(thread["_id"])
@@ -530,16 +539,16 @@ user_persona.threads.delete(thread["_id"])
 user_persona.threads.bulk_delete([thread["_id"]])
 ```
 
-| Method                                   | Wraps                        | Returns            |
-| ---------------------------------------- | ---------------------------- | ------------------ |
-| `threads.create(input)`                  | `POST /threads`              | `Thread`           |
-| `threads.list(params=None)`              | `GET /threads`               | `list[Thread]`     |
-| `threads.get(thread_id)`                 | `GET /threads/{id}`          | `Thread`           |
-| `threads.update(thread_id, input)`       | `PATCH /threads/{id}`        | `Thread`           |
-| `threads.update_title(thread_id, title)` | `PATCH /threads/{id}`        | `Thread`           |
-| `threads.delete(thread_id)`              | `DELETE /threads/{id}`       | `None`             |
-| `threads.bulk_delete(ids)`               | `POST /threads/bulk-delete`  | `BulkDeleteResult` |
-| `threads.get_messages(thread_id)`        | `GET /threads/{id}/messages` | `ThreadMessages`   |
+| Method                                   | Wraps                        | Returns                   |
+| ---------------------------------------- | ---------------------------- | ------------------------- |
+| `threads.create(input)`                  | `POST /threads`              | `Thread`                  |
+| `threads.list(params=None)`              | `GET /threads`               | `PaginatedResult[Thread]` |
+| `threads.get(thread_id)`                 | `GET /threads/{id}`          | `Thread`                  |
+| `threads.update(thread_id, input)`       | `PATCH /threads/{id}`        | `Thread`                  |
+| `threads.update_title(thread_id, title)` | `PATCH /threads/{id}`        | `Thread`                  |
+| `threads.delete(thread_id)`              | `DELETE /threads/{id}`       | `None`                    |
+| `threads.bulk_delete(ids)`               | `POST /threads/bulk-delete`  | `BulkDeleteResult`        |
+| `threads.get_messages(thread_id)`        | `GET /threads/{id}/messages` | `ThreadMessages`          |
 
 `update()` is the general form — `{title, isArchived}`, both optional, send just the one you want
 to change. `update_title(thread_id, title)` is a convenience wrapper over `update()` for the
@@ -568,7 +577,8 @@ with open("resume.pdf", "rb") as f:
         }
     )
 
-mine = user_persona.files.list({"page": 1, "limit": 20})
+result = user_persona.files.list({"page": 1, "limit": 20})
+mine = result["items"]
 
 response = user_persona.files.download(file["id"])  # raw httpx.Response, not JSON
 bytes_ = response.content
@@ -580,7 +590,7 @@ user_persona.files.bulk_delete([file["id"]])
 | Method                    | Wraps                     | Returns                          |
 | ------------------------- | ------------------------- | -------------------------------- |
 | `files.upload(input)`     | `POST /files` (multipart) | `PersonaFile`                    |
-| `files.list(params=None)` | `GET /files`              | `list[PersonaFile]`              |
+| `files.list(params=None)` | `GET /files`              | `PaginatedResult[PersonaFile]`   |
 | `files.download(file_id)` | `GET /files/{id}`         | `httpx.Response` (raw, not JSON) |
 | `files.delete(file_id)`   | `DELETE /files/{id}`      | `None`                           |
 | `files.bulk_delete(ids)`  | `POST /files/bulk-delete` | `BulkDeleteResult`               |

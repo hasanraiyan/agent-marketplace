@@ -78,7 +78,7 @@ router.post('/', validateBody(createAgentSchema), developerAgentController.creat
  *         schema: { type: string, enum: [mine] }
  *         description: ProjectRuntimeContext only — "mine" restricts to the asserted external user's own Agents.
  *     responses:
- *       200: { description: List of Agents }
+ *       200: { description: "{ items: Agent[], pagination: { total, page, limit, pages } }" }
  */
 router.get('/', developerAgentController.discover);
 

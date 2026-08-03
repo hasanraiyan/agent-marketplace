@@ -464,7 +464,7 @@
         ],
         "responses": {
           "200": {
-            "description": "List of Threads"
+            "description": "{ items: Thread[], pagination: { total, page, limit, pages } }"
           }
         }
       }
@@ -755,7 +755,7 @@
         ],
         "responses": {
           "200": {
-            "description": "List of Skills"
+            "description": "{ items: Skill[], pagination: { total, page, limit, pages } }"
           }
         }
       }
@@ -1298,7 +1298,7 @@
         ],
         "responses": {
           "200": {
-            "description": "List of MCP servers"
+            "description": "{ items: Mcp[], pagination: { total, page, limit, pages } }"
           }
         }
       }
@@ -1841,7 +1841,7 @@
         ],
         "responses": {
           "200": {
-            "description": "List of Knowledge Bases"
+            "description": "{ items: KnowledgeBase[], pagination: { total, page, limit, pages } }"
           }
         }
       }
@@ -2264,7 +2264,7 @@
         ],
         "responses": {
           "200": {
-            "description": "List of files"
+            "description": "{ items: PersonaFile[], pagination: { total, page, limit, pages } }"
           }
         }
       }
@@ -2582,7 +2582,7 @@
         ],
         "responses": {
           "200": {
-            "description": "List of Agents"
+            "description": "{ items: Agent[], pagination: { total, page, limit, pages } }"
           }
         }
       }

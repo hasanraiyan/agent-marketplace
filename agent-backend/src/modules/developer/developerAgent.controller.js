@@ -1,5 +1,6 @@
 import agentService from '../agents/agent.service.js';
 import { bulkDelete } from '../../utils/bulkDelete.js';
+import { paginationEnvelope } from '../../utils/pagination.js';
 
 /**
  * Developer Platform Agent CRUD (blueprint Phase 9, PR-26, AD-07 §15/16/17).
@@ -35,12 +36,12 @@ class DeveloperAgentController {
         scope: req.query.scope,
       };
 
-      const agents = await agentService.discoverAgents(req.projectContext, filters, {
-        page,
-        limit,
-      });
+      const [agents, total] = await Promise.all([
+        agentService.discoverAgents(req.projectContext, filters, { page, limit }),
+        agentService.countDiscoverAgents(req.projectContext, filters),
+      ]);
 
-      res.json({ success: true, data: agents });
+      res.json({ success: true, data: paginationEnvelope(agents, total, page, limit) });
     } catch (error) {
       next(error);
     }

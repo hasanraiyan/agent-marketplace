@@ -1,5 +1,6 @@
 import knowledgeService from '../knowledge/knowledge.service.js';
 import { bulkDelete } from '../../utils/bulkDelete.js';
+import { paginationEnvelope } from '../../utils/pagination.js';
 
 /**
  * Developer Platform Knowledge CRUD (blueprint Phase 9, PR-32, AD-07 §18
@@ -128,12 +129,12 @@ class DeveloperKnowledgeController {
       const limit = parseInt(req.query.limit) || 20;
       const filters = { search: req.query.search, scope: req.query.scope };
 
-      const kbs = await knowledgeService.discoverKnowledgeBases(req.projectContext, filters, {
-        page,
-        limit,
-      });
+      const [kbs, total] = await Promise.all([
+        knowledgeService.discoverKnowledgeBases(req.projectContext, filters, { page, limit }),
+        knowledgeService.countDiscoverKnowledgeBases(req.projectContext, filters),
+      ]);
 
-      res.json({ success: true, data: kbs });
+      res.json({ success: true, data: paginationEnvelope(kbs, total, page, limit) });
     } catch (error) {
       next(error);
     }

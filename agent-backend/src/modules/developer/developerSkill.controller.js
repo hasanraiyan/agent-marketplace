@@ -1,5 +1,6 @@
 import skillService from '../skills/skill.service.js';
 import { bulkDelete } from '../../utils/bulkDelete.js';
+import { paginationEnvelope } from '../../utils/pagination.js';
 
 /**
  * Developer Platform Skill CRUD (blueprint Phase 9, PR-29, AD-07 §18 —
@@ -26,12 +27,12 @@ class DeveloperSkillController {
       const limit = parseInt(req.query.limit) || 20;
       const filters = { search: req.query.search, scope: req.query.scope };
 
-      const skills = await skillService.discoverSkills(req.projectContext, filters, {
-        page,
-        limit,
-      });
+      const [skills, total] = await Promise.all([
+        skillService.discoverSkills(req.projectContext, filters, { page, limit }),
+        skillService.countDiscoverSkills(req.projectContext, filters),
+      ]);
 
-      res.json({ success: true, data: skills });
+      res.json({ success: true, data: paginationEnvelope(skills, total, page, limit) });
     } catch (error) {
       next(error);
     }

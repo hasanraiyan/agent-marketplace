@@ -1,6 +1,7 @@
 import type { HttpClient } from '../http.js';
 import type { ListFilesParams, PersonaFile, UploadFilePayload } from '../types/file.js';
 import type { BulkDeleteResult } from '../types/bulkDelete.js';
+import type { PaginatedResult } from '../types/pagination.js';
 
 /**
  * Files (`/api/v1/developer/files`) — a file's Subject is a person, so
@@ -23,9 +24,8 @@ export class FilesResource {
     return this.http.request<PersonaFile>('POST', '/api/v1/developer/files', { body: form });
   }
 
-  /** Note: returns a bare array — this endpoint has no pagination envelope in its `data` field. */
-  async list(params: ListFilesParams = {}): Promise<PersonaFile[]> {
-    return this.http.request<PersonaFile[]>('GET', '/api/v1/developer/files', {
+  async list(params: ListFilesParams = {}): Promise<PaginatedResult<PersonaFile>> {
+    return this.http.request<PaginatedResult<PersonaFile>>('GET', '/api/v1/developer/files', {
       query: { ...params },
     });
   }

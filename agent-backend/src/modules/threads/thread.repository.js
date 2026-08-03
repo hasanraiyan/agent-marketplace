@@ -87,6 +87,11 @@ class ThreadRepository {
   async countByUser(userId) {
     return await Conversation.countDocuments({ userId, isArchived: false });
   }
+
+  /** See `findBySubject`'s doc comment — identical `subjectFilter` generalization. */
+  async countBySubject(subjectFilter) {
+    return await Conversation.countDocuments({ ...subjectFilter, isArchived: false });
+  }
 }
 
 export default new ThreadRepository();

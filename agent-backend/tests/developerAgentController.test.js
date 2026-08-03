@@ -7,6 +7,7 @@ jest.unstable_mockModule('../src/modules/agents/agent.service.js', () => ({
     updateAgent: jest.fn(),
     deleteAgent: jest.fn(),
     discoverAgents: jest.fn(),
+    countDiscoverAgents: jest.fn(),
   },
 }));
 
@@ -30,9 +31,10 @@ describe('Developer Agent Controller', () => {
   });
 
   describe('discover', () => {
-    test('discovers via agentService.discoverAgents using req.projectContext and query params', async () => {
+    test('discovers via agentService.discoverAgents using req.projectContext and query params, wrapped in a pagination envelope', async () => {
       mockReq.query = { page: '2', limit: '10', search: 'support', category: 'productivity' };
       agentService.discoverAgents.mockResolvedValue([{ _id: 'a1' }]);
+      agentService.countDiscoverAgents.mockResolvedValue(1);
 
       await developerAgentController.discover(mockReq, mockRes, next);
 
@@ -41,11 +43,23 @@ describe('Developer Agent Controller', () => {
         { search: 'support', category: 'productivity', scope: undefined },
         { page: 2, limit: 10 }
       );
-      expect(mockRes.json).toHaveBeenCalledWith({ success: true, data: [{ _id: 'a1' }] });
+      expect(agentService.countDiscoverAgents).toHaveBeenCalledWith(machineContext, {
+        search: 'support',
+        category: 'productivity',
+        scope: undefined,
+      });
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          items: [{ _id: 'a1' }],
+          pagination: { total: 1, page: 2, limit: 10, pages: 1 },
+        },
+      });
     });
 
     test('defaults page/limit when omitted', async () => {
       agentService.discoverAgents.mockResolvedValue([]);
+      agentService.countDiscoverAgents.mockResolvedValue(0);
 
       await developerAgentController.discover(mockReq, mockRes, next);
 

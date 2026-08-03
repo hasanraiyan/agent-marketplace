@@ -101,7 +101,7 @@ router.use((req, res, next) => {
  *         in: query
  *         schema: { type: integer }
  *     responses:
- *       200: { description: List of files }
+ *       200: { description: "{ items: PersonaFile[], pagination: { total, page, limit, pages } }" }
  */
 router.post('/', upload.single('file'), developerFileController.upload);
 router.get('/', developerFileController.list);

@@ -48,14 +48,21 @@ describe('SkillsResource', () => {
     expect(init.method).toBe('POST');
   });
 
-  it('list() returns a bare array (no pagination envelope) and forwards query params', async () => {
+  it('list() returns a pagination envelope and forwards query params', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
-      jsonResponse({ success: true, data: [{ _id: 's1' }, { _id: 's2' }] })
+      jsonResponse({
+        success: true,
+        data: {
+          items: [{ _id: 's1' }, { _id: 's2' }],
+          pagination: { total: 2, page: 1, limit: 10, pages: 1 },
+        },
+      })
     );
     const client = makeClient(fetchMock as unknown as typeof fetch, 'sabik-42');
 
     const result = await client.skills.list({ page: 1, limit: 10, scope: 'mine' });
-    expect(result).toHaveLength(2);
+    expect(result.items).toHaveLength(2);
+    expect(result.pagination).toEqual({ total: 2, page: 1, limit: 10, pages: 1 });
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://api.example.com/api/v1/developer/skills?page=1&limit=10&scope=mine');
     expect((init.headers as Record<string, string>)['x-persona-external-user-id']).toBe('sabik-42');

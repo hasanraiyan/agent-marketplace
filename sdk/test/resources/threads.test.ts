@@ -45,17 +45,21 @@ describe('ThreadsResource', () => {
     expect((init.headers as Record<string, string>)['x-persona-external-user-id']).toBe('sabik-42');
   });
 
-  it('list() returns a bare array with populated agentId objects', async () => {
+  it('list() returns a pagination envelope with populated agentId objects', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       jsonResponse({
         success: true,
-        data: [{ _id: 't1', agentId: { _id: 'a1', name: 'Career Launchpad', slug: 'cl' } }],
+        data: {
+          items: [{ _id: 't1', agentId: { _id: 'a1', name: 'Career Launchpad', slug: 'cl' } }],
+          pagination: { total: 1, page: 1, limit: 20, pages: 1 },
+        },
       })
     );
     const client = makeClient(fetchMock as unknown as typeof fetch);
 
     const result = await client.threads.list({ page: 1 });
-    expect(result[0]?.agentId).toEqual({ _id: 'a1', name: 'Career Launchpad', slug: 'cl' });
+    expect(result.items[0]?.agentId).toEqual({ _id: 'a1', name: 'Career Launchpad', slug: 'cl' });
+    expect(result.pagination).toEqual({ total: 1, page: 1, limit: 20, pages: 1 });
     const [url] = fetchMock.mock.calls[0] as [string];
     expect(url).toBe('https://api.example.com/api/v1/developer/threads?page=1');
   });

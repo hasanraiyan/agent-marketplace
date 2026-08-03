@@ -12,6 +12,7 @@ jest.unstable_mockModule('../src/modules/knowledge/knowledge.service.js', () => 
     deleteDocumentFromKb: jest.fn(),
     listDocumentSources: jest.fn(),
     getKnowledgeBaseUsage: jest.fn(),
+    countDiscoverKnowledgeBases: jest.fn(),
   },
 }));
 
@@ -134,9 +135,10 @@ describe('Developer Knowledge Controller', () => {
   });
 
   describe('discover', () => {
-    test('discovers via knowledgeService.discoverKnowledgeBases using req.projectContext', async () => {
+    test('discovers via knowledgeService.discoverKnowledgeBases using req.projectContext, wrapped in a pagination envelope', async () => {
       mockReq.query = { search: 'docs', scope: 'mine' };
       knowledgeService.discoverKnowledgeBases.mockResolvedValue([{ _id: 'kb1' }]);
+      knowledgeService.countDiscoverKnowledgeBases.mockResolvedValue(1);
 
       await developerKnowledgeController.discover(mockReq, mockRes, next);
 
@@ -145,7 +147,17 @@ describe('Developer Knowledge Controller', () => {
         { search: 'docs', scope: 'mine' },
         { page: 1, limit: 20 }
       );
-      expect(mockRes.json).toHaveBeenCalledWith({ success: true, data: [{ _id: 'kb1' }] });
+      expect(knowledgeService.countDiscoverKnowledgeBases).toHaveBeenCalledWith(machineContext, {
+        search: 'docs',
+        scope: 'mine',
+      });
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          items: [{ _id: 'kb1' }],
+          pagination: { total: 1, page: 1, limit: 20, pages: 1 },
+        },
+      });
     });
 
     test('passes errors to next', async () => {

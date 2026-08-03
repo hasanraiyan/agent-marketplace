@@ -103,7 +103,7 @@ router.post('/', validateBody(createKnowledgeBaseSchema), developerKnowledgeCont
  *         in: query
  *         schema: { type: string, enum: [mine] }
  *     responses:
- *       200: { description: List of Knowledge Bases }
+ *       200: { description: "{ items: KnowledgeBase[], pagination: { total, page, limit, pages } }" }
  */
 router.get('/', developerKnowledgeController.discover);
 

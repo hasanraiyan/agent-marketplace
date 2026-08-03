@@ -72,7 +72,7 @@ router.use((req, res, next) => {
  *         in: query
  *         schema: { type: integer }
  *     responses:
- *       200: { description: List of Threads }
+ *       200: { description: "{ items: Thread[], pagination: { total, page, limit, pages } }" }
  */
 router.post('/', validateBody(createThreadSchema), developerThreadController.create);
 router.get('/', developerThreadController.getAll);

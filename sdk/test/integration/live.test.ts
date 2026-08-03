@@ -84,7 +84,7 @@ if (!RUN || !credential) {
       expect(fetched._id).toBe(skill._id);
 
       const list = await client.skills.list();
-      expect(list.some((s) => s._id === skill._id)).toBe(true);
+      expect(list.items.some((s) => s._id === skill._id)).toBe(true);
 
       const updated = await client.skills.update(skill._id, { isPublic: true });
       expect(updated.isPublic).toBe(true);
@@ -109,7 +109,7 @@ if (!RUN || !credential) {
           expect(fetched._id).toBe(agent._id);
 
           const list = await client.agents.list();
-          expect(list.some((a) => a._id === agent._id)).toBe(true);
+          expect(list.items.some((a) => a._id === agent._id)).toBe(true);
 
           const result = await runtimeClient.chat.sendMessage(agent._id, {
             messages: [{ role: 'user', content: 'Reply with only the word: OK' }],

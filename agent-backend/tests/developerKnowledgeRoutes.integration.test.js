@@ -24,6 +24,7 @@ jest.unstable_mockModule('../src/modules/knowledge/knowledge.service.js', () => 
     updateKnowledgeBase: jest.fn(),
     deleteKnowledgeBase: jest.fn(),
     discoverKnowledgeBases: jest.fn(),
+    countDiscoverKnowledgeBases: jest.fn(),
     uploadFiles: jest.fn(),
     searchKnowledgeBase: jest.fn(),
     deleteDocumentFromKb: jest.fn(),
@@ -94,8 +95,9 @@ describe('developerKnowledge.routes.js — mount integration', () => {
     );
   });
 
-  test('GET / (discover) reaches the controller and returns the list', async () => {
+  test('GET / (discover) reaches the controller and returns a pagination envelope', async () => {
     knowledgeService.discoverKnowledgeBases.mockResolvedValue([{ _id: 'kb1' }]);
+    knowledgeService.countDiscoverKnowledgeBases.mockResolvedValue(1);
 
     const res = await request(app)
       .get('/api/v1/developer/knowledge')
@@ -107,6 +109,13 @@ describe('developerKnowledge.routes.js — mount integration', () => {
       expect.any(Object),
       expect.any(Object)
     );
+    expect(res.body).toEqual({
+      success: true,
+      data: {
+        items: [{ _id: 'kb1' }],
+        pagination: { total: 1, page: 1, limit: 20, pages: 1 },
+      },
+    });
   });
 
   test('GET /:kbId reaches the controller and returns the KB', async () => {

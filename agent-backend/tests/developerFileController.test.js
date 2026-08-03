@@ -6,6 +6,7 @@ jest.unstable_mockModule('../src/modules/files/file.service.js', () => ({
     getFileForDownload: jest.fn(),
     listFiles: jest.fn(),
     deleteFile: jest.fn(),
+    countFiles: jest.fn(),
   },
   developerUploadDir: '/tmp/developer-uploads',
 }));
@@ -71,12 +72,18 @@ describe('Developer File Controller', () => {
   });
 
   describe('list', () => {
-    test('lists via fileService.listFiles, forwarding req.projectContext', async () => {
+    test('lists via fileService.listFiles, forwarding req.projectContext, wrapped in a pagination envelope', async () => {
       fileService.listFiles.mockResolvedValue([]);
+      fileService.countFiles.mockResolvedValue(0);
 
       await developerFileController.list(mockReq, mockRes, next);
 
       expect(fileService.listFiles).toHaveBeenCalledWith(runtimeContext, { page: 1, limit: 20 });
+      expect(fileService.countFiles).toHaveBeenCalledWith(runtimeContext);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: { items: [], pagination: { total: 0, page: 1, limit: 20, pages: 0 } },
+      });
     });
   });
 

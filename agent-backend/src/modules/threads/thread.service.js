@@ -115,6 +115,11 @@ class ThreadService {
     return await threadRepository.findBySubject(subjectFilterForContext(context), options);
   }
 
+  /** Developer Platform only (Feature 4, pagination envelope) — the real total behind `getThreadsForSubject`'s page. */
+  async countThreadsForSubject(userId, context = personaExecutionContext(userId)) {
+    return await threadRepository.countBySubject(subjectFilterForContext(context));
+  }
+
   /**
    * Updates a Thread's title. `context` defaults to
    * `personaExecutionContext(userId)` — zero behavior change for every

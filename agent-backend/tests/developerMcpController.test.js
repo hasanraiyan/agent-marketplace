@@ -7,6 +7,7 @@ jest.unstable_mockModule('../src/modules/mcp/mcp.service.js', () => ({
     updateMcp: jest.fn(),
     deleteMcp: jest.fn(),
     discoverMcps: jest.fn(),
+    countDiscoverMcps: jest.fn(),
     toSafeJson: jest.fn((mcp) => mcp),
     testConnection: jest.fn(),
     readResource: jest.fn(),
@@ -40,9 +41,10 @@ describe('Developer Mcp Controller', () => {
   });
 
   describe('discover', () => {
-    test('discovers via mcpService.discoverMcps, formatting each result via toSafeJson', async () => {
+    test('discovers via mcpService.discoverMcps, formatting each result via toSafeJson, wrapped in a pagination envelope', async () => {
       mockReq.query = { search: 'support', scope: 'mine' };
       mcpService.discoverMcps.mockResolvedValue([{ _id: 'm1', apiKeyEncrypted: 'secret' }]);
+      mcpService.countDiscoverMcps.mockResolvedValue(1);
 
       await developerMcpController.discover(mockReq, mockRes, next);
 
@@ -51,7 +53,18 @@ describe('Developer Mcp Controller', () => {
         { search: 'support', scope: 'mine' },
         { page: 1, limit: 20 }
       );
+      expect(mcpService.countDiscoverMcps).toHaveBeenCalledWith(machineContext, {
+        search: 'support',
+        scope: 'mine',
+      });
       expect(mcpService.toSafeJson).toHaveBeenCalledWith({ _id: 'm1', apiKeyEncrypted: 'secret' });
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          items: [{ _id: 'm1', apiKeyEncrypted: 'secret' }],
+          pagination: { total: 1, page: 1, limit: 20, pages: 1 },
+        },
+      });
     });
 
     test('passes errors to next', async () => {

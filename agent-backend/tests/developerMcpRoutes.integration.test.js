@@ -24,6 +24,7 @@ jest.unstable_mockModule('../src/modules/mcp/mcp.service.js', () => ({
     updateMcp: jest.fn(),
     deleteMcp: jest.fn(),
     discoverMcps: jest.fn(),
+    countDiscoverMcps: jest.fn(),
     toSafeJson: jest.fn((mcp) => mcp),
     getMcpUsage: jest.fn(),
   },
@@ -94,8 +95,9 @@ describe('developerMcp.routes.js — mount integration', () => {
     );
   });
 
-  test('GET / (discover) reaches the controller and returns the list', async () => {
+  test('GET / (discover) reaches the controller and returns a pagination envelope', async () => {
     mcpService.discoverMcps.mockResolvedValue([{ _id: 'm1' }]);
+    mcpService.countDiscoverMcps.mockResolvedValue(1);
 
     const res = await request(app)
       .get('/api/v1/developer/mcps')
@@ -107,6 +109,13 @@ describe('developerMcp.routes.js — mount integration', () => {
       expect.any(Object),
       expect.any(Object)
     );
+    expect(res.body).toEqual({
+      success: true,
+      data: {
+        items: [{ _id: 'm1' }],
+        pagination: { total: 1, page: 1, limit: 20, pages: 1 },
+      },
+    });
   });
 
   test('GET /:mcpId reaches the controller and returns the Mcp', async () => {

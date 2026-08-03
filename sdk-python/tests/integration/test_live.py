@@ -111,7 +111,7 @@ def test_skills_full_create_list_get_update_delete_lifecycle(client):
     assert fetched["_id"] == skill["_id"]
 
     listed = client.skills.list()
-    assert any(s["_id"] == skill["_id"] for s in listed)
+    assert any(s["_id"] == skill["_id"] for s in listed["items"])
 
     updated = client.skills.update(skill["_id"], {"isPublic": True})
     assert updated["isPublic"] is True
@@ -138,7 +138,7 @@ def test_agents_and_chat_create_chat_delete(client, runtime_client):
         assert fetched["_id"] == agent["_id"]
 
         listed = client.agents.list()
-        assert any(a["_id"] == agent["_id"] for a in listed)
+        assert any(a["_id"] == agent["_id"] for a in listed["items"])
 
         result = runtime_client.chat.send_message(
             agent["_id"], [{"role": "user", "content": "Reply with only the word: OK"}]

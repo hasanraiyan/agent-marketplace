@@ -11,6 +11,7 @@ import httpx
 
 from ..types.bulk_delete import BulkDeleteResult
 from ..types.file import ListFilesParams, PersonaFile, UploadFilePayload
+from ..types.pagination import PaginatedResult
 
 if TYPE_CHECKING:
     from .._async_http import AsyncTransport
@@ -45,10 +46,9 @@ class Files:
             ),
         )
 
-    def list(self, params: ListFilesParams | None = None) -> list[PersonaFile]:
-        """Note: returns a bare list — no pagination envelope in its `data` field."""
+    def list(self, params: ListFilesParams | None = None) -> PaginatedResult[PersonaFile]:
         return cast(
-            list[PersonaFile],
+            PaginatedResult[PersonaFile],
             self._transport.request("GET", "/api/v1/developer/files", query=params),
         )
 
@@ -88,10 +88,9 @@ class AsyncFiles:
             ),
         )
 
-    async def list(self, params: ListFilesParams | None = None) -> list[PersonaFile]:
-        """Note: returns a bare list — no pagination envelope in its `data` field."""
+    async def list(self, params: ListFilesParams | None = None) -> PaginatedResult[PersonaFile]:
         return cast(
-            list[PersonaFile],
+            PaginatedResult[PersonaFile],
             await self._transport.request("GET", "/api/v1/developer/files", query=params),
         )
 

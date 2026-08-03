@@ -12,6 +12,7 @@ import type {
 } from '../types/knowledge.js';
 import type { ResourceUsage } from '../types/usage.js';
 import type { BulkDeleteResult } from '../types/bulkDelete.js';
+import type { PaginatedResult } from '../types/pagination.js';
 
 /**
  * Knowledge bases (`/api/v1/developer/knowledge`) — Project-owned, or, when
@@ -26,9 +27,8 @@ export class KnowledgeResource {
     });
   }
 
-  /** Note: returns a bare array — this endpoint has no pagination envelope. */
-  async list(params: DiscoverKnowledgeBasesParams = {}): Promise<KnowledgeBase[]> {
-    return this.http.request<KnowledgeBase[]>('GET', '/api/v1/developer/knowledge', {
+  async list(params: DiscoverKnowledgeBasesParams = {}): Promise<PaginatedResult<KnowledgeBase>> {
+    return this.http.request<PaginatedResult<KnowledgeBase>>('GET', '/api/v1/developer/knowledge', {
       query: { ...params },
     });
   }

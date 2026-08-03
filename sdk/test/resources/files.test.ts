@@ -54,14 +54,20 @@ describe('FilesResource', () => {
     expect(form.get('threadId')).toBeNull();
   });
 
-  it('list() returns a bare array and forwards query params', async () => {
+  it('list() returns a pagination envelope and forwards query params', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
-      jsonResponse({ success: true, data: [{ id: 'f1' }] })
+      jsonResponse({
+        success: true,
+        data: { items: [{ id: 'f1' }], pagination: { total: 1, page: 2, limit: 5, pages: 1 } },
+      })
     );
     const client = makeClient(fetchMock as unknown as typeof fetch);
 
     const result = await client.files.list({ page: 2, limit: 5 });
-    expect(result).toEqual([{ id: 'f1' }]);
+    expect(result).toEqual({
+      items: [{ id: 'f1' }],
+      pagination: { total: 1, page: 2, limit: 5, pages: 1 },
+    });
     const [url] = fetchMock.mock.calls[0] as [string];
     expect(url).toBe('https://api.example.com/api/v1/developer/files?page=2&limit=5');
   });

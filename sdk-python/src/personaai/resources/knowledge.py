@@ -27,6 +27,7 @@ from ..types.knowledge import (
     UploadDocumentsResult,
     UploadFileInput,
 )
+from ..types.pagination import PaginatedResult
 from ..types.usage import ResourceUsage
 
 if TYPE_CHECKING:
@@ -48,10 +49,11 @@ class Knowledge:
             self._transport.request("POST", "/api/v1/developer/knowledge", json=input),
         )
 
-    def list(self, params: DiscoverKnowledgeBasesParams | None = None) -> List[KnowledgeBase]:
-        """Note: returns a bare list — this endpoint has no pagination envelope."""
+    def list(
+        self, params: DiscoverKnowledgeBasesParams | None = None
+    ) -> PaginatedResult[KnowledgeBase]:
         return cast(
-            List[KnowledgeBase],
+            PaginatedResult[KnowledgeBase],
             self._transport.request("GET", "/api/v1/developer/knowledge", query=params),
         )
 
@@ -136,10 +138,11 @@ class AsyncKnowledge:
             await self._transport.request("POST", "/api/v1/developer/knowledge", json=input),
         )
 
-    async def list(self, params: DiscoverKnowledgeBasesParams | None = None) -> List[KnowledgeBase]:
-        """Note: returns a bare list — this endpoint has no pagination envelope."""
+    async def list(
+        self, params: DiscoverKnowledgeBasesParams | None = None
+    ) -> PaginatedResult[KnowledgeBase]:
         return cast(
-            List[KnowledgeBase],
+            PaginatedResult[KnowledgeBase],
             await self._transport.request("GET", "/api/v1/developer/knowledge", query=params),
         )
 

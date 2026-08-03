@@ -244,12 +244,13 @@ over:
 - **`_id` vs. `id`.** Skill/Agent/Knowledge/Thread/Mcp responses use the raw MongoDB document shape
   (`_id`). Provider/File responses go through a clean formatted DTO (`id`). Check each type below
   for which one applies.
-- **Bare arrays, not a pagination envelope.** Every `list()`/`discover()`-style method
+- **A real pagination envelope, except on Providers.** Every `list()`/`discover()`-style method
   (`skills.list()`, `agents.list()`, `knowledge.list()`, `mcps.list()`, `threads.list()`,
-  `files.list()`) returns a plain array, not `{items, pagination}` — despite accepting
-  `page`/`limit` query params. Fetch a page, check the returned array's length against `limit` to
-  infer whether there's more. `providers.list()` is the same bare-array shape but takes no params
-  at all — Providers have no discovery concept, so there's nothing to page or filter by.
+  `files.list()`) returns `PaginatedResult<T>` — `{ items: T[], pagination: { total, page, limit,
+pages } }` — not a bare array. Check `pagination.pages` (or `pagination.total`) to know whether
+  there's more, rather than inferring it from `items.length` vs. `limit`. `providers.list()` is
+  the one exception: a plain bare array, no params at all — Providers have no discovery concept,
+  so there's nothing to page or filter by.
 
 ### Providers
 
@@ -328,7 +329,10 @@ const skill = await persona.skills.create({
   files: [{ path: "rubric.md", content: "# Scoring rubric\n..." }],
 });
 
-const mine = await userClient.skills.list({ scope: "mine", search: "resume" });
+const { items: mine, pagination } = await userClient.skills.list({
+  scope: "mine",
+  search: "resume",
+});
 const full = await persona.skills.get(skill._id);
 await persona.skills.update(skill._id, { description: "Updated description." });
 const usage = await persona.skills.getUsage(skill._id); // check before delete()
@@ -336,15 +340,15 @@ await persona.skills.delete(skill._id);
 await persona.skills.bulkDelete([skill._id]); // { deleted: string[], failed: [{id, reason}] }
 ```
 
-| Method                     | Wraps                      | Returns            |
-| -------------------------- | -------------------------- | ------------------ |
-| `skills.create(input)`     | `POST /skills`             | `Skill`            |
-| `skills.list(params?)`     | `GET /skills`              | `Skill[]`          |
-| `skills.get(skillId)`      | `GET /skills/{id}`         | `Skill`            |
-| `skills.update(id, input)` | `PATCH /skills/{id}`       | `Skill`            |
-| `skills.delete(skillId)`   | `DELETE /skills/{id}`      | `void`             |
-| `skills.getUsage(skillId)` | `GET /skills/{id}/usage`   | `ResourceUsage`    |
-| `skills.bulkDelete(ids)`   | `POST /skills/bulk-delete` | `BulkDeleteResult` |
+| Method                     | Wraps                      | Returns                  |
+| -------------------------- | -------------------------- | ------------------------ |
+| `skills.create(input)`     | `POST /skills`             | `Skill`                  |
+| `skills.list(params?)`     | `GET /skills`              | `PaginatedResult<Skill>` |
+| `skills.get(skillId)`      | `GET /skills/{id}`         | `Skill`                  |
+| `skills.update(id, input)` | `PATCH /skills/{id}`       | `Skill`                  |
+| `skills.delete(skillId)`   | `DELETE /skills/{id}`      | `void`                   |
+| `skills.getUsage(skillId)` | `GET /skills/{id}/usage`   | `ResourceUsage`          |
+| `skills.bulkDelete(ids)`   | `POST /skills/bulk-delete` | `BulkDeleteResult`       |
 
 `DiscoverSkillsParams`: `page?`, `limit?`, `search?`, `scope?: 'mine'` (restricts to the asserted
 end user's own Skills — only meaningful on a `ProjectRuntimeContext` client). `Skill.isOwner` is
@@ -364,10 +368,11 @@ const agent = await persona.agents.create({
   skills: [skill._id],
 });
 
-const discovered = await persona.agents.list({
+const { items: discovered, pagination } = await persona.agents.list({
   category: "productivity",
   search: "career",
 });
+// pagination: { total, page, limit, pages } — check .pages instead of items.length vs. limit
 const full = await persona.agents.get(agent._id); // skills/mcps/knowledgeBases populated as objects
 await persona.agents.update(agent._id, {
   tagline: "Find your next internship.",
@@ -376,14 +381,14 @@ await persona.agents.delete(agent._id);
 await persona.agents.bulkDelete([agent._id]);
 ```
 
-| Method                     | Wraps                      | Returns            |
-| -------------------------- | -------------------------- | ------------------ |
-| `agents.create(input)`     | `POST /agents`             | `Agent`            |
-| `agents.list(params?)`     | `GET /agents`              | `Agent[]`          |
-| `agents.get(agentId)`      | `GET /agents/{id}`         | `Agent`            |
-| `agents.update(id, input)` | `PATCH /agents/{id}`       | `Agent`            |
-| `agents.delete(agentId)`   | `DELETE /agents/{id}`      | `void`             |
-| `agents.bulkDelete(ids)`   | `POST /agents/bulk-delete` | `BulkDeleteResult` |
+| Method                     | Wraps                      | Returns                  |
+| -------------------------- | -------------------------- | ------------------------ |
+| `agents.create(input)`     | `POST /agents`             | `Agent`                  |
+| `agents.list(params?)`     | `GET /agents`              | `PaginatedResult<Agent>` |
+| `agents.get(agentId)`      | `GET /agents/{id}`         | `Agent`                  |
+| `agents.update(id, input)` | `PATCH /agents/{id}`       | `Agent`                  |
+| `agents.delete(agentId)`   | `DELETE /agents/{id}`      | `void`                   |
+| `agents.bulkDelete(ids)`   | `POST /agents/bulk-delete` | `BulkDeleteResult`       |
 
 Notes on the `Agent` shape:
 
@@ -427,21 +432,23 @@ const hits = await persona.knowledge.search(
 
 const usage = await persona.knowledge.getUsage(kb._id); // check before delete()
 await persona.knowledge.bulkDelete([kb._id]);
+
+const { items: bases } = await persona.knowledge.list({ scope: "mine" });
 ```
 
-| Method                                       | Wraps                                           | Returns                   |
-| -------------------------------------------- | ----------------------------------------------- | ------------------------- |
-| `knowledge.create(input)`                    | `POST /knowledge`                               | `KnowledgeBase`           |
-| `knowledge.list(params?)`                    | `GET /knowledge`                                | `KnowledgeBase[]`         |
-| `knowledge.get(kbId)`                        | `GET /knowledge/{id}`                           | `KnowledgeBase`           |
-| `knowledge.update(kbId, input)`              | `PATCH /knowledge/{id}`                         | `KnowledgeBase`           |
-| `knowledge.delete(kbId)`                     | `DELETE /knowledge/{id}`                        | `void`                    |
-| `knowledge.uploadDocuments(kbId, files)`     | `POST /knowledge/{id}/documents` (multipart)    | `UploadDocumentsResult`   |
-| `knowledge.listDocuments(kbId)`              | `GET /knowledge/{id}/documents`                 | `KnowledgeDocument[]`     |
-| `knowledge.deleteDocument(kbId, sourceName)` | `DELETE /knowledge/{id}/documents/{sourceName}` | `DeleteDocumentResult`    |
-| `knowledge.search(kbId, query, options?)`    | `POST /knowledge/{id}/search`                   | `KnowledgeSearchResult[]` |
-| `knowledge.getUsage(kbId)`                   | `GET /knowledge/{id}/usage`                     | `ResourceUsage`           |
-| `knowledge.bulkDelete(ids)`                  | `POST /knowledge/bulk-delete`                   | `BulkDeleteResult`        |
+| Method                                       | Wraps                                           | Returns                          |
+| -------------------------------------------- | ----------------------------------------------- | -------------------------------- |
+| `knowledge.create(input)`                    | `POST /knowledge`                               | `KnowledgeBase`                  |
+| `knowledge.list(params?)`                    | `GET /knowledge`                                | `PaginatedResult<KnowledgeBase>` |
+| `knowledge.get(kbId)`                        | `GET /knowledge/{id}`                           | `KnowledgeBase`                  |
+| `knowledge.update(kbId, input)`              | `PATCH /knowledge/{id}`                         | `KnowledgeBase`                  |
+| `knowledge.delete(kbId)`                     | `DELETE /knowledge/{id}`                        | `void`                           |
+| `knowledge.uploadDocuments(kbId, files)`     | `POST /knowledge/{id}/documents` (multipart)    | `UploadDocumentsResult`          |
+| `knowledge.listDocuments(kbId)`              | `GET /knowledge/{id}/documents`                 | `KnowledgeDocument[]`            |
+| `knowledge.deleteDocument(kbId, sourceName)` | `DELETE /knowledge/{id}/documents/{sourceName}` | `DeleteDocumentResult`           |
+| `knowledge.search(kbId, query, options?)`    | `POST /knowledge/{id}/search`                   | `KnowledgeSearchResult[]`        |
+| `knowledge.getUsage(kbId)`                   | `GET /knowledge/{id}/usage`                     | `ResourceUsage`                  |
+| `knowledge.bulkDelete(ids)`                  | `POST /knowledge/bulk-delete`                   | `BulkDeleteResult`               |
 
 Limits: up to 10 files per `uploadDocuments()` call, 20MB each, restricted to
 PDF/TXT/MD/JSON/CSV. `providerId` is **required** on `CreateKnowledgeBaseInput` — unlike Persona's
@@ -478,12 +485,14 @@ const { text, mimeType } = await persona.mcps.readResource(
 
 const usage = await persona.mcps.getUsage(mcp._id); // check before delete()
 await persona.mcps.bulkDelete([mcp._id]);
+
+const { items: connectors } = await persona.mcps.list({ scope: "mine" });
 ```
 
 | Method                              | Wraps                             | Returns                                              |
 | ----------------------------------- | --------------------------------- | ---------------------------------------------------- |
 | `mcps.create(input)`                | `POST /mcps`                      | `Mcp`                                                |
-| `mcps.list(params?)`                | `GET /mcps`                       | `Mcp[]`                                              |
+| `mcps.list(params?)`                | `GET /mcps`                       | `PaginatedResult<Mcp>`                               |
 | `mcps.get(mcpId)`                   | `GET /mcps/{id}`                  | `Mcp`                                                |
 | `mcps.update(mcpId, input)`         | `PATCH /mcps/{id}`                | `Mcp`                                                |
 | `mcps.delete(mcpId)`                | `DELETE /mcps/{id}`               | `void`                                               |
@@ -531,7 +540,10 @@ EXTERNAL_USER_REQUIRED` `PersonaValidationError`.
 
 ```ts
 const thread = await userClient.threads.create({ agentId: agent._id });
-const mine = await userClient.threads.list({ page: 1, limit: 20 });
+const { items: mine, pagination } = await userClient.threads.list({
+  page: 1,
+  limit: 20,
+});
 await userClient.threads.updateTitle(thread._id, "Summer internship search");
 await userClient.threads.update(thread._id, { isArchived: true }); // archive without touching the title
 const { messages, state } = await userClient.threads.getMessages(thread._id);
@@ -539,16 +551,16 @@ await userClient.threads.delete(thread._id);
 await userClient.threads.bulkDelete([thread._id]);
 ```
 
-| Method                                 | Wraps                        | Returns            |
-| -------------------------------------- | ---------------------------- | ------------------ |
-| `threads.create(input)`                | `POST /threads`              | `Thread`           |
-| `threads.list(params?)`                | `GET /threads`               | `Thread[]`         |
-| `threads.get(threadId)`                | `GET /threads/{id}`          | `Thread`           |
-| `threads.update(threadId, input)`      | `PATCH /threads/{id}`        | `Thread`           |
-| `threads.updateTitle(threadId, title)` | `PATCH /threads/{id}`        | `Thread`           |
-| `threads.delete(threadId)`             | `DELETE /threads/{id}`       | `void`             |
-| `threads.bulkDelete(ids)`              | `POST /threads/bulk-delete`  | `BulkDeleteResult` |
-| `threads.getMessages(threadId)`        | `GET /threads/{id}/messages` | `ThreadMessages`   |
+| Method                                 | Wraps                        | Returns                   |
+| -------------------------------------- | ---------------------------- | ------------------------- |
+| `threads.create(input)`                | `POST /threads`              | `Thread`                  |
+| `threads.list(params?)`                | `GET /threads`               | `PaginatedResult<Thread>` |
+| `threads.get(threadId)`                | `GET /threads/{id}`          | `Thread`                  |
+| `threads.update(threadId, input)`      | `PATCH /threads/{id}`        | `Thread`                  |
+| `threads.updateTitle(threadId, title)` | `PATCH /threads/{id}`        | `Thread`                  |
+| `threads.delete(threadId)`             | `DELETE /threads/{id}`       | `void`                    |
+| `threads.bulkDelete(ids)`              | `POST /threads/bulk-delete`  | `BulkDeleteResult`        |
+| `threads.getMessages(threadId)`        | `GET /threads/{id}/messages` | `ThreadMessages`          |
 
 `update()` is the general form — `{ title?, isArchived? }`, both optional, send just the one you
 want to change. `updateTitle(threadId, title)` is a convenience wrapper over `update()` for the
@@ -577,7 +589,10 @@ const file = await userClient.files.upload({
   threadId: thread._id, // optional — associates the file with a conversation
 });
 
-const mine = await userClient.files.list({ page: 1, limit: 20 });
+const { items: mine, pagination } = await userClient.files.list({
+  page: 1,
+  limit: 20,
+});
 
 const response = await userClient.files.download(file.id); // raw Response, not JSON
 const bytes = await response.arrayBuffer();
@@ -586,13 +601,13 @@ await userClient.files.delete(file.id);
 await userClient.files.bulkDelete([file.id]);
 ```
 
-| Method                   | Wraps                     | Returns                    |
-| ------------------------ | ------------------------- | -------------------------- |
-| `files.upload(input)`    | `POST /files` (multipart) | `PersonaFile`              |
-| `files.list(params?)`    | `GET /files`              | `PersonaFile[]`            |
-| `files.download(fileId)` | `GET /files/{id}`         | `Response` (raw, not JSON) |
-| `files.delete(fileId)`   | `DELETE /files/{id}`      | `void`                     |
-| `files.bulkDelete(ids)`  | `POST /files/bulk-delete` | `BulkDeleteResult`         |
+| Method                   | Wraps                     | Returns                        |
+| ------------------------ | ------------------------- | ------------------------------ |
+| `files.upload(input)`    | `POST /files` (multipart) | `PersonaFile`                  |
+| `files.list(params?)`    | `GET /files`              | `PaginatedResult<PersonaFile>` |
+| `files.download(fileId)` | `GET /files/{id}`         | `Response` (raw, not JSON)     |
+| `files.delete(fileId)`   | `DELETE /files/{id}`      | `void`                         |
+| `files.bulkDelete(ids)`  | `POST /files/bulk-delete` | `BulkDeleteResult`             |
 
 `files.download()` is the one method on the whole client that doesn't return parsed JSON — it
 returns the raw `Response` so you can call `.arrayBuffer()`/`.blob()`, or pipe `.body` (a

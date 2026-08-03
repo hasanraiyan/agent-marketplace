@@ -1,5 +1,6 @@
 import mcpService from '../mcp/mcp.service.js';
 import { bulkDelete } from '../../utils/bulkDelete.js';
+import { paginationEnvelope } from '../../utils/pagination.js';
 
 /**
  * Developer Platform MCP CRUD (blueprint Phase 9, PR-35, AD-04 §18 — MCP
@@ -178,9 +179,13 @@ class DeveloperMcpController {
       const limit = parseInt(req.query.limit) || 20;
       const filters = { search: req.query.search, scope: req.query.scope };
 
-      const mcps = await mcpService.discoverMcps(req.projectContext, filters, { page, limit });
+      const [mcps, total] = await Promise.all([
+        mcpService.discoverMcps(req.projectContext, filters, { page, limit }),
+        mcpService.countDiscoverMcps(req.projectContext, filters),
+      ]);
+      const safeMcps = mcps.map((mcp) => mcpService.toSafeJson(mcp));
 
-      res.json({ success: true, data: mcps.map((mcp) => mcpService.toSafeJson(mcp)) });
+      res.json({ success: true, data: paginationEnvelope(safeMcps, total, page, limit) });
     } catch (error) {
       next(error);
     }
