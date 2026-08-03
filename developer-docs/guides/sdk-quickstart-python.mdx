@@ -250,6 +250,7 @@ behavior change.
 | `.mcps` (+ `.mcps.oauth`) | `/api/v1/developer/mcps` (incl. OAuth owner/user connection flows) | Project or, with `external_user_id`, that end user.                    |
 | `.threads`                | `/api/v1/developer/threads`                                        | Requires `external_user_id` — a Thread always belongs to one end user. |
 | `.files`                  | `/api/v1/developer/files`                                          | Requires `external_user_id` — a File always belongs to one end user.   |
+| `.audit_logs`             | `/api/v1/developer/audit-logs`                                     | Control-plane only — no per-user audit trail.                          |
 | `.chat`                   | `/api/v1/developer/agui` (streaming)                               | Requires `external_user_id` — a chat run always runs as one end user.  |
 
 Two real backend quirks show up across the typed responses below, documented rather than papered
@@ -627,6 +628,37 @@ user_persona.files.bulk_delete([file["id"]])
 `files.download()` is the one method on the whole client that doesn't return parsed JSON — it
 returns the raw `httpx.Response` so you can read `.content`/`.text`/`.iter_bytes()` as your
 application needs.
+
+### Audit logs
+
+Read-only, control-plane only (mirrors Providers — no `ExternalUser` ownership concept). A client
+constructed with `external_user_id` gets an empty `PaginatedResult` back, not an error, matching
+`providers.list()`'s own existence-hiding-style precedent.
+
+<Warning>
+  Today's audit log covers **Project-lifecycle events only** — credential
+  minted/revoked, membership added/removed, Project suspended/restored, deletion
+  requested/cancelled/completed. It does **not** cover resource CRUD — creating,
+  updating, or deleting an Agent/Skill/Knowledge Base/Provider/MCP leaves no
+  entry here yet. Don't expect to find a `"agent.deleted"` event; it doesn't
+  exist as of this release.
+</Warning>
+
+```python
+result = persona.audit_logs.list(
+    {"eventType": "credential.created", "page": 1, "limit": 20}  # eventType is an optional filter
+)
+events = result["items"]
+```
+
+| Method                         | Wraps             | Returns                          |
+| ------------------------------ | ----------------- | -------------------------------- |
+| `audit_logs.list(params=None)` | `GET /audit-logs` | `PaginatedResult[AuditLogEntry]` |
+
+`ListAuditLogsParams`: `page`, `limit`, `eventType` (optional exact-match filter), all optional.
+Each `AuditLogEntry`: `{"eventType", "timestamp", "actorContextType", "actorIdentity",
+"targetDomain", "targetResourceId", "metadata"}` — `actorIdentity`/`targetResourceId` are
+`str | None`.
 
 ## Chat, streamed
 

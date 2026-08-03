@@ -75,6 +75,8 @@ export type {
 } from './types/thread.js';
 export { FilesResource } from './resources/files.js';
 export type { PersonaFile, UploadFilePayload, ListFilesParams } from './types/file.js';
+export { AuditLogsResource } from './resources/auditLogs.js';
+export type { AuditLogEntry, ListAuditLogsParams } from './types/auditLog.js';
 export { ChatClient } from './chat/chat-client.js';
 export { EventType } from './types/chat.js';
 export type {

@@ -3,6 +3,12 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.2.2
+
+Added a new top-level `auditLogs` resource — `persona.auditLogs.list(params?)` — read-only,
+control-plane only (mirrors `providers`). Covers Project-lifecycle events only (credential
+minted/revoked, membership changes, suspend/restore), not resource CRUD.
+
 ## 0.2.1
 
 Added an optional trailing `idempotencyKey` argument to every resource's `create()` (and
