@@ -15,6 +15,7 @@ from ._async_http import AsyncTransport
 from ._base import TransportConfig
 from .chat.client import AsyncChatClient
 from .resources.agents import AsyncAgents
+from .resources.audit_logs import AsyncAuditLogs
 from .resources.files import AsyncFiles
 from .resources.knowledge import AsyncKnowledge
 from .resources.mcp import AsyncMcps
@@ -61,6 +62,7 @@ class AsyncPersonaClient:
         self.mcps = AsyncMcps(self._transport)
         self.threads = AsyncThreads(self._transport)
         self.files = AsyncFiles(self._transport)
+        self.audit_logs = AsyncAuditLogs(self._transport)
         self.chat = AsyncChatClient(self._transport)
 
     async def aclose(self) -> None:

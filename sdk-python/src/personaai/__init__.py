@@ -3,6 +3,7 @@ from .chat.client import AsyncChatClient, ChatClient
 from .client import PersonaClient
 from .errors import PersonaApiError, PersonaAuthError, PersonaValidationError
 from .resources.agents import Agents, AsyncAgents
+from .resources.audit_logs import AsyncAuditLogs, AuditLogs
 from .resources.files import AsyncFiles, Files
 from .resources.knowledge import AsyncKnowledge, Knowledge
 from .resources.mcp import AsyncMcpOAuth, AsyncMcps, McpOAuth, Mcps
@@ -18,6 +19,7 @@ from .types.agent import (
     DiscoverAgentsParams,
     UpdateAgentInput,
 )
+from .types.audit_log import AuditLogEntry, ListAuditLogsParams
 from .types.bulk_delete import BulkDeleteFailure, BulkDeleteResult
 from .types.chat import (
     AguiEvent,
@@ -163,6 +165,10 @@ __all__ = [
     "PersonaFile",
     "UploadFilePayload",
     "ListFilesParams",
+    "AuditLogs",
+    "AsyncAuditLogs",
+    "AuditLogEntry",
+    "ListAuditLogsParams",
     "ChatClient",
     "AsyncChatClient",
     "EventType",

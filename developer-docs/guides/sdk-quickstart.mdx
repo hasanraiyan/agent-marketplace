@@ -256,6 +256,7 @@ behavior change.
 | `.mcps` (+ `.mcps.oauth`) | `/api/v1/developer/mcps` (incl. OAuth owner/user connection flows) | Project or, with `externalUserId`, that end user.                    |
 | `.threads`                | `/api/v1/developer/threads`                                        | Requires `externalUserId` — a Thread always belongs to one end user. |
 | `.files`                  | `/api/v1/developer/files`                                          | Requires `externalUserId` — a File always belongs to one end user.   |
+| `.auditLogs`              | `/api/v1/developer/audit-logs`                                     | Control-plane only — no per-user audit trail.                        |
 | `.chat`                   | `/api/v1/developer/agui` (streaming)                               | Requires `externalUserId` — a chat run always runs as one end user.  |
 
 Two real backend quirks show up across the typed responses below, documented rather than papered
@@ -654,6 +655,37 @@ await userClient.files.bulkDelete([file.id]);
 returns the raw `Response` so you can call `.arrayBuffer()`/`.blob()`, or pipe `.body` (a
 `ReadableStream`) straight onward, e.g. into an HTTP response in a Route Handler, without buffering
 the whole file in memory.
+
+### Audit logs
+
+Read-only, control-plane only (mirrors Providers — no `ExternalUser` ownership concept). A client
+constructed with `externalUserId` gets an empty `PaginatedResult` back, not an error, matching
+`providers.list()`'s own existence-hiding-style precedent.
+
+<Warning>
+  Today's audit log covers **Project-lifecycle events only** — credential
+  minted/revoked, membership added/removed, Project suspended/restored, deletion
+  requested/cancelled/completed. It does **not** cover resource CRUD — creating,
+  updating, or deleting an Agent/Skill/Knowledge Base/Provider/MCP leaves no
+  entry here yet. Don't expect to find an `"agent.deleted"` event; it doesn't
+  exist as of this release.
+</Warning>
+
+```ts
+const { items: events, pagination } = await persona.auditLogs.list({
+  eventType: "credential.created", // optional exact-match filter
+  page: 1,
+  limit: 20,
+});
+```
+
+| Method                    | Wraps             | Returns                          |
+| ------------------------- | ----------------- | -------------------------------- |
+| `auditLogs.list(params?)` | `GET /audit-logs` | `PaginatedResult<AuditLogEntry>` |
+
+`ListAuditLogsParams`: `page?`, `limit?`, `eventType?` (optional exact-match filter). Each
+`AuditLogEntry`: `{ eventType, timestamp, actorContextType, actorIdentity, targetDomain,
+targetResourceId, metadata }` — `actorIdentity`/`targetResourceId` are `string | null`.
 
 ## Chat, streamed
 

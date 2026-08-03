@@ -16,3 +16,5 @@ export { default as developerThreadRouter } from './developerThread.routes.js';
 export { default as developerThreadController } from './developerThread.controller.js';
 export { default as developerFileRouter } from './developerFile.routes.js';
 export { default as developerFileController } from './developerFile.controller.js';
+export { default as developerAuditLogRouter } from './developerAuditLog.routes.js';
+export { default as developerAuditLogController } from './developerAuditLog.controller.js';
