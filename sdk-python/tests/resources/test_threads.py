@@ -61,6 +61,21 @@ def test_update_title_sends_title_body():
 
 
 @respx.mock
+def test_update_archives_without_a_title():
+    route = respx.patch(f"{BASE_URL}/api/v1/developer/threads/t1").mock(
+        return_value=httpx.Response(
+            200, json={"success": True, "data": {**THREAD, "isArchived": True}}
+        )
+    )
+    result = _client().threads.update("t1", {"isArchived": True})
+    assert result["isArchived"] is True
+    import json as jsonlib
+
+    body = jsonlib.loads(route.calls.last.request.content)
+    assert body == {"isArchived": True}
+
+
+@respx.mock
 def test_delete():
     route = respx.delete(f"{BASE_URL}/api/v1/developer/threads/t1").mock(
         return_value=httpx.Response(200, json={"success": True, "data": None})

@@ -9,7 +9,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from ..types.thread import CreateThreadInput, ListThreadsParams, Thread, ThreadMessages
+from ..types.thread import (
+    CreateThreadInput,
+    ListThreadsParams,
+    Thread,
+    ThreadMessages,
+    UpdateThreadInput,
+)
 
 if TYPE_CHECKING:
     from .._async_http import AsyncTransport
@@ -37,13 +43,18 @@ class Threads:
             Thread, self._transport.request("GET", f"/api/v1/developer/threads/{thread_id}")
         )
 
-    def update_title(self, thread_id: str, title: str) -> Thread:
+    def update(self, thread_id: str, input: UpdateThreadInput) -> Thread:
+        """General-purpose update — ``{title, isArchived}``, both optional.
+        Pass just ``{"isArchived": True}`` to archive a Thread without
+        touching its title."""
         return cast(
             Thread,
-            self._transport.request(
-                "PATCH", f"/api/v1/developer/threads/{thread_id}", json={"title": title}
-            ),
+            self._transport.request("PATCH", f"/api/v1/developer/threads/{thread_id}", json=input),
         )
+
+    def update_title(self, thread_id: str, title: str) -> Thread:
+        """Convenience wrapper over ``update()`` for the common title-only case."""
+        return self.update(thread_id, {"title": title})
 
     def delete(self, thread_id: str) -> None:
         self._transport.request("DELETE", f"/api/v1/developer/threads/{thread_id}")
@@ -78,13 +89,20 @@ class AsyncThreads:
             await self._transport.request("GET", f"/api/v1/developer/threads/{thread_id}"),
         )
 
-    async def update_title(self, thread_id: str, title: str) -> Thread:
+    async def update(self, thread_id: str, input: UpdateThreadInput) -> Thread:
+        """General-purpose update — ``{title, isArchived}``, both optional.
+        Pass just ``{"isArchived": True}`` to archive a Thread without
+        touching its title."""
         return cast(
             Thread,
             await self._transport.request(
-                "PATCH", f"/api/v1/developer/threads/{thread_id}", json={"title": title}
+                "PATCH", f"/api/v1/developer/threads/{thread_id}", json=input
             ),
         )
+
+    async def update_title(self, thread_id: str, title: str) -> Thread:
+        """Convenience wrapper over ``update()`` for the common title-only case."""
+        return await self.update(thread_id, {"title": title})
 
     async def delete(self, thread_id: str) -> None:
         await self._transport.request("DELETE", f"/api/v1/developer/threads/{thread_id}")

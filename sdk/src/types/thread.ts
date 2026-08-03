@@ -20,6 +20,11 @@ export interface CreateThreadInput {
   agentId: string;
 }
 
+export interface UpdateThreadInput {
+  title?: string;
+  isArchived?: boolean;
+}
+
 export interface ListThreadsParams {
   page?: number;
   limit?: number;

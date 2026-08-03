@@ -126,6 +126,18 @@ class ThreadService {
   }
 
   /**
+   * Developer Platform only (Feature 1, thread archive/unarchive) — a
+   * general-purpose sibling to updateThreadTitle, accepting `{title?,
+   * isArchived?}`. Added instead of widening updateThreadTitle itself,
+   * since that method is still used unchanged by the Persona-side
+   * thread.controller.js.
+   */
+  async updateThread(id, userId, updates, context = personaExecutionContext(userId)) {
+    await this.getThreadById(id, userId, context);
+    return await threadRepository.update(id, updates);
+  }
+
+  /**
    * Deletes a single Thread (fetch-then-check ownership, same pattern as
    * before). Returns the deleted document so the caller can cascade
    * checkpoint cleanup via its `threadId`.

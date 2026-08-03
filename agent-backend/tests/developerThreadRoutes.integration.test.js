@@ -32,6 +32,7 @@ jest.unstable_mockModule('../src/modules/threads/thread.service.js', () => ({
     getThreadById: jest.fn(),
     getThreadsForSubject: jest.fn(),
     updateThreadTitle: jest.fn(),
+    updateThread: jest.fn(),
     deleteThread: jest.fn(),
   },
 }));
@@ -147,5 +148,34 @@ describe('developerThread.routes.js — mount integration', () => {
 
     expect(res.status).toBe(200);
     expect(threadService.getThreadById).toHaveBeenCalledWith('t1', undefined, expect.any(Object));
+  });
+
+  test('PATCH /:threadId archives a Thread via isArchived alone', async () => {
+    threadService.updateThread.mockResolvedValue({ _id: 't1', isArchived: true });
+
+    const res = await request(app)
+      .patch('/api/v1/developer/threads/t1')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('x-persona-external-user-id', 'sabik')
+      .send({ isArchived: true });
+
+    expect(res.status).toBe(200);
+    expect(threadService.updateThread).toHaveBeenCalledWith(
+      't1',
+      undefined,
+      { isArchived: true },
+      expect.any(Object)
+    );
+  });
+
+  test('PATCH /:threadId 400s on an invalid body (isArchived not a boolean)', async () => {
+    const res = await request(app)
+      .patch('/api/v1/developer/threads/t1')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('x-persona-external-user-id', 'sabik')
+      .send({ isArchived: 'yes' });
+
+    expect(res.status).toBe(400);
+    expect(threadService.updateThread).not.toHaveBeenCalled();
   });
 });

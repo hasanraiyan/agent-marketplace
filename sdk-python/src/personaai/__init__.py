@@ -79,6 +79,7 @@ from .types.thread import (
     Thread,
     ThreadAgentRef,
     ThreadMessages,
+    UpdateThreadInput,
 )
 
 __all__ = [
@@ -151,6 +152,7 @@ __all__ = [
     "Thread",
     "ThreadAgentRef",
     "CreateThreadInput",
+    "UpdateThreadInput",
     "ListThreadsParams",
     "ThreadMessages",
     "Files",

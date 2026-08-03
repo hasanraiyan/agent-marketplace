@@ -485,6 +485,7 @@ EXTERNAL_USER_REQUIRED` `PersonaValidationError`.
 thread = user_persona.threads.create({"agentId": agent["_id"]})
 mine = user_persona.threads.list({"page": 1, "limit": 20})
 user_persona.threads.update_title(thread["_id"], "Summer internship search")
+user_persona.threads.update(thread["_id"], {"isArchived": True})  # archive without touching title
 messages = user_persona.threads.get_messages(thread["_id"])
 user_persona.threads.delete(thread["_id"])
 ```
@@ -494,9 +495,14 @@ user_persona.threads.delete(thread["_id"])
 | `threads.create(input)`                  | `POST /threads`              | `Thread`         |
 | `threads.list(params=None)`              | `GET /threads`               | `list[Thread]`   |
 | `threads.get(thread_id)`                 | `GET /threads/{id}`          | `Thread`         |
+| `threads.update(thread_id, input)`       | `PATCH /threads/{id}`        | `Thread`         |
 | `threads.update_title(thread_id, title)` | `PATCH /threads/{id}`        | `Thread`         |
 | `threads.delete(thread_id)`              | `DELETE /threads/{id}`       | `None`           |
 | `threads.get_messages(thread_id)`        | `GET /threads/{id}/messages` | `ThreadMessages` |
+
+`update()` is the general form — `{title, isArchived}`, both optional, send just the one you want
+to change. `update_title(thread_id, title)` is a convenience wrapper over `update()` for the
+common title-only case; both still work.
 
 `Thread["agentId"]` is populated as `{_id, name, avatar, slug}` on `list()`, but a bare id string
 on `create()`/`get()` — check which call produced the value before assuming a shape.

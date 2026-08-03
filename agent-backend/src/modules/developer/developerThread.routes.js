@@ -1,7 +1,7 @@
 import express from 'express';
 import developerMachineAuthMiddleware from '../auth/developerMachineAuth.middleware.js';
 import { validateBody } from '../../middlewares/validationMiddleware.js';
-import { createThreadSchema, updateThreadTitleSchema } from '../threads/thread.validator.js';
+import { createThreadSchema, updateThreadSchema } from '../threads/thread.validator.js';
 import developerThreadController from './developerThread.controller.js';
 import BaseError from '../../utils/errors/BaseError.js';
 
@@ -97,13 +97,26 @@ router.get('/', developerThreadController.getAll);
  *       404: { description: Thread not found (or not visible to this Domain/Subject) }
  *   patch:
  *     tags: [Developer]
- *     summary: Update a Thread's title (Subject only)
+ *     summary: Update a Thread's title and/or archived status (Subject only)
+ *     description: >
+ *       Both fields are optional — send just `{ isArchived: true }` to
+ *       archive a Thread without touching its title, or just `{ title }` to
+ *       rename it, or both together.
  *     security: [{ projectCredential: [] }]
  *     parameters:
  *       - name: threadId
  *         in: path
  *         required: true
  *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title: { type: string }
+ *               isArchived: { type: boolean }
  *     responses:
  *       200: { description: Updated Thread }
  *       404: { description: Thread not found or unauthorized }
@@ -121,11 +134,7 @@ router.get('/', developerThreadController.getAll);
  *       404: { description: Thread not found or unauthorized }
  */
 router.get('/:threadId', developerThreadController.getOne);
-router.patch(
-  '/:threadId',
-  validateBody(updateThreadTitleSchema),
-  developerThreadController.updateTitle
-);
+router.patch('/:threadId', validateBody(updateThreadSchema), developerThreadController.update);
 router.delete('/:threadId', developerThreadController.remove);
 
 /**
