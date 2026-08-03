@@ -8,6 +8,7 @@ jest.unstable_mockModule('../src/modules/providers/provider.service.js', () => (
     deleteProvider: jest.fn(),
     testConnection: jest.fn(),
     getAvailableModels: jest.fn(),
+    listProvidersForProject: jest.fn(),
   },
 }));
 
@@ -33,6 +34,38 @@ describe('Developer Provider Controller', () => {
     mockReq = { projectContext: machineContext, body: {}, params: {} };
     mockRes = { status: jest.fn().mockReturnThis(), json: jest.fn() };
     next = jest.fn();
+  });
+
+  describe('list', () => {
+    test('lists via providerService.listProvidersForProject, forwarding req.projectContext', async () => {
+      providerService.listProvidersForProject.mockResolvedValue([{ id: 'p1' }, { id: 'p2' }]);
+
+      await developerProviderController.list(mockReq, mockRes, next);
+
+      expect(providerService.listProvidersForProject).toHaveBeenCalledWith(machineContext);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: [{ id: 'p1' }, { id: 'p2' }],
+      });
+    });
+
+    test('forwards a ProjectRuntimeContext through unchanged — same list either way', async () => {
+      mockReq.projectContext = runtimeContext;
+      providerService.listProvidersForProject.mockResolvedValue([]);
+
+      await developerProviderController.list(mockReq, mockRes, next);
+
+      expect(providerService.listProvidersForProject).toHaveBeenCalledWith(runtimeContext);
+    });
+
+    test('passes a thrown error to next()', async () => {
+      const error = new Error('boom');
+      providerService.listProvidersForProject.mockRejectedValue(error);
+
+      await developerProviderController.list(mockReq, mockRes, next);
+
+      expect(next).toHaveBeenCalledWith(error);
+    });
   });
 
   describe('testConnection', () => {

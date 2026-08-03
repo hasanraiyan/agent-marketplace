@@ -761,6 +761,21 @@
             "description": "Validation error, or an ExternalUser-asserted request (unsupported for Providers)"
           }
         }
+      },
+      "get": {
+        "tags": ["Developer"],
+        "summary": "List every Provider in this credential's Domain",
+        "description": "No pagination envelope, no `page`/`limit`/`search` params — Providers have no discovery concept (control-plane only, AD-06 §21), so this is a plain bare-array Domain-scoped list, same result for a ProjectMachineContext or ProjectRuntimeContext credential.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of Providers in this Domain"
+          }
+        }
       }
     },
     "/api/v1/developer/providers/{providerId}": {

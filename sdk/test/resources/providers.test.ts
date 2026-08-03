@@ -47,6 +47,19 @@ describe('ProvidersResource', () => {
     expect(JSON.parse(init.body as string)).toMatchObject({ label: 'Prod OpenAI' });
   });
 
+  it('list() GETs the bare providers list, no query params', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ success: true, data: [{ id: 'p1' }, { id: 'p2' }] })
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    const providers = await client.providers.list();
+    expect(providers).toEqual([{ id: 'p1' }, { id: 'p2' }]);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.example.com/api/v1/developer/providers');
+    expect(init.method).toBe('GET');
+  });
+
   it('get() fetches a single Provider by id', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       jsonResponse({ success: true, data: { id: 'p1', label: 'X' } })

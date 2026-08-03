@@ -33,6 +33,15 @@ def test_create():
 
 
 @respx.mock
+def test_list():
+    respx.get(f"{BASE_URL}/api/v1/developer/providers").mock(
+        return_value=httpx.Response(200, json={"success": True, "data": [PROVIDER]})
+    )
+    client = PersonaClient(BASE_URL, "keyId.secret")
+    assert client.providers.list() == [PROVIDER]
+
+
+@respx.mock
 def test_get():
     respx.get(f"{BASE_URL}/api/v1/developer/providers/p1").mock(
         return_value=httpx.Response(200, json={"success": True, "data": PROVIDER})
@@ -98,6 +107,15 @@ async def test_async_create():
             }
         )
         assert provider["id"] == "p1"
+
+
+@respx.mock
+async def test_async_list():
+    respx.get(f"{BASE_URL}/api/v1/developer/providers").mock(
+        return_value=httpx.Response(200, json={"success": True, "data": [PROVIDER]})
+    )
+    async with AsyncPersonaClient(BASE_URL, "keyId.secret") as client:
+        assert await client.providers.list() == [PROVIDER]
 
 
 @respx.mock
