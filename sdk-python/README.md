@@ -55,10 +55,14 @@ Or async, identical shape:
 import asyncio
 from personaai import AsyncPersonaClient
 
+
 async def main():
-    async with AsyncPersonaClient("https://api.persona.hasanraiyan.me", credential="<keyId>.<secret>") as persona:
+    async with AsyncPersonaClient(
+        "https://api.persona.hasanraiyan.me", credential="<keyId>.<secret>"
+    ) as persona:
         who = await persona.whoami()
         print(who["principalType"], who["domain"])
+
 
 asyncio.run(main())
 ```
@@ -169,6 +173,7 @@ from personaai import AsyncPersonaClient
 # Built once, at app startup.
 shared_http_client = httpx.AsyncClient()
 
+
 def get_persona(external_user_id: str | None = None) -> AsyncPersonaClient:
     return AsyncPersonaClient(
         base_url,
@@ -204,6 +209,7 @@ import os
 
 app = Flask(__name__)
 
+
 @app.post("/api/chat")
 def chat():
     user_persona = PersonaClient(
@@ -231,6 +237,7 @@ from personaai import AsyncPersonaClient
 
 _shared_http_client = httpx.AsyncClient()
 
+
 def get_persona(external_user_id: str | None = None) -> AsyncPersonaClient:
     return AsyncPersonaClient(
         os.environ["PERSONA_BASE_URL"],
@@ -247,6 +254,7 @@ from deps import get_persona
 from personaai import AsyncPersonaClient
 
 app = FastAPI()
+
 
 @app.post("/api/chat")
 async def chat(body: dict, current_user_id: str = Depends(get_current_user_id)):
