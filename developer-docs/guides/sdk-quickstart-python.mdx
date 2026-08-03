@@ -24,9 +24,11 @@ complete method-by-method reference of the client surface.
 ## Install
 
 <Note>
-  **Public PyPI package coming soon.** `personaai` isn't published to PyPI yet —
-  `pip install personaai` won't resolve until it is. Until then, build it
-  locally from source:
+  **Public PyPI package coming soon.** Once published, install with `pip install
+  persona-agent-sdk` — note the PyPI name is `persona-agent-sdk` (`personaai`
+  was already too close to an unrelated existing PyPI project's name), but it's
+  still imported as `personaai` in code: `from personaai import PersonaClient`.
+  Until published, build it locally from source:
 </Note>
 
 ```bash
@@ -45,7 +47,7 @@ pip install -e /path/to/agent-marketplace/sdk-python
 Once published, installing will be the usual one-liner:
 
 ```bash
-pip install personaai
+pip install persona-agent-sdk
 ```
 
 Requires Python 3.9+. Depends on [`httpx`](https://www.python-httpx.org/) only — no `requests`, no
