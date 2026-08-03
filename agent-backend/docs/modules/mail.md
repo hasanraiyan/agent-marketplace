@@ -50,8 +50,8 @@ Sent when a user requests a password reset.
 
 ```env
 RESEND_API_KEY=re_...           # Required for email sending
-MAIL_FROM=Persona.ai <noreply@persona.ai>  # Sender address
-WEBSITE_URL=https://persona.ai/  # Used in email links
+MAIL_FROM=Persona.ai <noreply@persona.hasanraiyan.me>  # Sender address
+WEBSITE_URL=https://persona.hasanraiyan.me/  # Used in email links
 ```
 
 ## Dependencies
