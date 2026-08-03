@@ -257,6 +257,18 @@ Control-plane only — no `ExternalUser` ownership concept (an end user can neve
 `list()` has no pagination envelope, no `page`/`limit`/`search` params — Providers have no
 discovery concept, so it's a plain bare-array Domain-scoped list.
 
+<Note>
+  Every method here — including `list()` — only works meaningfully on a
+  control-plane client (no `externalUserId`). A Provider's ownership can only
+  ever be `'PersonaUser'` or `'Project'`, never `'ExternalUser'`, so a client
+  constructed with `externalUserId` set gets an **empty array** from `list()`,
+  and a `404`/`PersonaApiError` from `get()`/`update()`/
+  `delete()`/`testConnection()`/`getModels()` — not because those Providers
+  don't exist, but because that credential can never be their owner. This
+  mirrors the same existence-hiding behavior the single- resource methods
+  already had; `list()` was made consistent with it too.
+</Note>
+
 | Method                                 | Wraps                                  | Returns                                 |
 | -------------------------------------- | -------------------------------------- | --------------------------------------- |
 | `providers.create(input)`              | `POST /providers`                      | `Provider`                              |
@@ -276,7 +288,8 @@ const provider = await persona.providers.create({
   isDefault: true,
 });
 
-const mine = await persona.providers.list();
+// Use the control-plane client (no externalUserId) — see the note above.
+const all = await persona.providers.list();
 const { success, message } = await persona.providers.testConnection(
   provider.id,
 );

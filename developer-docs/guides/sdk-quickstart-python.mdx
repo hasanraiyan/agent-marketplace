@@ -256,6 +256,18 @@ Control-plane only — no `ExternalUser` ownership concept (an end user can neve
 `list()` has no pagination envelope, no `page`/`limit`/`search` params — Providers have no
 discovery concept, so it's a plain bare-list Domain-scoped list.
 
+<Note>
+  Every method here — including `list()` — only works meaningfully on a
+  control-plane client (no `external_user_id`). A Provider's ownership can only
+  ever be `"PersonaUser"` or `"Project"`, never `"ExternalUser"`, so a client
+  constructed with `external_user_id` set gets an **empty list** from `list()`,
+  and a `PersonaApiError` (404) from `get()`/`update()`/
+  `delete()`/`test_connection()`/`get_models()` — not because those Providers
+  don't exist, but because that credential can never be their owner. This
+  mirrors the same existence-hiding behavior the single- resource methods
+  already had; `list()` was made consistent with it too.
+</Note>
+
 | Method                                   | Wraps                                  | Returns                             |
 | ---------------------------------------- | -------------------------------------- | ----------------------------------- |
 | `providers.create(input)`                | `POST /providers`                      | `Provider`                          |
@@ -277,7 +289,8 @@ provider = persona.providers.create(
     }
 )
 
-mine = persona.providers.list()
+# Use the control-plane client (no external_user_id) — see the note above.
+all_providers = persona.providers.list()
 result = persona.providers.test_connection(provider["id"])
 models = persona.providers.get_models(provider["id"])
 ```

@@ -38,14 +38,26 @@ class DeveloperProviderController {
    * Lists every Provider in this credential's Domain — reuses
    * `listProvidersForProject`, previously only called from Developer
    * Studio's `ProjectAdminContext` path. That method only ever reads
-   * `context.domain`, which every context type carries, so it's a
-   * genuinely safe reuse rather than a widened-authorization risk: no
-   * per-user scoping exists for Providers anyway (AD-06 §21), so a
-   * `ProjectMachineContext` and a `ProjectRuntimeContext` see the exact
-   * same list.
+   * `context.domain`, which every context type carries, so calling it here
+   * is safe, but it applies no ownership filtering of its own (Studio's
+   * admin browsing was always meant to see everything regardless of
+   * owner). A `ProjectRuntimeContext` credential is short-circuited to an
+   * empty list *before* calling it: a Provider's `ownerType` can only ever
+   * be `'PersonaUser'` or `'Project'`, never `'ExternalUser'` (AD-06 §21),
+   * so `isResourceOwner` always rejects a `ProjectRuntimeContext` against
+   * every real Provider in `getOne`/`update`/`remove`/`testConnection`/
+   * `getModels` below — an unfiltered list here would show Providers this
+   * exact same credential can never actually fetch individually. Matches
+   * this file's own established existence-hiding philosophy (see the
+   * `getOne`/`update`/`remove` comment above): silent empty result, not an
+   * error, mirroring how a single 404 already replaces an explicit
+   * "unauthorized".
    */
   async list(req, res, next) {
     try {
+      if (req.projectContext?.principalType === 'ProjectRuntime') {
+        return res.json({ success: true, data: [] });
+      }
       const providers = await providerService.listProvidersForProject(req.projectContext);
       res.json({ success: true, data: providers });
     } catch (error) {
