@@ -24,6 +24,20 @@ class AuditLogs:
         self._transport = transport
 
     def list(self, params: ListAuditLogsParams | None = None) -> PaginatedResult[AuditLogEntry]:
+        """Lists Project-lifecycle audit events for this credential's Domain
+        (credential minted/revoked, membership changes, suspend/restore) —
+        NOT resource CRUD (Agent/Skill/Knowledge/Provider/MCP create/update/
+        delete aren't logged here yet).
+
+        Args:
+            params: ``page`` (default ``1``), ``limit`` (default ``20``),
+                optional exact-match ``eventType`` filter.
+
+        Returns:
+            ``{"items", "pagination": {"total", "page", "limit", "pages"}}``
+            — empty (not an error) when called from a client asserting an
+            ``external_user_id``.
+        """
         return cast(
             PaginatedResult[AuditLogEntry],
             self._transport.request("GET", "/api/v1/developer/audit-logs", query=params),
@@ -37,6 +51,20 @@ class AsyncAuditLogs:
     async def list(
         self, params: ListAuditLogsParams | None = None
     ) -> PaginatedResult[AuditLogEntry]:
+        """Lists Project-lifecycle audit events for this credential's Domain
+        (credential minted/revoked, membership changes, suspend/restore) —
+        NOT resource CRUD (Agent/Skill/Knowledge/Provider/MCP create/update/
+        delete aren't logged here yet).
+
+        Args:
+            params: ``page`` (default ``1``), ``limit`` (default ``20``),
+                optional exact-match ``eventType`` filter.
+
+        Returns:
+            ``{"items", "pagination": {"total", "page", "limit", "pages"}}``
+            — empty (not an error) when called from a client asserting an
+            ``external_user_id``.
+        """
         return cast(
             PaginatedResult[AuditLogEntry],
             await self._transport.request("GET", "/api/v1/developer/audit-logs", query=params),

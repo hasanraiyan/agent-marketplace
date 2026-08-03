@@ -11,6 +11,8 @@ class _SkillFileRequired(TypedDict):
 
 
 class SkillFile(_SkillFileRequired, total=False):
+    """A file bundled with a Skill (e.g. a reference doc or script an Agent can read)."""
+
     mimeType: str
     createdAt: str
     updatedAt: str
@@ -31,9 +33,9 @@ class _SkillRequired(TypedDict):
     ownerType: Literal["PersonaUser", "Project", "ExternalUser"]
     name: str
     description: str
-    instructions: str
+    instructions: str  # the actual prompt text given to an Agent that has this Skill attached
     files: list[SkillFile]
-    isPublic: bool
+    isPublic: bool  # visible to every credential in the platform when True, not just this Domain
     createdAt: str
     updatedAt: str
 
@@ -55,20 +57,22 @@ class _CreateSkillInputRequired(TypedDict):
 
 
 class CreateSkillInput(_CreateSkillInputRequired, total=False):
-    isPublic: bool
+    isPublic: bool  # default: False
     files: list[SkillFileInput]
 
 
 class UpdateSkillInput(TypedDict, total=False):
+    """All fields optional — only what you pass is changed."""
+
     name: str
     description: str
     instructions: str
     isPublic: bool
-    files: list[SkillFileInput]
+    files: list[SkillFileInput]  # replaces the entire files array — this is not a merge/append
 
 
 class DiscoverSkillsParams(TypedDict, total=False):
-    page: int
-    limit: int
-    search: str
+    page: int  # default: 1
+    limit: int  # default: 20
+    search: str  # free-text match against name/description
     scope: Literal["mine"]  # restricts to the asserted external user's own Skills (runtime-only)

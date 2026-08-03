@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "persona-agent-sdk"
-version = "0.2.2"
+version = "0.2.3"
 description = "Python SDK for the Persona.ai Developer Platform API. Server-side only — never bundle into client-side/browser code."
 readme = "README.md"
 license = "MIT"

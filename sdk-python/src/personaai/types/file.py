@@ -11,7 +11,7 @@ class PersonaFile(TypedDict):
     id: str
     originalName: str
     mimeType: str
-    size: int
+    size: int  # bytes
     agentId: str | None
     threadId: str | None
     createdAt: str
@@ -23,11 +23,11 @@ class _UploadFilePayloadRequired(TypedDict):
 
 
 class UploadFilePayload(_UploadFilePayloadRequired, total=False):
-    contentType: str
-    agentId: str
-    threadId: str
+    contentType: str  # e.g. 'application/pdf'; required when content type can't be inferred
+    agentId: str  # associates this file with an Agent, e.g. for later reference in tool calls
+    threadId: str  # associates this file with a specific Thread/conversation
 
 
 class ListFilesParams(TypedDict, total=False):
-    page: int
-    limit: int
+    page: int  # default: 1
+    limit: int  # default: 20
