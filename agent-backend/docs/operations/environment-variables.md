@@ -11,7 +11,7 @@ All environment variables are loaded in `src/config/index.js` using `dotenv`. Va
 | `PORT` | No | `3000` | Server port |
 | `NODE_ENV` | No | `development` | Environment (`development`, `test`, `production`) |
 | `BACKEND_URL` | No | `https://api.persona.hasanraiyan.me` | Public URL (used for MCP OAuth redirect URIs) |
-| `WEBSITE_URL` | No | `https://persona.ai/` | Frontend URL (used in email links) |
+| `WEBSITE_URL` | No | `https://persona.hasanraiyan.me/` | Frontend URL (used in email links) |
 | `DISABLE_CRON` | No | `false` | Set to `true` to disable all scheduled jobs |
 
 ## Database
@@ -82,7 +82,7 @@ All environment variables are loaded in `src/config/index.js` using `dotenv`. Va
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `RESEND_API_KEY` | **Yes*** | — | Resend API key for email delivery |
-| `MAIL_FROM` | No | `Persona.ai <noreply@persona.ai>` | Sender email address |
+| `MAIL_FROM` | No | `Persona.ai <noreply@persona.hasanraiyan.me>` | Sender email address |
 
 > * Required for transactional emails (verification, password reset)
 
