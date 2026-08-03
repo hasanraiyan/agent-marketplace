@@ -673,6 +673,36 @@ this SDK makes end to end. Manage them from
 
 ## Framework recipes
 
+### Connection pooling at high request volume
+
+Constructing a `PersonaClient`/`AsyncPersonaClient` is cheap — no connection happens at
+construction time — so it's fine to build a fresh, per-request instance scoped to whoever is
+making the request (every recipe below does exactly that). But if you don't share anything, each
+instance opens its own `httpx` connection pool, so no TCP/TLS connection is ever reused across
+requests. At high volume, build **one** `httpx.Client`/`httpx.AsyncClient` at app startup and pass
+it to every per-request client via `http_client=` — they'll all share the same pool:
+
+```python
+import httpx
+from personaai import AsyncPersonaClient
+
+# Built once, at app startup.
+shared_http_client = httpx.AsyncClient()
+
+def get_persona(external_user_id: str | None = None) -> AsyncPersonaClient:
+    return AsyncPersonaClient(
+        base_url,
+        credential=credential,
+        external_user_id=external_user_id,
+        http_client=shared_http_client,  # reused across every call to get_persona()
+    )
+```
+
+This is safe even if individual requests use `with`/`async with` on their own
+`PersonaClient`/`AsyncPersonaClient` — closing one of those never closes a client you passed in
+via `http_client=`; only a client the SDK created for you (no `http_client` given) gets closed.
+Close `shared_http_client` yourself, once, at app shutdown.
+
 ### Flask
 
 No special handling — construct the client once at module scope and use it in your view functions.
@@ -708,18 +738,24 @@ def chat():
 
 Construct the client per-request via a `Depends()` provider so it plugs into FastAPI's own
 dependency-injection system — the SDK itself needs no FastAPI-specific support, and this uses the
-async client since FastAPI route handlers are `async def`.
+async client since FastAPI route handlers are `async def`. Shares one `httpx.AsyncClient` across
+every request (see [Connection pooling at high request volume](#connection-pooling-at-high-request-volume)
+above) since a real API is likely to see meaningful request volume.
 
 ```python
 # deps.py
 import os
+import httpx
 from personaai import AsyncPersonaClient
+
+_shared_http_client = httpx.AsyncClient()
 
 def get_persona(external_user_id: str | None = None) -> AsyncPersonaClient:
     return AsyncPersonaClient(
         os.environ["PERSONA_BASE_URL"],
         credential=os.environ["PERSONA_CREDENTIAL"],
         external_user_id=external_user_id,
+        http_client=_shared_http_client,
     )
 ```
 

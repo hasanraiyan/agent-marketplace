@@ -34,6 +34,19 @@ class AsyncPersonaClient:
         max_retries: int = 2,
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
+        """
+        Constructing a client is cheap (no connection happens here), so
+        it's fine to build a fresh, per-request instance scoped to
+        whoever is making the request (e.g. via ``external_user_id``). At
+        high request volume, pass your own shared ``http_client`` (one
+        ``httpx.AsyncClient`` built once at app startup) so every
+        per-request ``AsyncPersonaClient`` reuses the same connection pool
+        instead of each opening its own — this client never closes a
+        caller-supplied ``http_client`` (not even via ``aclose()``/the
+        ``async with`` context manager), so sharing one this way is safe
+        even if individual requests use ``async with
+        AsyncPersonaClient(...) as persona:``.
+        """
         config = TransportConfig(
             base_url=base_url,
             credential=credential,

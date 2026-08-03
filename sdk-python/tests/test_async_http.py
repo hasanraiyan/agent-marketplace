@@ -80,3 +80,20 @@ async def test_request_raises_on_non_json_error_response():
     with pytest.raises(PersonaApiError) as exc_info:
         await transport.request("GET", "/api/v1/developer/whoami")
     assert exc_info.value.code == "NON_JSON_ERROR_RESPONSE"
+
+
+async def test_aclose_closes_its_own_httpx_client():
+    transport = _transport()
+    await transport.aclose()
+    assert transport._client.is_closed
+
+
+async def test_aclose_never_closes_a_caller_supplied_httpx_client():
+    shared_client = httpx.AsyncClient()
+    config = TransportConfig(base_url=BASE_URL, credential="keyId.secret")
+    transport = AsyncTransport(config, shared_client)
+
+    await transport.aclose()
+
+    assert not shared_client.is_closed
+    await shared_client.aclose()

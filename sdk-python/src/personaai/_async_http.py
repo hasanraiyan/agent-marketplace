@@ -22,10 +22,21 @@ from ._base import (
 class AsyncTransport:
     def __init__(self, config: TransportConfig, client: httpx.AsyncClient | None = None) -> None:
         self._config = config
+        # Whether this transport created its own httpx.AsyncClient (and so
+        # must close it) vs. received one from the caller (who owns its
+        # lifecycle — typically a single httpx.AsyncClient shared across
+        # many AsyncPersonaClient instances for connection-pool reuse; see
+        # `http_client=` in AsyncPersonaClient's docstring).
+        self._owns_client = client is None
         self._client = client or httpx.AsyncClient()
 
     async def aclose(self) -> None:
-        await self._client.aclose()
+        """Closes the underlying httpx.AsyncClient — but only if this
+        transport created it itself. A caller-supplied client
+        (`http_client=`) is never closed here, since the caller may still
+        be using it for other AsyncPersonaClient instances."""
+        if self._owns_client:
+            await self._client.aclose()
 
     async def __aenter__(self) -> AsyncTransport:
         return self

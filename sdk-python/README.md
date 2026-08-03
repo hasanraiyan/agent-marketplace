@@ -16,7 +16,7 @@ pip install persona-agent-sdk
 
 > Installed as `persona-agent-sdk` on PyPI (the name `personaai` was already too close to an
 > unrelated existing PyPI project); imported as `personaai` in code — `from personaai import
-> PersonaClient`.
+PersonaClient`.
 
 Requires Python 3.9+. Depends on [`httpx`](https://www.python-httpx.org/) only — no `requests`,
 no `aiohttp`, no AG-UI protocol package (see [Chat, streamed](#chat-streamed) for why).
@@ -71,7 +71,7 @@ you — not required, but tidy for short-lived scripts.
 
 Most resources (Threads, Files, and any create/list call) behave differently depending on whether
 you assert an external user. Construct a second client per request, scoped to whoever is actually
-using your product right now — after *your own* auth has confirmed who that is:
+using your product right now — after _your own_ auth has confirmed who that is:
 
 ```python
 user_persona = PersonaClient(
@@ -131,16 +131,16 @@ result = await user_persona.chat.send_message(agent["_id"], messages)
 
 ## Resources
 
-| Client property | Wraps |
-| --- | --- |
-| `.agents` | `/api/v1/developer/agents` |
-| `.skills` | `/api/v1/developer/skills` |
-| `.knowledge` | `/api/v1/developer/knowledge` (incl. document upload/search) |
+| Client property           | Wraps                                                              |
+| ------------------------- | ------------------------------------------------------------------ |
+| `.agents`                 | `/api/v1/developer/agents`                                         |
+| `.skills`                 | `/api/v1/developer/skills`                                         |
+| `.knowledge`              | `/api/v1/developer/knowledge` (incl. document upload/search)       |
 | `.mcps` (+ `.mcps.oauth`) | `/api/v1/developer/mcps` (incl. OAuth owner/user connection flows) |
-| `.providers` | `/api/v1/developer/providers` |
-| `.threads` | `/api/v1/developer/threads` |
-| `.files` | `/api/v1/developer/files` |
-| `.chat` | `/api/v1/developer/agui` (streaming) |
+| `.providers`              | `/api/v1/developer/providers`                                      |
+| `.threads`                | `/api/v1/developer/threads`                                        |
+| `.files`                  | `/api/v1/developer/files`                                          |
+| `.chat`                   | `/api/v1/developer/agui` (streaming)                               |
 
 Every method mirrors the real REST endpoint 1:1 — no hidden behavior, and request/response bodies
 keep the API's own camelCase field names (`providerId`, `systemPrompt`, ...) even though method
@@ -152,6 +152,36 @@ root — see each resource file under `src/personaai/resources/` for the exact m
 SDK makes — manage them from [Developer Studio](https://persona.hasanraiyan.me/developer) instead.
 
 ## Framework recipes
+
+### Connection pooling at high request volume
+
+Constructing a `PersonaClient`/`AsyncPersonaClient` is cheap — no connection happens at
+construction time — so it's fine to build a fresh, per-request instance scoped to whoever is
+making the request (every recipe below does exactly that). But if you don't share anything, each
+instance opens its own `httpx` connection pool, so no TCP/TLS connection is ever reused across
+requests. At high volume, build **one** `httpx.Client`/`httpx.AsyncClient` at app startup and pass
+it to every per-request client via `http_client=` — they'll all share the same pool:
+
+```python
+import httpx
+from personaai import AsyncPersonaClient
+
+# Built once, at app startup.
+shared_http_client = httpx.AsyncClient()
+
+def get_persona(external_user_id: str | None = None) -> AsyncPersonaClient:
+    return AsyncPersonaClient(
+        base_url,
+        credential=credential,
+        external_user_id=external_user_id,
+        http_client=shared_http_client,  # reused across every call to get_persona()
+    )
+```
+
+This is safe even if individual requests use `with`/`async with` on their own
+`PersonaClient`/`AsyncPersonaClient` — closing one of those never closes a client you passed in
+via `http_client=`; only a client the SDK created for you (no `http_client` given) gets closed.
+Close `shared_http_client` yourself, once, at app shutdown.
 
 ### Flask
 
@@ -189,18 +219,24 @@ def chat():
 
 Construct the client per-request via a `Depends()` provider so it plugs into FastAPI's own
 dependency-injection system — the SDK itself needs no FastAPI-specific support, and this is the
-async client since FastAPI route handlers are `async def`.
+async client since FastAPI route handlers are `async def`. Shares one `httpx.AsyncClient` across
+every request (see [Connection pooling at high request volume](#connection-pooling-at-high-request-volume)
+above) since a real API is likely to see meaningful request volume.
 
 ```python
 # deps.py
 import os
+import httpx
 from personaai import AsyncPersonaClient
+
+_shared_http_client = httpx.AsyncClient()
 
 def get_persona(external_user_id: str | None = None) -> AsyncPersonaClient:
     return AsyncPersonaClient(
         os.environ["PERSONA_BASE_URL"],
         credential=os.environ["PERSONA_CREDENTIAL"],
         external_user_id=external_user_id,
+        http_client=_shared_http_client,
     )
 ```
 
