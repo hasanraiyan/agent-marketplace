@@ -29,28 +29,28 @@ src/modules/mail/
 Sent when a user registers and needs to verify their email address.
 
 - **Template:** Mailgen with OTP code button
-- **Subject:** "Verify your Persona.ai account"
+- **Subject:** "Verify your persona.hasanraiyan.me account"
 - **Includes:** Verification code, expiry notice (10 minutes)
 
 ### Welcome Email
 Sent after successful email verification.
 
 - **Template:** Mailgen with "Get Started" button
-- **Subject:** "Welcome to Persona.ai!"
+- **Subject:** "Welcome to persona.hasanraiyan.me!"
 - **Includes:** Link to the platform
 
 ### Password Reset Email
 Sent when a user requests a password reset.
 
 - **Template:** Mailgen with OTP code button
-- **Subject:** "Reset your Persona.ai password"
+- **Subject:** "Reset your persona.hasanraiyan.me password"
 - **Includes:** Reset code, expiry notice (10 minutes)
 
 ## Configuration
 
 ```env
 RESEND_API_KEY=re_...           # Required for email sending
-MAIL_FROM=Persona.ai <noreply@persona.hasanraiyan.me>  # Sender address
+MAIL_FROM=persona.hasanraiyan.me <noreply@persona.hasanraiyan.me>  # Sender address
 WEBSITE_URL=https://persona.hasanraiyan.me/  # Used in email links
 ```
 

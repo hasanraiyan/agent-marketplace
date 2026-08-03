@@ -1,6 +1,6 @@
 # 09 - Refactoring Progress & Actionable Tasks
 
-This document contains a highly granular, step-by-step checklist for the refactoring of the Persona.ai backend. Any autonomous coding agent can pick up a single pending step, execute the code moves, verify them against tests, and mark the items completed.
+This document contains a highly granular, step-by-step checklist for the refactoring of the persona.hasanraiyan.me backend. Any autonomous coding agent can pick up a single pending step, execute the code moves, verify them against tests, and mark the items completed.
 
 ---
 

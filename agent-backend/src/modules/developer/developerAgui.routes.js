@@ -41,8 +41,9 @@ router.use(developerMachineAuthMiddleware);
  *       named conversation — omit it to keep using the implicit,
  *       Domain-extended deterministic thread id (one conversation per
  *       Agent + external user). An unrecognized/foreign/wrong-agent
- *       x-thread-id silently falls back to the deterministic id rather
- *       than erroring (same contract as the Persona AG-UI route).
+ *       x-thread-id is rejected with 404 rather than silently falling
+ *       back to the deterministic id (same contract as the Persona AG-UI
+ *       route).
  *     security: [{ projectCredential: [] }]
  *     parameters:
  *       - name: x-agent-id
@@ -105,7 +106,10 @@ router.use(developerMachineAuthMiddleware);
  *       403:
  *         description: Project is not currently ACTIVE
  *       404:
- *         description: Agent not found (or not executable by this Domain/Subject)
+ *         description: >
+ *           Agent not found (or not executable by this Domain/Subject), or
+ *           x-thread-id was given but doesn't resolve to one of this
+ *           Subject's own Threads for this Agent.
  */
 router.get('/', developerAguiController.getProtocolInfo);
 router.post('/', rateLimiter('CHAT', RATE_LIMITS.CHAT), developerAguiController.runAgent);

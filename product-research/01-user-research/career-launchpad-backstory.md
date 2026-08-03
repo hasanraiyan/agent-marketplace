@@ -3,9 +3,9 @@
 > **Status:** FACT (narrative based on research)
 > **Date:** July 21, 2026
 >
-> **💼 Career Launchpad** is the **reference/dogfooding agent** — built _on_ Persona.ai
+> **💼 Career Launchpad** is the **reference/dogfooding agent** — built _on_ persona.hasanraiyan.me
 > using its agent-building system to validate the platform. It is NOT the only agent
-> Persona.ai supports; it is the **first agent** built with Persona's creator tools.
+> persona.hasanraiyan.me supports; it is the **first agent** built with Persona's creator tools.
 > Its detailed persona and problem analysis validates that Persona can address
 > real-world, sophisticated agent use cases.
 
@@ -165,7 +165,7 @@ Jordan clicks.
 
 ## Why This Agent — and Why It's the Reference/Dogfooding Agent
 
-The Career Launchpad was chosen as the **first agent built on Persona.ai** because:
+The Career Launchpad was chosen as the **first agent built on persona.hasanraiyan.me** because:
 
 | Reason                      | Explanation                                                                             |
 | --------------------------- | --------------------------------------------------------------------------------------- |
@@ -177,7 +177,7 @@ The Career Launchpad was chosen as the **first agent built on Persona.ai** becau
 | **Sticky outcome**          | A job is a life-changing outcome. Users will remember the tool that helped them get it. |
 | **Word-of-mouth potential** | Graduates share career tools. A single success can spread through a university.         |
 
-Building Career Launchpad **validates** Persona.ai's agent-building capabilities:
+Building Career Launchpad **validates** persona.hasanraiyan.me's agent-building capabilities:
 
 - Does the Skills system support 42+ specialized instructions?
 - Does the Knowledge system handle complex RAG requirements?
@@ -186,7 +186,7 @@ Building Career Launchpad **validates** Persona.ai's agent-building capabilities
 - Is the Agent Studio powerful enough for sophisticated agents?
 - Does the publishing system reach the right users?
 
-Every improvement found while building Career Launchpad makes Persona.ai better for all future agents.
+Every improvement found while building Career Launchpad makes persona.hasanraiyan.me better for all future agents.
 
 ---
 
@@ -204,7 +204,7 @@ Every improvement found while building Career Launchpad makes Persona.ai better 
 
 ---
 
-_Career Launchpad: A reference agent built on Persona.ai to validate the platform's agent-building capabilities._
+_Career Launchpad: A reference agent built on persona.hasanraiyan.me to validate the platform's agent-building capabilities._
 
 ---
 

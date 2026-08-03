@@ -1,6 +1,6 @@
-# Persona.ai Architecture & Refactoring Documentation
+# persona.hasanraiyan.me Architecture & Refactoring Documentation
 
-Welcome to the Persona.ai Backend Architecture documentation. This directory serves as the persistent architectural memory for analyzing, auditing, designing, planning, and executing the refactoring of our Express-based backend into a modular, robust, and clean codebase.
+Welcome to the persona.hasanraiyan.me Backend Architecture documentation. This directory serves as the persistent architectural memory for analyzing, auditing, designing, planning, and executing the refactoring of our Express-based backend into a modular, robust, and clean codebase.
 
 ## Directory Map
 

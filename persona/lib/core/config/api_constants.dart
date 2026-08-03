@@ -4,7 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class ApiConstants {
   ApiConstants._();
 
-  /// Base API URL for the Persona.ai backend.
+  /// Base API URL for the persona.hasanraiyan.me backend.
   /// Set API_BASE_URL in .env:
   ///   Physical device via adb reverse → http://localhost:3000/api/v1
   ///   Android emulator               → http://10.0.2.2:3000/api/v1

@@ -1,4 +1,4 @@
-"""Asynchronous entry point for the Persona.ai Developer Platform SDK — the
+"""Asynchronous entry point for the persona.hasanraiyan.me Developer Platform SDK — the
 ``asyncio`` mirror of :class:`personaai.client.PersonaClient`.
 
 **Server-side only.** See ``PersonaClient``'s docstring for the same

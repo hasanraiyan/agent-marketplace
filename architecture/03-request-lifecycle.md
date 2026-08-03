@@ -1,6 +1,6 @@
 # 03 - Request Lifecycles
 
-This document traces the request-response lifecycle of five representative API endpoints in the Persona.ai backend to visualize how data flows through our current layers.
+This document traces the request-response lifecycle of five representative API endpoints in the persona.hasanraiyan.me backend to visualize how data flows through our current layers.
 
 ---
 
@@ -27,7 +27,7 @@ This public endpoint requires no authentication and checks basic database connec
     - Returns boolean: true (connected) or false (disconnected)
     ↓
 [Route Handler (Formats Response)]
-    - Builds message: "Welcome to Persona.ai API", version, database status
+    - Builds message: "Welcome to persona.hasanraiyan.me API", version, database status
     ↓
 [HTTP Response (200 JSON)]
     ↓

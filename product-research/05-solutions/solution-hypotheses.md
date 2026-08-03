@@ -1,6 +1,6 @@
 # Solution Hypotheses — Career Launchpad (Primary) / Other Agents (Archived)
 
-> **🔄 Updated Framing (July 2026):** Persona.ai is an **agent marketplace + agent creation platform**.
+> **🔄 Updated Framing (July 2026):** persona.hasanraiyan.me is an **agent marketplace + agent creation platform**.
 > **💼 Career Launchpad** is a **reference/dogfooding agent**. Its solution hypotheses (CL-S\*) are for platform validation.
 > The other agent solutions are **archived for reference**.
 
@@ -72,7 +72,7 @@
 | **Desired Outcome**     | SA-O1 (Complete Journey Ownership)                                                                                                                                                                                                                                                                |
 | **Solution Hypothesis** | If the agent's capabilities are organized as 22 modular skills (from profile analysis to post-study work) with an orchestrator skill that activates the right skills for each student, then the agent can handle the full breadth of the journey while remaining manageable to build and maintain |
 | **Why We Believe It**   | A single monolithic prompt cannot cover the entire study abroad journey. Modular skills allow targeted updates as policies change                                                                                                                                                                 |
-| **Supporting Evidence** | The existing Persona.ai architecture supports skill files (SKILL.md) that can be independently developed and loaded                                                                                                                                                                               |
+| **Supporting Evidence** | The existing persona.hasanraiyan.me architecture supports skill files (SKILL.md) that can be independently developed and loaded                                                                                                                                                                               |
 | **Risks**               | The orchestrator may miss edge cases or activate wrong skills                                                                                                                                                                                                                                     |
 | **Assumptions**         | The orchestrator skill (skill #22) can accurately determine which skills to invoke                                                                                                                                                                                                                |
 | **How We Validate**     | Measure: (1) Coverage — do student questions map to available skills? (2) Orchestrator accuracy — does it call the right skills?                                                                                                                                                                  |

@@ -1,11 +1,11 @@
-# Current Product State: Persona.ai
+# Current Product State: persona.hasanraiyan.me
 
 > **Source:** Codebase analysis (July 2026)
 > **Status:** FACT — derived from inspecting the live codebase
 
-## What is Persona.ai?
+## What is persona.hasanraiyan.me?
 
-Persona.ai is an **agent marketplace + agent creation/runtime platform**. It provides two intentionally separate experiences sharing a unified backend, authentication, API, and agent runtime (AG-UI):
+persona.hasanraiyan.me is an **agent marketplace + agent creation/runtime platform**. It provides two intentionally separate experiences sharing a unified backend, authentication, API, and agent runtime (AG-UI):
 
 ### Persona — Consumer Experience (`/dashboard`)
 
@@ -19,11 +19,11 @@ For people who want to **build, configure, test, and publish** agents. Agent Stu
 
 **Creator flow:** Build → Configure → Resources → Test → Publish
 
-Both experiences sit on top of the same platform/runtime. Agent Studio is **not** a separate product — it is the creator-facing side of Persona.ai.
+Both experiences sit on top of the same platform/runtime. Agent Studio is **not** a separate product — it is the creator-facing side of persona.hasanraiyan.me.
 
 ### 💼 Career Launchpad
 
-Career Launchpad is a **reference/dogfooding agent** built _on_ Persona.ai using its agent-building system (skills, knowledge, memory, MCP, etc.). Its purpose is to validate that Persona can successfully build and operate a sophisticated real-world agent, exposing any weaknesses in the creator tools.
+Career Launchpad is a **reference/dogfooding agent** built _on_ persona.hasanraiyan.me using its agent-building system (skills, knowledge, memory, MCP, etc.). Its purpose is to validate that Persona can successfully build and operate a sophisticated real-world agent, exposing any weaknesses in the creator tools.
 
 **Career Launchpad does NOT define the product.** Persona is a platform that can host many such agents.
 
@@ -140,7 +140,7 @@ This is a **known product gap** that should be explicitly tracked.
 
 ## Career Launchpad — Reference/Dogfooding Agent
 
-Career Launchpad is a sophisticated agent built on Persona.ai using:
+Career Launchpad is a sophisticated agent built on persona.hasanraiyan.me using:
 
 - 42 specialized skills
 - Knowledge bases

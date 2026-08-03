@@ -1,8 +1,8 @@
 # AI Coding Agent Guide
 
-This guide helps AI coding agents understand and modify the **Persona.ai** repository.
+This guide helps AI coding agents understand and modify the **persona.hasanraiyan.me** repository.
 
-> **Current Architecture (July 2026):** Persona.ai has two intentionally separate frontend experiences
+> **Current Architecture (July 2026):** persona.hasanraiyan.me has two intentionally separate frontend experiences
 > sharing one backend. See "Frontend Architecture" below.
 
 ## Repository Overview

@@ -121,7 +121,7 @@ app.get('/', (req, res) => {
   }
 
   res.json({
-    message: 'Welcome to Persona.ai API',
+    message: 'Welcome to persona.hasanraiyan.me API',
     version: '1.0.0',
     database: dbStatus,
   });

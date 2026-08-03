@@ -16,7 +16,7 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Persona.ai Developer Platform API',
+      title: 'persona.hasanraiyan.me Developer Platform API',
       version: '1.0.0',
       description:
         "REST + AG-UI API for integrating your product with Persona's agent infrastructure.\n\n" +

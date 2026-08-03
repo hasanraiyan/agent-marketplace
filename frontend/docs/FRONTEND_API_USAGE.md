@@ -2,7 +2,7 @@
 
 This document maps frontend pages/components to backend API endpoints (Express routes) the frontend calls.
 
-**Architecture:** Persona.ai has two frontend experiences sharing one backend.
+**Architecture:** persona.hasanraiyan.me has two frontend experiences sharing one backend.
 
 | Experience                 | URL Prefix       | Audience       | Purpose                                 |
 | -------------------------- | ---------------- | -------------- | --------------------------------------- |

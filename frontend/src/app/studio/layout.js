@@ -5,8 +5,8 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { studioRoutes } from "@/lib/studio-routes";
 
 export const metadata = {
-  title: "Agent Studio · Persona.ai",
-  description: "Build, configure, test, and publish your Persona.ai agents.",
+  title: "Agent Studio · persona.hasanraiyan.me",
+  description: "Build, configure, test, and publish your persona.hasanraiyan.me agents.",
 };
 
 const STUDIO_HEADER_FALLBACK = {

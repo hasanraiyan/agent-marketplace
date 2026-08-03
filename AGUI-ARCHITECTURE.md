@@ -1,7 +1,7 @@
 # AG-UI Architecture & Reusable Blueprint
 
 > **A complete reference for building AI agent chat interfaces using the AG-UI streaming protocol.**
-> Based on the Persona.ai agent marketplace backend (Express 5 + MongoDB + LangGraph + Deep Agents) and its Next.js frontend.
+> Based on the persona.hasanraiyan.me agent marketplace backend (Express 5 + MongoDB + LangGraph + Deep Agents) and its Next.js frontend.
 
 ---
 

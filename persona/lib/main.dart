@@ -47,9 +47,9 @@ class PersonaApp extends StatelessWidget {
       // Only publishableKey is required for email/password auth.
       // When adding OAuth (Google, Apple, GitHub), pass:
       //   redirectionGenerator: (ctx, s) =>
-      //       Uri(scheme: 'clerk', host: 'com.persona.ai.callback'),
+      //       Uri(scheme: 'clerk', host: 'com.persona.hasanraiyan.me.callback'),
       //   deepLinkStream: AppLinks().uriLinkStream.asyncMap(...),
-      // clerk://com.persona.ai.callback is already registered in the Dashboard.
+      // clerk://com.persona.hasanraiyan.me.callback is already registered in the Dashboard.
       config: ClerkAuthConfig(publishableKey: publishableKey),
       child: ClerkAuthBridge(
         child: ScreenUtilInit(
@@ -58,7 +58,7 @@ class PersonaApp extends StatelessWidget {
           splitScreenMode: true,
           builder: (context, child) {
             return MaterialApp.router(
-              title: 'Persona.ai',
+              title: 'persona.hasanraiyan.me',
               debugShowCheckedModeBanner: false,
               theme: AppTheme.light,
               darkTheme: AppTheme.dark,

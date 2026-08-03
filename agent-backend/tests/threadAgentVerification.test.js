@@ -96,7 +96,7 @@ describe('AG-UI thread resolution — thread.agentId verified against x-agent-id
     expect(threadRepository.touchLastMessageAt).toHaveBeenCalledWith('thread_1');
   });
 
-  test('falls back to a deterministic thread id when the thread belongs to a different agent', async () => {
+  test('rejects with a 404 when the thread belongs to a different agent', async () => {
     threadRepository.findById.mockResolvedValue({
       _id: 'thread_1',
       threadId: 'uuid_1',
@@ -109,7 +109,8 @@ describe('AG-UI thread resolution — thread.agentId verified against x-agent-id
     const middleware = getContextMiddleware();
     await middleware(mockReq, mockRes, next);
 
-    expect(mockReq.aguiContext.langGraphThreadId).toBe('agui-agent_1-user_1');
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 404 }));
+    expect(mockReq.aguiContext).toBeUndefined();
     expect(threadRepository.touchLastMessageAt).not.toHaveBeenCalled();
   });
 
@@ -128,7 +129,7 @@ describe('AG-UI thread resolution — thread.agentId verified against x-agent-id
     expect(threadRepository.touchLastMessageAt).toHaveBeenCalledWith('thread_1');
   });
 
-  test('falls back to a deterministic thread id when the thread belongs to a different user', async () => {
+  test('rejects with a 404 when the thread belongs to a different user', async () => {
     threadRepository.findById.mockResolvedValue({
       _id: 'thread_1',
       threadId: 'uuid_1',
@@ -139,7 +140,8 @@ describe('AG-UI thread resolution — thread.agentId verified against x-agent-id
     const middleware = getContextMiddleware();
     await middleware(mockReq, mockRes, next);
 
-    expect(mockReq.aguiContext.langGraphThreadId).toBe('agui-agent_1-user_1');
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 404 }));
+    expect(mockReq.aguiContext).toBeUndefined();
     expect(threadRepository.touchLastMessageAt).not.toHaveBeenCalled();
   });
 });

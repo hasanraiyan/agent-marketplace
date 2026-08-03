@@ -1,4 +1,4 @@
-# Persona.ai Android App — Screen Plan
+# persona.hasanraiyan.me Android App — Screen Plan
 
 > Planning document only. No code lives here.
 > Backend: Express `/api/v1/*` · Streaming: AG-UI SSE on `/api/v1/agui`

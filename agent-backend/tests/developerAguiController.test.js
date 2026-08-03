@@ -242,7 +242,7 @@ describe('Developer AG-UI Controller — runAgent', () => {
       );
     });
 
-    test('falls back to the deterministic thread id when the Thread belongs to a different Agent', async () => {
+    test('rejects with a 404 when the Thread belongs to a different Agent, BEFORE setting SSE headers', async () => {
       mockReq.headers['x-thread-id'] = 'thread-mongo-id-1';
       threadService.getThreadById.mockResolvedValue({
         _id: 'thread-mongo-id-1',
@@ -252,22 +252,25 @@ describe('Developer AG-UI Controller — runAgent', () => {
 
       await developerAguiController.runAgent(mockReq, mockRes, next);
 
+      expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
       expect(threadRepository.touchLastMessageAt).not.toHaveBeenCalled();
-      expect(mockRes.write).toHaveBeenCalledWith(
-        expect.stringContaining('"threadId":"agui-project-1-agent-1-sabik"')
+      expect(mockRes.setHeader).not.toHaveBeenCalledWith(
+        'Content-Type',
+        'text/event-stream; charset=utf-8'
       );
     });
 
-    test("falls back to the deterministic thread id when the Thread is not this Subject's (no error surfaced)", async () => {
+    test("rejects with a 404 when the Thread is not this Subject's, BEFORE setting SSE headers", async () => {
       mockReq.headers['x-thread-id'] = 'thread-mongo-id-1';
       threadService.getThreadById.mockRejectedValue(new Error('Thread not found'));
 
       await developerAguiController.runAgent(mockReq, mockRes, next);
 
-      expect(next).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
       expect(threadRepository.touchLastMessageAt).not.toHaveBeenCalled();
-      expect(mockRes.write).toHaveBeenCalledWith(
-        expect.stringContaining('"threadId":"agui-project-1-agent-1-sabik"')
+      expect(mockRes.setHeader).not.toHaveBeenCalledWith(
+        'Content-Type',
+        'text/event-stream; charset=utf-8'
       );
     });
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// All design tokens for the Persona.ai color palette.
+/// All design tokens for the persona.hasanraiyan.me color palette.
 ///
 /// Adapted from the agent-marketplace frontend colors (oklch conversions).
 class AppColors {

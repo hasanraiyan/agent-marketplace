@@ -95,7 +95,7 @@ class AuthPage extends StatelessWidget {
               .scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1)),
           const SizedBox(height: 16),
           Text(
-            'Persona.ai',
+            'persona.hasanraiyan.me',
             style: AppTypography.headlineMedium.copyWith(
               color: isDark
                   ? AppColors.textPrimaryDark

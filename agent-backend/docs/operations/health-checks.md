@@ -68,7 +68,7 @@ Shows basic API info including DB status:
 
 ```json
 {
-  "message": "Welcome to Persona.ai API",
+  "message": "Welcome to persona.hasanraiyan.me API",
   "version": "1.0.0",
   "database": "connected"
 }

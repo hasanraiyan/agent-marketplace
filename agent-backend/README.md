@@ -1,6 +1,6 @@
-# Persona.ai Backend Part
+# persona.hasanraiyan.me Backend Part
 
-REST API backend for Persona.ai built with Express 5, MongoDB (Mongoose), and Zod validation.
+REST API backend for persona.hasanraiyan.me built with Express 5, MongoDB (Mongoose), and Zod validation.
 
 ## Tech Stack
 

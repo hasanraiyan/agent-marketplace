@@ -1,6 +1,6 @@
 # 06 - Target Architecture
 
-This document describes the target modular architecture for the Persona.ai backend, designed to achieve the high architectural standards of NestJS (domain separation, single responsibility, clear dependency flow) while preserving the simplicity of Express.js.
+This document describes the target modular architecture for the persona.hasanraiyan.me backend, designed to achieve the high architectural standards of NestJS (domain separation, single responsibility, clear dependency flow) while preserving the simplicity of Express.js.
 
 ---
 

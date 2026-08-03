@@ -1,6 +1,6 @@
 # 08 - API Compatibility
 
-This document records the existing public API contracts of the Persona.ai backend. During the refactoring, we must preserve these exact contracts to prevent breaking changes for existing frontend/mobile clients.
+This document records the existing public API contracts of the persona.hasanraiyan.me backend. During the refactoring, we must preserve these exact contracts to prevent breaking changes for existing frontend/mobile clients.
 
 ---
 
@@ -13,7 +13,7 @@ This document records the existing public API contracts of the Persona.ai backen
 - **Success Response (200 OK)**:
   ```json
   {
-    "message": "Welcome to Persona.ai API",
+    "message": "Welcome to persona.hasanraiyan.me API",
     "version": "1.0.0",
     "database": "connected"
   }

@@ -41,7 +41,7 @@ const config = {
   },
   resend: {
     apiKey: process.env.RESEND_API_KEY,
-    mailFrom: process.env.MAIL_FROM || 'Persona.ai <noreply@persona.hasanraiyan.me>',
+    mailFrom: process.env.MAIL_FROM || 'persona.hasanraiyan.me <noreply@persona.hasanraiyan.me>',
   },
   websiteUrl: process.env.WEBSITE_URL || 'https://persona.hasanraiyan.me/',
   backendUrl:

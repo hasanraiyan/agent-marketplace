@@ -1,6 +1,6 @@
 # Competitor Analysis — Career Launchpad Focus
 
-> **🔄 Updated Framing (July 2026):** Persona.ai is an **agent marketplace + agent creation platform**.
+> **🔄 Updated Framing (July 2026):** persona.hasanraiyan.me is an **agent marketplace + agent creation platform**.
 > **💼 Career Launchpad** is the **reference/dogfooding agent** that validates the platform's competitiveness.
 > The vertical competitor analyses for 🚀 Startup Thinker and 🌍 Study Abroad Navigator below are preserved for reference.
 

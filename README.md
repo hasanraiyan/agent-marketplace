@@ -1,8 +1,8 @@
-# Persona.ai
+# persona.hasanraiyan.me
 
 **Agent marketplace + agent creation/runtime platform.**
 
-Persona.ai provides two intentionally separate experiences sharing a unified backend, authentication, API, and agent runtime (AG-UI):
+persona.hasanraiyan.me provides two intentionally separate experiences sharing a unified backend, authentication, API, and agent runtime (AG-UI):
 
 - **Persona** (Consumer) — `/dashboard` — Discover, use, and have conversations with agents
 - **Agent Studio** (Creator) — `/studio` — Build, configure, test, and publish agents
@@ -60,7 +60,7 @@ See `frontend/README.md` and `frontend/docs/FRONTEND_API_USAGE.md` for frontend 
 
 ## Career Launchpad (Reference/Dogfooding Agent)
 
-**Career Launchpad** is a sophisticated reference agent built _on_ Persona.ai using its agent-building system. It validates the platform's creator tools and demonstrates what's possible. See `product-research/06-features/agent-specifications.md` for the full specification.
+**Career Launchpad** is a sophisticated reference agent built _on_ persona.hasanraiyan.me using its agent-building system. It validates the platform's creator tools and demonstrates what's possible. See `product-research/06-features/agent-specifications.md` for the full specification.
 
 ## Product Research
 

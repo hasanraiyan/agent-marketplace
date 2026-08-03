@@ -1,6 +1,6 @@
 # Architectural Decision Records (ADRs)
 
-This directory contains records of important architectural decisions made during the Persona.ai Express backend refactoring. Each record outlines the context, alternatives considered, reasoning, and consequences of the choice.
+This directory contains records of important architectural decisions made during the persona.hasanraiyan.me Express backend refactoring. Each record outlines the context, alternatives considered, reasoning, and consequences of the choice.
 
 ## Catalog
 

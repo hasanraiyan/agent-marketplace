@@ -4,7 +4,7 @@ import 'package:flex_color_scheme/flex_color_scheme.dart';
 
 import 'colors.dart';
 
-/// Central theme configuration for Persona.ai.
+/// Central theme configuration for persona.hasanraiyan.me.
 ///
 /// Uses [FlexColorScheme] for consistent Material-3 theming and
 /// [GoogleFonts] for typography.

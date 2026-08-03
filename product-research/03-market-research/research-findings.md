@@ -49,7 +49,7 @@ The AI agent market in 2026 is estimated at **$11.5–12.1 billion**, growing at
 | **End Consumers**      | External customers interacting with agents                                | Non-technical            |
 | **Agent-to-Agent**     | Automated agents consuming data from other agents                         | Machine                  |
 
-## What This Means for Persona.ai
+## What This Means for persona.hasanraiyan.me
 
 1. The **marketplace model** (Creators build → Consumers use) is validated — GPT Store, Agent.ai, and others are proving this model.
 2. The **most acute consumer problems** are in customer support, content creation, lead generation, and admin work — this is where a first consumer persona likely lives.

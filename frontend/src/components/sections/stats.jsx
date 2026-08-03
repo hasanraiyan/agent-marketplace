@@ -29,7 +29,7 @@ export function StatsSection() {
             Trusted by <span className="gradient-text">Thousands</span>
           </h2>
           <p className="mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
-            Teams and individuals around the world rely on Persona.ai to
+            Teams and individuals around the world rely on persona.hasanraiyan.me to
             supercharge their productivity.
           </p>
         </div>

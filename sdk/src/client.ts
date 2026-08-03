@@ -13,7 +13,7 @@ import { ChatClient } from './chat/chat-client.js';
 export type PersonaClientOptions = HttpClientOptions;
 
 /**
- * Entry point for the Persona.ai Developer Platform SDK.
+ * Entry point for the persona.hasanraiyan.me Developer Platform SDK.
  *
  * **Server-side only.** The credential this client holds is a server-side
  * secret (see the Integration Guide) — never construct this in a browser

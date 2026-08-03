@@ -99,7 +99,7 @@ export function Navbar() {
           >
             <SheetTitle className="flex items-center gap-2 p-4">
               <SparklesIcon className="size-5 text-primary" />
-              <span className="font-semibold">Persona.ai</span>
+              <span className="font-semibold">persona.hasanraiyan.me</span>
             </SheetTitle>
             <Separator />
             <div className="flex flex-col gap-1 p-4">

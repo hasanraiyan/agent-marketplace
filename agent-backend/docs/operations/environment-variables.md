@@ -82,7 +82,7 @@ All environment variables are loaded in `src/config/index.js` using `dotenv`. Va
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `RESEND_API_KEY` | **Yes*** | — | Resend API key for email delivery |
-| `MAIL_FROM` | No | `Persona.ai <noreply@persona.hasanraiyan.me>` | Sender email address |
+| `MAIL_FROM` | No | `persona.hasanraiyan.me <noreply@persona.hasanraiyan.me>` | Sender email address |
 
 > * Required for transactional emails (verification, password reset)
 

@@ -1,7 +1,7 @@
 # Feature Inventory — Career Launchpad (Primary) / Other Agents (Archived)
 
-> **🔄 Updated Framing (July 2026):** Persona.ai is an **agent marketplace + agent creation platform**.
-> **💼 Career Launchpad** is a **reference/dogfooding agent** built _on_ Persona.ai.
+> **🔄 Updated Framing (July 2026):** persona.hasanraiyan.me is an **agent marketplace + agent creation platform**.
+> **💼 Career Launchpad** is a **reference/dogfooding agent** built _on_ persona.hasanraiyan.me.
 > The 🚀 Startup Thinker and 🌍 Study Abroad Navigator features below are **archived for reference only**.
 
 > **Status:** HYPOTHESIS — grounded in founder specification

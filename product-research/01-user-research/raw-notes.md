@@ -19,7 +19,7 @@ Creator builds agent → Consumer uses agent → Consumer's problem gets solved
 
 ```
 ┌─────────────────────────────────────────────┐
-│            Persona.ai Platform               │
+│            persona.hasanraiyan.me Platform               │
 ├──────────────────┬──────────────────────────┤
 │  🚀 Startup      │  🚀 Startup              │
 │     Thinker      │     Thinker Creator      │

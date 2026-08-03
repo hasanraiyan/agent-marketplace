@@ -1,7 +1,7 @@
      ## User Journey Maps — Career Launchpad (Primary) / Other Agents (Archived)
 
-     > **🔄 Updated Framing (July 2026):** Persona.ai is an **agent marketplace + agent creation platform**.
-     > **💼 Career Launchpad** is a **reference/dogfooding agent** built *on* Persona.ai.
+     > **🔄 Updated Framing (July 2026):** persona.hasanraiyan.me is an **agent marketplace + agent creation platform**.
+     > **💼 Career Launchpad** is a **reference/dogfooding agent** built *on* persona.hasanraiyan.me.
      > The 🚀 Startup Thinker and 🌍 Study Abroad Navigator journeys below are **archived for reference only**.
 
      > **Status:** HYPOTHESIS — based on founder specification + research

@@ -119,7 +119,7 @@ export function StudioSidebar({ ...props }) {
                     Agent<span className="text-[#1E60FF]"> Studio</span>
                   </span>
                   <span className="mt-1 text-[10px] font-semibold text-slate-400 dark:text-slate-500">
-                    Persona.ai creator workspace
+                    persona.hasanraiyan.me creator workspace
                   </span>
                 </div>
               </Link>

@@ -27,20 +27,24 @@ import { readJsonBody, runAgentAsAguiEvents } from '../agui/agui.service.js';
  *   check alone to keep Project callers away from Persona's own
  *   agent-management tooling.
  * - **Thread resume (PR-41):** an `x-thread-id` header (or `threadId` body
- *   field) naming one of PR-40's real Threads is now looked up via
+ *   field) naming one of PR-40's real Threads is looked up via
  *   `threadService.getThreadById` (Subject + Domain verified) and, if it
  *   also belongs to the requested `agentId`, resumes that Thread's real
- *   LangGraph checkpoint — mirroring the Persona `/api/v1/agui` route's
- *   own `agui.routes.js` middleware exactly, including its "no valid
- *   thread was given" silent-fallback behavior (PR-15's fix, AD-05 §29):
- *   a missing/foreign/wrong-agent thread id is never a request error, it
- *   just falls back to the domain-extended deterministic thread id, same
- *   as before this PR. `lastMessageAt` is touched and subagent traces are
- *   persisted onto the resolved Thread document, same as Persona's own
- *   `agui.controller.js`. Omitting `x-thread-id` keeps the exact PR-23b
- *   behavior (one implicit conversation per (Agent, external user), no
- *   Conversation document touched) — this is additive, not a breaking
- *   change to existing callers.
+ *   LangGraph checkpoint. `lastMessageAt` is touched and subagent traces
+ *   are persisted onto the resolved Thread document, same as Persona's
+ *   own `agui.controller.js`. Omitting `x-thread-id` keeps the exact
+ *   PR-23b behavior (one implicit conversation per (Agent, external
+ *   user), no Thread document touched) — this is additive, not a
+ *   breaking change to existing callers.
+ * - **A missing/foreign/wrong-agent `threadId` is a 404** ("Thread not
+ *   found" — deliberately generic, doesn't distinguish "no such thread"
+ *   from "not yours" from "wrong agent"), not a silent fallback to the
+ *   deterministic conversation. An earlier version of this route (and
+ *   the Persona `/api/v1/agui` route it mirrored, PR-15/AD-05 §29) fell
+ *   back silently instead — but that meant a caller had no way to tell
+ *   "my threadId was honored" from "it silently resumed a different
+ *   conversation," which is worse than a clear error. Both routes now
+ *   reject.
  */
 class DeveloperAguiController {
   async getProtocolInfo(req, res) {
@@ -99,23 +103,33 @@ class DeveloperAguiController {
       let langGraphThreadId = deterministicThreadId;
       let resolvedThread = null;
       if (threadDbId) {
+        let thread = null;
         try {
-          const thread = await threadService.getThreadById(threadDbId, undefined, context);
-          // `thread.agentId` comes back populated (thread.repository.js's
-          // findById always populates it for display purposes), so it must
-          // be compared via its `._id` — comparing the populated document
-          // itself with a bare id string never matches.
-          const threadAgentId = thread.agentId?._id ?? thread.agentId;
-          if (String(threadAgentId) === String(agentId)) {
-            langGraphThreadId = thread.threadId;
-            resolvedThread = thread;
-            await threadRepository.touchLastMessageAt(thread._id);
-          }
+          thread = await threadService.getThreadById(threadDbId, undefined, context);
         } catch {
-          // Not found / not this Subject's / wrong Domain — fall back to
-          // the deterministic thread id, same silent-fallback contract as
-          // the Persona route (PR-15).
+          thread = null;
         }
+        // `thread.agentId` comes back populated (thread.repository.js's
+        // findById always populates it for display purposes), so it must
+        // be compared via its `._id` — comparing the populated document
+        // itself with a bare id string never matches.
+        const threadAgentId = thread?.agentId?._id ?? thread?.agentId;
+        if (!thread || String(threadAgentId) !== String(agentId)) {
+          // A threadId was explicitly given but doesn't resolve to one of
+          // this Subject's own Threads for this Agent — reject rather than
+          // silently resuming the deterministic fallback conversation
+          // instead (previously this fell back silently, mirroring the
+          // Persona route's PR-15 fix; both routes now reject instead,
+          // since resuming a *different* conversation than the one the
+          // caller explicitly asked for is a worse outcome than a clear
+          // error). Message is generic — doesn't distinguish "no such
+          // thread" from "not yours" from "wrong agent" — to avoid leaking
+          // which case applies.
+          throw new NotFoundError('Thread not found');
+        }
+        langGraphThreadId = thread.threadId;
+        resolvedThread = thread;
+        await threadRepository.touchLastMessageAt(thread._id);
       }
 
       const runId = input.runId || crypto.randomUUID();

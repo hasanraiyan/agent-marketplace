@@ -5,9 +5,9 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { developerRoutes } from "@/lib/developer-routes";
 
 export const metadata = {
-  title: "Developer Studio · Persona.ai",
+  title: "Developer Studio · persona.hasanraiyan.me",
   description:
-    "Manage your Persona.ai Developer Platform Projects — members, credentials, and lifecycle.",
+    "Manage your persona.hasanraiyan.me Developer Platform Projects — members, credentials, and lifecycle.",
 };
 
 const DEVELOPER_HEADER_FALLBACK = {

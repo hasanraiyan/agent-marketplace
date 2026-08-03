@@ -1,6 +1,6 @@
 # personaai
 
-Python SDK for the [Persona.ai](https://persona.hasanraiyan.me) Developer Platform API — Agents, Skills,
+Python SDK for the [persona.hasanraiyan.me](https://persona.hasanraiyan.me) Developer Platform API — Agents, Skills,
 Knowledge bases, MCP connectors, and streaming chat, from your own backend.
 
 > **Server-side only.** Every method on this SDK sends your Project's credential — a server-side

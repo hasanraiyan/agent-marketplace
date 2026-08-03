@@ -188,7 +188,7 @@ class _ProfileHeader extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Persona.ai member',
+              'persona.hasanraiyan.me member',
               style: AppTypography.bodySmall.copyWith(
                 color: isDark
                     ? AppColors.textSecondaryDark

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Typography scale for Persona.ai app.
+/// Typography scale for persona.hasanraiyan.me app.
 ///
 /// All text styles use the **Outfit** typeface via [GoogleFonts], matching
 /// the font scheme of the web project.

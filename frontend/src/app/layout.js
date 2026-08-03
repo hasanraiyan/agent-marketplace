@@ -19,14 +19,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Persona.ai — The Premier AI Agent Platform",
+  title: "persona.hasanraiyan.me — The Premier AI Agent Platform",
   description:
-    "Deploy and orchestrate intelligent AI agents for coding, writing, research, and more. Persona.ai is the professional platform for AI-powered productivity.",
+    "Deploy and orchestrate intelligent AI agents for coding, writing, research, and more. persona.hasanraiyan.me is the professional platform for AI-powered productivity.",
   keywords: ["AI agents", "platform", "automation", "productivity", "AI tools"],
   openGraph: {
-    title: "Persona.ai — The Premier AI Agent Platform",
+    title: "persona.hasanraiyan.me — The Premier AI Agent Platform",
     description:
-      "Deploy and orchestrate intelligent AI agents. Persona.ai provides professional-grade AI solutions for every workflow.",
+      "Deploy and orchestrate intelligent AI agents. persona.hasanraiyan.me provides professional-grade AI solutions for every workflow.",
     type: "website",
   },
 };

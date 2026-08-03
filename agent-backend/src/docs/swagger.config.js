@@ -4,10 +4,10 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Persona.ai Backend API',
+      title: 'persona.hasanraiyan.me Backend API',
       version: '1.0.0',
       description:
-        'REST API for the Persona.ai intelligent agent orchestration platform.\n\n' +
+        'REST API for the persona.hasanraiyan.me intelligent agent orchestration platform.\n\n' +
         'Authentication is handled by **Clerk**. Send the Clerk session token as\n' +
         'an `Authorization: Bearer <token>` header.\n' +
         'Some endpoints (agent search, get) work with optional auth — unauthenticated\n' +

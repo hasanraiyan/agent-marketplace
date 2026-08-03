@@ -2,6 +2,7 @@ import express from 'express';
 import authMiddleware from '../auth/auth.middleware.js';
 import rateLimiter, { RATE_LIMITS } from '../rateLimiter/rateLimiter.middleware.js';
 import threadRepository from '../threads/thread.repository.js';
+import NotFoundError from '../../utils/errors/NotFoundError.js';
 import aguiController from './agui.controller.js';
 
 const aguiRouter = express.Router();
@@ -21,41 +22,37 @@ aguiRouter.use(async (req, res, next) => {
 
     let langGraphThreadId = agentId ? `agui-${agentId}-${userId}` : null;
     if (agentId && threadDbId) {
-      try {
-        const thread = await threadRepository.findById(threadDbId);
-        // Developer Platform (blueprint §33 architecture debt, Phase 6): a
-        // thread must match both the requesting user AND the agent it was
-        // created with. Without the agentId check, a caller could resume a
-        // thread's checkpoint history (and persist new messages onto it)
-        // under a different agent's config by simply sending a different
-        // x-agent-id — same fallback as the userId mismatch below: treat it
-        // as no valid thread was given rather than surfacing an error.
-        //
-        // Bug fix (blueprint Phase 9, PR-42): `thread.agentId` comes back
-        // POPULATED (thread.repository.js's findById always populates it
-        // for display purposes), so `String(thread.agentId)` never equaled
-        // a bare `agentId` string — it stringified to a multi-line object
-        // dump instead. That meant this check ALWAYS failed silently and
-        // this route ALWAYS fell back to the deterministic thread id
-        // (`agui-${agentId}-${userId}`, scoped only to agent+user, not to
-        // any specific thread) — so every one of a user's conversations
-        // with the same agent has been sharing one LangGraph checkpoint,
-        // regardless of which named thread the client thought it was
-        // resuming. Comparing the populated document's `._id` instead
-        // fixes the match without changing anything else about the
-        // fallback contract.
-        const threadAgentId = thread?.agentId?._id ?? thread?.agentId;
-        if (
-          thread &&
-          thread.userId.toString() === userId.toString() &&
-          String(threadAgentId) === String(agentId)
-        ) {
-          langGraphThreadId = thread.threadId;
-          await threadRepository.touchLastMessageAt(thread._id);
-        }
-      } catch {
-        // Fall back to deterministic thread id.
+      // A thread must match both the requesting user AND the agent it was
+      // created with — a thread must not be resumable (checkpoint history
+      // read, new messages persisted onto it) by a different user, or under
+      // a different agent's config via a mismatched `x-agent-id`.
+      //
+      // `thread.agentId` comes back POPULATED (thread.repository.js's
+      // findById always populates it for display purposes), so it must be
+      // compared via its `._id` — comparing the populated document itself
+      // with a bare id string never matches (blueprint Phase 9, PR-42 fix).
+      const thread = await threadRepository.findById(threadDbId).catch(() => null);
+      const threadAgentId = thread?.agentId?._id ?? thread?.agentId;
+      const belongsToCaller =
+        thread &&
+        thread.userId.toString() === userId.toString() &&
+        String(threadAgentId) === String(agentId);
+
+      if (!belongsToCaller) {
+        // A threadId was explicitly given but doesn't resolve to one of the
+        // caller's own Threads for this Agent — reject rather than silently
+        // resuming the deterministic fallback conversation instead (an
+        // earlier version of this route fell back silently instead, PR-15;
+        // that meant a caller had no way to tell "my threadId was honored"
+        // from "it silently resumed a different conversation," which is
+        // worse than a clear error). Message is generic — doesn't
+        // distinguish "no such thread" from "not yours" from "wrong agent"
+        // — to avoid leaking which case applies.
+        throw new NotFoundError('Thread not found');
       }
+
+      langGraphThreadId = thread.threadId;
+      await threadRepository.touchLastMessageAt(thread._id);
     }
 
     req.aguiContext = { userId, agentId, langGraphThreadId, threadDbId };
@@ -142,6 +139,10 @@ aguiRouter.use(async (req, res, next) => {
  *         description: Bad request — missing agent ID or invalid body
  *       401:
  *         description: Unauthorized
+ *       404:
+ *         description: >
+ *           Agent not found, or `x-thread-id` was given but doesn't resolve to
+ *           one of the caller's own Threads for this Agent.
  */
 aguiRouter.get('/', aguiController.getProtocolInfo);
 

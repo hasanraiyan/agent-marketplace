@@ -102,7 +102,7 @@ export function DeveloperSidebar({ ...props }) {
                     Developer<span className="text-[#1E60FF]"> Studio</span>
                   </span>
                   <span className="mt-1 text-[10px] font-semibold text-slate-400 dark:text-slate-500">
-                    Persona.ai Project workspace
+                    persona.hasanraiyan.me Project workspace
                   </span>
                 </div>
               </Link>

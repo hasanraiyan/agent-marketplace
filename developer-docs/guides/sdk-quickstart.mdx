@@ -717,6 +717,13 @@ console.log(result.text);
 (resumes a named Thread from `threads.create()` instead of the implicit deterministic
 one-conversation-per-Agent-per-user thread), `resume?` (see below), `signal?` (an `AbortSignal`).
 
+<Warning>
+  `threadId` must belong to the asserted external user and the `agentId` you're calling with —
+  passing one that doesn't (someone else's Thread, a different Agent's Thread, or a nonexistent
+  id) throws a `PersonaApiError` with `statusCode: 404`. It does **not** silently fall back to a
+  different conversation.
+</Warning>
+
 ### AG-UI event types
 
 `stream()` yields the standard `@ag-ui/core` `EventType` union (re-exported from this package as

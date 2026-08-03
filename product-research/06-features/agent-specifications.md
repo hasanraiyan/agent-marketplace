@@ -1,7 +1,7 @@
 # Agent Specifications — Career Launchpad (Primary) / Other Agents (Archived)
 
-> **🔄 Updated Framing (July 2026):** Persona.ai is an **agent marketplace + agent creation platform**.
-> **💼 Career Launchpad** is a **reference/dogfooding agent** built _on_ Persona.ai using its agent-building system,
+> **🔄 Updated Framing (July 2026):** persona.hasanraiyan.me is an **agent marketplace + agent creation platform**.
+> **💼 Career Launchpad** is a **reference/dogfooding agent** built _on_ persona.hasanraiyan.me using its agent-building system,
 > NOT a redefinition of the product. Its full specification is preserved below as it validates the agent-building platform.
 > The 🚀 Startup Thinker and 🌍 Study Abroad Navigator specs below are **archived for reference only**.
 
@@ -217,7 +217,7 @@ The Study Abroad Navigator doesn't just answer one study-abroad question. It can
 
 # 💼 Agent 3: The Career Launchpad (✅ ACTIVE)
 
-> _🚀 This is the reference/dogfooding agent Persona.ai built using its own agent-building system._
+> _🚀 This is the reference/dogfooding agent persona.hasanraiyan.me built using its own agent-building system._
 
 ## Purpose
 

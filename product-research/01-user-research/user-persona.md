@@ -1,6 +1,6 @@
-# User Personas — Persona.ai
+# User Personas — persona.hasanraiyan.me
 
-> **🔄 Updated Framing (July 2026):** Persona.ai is an **agent marketplace + agent creation platform**.
+> **🔄 Updated Framing (July 2026):** persona.hasanraiyan.me is an **agent marketplace + agent creation platform**.
 > **💼 Career Launchpad** is the **reference/dogfooding agent**. Its persona pair **(Jordan + Rachel)** serves as
 > the active validation case. The other two persona pairs (Alex/Maya, Priya/Dr. Kenji) are **archived for reference**.
 
@@ -15,7 +15,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Persona.ai Platform                        │
+│                        persona.hasanraiyan.me Platform                        │
 │                                                                   │
 │  Domain Expert (Creator) ───builds──▶ AI Agent ───used by──▶ Consumer  │
 │                                                                   │
@@ -111,7 +111,7 @@
 - Decision trees based on real patterns they've observed
 - Their mental model for finding product-market fit
 
-**How They Encode It (Persona.ai Platform):**
+**How They Encode It (persona.hasanraiyan.me Platform):**
 
 - **Memory** — their personal experiences, case studies, patterns
 - **Skills (SKILL.md)** — structured frameworks and instructions
@@ -207,7 +207,7 @@
 - Visa interview preparation
 - Common mistakes and how to avoid them
 
-**How They Encode It (Persona.ai Platform):**
+**How They Encode It (persona.hasanraiyan.me Platform):**
 
 - **Memory** — their case knowledge, patterns from past students
 - **Skills (SKILL.md)** — structured decision trees for university matching
@@ -305,7 +305,7 @@
 - Career path decision trees (skills + interests → best-fit roles)
 - Job search strategy (where to look, how to network)
 
-**How They Encode It (Persona.ai Platform):**
+**How They Encode It (persona.hasanraiyan.me Platform):**
 
 - **Memory** — patterns from real candidates they've hired/mentored
 - **Skills (SKILL.md)** — structured evaluation frameworks

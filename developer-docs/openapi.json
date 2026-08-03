@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "Persona.ai Developer Platform API",
+    "title": "persona.hasanraiyan.me Developer Platform API",
     "version": "1.0.0",
     "description": "REST + AG-UI API for integrating your product with Persona's agent infrastructure.\n\nEvery endpoint here is a server-to-server call — see the Integration Guide for where in your own stack to call each one from, and how the same endpoint serves both Project-level and per-end-user requests via the `x-persona-external-user-id` header."
   },

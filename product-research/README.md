@@ -1,7 +1,7 @@
-# Product Research — Persona.ai
+# Product Research — persona.hasanraiyan.me
 
 > **🔄 Product Architecture (July 2026)**
-> Persona.ai is an **agent marketplace + agent creation platform** with two intentionally separate experiences:
+> persona.hasanraiyan.me is an **agent marketplace + agent creation platform** with two intentionally separate experiences:
 >
 > - **Persona** (consumer) — Discover, use, and have conversations with agents
 > - **Agent Studio** (creator) — Build, configure, test, and publish agents
@@ -11,7 +11,7 @@
 > Earlier agents (🚀 Startup Thinker, 🌍 Study Abroad Navigator) are preserved as historical research.
 > Full product research spans the platform; Career Launchpad specs provide the dogfooding validation.
 
-This directory is the **living source of truth** for product decisions in the Persona.ai platform.
+This directory is the **living source of truth** for product decisions in the persona.hasanraiyan.me platform.
 
 ## Core Principle
 
@@ -95,11 +95,11 @@ product-research/
 > `10-developer-platform/implementation/01-master-implementation-blueprint.md`. **No implementation
 > has begun** — the blueprint is planning only, pending approval of its recommended first PR.
 
-## Current Focus: Persona.ai Platform + Career Launchpad (Dogfooding)
+## Current Focus: persona.hasanraiyan.me Platform + Career Launchpad (Dogfooding)
 
 | Element                 | Detail                                                                                                                    |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| **Platform**            | Persona.ai — Agent Marketplace + Agent Studio                                                                             |
+| **Platform**            | persona.hasanraiyan.me — Agent Marketplace + Agent Studio                                                                             |
 | **Consumer Experience** | Discover agents → Agent Profile → Conversation                                                                            |
 | **Creator Experience**  | Agent Studio: Build → Configure → Resources → Test → Publish                                                              |
 | **Reference Agent**     | 💼 Career Launchpad — built on Persona to validate the agent-building system                                              |

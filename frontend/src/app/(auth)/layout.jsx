@@ -30,7 +30,7 @@ export default function AuthLayout({ children }) {
 
       {/* ── Footer ─────────────────────────────────────── */}
       <div className="relative z-10 mt-10 text-center text-sm text-muted-foreground/60">
-        &copy; {new Date().getFullYear()} Persona.ai. All rights reserved.
+        &copy; {new Date().getFullYear()} persona.hasanraiyan.me. All rights reserved.
       </div>
     </div>
   );

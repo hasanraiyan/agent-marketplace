@@ -1,4 +1,4 @@
-"""Synchronous entry point for the Persona.ai Developer Platform SDK.
+"""Synchronous entry point for the persona.hasanraiyan.me Developer Platform SDK.
 
 **Server-side only.** The credential this client holds is a server-side
 secret (see the Integration Guide) — never construct this in a Jupyter

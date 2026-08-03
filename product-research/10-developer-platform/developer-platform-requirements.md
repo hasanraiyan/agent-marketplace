@@ -3,7 +3,7 @@
 > **Status: FUTURE DIRECTION — REQUIREMENTS ONLY. NOT ARCHITECTURE. NOT IMPLEMENTATION.**
 >
 > This document captures the output of an initial requirements-gathering session (2026-07-29) for a
-> **future** direction of Persona.ai: exposing Persona's agent infrastructure as a reusable developer
+> **future** direction of persona.hasanraiyan.me: exposing Persona's agent infrastructure as a reusable developer
 > platform for other products (Beyond Campus, Coursify, OpenFounder, and future products).
 >
 > Nothing in this document has been implemented. No schemas, APIs, or UI described here exist in the
@@ -28,7 +28,7 @@
 
 ## 1. Executive Summary
 
-Persona.ai today **[CURRENT]** is a single product with two experiences sharing one backend: the
+persona.hasanraiyan.me today **[CURRENT]** is a single product with two experiences sharing one backend: the
 **Persona** consumer experience (`/dashboard`) and the **Agent Studio** creator experience (`/studio`).
 Both are described in `product-research/00-product-overview/current-product-state.md` and `AGENTS.md`.
 
@@ -123,7 +123,7 @@ different audiences:
    files, checkpoints, provider infrastructure, and execution infrastructure may be shared. Product
    data and discovery must remain isolated per Project.
 2. **Project scope and visibility are different concepts.** `visibility = public` inside a Project
-   means public **within that Project**, never globally public on Persona.ai.
+   means public **within that Project**, never globally public on persona.hasanraiyan.me.
 3. **Host applications own their product experience.** Persona supplies infrastructure, not the entire
    host product experience (UI, navigation, branding, business logic, marketplace UX belong to the
    host).

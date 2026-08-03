@@ -1,6 +1,6 @@
 # Problem Inventory — Career Launchpad (Primary) / Other Agents (Archived)
 
-> **🔄 Updated Framing (July 2026):** Persona.ai is an **agent marketplace + agent creation platform**.
+> **🔄 Updated Framing (July 2026):** persona.hasanraiyan.me is an **agent marketplace + agent creation platform**.
 > **💼 Career Launchpad** is a **reference/dogfooding agent**. Its problem inventory (CL-P\*) validates
 > the platform's ability to address real-world user needs. The other agent problems are **archived for reference**.
 

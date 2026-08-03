@@ -703,6 +703,13 @@ Thread from `threads.create()` instead of the implicit deterministic one-convers
 per-user thread. `resume` — see [Human-in-the-loop](#human-in-the-loop-interrupts-and-resuming)
 below.
 
+<Warning>
+  `thread_id` must belong to the asserted external user and the `agent_id` you're calling with —
+  passing one that doesn't (someone else's Thread, a different Agent's Thread, or a nonexistent
+  id) raises `PersonaApiError` with `status_code: 404`. It does **not** silently fall back to a
+  different conversation.
+</Warning>
+
 ### AG-UI event types
 
 Events are typed as a loose `AguiEvent = dict[str, Any]` rather than pulling in an AG-UI protocol
