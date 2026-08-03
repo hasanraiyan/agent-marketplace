@@ -28,9 +28,16 @@ class Threads:
     def __init__(self, transport: SyncTransport) -> None:
         self._transport = transport
 
-    def create(self, input: CreateThreadInput) -> Thread:
+    def create(self, input: CreateThreadInput, idempotency_key: str | None = None) -> Thread:
+        """``idempotency_key``, if provided, is sent as the ``Idempotency-Key``
+        header — a safe retry with the same key replays the original
+        response instead of creating a duplicate Thread."""
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
         return cast(
-            Thread, self._transport.request("POST", "/api/v1/developer/threads", json=input)
+            Thread,
+            self._transport.request(
+                "POST", "/api/v1/developer/threads", json=input, headers=headers
+            ),
         )
 
     def list(self, params: ListThreadsParams | None = None) -> PaginatedResult[Thread]:
@@ -80,10 +87,16 @@ class AsyncThreads:
     def __init__(self, transport: AsyncTransport) -> None:
         self._transport = transport
 
-    async def create(self, input: CreateThreadInput) -> Thread:
+    async def create(self, input: CreateThreadInput, idempotency_key: str | None = None) -> Thread:
+        """``idempotency_key``, if provided, is sent as the ``Idempotency-Key``
+        header — a safe retry with the same key replays the original
+        response instead of creating a duplicate Thread."""
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
         return cast(
             Thread,
-            await self._transport.request("POST", "/api/v1/developer/threads", json=input),
+            await self._transport.request(
+                "POST", "/api/v1/developer/threads", json=input, headers=headers
+            ),
         )
 
     async def list(self, params: ListThreadsParams | None = None) -> PaginatedResult[Thread]:

@@ -53,6 +53,20 @@ describe('McpsResource', () => {
     expect(init.method).toBe('POST');
   });
 
+  it('create() sends an Idempotency-Key header when provided', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ success: true, data: { _id: 'm1' } }, 201)
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    await client.mcps.create(
+      { name: 'X', transport: 'http', url: 'https://x.example.com' },
+      'idem-key-1'
+    );
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>)['Idempotency-Key']).toBe('idem-key-1');
+  });
+
   it('list() returns a pagination envelope and forwards query params', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       jsonResponse({

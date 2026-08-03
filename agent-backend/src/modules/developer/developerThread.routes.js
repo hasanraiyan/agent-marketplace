@@ -3,6 +3,7 @@ import developerMachineAuthMiddleware from '../auth/developerMachineAuth.middlew
 import { validateBody } from '../../middlewares/validationMiddleware.js';
 import { createThreadSchema, updateThreadSchema } from '../threads/thread.validator.js';
 import { bulkDeleteSchema } from '../../utils/validators/bulkDeleteSchema.js';
+import { idempotency } from '../../middlewares/idempotencyMiddleware.js';
 import developerThreadController from './developerThread.controller.js';
 import BaseError from '../../utils/errors/BaseError.js';
 
@@ -45,6 +46,11 @@ router.use((req, res, next) => {
  *         in: header
  *         required: true
  *         schema: { type: string }
+ *       - name: Idempotency-Key
+ *         in: header
+ *         required: false
+ *         schema: { type: string }
+ *         description: Optional — a safe retry with the same key replays the original response instead of creating a duplicate Thread.
  *     requestBody:
  *       required: true
  *       content:
@@ -74,7 +80,7 @@ router.use((req, res, next) => {
  *     responses:
  *       200: { description: "{ items: Thread[], pagination: { total, page, limit, pages } }" }
  */
-router.post('/', validateBody(createThreadSchema), developerThreadController.create);
+router.post('/', idempotency(), validateBody(createThreadSchema), developerThreadController.create);
 router.get('/', developerThreadController.getAll);
 
 /**

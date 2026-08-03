@@ -47,6 +47,25 @@ describe('ProvidersResource', () => {
     expect(JSON.parse(init.body as string)).toMatchObject({ label: 'Prod OpenAI' });
   });
 
+  it('create() sends an Idempotency-Key header when provided', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ success: true, data: { id: 'p1' } }, 201)
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    await client.providers.create(
+      {
+        label: 'X',
+        baseURL: 'https://api.example.com',
+        apiKey: 'sk-test',
+        defaultModel: 'gpt-4o',
+      },
+      'idem-key-1'
+    );
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>)['Idempotency-Key']).toBe('idem-key-1');
+  });
+
   it('list() GETs the bare providers list, no query params', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       jsonResponse({ success: true, data: [{ id: 'p1' }, { id: 'p2' }] })

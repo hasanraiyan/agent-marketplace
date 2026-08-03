@@ -225,6 +225,26 @@ await userClient.chat.sendMessage(agent._id, {
 });
 ```
 
+## Idempotency keys
+
+Every resource's `create()` (and `files.upload()`) accepts an optional trailing
+`idempotencyKey` argument, sent as the `Idempotency-Key` request header:
+
+```ts
+const skill = await persona.skills.create(
+  { name: "Resume Reviewer", description: "...", instructions: "..." },
+  "a-key-you-generate-once-per-logical-create", // e.g. crypto.randomUUID()
+);
+```
+
+Use it when a `create()` call might get retried after an ambiguous failure — a network timeout, a
+dropped connection — where you can't tell whether the original request actually reached the
+server. Retrying with the **same** key returns the exact original response instead of creating a
+second resource; retrying with a **different** (or omitted) key creates a new one as normal. Keys
+are scoped per `(domain, credential, external user if asserted)` and expire after 24 hours. This is
+fully opt-in — omitting the argument is identical to every version before this feature, no
+behavior change.
+
 ## Resources
 
 | Client property           | Wraps                                                              | Ownership scoping                                                    |
@@ -283,13 +303,16 @@ discovery concept, so it's a plain bare-array Domain-scoped list.
 | `providers.bulkDelete(ids)`            | `POST /providers/bulk-delete`          | `BulkDeleteResult`                      |
 
 ```ts
-const provider = await persona.providers.create({
-  label: "OpenAI (production)",
-  baseURL: "https://api.openai.com/v1",
-  apiKey: process.env.OPENAI_API_KEY!, // encrypted at rest, never returned in any response
-  defaultModel: "gpt-4o-mini",
-  isDefault: true,
-});
+const provider = await persona.providers.create(
+  {
+    label: "OpenAI (production)",
+    baseURL: "https://api.openai.com/v1",
+    apiKey: process.env.OPENAI_API_KEY!, // encrypted at rest, never returned in any response
+    defaultModel: "gpt-4o-mini",
+    isDefault: true,
+  },
+  "optional-idempotency-key", // safe retry after a timeout replays this exact result
+);
 
 // Use the control-plane client (no externalUserId) — see the note above.
 const all = await persona.providers.list();
@@ -321,13 +344,16 @@ anything is deleted.
 ### Skills
 
 ```ts
-const skill = await persona.skills.create({
-  name: "Resume Reviewer",
-  description: "Reviews a resume and suggests concrete edits.",
-  instructions: "You are an expert resume reviewer...",
-  isPublic: false,
-  files: [{ path: "rubric.md", content: "# Scoring rubric\n..." }],
-});
+const skill = await persona.skills.create(
+  {
+    name: "Resume Reviewer",
+    description: "Reviews a resume and suggests concrete edits.",
+    instructions: "You are an expert resume reviewer...",
+    isPublic: false,
+    files: [{ path: "rubric.md", content: "# Scoring rubric\n..." }],
+  },
+  "optional-idempotency-key", // safe retry after a timeout replays this exact result
+);
 
 const { items: mine, pagination } = await userClient.skills.list({
   scope: "mine",
@@ -357,16 +383,19 @@ present only on the result of `get()`, not `list()`/`create()`/`update()`.
 ### Agents
 
 ```ts
-const agent = await persona.agents.create({
-  name: "Career Launchpad",
-  systemPrompt: "You help students find internships.",
-  providerId: provider.id,
-  description: "Your internship search co-pilot.",
-  category: "productivity",
-  visibility: "unlisted",
-  webSearchEnabled: true,
-  skills: [skill._id],
-});
+const agent = await persona.agents.create(
+  {
+    name: "Career Launchpad",
+    systemPrompt: "You help students find internships.",
+    providerId: provider.id,
+    description: "Your internship search co-pilot.",
+    category: "productivity",
+    visibility: "unlisted",
+    webSearchEnabled: true,
+    skills: [skill._id],
+  },
+  "optional-idempotency-key", // safe retry after a timeout replays this exact result
+);
 
 const { items: discovered, pagination } = await persona.agents.list({
   category: "productivity",
@@ -404,13 +433,16 @@ Notes on the `Agent` shape:
 ### Knowledge
 
 ```ts
-const kb = await persona.knowledge.create({
-  name: "Placement Office FAQ",
-  providerId: provider.id, // required — no "my default provider" concept on this API
-  chunkSize: 1000,
-  chunkOverlap: 200,
-  topK: 5,
-});
+const kb = await persona.knowledge.create(
+  {
+    name: "Placement Office FAQ",
+    providerId: provider.id, // required — no "my default provider" concept on this API
+    chunkSize: 1000,
+    chunkOverlap: 200,
+    topK: 5,
+  },
+  "optional-idempotency-key", // safe retry after a timeout replays this exact result
+);
 
 // Upload from a Node Buffer (fs.readFile) or an already-built Blob.
 import { readFile } from "node:fs/promises";
@@ -465,13 +497,16 @@ ExternalUser caller. `search()`'s `options.topK` overrides the KnowledgeBase's o
 ### MCP connectors
 
 ```ts
-const mcp = await persona.mcps.create({
-  name: "Internal Ticketing",
-  transport: "http",
-  url: "https://mcp.example.com",
-  authType: "apiKey",
-  apiKey: process.env.TICKETING_MCP_KEY!,
-});
+const mcp = await persona.mcps.create(
+  {
+    name: "Internal Ticketing",
+    transport: "http",
+    url: "https://mcp.example.com",
+    authType: "apiKey",
+    apiKey: process.env.TICKETING_MCP_KEY!,
+  },
+  "optional-idempotency-key", // safe retry after a timeout replays this exact result
+);
 
 const { tools, resources, resourceTemplates } =
   await persona.mcps.testConnection(mcp._id);
@@ -539,7 +574,10 @@ Subject is always a specific end user, so a bare Project credential is rejected 
 EXTERNAL_USER_REQUIRED` `PersonaValidationError`.
 
 ```ts
-const thread = await userClient.threads.create({ agentId: agent._id });
+const thread = await userClient.threads.create(
+  { agentId: agent._id },
+  "optional-idempotency-key", // safe retry after a timeout replays this exact result
+);
 const { items: mine, pagination } = await userClient.threads.list({
   page: 1,
   limit: 20,
@@ -582,12 +620,15 @@ and rejection behavior as Threads — a File's Subject is always a specific end 
 import { readFile } from "node:fs/promises";
 
 const resume = await readFile("./resume.pdf");
-const file = await userClient.files.upload({
-  filename: "resume.pdf",
-  content: resume,
-  contentType: "application/pdf",
-  threadId: thread._id, // optional — associates the file with a conversation
-});
+const file = await userClient.files.upload(
+  {
+    filename: "resume.pdf",
+    content: resume,
+    contentType: "application/pdf",
+    threadId: thread._id, // optional — associates the file with a conversation
+  },
+  "optional-idempotency-key", // safe retry after a timeout replays this exact result
+);
 
 const { items: mine, pagination } = await userClient.files.list({
   page: 1,

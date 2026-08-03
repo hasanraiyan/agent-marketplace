@@ -27,12 +27,17 @@ jest.unstable_mockModule('../src/modules/agents/agent.service.js', () => ({
     countDiscoverAgents: jest.fn(),
   },
 }));
+jest.unstable_mockModule('../src/modules/idempotency/idempotencyKey.model.js', () => ({
+  default: { findOne: jest.fn(), create: jest.fn() },
+}));
 
 const projectCredentialService = (
   await import('../src/modules/projects/projectCredential.service.js')
 ).default;
 const projectService = (await import('../src/modules/projects/project.service.js')).default;
 const agentService = (await import('../src/modules/agents/agent.service.js')).default;
+const idempotencyKeyModel = (await import('../src/modules/idempotency/idempotencyKey.model.js'))
+  .default;
 const { default: developerAgentRouter } =
   await import('../src/modules/developer/developerAgent.routes.js');
 
@@ -55,6 +60,8 @@ describe('developerAgent.routes.js — mount integration', () => {
       project: 'project-1',
     });
     projectService.getProjectById.mockResolvedValue({ _id: 'project-1', status: 'ACTIVE' });
+    idempotencyKeyModel.findOne.mockReturnValue({ lean: () => Promise.resolve(null) });
+    idempotencyKeyModel.create.mockResolvedValue({});
   });
 
   test('401s without a Project credential, never reaching the controller', async () => {
@@ -89,6 +96,41 @@ describe('developerAgent.routes.js — mount integration', () => {
       expect.objectContaining({ domain: 'project-1', principalType: 'ProjectMachine' }),
       expect.objectContaining({ name: 'Bot' })
     );
+  });
+
+  test('POST / with a repeated Idempotency-Key replays the cached response, never calling the service twice', async () => {
+    agentService.createDeveloperAgent.mockResolvedValue({ _id: 'a1', name: 'Bot' });
+    const body = {
+      name: 'Bot',
+      systemPrompt: 'You are helpful, assist users well.',
+      providerId: 'p1',
+    };
+
+    const first = await request(app)
+      .post('/api/v1/developer/agents')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('Idempotency-Key', 'test-key-1')
+      .send(body);
+    expect(first.status).toBe(201);
+    expect(agentService.createDeveloperAgent).toHaveBeenCalledTimes(1);
+    expect(idempotencyKeyModel.create).toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: 201, body: first.body })
+    );
+
+    // Simulate the cached response now existing for a retried request.
+    idempotencyKeyModel.findOne.mockReturnValue({
+      lean: () => Promise.resolve({ statusCode: first.status, body: first.body }),
+    });
+
+    const second = await request(app)
+      .post('/api/v1/developer/agents')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('Idempotency-Key', 'test-key-1')
+      .send(body);
+
+    expect(second.status).toBe(first.status);
+    expect(second.body).toEqual(first.body);
+    expect(agentService.createDeveloperAgent).toHaveBeenCalledTimes(1);
   });
 
   test('GET /:agentId reaches the controller and returns the Agent', async () => {

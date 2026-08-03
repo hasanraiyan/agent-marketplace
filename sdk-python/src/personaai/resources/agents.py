@@ -19,8 +19,17 @@ class Agents:
     def __init__(self, transport: SyncTransport) -> None:
         self._transport = transport
 
-    def create(self, input: CreateAgentInput) -> Agent:
-        return cast(Agent, self._transport.request("POST", "/api/v1/developer/agents", json=input))
+    def create(self, input: CreateAgentInput, idempotency_key: str | None = None) -> Agent:
+        """``idempotency_key``, if provided, is sent as the ``Idempotency-Key``
+        header — a safe retry with the same key replays the original
+        response instead of creating a duplicate Agent."""
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
+        return cast(
+            Agent,
+            self._transport.request(
+                "POST", "/api/v1/developer/agents", json=input, headers=headers
+            ),
+        )
 
     def list(self, params: DiscoverAgentsParams | None = None) -> PaginatedResult[Agent]:
         return cast(
@@ -56,10 +65,16 @@ class AsyncAgents:
     def __init__(self, transport: AsyncTransport) -> None:
         self._transport = transport
 
-    async def create(self, input: CreateAgentInput) -> Agent:
+    async def create(self, input: CreateAgentInput, idempotency_key: str | None = None) -> Agent:
+        """``idempotency_key``, if provided, is sent as the ``Idempotency-Key``
+        header — a safe retry with the same key replays the original
+        response instead of creating a duplicate Agent."""
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
         return cast(
             Agent,
-            await self._transport.request("POST", "/api/v1/developer/agents", json=input),
+            await self._transport.request(
+                "POST", "/api/v1/developer/agents", json=input, headers=headers
+            ),
         )
 
     async def list(self, params: DiscoverAgentsParams | None = None) -> PaginatedResult[Agent]:

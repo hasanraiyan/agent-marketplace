@@ -401,6 +401,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional — a safe retry with the same key replays the original response instead of creating a duplicate Thread."
           }
         ],
         "requestBody": {
@@ -682,6 +691,17 @@
             "projectCredential": []
           }
         ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional — a safe retry with the same key replays the original response instead of creating a duplicate Skill."
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -938,6 +958,17 @@
         "security": [
           {
             "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional — a safe retry with the same key replays the original response instead of creating a duplicate Provider."
           }
         ],
         "requestBody": {
@@ -1223,6 +1254,17 @@
         "security": [
           {
             "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional — a safe retry with the same key replays the original response instead of creating a duplicate MCP server."
           }
         ],
         "requestBody": {
@@ -1772,6 +1814,17 @@
             "projectCredential": []
           }
         ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional — a safe retry with the same key replays the original response instead of creating a duplicate Knowledge Base."
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2195,6 +2248,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional — a safe retry with the same key replays the original response instead of uploading a duplicate file."
           }
         ],
         "requestBody": {
@@ -2502,6 +2564,17 @@
         "security": [
           {
             "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional — a safe retry with the same key replays the original response instead of creating a duplicate Agent."
           }
         ],
         "requestBody": {

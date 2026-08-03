@@ -28,6 +28,9 @@ jest.unstable_mockModule('../src/modules/files/file.service.js', () => ({
   },
   developerUploadDir: '/tmp/developer-uploads-test',
 }));
+jest.unstable_mockModule('../src/modules/idempotency/idempotencyKey.model.js', () => ({
+  default: { findOne: jest.fn(), create: jest.fn() },
+}));
 
 const projectCredentialService = (
   await import('../src/modules/projects/projectCredential.service.js')
@@ -36,6 +39,8 @@ const projectService = (await import('../src/modules/projects/project.service.js
 const externalUserService = (await import('../src/modules/externalUsers/externalUser.service.js'))
   .default;
 const fileService = (await import('../src/modules/files/file.service.js')).default;
+const idempotencyKeyModel = (await import('../src/modules/idempotency/idempotencyKey.model.js'))
+  .default;
 const { default: developerFileRouter } =
   await import('../src/modules/developer/developerFile.routes.js');
 
@@ -59,6 +64,8 @@ describe('developerFile.routes.js — mount integration', () => {
     });
     projectService.getProjectById.mockResolvedValue({ _id: 'project-1', status: 'ACTIVE' });
     externalUserService.resolveOrCreate.mockResolvedValue({});
+    idempotencyKeyModel.findOne.mockReturnValue({ lean: () => Promise.resolve(null) });
+    idempotencyKeyModel.create.mockResolvedValue({});
   });
 
   test('401s without a Project credential, never reaching the controller', async () => {
@@ -125,6 +132,42 @@ describe('developerFile.routes.js — mount integration', () => {
       expect.objectContaining({ originalname: 'test.txt' }),
       expect.any(Object)
     );
+  });
+
+  test('POST / with a repeated Idempotency-Key replays the cached response, never calling the service twice', async () => {
+    fileService.createFile.mockResolvedValue({
+      _id: 'f1',
+      originalName: 'test.txt',
+      mimeType: 'text/plain',
+      size: 11,
+      agentId: null,
+      threadId: null,
+      createdAt: new Date(),
+    });
+
+    const first = await request(app)
+      .post('/api/v1/developer/files')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('x-persona-external-user-id', 'sabik')
+      .set('Idempotency-Key', 'test-key-1')
+      .attach('file', Buffer.from('hello world'), 'test.txt');
+    expect(first.status).toBe(201);
+    expect(fileService.createFile).toHaveBeenCalledTimes(1);
+
+    idempotencyKeyModel.findOne.mockReturnValue({
+      lean: () => Promise.resolve({ statusCode: first.status, body: first.body }),
+    });
+
+    const second = await request(app)
+      .post('/api/v1/developer/files')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('x-persona-external-user-id', 'sabik')
+      .set('Idempotency-Key', 'test-key-1')
+      .attach('file', Buffer.from('hello world'), 'test.txt');
+
+    expect(second.status).toBe(first.status);
+    expect(second.body).toEqual(first.body);
+    expect(fileService.createFile).toHaveBeenCalledTimes(1);
   });
 
   test('GET /:fileId reaches the controller and streams via res.download', async () => {

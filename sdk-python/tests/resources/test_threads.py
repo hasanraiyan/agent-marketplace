@@ -33,6 +33,15 @@ def test_create():
 
 
 @respx.mock
+def test_create_sends_idempotency_key_header_when_provided():
+    route = respx.post(f"{BASE_URL}/api/v1/developer/threads").mock(
+        return_value=httpx.Response(200, json={"success": True, "data": THREAD})
+    )
+    _client().threads.create({"agentId": "a1"}, idempotency_key="idem-key-1")
+    assert route.calls.last.request.headers["Idempotency-Key"] == "idem-key-1"
+
+
+@respx.mock
 def test_list():
     respx.get(f"{BASE_URL}/api/v1/developer/threads").mock(
         return_value=httpx.Response(

@@ -54,6 +54,20 @@ describe('FilesResource', () => {
     expect(form.get('threadId')).toBeNull();
   });
 
+  it('upload() sends an Idempotency-Key header when provided', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ success: true, data: { id: 'f1' } }, 201)
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    await client.files.upload(
+      { filename: 'a.txt', content: new TextEncoder().encode('hi') },
+      'idem-key-1'
+    );
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>)['Idempotency-Key']).toBe('idem-key-1');
+  });
+
   it('list() returns a pagination envelope and forwards query params', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       jsonResponse({

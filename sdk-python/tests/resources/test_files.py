@@ -42,6 +42,15 @@ def test_upload_sends_multipart_with_optional_fields():
 
 
 @respx.mock
+def test_upload_sends_idempotency_key_header_when_provided():
+    route = respx.post(f"{BASE_URL}/api/v1/developer/files").mock(
+        return_value=httpx.Response(200, json={"success": True, "data": FILE})
+    )
+    _client().files.upload({"filename": "a.txt", "content": b"hi"}, idempotency_key="idem-key-1")
+    assert route.calls.last.request.headers["Idempotency-Key"] == "idem-key-1"
+
+
+@respx.mock
 def test_list():
     respx.get(f"{BASE_URL}/api/v1/developer/files").mock(
         return_value=httpx.Response(

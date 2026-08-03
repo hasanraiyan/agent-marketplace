@@ -37,6 +37,9 @@ jest.unstable_mockModule('../src/modules/threads/thread.service.js', () => ({
     deleteThread: jest.fn(),
   },
 }));
+jest.unstable_mockModule('../src/modules/idempotency/idempotencyKey.model.js', () => ({
+  default: { findOne: jest.fn(), create: jest.fn() },
+}));
 
 const projectCredentialService = (
   await import('../src/modules/projects/projectCredential.service.js')
@@ -48,6 +51,8 @@ const agentRepository = (await import('../src/modules/agents/agent.repository.js
 const agentService = (await import('../src/modules/agents/agent.service.js')).default;
 const checkpointService = (await import('../src/modules/threads/checkpoint.service.js')).default;
 const threadService = (await import('../src/modules/threads/thread.service.js')).default;
+const idempotencyKeyModel = (await import('../src/modules/idempotency/idempotencyKey.model.js'))
+  .default;
 const { default: developerThreadRouter } =
   await import('../src/modules/developer/developerThread.routes.js');
 
@@ -72,6 +77,8 @@ describe('developerThread.routes.js — mount integration', () => {
     projectService.getProjectById.mockResolvedValue({ _id: 'project-1', status: 'ACTIVE' });
     externalUserService.resolveOrCreate.mockResolvedValue({});
     checkpointService.cleanupThreads.mockResolvedValue();
+    idempotencyKeyModel.findOne.mockReturnValue({ lean: () => Promise.resolve(null) });
+    idempotencyKeyModel.create.mockResolvedValue({});
   });
 
   test('401s without a Project credential, never reaching the controller', async () => {
@@ -147,6 +154,37 @@ describe('developerThread.routes.js — mount integration', () => {
       expect.objectContaining({ agentId: '507f1f77bcf86cd799439011' }),
       expect.objectContaining({ principalType: 'ProjectRuntime' })
     );
+  });
+
+  test('POST / with a repeated Idempotency-Key replays the cached response, never calling the service twice', async () => {
+    agentRepository.findById.mockResolvedValue({ _id: 'agent_1' });
+    agentService.canUserExecuteAgent.mockReturnValue(true);
+    threadService.createThread.mockResolvedValue({ _id: 't1' });
+    const body = { agentId: '507f1f77bcf86cd799439011' };
+
+    const first = await request(app)
+      .post('/api/v1/developer/threads')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('x-persona-external-user-id', 'sabik')
+      .set('Idempotency-Key', 'test-key-1')
+      .send(body);
+    expect(first.status).toBe(201);
+    expect(threadService.createThread).toHaveBeenCalledTimes(1);
+
+    idempotencyKeyModel.findOne.mockReturnValue({
+      lean: () => Promise.resolve({ statusCode: first.status, body: first.body }),
+    });
+
+    const second = await request(app)
+      .post('/api/v1/developer/threads')
+      .set('Authorization', 'Bearer pk_test.secret')
+      .set('x-persona-external-user-id', 'sabik')
+      .set('Idempotency-Key', 'test-key-1')
+      .send(body);
+
+    expect(second.status).toBe(first.status);
+    expect(second.body).toEqual(first.body);
+    expect(threadService.createThread).toHaveBeenCalledTimes(1);
   });
 
   test('GET /:threadId reaches the controller and returns the Thread', async () => {

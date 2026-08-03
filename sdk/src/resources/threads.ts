@@ -19,8 +19,16 @@ import type { PaginatedResult } from '../types/pagination.js';
 export class ThreadsResource {
   constructor(private readonly http: HttpClient) {}
 
-  async create(input: CreateThreadInput): Promise<Thread> {
-    return this.http.request<Thread>('POST', '/api/v1/developer/threads', { body: input });
+  /**
+   * `idempotencyKey`, if provided, is sent as the `Idempotency-Key` header —
+   * a safe retry with the same key replays the original response instead
+   * of creating a duplicate Thread.
+   */
+  async create(input: CreateThreadInput, idempotencyKey?: string): Promise<Thread> {
+    return this.http.request<Thread>('POST', '/api/v1/developer/threads', {
+      body: input,
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+    });
   }
 
   async list(params: ListThreadsParams = {}): Promise<PaginatedResult<Thread>> {
