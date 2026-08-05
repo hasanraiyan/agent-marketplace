@@ -104,9 +104,20 @@ router.use(developerMachineAuthMiddleware);
  *           that expose reasoning; TOOL_CALL_CHUNK/TOOL_CALL_RESULT for
  *           tool invocations and their results; STATE_SNAPSHOT for
  *           full-state updates; CUSTOM for Persona-specific side-channel
- *           events (e.g. subagent traces, MCP structured content); and
- *           RUN_FINISHED once at the end. Each event is a JSON object sent
- *           as one `data: ` line per SSE convention.
+ *           events (e.g. subagent traces, MCP structured content, MCP App
+ *           widgets); RUN_ERROR (native @ag-ui/core event, not CUSTOM) with
+ *           `code`/`message`/`retryable`/`providerName` when the run fails
+ *           genuinely rather than pausing on an interrupt — see
+ *           GET /api/v1/developer/agui/schema for the CUSTOM event payload
+ *           shapes and the RUN_ERROR `code` enum; and RUN_FINISHED once at
+ *           the end. Each event is a JSON object sent as one `data: ` line
+ *           per SSE convention.
+ *         headers:
+ *           X-AGUI-Schema-Version:
+ *             description: The active custom-event schema version (see GET /api/v1/developer/agui/schema).
+ *             schema:
+ *               type: string
+ *               example: "1.0.0"
  *       400:
  *         description: Missing x-agent-id, or credential has no asserted external user
  *       401:

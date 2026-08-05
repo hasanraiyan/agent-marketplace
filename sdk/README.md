@@ -1,7 +1,7 @@
 # @personaai/sdk
 
 Node.js/TypeScript SDK for the [persona.hasanraiyan.me](https://persona.hasanraiyan.me) Developer Platform API — Agents,
-Skills, Knowledge bases, MCP connectors, and streaming chat, from your own backend.
+Skills, Knowledge bases, MCP connectors, named Stores, memory, and streaming chat, from your own backend.
 
 > **Server-side only.** Every method on this SDK sends your Project's credential — a server-side
 > secret, not something a browser is ever allowed to see. **Never** construct `PersonaClient` in a
@@ -93,6 +93,8 @@ if (result.interrupt) {
 | `.mcps` (+ `.mcps.oauth`) | `/api/v1/developer/mcps` (incl. OAuth owner/user connection flows) |
 | `.providers` | `/api/v1/developer/providers` |
 | `.threads` | `/api/v1/developer/threads` |
+| `.memory` | `/api/v1/developer/memory` |
+| `.stores` | `/api/v1/developer/stores` |
 | `.files` | `/api/v1/developer/files` |
 | `.chat` | `/api/v1/developer/agui` (streaming) |
 

@@ -3,6 +3,34 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.3.0
+
+New resources and chat capabilities, all additive — nothing from 0.2.x changes shape.
+
+- **New `memory` resource** — `persona.memory.list()` / `getFile()` / `writeFile()` /
+  `deleteFile()` against `/api/v1/developer/memory`, full CRUD parity with what an Agent's own
+  `write_file`/`read_file` tools can already do to `/memories/user/`/`/memories/agent/`.
+- **New `stores` resource** — `persona.stores.create()` / `list()` / `get()` / `update()` /
+  `delete()` plus `listFiles()` / `getFile()` / `writeFile()` / `deleteFile()` against
+  `/api/v1/developer/stores`. Named, scoped mount points (`scope: 'domain' | 'externalUser'`,
+  `accessMode: 'readonly' | 'readwrite'`) you assign to Agents via the new `storeMounts` field on
+  `agents.create()`/`agents.update()` — a filesystem-backed alternative to `contextOverride` for
+  larger reference material an Agent can `read_file` on demand instead of holding in the prompt.
+- **New `contextOverride` on `chat.stream()`/`chat.sendMessage()`** — caller-supplied context
+  appended to that turn's system prompt only; never persisted to memory, never visible to later
+  turns. Capped at 4000 characters server-side (rejected with 400 above that, not truncated).
+- **New `GET /api/v1/developer/agui/schema`-backed types** — `ClarificationRequestPayload`,
+  `HitlRequestPayload`, `McpAppPayload`, `SubagentActivityPayload` exported from
+  `sdk/src/types/aguiEvents.ts`, matching the schema document one-for-one. Every AG-UI stream
+  response also now carries the active schema version on the `X-AGUI-Schema-Version` header.
+- **Structured run errors** — `ChatResult.error` is now populated as a typed
+  `PersonaRunErrorEvent` (`code`, `message`, `retryable`, `providerName`) when a run ends in a
+  genuine failure (auth, rate limit, tool error/timeout, context length exceeded) rather than
+  finishing normally or pausing on an interrupt. `code` is drawn from `RunErrorCode`.
+- `Agent`/`CreateAgentInput`/`UpdateAgentInput` gained `storeMounts` (bare id strings on
+  `create`/`update`/`list`, populated `Store` objects on `get()` — same convention as `skills`/
+  `mcps`/`knowledgeBases`).
+
 ## 0.2.3
 
 Docs-only release — every resource method and exported type now has full JSDoc (`@param`,

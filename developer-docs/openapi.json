@@ -679,6 +679,290 @@
         }
       }
     },
+    "/api/v1/developer/stores": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Create a named Store",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "scope"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "lowercase letters, numbers, hyphens only"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "domain",
+                      "externalUser"
+                    ]
+                  },
+                  "accessMode": {
+                    "type": "string",
+                    "enum": [
+                      "readonly",
+                      "readwrite"
+                    ],
+                    "default": "readwrite"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Store created"
+          },
+          "409": {
+            "description": "A Store with this exact name already exists"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "List this Project's Stores",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ items: Store[], pagination: { total, page, limit, pages } }"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/stores/{storeId}": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Get a Store's config",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Store"
+          },
+          "404": {
+            "description": "Store not found"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Update a Store's name/description/accessMode (scope is immutable)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated Store"
+          },
+          "404": {
+            "description": "Store not found"
+          },
+          "409": {
+            "description": "Another Store with this name already exists"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete a Store — also removes it from every Agent that mounted it and purges its data",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Store deleted"
+          },
+          "404": {
+            "description": "Store not found"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/stores/{storeId}/files": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "List files in a Store",
+        "description": "For an externalUser-scoped store, requires x-persona-external-user-id and lists only that founder's own partition — never another founder's data, even to the same Project credential.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ files: StoreFile[] }"
+          },
+          "400": {
+            "description": "Store requires x-persona-external-user-id but none was asserted"
+          },
+          "404": {
+            "description": "Store not found"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/stores/{storeId}/file": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Read one file from a Store",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file"
+          },
+          "404": {
+            "description": "Store or file not found"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Create or overwrite one file in a Store",
+        "description": "Not gated by the Store's accessMode — readonly only blocks an Agent's own tool calls (write_file/edit_file) at mount time; this is how a readonly store's content actually gets populated.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "path",
+                  "content"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The written file"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete one file from a Store",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "404": {
+            "description": "Store or file not found"
+          }
+        }
+      }
+    },
     "/api/v1/developer/skills": {
       "post": {
         "tags": [
@@ -1240,6 +1524,211 @@
           },
           "404": {
             "description": "Provider not found or unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/memory": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "List all memory files for the asserted external user",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-persona-external-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`{ userFiles: MemoryFile[], agentMemories: { agentId, agentName, files: MemoryFile[] }[] }` — user-global files plus one group per agent that has agent-scoped memory.\n"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/memory/file": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Read one memory file",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-persona-external-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "user",
+                "agent"
+              ]
+            },
+            "description": "Defaults to \"user\". \"agent\" requires agentId (header x-agent-id or query param)."
+          },
+          {
+            "name": "agentId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The memory file."
+          },
+          "404": {
+            "description": "No file at that path."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Create or overwrite one memory file",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-persona-external-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "path",
+                  "content"
+                ],
+                "properties": {
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "user",
+                      "agent"
+                    ],
+                    "description": "Defaults to \"user\"."
+                  },
+                  "agentId": {
+                    "type": "string",
+                    "description": "Required when scope is \"agent\"."
+                  },
+                  "path": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The written file."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete one memory file",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-persona-external-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "user",
+                "agent"
+              ]
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "404": {
+            "description": "No file at that path."
           }
         }
       }
@@ -2511,7 +3000,7 @@
           "Developer"
         ],
         "summary": "Run an Agent as an external user, streaming AG-UI events (SSE)",
-        "description": "Requires a ProjectRuntimeContext — the credential must be paired with the x-persona-external-user-id header asserting which of the Project's own external users is running the Agent. Reuses the exact same runtime as the Persona AG-UI route. Pass x-thread-id (a Thread id from POST /api/v1/developer/threads) to resume a named conversation — omit it to keep using the implicit, Domain-extended deterministic thread id (one conversation per Agent + external user). An unrecognized/foreign/wrong-agent x-thread-id silently falls back to the deterministic id rather than erroring (same contract as the Persona AG-UI route).\n",
+        "description": "Requires a ProjectRuntimeContext — the credential must be paired with the x-persona-external-user-id header asserting which of the Project's own external users is running the Agent. Reuses the exact same runtime as the Persona AG-UI route. Pass x-thread-id (a Thread id from POST /api/v1/developer/threads) to resume a named conversation — omit it to keep using the implicit, Domain-extended deterministic thread id (one conversation per Agent + external user). An unrecognized/foreign/wrong-agent x-thread-id is rejected with 404 rather than silently falling back to the deterministic id (same contract as the Persona AG-UI route).\n",
         "security": [
           {
             "projectCredential": []
@@ -2572,6 +3061,11 @@
                   "resume": {
                     "type": "object",
                     "description": "Resume data for a Thread paused on a human-in-the-loop interrupt (e.g. an agent-management tool the Agent's `interruptOn` config requires confirming). Pass { type: \"decision\", decision: \"continue\" | \"reject\" } to approve/deny a pending tool call, or an object shaped for the specific clarification the interrupted run is waiting on.\n"
+                  },
+                  "contextOverride": {
+                    "type": "string",
+                    "maxLength": 4000,
+                    "description": "Caller-supplied context (e.g. a live founder profile snapshot) appended to this turn's system prompt only. Never persisted to any memory file and never visible to later turns.\n"
                   }
                 }
               }
@@ -2580,7 +3074,16 @@
         },
         "responses": {
           "200": {
-            "description": "A `text/event-stream` SSE stream of AG-UI protocol events (the standard `@ag-ui/core` EventType values): RUN_STARTED once at the start of the run; TEXT_MESSAGE_CHUNK for streamed assistant text deltas; REASONING_MESSAGE_START/CONTENT/END for models that expose reasoning; TOOL_CALL_CHUNK/TOOL_CALL_RESULT for tool invocations and their results; STATE_SNAPSHOT for full-state updates; CUSTOM for Persona-specific side-channel events (e.g. subagent traces, MCP structured content); and RUN_FINISHED once at the end. Each event is a JSON object sent as one `data: ` line per SSE convention.\n"
+            "description": "A `text/event-stream` SSE stream of AG-UI protocol events (the standard `@ag-ui/core` EventType values): RUN_STARTED once at the start of the run; TEXT_MESSAGE_CHUNK for streamed assistant text deltas; REASONING_MESSAGE_START/CONTENT/END for models that expose reasoning; TOOL_CALL_CHUNK/TOOL_CALL_RESULT for tool invocations and their results; STATE_SNAPSHOT for full-state updates; CUSTOM for Persona-specific side-channel events (e.g. subagent traces, MCP structured content, MCP App widgets); RUN_ERROR (native @ag-ui/core event, not CUSTOM) with `code`/`message`/`retryable`/`providerName` when the run fails genuinely rather than pausing on an interrupt — see GET /api/v1/developer/agui/schema for the CUSTOM event payload shapes and the RUN_ERROR `code` enum; and RUN_FINISHED once at the end. Each event is a JSON object sent as one `data: ` line per SSE convention.\n",
+            "headers": {
+              "X-AGUI-Schema-Version": {
+                "description": "The active custom-event schema version (see GET /api/v1/developer/agui/schema).",
+                "schema": {
+                  "type": "string",
+                  "example": "1.0.0"
+                }
+              }
+            }
           },
           "400": {
             "description": "Missing x-agent-id, or credential has no asserted external user"
@@ -2592,7 +3095,37 @@
             "description": "Project is not currently ACTIVE"
           },
           "404": {
-            "description": "Agent not found (or not executable by this Domain/Subject)"
+            "description": "Agent not found (or not executable by this Domain/Subject), or x-thread-id was given but doesn't resolve to one of this Subject's own Threads for this Agent.\n"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/agui/schema": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Versioned schema for the custom AG-UI events this backend emits",
+        "description": "Documents every non-base-protocol `CUSTOM` AG-UI event this backend streams (clarification_request, hitl_request, mcp_app, subagent_activity) with a resolvable JSON Schema per payload. The base `@ag-ui/core` protocol version is fixed and unaffected by this document's own schemaVersion. Every POST /api/v1/developer/agui stream response also carries the active schemaVersion on the X-AGUI-Schema-Version response header.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Echoed back as-is; only \"latest\" (the current version) is served today."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The event schema document."
           }
         }
       }

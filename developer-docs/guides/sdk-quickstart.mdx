@@ -255,6 +255,8 @@ behavior change.
 | `.knowledge`              | `/api/v1/developer/knowledge` (incl. document upload/search)       | Project or, with `externalUserId`, that end user.                    |
 | `.mcps` (+ `.mcps.oauth`) | `/api/v1/developer/mcps` (incl. OAuth owner/user connection flows) | Project or, with `externalUserId`, that end user.                    |
 | `.threads`                | `/api/v1/developer/threads`                                        | Requires `externalUserId` — a Thread always belongs to one end user. |
+| `.memory`                 | `/api/v1/developer/memory`                                         | Requires `externalUserId` — memory always belongs to one end user.   |
+| `.stores`                 | `/api/v1/developer/stores`                                         | Project — config CRUD needs no `externalUserId`; file CRUD needs one only when the target Store's own `scope` is `externalUser` (see [Stores](#stores)). |
 | `.files`                  | `/api/v1/developer/files`                                          | Requires `externalUserId` — a File always belongs to one end user.   |
 | `.auditLogs`              | `/api/v1/developer/audit-logs`                                     | Control-plane only — no per-user audit trail.                        |
 | `.chat`                   | `/api/v1/developer/agui` (streaming)                               | Requires `externalUserId` — a chat run always runs as one end user.  |
@@ -265,13 +267,15 @@ over:
 - **`_id` vs. `id`.** Skill/Agent/Knowledge/Thread/Mcp responses use the raw MongoDB document shape
   (`_id`). Provider/File responses go through a clean formatted DTO (`id`). Check each type below
   for which one applies.
-- **A real pagination envelope, except on Providers.** Every `list()`/`discover()`-style method
-  (`skills.list()`, `agents.list()`, `knowledge.list()`, `mcps.list()`, `threads.list()`,
-  `files.list()`) returns `PaginatedResult<T>` — `{ items: T[], pagination: { total, page, limit,
-pages } }` — not a bare array. Check `pagination.pages` (or `pagination.total`) to know whether
-  there's more, rather than inferring it from `items.length` vs. `limit`. `providers.list()` is
-  the one exception: a plain bare array, no params at all — Providers have no discovery concept,
-  so there's nothing to page or filter by.
+- **A real pagination envelope, except on Providers and Memory.** Every `list()`/`discover()`-style
+  method (`skills.list()`, `agents.list()`, `knowledge.list()`, `mcps.list()`, `threads.list()`,
+  `stores.list()`, `files.list()`) returns `PaginatedResult<T>` — `{ items: T[], pagination: {
+  total, page, limit, pages } }` — not a bare array. Check `pagination.pages` (or
+  `pagination.total`) to know whether there's more, rather than inferring it from `items.length`
+  vs. `limit`. Two exceptions: `providers.list()` (a plain bare array, no params at all — Providers
+  have no discovery concept, so there's nothing to page or filter by), and `memory.list()` (returns
+  `MemoryListResult`, `{ userFiles, agentMemories }` — memory has no pagination concept either,
+  it's a full listing every time). `stores.listFiles()` is also unpaginated — a bare `StoreFile[]`.
 
 ### Providers
 
@@ -612,6 +616,111 @@ by message type) and is intentionally typed as `unknown[]` rather than guessing 
 doesn't own — inspect it at runtime if you need to render history yourself, or prefer
 `chat.stream()`'s typed AG-UI events for anything you're building a live UI around.
 
+### Memory
+
+Every method requires the client to have been constructed with `externalUserId` — memory is
+always scoped to one end user, same requirement and rejection behavior as Threads. Full CRUD
+parity with what an Agent's own `write_file`/`read_file` tool calls can already do to
+`/memories/user/` and `/memories/agent/` — useful for admin/support tooling ("what does this
+Agent remember about founder X"), a founder-facing "manage what you've shared" settings page, or
+seeding known facts before a user's first conversation.
+
+```ts
+const { userFiles, agentMemories } = await userClient.memory.list();
+
+const file = await userClient.memory.getFile({ path: "/memories/user/index.md" });
+
+await userClient.memory.writeFile({
+  path: "/memories/user/preferences.md",
+  content: "- Prefers concise answers\n- Works in fintech",
+});
+
+await userClient.memory.deleteFile({ path: "/memories/user/preferences.md" });
+
+// Agent-scoped memory (private to one Agent, not shared across the user's other Agents)
+await userClient.memory.writeFile({
+  scope: "agent",
+  agentId: agent._id,
+  path: "/memories/agent/learnings.md",
+  content: "User responds well to bullet points.",
+});
+```
+
+| Method                          | Wraps                      | Returns              |
+| -------------------------------- | --------------------------- | --------------------- |
+| `memory.list()`                  | `GET /memory`               | `MemoryListResult`    |
+| `memory.getFile(params)`         | `GET /memory/file`          | `MemoryFile`          |
+| `memory.writeFile(input)`        | `PUT /memory/file`          | `MemoryFile`          |
+| `memory.deleteFile(params)`      | `DELETE /memory/file`       | `void`                |
+
+`MemoryListResult`: `{ userFiles: MemoryFile[], agentMemories: { agentId, agentName, files:
+MemoryFile[] }[] }` — user-global files plus one group per Agent that has agent-scoped memory.
+`scope` on `getFile`/`writeFile`/`deleteFile` defaults to `'user'`; `'agent'` requires `agentId`.
+
+<Warning>
+  Memory written here goes through the exact same namespace a live Agent run uses — it's real,
+  live-visible data, not a separate copy. A `writeFile()` call is indistinguishable from the Agent
+  having written that file itself via its own `write_file` tool.
+</Warning>
+
+### Stores
+
+Config CRUD (`create`/`list`/`get`/`update`/`delete`) works with a bare Project credential — a
+Store's config isn't per-founder. File CRUD is the same, *except* when the Store's own `scope` is
+`'externalUser'`: only then does this client need `externalUserId` set, or the call throws a
+`PersonaApiError` with `statusCode: 400` (`EXTERNAL_USER_REQUIRED`).
+
+A Store is a named, scoped mount point you assign to Agents (`storeMounts` on
+`agents.create()`/`agents.update()`) — a filesystem-backed alternative to
+[`contextOverride`](#chat-streamed) for reference material too large to comfortably re-send in the
+prompt every turn. An Agent reads from it via its own `read_file`/`ls` tools, on demand, mounted at
+`/stores/<name>/`.
+
+```ts
+// A shared, read-only reference store — safe to mount on Agents serving many different founders,
+// since accessMode: "readonly" blocks Agent tool writes (content is only ever populated here).
+const notes = await persona.stores.create({
+  name: "product-notes",
+  scope: "domain",
+  accessMode: "readonly",
+});
+await persona.stores.writeFile(notes._id, {
+  path: "/roadmap.md",
+  content: "# Q3 roadmap\n...",
+});
+
+// A per-founder store — one private partition per external user, resolved automatically
+// from whichever founder is actually running the Agent (same mechanism as /memories/user/).
+const privateNotes = await persona.stores.create({
+  name: "founder-private-notes",
+  scope: "externalUser",
+  accessMode: "readwrite",
+});
+
+// Assign both to an Agent.
+await persona.agents.update(agent._id, {
+  storeMounts: [notes._id, privateNotes._id],
+});
+```
+
+| Method                              | Wraps                              | Returns                  |
+| ------------------------------------ | ------------------------------------ | -------------------------- |
+| `stores.create(input)`               | `POST /stores`                       | `Store`                    |
+| `stores.list(params?)`               | `GET /stores`                        | `PaginatedResult<Store>`   |
+| `stores.get(storeId)`                | `GET /stores/{id}`                   | `Store`                    |
+| `stores.update(storeId, input)`      | `PATCH /stores/{id}`                 | `Store`                    |
+| `stores.delete(storeId)`             | `DELETE /stores/{id}`                | `void`                      |
+| `stores.listFiles(storeId)`          | `GET /stores/{id}/files`             | `StoreFile[]`               |
+| `stores.getFile(storeId, params)`    | `GET /stores/{id}/file`              | `StoreFile`                 |
+| `stores.writeFile(storeId, input)`   | `PUT /stores/{id}/file`              | `StoreFile`                 |
+| `stores.deleteFile(storeId, params)` | `DELETE /stores/{id}/file`           | `void`                      |
+
+`scope` (`'domain' | 'externalUser'`) is **immutable after creation** — `UpdateStoreInput`
+deliberately doesn't include it; create a new Store if you need a different scope.
+`writeFile()`/`deleteFile()` are **not** gated by `accessMode` — `readonly` only blocks an Agent's
+own tool calls at mount time, this API is how a readonly Store's content actually gets populated
+in the first place.
+
 ### Files
 
 Every method requires the client to have been constructed with `externalUserId`, same requirement
@@ -715,7 +824,19 @@ console.log(result.text);
 
 `SendMessageOptions`: `messages: { role: 'user' | 'assistant', content: string }[]`, `threadId?`
 (resumes a named Thread from `threads.create()` instead of the implicit deterministic
-one-conversation-per-Agent-per-user thread), `resume?` (see below), `signal?` (an `AbortSignal`).
+one-conversation-per-Agent-per-user thread), `resume?` (see below), `contextOverride?` (a string
+appended to *this turn's* system prompt only — never persisted to memory, never visible to later
+turns; capped at 4000 characters server-side, rejected with a 400 above that rather than silently
+truncated — use this for small, ephemeral facts that change turn-to-turn, e.g. a live profile
+snapshot; for larger reference material an Agent should look up on demand, use
+[Stores](#stores) instead), `signal?` (an `AbortSignal`).
+
+```ts
+await userClient.chat.sendMessage(agent._id, {
+  messages: [{ role: "user", content: "What should I focus on this week?" }],
+  contextOverride: "Founder profile (live): stage=seed, sector=fintech, funding_status=raising",
+});
+```
 
 <Warning>
   `threadId` must belong to the asserted external user and the `agentId` you're calling with —
@@ -737,8 +858,16 @@ one-conversation-per-Agent-per-user thread), `resume?` (see below), `signal?` (a
 | `TOOL_CALL_CHUNK`                               | A streamed tool-call invocation (arguments arrive incrementally).                                                                                                                      |
 | `TOOL_CALL_RESULT`                              | The result of a completed tool call.                                                                                                                                                   |
 | `STATE_SNAPSHOT`                                | A full-state update.                                                                                                                                                                   |
-| `CUSTOM`                                        | Persona-specific side-channel events — subagent traces, MCP structured content, and this SDK's own human-in-the-loop signaling (`hitl_request` / `clarification_request` — see below). |
-| `RUN_FINISHED`                                  | Emitted once, at the end of the run (omitted if the run paused on an interrupt instead).                                                                                               |
+| `CUSTOM`                                        | Persona-specific side-channel events — subagent traces (`subagent_activity`), MCP App widgets (`mcp_app`), and this SDK's own human-in-the-loop signaling (`hitl_request` / `clarification_request` — see below). |
+| `RUN_ERROR`                                     | The run failed genuinely (not an interrupt) — `code`, `message`, `retryable`, `providerName`. See [Structured run errors](#structured-run-errors) below.                              |
+| `RUN_FINISHED`                                  | Emitted once, at the end of the run (omitted if the run paused on an interrupt, or ended in `RUN_ERROR`, instead).                                                                     |
+
+The full, versioned JSON Schema for every `CUSTOM` event's payload is served at
+`GET /api/v1/developer/agui/schema` (not yet wrapped by a typed method on this client — call it via
+`persona` directly if you need it, e.g. through the underlying `HttpClient`). Every stream response
+also carries the active schema version on the `X-AGUI-Schema-Version` response header. The
+TypeScript counterparts (`ClarificationRequestPayload`, `HitlRequestPayload`, `McpAppPayload`,
+`SubagentActivityPayload`) are exported from the package root and kept in sync with that document.
 
 ```ts
 for await (const event of userClient.chat.stream(agent._id, { messages })) {
@@ -792,13 +921,48 @@ if (result.interrupt) {
 `ChatResult` also exposes `events: AguiEvent[]` — every raw event received during that call, in
 order, for anything `text`/`interrupt` don't already surface.
 
+### Structured run errors
+
+If a run ends in a genuine failure — not an interrupt — `sendMessage()` sets `result.error` instead
+of `result.interrupt`, as a typed `PersonaRunErrorEvent`:
+
+```ts
+const result = await userClient.chat.sendMessage(agent._id, { messages });
+
+if (result.error) {
+  switch (result.error.code) {
+    case "PROVIDER_RATE_LIMIT":
+    case "TOOL_TIMEOUT":
+      // result.error.retryable === true — safe to retry automatically
+      break;
+    case "PROVIDER_AUTH_ERROR":
+      // the Agent's configured provider has invalid credentials — not retryable
+      break;
+    default:
+      console.error(result.error.message);
+  }
+}
+```
+
+`code` is a `RunErrorCode`: `'PROVIDER_AUTH_ERROR' | 'PROVIDER_RATE_LIMIT' | 'TOOL_TIMEOUT' |
+'TOOL_ERROR' | 'CONTEXT_LENGTH_EXCEEDED' | 'INTERNAL_ERROR'`.
+
+<Warning>
+  This backend proxies arbitrary OpenAI-compatible `baseURL`s per Provider, so classification is
+  best-effort and improves over time as real provider error shapes are observed — `retryable`
+  should still be trusted (it's conservative), but don't assume every failure mode is perfectly
+  distinguished yet.
+</Warning>
+
 ## TypeScript types
 
 Every public type is exported from the package root (`import type { ... } from "@personaai/sdk"`)
 — resource clients (`ProvidersResource`, `SkillsResource`, `AgentsResource`, `KnowledgeResource`,
-`McpsResource`, `McpOAuthResource`, `ThreadsResource`, `FilesResource`, `ChatClient`), every
-create/update/list-params/result interface referenced in the tables above, `PrincipalContext` and
-its two variants, `AguiEvent`/`EventType`, and the error classes from
+`McpsResource`, `McpOAuthResource`, `ThreadsResource`, `MemoryResource`, `StoresResource`,
+`FilesResource`, `ChatClient`), every create/update/list-params/result interface referenced in the
+tables above, `PrincipalContext` and its two variants, `AguiEvent`/`EventType`, the `CUSTOM`-event
+payload types (`ClarificationRequestPayload`, `HitlRequestPayload`, `McpAppPayload`,
+`SubagentActivityPayload`), `PersonaRunErrorEvent`/`RunErrorCode`, and the error classes from
 [Error handling](#error-handling). There's no separate `@personaai/sdk/types` entry point to
 remember — one import covers the client, every resource, and every type.
 
