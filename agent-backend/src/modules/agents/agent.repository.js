@@ -95,6 +95,21 @@ class AgentRepository {
     return await Agent.updateMany({ skills: skillId }, { $pull: { skills: skillId } });
   }
 
+  async findAgentsUsingStore(storeId, projection = null, limit = null) {
+    let query = Agent.find({ storeMounts: storeId });
+    if (projection) {
+      query = query.select(projection);
+    }
+    if (limit) {
+      query = query.limit(limit);
+    }
+    return await query;
+  }
+
+  async removeStoreFromAgents(storeId) {
+    return await Agent.updateMany({ storeMounts: storeId }, { $pull: { storeMounts: storeId } });
+  }
+
   async findAgentsUsingProvider(providerId, projection = null, limit = null) {
     let query = Agent.find({ providerId });
     if (projection) {

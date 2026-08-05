@@ -20,3 +20,5 @@ export { default as developerAuditLogRouter } from './developerAuditLog.routes.j
 export { default as developerAuditLogController } from './developerAuditLog.controller.js';
 export { default as developerMemoryRouter } from './developerMemory.routes.js';
 export { default as developerMemoryController } from './developerMemory.controller.js';
+export { default as developerStoreRouter } from './developerStore.routes.js';
+export { default as developerStoreController } from './developerStore.controller.js';

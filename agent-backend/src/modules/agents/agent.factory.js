@@ -22,6 +22,10 @@ import {
   projectSkillLibraryStore,
   projectSkillLibraryNamespace,
 } from '../skills/projectSkillLibraryStore.js';
+import {
+  domainStoreNamespace,
+  externalUserStoreNamespace,
+} from '../stores/storeNamespace.js';
 import checkpointService from '../threads/checkpoint.service.js';
 import { LRUCache } from 'lru-cache';
 import agentRepository from './agent.repository.js';
@@ -332,7 +336,7 @@ class AgentFactory {
         throw new Error('Agent deleted or unavailable');
       }
       if (typeof agent.populate === 'function') {
-        await agent.populate(['skills', 'mcps', 'knowledgeBases']);
+        await agent.populate(['skills', 'mcps', 'knowledgeBases', 'storeMounts']);
       }
 
       if (!agent.providerId) throw new Error('Agent has no valid provider configured.');
@@ -472,6 +476,37 @@ class AgentFactory {
         })
       ),
     };
+
+    // Named Stores this agent mounts (stores/store.model.js) — one more
+    // entry per store, exactly like the static routes above. `domain`
+    // scope gets one shared namespace for the whole Project; `externalUser`
+    // scope gets one namespace per caller, resolved here from
+    // executionContext (the compiled instance is already cache-keyed by
+    // identityKey, so a different external user is already a fresh build
+    // with their own executionContext.externalUserId in scope — no
+    // separate dynamic-resolution mechanism needed). A stale/deleted store
+    // ref, or an externalUser-scoped store with no external user in
+    // context (e.g. a bare ProjectMachine-built agent — shouldn't happen
+    // in practice, but must not crash the whole build), is skipped.
+    for (const store of agent.storeMounts || []) {
+      if (!store?.name) continue;
+      if (store.scope === 'externalUser' && !executionContext?.externalUserId) {
+        logger.warn('[AgentFactory] skipping externalUser-scoped store, no external user in context', {
+          storeId: store._id,
+          agentId: agentIdStr,
+        });
+        continue;
+      }
+      const storeNamespace =
+        store.scope === 'externalUser'
+          ? externalUserStoreNamespace(store.domain, executionContext.externalUserId, store.name)
+          : domainStoreNamespace(store.domain, store.name);
+      const wrapBackend = store.accessMode === 'readonly' ? readonlyBackend : gracefulBackend;
+      backendRoutes[`/stores/${store.name}/`] = wrapBackend(
+        new StoreBackend({ store: memoryFilesStore, namespace: storeNamespace }),
+        `/stores/${store.name}/`
+      );
+    }
 
     // The Architect authors skills by writing files (dostify pattern): the
     // user's whole skill library is mounted read-write at /skill-library/,

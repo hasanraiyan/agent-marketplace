@@ -143,6 +143,17 @@ const agentSchema = new mongoose.Schema(
         ref: 'KnowledgeBase',
       },
     ],
+    // Named Stores this Agent mounts (see stores/store.model.js) — each
+    // gets mounted at /stores/<store.name>/ in agent.factory.js, namespace
+    // resolved per store.scope. Mount path is auto-derived from the
+    // store's own name, not stored here, so renaming a Store's name is the
+    // only thing that moves its mount path.
+    storeMounts: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Store',
+      },
+    ],
     interruptOn: {
       type: Map,
       of: Boolean,
