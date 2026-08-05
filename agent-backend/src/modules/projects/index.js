@@ -23,6 +23,7 @@ export { default as projectCredentialService } from './projectCredential.service
 export { default as projectRouter } from './project.routes.js';
 export { default as projectController } from './project.controller.js';
 export { default as projectArchitectAguiRouter } from './projectArchitect.routes.js';
+export { default as projectAgentTestAguiRouter } from './projectAgentTest.routes.js';
 export {
   createProjectSchema,
   updateProjectSchema,

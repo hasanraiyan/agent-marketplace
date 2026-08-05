@@ -5,7 +5,11 @@ import { healthRouter } from './modules/health/index.js';
 import { statusRouter } from './modules/status/index.js';
 import { profileRouter, adminRouter } from './modules/users/index.js';
 import { providerRouter } from './modules/providers/index.js';
-import { projectRouter, projectArchitectAguiRouter } from './modules/projects/index.js';
+import {
+  projectRouter,
+  projectArchitectAguiRouter,
+  projectAgentTestAguiRouter,
+} from './modules/projects/index.js';
 import {
   developerRouter,
   developerAguiRouter,
@@ -78,6 +82,10 @@ app.use(clerkMiddleware());
 app.use('/api/v1/agui', aguiRouter);
 app.use('/api/v1/developer/agui', developerAguiRouter);
 app.use('/api/v1/projects/:projectId/architect/agui', projectArchitectAguiRouter);
+app.use(
+  '/api/v1/projects/:projectId/agents/:agentId/test/agui',
+  projectAgentTestAguiRouter,
+);
 
 app.use(express.json());
 

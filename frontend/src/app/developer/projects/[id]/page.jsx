@@ -17,6 +17,7 @@ import {
   KeyRound,
   Plus,
   Zap,
+  MessageSquare,
 } from "lucide-react";
 import {
   getProject,
@@ -44,6 +45,13 @@ import {
   deleteProjectStore,
   testProjectProviderConnection,
   getProjectAuditLogs,
+  bulkDeleteProjectAgents,
+  bulkDeleteProjectSkills,
+  bulkDeleteProjectMcps,
+  bulkDeleteProjectProviders,
+  getProjectProviderUsage,
+  getProjectSkillUsage,
+  getProjectMcpUsage,
 } from "@/lib/api/projects";
 import { developerRoutes } from "@/lib/developer-routes";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
@@ -56,6 +64,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -127,13 +136,29 @@ const PRIMARY_CTA_CLASSNAME =
 // Agents/Skills/Knowledge/Connectors all share a name+description+createdAt
 // shape for read-only browsing — one small table renderer instead of
 // repeating the same JSX four times.
+//
+// Bulk-select is opt-in via `onBulkDelete` (id[]) => Promise — Knowledge and
+// Stores don't pass it (Knowledge has no list-level delete at all yet;
+// Stores has no bulk-delete backend route), so they render exactly as
+// before with no checkbox column.
 function NameDescriptionTable({
   items,
   loading,
   emptyLabel,
   getEditHref,
+  getTestHref,
   onDelete,
+  onBulkDelete,
 }) {
+  const [selected, setSelected] = useState(() => new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  // Selection doesn't survive a data refresh (e.g. after a bulk delete) —
+  // stale ids in the set would silently no-op on their next click.
+  useEffect(() => {
+    setSelected(new Set());
+  }, [items]);
+
   if (loading) {
     return (
       <div className="space-y-2">
@@ -145,68 +170,186 @@ function NameDescriptionTable({
   if (items.length === 0) {
     return <p className="text-sm text-muted-foreground">{emptyLabel}</p>;
   }
-  const showActions = !!(getEditHref || onDelete);
+  const showActions = !!(getEditHref || getTestHref || onDelete);
+  const selectable = !!onBulkDelete;
+
+  const allIds = items.map((item) => item._id || item.id);
+  const allSelected = selectable && selected.size > 0 && selected.size === allIds.length;
+  const toggleAll = () => {
+    setSelected(allSelected ? new Set() : new Set(allIds));
+  };
+  const toggleOne = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkDeleting(true);
+    try {
+      await onBulkDelete(Array.from(selected));
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead className="hidden lg:table-cell">ID</TableHead>
-          <TableHead>Description</TableHead>
-          <TableHead className="hidden md:table-cell">Created</TableHead>
-          {showActions && <TableHead className="text-right">Actions</TableHead>}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {items.map((item) => {
-          const id = item._id || item.id;
-          return (
-            <TableRow key={id}>
-              <TableCell className="font-medium">{item.name}</TableCell>
-              <TableCell className="hidden lg:table-cell">
-                <CopyButton
-                  value={id}
-                  label={`${item.name || "Resource"} ID`}
-                  variant="inline"
-                  className="max-w-[160px]"
+    <div className="space-y-2">
+      {selectable && selected.size > 0 && (
+        <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2">
+          <span className="text-sm text-muted-foreground">
+            {selected.size} selected
+          </span>
+          <Button
+            variant="destructive"
+            size="sm"
+            disabled={bulkDeleting}
+            onClick={handleBulkDelete}
+          >
+            {bulkDeleting ? (
+              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="mr-1.5 size-3.5" />
+            )}
+            Delete {selected.size} selected
+          </Button>
+        </div>
+      )}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {selectable && (
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={toggleAll}
+                  aria-label="Select all"
                 />
-              </TableCell>
-              <TableCell className="max-w-md truncate text-muted-foreground">
-                {item.description || "—"}
-              </TableCell>
-              <TableCell className="hidden text-muted-foreground md:table-cell">
-                {item.createdAt
-                  ? new Date(item.createdAt).toLocaleDateString()
-                  : "—"}
-              </TableCell>
-              {showActions && (
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1">
-                    {getEditHref && (
-                      <Link href={getEditHref(id)}>
-                        <Button variant="ghost" size="sm">
-                          Edit
-                        </Button>
-                      </Link>
-                    )}
-                    {onDelete && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => onDelete(item)}
-                      >
-                        Delete
-                      </Button>
-                    )}
-                  </div>
+              </TableHead>
+            )}
+            <TableHead>Name</TableHead>
+            <TableHead className="hidden lg:table-cell">ID</TableHead>
+            <TableHead>Description</TableHead>
+            <TableHead className="hidden md:table-cell">Created</TableHead>
+            {showActions && <TableHead className="text-right">Actions</TableHead>}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items.map((item) => {
+            const id = item._id || item.id;
+            return (
+              <TableRow key={id}>
+                {selectable && (
+                  <TableCell>
+                    <Checkbox
+                      checked={selected.has(id)}
+                      onCheckedChange={() => toggleOne(id)}
+                      aria-label={`Select ${item.name}`}
+                    />
+                  </TableCell>
+                )}
+                <TableCell className="font-medium">{item.name}</TableCell>
+                <TableCell className="hidden lg:table-cell">
+                  <CopyButton
+                    value={id}
+                    label={`${item.name || "Resource"} ID`}
+                    variant="inline"
+                    className="max-w-[160px]"
+                  />
                 </TableCell>
-              )}
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+                <TableCell className="max-w-md truncate text-muted-foreground">
+                  {item.description || "—"}
+                </TableCell>
+                <TableCell className="hidden text-muted-foreground md:table-cell">
+                  {item.createdAt
+                    ? new Date(item.createdAt).toLocaleDateString()
+                    : "—"}
+                </TableCell>
+                {showActions && (
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      {getTestHref && (
+                        <Link href={getTestHref(id)}>
+                          <Button variant="ghost" size="sm">
+                            <MessageSquare className="mr-1.5 size-3.5" />
+                            Test
+                          </Button>
+                        </Link>
+                      )}
+                      {getEditHref && (
+                        <Link href={getEditHref(id)}>
+                          <Button variant="ghost" size="sm">
+                            Edit
+                          </Button>
+                        </Link>
+                      )}
+                      {onDelete && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => onDelete(item)}
+                        >
+                          Delete
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                )}
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+// Fetches getUsage for whatever's about to be deleted and shows how many
+// Agents still reference it, right inside the confirm dialog — the whole
+// point of getUsage existing is to stop someone deleting a Provider/Skill/
+// Connector out from under Agents that are still using it. `id` is `null`
+// while nothing's targeted (dialog closed) — skip the fetch, render
+// nothing. `getUsage` is one of the stable, module-level API functions
+// (getProjectProviderUsage etc.), not a per-render closure, so it's safe
+// as an effect dependency.
+function UsageWarning({ getUsage, projectId, id }) {
+  const [usage, setUsage] = useState(null);
+  const [loading, setLoading] = useState(!!id);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await getUsage(projectId, id);
+        if (!cancelled) setUsage(res.data?.data ?? null);
+      } catch {
+        if (!cancelled) setUsage(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [getUsage, projectId, id]);
+
+  if (!id || loading) return null;
+  if (!usage || usage.agentCount === 0) return null;
+
+  const names = usage.agents?.map((a) => a.name).join(", ") || "";
+  const more = usage.agentCount > (usage.agents?.length || 0);
+
+  return (
+    <p className="mt-2 text-sm font-medium text-amber-600 dark:text-amber-500">
+      Used by {usage.agentCount} Agent{usage.agentCount === 1 ? "" : "s"}
+      {names ? `: ${names}${more ? ", …" : ""}` : ""}
+    </p>
   );
 }
 
@@ -269,6 +412,8 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   const [deleteProviderTarget, setDeleteProviderTarget] = useState(null);
   const [deletingProvider, setDeletingProvider] = useState(false);
   const [testingProviderId, setTestingProviderId] = useState(null);
+  const [selectedProviderIds, setSelectedProviderIds] = useState(() => new Set());
+  const [bulkDeletingProviders, setBulkDeletingProviders] = useState(false);
   const [stores, setStores] = useState([]);
   const [storesLoading, setStoresLoading] = useState(true);
   const [deleteStoreTarget, setDeleteStoreTarget] = useState(null);
@@ -653,6 +798,29 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
     }
   };
 
+  const toggleAllProviders = () => {
+    setSelectedProviderIds((prev) =>
+      prev.size === providers.length ? new Set() : new Set(providers.map((p) => p.id)),
+    );
+  };
+  const toggleOneProvider = (id) => {
+    setSelectedProviderIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const handleBulkDeleteProvidersClick = async () => {
+    setBulkDeletingProviders(true);
+    try {
+      await handleBulkDeleteProviders(Array.from(selectedProviderIds));
+      setSelectedProviderIds(new Set());
+    } finally {
+      setBulkDeletingProviders(false);
+    }
+  };
+
   const handleTestProviderConnection = async (provider) => {
     setTestingProviderId(provider.id);
     try {
@@ -752,6 +920,35 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
       setDeletingAgent(false);
     }
   };
+
+  // Shared shape for every bulk-delete: call the API, drop the deleted ids
+  // from local state, report partial failures (a blocked/not-found id
+  // shouldn't silently vanish from the toast) — bulkDelete on the backend
+  // is best-effort per-id (Promise.allSettled), never all-or-nothing.
+  const runBulkDelete = async (apiCall, ids, setItems, resourceLabel) => {
+    const res = await apiCall(projectId, ids);
+    const { deleted, failed } = res.data.data;
+    if (deleted.length > 0) {
+      const deletedSet = new Set(deleted);
+      setItems((prev) => prev.filter((item) => !deletedSet.has(item._id || item.id)));
+    }
+    if (failed.length === 0) {
+      toast.success(`${deleted.length} ${resourceLabel}${deleted.length === 1 ? "" : "s"} deleted.`);
+    } else {
+      toast.error(
+        `${deleted.length} deleted, ${failed.length} couldn't be deleted (still in use, or not found).`,
+      );
+    }
+  };
+
+  const handleBulkDeleteAgents = (ids) =>
+    runBulkDelete(bulkDeleteProjectAgents, ids, setAgents, "Agent");
+  const handleBulkDeleteSkills = (ids) =>
+    runBulkDelete(bulkDeleteProjectSkills, ids, setSkills, "Skill");
+  const handleBulkDeleteMcps = (ids) =>
+    runBulkDelete(bulkDeleteProjectMcps, ids, setMcps, "Connector");
+  const handleBulkDeleteProviders = (ids) =>
+    runBulkDelete(bulkDeleteProjectProviders, ids, setProviders, "Provider");
 
   if (loading) {
     return (
@@ -1119,7 +1316,11 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                 getEditHref={(id) =>
                   developerRoutes.projectAgentEdit(projectId, id)
                 }
+                getTestHref={(id) =>
+                  developerRoutes.projectAgentTest(projectId, id)
+                }
                 onDelete={(agent) => setDeleteAgentTarget(agent)}
+                onBulkDelete={handleBulkDeleteAgents}
               />
             </CardContent>
           </Card>
@@ -1148,6 +1349,7 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                   developerRoutes.projectSkillEdit(projectId, id)
                 }
                 onDelete={(skill) => setDeleteSkillTarget(skill)}
+                onBulkDelete={handleBulkDeleteSkills}
               />
             </CardContent>
           </Card>
@@ -1247,6 +1449,7 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                   developerRoutes.projectMcpEdit(projectId, id)
                 }
                 onDelete={(mcp) => setDeleteMcpTarget(mcp)}
+                onBulkDelete={handleBulkDeleteMcps}
               />
             </CardContent>
           </Card>
@@ -1275,9 +1478,40 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                   <Skeleton className="h-8 w-full" />
                 </div>
               ) : providers.length > 0 ? (
+                <div className="space-y-2">
+                  {selectedProviderIds.size > 0 && (
+                    <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2">
+                      <span className="text-sm text-muted-foreground">
+                        {selectedProviderIds.size} selected
+                      </span>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={bulkDeletingProviders}
+                        onClick={handleBulkDeleteProvidersClick}
+                      >
+                        {bulkDeletingProviders ? (
+                          <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="mr-1.5 size-3.5" />
+                        )}
+                        Delete {selectedProviderIds.size} selected
+                      </Button>
+                    </div>
+                  )}
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={
+                            selectedProviderIds.size > 0 &&
+                            selectedProviderIds.size === providers.length
+                          }
+                          onCheckedChange={toggleAllProviders}
+                          aria-label="Select all"
+                        />
+                      </TableHead>
                       <TableHead>Label</TableHead>
                       <TableHead className="hidden lg:table-cell">ID</TableHead>
                       <TableHead>Base URL</TableHead>
@@ -1293,6 +1527,13 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                   <TableBody>
                     {providers.map((p) => (
                       <TableRow key={p.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedProviderIds.has(p.id)}
+                            onCheckedChange={() => toggleOneProvider(p.id)}
+                            aria-label={`Select ${p.label}`}
+                          />
+                        </TableCell>
                         <TableCell className="font-medium">{p.label}</TableCell>
                         <TableCell className="hidden lg:table-cell">
                           <CopyButton
@@ -1352,6 +1593,7 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
                   No Providers yet.
@@ -1888,6 +2130,11 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
               Agents still using it will need a new Provider assigned. This
               cannot be undone.
             </AlertDialogDescription>
+            <UsageWarning
+              getUsage={getProjectProviderUsage}
+              projectId={projectId}
+              id={deleteProviderTarget?.id}
+            />
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deletingProvider}>
@@ -1924,6 +2171,11 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
               still referencing it will lose access to it. This cannot be
               undone.
             </AlertDialogDescription>
+            <UsageWarning
+              getUsage={getProjectSkillUsage}
+              projectId={projectId}
+              id={deleteSkillTarget?._id || deleteSkillTarget?.id}
+            />
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deletingSkill}>
@@ -1996,6 +2248,11 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
               owner OAuth connection. Any Agents still attaching it will lose
               access to its tools. This cannot be undone.
             </AlertDialogDescription>
+            <UsageWarning
+              getUsage={getProjectMcpUsage}
+              projectId={projectId}
+              id={deleteMcpTarget?._id || deleteMcpTarget?.id}
+            />
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deletingMcp}>Cancel</AlertDialogCancel>

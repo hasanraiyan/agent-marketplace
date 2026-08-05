@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft, Pencil, Trash2, Upload } from "lucide-react";
+import { Loader2, ArrowLeft, Pencil, Trash2, Upload, Search } from "lucide-react";
 import {
   getProjectKnowledge,
   updateProjectKnowledge,
@@ -12,6 +12,7 @@ import {
   getProjectKnowledgeDocuments,
   uploadProjectKnowledgeDocuments,
   deleteProjectKnowledgeDocument,
+  searchProjectKnowledge,
 } from "@/lib/api/projects";
 import { developerRoutes } from "@/lib/developer-routes";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
@@ -82,6 +83,11 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
 
   const [deleteKbOpen, setDeleteKbOpen] = useState(false);
   const [deletingKb, setDeletingKb] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState(null);
+  const [searchError, setSearchError] = useState(null);
 
   useDashboardHeader({
     title: kb?.name || "Knowledge Base",
@@ -173,6 +179,24 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
         err.response?.data?.message || "Failed to delete Knowledge Base.",
       );
       setDeletingKb(false);
+    }
+  };
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    setSearching(true);
+    setSearchError(null);
+    try {
+      const res = await searchProjectKnowledge(projectId, kbId, searchQuery.trim());
+      setSearchResults(res.data?.data || []);
+    } catch (err) {
+      setSearchResults(null);
+      setSearchError(
+        err.response?.data?.message || "Search failed. Try again.",
+      );
+    } finally {
+      setSearching(false);
     }
   };
 
@@ -319,6 +343,66 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
                 </p>
               </div>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="max-w-2xl">
+        <CardHeader>
+          <CardTitle>Test Retrieval</CardTitle>
+          <CardDescription>
+            Run a search the way an Agent would, to check what this
+            Knowledge Base actually returns before wiring it up.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <form onSubmit={handleSearch} className="flex gap-2">
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Ask a question this Knowledge Base should be able to answer…"
+              className="flex-1"
+            />
+            <Button type="submit" disabled={!searchQuery.trim() || searching}>
+              {searching ? (
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              ) : (
+                <Search className="mr-1.5 size-3.5" />
+              )}
+              Search
+            </Button>
+          </form>
+
+          {searchError && (
+            <p className="text-sm text-destructive">{searchError}</p>
+          )}
+
+          {searchResults && (
+            searchResults.length > 0 ? (
+              <div className="space-y-3">
+                {searchResults.map((r, i) => (
+                  <div key={i} className="rounded-md border p-3 text-sm">
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <Badge variant="outline" className="font-mono text-xs">
+                        {r.source}
+                      </Badge>
+                      {r.score != null && (
+                        <span className="text-xs text-muted-foreground">
+                          score {Number(r.score).toFixed(3)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="whitespace-pre-wrap text-muted-foreground">
+                      {r.text}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No matching chunks found.
+              </p>
+            )
           )}
         </CardContent>
       </Card>
