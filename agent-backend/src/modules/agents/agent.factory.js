@@ -1,4 +1,6 @@
 import { ChatOpenAI } from '@langchain/openai';
+import { createMiddleware } from 'langchain';
+import { getConfig } from '@langchain/langgraph';
 import {
   createDeepAgent,
   CompositeBackend,
@@ -24,6 +26,7 @@ import checkpointService from '../threads/checkpoint.service.js';
 import { LRUCache } from 'lru-cache';
 import agentRepository from './agent.repository.js';
 import agentService, { personaExecutionContext } from './agent.service.js';
+import { buildIdentityKey } from './identityKey.js';
 import providerRepository from '../providers/provider.repository.js';
 import encryption from '../../utils/encryption.js';
 
@@ -42,6 +45,29 @@ function getGlobalStore() {
   }
   return globalStore;
 }
+
+// REQ-2: caller-supplied, single-turn context (e.g. a live founder profile
+// snapshot). The compiled agent graph is cached per (agentId, identityKey)
+// in `agentCache` below and reused across every turn from that caller, so
+// this must NOT be baked into `personalizedPrompt`/`systemPrompt` — doing so
+// would leak the override into every subsequent turn until the cache entry
+// evicts. Instead it rides LangGraph's per-invocation `configurable` (set by
+// agui.service.js on each `streamEvents(...)` call, never persisted by the
+// checkpointer) and is read fresh on every model call via `wrapModelCall`,
+// which runs per-invocation even though the graph object itself is cached.
+export const contextOverrideMiddleware = createMiddleware({
+  name: 'ContextOverrideMiddleware',
+  wrapModelCall(request, handler) {
+    const contextOverride = getConfig()?.configurable?.contextOverride;
+    if (!contextOverride) return handler(request);
+    return handler({
+      ...request,
+      systemMessage: request.systemMessage.concat(
+        `\n\n### CURRENT CONTEXT (this turn only — do not save to memory)\n${contextOverride}`
+      ),
+    });
+  },
+});
 
 // Read-only BaseStore facade serving each agent's attached skills live from
 // the Skill collection. The Architect's hardcoded skill is registered as a
@@ -219,22 +245,12 @@ class AgentFactory {
     const agentIdStr = agentId._id ? agentId._id.toString() : agentId.toString();
 
     // Developer Platform (blueprint Phase 8, PR-23a): the identity key used
-    // for the compiled-instance cache and memory namespaces. Persona callers
-    // (the only kind that exist until this PR) get exactly `String(userId)`
-    // — byte-for-byte what these namespaces already used. A ProjectRuntime
-    // caller's `userId` argument is a raw externalUserId string with no
-    // Domain qualification of its own, so it's composed with the context's
-    // `domain` here — `${domain}:${externalUserId}` — to guarantee two
-    // different Projects' external users can never collide on the same key,
-    // even if both happen to use the identical externalUserId string. This
-    // is NOT the memory-namespace-root re-keying deferred in blueprint
-    // Phase 6 (no existing data needs migrating: no Project has ever built
-    // an agent before this PR existed) — it only shapes new keys going
-    // forward.
-    const identityKey =
-      executionContext?.principalType === 'ProjectRuntime'
-        ? `${executionContext.domain}:${executionContext.externalUserId}`
-        : String(userId);
+    // for the compiled-instance cache and memory namespaces — see
+    // identityKey.js for the full rationale. Any other code that needs to
+    // address this same subject's memory namespace (e.g. the developer
+    // memory API) must import buildIdentityKey rather than re-deriving this
+    // composition, so the two can't drift apart.
+    const identityKey = buildIdentityKey(executionContext, userId);
 
     // Cache key: For standard agents it is the agentId. For either Architect,
     // it is namespaced by identity because the toolbox/provider set is
@@ -493,6 +509,7 @@ class AgentFactory {
       store: getGlobalStore(),
       tools: dynamicTools,
       interruptOn: interruptOnConfig,
+      middleware: [contextOverrideMiddleware],
       // sandbox backend if real code execution is ever required.
       backend,
       // Skills are served live from the DB via the /skills/ route above.

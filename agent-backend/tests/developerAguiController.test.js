@@ -40,6 +40,7 @@ jest.unstable_mockModule('../src/modules/agui/aguiTranslator.js', () => ({
     yield { type: 'text', content: msg };
   }),
   formatRuntimeError: jest.fn((err) => err.message),
+  classifyRuntimeError: jest.fn(() => ({ code: 'INTERNAL_ERROR', retryable: false })),
   buildResumeValue: jest.fn(),
   describeInterrupt: jest.fn(),
 }));

@@ -1,3 +1,4 @@
+import { EventType } from '@ag-ui/core';
 import { HumanMessage } from '@langchain/core/messages';
 import { Command } from '@langchain/langgraph';
 import agentFactory from '../agents/agent.factory.js';
@@ -9,6 +10,7 @@ import {
   translateLangGraphStream,
   emitTextNotice,
   formatRuntimeError,
+  classifyRuntimeError,
   buildResumeValue,
   describeInterrupt,
 } from './aguiTranslator.js';
@@ -66,6 +68,7 @@ export async function* runAgentAsAguiEvents({
   threadDbId,
   messages,
   resume,
+  contextOverride,
   signal,
   executionContext = personaExecutionContext(userId),
 }) {
@@ -107,7 +110,14 @@ export async function* runAgentAsAguiEvents({
     );
   } catch (err) {
     logger.error(`[AG-UI] agent build failed: ${err?.message}`, { agentId });
-    yield* emitTextNotice(`*(Error: ${formatRuntimeError(err)})*`);
+    const { code, retryable, providerName } = classifyRuntimeError(err);
+    yield {
+      type: EventType.RUN_ERROR,
+      code,
+      message: formatRuntimeError(err),
+      retryable,
+      providerName,
+    };
     return;
   }
 
@@ -161,7 +171,10 @@ export async function* runAgentAsAguiEvents({
   const runScopeTracker = new RunScopeTracker();
 
   const stream = agentInstance.streamEvents(inputArg, {
-    configurable: { thread_id: langGraphThreadId },
+    // contextOverride rides here, not inputArg.messages: `configurable` is
+    // per-invocation RunnableConfig, never persisted by the checkpointer as
+    // durable thread state (see contextOverrideMiddleware in agent.factory.js).
+    configurable: { thread_id: langGraphThreadId, contextOverride },
     version: 'v2',
     signal,
     callbacks: [runScopeTracker],

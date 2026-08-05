@@ -86,6 +86,14 @@ router.use(developerMachineAuthMiddleware);
  *                   to approve/deny a pending tool call, or an object
  *                   shaped for the specific clarification the interrupted
  *                   run is waiting on.
+ *               contextOverride:
+ *                 type: string
+ *                 maxLength: 4000
+ *                 description: >
+ *                   Caller-supplied context (e.g. a live founder profile
+ *                   snapshot) appended to this turn's system prompt only.
+ *                   Never persisted to any memory file and never visible to
+ *                   later turns.
  *     responses:
  *       200:
  *         description: >
@@ -111,6 +119,33 @@ router.use(developerMachineAuthMiddleware);
  *           x-thread-id was given but doesn't resolve to one of this
  *           Subject's own Threads for this Agent.
  */
+/**
+ * @openapi
+ * /api/v1/developer/agui/schema:
+ *   get:
+ *     tags: [Developer]
+ *     summary: Versioned schema for the custom AG-UI events this backend emits
+ *     description: >
+ *       Documents every non-base-protocol `CUSTOM` AG-UI event this backend
+ *       streams (clarification_request, hitl_request, mcp_app,
+ *       subagent_activity) with a resolvable JSON Schema per payload. The
+ *       base `@ag-ui/core` protocol version is fixed and unaffected by this
+ *       document's own schemaVersion. Every POST /api/v1/developer/agui
+ *       stream response also carries the active schemaVersion on the
+ *       X-AGUI-Schema-Version response header.
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: version
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Echoed back as-is; only "latest" (the current version) is served today.
+ *     responses:
+ *       200:
+ *         description: The event schema document.
+ */
+router.get('/schema', developerAguiController.getSchema);
 router.get('/', developerAguiController.getProtocolInfo);
 router.post('/', rateLimiter('CHAT', RATE_LIMITS.CHAT), developerAguiController.runAgent);
 

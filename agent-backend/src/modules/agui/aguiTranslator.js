@@ -75,16 +75,65 @@ export function flattenErrors(err, seen = new Set()) {
   return leaves;
 }
 
-export function formatRuntimeError(err, providerConfig) {
+// REQ-5: machine-readable classification of a genuine (non-interrupt) run
+// failure, backing the RUN_ERROR AG-UI event's `code`/`retryable` fields.
+// This backend proxies arbitrary OpenAI-compatible baseURLs per provider, so
+// "the provider" isn't a small fixed set we can special-case exhaustively —
+// classification here is deliberately conservative (message substring
+// matching, same as the auth check this was extracted from) and expected to
+// improve over time as real provider error shapes are observed, rather than
+// being complete on day one.
+export function classifyRuntimeError(err, providerConfig) {
   const rawMessage = err?.message || 'Unknown error';
   const lower = rawMessage.toLowerCase();
+  const providerName = providerConfig?.provider || providerConfig?.label;
 
   const isProviderAuthIssue =
     lower.includes('incorrect api key provided') ||
     lower.includes('model_authentication') ||
     (lower.includes('401') && lower.includes('api key'));
-
   if (isProviderAuthIssue) {
+    return { code: 'PROVIDER_AUTH_ERROR', retryable: false, providerName };
+  }
+
+  const isRateLimit =
+    lower.includes('rate limit') ||
+    lower.includes('rate_limit_exceeded') ||
+    lower.includes('too many requests') ||
+    lower.includes('429');
+  if (isRateLimit) {
+    return { code: 'PROVIDER_RATE_LIMIT', retryable: true, providerName };
+  }
+
+  const isContextLengthExceeded =
+    lower.includes('context_length_exceeded') ||
+    lower.includes('context length') ||
+    lower.includes('maximum context length');
+  if (isContextLengthExceeded) {
+    return { code: 'CONTEXT_LENGTH_EXCEEDED', retryable: false, providerName };
+  }
+
+  const isToolTimeout =
+    err?.name === 'TimeoutError' ||
+    lower.includes('tool call timed out') ||
+    lower.includes('tool execution timed out');
+  if (isToolTimeout) {
+    return { code: 'TOOL_TIMEOUT', retryable: true, providerName };
+  }
+
+  const isToolError = err?.name === 'ToolException';
+  if (isToolError) {
+    return { code: 'TOOL_ERROR', retryable: false, providerName };
+  }
+
+  return { code: 'INTERNAL_ERROR', retryable: false, providerName };
+}
+
+export function formatRuntimeError(err, providerConfig) {
+  const rawMessage = err?.message || 'Unknown error';
+  const { code } = classifyRuntimeError(err, providerConfig);
+
+  if (code === 'PROVIDER_AUTH_ERROR') {
     const providerLabel = providerConfig?.label || 'this provider';
     return `Provider "${providerLabel}" has invalid credentials. Update its API key in Settings and try again.`;
   }
@@ -989,10 +1038,15 @@ export async function* translateLangGraphStream(stream, opts = {}) {
       reasoningMsgId = null;
       yield { type: EventType.REASONING_END };
     }
+
+    if (err?.name === 'AbortError') {
+      logger?.info('[AG-UI] stream aborted by client');
+      return;
+    }
+
     const graphInterrupts = extractGraphInterrupts(err);
     const interrupt = isInterruptError(err, graphInterrupts);
 
-    let notice;
     if (interrupt) {
       const interruptInfo = describeInterrupt(graphInterrupts, err);
       logger?.info('[AG-UI] stream paused at interrupt (awaiting user input)', {
@@ -1016,31 +1070,34 @@ export async function* translateLangGraphStream(stream, opts = {}) {
         const customEvent = buildClarificationCustomEvent(interruptInfo);
         if (customEvent) yield customEvent;
       }
-      notice = buildInterruptNotice(graphInterrupts, err);
-    } else {
-      // Surface the REAL underlying failures. AggregateError ("Multiple errors
-      // occurred during superstep N") hides the actual tool errors in err.errors[],
-      // so flatten them for the caller to log, and show the first real cause.
-      const leaves = flattenErrors(err);
-      if (onError) onError(leaves, err);
-      const rootCause = leaves.find((e) => e?.message) || err;
-      notice = `\n\n*(Error: ${formatRuntimeError(rootCause, providerConfig)})*`;
-    }
 
-    yield {
-      type: EventType.TEXT_MESSAGE_CHUNK,
-      messageId: randomUUID(),
-      role: 'assistant',
-      delta: notice,
-    };
+      yield {
+        type: EventType.TEXT_MESSAGE_CHUNK,
+        messageId: randomUUID(),
+        role: 'assistant',
+        delta: buildInterruptNotice(graphInterrupts, err),
+      };
 
-    // On an interrupt the agent may already have written files/todos before pausing
-    // (e.g. wrote a draft, then asked for clarification) — surface them now. We skip
-    // this for genuine errors, where the state may be mid-write / inconsistent.
-    if (interrupt) yield* emitStateSnapshot('interrupt');
-    else if (err?.name === 'AbortError') {
-      logger?.info('[AG-UI] stream aborted by client');
+      // The agent may already have written files/todos before pausing (e.g.
+      // wrote a draft, then asked for clarification) — surface them now.
+      yield* emitStateSnapshot('interrupt');
       return;
     }
+
+    // Surface the REAL underlying failures. AggregateError ("Multiple errors
+    // occurred during superstep N") hides the actual tool errors in err.errors[],
+    // so flatten them for the caller to log, and show the first real cause.
+    const leaves = flattenErrors(err);
+    if (onError) onError(leaves, err);
+    const rootCause = leaves.find((e) => e?.message) || err;
+    const { code, retryable, providerName } = classifyRuntimeError(rootCause, providerConfig);
+
+    yield {
+      type: EventType.RUN_ERROR,
+      code,
+      message: formatRuntimeError(rootCause, providerConfig),
+      retryable,
+      providerName,
+    };
   }
 }

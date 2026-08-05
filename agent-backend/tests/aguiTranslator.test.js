@@ -350,11 +350,14 @@ describe('translateLangGraphStream', () => {
     expect(leaves).toHaveLength(1);
     expect(leaves[0]).toBe(real);
 
-    const notice = out.find((e) => e.type === 'TEXT_MESSAGE_CHUNK').delta;
+    const runError = out.find((e) => e.type === 'RUN_ERROR');
+    expect(runError).toBeDefined();
+    expect(runError.code).toBe('PROVIDER_AUTH_ERROR');
+    expect(runError.retryable).toBe(false);
     // provider-auth message, not the opaque superstep wrapper
-    expect(notice).toContain('OpenAI');
-    expect(notice).toContain('invalid credentials');
-    expect(notice).not.toContain('superstep');
+    expect(runError.message).toContain('OpenAI');
+    expect(runError.message).toContain('invalid credentials');
+    expect(runError.message).not.toContain('superstep');
   });
 });
 

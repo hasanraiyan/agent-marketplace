@@ -11,6 +11,9 @@ import threadRepository from '../threads/thread.repository.js';
 import threadService from '../threads/thread.service.js';
 import { foldSubagentEvent, settleTrace } from '../agui/subagentTrace.js';
 import { readJsonBody, runAgentAsAguiEvents } from '../agui/agui.service.js';
+import { AGUI_SCHEMA_VERSION, buildAguiSchemaDocument } from '../agui/aguiEventSchemas.js';
+
+const CONTEXT_OVERRIDE_MAX_LENGTH = 4000;
 
 /**
  * Developer Platform runtime execution (blueprint Phase 8, PR-23b; Thread
@@ -49,6 +52,10 @@ import { readJsonBody, runAgentAsAguiEvents } from '../agui/agui.service.js';
 class DeveloperAguiController {
   async getProtocolInfo(req, res) {
     res.json({ protocol: 'ag-ui', transport: 'sse', status: 'ok' });
+  }
+
+  async getSchema(req, res) {
+    res.json(buildAguiSchemaDocument());
   }
 
   async runAgent(req, res, next) {
@@ -97,6 +104,20 @@ class DeveloperAguiController {
       }
 
       const input = await readJsonBody(req);
+
+      if (input.contextOverride !== undefined) {
+        if (typeof input.contextOverride !== 'string') {
+          throw new BaseError('contextOverride must be a string', 400, 'INVALID_CONTEXT_OVERRIDE');
+        }
+        if (input.contextOverride.length > CONTEXT_OVERRIDE_MAX_LENGTH) {
+          throw new BaseError(
+            `contextOverride must be ${CONTEXT_OVERRIDE_MAX_LENGTH} characters or fewer`,
+            400,
+            'CONTEXT_OVERRIDE_TOO_LARGE'
+          );
+        }
+      }
+
       const deterministicThreadId = `agui-${domain}-${agentId}-${externalUserId}`;
       const threadDbId = req.headers['x-thread-id'] || input.threadId;
 
@@ -138,6 +159,7 @@ class DeveloperAguiController {
       res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache, no-transform');
       res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-AGUI-Schema-Version', AGUI_SCHEMA_VERSION);
       res.flushHeaders?.();
 
       const controller = new AbortController();
@@ -161,6 +183,7 @@ class DeveloperAguiController {
         threadDbId: resolvedThread?._id,
         messages: input.messages || [],
         resume: input.resume,
+        contextOverride: input.contextOverride,
         signal: controller.signal,
         executionContext: context,
       })) {

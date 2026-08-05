@@ -96,6 +96,19 @@ class MemoryService {
     return this._toFileDto(doc);
   }
 
+  /** Read one memory file. */
+  async getMemoryFile(userId, { scope = 'user', agentId, path }) {
+    const namespace = this._namespaceFor(userId, scope, agentId);
+    const key = normalizeMemoryKey(path);
+
+    const doc = await MemoryFile.findOne({ namespace, key });
+    if (!doc) {
+      throw new Error('Memory file not found');
+    }
+
+    return this._toFileDto(doc);
+  }
+
   /** Delete one memory file. */
   async deleteMemoryFile(userId, { scope = 'user', agentId, path }) {
     const namespace = this._namespaceFor(userId, scope, agentId);
