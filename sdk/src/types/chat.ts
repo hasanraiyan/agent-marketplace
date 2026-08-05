@@ -1,4 +1,5 @@
 import { EventType, type AGUIEvent } from '@ag-ui/core';
+import type { PersonaRunErrorEvent } from './aguiEvents.js';
 
 /** The full discriminated union of every AG-UI protocol event this backend can emit. */
 export type AguiEvent = AGUIEvent;
@@ -24,6 +25,13 @@ export interface SendMessageOptions {
   /** Resumes a named Thread (from `threads.create()`) instead of the implicit deterministic one. */
   threadId?: string;
   resume?: ChatResume;
+  /**
+   * Caller-supplied context (e.g. a live end-user profile snapshot) appended
+   * to this turn's system prompt only. Never persisted to any memory file
+   * and never visible to later turns. Capped at 4000 characters server-side
+   * — a longer value is rejected with a 400, not silently truncated.
+   */
+  contextOverride?: string;
   signal?: AbortSignal;
 }
 
@@ -46,6 +54,8 @@ export interface ChatResult {
   text: string;
   /** Set when the run paused on a human-in-the-loop interrupt instead of finishing normally. */
   interrupt?: ChatInterrupt;
+  /** Set when the run ended in a genuine failure (RUN_ERROR) instead of finishing normally. */
+  error?: PersonaRunErrorEvent;
   /** Every raw event received, in order — for callers who want full detail beyond `text`. */
   events: AguiEvent[];
 }

@@ -73,6 +73,16 @@ export type {
   ListThreadsParams,
   ThreadMessages,
 } from './types/thread.js';
+export { MemoryResource } from './resources/memory.js';
+export type {
+  MemoryFile,
+  MemoryAgentGroup,
+  MemoryListResult,
+  MemoryFileScopeParams,
+  GetMemoryFileParams,
+  WriteMemoryFileInput,
+  DeleteMemoryFileParams,
+} from './types/memory.js';
 export { FilesResource } from './resources/files.js';
 export type { PersonaFile, UploadFilePayload, ListFilesParams } from './types/file.js';
 export { AuditLogsResource } from './resources/auditLogs.js';
@@ -87,3 +97,13 @@ export type {
   ChatInterrupt,
   ChatResult,
 } from './types/chat.js';
+export {
+  AGUI_SCHEMA_VERSION,
+  type ClarificationQuestion,
+  type ClarificationRequestPayload,
+  type HitlRequestPayload,
+  type McpAppPayload,
+  type SubagentActivityPayload,
+  type RunErrorCode,
+  type PersonaRunErrorEvent,
+} from './types/aguiEvents.js';

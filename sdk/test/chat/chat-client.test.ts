@@ -133,6 +133,45 @@ describe('ChatClient', () => {
     });
   });
 
+  it('contextOverride is forwarded in the request body', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse([]));
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    await client.chat.sendMessage('agent-1', {
+      messages: [{ role: 'user', content: 'hi' }],
+      contextOverride: 'stage=seed, sector=fintech',
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string).contextOverride).toBe('stage=seed, sector=fintech');
+  });
+
+  it('sendMessage() surfaces a RUN_ERROR event as ChatResult.error', async () => {
+    const events = [
+      { type: EventType.RUN_STARTED, threadId: 't1', runId: 'r1' },
+      {
+        type: EventType.RUN_ERROR,
+        code: 'PROVIDER_AUTH_ERROR',
+        message: 'Provider "OpenAI" has invalid credentials. Update its API key in Settings and try again.',
+        retryable: false,
+        providerName: 'openai',
+      },
+    ];
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse(events));
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    const result = await client.chat.sendMessage('agent-1', { messages: [] });
+
+    expect(result.error).toEqual({
+      type: EventType.RUN_ERROR,
+      code: 'PROVIDER_AUTH_ERROR',
+      message: 'Provider "OpenAI" has invalid credentials. Update its API key in Settings and try again.',
+      retryable: false,
+      providerName: 'openai',
+    });
+    expect(result.interrupt).toBeUndefined();
+  });
+
   it('resume payload is forwarded in the request body to continue a paused run', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse([]));
     const client = makeClient(fetchMock as unknown as typeof fetch);

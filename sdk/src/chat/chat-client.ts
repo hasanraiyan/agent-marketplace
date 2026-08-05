@@ -6,6 +6,7 @@ import {
   type ChatResult,
   type SendMessageOptions,
 } from '../types/chat.js';
+import type { PersonaRunErrorEvent } from '../types/aguiEvents.js';
 import { parseAguiEventStream } from './sse.js';
 
 /**
@@ -27,6 +28,9 @@ export class ChatClient {
    *   instead of the implicit deterministic one.
    * @param options.resume - Answers a pending interrupt from a previous run
    *   (see {@link ChatInterrupt}); omit for a fresh message.
+   * @param options.contextOverride - Caller-supplied context appended to
+   *   this turn's system prompt only — never persisted, never visible to
+   *   later turns.
    * @param options.signal - Aborts the underlying request/stream.
    * @yields Each raw {@link AguiEvent} as it arrives.
    */
@@ -36,7 +40,11 @@ export class ChatClient {
 
     const response = await this.http.request<Response>('POST', '/api/v1/developer/agui', {
       headers,
-      body: { messages: options.messages, resume: options.resume },
+      body: {
+        messages: options.messages,
+        resume: options.resume,
+        contextOverride: options.contextOverride,
+      },
       signal: options.signal,
     });
 
@@ -63,6 +71,7 @@ export class ChatClient {
   async sendMessage(agentId: string, options: SendMessageOptions): Promise<ChatResult> {
     let text = '';
     let interrupt: ChatInterrupt | undefined;
+    let error: PersonaRunErrorEvent | undefined;
     const events: AguiEvent[] = [];
 
     for await (const event of this.stream(agentId, options)) {
@@ -76,9 +85,15 @@ export class ChatClient {
         } else if (event.name === 'clarification_request') {
           interrupt = { kind: 'clarification', value: event.value };
         }
+      } else if (event.type === EventType.RUN_ERROR) {
+        // The base @ag-ui/core RunErrorEvent type only guarantees
+        // `message`/`code: string | undefined` — this backend always sends
+        // the fuller shape (code as a literal enum, retryable, providerName)
+        // as passthrough extras, so PersonaRunErrorEvent is the accurate type.
+        error = event as unknown as PersonaRunErrorEvent;
       }
     }
 
-    return { text, interrupt, events };
+    return { text, interrupt, error, events };
   }
 }
