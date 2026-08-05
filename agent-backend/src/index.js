@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { healthRouter } from './modules/health/index.js';
+import { statusRouter } from './modules/status/index.js';
 import { profileRouter, adminRouter } from './modules/users/index.js';
 import { providerRouter } from './modules/providers/index.js';
 import { projectRouter, projectArchitectAguiRouter } from './modules/projects/index.js';
@@ -86,6 +87,7 @@ app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec));
 app.get('/openapi.json', (req, res) => res.json(openapiSpec));
 
 app.use('/api/v1/health', healthRouter);
+app.use('/api/v1/status', statusRouter);
 app.use('/api/v1/profile', profileRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/providers', providerRouter);
