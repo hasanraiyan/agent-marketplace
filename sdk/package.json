@@ -1,6 +1,6 @@
 {
   "name": "@personaai/sdk",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Node.js/TypeScript SDK for the persona.hasanraiyan.me Developer Platform API. Server-side only — never bundle into a browser app.",
   "type": "module",
   "main": "./dist/index.cjs",

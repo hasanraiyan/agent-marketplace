@@ -3,6 +3,14 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.3.1
+
+- `Agent`/`CreateAgentInput`/`UpdateAgentInput` gained `interruptOn` (a Developer-Platform
+  consumer's `create()`/`update()` call previously had this field silently stripped by the
+  request validator before it ever reached the database, even though the runtime already fully
+  supported it — this closes that gap; not a new capability on the backend, just the first time
+  it's actually reachable through the SDK).
+
 ## 0.3.0
 
 New resources and chat capabilities, all additive — nothing from 0.2.x changes shape.

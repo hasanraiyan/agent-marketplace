@@ -31,6 +31,7 @@ export const createAgentSchema = z.object({
   mcps: z.array(z.string()).optional(),
   knowledgeBases: z.array(z.string()).optional(),
   storeMounts: z.array(z.string()).optional(),
+  interruptOn: z.record(z.string(), z.boolean()).optional(),
   isActive: z.boolean().default(true),
 });
 
@@ -51,6 +52,7 @@ export const updateAgentSchema = z.object({
   mcps: z.array(z.string()).optional(),
   knowledgeBases: z.array(z.string()).optional(),
   storeMounts: z.array(z.string()).optional(),
+  interruptOn: z.record(z.string(), z.boolean()).optional(),
   visibility: z.enum(['private', 'unlisted', 'public']).optional(),
   category: z
     .enum(['productivity', 'coding', 'creative', 'research', 'roleplay', 'other'])

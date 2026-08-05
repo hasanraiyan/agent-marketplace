@@ -115,6 +115,17 @@ describe('AgentsResource', () => {
     expect(init.body).toBe(JSON.stringify({ visibility: 'public' }));
   });
 
+  it('update() round-trips interruptOn in the request body', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ success: true, data: { _id: 'a1', interruptOn: { propose_issue: true } } })
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    await client.agents.update('a1', { interruptOn: { propose_issue: true } });
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.body).toBe(JSON.stringify({ interruptOn: { propose_issue: true } }));
+  });
+
   it('delete() DELETEs the Agent', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       jsonResponse({ success: true, message: 'Agent deleted successfully' })

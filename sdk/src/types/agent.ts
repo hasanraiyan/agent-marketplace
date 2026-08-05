@@ -53,6 +53,8 @@ export interface Agent {
   knowledgeBases?: unknown[];
   /** Bare id strings on `create`/`update`/`list`; populated objects on `get()`. */
   storeMounts?: unknown[];
+  /** Maps a tool name to whether calling it pauses the run for human approval (a real LangGraph interrupt, resumed via `chat.stream()`'s `resume` option). */
+  interruptOn?: Record<string, boolean>;
   isActive: boolean;
   /** Whether this is the Project's designated default/primary Agent. */
   isMainAgent: boolean;
@@ -89,6 +91,8 @@ export interface CreateAgentInput {
   knowledgeBases?: string[];
   /** Store ids to mount at creation time (see `stores.create()`). */
   storeMounts?: string[];
+  /** Maps a tool name to whether calling it should pause the run for human approval, e.g. `{ propose_issue: true }`. Works identically for built-in and MCP-sourced tool names. Omit for no gated tools. */
+  interruptOn?: Record<string, boolean>;
   /** @default true */
   isActive?: boolean;
 }
@@ -115,6 +119,8 @@ export interface UpdateAgentInput {
   knowledgeBases?: string[];
   /** Replaces the entire array — this is not a merge/append. */
   storeMounts?: string[];
+  /** Replaces the entire map — this is not a merge/append. */
+  interruptOn?: Record<string, boolean>;
   visibility?: AgentVisibility;
   category?: AgentCategory;
   isActive?: boolean;
