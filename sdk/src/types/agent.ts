@@ -51,6 +51,8 @@ export interface Agent {
   mcps?: unknown[];
   /** Bare id strings on `create`/`update`/`list`; populated objects on `get()`. */
   knowledgeBases?: unknown[];
+  /** Bare id strings on `create`/`update`/`list`; populated objects on `get()`. */
+  storeMounts?: unknown[];
   isActive: boolean;
   /** Whether this is the Project's designated default/primary Agent. */
   isMainAgent: boolean;
@@ -85,6 +87,8 @@ export interface CreateAgentInput {
   mcps?: string[];
   /** Knowledge base ids to attach at creation time. */
   knowledgeBases?: string[];
+  /** Store ids to mount at creation time (see `stores.create()`). */
+  storeMounts?: string[];
   /** @default true */
   isActive?: boolean;
 }
@@ -109,6 +113,8 @@ export interface UpdateAgentInput {
   mcps?: string[];
   /** Replaces the entire array — this is not a merge/append. */
   knowledgeBases?: string[];
+  /** Replaces the entire array — this is not a merge/append. */
+  storeMounts?: string[];
   visibility?: AgentVisibility;
   category?: AgentCategory;
   isActive?: boolean;

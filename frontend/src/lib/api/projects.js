@@ -52,6 +52,8 @@ export const getProjectMcps = (projectId) =>
   api.get(`/projects/${projectId}/mcps`);
 export const getProjectProviders = (projectId) =>
   api.get(`/projects/${projectId}/providers`);
+export const getProjectStores = (projectId) =>
+  api.get(`/projects/${projectId}/stores`);
 
 // Provider full CRUD (blueprint Phase 11.5, PR-60 — already merged on the
 // backend). No single-item GET route exists — same convention as
@@ -77,6 +79,17 @@ export const updateProjectSkill = (projectId, skillId, data) =>
   api.patch(`/projects/${projectId}/skills/${skillId}`, data);
 export const deleteProjectSkill = (projectId, skillId) =>
   api.delete(`/projects/${projectId}/skills/${skillId}`);
+
+// Store full CRUD (named, scoped mount points assignable to Agents via
+// storeMounts). No single-item GET route — same find-by-id-from-list
+// convention as Providers/Skills above. `scope` cannot be changed after
+// creation — omit it from update calls.
+export const createProjectStore = (projectId, data) =>
+  api.post(`/projects/${projectId}/stores`, data);
+export const updateProjectStore = (projectId, storeId, data) =>
+  api.patch(`/projects/${projectId}/stores/${storeId}`, data);
+export const deleteProjectStore = (projectId, storeId) =>
+  api.delete(`/projects/${projectId}/stores/${storeId}`);
 
 // Knowledge Base full CRUD + document management (blueprint Phase 11.5,
 // PR-60 — already merged on the backend). No single-item GET route — same

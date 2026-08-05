@@ -19,6 +19,7 @@ import {
 } from '../knowledge/knowledge.validator.js';
 import { createMcpSchema, updateMcpSchema } from '../mcp/mcp.validator.js';
 import { createAgentSchema, updateAgentSchema } from '../agents/agent.validator.js';
+import { createStoreSchema, updateStoreSchema } from '../stores/store.validator.js';
 
 const router = express.Router();
 const mutateLimiter = rateLimiter('MUTATE', RATE_LIMITS.MUTATE);
@@ -459,6 +460,20 @@ adminRouter.patch(
 adminRouter.delete('/skills/:skillId', mutateLimiter, projectController.deleteSkill);
 
 adminRouter.post(
+  '/stores',
+  mutateLimiter,
+  validateBody(createStoreSchema),
+  projectController.createStore
+);
+adminRouter.patch(
+  '/stores/:storeId',
+  mutateLimiter,
+  validateBody(updateStoreSchema),
+  projectController.updateStore
+);
+adminRouter.delete('/stores/:storeId', mutateLimiter, projectController.deleteStore);
+
+adminRouter.post(
   '/knowledge',
   mutateLimiter,
   validateBody(createKnowledgeBaseSchema),
@@ -520,6 +535,23 @@ adminRouter.delete(
  *       200: { description: List of Skills }
  */
 adminRouter.get('/skills', projectController.listSkills);
+
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/stores:
+ *   get:
+ *     tags: [Projects]
+ *     summary: List this Project's Stores (Admin only)
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: List of Stores }
+ */
+adminRouter.get('/stores', projectController.listStores);
 
 /**
  * @openapi

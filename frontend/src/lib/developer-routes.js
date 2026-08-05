@@ -31,4 +31,7 @@ export const developerRoutes = {
   projectAgentNew: (id) => `/developer/projects/${id}/agents/new`,
   projectAgentEdit: (id, agentId) =>
     `/developer/projects/${id}/agents/${agentId}/edit`,
+  projectStoreNew: (id) => `/developer/projects/${id}/stores/new`,
+  projectStoreEdit: (id, storeId) =>
+    `/developer/projects/${id}/stores/${storeId}/edit`,
 };

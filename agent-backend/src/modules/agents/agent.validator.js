@@ -30,6 +30,7 @@ export const createAgentSchema = z.object({
   skills: z.array(z.string()).optional(),
   mcps: z.array(z.string()).optional(),
   knowledgeBases: z.array(z.string()).optional(),
+  storeMounts: z.array(z.string()).optional(),
   isActive: z.boolean().default(true),
 });
 
@@ -49,6 +50,7 @@ export const updateAgentSchema = z.object({
   skills: z.array(z.string()).optional(),
   mcps: z.array(z.string()).optional(),
   knowledgeBases: z.array(z.string()).optional(),
+  storeMounts: z.array(z.string()).optional(),
   visibility: z.enum(['private', 'unlisted', 'public']).optional(),
   category: z
     .enum(['productivity', 'coding', 'creative', 'research', 'roleplay', 'other'])

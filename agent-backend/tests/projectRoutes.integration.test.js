@@ -57,6 +57,14 @@ jest.unstable_mockModule('../src/modules/mcp/mcp.service.js', () => ({
 jest.unstable_mockModule('../src/modules/providers/provider.service.js', () => ({
   default: { listProvidersForProject: jest.fn() },
 }));
+jest.unstable_mockModule('../src/modules/stores/store.service.js', () => ({
+  default: {
+    listStores: jest.fn(),
+    createStore: jest.fn(),
+    updateStore: jest.fn(),
+    deleteStore: jest.fn(),
+  },
+}));
 
 const projectMembershipRepository = (
   await import('../src/modules/projects/projectMembership.repository.js')

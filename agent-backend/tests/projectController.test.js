@@ -50,6 +50,14 @@ jest.unstable_mockModule('../src/modules/mcp/mcp.service.js', () => ({
 jest.unstable_mockModule('../src/modules/providers/provider.service.js', () => ({
   default: { listProvidersForProject: jest.fn() },
 }));
+jest.unstable_mockModule('../src/modules/stores/store.service.js', () => ({
+  default: {
+    listStores: jest.fn(),
+    createStore: jest.fn(),
+    updateStore: jest.fn(),
+    deleteStore: jest.fn(),
+  },
+}));
 
 const projectService = (await import('../src/modules/projects/project.service.js')).default;
 const projectMembershipService = (
@@ -64,6 +72,7 @@ const skillService = (await import('../src/modules/skills/skill.service.js')).de
 const knowledgeService = (await import('../src/modules/knowledge/knowledge.service.js')).default;
 const mcpService = (await import('../src/modules/mcp/mcp.service.js')).default;
 const providerService = (await import('../src/modules/providers/provider.service.js')).default;
+const storeService = (await import('../src/modules/stores/store.service.js')).default;
 const projectController = (await import('../src/modules/projects/project.controller.js')).default;
 
 describe('Project Controller', () => {
@@ -383,6 +392,18 @@ describe('Project Controller', () => {
       );
     });
 
+    test('listStores forwards req.projectAdminContext.domain, not the whole context object', async () => {
+      storeService.listStores.mockResolvedValue([{ _id: 'store1' }]);
+
+      await projectController.listStores(mockReq, mockRes, next);
+
+      expect(storeService.listStores).toHaveBeenCalledWith(
+        projectId,
+        expect.any(Object),
+        expect.any(Object)
+      );
+    });
+
     test('listKnowledge forwards req.projectAdminContext', async () => {
       knowledgeService.discoverKnowledgeBases.mockResolvedValue([{ _id: 'kb1' }]);
 
@@ -427,6 +448,46 @@ describe('Project Controller', () => {
       await projectController.listAgents(mockReq, mockRes, next);
 
       expect(next).toHaveBeenCalledWith(err);
+    });
+  });
+
+  describe('stores CRUD', () => {
+    test('createStore forwards req.projectAdminContext.domain', async () => {
+      mockReq.body = { name: 'notes', scope: 'domain' };
+      storeService.createStore.mockResolvedValue({ _id: 's1', name: 'notes' });
+
+      await projectController.createStore(mockReq, mockRes, next);
+
+      expect(storeService.createStore).toHaveBeenCalledWith(projectId, mockReq.body);
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+    });
+
+    test('createStore 409s on a duplicate name', async () => {
+      storeService.createStore.mockRejectedValue(Object.assign(new Error('dup'), { code: 11000 }));
+
+      await projectController.createStore(mockReq, mockRes, next);
+
+      expect(mockRes.status).toHaveBeenCalledWith(409);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    test('updateStore forwards domain + storeId', async () => {
+      mockReq.params = { storeId: 's1' };
+      mockReq.body = { description: 'updated' };
+      storeService.updateStore.mockResolvedValue({ _id: 's1', description: 'updated' });
+
+      await projectController.updateStore(mockReq, mockRes, next);
+
+      expect(storeService.updateStore).toHaveBeenCalledWith(projectId, 's1', { description: 'updated' });
+    });
+
+    test('deleteStore 404s when the store does not exist', async () => {
+      mockReq.params = { storeId: 's1' };
+      storeService.deleteStore.mockRejectedValue(new Error('Store not found'));
+
+      await projectController.deleteStore(mockReq, mockRes, next);
+
+      expect(mockRes.status).toHaveBeenCalledWith(404);
     });
   });
 });

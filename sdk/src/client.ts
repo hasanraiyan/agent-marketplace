@@ -7,6 +7,7 @@ import { KnowledgeResource } from './resources/knowledge.js';
 import { McpsResource } from './resources/mcp.js';
 import { ThreadsResource } from './resources/threads.js';
 import { MemoryResource } from './resources/memory.js';
+import { StoresResource } from './resources/stores.js';
 import { FilesResource } from './resources/files.js';
 import { AuditLogsResource } from './resources/auditLogs.js';
 import { ChatClient } from './chat/chat-client.js';
@@ -30,6 +31,7 @@ export class PersonaClient {
   readonly mcps: McpsResource;
   readonly threads: ThreadsResource;
   readonly memory: MemoryResource;
+  readonly stores: StoresResource;
   readonly files: FilesResource;
   readonly auditLogs: AuditLogsResource;
   readonly chat: ChatClient;
@@ -56,6 +58,7 @@ export class PersonaClient {
     this.mcps = new McpsResource(this.http);
     this.threads = new ThreadsResource(this.http);
     this.memory = new MemoryResource(this.http);
+    this.stores = new StoresResource(this.http);
     this.files = new FilesResource(this.http);
     this.auditLogs = new AuditLogsResource(this.http);
     this.chat = new ChatClient(this.http);

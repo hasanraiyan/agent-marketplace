@@ -9,6 +9,7 @@ import skillService from '../skills/skill.service.js';
 import knowledgeService from '../knowledge/knowledge.service.js';
 import mcpService from '../mcp/mcp.service.js';
 import providerService from '../providers/provider.service.js';
+import storeService from '../stores/store.service.js';
 
 class ProjectController {
   async create(req, res, next) {
@@ -236,6 +237,23 @@ class ProjectController {
     }
   }
 
+  async listStores(req, res, next) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 20;
+      const filters = { search: req.query.search };
+
+      const stores = await storeService.listStores(req.projectAdminContext.domain, filters, {
+        page,
+        limit,
+      });
+
+      res.json({ success: true, data: stores });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async listKnowledge(req, res, next) {
     try {
       const page = parseInt(req.query.page) || 1;
@@ -419,6 +437,53 @@ class ProjectController {
       await skillService.deleteSkill(req.params.skillId, undefined, req.projectAdminContext);
       res.json({ success: true, message: 'Skill deleted successfully' });
     } catch (error) {
+      next(error);
+    }
+  }
+
+  async createStore(req, res, next) {
+    try {
+      const store = await storeService.createStore(req.projectAdminContext.domain, req.body);
+      res.status(201).json({ success: true, data: store });
+    } catch (error) {
+      if (error.code === 11000) {
+        return res
+          .status(409)
+          .json({ success: false, message: 'A Store with this exact name already exists' });
+      }
+      next(error);
+    }
+  }
+
+  async updateStore(req, res, next) {
+    try {
+      const store = await storeService.updateStore(
+        req.projectAdminContext.domain,
+        req.params.storeId,
+        req.body
+      );
+      res.json({ success: true, data: store });
+    } catch (error) {
+      if (error.code === 11000) {
+        return res
+          .status(409)
+          .json({ success: false, message: 'Another Store with this name already exists' });
+      }
+      if (error.message === 'Store not found') {
+        return res.status(404).json({ success: false, message: 'Store not found' });
+      }
+      next(error);
+    }
+  }
+
+  async deleteStore(req, res, next) {
+    try {
+      await storeService.deleteStore(req.projectAdminContext.domain, req.params.storeId);
+      res.json({ success: true, message: 'Store deleted successfully' });
+    } catch (error) {
+      if (error.message === 'Store not found') {
+        return res.status(404).json({ success: false, message: 'Store not found' });
+      }
       next(error);
     }
   }

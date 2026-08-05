@@ -15,6 +15,7 @@ import {
   getProjectSkills,
   getProjectMcps,
   getProjectKnowledge,
+  getProjectStores,
 } from "@/lib/api/projects";
 import { developerRoutes } from "@/lib/developer-routes";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
@@ -115,6 +116,7 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
   const [skills, setSkills] = useState([]);
   const [mcps, setMcps] = useState([]);
   const [knowledgeBases, setKnowledgeBases] = useState([]);
+  const [stores, setStores] = useState([]);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -129,6 +131,7 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
     skills: [],
     mcps: [],
     knowledgeBases: [],
+    storeMounts: [],
   });
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -169,17 +172,19 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
   useEffect(() => {
     (async () => {
       try {
-        const [providersRes, skillsRes, mcpsRes, knowledgeRes] =
+        const [providersRes, skillsRes, mcpsRes, knowledgeRes, storesRes] =
           await Promise.all([
             getProjectProviders(projectId),
             getProjectSkills(projectId),
             getProjectMcps(projectId),
             getProjectKnowledge(projectId),
+            getProjectStores(projectId),
           ]);
         setProviders(providersRes.data?.data || []);
         setSkills(skillsRes.data?.data || []);
         setMcps(mcpsRes.data?.data || []);
         setKnowledgeBases(knowledgeRes.data?.data || []);
+        setStores(storesRes.data?.data || []);
 
         if (isEditing) {
           const agentsRes = await getProjectAgents(projectId);
@@ -238,6 +243,7 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
       skills: (agent.skills || []).map((s) => s._id || s),
       mcps: (agent.mcps || []).map((m) => m._id || m),
       knowledgeBases: (agent.knowledgeBases || []).map((k) => k._id || k),
+      storeMounts: (agent.storeMounts || []).map((s) => s._id || s),
     });
   };
 
@@ -583,6 +589,18 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
                     items={knowledgeBases}
                     selected={formData.knowledgeBases}
                     onToggle={(id) => toggleAttachment("knowledgeBases", id)}
+                  />
+                  <AttachmentPicker
+                    label="Stores"
+                    items={stores}
+                    selected={formData.storeMounts}
+                    onToggle={(id) => toggleAttachment("storeMounts", id)}
+                    renderBadge={(store) => (
+                      <span className="text-xs text-muted-foreground">
+                        {store.scope}
+                        {store.accessMode === "readonly" ? " · read-only" : ""}
+                      </span>
+                    )}
                   />
                 </div>
               </FieldGroup>

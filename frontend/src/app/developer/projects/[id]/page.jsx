@@ -36,10 +36,12 @@ import {
   getProjectKnowledge,
   getProjectMcps,
   getProjectProviders,
+  getProjectStores,
   deleteProjectProvider,
   deleteProjectSkill,
   deleteProjectMcp,
   deleteProjectAgent,
+  deleteProjectStore,
 } from "@/lib/api/projects";
 import { developerRoutes } from "@/lib/developer-routes";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
@@ -254,6 +256,10 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   const [providersLoading, setProvidersLoading] = useState(true);
   const [deleteProviderTarget, setDeleteProviderTarget] = useState(null);
   const [deletingProvider, setDeletingProvider] = useState(false);
+  const [stores, setStores] = useState([]);
+  const [storesLoading, setStoresLoading] = useState(true);
+  const [deleteStoreTarget, setDeleteStoreTarget] = useState(null);
+  const [deletingStore, setDeletingStore] = useState(false);
 
   useDashboardHeader(
     {
@@ -363,6 +369,23 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
         toast.error(err.response?.data?.message || "Failed to load Skills.");
       } finally {
         setSkillsLoading(false);
+      }
+    })();
+  }, [isLoaded, isSignedIn, projectId]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    (async () => {
+      try {
+        setStoresLoading(true);
+        const res = await getProjectStores(projectId);
+        if (res.data?.success) {
+          setStores(res.data.data);
+        }
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Failed to load Stores.");
+      } finally {
+        setStoresLoading(false);
       }
     })();
   }, [isLoaded, isSignedIn, projectId]);
@@ -630,6 +653,22 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
     }
   };
 
+  const handleDeleteStore = async () => {
+    if (!deleteStoreTarget) return;
+    setDeletingStore(true);
+    try {
+      const targetId = deleteStoreTarget._id || deleteStoreTarget.id;
+      await deleteProjectStore(projectId, targetId);
+      setStores((prev) => prev.filter((s) => (s._id || s.id) !== targetId));
+      toast.success("Store deleted.");
+      setDeleteStoreTarget(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete Store.");
+    } finally {
+      setDeletingStore(false);
+    }
+  };
+
   const handleDeleteMcp = async () => {
     if (!deleteMcpTarget) return;
     setDeletingMcp(true);
@@ -700,6 +739,7 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
           <TabsTrigger value="credentials">Credentials</TabsTrigger>
           <TabsTrigger value="agents">Agents</TabsTrigger>
           <TabsTrigger value="skills">Skills</TabsTrigger>
+          <TabsTrigger value="stores">Stores</TabsTrigger>
           <TabsTrigger value="knowledge">Knowledge</TabsTrigger>
           <TabsTrigger value="connectors">Connectors</TabsTrigger>
           <TabsTrigger value="providers">Providers</TabsTrigger>
@@ -1050,6 +1090,46 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                   developerRoutes.projectSkillEdit(projectId, id)
                 }
                 onDelete={(skill) => setDeleteSkillTarget(skill)}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="stores" className="mt-6">
+          <Card className="max-w-2xl">
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div>
+                <CardTitle>Stores</CardTitle>
+                <CardDescription>
+                  Named, scoped mount points Agents can be assigned to (see
+                  storeMounts on the Agent edit form).
+                </CardDescription>
+              </div>
+              <Link href={developerRoutes.projectStoreNew(projectId)}>
+                <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
+                  <Plus className="mr-1.5 size-3.5" />
+                  New Store
+                </Button>
+              </Link>
+            </CardHeader>
+            <CardContent>
+              <NameDescriptionTable
+                items={stores.map((s) => ({
+                  ...s,
+                  description: [
+                    s.description,
+                    `scope: ${s.scope}`,
+                    `access: ${s.accessMode}`,
+                  ]
+                    .filter(Boolean)
+                    .join(" · "),
+                }))}
+                loading={storesLoading}
+                emptyLabel="No Stores yet."
+                getEditHref={(id) =>
+                  developerRoutes.projectStoreEdit(projectId, id)
+                }
+                onDelete={(store) => setDeleteStoreTarget(store)}
               />
             </CardContent>
           </Card>
@@ -1687,6 +1767,42 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deletingSkill ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete store */}
+      <AlertDialog
+        open={!!deleteStoreTarget}
+        onOpenChange={(open) => !open && setDeleteStoreTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this Store?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteStoreTarget?.name} and all of its data will be
+              permanently deleted, and it will be removed from every Agent
+              that mounts it. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingStore}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteStore();
+              }}
+              disabled={deletingStore}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingStore ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 "Delete"

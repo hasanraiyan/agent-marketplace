@@ -341,6 +341,7 @@ class AgentService {
       await agent.populate('skills', 'name description isPublic');
       await agent.populate('mcps', 'name description transport authType authMode isEnabled');
       await agent.populate('knowledgeBases', 'name description documentCount chunkCount');
+      await agent.populate('storeMounts', 'name description scope accessMode');
     }
 
     return this._formatSafe(agent, userId);
@@ -356,6 +357,7 @@ class AgentService {
       await agent.populate('skills', 'name description isPublic');
       await agent.populate('mcps', 'name description transport authType authMode isEnabled');
       await agent.populate('knowledgeBases', 'name description documentCount chunkCount');
+      await agent.populate('storeMounts', 'name description scope accessMode');
     }
 
     return this._formatSafe(agent, userId);
@@ -478,6 +480,7 @@ class AgentService {
       await agent.populate('skills', 'name description isPublic');
       await agent.populate('mcps', 'name description transport authType authMode isEnabled');
       await agent.populate('knowledgeBases', 'name description documentCount chunkCount');
+      await agent.populate('storeMounts', 'name description scope accessMode');
     }
 
     const obj = agent.toObject ? agent.toObject() : agent;

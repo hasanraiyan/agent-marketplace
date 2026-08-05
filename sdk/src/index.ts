@@ -83,6 +83,19 @@ export type {
   WriteMemoryFileInput,
   DeleteMemoryFileParams,
 } from './types/memory.js';
+export { StoresResource } from './resources/stores.js';
+export type {
+  Store,
+  StoreScope,
+  StoreAccessMode,
+  CreateStoreInput,
+  UpdateStoreInput,
+  DiscoverStoresParams,
+  StoreFile,
+  GetStoreFileParams,
+  DeleteStoreFileParams,
+  WriteStoreFileInput,
+} from './types/store.js';
 export { FilesResource } from './resources/files.js';
 export type { PersonaFile, UploadFilePayload, ListFilesParams } from './types/file.js';
 export { AuditLogsResource } from './resources/auditLogs.js';
