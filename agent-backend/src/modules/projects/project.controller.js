@@ -10,6 +10,9 @@ import knowledgeService from '../knowledge/knowledge.service.js';
 import mcpService from '../mcp/mcp.service.js';
 import providerService from '../providers/provider.service.js';
 import storeService from '../stores/store.service.js';
+import auditLogService from '../audit/auditLog.service.js';
+import { bulkDelete } from '../../utils/bulkDelete.js';
+import { paginationEnvelope } from '../../utils/pagination.js';
 
 class ProjectController {
   async create(req, res, next) {
@@ -713,6 +716,174 @@ class ProjectController {
     try {
       await agentService.deleteAgent(req.params.agentId, undefined, req.projectAdminContext);
       res.json({ success: true, message: 'Agent deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async bulkDeleteAgents(req, res, next) {
+    try {
+      const result = await bulkDelete(req.body.ids, (id) =>
+        agentService.deleteAgent(id, undefined, req.projectAdminContext)
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Developer Studio parity with the SDK's `developer*.controller.js`
+   * getUsage/bulkDelete/search endpoints — same thin pass-through pattern
+   * as createProvider/updateProvider/etc. above, just with
+   * `req.projectAdminContext` in place of `req.projectContext`. Agent has
+   * no getUsage equivalent (nothing else references an Agent the way
+   * Provider/Skill/MCP/Knowledge are referenced by one).
+   */
+  async getProviderUsage(req, res, next) {
+    try {
+      const usage = await providerService.getProviderUsage(
+        req.params.providerId,
+        undefined,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: usage });
+    } catch (error) {
+      if (error.message === 'Provider not found') {
+        return res.status(404).json({ success: false, message: 'Provider not found' });
+      }
+      next(error);
+    }
+  }
+
+  async bulkDeleteProviders(req, res, next) {
+    try {
+      const result = await bulkDelete(req.body.ids, (id) =>
+        providerService.deleteProvider(undefined, id, req.projectAdminContext)
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getSkillUsage(req, res, next) {
+    try {
+      const usage = await skillService.getSkillUsage(
+        req.params.skillId,
+        undefined,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: usage });
+    } catch (error) {
+      if (error.message === 'Skill not found') {
+        return res.status(404).json({ success: false, message: 'Skill not found' });
+      }
+      next(error);
+    }
+  }
+
+  async bulkDeleteSkills(req, res, next) {
+    try {
+      const result = await bulkDelete(req.body.ids, (id) =>
+        skillService.deleteSkill(id, undefined, req.projectAdminContext)
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getKnowledgeUsage(req, res, next) {
+    try {
+      const usage = await knowledgeService.getKnowledgeBaseUsage(
+        req.params.kbId,
+        undefined,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: usage });
+    } catch (error) {
+      if (error.message === 'Knowledge base not found') {
+        return res.status(404).json({ success: false, message: 'Knowledge base not found' });
+      }
+      next(error);
+    }
+  }
+
+  async bulkDeleteKnowledge(req, res, next) {
+    try {
+      const result = await bulkDelete(req.body.ids, (id) =>
+        knowledgeService.deleteKnowledgeBase(id, undefined, req.projectAdminContext)
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async searchKnowledge(req, res, next) {
+    try {
+      const { query, topK } = req.body;
+      const results = await knowledgeService.searchKnowledgeBase(
+        req.params.kbId,
+        query,
+        { topK },
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: results });
+    } catch (error) {
+      if (error.message === 'Knowledge base not found') {
+        return res.status(404).json({ success: false, message: 'Knowledge base not found' });
+      }
+      next(error);
+    }
+  }
+
+  async getMcpUsage(req, res, next) {
+    try {
+      const usage = await mcpService.getMcpUsage(
+        req.params.mcpId,
+        undefined,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: usage });
+    } catch (error) {
+      if (error.message === 'MCP not found') {
+        return res.status(404).json({ success: false, message: 'MCP not found' });
+      }
+      next(error);
+    }
+  }
+
+  async bulkDeleteMcps(req, res, next) {
+    try {
+      const result = await bulkDelete(req.body.ids, (id) =>
+        mcpService.deleteMcp(id, undefined, req.projectAdminContext)
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Developer Studio (Feature 6 parity) — read access to this Project's
+   * audit trail. Covers Project-lifecycle events only (credential minted/
+   * revoked, membership changes, suspend/restore) — see
+   * auditLog.service.js's own docstring; resource CRUD isn't logged here.
+   */
+  async listAuditLogs(req, res, next) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 20;
+      const filters = { eventType: req.query.eventType };
+
+      const [logs, total] = await Promise.all([
+        auditLogService.listForDomain(req.projectAdminContext.domain, filters, { page, limit }),
+        auditLogService.countForDomain(req.projectAdminContext.domain, filters),
+      ]);
+
+      res.json({ success: true, data: paginationEnvelope(logs, total, page, limit) });
     } catch (error) {
       next(error);
     }

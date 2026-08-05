@@ -69,6 +69,10 @@ export const testProjectProviderConnection = (projectId, providerId) =>
   api.post(`/projects/${projectId}/providers/${providerId}/test-connection`);
 export const getProjectProviderModels = (projectId, providerId) =>
   api.get(`/projects/${projectId}/providers/${providerId}/models`);
+export const getProjectProviderUsage = (projectId, providerId) =>
+  api.get(`/projects/${projectId}/providers/${providerId}/usage`);
+export const bulkDeleteProjectProviders = (projectId, ids) =>
+  api.post(`/projects/${projectId}/providers/bulk-delete`, { ids });
 
 // Skill full CRUD (blueprint Phase 11.5, PR-60 — already merged on the
 // backend). No single-item GET route — same find-by-id-from-list
@@ -79,6 +83,10 @@ export const updateProjectSkill = (projectId, skillId, data) =>
   api.patch(`/projects/${projectId}/skills/${skillId}`, data);
 export const deleteProjectSkill = (projectId, skillId) =>
   api.delete(`/projects/${projectId}/skills/${skillId}`);
+export const getProjectSkillUsage = (projectId, skillId) =>
+  api.get(`/projects/${projectId}/skills/${skillId}/usage`);
+export const bulkDeleteProjectSkills = (projectId, ids) =>
+  api.post(`/projects/${projectId}/skills/bulk-delete`, { ids });
 
 // Store full CRUD (named, scoped mount points assignable to Agents via
 // storeMounts). No single-item GET route — same find-by-id-from-list
@@ -115,6 +123,12 @@ export const deleteProjectKnowledgeDocument = (projectId, kbId, sourceName) =>
   api.delete(
     `/projects/${projectId}/knowledge/${kbId}/documents/${encodeURIComponent(sourceName)}`,
   );
+export const getProjectKnowledgeUsage = (projectId, kbId) =>
+  api.get(`/projects/${projectId}/knowledge/${kbId}/usage`);
+export const bulkDeleteProjectKnowledge = (projectId, ids) =>
+  api.post(`/projects/${projectId}/knowledge/bulk-delete`, { ids });
+export const searchProjectKnowledge = (projectId, kbId, query, topK) =>
+  api.post(`/projects/${projectId}/knowledge/${kbId}/search`, { query, topK });
 
 // MCP full CRUD + OAuth owner-connect (blueprint Phase 11.5, PR-60 —
 // already merged on the backend). No single-item GET route — same
@@ -132,6 +146,10 @@ export const getProjectMcpOwnerAuthorizeUrl = (projectId, mcpId) =>
   api.get(`/projects/${projectId}/mcps/${mcpId}/oauth/owner/authorize`);
 export const disconnectProjectMcpOwnerConnection = (projectId, mcpId) =>
   api.delete(`/projects/${projectId}/mcps/${mcpId}/oauth/owner/connection`);
+export const getProjectMcpUsage = (projectId, mcpId) =>
+  api.get(`/projects/${projectId}/mcps/${mcpId}/usage`);
+export const bulkDeleteProjectMcps = (projectId, ids) =>
+  api.post(`/projects/${projectId}/mcps/bulk-delete`, { ids });
 
 // Agent full CRUD — structured form only (blueprint Phase 11.5, PR-61 —
 // already merged on the backend). No single-item GET route — same
@@ -144,3 +162,10 @@ export const updateProjectAgent = (projectId, agentId, data) =>
   api.patch(`/projects/${projectId}/agents/${agentId}`, data);
 export const deleteProjectAgent = (projectId, agentId) =>
   api.delete(`/projects/${projectId}/agents/${agentId}`);
+export const bulkDeleteProjectAgents = (projectId, ids) =>
+  api.post(`/projects/${projectId}/agents/bulk-delete`, { ids });
+
+// Audit logs (Feature 6) — Project-lifecycle events only (credential
+// minted/revoked, membership changes, suspend/restore), not resource CRUD.
+export const getProjectAuditLogs = (projectId, params) =>
+  api.get(`/projects/${projectId}/audit-logs`, { params });

@@ -416,6 +416,37 @@ adminRouter.patch(
   projectController.updateAgent
 );
 adminRouter.delete('/agents/:agentId', mutateLimiter, projectController.deleteAgent);
+adminRouter.post('/agents/bulk-delete', mutateLimiter, projectController.bulkDeleteAgents);
+
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/audit-logs:
+ *   get:
+ *     tags: [Projects]
+ *     summary: List this Project's audit trail (Admin only, Feature 6)
+ *     description: >
+ *       Project-lifecycle events only (credential minted/revoked, membership
+ *       changes, suspend/restore) — resource CRUD (Agent/Skill/Knowledge/
+ *       Provider/MCP) isn't logged here yet.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: page
+ *         in: query
+ *         schema: { type: integer }
+ *       - name: limit
+ *         in: query
+ *         schema: { type: integer }
+ *       - name: eventType
+ *         in: query
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Paginated audit log entries }
+ */
+adminRouter.get('/audit-logs', projectController.listAuditLogs);
 
 /**
  * Full create/edit/delete for a Project's own Skills/Knowledge/MCP/
@@ -444,6 +475,8 @@ adminRouter.post(
   projectController.testProviderConnection
 );
 adminRouter.get('/providers/:providerId/models', projectController.getProviderModels);
+adminRouter.get('/providers/:providerId/usage', projectController.getProviderUsage);
+adminRouter.post('/providers/bulk-delete', mutateLimiter, projectController.bulkDeleteProviders);
 
 adminRouter.post(
   '/skills',
@@ -458,6 +491,8 @@ adminRouter.patch(
   projectController.updateSkill
 );
 adminRouter.delete('/skills/:skillId', mutateLimiter, projectController.deleteSkill);
+adminRouter.get('/skills/:skillId/usage', projectController.getSkillUsage);
+adminRouter.post('/skills/bulk-delete', mutateLimiter, projectController.bulkDeleteSkills);
 
 adminRouter.post(
   '/stores',
@@ -486,6 +521,9 @@ adminRouter.patch(
   projectController.updateKnowledge
 );
 adminRouter.delete('/knowledge/:kbId', mutateLimiter, projectController.deleteKnowledge);
+adminRouter.get('/knowledge/:kbId/usage', projectController.getKnowledgeUsage);
+adminRouter.post('/knowledge/bulk-delete', mutateLimiter, projectController.bulkDeleteKnowledge);
+adminRouter.post('/knowledge/:kbId/search', projectController.searchKnowledge);
 adminRouter.post(
   '/knowledge/:kbId/documents',
   mutateLimiter,
@@ -512,6 +550,8 @@ adminRouter.patch(
   projectController.updateMcp
 );
 adminRouter.delete('/mcps/:mcpId', mutateLimiter, projectController.deleteMcp);
+adminRouter.get('/mcps/:mcpId/usage', projectController.getMcpUsage);
+adminRouter.post('/mcps/bulk-delete', mutateLimiter, projectController.bulkDeleteMcps);
 adminRouter.get('/mcps/:mcpId/oauth/owner/authorize', projectController.getMcpOwnerAuthorizeUrl);
 adminRouter.delete(
   '/mcps/:mcpId/oauth/owner/connection',

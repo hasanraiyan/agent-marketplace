@@ -50,7 +50,8 @@
     "access": "public"
   },
   "dependencies": {
-    "@ag-ui/core": "^0.0.57"
+    "@ag-ui/core": "^0.0.57",
+    "@personaai/sdk": "^0.3.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
@@ -63,6 +64,8 @@
     "vitest": "^3.0.4"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

@@ -15,8 +15,8 @@ import {
   Undo2,
   UserPlus,
   KeyRound,
-  Copy,
   Plus,
+  Zap,
 } from "lucide-react";
 import {
   getProject,
@@ -42,6 +42,8 @@ import {
   deleteProjectMcp,
   deleteProjectAgent,
   deleteProjectStore,
+  testProjectProviderConnection,
+  getProjectAuditLogs,
 } from "@/lib/api/projects";
 import { developerRoutes } from "@/lib/developer-routes";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
@@ -53,6 +55,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { CopyButton } from "@/components/ui/copy-button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -148,6 +151,7 @@ function NameDescriptionTable({
       <TableHeader>
         <TableRow>
           <TableHead>Name</TableHead>
+          <TableHead className="hidden lg:table-cell">ID</TableHead>
           <TableHead>Description</TableHead>
           <TableHead className="hidden md:table-cell">Created</TableHead>
           {showActions && <TableHead className="text-right">Actions</TableHead>}
@@ -159,6 +163,14 @@ function NameDescriptionTable({
           return (
             <TableRow key={id}>
               <TableCell className="font-medium">{item.name}</TableCell>
+              <TableCell className="hidden lg:table-cell">
+                <CopyButton
+                  value={id}
+                  label={`${item.name || "Resource"} ID`}
+                  variant="inline"
+                  className="max-w-[160px]"
+                />
+              </TableCell>
               <TableCell className="max-w-md truncate text-muted-foreground">
                 {item.description || "—"}
               </TableCell>
@@ -256,10 +268,16 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   const [providersLoading, setProvidersLoading] = useState(true);
   const [deleteProviderTarget, setDeleteProviderTarget] = useState(null);
   const [deletingProvider, setDeletingProvider] = useState(false);
+  const [testingProviderId, setTestingProviderId] = useState(null);
   const [stores, setStores] = useState([]);
   const [storesLoading, setStoresLoading] = useState(true);
   const [deleteStoreTarget, setDeleteStoreTarget] = useState(null);
   const [deletingStore, setDeletingStore] = useState(false);
+
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditLogsLoading, setAuditLogsLoading] = useState(true);
+  const [auditLogsPage, setAuditLogsPage] = useState(1);
+  const [auditLogsPages, setAuditLogsPages] = useState(1);
 
   useDashboardHeader(
     {
@@ -389,6 +407,27 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
       }
     })();
   }, [isLoaded, isSignedIn, projectId]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    (async () => {
+      try {
+        setAuditLogsLoading(true);
+        const res = await getProjectAuditLogs(projectId, {
+          page: auditLogsPage,
+          limit: 20,
+        });
+        if (res.data?.success) {
+          setAuditLogs(res.data.data.items);
+          setAuditLogsPages(res.data.data.pagination.pages || 1);
+        }
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Failed to load audit logs.");
+      } finally {
+        setAuditLogsLoading(false);
+      }
+    })();
+  }, [isLoaded, isSignedIn, projectId, auditLogsPage]);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -614,10 +653,23 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
     }
   };
 
-  const handleCopySecret = () => {
-    if (!mintedSecret) return;
-    navigator.clipboard.writeText(mintedSecret.secret);
-    toast.success("Copied to clipboard");
+  const handleTestProviderConnection = async (provider) => {
+    setTestingProviderId(provider.id);
+    try {
+      const res = await testProjectProviderConnection(projectId, provider.id);
+      const result = res.data?.data;
+      if (result?.success === false) {
+        toast.error(result?.message || `Couldn't connect to ${provider.label}.`);
+      } else {
+        toast.success(`${provider.label} connection OK.`);
+      }
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message || `Couldn't connect to ${provider.label}.`,
+      );
+    } finally {
+      setTestingProviderId(null);
+    }
   };
 
   const handleDeleteProvider = async () => {
@@ -743,6 +795,7 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
           <TabsTrigger value="knowledge">Knowledge</TabsTrigger>
           <TabsTrigger value="connectors">Connectors</TabsTrigger>
           <TabsTrigger value="providers">Providers</TabsTrigger>
+          <TabsTrigger value="audit-logs">Audit Logs</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-6 flex flex-col gap-6">
@@ -995,8 +1048,13 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                   <TableBody>
                     {credentials.map((c) => (
                       <TableRow key={c.id}>
-                        <TableCell className="font-mono text-xs">
-                          {c.keyId}
+                        <TableCell>
+                          <CopyButton
+                            value={c.keyId}
+                            label="Key ID"
+                            variant="inline"
+                            className="max-w-[180px]"
+                          />
                         </TableCell>
                         <TableCell>{c.label || "—"}</TableCell>
                         <TableCell>
@@ -1221,6 +1279,7 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Label</TableHead>
+                      <TableHead className="hidden lg:table-cell">ID</TableHead>
                       <TableHead>Base URL</TableHead>
                       <TableHead className="hidden md:table-cell">
                         Default Model
@@ -1235,6 +1294,14 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                     {providers.map((p) => (
                       <TableRow key={p.id}>
                         <TableCell className="font-medium">{p.label}</TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <CopyButton
+                            value={p.id}
+                            label={`${p.label || "Provider"} ID`}
+                            variant="inline"
+                            className="max-w-[160px]"
+                          />
+                        </TableCell>
                         <TableCell className="text-muted-foreground">
                           {p.baseURL}
                         </TableCell>
@@ -1248,6 +1315,19 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={testingProviderId === p.id}
+                              onClick={() => handleTestProviderConnection(p)}
+                            >
+                              {testingProviderId === p.id ? (
+                                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                              ) : (
+                                <Zap className="mr-1.5 size-3.5" />
+                              )}
+                              Test
+                            </Button>
                             <Link
                               href={developerRoutes.projectProviderEdit(
                                 projectId,
@@ -1275,6 +1355,91 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
               ) : (
                 <p className="text-sm text-muted-foreground">
                   No Providers yet.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="audit-logs" className="mt-6">
+          <Card className="max-w-3xl">
+            <CardHeader>
+              <CardTitle>Audit Logs</CardTitle>
+              <CardDescription>
+                This Project&apos;s lifecycle trail — credentials minted/
+                revoked, membership changes, suspend/restore. Resource CRUD
+                (Agents/Skills/Knowledge/Providers/MCPs) isn&apos;t logged
+                here yet.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {auditLogsLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ) : auditLogs.length > 0 ? (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Event</TableHead>
+                        <TableHead>Actor</TableHead>
+                        <TableHead className="hidden md:table-cell">
+                          Target
+                        </TableHead>
+                        <TableHead className="text-right">When</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {auditLogs.map((log) => (
+                        <TableRow key={log._id || log.id}>
+                          <TableCell>
+                            <Badge variant="outline">{log.eventType}</Badge>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground">
+                            {log.actorContextType}
+                            {log.actorIdentity ? ` · ${log.actorIdentity}` : ""}
+                          </TableCell>
+                          <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
+                            {log.targetResourceId || "—"}
+                          </TableCell>
+                          <TableCell className="text-right text-muted-foreground">
+                            {log.timestamp
+                              ? new Date(log.timestamp).toLocaleString()
+                              : "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {auditLogsPages > 1 && (
+                    <div className="mt-4 flex items-center justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={auditLogsPage <= 1}
+                        onClick={() => setAuditLogsPage((p) => p - 1)}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-xs text-muted-foreground">
+                        Page {auditLogsPage} of {auditLogsPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={auditLogsPage >= auditLogsPages}
+                        onClick={() => setAuditLogsPage((p) => p + 1)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No audit events yet.
                 </p>
               )}
             </CardContent>
@@ -1646,7 +1811,16 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
           <div className="space-y-3 py-2">
             <div>
               <p className="text-xs text-muted-foreground">Key ID</p>
-              <p className="font-mono text-sm">{mintedSecret?.keyId}</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 break-all rounded-md border bg-muted px-3 py-2 font-mono text-sm">
+                  {mintedSecret?.keyId}
+                </code>
+                <CopyButton
+                  value={mintedSecret?.keyId}
+                  label="Key ID"
+                  className="border border-input"
+                />
+              </div>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Secret</p>
@@ -1654,14 +1828,11 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                 <code className="flex-1 break-all rounded-md border bg-muted px-3 py-2 font-mono text-sm">
                   {mintedSecret?.secret}
                 </code>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={handleCopySecret}
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
+                <CopyButton
+                  value={mintedSecret?.secret}
+                  label="Secret"
+                  className="border border-input"
+                />
               </div>
             </div>
           </div>
