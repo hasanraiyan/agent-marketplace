@@ -3,7 +3,6 @@ import { z } from 'zod';
 import agentService from '../agents/agent.service.js';
 import skillService from '../skills/skill.service.js';
 import providerRepository from '../providers/provider.repository.js';
-import { isResourceOwner } from '../../utils/resourceOwnership.js';
 
 /**
  * PROJECT AGENT ARCHITECT TOOLBOX (blueprint Phase 11.5, PR-62):
@@ -16,33 +15,6 @@ import { isResourceOwner } from '../../utils/resourceOwnership.js';
  * parameterizing `builder.tools.js` itself, per this initiative's decision
  * to keep the live, heavily-used Persona Architect untouched.
  */
-
-export const listProvidersTool = (context) =>
-  new DynamicStructuredTool({
-    name: 'list_my_providers',
-    description:
-      'Lists all LLM providers (base URLs, default models) configured for this Project. Use this to help pick a model for the agent. Sensitive keys are NOT included.',
-    schema: z.object({}),
-    func: async () => {
-      try {
-        const providers = await providerRepository.findByDomain(context.domain);
-        return JSON.stringify({
-          status: 'success',
-          data: providers.map((p) => ({
-            id: p._id,
-            label: p.label,
-            baseURL: p.baseURL,
-            defaultModel: p.defaultModel,
-          })),
-        });
-      } catch (err) {
-        return JSON.stringify({
-          status: 'error',
-          message: err.message,
-        });
-      }
-    },
-  });
 
 const normalizeAgentPayload = (agent) => {
   if (!agent) return agent;
@@ -71,8 +43,6 @@ export const upsertAgentTool = (context) =>
         .string()
         .optional()
         .describe('The primary instructions defining the agent behavior'),
-      providerId: z.string().optional().describe('ID of the LLM provider to use'),
-      modelName: z.string().optional().describe('Specific model (e.g., gpt-4o)'),
       webSearchEnabled: z.boolean().optional().describe('Toggle for web search capability'),
       avatar: z.string().optional().describe('URL to the agent avatar image'),
       tags: z.array(z.string()).optional().describe('Tags for categorization and search'),
@@ -87,17 +57,6 @@ export const upsertAgentTool = (context) =>
         const sanitized = { ...input };
         if (sanitized.description === '') delete sanitized.description;
         if (sanitized.avatar === '') delete sanitized.avatar;
-        if (sanitized.modelName === '') delete sanitized.modelName;
-
-        if (sanitized.providerId) {
-          const provider = await providerRepository.findById(sanitized.providerId);
-          if (!provider || !isResourceOwner(provider, context)) {
-            return JSON.stringify({
-              status: 'error',
-              message: 'Invalid providerId or unauthorized.',
-            });
-          }
-        }
 
         if (sanitized.agentId) {
           const updated = await agentService.updateAgent(
@@ -114,12 +73,30 @@ export const upsertAgentTool = (context) =>
             data,
           });
         } else {
-          if (!sanitized.name || !sanitized.systemPrompt || !sanitized.providerId) {
+          if (!sanitized.name || !sanitized.systemPrompt) {
             return JSON.stringify({
               status: 'error',
-              message: 'Name, systemPrompt, and providerId are required to create a new agent.',
+              message: 'Name and systemPrompt are required to create a new agent.',
             });
           }
+
+          // providerId isn't part of this tool's schema at all — every
+          // Agent it creates uses this Project's default Provider. Keeps
+          // the model from ever needing to reason about Providers (a
+          // control-plane concept the Architect's caller shouldn't have to
+          // know exists) and saves the tokens an extra param/tool call
+          // would cost for a value that's the same 99% of the time anyway.
+          const domainProviders = await providerRepository.findByDomain(context.domain);
+          const defaultProvider = domainProviders.find((p) => p.isDefault) || domainProviders[0];
+          if (!defaultProvider) {
+            return JSON.stringify({
+              status: 'error',
+              message:
+                'No LLM provider is configured for this Project yet — add one from the Providers tab first.',
+            });
+          }
+          sanitized.providerId = defaultProvider._id;
+
           const created = await agentService.createDeveloperAgent(context, sanitized);
           const data = normalizeAgentPayload(created);
           return JSON.stringify({
@@ -300,7 +277,6 @@ export const deleteAgentTool = (context) =>
  * `ProjectAdminContext` instead of a bare Persona `userId`.
  */
 export const getProjectBuilderToolbox = (context) => [
-  listProvidersTool(context),
   upsertAgentTool(context),
   manageSkillTool(context),
   getAgentTool(context),
