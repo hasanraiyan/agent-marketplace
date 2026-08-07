@@ -11,6 +11,7 @@ import { StoresResource } from './resources/stores.js';
 import { FilesResource } from './resources/files.js';
 import { AuditLogsResource } from './resources/auditLogs.js';
 import { ChatClient } from './chat/chat-client.js';
+import { ArchitectClient } from './chat/architect-client.js';
 
 export type PersonaClientOptions = HttpClientOptions;
 
@@ -35,6 +36,7 @@ export class PersonaClient {
   readonly files: FilesResource;
   readonly auditLogs: AuditLogsResource;
   readonly chat: ChatClient;
+  readonly architect: ArchitectClient;
 
   /**
    * @param options - `baseUrl` + `credential` are required. Set
@@ -62,6 +64,7 @@ export class PersonaClient {
     this.files = new FilesResource(this.http);
     this.auditLogs = new AuditLogsResource(this.http);
     this.chat = new ChatClient(this.http);
+    this.architect = new ArchitectClient(this.http);
   }
 
   /**

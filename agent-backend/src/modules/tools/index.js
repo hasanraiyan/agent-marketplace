@@ -8,8 +8,12 @@ import { presentFileTool } from './present.tool.js';
 
 // Defined in a leaf constants module so consumers that sit inside import
 // cycles with this module (e.g. agentFactory) can import it safely.
-import { ARCHITECT_AGENT_ID, PROJECT_ARCHITECT_AGENT_ID } from '../agents/architectConstants.js';
-export { ARCHITECT_AGENT_ID, PROJECT_ARCHITECT_AGENT_ID };
+import {
+  ARCHITECT_AGENT_ID,
+  PROJECT_ARCHITECT_AGENT_ID,
+  DEVELOPER_ARCHITECT_AGENT_ID,
+} from '../agents/architectConstants.js';
+export { ARCHITECT_AGENT_ID, PROJECT_ARCHITECT_AGENT_ID, DEVELOPER_ARCHITECT_AGENT_ID };
 
 /**
  * @param {Object} agentConfig - The Mongoose Agent document or System Agent object
@@ -38,6 +42,16 @@ export const resolveAgentTools = async (
   // `ProjectAdminContext` (enforced by the route that resolves this
   // sentinel), not a bare Persona userId.
   if (agentConfig._id?.toString() === PROJECT_ARCHITECT_AGENT_ID) {
+    return { tools: [clarificationTool, ...getProjectBuilderToolbox(context)], mcpAppMap: {} };
+  }
+
+  // 1c. Developer Platform Architect — reused, unmodified toolbox: both
+  // `createDeveloperAgent`/`discoverAgents`/etc. underneath it and this
+  // toolbox's own tool closures already dispatch generically on
+  // `context.principalType`, so a `ProjectMachineContext`/
+  // `ProjectRuntimeContext` here works exactly the way a
+  // `ProjectAdminContext` already does above — no new toolbox needed.
+  if (agentConfig._id?.toString() === DEVELOPER_ARCHITECT_AGENT_ID) {
     return { tools: [clarificationTool, ...getProjectBuilderToolbox(context)], mcpAppMap: {} };
   }
 

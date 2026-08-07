@@ -35,7 +35,11 @@ import providerRepository from '../providers/provider.repository.js';
 import encryption from '../../utils/encryption.js';
 
 import { resolveAgentTools } from '../tools/index.js';
-import { ARCHITECT_AGENT_ID, PROJECT_ARCHITECT_AGENT_ID } from './architectConstants.js';
+import {
+  ARCHITECT_AGENT_ID,
+  PROJECT_ARCHITECT_AGENT_ID,
+  DEVELOPER_ARCHITECT_AGENT_ID,
+} from './architectConstants.js';
 import { loggerService } from '../../utils/index.js';
 import { ARCHITECT_SKILL } from '../skills/architectSkill.js';
 
@@ -131,6 +135,37 @@ Your goal is to help the Project Admin design, build, and optimize Agents this P
 -   **Descriptions**: Keep descriptions punchy and informative (1-2 sentences).
 -   **Skills**: This Project's skill library is mounted read-write at \`/skill-library/\`. Author skills as folders there with your file tools (\`write_file\` a \`/skill-library/<name>/SKILL.md\` with YAML frontmatter, plus optional \`references/\` files). Consult your agent-architecture skill for the full workflow. Attach existing Skills to an agent by id (\`upsert_agent\`'s \`skills\` field); \`manage_skill\` is only for list/delete/visibility, not content creation.
 -   **Everything you build belongs to this Project**, not to you personally — any of this Project's Admins can manage it afterward.
+-   **Transparency**: When you call a tool, briefly explain what you are setting (e.g., "I'm setting up your support agent with the GPT-4o model and web search enabled.").
+-   **No Keys**: You CANNOT view or manage API keys.
+`;
+
+// Developer Platform Architect — a third sentinel, reached over
+// /api/v1/developer/architect/agui via machine-credential auth. Shares
+// projectBuilder.tools.js's toolbox with the Project Architect above (both
+// already dispatch generically on context.principalType — see
+// agent.service.js's createDeveloperAgent), so the only difference here is
+// the caller's authentication path, not the toolbox or ownership logic:
+// a bare Project credential still produces Project-owned Agents, an
+// asserted externalUserId still produces that external user's own —
+// exactly like every other Developer Platform resource.
+const DEVELOPER_ARCHITECT_SYSTEM_PROMPT = `
+You are the **Agent Architect**, a senior software engineer and AI specialized in building highly effective agents for this Developer Platform Project.
+The caller may be the Project itself (building agents the whole Project owns) or one individual external user of the Project's own application (building an agent that belongs to them personally) — you cannot always tell which, so never assume; just build what's asked and let ownership be handled automatically by the platform.
+
+### YOUR WORKFLOW
+1.  **Understand**: Ask questions to understand the purpose, personality, and capabilities of the agent being built.
+    *   Use the \`ask_clarification\` tool when a small set of choices would help the caller answer faster, especially for agent purpose, tone/personality, capabilities, category, or output format. Prefer 2-4 questions; never ask more than 12.
+    *   Prefer 2-4 clear options and avoid asking trivial questions you can safely infer.
+2.  **Propose & Execute**: Once you have enough info (Name, Goal), use the \`upsert_agent\` tool to create or update the agent.
+    *   **NEVER** just say you will do it. **ALWAYS** call the tool immediately.
+    *   If creating a new agent, ensure you've called \`list_my_providers\` first to pick a valid providerId.
+3.  **Refine**: After updating the agent configuration, tell the caller what you changed and ask if they'd like to adjust anything (e.g., system prompt, model, visibility).
+
+### GUIDELINES
+-   **System Prompts**: Draft high-quality, professional system prompts that use expert-level instructions.
+-   **Descriptions**: Keep descriptions punchy and informative (1-2 sentences).
+-   **Skills**: Attach existing Skills to an agent by id (\`upsert_agent\`'s \`skills\` field); \`manage_skill\` lists/deletes/toggles visibility of existing ones. You cannot author new Skill content from here.
+-   **Publishing**: Treat \`visibility: 'public'\` as a meaningful, confirmed step, not a default — it makes the agent discoverable to everyone. Confirm with the caller before setting it.
 -   **Transparency**: When you call a tool, briefly explain what you are setting (e.g., "I'm setting up your support agent with the GPT-4o model and web search enabled.").
 -   **No Keys**: You CANNOT view or manage API keys.
 `;
@@ -267,7 +302,15 @@ class AgentFactory {
         ? `${ARCHITECT_AGENT_ID}:${userId}`
         : agentIdStr === PROJECT_ARCHITECT_AGENT_ID
           ? `${PROJECT_ARCHITECT_AGENT_ID}:${executionContext.domain}`
-          : agentIdStr;
+          : agentIdStr === DEVELOPER_ARCHITECT_AGENT_ID
+            ? // Not `identityKey` here: its non-ProjectRuntime fallback is
+              // `String(userId)`, and a bare ProjectMachineContext caller
+              // (this sentinel's Project-wide mode) has no `userId` at all —
+              // that would collide every Project's machine-credential
+              // architect session onto the same `:undefined` key. Build an
+              // explicit, always-domain-qualified key instead.
+              `${DEVELOPER_ARCHITECT_AGENT_ID}:${executionContext.domain}:${executionContext.externalUserId ?? 'project'}`
+            : agentIdStr;
 
     let agent;
     let provider;
@@ -319,6 +362,36 @@ class AgentFactory {
         _id: PROJECT_ARCHITECT_AGENT_ID,
         name: 'Project Agent Architect',
         systemPrompt: PROJECT_ARCHITECT_SYSTEM_PROMPT,
+        providerId: provider._id,
+        modelName: provider.defaultModel || 'gpt-4o',
+        updatedAt: new Date(0),
+        skills: [],
+        interruptOn: {
+          upsert_agent: true,
+          manage_skill: true,
+          delete_agent: true,
+        },
+      };
+    } else if (agentIdStr === DEVELOPER_ARCHITECT_AGENT_ID) {
+      // 1c. Developer Platform Architect — reached only via a route that
+      // resolves ProjectMachineContext/ProjectRuntimeContext (machine
+      // credential, optionally externalUserId-scoped), never
+      // ProjectAdminContext. Resolves its provider by Domain, same as the
+      // Project Architect above, regardless of which of the two contexts
+      // this particular call is.
+      const domainProviders = await providerRepository.findByDomain(executionContext.domain);
+      const defaultProvider = domainProviders.find((p) => p.isDefault) || domainProviders[0];
+
+      if (!defaultProvider)
+        throw new Error(
+          'No Provider configured for this Project. Add one from the Providers tab first.'
+        );
+
+      provider = defaultProvider;
+      agent = {
+        _id: DEVELOPER_ARCHITECT_AGENT_ID,
+        name: 'Agent Architect',
+        systemPrompt: DEVELOPER_ARCHITECT_SYSTEM_PROMPT,
         providerId: provider._id,
         modelName: provider.defaultModel || 'gpt-4o',
         updatedAt: new Date(0),

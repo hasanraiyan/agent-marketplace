@@ -23,6 +23,7 @@ import {
   developerAuditLogRouter,
   developerMemoryRouter,
   developerStoreRouter,
+  developerArchitectRouter,
 } from './modules/developer/index.js';
 import { agentRouter } from './modules/agents/index.js';
 import { threadRouter } from './modules/threads/index.js';
@@ -81,6 +82,7 @@ app.use(clerkMiddleware());
 // AG-UI reads its own raw request body before express.json() consumes the stream.
 app.use('/api/v1/agui', aguiRouter);
 app.use('/api/v1/developer/agui', developerAguiRouter);
+app.use('/api/v1/developer/architect/agui', developerArchitectRouter);
 app.use('/api/v1/projects/:projectId/architect/agui', projectArchitectAguiRouter);
 app.use(
   '/api/v1/projects/:projectId/agents/:agentId/test/agui',

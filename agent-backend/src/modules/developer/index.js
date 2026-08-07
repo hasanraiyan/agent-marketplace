@@ -22,3 +22,5 @@ export { default as developerMemoryRouter } from './developerMemory.routes.js';
 export { default as developerMemoryController } from './developerMemory.controller.js';
 export { default as developerStoreRouter } from './developerStore.routes.js';
 export { default as developerStoreController } from './developerStore.controller.js';
+export { default as developerArchitectRouter } from './developerArchitect.routes.js';
+export { default as developerArchitectController } from './developerArchitect.controller.js';

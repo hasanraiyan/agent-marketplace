@@ -13,3 +13,14 @@ export const ARCHITECT_AGENT_ID = '000000000000000000000000';
  * or `builder.tools.js`.
  */
 export const PROJECT_ARCHITECT_AGENT_ID = '000000000000000000000001';
+
+/**
+ * The Developer Platform Architect (blueprint Phase 11.5 follow-up) — a
+ * third sentinel, reachable over `/api/v1/developer/architect/agui` via the
+ * Developer Platform's machine-credential auth instead of Clerk. Shares
+ * `projectBuilder.tools.js`'s toolbox with the Project Architect above (both
+ * already dispatch generically on `context.principalType`), but is reached
+ * by `ProjectMachineContext`/`ProjectRuntimeContext`, never
+ * `ProjectAdminContext` — never the same sentinel as either agent above.
+ */
+export const DEVELOPER_ARCHITECT_AGENT_ID = '000000000000000000000002';

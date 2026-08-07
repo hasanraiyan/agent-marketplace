@@ -3,6 +3,17 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.4.0
+
+- **New `architect` client** — `client.architect.stream()` / `.sendMessage()` against the new
+  `/api/v1/developer/architect/agui` endpoint. A conversational co-pilot that creates/edits Agents
+  via tool calls on your behalf, reachable with just your Project's machine credential — no Clerk
+  session required. Ownership follows the same dual-mode convention every other Developer Platform
+  resource already uses: omit `externalUserId` on the client and the Architect builds Agents owned
+  by your whole Project; set it and the Architect builds Agents owned by that one external user
+  instead. Unlike `chat`, there's no `agentId` to pass (it's always this one dedicated Architect)
+  and no thread selection — one implicit, per-caller-scoped conversation.
+
 ## 0.3.1
 
 - `Agent`/`CreateAgentInput`/`UpdateAgentInput` gained `interruptOn` (a Developer-Platform

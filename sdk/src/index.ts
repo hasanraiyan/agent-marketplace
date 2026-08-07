@@ -101,6 +101,7 @@ export type { PersonaFile, UploadFilePayload, ListFilesParams } from './types/fi
 export { AuditLogsResource } from './resources/auditLogs.js';
 export type { AuditLogEntry, ListAuditLogsParams } from './types/auditLog.js';
 export { ChatClient } from './chat/chat-client.js';
+export { ArchitectClient, type ArchitectMessageOptions } from './chat/architect-client.js';
 export { EventType } from './types/chat.js';
 export type {
   AguiEvent,
