@@ -1,0 +1,315 @@
+---
+title: Workflows
+description: Complete, realistic end-to-end scenarios — provisioning, RAG, MCP + OAuth, human-in-the-loop chat, files, and framework recipes — combining the SDK's APIs the way real apps do.
+---
+
+These workflows show the SDK's APIs working together the way a real integration does — not
+isolated snippets. Each one is copy-paste ready against a valid credential.
+
+## 1. Provision a working Agent (control-plane, one-time setup)
+
+The canonical provisioning flow: Provider → Skill → Knowledge → Agent (with attachments) →
+verify. All control-plane calls (no `external_user_id`).
+
+```python
+import os
+from personaai import PersonaClient
+
+persona = PersonaClient(os.environ["PERSONA_BASE_URL"], credential=os.environ["PERSONA_CREDENTIAL"])
+
+# 1. Provider — the LLM endpoint + key Agents reference.
+provider = persona.providers.create({
+    "label": "OpenAI (prod)",
+    "baseURL": "https://api.openai.com/v1",
+    "apiKey": os.environ["OPENAI_API_KEY"],
+    "defaultModel": "gpt-4o-mini",
+})
+
+# 2. Skill — reusable instructions.
+skill = persona.skills.create({
+    "name": "Resume Reviewer",
+    "description": "Reviews resumes against a rubric.",
+    "instructions": "You are an expert resume reviewer...",
+    "files": [{"path": "rubric.md", "content": "# Rubric\n..."}],
+})
+
+# 3. Agent — attach the Skill; run against the Provider.
+agent = persona.agents.create({
+    "name": "Career Launchpad",
+    "systemPrompt": "You help students find internships.",
+    "providerId": provider["id"],
+    "modelName": "gpt-4o-mini",
+    "skills": [skill["_id"]],
+    "visibility": "unlisted",
+    "webSearchEnabled": True,
+})
+
+# 4. Verify.
+who = persona.whoami()
+full = persona.agents.get(agent["_id"])          # skills populated as objects here
+print(who["principalType"], full["skills"])
+```
+
+## 2. RAG pipeline: Knowledge base with search
+
+Create a Knowledge base, embed a document, then run the same similarity search an attached Agent
+would use internally.
+
+```python
+with open("faq.pdf", "rb") as f:
+    kb = persona.knowledge.create(
+        {"name": "Placement Office FAQ", "providerId": provider["id"], "topK": 5}
+    )
+    uploaded = persona.knowledge.upload_documents(
+        kb["_id"],
+        [{"filename": "faq.pdf", "content": f.read(), "contentType": "application/pdf"}],
+    )
+    print(uploaded["chunkCount"], "chunks embedded")
+
+hits = persona.knowledge.search(kb["_id"], "What's the deadline to apply?")
+for hit in hits:
+    print(f"{hit['score']:.2f} — {hit['source']}: {hit['text'][:80]}...")
+
+# Attach the KB to an Agent so it retrieves from it at runtime.
+agent = persona.agents.create({
+    "name": "FAQ Bot", "systemPrompt": "Answer from the KB only.",
+    "providerId": provider["id"], "knowledgeBases": [kb["_id"]],
+})
+```
+
+`upload_documents()` is **synchronous** — it returns only once embedding finishes (expect it to
+take longer for larger/more files; up to 10 files × 20MB, PDF/TXT/MD/JSON/CSV).
+
+## 3. OAuth connection flow for an MCP server
+
+For an `authType: "oauth"` MCP: register it, then drive the owner- or user-mode browser flow. This
+is the two-step pattern your backend and frontend cooperate on.
+
+```python
+# Backend (control-plane): register the server, get the owner authorize URL.
+mcp = persona.mcps.create({
+    "name": "Internal Ticketing",
+    "transport": "http",
+    "url": "https://mcp.example.com",
+    "authType": "oauth",
+    "authMode": "owner",
+    "oauth": {"clientId": "...", "clientSecret": os.environ["MCP_CLIENT_SECRET"], "scopes": ["tickets:read"]},
+})
+
+# Redirect your admin's browser here (once per Project).
+owner_url = persona.mcps.oauth.get_owner_authorize_url(mcp["_id"])["url"]
+```
+
+```python
+# Backend (runtime-plane): per-user flow, when authMode is "user".
+user_url = user_persona.mcps.oauth.get_user_authorize_url(
+    mcp["_id"], return_to="https://your-app.example.com/oauth/callback"
+)["url"]
+# After the user completes the flow, check the connection:
+status = user_persona.mcps.oauth.get_user_connection_status(mcp["_id"])
+if status["connected"]:
+    result = user_persona.mcps.call_tool(mcp["_id"], "list_tickets", {"status": "open"})
+```
+
+Then, once connected, `test_connection()` populates the MCP's tool/resource inventory:
+
+```python
+conn = persona.mcps.test_connection(mcp["_id"])
+tool = conn["tools"][0]
+out = persona.mcps.call_tool(mcp["_id"], tool["name"], {})
+print(out)
+```
+
+## 4. Human-in-the-loop tool approval flow
+
+An Agent configured with a sensitive tool pauses for approval. Drive the full approve/reject
+round-trip on the same Thread.
+
+```python
+result = user_persona.chat.send_message(agent["_id"], [
+    {"role": "user", "content": "Delete agent acme-corp from production."},
+])
+
+if result["interrupt"] and result["interrupt"]["kind"] == "hitl":
+    print("Awaiting approval:", result["interrupt"]["value"])
+    # Approve the pending action (or "reject"):
+    resumed = user_persona.chat.send_message(
+        agent["_id"],
+        [],  # no new user message — answering the interrupt, not a new turn
+        thread_id=thread["_id"],
+        resume={"decisions": [{"action": "delete_agent", "decision": "approve"}]},
+    )
+    print(resumed["text"])
+```
+
+Note the flow: `thread_id` must match the run that paused; `resume`'s shape must match the
+interrupt's `kind` (`hitl` → `{"decisions": [...]}`, `clarification` → `{"answers": [...],
+"text": ...}`).
+
+## 5. Per-user conversation history with files
+
+The runtime-plane pattern: one client per request, threads persisted explicitly, files attached to
+a conversation.
+
+```python
+def chat_for(user_id: str, agent_id: str, message: str):
+    user_persona = PersonaClient(BASE_URL, credential=CREDENTIAL, external_user_id=user_id)
+
+    # Explicit, listable Thread (chat.stream() would create an implicit one otherwise).
+    thread = user_persona.threads.create({"agentId": agent_id})
+
+    # Attach a file to this conversation first.
+    with open("evidence.pdf", "rb") as f:
+        user_persona.files.upload(
+            {"filename": "evidence.pdf", "content": f.read(),
+             "contentType": "application/pdf", "threadId": thread["_id"]}
+        )
+
+    result = user_persona.chat.send_message(agent_id, [{"role": "user", "content": message}],
+                                            thread_id=thread["_id"])
+    return result["text"]
+```
+
+`threads.list()` then shows each user's Threads most-recently-active-first, with the Agent
+populated as an object.
+
+## 6. Error handling: resilient provisioning
+
+Retry with an idempotency key after ambiguous failures, and handle the typed errors distinctly:
+
+```python
+import uuid
+from personaai import PersonaApiError, PersonaAuthError, PersonaValidationError
+
+def create_agent_safely(persona, input):
+    key = str(uuid.uuid4())  # generated once per logical create
+    try:
+        return persona.agents.create(input, idempotency_key=key)
+    except PersonaValidationError as err:
+        print(f"Fix the input: {err}")
+        raise
+    except PersonaAuthError as err:
+        print(f"Check credential/Project status: {err}")
+        raise
+    except PersonaApiError as err:
+        if err.status_code == 429:
+            print("Rate limited past max_retries; back off.")
+        elif err.status_code == 404:
+            print("One of the referenced ids doesn't exist / isn't yours.")
+        raise
+```
+
+## 7. Connection pooling at high request volume
+
+Constructing a client is cheap — no connection happens at construction time — so build a fresh,
+per-request instance scoped to whoever is making the request (every recipe above does exactly
+that). But if you don't share anything, each instance opens its own `httpx` connection pool, so no
+TCP/TLS connection is ever reused across requests. At high volume, build **one**
+`httpx.Client`/`httpx.AsyncClient` at app startup and pass it to every per-request client via
+`http_client=`:
+
+```python
+import httpx
+from personaai import AsyncPersonaClient
+
+# Built once, at app startup.
+shared_http_client = httpx.AsyncClient()
+
+def get_persona(external_user_id: str | None = None) -> AsyncPersonaClient:
+    return AsyncPersonaClient(
+        BASE_URL,
+        credential=CREDENTIAL,
+        external_user_id=external_user_id,
+        http_client=shared_http_client,  # reused across every call to get_persona()
+    )
+```
+
+This is safe even if individual requests use `async with` on their own client — closing one of
+those never closes a client you passed in via `http_client=`; only a client the SDK created for
+you gets closed. Close `shared_http_client` yourself, once, at app shutdown.
+
+## 8. Flask
+
+No special handling — construct the client once at module scope and use it in your view functions.
+
+```python
+# persona.py
+import os
+from personaai import PersonaClient
+
+persona = PersonaClient(os.environ["PERSONA_BASE_URL"], credential=os.environ["PERSONA_CREDENTIAL"])
+```
+
+```python
+# app.py
+from flask import Flask, request, jsonify
+from personaai import PersonaClient
+import os
+
+app = Flask(__name__)
+
+@app.post("/api/chat")
+def chat():
+    user_persona = PersonaClient(
+        os.environ["PERSONA_BASE_URL"],
+        credential=os.environ["PERSONA_CREDENTIAL"],
+        external_user_id=request.json["userId"],
+    )
+    result = user_persona.chat.send_message(request.json["agentId"], request.json["messages"])
+    return jsonify(result)
+```
+
+## 9. FastAPI
+
+Construct the client per-request via a `Depends()` provider so it plugs into FastAPI's own
+dependency-injection system — the SDK itself needs no FastAPI-specific support, and this uses the
+async client since FastAPI route handlers are `async def`. Shares one `httpx.AsyncClient` across
+every request (see [Connection pooling](#7-connection-pooling-at-high-request-volume) above) since
+a real API is likely to see meaningful request volume.
+
+```python
+# deps.py
+import os
+import httpx
+from personaai import AsyncPersonaClient
+
+_shared_http_client = httpx.AsyncClient()
+
+def get_persona(external_user_id: str | None = None) -> AsyncPersonaClient:
+    return AsyncPersonaClient(
+        os.environ["PERSONA_BASE_URL"],
+        credential=os.environ["PERSONA_CREDENTIAL"],
+        external_user_id=external_user_id,
+        http_client=_shared_http_client,
+    )
+```
+
+```python
+# main.py
+from fastapi import Depends, FastAPI
+from deps import get_persona
+
+app = FastAPI()
+
+@app.post("/api/chat")
+async def chat(body: dict, current_user_id: str = Depends(get_current_user_id)):
+    async with get_persona(external_user_id=current_user_id) as persona:
+        return await persona.chat.send_message(body["agentId"], body["messages"])
+```
+
+## 10. Django
+
+Wire a module-level singleton, same idea as Flask — Django views are sync by default, so the sync
+`PersonaClient` is the natural fit.
+
+```python
+# yourapp/persona.py
+from django.conf import settings
+from personaai import PersonaClient
+
+persona = PersonaClient(settings.PERSONA_BASE_URL, credential=settings.PERSONA_CREDENTIAL)
+```
+
+Keep `PERSONA_CREDENTIAL` in your environment / secrets manager and read it into `settings.py`
+(`os.environ["PERSONA_CREDENTIAL"]`) — never commit it, and never expose it via a template context
+processor a browser can read.

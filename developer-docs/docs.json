@@ -46,7 +46,34 @@
               "guides/sdk/compatibility"
             ]
           },
-          "guides/sdk-quickstart-python"
+          "guides/sdk-quickstart-python",
+          {
+            "group": "Python SDK Reference",
+            "pages": [
+              "guides/sdk-python/configuration",
+              "guides/sdk-python/client",
+              "guides/sdk-python/errors",
+              {
+                "group": "Resources",
+                "pages": [
+                  "guides/sdk-python/resources/providers",
+                  "guides/sdk-python/resources/agents",
+                  "guides/sdk-python/resources/skills",
+                  "guides/sdk-python/resources/knowledge",
+                  "guides/sdk-python/resources/mcps",
+                  "guides/sdk-python/resources/threads",
+                  "guides/sdk-python/resources/files",
+                  "guides/sdk-python/resources/audit-logs"
+                ]
+              },
+              "guides/sdk-python/chat",
+              "guides/sdk-python/types",
+              "guides/sdk-python/behavior",
+              "guides/sdk-python/workflows",
+              "guides/sdk-python/troubleshooting",
+              "guides/sdk-python/compatibility"
+            ]
+          }
         ]
       },
       {

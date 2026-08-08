@@ -1,0 +1,102 @@
+---
+title: Providers
+description: The providers resource — control-plane-only configuration of OpenAI-compatible endpoints, with test-connection, models, usage, and bulk-delete.
+---
+
+`persona.providers` (sync) / `await persona.providers` (async) wraps `/api/v1/developer/providers`.
+
+Providers are **Project-owned, control-plane only** — no `ExternalUser` ownership concept exists
+(an end user can never own a Provider). A Provider is an OpenAI-compatible endpoint + API key that
+Agents in your Project reference via `providerId`.
+
+<Note>
+  Every method here — including `list()` — only works meaningfully on a
+  control-plane client (no `external_user_id`). A Provider's ownership can only
+  ever be `"PersonaUser"` or `"Project"`, never `"ExternalUser"`, so a client
+  constructed with `external_user_id` set gets an **empty list** from `list()`,
+  and a `PersonaApiError` (404) from `get()`/`update()`/`delete()`/
+  `test_connection()`/`get_models()` — not because those Providers don't exist,
+  but because that credential can never be their owner. This mirrors the same
+  existence-hiding behavior the single-resource methods already had; `list()`
+  was made consistent with it too.
+</Note>
+
+## Methods
+
+| Method                                            | Wraps                                  | Returns                             |
+| ------------------------------------------------- | -------------------------------------- | ----------------------------------- |
+| `providers.create(input, idempotency_key=None)`   | `POST /providers`                      | `Provider`                          |
+| `providers.list()`                                | `GET /providers`                       | `list[Provider]`                    |
+| `providers.get(provider_id)`                      | `GET /providers/{id}`                  | `Provider`                          |
+| `providers.update(provider_id, input)`            | `PATCH /providers/{id}`                | `Provider`                          |
+| `providers.delete(provider_id)`                   | `DELETE /providers/{id}`               | `None`                              |
+| `providers.test_connection(provider_id)`          | `POST /providers/{id}/test-connection` | `ProviderTestConnectionResult`      |
+| `providers.get_models(provider_id)`               | `GET /providers/{id}/models`           | `list[ProviderModel]`               |
+| `providers.get_usage(provider_id)`                | `GET /providers/{id}/usage`            | `ResourceUsage`                     |
+| `providers.bulk_delete(ids)`                      | `POST /providers/bulk-delete`          | `BulkDeleteResult`                  |
+
+Async: identical methods with `await` — `await persona.providers.create(...)` etc.
+
+## `create(input)`
+
+Required: `label`, `baseURL`, `apiKey`, `defaultModel`. Optional: `isDefault` (default `False`).
+
+```python
+provider = persona.providers.create(
+    {
+        "label": "OpenAI (production)",
+        "baseURL": "https://api.openai.com/v1",
+        "apiKey": os.environ["OPENAI_API_KEY"],   # encrypted at rest, never returned in any response
+        "defaultModel": "gpt-4o-mini",
+        "isDefault": True,
+    },
+    idempotency_key="optional-idempotency-key",   # safe retry after a timeout replays this result
+)
+```
+
+Returns the created `Provider` — `apiKey` is **never** present on it (write-only).
+
+## `list()`
+
+Every Provider in this credential's Domain. **No pagination envelope, no `page`/`limit`/`search`
+params** — Providers have no discovery concept, so this is a plain bare-list Domain-scoped list
+(the one `list()` in the whole SDK that isn't a `PaginatedResult`). On a runtime-plane client it
+returns `[]` (see the note above).
+
+## `test_connection(provider_id)`
+
+Verifies this Provider's `baseURL`/`apiKey` actually work by making a live call to the underlying
+endpoint. Returns `{"success": bool, "message": str}` — **`success: False` is a result, not an
+error**: the call reached the endpoint but it rejected the credentials/URL. The SDK call itself
+only raises for transport-level failures.
+
+## `get_models(provider_id)`
+
+Lists the models this Provider's endpoint reports as available (e.g. for populating a model-picker
+in your own UI). Returns `list[ProviderModel]` where each item is `{"id": str}`.
+
+## `get_usage(provider_id)`
+
+Returns `ResourceUsage` — `{"agentCount": int, "agents": [{"_id", "name"}, ...]}` — the Agents
+currently referencing this Provider. `agents` is a preview capped at **20** entries; `agentCount`
+is the real total. Check it before `delete()` — a Provider still referenced by an Agent rejects the
+delete.
+
+## `delete(provider_id)` and `bulk_delete(ids)`
+
+`delete()` raises `PersonaApiError` if any Agent still references the Provider. `bulk_delete(ids)`
+is a best-effort batch delete — one blocked/not-found id doesn't abort the rest; check `failed` in
+the `BulkDeleteResult` for per-id reasons. Up to 100 ids per call (a request over that limit is
+rejected with a 400 before anything is deleted).
+
+## Types
+
+See [Types — Provider types](/guides/sdk-python/types#provider-types) for the full field reference:
+`Provider`, `CreateProviderInput`, `UpdateProviderInput`, `ProviderModel`,
+`ProviderTestConnectionResult`.
+
+- `Provider` uses **`id`**, not `_id` — Providers go through a clean formatted DTO.
+- `UpdateProviderInput`: any subset of `label`/`baseURL`/`apiKey`/`defaultModel`/`isDefault`.
+  `apiKey` replaces the stored key entirely; omit to leave it untouched.
+- `ProviderModel`: `{"id": str}`.
+- `ProviderTestConnectionResult`: `{"success": bool, "message": str}`.

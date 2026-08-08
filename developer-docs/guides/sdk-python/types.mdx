@@ -1,0 +1,602 @@
+---
+title: Types
+description: Every type exported from personaai, field by field — what each field means, its type, and whether it's required.
+---
+
+Every public type is exported from the package root: `from personaai import ...` — both client
+classes, every resource client (sync and async), every `TypedDict` input/result type, the principal
+contexts, the chat types, and the error classes. There's no separate submodule to remember — one
+import covers the client, every resource, and every type. This page documents **all** of them.
+
+<Note>
+  Unlike a validating model library (Pydantic, etc.), these types are plain
+  `TypedDict`s — zero runtime behavior, purely for `mypy`/`pyright` support.
+  Request bodies keep the API's own camelCase field names (`providerId`,
+  `systemPrompt`, ...) even though method and parameter names are Pythonic
+  snake_case.
+</Note>
+
+## Full export index
+
+<Note>
+  This table is generated from the package's actual exports (v0.2.3) — nothing here is invented.
+</Note>
+
+| Kind        | Export                                                                                                                                                        |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Class       | `PersonaClient`, `AsyncPersonaClient`, `ChatClient`, `AsyncChatClient`                                                                                         |
+| Class       | `Providers`, `AsyncProviders`, `Skills`, `AsyncSkills`, `Agents`, `AsyncAgents`, `Knowledge`, `AsyncKnowledge`, `Mcps`, `AsyncMcps`, `McpOAuth`, `AsyncMcpOAuth`, `Threads`, `AsyncThreads`, `Files`, `AsyncFiles`, `AuditLogs`, `AsyncAuditLogs` |
+| Class       | `PersonaApiError`, `PersonaAuthError`, `PersonaValidationError`                                                                                                |
+| Class       | `EventType` (plain string constants — not an `enum`)                                                                                                           |
+| Type        | `PrincipalContext`, `ProjectMachineContext`, `ProjectRuntimeContext`                                                                                           |
+| Type        | `PaginatedResult[T]`, `PaginationInfo`, `BulkDeleteResult`, `BulkDeleteFailure`, `ResourceUsage`, `ResourceUsageAgent`                                          |
+| Type        | `Provider`, `CreateProviderInput`, `UpdateProviderInput`, `ProviderModel`, `ProviderTestConnectionResult`                                                      |
+| Type        | `Skill`, `SkillFile`, `SkillFileInput`, `CreateSkillInput`, `UpdateSkillInput`, `DiscoverSkillsParams`                                                         |
+| Type        | `Agent`, `AgentSocialLinks`, `AgentVisibility`, `AgentCategory`, `CreateAgentInput`, `UpdateAgentInput`, `DiscoverAgentsParams`                                 |
+| Type        | `KnowledgeBase`, `KnowledgeDocument`, `CreateKnowledgeBaseInput`, `UpdateKnowledgeBaseInput`, `DiscoverKnowledgeBasesParams`, `UploadFileInput`, `UploadDocumentsResult`, `DeleteDocumentResult`, `KnowledgeSearchResult` |
+| Type        | `Mcp`, `McpTransport`, `McpAuthType`, `McpAuthMode`, `McpTool`, `McpResourceSummary`, `McpResourceTemplate`, `McpOAuthConfig`, `McpOAuthInput`, `PartialMcpOAuthInput`, `CreateMcpInput`, `UpdateMcpInput`, `DiscoverMcpsParams`, `McpTestConnectionResult`, `McpReadResourceResult`, `McpUserConnectionStatus`, `McpAuthorizeUrl` |
+| Type        | `Thread`, `ThreadAgentRef`, `CreateThreadInput`, `UpdateThreadInput`, `ListThreadsParams`, `ThreadMessages`                                                    |
+| Type        | `PersonaFile`, `UploadFilePayload`, `ListFilesParams`                                                                                                           |
+| Type        | `AuditLogEntry`, `ListAuditLogsParams`                                                                                                                          |
+| Type        | `AguiEvent`, `ChatMessageInput`, `ChatResume`, `ChatInterrupt`, `ChatResult`                                                                                    |
+
+## Principal context
+
+### `ProjectMachineContext`
+
+Resolved from a bare Project credential — acting as the Project itself.
+
+| Field           | Type               | Description                                                            |
+| --------------- | ------------------ | ---------------------------------------------------------------------- |
+| `domain`        | `str`              | The Project's scoping key — every resource it can see belongs here.    |
+| `principalType` | `Literal["ProjectMachine"]` | Discriminator.                                                  |
+| `credentialId`  | `str`              | The Project credential's own id (not a secret).                       |
+
+### `ProjectRuntimeContext`
+
+Resolved from a Project credential paired with `x-persona-external-user-id` (i.e.
+`external_user_id` was set on the client).
+
+| Field           | Type               | Description                                                  |
+| --------------- | ------------------ | ------------------------------------------------------------ |
+| `domain`        | `str`              | The Project's scoping key.                                   |
+| `principalType` | `Literal["ProjectRuntime"]` | Discriminator.                                         |
+| `credentialId`  | `str`              | The Project credential's own id.                             |
+| `externalUserId`| `str`              | The asserted end user's id, as passed to the client constructor. |
+
+### `PrincipalContext`
+
+`ProjectMachineContext | ProjectRuntimeContext` — the return type of `client.whoami()`.
+
+## Shared result types
+
+### `PaginationInfo`
+
+| Field   | Type  | Description                                                                              |
+| ------- | ----- | ---------------------------------------------------------------------------------------- |
+| `total` | `int` | Total matching items across all pages — use this, not `len(items)`.                      |
+| `page`  | `int` | The page this result reflects (echoes the requested `page`, or `1`).                     |
+| `limit` | `int` | The page size this result reflects (echoes the requested `limit`, or the endpoint default). |
+| `pages` | `int` | Total page count — `ceil(total / limit)`. Check this for "is there a next page".         |
+
+### `PaginatedResult[T]`
+
+| Field        | Type               | Description                        |
+| ------------ | ------------------ | ---------------------------------- |
+| `items`      | `list[T]`          | The page's items.                  |
+| `pagination` | `PaginationInfo`   | Pagination metadata.               |
+
+Returned by every paginated `list()` — Agents, Skills, Knowledge, MCPs, Threads, Files, Audit
+Logs. **Not** Providers (bare `list[Provider]`).
+
+### `BulkDeleteResult` / `BulkDeleteFailure`
+
+Returned by every `bulk_delete(ids)`.
+
+| Field     | Type                       | Description                                                                                                  |
+| --------- | -------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `deleted` | `list[str]`                | Ids successfully deleted.                                                                                    |
+| `failed`  | `list[BulkDeleteFailure]`  | Ids that failed, each with a generic reason (existence-hiding — never distinguishes "not found" from "not authorized" from "blocked by a dependency"). |
+
+`BulkDeleteFailure`: `{"id": str, "reason": str}`.
+
+### `ResourceUsage` / `ResourceUsageAgent`
+
+Returned by every `get_usage(id)`.
+
+| Field        | Type                          | Description                                                                                |
+| ------------ | ----------------------------- | ------------------------------------------------------------------------------------------ |
+| `agentCount` | `int`                         | The real total count of referencing Agents — use this, not `len(agents)`.                  |
+| `agents`     | `list[ResourceUsageAgent]`    | A preview list, capped at **20** — not necessarily every matching Agent when `agentCount > 20`. |
+
+`ResourceUsageAgent`: `{"_id": str, "name": str}`.
+
+## Provider types
+
+### `Provider`
+
+A Provider as returned by the API — `apiKey` is **never** included. Uses **`id`**, not `_id`
+(clean formatted DTO).
+
+| Field          | Type    | Description                                                                 |
+| -------------- | ------- | --------------------------------------------------------------------------- |
+| `id`           | `str`   | Provider id.                                                                |
+| `label`        | `str`   | Human-readable name.                                                        |
+| `baseURL`      | `str`   | OpenAI-compatible base URL.                                                 |
+| `defaultModel` | `str`   | Model used when an Agent references this Provider without its own `modelName`. |
+| `isDefault`    | `bool`  | At most one Provider per Domain has this set — the fallback when an Agent has no `providerId`. |
+| `createdAt`    | `str`   | ISO timestamp.                                                              |
+| `updatedAt`    | `str`   | ISO timestamp.                                                              |
+
+### `CreateProviderInput`
+
+Required: `label`, `baseURL`, `apiKey` (plaintext — encrypted at rest, never returned), `defaultModel`.
+Optional: `isDefault` (default `False`).
+
+### `UpdateProviderInput`
+
+All fields optional — `label?`, `baseURL?`, `apiKey?`, `defaultModel?`, `isDefault?`; only what you
+pass is changed. `apiKey` replaces the stored key entirely; omit to leave it untouched.
+
+### `ProviderModel`
+
+`{"id": str}` — a model id reported available by a Provider's endpoint.
+
+### `ProviderTestConnectionResult`
+
+`{"success": bool, "message": str}` — `success: False` means the endpoint rejected the
+credentials/URL (a result, not a thrown error).
+
+## Skill types
+
+### `Skill`
+
+Raw Mongo shape — `_id`, not `id`.
+
+| Field          | Type                                    | Description                                                                 |
+| -------------- | --------------------------------------- | --------------------------------------------------------------------------- |
+| `_id`          | `str`                                   | Skill id.                                                                   |
+| `domain`       | `str`                                   | Owning Domain.                                                              |
+| `ownerType`    | `Literal["PersonaUser", "Project", "ExternalUser"]` | Who owns it.                                                          |
+| `ownerId`      | `str` (optional)                        | Set for PersonaUser/Project owners.                                         |
+| `externalOwnerId` | `str` (optional)                     | Set for ExternalUser owners.                                                |
+| `name`         | `str`                                   | Skill name.                                                                 |
+| `description`  | `str`                                   | Skill description.                                                          |
+| `instructions` | `str`                                   | The prompt text given to an Agent with this Skill attached.                 |
+| `files`        | `list[SkillFile]`                       | Bundled files.                                                              |
+| `isPublic`     | `bool`                                  | Visible to every credential in the platform when `True`.                    |
+| `createdAt`    | `str`                                   | ISO timestamp.                                                              |
+| `updatedAt`    | `str`                                   | ISO timestamp.                                                              |
+| `isOwner`      | `bool` (optional)                       | **Present only on `get()`** — whether the calling identity owns this Skill. |
+
+### `SkillFile`
+
+| Field       | Type  | Required | Description                |
+| ----------- | ----- | -------- | -------------------------- |
+| `path`      | `str` | Yes      | File path within the Skill.|
+| `content`   | `str` | Yes      | File content.              |
+| `mimeType`  | `str` | No       | MIME type.                 |
+| `createdAt` | `str` | No       | ISO timestamp.             |
+| `updatedAt` | `str` | No       | ISO timestamp.             |
+
+### `SkillFileInput`
+
+`{"path": str (req), "content": str (req), "mimeType"?: str}` — the input form for creating files.
+
+### `CreateSkillInput`
+
+Required: `name`, `description`, `instructions`. Optional: `isPublic` (default `False`),
+`files: list[SkillFileInput]`.
+
+### `UpdateSkillInput`
+
+All optional: `name?`, `description?`, `instructions?`, `isPublic?`, `files?` — `files` replaces
+the entire array (not a merge/append).
+
+### `DiscoverSkillsParams`
+
+`page?` (default 1), `limit?` (default 20), `search?` (free-text vs `name`/`description`),
+`scope: Literal["mine"]` (restricts to the asserted external user's own Skills — runtime context
+only).
+
+## Agent types
+
+### `Agent`
+
+Raw Mongo shape — `_id`, not `id`.
+
+| Field                | Type                                    | Description                                                                       |
+| -------------------- | --------------------------------------- | --------------------------------------------------------------------------------- |
+| `_id`                | `str`                                   | Agent id.                                                                         |
+| `domain`             | `str`                                   | Owning Domain.                                                                    |
+| `ownerType`          | `Literal["PersonaUser", "Project", "ExternalUser"]` | Who owns it.                                                               |
+| `ownerId`            | `str` (optional)                        | Set for PersonaUser/Project owners.                                               |
+| `externalOwnerId`    | `str` (optional)                        | Set for ExternalUser owners.                                                      |
+| `name`               | `str`                                   | Agent name.                                                                       |
+| `slug`               | `str`                                   | URL-safe, unique within the Domain; used in some public-facing routes.            |
+| `description`        | `str` (optional)                        | Free-text description.                                                            |
+| `avatar`             | `str` (optional)                        | Avatar.                                                                           |
+| `tags`               | `list[str]` (optional)                  | Free-form tags.                                                                   |
+| `tagline`            | `str` (optional)                        | Short one-liner for list/card views.                                              |
+| `bio`                | `str` (optional)                        | Longer free-text bio for the profile view.                                        |
+| `personalityTraits`  | `list[str]` (optional)                  | Personality descriptors.                                                          |
+| `socialLinks`        | `AgentSocialLinks` (optional)           | Social profile links.                                                             |
+| `systemPrompt`       | `str` (optional)                        | **Stripped when the calling identity doesn't own this Agent.**                    |
+| `providerId`         | `str` (optional)                        | **Stripped when the calling identity doesn't own this Agent.**                    |
+| `modelName`          | `str` (optional)                        | Overrides the referenced Provider's `defaultModel`.                               |
+| `webSearchEnabled`   | `bool`                                  | Whether web search is enabled.                                                    |
+| `visibility`         | `AgentVisibility`                       | `"private" \| "unlisted" \| "public"`.                                             |
+| `category`           | `AgentCategory`                         | See `AgentCategory`.                                                              |
+| `isActive`           | `bool`                                  | Whether the Agent is active.                                                      |
+| `isMainAgent`        | `bool`                                  | Whether this is the Project's designated default/primary Agent.                   |
+| `skills`             | `list[object]` (optional)               | Bare id strings on create/update/list; populated objects on `get()`.              |
+| `mcps`               | `list[object]` (optional)               | Same dual shape as `skills`.                                                      |
+| `knowledgeBases`     | `list[object]` (optional)               | Same dual shape as `skills`.                                                      |
+| `createdAt`          | `str`                                   | ISO timestamp.                                                                    |
+| `updatedAt`          | `str`                                   | ISO timestamp.                                                                    |
+
+<Note>
+  `skills`/`mcps`/`knowledgeBases` are typed `list[object]` deliberately — the wire shape is
+  genuinely different per call: bare id strings on `create()`/`update()`/`list()`, populated
+  objects on `get()`. The SDK reflects that real difference rather than picking one shape and being
+  wrong for the other calls.
+</Note>
+
+### `AgentSocialLinks`
+
+`{"website"?: str, "twitter"?: str, "github"?: str, "linkedin"?: str}` — all optional.
+
+### `AgentVisibility`
+
+`Literal["private", "unlisted", "public"]` — `unlisted` is reachable by direct link/id but excluded
+from public discovery listings.
+
+### `AgentCategory`
+
+`Literal["productivity", "coding", "creative", "research", "roleplay", "other"]`.
+
+### `CreateAgentInput`
+
+Required: `name`, `systemPrompt`, `providerId`. Optional (with defaults where noted):
+`description?`, `avatar?`, `tags?`, `tagline?`, `bio?`, `personalityTraits?`, `socialLinks?`,
+`modelName?`, `webSearchEnabled?` (default `False`), `visibility?` (default `'private'`),
+`category?` (default `'other'`), `skills?: list[str]`, `mcps?: list[str]`, `knowledgeBases?:
+list[str]`, `isActive?` (default `True`). See [Agents](/guides/sdk-python/resources/agents).
+
+### `UpdateAgentInput`
+
+All fields optional. Array fields **replace entirely**: `skills?`, `mcps?`, `knowledgeBases?` — not
+merges/appends.
+
+### `DiscoverAgentsParams`
+
+`page?` (default 1), `limit?` (default 20), `search?` (free-text vs `name`/`description`/`tagline`),
+`category?: AgentCategory`, `scope: Literal["mine"]`.
+
+## Knowledge types
+
+### `KnowledgeBase`
+
+Raw Mongo shape — `_id`, not `id`.
+
+| Field                  | Type                                    | Description                                                                      |
+| ---------------------- | --------------------------------------- | -------------------------------------------------------------------------------- |
+| `_id`                  | `str`                                   | Knowledge base id.                                                               |
+| `domain`               | `str`                                   | Owning Domain.                                                                   |
+| `ownerType`            | `Literal["PersonaUser", "Project", "ExternalUser"]` | Who owns it.                                                              |
+| `ownerId`              | `str` (optional)                        | Set for PersonaUser/Project owners.                                              |
+| `externalOwnerId`      | `str` (optional)                        | Set for ExternalUser owners.                                                     |
+| `name`                 | `str`                                   | Knowledge base name.                                                             |
+| `description`          | `str` (optional)                        | Free-text description.                                                           |
+| `isPublic`             | `bool`                                  | Visible platform-wide when `True`.                                               |
+| `documentCount`        | `int`                                   | Number of source documents.                                                      |
+| `chunkCount`           | `int`                                   | Number of embedded chunks.                                                       |
+| `qdrantCollectionName` | `str`                                   | Internal Qdrant collection name — informational only.                            |
+| `documents`            | `list[KnowledgeDocument]`               | The source documents.                                                            |
+| `embeddingModel`       | `str`                                   | Embedding model id.                                                              |
+| `providerId`           | `str` (optional)                        | The Provider supplying the embedding key.                                        |
+| `chunkSize`            | `int`                                   | Characters per chunk when splitting documents.                                   |
+| `chunkOverlap`         | `int`                                   | Character overlap between adjacent chunks.                                       |
+| `topK`                 | `int`                                   | Default chunks per `search()` call when the caller doesn't override `top_k`.     |
+| `createdAt`            | `str`                                   | ISO timestamp.                                                                   |
+| `updatedAt`            | `str`                                   | ISO timestamp.                                                                   |
+
+### `KnowledgeDocument`
+
+`{"fileName": str, "fileSize": int, "mimeType": str, "chunkCount": int, "uploadedAt": str}` — one
+uploaded source document's chunking summary.
+
+### `CreateKnowledgeBaseInput`
+
+Required: `name`, `providerId`. Optional: `description?`, `isPublic?` (default `False`),
+`embeddingModel?` (default `'text-embedding-3-small'`), `chunkSize?` (default `800`),
+`chunkOverlap?` (default `100`), `topK?` (default `5`).
+
+### `UpdateKnowledgeBaseInput`
+
+All optional. **Does not retroactively re-embed existing documents** when
+`providerId`/`embeddingModel`/`chunkSize`/`chunkOverlap` change.
+
+### `DiscoverKnowledgeBasesParams`
+
+`page?`, `limit?`, `search?`, `scope: Literal["mine"]` — same semantics as
+`DiscoverSkillsParams`.
+
+### `UploadFileInput`
+
+| Field         | Type                | Required | Description                                                                  |
+| ------------- | ------------------- | -------- | ---------------------------------------------------------------------------- |
+| `filename`    | `str`               | Yes      | File name.                                                                   |
+| `content`     | `bytes \| BinaryIO` | Yes      | File bytes, or a binary file object.                                         |
+| `contentType` | `str`               | No       | e.g. `'application/pdf'`. Required when the content type can't be inferred.  |
+
+### `UploadDocumentsResult`
+
+| Field           | Type                                                       | Description                                                              |
+| --------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `documentCount` | `int`                                                      | Total document count for the KB **after** this upload.                   |
+| `chunkCount`    | `int`                                                      | Total chunk count for the KB after this upload.                          |
+| `files`         | `list[{fileName, fileSize, mimeType, chunkCount}]`         | Per-file summary.                                                        |
+
+### `DeleteDocumentResult`
+
+`{"removedChunks": int, "remainingDocuments": int, "remainingChunks": int}`.
+
+### `KnowledgeSearchResult`
+
+| Field    | Type         | Description                                                                  |
+| -------- | ------------ | ---------------------------------------------------------------------------- |
+| `text`   | `str`        | The chunk text.                                                              |
+| `source` | `str`        | The source document's `fileName`.                                            |
+| `score`  | `float \| None` | Similarity score (higher = more relevant); `None` if the store didn't return one. |
+
+## MCP types
+
+### `McpTransport`
+
+`Literal["http", "sse"]`.
+
+### `McpAuthType`
+
+`Literal["none", "oauth", "apiKey"]`.
+
+### `McpAuthMode`
+
+`Literal["owner", "user"]` — `owner`: one shared connection for the whole Project; `user`: each
+external user connects their own.
+
+### `Mcp`
+
+Raw Mongo shape — `_id`, not `id`. Secrets are stripped: `oauth`/`apiKeyEncrypted` are replaced
+with `hasApiKey`/a summarized `oauth` object.
+
+| Field                | Type                                    | Description                                                                     |
+| -------------------- | --------------------------------------- | ------------------------------------------------------------------------------- |
+| `_id`                | `str`                                   | MCP server id.                                                                  |
+| `domain`             | `str`                                   | Owning Domain.                                                                  |
+| `ownerType`          | `Literal["PersonaUser", "Project", "ExternalUser"]` | Who owns it.                                                             |
+| `ownerId`            | `str` (optional)                        | Set for PersonaUser/Project owners.                                             |
+| `externalOwnerId`    | `str` (optional)                        | Set for ExternalUser owners.                                                    |
+| `name`               | `str`                                   | MCP server name.                                                                |
+| `description`        | `str` (optional)                        | Free-text description.                                                          |
+| `transport`          | `McpTransport`                          | `"http" \| "sse"`.                                                              |
+| `url`                | `str`                                   | Server URL.                                                                     |
+| `authType`           | `McpAuthType`                           | `"none" \| "oauth" \| "apiKey"`.                                                 |
+| `authMode`           | `McpAuthMode`                           | `"owner" \| "user"`.                                                            |
+| `hasApiKey`          | `bool`                                  | Whether an API key is stored (the key itself is never returned).                |
+| `oauth`              | `McpOAuthConfig` (optional)             | Summarized OAuth config.                                                        |
+| `isEnabled`          | `bool`                                  | Whether the server is enabled.                                                  |
+| `tools`              | `list[McpTool]`                         | Populated by `test_connection()`; empty until called at least once.             |
+| `resources`          | `list[McpResourceSummary]`              | Populated by `test_connection()`; empty until called at least once.             |
+| `resourceTemplates`  | `list[McpResourceTemplate]`             | Populated by `test_connection()`; empty until called at least once.             |
+| `createdAt`          | `str`                                   | ISO timestamp.                                                                  |
+| `updatedAt`          | `str`                                   | ISO timestamp.                                                                  |
+
+### `McpTool`
+
+`{"name": str, "description": str}`.
+
+### `McpResourceSummary`
+
+`{"uri": str, "name": str, "description": str, "mimeType": str}`.
+
+### `McpResourceTemplate`
+
+`{"uriTemplate": str, "name": str, "description": str, "mimeType": str, "toolName": str}` — a
+resource whose `uri` has placeholder params to fill before calling `read_resource()`.
+
+### `McpOAuthConfig`
+
+| Field                   | Type             | Description                                                              |
+| ----------------------- | ---------------- | ------------------------------------------------------------------------ |
+| `clientId`              | `str \| None`    | OAuth client id.                                                         |
+| `hasClientSecret`       | `bool`           | Whether a client secret is stored (never returned).                      |
+| `authorizationEndpoint` | `str \| None`    | OAuth authorization endpoint.                                            |
+| `tokenEndpoint`         | `str \| None`    | OAuth token endpoint.                                                    |
+| `scopes`                | `list[str]`      | Requested OAuth scopes.                                                  |
+| `dynamicallyRegistered` | `bool`           | Whether the client was registered via RFC 7591 dynamic registration.     |
+| `ownerConnected`        | `bool`           | Whether the MCP's owner has completed the owner-mode OAuth flow.         |
+
+### `McpOAuthInput`
+
+`{"clientId": str (req), "clientSecret": str (req), "scopes"?: list[str]}`.
+
+### `PartialMcpOAuthInput`
+
+`{"clientId"?: str, "clientSecret"?: str, "scopes"?: list[str]}` — used on updates (each field
+optional).
+
+### `CreateMcpInput`
+
+Required: `name`, `transport`, `url`. Optional: `description?`, `authType?` (default `'none'`),
+`authMode?` (default `'owner'`), `oauth?` (required when `authType: 'oauth'` and
+`useDynamicRegistration` isn't set), `apiKey?` (required when `authType: 'apiKey'`),
+`useDynamicRegistration?` (default `False`), `isEnabled?` (default `True`).
+
+### `UpdateMcpInput`
+
+All optional: `name?`, `description?`, `transport?`, `url?`, `authType?`, `authMode?`,
+`isEnabled?`, `useDynamicRegistration?`, `oauth?: PartialMcpOAuthInput`, `apiKey?` (replaces the
+stored key entirely; omit to leave it untouched).
+
+### `DiscoverMcpsParams`
+
+`page?`, `limit?`, `search?`, `scope: Literal["mine"]` — same semantics as `DiscoverSkillsParams`.
+
+### `McpTestConnectionResult`
+
+`{"tools": list[McpTool], "resources": list[McpResourceSummary], "resourceTemplates":
+list[McpResourceTemplate]}`.
+
+### `McpReadResourceResult`
+
+`{"text": str, "mimeType": str}`.
+
+### `McpUserConnectionStatus`
+
+`{"connected": bool}` — whether the asserted external user has completed their per-user OAuth
+connection.
+
+### `McpAuthorizeUrl`
+
+`{"url": str}` — redirect the browser here.
+
+## Thread types
+
+### `Thread`
+
+Raw Mongo shape — `_id`, not `id`.
+
+| Field            | Type                                   | Description                                                                      |
+| ---------------- | -------------------------------------- | -------------------------------------------------------------------------------- |
+| `_id`            | `str`                                  | Thread document id.                                                              |
+| `domain`         | `str`                                  | Owning Domain.                                                                   |
+| `agentId`        | `str \| ThreadAgentRef`                | Populated as `{_id, name, avatar, slug}` on `list()`; a bare id on `create()`/`get()`. |
+| `subjectType`    | `Literal["PersonaUser", "ExternalUser"]` | Who the conversation belongs to.                                                |
+| `userId`         | `str` (optional)                       | Set for PersonaUser subjects.                                                    |
+| `externalUserId` | `str` (optional)                       | Set for ExternalUser subjects.                                                   |
+| `threadId`       | `str`                                  | The **deterministic AG-UI thread id** used for streaming (`x-thread-id`) — distinct from `_id`. |
+| `title`          | `str`                                  | Thread title.                                                                    |
+| `lastMessageAt`  | `str`                                  | ISO timestamp of the most recent message.                                        |
+| `isArchived`     | `bool`                                 | Whether the Thread is archived.                                                  |
+| `subagentTraces` | `dict[str, Any]` (optional)            | Nested subagent activity traces.                                                 |
+| `createdAt`      | `str`                                  | ISO timestamp.                                                                   |
+| `updatedAt`      | `str`                                  | ISO timestamp.                                                                   |
+
+### `ThreadAgentRef`
+
+`{"_id": str (req), "name": str (req), "slug": str (req), "avatar"?: str}` — the populated
+`agentId` shape on `list()`.
+
+### `CreateThreadInput`
+
+`{"agentId": str}`.
+
+### `UpdateThreadInput`
+
+`{"title"?: str, "isArchived"?: bool}` — all optional, only what you pass is changed.
+
+### `ListThreadsParams`
+
+`{"page"?: int, "limit"?: int}` — defaults `1`/`20`.
+
+### `ThreadMessages`
+
+| Field            | Type                 | Description                                                                   |
+| ---------------- | -------------------- | ----------------------------------------------------------------------------- |
+| `messages`       | `list[Any]`          | Raw LangChain-style message objects (role/content/tool_calls vary by type) — intentionally untyped. |
+| `state`          | `dict[str, Any]`     | Graph state.                                                                  |
+| `subagentTraces` | `dict[str, Any]`     | Nested subagent activity traces.                                              |
+
+## File types
+
+### `PersonaFile`
+
+Clean formatted shape — `id`, not `_id`.
+
+| Field          | Type             | Description                                   |
+| -------------- | ---------------- | --------------------------------------------- |
+| `id`           | `str`            | File id.                                      |
+| `originalName` | `str`            | Original filename.                            |
+| `mimeType`     | `str`            | MIME type.                                    |
+| `size`         | `int`            | Bytes.                                        |
+| `agentId`      | `str \| None`    | Associated Agent, if any.                     |
+| `threadId`     | `str \| None`    | Associated Thread, if any.                    |
+| `createdAt`    | `str`            | ISO timestamp.                                |
+
+### `UploadFilePayload`
+
+`{"filename": str (req), "content": bytes | BinaryIO (req), "contentType"?: str, "agentId"?:
+str, "threadId"?: str}`.
+
+### `ListFilesParams`
+
+`{"page"?: int, "limit"?: int}` — defaults `1`/`20`.
+
+## Audit log types
+
+### `AuditLogEntry`
+
+| Field               | Type               | Description                                       |
+| ------------------- | ------------------ | ------------------------------------------------- |
+| `eventType`         | `str`              | e.g. `'credential.created'`.                      |
+| `timestamp`         | `str`              | ISO timestamp.                                    |
+| `actorContextType`  | `str`              | Which auth context performed the action.          |
+| `actorIdentity`     | `str \| None`      | Who performed it (null if system/unknown).        |
+| `targetDomain`      | `str`              | The Domain the event concerns.                    |
+| `targetResourceId`  | `str \| None`      | The resource the event concerns, if any.          |
+| `metadata`          | `dict[str, Any]`   | Event-specific detail.                            |
+
+### `ListAuditLogsParams`
+
+`{"page"?: int, "limit"?: int, "eventType"?: str}` — `eventType` is an optional exact-match
+filter.
+
+## Chat types
+
+### `AguiEvent`
+
+`dict[str, Any]` — a loose typing of an AG-UI protocol event. Every event has a `"type"` key
+(compare against the `EventType` constants) plus type-specific fields (`delta`, `name`, `value`,
+etc.). See [Chat](/guides/sdk-python/chat#ag-ui-event-types) for the event-type table. (This SDK
+deliberately doesn't depend on an AG-UI protocol package — see
+[Chat](/guides/sdk-python/chat) for why.)
+
+### `ChatMessageInput`
+
+`{"role": Literal["user", "assistant"], "content": str}` — plain text only; the SDK doesn't yet
+support multi-part/multimodal content on the way in.
+
+### `ChatResume`
+
+```python
+ChatResume = dict[str, Any]
+```
+
+The shape you pass must match the pending interrupt's kind (see `ChatInterrupt`): `hitl` expects
+`{"decisions": [...]}`, `clarification` expects `{"answers": [...], "text": ...}`.
+
+### `ChatInterrupt`
+
+| Field   | Type                            | Description                                                                                        |
+| ------- | ------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `kind`  | `Literal["hitl", "clarification"]` | `hitl` → resume with `{"decisions": [...]}`; `clarification` → resume with `{"answers": [...], "text": ...}`. |
+| `value` | `Any`                           | Whatever detail the interrupt carries.                                                             |
+
+### `ChatResult`
+
+| Field       | Type                      | Description                                                                    |
+| ----------- | ------------------------- | ------------------------------------------------------------------------------ |
+| `text`      | `str`                     | Final assembled assistant text (concatenated `TEXT_MESSAGE_CHUNK` deltas).     |
+| `interrupt` | `ChatInterrupt \| None`   | Set when the run paused on a human-in-the-loop decision instead of finishing normally. |
+| `events`    | `list[AguiEvent]`         | Every raw event received, in order — full detail beyond `text`.                |
+
+## Undocumented-by-design
+
+- `TransportConfig`, `SyncTransport`, `AsyncTransport`, `build_url`, `build_headers`,
+  `decode_json_envelope`, `raise_for_non_json_error`, `error_from_response`, `split_buffer`,
+  `decode_frame`, `_accumulate`, and the `_httpx_files`/`_upload_files`/`_upload_data` helpers are
+  **internal** — not exported from the package root; don't rely on them.
+- The transports are not publicly reachable from a client (there's no `client.http` escape hatch in
+  this SDK). If you need an endpoint the SDK doesn't wrap yet, use `httpx` directly against the
+  [API Reference](/api-reference) endpoints.

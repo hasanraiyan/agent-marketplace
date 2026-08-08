@@ -1,0 +1,164 @@
+---
+title: Troubleshooting
+description: Common problems developers hit with the Python SDK — how to diagnose and fix them.
+---
+
+## Install problems
+
+### `pip install persona-agent-sdk` fails or resolves an old version
+
+The package is published under `persona-agent-sdk` (the name `personaai` was already too close to an
+unrelated existing PyPI project) but imported as `personaai`. Verify you installed the right name,
+and that the version is current:
+
+```bash
+pip install --upgrade persona-agent-sdk
+pip show persona-agent-sdk     # version 0.2.x
+```
+
+Requires Python 3.9+ and installs exactly one dependency: `httpx>=0.27`.
+
+### I can import the SDK from the repo but not after installing
+
+If you're working from a local checkout, either install it (`pip install -e /path/to/agent-marketplace/sdk-python`)
+or run from the repo's `sdk-python` directory so `src/personaai` is importable. A bare `pip install persona-agent-sdk`
+never installs your local checkout — you'll get the published package.
+
+## Authentication problems
+
+### `PersonaAuthError` (401/403) on every call
+
+- `401`: the credential is invalid, malformed, expired, or revoked. Re-mint it in Developer Studio.
+  Confirm the shape is `"<keyId>.<secret>"` — a truncated or copy-paste-corrupted value fails
+  exactly this way.
+- `403`: the Project isn't `ACTIVE` (suspended), or the asserted identity can't act. Check Project
+  status in Developer Studio.
+- Make sure the credential isn't wrapped in quotes/whitespace from an env file (`export
+  PERSONA_CREDENTIAL="<keyId>.<secret>"` in a `.env` file usually comes through fine, but watch for
+  trailing characters).
+
+### `ValueError: TransportConfig: "credential" is required`
+
+You passed an empty/missing credential at construction — validation is synchronous and happens
+before any network call. Check that `os.environ["PERSONA_CREDENTIAL"]` actually resolved.
+
+### `PersonaValidationError` with `EXTERNAL_USER_REQUIRED` on Threads/Files/Chat
+
+Those resources require a runtime-plane client. Construct the client with `external_user_id` set:
+
+```python
+user_persona = PersonaClient(BASE_URL, credential=CREDENTIAL, external_user_id=user.id)
+```
+
+## Empty or missing results
+
+### `providers.list()` / `audit_logs.list()` returns `[]` even though I created Providers
+
+You're on a **runtime-plane client** (constructed with `external_user_id`). Providers and audit
+logs have no `ExternalUser` ownership concept, so the server short-circuits these calls to an empty
+result (existence-hiding — deliberately silent, not an error). Use a control-plane client (no
+`external_user_id`) for Providers and audit logs. See
+[Providers](/guides/sdk-python/resources/providers) and
+[Audit logs](/guides/sdk-python/resources/audit-logs).
+
+### `agents.get()` doesn't return `systemPrompt`/`providerId`
+
+The Agent isn't owned by the calling identity (e.g. a public Agent belonging to someone else) — the
+backend strips both fields in that case by design. The Agent still runs; you just can't read its
+prompt or provider wiring.
+
+### `threads.list()` items don't have a string `agentId`
+
+`Thread["agentId"]` is a **populated object** (`{_id, name, avatar, slug}`) on `list()`, but a bare
+id string on `create()`/`get()`. Check which call produced the value before assuming a shape.
+
+### `Skill["isOwner"]` is missing
+
+`isOwner` is only present on the result of `skills.get()`, not `list()`/`create()`/`update()`.
+
+## Chat problems
+
+### Chat raises `PersonaApiError` 404 when passing `thread_id`
+
+`thread_id` must belong to the asserted external user **and** the `agent_id` you're calling with.
+Passing someone else's Thread, a different Agent's Thread, or a nonexistent id 404s — it does not
+silently fall back to a different conversation. Create the Thread with
+`user_persona.threads.create({"agentId": agent_id})` and pass that `_id`.
+
+### `send_message()` returns text but no stream events
+
+That's expected with `send_message()` — it drains the stream and returns `{"text", "interrupt",
+"events"}`. If you need per-delta control (streaming to a UI as it arrives), use `chat.stream()`
+directly and switch on `event["type"] == EventType.TEXT_MESSAGE_CHUNK`.
+
+### My interrupt never finishes; the run keeps pausing
+
+Resume on the **next** call with `messages=[]` (no new user message — you're answering the
+interrupt, not starting a new turn), `thread_id` set to the same Thread, and a `resume` shape
+matching the interrupt's `kind`:
+
+- `kind == "hitl"` → `resume={"decisions": [{"action": ..., "decision": "approve" | "reject"}]}`
+- `kind == "clarification"` → `resume={"answers": [...], "text": ...}`
+
+### The stream hangs or produces no output
+
+No default timeout is configured by the SDK — if your app needs one, wrap the call in
+`asyncio.wait_for(...)` (async) or pass an `http_client=` with `timeout=` set. If you never see
+`TEXT_MESSAGE_CHUNK` events, check that the Agent has `isActive` and a working Provider
+(`providers.test_connection()`).
+
+## File problems
+
+### `files.download()` doesn't return parsed JSON
+
+Correct — `download()` returns the raw `httpx.Response` (the only method in the SDK that does).
+Read `.content`/`.text`/`.iter_bytes()` (async: `.aiter_bytes()`). JSON parsing isn't involved;
+that's the point of a raw file stream.
+
+### Upload fails with `PersonaValidationError`
+
+Check the payload: `filename` and `content` are required; `content` must be `bytes` or a binary
+file object; pass `contentType` when it can't be inferred (e.g. `"application/pdf"`). Knowledge
+uploads are limited to 10 files × 20MB of PDF/TXT/MD/JSON/CSV per call.
+
+## General problems
+
+### Every request raises `PersonaApiError` with `code == "NON_JSON_ERROR_RESPONSE"`
+
+The failure response had no JSON body — usually a proxy/load-balancer error page (502/503/504 HTML)
+rather than an API error. Check your network path, base URL, and any reverse proxy. The status code
+is still on the exception (`err.status_code`).
+
+### I'm getting 429s and the call still fails
+
+The SDK retries 429s up to `max_retries` (default `2`), honoring `Retry-After`. If you're still
+failing, raise `max_retries`, spread out requests, or back off after the final failure. Only 429 is
+retried — everything else raises on the first attempt.
+
+### `bulk_delete()` doesn't raise even though some ids failed
+
+That's the contract — `bulk_delete()` is best-effort. Check the returned `BulkDeleteResult`:
+
+```python
+result = persona.agents.bulk_delete(["id1", "id2"])
+if result["failed"]:
+    print("These didn't delete:", result["failed"])
+```
+
+### 404s that shouldn't happen (I just created it)
+
+Two common causes:
+
+- **Wrong id shape** — you passed `provider["id"]` to an `_id`-shaped resource or vice versa (see
+  [_id vs id](/guides/sdk-python/behavior#_id-vs-id)). Providers/Files use `id`; Agents/Skills/
+  Knowledge/Threads/MCPs use `_id`.
+- **Ownership mismatch** — you created the resource with one identity and are now reading it with
+  another (e.g. created via control-plane client, read via a runtime-plane client asserting a
+  different user). Resources are scoped to their owner.
+
+### Getting started with the wrong client for the job
+
+- Control-plane (no `external_user_id`): Providers, audit logs, and provisioning/administration
+  CRUD.
+- Runtime-plane (with `external_user_id`): Threads, Files, Chat, and per-user
+  `scope: "mine"` listings.

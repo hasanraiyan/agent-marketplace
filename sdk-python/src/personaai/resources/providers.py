@@ -68,8 +68,17 @@ class Providers:
         """Every Provider in this credential's Domain. No pagination
         envelope, no ``page``/``limit``/``search`` params — Providers have
         no discovery concept, so this is a plain bare-list Domain-scoped
-        list, same result whether this client asserts an external user or
-        not.
+        list.
+
+        On a control-plane client (no ``external_user_id``), this returns
+        every Provider in the Domain. On a runtime-plane client
+        (``external_user_id`` set, a ``ProjectRuntimeContext``), the server
+        short-circuits the call and returns an **empty list** — a
+        Provider's ownership can only ever be ``"PersonaUser"`` or
+        ``"Project"``, never ``"ExternalUser"``, so this credential can
+        never own any. Same existence-hiding precedent as
+        ``get()``/``update()``/``delete()``, which 404 for non-owners:
+        silent empty result, not an error.
 
         Returns:
             A plain ``list[Provider]`` (not a ``PaginatedResult``, unlike
@@ -207,8 +216,17 @@ class AsyncProviders:
         """Every Provider in this credential's Domain. No pagination
         envelope, no ``page``/``limit``/``search`` params — Providers have
         no discovery concept, so this is a plain bare-list Domain-scoped
-        list, same result whether this client asserts an external user or
-        not.
+        list.
+
+        On a control-plane client (no ``external_user_id``), this returns
+        every Provider in the Domain. On a runtime-plane client
+        (``external_user_id`` set, a ``ProjectRuntimeContext``), the server
+        short-circuits the call and returns an **empty list** — a
+        Provider's ownership can only ever be ``"PersonaUser"`` or
+        ``"Project"``, never ``"ExternalUser"``, so this credential can
+        never own any. Same existence-hiding precedent as
+        ``get()``/``update()``/``delete()``, which 404 for non-owners:
+        silent empty result, not an error.
 
         Returns:
             A plain ``list[Provider]`` (not a ``PaginatedResult``, unlike

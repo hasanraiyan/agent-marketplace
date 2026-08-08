@@ -1,0 +1,131 @@
+---
+title: Knowledge
+description: The knowledge resource — RAG knowledge bases with document upload, chunking/embedding, similarity search, and document management.
+---
+
+`persona.knowledge` (sync) / `await persona.knowledge` (async) wraps `/api/v1/developer/knowledge`.
+
+Knowledge bases are **Project-owned, or — when this client asserts an external user — owned by that
+end user**. A Knowledge base chunks and embeds uploaded documents (via a Provider-supplied
+embedding model) and serves similarity search — the same retrieval an Agent with this Knowledge
+base attached uses internally.
+
+## Methods
+
+| Method                                                  | Wraps                                              | Returns                          |
+| ------------------------------------------------------- | -------------------------------------------------- | -------------------------------- |
+| `knowledge.create(input, idempotency_key=None)`         | `POST /knowledge`                                  | `KnowledgeBase`                  |
+| `knowledge.list(params=None)`                           | `GET /knowledge`                                   | `PaginatedResult[KnowledgeBase]` |
+| `knowledge.get(kb_id)`                                  | `GET /knowledge/{id}`                              | `KnowledgeBase`                  |
+| `knowledge.update(kb_id, input)`                        | `PATCH /knowledge/{id}`                            | `KnowledgeBase`                  |
+| `knowledge.delete(kb_id)`                               | `DELETE /knowledge/{id}`                           | `None`                           |
+| `knowledge.get_usage(kb_id)`                            | `GET /knowledge/{id}/usage`                        | `ResourceUsage`                  |
+| `knowledge.bulk_delete(ids)`                            | `POST /knowledge/bulk-delete`                      | `BulkDeleteResult`               |
+| `knowledge.upload_documents(kb_id, files)`              | `POST /knowledge/{id}/documents` (multipart)       | `UploadDocumentsResult`          |
+| `knowledge.list_documents(kb_id)`                       | `GET /knowledge/{id}/documents`                    | `list[KnowledgeDocument]`        |
+| `knowledge.delete_document(kb_id, source_name)`         | `DELETE /knowledge/{id}/documents/{source_name}`   | `DeleteDocumentResult`           |
+| `knowledge.search(kb_id, query, top_k=None)`            | `POST /knowledge/{id}/search`                      | `list[KnowledgeSearchResult]`    |
+
+Async: identical methods with `await`.
+
+## `create(input)`
+
+Required: `name` and `providerId` — **`providerId` is required on the Developer API**; unlike
+Persona's own (non-Developer) Knowledge routes, there's no "use my default Provider" fallback for
+a Project or ExternalUser caller. Optional (with defaults): `description`, `isPublic` (default
+`False`), `embeddingModel` (default `'text-embedding-3-small'`), `chunkSize` (default `800`),
+`chunkOverlap` (default `100`), `topK` (default `5`).
+
+```python
+kb = persona.knowledge.create(
+    {
+        "name": "Placement Office FAQ",
+        "providerId": provider["id"],   # supplies the embedding model's API key
+        "chunkSize": 1000,
+        "chunkOverlap": 200,
+        "topK": 5,
+    },
+    idempotency_key="optional-idempotency-key",  # safe retry after a timeout replays this result
+)
+```
+
+Returns the created (empty) `KnowledgeBase` in **raw Mongo shape — `_id`, not `id`**. Upload
+documents afterward via `upload_documents()`.
+
+## `list(params=None)` and `get(kb_id)`
+
+`list()` takes `DiscoverKnowledgeBasesParams` (all optional): `page` (default `1`), `limit`
+(default `20`), `search` (free-text vs `name`/`description`), `scope: Literal["mine"]` (runtime
+only). Returns the standard `PaginatedResult`.
+
+`get()` fetches one Knowledge base, including its current `documents` list and chunking
+configuration.
+
+## `update(kb_id, input)`
+
+Partially updates a Knowledge base — only the fields you pass are changed. **Note: changing
+`providerId`/`embeddingModel`/`chunkSize`/`chunkOverlap` does not retroactively re-embed
+already-uploaded documents** — the new settings apply to future uploads only.
+
+## `upload_documents(kb_id, files)`
+
+Uploads and chunks/embeds one or more documents. **This call is synchronous — it returns only once
+embedding finishes**, so expect it to take longer for larger/more files.
+
+Each `UploadFileInput` is `{"filename": str, "content": bytes | BinaryIO, "contentType"?: str}`.
+
+```python
+with open("faq.pdf", "rb") as f:
+    result = persona.knowledge.upload_documents(
+        kb["_id"],
+        [{"filename": "faq.pdf", "content": f.read(), "contentType": "application/pdf"}],
+    )
+# result: {"documentCount", "chunkCount", "files": [{"fileName", "fileSize", "mimeType", "chunkCount"}]}
+```
+
+Limits: **up to 10 files per call, 20MB each**, restricted to **PDF, TXT, MD, JSON, CSV**.
+`documentCount`/`chunkCount` in the result are the **totals for the KB after this upload**, not
+just this call's files.
+
+## `list_documents(kb_id)` and `delete_document(kb_id, source_name)`
+
+`list_documents()` lists the distinct source documents currently chunked/embedded (not the
+individual chunks). `delete_document()` deletes every chunk that came from one uploaded source
+document — pass the document's `fileName` as returned by `list_documents()` (the SDK URL-encodes it
+for you). Returns `DeleteDocumentResult`: `{"removedChunks", "remainingDocuments",
+"remainingChunks"}`.
+
+## `search(kb_id, query, top_k=None)`
+
+Runs a similarity search against the Knowledge base's embedded chunks — the same retrieval an
+Agent with this Knowledge base attached would use internally.
+
+```python
+hits = persona.knowledge.search(kb["_id"], "What's the deadline to apply?", top_k=3)
+# hits: [{"text", "source", "score"}, ...]
+```
+
+`top_k` (max chunks to return) overrides the Knowledge base's own configured `topK` for that one
+call only; omit it to use the KB's configured `topK` (default `5`). Each result is
+`{"text": str, "source": str, "score": float | None}` — `source` is the fileName the chunk came
+from; `score` is a similarity score (higher = more relevant) and can be `None` if the store didn't
+return one.
+
+## `delete(kb_id)`, `get_usage(kb_id)`, `bulk_delete(ids)`
+
+<Note>
+  Unlike Providers/Skills/MCP, deleting a Knowledge base does **not** currently
+  block on in-use Agents — `get_usage()` here is informational only, not a
+  guarantee that `delete()` will reject while `agentCount > 0`.
+</Note>
+
+`delete()` removes the Knowledge base and all its embedded chunks. `bulk_delete(ids)` is
+best-effort — partial failures don't raise or abort the rest of the batch; check `failed` for
+per-id reasons. Up to 100 ids per call.
+
+## Types
+
+See [Types — Knowledge types](/guides/sdk-python/types#knowledge-types) for the full field
+reference: `KnowledgeBase`, `KnowledgeDocument`, `CreateKnowledgeBaseInput`,
+`UpdateKnowledgeBaseInput`, `DiscoverKnowledgeBasesParams`, `UploadFileInput`,
+`UploadDocumentsResult`, `DeleteDocumentResult`, `KnowledgeSearchResult`.

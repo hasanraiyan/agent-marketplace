@@ -1,0 +1,124 @@
+---
+title: MCP connectors
+description: The mcps resource — MCP server connectors with test-connection, tool calls, resource reads, and the owner/user OAuth connection flows.
+---
+
+`persona.mcps` (sync) / `await persona.mcps` (async) wraps `/api/v1/developer/mcps`, plus the
+`.oauth` sub-surface (`/api/v1/developer/mcps/{id}/oauth/*`).
+
+MCP servers are **Project-owned, or — when this client asserts an external user — owned by that
+end user**. A registered MCP server exposes tools and resources Agents can call.
+
+## Methods
+
+| Method                                               | Wraps                             | Returns                                          |
+| ---------------------------------------------------- | --------------------------------- | ------------------------------------------------ |
+| `mcps.create(input, idempotency_key=None)`           | `POST /mcps`                      | `Mcp`                                            |
+| `mcps.list(params=None)`                             | `GET /mcps`                       | `PaginatedResult[Mcp]`                           |
+| `mcps.get(mcp_id)`                                   | `GET /mcps/{id}`                  | `Mcp`                                            |
+| `mcps.update(mcp_id, input)`                         | `PATCH /mcps/{id}`                | `Mcp`                                            |
+| `mcps.delete(mcp_id)`                                | `DELETE /mcps/{id}`               | `None`                                           |
+| `mcps.get_usage(mcp_id)`                             | `GET /mcps/{id}/usage`            | `ResourceUsage`                                  |
+| `mcps.bulk_delete(ids)`                              | `POST /mcps/bulk-delete`          | `BulkDeleteResult`                               |
+| `mcps.test_connection(mcp_id)`                       | `POST /mcps/{id}/test`            | `McpTestConnectionResult`                        |
+| `mcps.read_resource(mcp_id, uri)`                    | `GET /mcps/{id}/resource?uri=...` | `McpReadResourceResult`                          |
+| `mcps.call_tool(mcp_id, name, arguments=None)`       | `POST /mcps/{id}/call-tool`       | `Any` (shape depends on the underlying MCP tool) |
+| `mcps.oauth.*`                                       | see below                         | see below                                        |
+
+Async: identical methods with `await`.
+
+## `create(input)`
+
+Required: `name`, `transport`, `url`. Optional (with defaults where noted): `description`,
+`authType` (default `'none'`), `authMode` (default `'owner'`), `oauth` (required when
+`authType: 'oauth'` and no dynamic registration), `apiKey` (required when `authType: 'apiKey'`),
+`useDynamicRegistration` (default `False`), `isEnabled` (default `True`).
+
+```python
+mcp = persona.mcps.create(
+    {
+        "name": "Internal Ticketing",
+        "transport": "http",
+        "url": "https://mcp.example.com",
+        "authType": "apiKey",
+        "apiKey": os.environ["TICKETING_MCP_KEY"],  # static bearer token, owner-shared
+    },
+    idempotency_key="optional-idempotency-key",  # safe retry after a timeout replays this result
+)
+```
+
+Field semantics:
+
+- `transport`: `"http" | "sse"`.
+- `authType`: `"none" | "oauth" | "apiKey"`.
+- `authMode`: `"owner" | "user"` — `owner` shares one connection for the whole Project; `user`
+  gives each external user their own. **An `apiKey`-authed server is always owner-shared,
+  regardless of `authMode`.**
+- `oauth: McpOAuthInput` — `{"clientId": str, "clientSecret": str, "scopes"?: list[str]}`.
+- `useDynamicRegistration` — RFC 7591 Dynamic Client Registration instead of a manual `oauth`
+  block.
+
+<Note>
+  Creating an `authType: "oauth"` MCP synchronously probes the target URL's OAuth
+  discovery endpoints — pointing it at a URL that doesn't actually implement
+  OAuth discovery will fail the `create()` call itself, not just a later
+  connection test.
+</Note>
+
+Returns the created `Mcp` in raw `_id` shape, with secrets stripped (see
+[Types — MCP types](/guides/sdk-python/types#mcp-types)).
+
+## `test_connection(mcp_id)`
+
+Connects to the MCP server right now, lists its tools/resources/resource templates, and **persists
+that summary onto the stored MCP document** — so `get()`/`list()` reflect it afterward. Returns
+`McpTestConnectionResult`: `{"tools": list[McpTool], "resources": list[McpResourceSummary],
+"resourceTemplates": list[McpResourceTemplate]}`. Until `test_connection()` has been called at
+least once, `tools`/`resources`/`resourceTemplates` on the `Mcp` are empty.
+
+## `call_tool(mcp_id, name, arguments=None)`
+
+Invokes one tool exposed by this MCP server. `name` comes from `mcp["tools"]`; `arguments` should
+match that tool's own input schema. The return shape is whatever the underlying MCP tool returns —
+inherently dynamic (`Any`).
+
+## `read_resource(mcp_id, uri)`
+
+Reads one MCP resource by URI (as opposed to calling a tool). `uri` comes from
+`mcp["resources"]`/`resourceTemplates` (after filling any template params). Returns
+`McpReadResourceResult`: `{"text": str, "mimeType": str}`.
+
+## `get_usage(mcp_id)` and `delete(mcp_id)`
+
+`delete()` raises `PersonaApiError` if any Agent still references the MCP server — **call
+`get_usage()` first to check**. `bulk_delete(ids)` is best-effort — partial failures (e.g. an MCP
+still referenced by an Agent) don't raise or abort the rest of the batch; check `failed`. Up to 100
+ids per call.
+
+## OAuth connection flows (`mcps.oauth`)
+
+For `authType: "oauth"` MCPs, `mcps.oauth` drives the owner- and user-mode authorization flows:
+
+| Method                                                        | Wraps                                      | Returns             |
+| ------------------------------------------------------------- | ------------------------------------------ | ------------------- |
+| `mcps.oauth.get_owner_authorize_url(mcp_id)`                  | `GET /mcps/{id}/oauth/owner/authorize`     | `{"url": str}`      |
+| `mcps.oauth.get_user_authorize_url(mcp_id, return_to=None)`   | `GET /mcps/{id}/oauth/user/authorize`      | `{"url": str}`      |
+| `mcps.oauth.get_user_connection_status(mcp_id)`               | `GET /mcps/{id}/oauth/user/status`         | `{"connected": bool}` |
+| `mcps.oauth.disconnect_user_connection(mcp_id)`               | `DELETE /mcps/{id}/oauth/user/connection`  | `None`              |
+| `mcps.oauth.disconnect_owner_connection(mcp_id)`              | `DELETE /mcps/{id}/oauth/owner/connection` | `None`              |
+
+Owner-mode authorizes the MCP itself, shared by every user of your Project — call
+`get_owner_authorize_url()` from a control-plane client and redirect your admin through it once.
+User-mode authorizes one specific end user's own token — call `get_user_authorize_url()` from a
+**runtime-plane client** (`external_user_id` set) and redirect that user through it; `return_to`
+is an optional client-chosen URL to send them back to once the flow completes.
+
+The full redirect flow — for both modes — is in [Workflows](/guides/sdk-python/workflows#3-oauth-connection-flow-for-an-mcp-server).
+
+## Types
+
+See [Types — MCP types](/guides/sdk-python/types#mcp-types) for the full field reference: `Mcp`,
+`McpTransport`, `McpAuthType`, `McpAuthMode`, `McpTool`, `McpResourceSummary`,
+`McpResourceTemplate`, `McpOAuthConfig`, `McpOAuthInput`, `PartialMcpOAuthInput`, `CreateMcpInput`,
+`UpdateMcpInput`, `DiscoverMcpsParams`, `McpTestConnectionResult`, `McpReadResourceResult`,
+`McpUserConnectionStatus`, `McpAuthorizeUrl`.

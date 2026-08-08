@@ -1,0 +1,87 @@
+---
+title: Files
+description: The files resource — upload, list, download, delete, and bulk-delete files on behalf of the asserted external user.
+---
+
+`persona.files` (sync) / `await persona.files` (async) wraps `/api/v1/developer/files`.
+
+<Warning>
+  **Every method here requires the client to have been constructed with
+  `external_user_id`** — a File's Subject is a person, so every call here
+  requires the same runtime-plane setup as Threads (a bare Project credential is
+  rejected with `400 EXTERNAL_USER_REQUIRED`).
+</Warning>
+
+## Methods
+
+| Method                                  | Wraps                     | Returns                          |
+| --------------------------------------- | ------------------------- | -------------------------------- |
+| `files.upload(input, idempotency_key=None)` | `POST /files` (multipart) | `PersonaFile`                    |
+| `files.list(params=None)`               | `GET /files`              | `PaginatedResult[PersonaFile]`   |
+| `files.download(file_id)`               | `GET /files/{id}`         | `httpx.Response` (raw, not JSON) |
+| `files.delete(file_id)`                 | `DELETE /files/{id}`      | `None`                           |
+| `files.bulk_delete(ids)`                | `POST /files/bulk-delete` | `BulkDeleteResult`               |
+
+Async: identical methods with `await`.
+
+## `upload(input)`
+
+Uploads a file on behalf of the asserted external user, optionally associated with an
+Agent/Thread.
+
+`UploadFilePayload`: `filename` (required), `content: bytes | BinaryIO` (required), plus optional
+`contentType` (e.g. `'application/pdf'`; required when the content type can't be inferred),
+`agentId`, `threadId` (associates the file with an Agent/conversation).
+
+```python
+with open("resume.pdf", "rb") as f:
+    file = user_persona.files.upload(
+        {
+            "filename": "resume.pdf",
+            "content": f.read(),
+            "contentType": "application/pdf",
+            "threadId": thread["_id"],  # optional — associates the file with a conversation
+        },
+        idempotency_key="optional-idempotency-key",  # safe retry after a timeout replays this result
+    )
+```
+
+Returns the created `PersonaFile`.
+
+<Note>
+  `PersonaFile` is one of the two **clean formatted shapes** in the SDK — it uses
+  `id`, not `_id` (the other is `Provider`). See
+  [Types — File types](/guides/sdk-python/types#file-types).
+</Note>
+
+## `list(params=None)`
+
+Lists the asserted external user's own uploaded files. `ListFilesParams` (all optional): `page`
+(default `1`), `limit` (default `20`). Returns the standard `PaginatedResult`.
+
+## `download(file_id)`
+
+Downloads a file's raw bytes. **This is the one method on the whole client that doesn't return
+parsed JSON** — it returns the raw `httpx.Response` (a mediated file stream), so read
+`.content`/`.text`/`.iter_bytes()` (async: `.aiter_bytes()`) as your application needs.
+
+```python
+response = user_persona.files.download(file["id"])
+bytes_ = response.content          # sync
+async for chunk in response.aiter_bytes():  # async
+    ...
+```
+
+The file's `content-type` is not `application/json`, so the SDK's envelope decoder is bypassed and
+the raw transport response is handed back. Errors still raise as usual (e.g. a `404` for a
+nonexistent/foreign file id).
+
+## `delete(file_id)` and `bulk_delete(ids)`
+
+`delete()` removes the file. `bulk_delete(ids)` is best-effort — partial failures don't raise or
+abort the rest of the batch; check `failed` for per-id reasons. Up to 100 ids per call.
+
+## Types
+
+See [Types — File types](/guides/sdk-python/types#file-types) for the full field reference:
+`PersonaFile`, `UploadFilePayload`, `ListFilesParams`.

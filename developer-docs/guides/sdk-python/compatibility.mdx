@@ -1,0 +1,83 @@
+---
+title: Compatibility
+description: Runtimes, Python versions, dependencies, framework integration, and limitations of the Python SDK.
+---
+
+## Runtime requirements
+
+- **Python 3.9+** — the package declares `requires-python = ">=3.9"` and is classified for 3.9
+  through 3.13. It uses standard-library `typing` (no pydantic) so 3.9 compatibility is structural,
+  not incidental.
+- **One runtime dependency: `httpx>=0.27`** — installed automatically. No `requests`, no
+  `aiohttp`, no separate AG-UI protocol package.
+- **Server-side only.** The credential the SDK sends is a server-side secret. The SDK is not
+  designed for, and must not be used from, browser/JS runtimes or any client an untrusted party can
+  read. If you need browser-side code, that's a separate (Clerk-session) integration path — see the
+  [Integration Guide](/guides/integration-guide).
+
+## Sync vs async
+
+| Client                | For…                                  | Framework fit              |
+| --------------------- | ------------------------------------- | -------------------------- |
+| `PersonaClient`       | Blocking code, sync web views         | Flask, Django, scripts     |
+| `AsyncPersonaClient`  | `asyncio` event loop, async web views | FastAPI, starlette, `aiohttp` apps, notebooks |
+
+Both are first-class and maintained in lockstep — the async client is the `await`-ed mirror of the
+sync one, with the same constructor arguments, resource surface, and error classes. The one
+structural difference is streaming: `ChatClient.stream()` is a regular generator,
+`AsyncChatClient.stream()` is an async generator.
+
+## Type checking
+
+- All types are `TypedDict`s / `Literal`s — no pydantic, no runtime validation. They exist purely
+  for `mypy`/`pyright`/your editor.
+- The package is developed against `mypy --strict` (target `python_version = "3.10"` — a mypy
+  capability limit, not a runtime gap: the package itself still supports 3.9).
+- Request/response bodies keep the API's camelCase field names (`providerId`, `systemPrompt`, ...)
+  while methods and parameters use snake_case (`external_user_id`, `idempotency_key`, `top_k`,
+  `test_connection`). Your code follows the Python names; the wire follows camelCase.
+
+## Framework compatibility
+
+No framework-specific code exists in the SDK — it's a plain `httpx`-based client, so it works
+anywhere Python does. The documented recipes are conventions, not requirements:
+
+- **Flask / Django** — use the sync `PersonaClient`, typically one control-plane instance at module
+  scope plus per-request runtime-plane instances.
+- **FastAPI / starlette / async apps** — use `AsyncPersonaClient` in `async def` handlers.
+- **Scripts, notebooks, cron jobs** — either client; context managers (`with`/`async with`) handle
+  cleanup for short-lived scripts.
+- Thread-safety: a `PersonaClient` keeps no per-call mutable state beyond the transport; when
+  sharing across threads/event loops, prefer the connection-pool pattern (one shared `httpx`
+  client, per-request `PersonaClient` instances) documented in
+  [Workflows](/guides/sdk-python/workflows#7-connection-pooling-at-high-request-volume).
+
+## Version compatibility
+
+- **SDK version:** `0.2.x` (currently `0.2.3`). The docs in this section track that release.
+- **API version:** the SDK calls the `/api/v1/` Developer Platform API. The API is versioned by URL
+  prefix and does not add custom versioning — the SDK follows the platform's compatibility rules
+  (no breaking changes to existing endpoints without approval).
+- **Parity with the Node SDK:** `personaai` mirrors `@personaai/sdk`'s resource surface. Known
+  differences as of this release:
+  - No `Memory` or `Stores` resources, and no `Architect` chat client (the Node SDK has these; the
+    Python SDK doesn't yet).
+  - No `contextOverride` or cancellation parameter on chat calls — wrap in `asyncio.wait_for(...)`
+    for timeouts.
+  - `ChatResult` has no `error` field — a failed run raises `PersonaApiError` rather than returning
+    a structured error event.
+  - No public HTTP escape hatch — the transport is internal; use `httpx` directly for unwrapped
+    endpoints.
+
+## Platform limitations
+
+- **Out of scope:** Project/Members/Credentials management (creating Projects, inviting Members,
+  minting/revoking credentials) — those routes are Clerk-session (human-admin) authenticated, a
+  structurally different auth model the SDK deliberately doesn't implement. Use Developer Studio.
+- **Batch limits:** `bulk_delete(ids)` accepts up to 100 ids per call (a larger request is rejected
+  with a 400 before anything is deleted). Knowledge uploads: up to 10 files × 20MB per call,
+  PDF/TXT/MD/JSON/CSV only.
+- **Rate limits:** the platform rate-limits API traffic; the SDK retries 429s up to `max_retries`
+  honoring `Retry-After`. See [Behavior & edge cases](/guides/sdk-python/behavior#retries-and-rate-limits).
+- **`PersonaFile`/`Provider` use `id`; everything else uses `_id`** — see
+  [_id vs id](/guides/sdk-python/behavior#_id-vs-id).

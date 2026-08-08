@@ -1,0 +1,158 @@
+---
+title: Behavior & edge cases
+description: The behaviors that could surprise you — retries, rate limits, pagination, idempotency keys, _id vs id, populated vs bare fields, empty results, ordering, and cancellation.
+---
+
+## Retries and rate limits
+
+Every resource call goes through the shared transport, which automatically retries `429 Too Many
+Requests` responses: it reads the response's `Retry-After` header (seconds), waits that long, and
+retries — up to `max_retries` times (default `2`) before giving up and raising `PersonaApiError`
+with `status_code: 429`. If `Retry-After` is absent it falls back to a **1-second wait**. This is a
+fixed per-attempt wait, not exponential backoff, matching the API's own `Retry-After` contract
+rather than guessing at a backoff curve. The same retry logic covers `chat.stream()`'s streaming
+requests, not just regular JSON calls.
+
+**Only 429 is retried automatically.** Any other error (`400`, `401`, `403`, `404`, `500`, etc.)
+raises immediately on the first attempt, since retrying those wouldn't change the outcome.
+
+```python
+patient_client = PersonaClient(
+    "https://api.persona.hasanraiyan.me",
+    credential=os.environ["PERSONA_CREDENTIAL"],
+    max_retries=5,  # retry up to 5 times on 429 before raising
+)
+```
+
+## Pagination
+
+Every `list()`-style method (`agents.list()`, `skills.list()`, `knowledge.list()`, `mcps.list()`,
+`threads.list()`, `files.list()`, `audit_logs.list()`) returns a `PaginatedResult[T]`:
+
+```python
+result = persona.agents.list({"page": 2, "limit": 20})
+items = result["items"]
+pagination = result["pagination"]   # {"total", "page", "limit", "pages"}
+```
+
+- Defaults: `page=1`, `limit=20` (per endpoint; passed explicitly to override).
+- `pagination["total"]` is the total matching count across **all** pages — use it, not `len(items)`.
+- `pagination["pages"]` is `ceil(total / limit)` — check it to know whether there's more, rather
+  than inferring from `len(items)` vs. `limit`.
+- **`providers.list()` is the one exception**: a plain bare list, no params at all — Providers have
+  no discovery concept, so there's nothing to page or filter by.
+- `search` (where offered) is free-text against name/description (plus `tagline` on Agents), and
+  `scope: "mine"` restricts to the asserted external user's own items (runtime context only —
+  ignored or empty on a control-plane client).
+
+## Idempotency keys
+
+Every resource's `create()` (and `files.upload()`) accepts an optional `idempotency_key` keyword
+argument, sent as the `Idempotency-Key` request header:
+
+```python
+skill = persona.skills.create(
+    {"name": "Resume Reviewer", "description": "...", "instructions": "..."},
+    idempotency_key=str(uuid.uuid4()),  # generate once per logical create
+)
+```
+
+Use it when a `create()` call might get retried after an ambiguous failure — a network timeout, a
+dropped connection — where you can't tell whether the original request actually reached the server.
+Retrying with the **same** key returns the exact original response instead of creating a second
+resource; retrying with a **different** (or omitted) key creates a new one as normal. Keys are
+scoped per `(domain, credential, external user if asserted)` and expire after **24 hours**. This is
+fully opt-in — omitting the argument is identical to every version before this feature, no behavior
+change.
+
+## `_id` vs `id`
+
+The backend has a real, documented inconsistency the SDK reflects rather than papers over:
+
+| Resources                                   | Shape      | Notes                                                     |
+| ------------------------------------------- | ---------- | --------------------------------------------------------- |
+| Skill, Agent, Knowledge, Thread, Mcp        | `_id`      | Raw MongoDB document shape.                               |
+| Provider, File                              | `id`       | Clean formatted DTO shape.                                |
+
+Use the right key per resource: `provider["id"]`/`file["id"]` but `agent["_id"]`/`skill["_id"]`/
+`thread["_id"]`/`kb["_id"]`/`mcp["_id"]`. Passing a wrong-shape id to a method simply 404s.
+
+## Populated vs. bare fields
+
+Several resources return different field shapes depending on which method produced the value:
+
+| Field                                        | On `get()`                     | On `create()`/`update()`/`list()`     |
+| -------------------------------------------- | ------------------------------ | ------------------------------------- |
+| `Agent["skills"]`/`["mcps"]`/`["knowledgeBases"]` | populated objects             | bare id strings (or omitted)          |
+| `Thread["agentId"]`                          | bare id string                 | bare id on create/update; **populated `{_id, name, avatar, slug}` on `list()`** |
+| `Skill["isOwner"]`                           | present                        | absent                                |
+
+These are typed loosely (`list[object]` / `str | ThreadAgentRef`) to reflect the real difference
+rather than picking one shape and being wrong for the other calls.
+
+## Empty results and existence-hiding
+
+- **`providers.list()` on a runtime-plane client returns `[]`** — a Provider's ownership can only
+  ever be `"PersonaUser"` or `"Project"`, never `"ExternalUser"`, so a client with `external_user_id`
+  set can never own any. Same for `audit_logs.list()`. Silent empty result, not an error.
+- **`get()`/`update()`/`delete()` never distinguish "not found" from "not authorized"** — a caller
+  that can't own a resource gets the same `404 NOT_FOUND` as a caller asking for a nonexistent id.
+  Don't build error-driven existence probes.
+- `ProviderTestConnectionResult["success"] == False` is a **result**, not a thrown error — the
+  call reached the endpoint but the credentials/URL were rejected.
+- `KnowledgeSearchResult["score"]` can be `None` if the vector store didn't return a similarity
+  score.
+- `ResourceUsage["agents"]` is a preview **capped at 20** — `agentCount` is the real total.
+- `AuditLogEntry["actorIdentity"]`/`["targetResourceId"]` are `None` when not applicable.
+
+## Bulk delete
+
+`bulk_delete(ids)` is **best-effort**: it never raises on per-id failures, and one blocked/not-found
+id doesn't abort the rest of the batch. Check the returned `BulkDeleteResult`:
+
+```python
+result = persona.skills.bulk_delete(["id1", "id2"])
+print(result["deleted"])  # ids that succeeded
+print(result["failed"])   # [{"id": ..., "reason": ...}] for anything that didn't
+```
+
+`reason` is generic (existence-hiding: never distinguishes "not found" from "not authorized" from
+"blocked by a dependency"). Up to **100 ids per call** — a request over that limit is rejected with
+a 400 before anything is deleted. Deletes that *can* be blocked by dependencies (Provider/Skill/MCP
+still referenced by an Agent) show up in `failed` rather than raising.
+
+## Ordering
+
+- `threads.list()` returns Threads **most recently active first** — the only ordering guarantee in
+  the SDK. Everything else has no documented ordering contract; don't rely on the order of `list()`
+  items beyond the search relevance of `search`.
+
+## Timeouts and cancellation
+
+There is no request-cancellation parameter (no `AbortSignal` equivalent) in v1. For the async
+client, wrap a call in `asyncio.wait_for(...)` or cancel the enclosing `asyncio.Task` yourself if
+you need a timeout/cancellation — this is a documented gap, not a hidden one. There is no default
+per-request timeout configured by the SDK beyond whatever the underlying `httpx` client defaults
+to; pass your own `http_client=` (with `timeout=...` set on it) to control timeouts globally.
+
+## HTTP client lifecycle
+
+- The SDK creates its own `httpx.Client`/`httpx.AsyncClient` if you don't pass `http_client=`, and
+  **closes it** when you `close()`/use the context manager.
+- If you pass `http_client=`, the SDK **never closes it** (not even via `close()`/context-manager
+  exit) — ownership stays with you. This makes sharing one `httpx` client across many per-request
+  `PersonaClient` instances safe.
+- Non-JSON success responses (file downloads) return the raw `httpx.Response` — read
+  `.content`/`.text`/`.iter_bytes()`/`.aiter_bytes()` yourself. Non-JSON *failure* responses raise
+  `PersonaApiError` with `code == "NON_JSON_ERROR_RESPONSE"`.
+
+## Validation and envelope behavior
+
+- Envelope decoding: a response body with `success: False` raises even on a 2xx status; a `data`
+  key is unwrapped (`json_body["data"]`) so methods return the payload directly, not the envelope.
+- `/whoami` and similar endpoints that omit the fuller envelope are returned as-is.
+- Request bodies are serialized as JSON with camelCase field names matching the API
+  (`providerId`, `systemPrompt`, ...) even though method parameters are snake_case.
+- Multipart uploads (`files.upload()`, `knowledge.upload_documents()`) set their own
+  `Content-Type` with a boundary — never force `application/json` on them.
+- Query params with `None` values are omitted (`build_url` filters them out).

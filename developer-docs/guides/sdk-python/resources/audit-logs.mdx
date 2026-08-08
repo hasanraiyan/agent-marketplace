@@ -1,0 +1,57 @@
+---
+title: Audit logs
+description: The audit_logs resource — read-only, control-plane-only access to Project-lifecycle audit events.
+---
+
+`persona.audit_logs` (sync) / `await persona.audit_logs` (async) wraps
+`/api/v1/developer/audit-logs`.
+
+Audit logs are **read-only, control-plane only** (mirrors Providers — no `ExternalUser` ownership
+concept). A client constructed with `external_user_id` gets an **empty `PaginatedResult` back, not
+an error** — the same existence-hiding-style precedent `providers.list()` established.
+
+## Methods
+
+| Method                            | Wraps             | Returns                          |
+| --------------------------------- | ----------------- | -------------------------------- |
+| `audit_logs.list(params=None)`    | `GET /audit-logs` | `PaginatedResult[AuditLogEntry]` |
+
+Async: `await persona.audit_logs.list(...)`.
+
+<Warning>
+  Today's audit log covers **Project-lifecycle events only** — credential
+  minted/revoked, membership added/removed, Project suspended/restored, deletion
+  requested/cancelled/completed. It does **not** cover resource CRUD — creating,
+  updating, or deleting an Agent/Skill/Knowledge Base/Provider/MCP leaves no
+  entry here yet. Don't expect to find a `"agent.deleted"` event; it doesn't
+  exist as of this release.
+</Warning>
+
+## `list(params=None)`
+
+Lists Project-lifecycle audit events for this credential's Domain.
+
+`ListAuditLogsParams` (all optional): `page` (default `1`), `limit` (default `20`),
+`eventType` (optional **exact-match** filter — e.g. `"credential.created"`).
+
+```python
+result = persona.audit_logs.list({"eventType": "credential.created", "page": 1, "limit": 20})
+events = result["items"]
+```
+
+Each `AuditLogEntry`:
+
+| Field               | Type                  | Description                                       |
+| ------------------- | --------------------- | ------------------------------------------------- |
+| `eventType`         | `str`                 | e.g. `'credential.created'`.                      |
+| `timestamp`         | `str`                 | ISO timestamp.                                    |
+| `actorContextType`  | `str`                 | Which auth context performed the action.          |
+| `actorIdentity`     | `str \| None`         | Who performed it (null if system/unknown).        |
+| `targetDomain`      | `str`                 | The Domain the event concerns.                    |
+| `targetResourceId`  | `str \| None`         | The resource the event concerns, if any.          |
+| `metadata`          | `dict[str, Any]`      | Event-specific detail.                            |
+
+## Types
+
+See [Types — Audit log types](/guides/sdk-python/types#audit-log-types) for the full field
+reference: `AuditLogEntry`, `ListAuditLogsParams`.

@@ -1,0 +1,104 @@
+---
+title: Agents
+description: The agents resource — create, list/discover, get, update, delete, and bulk-delete Agents, including ownership and populated-vs-bare field behavior.
+---
+
+`persona.agents` (sync) / `await persona.agents` (async) wraps `/api/v1/developer/agents`.
+
+Agents are **Project-owned, or — when this client asserts an external user — owned by that end
+user**. An Agent references a Provider (via `providerId`) and can attach Skills, MCPs, and
+Knowledge bases.
+
+## Methods
+
+| Method                                        | Wraps                      | Returns                  |
+| --------------------------------------------- | -------------------------- | ------------------------ |
+| `agents.create(input, idempotency_key=None)`  | `POST /agents`             | `Agent`                  |
+| `agents.list(params=None)`                    | `GET /agents`              | `PaginatedResult[Agent]` |
+| `agents.get(agent_id)`                        | `GET /agents/{id}`         | `Agent`                  |
+| `agents.update(agent_id, input)`              | `PATCH /agents/{id}`       | `Agent`                  |
+| `agents.delete(agent_id)`                     | `DELETE /agents/{id}`      | `None`                   |
+| `agents.bulk_delete(ids)`                     | `POST /agents/bulk-delete` | `BulkDeleteResult`       |
+
+Async: identical methods with `await`.
+
+## `create(input)`
+
+Required: `name`, `systemPrompt`, `providerId` (must reference a Provider already created via
+`providers.create()`). Optional (with defaults where noted): `description`, `avatar`, `tags`,
+`tagline`, `bio`, `personalityTraits`, `socialLinks`, `modelName` (overrides the Provider's
+`defaultModel`), `webSearchEnabled` (default `False`), `visibility` (default `'private'`),
+`category` (default `'other'`), `skills: list[str]`, `mcps: list[str]`, `knowledgeBases: list[str]`
+(Skill/MCP/Knowledge ids to attach at creation), `isActive` (default `True`).
+
+```python
+agent = persona.agents.create(
+    {
+        "name": "Career Launchpad",
+        "systemPrompt": "You help students find internships.",
+        "providerId": provider["id"],
+        "description": "Your internship search co-pilot.",
+        "category": "productivity",
+        "visibility": "unlisted",
+        "webSearchEnabled": True,
+        "skills": [skill["_id"]],
+    },
+    idempotency_key="optional-idempotency-key",  # safe retry after a timeout replays this result
+)
+```
+
+Returns the created `Agent` in **raw Mongo shape — `_id`, not `id`**.
+
+## `list(params=None)`
+
+Lists/searches Agents visible to this credential — this Project's own, plus any **public** Agents.
+
+`DiscoverAgentsParams` (all optional):
+
+| Field      | Type                 | Description                                                              |
+| ---------- | -------------------- | ------------------------------------------------------------------------ |
+| `page`     | `int`                | Default `1`.                                                             |
+| `limit`    | `int`                | Default `20`.                                                            |
+| `search`   | `str`                | Free-text match against `name`/`description`/`tagline`.                  |
+| `category` | `AgentCategory`      | Filter by category.                                                      |
+| `scope`    | `Literal["mine"]`    | Restricts to the asserted external user's own Agents (runtime-only).     |
+
+Returns `{"items": list[Agent], "pagination": {"total", "page", "limit", "pages"}}`. On each item,
+`skills`/`mcps`/`knowledgeBases` are **bare id strings** here (unlike `get()`, which populates
+them as objects).
+
+## `get(agent_id)`
+
+Fetches a single Agent by id. Unlike `create()`/`update()`/`list()`, this returns
+`skills`/`mcps`/`knowledgeBases` **populated as objects**. Returns the full `Agent` (raw `_id`
+shape).
+
+## `update(agent_id, input)`
+
+Partially updates an Agent — only the fields you pass are changed. `UpdateAgentInput` is any subset
+of the `Agent` fields, with one important rule: `skills`/`mcps`/`knowledgeBases` **replace the
+entire list** — passing `{"skills": [...]}` is not a merge/append.
+
+## `delete(agent_id)` and `bulk_delete(ids)`
+
+`delete()` removes the Agent. `bulk_delete(ids)` is best-effort — partial failures don't raise or
+abort the rest of the batch; check `failed` in the `BulkDeleteResult` for per-id reasons. Up to 100
+ids per call.
+
+## Ownership, privacy, and the dual field shapes
+
+- **`systemPrompt` and `providerId` are stripped from the response entirely when the calling
+  identity doesn't own the Agent** — e.g. browsing a `public` Agent that belongs to someone else.
+  Both keys are optional in the `Agent` TypedDict for exactly this reason. The Agent still runs —
+  you just can't read its prompt or provider wiring.
+- `Agent` uses the raw `_id` shape.
+- `Agent["isMainAgent"]` indicates the Project's designated default/primary Agent.
+- `visibility`: `"private" | "unlisted" | "public"` — `unlisted` is reachable by direct link/id but
+  excluded from public discovery listings. `category`: `"productivity" | "coding" | "creative" |
+  "research" | "roleplay" | "other"`.
+
+## Types
+
+See [Types — Agent types](/guides/sdk-python/types#agent-types) for the full field reference:
+`Agent`, `AgentSocialLinks`, `AgentVisibility`, `AgentCategory`, `CreateAgentInput`,
+`UpdateAgentInput`, `DiscoverAgentsParams`.

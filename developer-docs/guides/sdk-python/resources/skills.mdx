@@ -1,0 +1,84 @@
+---
+title: Skills
+description: The skills resource — reusable instructions plus optional file bundles an Agent can be given, with full CRUD, usage checks, and bulk-delete.
+---
+
+`persona.skills` (sync) / `await persona.skills` (async) wraps `/api/v1/developer/skills`.
+
+Skills are **Project-owned, or — when this client asserts an external user — owned by that end
+user**. A Skill is a reusable instruction (plus optional bundled files) an Agent can be given.
+
+## Methods
+
+| Method                                      | Wraps                      | Returns                  |
+| ------------------------------------------- | -------------------------- | ------------------------ |
+| `skills.create(input, idempotency_key=None)`| `POST /skills`             | `Skill`                  |
+| `skills.list(params=None)`                  | `GET /skills`              | `PaginatedResult[Skill]` |
+| `skills.get(skill_id)`                      | `GET /skills/{id}`         | `Skill`                  |
+| `skills.update(skill_id, input)`            | `PATCH /skills/{id}`       | `Skill`                  |
+| `skills.delete(skill_id)`                   | `DELETE /skills/{id}`      | `None`                   |
+| `skills.get_usage(skill_id)`                | `GET /skills/{id}/usage`   | `ResourceUsage`          |
+| `skills.bulk_delete(ids)`                   | `POST /skills/bulk-delete` | `BulkDeleteResult`       |
+
+Async: identical methods with `await`.
+
+## `create(input)`
+
+Required: `name`, `description`, `instructions` (the actual prompt text given to an Agent that has
+this Skill attached). Optional: `isPublic` (default `False`), `files: list[SkillFileInput]`.
+
+```python
+skill = persona.skills.create(
+    {
+        "name": "Resume Reviewer",
+        "description": "Reviews a resume and suggests concrete edits.",
+        "instructions": "You are an expert resume reviewer. For each resume you see...",
+        "isPublic": False,
+        "files": [{"path": "rubric.md", "content": "# Scoring rubric\n...", "mimeType": "text/markdown"}],
+    },
+    idempotency_key="optional-idempotency-key",  # safe retry after a timeout replays this result
+)
+```
+
+Each file entry is `{"path": str, "content": str, "mimeType"?: str}`. Returns the created `Skill`
+in **raw Mongo shape — `_id`, not `id`**.
+
+## `list(params=None)`
+
+Lists/searches Skills visible to this credential — this Project's own, plus any **public** Skills.
+
+`DiscoverSkillsParams` (all optional): `page` (default `1`), `limit` (default `20`), `search`
+(free-text vs `name`/`description`), `scope: Literal["mine"]` (restricts to the asserted external
+user's own Skills — runtime context only).
+
+```python
+result = user_persona.skills.list({"scope": "mine", "search": "resume"})
+mine = result["items"]          # each item has bare fields (no isOwner)
+pages = result["pagination"]["pages"]
+```
+
+Returns `{"items": list[Skill], "pagination": {"total", "page", "limit", "pages"}}`.
+
+## `get(skill_id)`
+
+Fetches a single Skill by id. `Skill["isOwner"]` is present **only** on the result of `get()`, not
+`list()`/`create()`/`update()` — it tells you whether the calling identity owns this Skill.
+
+## `update(skill_id, input)`
+
+Partially updates a Skill — only the fields you pass are changed. Any subset of
+`name`/`description`/`instructions`/`isPublic`/`files`. Note: `files` **replaces the entire files
+array** — this is not a merge/append.
+
+## `delete(skill_id)` and `bulk_delete(ids)`
+
+`delete()` raises `PersonaApiError` if any Agent still references the Skill — call `get_usage()`
+first to check. `bulk_delete(ids)` is best-effort — partial failures (e.g. a Skill still referenced
+by an Agent) don't raise or abort the rest of the batch; check `failed` for per-id reasons. Up to
+100 ids per call.
+
+## Types
+
+See [Types — Skill types](/guides/sdk-python/types#skill-types) for the full field reference:
+`Skill`, `SkillFile`, `SkillFileInput`, `CreateSkillInput`, `UpdateSkillInput`,
+`DiscoverSkillsParams`.

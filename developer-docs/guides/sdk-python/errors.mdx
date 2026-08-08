@@ -1,0 +1,105 @@
+---
+title: Errors
+description: The three typed exception classes, what causes each one, how to handle them, and common failure scenarios.
+---
+
+Every non-2xx response, or a `{success: false}` JSON envelope on a 2xx, raises a typed exception
+instead of returning normally. All error classes are exported from the package root:
+
+```python
+from personaai import PersonaApiError, PersonaAuthError, PersonaValidationError
+```
+
+## The error classes
+
+| Class                    | When it's raised                                                                      | Extra attributes                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `PersonaApiError`        | Base class — any other non-2xx / `{success: false}` response.                         | `message: str`, `status_code: int`, `code: str`, `response: Any` (parsed error body or `None`) |
+| `PersonaAuthError`       | `401` or `403` — invalid/missing credential, or the Project isn't `ACTIVE`.           | Same attributes (subclass — `isinstance(err, PersonaApiError)` also matches).             |
+| `PersonaValidationError` | `400` — request validation failed (bad/missing fields).                               | Same attributes.                                                                           |
+
+Every exception is a normal Python exception: `str(err)` (or `err.args[0]`) is the human-readable
+message from the envelope, safe to log or (after your own review) surface to a user. There's also a
+`__repr__` that includes `message`, `status_code`, and `code`.
+
+`code` mirrors the backend's own machine-readable error code (e.g. `VALIDATION_ERROR`,
+`UNAUTHORIZED`, `PROJECT_NOT_ACTIVE`, `NOT_FOUND`, `EXTERNAL_USER_REQUIRED`) — check the
+[API Reference](/api-reference) for each endpoint's documented error responses.
+
+## What causes each error
+
+| Scenario                                                                                             | Raised                  |
+| ---------------------------------------------------------------------------------------------------- | ----------------------- |
+| Request body fails server-side validation (missing field, bad enum, over-limit batch…)               | `PersonaValidationError` |
+| Credential is invalid, missing, or expired (`401`); or the Project isn't active / identity can't act (`403`) | `PersonaAuthError`      |
+| Resource doesn't exist / caller isn't its owner — existence-hiding returns the same `404`             | `PersonaApiError`       |
+| Rate limited past `max_retries` (`429`)                                                              | `PersonaApiError`       |
+| Server error (`500`/`502`/`503`)                                                                     | `PersonaApiError`       |
+| Non-JSON error body (a proxy error page, etc.)                                                       | `PersonaApiError` with `code == "NON_JSON_ERROR_RESPONSE"` |
+
+## Handling errors
+
+```python
+from personaai import PersonaApiError, PersonaAuthError, PersonaValidationError
+
+try:
+    agent = persona.agents.create({...})
+except PersonaValidationError as err:
+    print(f"Bad request ({err.code}): {err}")          # fix the input and retry
+except PersonaAuthError as err:
+    print(f"Auth problem ({err.status_code}): {err}")  # check the credential / Project status
+except PersonaApiError as err:
+    print(f"API error ({err.status_code}/{err.code}): {err}")
+```
+
+Because the classes form a hierarchy, `except PersonaApiError` alone catches all three — order
+matters if you also list the subclasses first.
+
+## Common failure scenarios
+
+### Validation failure
+
+```python
+try:
+    persona.agents.create({"name": "", "systemPrompt": "", "providerId": ""})
+except PersonaValidationError as err:
+    # err.code == "VALIDATION_ERROR"; err.response holds the parsed error body
+    print(err)
+```
+
+### Authentication / authorization failure
+
+```python
+try:
+    persona.whoami()
+except PersonaAuthError as err:
+    # 401: bad/revoked credential; 403: Project suspended, or identity can't act
+    print(err.status_code, err.code)
+```
+
+### Existence-hiding 404s
+
+`get()`/`update()`/`delete()` never distinguish "not found" from "not authorized" — a caller that
+can't own a resource gets the same `404 NOT_FOUND` as a caller asking for a nonexistent id. This is
+intentional (don't build error-driven existence probes). Note that `bulk_delete()` is the exception:
+it doesn't raise on per-id failures — see [Behavior & edge cases](/guides/sdk-python/behavior#bulk-delete).
+
+### Rate limiting
+
+Only `429` is retried automatically (up to `max_retries`, honoring `Retry-After`). If all retries
+are exhausted, the final `429` response raises `PersonaApiError` with `status_code == 429`. See
+[Retries and rate limits](/guides/sdk-python/behavior#retries-and-rate-limits).
+
+### Non-JSON error bodies
+
+If a failure response has no JSON body, the SDK can't decode an envelope and raises a generic
+`PersonaApiError` with `code == "NON_JSON_ERROR_RESPONSE"` and the raw status code. This usually
+indicates a proxy/load-balancer error page rather than an API error — check your network path.
+
+## Errors on streaming calls
+
+`chat.stream()` and `chat.send_message()` raise the same typed errors if the server responds with a
+normal JSON error envelope instead of starting the event stream (e.g. a `400 EXTERNAL_USER_REQUIRED`
+when no `external_user_id` was set, or a `404` for a mismatched `thread_id`). They surface as
+exceptions on the generator/`send_message()` call — not as events inside the stream. Malformed or
+partial SSE frames are skipped silently (tolerant parsing), never raised.

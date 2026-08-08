@@ -1,0 +1,132 @@
+---
+title: Configuration
+description: Every PersonaClient/AsyncPersonaClient option, its type, default, and the environment variables you'll typically set — plus the different configuration scenarios.
+---
+
+All configuration happens at construction time through the client constructor. There is no runtime
+reconfiguration: once a client is built, its base URL, credential, and asserted identity are fixed
+for its lifetime. The sync `PersonaClient` and async `AsyncPersonaClient` take **identical**
+arguments.
+
+## Constructor reference
+
+```python
+PersonaClient(base_url, credential, *, external_user_id=None, max_retries=2, http_client=None)
+AsyncPersonaClient(base_url, credential, *, external_user_id=None, max_retries=2, http_client=None)
+```
+
+| Parameter          | Type                                         | Required | Default              | Description                                                                                                                                            |
+| ------------------ | -------------------------------------------- | -------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `base_url`         | `str` (positional)                           | Yes      | —                    | Base URL of the Developer Platform API, e.g. `https://api.persona.hasanraiyan.me`. Trailing slashes are stripped automatically.                        |
+| `credential`       | `str` (positional)                           | Yes      | —                    | Your Project credential, shaped `"<keyId>.<secret>"`. Sent as `Authorization: Bearer <credential>` on every call. Read it from an env var — never hardcode it. |
+| `external_user_id` | `str \| None` (keyword)                      | No       | `None`               | Asserts this client acts on behalf of one of your own end users (sent as `x-persona-external-user-id`). Omit for Project-level (control-plane) calls.  |
+| `max_retries`      | `int` (keyword)                              | No       | `2`                  | Maximum automatic retries on `429 Too Many Requests` responses. See [Retries and rate limits](/guides/sdk-python/behavior#retries-and-rate-limits).     |
+| `http_client`      | `httpx.Client \| httpx.AsyncClient \| None`  | No       | new client           | Reuse an existing `httpx` client (mainly for connection pooling; see [Connection pooling](/guides/sdk-python/workflows#7-connection-pooling-at-high-request-volume)). The SDK **never closes** a caller-supplied client. |
+
+### Validation at construction
+
+Both `base_url` and `credential` are validated **synchronously at construction**: passing an empty
+or missing value raises a plain `ValueError` (`TransportConfig: "base_url" is required` /
+`TransportConfig: "credential" is required`) before any network call is made. No connection is
+established at construction time — building a client is cheap and stateless beyond these options.
+
+## Environment variables
+
+The SDK does not read environment variables itself — configuration is explicit. The convention
+(used throughout the docs, the [Integration Guide](/guides/integration-guide), and the SDK's own
+tests) is:
+
+| Variable             | Maps to        | Notes                                                               |
+| -------------------- | -------------- | ------------------------------------------------------------------- |
+| `PERSONA_BASE_URL`   | `base_url`     | e.g. `https://api.persona.hasanraiyan.me`                            |
+| `PERSONA_CREDENTIAL` | `credential`   | The `"<keyId>.<secret>"` string minted via Studio — treat as a secret |
+
+You are free to use any names you like; the point is that the credential must come from an
+environment variable or secret manager, never from source code or a client bundle.
+
+```python
+import os
+from personaai import PersonaClient
+
+persona = PersonaClient(os.environ["PERSONA_BASE_URL"], credential=os.environ["PERSONA_CREDENTIAL"])
+```
+
+## Configuration scenarios
+
+### 1. Control-plane client (Project-level)
+
+Acts as the Project itself. Use for provisioning and administration: Providers, Agent/Skill/
+Knowledge/MCP configuration CRUD, audit logs, `whoami()`.
+
+```python
+persona = PersonaClient("https://api.persona.hasanraiyan.me", credential=os.environ["PERSONA_CREDENTIAL"])
+```
+
+### 2. Runtime-plane client (per end user)
+
+Constructed **per request**, scoped to whoever is actually using your product right now — after
+*your own* auth has confirmed who that is. Required for Threads, Files, and Chat; makes
+Agent/Skill/Knowledge/MCP create/list calls act on that user's behalf (`scope: 'mine'`).
+
+```python
+user_persona = PersonaClient(
+    "https://api.persona.hasanraiyan.me",
+    credential=os.environ["PERSONA_CREDENTIAL"],
+    external_user_id=current_user.id,  # your own user id for this person
+)
+```
+
+### 3. Bumping 429 retries
+
+```python
+patient_client = PersonaClient(
+    "https://api.persona.hasanraiyan.me",
+    credential=os.environ["PERSONA_CREDENTIAL"],
+    max_retries=5,  # retry up to 5 times on 429 before raising
+)
+```
+
+### 4. Sharing an `httpx` connection pool
+
+```python
+import httpx
+from personaai import AsyncPersonaClient
+
+shared_http_client = httpx.AsyncClient()  # build once, at app startup
+
+def get_persona(external_user_id: str | None = None) -> AsyncPersonaClient:
+    return AsyncPersonaClient(
+        "https://api.persona.hasanraiyan.me",
+        credential=os.environ["PERSONA_CREDENTIAL"],
+        external_user_id=external_user_id,
+        http_client=shared_http_client,
+    )
+```
+
+Safe even when individual requests use `async with` — closing a `PersonaClient` never closes a
+client you passed in via `http_client=`; only a client the SDK created for you gets closed. Close
+`shared_http_client` yourself, once, at app shutdown.
+
+## Cost of construction
+
+Constructing a client is cheap and stateless beyond these options — there's no connection pool or
+warm-up step (one is only created lazily on the first request). It's fine (and recommended) to
+construct a fresh, per-request runtime-plane client rather than trying to share one instance across
+users, which would mix identities. A single control-plane client per process is fine to share.
+
+## How each option flows into a request
+
+Every request the SDK makes is assembled from these options:
+
+```
+Authorization: Bearer <credential>
+x-persona-external-user-id: <external_user_id>        (only when set)
+Accept: application/json
+Content-Type: application/json                         (only when a JSON body is sent)
+```
+
+429 responses are retried up to `max_retries` times (see
+[Behavior & edge cases](/guides/sdk-python/behavior#retries-and-rate-limits)); everything else
+raises immediately. There is no other header customization surface on the public client — the
+transport is internal. If you need to send custom headers for an endpoint the SDK doesn't wrap yet,
+use `httpx` directly against the [API Reference](/api-reference) endpoints.

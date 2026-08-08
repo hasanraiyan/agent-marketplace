@@ -1,0 +1,103 @@
+---
+title: Threads
+description: The threads resource — conversation threads for the asserted external user, with create/list/get/update/delete, message history, and bulk-delete.
+---
+
+`persona.threads` (sync) / `await persona.threads` (async) wraps `/api/v1/developer/threads`.
+
+<Warning>
+  **Every method here requires the client to have been constructed with
+  `external_user_id`.** A Thread's Subject is a person chatting — a bare Project
+  credential has no Subject to scope a conversation to, and the server rejects
+  it with `400 EXTERNAL_USER_REQUIRED` (a `PersonaValidationError`).
+</Warning>
+
+## Methods
+
+| Method                                        | Wraps                        | Returns                   |
+| --------------------------------------------- | ---------------------------- | ------------------------- |
+| `threads.create(input, idempotency_key=None)` | `POST /threads`              | `Thread`                  |
+| `threads.list(params=None)`                   | `GET /threads`               | `PaginatedResult[Thread]` |
+| `threads.get(thread_id)`                      | `GET /threads/{id}`          | `Thread`                  |
+| `threads.update(thread_id, input)`            | `PATCH /threads/{id}`        | `Thread`                  |
+| `threads.update_title(thread_id, title)`      | `PATCH /threads/{id}`        | `Thread`                  |
+| `threads.delete(thread_id)`                   | `DELETE /threads/{id}`       | `None`                    |
+| `threads.bulk_delete(ids)`                    | `POST /threads/bulk-delete`  | `BulkDeleteResult`        |
+| `threads.get_messages(thread_id)`             | `GET /threads/{id}/messages` | `ThreadMessages`          |
+
+Async: identical methods with `await`.
+
+## `create(input)`
+
+```python
+thread = user_persona.threads.create(
+    {"agentId": agent["_id"]},
+    idempotency_key="optional-idempotency-key",  # safe retry after a timeout replays this result
+)
+```
+
+`CreateThreadInput` is just `{"agentId": str}` — the Agent this Thread's conversation is with.
+
+**You don't need to call this before chatting.** `chat.send_message()`/`chat.stream()` create an
+implicit deterministic Thread automatically (one conversation per Agent per user). Call
+`threads.create()` only when you want an **explicit, listable Thread up front** — for example, to
+give it a title or to persist it before the first message.
+
+## `list(params=None)`
+
+Lists the asserted external user's own Threads, **most recently active first**. `ListThreadsParams`
+(all optional): `page` (default `1`), `limit` (default `20`).
+
+```python
+result = user_persona.threads.list({"page": 1, "limit": 20})
+mine = result["items"]
+```
+
+Each item's `agentId` is **populated as `{"_id", "name", "avatar", "slug"}`** here — unlike
+`create()`/`get()`, which return a bare id string. (Check which call produced the value before
+assuming a shape.)
+
+## `get(thread_id)` and `update(thread_id, input)`
+
+`get()` fetches a single Thread (bare `agentId`). `update()` is the general form —
+`UpdateThreadInput` = `{"title"?: str, "isArchived"?: bool}`, both optional — send just the one you
+want to change:
+
+```python
+user_persona.threads.update(thread["_id"], {"isArchived": True})  # archive without touching title
+```
+
+`update_title(thread_id, title)` is a convenience wrapper over `update()` for the common
+title-only case.
+
+## `get_messages(thread_id)`
+
+Fetches the full message history + graph state for a Thread — the same data `chat.stream()` would
+resume from.
+
+```python
+messages = user_persona.threads.get_messages(thread["_id"])
+```
+
+Returns `ThreadMessages`: `{"messages": list[Any], "state": dict[str, Any], "subagentTraces":
+dict[str, Any]}`. `messages` holds **raw LangChain-style message objects** (role/content/tool_calls
+vary by message type) and is intentionally typed as `list[Any]` rather than guessing at a shape
+the SDK doesn't own — inspect it at runtime if you need to render history yourself, or prefer
+`chat.stream()`'s events for anything you're building a live UI around.
+
+## `delete(thread_id)` and `bulk_delete(ids)`
+
+`delete()` removes the Thread and its message history. `bulk_delete(ids)` is best-effort — partial
+failures don't raise or abort the rest of the batch; check `failed` for per-id reasons. Up to 100
+ids per call.
+
+## Types
+
+See [Types — Thread types](/guides/sdk-python/types#thread-types) for the full field reference:
+`Thread`, `ThreadAgentRef`, `CreateThreadInput`, `UpdateThreadInput`, `ListThreadsParams`,
+`ThreadMessages`.
+
+- `Thread` uses the raw `_id` shape.
+- `Thread["threadId"]` is the **deterministic AG-UI thread id** used for streaming
+  (`x-thread-id`) — distinct from `_id`.
+- `Thread["agentId"]`: populated object on `list()`, bare id on `create()`/`get()` (see above).

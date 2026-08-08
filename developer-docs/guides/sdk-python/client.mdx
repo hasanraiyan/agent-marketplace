@@ -1,0 +1,87 @@
+---
+title: Client
+description: The PersonaClient and AsyncPersonaClient surface — resource accessors, whoami(), principal contexts, lifecycle, and context-manager usage.
+---
+
+`personaai` ships two top-level client classes, one for each world:
+
+| Class                | Sync / async | Transport                 | Use when…                                     |
+| -------------------- | ------------ | ------------------------- | --------------------------------------------- |
+| `PersonaClient`      | Sync         | `httpx.Client`            | Flask/Django/sync scripts, most backends.     |
+| `AsyncPersonaClient` | Async        | `httpx.AsyncClient`       | FastAPI/`asyncio`/starlette handlers.         |
+
+Both expose **exactly the same resource surface** — the two are mirrors, and every method on the
+async client is the `await`-ed equivalent of the sync one (resource methods differ by prefix: sync
+`client.agents.create(...)`, async `await client.agents.create(...)`).
+
+## Resource accessors
+
+| Property        | Sync class            | Async class             | Wraps                                                                 |
+| --------------- | --------------------- | ----------------------- | --------------------------------------------------------------------- |
+| `.providers`    | `Providers`           | `AsyncProviders`        | `/api/v1/developer/providers`                                         |
+| `.skills`       | `Skills`              | `AsyncSkills`           | `/api/v1/developer/skills`                                            |
+| `.agents`       | `Agents`              | `AsyncAgents`           | `/api/v1/developer/agents`                                            |
+| `.knowledge`    | `Knowledge`           | `AsyncKnowledge`        | `/api/v1/developer/knowledge` (incl. document upload/search)          |
+| `.mcps`         | `Mcps`                | `AsyncMcps`             | `/api/v1/developer/mcps` (incl. OAuth owner/user connection flows)    |
+| `.mcps.oauth`   | `McpOAuth`            | `AsyncMcpOAuth`         | `/api/v1/developer/mcps/{id}/oauth/*`                                 |
+| `.threads`      | `Threads`             | `AsyncThreads`          | `/api/v1/developer/threads`                                           |
+| `.files`        | `Files`               | `AsyncFiles`            | `/api/v1/developer/files`                                             |
+| `.audit_logs`   | `AuditLogs`           | `AsyncAuditLogs`        | `/api/v1/developer/audit-logs`                                        |
+| `.chat`         | `ChatClient`          | `AsyncChatClient`       | `/api/v1/developer/agui` (streaming)                                  |
+
+Every method on every resource client is a thin, typed 1:1 wrapper over a real endpoint — there's
+no hidden behavior. See [Resources](/guides/sdk-python/resources/agents) for the per-resource
+reference.
+
+## `whoami()`
+
+Resolves the principal context the credential (and optional `external_user_id`) maps to — a
+side-effect-free way to sanity-check auth wiring before making real calls.
+
+```python
+who = persona.whoami()
+print(who["principalType"], who["domain"])
+```
+
+```python
+who = await user_persona.whoami()   # async
+```
+
+The returned dict's shape depends on whether the client was constructed with `external_user_id`:
+
+| `principalType`  | Shape                                                   | When you get it                                             |
+| ---------------- | ------------------------------------------------------- | ----------------------------------------------------------- |
+| `ProjectMachine` | `{domain, principalType, credentialId}`                 | `external_user_id` omitted — acting as the Project itself.  |
+| `ProjectRuntime` | `{domain, principalType, credentialId, externalUserId}` | `external_user_id` set — acting on behalf of that end user. |
+
+These are the two members of the exported `PrincipalContext` union (see
+[Types](/guides/sdk-python/types#principal-context)). There is no third `ProjectAdmin` variant
+reachable from the SDK — that context only comes from a Clerk-authenticated human admin session
+(Developer Studio), a completely different auth model the SDK deliberately doesn't implement.
+
+## Lifecycle and context managers
+
+A client owns its underlying `httpx` client **only if it created it**. Pass your own `http_client=`
+and the SDK will never close it (not even via `close()`/context-manager exit) — ownership stays
+with you.
+
+```python
+# Explicit close
+persona.close()
+
+# Or context manager — closes automatically on exit
+with PersonaClient(...) as persona:
+    ...
+
+async with AsyncPersonaClient(...) as persona:
+    ...  # async version calls aclose() on exit
+```
+
+## A note on the sync/async pairs
+
+The resource classes are separate sync/async pairs (`Providers`/`AsyncProviders`, etc.) rather than
+one class with dual-mode methods — Python needs a regular generator for sync streaming and an async
+generator for async streaming, and `await`-ing can't be abstracted over. The chat client is the
+clearest case: `ChatClient.stream()` is a regular generator, `AsyncChatClient.stream()` is an async
+generator. All resource classes, both chat clients, and every type are exported from the package
+root (`from personaai import Providers, AsyncProviders, ChatClient, ...`).

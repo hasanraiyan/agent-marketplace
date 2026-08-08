@@ -1,0 +1,161 @@
+---
+title: Chat, streamed
+description: Streaming AG-UI chat — the event model, stream() vs send_message(), human-in-the-loop interrupts, and resuming.
+---
+
+`persona.chat` (sync: `ChatClient`, async: `AsyncChatClient`) wraps
+`/api/v1/developer/agui` — it runs an Agent as the asserted external user, streaming the response
+over SSE.
+
+<Warning>
+  **Chat requires the client to have been constructed with `external_user_id`.**
+  A chat run always executes as a specific end user — a bare Project credential
+  has no Subject to run as, and the server rejects it with `400
+  EXTERNAL_USER_REQUIRED`.
+</Warning>
+
+`ChatClient.stream()` (sync) is a regular generator; `AsyncChatClient.stream()` (async) is an async
+generator — the natural per-language idiom for the same AG-UI event stream. `send_message()` and
+`stream()` take `messages`/`thread_id`/`resume` as direct keyword parameters rather than one
+options object.
+
+## Methods
+
+| Method                                                                   | Returns                                            | Description                                                                  |
+| ------------------------------------------------------------------------ | -------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `chat.stream(agent_id, messages, *, thread_id=None, resume=None)`        | `Iterator[AguiEvent]` / `AsyncIterator[AguiEvent]` | The raw event sequence, as it arrives — full control for a custom UI.        |
+| `chat.send_message(agent_id, messages, *, thread_id=None, resume=None)`  | `ChatResult`                                       | Drains `stream()` for you; returns assembled text plus interrupt/events detail. |
+
+`messages`: `list[{"role": "user" | "assistant", "content": str}]` — plain text only (this SDK
+doesn't yet support multi-part/multimodal content on the way in). `thread_id` resumes a named
+Thread from `threads.create()` instead of the implicit deterministic one-conversation-per-Agent-
+per-user thread. `resume` — see [Human-in-the-loop](#human-in-the-loop-interrupts-and-resuming).
+
+<Warning>
+  `thread_id` must belong to the asserted external user **and** the `agent_id`
+  you're calling with — passing one that doesn't (someone else's Thread, a
+  different Agent's Thread, or a nonexistent id) raises `PersonaApiError` with
+  `status_code: 404`. It does **not** silently fall back to a different
+  conversation.
+</Warning>
+
+## Basic usage
+
+```python
+from personaai import EventType
+
+# Full event stream, for building your own UI.
+for event in user_persona.chat.stream(
+    agent["_id"], [{"role": "user", "content": "What internships are open right now?"}]
+):
+    if event["type"] == EventType.TEXT_MESSAGE_CHUNK and event.get("delta"):
+        print(event["delta"], end="")
+
+# Or the convenience wrapper — drains the stream, returns the final text.
+result = user_persona.chat.send_message(
+    agent["_id"], [{"role": "user", "content": "What internships are open right now?"}]
+)
+print(result["text"])
+```
+
+Async is the same shape:
+
+```python
+async for event in user_persona.chat.stream(agent["_id"], messages):
+    ...
+
+result = await user_persona.chat.send_message(agent["_id"], messages)
+```
+
+## AG-UI event types
+
+Events are typed as a loose `AguiEvent = dict[str, Any]` rather than pulling in an AG-UI protocol
+package — this SDK doesn't depend on one, mirroring the Node SDK's own call to reject
+`@ag-ui/client`'s heavier dependency chain in favor of a hand-rolled SSE parser. Every event has a
+`type` key (compare against `EventType` constants — note `EventType` is a plain class of string
+constants, not a real Python `enum`, so no `.value` unwrapping needed) plus type-specific fields
+(`delta`, `name`, `value`, etc.).
+
+| Event type                                      | Meaning                                                                                                                                                                               |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RUN_STARTED`                                   | Emitted once, at the start of the run.                                                                                                                                                |
+| `TEXT_MESSAGE_CHUNK`                            | A streamed assistant text delta (`event["delta"]`).                                                                                                                                   |
+| `REASONING_MESSAGE_START` / `_CONTENT` / `_END` | Streamed model reasoning, for models that expose it.                                                                                                                                  |
+| `TOOL_CALL_CHUNK`                               | A streamed tool-call invocation (arguments arrive incrementally).                                                                                                                     |
+| `TOOL_CALL_RESULT`                              | The result of a completed tool call.                                                                                                                                                  |
+| `STATE_SNAPSHOT`                                | A full-state update.                                                                                                                                                                  |
+| `CUSTOM`                                        | Persona-specific side-channel events — subagent traces, MCP structured content, and this SDK's own human-in-the-loop signaling (`hitl_request` / `clarification_request` — see below). |
+| `RUN_FINISHED`                                  | Emitted once, at the end of the run (omitted if the run paused on an interrupt instead).                                                                                              |
+
+```python
+for event in user_persona.chat.stream(agent["_id"], messages):
+    if event["type"] == EventType.TEXT_MESSAGE_CHUNK:
+        print(event.get("delta", ""), end="")
+    elif event["type"] == EventType.TOOL_CALL_RESULT:
+        print("tool result:", event)
+    elif event["type"] == EventType.RUN_FINISHED:
+        print("done")
+```
+
+## `send_message()` — `ChatResult`
+
+`send_message()` drains the full run and returns a `ChatResult`:
+
+| Field       | Type                            | Description                                                                           |
+| ----------- | ------------------------------- | ------------------------------------------------------------------------------------- |
+| `text`      | `str`                           | The final assembled assistant text (concatenated `TEXT_MESSAGE_CHUNK` deltas).         |
+| `interrupt` | `ChatInterrupt \| None`         | Set when the run paused on a human-in-the-loop interrupt instead of finishing normally.|
+| `events`    | `list[AguiEvent]`               | Every raw event received, in order — full detail beyond `text`.                       |
+
+## Human-in-the-loop: interrupts and resuming
+
+If an Agent's configuration requires confirming a sensitive tool call, or the run needs a
+clarifying answer from the user, the run **pauses instead of finishing normally** and emits a
+`CUSTOM` event instead of `RUN_FINISHED`. `send_message()` detects this for you and sets
+`result["interrupt"]`:
+
+```python
+result = user_persona.chat.send_message(agent["_id"], messages)
+
+if result["interrupt"]:
+    print(result["interrupt"]["kind"])   # "hitl" | "clarification"
+    print(result["interrupt"]["value"])  # whatever detail the interrupt carries
+```
+
+| `interrupt["kind"]` | Triggering `CUSTOM` event name | Resume with                                                              |
+| ------------------- | ------------------------------ | ------------------------------------------------------------------------ |
+| `"hitl"`            | `hitl_request`                 | `{"decisions": [{"action": ..., "decision": "approve" \| "reject"}]}`     |
+| `"clarification"`   | `clarification_request`        | `{"answers": [...], "text": ...}`                                         |
+
+Resume on the **next** `send_message()`/`stream()` call for the same Thread, with `messages=[]`
+(no new user message — you're answering the interrupt, not starting a new turn) and `resume` set:
+
+```python
+if result["interrupt"]:
+    user_persona.chat.send_message(
+        agent["_id"],
+        [],
+        thread_id=thread["_id"],
+        resume={"decisions": [{"action": "delete_agent", "decision": "approve"}]},
+    )
+```
+
+The `resume` shape you pass must match the pending interrupt's `kind`: `hitl` expects
+`{"decisions": [...]}`, `clarification` expects `{"answers": [...], "text": ...}`. The full
+approve/reject flow is in [Workflows](/guides/sdk-python/workflows#4-human-in-the-loop-tool-approval-flow).
+
+## Streaming behavior
+
+- The stream is delivered over SSE (`text/event-stream`) and framed by the SDK's own tolerant
+  parser — malformed or partial frames are skipped silently, never raised.
+- 429 retries apply to streaming requests exactly like regular JSON calls (honoring `Retry-After`
+  up to `max_retries`).
+- If the server responds with a normal JSON error envelope instead of starting the stream (e.g. the
+  `400 EXTERNAL_USER_REQUIRED` above), the error is raised as an exception — it does **not** appear
+  as an event.
+- There is **no `contextOverride` or cancellation parameter** in the Python SDK (unlike the Node
+  SDK). For a timeout/cancellation, wrap the call in `asyncio.wait_for(...)` or cancel the
+  enclosing `asyncio.Task` yourself — a documented gap, not a hidden one.
+- `run.error`-style structured failures: `ChatResult` has no `error` field in this SDK — a failed
+  run surfaces as a raised `PersonaApiError` rather than a returned event. See
+  [Errors](/guides/sdk-python/errors#errors-on-streaming-calls).
