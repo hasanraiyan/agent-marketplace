@@ -46,8 +46,16 @@ export class ProvidersResource {
   /**
    * Every Provider in this credential's Domain. No pagination envelope, no
    * `page`/`limit`/`search` params — Providers have no discovery concept
-   * (control-plane only), so this is a plain bare-array list, same result
-   * whether this client asserts an external user or not.
+   * (control-plane only), so this is a plain bare-array list.
+   *
+   * On a control-plane client (no `externalUserId`), this returns every
+   * Provider in the Domain. On a runtime-plane client (`externalUserId`
+   * set, a `ProjectRuntimeContext`), the server short-circuits the call and
+   * returns an **empty array** — a Provider's ownership can only ever be
+   * `'PersonaUser'` or `'Project'`, never `'ExternalUser'`, so this
+   * credential can never own any. Same existence-hiding precedent as
+   * `get()`/`update()`/`delete()`, which 404 for non-owners: silent empty
+   * result, not an error.
    *
    * @returns A plain `Provider[]` (not a `PaginatedResult`, unlike every
    *   other resource's `list()`).
