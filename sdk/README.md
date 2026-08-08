@@ -217,6 +217,7 @@ pnpm install
 pnpm test          # unit tests (mocked fetch) — this is what CI runs
 pnpm typecheck      # tsc --noEmit
 pnpm lint
+pnpm docs:check     # fails if src/index.ts exports something not in the docs' export index
 pnpm build          # tsup → dist/
 ```
 

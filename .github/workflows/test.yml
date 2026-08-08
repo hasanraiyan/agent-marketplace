@@ -48,3 +48,6 @@ jobs:
 
       - name: Check formatting (frontend)
         run: if [ -d "agent-frontend" ]; then cd agent-frontend && pnpm run format:check; fi
+
+      - name: Check SDK docs coverage (exports vs docs)
+        run: node sdk/scripts/check-docs-coverage.mjs
