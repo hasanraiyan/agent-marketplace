@@ -1,0 +1,242 @@
+---
+title: Chat
+description: Streaming AG-UI chat with an Agent — raw events, convenience wrapper, human-in-the-loop interrupts, and structured run errors.
+---
+
+`persona.chat` — `/api/v1/developer/agui`.
+
+Runs an Agent as the asserted external user, streaming the response as AG-UI events. **Requires**
+the client to have been constructed with `externalUserId` set — a bare Project credential has no
+Subject to chat as; the server rejects it with `400 EXTERNAL_USER_REQUIRED`.
+
+## Methods
+
+| Method                              | Returns                     | Description                                                                      |
+| ----------------------------------- | --------------------------- | -------------------------------------------------------------------------------- |
+| `chat.stream(agentId, options)`     | `AsyncGenerator<AguiEvent>` | The raw event sequence, as it arrives — full control for building your own UI.   |
+| `chat.sendMessage(agentId, options)`| `Promise<ChatResult>`       | Drains `stream()` for you; returns assembled text plus interrupt/events detail.  |
+
+## stream(agentId, options)
+
+Yields each raw AG-UI event as it arrives:
+
+```ts
+for await (const event of userClient.chat.stream(agent._id, {
+  messages: [{ role: 'user', content: 'What internships are open right now?' }],
+})) {
+  if (event.type === 'TEXT_MESSAGE_CHUNK' && event.delta) process.stdout.write(event.delta);
+}
+```
+
+- `agentId` — the Agent to run.
+- The underlying request is `POST /api/v1/developer/agui` with `x-agent-id: <agentId>` and
+  (when set) `x-thread-id: <threadId>` headers — routing is header-based, not body-based.
+- Malformed/partial SSE frames are skipped rather than thrown; the stream ends when the run
+  finishes.
+
+## sendMessage(agentId, options)
+
+Convenience wrapper over `stream()` — drains the full run and returns:
+
+```ts
+interface ChatResult {
+  text: string;                          // assembled assistant text (concatenated TEXT_MESSAGE_CHUNK deltas)
+  interrupt?: ChatInterrupt;             // set when the run paused on a human-in-the-loop decision
+  error?: PersonaRunErrorEvent;          // set when the run ended in a genuine failure
+  events: AguiEvent[];                   // every raw event received, in order
+}
+```
+
+```ts
+const result = await userClient.chat.sendMessage(agent._id, {
+  messages: [{ role: 'user', content: 'What internships are open right now?' }],
+});
+console.log(result.text);
+```
+
+## SendMessageOptions
+
+| Field              | Type                        | Default     | Description                                                                                                    |
+| ------------------ | --------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------- |
+| `messages`         | `ChatMessageInput[]`        | **required**| `{ role: 'user' \| 'assistant', content: string }[]` — plain text only; no multi-part/multimodal content on the way in yet. |
+| `threadId`         | `string`                    | —           | Resumes a named Thread (from `threads.create()` — its `threadId` field) instead of the implicit deterministic one. |
+| `resume`           | `ChatResume`                | —           | Answers a pending interrupt from a previous run (see below); omit for a fresh message.                         |
+| `contextOverride`  | `string`                    | —           | Caller-supplied context appended to **this turn's** system prompt only. Capped at **4000 chars** server-side — a longer value is rejected with a 400, not truncated. Never persisted, never visible to later turns. |
+| `signal`           | `AbortSignal`               | —           | Aborts the underlying request/stream.                                                                          |
+
+```ts
+await userClient.chat.sendMessage(agent._id, {
+  messages: [{ role: 'user', content: 'What should I focus on this week?' }],
+  contextOverride:
+    'Founder profile (live): stage=seed, sector=fintech, funding_status=raising',
+});
+```
+
+<Warning>
+  `threadId` must belong to the asserted external user **and** the `agentId` you're calling
+  with — passing someone else's Thread, a different Agent's Thread, or a nonexistent id throws a
+  `PersonaApiError` with `statusCode: 404`. It does **not** silently fall back to a different
+  conversation.
+</Warning>
+
+## AG-UI event types
+
+`stream()` yields the standard `@ag-ui/core` `EventType` union. The SDK re-exports `EventType`
+from the package root so you don't need a separate `@ag-ui/core` dependency just to compare
+`event.type`:
+
+| Event type                                      | Meaning                                                                                                                         |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `RUN_STARTED`                                   | Emitted once, at the start of the run.                                                                                          |
+| `TEXT_MESSAGE_CHUNK`                            | A streamed assistant text delta (`event.delta`).                                                                                |
+| `REASONING_MESSAGE_START` / `_CONTENT` / `_END` | Streamed model reasoning, for models that expose it.                                                                            |
+| `TOOL_CALL_CHUNK`                               | A streamed tool-call invocation (arguments arrive incrementally).                                                               |
+| `TOOL_CALL_RESULT`                              | The result of a completed tool call.                                                                                            |
+| `STATE_SNAPSHOT`                                | A full-state update.                                                                                                            |
+| `CUSTOM`                                        | Persona-specific side-channel events — subagent traces (`subagent_activity`), MCP App widgets (`mcp_app`), and human-in-the-loop signaling (`hitl_request` / `clarification_request`). |
+| `RUN_ERROR`                                     | The run failed genuinely (not an interrupt) — `code`, `message`, `retryable`, `providerName`. See [Structured run errors](#structured-run-errors). |
+| `RUN_FINISHED`                                  | Emitted once at the end of the run (omitted if the run paused on an interrupt, or ended in `RUN_ERROR`, instead).                |
+
+The full, versioned JSON Schema for every `CUSTOM` event's payload is served at
+`GET /api/v1/developer/agui/schema` (not yet wrapped by a typed method — call it via
+[HttpClient](/guides/sdk/http-client) if you need it). Every stream response carries the active
+schema version on the `X-AGUI-Schema-Version` header. The TypeScript counterparts
+(`ClarificationRequestPayload`, `HitlRequestPayload`, `McpAppPayload`, `SubagentActivityPayload`)
+are exported from the package root and kept in sync with that document.
+
+```ts
+for await (const event of userClient.chat.stream(agent._id, { messages })) {
+  switch (event.type) {
+    case EventType.TEXT_MESSAGE_CHUNK:
+      process.stdout.write(event.delta ?? '');
+      break;
+    case EventType.TOOL_CALL_RESULT:
+      console.log('tool result:', event);
+      break;
+    case EventType.RUN_FINISHED:
+      console.log('done');
+      break;
+  }
+}
+```
+
+## Human-in-the-loop: interrupts and resuming
+
+If an Agent's `interruptOn` config requires confirming a sensitive tool call, or the run needs a
+clarifying answer, the run **pauses** instead of finishing normally: it emits a `CUSTOM` event
+instead of `RUN_FINISHED`, and `sendMessage()` detects this and sets `result.interrupt`:
+
+```ts
+const result = await userClient.chat.sendMessage(agent._id, { messages });
+
+if (result.interrupt) {
+  console.log(result.interrupt.kind); // 'hitl' | 'clarification'
+  console.log(result.interrupt.value); // whatever detail the interrupt carries
+}
+```
+
+| `interrupt.kind`  | Triggering `CUSTOM` event name | Resume with                                                            |
+| ----------------- | ------------------------------ | ---------------------------------------------------------------------- |
+| `'hitl'`          | `hitl_request`                 | `{ decisions: [{ action, decision: 'approve' \| 'reject' }, ...] }`    |
+| `'clarification'` | `clarification_request`        | `{ answers: [...], text?: string }`                                    |
+
+Resume on the **next** `sendMessage()`/`stream()` call for the same Thread, with `messages: []`
+(no new user message — you're answering the interrupt, not starting a new turn) and `resume` set:
+
+```ts
+if (result.interrupt) {
+  await userClient.chat.sendMessage(agent._id, {
+    messages: [],
+    resume: { decisions: [{ action: 'delete_agent', decision: 'approve' }] },
+  });
+}
+```
+
+`ChatResume` is a union: `{ decisions: unknown[] }` (for `hitl`) | `{ answers: unknown[]; text?:
+string }` (for `clarification`) | `Record<string, unknown>` (for anything else). The shape you must
+pass depends on the interrupt kind. `ChatInterrupt.value` is typed `unknown` — its concrete shape
+depends on the interrupt payload (see the `HitlRequestPayload`/`ClarificationRequestPayload` types
+for the backend's shapes).
+
+## Structured run errors
+
+If a run ends in a genuine failure — not an interrupt — `sendMessage()` sets `result.error`
+instead of `result.interrupt`, as a typed `PersonaRunErrorEvent`:
+
+```ts
+const result = await userClient.chat.sendMessage(agent._id, { messages });
+
+if (result.error) {
+  switch (result.error.code) {
+    case 'PROVIDER_RATE_LIMIT':
+    case 'TOOL_TIMEOUT':
+      // result.error.retryable === true — safe to retry automatically
+      break;
+    case 'PROVIDER_AUTH_ERROR':
+      // the Agent's configured provider has invalid credentials — not retryable
+      break;
+    default:
+      console.error(result.error.message);
+  }
+}
+```
+
+`PersonaRunErrorEvent`: `{ type: 'RUN_ERROR', code: RunErrorCode, message: string, retryable:
+boolean, providerName?: string }`.
+
+`RunErrorCode` values:
+
+| Code                       | Meaning                                          |
+| -------------------------- | ------------------------------------------------ |
+| `PROVIDER_AUTH_ERROR`      | The Provider's credentials were rejected.        |
+| `PROVIDER_RATE_LIMIT`      | The Provider rate-limited the request.           |
+| `TOOL_TIMEOUT`             | A tool call timed out.                           |
+| `TOOL_ERROR`               | A tool call threw.                               |
+| `CONTEXT_LENGTH_EXCEEDED`  | The conversation exceeded the model's context window. |
+| `INTERNAL_ERROR`           | Anything else.                                   |
+
+<Warning>
+  This backend proxies arbitrary OpenAI-compatible `baseURL`s per Provider, so classification is
+  best-effort and improves over time as real provider error shapes are observed — `retryable`
+  should still be trusted (it's conservative), but don't assume every failure mode is perfectly
+  distinguished yet.
+</Warning>
+
+## Cancelling a chat call
+
+```ts
+const controller = new AbortController();
+setTimeout(() => controller.abort(), 30_000); // give up after 30s
+
+await userClient.chat.sendMessage(agent._id, {
+  messages: [{ role: 'user', content: '...' }],
+  signal: controller.signal,
+});
+```
+
+## Complete example — a minimal chat endpoint
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+
+const userClient = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  externalUserId: 'user_123',
+});
+
+// Resolve an interrupt if one is pending, otherwise send a fresh message.
+const result = await userClient.chat.sendMessage(agentId, {
+  messages: pendingResume ? [] : [{ role: 'user', content: input }],
+  resume: pendingResume,
+});
+
+if (result.interrupt) {
+  // Tell your frontend to render an approval/clarification prompt.
+  res.json({ needsInput: true, kind: result.interrupt.kind, detail: result.interrupt.value });
+} else if (result.error) {
+  res.status(502).json({ error: result.error });
+} else {
+  res.json({ text: result.text });
+}
+```

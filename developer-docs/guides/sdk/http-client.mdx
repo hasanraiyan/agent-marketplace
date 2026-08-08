@@ -1,0 +1,115 @@
+---
+title: HttpClient
+description: The low-level fetch wrapper that every resource method sits on — and the escape hatch for endpoints the SDK doesn't wrap yet.
+---
+
+`HttpClient` is the thin fetch wrapper underneath every resource method. It:
+
+1. Injects the auth headers (`Authorization: Bearer <credential>`, plus
+   `x-persona-external-user-id` when set).
+2. Serializes the body (JSON for plain objects, multipart for `FormData`).
+3. Builds the URL from `baseUrl + path` + query params.
+4. Parses the `{success, data}` envelope and returns the `data` field.
+5. Throws a typed `PersonaApiError` subclass on any non-2xx or `{success:false}` response.
+6. Retries 429s using the API's own `Retry-After` header.
+
+You normally never touch it directly — every resource method is a typed wrapper. But it's exported
+(and `PersonaClient` builds one internally), so it's your **escape hatch** for calling an endpoint
+this SDK doesn't wrap yet.
+
+## Constructor
+
+```ts
+new HttpClient(options: HttpClientOptions): HttpClient
+```
+
+`HttpClientOptions` is the same shape as `PersonaClientOptions` (the SDK re-exports
+`PersonaClientOptions = HttpClientOptions`) — see [Configuration](/guides/sdk/configuration).
+The same synchronous validation applies: `baseUrl` and `credential` are required, and the
+constructor throws if no fetch implementation is available.
+
+## request()
+
+```ts
+async request<T>(
+  method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+  path: string,
+  options?: RequestOptions
+): Promise<T>
+```
+
+- `method` — the HTTP verb. Only these five are allowed (no `HEAD`/`OPTIONS`).
+- `path` — relative to `baseUrl`, e.g. `/api/v1/developer/agents`. Leading `/` is expected.
+- `options` — see below.
+
+### RequestOptions
+
+| Field     | Type                                     | Default     | Description                                                                                                   |
+| --------- | ---------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------- |
+| `query`   | `Record<string, string \| number \| boolean \| undefined>` | `{}`  | Query params; `undefined` values are omitted entirely. `true`/`false`/numbers are stringified.                |
+| `body`    | `unknown`                                | `undefined` | A plain object is JSON-serialized and sent with `Content-Type: application/json`. A `FormData` instance is sent as-is (multipart). Anything else is JSON-stringified. |
+| `headers` | `Record<string, string>`                 | `{}`        | Extra headers, merged over the auth defaults (your values win on conflict).                                   |
+| `signal`  | `AbortSignal`                            | `undefined` | Externally-provided abort signal for cancellation.                                                            |
+
+### Return value
+
+The parsed `data` field from the API's `{success, data}` envelope. Two subtleties:
+
+- **Binary/stream responses** (e.g. file downloads, or `chat.stream()`'s SSE body) don't come back
+  as JSON: `request<Response>()` returns the raw `Response` object instead, and the caller works
+  with `response.body`/`response.arrayBuffer()` directly.
+- **Endpoints without the fuller envelope** (e.g. `/whoami`, which returns its shape without
+  wrapping in `data`): if the parsed JSON has no `data` key, the raw body is returned as `T`.
+
+### Errors
+
+Any non-2xx response, or a 2xx with `{success:false}`, throws via `errorFromResponse`:
+
+| Status      | Thrown                                |
+| ----------- | ------------------------------------- |
+| `400`       | `PersonaValidationError`              |
+| `401`/`403` | `PersonaAuthError`                    |
+| everything else | `PersonaApiError`                 |
+
+Non-JSON error responses (a proxy error page, etc.) throw `PersonaApiError` with code
+`NON_JSON_ERROR_RESPONSE`. See [Errors](/guides/sdk/errors) for the full picture.
+
+## Calling an unwrapped endpoint
+
+Say the API grows an endpoint the SDK doesn't have a method for yet. You can call it through the
+client's internal HTTP layer — but `PersonaClient.http` is private. The supported pattern is to
+build your own `HttpClient` (or reuse the exported `HttpClient` class):
+
+```ts
+import { HttpClient } from '@personaai/sdk';
+
+const http = new HttpClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
+
+// Example: fetch the live AG-UI schema document.
+interface AguiSchemaDoc {
+  version: string;
+  [key: string]: unknown;
+}
+const schema = await http.request<AguiSchemaDoc>('GET', '/api/v1/developer/agui/schema');
+console.log(schema.version);
+```
+
+This is the officially sanctioned escape hatch — it inherits auth, envelope parsing, retries, and
+typed errors for free.
+
+## Retry behavior
+
+Only `429` responses are retried, up to `maxRetries` times (default `2`), waiting the
+`Retry-After` header's value in seconds (or 1s when absent) between attempts — a fixed per-attempt
+wait, not exponential backoff. Any other status throws immediately. Full detail in
+[Behavior & edge cases](/guides/sdk/behavior#retries-and-rate-limits).
+
+## When to use HttpClient vs. resource methods
+
+- **Use resource methods** (`client.agents.create()` etc.) for anything the SDK wraps — typed
+  params, typed returns, documented behavior.
+- **Use `HttpClient`** only for an endpoint this SDK doesn't wrap yet. Prefer adding the method to
+  the SDK over scattering raw calls, but the escape hatch keeps you unblocked in the meantime.

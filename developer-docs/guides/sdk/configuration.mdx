@@ -1,0 +1,118 @@
+---
+title: Configuration
+description: Every PersonaClient option, its type, default, and the environment variables you'll typically set — plus the different configuration scenarios.
+---
+
+All configuration happens at construction time through a single options object,
+`PersonaClientOptions` (re-exported as `HttpClientOptions` — they're the same type). There is no
+runtime reconfiguration: once a client is built, its base URL, credential, and identity are fixed
+for its lifetime.
+
+## Options reference
+
+| Option           | Type                    | Required | Default        | Description                                                                                                                                                       |
+| ---------------- | ----------------------- | -------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `baseUrl`        | `string`                | Yes      | —              | Base URL of the Developer Platform API, e.g. `https://api.persona.hasanraiyan.me`. Trailing slashes are stripped automatically.                                    |
+| `credential`     | `string`                | Yes      | —              | Your Project credential, shaped `"<keyId>.<secret>"`. Sent as `Authorization: Bearer <credential>` on every call. Never hardcode it — read it from an env var.     |
+| `externalUserId` | `string`                | No       | `undefined`    | Asserts this client acts on behalf of one of your own end users (sent as `x-persona-external-user-id` on every call). Omit for Project-level (control-plane) calls. |
+| `fetch`          | `typeof fetch`          | No       | global `fetch` | Overrides the fetch implementation. Mainly for tests or non-standard runtimes.                                                                                    |
+| `maxRetries`     | `number`                | No       | `2`            | Maximum automatic retries on `429 Too Many Requests` responses. See [Retries & rate limits](/guides/sdk/behavior#retries-and-rate-limits).                          |
+
+Both `baseUrl` and `credential` are validated **synchronously at construction**: passing an empty
+or missing value throws a plain `Error` (`HttpClient: "baseUrl" is required` /
+`HttpClient: "credential" is required`) before any network call is made. If no fetch
+implementation is available (a runtime without global `fetch` and without the `fetch` option), the
+constructor throws too.
+
+## Environment variables
+
+The SDK does not read environment variables itself — configuration is explicit. The convention
+(used throughout the docs, the [Integration Guide](/guides/integration-guide), and the SDK's own
+tests) is:
+
+| Variable                | Maps to         | Notes                                                                 |
+| ----------------------- | --------------- | --------------------------------------------------------------------- |
+| `PERSONA_BASE_URL`      | `baseUrl`       | e.g. `https://api.persona.hasanraiyan.me`                              |
+| `PERSONA_CREDENTIAL`    | `credential`    | The `"<keyId>.<secret>"` string minted via Studio — treat as a secret  |
+
+You are free to use any names you like; the point is that the credential must come from an
+environment variable or secret manager, never from source code or a client bundle.
+
+```ts
+const persona = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
+```
+
+## Configuration scenarios
+
+### 1. Control-plane client (Project-level)
+
+Acts as the Project itself. Use for provisioning and administration: Providers, Agent/Skill/
+Knowledge/MCP/Store configuration CRUD, audit logs, `whoami()`.
+
+```ts
+const persona = new PersonaClient({
+  baseUrl: 'https://api.persona.hasanraiyan.me',
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
+```
+
+### 2. Runtime-plane client (per end user)
+
+Constructed **per request**, scoped to whoever is actually using your product right now — after
+*your own* auth has confirmed who that is. Required for Threads, Files, Memory, and Chat; makes
+Agent/Skill/Knowledge/MCP create/list calls act on that user's behalf (`scope: 'mine'`).
+
+```ts
+const userClient = new PersonaClient({
+  baseUrl: 'https://api.persona.hasanraiyan.me',
+  credential: process.env.PERSONA_CREDENTIAL!,
+  externalUserId: currentUser.id, // your own user id for this person
+});
+```
+
+### 3. Bumping 429 retries
+
+```ts
+const patientClient = new PersonaClient({
+  baseUrl: '...',
+  credential: '...',
+  maxRetries: 5, // retry up to 5 times on 429 before throwing
+});
+```
+
+### 4. Custom fetch (tests, unusual runtimes)
+
+```ts
+const client = new PersonaClient({
+  baseUrl: '...',
+  credential: '...',
+  fetch: myMockedFetch, // e.g. a fetch-mock implementation
+});
+```
+
+## Cost of construction
+
+Constructing a client is cheap and stateless beyond these options — there's no connection pool or
+warm-up step. It's fine (and recommended) to construct a fresh, per-request runtime-plane client
+rather than trying to share one instance across users, which would mix identities. A single
+control-plane client per process is fine to share.
+
+## How each option flows into a request
+
+Every request the SDK makes is assembled from these options:
+
+```
+Authorization: Bearer <credential>
+x-persona-external-user-id: <externalUserId>        (only when set)
+Accept: application/json
+Content-Type: application/json                       (only when a JSON body is sent)
+```
+
+429 responses are retried up to `maxRetries` times (see
+[Behavior & edge cases](/guides/sdk/behavior#retries-and-rate-limits)); everything else throws
+immediately. There is no other header customization surface — if you need to send custom headers
+for an endpoint the SDK doesn't wrap yet, use the [HttpClient](/guides/sdk/http-client) escape
+hatch directly.

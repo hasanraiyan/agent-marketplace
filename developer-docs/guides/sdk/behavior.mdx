@@ -1,0 +1,213 @@
+---
+title: Behavior & Edge Cases
+description: Retries, rate limits, pagination, idempotency, cancellation, ordering, and every behavior that could surprise a developer.
+---
+
+This page documents the behaviors that cut across the whole SDK — the things that could surprise
+a developer who assumes a plain HTTP client.
+
+## Retries and rate limits
+
+Only **`429 Too Many Requests`** responses are retried automatically. Every other non-2xx status
+throws immediately on the first attempt, since retrying wouldn't change the outcome.
+
+- The SDK reads the response's `Retry-After` header (seconds), waits that long, and retries.
+- If `Retry-After` is absent, it falls back to a **1-second** wait.
+- This repeats up to `maxRetries` times (default `2`) before giving up and throwing a
+  `PersonaApiError` with `statusCode: 429`.
+- The wait is a **fixed per-attempt wait, not exponential backoff** — it matches the API's own
+  `Retry-After` contract rather than guessing at a backoff curve.
+
+```ts
+const patientClient = new PersonaClient({
+  baseUrl: '...',
+  credential: '...',
+  maxRetries: 5, // retry up to 5 times on 429 before throwing
+});
+```
+
+## Pagination
+
+Every paginated `list()`/`discover()` method (Agents, Skills, Knowledge, MCPs, Threads, Stores,
+Files, Audit Logs) returns a `PaginatedResult<T>` envelope — **not a bare array**:
+
+```ts
+const { items, pagination } = await persona.agents.list({ page: 1, limit: 20 });
+// pagination: { total, page, limit, pages }
+```
+
+- `pagination.total` — the real total across all pages. **Use this, not `items.length`.**
+- `pagination.pages` — total page count. **Check this** to know whether there's a next page,
+  rather than inferring it from `items.length` vs. `limit`.
+- `pagination.page`/`pagination.limit` — echo back what you requested (or the defaults `1`/`20`).
+
+### Exceptions to the envelope
+
+| Call                        | Returns                        | Why                                                                 |
+| --------------------------- | ------------------------------ | ------------------------------------------------------------------- |
+| `providers.list()`          | `Provider[]` (bare array)      | Providers have no discovery concept — nothing to page or filter.     |
+| `memory.list()`             | `MemoryListResult`             | Memory has no pagination — a full listing every time.               |
+| `stores.listFiles(storeId)` | `StoreFile[]` (bare array)     | Store file listing is unpaginated.                                  |
+
+### Walking all pages
+
+```ts
+let page = 1;
+const all: Agent[] = [];
+for (;;) {
+  const { items, pagination } = await persona.agents.list({ page, limit: 100 });
+  all.push(...items);
+  if (page >= pagination.pages) break;
+  page += 1;
+}
+```
+
+## Idempotency keys
+
+Every resource's `create()` (and `files.upload()`) accepts an optional trailing `idempotencyKey`
+argument, sent as the `Idempotency-Key` request header:
+
+```ts
+const skill = await persona.skills.create(
+  { name: 'Resume Reviewer', description: '...', instructions: '...' },
+  'a-key-you-generate-once-per-logical-create', // e.g. crypto.randomUUID()
+);
+```
+
+- **Use it** when a `create()` might get retried after an ambiguous failure — a network timeout or
+  dropped connection where you can't tell whether the original request reached the server.
+- Retrying with the **same** key returns the exact original response instead of creating a second
+  resource; a **different** (or omitted) key creates a new one as normal.
+- Keys are scoped per `(domain, credential, external user if asserted)` and expire after **24
+  hours**.
+- Fully opt-in — omitting the argument is identical to previous versions, no behavior change.
+
+Which methods accept it: `providers.create`, `skills.create`, `agents.create`,
+`knowledge.create`, `mcps.create`, `threads.create`, `files.upload`.
+
+## Cancellation (`AbortSignal`)
+
+Any method that accepts an `options` object with a `signal` field supports a standard
+`AbortSignal`: currently `chat.stream()`/`chat.sendMessage()` and `architect.stream()`/
+`architect.sendMessage()`.
+
+```ts
+const controller = new AbortController();
+setTimeout(() => controller.abort(), 30_000); // give up after 30s
+
+await userClient.chat.sendMessage(agent._id, {
+  messages: [{ role: 'user', content: '...' }],
+  signal: controller.signal,
+});
+```
+
+Aborting throws the runtime's standard abort error (an `AbortError`/`DOMException`), **not** a
+`PersonaApiError`.
+
+## Async behavior
+
+- Every method is `async` (or an async generator for `chat.stream()`/`architect.stream()`).
+- `knowledge.uploadDocuments()` is **synchronous server-side**: it returns only once embedding
+  finishes — expect it to take longer for larger/more files.
+- There is no background/queue behavior in the SDK itself — one call = one (or several retried)
+  HTTP request. No internal caching, no connection pooling, no state.
+
+## The `_id` vs `id` quirk
+
+Two different id conventions come back from the API, and the SDK reflects them honestly:
+
+| Response type          | Id field |
+| ---------------------- | -------- |
+| `Provider`, `PersonaFile` | `id`   |
+| `Skill`, `Agent`, `KnowledgeBase`, `Mcp`, `Thread`, `Store` | `_id` |
+
+When you pass an id back into a method, always pass the id field the *returned object actually
+uses*. `chat.stream(agent._id, ...)` — never `agent.id`.
+
+## Populated vs. bare id fields
+
+Several resource shapes return references differently per call — the SDK types these loosely
+(`unknown[]` / unions) to reflect the real difference rather than being wrong for one of the
+calls:
+
+| Shape                    | create()/update()/list()            | get()                          |
+| ------------------------ | ----------------------------------- | ------------------------------ |
+| `Agent.skills`/`mcps`/`knowledgeBases`/`storeMounts` | bare id strings | populated objects |
+| `Thread.agentId`         | bare id string on `create()`/`get()`; `{ _id, name, avatar?, slug }` object on `list()` | —                              |
+
+Don't assume one shape works for both — branch on which call produced the value.
+
+## Empty values
+
+- `providers.list()` on a runtime-plane client → **empty array** (not an error).
+- `auditLogs.list()` on a runtime-plane client → **empty** `PaginatedResult` (not an error).
+- `mcps.testConnection()`-driven `tools`/`resources`/`resourceTemplates` → empty arrays until
+  `testConnection()` has been called at least once.
+- `knowledge.search()` `score` → `null` if the underlying store didn't return one.
+- `MemoryAgentGroup.agentName` → `null` if the Agent no longer exists.
+
+## Null / undefined behavior
+
+- `undefined` query params are omitted entirely — safe to pass a partial params object.
+- Optional fields on input types (`description?`, `tagline?`, …) are sent only when defined.
+- Array-replacing fields (`skills`, `mcps`, `knowledgeBases`, `storeMounts`, `interruptOn`,
+  Skill `files`, Provider `apiKey` on update) — passing a value **replaces**; omitting leaves
+  untouched. They never merge/append.
+
+## Ordering
+
+- `threads.list()` — most recently active first (`lastMessageAt` descending). No other
+  list/`discover` method guarantees an ordering; don't rely on it.
+- `bulkDelete(ids)` — best-effort; `deleted`/`failed` arrays are not guaranteed to preserve input
+  order.
+
+## Validation
+
+- Client construction validates `baseUrl`/`credential` **synchronously** (plain `Error`).
+- Request validation happens server-side and surfaces as `PersonaValidationError` (400). Notable
+  server-side rules: `contextOverride` ≤ 4000 chars (rejected, not truncated); `bulkDelete` ≤ 100
+  ids; Knowledge uploads ≤ 10 files, ≤ 20MB each, PDF/TXT/MD/JSON/CSV only; `scope: 'mine'`
+  requires `externalUserId`.
+- `Mcp` `create()` with `authType: 'oauth'` probes the target's OAuth discovery endpoints
+  synchronously — a URL that doesn't implement OAuth discovery fails the `create()` itself.
+
+## Ownership and existence-hiding
+
+The API deliberately does **not** distinguish "not found" from "not authorized":
+
+- `get()`/`update()`/`delete()` on a resource your credential's scope can't see → 404
+  `PersonaApiError`, whether the id exists or not.
+- Runtime-plane clients get empty lists/404s for control-plane-only resources (Providers) rather
+  than loud errors.
+- `bulkDelete().failed[].reason` is generic for the same reason — don't try to distinguish
+  failure kinds from it.
+
+## Idempotency of non-create calls
+
+`update()` (PATCH) is naturally idempotent — re-sending the same patch yields the same state.
+`delete()` on an already-deleted resource throws 404 (it's not a no-op).
+
+## Context override semantics (chat)
+
+`contextOverride` is appended to **this turn's** system prompt only:
+
+- Never persisted to any memory file.
+- Never visible to later turns.
+- Capped at 4000 characters — longer values get a **400** (rejected, not truncated).
+
+Use it for small, ephemeral facts that change turn-to-turn (a live profile snapshot). For larger
+reference material an Agent should look up on demand, use
+[Stores](/guides/sdk/resources/stores) instead.
+
+## Thread identity
+
+- Chat without a `threadId` uses an **implicit deterministic thread** — one conversation per
+  Agent per user, resumed automatically across calls.
+- `Thread.threadId` (the AG-UI id used for streaming) is **distinct from `Thread._id`** (the
+  document id used for CRUD). Don't mix them up.
+
+## No caching
+
+The SDK performs **no caching** of any kind — every call hits the network. If you need to cache
+discovery results, do it on your side and be aware of staleness (e.g. `mcps.testConnection()`
+persists its summary server-side, but agent/skill lists are live reads).

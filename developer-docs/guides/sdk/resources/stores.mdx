@@ -1,0 +1,143 @@
+---
+title: Stores
+description: Named, scoped filesystem mount points you assign to Agents. Config CRUD needs no external user; file CRUD does for externalUser-scoped Stores.
+---
+
+`persona.stores` — `/api/v1/developer/stores`.
+
+A Store is a named, scoped mount point you create and assign to Agents via
+`Agent.storeMounts` (settable through `agents.create()`/`agents.update()`). It generalizes the
+fixed `/memories/user/`/`/memories/agent/` mounts into arbitrarily-named ones, mounted at
+`/stores/<name>/` in the Agent's filesystem. An Agent reads/writes it via its own
+`read_file`/`ls`/`write_file`/`edit_file` tools, on demand — a filesystem-backed alternative to
+`contextOverride` for reference material too large to re-send in the prompt every turn.
+
+## Ownership & scoping
+
+- **Config CRUD** (`create`/`list`/`get`/`update`/`delete`) works with a bare Project credential —
+  a Store's config isn't per-user.
+- **File CRUD** works the same, **except** when the Store's own `scope` is `'externalUser'`: only
+  then does this client need `externalUserId` set, or the call 400s with `EXTERNAL_USER_REQUIRED`.
+
+## Methods
+
+| Method                               | Endpoint                              | Returns                  |
+| ------------------------------------ | ------------------------------------- | ------------------------ |
+| `create(input)`                      | `POST /api/v1/developer/stores`       | `Store`                  |
+| `list(params?)`                      | `GET /api/v1/developer/stores`        | `PaginatedResult<Store>` |
+| `get(storeId)`                       | `GET /api/v1/developer/stores/{id}`   | `Store`                  |
+| `update(storeId, input)`             | `PATCH /api/v1/developer/stores/{id}` | `Store`                  |
+| `delete(storeId)`                    | `DELETE /api/v1/developer/stores/{id}` | `void`                  |
+| `listFiles(storeId)`                 | `GET /api/v1/developer/stores/{id}/files` | `StoreFile[]`         |
+| `getFile(storeId, params)`           | `GET /api/v1/developer/stores/{id}/file` | `StoreFile`           |
+| `writeFile(storeId, input)`          | `PUT /api/v1/developer/stores/{id}/file` | `StoreFile`          |
+| `deleteFile(storeId, params)`        | `DELETE /api/v1/developer/stores/{id}/file` | `void`              |
+
+## create(input)
+
+`name` and `scope` are required. **`scope` cannot be changed after creation.**
+
+```ts
+// A shared, read-only reference store — safe to mount on Agents serving many users,
+// since accessMode: "readonly" blocks Agent tool writes (content is only ever populated here).
+const notes = await persona.stores.create({
+  name: 'product-notes',
+  scope: 'domain',              // 'domain' | 'externalUser'
+  accessMode: 'readonly',       // 'readonly' | 'readwrite' (default readwrite)
+  description: 'Shared product notes',
+});
+```
+
+- `scope: 'domain'` — one shared namespace for the whole Project.
+- `scope: 'externalUser'` — one namespace per external user, resolved per Agent run (same
+  mechanism as `/memories/user/`).
+- `accessMode: 'readonly'` — Agents can read but never write via their own tool calls; content is
+  populated only through this API. `readwrite` — Agents can also `write_file`/`edit_file` into it.
+
+## list(params?) / get / update / delete
+
+```ts
+const { items } = await persona.stores.list({ page: 1, limit: 20, search: 'notes' });
+
+const store = await persona.stores.get(notes._id);
+
+await persona.stores.update(notes._id, {
+  name: 'product-notes-v2',
+  description: 'Updated notes',
+  accessMode: 'readwrite',
+});
+
+await persona.stores.delete(notes._id);
+```
+
+- `update()` can change `name`/`description`/`accessMode` — **`scope` is not updatable** (not even
+  in the type); create a new Store if you need a different scope.
+- `delete()` also removes the Store from every Agent's `storeMounts` and purges all of its data
+  (every founder's partition, for an `externalUser`-scoped Store).
+
+## File operations
+
+```ts
+// Write content — how a readonly Store's content actually gets populated.
+await persona.stores.writeFile(notes._id, {
+  path: '/roadmap.md',
+  content: '# Q3 roadmap\n...',
+});
+
+const file = await persona.stores.getFile(notes._id, { path: '/roadmap.md' });
+const all = await persona.stores.listFiles(notes._id); // unpaginated bare StoreFile[]
+
+await persona.stores.deleteFile(notes._id, { path: '/roadmap.md' });
+```
+
+- `StoreFile`: `{ path, content, mimeType, createdAt, updatedAt }`.
+- `listFiles()` returns a bare `StoreFile[]` (no pagination envelope). For an `externalUser`-
+  scoped Store, it lists only the asserted external user's own partition.
+- `writeFile()`/`deleteFile()` are **not** gated by `accessMode` — `readonly` only blocks an
+  Agent's own tool calls at mount time; this API is how a readonly Store gets populated in the
+  first place.
+
+## Mounting a Store on an Agent
+
+```ts
+// Assign stores to an Agent via storeMounts (replaces the entire array).
+await persona.agents.update(agent._id, {
+  storeMounts: [notes._id, privateNotes._id],
+});
+```
+
+The Agent then sees the files mounted at `/stores/<name>/`.
+
+## Complete example
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+
+const persona = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
+
+// Shared read-only reference store.
+const notes = await persona.stores.create({
+  name: 'product-notes',
+  scope: 'domain',
+  accessMode: 'readonly',
+});
+await persona.stores.writeFile(notes._id, {
+  path: '/roadmap.md',
+  content: '# Q3 roadmap\n- Launch career platform',
+});
+
+// Per-user private store.
+const privateNotes = await persona.stores.create({
+  name: 'founder-private-notes',
+  scope: 'externalUser',
+  accessMode: 'readwrite',
+});
+
+// Mount both on an Agent.
+await persona.agents.update('agent_123', {
+  storeMounts: [notes._id, privateNotes._id],
+});
+```

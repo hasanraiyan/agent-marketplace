@@ -97,9 +97,13 @@ if (result.interrupt) {
 | `.stores` | `/api/v1/developer/stores` |
 | `.files` | `/api/v1/developer/files` |
 | `.chat` | `/api/v1/developer/agui` (streaming) |
+| `.architect` | `/api/v1/developer/architect/agui` (streaming, Agent Architect) |
 
 Every method mirrors the real REST endpoint 1:1 — no hidden behavior. Full types are exported from
-the package root; see each resource file under `src/resources/` for the exact method signatures.
+the package root.
+
+> **Complete reference:** the [Node.js SDK reference](https://dev-docs.persona.hasanraiyan.me/guides/sdk-quickstart)
+> covers every method, type, error, edge case, and workflow in depth — no need to read the source.
 
 **Out of scope for this SDK**: Project/Members/Credentials management. Those are Clerk-session
 (human admin) operations, a completely different auth model than the machine-credential calls this

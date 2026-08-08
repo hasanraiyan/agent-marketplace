@@ -1,0 +1,417 @@
+---
+title: Workflows
+description: Complete, realistic end-to-end scenarios showing how individual SDK methods fit together — from provisioning to production chat.
+---
+
+This page shows how the individual pieces fit together in real applications. Each workflow is a
+complete, copy-paste-ready scenario.
+
+## Workflow 1: Full provisioning pipeline
+
+The one-time setup every integration goes through: sanity-check auth → create a Provider → verify
+it → create supporting resources → create the Agent → test it via chat.
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+
+const persona = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
+
+async function provision() {
+  // 1. Sanity-check the credential.
+  const who = await persona.whoami();
+  console.log(`Provisioning for ${who.domain}`);
+
+  // 2. Provider — the LLM endpoint the Agent will use.
+  const provider = await persona.providers.create({
+    label: 'OpenAI (prod)',
+    baseURL: 'https://api.openai.com/v1',
+    apiKey: process.env.OPENAI_API_KEY!,
+    defaultModel: 'gpt-4o-mini',
+  });
+
+  // 3. Verify it works before wiring it anywhere.
+  const test = await persona.providers.testConnection(provider.id);
+  if (!test.success) throw new Error(`Provider rejected: ${test.message}`);
+
+  // 4. A Skill the Agent can use.
+  const skill = await persona.skills.create({
+    name: 'Resume Reviewer',
+    description: 'Reviews resumes against a rubric.',
+    instructions: 'You are an expert resume reviewer. Use the attached rubric.',
+    files: [{ path: 'rubric.md', content: '# Scoring rubric\n- Impact: 30%\n- Clarity: 30%...' }],
+  });
+
+  // 5. A Knowledge base with company FAQs.
+  const kb = await persona.knowledge.create({
+    name: 'Placement Office FAQ',
+    providerId: provider.id,
+  });
+
+  // 6. The Agent, wired to all of it.
+  const agent = await persona.agents.create({
+    name: 'Career Launchpad',
+    systemPrompt: 'You help students find internships. Answer from the FAQ when relevant.',
+    providerId: provider.id,
+    skills: [skill._id],
+    knowledgeBases: [kb._id],
+    category: 'productivity',
+    visibility: 'unlisted',
+  });
+
+  console.log('Provisioned agent:', agent._id);
+  return agent;
+}
+```
+
+## Workflow 2: Per-user chat app (the typical production shape)
+
+The standard server pattern: a control-plane client for admin work + a runtime-plane client per
+incoming request. Your own auth confirms who the user is; then you scope the SDK client to them.
+
+```ts
+// persona.ts — shared client factory
+import { PersonaClient } from '@personaai/sdk';
+
+export function personaFor(externalUserId?: string) {
+  return new PersonaClient({
+    baseUrl: process.env.PERSONA_BASE_URL!,
+    credential: process.env.PERSONA_CREDENTIAL!,
+    externalUserId,
+  });
+}
+```
+
+```ts
+// routes/chat.ts — Express example
+import { personaFor } from '../persona.js';
+
+app.post('/api/chat', async (req, res) => {
+  try {
+    const userId = await authenticate(req); // YOUR OWN auth
+    const persona = personaFor(userId);
+
+    // Resolve any pending human-in-the-loop interrupt from a previous turn.
+    const pending = await loadPendingInterrupt(userId); // your app state
+    const result = await persona.chat.sendMessage(req.body.agentId, {
+      threadId: req.body.threadId, // resume the named conversation
+      messages: pending ? [] : [{ role: 'user', content: req.body.message }],
+      resume: pending,
+    });
+
+    if (result.interrupt) {
+      // Surface an approval/clarification prompt to your frontend.
+      res.json({ needsInput: true, kind: result.interrupt.kind, detail: result.interrupt.value });
+    } else if (result.error) {
+      res.status(502).json({ error: result.error });
+    } else {
+      res.json({ text: result.text });
+    }
+  } catch (err) {
+    handlePersonaError(err, res); // see Errors page
+  }
+});
+```
+
+## Workflow 3: RAG pipeline — ingest, search, attach
+
+Build a searchable knowledge base and let an Agent use it.
+
+```ts
+import { readFile } from 'node:fs/promises';
+import { PersonaClient } from '@personaai/sdk';
+
+const persona = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
+
+// 1. Create the knowledge base (providerId required — it supplies the embedding key).
+const kb = await persona.knowledge.create({
+  name: 'Product Handbook',
+  providerId: 'prov_123',
+  chunkSize: 800,
+  chunkOverlap: 100,
+  topK: 5,
+});
+
+// 2. Ingest a batch of documents.
+const files = await Promise.all(
+  ['handbook.md', 'faq.md', 'pricing.csv'].map(async (f) => ({
+    filename: f,
+    content: await readFile(`./docs/${f}`),
+    contentType: f.endsWith('.csv') ? 'text/csv' : 'text/markdown',
+  })),
+);
+const upload = await persona.knowledge.uploadDocuments(kb._id, files);
+console.log(`${upload.documentCount} documents, ${upload.chunkCount} chunks`);
+
+// 3. Sanity-check retrieval before attaching to an Agent.
+const hits = await persona.knowledge.search(kb._id, 'how do refunds work?', { topK: 3 });
+console.log(hits.map((h) => ({ source: h.source, score: h.score })));
+
+// 4. Attach and go live.
+await persona.agents.update('agent_123', { knowledgeBases: [kb._id] });
+```
+
+## Workflow 4: MCP OAuth — user-mode connection flow
+
+Connect an OAuth-protected MCP for a specific end user (a common CRM/calendar integration).
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+
+const persona = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
+
+// 1. Register the MCP (OAuth, user-mode). Note: create() probes OAuth discovery synchronously.
+const mcp = await persona.mcps.create({
+  name: 'Company CRM',
+  transport: 'http',
+  url: 'https://crm.example.com/mcp',
+  authType: 'oauth',
+  authMode: 'user',
+  oauth: {
+    clientId: process.env.CRM_CLIENT_ID!,
+    clientSecret: process.env.CRM_CLIENT_SECRET!,
+    scopes: ['contacts:read', 'deals:write'],
+  },
+});
+
+// 2. Attach to the shared Agent (Project-level).
+await persona.agents.update('agent_123', { mcps: [mcp._id] });
+
+// 3. When a user needs to connect, get THEIR authorize URL and redirect them.
+async function connectUser(externalUserId: string, returnToUrl: string) {
+  const userClient = new PersonaClient({
+    baseUrl: process.env.PERSONA_BASE_URL!,
+    credential: process.env.PERSONA_CREDENTIAL!,
+    externalUserId,
+  });
+  const { url } = await userClient.mcps.oauth.getUserAuthorizeUrl(mcp._id, returnToUrl);
+  return url; // redirect the end user's browser here
+}
+
+// 4. Later, check connection status / disconnect.
+async function status(externalUserId: string) {
+  const userClient = new PersonaClient({ /* ... */ externalUserId });
+  const { connected } = await userClient.mcps.oauth.getUserConnectionStatus(mcp._id);
+  if (connected) await userClient.mcps.oauth.disconnectUserConnection(mcp._id);
+}
+```
+
+## Workflow 5: Seeding memory before first contact
+
+Give an Agent useful context about a new user before their first message — indistinguishable from
+memory the Agent wrote itself.
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+
+const userClient = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  externalUserId: 'user_123',
+});
+
+await userClient.memory.writeFile({
+  path: '/memories/user/preferences.md',
+  content: [
+    '- Prefers concise, bullet-point answers',
+    '- Works in fintech',
+    '- Looking for summer internships in NYC',
+    '- Already has a strong resume; needs interview practice',
+  ].join('\n'),
+});
+
+// Then the user's first chat call automatically sees this context.
+```
+
+## Workflow 6: Named conversation history with files
+
+Threads + Files + Chat working together — a user uploads a document, chats about it in a named
+thread, and can come back later.
+
+```ts
+import { readFile } from 'node:fs/promises';
+import { PersonaClient } from '@personaai/sdk';
+
+const userClient = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  externalUserId: 'user_123',
+});
+
+// 1. Create a named thread so the conversation is listable.
+const thread = await userClient.threads.create({ agentId: 'agent_123' });
+
+// 2. Upload a document and associate it with the thread.
+const resume = await readFile('./resume.pdf');
+const file = await userClient.files.upload({
+  filename: 'resume.pdf',
+  content: resume,
+  contentType: 'application/pdf',
+  threadId: thread._id,
+});
+
+// 3. Chat within that thread, streaming to the client.
+for await (const event of userClient.chat.stream('agent_123', {
+  threadId: thread.threadId,
+  messages: [{ role: 'user', content: 'Review my resume for the internship role.' }],
+})) {
+  if (event.type === 'TEXT_MESSAGE_CHUNK' && event.delta) process.stdout.write(event.delta);
+}
+
+// 4. Let the user rename it; surface it in a "history" screen later.
+await userClient.threads.updateTitle(thread._id, 'Resume review');
+
+// 5. History screen:
+const { items } = await userClient.threads.list({ limit: 20 });
+console.log(items.map((t) => ({ title: t.title, agent: t.agentId.name })));
+```
+
+## Workflow 7: Stores as read-only reference material
+
+Large reference docs mounted on an Agent, populated by you — the Agent reads them on demand.
+
+```ts
+import { readFile } from 'node:fs/promises';
+import { PersonaClient } from '@personaai/sdk';
+
+const persona = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
+
+// 1. Create a domain-scoped, READONLY store (Agents can read, never write).
+const store = await persona.stores.create({
+  name: 'company-policies',
+  scope: 'domain',
+  accessMode: 'readonly',
+});
+
+// 2. Populate it through the API (writeFile is never gated by accessMode).
+for (const [path, file] of [
+  ['/policies/hiring.md', './policies/hiring.md'],
+  ['/policies/expenses.md', './policies/expenses.md'],
+]) {
+  await persona.stores.writeFile(store._id, {
+    path,
+    content: await readFile(file, 'utf8'),
+  });
+}
+
+// 3. Mount it on every Agent that should consult the policies.
+await persona.agents.update('agent_123', { storeMounts: [store._id] });
+// The Agent now sees the files at /stores/company-policies/policies/... via read_file.
+```
+
+## Workflow 8: Cleanup with dependency checks
+
+Safe teardown that respects the delete-blocking rules.
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+
+const persona = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
+
+// Providers, Skills, and MCPs reject delete() while an Agent references them.
+// Knowledge bases do NOT block — getUsage() is informational there.
+async function safeDelete(kind: 'provider' | 'skill' | 'mcp', id: string) {
+  const usage =
+    kind === 'provider'
+      ? await persona.providers.getUsage(id)
+      : kind === 'skill'
+        ? await persona.skills.getUsage(id)
+        : await persona.mcps.getUsage(id);
+
+  if (usage.agentCount > 0) {
+    console.log(`Still referenced by ${usage.agentCount} agents:`, usage.agents);
+    return false;
+  }
+  if (kind === 'provider') await persona.providers.delete(id);
+  else if (kind === 'skill') await persona.skills.delete(id);
+  else await persona.mcps.delete(id);
+  return true;
+}
+
+// Batch teardown with best-effort semantics.
+async function bulkCleanup() {
+  const { deleted, failed } = await persona.agents.bulkDelete(['a1', 'a2', 'a3']);
+  console.log(`Deleted ${deleted.length}, failed ${failed.length}`);
+  for (const f of failed) console.log(' -', f.id, f.reason);
+}
+```
+
+## Workflow 9: Architect-driven agent creation
+
+Let the conversational Architect build an Agent (and its Skill) for you, with approval
+handling:
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+
+const persona = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
+
+const result = await persona.architect.sendMessage({
+  messages: [
+    {
+      role: 'user',
+      content:
+        'Create an agent named "PDF Summarizer" that summarizes uploaded PDFs, uses ' +
+        'provider "OpenAI (prod)", and is unlisted. Also create a skill for it called ' +
+        '"Chunking" with instructions on splitting long PDFs.',
+    },
+  ],
+});
+
+if (result.interrupt) {
+  const approved = await persona.architect.sendMessage({
+    messages: [],
+    resume: { decisions: [{ action: 'upsert_agent', decision: 'approve' }] },
+  });
+  console.log(approved.text);
+} else {
+  console.log(result.text);
+}
+```
+
+## Workflow 10: Error handling wrapper
+
+A reusable error handler for Express-style apps, covering typed Persona errors and network
+failures:
+
+```ts
+import {
+  PersonaApiError,
+  PersonaAuthError,
+  PersonaValidationError,
+} from '@personaai/sdk';
+import type { Response } from 'express';
+
+export function handlePersonaError(err: unknown, res: Response) {
+  if (err instanceof PersonaValidationError) {
+    return res.status(400).json({ error: err.message, code: err.code });
+  }
+  if (err instanceof PersonaAuthError) {
+    return res.status(401).json({ error: err.message });
+  }
+  if (err instanceof PersonaApiError) {
+    if (err.statusCode === 404) return res.status(404).json({ error: 'Not found' });
+    return res.status(err.statusCode).json({ error: err.message, code: err.code });
+  }
+  // Network failures / aborts / anything unexpected.
+  console.error('Unhandled error calling Persona:', err);
+  return res.status(502).json({ error: 'Upstream request failed' });
+}
+```

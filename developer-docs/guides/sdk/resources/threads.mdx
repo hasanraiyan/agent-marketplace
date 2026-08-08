@@ -1,0 +1,114 @@
+---
+title: Threads
+description: Persistent conversation threads for an end user + Agent pair. Requires externalUserId.
+---
+
+`persona.threads` — `/api/v1/developer/threads`.
+
+A Thread is a named, listable conversation between one of your end users and one Agent. Every
+call here **requires** the client to have been constructed with `externalUserId` set — a bare
+Project credential has no Subject to scope a conversation to, and the server rejects it with `400
+EXTERNAL_USER_REQUIRED` (`PersonaValidationError`).
+
+## Do you need Threads at all?
+
+No — you don't have to create one before chatting. `chat.sendMessage()`/`chat.stream()` create an
+implicit deterministic Thread automatically (one conversation per Agent per user). Call
+`threads.create()` only when you want an **explicit, listable Thread** up front — e.g. so the user
+can see and resume past conversations by name.
+
+## Methods
+
+| Method                                   | Endpoint                            | Returns                   |
+| ---------------------------------------- | ----------------------------------- | ------------------------- |
+| `create(input, idempotencyKey?)`         | `POST /api/v1/developer/threads`    | `Thread`                  |
+| `list(params?)`                          | `GET /api/v1/developer/threads`     | `PaginatedResult<Thread>` |
+| `get(threadId)`                          | `GET /api/v1/developer/threads/{id}` | `Thread`                 |
+| `update(threadId, input)`                | `PATCH /api/v1/developer/threads/{id}` | `Thread`               |
+| `updateTitle(threadId, title)`           | `PATCH /api/v1/developer/threads/{id}` | `Thread`               |
+| `delete(threadId)`                       | `DELETE /api/v1/developer/threads/{id}` | `void`                 |
+| `bulkDelete(ids)`                        | `POST /api/v1/developer/threads/bulk-delete` | `BulkDeleteResult` |
+| `getMessages(threadId)`                  | `GET /api/v1/developer/threads/{id}/messages` | `ThreadMessages`  |
+
+## create(input, idempotencyKey?)
+
+```ts
+const thread = await userClient.threads.create({ agentId: agent._id });
+```
+
+- `input` is just `{ agentId }`.
+- Returns the created `Thread` (raw Mongo shape — `_id`). On `create()`, `threadId` on the
+  response is the **deterministic AG-UI thread id** used for streaming (`x-thread-id`) — distinct
+  from `_id`. Pass it to `chat.stream()`/`chat.sendMessage()` via `options.threadId` to resume
+  this named conversation.
+
+## list(params?)
+
+```ts
+const { items, pagination } = await userClient.threads.list({ page: 1, limit: 20 });
+```
+
+Lists the asserted external user's own Threads, **most recently active first**. `page` (default
+1), `limit` (default 20). **Note:** on `list()`, each item's `agentId` is populated as
+`{ _id, name, avatar?, slug }` — unlike `create()`/`get()`, which return a bare id string.
+
+## get(threadId)
+
+Fetches one Thread by `_id`.
+
+## update / updateTitle
+
+```ts
+await userClient.threads.update(thread._id, { title: 'Summer internship search' });
+await userClient.threads.update(thread._id, { isArchived: true }); // archive without touching the title
+await userClient.threads.updateTitle(thread._id, 'Summer internship search'); // convenience
+```
+
+- `update(threadId, { title?, isArchived? })` is the general form — send just the one you want to
+  change. `updateTitle(threadId, title)` is a convenience wrapper over it.
+
+## getMessages(threadId)
+
+Fetches the full message history + graph state for a Thread — the same data `chat.stream()` would
+resume from.
+
+```ts
+const { messages, state, subagentTraces } = await userClient.threads.getMessages(thread._id);
+```
+
+Returns `ThreadMessages`: `{ messages: unknown[], state: Record<string, unknown>, subagentTraces:
+Record<string, unknown> }`. `messages` holds raw LangChain-style message objects (role/content/
+tool_calls vary by message type) and is intentionally typed `unknown[]` — inspect at runtime if you
+need to render history yourself, or prefer `chat.stream()`'s typed AG-UI events for anything you're
+building a live UI around.
+
+## delete / bulkDelete
+
+- `delete(threadId)` deletes the Thread and its message history.
+- `bulkDelete(ids)` — best-effort, up to 100 ids per call.
+
+## Complete example
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+
+const userClient = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  externalUserId: 'user_123',
+});
+
+// Create a named thread so the user can find it again later.
+const thread = await userClient.threads.create({ agentId: 'agent_123' });
+
+// Chat within that named thread.
+const result = await userClient.chat.sendMessage('agent_123', {
+  threadId: thread.threadId, // the deterministic AG-UI thread id from create()
+  messages: [{ role: 'user', content: 'Hello!' }],
+});
+console.log(result.text);
+
+// Rename and archive when done.
+await userClient.threads.updateTitle(thread._id, 'Summer internship search');
+await userClient.threads.update(thread._id, { isArchived: true });
+```

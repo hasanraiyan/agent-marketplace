@@ -1,0 +1,175 @@
+---
+title: Troubleshooting
+description: Common problems developers hit with @personaai/sdk — symptoms, causes, and fixes.
+---
+
+## "HttpClient: baseUrl is required" / "credential is required" at construction
+
+**Cause:** `new PersonaClient({...})` was called without `baseUrl` or `credential`.
+
+**Fix:** Both are required and validated synchronously. Read them from env vars:
+
+```ts
+const persona = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
+```
+
+## "no fetch implementation available"
+
+**Cause:** Running on a runtime without a global `fetch` (Node < 18, or a restricted runtime) and
+no `fetch` option was passed.
+
+**Fix:** Upgrade to Node 18+, or pass `fetch` explicitly:
+
+```ts
+const client = new PersonaClient({ baseUrl, credential, fetch: myFetchImpl });
+```
+
+## 401 / 403 PersonaAuthError on every call
+
+**Cause:** Invalid or revoked credential, or the Project isn't `ACTIVE`.
+
+**Fix:** Verify `PERSONA_CREDENTIAL` is set correctly (shape `"<keyId>.<secret>"`), check the
+Project's status in Studio, and re-mint the credential if needed. `whoami()` is a cheap way to
+sanity-check auth wiring before other calls.
+
+## 400 EXTERNAL_USER_REQUIRED on threads/files/memory/chat
+
+**Cause:** The call needs a Subject (an end user) but the client was built without
+`externalUserId`.
+
+**Fix:** Construct a runtime-plane client and retry:
+
+```ts
+const userClient = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  externalUserId: currentUser.id,
+});
+```
+
+Stores file CRUD throws the same when the target Store's `scope` is `'externalUser'`.
+
+## 404 on resources you know exist
+
+**Cause:** Existence-hiding. A 404 means "not found **or** not owned by this credential's scope."
+Common triggers:
+
+- Using a **runtime-plane** client (with `externalUserId`) for control-plane resources —
+  Providers are never owned by an external user; `list()` comes back empty and `get()` 404s.
+- Passing `_id` fields where the resource uses `id` (or vice versa) — see
+  [Behavior & edge cases](/guides/sdk/behavior#the-_id-vs-id-quirk).
+- Cross-Domain ids — you can only touch resources in your own Domain.
+
+## `chat.stream()` 404s on a threadId you just created
+
+**Cause:** `threadId` must belong to the asserted external user **and** the `agentId` you're
+calling with. Passing someone else's Thread, a different Agent's Thread, or a nonexistent id
+404s — it does not silently fall back.
+
+**Fix:** Pass the `threadId` from `threads.create()`'s response (the deterministic AG-UI thread
+id — **not** `Thread._id`), for the same `agentId`.
+
+## Chat returns `result.interrupt` and never finishes
+
+**Cause:** The Agent's `interruptOn` config gates a tool call, or the run asked a clarifying
+question. This is the designed human-in-the-loop behavior — not a bug.
+
+**Fix:** Resume with `resume` on the next call (see
+[Chat: interrupts](/guides/sdk/chat#human-in-the-loop-interrupts-and-resuming)):
+
+```ts
+const result = await userClient.chat.sendMessage(agent._id, {
+  messages: [],
+  resume: { decisions: [{ action: 'my_tool', decision: 'approve' }] },
+});
+```
+
+## Chat returns `result.error` with a `RunErrorCode`
+
+**Cause:** The run genuinely failed — provider auth (`PROVIDER_AUTH_ERROR`), rate limit
+(`PROVIDER_RATE_LIMIT`), tool timeout (`TOOL_TIMEOUT`), tool error (`TOOL_ERROR`), context length
+exceeded (`CONTEXT_LENGTH_EXCEEDED`), or internal (`INTERNAL_ERROR`).
+
+**Fix:** Check `result.error.retryable` — if `true` (e.g. `PROVIDER_RATE_LIMIT`,
+`TOOL_TIMEOUT`), retry; if `false` (e.g. `PROVIDER_AUTH_ERROR`), fix the underlying Provider
+config first.
+
+## `contextOverride` causes a 400
+
+**Cause:** `contextOverride` is capped at **4000 characters** server-side and is rejected (not
+truncated) above that.
+
+**Fix:** Keep per-turn context under 4000 chars. For larger reference material, use
+[Stores](/guides/sdk/resources/stores) instead.
+
+## `bulkDelete()` returns ids in `failed`
+
+**Cause:** Best-effort semantics — ids can fail because they don't exist, aren't authorized, or
+are blocked by a dependency (e.g. a Provider still referenced by an Agent). Reasons are generic
+by design (existence-hiding).
+
+**Fix:** For dependency blocks, check `getUsage()` first and unlink the references; for
+NotFound/authorization failures, treat the id as already gone. Don't try to distinguish via
+`reason`.
+
+## Empty results from `list()` or `getUsage()`
+
+**Cause (list):** `providers.list()` and `auditLogs.list()` return empty on runtime-plane
+clients — those resources are control-plane only.
+
+**Cause (getUsage):** `agents` is a preview capped at 20 entries — `agentCount` is the real
+total. Don't trust `agents.length`.
+
+## An MCP `create()` with `authType: 'oauth'` fails immediately
+
+**Cause:** Creating an OAuth MCP synchronously probes the target URL's OAuth discovery endpoints;
+a URL that doesn't implement discovery fails the `create()` itself.
+
+**Fix:** Confirm the MCP server actually implements OAuth discovery at the given URL before
+creating. Consider `useDynamicRegistration: true` if the server supports RFC 7591.
+
+## MCP has no tools/resources
+
+**Cause:** `tools`/`resources`/`resourceTemplates` are populated only after
+`mcps.testConnection()` has been called at least once — until then they're empty arrays.
+
+**Fix:** Call `testConnection(mcpId)` and read the returned summary, or call `get(mcpId)` again
+after a successful test (the summary is persisted server-side).
+
+## Credential leaked to the browser (Next.js)
+
+**Cause:** Importing `@personaai/sdk` or constructing `PersonaClient` inside a `"use client"`
+component — Next.js bundles the credential into client JavaScript.
+
+**Fix:** Only import the SDK in Server Components, Route Handlers (`app/api/.../route.ts`), or
+Server Actions. Never in client code. See the
+[Integration Guide](/guides/integration-guide) for the full reasoning.
+
+## "Error: Object prototype may only be an Object or null" or cross-realm `instanceof` failures
+
+**Cause:** The error classes call `Object.setPrototypeOf` for correct prototype chains; in rare
+cross-realm setups (vm/workers/dual-package hazard), `instanceof` checks can behave oddly.
+
+**Fix:** Check `err.name` as a fallback (`'PersonaApiError'` / `'PersonaAuthError'` /
+`'PersonaValidationError'`) or use `err instanceof PersonaApiError` from the same module instance.
+If your app uses both ESM and CJS copies of the SDK, standardize on one (the package supports
+both, but don't mix them in one process).
+
+## Downloads return something odd from `files.download()`
+
+**Cause:** `download()` returns the **raw `Response`**, not parsed JSON — the one method that
+does.
+
+**Fix:** Call `.arrayBuffer()`/`.blob()`, or pipe `response.body` onward.
+
+## Still stuck?
+
+- Run `persona.whoami()` and confirm `principalType`/`domain` are what you expect for the client
+  you built.
+- Enable logging on your fetch layer (e.g. pass a wrapping `fetch` via the `fetch` option) to see
+  request/response statuses.
+- Check the [API Reference](/api-reference) for the exact endpoint you're hitting — the SDK
+  method names map 1:1.

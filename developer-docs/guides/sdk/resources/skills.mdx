@@ -1,0 +1,115 @@
+---
+title: Skills
+description: Reusable instruction + optional file bundles you attach to Agents. Project-owned or per end user.
+---
+
+`persona.skills` — `/api/v1/developer/skills`.
+
+A Skill is a reusable instruction (the prompt text given to an Agent that has it attached) plus an
+optional file bundle the Agent can read. Project-owned, or — with `externalUserId` — owned by that
+end user.
+
+## Methods
+
+| Method                          | Endpoint                          | Returns                  |
+| ------------------------------- | --------------------------------- | ------------------------ |
+| `create(input, idempotencyKey?)`| `POST /api/v1/developer/skills`   | `Skill`                  |
+| `list(params?)`                 | `GET /api/v1/developer/skills`    | `PaginatedResult<Skill>` |
+| `get(skillId)`                  | `GET /api/v1/developer/skills/{id}` | `Skill`                |
+| `update(skillId, input)`        | `PATCH /api/v1/developer/skills/{id}` | `Skill`              |
+| `delete(skillId)`               | `DELETE /api/v1/developer/skills/{id}` | `void`               |
+| `getUsage(skillId)`             | `GET /api/v1/developer/skills/{id}/usage` | `ResourceUsage`    |
+| `bulkDelete(ids)`               | `POST /api/v1/developer/skills/bulk-delete` | `BulkDeleteResult` |
+
+## create(input, idempotencyKey?)
+
+`name`, `description`, and `instructions` are required.
+
+```ts
+const skill = await persona.skills.create({
+  name: 'Resume Reviewer',
+  description: 'Reviews a resume and suggests concrete edits.',
+  instructions: 'You are an expert resume reviewer. Use the attached rubric.',
+  isPublic: false, // optional, defaults to false
+  files: [
+    {
+      path: 'rubric.md',
+      content: '# Scoring rubric\n...',
+      mimeType: 'text/markdown', // optional
+    },
+  ],
+});
+```
+
+- `isPublic: true` makes the Skill visible to **every credential in the platform**, not just this
+  Domain.
+- The optional trailing `idempotencyKey` is sent as the `Idempotency-Key` header.
+- Returns the created `Skill` in raw Mongo shape — `_id`, not `id`.
+
+## list(params?)
+
+```ts
+const { items, pagination } = await persona.skills.list({
+  page: 1,          // default 1
+  limit: 20,        // default 20
+  search: 'resume', // free-text match against name/description
+  scope: 'mine',    // restrict to the asserted external user's own Skills
+});
+```
+
+Lists/searches Skills visible to this credential: this Project's own plus any public Skills.
+Returns `PaginatedResult<Skill>`.
+
+## get(skillId)
+
+Fetches one Skill by `_id`. `isOwner` is present **only** on the result of `get()` — it indicates
+whether the calling identity owns this Skill. It's absent from `list()`/`create()`/`update()`.
+
+## update(skillId, input)
+
+Partially updates a Skill — only the fields you pass are changed. `name`/`description`/
+`instructions`/`isPublic`/`files` are all optional.
+
+Important: **`files` replaces the entire array** — not a merge/append. Pass the full new file set.
+
+## delete(skillId)
+
+Deletes a Skill. **Rejects with `PersonaApiError` if any Agent still references it** — call
+`getUsage()` first. Returns `void`.
+
+## getUsage(skillId)
+
+`ResourceUsage` — the Agents referencing this Skill. `agentCount` is the real total; `agents` is a
+preview capped at **20**. Check before `delete()`.
+
+## bulkDelete(ids)
+
+Best-effort batch delete — up to 100 ids per call, partial failures don't throw.
+
+```ts
+const { deleted, failed } = await persona.skills.bulkDelete([skill._id]);
+```
+
+## Complete example
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+
+const persona = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
+
+const skill = await persona.skills.create({
+  name: 'Resume Reviewer',
+  description: 'Reviews a resume and suggests concrete edits.',
+  instructions: 'You are an expert resume reviewer...',
+  files: [{ path: 'rubric.md', content: '# Scoring rubric\n...' }],
+});
+
+// Attach it to an Agent.
+await persona.agents.update('agent_123', { skills: [skill._id] });
+
+const { items: mine } = await persona.skills.list({ scope: 'mine', search: 'resume' });
+console.log(mine.map((s) => s.name));
+```

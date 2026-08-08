@@ -1,0 +1,93 @@
+---
+title: Compatibility
+description: Runtimes, module formats, TypeScript, frameworks, and versioning — what @personaai/sdk supports and what it doesn't.
+---
+
+## Runtime requirements
+
+- **Node.js 18+** — the SDK uses the built-in `fetch`, `FormData`, and `ReadableStream`; there is
+  no heavy HTTP client dependency. Node 18 is the minimum per `package.json` `engines`.
+- **Any runtime exposing the standard web APIs** also works: Node 18+/20+/22+, and Next.js's
+  **Edge runtime** (which provides native `fetch`/`ReadableStream`). Deno and Bun should work
+  since they implement the same web standard globals, but the officially supported and tested
+  environments are Node.js and Next.js Edge.
+- **Node < 18 without a polyfill** fails at construction with
+  `"no fetch implementation available"` — pass the `fetch` option (e.g. `node-fetch`) to work
+  around it.
+
+## Module formats
+
+The package ships **three artifacts** via `exports`:
+
+| Field            | Format | Path              |
+| ---------------- | ------ | ----------------- |
+| `import`         | ESM    | `dist/index.js`   |
+| `require`        | CJS    | `dist/index.cjs`  |
+| `types`          | .d.ts  | `dist/index.d.ts` |
+
+Both `import` and `require` work. Standardize on one format per process — mixing ESM and CJS
+copies of the same package in one process can cause duplicate `instanceof` hierarchies.
+
+## TypeScript- **TypeScript 5.x** — the package builds against 5.7 and its declaration files use modern syntax. Older 4.x compilers may choke on some emitted `.d.ts` constructs.
+- Strict-friendly: the SDK's own code compiles under `strict: true`, and its types don't require
+  your project to be strict.
+- All types are exported from the package root (`@personaai/sdk`) — there is no separate
+  `@personaai/sdk/types` entry point.
+- `EventType` and the `AguiEvent` union are re-exported from `@ag-ui/core` through the SDK, so you
+  don't need to install `@ag-ui/core` yourself.
+
+## Framework compatibility
+
+The SDK is framework-agnostic — it's just `fetch` under the hood. Tested/covered patterns:
+
+| Framework | How to use it                                                                                                 |
+| --------- | ------------------------------------------------------------------------------------------------------------- |
+| Express   | Construct a control-plane client once at module scope; construct a runtime-plane client per request.          |
+| NestJS    | Wrap `PersonaClient` in an `@Injectable()` provider so it plugs into the DI container.                        |
+| Next.js   | **Server Components, Route Handlers, Server Actions only.** Never a `"use client"` component — the credential would be bundled into browser JS. Works in both Node and Edge runtimes. |
+
+Framework recipes live in the [Getting Started](/guides/sdk-quickstart) page (Express/Nest
+snippets) and the [Integration Guide](/guides/integration-guide).
+
+## Platform limitations
+
+- **No browser support — by design.** Every method sends the Project credential as a bearer
+  token; shipping it to a browser is a credential leak. This is a server-side SDK.
+- **No React Native / mobile** — same reason, plus the reliance on Node-style buffer handling for
+  uploads.
+- **No streaming transport beyond SSE** — chat streams use server-sent events; there's no
+  WebSocket transport.
+
+## Versioning
+
+- The SDK follows **semantic versioning** (currently `0.4.0`; `0.x` means breaking changes are
+  possible between minor versions — see the package's `CHANGELOG.md` for each release's breaking
+  notes).
+- **Breaking change to watch:** since `0.2.0`, `list()`/`discover()` methods return a
+  `PaginatedResult<T>` envelope (`{ items, pagination }`) instead of a bare array. Update any
+  code that destructures the result directly: `const list = await persona.skills.list()` →
+  `const { items } = await persona.skills.list()`.
+- **Additive features arrive without breaking changes** — e.g. `bulkDelete()` (0.2.0),
+  `memory`/`stores`/`contextOverride`/structured run errors (0.3.0), the `architect` client
+  (0.4.0). The optional trailing `idempotencyKey` argument (0.2.1) is backward-compatible.
+- The SDK is published as `@personaai/sdk` on npm; releases are deliberate, separate actions by a
+  maintainer (not part of CI).
+
+## AG-UI schema compatibility
+
+- The SDK release is written against AG-UI schema version `1.0.0` (exported as
+  `AGUI_SCHEMA_VERSION`).
+- The live backend's custom-event schema is served at `GET /api/v1/developer/agui/schema` and
+  echoed on the `X-AGUI-Schema-Version` response header of every stream — the typed payloads
+  (`ClarificationRequestPayload`, `HitlRequestPayload`, `McpAppPayload`,
+  `SubagentActivityPayload`) track that document.
+- If a future backend bumps the schema version, SDK types may lag one version behind — check the
+  header when you observe mismatched event payloads.
+
+## Integration test environment
+
+The SDK's integration tests (`test/integration/live.test.ts`) are skipped by default and need a
+real, already-running backend. They use `PERSONA_SDK_INTEGRATION_TEST=1`,
+`PERSONA_TEST_BASE_URL`, `PERSONA_TEST_CREDENTIAL`, and `PERSONA_TEST_PROVIDER_ID`. Every resource
+the tests create is deleted by the test itself, so they're safe to run repeatedly against the
+same Project.

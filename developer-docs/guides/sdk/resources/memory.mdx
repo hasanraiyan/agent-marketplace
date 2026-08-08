@@ -1,0 +1,124 @@
+---
+title: Memory
+description: Read and write a subject's persistent memory files — the same filesystem an Agent's own tools use. Requires externalUserId.
+---
+
+`persona.memory` — `/api/v1/developer/memory`.
+
+Memory exposes a subject's persistent memory files over REST — the **same** `/memories/user/` and
+`/memories/agent/` filesystem an Agent's own `write_file`/`read_file` tool calls see. Every call
+here **requires** the client to have been constructed with `externalUserId` set (a bare Project
+credential has no Subject to scope memory to; the server rejects it with `400
+EXTERNAL_USER_REQUIRED`).
+
+## When to use it
+
+- Admin/support tooling ("what does this Agent remember about founder X").
+- A user-facing "manage what you've shared" settings page.
+- Seeding known facts before a user's first conversation.
+
+<Warning>
+  Memory written here goes through the exact same namespace a live Agent run uses — it's real,
+  live-visible data, not a separate copy. A `writeFile()` call is indistinguishable from the
+  Agent having written that file itself via its own `write_file` tool.
+</Warning>
+
+## Methods
+
+| Method                   | Endpoint                  | Returns            |
+| ------------------------ | ------------------------- | ------------------ |
+| `list()`                 | `GET /api/v1/developer/memory` | `MemoryListResult` |
+| `getFile(params)`        | `GET /api/v1/developer/memory/file` | `MemoryFile`   |
+| `writeFile(input)`       | `PUT /api/v1/developer/memory/file` | `MemoryFile`  |
+| `deleteFile(params)`     | `DELETE /api/v1/developer/memory/file` | `void`        |
+
+## list()
+
+```ts
+const { userFiles, agentMemories } = await userClient.memory.list();
+```
+
+Returns `MemoryListResult`:
+
+```ts
+{
+  userFiles: MemoryFile[],                       // user-global files
+  agentMemories: {                               // one group per Agent with agent-scoped memory
+    agentId: string,
+    agentName: string | null,                    // null if the Agent no longer exists
+    files: MemoryFile[],
+  }[],
+}
+```
+
+No pagination — memory has no pagination concept; it's a full listing every time.
+
+## getFile(params)
+
+```ts
+const file = await userClient.memory.getFile({
+  path: '/memories/user/index.md', // the file's path
+  scope: 'user',                   // 'user' (default) or 'agent'
+  agentId: 'agent_123',            // required when scope is 'agent'
+});
+```
+
+Returns a `MemoryFile`: `{ scope, agentId?, path, content, mimeType, createdAt, updatedAt }`.
+
+## writeFile(input)
+
+Creates or overwrites one memory file — `content` replaces any existing content.
+
+```ts
+// User-global memory (shared across all the user's Agents).
+await userClient.memory.writeFile({
+  path: '/memories/user/preferences.md',
+  content: '- Prefers concise answers\n- Works in fintech',
+});
+
+// Agent-scoped memory (private to one Agent).
+await userClient.memory.writeFile({
+  scope: 'agent',
+  agentId: agent._id,
+  path: '/memories/agent/learnings.md',
+  content: 'User responds well to bullet points.',
+});
+```
+
+`scope` defaults to `'user'`; `'agent'` requires `agentId`. Returns the written `MemoryFile`.
+
+## deleteFile(params)
+
+```ts
+await userClient.memory.deleteFile({ path: '/memories/user/preferences.md' });
+```
+
+Same params shape as `getFile`. Returns `void`.
+
+## Complete example
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+
+const userClient = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  externalUserId: 'user_123',
+});
+
+// Seed known facts before the user's first conversation.
+await userClient.memory.writeFile({
+  path: '/memories/user/preferences.md',
+  content: '- Prefers concise answers\n- Works in fintech\n- Looking for internships in NYC',
+});
+
+// Read them back.
+const { userFiles } = await userClient.memory.list();
+console.log(userFiles.map((f) => f.path));
+
+// Support: see what an Agent remembers about this user.
+const { agentMemories } = await userClient.memory.list();
+for (const group of agentMemories) {
+  console.log(group.agentName, group.files.map((f) => f.path));
+}
+```

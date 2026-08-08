@@ -1,0 +1,109 @@
+---
+title: Architect
+description: The conversational Agent Architect — a co-pilot that creates and edits Agents via tool calls on your behalf.
+---
+
+`persona.architect` — `/api/v1/developer/architect/agui`.
+
+The Agent Architect is a conversational co-pilot that creates/edits Agents via tool calls on your
+behalf, reachable with just your Project's machine credential — **no Clerk session required**.
+
+## How it differs from Chat
+
+|                      | `chat`                                   | `architect`                                          |
+| -------------------- | ---------------------------------------- | ---------------------------------------------------- |
+| Endpoint             | `/api/v1/developer/agui`                 | `/api/v1/developer/architect/agui`                   |
+| What runs            | The Agent you pick (by `agentId`)        | Always the one dedicated Architect — **no `agentId`** |
+| Thread selection     | Optional `threadId`                      | None — one implicit, per-caller-scoped conversation  |
+| What it does         | Converses as the Agent                   | Builds/edits Agents (and Skills) via tool calls      |
+| `externalUserId`     | **Required**                             | Optional — determines ownership of what it builds    |
+
+## Ownership
+
+Ownership follows the same dual-mode convention every other Developer Platform resource uses:
+
+- **Omit `externalUserId`** — the Architect builds/edits Agents owned by your whole Project (the
+  SDK-reachable equivalent of a Project Admin managing the shared roster by hand).
+- **Set `externalUserId`** — the Architect builds/edits Agents owned by that one external user
+  instead.
+
+## Methods
+
+| Method                              | Returns                     | Description                                                                      |
+| ----------------------------------- | --------------------------- | -------------------------------------------------------------------------------- |
+| `architect.stream(options)`         | `AsyncGenerator<AguiEvent>` | Streams the raw AG-UI event sequence for a run against the Architect.            |
+| `architect.sendMessage(options)`    | `Promise<ChatResult>`       | Drains `stream()`; returns assembled text plus interrupt/events detail.          |
+
+Both take `ArchitectMessageOptions`:
+
+```ts
+interface ArchitectMessageOptions {
+  messages: ChatMessageInput[];   // { role: 'user' | 'assistant', content: string }[]
+  resume?: ChatResume;            // answers a pending interrupt from a previous run
+  signal?: AbortSignal;           // aborts the underlying request/stream
+}
+```
+
+Note: there is no `contextOverride` or `threadId` option — the Architect has one implicit
+conversation per caller scope.
+
+## Interrupts and resuming
+
+Same interrupt machinery as Chat. If the Architect pauses (e.g. confirming an `upsert_agent`
+tool call), `sendMessage()` returns a `ChatResult` with `interrupt` set; resume on the next call:
+
+```ts
+const result = await persona.architect.sendMessage({
+  messages: [{ role: 'user', content: 'Build me an agent that summarizes PDFs.' }],
+});
+
+if (result.interrupt) {
+  const resume = await persona.architect.sendMessage({
+    messages: [],
+    resume: { decisions: [{ action: 'upsert_agent', decision: 'approve' }] },
+  });
+  console.log(resume.text);
+}
+```
+
+Structured run errors work the same way as Chat — `result.error` is a `PersonaRunErrorEvent` on a
+genuine failure.
+
+## Complete example
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+
+// Control-plane: builds Project-owned Agents.
+const persona = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
+
+const result = await persona.architect.sendMessage({
+  messages: [
+    {
+      role: 'user',
+      content:
+        'Create an agent named "PDF Summarizer" that summarizes uploaded PDFs. Use provider ' +
+        '"OpenAI (prod)" and make it unlisted.',
+    },
+  ],
+});
+
+if (result.interrupt) {
+  // Approve the agent creation the Architect proposed.
+  const approved = await persona.architect.sendMessage({
+    messages: [],
+    resume: { decisions: [{ action: 'upsert_agent', decision: 'approve' }] },
+  });
+  console.log(approved.text);
+} else if (result.error) {
+  console.error(result.error.code, result.error.message);
+} else {
+  console.log(result.text);
+}
+```
+
+For a streaming build-your-own-UI version, use `architect.stream(options)` with the same event
+handling described in [Chat](/guides/sdk/chat#ag-ui-event-types).

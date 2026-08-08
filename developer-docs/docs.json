@@ -15,6 +15,37 @@
           "introduction",
           "guides/integration-guide",
           "guides/sdk-quickstart",
+          {
+            "group": "Node.js SDK Reference",
+            "pages": [
+              "guides/sdk/configuration",
+              "guides/sdk/client",
+              "guides/sdk/http-client",
+              "guides/sdk/errors",
+              {
+                "group": "Resources",
+                "pages": [
+                  "guides/sdk/resources/providers",
+                  "guides/sdk/resources/agents",
+                  "guides/sdk/resources/skills",
+                  "guides/sdk/resources/knowledge",
+                  "guides/sdk/resources/mcps",
+                  "guides/sdk/resources/threads",
+                  "guides/sdk/resources/memory",
+                  "guides/sdk/resources/stores",
+                  "guides/sdk/resources/files",
+                  "guides/sdk/resources/audit-logs"
+                ]
+              },
+              "guides/sdk/chat",
+              "guides/sdk/architect",
+              "guides/sdk/types",
+              "guides/sdk/behavior",
+              "guides/sdk/workflows",
+              "guides/sdk/troubleshooting",
+              "guides/sdk/compatibility"
+            ]
+          },
           "guides/sdk-quickstart-python"
         ]
       },

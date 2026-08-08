@@ -1,0 +1,105 @@
+---
+title: Files
+description: Upload, list, download, and delete a subject's files. Requires externalUserId.
+---
+
+`persona.files` — `/api/v1/developer/files`.
+
+Files are uploaded on behalf of the asserted external user, optionally associated with an
+Agent/Thread. Every call here **requires** the client to have been constructed with
+`externalUserId` set — a File's Subject is a person, same requirement and rejection behavior as
+Threads (`400 EXTERNAL_USER_REQUIRED` otherwise).
+
+## Methods
+
+| Method                             | Endpoint                          | Returns                         |
+| ---------------------------------- | --------------------------------- | ------------------------------- |
+| `upload(input, idempotencyKey?)`   | `POST /api/v1/developer/files` (multipart) | `PersonaFile`          |
+| `list(params?)`                    | `GET /api/v1/developer/files`     | `PaginatedResult<PersonaFile>`  |
+| `download(fileId)`                 | `GET /api/v1/developer/files/{id}` | `Response` (raw, not JSON)     |
+| `delete(fileId)`                   | `DELETE /api/v1/developer/files/{id}` | `void`                        |
+| `bulkDelete(ids)`                  | `POST /api/v1/developer/files/bulk-delete` | `BulkDeleteResult`      |
+
+## upload(input, idempotencyKey?)
+
+`filename` and `content` are required; `contentType`, `agentId`, `threadId` are optional context.
+
+```ts
+import { readFile } from 'node:fs/promises';
+
+const resume = await readFile('./resume.pdf');
+const file = await userClient.files.upload({
+  filename: 'resume.pdf',
+  content: resume,                 // Node Buffer/Uint8Array, or an already-built Blob
+  contentType: 'application/pdf',  // required when content isn't a Blob with its own type
+  agentId: 'agent_123',            // optional — associate with an Agent
+  threadId: 'thread_456',          // optional — associate with a conversation
+});
+```
+
+- `UploadFilePayload`: `{ filename, content: Uint8Array | Blob, contentType?, agentId?,
+  threadId? }`.
+- Returns a `PersonaFile` in the **clean formatted shape** (`id`, not `_id` — unlike
+  Thread/Skill/Agent/Knowledge): `{ id, originalName, mimeType, size, agentId: string | null,
+  threadId: string | null, createdAt }`.
+- The optional trailing `idempotencyKey` is sent as the `Idempotency-Key` header.
+
+## list(params?)
+
+```ts
+const { items, pagination } = await userClient.files.list({ page: 1, limit: 20 });
+```
+
+Lists the asserted external user's own uploaded files. Returns `PaginatedResult<PersonaFile>`.
+
+## download(fileId)
+
+Downloads a file's raw bytes. **This is the one method on the whole client that doesn't return
+parsed JSON** — it returns the raw `Response` (a mediated file stream), so you can:
+
+```ts
+const response = await userClient.files.download(file.id);
+
+// Option A: buffer it.
+const bytes = await response.arrayBuffer();
+
+// Option B: pipe the body (a ReadableStream) straight onward without buffering
+// the whole file in memory — e.g. into an Express/Next.js response.
+```
+
+Call `.arrayBuffer()`/`.blob()` or pipe `response.body` onward as your framework needs. Throws
+`PersonaApiError` (404) for a file id the asserted user doesn't own.
+
+## delete / bulkDelete
+
+```ts
+await userClient.files.delete(file.id);
+const { deleted, failed } = await userClient.files.bulkDelete([file.id]);
+```
+
+## Complete example
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+import { readFile } from 'node:fs/promises';
+
+const userClient = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  externalUserId: 'user_123',
+});
+
+// Upload a resume and associate it with a conversation.
+const resume = await readFile('./resume.pdf');
+const file = await userClient.files.upload({
+  filename: 'resume.pdf',
+  content: resume,
+  contentType: 'application/pdf',
+  threadId: 'thread_456',
+});
+
+// Download it back later.
+const response = await userClient.files.download(file.id);
+const bytes = Buffer.from(await response.arrayBuffer());
+console.log('Downloaded', bytes.length, 'bytes');
+```

@@ -1,0 +1,167 @@
+---
+title: Agents
+description: Create, discover, update, and delete AI Agents. Project-owned or per end user.
+---
+
+`persona.agents` — `/api/v1/developer/agents`.
+
+An Agent is an AI assistant configuration: name, system prompt, model (via a Provider), attached
+Skills/Knowledge bases/MCPs/Stores, and visibility. Project-owned, or — when the client asserts an
+external user — owned by that end user.
+
+## Ownership & scoping
+
+- On a control-plane client (no `externalUserId`), Agents belong to the whole Project.
+- On a runtime-plane client, `create()` makes an Agent owned by that end user; `list({ scope:
+  'mine' })` restricts to that user's own Agents (`ProjectRuntimeContext` only — the server
+  rejects `scope: 'mine'` on a control-plane client).
+- Public Agents from other Domains appear in discovery listings but are not editable by you, and
+  their `systemPrompt`/`providerId` are **stripped from the response** when you don't own them.
+
+## Methods
+
+| Method                          | Endpoint                          | Returns                  |
+| ------------------------------- | --------------------------------- | ------------------------ |
+| `create(input, idempotencyKey?)`| `POST /api/v1/developer/agents`   | `Agent`                  |
+| `list(params?)`                 | `GET /api/v1/developer/agents`    | `PaginatedResult<Agent>` |
+| `get(agentId)`                  | `GET /api/v1/developer/agents/{id}` | `Agent`                |
+| `update(agentId, input)`        | `PATCH /api/v1/developer/agents/{id}` | `Agent`              |
+| `delete(agentId)`               | `DELETE /api/v1/developer/agents/{id}` | `void`               |
+| `bulkDelete(ids)`               | `POST /api/v1/developer/agents/bulk-delete` | `BulkDeleteResult` |
+
+## create(input, idempotencyKey?)
+
+`name`, `systemPrompt`, and `providerId` are required.
+
+```ts
+const agent = await persona.agents.create({
+  name: 'Career Launchpad',
+  systemPrompt: 'You help students find internships.',
+  providerId: provider.id, // must reference a Provider created via providers.create()
+  description: 'Your internship search co-pilot.',
+  category: 'productivity',
+  visibility: 'unlisted',
+  webSearchEnabled: true,
+  skills: [skill._id],           // Skill ids to attach at creation time
+  mcps: [mcp._id],               // MCP server ids to attach at creation time
+  knowledgeBases: [kb._id],      // Knowledge base ids to attach at creation time
+  storeMounts: [store._id],      // Store ids to mount at creation time
+  interruptOn: { propose_issue: true }, // gate tool calls on human approval
+});
+```
+
+Optional fields and defaults:
+
+| Field                 | Type                                   | Default     | Notes                                                                   |
+| --------------------- | -------------------------------------- | ----------- | ----------------------------------------------------------------------- |
+| `description`         | `string`                               | —           | Free-text description.                                                  |
+| `avatar`              | `string`                               | —           | Avatar URL or identifier.                                               |
+| `tags`                | `string[]`                             | —           | Free-form tags.                                                         |
+| `tagline`             | `string`                               | —           | Short one-liner shown in list/card views.                               |
+| `bio`                 | `string`                               | —           | Longer free-text bio shown on the profile view.                         |
+| `personalityTraits`   | `string[]`                             | —           | Personality descriptors.                                                |
+| `socialLinks`         | `AgentSocialLinks`                     | —           | `{ website?, twitter?, github?, linkedin? }`.                           |
+| `modelName`           | `string`                               | —           | Overrides the referenced Provider's `defaultModel`.                     |
+| `webSearchEnabled`    | `boolean`                              | `false`     | Whether the Agent can perform web searches.                             |
+| `visibility`          | `'private' \| 'unlisted' \| 'public'`  | `'private'` | `unlisted` is linkable but excluded from public discovery.              |
+| `category`            | `'productivity' \| 'coding' \| 'creative' \| 'research' \| 'roleplay' \| 'other'` | `'other'` | |
+| `skills`              | `string[]`                             | —           | Skill ids.                                                              |
+| `mcps`                | `string[]`                             | —           | MCP server ids.                                                         |
+| `knowledgeBases`      | `string[]`                             | —           | Knowledge base ids.                                                     |
+| `storeMounts`         | `string[]`                             | —           | Store ids mounted at `/stores/<name>/` in the Agent's filesystem.       |
+| `interruptOn`         | `Record<string, boolean>`              | —           | Maps a tool name to whether calling it pauses the run for human approval (a real LangGraph interrupt, resumed via chat's `resume`). Works for built-in and MCP-sourced tool names. |
+| `isActive`            | `boolean`                              | `true`      | Whether the Agent is active.                                            |
+
+The optional trailing `idempotencyKey` is sent as the `Idempotency-Key` header.
+
+## list(params?)
+
+```ts
+const { items, pagination } = await persona.agents.list({
+  page: 1,          // default 1
+  limit: 20,        // default 20
+  search: 'career', // free-text match against name/description/tagline
+  category: 'productivity',
+  scope: 'mine',    // restrict to the asserted external user's own Agents
+});
+```
+
+Returns `PaginatedResult<Agent>` — `{ items, pagination: { total, page, limit, pages } }`.
+**Note:** on `list()`, each item's `skills`/`mcps`/`knowledgeBases`/`storeMounts` are **bare id
+strings** (or omitted) — unlike `get()`, which populates them as objects.
+
+## get(agentId)
+
+Fetches one Agent by `_id`. **Unlike `create()`/`update()`/`list()`**, `get()` returns
+`skills`/`mcps`/`knowledgeBases`/`storeMounts` **populated as objects**.
+
+```ts
+const full = await persona.agents.get(agent._id);
+```
+
+`systemPrompt`/`providerId` are stripped entirely from the response when the calling identity
+doesn't own the Agent (e.g. browsing a `public` Agent from another Domain) — both fields are typed
+optional for exactly this reason.
+
+## update(agentId, input)
+
+Partially updates an Agent — only the fields you pass are changed. `UpdateAgentInput` makes every
+field optional.
+
+```ts
+await persona.agents.update(agent._id, {
+  tagline: 'Find your next internship.',
+  visibility: 'public',
+});
+```
+
+Important: **array fields replace the entire array** — this is not a merge/append:
+
+- `skills`, `mcps`, `knowledgeBases`, `storeMounts` — passing a new array replaces the whole set.
+- `interruptOn` — passing a new map replaces the whole map.
+
+To add one Skill to an existing list, read the Agent first (or track the lists yourself) and pass
+the full new array.
+
+## delete(agentId)
+
+Deletes an Agent. Returns `void`.
+
+## bulkDelete(ids)
+
+Best-effort batch delete — partial failures don't throw or abort the rest of the batch. Up to
+**100 ids per call**; over the limit is rejected with a 400 before anything is deleted.
+
+```ts
+const { deleted, failed } = await persona.agents.bulkDelete([agent._id]);
+```
+
+## Complete example
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+
+const persona = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
+
+// Create with a Provider from providers.create().
+const agent = await persona.agents.create({
+  name: 'Career Launchpad',
+  systemPrompt: 'You help students find internships.',
+  providerId: 'prov_123',
+  category: 'productivity',
+  visibility: 'unlisted',
+});
+
+// Discover it back.
+const { items } = await persona.agents.list({ search: 'career' });
+
+// Read the fully-populated shape.
+const full = await persona.agents.get(agent._id);
+console.log(full.name, full.visibility);
+
+// Update just one field.
+await persona.agents.update(agent._id, { visibility: 'public' });
+```

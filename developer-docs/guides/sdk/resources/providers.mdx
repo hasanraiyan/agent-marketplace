@@ -1,0 +1,152 @@
+---
+title: Providers
+description: LLM endpoint + API key configuration that Agents reference. Control-plane only.
+---
+
+`persona.providers` — `/api/v1/developer/providers`.
+
+A Provider is an OpenAI-compatible endpoint + API key that Agents in your Project can reference.
+Control-plane only: there is no `ExternalUser` ownership concept for Providers.
+
+## Ownership & scoping
+
+- Providers are Domain-scoped, never per-user. On a runtime-plane client (`externalUserId` set),
+  `list()` returns an **empty array** and `get()`/`update()`/`delete()`/`testConnection()`/
+  `getModels()` return a 404 `PersonaApiError` — not because the Provider doesn't exist, but
+  because that credential can never be its owner (existence-hiding, same as everywhere else).
+- `list()` has **no pagination envelope** and no `page`/`limit`/`search` params — Providers have
+  no discovery concept, so it returns a plain `Provider[]`.
+
+## Methods
+
+| Method                                          | Endpoint                              | Returns                                    |
+| ----------------------------------------------- | ------------------------------------- | ------------------------------------------ |
+| `create(input, idempotencyKey?)`                | `POST /api/v1/developer/providers`    | `Provider`                                 |
+| `list()`                                        | `GET /api/v1/developer/providers`     | `Provider[]`                               |
+| `get(providerId)`                               | `GET /api/v1/developer/providers/{id}`| `Provider`                                 |
+| `update(providerId, input)`                     | `PATCH /api/v1/developer/providers/{id}` | `Provider`                              |
+| `delete(providerId)`                            | `DELETE /api/v1/developer/providers/{id}` | `void`                                   |
+| `testConnection(providerId)`                    | `POST /api/v1/developer/providers/{id}/test-connection` | `ProviderTestConnectionResult` |
+| `getModels(providerId)`                         | `GET /api/v1/developer/providers/{id}/models` | `ProviderModel[]`                    |
+| `getUsage(providerId)`                          | `GET /api/v1/developer/providers/{id}/usage` | `ResourceUsage`                        |
+| `bulkDelete(ids)`                               | `POST /api/v1/developer/providers/bulk-delete` | `BulkDeleteResult`                |
+
+## create(input, idempotencyKey?)
+
+Creates a new Provider. `label`, `baseURL`, `apiKey`, and `defaultModel` are required.
+
+```ts
+const provider = await persona.providers.create({
+  label: 'OpenAI (prod)',
+  baseURL: 'https://api.openai.com/v1',
+  apiKey: process.env.OPENAI_API_KEY!, // encrypted at rest; never returned in any response
+  defaultModel: 'gpt-4o-mini',
+  isDefault: true, // optional, defaults to false
+});
+```
+
+- `apiKey` is **write-only** — it never appears on the returned `Provider` or any later response.
+- `isDefault` (optional, default `false`): at most one Provider per Domain may be the default. The
+  default Provider is used as the fallback when an Agent has no `providerId`.
+- The optional trailing `idempotencyKey` is sent as the `Idempotency-Key` header — see
+  [Idempotency](/guides/sdk/behavior#idempotency-keys).
+
+## list()
+
+```ts
+const all: Provider[] = await persona.providers.list();
+```
+
+Plain array, no pagination envelope — unlike every other resource's `list()`. Same result whether
+or not the client asserts an external user.
+
+## get(providerId)
+
+Fetches one Provider by its `id` (note: Providers use `id`, not `_id`). Throws
+`PersonaApiError` (404) if it doesn't exist or isn't owned by this credential's Domain.
+
+## update(providerId, input)
+
+Partially updates a Provider — only the fields you pass are changed.
+
+```ts
+await persona.providers.update(provider.id, {
+  defaultModel: 'gpt-4o',
+  isDefault: true,
+});
+```
+
+- `apiKey` is optional here: omitting it leaves the existing key untouched; passing a new one
+  replaces the stored key entirely.
+
+## delete(providerId)
+
+Deletes a Provider. **Rejects with `PersonaApiError` if any Agent still references it** — call
+`getUsage()` first to check. Returns `void`.
+
+## testConnection(providerId)
+
+Makes a live call to the Provider's endpoint to verify `baseURL`/`apiKey` work.
+
+```ts
+const { success, message } = await persona.providers.testConnection(provider.id);
+```
+
+- Returns `{ success: boolean, message: string }`.
+- `success: false` means the call **reached** the endpoint but it rejected the credentials/URL —
+  that's a *result*, not a thrown error. A genuinely unreachable endpoint (DNS failure, etc.)
+  throws instead.
+
+## getModels(providerId)
+
+Lists the models this Provider's endpoint reports as available — e.g. for populating a model
+picker in your own UI. Returns `ProviderModel[]` where `ProviderModel` is `{ id: string }`.
+
+## getUsage(providerId)
+
+```ts
+const { agentCount, agents } = await persona.providers.getUsage(provider.id);
+```
+
+Returns `ResourceUsage` — the Agents referencing this Provider. `agentCount` is the real total;
+`agents` is a preview capped at **20** entries. Check this before `delete()` to avoid a
+blocked-delete error.
+
+## bulkDelete(ids)
+
+Best-effort batch delete — partial failures (e.g. a Provider still referenced by an Agent) don't
+throw or abort the rest of the batch.
+
+```ts
+const { deleted, failed } = await persona.providers.bulkDelete([provider.id]);
+```
+
+- Up to **100 ids per call** — a request over that limit is rejected with a 400 before anything is
+  deleted.
+- Returns `{ deleted: string[], failed: { id, reason }[] }`.
+
+## Complete example
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+
+const persona = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
+
+const provider = await persona.providers.create({
+  label: 'OpenAI (prod)',
+  baseURL: 'https://api.openai.com/v1',
+  apiKey: process.env.OPENAI_API_KEY!,
+  defaultModel: 'gpt-4o-mini',
+});
+
+console.log(await persona.providers.testConnection(provider.id));
+console.log(await persona.providers.getModels(provider.id));
+
+const { agentCount } = await persona.providers.getUsage(provider.id);
+if (agentCount === 0) {
+  await persona.providers.delete(provider.id);
+}
+```

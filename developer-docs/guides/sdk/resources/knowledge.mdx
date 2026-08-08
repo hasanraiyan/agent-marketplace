@@ -1,0 +1,159 @@
+---
+title: Knowledge Bases
+description: RAG knowledge bases — create, upload documents, search, and manage. Project-owned or per end user.
+---
+
+`persona.knowledge` — `/api/v1/developer/knowledge`.
+
+A Knowledge base stores documents that have been chunked and embedded for retrieval-augmented
+generation (RAG). Agents with the Knowledge base attached retrieve from it automatically; you can
+also search it directly from the SDK. Project-owned, or — with `externalUserId` — owned by that
+end user.
+
+## Methods
+
+| Method                                          | Endpoint                                                    | Returns                          |
+| ----------------------------------------------- | ----------------------------------------------------------- | -------------------------------- |
+| `create(input, idempotencyKey?)`                | `POST /api/v1/developer/knowledge`                          | `KnowledgeBase`                  |
+| `list(params?)`                                 | `GET /api/v1/developer/knowledge`                           | `PaginatedResult<KnowledgeBase>` |
+| `get(kbId)`                                     | `GET /api/v1/developer/knowledge/{id}`                      | `KnowledgeBase`                  |
+| `update(kbId, input)`                           | `PATCH /api/v1/developer/knowledge/{id}`                    | `KnowledgeBase`                  |
+| `delete(kbId)`                                  | `DELETE /api/v1/developer/knowledge/{id}`                   | `void`                           |
+| `getUsage(kbId)`                                | `GET /api/v1/developer/knowledge/{id}/usage`                | `ResourceUsage`                  |
+| `bulkDelete(ids)`                               | `POST /api/v1/developer/knowledge/bulk-delete`              | `BulkDeleteResult`               |
+| `uploadDocuments(kbId, files)`                  | `POST /api/v1/developer/knowledge/{id}/documents` (multipart) | `UploadDocumentsResult`        |
+| `listDocuments(kbId)`                           | `GET /api/v1/developer/knowledge/{id}/documents`            | `KnowledgeDocument[]`            |
+| `deleteDocument(kbId, sourceName)`              | `DELETE /api/v1/developer/knowledge/{id}/documents/{sourceName}` | `DeleteDocumentResult`       |
+| `search(kbId, query, options?)`                 | `POST /api/v1/developer/knowledge/{id}/search`              | `KnowledgeSearchResult[]`        |
+
+## create(input, idempotencyKey?)
+
+`name` and `providerId` are **required** (the Provider supplies the embedding model's API key —
+there is no "my default provider" concept on this API, unlike Persona's own routes).
+
+```ts
+const kb = await persona.knowledge.create({
+  name: 'Placement Office FAQ',
+  providerId: provider.id,
+  description: 'Internship FAQ for students',
+  isPublic: false,               // default false
+  embeddingModel: 'text-embedding-3-small', // default
+  chunkSize: 800,                // default 800 — characters per chunk
+  chunkOverlap: 100,             // default 100 — overlap between chunks
+  topK: 5,                       // default 5 — chunks returned per search() call
+});
+```
+
+## list(params?)
+
+```ts
+const { items, pagination } = await persona.knowledge.list({
+  page: 1,
+  limit: 20,
+  search: 'faq',
+  scope: 'mine',
+});
+```
+
+Lists/searches Knowledge bases visible to this credential (this Project's own, plus any public
+ones). Returns `PaginatedResult<KnowledgeBase>`.
+
+## update(kbId, input)
+
+Partially updates a Knowledge base. **Note:** changing `providerId`/`embeddingModel`/`chunkSize`/
+`chunkOverlap` does **not** retroactively re-embed already-uploaded documents — those settings
+apply to future uploads only.
+
+## uploadDocuments(kbId, files)
+
+Uploads and chunks/embeds one or more documents into the Knowledge base.
+
+```ts
+import { readFile } from 'node:fs/promises';
+
+const pdf = await readFile('./faq.pdf');
+const result = await persona.knowledge.uploadDocuments(kb._id, [
+  { filename: 'faq.pdf', content: pdf, contentType: 'application/pdf' },
+]);
+console.log(result.documentCount, result.chunkCount, result.files);
+```
+
+- **Synchronous** — returns only once embedding finishes. Expect it to take longer for
+  larger/more files.
+- **Limits:** up to 10 files per call, 20MB each, restricted to PDF/TXT/MD/JSON/CSV.
+- `UploadFileInput` is `{ filename, content: Uint8Array | Blob, contentType? }` — pass a Node
+  Buffer/Uint8Array (with `contentType`), or an already-constructed `Blob` (its own `type` is
+  used).
+- Returns `{ documentCount, chunkCount, files: [{ fileName, fileSize, mimeType, chunkCount }] }`.
+  `documentCount`/`chunkCount` are totals **after** this upload (not just this call's files).
+
+## listDocuments(kbId)
+
+Lists the distinct source documents currently chunked/embedded in this Knowledge base (not the
+individual chunks). Each entry: `{ fileName, fileSize, mimeType, chunkCount, uploadedAt }`.
+
+## deleteDocument(kbId, sourceName)
+
+Deletes every chunk that came from one uploaded source document.
+
+```ts
+const result = await persona.knowledge.deleteDocument(kb._id, 'faq.pdf');
+// { removedChunks, remainingDocuments, remainingChunks }
+```
+
+`sourceName` must be the document's `fileName` as returned by `listDocuments()` — it is
+URL-encoded by the SDK automatically.
+
+## search(kbId, query, options?)
+
+Runs a similarity search against the Knowledge base's embedded chunks — the same retrieval an
+Agent with this Knowledge base attached would use internally.
+
+```ts
+const hits = await persona.knowledge.search(kb._id, "What's the deadline to apply?", {
+  topK: 3, // optional; defaults to the Knowledge base's configured topK
+});
+// hits: [{ text, source, score }]
+```
+
+- `options.topK` overrides the Knowledge base's own configured `topK` for that one call only.
+- Each hit: `{ text, source, score }` — `source` is the source document's `fileName`; `score`
+  (higher = more relevant) is `null` if the underlying store didn't return one.
+
+## getUsage / delete
+
+- `getUsage(kbId)` returns `ResourceUsage`. **Unlike Providers/Skills/MCP, Knowledge base
+  deletion does not currently block on in-use Agents** — this is informational only, not a
+  guarantee that `delete()` will reject while `agentCount > 0`.
+- `delete(kbId)` deletes the Knowledge base and all its embedded chunks.
+
+## Complete example
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+import { readFile } from 'node:fs/promises';
+
+const persona = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
+
+// 1. Create the Knowledge base (providerId required — it supplies the embedding key).
+const kb = await persona.knowledge.create({
+  name: 'Placement Office FAQ',
+  providerId: 'prov_123',
+});
+
+// 2. Upload documents.
+const doc = await readFile('./faq.pdf');
+await persona.knowledge.uploadDocuments(kb._id, [
+  { filename: 'faq.pdf', content: doc, contentType: 'application/pdf' },
+]);
+
+// 3. Attach it to an Agent.
+await persona.agents.update('agent_123', { knowledgeBases: [kb._id] });
+
+// 4. Search it directly.
+const hits = await persona.knowledge.search(kb._id, 'deadline');
+console.log(hits.map((h) => ({ source: h.source, score: h.score })));
+```

@@ -1,23 +1,34 @@
 ---
-title: Node.js SDK
-description: The official TypeScript/Node.js client — auth, resources, and streaming chat, wrapped.
+title: Getting Started
+description: Install, configure, and make your first call with @personaai/sdk — the official Node.js/TypeScript client for the Persona Developer Platform.
 ---
 
-`@personaai/sdk` is the official Node.js/TypeScript client for everything on this page — auth
-header injection, typed resource methods for Agents/Skills/Knowledge/MCP/Providers/Threads/Files,
-and a streaming chat client, all wrapping the same REST + AG-UI API described in the
-[API Reference](/api-reference). If you're integrating from Node.js, start here instead of calling
-`fetch` yourself. Every method on every resource client is a thin, typed 1:1 wrapper over a real
-endpoint — there's no hidden behavior, so this page doubles as a complete method-by-method
-reference of the client surface.
+`@personaai/sdk` is the official Node.js/TypeScript client for the
+[Persona Developer Platform API](https://persona.hasanraiyan.me) — Agents, Skills, Knowledge
+bases, MCP connectors, named Stores, persistent memory, and streaming chat, all from your own
+backend.
+
+Every method on every resource client is a thin, typed 1:1 wrapper over a real REST endpoint.
+There is no hidden behavior: what the SDK sends, and what it returns, is exactly what the
+[API Reference](/api-reference) documents for the endpoint it wraps.
 
 <Warning>
-  **Server-side only, same as everything else on this page.** The SDK sends your
-  Project's credential on every call — a server-side secret. Never construct
-  `PersonaClient` in a browser bundle, a mobile app, or a Next.js Client
-  Component. See the [Integration Guide](/guides/integration-guide) for the full
-  reasoning.
+  **Server-side only.** Every method sends your Project's credential — a server-side secret.
+  Never construct `PersonaClient` in a browser bundle, a mobile app, or a Next.js Client
+  Component. See the [Integration Guide](/guides/integration-guide) for the full reasoning and a
+  per-resource "who calls this, and when" table.
 </Warning>
+
+## Prerequisites
+
+- **Node.js 18+** (or any runtime with a global `fetch`, `FormData`, and `ReadableStream` — the
+  SDK uses the built-ins, no heavy HTTP dependency). This includes Next.js Edge runtime and
+  Deno/Bun runtimes that expose the standard web APIs.
+- **A Project credential** shaped `"<keyId>.<secret>"`, minted in
+  [Developer Studio](https://persona.hasanraiyan.me/developer). This is what authenticates every
+  call.- **TypeScript 5.x** if you're using TypeScript (types ship with the package — the package builds
+  against 5.7; see [Compatibility](/guides/sdk/compatibility)). Plain JavaScript works too — the
+  package ships both ESM and CommonJS builds plus `.d.ts` types.
 
 ## Install
 
@@ -25,961 +36,130 @@ reference of the client surface.
 npm install @personaai/sdk
 ```
 
-Requires Node.js 18+ (uses the built-in `fetch`/`FormData`/`ReadableStream` — no heavy HTTP client
-dependency). The package ships both ESM and CommonJS builds plus `.d.ts` types, so `import` and
-`require` both work.
-
-If you're iterating on the SDK's own source instead of consuming the published package, build it
-locally and point another project at the folder directly, or link it:
-
 ```bash
-git clone https://github.com/hasanraiyan/agent-marketplace.git
-cd agent-marketplace/sdk
-npm install
-npm run build      # compiles src/ -> dist/ (ESM + CJS + .d.ts)
+pnpm add @personaai/sdk
 ```
 
-```bash
-npm install /path/to/agent-marketplace/sdk
-```
+The package ships ESM (`dist/index.js`), CommonJS (`dist/index.cjs`), and TypeScript declarations
+(`dist/index.d.ts`) — `import` and `require` both work, and one import covers the client, every
+resource, and every type. There is no separate `@personaai/sdk/types` entry point.
 
-```bash
-# in agent-marketplace/sdk
-npm link
+## Initialization
 
-# in your project
-npm link @personaai/sdk
-```
-
-## Configuration
-
-Every entry point takes the same options shape (`PersonaClientOptions`, re-exported as
-`HttpClientOptions`):
-
-| Option           | Type           | Required | Description                                                                                                                                                 |
-| ---------------- | -------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `baseUrl`        | `string`       | Yes      | Base URL of the Developer Platform API, e.g. `https://api.persona.hasanraiyan.me`. Trailing slashes are stripped automatically.                             |
-| `credential`     | `string`       | Yes      | Your Project credential, shaped `"<keyId>.<secret>"`. Sent as `Authorization: Bearer <credential>` on every call. Read from an env var — never hardcode it. |
-| `externalUserId` | `string`       | No       | Asserts this client acts on behalf of one of your own end users (sent as `x-persona-external-user-id`). Omit for Project-level (control-plane) calls.       |
-| `fetch`          | `typeof fetch` | No       | Overrides the `fetch` implementation. Defaults to the global `fetch`. Mainly useful for tests or non-standard runtimes.                                     |
-| `maxRetries`     | `number`       | No       | Maximum automatic retries on `429 Too Many Requests` responses. Defaults to `2`. See [Retries & rate limits](#retries-and-rate-limits).                     |
-
-Constructing a client is cheap and stateless beyond these options — there's no connection pool or
-warm-up step, so it's fine to construct a fresh, per-request client scoped to whichever user is
-making the request (see [Configuration patterns per framework](#framework-recipes)) rather than
-trying to share a single instance across users.
+Create a `PersonaClient` with a `baseUrl` and your `credential`:
 
 ```ts
-import { PersonaClient } from "@personaai/sdk";
-
-// Control-plane client — acts as the Project itself.
-const persona = new PersonaClient({
-  baseUrl: process.env.PERSONA_BASE_URL!,
-  credential: process.env.PERSONA_CREDENTIAL!,
-});
-
-// Runtime-plane client — acts as one specific end user of yours.
-const userClient = new PersonaClient({
-  baseUrl: process.env.PERSONA_BASE_URL!,
-  credential: process.env.PERSONA_CREDENTIAL!,
-  externalUserId: currentUser.id,
-});
-```
-
-## Quickstart
-
-```ts
-import { PersonaClient } from "@personaai/sdk";
+import { PersonaClient } from '@personaai/sdk';
 
 const persona = new PersonaClient({
-  baseUrl: "https://api.persona.hasanraiyan.me",
+  baseUrl: 'https://api.persona.hasanraiyan.me',
   credential: process.env.PERSONA_CREDENTIAL!, // "<keyId>.<secret>", minted via Studio
 });
-
-const who = await persona.whoami();
-console.log(who.principalType, who.domain);
-
-const agent = await persona.agents.create({
-  name: "Career Launchpad",
-  systemPrompt: "You help students find internships.",
-  providerId: "...", // an existing Provider's id
-  visibility: "unlisted",
-});
 ```
 
-### Acting on behalf of one of your own end users
+Both `baseUrl` and `credential` are **required** — constructing the client without them throws
+synchronously. `baseUrl` trailing slashes are stripped automatically.
 
-Construct a second client scoped to whoever is actually using your product right now — after
-_your own_ auth has confirmed who that is. This maps directly onto the
-[control-plane vs. runtime-plane](/guides/integration-guide#2-the-same-endpoint-serves-two-different-purposes-and-you-choose-which)
-distinction from the Integration Guide.
+### The two client modes
+
+The same client class serves two different identities, and which one you build determines what you
+can do:
+
+| Mode              | How            | Acts as                     | Typical calls                                |
+| ----------------- | -------------- | --------------------------- | -------------------------------------------- |
+| Control-plane     | omit `externalUserId` | The Project itself   | `whoami()`, Providers, Agent/Skill/KB/MCP/Store config CRUD, audit logs |
+| Runtime-plane     | set `externalUserId`  | One of your own end users   | Threads, Files, Memory, Chat, per-user ownership |
 
 ```ts
+// Control-plane — Project-level calls only.
+const persona = new PersonaClient({
+  baseUrl: '...',
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
+
+// Runtime-plane — acts on behalf of one specific end user of yours.
+// Construct this per request, after YOUR OWN auth confirms who the user is.
 const userClient = new PersonaClient({
-  baseUrl: "https://api.persona.hasanraiyan.me",
+  baseUrl: '...',
   credential: process.env.PERSONA_CREDENTIAL!,
   externalUserId: currentUser.id,
 });
-
-const thread = await userClient.threads.create({ agentId: agent._id });
 ```
 
-## Authentication & principal context
+Full details on every option, defaults, and environment variables live in
+[Configuration](/guides/sdk/configuration).
 
-`persona.whoami()` resolves the principal context your credential (and optional
-`externalUserId`) maps to — a side-effect-free way to sanity-check auth wiring before making real
-calls:
-
-```ts
-const who = await persona.whoami();
-```
-
-The returned shape depends on whether the client was constructed with `externalUserId`:
-
-| `principalType`  | Shape                                                     | When you get it                                           |
-| ---------------- | --------------------------------------------------------- | --------------------------------------------------------- |
-| `ProjectMachine` | `{ domain, principalType, credentialId }`                 | `externalUserId` omitted — acting as the Project itself.  |
-| `ProjectRuntime` | `{ domain, principalType, credentialId, externalUserId }` | `externalUserId` set — acting on behalf of that end user. |
-
-There is no third `ProjectAdmin` variant reachable from the SDK — that context only comes from a
-Clerk-authenticated human admin session (Developer Studio), a completely different auth model the
-SDK deliberately doesn't implement (see [Out of scope](#out-of-scope)).
-
-## Error handling
-
-Every non-2xx response, or a `{success:false}` JSON envelope on a 2xx, throws a typed error instead
-of resolving. All error classes are exported from the package root:
+## Minimal working example
 
 ```ts
-import {
-  PersonaApiError,
-  PersonaAuthError,
-  PersonaValidationError,
-} from "@personaai/sdk";
-```
+import { PersonaClient } from '@personaai/sdk';
 
-| Class                    | When it's thrown                                                            | Extra fields                                                                             |
-| ------------------------ | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `PersonaApiError`        | Base class — any other non-2xx/`{success:false}` response.                  | `statusCode: number`, `code: string`, `response: unknown` (the parsed error body)        |
-| `PersonaAuthError`       | `401` or `403` — invalid/missing credential, or the Project isn't `ACTIVE`. | Same fields as `PersonaApiError` (subclass — `instanceof PersonaApiError` also matches). |
-| `PersonaValidationError` | `400` — request validation failed (bad/missing fields).                     | Same fields as `PersonaApiError`.                                                        |
+const persona = new PersonaClient({
+  baseUrl: 'https://api.persona.hasanraiyan.me',
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
 
-`code` mirrors the backend's own machine-readable error code (e.g. `VALIDATION_ERROR`,
-`UNAUTHORIZED`, `PROJECT_NOT_ACTIVE`, `NOT_FOUND`) — check the [API Reference](/api-reference) for
-each endpoint's documented error responses. `message` is the human-readable string from the same
-envelope, safe to log or (after your own review) surface to a user.
+async function main() {
+  // 1. Sanity-check your credential wiring — side-effect free.
+  const who = await persona.whoami();
+  console.log(`Authenticated as ${who.principalType} in domain ${who.domain}`);
 
-```ts
-try {
-  await persona.agents.create({
-    name: "",
-    systemPrompt: "...",
-    providerId: "...",
+  // 2. Provision an Agent (one-time, control-plane call).
+  const agent = await persona.agents.create({
+    name: 'Career Launchpad',
+    systemPrompt: 'You help students find internships.',
+    providerId: '...', // an existing Provider's id — see below
+    visibility: 'unlisted',
   });
-} catch (err) {
-  if (err instanceof PersonaValidationError) {
-    console.error(`Bad request (${err.code}): ${err.message}`);
-  } else if (err instanceof PersonaAuthError) {
-    console.error(`Auth problem (${err.statusCode}): ${err.message}`);
-  } else if (err instanceof PersonaApiError) {
-    console.error(`API error (${err.statusCode}/${err.code}): ${err.message}`);
-  } else {
-    throw err; // not a Persona error — a network failure, abort, etc.
-  }
+
+  console.log('Created agent:', agent._id);
 }
+
+main().catch(console.error);
 ```
 
-## Retries and rate limits
-
-Every resource call goes through the shared `HttpClient`, which automatically retries `429 Too Many
-Requests` responses: it reads the response's `Retry-After` header (seconds), waits that long, and
-retries — up to `maxRetries` times (default `2`) before giving up and throwing a `PersonaApiError`
-with `statusCode: 429`. If `Retry-After` is absent it falls back to a 1-second wait. This is a fixed
-per-attempt wait, not exponential backoff, matching the API's own `Retry-After` contract rather than
-guessing at a backoff curve.
+Before that Agent can run, it needs a Provider (the LLM endpoint it talks to):
 
 ```ts
-const patientClient = new PersonaClient({
-  baseUrl: "...",
-  credential: "...",
-  maxRetries: 5, // retry up to 5 times on 429 before throwing
+const provider = await persona.providers.create({
+  label: 'OpenAI (prod)',
+  baseURL: 'https://api.openai.com/v1',
+  apiKey: process.env.OPENAI_API_KEY!, // encrypted at rest; never returned in any response
+  defaultModel: 'gpt-4o-mini',
 });
 ```
 
-**Only 429 is retried automatically.** Any other error (`400`, `401`, `403`, `404`, `500`, etc.)
-throws immediately on the first attempt, since
-retrying those wouldn't change the outcome.
+## First real operation: streaming chat
 
-### Cancelling a request
-
-Every method that accepts an `options` object with a `signal` field (currently `chat.stream()` /
-`chat.sendMessage()`) supports a standard `AbortSignal` for cancellation:
+Chat runs as a specific end user, so you need a runtime-plane client:
 
 ```ts
-const controller = new AbortController();
-setTimeout(() => controller.abort(), 30_000); // give up after 30s
-
-await userClient.chat.sendMessage(agent._id, {
-  messages: [{ role: "user", content: "..." }],
-  signal: controller.signal,
-});
-```
-
-## Idempotency keys
-
-Every resource's `create()` (and `files.upload()`) accepts an optional trailing
-`idempotencyKey` argument, sent as the `Idempotency-Key` request header:
-
-```ts
-const skill = await persona.skills.create(
-  { name: "Resume Reviewer", description: "...", instructions: "..." },
-  "a-key-you-generate-once-per-logical-create", // e.g. crypto.randomUUID()
-);
-```
-
-Use it when a `create()` call might get retried after an ambiguous failure — a network timeout, a
-dropped connection — where you can't tell whether the original request actually reached the
-server. Retrying with the **same** key returns the exact original response instead of creating a
-second resource; retrying with a **different** (or omitted) key creates a new one as normal. Keys
-are scoped per `(domain, credential, external user if asserted)` and expire after 24 hours. This is
-fully opt-in — omitting the argument is identical to every version before this feature, no
-behavior change.
-
-## Resources
-
-| Client property           | Wraps                                                              | Ownership scoping                                                    |
-| ------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------- |
-| `.providers`              | `/api/v1/developer/providers`                                      | Control-plane only — no per-user Providers.                          |
-| `.skills`                 | `/api/v1/developer/skills`                                         | Project or, with `externalUserId`, that end user.                    |
-| `.agents`                 | `/api/v1/developer/agents`                                         | Project or, with `externalUserId`, that end user.                    |
-| `.knowledge`              | `/api/v1/developer/knowledge` (incl. document upload/search)       | Project or, with `externalUserId`, that end user.                    |
-| `.mcps` (+ `.mcps.oauth`) | `/api/v1/developer/mcps` (incl. OAuth owner/user connection flows) | Project or, with `externalUserId`, that end user.                    |
-| `.threads`                | `/api/v1/developer/threads`                                        | Requires `externalUserId` — a Thread always belongs to one end user. |
-| `.memory`                 | `/api/v1/developer/memory`                                         | Requires `externalUserId` — memory always belongs to one end user.   |
-| `.stores`                 | `/api/v1/developer/stores`                                         | Project — config CRUD needs no `externalUserId`; file CRUD needs one only when the target Store's own `scope` is `externalUser` (see [Stores](#stores)). |
-| `.files`                  | `/api/v1/developer/files`                                          | Requires `externalUserId` — a File always belongs to one end user.   |
-| `.auditLogs`              | `/api/v1/developer/audit-logs`                                     | Control-plane only — no per-user audit trail.                        |
-| `.chat`                   | `/api/v1/developer/agui` (streaming)                               | Requires `externalUserId` — a chat run always runs as one end user.  |
-
-Two real backend quirks show up across the typed responses below, documented rather than papered
-over:
-
-- **`_id` vs. `id`.** Skill/Agent/Knowledge/Thread/Mcp responses use the raw MongoDB document shape
-  (`_id`). Provider/File responses go through a clean formatted DTO (`id`). Check each type below
-  for which one applies.
-- **A real pagination envelope, except on Providers and Memory.** Every `list()`/`discover()`-style
-  method (`skills.list()`, `agents.list()`, `knowledge.list()`, `mcps.list()`, `threads.list()`,
-  `stores.list()`, `files.list()`) returns `PaginatedResult<T>` — `{ items: T[], pagination: {
-  total, page, limit, pages } }` — not a bare array. Check `pagination.pages` (or
-  `pagination.total`) to know whether there's more, rather than inferring it from `items.length`
-  vs. `limit`. Two exceptions: `providers.list()` (a plain bare array, no params at all — Providers
-  have no discovery concept, so there's nothing to page or filter by), and `memory.list()` (returns
-  `MemoryListResult`, `{ userFiles, agentMemories }` — memory has no pagination concept either,
-  it's a full listing every time). `stores.listFiles()` is also unpaginated — a bare `StoreFile[]`.
-
-### Providers
-
-Control-plane only — no `ExternalUser` ownership concept (an end user can never own a Provider).
-`list()` has no pagination envelope, no `page`/`limit`/`search` params — Providers have no
-discovery concept, so it's a plain bare-array Domain-scoped list.
-
-<Note>
-  Every method here — including `list()` — only works meaningfully on a
-  control-plane client (no `externalUserId`). A Provider's ownership can only
-  ever be `'PersonaUser'` or `'Project'`, never `'ExternalUser'`, so a client
-  constructed with `externalUserId` set gets an **empty array** from `list()`,
-  and a `404`/`PersonaApiError` from `get()`/`update()`/
-  `delete()`/`testConnection()`/`getModels()` — not because those Providers
-  don't exist, but because that credential can never be their owner. This
-  mirrors the same existence-hiding behavior the single- resource methods
-  already had; `list()` was made consistent with it too.
-</Note>
-
-| Method                                 | Wraps                                  | Returns                                 |
-| -------------------------------------- | -------------------------------------- | --------------------------------------- |
-| `providers.create(input)`              | `POST /providers`                      | `Provider`                              |
-| `providers.list()`                     | `GET /providers`                       | `Provider[]`                            |
-| `providers.get(providerId)`            | `GET /providers/{id}`                  | `Provider`                              |
-| `providers.update(providerId, input)`  | `PATCH /providers/{id}`                | `Provider`                              |
-| `providers.delete(providerId)`         | `DELETE /providers/{id}`               | `void`                                  |
-| `providers.testConnection(providerId)` | `POST /providers/{id}/test-connection` | `{ success: boolean, message: string }` |
-| `providers.getModels(providerId)`      | `GET /providers/{id}/models`           | `ProviderModel[]` (`{ id: string }[]`)  |
-| `providers.getUsage(providerId)`       | `GET /providers/{id}/usage`            | `ResourceUsage`                         |
-| `providers.bulkDelete(ids)`            | `POST /providers/bulk-delete`          | `BulkDeleteResult`                      |
-
-```ts
-const provider = await persona.providers.create(
-  {
-    label: "OpenAI (production)",
-    baseURL: "https://api.openai.com/v1",
-    apiKey: process.env.OPENAI_API_KEY!, // encrypted at rest, never returned in any response
-    defaultModel: "gpt-4o-mini",
-    isDefault: true,
-  },
-  "optional-idempotency-key", // safe retry after a timeout replays this exact result
-);
-
-// Use the control-plane client (no externalUserId) — see the note above.
-const all = await persona.providers.list();
-const { success, message } = await persona.providers.testConnection(
-  provider.id,
-);
-const models = await persona.providers.getModels(provider.id);
-
-// Check before delete() — a Provider still referenced by an Agent rejects the delete.
-const { agentCount, agents } = await persona.providers.getUsage(provider.id);
-await persona.providers.bulkDelete([provider.id]);
-```
-
-`CreateProviderInput`/`UpdateProviderInput` fields: `label`, `baseURL`, `apiKey` (create only,
-required), `defaultModel`, `isDefault?`. `apiKey` is write-only — it's never present on the
-`Provider` object returned from any call.
-
-`getUsage()` returns `ResourceUsage` — `{ agentCount: number, agents: { _id, name }[] }` — the
-Agents currently referencing this Provider. `agents` is a preview capped at 20 entries;
-`agentCount` is the real total. Available on Providers/Skills/MCP/Knowledge — check it before
-`delete()` to avoid a blocked-delete error.
-
-`bulkDelete(ids)` returns `BulkDeleteResult` — `{ deleted: string[], failed: { id: string,
-reason: string }[] }` — a best-effort batch delete, available on every resource below. One
-blocked/not-found id in the batch doesn't abort the rest; check `failed` for anything that didn't
-go through. Up to 100 ids per call — a request over that limit is rejected with a 400 before
-anything is deleted.
-
-### Skills
-
-```ts
-const skill = await persona.skills.create(
-  {
-    name: "Resume Reviewer",
-    description: "Reviews a resume and suggests concrete edits.",
-    instructions: "You are an expert resume reviewer...",
-    isPublic: false,
-    files: [{ path: "rubric.md", content: "# Scoring rubric\n..." }],
-  },
-  "optional-idempotency-key", // safe retry after a timeout replays this exact result
-);
-
-const { items: mine, pagination } = await userClient.skills.list({
-  scope: "mine",
-  search: "resume",
-});
-const full = await persona.skills.get(skill._id);
-await persona.skills.update(skill._id, { description: "Updated description." });
-const usage = await persona.skills.getUsage(skill._id); // check before delete()
-await persona.skills.delete(skill._id);
-await persona.skills.bulkDelete([skill._id]); // { deleted: string[], failed: [{id, reason}] }
-```
-
-| Method                     | Wraps                      | Returns                  |
-| -------------------------- | -------------------------- | ------------------------ |
-| `skills.create(input)`     | `POST /skills`             | `Skill`                  |
-| `skills.list(params?)`     | `GET /skills`              | `PaginatedResult<Skill>` |
-| `skills.get(skillId)`      | `GET /skills/{id}`         | `Skill`                  |
-| `skills.update(id, input)` | `PATCH /skills/{id}`       | `Skill`                  |
-| `skills.delete(skillId)`   | `DELETE /skills/{id}`      | `void`                   |
-| `skills.getUsage(skillId)` | `GET /skills/{id}/usage`   | `ResourceUsage`          |
-| `skills.bulkDelete(ids)`   | `POST /skills/bulk-delete` | `BulkDeleteResult`       |
-
-`DiscoverSkillsParams`: `page?`, `limit?`, `search?`, `scope?: 'mine'` (restricts to the asserted
-end user's own Skills — only meaningful on a `ProjectRuntimeContext` client). `Skill.isOwner` is
-present only on the result of `get()`, not `list()`/`create()`/`update()`.
-
-### Agents
-
-```ts
-const agent = await persona.agents.create(
-  {
-    name: "Career Launchpad",
-    systemPrompt: "You help students find internships.",
-    providerId: provider.id,
-    description: "Your internship search co-pilot.",
-    category: "productivity",
-    visibility: "unlisted",
-    webSearchEnabled: true,
-    skills: [skill._id],
-  },
-  "optional-idempotency-key", // safe retry after a timeout replays this exact result
-);
-
-const { items: discovered, pagination } = await persona.agents.list({
-  category: "productivity",
-  search: "career",
-});
-// pagination: { total, page, limit, pages } — check .pages instead of items.length vs. limit
-const full = await persona.agents.get(agent._id); // skills/mcps/knowledgeBases populated as objects
-await persona.agents.update(agent._id, {
-  tagline: "Find your next internship.",
-});
-await persona.agents.delete(agent._id);
-await persona.agents.bulkDelete([agent._id]);
-```
-
-| Method                     | Wraps                      | Returns                  |
-| -------------------------- | -------------------------- | ------------------------ |
-| `agents.create(input)`     | `POST /agents`             | `Agent`                  |
-| `agents.list(params?)`     | `GET /agents`              | `PaginatedResult<Agent>` |
-| `agents.get(agentId)`      | `GET /agents/{id}`         | `Agent`                  |
-| `agents.update(id, input)` | `PATCH /agents/{id}`       | `Agent`                  |
-| `agents.delete(agentId)`   | `DELETE /agents/{id}`      | `void`                   |
-| `agents.bulkDelete(ids)`   | `POST /agents/bulk-delete` | `BulkDeleteResult`       |
-
-Notes on the `Agent` shape:
-
-- `visibility`: `'private' | 'unlisted' | 'public'`. `category`: `'productivity' | 'coding' |
-'creative' | 'research' | 'roleplay' | 'other'`.
-- `agents.get()` populates `skills`/`mcps`/`knowledgeBases` as full objects; `create()`/`update()`/
-  `list()` return them as bare id strings (or omit them). Don't assume one shape works for both.
-- `systemPrompt` and `providerId` are stripped from the response entirely when the calling identity
-  doesn't own the Agent (e.g. browsing a `public` Agent that belongs to someone else) — both fields
-  are typed optional for exactly this reason.
-- `DiscoverAgentsParams` adds `category?` on top of the usual `page?`/`limit?`/`search?`/`scope?`.
-
-### Knowledge
-
-```ts
-const kb = await persona.knowledge.create(
-  {
-    name: "Placement Office FAQ",
-    providerId: provider.id, // required — no "my default provider" concept on this API
-    chunkSize: 1000,
-    chunkOverlap: 200,
-    topK: 5,
-  },
-  "optional-idempotency-key", // safe retry after a timeout replays this exact result
-);
-
-// Upload from a Node Buffer (fs.readFile) or an already-built Blob.
-import { readFile } from "node:fs/promises";
-const pdf = await readFile("./faq.pdf");
-const result = await persona.knowledge.uploadDocuments(kb._id, [
-  { filename: "faq.pdf", content: pdf, contentType: "application/pdf" },
-]);
-// result: { documentCount, chunkCount, files: [{ fileName, fileSize, mimeType, chunkCount }] }
-
-const docs = await persona.knowledge.listDocuments(kb._id);
-await persona.knowledge.deleteDocument(kb._id, "faq.pdf");
-
-const hits = await persona.knowledge.search(
-  kb._id,
-  "What's the deadline to apply?",
-  { topK: 3 },
-);
-// hits: { text, source, score }[]
-
-const usage = await persona.knowledge.getUsage(kb._id); // check before delete()
-await persona.knowledge.bulkDelete([kb._id]);
-
-const { items: bases } = await persona.knowledge.list({ scope: "mine" });
-```
-
-| Method                                       | Wraps                                           | Returns                          |
-| -------------------------------------------- | ----------------------------------------------- | -------------------------------- |
-| `knowledge.create(input)`                    | `POST /knowledge`                               | `KnowledgeBase`                  |
-| `knowledge.list(params?)`                    | `GET /knowledge`                                | `PaginatedResult<KnowledgeBase>` |
-| `knowledge.get(kbId)`                        | `GET /knowledge/{id}`                           | `KnowledgeBase`                  |
-| `knowledge.update(kbId, input)`              | `PATCH /knowledge/{id}`                         | `KnowledgeBase`                  |
-| `knowledge.delete(kbId)`                     | `DELETE /knowledge/{id}`                        | `void`                           |
-| `knowledge.uploadDocuments(kbId, files)`     | `POST /knowledge/{id}/documents` (multipart)    | `UploadDocumentsResult`          |
-| `knowledge.listDocuments(kbId)`              | `GET /knowledge/{id}/documents`                 | `KnowledgeDocument[]`            |
-| `knowledge.deleteDocument(kbId, sourceName)` | `DELETE /knowledge/{id}/documents/{sourceName}` | `DeleteDocumentResult`           |
-| `knowledge.search(kbId, query, options?)`    | `POST /knowledge/{id}/search`                   | `KnowledgeSearchResult[]`        |
-| `knowledge.getUsage(kbId)`                   | `GET /knowledge/{id}/usage`                     | `ResourceUsage`                  |
-| `knowledge.bulkDelete(ids)`                  | `POST /knowledge/bulk-delete`                   | `BulkDeleteResult`               |
-
-Limits: up to 10 files per `uploadDocuments()` call, 20MB each, restricted to
-PDF/TXT/MD/JSON/CSV. `providerId` is **required** on `CreateKnowledgeBaseInput` — unlike Persona's
-own (non-Developer) Knowledge routes, there's no "use my default Provider" fallback for a Project or
-ExternalUser caller. `search()`'s `options.topK` overrides the KnowledgeBase's own configured
-`topK` for that one call only.
-
-<Note>
-  Unlike Providers/Skills/MCP, deleting a Knowledge base does not currently
-  block on in-use Agents — `getUsage()` here is informational only, not a
-  guarantee that `delete()` will reject while `agentCount > 0`.
-</Note>
-
-### MCP connectors
-
-```ts
-const mcp = await persona.mcps.create(
-  {
-    name: "Internal Ticketing",
-    transport: "http",
-    url: "https://mcp.example.com",
-    authType: "apiKey",
-    apiKey: process.env.TICKETING_MCP_KEY!,
-  },
-  "optional-idempotency-key", // safe retry after a timeout replays this exact result
-);
-
-const { tools, resources, resourceTemplates } =
-  await persona.mcps.testConnection(mcp._id);
-const result = await persona.mcps.callTool(mcp._id, "create_ticket", {
-  title: "Bug report",
-});
-const { text, mimeType } = await persona.mcps.readResource(
-  mcp._id,
-  resources[0].uri,
-);
-
-const usage = await persona.mcps.getUsage(mcp._id); // check before delete()
-await persona.mcps.bulkDelete([mcp._id]);
-
-const { items: connectors } = await persona.mcps.list({ scope: "mine" });
-```
-
-| Method                              | Wraps                             | Returns                                              |
-| ----------------------------------- | --------------------------------- | ---------------------------------------------------- |
-| `mcps.create(input)`                | `POST /mcps`                      | `Mcp`                                                |
-| `mcps.list(params?)`                | `GET /mcps`                       | `PaginatedResult<Mcp>`                               |
-| `mcps.get(mcpId)`                   | `GET /mcps/{id}`                  | `Mcp`                                                |
-| `mcps.update(mcpId, input)`         | `PATCH /mcps/{id}`                | `Mcp`                                                |
-| `mcps.delete(mcpId)`                | `DELETE /mcps/{id}`               | `void`                                               |
-| `mcps.testConnection(mcpId)`        | `POST /mcps/{id}/test`            | `{ tools, resources, resourceTemplates }`            |
-| `mcps.readResource(mcpId, uri)`     | `GET /mcps/{id}/resource?uri=...` | `{ text: string, mimeType: string }`                 |
-| `mcps.callTool(mcpId, name, args?)` | `POST /mcps/{id}/call-tool`       | `unknown` (shape depends on the underlying MCP tool) |
-| `mcps.getUsage(mcpId)`              | `GET /mcps/{id}/usage`            | `ResourceUsage`                                      |
-| `mcps.bulkDelete(ids)`              | `POST /mcps/bulk-delete`          | `BulkDeleteResult`                                   |
-
-`transport`: `'http' | 'sse'`. `authType`: `'none' | 'oauth' | 'apiKey'`. `authMode`: `'owner' |
-'user'` (owner-mode shares one connection across everyone; user-mode gives each external user their
-own). `apiKey` is required when `authType: 'apiKey'`; `oauth` (or `useDynamicRegistration: true`)
-is required when `authType: 'oauth'`.
-
-<Note>
-  Creating an `authType: 'oauth'` MCP synchronously probes the target URL's
-  OAuth discovery endpoints — pointing it at a URL that doesn't actually
-  implement OAuth discovery will fail the `create()` call itself, not just a
-  later connection test.
-</Note>
-
-#### OAuth connection flows (`mcps.oauth`)
-
-For `authType: 'oauth'` MCPs, `mcps.oauth` drives the owner- and user-mode authorization flows:
-
-| Method                                             | Wraps                                      | Returns                  |
-| -------------------------------------------------- | ------------------------------------------ | ------------------------ |
-| `mcps.oauth.getOwnerAuthorizeUrl(mcpId)`           | `GET /mcps/{id}/oauth/owner/authorize`     | `{ url: string }`        |
-| `mcps.oauth.getUserAuthorizeUrl(mcpId, returnTo?)` | `GET /mcps/{id}/oauth/user/authorize`      | `{ url: string }`        |
-| `mcps.oauth.getUserConnectionStatus(mcpId)`        | `GET /mcps/{id}/oauth/user/status`         | `{ connected: boolean }` |
-| `mcps.oauth.disconnectUserConnection(mcpId)`       | `DELETE /mcps/{id}/oauth/user/connection`  | `void`                   |
-| `mcps.oauth.disconnectOwnerConnection(mcpId)`      | `DELETE /mcps/{id}/oauth/owner/connection` | `void`                   |
-
-Owner-mode authorizes the MCP itself, shared by every user of your Project — call
-`getOwnerAuthorizeUrl()` from a control-plane client and redirect your admin through it once.
-User-mode authorizes one specific end user's own token — call `getUserAuthorizeUrl()` from a
-runtime-plane client (`externalUserId` set) and redirect that user through it; `returnTo` is an
-optional client-chosen URL to send them back to once the flow completes.
-
-### Threads
-
-Every method requires the client to have been constructed with `externalUserId` — a Thread's
-Subject is always a specific end user, so a bare Project credential is rejected with a `400
-EXTERNAL_USER_REQUIRED` `PersonaValidationError`.
-
-```ts
-const thread = await userClient.threads.create(
-  { agentId: agent._id },
-  "optional-idempotency-key", // safe retry after a timeout replays this exact result
-);
-const { items: mine, pagination } = await userClient.threads.list({
-  page: 1,
-  limit: 20,
-});
-await userClient.threads.updateTitle(thread._id, "Summer internship search");
-await userClient.threads.update(thread._id, { isArchived: true }); // archive without touching the title
-const { messages, state } = await userClient.threads.getMessages(thread._id);
-await userClient.threads.delete(thread._id);
-await userClient.threads.bulkDelete([thread._id]);
-```
-
-| Method                                 | Wraps                        | Returns                   |
-| -------------------------------------- | ---------------------------- | ------------------------- |
-| `threads.create(input)`                | `POST /threads`              | `Thread`                  |
-| `threads.list(params?)`                | `GET /threads`               | `PaginatedResult<Thread>` |
-| `threads.get(threadId)`                | `GET /threads/{id}`          | `Thread`                  |
-| `threads.update(threadId, input)`      | `PATCH /threads/{id}`        | `Thread`                  |
-| `threads.updateTitle(threadId, title)` | `PATCH /threads/{id}`        | `Thread`                  |
-| `threads.delete(threadId)`             | `DELETE /threads/{id}`       | `void`                    |
-| `threads.bulkDelete(ids)`              | `POST /threads/bulk-delete`  | `BulkDeleteResult`        |
-| `threads.getMessages(threadId)`        | `GET /threads/{id}/messages` | `ThreadMessages`          |
-
-`update()` is the general form — `{ title?, isArchived? }`, both optional, send just the one you
-want to change. `updateTitle(threadId, title)` is a convenience wrapper over `update()` for the
-common title-only case; both still work.
-
-`Thread.agentId` is populated as `{ _id, name, avatar?, slug }` on `list()`, but a bare id string on
-`create()`/`get()` — check which call produced the value before assuming a shape.
-`ThreadMessages.messages` holds raw LangChain-style message objects (role/content/tool_calls vary
-by message type) and is intentionally typed as `unknown[]` rather than guessing at a shape the SDK
-doesn't own — inspect it at runtime if you need to render history yourself, or prefer
-`chat.stream()`'s typed AG-UI events for anything you're building a live UI around.
-
-### Memory
-
-Every method requires the client to have been constructed with `externalUserId` — memory is
-always scoped to one end user, same requirement and rejection behavior as Threads. Full CRUD
-parity with what an Agent's own `write_file`/`read_file` tool calls can already do to
-`/memories/user/` and `/memories/agent/` — useful for admin/support tooling ("what does this
-Agent remember about founder X"), a founder-facing "manage what you've shared" settings page, or
-seeding known facts before a user's first conversation.
-
-```ts
-const { userFiles, agentMemories } = await userClient.memory.list();
-
-const file = await userClient.memory.getFile({ path: "/memories/user/index.md" });
-
-await userClient.memory.writeFile({
-  path: "/memories/user/preferences.md",
-  content: "- Prefers concise answers\n- Works in fintech",
+const userClient = new PersonaClient({
+  baseUrl: 'https://api.persona.hasanraiyan.me',
+  credential: process.env.PERSONA_CREDENTIAL!,
+  externalUserId: 'user_123', // your own id for this person
 });
 
-await userClient.memory.deleteFile({ path: "/memories/user/preferences.md" });
-
-// Agent-scoped memory (private to one Agent, not shared across the user's other Agents)
-await userClient.memory.writeFile({
-  scope: "agent",
-  agentId: agent._id,
-  path: "/memories/agent/learnings.md",
-  content: "User responds well to bullet points.",
-});
-```
-
-| Method                          | Wraps                      | Returns              |
-| -------------------------------- | --------------------------- | --------------------- |
-| `memory.list()`                  | `GET /memory`               | `MemoryListResult`    |
-| `memory.getFile(params)`         | `GET /memory/file`          | `MemoryFile`          |
-| `memory.writeFile(input)`        | `PUT /memory/file`          | `MemoryFile`          |
-| `memory.deleteFile(params)`      | `DELETE /memory/file`       | `void`                |
-
-`MemoryListResult`: `{ userFiles: MemoryFile[], agentMemories: { agentId, agentName, files:
-MemoryFile[] }[] }` — user-global files plus one group per Agent that has agent-scoped memory.
-`scope` on `getFile`/`writeFile`/`deleteFile` defaults to `'user'`; `'agent'` requires `agentId`.
-
-<Warning>
-  Memory written here goes through the exact same namespace a live Agent run uses — it's real,
-  live-visible data, not a separate copy. A `writeFile()` call is indistinguishable from the Agent
-  having written that file itself via its own `write_file` tool.
-</Warning>
-
-### Stores
-
-Config CRUD (`create`/`list`/`get`/`update`/`delete`) works with a bare Project credential — a
-Store's config isn't per-founder. File CRUD is the same, *except* when the Store's own `scope` is
-`'externalUser'`: only then does this client need `externalUserId` set, or the call throws a
-`PersonaApiError` with `statusCode: 400` (`EXTERNAL_USER_REQUIRED`).
-
-A Store is a named, scoped mount point you assign to Agents (`storeMounts` on
-`agents.create()`/`agents.update()`) — a filesystem-backed alternative to
-[`contextOverride`](#chat-streamed) for reference material too large to comfortably re-send in the
-prompt every turn. An Agent reads from it via its own `read_file`/`ls` tools, on demand, mounted at
-`/stores/<name>/`.
-
-```ts
-// A shared, read-only reference store — safe to mount on Agents serving many different founders,
-// since accessMode: "readonly" blocks Agent tool writes (content is only ever populated here).
-const notes = await persona.stores.create({
-  name: "product-notes",
-  scope: "domain",
-  accessMode: "readonly",
-});
-await persona.stores.writeFile(notes._id, {
-  path: "/roadmap.md",
-  content: "# Q3 roadmap\n...",
-});
-
-// A per-founder store — one private partition per external user, resolved automatically
-// from whichever founder is actually running the Agent (same mechanism as /memories/user/).
-const privateNotes = await persona.stores.create({
-  name: "founder-private-notes",
-  scope: "externalUser",
-  accessMode: "readwrite",
-});
-
-// Assign both to an Agent.
-await persona.agents.update(agent._id, {
-  storeMounts: [notes._id, privateNotes._id],
-});
-```
-
-| Method                              | Wraps                              | Returns                  |
-| ------------------------------------ | ------------------------------------ | -------------------------- |
-| `stores.create(input)`               | `POST /stores`                       | `Store`                    |
-| `stores.list(params?)`               | `GET /stores`                        | `PaginatedResult<Store>`   |
-| `stores.get(storeId)`                | `GET /stores/{id}`                   | `Store`                    |
-| `stores.update(storeId, input)`      | `PATCH /stores/{id}`                 | `Store`                    |
-| `stores.delete(storeId)`             | `DELETE /stores/{id}`                | `void`                      |
-| `stores.listFiles(storeId)`          | `GET /stores/{id}/files`             | `StoreFile[]`               |
-| `stores.getFile(storeId, params)`    | `GET /stores/{id}/file`              | `StoreFile`                 |
-| `stores.writeFile(storeId, input)`   | `PUT /stores/{id}/file`              | `StoreFile`                 |
-| `stores.deleteFile(storeId, params)` | `DELETE /stores/{id}/file`           | `void`                      |
-
-`scope` (`'domain' | 'externalUser'`) is **immutable after creation** — `UpdateStoreInput`
-deliberately doesn't include it; create a new Store if you need a different scope.
-`writeFile()`/`deleteFile()` are **not** gated by `accessMode` — `readonly` only blocks an Agent's
-own tool calls at mount time, this API is how a readonly Store's content actually gets populated
-in the first place.
-
-### Files
-
-Every method requires the client to have been constructed with `externalUserId`, same requirement
-and rejection behavior as Threads — a File's Subject is always a specific end user.
-
-```ts
-import { readFile } from "node:fs/promises";
-
-const resume = await readFile("./resume.pdf");
-const file = await userClient.files.upload(
-  {
-    filename: "resume.pdf",
-    content: resume,
-    contentType: "application/pdf",
-    threadId: thread._id, // optional — associates the file with a conversation
-  },
-  "optional-idempotency-key", // safe retry after a timeout replays this exact result
-);
-
-const { items: mine, pagination } = await userClient.files.list({
-  page: 1,
-  limit: 20,
-});
-
-const response = await userClient.files.download(file.id); // raw Response, not JSON
-const bytes = await response.arrayBuffer();
-
-await userClient.files.delete(file.id);
-await userClient.files.bulkDelete([file.id]);
-```
-
-| Method                   | Wraps                     | Returns                        |
-| ------------------------ | ------------------------- | ------------------------------ |
-| `files.upload(input)`    | `POST /files` (multipart) | `PersonaFile`                  |
-| `files.list(params?)`    | `GET /files`              | `PaginatedResult<PersonaFile>` |
-| `files.download(fileId)` | `GET /files/{id}`         | `Response` (raw, not JSON)     |
-| `files.delete(fileId)`   | `DELETE /files/{id}`      | `void`                         |
-| `files.bulkDelete(ids)`  | `POST /files/bulk-delete` | `BulkDeleteResult`             |
-
-`files.download()` is the one method on the whole client that doesn't return parsed JSON — it
-returns the raw `Response` so you can call `.arrayBuffer()`/`.blob()`, or pipe `.body` (a
-`ReadableStream`) straight onward, e.g. into an HTTP response in a Route Handler, without buffering
-the whole file in memory.
-
-### Audit logs
-
-Read-only, control-plane only (mirrors Providers — no `ExternalUser` ownership concept). A client
-constructed with `externalUserId` gets an empty `PaginatedResult` back, not an error, matching
-`providers.list()`'s own existence-hiding-style precedent.
-
-<Warning>
-  Today's audit log covers **Project-lifecycle events only** — credential
-  minted/revoked, membership added/removed, Project suspended/restored, deletion
-  requested/cancelled/completed. It does **not** cover resource CRUD — creating,
-  updating, or deleting an Agent/Skill/Knowledge Base/Provider/MCP leaves no
-  entry here yet. Don't expect to find an `"agent.deleted"` event; it doesn't
-  exist as of this release.
-</Warning>
-
-```ts
-const { items: events, pagination } = await persona.auditLogs.list({
-  eventType: "credential.created", // optional exact-match filter
-  page: 1,
-  limit: 20,
-});
-```
-
-| Method                    | Wraps             | Returns                          |
-| ------------------------- | ----------------- | -------------------------------- |
-| `auditLogs.list(params?)` | `GET /audit-logs` | `PaginatedResult<AuditLogEntry>` |
-
-`ListAuditLogsParams`: `page?`, `limit?`, `eventType?` (optional exact-match filter). Each
-`AuditLogEntry`: `{ eventType, timestamp, actorContextType, actorIdentity, targetDomain,
-targetResourceId, metadata }` — `actorIdentity`/`targetResourceId` are `string | null`.
-
-## Chat, streamed
-
-`chat` requires the client to have been constructed with `externalUserId` — a chat run always
-executes as a specific end user.
-
-```ts
-// Full event stream, for building your own UI.
+// Full AG-UI event stream — for building your own UI.
 for await (const event of userClient.chat.stream(agent._id, {
-  messages: [{ role: "user", content: "What internships are open right now?" }],
+  messages: [{ role: 'user', content: 'What internships are open right now?' }],
 })) {
-  if (event.type === "TEXT_MESSAGE_CHUNK" && event.delta)
-    process.stdout.write(event.delta);
+  if (event.type === 'TEXT_MESSAGE_CHUNK' && event.delta) process.stdout.write(event.delta);
 }
 
 // Or the convenience wrapper — drains the stream, returns the final text.
 const result = await userClient.chat.sendMessage(agent._id, {
-  messages: [{ role: "user", content: "What internships are open right now?" }],
+  messages: [{ role: 'user', content: 'What internships are open right now?' }],
 });
 console.log(result.text);
 ```
-
-| Method                               | Returns                     | Description                                                                     |
-| ------------------------------------ | --------------------------- | ------------------------------------------------------------------------------- |
-| `chat.stream(agentId, options)`      | `AsyncGenerator<AguiEvent>` | The raw event sequence, as it arrives — full control for a custom UI.           |
-| `chat.sendMessage(agentId, options)` | `Promise<ChatResult>`       | Drains `stream()` for you; returns assembled text plus interrupt/events detail. |
-
-`SendMessageOptions`: `messages: { role: 'user' | 'assistant', content: string }[]`, `threadId?`
-(resumes a named Thread from `threads.create()` instead of the implicit deterministic
-one-conversation-per-Agent-per-user thread), `resume?` (see below), `contextOverride?` (a string
-appended to *this turn's* system prompt only — never persisted to memory, never visible to later
-turns; capped at 4000 characters server-side, rejected with a 400 above that rather than silently
-truncated — use this for small, ephemeral facts that change turn-to-turn, e.g. a live profile
-snapshot; for larger reference material an Agent should look up on demand, use
-[Stores](#stores) instead), `signal?` (an `AbortSignal`).
-
-```ts
-await userClient.chat.sendMessage(agent._id, {
-  messages: [{ role: "user", content: "What should I focus on this week?" }],
-  contextOverride: "Founder profile (live): stage=seed, sector=fintech, funding_status=raising",
-});
-```
-
-<Warning>
-  `threadId` must belong to the asserted external user and the `agentId` you're calling with —
-  passing one that doesn't (someone else's Thread, a different Agent's Thread, or a nonexistent
-  id) throws a `PersonaApiError` with `statusCode: 404`. It does **not** silently fall back to a
-  different conversation.
-</Warning>
-
-### AG-UI event types
-
-`stream()` yields the standard `@ag-ui/core` `EventType` union (re-exported from this package as
-`EventType` so you don't need a separate `@ag-ui/core` dependency just to compare `event.type`):
-
-| Event type                                      | Meaning                                                                                                                                                                                |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RUN_STARTED`                                   | Emitted once, at the start of the run.                                                                                                                                                 |
-| `TEXT_MESSAGE_CHUNK`                            | A streamed assistant text delta (`event.delta`).                                                                                                                                       |
-| `REASONING_MESSAGE_START` / `_CONTENT` / `_END` | Streamed model reasoning, for models that expose it.                                                                                                                                   |
-| `TOOL_CALL_CHUNK`                               | A streamed tool-call invocation (arguments arrive incrementally).                                                                                                                      |
-| `TOOL_CALL_RESULT`                              | The result of a completed tool call.                                                                                                                                                   |
-| `STATE_SNAPSHOT`                                | A full-state update.                                                                                                                                                                   |
-| `CUSTOM`                                        | Persona-specific side-channel events — subagent traces (`subagent_activity`), MCP App widgets (`mcp_app`), and this SDK's own human-in-the-loop signaling (`hitl_request` / `clarification_request` — see below). |
-| `RUN_ERROR`                                     | The run failed genuinely (not an interrupt) — `code`, `message`, `retryable`, `providerName`. See [Structured run errors](#structured-run-errors) below.                              |
-| `RUN_FINISHED`                                  | Emitted once, at the end of the run (omitted if the run paused on an interrupt, or ended in `RUN_ERROR`, instead).                                                                     |
-
-The full, versioned JSON Schema for every `CUSTOM` event's payload is served at
-`GET /api/v1/developer/agui/schema` (not yet wrapped by a typed method on this client — call it via
-`persona` directly if you need it, e.g. through the underlying `HttpClient`). Every stream response
-also carries the active schema version on the `X-AGUI-Schema-Version` response header. The
-TypeScript counterparts (`ClarificationRequestPayload`, `HitlRequestPayload`, `McpAppPayload`,
-`SubagentActivityPayload`) are exported from the package root and kept in sync with that document.
-
-```ts
-for await (const event of userClient.chat.stream(agent._id, { messages })) {
-  switch (event.type) {
-    case "TEXT_MESSAGE_CHUNK":
-      process.stdout.write(event.delta ?? "");
-      break;
-    case "TOOL_CALL_RESULT":
-      console.log("tool result:", event);
-      break;
-    case "RUN_FINISHED":
-      console.log("done");
-      break;
-  }
-}
-```
-
-### Human-in-the-loop: interrupts and resuming
-
-If an Agent's configuration requires confirming a sensitive tool call, or the run needs a
-clarifying answer from the user, the run pauses instead of finishing normally and emits a `CUSTOM`
-event instead of `RUN_FINISHED`. `sendMessage()` detects this for you and sets `result.interrupt`:
-
-```ts
-const result = await userClient.chat.sendMessage(agent._id, { messages });
-
-if (result.interrupt) {
-  console.log(result.interrupt.kind); // 'hitl' | 'clarification'
-  console.log(result.interrupt.value); // whatever detail the interrupt carries
-}
-```
-
-| `interrupt.kind`  | Triggering `CUSTOM` event name | Resume with                                                         |
-| ----------------- | ------------------------------ | ------------------------------------------------------------------- |
-| `'hitl'`          | `hitl_request`                 | `{ decisions: [{ action, decision: 'approve' \| 'reject' }, ...] }` |
-| `'clarification'` | `clarification_request`        | `{ answers: [...], text?: string }`                                 |
-
-Resume on the **next** `sendMessage()`/`stream()` call for the same Thread, with `messages: []` (no
-new user message — you're answering the interrupt, not starting a new turn) and `resume` set:
-
-```ts
-if (result.interrupt) {
-  await userClient.chat.sendMessage(agent._id, {
-    threadId: thread._id,
-    messages: [],
-    resume: { decisions: [{ action: "delete_agent", decision: "approve" }] },
-  });
-}
-```
-
-`ChatResult` also exposes `events: AguiEvent[]` — every raw event received during that call, in
-order, for anything `text`/`interrupt` don't already surface.
-
-### Structured run errors
-
-If a run ends in a genuine failure — not an interrupt — `sendMessage()` sets `result.error` instead
-of `result.interrupt`, as a typed `PersonaRunErrorEvent`:
-
-```ts
-const result = await userClient.chat.sendMessage(agent._id, { messages });
-
-if (result.error) {
-  switch (result.error.code) {
-    case "PROVIDER_RATE_LIMIT":
-    case "TOOL_TIMEOUT":
-      // result.error.retryable === true — safe to retry automatically
-      break;
-    case "PROVIDER_AUTH_ERROR":
-      // the Agent's configured provider has invalid credentials — not retryable
-      break;
-    default:
-      console.error(result.error.message);
-  }
-}
-```
-
-`code` is a `RunErrorCode`: `'PROVIDER_AUTH_ERROR' | 'PROVIDER_RATE_LIMIT' | 'TOOL_TIMEOUT' |
-'TOOL_ERROR' | 'CONTEXT_LENGTH_EXCEEDED' | 'INTERNAL_ERROR'`.
-
-<Warning>
-  This backend proxies arbitrary OpenAI-compatible `baseURL`s per Provider, so classification is
-  best-effort and improves over time as real provider error shapes are observed — `retryable`
-  should still be trusted (it's conservative), but don't assume every failure mode is perfectly
-  distinguished yet.
-</Warning>
-
-## TypeScript types
-
-Every public type is exported from the package root (`import type { ... } from "@personaai/sdk"`)
-— resource clients (`ProvidersResource`, `SkillsResource`, `AgentsResource`, `KnowledgeResource`,
-`McpsResource`, `McpOAuthResource`, `ThreadsResource`, `MemoryResource`, `StoresResource`,
-`FilesResource`, `ChatClient`), every create/update/list-params/result interface referenced in the
-tables above, `PrincipalContext` and its two variants, `AguiEvent`/`EventType`, the `CUSTOM`-event
-payload types (`ClarificationRequestPayload`, `HitlRequestPayload`, `McpAppPayload`,
-`SubagentActivityPayload`), `PersonaRunErrorEvent`/`RunErrorCode`, and the error classes from
-[Error handling](#error-handling). There's no separate `@personaai/sdk/types` entry point to
-remember — one import covers the client, every resource, and every type.
-
-## Out of scope
-
-Project/Members/Credentials management (creating Projects, inviting Members, minting/revoking
-credentials) is intentionally **not** part of this SDK — those routes are Clerk-session
-(human-admin) authenticated, a structurally different auth model than the machine-credential calls
-this SDK makes end to end. Manage them from
-[Developer Studio](https://persona.hasanraiyan.me/developer) instead.
 
 ## Framework recipes
 
 ### Express
 
-Construct the client once at module scope and use it in your route handlers — no special handling
-needed.
+No special handling — construct the client once at module scope (or a factory), and per-request
+runtime-plane clients in your route handlers.
 
 ```ts
 // persona.ts
@@ -992,8 +172,8 @@ export function personaFor(externalUserId?: string) {
 }
 
 // routes/chat.ts
-app.post("/api/chat", async (req, res) => {
-  const persona = personaFor(req.user.id);
+app.post('/api/chat', async (req, res) => {
+  const persona = personaFor(req.user.id); // your own auth already ran
   const result = await persona.chat.sendMessage(req.body.agentId, {
     messages: req.body.messages,
   });
@@ -1008,8 +188,8 @@ other third-party client — the SDK itself needs no Nest-specific support.
 
 ```ts
 // persona.service.ts
-import { Injectable } from "@nestjs/common";
-import { PersonaClient } from "@personaai/sdk";
+import { Injectable } from '@nestjs/common';
+import { PersonaClient } from '@personaai/sdk';
 
 @Injectable()
 export class PersonaService {
@@ -1025,19 +205,18 @@ export class PersonaService {
 
 ### Next.js — read this one carefully
 
-Next.js blurs server and client code in one codebase more than Express or Nest does, which makes it
-the one framework people actually leak the credential in by accident.
+Next.js blurs server and client code in one codebase more than Express or Nest does, which makes
+it the one framework people actually leak the credential in by accident.
 
 <Warning>
-  **Only import this SDK in Server Components, Route Handlers
-  (`app/api/.../route.ts`), or Server Actions. Never in a `"use client"`
-  component.** Constructing `PersonaClient` in client code bundles your Project
-  credential straight into the JavaScript shipped to the browser.
+  **Only import this SDK in Server Components, Route Handlers (`app/api/.../route.ts`), or
+  Server Actions. Never in a `"use client"` component.** Constructing `PersonaClient` in client
+  code bundles your Project credential straight into the JavaScript shipped to the browser.
 </Warning>
 
 ```ts
 // app/api/chat/route.ts — Route Handler, runs server-side only
-import { PersonaClient } from "@personaai/sdk";
+import { PersonaClient } from '@personaai/sdk';
 
 export async function POST(req: Request) {
   const { agentId, messages } = await req.json();
@@ -1067,15 +246,35 @@ export async function POST(req: Request) {
     async start(controller) {
       const encoder = new TextEncoder();
       for await (const event of persona.chat.stream(agentId, { messages })) {
-        controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify(event)}\n\n`),
-        );
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
       }
       controller.close();
     },
   });
-  return new Response(stream, {
-    headers: { "Content-Type": "text/event-stream" },
-  });
+  return new Response(stream, { headers: { 'Content-Type': 'text/event-stream' } });
 }
 ```
+
+## Where to go next
+
+| You want to...                                     | Read                                                                 |
+| -------------------------------------------------- | -------------------------------------------------------------------- |
+| Every configuration option, env var, and default   | [Configuration](/guides/sdk/configuration)                           |
+| The client surface & `whoami()`                    | [PersonaClient](/guides/sdk/client)                                  |
+| The low-level HTTP layer                           | [HttpClient](/guides/sdk/http-client)                                |
+| Error classes and how to handle failures           | [Errors](/guides/sdk/errors)                                         |
+| A specific resource's full API                     | [Resources](/guides/sdk/resources/agents) (one page each)            |
+| Streaming chat, interrupts, and run errors         | [Chat](/guides/sdk/chat)                                             |
+| The conversational Agent Architect                 | [Architect](/guides/sdk/architect)                                   |
+| Every exported type, field by field                | [Types](/guides/sdk/types)                                           |
+| Retries, pagination, idempotency, edge cases       | [Behavior & edge cases](/guides/sdk/behavior)                        |
+| Realistic end-to-end scenarios                     | [Workflows](/guides/sdk/workflows)                                   |
+| Common problems and fixes                          | [Troubleshooting](/guides/sdk/troubleshooting)                       |
+| Runtimes, frameworks, and version support          | [Compatibility](/guides/sdk/compatibility)                           |
+
+## Out of scope
+
+Project/Members/Credentials management (creating Projects, inviting Members, minting/revoking
+credentials) is intentionally **not** part of this SDK — those are Clerk-session (human admin)
+operations with a completely different auth model than the machine-credential calls this SDK makes.
+Manage them from [Developer Studio](https://persona.hasanraiyan.me/developer) instead.

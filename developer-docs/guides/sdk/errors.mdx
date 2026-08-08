@@ -1,0 +1,152 @@
+---
+title: Errors & Error Handling
+description: Every error class the SDK throws, what causes each, and how to handle them — including common failure scenarios.
+---
+
+Every non-2xx response, or a `{success:false}` JSON envelope, throws a **typed error** instead of
+resolving. All three error classes are exported from the package root:
+
+```ts
+import {
+  PersonaApiError,
+  PersonaAuthError,
+  PersonaValidationError,
+} from '@personaai/sdk';
+```
+
+## Error class hierarchy
+
+```
+Error
+└── PersonaApiError            (base — any non-2xx / {success:false} response)
+    ├── PersonaAuthError       (401, 403)
+    └── PersonaValidationError (400)
+```
+
+## PersonaApiError
+
+Base error for any non-2xx or `{success:false}` response from the API. Mirrors the backend's error
+envelope: `{success:false, status, statusCode, message, code, timestamp}`.
+
+```ts
+class PersonaApiError extends Error {
+  readonly statusCode: number;   // HTTP status, e.g. 404
+  readonly code: string;         // machine-readable error code, e.g. 'NOT_FOUND'
+  readonly response: unknown;    // the parsed error body (the envelope object), if any
+}
+```
+
+- `message` — the human-readable string from the envelope (inherited from `Error`). Safe to log.
+- `code` — mirrors the backend's machine-readable code (e.g. `VALIDATION_ERROR`, `UNAUTHORIZED`,
+  `PROJECT_NOT_ACTIVE`, `NOT_FOUND`, `EXTERNAL_USER_REQUIRED`). Falls back to `UNKNOWN_ERROR`
+  when the response body carries no code.
+- `response` — the raw parsed error body (`{success:false, message, code, ...}`), useful for
+  debugging. May be `undefined` for non-JSON error responses.
+
+## PersonaAuthError
+
+Thrown on **`401` or `403`** — invalid/missing credential, or the Project isn't `ACTIVE`.
+A subclass of `PersonaApiError` (so `instanceof PersonaApiError` also matches).
+
+## PersonaValidationError
+
+Thrown on **`400`** — request validation failed (bad/missing fields, invalid enum values, etc.).
+A subclass of `PersonaApiError`.
+
+## Handling errors
+
+```ts
+import {
+  PersonaApiError,
+  PersonaAuthError,
+  PersonaValidationError,
+} from '@personaai/sdk';
+
+try {
+  await persona.agents.create({
+    name: '',
+    systemPrompt: '...',
+    providerId: '...',
+  });
+} catch (err) {
+  if (err instanceof PersonaValidationError) {
+    console.error(`Bad request (${err.code}): ${err.message}`);
+  } else if (err instanceof PersonaAuthError) {
+    console.error(`Auth problem (${err.statusCode}): ${err.message}`);
+  } else if (err instanceof PersonaApiError) {
+    console.error(`API error (${err.statusCode}/${err.code}): ${err.message}`);
+  } else {
+    // Not a Persona error — a network failure, abort, JSON parse error, etc.
+    throw err;
+  }
+}
+```
+
+Order matters if you branch on subclasses first (`PersonaValidationError` before
+`PersonaApiError`, since the subclasses pass `instanceof PersonaApiError`).
+
+## What causes each error
+
+| Class                    | When it's thrown                                                                                                                                 |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PersonaAuthError`       | 401 — missing/invalid credential. 403 — credential is valid but the Project isn't `ACTIVE`, or the identity isn't permitted for the action.      |
+| `PersonaValidationError` | 400 — a field is missing, wrong type, out of range, or an enum value is invalid; or the request violates a rule like the `contextOverride` 4000-char cap. |
+| `PersonaApiError`        | Any other non-2xx — 404 (resource not found / not owned by this credential's scope), 429 (rate limited — after retries are exhausted), 500/503 (server-side), etc. |
+| `NON_JSON_ERROR_RESPONSE` | The server returned a non-JSON error body (code `NON_JSON_ERROR_RESPONSE` on a `PersonaApiError`).                                               |
+
+## Common failure scenarios
+
+### Authentication / authorization failures
+
+- **Wrong or revoked credential** → 401 `PersonaAuthError`. Verify `PERSONA_CREDENTIAL` and re-mint
+  via Studio if needed.
+- **Project suspended / not active** → 403 `PersonaAuthError` with `PROJECT_NOT_ACTIVE`.
+- **Cross-identity access**: a runtime-plane client (with `externalUserId`) calling control-plane
+  resources like Providers → 404 (existence-hiding) or empty lists, **not** a loud auth error.
+  Providers can never be owned by an external user.
+
+### EXTERNAL_USER_REQUIRED (400)
+
+Threads, Files, Memory, and Chat **require** `externalUserId` on the client — a bare Project
+credential has no Subject to scope to, and the server rejects the call with `400
+EXTERNAL_USER_REQUIRED` (`PersonaValidationError`). Stores file CRUD throws the same when the
+target Store's `scope` is `'externalUser'`.
+
+**Fix:** construct a runtime-plane client (`externalUserId: currentUser.id`) and retry.
+
+### Validation failures (400)
+
+- Missing required fields (`name`, `systemPrompt`, `providerId` on Agent create, etc.).
+- `contextOverride` longer than 4000 chars → 400 `INVALID_CONTEXT_OVERRIDE` (rejected, not
+  truncated).
+- `bulkDelete` with more than 100 ids → 400 before anything is deleted.
+- Uploading more than 10 files or a file over 20MB to a Knowledge base → 400.
+- Unsupported upload file types (not PDF/TXT/MD/JSON/CSV) → 400.
+- `scope: 'mine'` on a control-plane client (no `externalUserId`) → the server rejects it.
+
+### Not found / ownership (404)
+
+- `get()`/`update()`/`delete()` on an id the credential's scope doesn't own → 404
+  `PersonaApiError`. The API deliberately does not distinguish "doesn't exist" from "not
+  authorized" (existence-hiding).
+- `chat.stream()` with a `threadId` that doesn't belong to the asserted user + agent → 404. It
+  does **not** silently fall back to a different conversation.
+
+### Network / API failures
+
+- DNS/TCP failures, timeouts, and aborted requests throw the runtime's own network errors (e.g.
+  `TypeError: fetch failed`) — **not** `PersonaApiError`. Wrap accordingly, and don't typecheck
+  only against the Persona classes.
+- 429 rate limits are retried automatically; only after `maxRetries` is exhausted does a
+  `PersonaApiError` with `statusCode: 429` surface.
+
+## Errors that are NOT thrown
+
+- **`bulkDelete()` partial failures** do not throw — partial failures land in the result's
+  `failed` array. Check it.
+- **`testConnection()` on Providers/MCPs** returns `{ success: false, message }` for a reachable
+  endpoint that rejects the credentials — that's a *result*, not a thrown error. A genuinely
+  unreachable endpoint throws.
+- **Structured chat run failures** (provider auth, tool timeout, context length exceeded) are
+  **not** thrown by `chat.sendMessage()` — they're returned as `result.error` (a
+  `PersonaRunErrorEvent`). See [Chat](/guides/sdk/chat#structured-run-errors).

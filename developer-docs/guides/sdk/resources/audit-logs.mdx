@@ -1,0 +1,66 @@
+---
+title: Audit Logs
+description: Read-only Project-lifecycle audit events. Control-plane only.
+---
+
+`persona.auditLogs` — `/api/v1/developer/audit-logs`.
+
+Read-only, control-plane only (mirrors Providers — no `ExternalUser` ownership concept). A client
+constructed with `externalUserId` gets an **empty** `PaginatedResult` back, not an error — the
+same existence-hiding-style precedent `providers.list()` established.
+
+<Warning>
+  Today's audit log covers **Project-lifecycle events only** — credential minted/revoked,
+  membership added/removed, Project suspended/restored, deletion requested/cancelled/completed.
+  It does **not** cover resource CRUD — creating, updating, or deleting an Agent/Skill/Knowledge
+  Base/Provider/MCP leaves no entry here yet. Don't expect to find an `"agent.deleted"` event; it
+  doesn't exist as of this release.
+</Warning>
+
+## Methods
+
+| Method                    | Endpoint                          | Returns                          |
+| ------------------------- | --------------------------------- | -------------------------------- |
+| `list(params?)`           | `GET /api/v1/developer/audit-logs` | `PaginatedResult<AuditLogEntry>` |
+
+## list(params?)
+
+```ts
+const { items, pagination } = await persona.auditLogs.list({
+  page: 1,
+  limit: 20,
+  eventType: 'credential.created', // optional exact-match filter
+});
+```
+
+- `ListAuditLogsParams`: `page?`, `limit?`, `eventType?` (optional exact-match filter, e.g.
+  `"credential.created"`).
+- Returns `PaginatedResult<AuditLogEntry>`. Each entry:
+
+```ts
+{
+  eventType: string,                    // e.g. 'credential.created'
+  timestamp: string,
+  actorContextType: string,             // e.g. which auth context performed the action
+  actorIdentity: string | null,         // who performed it (null if system/unknown)
+  targetDomain: string,
+  targetResourceId: string | null,
+  metadata: Record<string, unknown>,    // event-specific detail
+}
+```
+
+## Complete example
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+
+const persona = new PersonaClient({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
+
+const { items } = await persona.auditLogs.list({ limit: 50 });
+for (const entry of items) {
+  console.log(entry.timestamp, entry.eventType, entry.actorIdentity);
+}
+```

@@ -1,0 +1,87 @@
+---
+title: PersonaClient
+description: The client surface — constructor, every resource property, and whoami().
+---
+
+`PersonaClient` is the single entry point. One instance gives you access to every resource client
+and the chat clients:
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+
+const persona = new PersonaClient({
+  baseUrl: 'https://api.persona.hasanraiyan.me',
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
+```
+
+## Constructor
+
+```ts
+new PersonaClient(options: PersonaClientOptions): PersonaClient
+```
+
+`PersonaClientOptions` is exactly `HttpClientOptions` — see
+[Configuration](/guides/sdk/configuration) for every field. `baseUrl` and `credential` are
+required and validated synchronously.
+
+## Client surface
+
+| Property       | Type                       | Wraps                                                                 | Ownership scoping                                                     |
+| -------------- | -------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `.providers`   | `ProvidersResource`        | `/api/v1/developer/providers`                                          | Control-plane only — no per-user Providers.                           |
+| `.skills`      | `SkillsResource`           | `/api/v1/developer/skills`                                             | Project or, with `externalUserId`, that end user.                     |
+| `.agents`      | `AgentsResource`           | `/api/v1/developer/agents`                                             | Project or, with `externalUserId`, that end user.                     |
+| `.knowledge`   | `KnowledgeResource`        | `/api/v1/developer/knowledge` (incl. document upload/search)           | Project or, with `externalUserId`, that end user.                     |
+| `.mcps`        | `McpsResource` (+ `.oauth`) | `/api/v1/developer/mcps` (incl. OAuth owner/user connection flows)     | Project or, with `externalUserId`, that end user.                     |
+| `.threads`     | `ThreadsResource`          | `/api/v1/developer/threads`                                            | Requires `externalUserId` — a Thread always belongs to one end user.  |
+| `.memory`      | `MemoryResource`           | `/api/v1/developer/memory`                                             | Requires `externalUserId` — memory always belongs to one end user.    |
+| `.stores`      | `StoresResource`           | `/api/v1/developer/stores`                                             | Config CRUD needs no `externalUserId`; file CRUD needs one only for `externalUser`-scoped Stores. |
+| `.files`       | `FilesResource`            | `/api/v1/developer/files`                                              | Requires `externalUserId` — a File always belongs to one end user.    |
+| `.auditLogs`   | `AuditLogsResource`        | `/api/v1/developer/audit-logs`                                         | Control-plane only.                                                   |
+| `.chat`        | `ChatClient`               | `/api/v1/developer/agui` (streaming)                                   | Requires `externalUserId` — a chat run always runs as one end user.   |
+| `.architect`   | `ArchitectClient`          | `/api/v1/developer/architect/agui` (streaming)                         | Project-level or per-user, depending on `externalUserId` (see [Architect](/guides/sdk/architect)). |
+
+Every resource class is also exported directly from the package root, so you could construct them
+manually against your own `HttpClient` — but that's never necessary; the client wires them up for
+you.
+
+## whoami()
+
+```ts
+async whoami(): Promise<PrincipalContext>
+```
+
+Resolves the principal context the client's credential (and optional `externalUserId`) maps to —
+a side-effect-free way to sanity-check auth wiring before making real calls.
+
+The returned shape depends on whether the client was constructed with `externalUserId`:
+
+| `principalType`  | Shape                                                     | When you get it                                           |
+| ---------------- | --------------------------------------------------------- | --------------------------------------------------------- |
+| `ProjectMachine` | `{ domain, principalType, credentialId }`                 | `externalUserId` omitted — acting as the Project itself.  |
+| `ProjectRuntime` | `{ domain, principalType, credentialId, externalUserId }` | `externalUserId` set — acting on behalf of that end user. |
+
+```ts
+const who = await persona.whoami();
+console.log(who.principalType); // 'ProjectMachine' | 'ProjectRuntime'
+console.log(who.domain);        // your Project's scoping key
+```
+
+There is no third `ProjectAdmin` variant reachable from the SDK — that context only comes from a
+Clerk-authenticated human admin session (Developer Studio), a completely different auth model the
+SDK deliberately doesn't implement.
+
+### Behavior notes
+
+- `whoami()` performs no side effects beyond external-user resolution; it's safe to call at
+  startup or per request.
+- Errors: a 401/403 throws `PersonaAuthError` (bad credential, or the Project isn't `ACTIVE`); a
+  400 throws `PersonaValidationError` (e.g. an `externalUserId` that fails validation).
+
+## Sharing vs. constructing fresh
+
+- **One control-plane client per process** is fine to share anywhere server-side.
+- **Runtime-plane clients are per-user**: construct one per request scoped to the authenticated
+  user (after your own auth), because `externalUserId` is baked into the client and sent on every
+  call. See [Configuration scenarios](/guides/sdk/configuration#configuration-scenarios).
