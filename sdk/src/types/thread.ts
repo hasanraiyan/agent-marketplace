@@ -1,3 +1,5 @@
+import type { ChatInterrupt } from './chat.js';
+
 /** Like Skill/Agent/Knowledge/Mcp, this mirrors the real wire shape (`_id`). */
 export interface Thread {
   _id: string;
@@ -44,4 +46,11 @@ export interface ThreadMessages {
   messages: unknown[];
   state: Record<string, unknown>;
   subagentTraces: Record<string, unknown>;
+  /**
+   * Set when this Thread is currently paused on a HITL/clarification
+   * interrupt — lets a caller re-show the approval/clarification card on
+   * page load without waiting for the next live `chat.stream()` call to
+   * re-surface it. Same shape as `ChatResult.interrupt`.
+   */
+  interrupt?: ChatInterrupt;
 }
