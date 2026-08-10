@@ -40,3 +40,9 @@ export const addMemberSchema = z
 export const createCredentialSchema = z.object({
   label: z.string().max(100).optional(),
 });
+
+// Invitations target people without a Persona account yet (AD-08 §11) — the
+// service rejects emails that already map to an existing user.
+export const createInvitationSchema = z.object({
+  email: z.string().email('A valid email is required'),
+});

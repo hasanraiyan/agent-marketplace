@@ -10,6 +10,7 @@ import {
   updateProjectSchema,
   addMemberSchema,
   createCredentialSchema,
+  createInvitationSchema,
 } from './project.validator.js';
 import { createProviderSchema, updateProviderSchema } from '../providers/provider.validator.js';
 import { createSkillSchema, updateSkillSchema } from '../skills/skill.validator.js';
@@ -289,6 +290,9 @@ adminRouter.post('/cancel-deletion', mutateLimiter, projectController.cancelDele
  */
 adminRouter.get('/members', projectController.listMembers);
 
+// ORDERING NOTE: '/members/search' and '/members/invitations' are static
+// segments and MUST stay registered before any future '/members/:id' param
+// route (e.g. GET /members/:personaUserId) or they'd be shadowed by it.
 /**
  * @openapi
  * /api/v1/projects/{projectId}/members/search:
@@ -345,6 +349,89 @@ adminRouter.post(
  *       404: { description: Membership not found }
  */
 adminRouter.delete('/members/:personaUserId', mutateLimiter, projectController.removeMember);
+
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/members/invitations:
+ *   get:
+ *     tags: [Projects]
+ *     summary: List Project invitations (Admin only)
+ *     description: >
+ *       Invitations let an Admin invite someone without a Persona account
+ *       yet (AD-08 §11). Each row maps to a Clerk invitation which owns
+ *       email delivery and the accept flow.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: List of invitations }
+ *   post:
+ *     tags: [Projects]
+ *     summary: Invite someone by email (Admin only)
+ *     description: >
+ *       Creates a Clerk invitation for an email with no Persona account yet;
+ *       Clerk emails the accept link. Rejected when the email already maps to
+ *       a Persona account (add them directly instead). Idempotent for a
+ *       pending invitation to the same email — the existing invitation is
+ *       returned rather than sending a second one.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email: { type: string, format: email }
+ *     responses:
+ *       201: { description: Invitation created }
+ *       400: { description: Invalid email, or user already has a Persona account }
+ *       404: { description: Project not found }
+ */
+adminRouter.get('/members/invitations', projectController.listInvitations);
+adminRouter.post(
+  '/members/invitations',
+  mutateLimiter,
+  validateBody(createInvitationSchema),
+  projectController.createInvitation
+);
+
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/members/invitations/{invitationId}:
+ *   delete:
+ *     tags: [Projects]
+ *     summary: Revoke a pending invitation (Admin only)
+ *     description: Revokes the Clerk invitation (killing the emailed accept link) and marks the row revoked.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: invitationId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Invitation revoked }
+ *       400: { description: Invitation is not pending }
+ *       404: { description: Invitation not found }
+ */
+adminRouter.delete(
+  '/members/invitations/:invitationId',
+  mutateLimiter,
+  projectController.revokeInvitation
+);
 
 /**
  * @openapi

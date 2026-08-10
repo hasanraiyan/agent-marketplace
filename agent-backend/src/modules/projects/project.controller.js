@@ -1,5 +1,6 @@
 import projectService from './project.service.js';
 import projectMembershipService from './projectMembership.service.js';
+import projectInvitationService from './projectInvitation.service.js';
 import projectCredentialService from './projectCredential.service.js';
 import userRepository from '../users/user.repository.js';
 import { createPersonaPrincipalContext } from '../auth/personaPrincipalContext.js';
@@ -118,6 +119,46 @@ class ProjectController {
       const members = await projectMembershipService.listMembers(req.projectAdminContext.domain);
 
       res.json({ success: true, data: members });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async createInvitation(req, res, next) {
+    try {
+      const invitation = await projectInvitationService.createInvitation(
+        req.projectAdminContext.domain,
+        req.body.email,
+        req.projectAdminContext.personaUserId
+      );
+
+      res.status(201).json({ success: true, data: invitation });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async listInvitations(req, res, next) {
+    try {
+      const invitations = await projectInvitationService.listInvitations(
+        req.projectAdminContext.domain
+      );
+
+      res.json({ success: true, data: invitations });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async revokeInvitation(req, res, next) {
+    try {
+      const invitation = await projectInvitationService.revokeInvitation(
+        req.projectAdminContext.domain,
+        req.params.invitationId,
+        req.projectAdminContext.personaUserId
+      );
+
+      res.json({ success: true, data: invitation });
     } catch (error) {
       next(error);
     }

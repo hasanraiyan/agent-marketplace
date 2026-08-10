@@ -20,6 +20,10 @@ export { default as ProjectCredential, CREDENTIAL_STATUS } from './projectCreden
 export { default as projectCredentialRepository } from './projectCredential.repository.js';
 export { default as projectCredentialService } from './projectCredential.service.js';
 
+export { default as ProjectInvitation, INVITATION_STATUS } from './projectInvitation.model.js';
+export { default as projectInvitationRepository } from './projectInvitation.repository.js';
+export { default as projectInvitationService } from './projectInvitation.service.js';
+
 export { default as projectRouter } from './project.routes.js';
 export { default as projectController } from './project.controller.js';
 export { default as projectArchitectAguiRouter } from './projectArchitect.routes.js';
@@ -29,4 +33,5 @@ export {
   updateProjectSchema,
   addMemberSchema,
   createCredentialSchema,
+  createInvitationSchema,
 } from './project.validator.js';
