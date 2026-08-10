@@ -28,6 +28,16 @@ export interface CreateRuntimeOptions {
   mode?: 'development' | 'production';
   /** Override fetch (proxying, tracing, or test injection). Forwarded to every per-request PersonaClient. */
   fetch?: typeof fetch;
+  /**
+   * How often to send an SSE comment-line heartbeat (`: heartbeat\n\n`)
+   * during a gap in the `/chat` stream — e.g. a long-running tool call with
+   * no token output — so intermediary proxies/load balancers with an idle
+   * timeout don't kill the connection. Comment lines are invisible to any
+   * `data:`-only SSE parser (including `@personaai/sdk`'s own), so this
+   * never changes the AG-UI event sequence a consumer sees.
+   * @default 15000
+   */
+  heartbeatIntervalMs?: number;
 }
 
 export interface Runtime {

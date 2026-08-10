@@ -116,19 +116,40 @@ async function processEvent(
   }
 }
 
+/** An SSE comment line — ignored by any `data:`-only parser (including `@personaai/sdk`'s own), never changes the AG-UI event sequence a consumer sees. */
+const HEARTBEAT_FRAME = ': heartbeat\n\n';
+
+const TIMEOUT = Symbol('heartbeat-timeout');
+
+function heartbeatTimer(ms: number): { promise: Promise<typeof TIMEOUT>; cancel: () => void } {
+  let handle: ReturnType<typeof setTimeout>;
+  const promise = new Promise<typeof TIMEOUT>((resolve) => {
+    handle = setTimeout(() => resolve(TIMEOUT), ms);
+  });
+  return { promise, cancel: () => clearTimeout(handle) };
+}
+
 /**
  * The async generator an adapter actually drains. Firing `afterRun` here
  * (rather than after the top-level `for await` in the route handler) means
  * it only runs once the stream has genuinely been sent to completion —
  * the correct semantic for "after a run completes" when completion is
  * defined by the last SSE frame going out.
+ *
+ * Interleaves `HEARTBEAT_FRAME`s during any gap between real events (e.g. a
+ * long-running tool call with no token output) without breaking pull-based
+ * backpressure: `rest.next()` is only ever called once per real event — a
+ * heartbeat firing just re-races the *same* pending `next()` promise against
+ * a fresh timer, it never issues an extra `next()` call ahead of what the
+ * consumer has actually asked for.
  */
 export async function* chatEventsToSseBody(
   first: AguiEvent,
   rest: AsyncGenerator<AguiEvent>,
   runCtx: RunContext,
   hooks: RuntimeHooks | undefined,
-  mode: 'development' | 'production'
+  mode: 'development' | 'production',
+  heartbeatIntervalMs = 15000
 ): AsyncGenerator<string> {
   const acc = newAccumulator();
   let count = 0;
@@ -138,10 +159,23 @@ export async function* chatEventsToSseBody(
     count += 1;
     yield formatSseFrame(first);
 
-    for await (const event of rest) {
-      await processEvent(event, acc, runCtx, hooks);
+    let pending: Promise<IteratorResult<AguiEvent>> | null = null;
+    for (;;) {
+      pending ??= rest.next();
+      const timer = heartbeatTimer(heartbeatIntervalMs);
+      const winner = await Promise.race([pending, timer.promise]);
+      timer.cancel();
+
+      if (winner === TIMEOUT) {
+        yield HEARTBEAT_FRAME;
+        continue; // re-race the same pending next() call, no extra pull
+      }
+
+      pending = null;
+      if (winner.done) break;
+      await processEvent(winner.value, acc, runCtx, hooks);
       count += 1;
-      yield formatSseFrame(event);
+      yield formatSseFrame(winner.value);
     }
 
     const result: RunResult = {

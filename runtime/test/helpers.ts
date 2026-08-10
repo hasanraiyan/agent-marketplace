@@ -39,6 +39,7 @@ export function makeRuntime(overrides: {
   hooks?: RuntimeHooks;
   mode?: CreateRuntimeOptions['mode'];
   mountPath?: string;
+  heartbeatIntervalMs?: number;
 }) {
   return createRuntime({
     baseUrl: 'https://api.example.com',
@@ -48,5 +49,28 @@ export function makeRuntime(overrides: {
     hooks: overrides.hooks,
     mode: overrides.mode,
     mountPath: overrides.mountPath,
+    heartbeatIntervalMs: overrides.heartbeatIntervalMs,
   });
+}
+
+/**
+ * A mock SSE `Response` whose ReadableStream emits each event only after a
+ * delay (via `pull()`), so tests can force a gap between events long enough
+ * for a heartbeat to fire.
+ */
+export function delayedSseResponse(events: unknown[], delayMs: number, status = 200): Response {
+  const encoder = new TextEncoder();
+  let index = 0;
+  const stream = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      if (index >= events.length) {
+        controller.close();
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify(events[index])}\n\n`));
+      index += 1;
+    },
+  });
+  return new Response(stream, { status, headers: { 'content-type': 'text/event-stream' } });
 }

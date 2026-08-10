@@ -5,7 +5,7 @@ shared engine every framework adapter (`@personaai/express`, `@personaai/nextjs`
 to be a thin translation layer over — see
 [the SDK Ecosystem plan](https://github.com/hasanraiyan/agent-marketplace/blob/feat/ai/product-research/11-sdk-new/package-ecosystem.md).
 
-**v0.2.** Not installed directly by most developers yet — there is no published framework
+**v0.3.** Not installed directly by most developers yet — there is no published framework
 adapter for it in this release. See [Quickstart](#quickstart) for how to run it directly against
 raw Node `http` in the meantime, and [Not yet implemented](#not-yet-implemented) for what's
 missing before it's a complete Level 2 runtime.
@@ -157,6 +157,47 @@ createRuntime({
 });
 ```
 
+## Heartbeats and backpressure
+
+`POST /chat` sends an SSE comment-line heartbeat (`: heartbeat\n\n`) during any gap between real
+AG-UI events — e.g. a long-running tool call with no token output — so intermediary proxies and
+load balancers with an idle-connection timeout don't kill the stream. Comment lines are invisible
+to any `data:`-only SSE parser (including `@personaai/sdk`'s own `parseAguiEventStream`), so a
+consumer never sees them as part of the event sequence.
+
+```ts
+createRuntime({
+  // ...
+  heartbeatIntervalMs: 15000, // default; lower it for faster proxy timeouts, or raise it to reduce chatter
+});
+```
+
+Heartbeats only cover gaps *after* the first event of a run — headers can't be sent until the
+runtime has already peeked that first event to decide whether the run started successfully
+(a 401/400/500 has to be a normal buffered response, not a stream), so there's no way to keep a
+connection alive with heartbeats before that point. In practice this matters little: the gap
+heartbeats exist for is a stalled *middle* of a run (a slow tool call), not the initial
+time-to-first-token.
+
+Backpressure is pull-based end to end and needed no new code to "add": `chatEventsToSseBody`
+only calls the upstream `chat.stream()` generator's `next()` once per SSE frame the *consumer*
+has asked for (verified in `test/backpressure.test.ts`), and a heartbeat firing re-races the same
+pending `next()` call rather than issuing an extra one — it never reads ahead. The Node bridge in
+`examples/` layers transport-level backpressure on top of that via `res.write()`'s return value
+and the `drain` event, so a slow client can't make the runtime buffer an unbounded number of
+events in memory.
+
+**Reconnect/resume is not implemented, and can't be at this layer.** If a network connection
+drops mid-stream, there is currently no way to resume the *same* run from where it left off —
+`@personaai/sdk`'s `chat.stream()` only supports starting a fresh turn or resuming a *paused
+human-in-the-loop interrupt* (via `resume`), not resuming an arbitrary in-progress run from a
+byte/event position. Building real reconnect-and-resume would require either protocol support
+from Persona's own hosted backend (out of scope for this package — it calls that backend, it
+doesn't run it) or a client-side strategy of simply starting a new `/chat` call on the same
+`threadId` once the previous one drops, accepting a small amount of duplicated/re-generated
+context. The frontend concern this maps to (`@personaai/react`'s planned "transparent
+reconnection on network drop") doesn't exist yet either — this is a real, currently-unclosed gap.
+
 ## Errors
 
 Every error response is `{"error": {"code": "...", "message": "...", "detail"?: ...}}`. Two
@@ -174,17 +215,17 @@ modes (`mode: 'development' | 'production'`, default `'production'` unless
 
 ## Not yet implemented
 
-This is v0.2 — still not the full [issue #229](https://github.com/hasanraiyan/agent-marketplace/issues/229)
-checklist. Missing, in rough priority order for a future release:
+This is v0.3 — still not the full [issue #229](https://github.com/hasanraiyan/agent-marketplace/issues/229)
+checklist. Missing:
 
-- AG-UI-level heartbeats, backpressure, and reconnect/resume semantics (the Node bridge in
-  `examples/` handles *transport*-level backpressure via `res.write()`/`drain`, which is not the
-  same thing)
+- **Reconnect/resume of a dropped mid-stream connection** — see the
+  [Heartbeats and backpressure](#heartbeats-and-backpressure) section above for why this is a
+  real, currently-unclosed gap rather than a scoping choice.
 - Any published framework adapter (`@personaai/express`, `@personaai/nextjs`, `@personaai/node`,
   `@personaai/fastify`, `@personaai/hono`, `@personaai/nestjs`) — this package is the foundation
-  they're meant to wrap, not a replacement for them
+  they're meant to wrap, not a replacement for them.
 - Authorization/RBAC for MCP owner-mode OAuth routes — the runtime exposes the raw capability;
-  gating who's allowed to call it is left to the host, by design (see the Routes section above)
+  gating who's allowed to call it is left to the host, by design (see the Routes section above).
 
 ## Roadmap
 

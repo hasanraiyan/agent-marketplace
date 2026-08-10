@@ -82,6 +82,7 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
 
   const routes = buildRoutes();
   const mode = resolveMode(options);
+  const heartbeatIntervalMs = options.heartbeatIntervalMs ?? 15000;
 
   async function handle(request: RuntimeRequest): Promise<RuntimeResponse> {
     try {
@@ -129,6 +130,7 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
         hooks: options.hooks,
         mode,
         params: match.params,
+        heartbeatIntervalMs,
       });
     } catch (err) {
       return errorToResponse(err, mode);

@@ -101,6 +101,13 @@ export const chatRoute: RouteHandler = async (request, ctx) => {
       'cache-control': 'no-cache',
       connection: 'keep-alive',
     },
-    body: chatEventsToSseBody(first.value, stream, runCtx, ctx.hooks, ctx.mode),
+    body: chatEventsToSseBody(
+      first.value,
+      stream,
+      runCtx,
+      ctx.hooks,
+      ctx.mode,
+      ctx.heartbeatIntervalMs
+    ),
   };
 };

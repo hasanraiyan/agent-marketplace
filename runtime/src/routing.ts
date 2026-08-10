@@ -6,6 +6,7 @@ export interface RouteContext {
   hooks: import('./types/hooks.js').RuntimeHooks | undefined;
   mode: 'development' | 'production';
   params: Record<string, string>;
+  heartbeatIntervalMs: number;
 }
 
 export type RouteHandler = (request: RuntimeRequest, ctx: RouteContext) => Promise<RuntimeResponse>;
