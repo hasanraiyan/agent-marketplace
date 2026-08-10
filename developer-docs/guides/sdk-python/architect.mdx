@@ -1,0 +1,88 @@
+---
+title: Architect
+description: The Agent Architect — a conversational co-pilot that creates and edits Agents via tool calls, streamed over AG-UI. No agent_id, no thread selection.
+---
+
+`persona.architect` (sync: `ArchitectClient`, async: `AsyncArchitectClient`) wraps
+`/api/v1/developer/architect/agui` — a **conversational co-pilot that creates/edits Agents via
+tool calls**, on your behalf.
+
+Unlike the [Chat client](/guides/sdk-python/chat), there's **no `agent_id` to pass** (it's always
+this one dedicated Architect) and **no thread selection** (one implicit conversation per caller).
+
+## Ownership: control-plane vs. runtime-plane
+
+The Architect is one of the few surfaces that works in **both** modes:
+
+- **Omit `external_user_id`** — the Architect builds/edits Agents owned by your whole **Project**
+  (the SDK-reachable equivalent of a Project Admin managing the shared roster by hand).
+- **Set `external_user_id`** — the Architect builds/edits Agents owned by that **one external
+  user** instead — the same dual-mode ownership convention every other resource follows.
+
+There is no `EXTERNAL_USER_REQUIRED` guard on this endpoint — a bare Project credential works fine.
+
+## Methods
+
+| Method                                                        | Returns                                            | Description                                                       |
+| ------------------------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------- |
+| `architect.stream(messages, *, resume=None)`                  | `Iterator[AguiEvent]` / `AsyncIterator[AguiEvent]` | The raw event sequence, as it arrives — full control for a custom UI. |
+| `architect.send_message(messages, *, resume=None)`            | `ChatResult`                                       | Drains `stream()` for you; returns assembled text plus interrupt/events detail. |
+
+`messages`: `list[{"role": "user" | "assistant", "content": str}]` — plain text only. `resume`
+answers a pending interrupt from a previous run (see
+[Human-in-the-loop](/guides/sdk-python/chat#human-in-the-loop-interrupts-and-resuming) — same
+protocol as the chat client).
+
+## Basic usage
+
+```python
+from personaai import EventType
+
+# Control-plane: builds/edits Project-owned Agents.
+for event in persona.architect.stream(
+    [{"role": "user", "content": "Create an agent that summarizes support tickets."}]
+):
+    if event["type"] == EventType.TEXT_MESSAGE_CHUNK and event.get("delta"):
+        print(event["delta"], end="")
+
+# Or the convenience wrapper.
+result = persona.architect.send_message(
+    [{"role": "user", "content": "Create an agent that summarizes support tickets."}]
+)
+print(result["text"])
+```
+
+Async is the same shape with `async for`/`await`:
+
+```python
+async for event in persona.architect.stream(messages):
+    ...
+
+result = await persona.architect.send_message(messages)
+```
+
+## Human-in-the-loop: confirming Agent edits
+
+Because the Architect mutates real Agents, its sensitive tool calls (e.g. `upsert_agent`) pause
+for human approval when the target Agent's configuration requires it. `send_message()` surfaces
+this as `result["interrupt"]` (kind `"hitl"` or `"clarification"`), exactly like the chat client —
+resume on the next call with `messages=[]` and `resume` set:
+
+```python
+result = persona.architect.send_message([{"role": "user", "content": "Create the agent"}])
+
+if result["interrupt"]:
+    print(result["interrupt"]["kind"], result["interrupt"]["value"])
+    resumed = persona.architect.send_message(
+        [],
+        resume={"decisions": [{"action": "upsert_agent", "decision": "approve"}]},
+    )
+    print(resumed["text"])
+```
+
+## Streaming behavior
+
+Same as the chat client: SSE-delivered events, tolerant parsing (malformed frames skipped, never
+raised), 429 retries apply, and a JSON error envelope raises a typed `PersonaApiError` instead of
+appearing as an event. No `contextOverride`/cancellation parameter in this SDK — wrap in
+`asyncio.wait_for(...)` for timeouts.

@@ -14,14 +14,17 @@ import httpx
 
 from ._base import TransportConfig
 from ._sync_http import SyncTransport
+from .chat.architect import ArchitectClient
 from .chat.client import ChatClient
 from .resources.agents import Agents
 from .resources.audit_logs import AuditLogs
 from .resources.files import Files
 from .resources.knowledge import Knowledge
 from .resources.mcp import Mcps
+from .resources.memory import Memory
 from .resources.providers import Providers
 from .resources.skills import Skills
+from .resources.stores import Stores
 from .resources.threads import Threads
 from .types.principal import PrincipalContext
 
@@ -81,7 +84,10 @@ class PersonaClient:
         self.threads = Threads(self._transport)
         self.files = Files(self._transport)
         self.audit_logs = AuditLogs(self._transport)
+        self.memory = Memory(self._transport)
+        self.stores = Stores(self._transport)
         self.chat = ChatClient(self._transport)
+        self.architect = ArchitectClient(self._transport)
 
     def close(self) -> None:
         self._transport.close()

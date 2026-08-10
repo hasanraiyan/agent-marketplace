@@ -62,11 +62,14 @@
                   "guides/sdk-python/resources/knowledge",
                   "guides/sdk-python/resources/mcps",
                   "guides/sdk-python/resources/threads",
+                  "guides/sdk-python/resources/memory",
+                  "guides/sdk-python/resources/stores",
                   "guides/sdk-python/resources/files",
                   "guides/sdk-python/resources/audit-logs"
                 ]
               },
               "guides/sdk-python/chat",
+              "guides/sdk-python/architect",
               "guides/sdk-python/types",
               "guides/sdk-python/behavior",
               "guides/sdk-python/workflows",

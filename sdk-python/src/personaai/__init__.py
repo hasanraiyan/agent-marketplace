@@ -1,4 +1,5 @@
 from .async_client import AsyncPersonaClient
+from .chat.architect import AsyncArchitectClient, ArchitectClient
 from .chat.client import AsyncChatClient, ChatClient
 from .client import PersonaClient
 from .errors import PersonaApiError, PersonaAuthError, PersonaValidationError
@@ -7,8 +8,10 @@ from .resources.audit_logs import AsyncAuditLogs, AuditLogs
 from .resources.files import AsyncFiles, Files
 from .resources.knowledge import AsyncKnowledge, Knowledge
 from .resources.mcp import AsyncMcpOAuth, AsyncMcps, McpOAuth, Mcps
+from .resources.memory import AsyncMemory, Memory
 from .resources.providers import AsyncProviders, Providers
 from .resources.skills import AsyncSkills, Skills
+from .resources.stores import AsyncStores, Stores
 from .resources.threads import AsyncThreads, Threads
 from .types.agent import (
     Agent,
@@ -60,6 +63,15 @@ from .types.mcp import (
     PartialMcpOAuthInput,
     UpdateMcpInput,
 )
+from .types.memory import (
+    DeleteMemoryFileParams,
+    GetMemoryFileParams,
+    MemoryAgentGroup,
+    MemoryFile,
+    MemoryFileScopeParams,
+    MemoryListResult,
+    WriteMemoryFileInput,
+)
 from .types.pagination import PaginatedResult, PaginationInfo
 from .types.principal import PrincipalContext, ProjectMachineContext, ProjectRuntimeContext
 from .types.provider import (
@@ -76,6 +88,18 @@ from .types.skill import (
     SkillFile,
     SkillFileInput,
     UpdateSkillInput,
+)
+from .types.store import (
+    CreateStoreInput,
+    DeleteStoreFileParams,
+    DiscoverStoresParams,
+    GetStoreFileParams,
+    Store,
+    StoreAccessMode,
+    StoreFile,
+    StoreScope,
+    UpdateStoreInput,
+    WriteStoreFileInput,
 )
 from .types.thread import (
     CreateThreadInput,
@@ -169,8 +193,31 @@ __all__ = [
     "AsyncAuditLogs",
     "AuditLogEntry",
     "ListAuditLogsParams",
+    "Memory",
+    "AsyncMemory",
+    "MemoryFile",
+    "MemoryAgentGroup",
+    "MemoryListResult",
+    "MemoryFileScopeParams",
+    "GetMemoryFileParams",
+    "WriteMemoryFileInput",
+    "DeleteMemoryFileParams",
+    "Stores",
+    "AsyncStores",
+    "Store",
+    "StoreScope",
+    "StoreAccessMode",
+    "CreateStoreInput",
+    "UpdateStoreInput",
+    "DiscoverStoresParams",
+    "StoreFile",
+    "GetStoreFileParams",
+    "DeleteStoreFileParams",
+    "WriteStoreFileInput",
     "ChatClient",
     "AsyncChatClient",
+    "ArchitectClient",
+    "AsyncArchitectClient",
     "EventType",
     "AguiEvent",
     "ChatMessageInput",

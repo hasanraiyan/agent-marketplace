@@ -1,0 +1,95 @@
+---
+title: Stores
+description: The stores resource — named, scoped mount points you create and assign to Agents, generalizing the fixed memory mounts into arbitrarily-named ones.
+---
+
+`persona.stores` (sync) / `await persona.stores` (async) wraps `/api/v1/developer/stores`.
+
+Stores are **named, scoped mount points you create and assign to Agents** (`Agent.storeMounts`,
+settable via `agents.update()`), generalizing the fixed `/memories/user/`/`/memories/agent/` mounts
+into arbitrarily-named ones. A Store is mounted at `/stores/<name>/` in the Agent's filesystem.
+
+## Ownership rules
+
+- **Config CRUD** (`create`/`list`/`get`/`update`/`delete`) works with a **bare Project
+  credential** — a Store's config isn't per-founder. No `external_user_id` needed.
+- **File CRUD** is the same, *except* when the Store's own `scope` is `'externalUser'`: only then
+  does the client need to have been constructed with `external_user_id` set, or the call 400s with
+  `EXTERNAL_USER_REQUIRED`. The check is server-side, **per request after loading the store** —
+  a `domain`-scoped Store works from a bare credential, an `externalUser`-scoped Store doesn't.
+
+## Methods
+
+| Method                                                    | Wraps                            | Returns                  |
+| --------------------------------------------------------- | -------------------------------- | ------------------------ |
+| `stores.create(input)`                                    | `POST /stores`                   | `Store`                  |
+| `stores.list(params=None)`                                | `GET /stores`                    | `PaginatedResult[Store]` |
+| `stores.get(store_id)`                                    | `GET /stores/{id}`               | `Store`                  |
+| `stores.update(store_id, input)`                          | `PATCH /stores/{id}`             | `Store`                  |
+| `stores.delete(store_id)`                                 | `DELETE /stores/{id}`            | `None`                   |
+| `stores.list_files(store_id)`                             | `GET /stores/{id}/files`         | `list[StoreFile]`        |
+| `stores.get_file(store_id, path)`                         | `GET /stores/{id}/file`          | `StoreFile`              |
+| `stores.write_file(store_id, path, content)`              | `PUT /stores/{id}/file`          | `StoreFile`              |
+| `stores.delete_file(store_id, path)`                      | `DELETE /stores/{id}/file`       | `None`                   |
+
+Async: identical methods with `await`.
+
+## `create(input)`
+
+`CreateStoreInput`: `name` (required — **lowercase letters, numbers, hyphens only**), `scope`
+(required), plus optional `description`, `accessMode` (default `'readwrite'`). **`scope` cannot be
+changed after creation.**
+
+```python
+store = persona.stores.create(
+    {
+        "name": "shared-kb",
+        "description": "Shared project notes",
+        "scope": "domain",          # 'domain' | 'externalUser'
+        "accessMode": "readwrite",  # 'readonly' | 'readwrite'
+    }
+)
+```
+
+`scope` semantics: `'domain'` — one shared namespace for the whole Project; `'externalUser'` — one
+namespace per external user, resolved per Agent run. `accessMode` semantics: `'readonly'` — Agents
+can read but never write via their own tool calls (content is populated only through this API);
+`'readwrite'` — Agents can also `write_file`/`edit_file` into it.
+
+A `409` `PersonaApiError` is raised if a Store with this exact name already exists.
+
+## `list(params=None)` / `get(store_id)` / `update(store_id, input)` / `delete(store_id)`
+
+`list()` takes `DiscoverStoresParams` (all optional): `page` (default `1`), `limit` (default
+`20`), `search` (free-text against `name`). Returns the standard `PaginatedResult`.
+
+`update()` accepts `UpdateStoreInput`: `name?`, `description?`, `accessMode?` — **`scope` is
+deliberately not included** (immutable after creation). Create a new Store if you need a different
+one.
+
+`delete()` removes the Store, **also removes it from every Agent's `storeMounts`, and purges all of
+its data** — every founder's partition, for an `externalUser`-scoped Store.
+
+## File CRUD
+
+```python
+files = persona.stores.list_files(store["_id"])            # list[StoreFile]
+file = persona.stores.get_file(store["_id"], "/notes.md")
+persona.stores.write_file(store["_id"], "/notes.md", "# Notes")
+persona.stores.delete_file(store["_id"], "/notes.md")
+```
+
+- `list_files()` returns `list[StoreFile]` (the SDK unwraps the `{files: [...]}` envelope for you).
+  For an `externalUser`-scoped Store it lists only this client's asserted external user's own
+  partition — never another founder's data, even to the same Project credential.
+- `write_file()` creates or overwrites — `content` replaces existing content entirely. **Not gated
+  by the Store's `accessMode`**: `readonly` only blocks an Agent's *own* tool calls; this API is
+  how a readonly Store's content actually gets populated.
+- `get_file()`/`delete_file()` raise `PersonaApiError` (`404`) if the Store or file doesn't exist.
+
+## Types
+
+See [Types — Store types](/guides/sdk-python/types#store-types) for the full field reference:
+`Store`, `StoreScope`, `StoreAccessMode`, `CreateStoreInput`, `UpdateStoreInput`,
+`DiscoverStoresParams`, `StoreFile`, `GetStoreFileParams`, `DeleteStoreFileParams`,
+`WriteStoreFileInput`.

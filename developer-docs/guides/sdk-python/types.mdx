@@ -24,8 +24,8 @@ import covers the client, every resource, and every type. This page documents **
 
 | Kind        | Export                                                                                                                                                        |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Class       | `PersonaClient`, `AsyncPersonaClient`, `ChatClient`, `AsyncChatClient`                                                                                         |
-| Class       | `Providers`, `AsyncProviders`, `Skills`, `AsyncSkills`, `Agents`, `AsyncAgents`, `Knowledge`, `AsyncKnowledge`, `Mcps`, `AsyncMcps`, `McpOAuth`, `AsyncMcpOAuth`, `Threads`, `AsyncThreads`, `Files`, `AsyncFiles`, `AuditLogs`, `AsyncAuditLogs` |
+| Class       | `PersonaClient`, `AsyncPersonaClient`, `ChatClient`, `AsyncChatClient`, `ArchitectClient`, `AsyncArchitectClient`                                              |
+| Class       | `Providers`, `AsyncProviders`, `Skills`, `AsyncSkills`, `Agents`, `AsyncAgents`, `Knowledge`, `AsyncKnowledge`, `Mcps`, `AsyncMcps`, `McpOAuth`, `AsyncMcpOAuth`, `Threads`, `AsyncThreads`, `Files`, `AsyncFiles`, `AuditLogs`, `AsyncAuditLogs`, `Memory`, `AsyncMemory`, `Stores`, `AsyncStores` |
 | Class       | `PersonaApiError`, `PersonaAuthError`, `PersonaValidationError`                                                                                                |
 | Class       | `EventType` (plain string constants — not an `enum`)                                                                                                           |
 | Type        | `PrincipalContext`, `ProjectMachineContext`, `ProjectRuntimeContext`                                                                                           |
@@ -36,6 +36,8 @@ import covers the client, every resource, and every type. This page documents **
 | Type        | `KnowledgeBase`, `KnowledgeDocument`, `CreateKnowledgeBaseInput`, `UpdateKnowledgeBaseInput`, `DiscoverKnowledgeBasesParams`, `UploadFileInput`, `UploadDocumentsResult`, `DeleteDocumentResult`, `KnowledgeSearchResult` |
 | Type        | `Mcp`, `McpTransport`, `McpAuthType`, `McpAuthMode`, `McpTool`, `McpResourceSummary`, `McpResourceTemplate`, `McpOAuthConfig`, `McpOAuthInput`, `PartialMcpOAuthInput`, `CreateMcpInput`, `UpdateMcpInput`, `DiscoverMcpsParams`, `McpTestConnectionResult`, `McpReadResourceResult`, `McpUserConnectionStatus`, `McpAuthorizeUrl` |
 | Type        | `Thread`, `ThreadAgentRef`, `CreateThreadInput`, `UpdateThreadInput`, `ListThreadsParams`, `ThreadMessages`                                                    |
+| Type        | `MemoryFile`, `MemoryAgentGroup`, `MemoryListResult`, `MemoryFileScopeParams`, `GetMemoryFileParams`, `WriteMemoryFileInput`, `DeleteMemoryFileParams`           |
+| Type        | `Store`, `StoreScope`, `StoreAccessMode`, `CreateStoreInput`, `UpdateStoreInput`, `DiscoverStoresParams`, `StoreFile`, `GetStoreFileParams`, `DeleteStoreFileParams`, `WriteStoreFileInput` |
 | Type        | `PersonaFile`, `UploadFilePayload`, `ListFilesParams`                                                                                                           |
 | Type        | `AuditLogEntry`, `ListAuditLogsParams`                                                                                                                          |
 | Type        | `AguiEvent`, `ChatMessageInput`, `ChatResume`, `ChatInterrupt`, `ChatResult`                                                                                    |

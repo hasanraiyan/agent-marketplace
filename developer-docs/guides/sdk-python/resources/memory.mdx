@@ -1,0 +1,83 @@
+---
+title: Memory
+description: The memory resource — a subject's persistent memory files (the same filesystem an Agent's own read_file/write_file tool calls see), exposed over REST.
+---
+
+`persona.memory` (sync) / `await persona.memory` (async) wraps `/api/v1/developer/memory`.
+
+A subject's memory files are the **same `/memories/user/`/`/memories/agent/` filesystem an Agent's
+own `write_file`/`read_file` tool calls see**, exposed over REST. `user`-scoped files are shared
+across every Agent; `agent`-scoped files are per (user, Agent) pair.
+
+<Warning>
+  **Every method here requires the client to have been constructed with
+  `external_user_id`.** A memory namespace is per-Subject, and a bare Project
+  credential has no Subject to scope one to — the server rejects it with `400
+  EXTERNAL_USER_REQUIRED` (a `PersonaValidationError`).
+</Warning>
+
+## Methods
+
+| Method                                                                 | Wraps                          | Returns                |
+| ---------------------------------------------------------------------- | ------------------------------ | ---------------------- |
+| `memory.list()`                                                        | `GET /memory`                  | `MemoryListResult`     |
+| `memory.get_file(path, *, scope=None, agent_id=None)`                  | `GET /memory/file`             | `MemoryFile`           |
+| `memory.write_file(path, content, *, scope=None, agent_id=None)`       | `PUT /memory/file`             | `MemoryFile`           |
+| `memory.delete_file(path, *, scope=None, agent_id=None)`               | `DELETE /memory/file`          | `None`                 |
+
+Async: identical methods with `await`.
+
+`scope` defaults to `'user'`; pass `scope='agent'` with `agent_id` for agent-scoped files (the
+server 400s `agentId is required when scope is "agent"` otherwise).
+
+## `list()`
+
+Lists every memory file for the asserted external user: user-global files plus one group per Agent
+that has agent-scoped memory.
+
+```python
+result = user_persona.memory.list()
+# result: {"userFiles": [...], "agentMemories": [{"agentId", "agentName", "files": [...]}, ...]}
+for group in result["agentMemories"]:
+    print(group["agentId"], group["agentName"])   # agentName is None if the Agent no longer exists
+```
+
+## `get_file(path, *, scope=None, agent_id=None)`
+
+Reads one memory file.
+
+```python
+file = user_persona.memory.get_file("/memories/user/preferences.md")
+print(file["content"])
+
+agent_file = user_persona.memory.get_file(
+    "/memories/agent/a1/notes.md", scope="agent", agent_id="a1"
+)
+```
+
+Returns a `MemoryFile` — `{"scope", "agentId", "path", "content", "mimeType", "createdAt",
+"updatedAt"}` — or a `404 NOT_FOUND` `PersonaApiError` if there's no file at that path.
+
+## `write_file(path, content, *, scope=None, agent_id=None)`
+
+Creates or **overwrites** one memory file — `content` replaces any existing content entirely (this
+is not an append/merge).
+
+```python
+user_persona.memory.write_file(
+    "/memories/user/preferences.md", "Likes concise answers, prefers markdown."
+)
+```
+
+Returns the written `MemoryFile`. This is exactly what an Agent's own `write_file` tool call would
+persist for the same user — the two write to the same namespace.
+
+## `delete_file(path, *, scope=None, agent_id=None)`
+
+Deletes one memory file. Raises `PersonaApiError` (`404`) if there's no file at that path.
+
+## Types
+
+See [Types — Memory types](/guides/sdk-python/types#memory-types) for the full field reference:
+`MemoryFile`, `MemoryAgentGroup`, `MemoryListResult`, `MemoryFileScopeParams`,
+`GetMemoryFileParams`, `WriteMemoryFileInput`, `DeleteMemoryFileParams`.

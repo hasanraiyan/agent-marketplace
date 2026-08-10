@@ -3,6 +3,31 @@
 All notable changes to `persona-agent-sdk` (`personaai`) are documented here, starting from this
 file's introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.3.0
+
+Added the three Developer Platform surfaces the Node SDK already had, with full sync/async pairs
+(`persona.*` / `await persona.*`):
+
+- **`memory`** — `persona.memory.list()`, `get_file(path, *, scope=None, agent_id=None)`,
+  `write_file(path, content, *, scope=None, agent_id=None)`, `delete_file(path, *, scope=None,
+  agent_id=None)`. A subject's memory files (the same `/memories/user/`/`/memories/agent/`
+  filesystem an Agent's own `write_file`/`read_file` tool calls see). Requires `external_user_id`.
+- **`stores`** — `persona.stores.create/list/get/update/delete` plus `list_files(store_id)`,
+  `get_file(store_id, path)`, `write_file(store_id, path, content)`, `delete_file(store_id, path)`.
+  Named, scoped mount points assignable to Agents (`Agent.storeMounts`). Config CRUD works with a
+  bare Project credential; file CRUD needs `external_user_id` only when the Store's `scope` is
+  `externalUser`.
+- **`architect`** — `persona.architect.stream(messages, *, resume=None)` /
+  `send_message(messages, *, resume=None)`. A conversational co-pilot that creates/edits Agents
+  via tool calls; no `agent_id`/`thread_id` (it's always the one dedicated Architect). Works with
+  or without `external_user_id` (Project-owned vs. per-user Agents).
+
+New exported types: `MemoryFile`, `MemoryAgentGroup`, `MemoryListResult`, `MemoryFileScopeParams`,
+`GetMemoryFileParams`, `WriteMemoryFileInput`, `DeleteMemoryFileParams`, `Store`, `StoreScope`,
+`StoreAccessMode`, `CreateStoreInput`, `UpdateStoreInput`, `DiscoverStoresParams`, `StoreFile`,
+`GetStoreFileParams`, `DeleteStoreFileParams`, `WriteStoreFileInput`, plus `Stores`/`AsyncStores`,
+`Memory`/`AsyncMemory`, `ArchitectClient`/`AsyncArchitectClient`.
+
 ## 0.2.3
 
 Docs-only release — every resource method and TypedDict now has full docstrings (`Args`,

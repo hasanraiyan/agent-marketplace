@@ -13,14 +13,17 @@ import httpx
 
 from ._async_http import AsyncTransport
 from ._base import TransportConfig
+from .chat.architect import AsyncArchitectClient
 from .chat.client import AsyncChatClient
 from .resources.agents import AsyncAgents
 from .resources.audit_logs import AsyncAuditLogs
 from .resources.files import AsyncFiles
 from .resources.knowledge import AsyncKnowledge
 from .resources.mcp import AsyncMcps
+from .resources.memory import AsyncMemory
 from .resources.providers import AsyncProviders
 from .resources.skills import AsyncSkills
+from .resources.stores import AsyncStores
 from .resources.threads import AsyncThreads
 from .types.principal import PrincipalContext
 
@@ -75,7 +78,10 @@ class AsyncPersonaClient:
         self.threads = AsyncThreads(self._transport)
         self.files = AsyncFiles(self._transport)
         self.audit_logs = AsyncAuditLogs(self._transport)
+        self.memory = AsyncMemory(self._transport)
+        self.stores = AsyncStores(self._transport)
         self.chat = AsyncChatClient(self._transport)
+        self.architect = AsyncArchitectClient(self._transport)
 
     async def aclose(self) -> None:
         await self._transport.aclose()
