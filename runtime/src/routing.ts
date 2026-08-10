@@ -1,5 +1,6 @@
 import type { RuntimeMethod, RuntimeRequest } from './types/request.js';
 import type { RuntimeResponse } from './types/response.js';
+import type { RunDriver } from './runDriver.js';
 
 export interface RouteContext {
   client: import('@personaai/sdk').PersonaClient;
@@ -7,6 +8,8 @@ export interface RouteContext {
   mode: 'development' | 'production';
   params: Record<string, string>;
   heartbeatIntervalMs: number;
+  /** In-flight/recently-finished chat runs, keyed by runId — backs POST /chat's reconnect support. */
+  runs: Map<string, RunDriver>;
 }
 
 export type RouteHandler = (request: RuntimeRequest, ctx: RouteContext) => Promise<RuntimeResponse>;

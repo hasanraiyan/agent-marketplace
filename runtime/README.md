@@ -5,7 +5,7 @@ shared engine every framework adapter (`@personaai/express`, `@personaai/nextjs`
 to be a thin translation layer over — see
 [the SDK Ecosystem plan](https://github.com/hasanraiyan/agent-marketplace/blob/feat/ai/product-research/11-sdk-new/package-ecosystem.md).
 
-**v0.3.** Not installed directly by most developers yet — there is no published framework
+**v0.4.** Not installed directly by most developers yet — there is no published framework
 adapter for it in this release. See [Quickstart](#quickstart) for how to run it directly against
 raw Node `http` in the meantime, and [Not yet implemented](#not-yet-implemented) for what's
 missing before it's a complete Level 2 runtime.
@@ -70,7 +70,8 @@ expects `request.path` already stripped).
 
 | Method | Path | Proxies to |
 | --- | --- | --- |
-| `POST` | `/chat` | `client.chat.stream(agentId, {messages, threadId, resume, contextOverride})`, streamed out as SSE. `agentId`/`messages` required in the body. |
+| `POST` | `/chat` | `client.chat.stream(agentId, {messages, threadId, resume, contextOverride})`, streamed out as SSE. `agentId`/`messages` required in the body. Response carries an `x-persona-run-id` header — see [Reconnect and resume](#reconnect-and-resume). |
+| `GET` | `/chat/:runId/resume` | Reattaches to the run started by the matching `POST /chat`, replaying frames after `?since=<seq>` (default `-1`, from the start) then continuing live until the run finishes. `404` if the run is unknown, already evicted, or belongs to a different user. |
 | `GET` | `/threads` | `client.threads.list({page, limit})` |
 | `POST` | `/threads` | `client.threads.create({agentId})` |
 | `GET` | `/threads/:id` | `client.threads.get(id)` |
@@ -157,13 +158,66 @@ createRuntime({
 });
 ```
 
+## Reconnect and resume
+
+If a client's connection to `/chat` drops mid-stream, it can pick up exactly where it left off:
+
+```ts
+const res = await fetch('/chat', { method: 'POST', body: JSON.stringify({ agentId, messages }) });
+const runId = res.headers.get('x-persona-run-id')!;
+// ... connection drops after receiving N frames ...
+const resumed = await fetch(`/chat/${runId}/resume?since=${lastSeqSeen}`);
+// streams every frame after `lastSeqSeen`, then continues live until the run finishes
+```
+
+This works because a chat run is never tied to the HTTP response that started it. `POST /chat`
+constructs an internal `RunDriver` that starts pumping `chat.stream()` the moment the run begins
+and keeps running independently of whether anyone is still listening — buffering every formatted
+SSE frame with a sequence number and broadcasting to live subscribers. `GET /chat/:runId/resume`
+just attaches a new subscriber to that same driver: it replays whatever's already buffered after
+`since`, then streams new frames live until the run finishes. Lifecycle hooks (`afterRun`,
+`onError`, etc.) fire exactly once per run regardless of how many times a client reconnects —
+they belong to the driver, not to any one HTTP response.
+
+Finished runs stay resumable for 5 minutes by default before an internal eviction sweep (running
+every 60s) removes them; the registry also caps out at 1000 tracked runs by default, evicting the
+oldest-finished ones first if a host's traffic pattern leaves many runs unclaimed. Both are
+configurable:
+
+```ts
+createRuntime({
+  // ...
+  runGraceMs: 5 * 60 * 1000, // default
+  maxTrackedRuns: 1000, // default
+});
+```
+
+A resume request for an evicted, unknown, or someone-else's run returns `404 RUN_NOT_FOUND`
+(never `403` — a `404` doesn't confirm whether the id ever existed).
+
+**Honest limitation: this is single-process and in-memory only.** A `RunDriver` holds a live
+upstream connection and a JS closure over its subscribers — it cannot be represented in Redis or
+shared across separate runtime instances. This closes the reconnect gap for the common
+single-instance deployment (the client dropped and came back, same server process still running),
+which is what "not implemented" meant in earlier releases. True multi-instance resume — the
+client reconnects and lands on a *different* process/instance than the one running the original
+pump — would need a fundamentally different architecture (a message broker relaying AG-UI events
+between processes, with exactly one process owning the actual upstream pump) and is out of scope
+here.
+
+`createRuntime()` returns a `close()` method that stops the eviction timer; the timer is also
+`unref`'d so it won't itself keep a Node process alive, but call `close()` if you construct
+runtimes repeatedly in a long-lived process (e.g. per-test-suite setup) to avoid accumulating
+timers.
+
 ## Heartbeats and backpressure
 
-`POST /chat` sends an SSE comment-line heartbeat (`: heartbeat\n\n`) during any gap between real
-AG-UI events — e.g. a long-running tool call with no token output — so intermediary proxies and
-load balancers with an idle-connection timeout don't kill the stream. Comment lines are invisible
-to any `data:`-only SSE parser (including `@personaai/sdk`'s own `parseAguiEventStream`), so a
-consumer never sees them as part of the event sequence.
+`POST /chat` and `GET /chat/:runId/resume` both send an SSE comment-line heartbeat
+(`: heartbeat\n\n`) during any gap between real AG-UI events — e.g. a long-running tool call with
+no token output — so intermediary proxies and load balancers with an idle-connection timeout
+don't kill the stream. Comment lines are invisible to any `data:`-only SSE parser (including
+`@personaai/sdk`'s own `parseAguiEventStream`), so a consumer never sees them as part of the
+event sequence.
 
 ```ts
 createRuntime({
@@ -179,24 +233,21 @@ connection alive with heartbeats before that point. In practice this matters lit
 heartbeats exist for is a stalled *middle* of a run (a slow tool call), not the initial
 time-to-first-token.
 
-Backpressure is pull-based end to end and needed no new code to "add": `chatEventsToSseBody`
-only calls the upstream `chat.stream()` generator's `next()` once per SSE frame the *consumer*
-has asked for (verified in `test/backpressure.test.ts`), and a heartbeat firing re-races the same
-pending `next()` call rather than issuing an extra one — it never reads ahead. The Node bridge in
-`examples/` layers transport-level backpressure on top of that via `res.write()`'s return value
-and the `drain` event, so a slow client can't make the runtime buffer an unbounded number of
-events in memory.
-
-**Reconnect/resume is not implemented, and can't be at this layer.** If a network connection
-drops mid-stream, there is currently no way to resume the *same* run from where it left off —
-`@personaai/sdk`'s `chat.stream()` only supports starting a fresh turn or resuming a *paused
-human-in-the-loop interrupt* (via `resume`), not resuming an arbitrary in-progress run from a
-byte/event position. Building real reconnect-and-resume would require either protocol support
-from Persona's own hosted backend (out of scope for this package — it calls that backend, it
-doesn't run it) or a client-side strategy of simply starting a new `/chat` call on the same
-`threadId` once the previous one drops, accepting a small amount of duplicated/re-generated
-context. The frontend concern this maps to (`@personaai/react`'s planned "transparent
-reconnection on network drop") doesn't exist yet either — this is a real, currently-unclosed gap.
+**Backpressure has a real, deliberate tradeoff as of reconnect support.** Before reconnect
+existed, a slow or disconnected consumer propagated backpressure all the way back to Persona's
+server — the runtime never pulled a frame it hadn't been asked for. That's no longer true: a
+`RunDriver`'s pump starts draining `chat.stream()` the moment the run begins and keeps going
+regardless of subscriber speed, because resumability requires buffering whatever a reconnecting
+client might ask to replay. You cannot have both "backpressure all the way to the source" and "a
+disconnected client can come back and get what it missed" — they're in direct tension, and this
+runtime chose resumability. What's still true and tested (`test/runDriver.test.ts`): the pump
+drains the upstream generator exactly once, strictly in order, with no duplicate or skipped
+`next()` calls, no matter how many subscribers attach or how slowly they read. Per-run buffers
+are bounded by that one run's event count (not indefinite) and released after the grace period
+described above. The Node bridge in `examples/` still layers transport-level backpressure via
+`res.write()`'s return value and the `drain` event — that protects against one slow subscriber
+blocking the Node process's memory, but it no longer protects against the *runtime itself*
+buffering an in-progress run that nobody is currently reading.
 
 ## Errors
 
@@ -215,17 +266,19 @@ modes (`mode: 'development' | 'production'`, default `'production'` unless
 
 ## Not yet implemented
 
-This is v0.3 — still not the full [issue #229](https://github.com/hasanraiyan/agent-marketplace/issues/229)
-checklist. Missing:
+This is v0.4 — still not the full [issue #229](https://github.com/hasanraiyan/agent-marketplace/issues/229)
+checklist, and two of these are intentionally out of scope for this package rather than gaps:
 
-- **Reconnect/resume of a dropped mid-stream connection** — see the
-  [Heartbeats and backpressure](#heartbeats-and-backpressure) section above for why this is a
-  real, currently-unclosed gap rather than a scoping choice.
+- **Multi-instance reconnect/resume** — see
+  [Reconnect and resume](#reconnect-and-resume) above. Single-process resume is implemented and
+  tested; sharing a live run across separate runtime instances would need a message-broker
+  architecture this package doesn't provide.
 - Any published framework adapter (`@personaai/express`, `@personaai/nextjs`, `@personaai/node`,
-  `@personaai/fastify`, `@personaai/hono`, `@personaai/nestjs`) — this package is the foundation
-  they're meant to wrap, not a replacement for them.
-- Authorization/RBAC for MCP owner-mode OAuth routes — the runtime exposes the raw capability;
-  gating who's allowed to call it is left to the host, by design (see the Routes section above).
+  `@personaai/fastify`, `@personaai/hono`, `@personaai/nestjs`) — **by design**, not a gap: this
+  package is the foundation they're meant to wrap, not a replacement for them.
+- Authorization/RBAC for MCP owner-mode OAuth routes — **by design**, not a gap: the runtime
+  exposes the raw capability, gating who's allowed to call it is the host's own business decision
+  (see the Routes section above).
 
 ## Roadmap
 

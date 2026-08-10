@@ -38,8 +38,29 @@ export interface CreateRuntimeOptions {
    * @default 15000
    */
   heartbeatIntervalMs?: number;
+  /**
+   * How long a finished `/chat` run stays resumable via `GET /chat/:runId/resume`
+   * before an internal eviction sweep removes it.
+   * @default 300000 (5 minutes)
+   */
+  runGraceMs?: number;
+  /**
+   * Safety valve on the in-memory resumable-run registry — once over this
+   * many tracked runs, the oldest-finished ones are evicted first (still
+   * in-flight runs are never evicted by this cap).
+   * @default 1000
+   */
+  maxTrackedRuns?: number;
 }
 
 export interface Runtime {
   handle(request: RuntimeRequest): Promise<RuntimeResponse>;
+  /**
+   * Stops the background eviction timer used for resumable-run bookkeeping.
+   * The timer is `unref`'d and won't itself keep a Node process alive, so
+   * calling this is optional — but do call it if you `createRuntime()`
+   * repeatedly in a long-lived process (e.g. per-test-suite setup) to avoid
+   * accumulating timers.
+   */
+  close(): void;
 }

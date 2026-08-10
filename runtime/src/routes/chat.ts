@@ -1,7 +1,8 @@
-import type { AguiEvent, ChatMessageInput, ChatResume } from '@personaai/sdk';
+import type { ChatMessageInput, ChatResume } from '@personaai/sdk';
 import type { RouteHandler } from '../routing.js';
 import { RuntimeHttpError } from '../errors.js';
-import { chatEventsToSseBody } from '../sse.js';
+import { RunDriver } from '../runDriver.js';
+import { withHeartbeats } from '../heartbeat.js';
 import type { RunContext } from '../types/hooks.js';
 
 interface ChatBody {
@@ -42,6 +43,13 @@ function parseChatBody(body: unknown): ChatBody {
   };
 }
 
+/**
+ * Starts a new chat run. The run is driven by a `RunDriver` registered
+ * under a fresh `runId` (returned via the `x-persona-run-id` response
+ * header) independent of this specific HTTP response — if the connection
+ * drops, `GET /chat/:runId/resume` can reattach to the same driver and pick
+ * up where it left off. See `routes/chatResume.ts`.
+ */
 export const chatRoute: RouteHandler = async (request, ctx) => {
   const body = parseChatBody(request.body);
   // `requiresAuth: true` guarantees request.userId is resolved by the time a route handler runs.
@@ -63,35 +71,15 @@ export const chatRoute: RouteHandler = async (request, ctx) => {
     contextOverride: body.contextOverride,
   });
 
-  let first: IteratorResult<AguiEvent>;
-  try {
-    first = await stream.next();
-  } catch (err) {
-    await ctx.hooks?.onError?.(
-      { userId, phase: 'chat', agentId: body.agentId, threadId: body.threadId },
-      err
-    );
-    throw err;
-  }
+  const runId = crypto.randomUUID();
+  const driver = new RunDriver(runId, runCtx, stream, ctx.hooks, ctx.mode);
+  ctx.runs.set(runId, driver);
 
-  if (first.done) {
-    await ctx.hooks?.afterRun?.(runCtx, {
-      text: '',
-      eventCount: 0,
-      interrupted: false,
-      erroredInBand: false,
-    });
-    return {
-      kind: 'stream',
-      status: 200,
-      headers: {
-        'content-type': 'text/event-stream',
-        'cache-control': 'no-cache',
-        connection: 'keep-alive',
-      },
-      body: (async function* () {})(),
-    };
-  }
+  // Rejects only if the very first upstream call failed before producing
+  // any frame at all — nothing has been buffered yet, so bubbling this up
+  // (through runtime.ts's centralized error mapping) to a clean buffered
+  // error response is correct; there's no partial stream to preserve.
+  await driver.waitForFirstFrame();
 
   return {
     kind: 'stream',
@@ -100,14 +88,8 @@ export const chatRoute: RouteHandler = async (request, ctx) => {
       'content-type': 'text/event-stream',
       'cache-control': 'no-cache',
       connection: 'keep-alive',
+      'x-persona-run-id': runId,
     },
-    body: chatEventsToSseBody(
-      first.value,
-      stream,
-      runCtx,
-      ctx.hooks,
-      ctx.mode,
-      ctx.heartbeatIntervalMs
-    ),
+    body: withHeartbeats(driver.subscribe(-1), ctx.heartbeatIntervalMs),
   };
 };
