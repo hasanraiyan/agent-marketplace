@@ -1,0 +1,144 @@
+---
+title: Getting Started
+description: Install @personaai/runtime, wire up the user-resolver contract, and run it against raw Node http until a framework adapter ships.
+---
+
+`@personaai/runtime` is the framework-agnostic runtime engine for the
+[Persona Developer Platform](https://persona.hasanraiyan.me) — the shared engine every framework
+adapter (`@personaai/express`, `@personaai/nextjs`, ...) is meant to be a thin translation layer
+over. It wraps [`@personaai/sdk`](/guides/sdk-quickstart) and turns a plain
+`{method, path, headers, query, body}` request shape into the full set of end-user chat/thread/
+file/memory routes plus an opt-in Project-admin surface, with SSE streaming, reconnect/resume,
+lifecycle hooks, and capability gating already built in.
+
+<Warning>
+  **Server-side only.** Like the SDK it wraps, the credential this runtime holds is a
+  server-side secret — never construct `createRuntime()` in a browser bundle or a Next.js
+  Client Component.
+</Warning>
+
+<Note>
+  **v0.5, current release.** There is no published framework adapter yet — no `@personaai/express`,
+  no `@personaai/nextjs`. This page's [Quickstart](#quickstart-raw-node-http) section shows the
+  only way to run it end-to-end today: a small, tested Node `http` bridge shipped in the package's
+  `examples/` directory. See [Not yet implemented & roadmap](/guides/runtime/roadmap) for what's
+  still missing.
+</Note>
+
+## Install
+
+```bash
+npm install @personaai/runtime
+```
+
+```bash
+pnpm add @personaai/runtime
+```
+
+Peer/direct dependencies: `@personaai/sdk` and `@ag-ui/core`, both installed automatically. Node
+18+ required (global `fetch`, `FormData`, `ReadableStream`).
+
+## The user resolver contract
+
+Persona never authenticates end users — the runtime receives a request and asks *you* who it's
+from:
+
+```ts
+import { createRuntime } from '@personaai/runtime';
+
+const runtime = createRuntime({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser: async (request) => {
+    // Your auth, your rules — a session cookie, a JWT, Clerk, whatever you
+    // already use. Return the resolved external user id, or null/throw if
+    // the request isn't authenticated. Either way the runtime responds 401.
+    return getUserIdFromSession(request.headers['cookie']);
+  },
+});
+```
+
+`resolveUser` is the single point of contact between your auth world and Persona's runtime
+world. Every route except `GET /health` calls it before doing anything else; a `null` return or a
+thrown error both produce a `401`. This boundary is absolute — the runtime has no concept of
+sessions, cookies, or tokens of its own.
+
+## `createRuntime()` options
+
+| Option | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `baseUrl` | `string` | Yes | — | Forwarded straight to the underlying `PersonaClient`. |
+| `credential` | `string` | Yes | — | Your Project credential, `"<keyId>.<secret>"`. |
+| `resolveUser` | `ResolveUser` | Yes | — | See above. |
+| `hooks` | `RuntimeHooks` | No | `{}` | See [Lifecycle hooks](/guides/runtime/hooks). |
+| `capabilities` | `RuntimeCapabilities` | No | all `false` | See [Capabilities](/guides/runtime/capabilities). |
+| `mountPath` | `string` | No | `''` | Stripped from the front of every incoming `request.path` before routing. |
+| `mode` | `'development' \| 'production'` | No | `'production'` unless `NODE_ENV==='development'` | Controls how much error detail is exposed — see [Errors](/guides/runtime/errors). |
+| `fetch` | `typeof fetch` | No | global `fetch` | Forwarded to every per-request `PersonaClient`; how tests inject a mock. |
+| `heartbeatIntervalMs` | `number` | No | `15000` | SSE heartbeat cadence — see [Reconnect, heartbeats & backpressure](/guides/runtime/reconnect). |
+| `runGraceMs` | `number` | No | `300000` (5 min) | How long a finished run stays resumable. |
+| `maxTrackedRuns` | `number` | No | `1000` | Cap on in-memory tracked runs before oldest-finished eviction. |
+
+`createRuntime()` returns `{ handle(request): Promise<RuntimeResponse>, close(): void }`. Call
+`close()` to stop the internal eviction timer if you construct runtimes repeatedly in a long-lived
+process (e.g. per-test-suite setup) — the timer is `unref`'d so it won't itself keep a bare Node
+process alive, but accumulating many uncleaned timers is still wasteful.
+
+## Quickstart (raw Node `http`)
+
+There's no published `@personaai/node` adapter yet, so the package ships a small, tested bridge in
+`examples/` for running the runtime directly against Node's `http` module. It is **not a stable
+public API** — just enough to demo/smoke-test the runtime end-to-end until a real adapter ships.
+It also parses multipart file uploads via Node's native `Request`/`FormData` (undici), no extra
+dependency:
+
+```ts
+import { createServer } from 'node:http';
+import { createRuntime } from '@personaai/runtime';
+import { toNodeHandler } from '@personaai/runtime/examples/node-handler.js'; // not a stable public API
+
+const runtime = createRuntime({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser: (request) => request.headers['x-demo-user-id'] ?? null,
+});
+
+createServer(toNodeHandler(runtime)).listen(3210);
+```
+
+## `RuntimeRequest` / `RuntimeResponse`
+
+Every adapter (present or future) is responsible for translating its framework's native
+request/response into this shape and back:
+
+```ts
+interface RuntimeRequest {
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  path: string;                                  // pathname only, mountPath already stripped
+  headers: Record<string, string | undefined>;
+  query: Record<string, string | undefined>;
+  body: unknown;                                  // pre-parsed JSON — parsing raw bytes is the adapter's job
+  userId: string | null;                          // always pass null; the runtime fills it via resolveUser
+  file?: { filename: string; content: Uint8Array; contentType?: string };   // single-file upload routes
+  files?: { filename: string; content: Uint8Array; contentType?: string }[]; // multi-file upload routes
+}
+
+type RuntimeResponse =
+  | { kind: 'buffered'; status: number; headers: Record<string, string>; body: string }
+  | { kind: 'stream'; status: number; headers: Record<string, string>; body: AsyncIterable<string> }
+  | { kind: 'binary'; status: number; headers: Record<string, string>; body: Uint8Array };
+```
+
+The runtime never touches raw request bytes or a specific multipart parser — for `POST /files` and
+`POST /knowledge/:id/documents`, a framework adapter parses the incoming multipart body and
+populates `file`/`files` plus puts any other form fields on `body`. See `examples/node-handler.ts`'s
+`readMultipartBody` for the reference approach.
+
+## Next steps
+
+- [Routes](/guides/runtime/routes) — every always-on and opt-in route, and what it proxies to.
+- [Capabilities](/guides/runtime/capabilities) — the admin-surface trust model and how to enable it safely.
+- [Lifecycle hooks](/guides/runtime/hooks) — all eight hooks, when each fires.
+- [Reconnect, heartbeats & backpressure](/guides/runtime/reconnect) — how a dropped `/chat` connection resumes.
+- [Errors](/guides/runtime/errors) — response shape and the two detail modes.
+- [Not yet implemented & roadmap](/guides/runtime/roadmap) — the honest gap list.

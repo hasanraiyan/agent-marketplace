@@ -1,0 +1,92 @@
+---
+title: Capabilities & Admin Surface
+description: Why the Project-level admin routes default off, the two-mount pattern for exposing them safely, and what "coarse-grained by design" actually means.
+---
+
+`@personaai/runtime`'s routes split into two trust tiers, and this is a deliberate design choice,
+not an oversight:
+
+- **Always on** — things an end user does in their own chat session: send messages, manage their
+  own conversations/files/memory, connect their own MCP account. Scoped entirely to whichever
+  user `resolveUser` returns for that request.
+- **Opt-in via `capabilities`** — Project-level configuration: LLM provider credentials, skill
+  authoring, knowledge base and vector store management, security audit logs, an agent-building
+  co-pilot, and full Agent/MCP-server CRUD. **Every one of these defaults to `false`.** Upgrading
+  this package never silently exposes new surface to whoever `resolveUser` accepts.
+
+## The capability flags
+
+```ts
+createRuntime({
+  // ...
+  capabilities: {
+    agentsWrite: false, // default
+    mcps: false,        // default
+    providers: false,   // default — holds API keys, think hard before enabling
+    skills: false,       // default
+    knowledge: false,    // default
+    stores: false,        // default
+    auditLogs: false,     // default
+    architect: false,     // default
+  },
+});
+```
+
+Each flag gates exactly the routes listed against it in the [Routes](/guides/runtime/routes#opt-in--project-level-admin-surface-capabilities-gated)
+opt-in table. `GET /agents` (read-only discovery) is always on regardless of `agentsWrite` —
+only the write/mutate routes need the flag.
+
+<Warning>
+  `providers` is the one to think hardest about: enabling it exposes routes that create/update/
+  read LLM provider credentials (API keys) for your Project. Only enable it on a mount that
+  `resolveUser` locks down to your own team.
+</Warning>
+
+## Who should enable these
+
+**Most hosts should never turn any of these on.** The intended pattern is to call
+[`@personaai/sdk`](/guides/sdk-quickstart) directly from your own admin backend, CLI, or setup
+script for Project configuration — that's what "belongs to the host application" means in
+practice. This runtime's job is the end-user-facing surface (`/chat`, `/threads`, `/files`,
+`/memory`), not necessarily your team's internal tooling.
+
+## The two-mount pattern
+
+If you *do* want an admin surface reachable over HTTP — e.g. building your own internal admin
+tool on top of this runtime — the right pattern is **two separate `createRuntime()` calls mounted
+at two different paths**, each with its own `resolveUser`:
+
+```ts
+const appRuntime = createRuntime({
+  baseUrl, credential,
+  resolveUser: resolveEndUser, // your normal app auth — any logged-in user
+});
+
+const adminRuntime = createRuntime({
+  baseUrl, credential,
+  resolveUser: resolveAdminUser, // a stricter check — only your team
+  capabilities: {
+    providers: true, skills: true, knowledge: true, stores: true,
+    auditLogs: true, architect: true, mcps: true, agentsWrite: true,
+  },
+});
+
+// mount appRuntime at /api/persona, adminRuntime at /api/admin/persona,
+// each behind whatever auth middleware your framework adapter wires up
+```
+
+`resolveAdminUser` is where the actual access control lives — e.g. checking a role claim on the
+session, or a hardcoded allowlist of internal user ids. The runtime itself doesn't know what
+"admin" means; it only knows whether a given mount's capabilities are on or off.
+
+## Coarse-grained by design
+
+This is intentionally coarse: a capability is either fully on or fully off for whoever
+`resolveUser` accepts on that mount. There is no per-user or per-action permission model inside
+the runtime itself — "this user can update Agents but not delete them" isn't expressible as a
+capability flag.
+
+If you need that level of granularity, enforce it in `resolveUser` (reject the request before it
+reaches the route) or in a [lifecycle hook](/guides/runtime/hooks) (e.g. throw from `beforeRun` for
+a disallowed action), not by asking this runtime for finer-grained capability flags than "on this
+mount, for this resolved identity, is the capability on."

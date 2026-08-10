@@ -1,0 +1,123 @@
+---
+title: Reconnect, Heartbeats & Backpressure
+description: How a dropped /chat connection resumes exactly where it left off, the honest single-process limitation, SSE heartbeats, and the backpressure tradeoff that made resume possible.
+---
+
+## Reconnect and resume
+
+If a client's connection to `/chat` drops mid-stream, it can pick up exactly where it left off:
+
+```ts
+const res = await fetch('/chat', { method: 'POST', body: JSON.stringify({ agentId, messages }) });
+const runId = res.headers.get('x-persona-run-id')!;
+// ... connection drops after receiving N frames ...
+const resumed = await fetch(`/chat/${runId}/resume?since=${lastSeqSeen}`);
+// streams every frame after `lastSeqSeen`, then continues live until the run finishes
+```
+
+This works because a chat run is never tied to the HTTP response that started it. `POST /chat`
+constructs an internal `RunDriver` that starts pumping `chat.stream()` the moment the run begins
+and keeps running independently of whether anyone is still listening — buffering every formatted
+SSE frame with a sequence number and broadcasting to live subscribers. `GET /chat/:runId/resume`
+just attaches a new subscriber to that same driver: it replays whatever's already buffered after
+`since`, then streams new frames live until the run finishes.
+
+[Lifecycle hooks](/guides/runtime/hooks) (`afterRun`, `onError`, etc.) fire **exactly once per
+run** regardless of how many times a client reconnects — they belong to the driver, not to any one
+HTTP response.
+
+`POST /architect` and `GET /architect/:runId/resume` (behind the `architect` capability) use the
+identical mechanism.
+
+### Run retention
+
+Finished runs stay resumable for 5 minutes by default before an internal eviction sweep (running
+every 60s) removes them; the registry also caps out at 1000 tracked runs by default, evicting the
+oldest-finished ones first if a host's traffic pattern leaves many runs unclaimed. Both are
+configurable:
+
+```ts
+createRuntime({
+  // ...
+  runGraceMs: 5 * 60 * 1000, // default
+  maxTrackedRuns: 1000, // default
+});
+```
+
+A resume request for an evicted, unknown, or someone-else's run returns `404 RUN_NOT_FOUND`
+(never `403` — a `404` doesn't confirm whether the id ever existed).
+
+### Honest limitation: single-process, in-memory only
+
+A `RunDriver` holds a live upstream connection and a JS closure over its subscribers — it cannot
+be represented in Redis or shared across separate runtime instances. This closes the reconnect gap
+for the common single-instance deployment (the client dropped and came back, same server process
+still running). If you run more than one instance behind a load balancer — multiple Kubernetes
+pods, a PM2 cluster, etc. — a reconnect that lands on a *different* instance than the one running
+the original pump won't find the run (`404 RUN_NOT_FOUND`) even though it's still live elsewhere.
+
+<Tip>
+  **Today's mitigation (deployment-level, no code change):** configure your load balancer for
+  session affinity / sticky sessions so reconnects land back on the instance actually running the
+  pump. This doesn't survive that instance crashing or being redeployed, and doesn't apply to
+  serverless (no persistent instance to stick to), but covers the common case for free.
+</Tip>
+
+**Planned, not yet built:** a pluggable `RunBroker` interface — publish/subscribe/claim-ownership
+for run frames — so a host can back it with Redis (or anything else) and get resume working across
+instances, including a resume request landing on an instance that never touched the original pump.
+The in-memory behavior above would remain the zero-config default; a Redis (or similar)
+implementation would be opt-in, not a dependency this package forces on everyone. Deliberately
+deferred rather than built speculatively — track
+[issue #229](https://github.com/hasanraiyan/agent-marketplace/issues/229) or open a new one if you
+need this now.
+
+`createRuntime()`'s `close()` stops the eviction timer; the timer is also `unref`'d so it won't
+itself keep a Node process alive, but call `close()` if you construct runtimes repeatedly in a
+long-lived process (e.g. per-test-suite setup) to avoid accumulating timers.
+
+## Heartbeats
+
+`POST /chat`, `GET /chat/:runId/resume`, `POST /architect`, and `GET /architect/:runId/resume` all
+send an SSE comment-line heartbeat (`: heartbeat\n\n`) during any gap between real AG-UI events —
+e.g. a long-running tool call with no token output — so intermediary proxies and load balancers
+with an idle-connection timeout don't kill the stream. Comment lines are invisible to any
+`data:`-only SSE parser (including `@personaai/sdk`'s own `parseAguiEventStream`), so a consumer
+never sees them as part of the event sequence.
+
+```ts
+createRuntime({
+  // ...
+  heartbeatIntervalMs: 15000, // default; lower it for faster proxy timeouts, or raise it to reduce chatter
+});
+```
+
+Heartbeats only cover gaps *after* the first event of a run — headers can't be sent until the
+runtime has already peeked that first event to decide whether the run started successfully (a
+401/400/500 has to be a normal buffered response, not a stream), so there's no way to keep a
+connection alive with heartbeats before that point. In practice this matters little: the gap
+heartbeats exist for is a stalled *middle* of a run (a slow tool call), not the initial
+time-to-first-token.
+
+## Backpressure — a deliberate tradeoff
+
+Backpressure has a real, deliberate tradeoff as of reconnect support. Before reconnect existed, a
+slow or disconnected consumer propagated backpressure all the way back to Persona's server — the
+runtime never pulled a frame it hadn't been asked for. **That's no longer true**: a `RunDriver`'s
+pump starts draining `chat.stream()` the moment the run begins and keeps going regardless of
+subscriber speed, because resumability requires buffering whatever a reconnecting client might ask
+to replay.
+
+You cannot have both "backpressure all the way to the source" and "a disconnected client can come
+back and get what it missed" — they're in direct tension, and this runtime chose resumability.
+
+What's still true and tested (`test/runDriver.test.ts`):
+
+- The pump drains the upstream generator **exactly once**, strictly in order, with no duplicate or
+  skipped `next()` calls, no matter how many subscribers attach or how slowly they read.
+- Per-run buffers are bounded by that one run's event count (not indefinite) and released after the
+  grace period described above.
+- The Node bridge in `examples/` still layers transport-level backpressure via `res.write()`'s
+  return value and the `drain` event — that protects against one slow subscriber blocking the
+  Node process's memory, but it no longer protects against the *runtime itself* buffering an
+  in-progress run that nobody is currently reading.

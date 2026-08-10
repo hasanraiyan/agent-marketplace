@@ -76,6 +76,18 @@
               "guides/sdk-python/troubleshooting",
               "guides/sdk-python/compatibility"
             ]
+          },
+          {
+            "group": "Runtime Reference",
+            "pages": [
+              "guides/runtime/quickstart",
+              "guides/runtime/routes",
+              "guides/runtime/capabilities",
+              "guides/runtime/hooks",
+              "guides/runtime/reconnect",
+              "guides/runtime/errors",
+              "guides/runtime/roadmap"
+            ]
           }
         ]
       },

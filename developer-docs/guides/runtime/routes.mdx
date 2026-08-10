@@ -1,0 +1,100 @@
+---
+title: Routes
+description: Every route @personaai/runtime exposes — always-on end-user routes and opt-in capability-gated admin routes — and exactly what SDK call each proxies to.
+---
+
+All routes are relative to whatever `mountPath` you configure (default: none, i.e. the runtime
+expects `request.path` already stripped). Every route except `GET /health` requires an
+authenticated user — `resolveUser` returning `null` or throwing responds `401`.
+
+Routes fall into two trust tiers. **Always on** routes are scoped entirely to whichever user
+`resolveUser` resolves — an end user managing their own chat, threads, files, and memory. **Opt-in**
+routes are Project-level admin operations, gated behind `capabilities.*`, all defaulting to `false`.
+See [Capabilities](/guides/runtime/capabilities) for the reasoning and how to enable them safely.
+
+## Always on — end-user-scoped, no capability flag needed
+
+| Method | Path | Proxies to |
+| --- | --- | --- |
+| `POST` | `/chat` | `client.chat.stream(agentId, {messages, threadId, resume, contextOverride})`, streamed out as SSE. `agentId`/`messages` required in the body. Response carries an `x-persona-run-id` header — see [Reconnect and resume](/guides/runtime/reconnect). |
+| `GET` | `/chat/:runId/resume` | Reattaches to the run started by the matching `POST /chat`. |
+| `GET` | `/threads` | `client.threads.list({page, limit})` |
+| `POST` | `/threads` | `client.threads.create({agentId})` |
+| `POST` | `/threads/bulk-delete` | `client.threads.bulkDelete(ids)` |
+| `GET` | `/threads/:id` | `client.threads.get(id)` |
+| `PATCH` | `/threads/:id` | `client.threads.update(id, {title?, isArchived?})` |
+| `DELETE` | `/threads/:id` | `client.threads.delete(id)` → `204` |
+| `GET` | `/threads/:id/messages` | `client.threads.getMessages(id)` — full history + graph state, the same data `chat.stream()` resumes from; use it to load a past conversation on page reopen. Includes a pending `interrupt` (HITL/clarification), if any, so a reload can re-show the approval/clarification card immediately. |
+| `GET` | `/agents` | `client.agents.list({page, limit, search, category, scope})` — read-only discovery, e.g. "let the user pick an agent." |
+| `GET` | `/files` | `client.files.list({page, limit})` |
+| `POST` | `/files` | `client.files.upload({filename, content, contentType?, agentId?, threadId?})` — multipart, `file` part required. `201` |
+| `POST` | `/files/bulk-delete` | `client.files.bulkDelete(ids)` |
+| `GET` | `/files/:id` | `client.files.download(id)` — raw bytes, streamed through as `kind: 'binary'` |
+| `DELETE` | `/files/:id` | `client.files.delete(id)` → `204` |
+| `GET` | `/memory` | `client.memory.list()` |
+| `GET` | `/memory/file` | `client.memory.getFile({path, scope?, agentId?})` — `path` query param required |
+| `PUT` | `/memory/file` | `client.memory.writeFile({path, content, scope?, agentId?})` — creates or overwrites |
+| `DELETE` | `/memory/file` | `client.memory.deleteFile({path, scope?, agentId?})` → `204` |
+| `GET` | `/mcps/:id/oauth/owner/authorize` | `client.mcps.oauth.getOwnerAuthorizeUrl(id)` → `{url}` to redirect the Project owner to |
+| `GET` | `/mcps/:id/oauth/user/authorize` | `client.mcps.oauth.getUserAuthorizeUrl(id, returnTo?)` → `{url}` to redirect the end user to |
+| `GET` | `/mcps/:id/oauth/user/status` | `client.mcps.oauth.getUserConnectionStatus(id)` |
+| `DELETE` | `/mcps/:id/oauth/user/connection` | `client.mcps.oauth.disconnectUserConnection(id)` → `204` |
+| `DELETE` | `/mcps/:id/oauth/owner/connection` | `client.mcps.oauth.disconnectOwnerConnection(id)` → `204` |
+| `GET` | `/health` | `client.whoami()` → `{status, version, capabilities}`. Does **not** call `resolveUser` — it's a liveness/capability probe, not a user-scoped call. Returns `503` if `whoami()` fails. |
+
+`scope` for memory routes is `'user'` (default) or `'agent'` (`agentId` then required).
+
+## Opt-in — Project-level admin surface, `capabilities.*` gated
+
+| Method | Path | Capability | Proxies to |
+| --- | --- | --- | --- |
+| `POST` | `/agents` | `agentsWrite` | `client.agents.create(input)` |
+| `GET`/`PATCH`/`DELETE` | `/agents/:id` | `agentsWrite` | `client.agents.get/update/delete(id)` |
+| `POST` | `/agents/bulk-delete` | `agentsWrite` | `client.agents.bulkDelete(ids)` |
+| `GET`/`POST` | `/mcps` | `mcps` | `client.mcps.list/create` |
+| `GET`/`PATCH`/`DELETE` | `/mcps/:id` | `mcps` | `client.mcps.get/update/delete(id)` |
+| `POST` | `/mcps/bulk-delete` | `mcps` | `client.mcps.bulkDelete(ids)` |
+| `GET` | `/mcps/:id/usage` | `mcps` | `client.mcps.getUsage(id)` |
+| `POST` | `/mcps/:id/test` | `mcps` | `client.mcps.testConnection(id)` |
+| `GET` | `/mcps/:id/resource?uri=` | `mcps` | `client.mcps.readResource(id, uri)` |
+| `POST` | `/mcps/:id/call-tool` | `mcps` | `client.mcps.callTool(id, name, arguments)` |
+| `GET`/`POST` | `/providers` | `providers` | `client.providers.list/create` — **holds API keys** |
+| `GET`/`PATCH`/`DELETE` | `/providers/:id` | `providers` | `client.providers.get/update/delete(id)` |
+| `POST` | `/providers/bulk-delete` | `providers` | `client.providers.bulkDelete(ids)` |
+| `POST` | `/providers/:id/test` | `providers` | `client.providers.testConnection(id)` |
+| `GET` | `/providers/:id/models` | `providers` | `client.providers.getModels(id)` |
+| `GET` | `/providers/:id/usage` | `providers` | `client.providers.getUsage(id)` |
+| `GET`/`POST` | `/skills` | `skills` | `client.skills.list/create` |
+| `GET`/`PATCH`/`DELETE` | `/skills/:id` | `skills` | `client.skills.get/update/delete(id)` |
+| `POST` | `/skills/bulk-delete` | `skills` | `client.skills.bulkDelete(ids)` |
+| `GET` | `/skills/:id/usage` | `skills` | `client.skills.getUsage(id)` |
+| `GET`/`POST` | `/knowledge` | `knowledge` | `client.knowledge.list/create` |
+| `GET`/`PATCH`/`DELETE` | `/knowledge/:id` | `knowledge` | `client.knowledge.get/update/delete(id)` |
+| `POST` | `/knowledge/bulk-delete` | `knowledge` | `client.knowledge.bulkDelete(ids)` |
+| `GET` | `/knowledge/:id/usage` | `knowledge` | `client.knowledge.getUsage(id)` |
+| `POST` | `/knowledge/:id/documents` | `knowledge` | `client.knowledge.uploadDocuments(id, files)` — multipart, one or more `files` parts required. `201` |
+| `GET` | `/knowledge/:id/documents` | `knowledge` | `client.knowledge.listDocuments(id)` |
+| `DELETE` | `/knowledge/:id/documents/:sourceName` | `knowledge` | `client.knowledge.deleteDocument(id, sourceName)` |
+| `POST` | `/knowledge/:id/search` | `knowledge` | `client.knowledge.search(id, query, {topK?})` |
+| `GET`/`POST` | `/stores` | `stores` | `client.stores.list/create` |
+| `GET`/`PATCH`/`DELETE` | `/stores/:id` | `stores` | `client.stores.get/update/delete(id)` |
+| `GET` | `/stores/:id/files` | `stores` | `client.stores.listFiles(id)` |
+| `GET`/`PUT`/`DELETE` | `/stores/:id/file` | `stores` | `client.stores.getFile/writeFile/deleteFile(id, {path, content?})` |
+| `GET` | `/audit-logs` | `auditLogs` | `client.auditLogs.list({page, limit, eventType})` |
+| `POST` | `/architect` | `architect` | `client.architect.stream({messages, resume})`, streamed out as SSE, same `x-persona-run-id`/reconnect mechanics as `/chat`. No `agentId` — the Architect builds/edits the caller's own Agents. |
+| `GET` | `/architect/:runId/resume` | `architect` | Reattaches to the matching `POST /architect` run. |
+
+<Note>
+  A disabled capability's routes are simply absent from the route table — a request to one `404`s
+  (or, where an always-on route shares a path with a different method — e.g. `POST /agents` while
+  only `GET /agents` is always-on — `405`) rather than `403`, so a disabled capability leaks no
+  information about what it would have done.
+</Note>
+
+## Multipart uploads
+
+For `POST /files` and `POST /knowledge/:id/documents`, the runtime itself never touches raw bytes
+or a specific multipart parser — a framework adapter parses the incoming multipart body and
+populates `RuntimeRequest.file` (single file) or `RuntimeRequest.files` (multiple), plus puts any
+other form fields (`agentId`, `threadId`) on `RuntimeRequest.body`. See `examples/node-handler.ts`'s
+`readMultipartBody` for the reference implementation used by the package's own smoke tests.

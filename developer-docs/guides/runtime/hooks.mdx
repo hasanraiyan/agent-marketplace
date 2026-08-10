@@ -1,0 +1,102 @@
+---
+title: Lifecycle Hooks
+description: All eight RuntimeHooks — plain async event listeners fired around chat/architect runs, tool calls, file uploads, thread creation, and memory writes.
+---
+
+`hooks` are plain async event listeners, not middleware. The runtime proceeds with sensible
+defaults when a hook is omitted, and a hook that wants to reject a run just throws — the throw is
+caught and routed through the same sanitized error response as any other failure (see
+[Errors](/guides/runtime/errors)). **All eight are wired in the current release.**
+
+```ts
+createRuntime({
+  // ...
+  hooks: {
+    beforeRun(ctx) { /* ... */ },
+    afterRun(ctx, result) { /* ... */ },
+    onError(ctx, error) { /* ... */ },
+    beforeToolCall(ctx) { /* ... */ },
+    afterToolCall(ctx, result) { /* ... */ },
+    onFileUpload(ctx) { /* ... */ },
+    onThreadCreate(ctx) { /* ... */ },
+    onMemoryWrite(ctx) { /* ... */ },
+  },
+});
+```
+
+## `beforeRun` / `afterRun`
+
+```ts
+beforeRun(ctx: RunContext): void | Promise<void>
+afterRun(ctx: RunContext, result: RunResult): void | Promise<void>
+```
+
+- `ctx: { userId, kind: 'chat' | 'architect', agentId?, threadId?, messages }` — `agentId` is only
+  set for `kind: 'chat'`; the Architect has no `agentId` of its own.
+- `beforeRun` fires before `POST /chat`'s or `POST /architect`'s stream starts. Throwing here
+  aborts the run before any upstream call is made.
+- `result: { text, eventCount, interrupted, erroredInBand }`. `erroredInBand` is `true` when the
+  stream's last event was a `RUN_ERROR` — that's a **normal completed-run outcome**, not a thrown
+  exception, so `afterRun` still fires for it. (`onError` does not fire for in-band errors — see
+  below.)
+
+## `onError`
+
+```ts
+onError(ctx: ErrorContext, error: unknown): void | Promise<void>
+```
+
+- `ctx.phase: 'auth' | 'chat' | 'architect'`.
+- Fires on a **thrown exception only**: the initial request failing (auth/validation/network) or
+  the stream dying mid-read. It does not fire on an in-band `RUN_ERROR` event — that goes through
+  `afterRun` with `result.erroredInBand: true` instead, since the run technically completed rather
+  than crashed.
+
+## `beforeToolCall` / `afterToolCall`
+
+```ts
+beforeToolCall(ctx: ToolCallContext): void | Promise<void>
+afterToolCall(ctx: ToolCallContext, result: unknown): void | Promise<void>
+```
+
+- `ctx: { userId, agentId, threadId?, toolName, toolCallId }`.
+- `beforeToolCall` fires on each `TOOL_CALL_START` event inside a chat stream.
+- `afterToolCall` fires on the matching `TOOL_CALL_RESULT` event; `result` is the raw tool output
+  (string, or already-parsed JSON if the upstream event carried it that way).
+
+## `onFileUpload`
+
+```ts
+onFileUpload(ctx: FileUploadContext): void | Promise<void>
+```
+
+`ctx: { userId, fileName, mimeType? }` — fires after `POST /files` succeeds.
+
+## `onThreadCreate`
+
+```ts
+onThreadCreate(ctx: ThreadCreateContext): void | Promise<void>
+```
+
+`ctx: { userId, agentId, threadId }` — fires on an explicit `POST /threads`, **and** when a
+`POST /chat` run's `RUN_STARTED` event reports a `threadId` that wasn't supplied on the way in
+(Persona created one implicitly for that turn). Use this if you need to know about every thread
+that comes into existence, not just ones your own code explicitly created.
+
+## `onMemoryWrite`
+
+```ts
+onMemoryWrite(ctx: MemoryWriteContext): void | Promise<void>
+```
+
+`ctx: { userId, agentId?, path }` — fires after `PUT /memory/file` succeeds.
+
+## Design notes
+
+- Hooks are **side-effect listeners**, not a request/response pipeline — none of them can modify
+  the request or response, only observe it (or abort by throwing).
+- A thrown hook error is treated exactly like any other unexpected error: sanitized in
+  `mode: 'production'`, full detail in `mode: 'development'`. See [Errors](/guides/runtime/errors).
+- For per-user or per-action authorization finer than a [capability](/guides/runtime/capabilities)
+  flag (e.g. "this user can call `search_web` but not `send_email`"), `beforeToolCall` throwing is
+  the intended place to enforce it — the runtime has no built-in tool-level permission model.

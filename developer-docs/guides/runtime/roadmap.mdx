@@ -1,0 +1,49 @@
+---
+title: Not Yet Implemented & Roadmap
+description: The honest gap list for @personaai/runtime v0.5 — what's a real unclosed gap, what's an intentional package boundary, and what's planned next.
+---
+
+This is v0.5. Every SDK resource now has a route (see [Routes](/guides/runtime/routes)); what's
+left is either a genuine unclosed gap or an intentional package boundary, not an oversight.
+
+## Not yet implemented
+
+<AccordionGroup>
+  <Accordion title="Multi-instance reconnect/resume">
+    The one real gap. Single-process resume is implemented and tested; sharing a live run across
+    separate runtime instances would need a message-broker architecture this package doesn't
+    provide yet. See [Reconnect and resume](/guides/runtime/reconnect#honest-limitation-single-process-in-memory-only)
+    for the full explanation and today's sticky-session mitigation.
+  </Accordion>
+  <Accordion title="Fine-grained (per-user, per-action) permissions within an enabled capability">
+    **By design, not a gap.** See [Capabilities](/guides/runtime/capabilities#coarse-grained-by-design).
+    A capability is on or off per mount; anything finer belongs in `resolveUser` or a
+    [hook](/guides/runtime/hooks), not the runtime.
+  </Accordion>
+  <Accordion title="Any published framework adapter">
+    `@personaai/express`, `@personaai/nextjs`, `@personaai/node`, `@personaai/fastify`,
+    `@personaai/hono`, `@personaai/nestjs` — none exist yet. **By design, not a gap:** this package
+    is the foundation they're meant to wrap, not a replacement for them. Until one ships, use the
+    [raw Node `http` quickstart](/guides/runtime/quickstart#quickstart-raw-node-http).
+  </Accordion>
+</AccordionGroup>
+
+## Roadmap
+
+- **A pluggable `RunBroker` interface** for multi-instance reconnect/resume (Redis or similar,
+  opt-in). See [Reconnect and resume](/guides/runtime/reconnect#honest-limitation-single-process-in-memory-only).
+  Track [issue #229](https://github.com/hasanraiyan/agent-marketplace/issues/229).
+- **Framework adapters** (Wave 2–3 of the [SDK ecosystem plan](https://github.com/hasanraiyan/agent-marketplace/blob/feat/ai/product-research/11-sdk-new/package-ecosystem.md))
+  are the natural next step once this runtime is battle-tested — each should be a thin translation
+  layer, proving the framework-neutral contract here is actually sufficient.
+
+## Package boundary, for reference
+
+`@personaai/runtime` wraps [`@personaai/sdk`](/guides/sdk-quickstart) and is itself meant to be
+wrapped by a framework adapter. If you're deciding which layer to build against:
+
+| Layer | Use it when |
+| --- | --- |
+| [`@personaai/sdk`](/guides/sdk-quickstart) | You want direct, typed access to every REST endpoint with no opinions about HTTP routing, streaming, hooks, or auth — e.g. an admin script, a background job, or you're building your own runtime-equivalent from scratch. |
+| `@personaai/runtime` | You want a ready-made set of HTTP routes (chat streaming, threads, files, memory, admin surface) but your framework has no dedicated adapter yet, or you're building one. |
+| A future framework adapter (`@personaai/express`, etc.) | You want the shortest path to "mount this and it just works" inside a specific framework, once one ships. |
