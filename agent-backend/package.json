@@ -27,7 +27,7 @@
   "dependencies": {
     "@ag-ui/core": "^0.0.57",
     "@agendajs/mongo-backend": "^4.0.3",
-    "@clerk/express": "^2.1.4",
+    "@clerk/express": "^2.1.51",
     "@langchain/anthropic": "^1.5.1",
     "@langchain/core": "^1.2.1",
     "@langchain/langgraph": "^1.4.5",
