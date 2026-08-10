@@ -307,12 +307,25 @@ A resume request for an evicted, unknown, or someone-else's run returns `404 RUN
 **Honest limitation: this is single-process and in-memory only.** A `RunDriver` holds a live
 upstream connection and a JS closure over its subscribers — it cannot be represented in Redis or
 shared across separate runtime instances. This closes the reconnect gap for the common
-single-instance deployment (the client dropped and came back, same server process still running),
-which is what "not implemented" meant in earlier releases. True multi-instance resume — the
-client reconnects and lands on a *different* process/instance than the one running the original
-pump — would need a fundamentally different architecture (a message broker relaying AG-UI events
-between processes, with exactly one process owning the actual upstream pump) and is out of scope
-here.
+single-instance deployment (the client dropped and came back, same server process still running).
+If you run more than one instance behind a load balancer — multiple Kubernetes pods, a PM2
+cluster, etc. — a reconnect that lands on a *different* instance than the one running the
+original pump won't find the run (`404 RUN_NOT_FOUND`) even though it's still live elsewhere.
+
+**Today's mitigation (deployment-level, no code change):** configure your load balancer for
+session affinity / sticky sessions (route a given client to the same instance) so reconnects
+land back where the run actually lives. This doesn't survive that instance crashing or being
+redeployed, and doesn't apply to serverless (no persistent instance to stick to), but covers the
+common case for free.
+
+**Planned (not yet built):** a pluggable `RunBroker` interface — publish/subscribe/claim-ownership
+for run frames — so a host can back it with Redis (or anything else) and get resume working
+across instances, including a resume request landing on an instance that never touched the
+original pump. The in-memory behavior above would remain the zero-config default; a Redis (or
+similar) implementation would be opt-in, not a dependency this package forces on everyone.
+Deliberately deferred rather than built speculatively — track
+[issue #229](https://github.com/hasanraiyan/agent-marketplace/issues/229) or open a new one if you
+need this now.
 
 `createRuntime()` returns a `close()` method that stops the eviction timer; the timer is also
 `unref`'d so it won't itself keep a Node process alive, but call `close()` if you construct
@@ -391,6 +404,8 @@ genuine unclosed gap or an intentional package boundary, not an oversight:
 
 ## Roadmap
 
-Framework adapters (Wave 2–3 of the ecosystem plan) are the natural next step once this runtime
-is battle-tested — each should be a thin translation layer, proving the framework-neutral
-contract here is actually sufficient.
+- A pluggable `RunBroker` interface for multi-instance reconnect/resume (Redis or similar,
+  opt-in) — see [Reconnect and resume](#reconnect-and-resume).
+- Framework adapters (Wave 2–3 of the ecosystem plan) are the natural next step once this runtime
+  is battle-tested — each should be a thin translation layer, proving the framework-neutral
+  contract here is actually sufficient.
