@@ -206,7 +206,14 @@ export class RunDriver {
         interrupted: acc.interrupted,
         erroredInBand: acc.erroredInBand,
       };
-      await hooks?.afterRun?.(this.runCtx, result);
+      try {
+        await hooks?.afterRun?.(this.runCtx, result);
+      } catch {
+        // afterRun is a post-hoc side-effect listener — the run itself
+        // already succeeded. Its failure must not be conflated with a run
+        // failure (onError) or corrupt an already-finished stream with a
+        // synthesized RUN_ERROR frame.
+      }
     } catch (err) {
       await hooks?.onError?.(
         {

@@ -337,7 +337,8 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
       let userId: string | null = null;
       if (match.route.requiresAuth !== false) {
         try {
-          userId = await options.resolveUser(request);
+          const resolved = await options.resolveUser(request);
+          userId = typeof resolved === 'string' && resolved.length > 0 ? resolved : null;
         } catch {
           userId = null;
         }

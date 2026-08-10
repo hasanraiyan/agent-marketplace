@@ -86,16 +86,24 @@ process alive, but accumulating many uncleaned timers is still wasteful.
 
 ## Quickstart (raw Node `http`)
 
-There's no published `@personaai/node` adapter yet, so the package ships a small, tested bridge in
-`examples/` for running the runtime directly against Node's `http` module. It is **not a stable
-public API** — just enough to demo/smoke-test the runtime end-to-end until a real adapter ships.
-It also parses multipart file uploads via Node's native `Request`/`FormData` (undici), no extra
-dependency:
+There's no published `@personaai/node` adapter yet, so the package ships a small, tested bridge at
+`examples/node-handler.ts` in the [GitHub repo](https://github.com/hasanraiyan/agent-marketplace/tree/feat/ai/runtime/examples)
+for running the runtime directly against Node's `http` module — just enough to demo/smoke-test the
+runtime end-to-end until a real adapter ships. It also parses multipart file uploads via Node's
+native `Request`/`FormData` (undici), no extra dependency.
+
+<Warning>
+  `examples/` is **not published to npm and has no `exports` entry** — `package.json`'s `files`
+  only ships `dist/`, and `exports` only maps `.`. `import ... from
+  '@personaai/runtime/examples/...'` fails with `ERR_PACKAGE_PATH_NOT_EXPORTED` after a real
+  `npm install`. Copy the file into your own project instead — it's plain TypeScript with no
+  runtime-internal dependencies.
+</Warning>
 
 ```ts
 import { createServer } from 'node:http';
 import { createRuntime } from '@personaai/runtime';
-import { toNodeHandler } from '@personaai/runtime/examples/node-handler.js'; // not a stable public API
+import { toNodeHandler } from './node-handler.js'; // copied from the repo's examples/, not importable from the published package
 
 const runtime = createRuntime({
   baseUrl: process.env.PERSONA_BASE_URL!,

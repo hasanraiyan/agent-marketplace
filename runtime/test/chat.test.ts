@@ -98,6 +98,41 @@ describe('POST /chat', () => {
     expect(capturedResult).toMatchObject({ erroredInBand: true, text: 'partial', eventCount: 2 });
   });
 
+  it('a throwing afterRun does not corrupt the stream with a synthesized RUN_ERROR, and does not fire onError', async () => {
+    const events = [
+      { type: EventType.TEXT_MESSAGE_CHUNK, delta: 'Hi' },
+      { type: EventType.RUN_FINISHED, threadId: 't1', runId: 'r1' },
+    ];
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse(events));
+    const onError = vi.fn();
+    const runtime = makeRuntime({
+      fetchMock,
+      hooks: {
+        afterRun: () => {
+          throw new Error('audit log write failed');
+        },
+        onError,
+      },
+    });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/chat',
+      headers: {},
+      query: {},
+      body: { agentId: 'agent-1', messages: [{ role: 'user', content: 'hi' }] },
+      userId: null,
+    });
+    if (response.kind !== 'stream') throw new Error('expected a stream response');
+    const frames = await drain(response.body);
+
+    expect(frames).toEqual([
+      `data: ${JSON.stringify(events[0])}\n\n`,
+      `data: ${JSON.stringify(events[1])}\n\n`,
+    ]);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
   it('immediate failure (401 on the initial POST) returns a buffered error; onError called, afterRun not', async () => {
     const onError = vi.fn();
     const afterRun = vi.fn();

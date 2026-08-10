@@ -44,15 +44,20 @@ world — see `RunContext`/the design notes below for why this boundary is absol
 ## Quickstart (raw Node `http`, no framework adapter yet)
 
 There's no published `@personaai/node` adapter package yet, so this release ships a small,
-tested bridge in `examples/` for running the runtime directly against Node's `http` module —
-**not itself a published entry point**, just enough to demo/smoke-test the runtime end to end
-until `@personaai/node` ships. It parses multipart file uploads too, via Node's native
-`Request`/`FormData` (undici) — no extra dependency:
+tested bridge at [`examples/node-handler.ts`](./examples/node-handler.ts) in this repo for
+running the runtime directly against Node's `http` module, just enough to demo/smoke-test the
+runtime end to end until `@personaai/node` ships. It parses multipart file uploads too, via
+Node's native `Request`/`FormData` (undici) — no extra dependency.
+
+**This file is not published to npm and has no `exports` entry** (`package.json`'s `files` only
+ships `dist/`, and `exports` only maps `.`) — `import ... from '@personaai/runtime/examples/...'`
+fails with `ERR_PACKAGE_PATH_NOT_EXPORTED` after a real `npm install`. Copy the file into your own
+project instead (it's plain TypeScript with no runtime-internal dependencies):
 
 ```ts
 import { createServer } from 'node:http';
 import { createRuntime } from '@personaai/runtime';
-import { toNodeHandler } from '@personaai/runtime/examples/node-handler.js'; // not a stable public API
+import { toNodeHandler } from './node-handler.js'; // copied from this repo's examples/ — not importable from the published package, see note below
 
 const runtime = createRuntime({
   baseUrl: process.env.PERSONA_BASE_URL!,
