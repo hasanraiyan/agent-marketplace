@@ -3,7 +3,6 @@ import pytest
 import respx
 
 from personaai import AsyncPersonaClient, PersonaClient
-from personaai.errors import PersonaAuthError
 
 BASE_URL = "https://api.test"
 
@@ -88,8 +87,12 @@ def test_write_file():
     import json as jsonlib
 
     body = jsonlib.loads(route.calls.last.request.content)
-    assert body == {"path": "/memories/user/index.md", "content": "# Preferences",
-                    "scope": None, "agentId": None}
+    assert body == {
+        "path": "/memories/user/index.md",
+        "content": "# Preferences",
+        "scope": None,
+        "agentId": None,
+    }
 
 
 @respx.mock
@@ -111,7 +114,10 @@ def test_external_user_required_error_surfaces_typed_error():
             400,
             json={
                 "success": False,
-                "message": "Managing memory requires an asserted external user (x-persona-external-user-id)",
+                "message": (
+                    "Managing memory requires an asserted external user "
+                    "(x-persona-external-user-id)"
+                ),
                 "code": "EXTERNAL_USER_REQUIRED",
             },
         )

@@ -10,6 +10,7 @@ This guide helps AI coding agents understand and modify the **persona.hasanraiya
 **Purpose:** Agent marketplace + agent creation/runtime platform
 **Backend Location:** `agent-backend/`
 **Frontend Location:** `frontend/`
+**SDK Location:** `sdk/` — all published SDK packages (see "SDK Directory Structure")
 **Package Manager:** `pnpm`
 **Runtime:** Node.js 22+ (ES Modules)
 **Backend Framework:** Express 5
@@ -97,6 +98,25 @@ agent-backend/
 ├── scripts/                        # CLI utility scripts
 └── docs/                           # Documentation
 ```
+
+## SDK Directory Structure
+
+All published SDK packages live under one `sdk/` folder. Package *names* (what users install) are
+independent of their folder: `@personaai/sdk`, `@personaai/runtime`, and `persona-agent-sdk` (PyPI).
+
+```
+sdk/
+├── typescript/        # @personaai/sdk — Node.js/TypeScript API client (tsup + vitest)
+├── python/            # persona-agent-sdk — Python API client (hatchling + pytest)
+├── runtime/           # @personaai/runtime — framework-agnostic runtime engine
+├── adapters/          # future: nextjs, express, fastify, hono, nestjs, node
+├── react/             # future
+├── ui/                # future
+└── themes/            # future
+```
+
+Each package has its own toolchain, version, and release cycle — there is **no root pnpm workspace**
+unifying them (`frontend/` has its own workspace; the SDK packages do not).
 
 ## Module Structure
 
@@ -350,6 +370,9 @@ The memory system uses a **file-based store** backed by MongoDB (not `InMemorySt
 | `frontend/src/lib/studio-routes.js`                 | Canonical Studio route definitions            |
 | `frontend/src/app/dashboard/page.jsx`               | Persona consumer home (agent discovery)       |
 | `frontend/src/app/studio/page.jsx`                  | Agent Studio home                             |
+| `sdk/typescript/src/index.ts`                       | TypeScript SDK client (`@personaai/sdk`) exports |
+| `sdk/python/src/personaai/client.py`                | Python SDK client (`persona-agent-sdk`) entry    |
+| `sdk/runtime/src/runtime.ts`                        | Runtime engine (`@personaai/runtime`) core        |
 
 ## Configuration
 

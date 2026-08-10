@@ -10,20 +10,19 @@ Ported from ``sdk/src/resources/memory.ts``.
 Note: this class defines its own method named ``list``, which (combined with
 ``from __future__ import annotations``) makes bare ``list[X]`` annotations
 elsewhere in this file resolve to that method instead of the builtin under
-mypy's forward-ref resolution. ``typing.List`` sidesteps the collision — see
-the ``per-file-ignores`` entry for this file in ``pyproject.toml``.
+mypy's forward-ref resolution. This file doesn't currently use any such
+annotation — if one is ever added, spell it ``typing.List`` (and the
+``per-file-ignores`` entry for this file in ``pyproject.toml`` already
+exempts it from the UP006/UP035 rules that would rewrite it).
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, cast
+from typing import TYPE_CHECKING, cast
 
 from ..types.memory import (
-    DeleteMemoryFileParams,
-    GetMemoryFileParams,
     MemoryFile,
     MemoryListResult,
-    WriteMemoryFileInput,
 )
 
 if TYPE_CHECKING:
