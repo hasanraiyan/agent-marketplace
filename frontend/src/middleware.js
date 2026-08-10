@@ -6,6 +6,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/forgot-password(.*)",
   "/dashboard/agents/(.*)", // Allow public viewing of agents with dashboard layout
+  "/developer/invitations/(.*)", // Post-accept landing page (Clerk redirect target)
 ]);
 
 export default clerkMiddleware(async (auth, request) => {

@@ -37,6 +37,14 @@ jest.unstable_mockModule('../src/modules/projects/project.service.js', () => ({
   },
 }));
 
+jest.unstable_mockModule('../src/modules/projects/projectInvitation.service.js', () => ({
+  default: {
+    createInvitation: jest.fn(),
+    listInvitations: jest.fn(),
+    revokeInvitation: jest.fn(),
+  },
+}));
+
 // Developer Platform (blueprint Phase 11, PR-55): project.routes.js now
 // wires in the resource-browsing controller methods, which import these
 // services for real — mcp.service.js in particular transitively pulls in
@@ -81,6 +89,9 @@ const projectMembershipRepository = (
   await import('../src/modules/projects/projectMembership.repository.js')
 ).default;
 const projectService = (await import('../src/modules/projects/project.service.js')).default;
+const projectInvitationService = (
+  await import('../src/modules/projects/projectInvitation.service.js')
+).default;
 const agentService = (await import('../src/modules/agents/agent.service.js')).default;
 const { default: projectRouter } = await import('../src/modules/projects/project.routes.js');
 
@@ -296,5 +307,69 @@ describe('project.routes.js — nested :projectId param propagation', () => {
     const res = await request(app).post('/api/v1/projects/project_abc/members').send({});
 
     expect(res.status).toBe(400);
+  });
+
+  test('POST /:projectId/members/invitations reaches the controller and responds 201', async () => {
+    projectMembershipRepository.findByProjectAndUser.mockResolvedValue({
+      project: 'project_abc',
+      personaUserId: 'user_123',
+      role: 'Admin',
+    });
+    projectInvitationService.createInvitation.mockResolvedValue({
+      email: 'new@beyond.campus',
+      status: 'pending',
+    });
+
+    const res = await request(app)
+      .post('/api/v1/projects/project_abc/members/invitations')
+      .send({ email: 'new@beyond.campus' });
+
+    expect(res.status).toBe(201);
+    expect(projectInvitationService.createInvitation).toHaveBeenCalledWith(
+      'project_abc',
+      'new@beyond.campus',
+      'user_123'
+    );
+  });
+
+  test('invitation routes 404 when the caller has no membership', async () => {
+    projectMembershipRepository.findByProjectAndUser.mockResolvedValue(null);
+
+    const createRes = await request(app)
+      .post('/api/v1/projects/not-my-project/members/invitations')
+      .send({ email: 'new@beyond.campus' });
+    const listRes = await request(app).get('/api/v1/projects/not-my-project/members/invitations');
+    const revokeRes = await request(app).delete(
+      '/api/v1/projects/not-my-project/members/invitations/inv_1'
+    );
+
+    expect(createRes.status).toBe(404);
+    expect(listRes.status).toBe(404);
+    expect(revokeRes.status).toBe(404);
+    expect(projectInvitationService.createInvitation).not.toHaveBeenCalled();
+  });
+
+  test('GET/DELETE /:projectId/members/invitations reach the controller', async () => {
+    projectMembershipRepository.findByProjectAndUser.mockResolvedValue({
+      project: 'project_abc',
+      personaUserId: 'user_123',
+      role: 'Admin',
+    });
+    projectInvitationService.listInvitations.mockResolvedValue([{ email: 'a@b.c' }]);
+    projectInvitationService.revokeInvitation.mockResolvedValue({ status: 'revoked' });
+
+    const listRes = await request(app).get('/api/v1/projects/project_abc/members/invitations');
+    const revokeRes = await request(app).delete(
+      '/api/v1/projects/project_abc/members/invitations/inv_1'
+    );
+
+    expect(listRes.status).toBe(200);
+    expect(listRes.body.data).toEqual([{ email: 'a@b.c' }]);
+    expect(revokeRes.status).toBe(200);
+    expect(projectInvitationService.revokeInvitation).toHaveBeenCalledWith(
+      'project_abc',
+      'inv_1',
+      'user_123'
+    );
   });
 });

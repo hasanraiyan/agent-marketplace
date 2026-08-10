@@ -56,6 +56,12 @@ const handleClerkWebhook = async (req, res, next) => {
       await webhookService.updateUser(evt.data);
     } else if (eventType === 'user.deleted') {
       await webhookService.deleteUser(evt.data);
+    } else if (eventType === 'invitation.created') {
+      await webhookService.handleInvitationCreated(evt.data);
+    } else if (eventType === 'invitation.accepted') {
+      await webhookService.handleInvitationAccepted(evt.data);
+    } else if (eventType === 'invitation.revoked') {
+      await webhookService.handleInvitationRevoked(evt.data);
     }
 
     return res.status(200).json({ success: true, message: 'Webhook received' });

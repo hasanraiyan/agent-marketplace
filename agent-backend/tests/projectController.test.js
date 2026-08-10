@@ -21,6 +21,14 @@ jest.unstable_mockModule('../src/modules/projects/projectMembership.service.js',
   },
 }));
 
+jest.unstable_mockModule('../src/modules/projects/projectInvitation.service.js', () => ({
+  default: {
+    createInvitation: jest.fn(),
+    listInvitations: jest.fn(),
+    revokeInvitation: jest.fn(),
+  },
+}));
+
 jest.unstable_mockModule('../src/modules/projects/projectCredential.service.js', () => ({
   default: {
     listCredentials: jest.fn(),
@@ -64,6 +72,9 @@ jest.unstable_mockModule('../src/modules/stores/store.service.js', () => ({
 const projectService = (await import('../src/modules/projects/project.service.js')).default;
 const projectMembershipService = (
   await import('../src/modules/projects/projectMembership.service.js')
+).default;
+const projectInvitationService = (
+  await import('../src/modules/projects/projectInvitation.service.js')
 ).default;
 const projectCredentialService = (
   await import('../src/modules/projects/projectCredential.service.js')
@@ -440,6 +451,50 @@ describe('Project Controller', () => {
       await projectController.listMembers(mockReq, mockRes, next);
 
       expect(projectMembershipService.listMembers).toHaveBeenCalledWith(projectId);
+    });
+  });
+
+  describe('invitations', () => {
+    test('createInvitation forwards domain + email + caller and responds 201', async () => {
+      mockReq.body = { email: 'new@beyond.campus' };
+      projectInvitationService.createInvitation.mockResolvedValue({
+        email: 'new@beyond.campus',
+        status: 'pending',
+      });
+
+      await projectController.createInvitation(mockReq, mockRes, next);
+
+      expect(projectInvitationService.createInvitation).toHaveBeenCalledWith(
+        projectId,
+        'new@beyond.campus',
+        personaUserId
+      );
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: { email: 'new@beyond.campus', status: 'pending' },
+      });
+    });
+
+    test('listInvitations forwards domain', async () => {
+      projectInvitationService.listInvitations.mockResolvedValue([{ email: 'a@b.c' }]);
+
+      await projectController.listInvitations(mockReq, mockRes, next);
+
+      expect(projectInvitationService.listInvitations).toHaveBeenCalledWith(projectId);
+    });
+
+    test('revokeInvitation forwards domain + :invitationId + caller', async () => {
+      mockReq.params = { invitationId: 'inv_1' };
+      projectInvitationService.revokeInvitation.mockResolvedValue({ status: 'revoked' });
+
+      await projectController.revokeInvitation(mockReq, mockRes, next);
+
+      expect(projectInvitationService.revokeInvitation).toHaveBeenCalledWith(
+        projectId,
+        'inv_1',
+        personaUserId
+      );
     });
   });
 

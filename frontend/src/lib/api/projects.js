@@ -32,6 +32,15 @@ export const searchProjectMembers = (projectId, q) =>
 export const removeProjectMember = (projectId, personaUserId) =>
   api.delete(`/projects/${projectId}/members/${personaUserId}`);
 
+// Invitations (AD-08 §11) — invite someone without a Persona account yet.
+// Clerk owns the email + accept flow; these track/revoke from Studio.
+export const inviteProjectMember = (projectId, email) =>
+  api.post(`/projects/${projectId}/members/invitations`, { email });
+export const getProjectInvitations = (projectId) =>
+  api.get(`/projects/${projectId}/members/invitations`);
+export const revokeProjectInvitation = (projectId, invitationId) =>
+  api.delete(`/projects/${projectId}/members/invitations/${invitationId}`);
+
 // Credentials (blueprint Phase 10 — already merged on the backend). Minting
 // returns the plaintext secret exactly once (AD-01 §9.2) — never retrievable
 // again after that response.

@@ -18,6 +18,7 @@ import {
   Plus,
   Zap,
   MessageSquare,
+  Mail,
 } from "lucide-react";
 import {
   getProject,
@@ -30,6 +31,9 @@ import {
   addProjectMember,
   searchProjectMembers,
   removeProjectMember,
+  inviteProjectMember,
+  getProjectInvitations,
+  revokeProjectInvitation,
   getProjectCredentials,
   mintProjectCredential,
   revokeProjectCredential,
@@ -395,6 +399,12 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   const [removeMemberTarget, setRemoveMemberTarget] = useState(null);
   const [removingMember, setRemovingMember] = useState(false);
 
+  const [invitations, setInvitations] = useState([]);
+  const [invitationsLoading, setInvitationsLoading] = useState(true);
+  const [invitingEmail, setInvitingEmail] = useState("");
+  const [revokeInvitationTarget, setRevokeInvitationTarget] = useState(null);
+  const [revokingInvitation, setRevokingInvitation] = useState(false);
+
   const [credentials, setCredentials] = useState([]);
   const [credentialsLoading, setCredentialsLoading] = useState(true);
   const [mintOpen, setMintOpen] = useState(false);
@@ -492,6 +502,25 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
         toast.error(err.response?.data?.message || "Failed to load Members.");
       } finally {
         setMembersLoading(false);
+      }
+    })();
+  }, [isLoaded, isSignedIn, projectId]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    (async () => {
+      try {
+        setInvitationsLoading(true);
+        const res = await getProjectInvitations(projectId);
+        if (res.data?.success) {
+          setInvitations(res.data.data);
+        }
+      } catch (err) {
+        toast.error(
+          err.response?.data?.message || "Failed to load invitations.",
+        );
+      } finally {
+        setInvitationsLoading(false);
       }
     })();
   }, [isLoaded, isSignedIn, projectId]);
@@ -809,6 +838,44 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
     }
   };
 
+  const handleInviteMember = async (email) => {
+    const value = email?.trim();
+    if (!value) return;
+    setInvitingEmail(value);
+    try {
+      const res = await inviteProjectMember(projectId, value);
+      setInvitations((prev) => [res.data.data, ...prev]);
+      toast.success(`Invitation sent to ${value}.`);
+      setAddMemberOpen(false);
+      setMemberQuery("");
+      setMemberSuggestions([]);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to send invitation.");
+    } finally {
+      setInvitingEmail("");
+    }
+  };
+
+  const handleRevokeInvitation = async () => {
+    if (!revokeInvitationTarget) return;
+    setRevokingInvitation(true);
+    try {
+      const targetId = revokeInvitationTarget._id || revokeInvitationTarget.id;
+      await revokeProjectInvitation(projectId, targetId);
+      setInvitations((prev) =>
+        prev.filter((i) => (i._id || i.id) !== targetId),
+      );
+      toast.success("Invitation revoked.");
+      setRevokeInvitationTarget(null);
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message || "Failed to revoke invitation.",
+      );
+    } finally {
+      setRevokingInvitation(false);
+    }
+  };
+
   const handleMintCredential = async (e) => {
     e.preventDefault();
     setMinting(true);
@@ -1042,6 +1109,9 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   // backend enforces the same rule via the unique compound index).
   const memberPersonaIds = new Set(members.map((m) => m.personaUserId));
 
+  // Only invitations that are still awaiting acceptance are actionable.
+  const pendingInvitations = invitations.filter((i) => i.status === "pending");
+
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
       <Tabs defaultValue="overview">
@@ -1264,6 +1334,69 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                 </Table>
               ) : (
                 <p className="text-sm text-muted-foreground">No members yet.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="max-w-2xl">
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="size-4 text-muted-foreground" />
+                  Pending Invitations
+                </CardTitle>
+                <CardDescription>
+                  People invited by email who haven&apos;t created an account
+                  yet. Clerk emails them an accept link.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {invitationsLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ) : pendingInvitations.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Email</TableHead>
+                      <TableHead className="hidden md:table-cell">
+                        Invited
+                      </TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingInvitations.map((inv) => (
+                      <TableRow key={inv._id || inv.id}>
+                        <TableCell className="font-medium">
+                          {inv.email}
+                        </TableCell>
+                        <TableCell className="hidden text-muted-foreground md:table-cell">
+                          {inv.createdAt
+                            ? new Date(inv.createdAt).toLocaleDateString()
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setRevokeInvitationTarget(inv)}
+                          >
+                            Revoke
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No pending invitations.
+                </p>
               )}
             </CardContent>
           </Card>
@@ -2005,10 +2138,26 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                     memberSuggestions.length === 0 &&
                     memberQuery.trim().length >= 3 &&
                     memberQuery.trim().toLowerCase() !== memberPickedEmail && (
-                      <p className="mt-1 rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                        No matching users — they may not have a Persona account
-                        yet, or the email is wrong.
-                      </p>
+                      <div className="mt-1 flex flex-col gap-2 rounded-md border bg-muted/40 px-3 py-2">
+                        <p className="text-xs text-muted-foreground">
+                          No Persona account found for this email — you can
+                          invite them instead.
+                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="self-start !bg-[#1E60FF] !text-white font-bold shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] hover:!bg-[#154ed0] active:scale-[0.98]"
+                          disabled={!!invitingEmail}
+                          onClick={() => handleInviteMember(memberQuery)}
+                        >
+                          {invitingEmail ? (
+                            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                          ) : (
+                            <Mail className="mr-1.5 size-3.5" />
+                          )}
+                          Invite by email
+                        </Button>
+                      </div>
                     )}
                   {memberMode === "email" && memberSuggestions.length > 0 && (
                     <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
@@ -2088,6 +2237,42 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Revoke invitation */}
+      <AlertDialog
+        open={!!revokeInvitationTarget}
+        onOpenChange={(open) => !open && setRevokeInvitationTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke this invitation?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {revokeInvitationTarget?.email} will no longer be able to accept —
+              their emailed link stops working immediately. You can invite them
+              again later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={revokingInvitation}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleRevokeInvitation();
+              }}
+              disabled={revokingInvitation}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {revokingInvitation ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                "Revoke"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Remove member */}
       <AlertDialog
