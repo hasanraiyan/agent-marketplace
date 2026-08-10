@@ -38,11 +38,11 @@
     "agents"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/hasanraiyan/agent-marketplace/tree/feat/ai/sdk#readme",
+  "homepage": "https://github.com/hasanraiyan/agent-marketplace/tree/feat/ai/sdk/typescript#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hasanraiyan/agent-marketplace.git",
-    "directory": "sdk"
+    "directory": "sdk/typescript"
   },
   "bugs": {
     "url": "https://github.com/hasanraiyan/agent-marketplace/issues"

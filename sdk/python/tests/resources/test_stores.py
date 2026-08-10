@@ -111,7 +111,10 @@ def test_write_file():
     assert file["path"] == "/notes.md"
     import json as jsonlib
 
-    assert jsonlib.loads(route.calls.last.request.content) == {"path": "/notes.md", "content": "# Notes"}
+    assert jsonlib.loads(route.calls.last.request.content) == {
+        "path": "/notes.md",
+        "content": "# Notes",
+    }
 
 
 @respx.mock

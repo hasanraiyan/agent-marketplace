@@ -1,5 +1,5 @@
 from .async_client import AsyncPersonaClient
-from .chat.architect import AsyncArchitectClient, ArchitectClient
+from .chat.architect import ArchitectClient, AsyncArchitectClient
 from .chat.client import AsyncChatClient, ChatClient
 from .client import PersonaClient
 from .errors import PersonaApiError, PersonaAuthError, PersonaValidationError

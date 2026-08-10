@@ -8,8 +8,8 @@
 
 | Package | Location | Status | Purpose |
 |---|---|---|---|
-| `@personaai/sdk` | `sdk/` | **v0.2.3 — Shipped** | Raw TypeScript API client. Server-side only. Covers agents, threads, files, knowledge, MCP, providers, skills, audit logs, and AG-UI chat streaming. |
-| `personaai` (Python) | `sdk-python/` | **Shipped** | Python API client. Sync + async. Same resource coverage as the TypeScript SDK. |
+| `@personaai/sdk` | `sdk/typescript/` | **v0.2.3 — Shipped** | Raw TypeScript API client. Server-side only. Covers agents, threads, files, knowledge, MCP, providers, skills, audit logs, and AG-UI chat streaming. |
+| `personaai` (Python) | `sdk/python/` | **Shipped** | Python API client. Sync + async. Same resource coverage as the TypeScript SDK. |
 | Flutter app | `persona/` | **Exists** | Consumer mobile app. Not part of the package ecosystem. |
 
 **Starting point:** We have the foundation layer (Level 1 — raw SDK) in two languages. Everything above it needs to be built.

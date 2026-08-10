@@ -35,7 +35,7 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/hasanraiyan/agent-marketplace/tree/feat/ai/sdk-python"
+Homepage = "https://github.com/hasanraiyan/agent-marketplace/tree/feat/ai/sdk/python"
 Repository = "https://github.com/hasanraiyan/agent-marketplace"
 Issues = "https://github.com/hasanraiyan/agent-marketplace/issues"
 

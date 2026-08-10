@@ -37,11 +37,11 @@
     "agents"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/hasanraiyan/agent-marketplace/tree/feat/ai/runtime#readme",
+  "homepage": "https://github.com/hasanraiyan/agent-marketplace/tree/feat/ai/sdk/runtime#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hasanraiyan/agent-marketplace.git",
-    "directory": "runtime"
+    "directory": "sdk/runtime"
   },
   "bugs": {
     "url": "https://github.com/hasanraiyan/agent-marketplace/issues"

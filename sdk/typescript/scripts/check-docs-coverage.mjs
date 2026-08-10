@@ -8,8 +8,8 @@
  * added to the SDK.
  *
  * Run from anywhere:
- *   node sdk/scripts/check-docs-coverage.mjs
- *   cd sdk && pnpm docs:check
+ *   node sdk/typescript/scripts/check-docs-coverage.mjs
+ *   cd sdk/typescript && pnpm docs:check
  *
  * Optional positional args (mainly for testing the failure path):
  *   node scripts/check-docs-coverage.mjs <path-to-index.ts> <path-to-docs.mdx>
@@ -23,7 +23,7 @@ import { dirname, resolve } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SDK_INDEX = resolve(here, '../src/index.ts');
-const DOCS_PAGE = resolve(here, '../../developer-docs/guides/sdk/types.mdx');
+const DOCS_PAGE = resolve(here, '../../../developer-docs/guides/sdk/types.mdx');
 
 const indexPath = process.argv[2] ?? SDK_INDEX;
 const docsPath = process.argv[3] ?? DOCS_PAGE;
