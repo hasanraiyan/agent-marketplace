@@ -5,7 +5,7 @@ shared engine every framework adapter (`@personaai/express`, `@personaai/nextjs`
 to be a thin translation layer over — see
 [the SDK Ecosystem plan](https://github.com/hasanraiyan/agent-marketplace/blob/feat/ai/product-research/11-sdk-new/package-ecosystem.md).
 
-**v0.5.** Not installed directly by most developers yet — there is no published framework
+**v0.5.1.** Not installed directly by most developers yet — there is no published framework
 adapter for it in this release. See [Quickstart](#quickstart) for how to run it directly against
 raw Node `http` in the meantime, and [Not yet implemented](#not-yet-implemented) for what's
 missing before it's a complete Level 2 runtime.
@@ -393,7 +393,7 @@ modes (`mode: 'development' | 'production'`, default `'production'` unless
 
 ## Not yet implemented
 
-This is v0.5. Every SDK resource now has a route (see [Routes](#routes)); what's left is either a
+This is v0.5.1. Every SDK resource now has a route (see [Routes](#routes)); what's left is either a
 genuine unclosed gap or an intentional package boundary, not an oversight:
 
 - **Multi-instance reconnect/resume** — see

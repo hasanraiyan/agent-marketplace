@@ -3,6 +3,20 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.4.1
+
+Patch release — ships two fixes merged after the 0.4.0 npm release, plus a packaging cleanup:
+
+- `ThreadMessages` gained an optional `interrupt` field — `getMessages()` now surfaces a pending
+  HITL/clarification interrupt, so reloading a paused Thread can re-show its approval/
+  clarification card without waiting for the next live `chat.stream()` call (raw checkpoint
+  state alone can't detect a paused interrupt). Same shape as `ChatResult.interrupt`.
+- Fixed `providers.list()`'s JSDoc: it previously claimed the same result whether or not the
+  client asserts an external user, but the backend short-circuits a runtime-plane client
+  (`externalUserId` set) to a silent empty array before ever querying — the doc now says so.
+- Removed an accidental `@personaai/sdk` self-dependency from `package.json` (copy-paste bleed
+  from the runtime package's manifest). No behavior change.
+
 ## 0.4.0
 
 - **New `architect` client** — `client.architect.stream()` / `.sendMessage()` against the new

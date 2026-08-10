@@ -21,7 +21,8 @@ router.use(developerMachineAuthMiddleware);
  *     summary: Developer Platform Architect protocol info
  *     security: [{ projectCredential: [] }]
  *     responses:
- *       200: { description: Protocol info }
+ *       200:
+ *         description: Protocol info
  *   post:
  *     tags: [Developer]
  *     summary: Chat with this Project's Agent Architect (machine-credential auth)
