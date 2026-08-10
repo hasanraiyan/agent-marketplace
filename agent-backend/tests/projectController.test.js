@@ -32,6 +32,8 @@ jest.unstable_mockModule('../src/modules/projects/projectCredential.service.js',
 jest.unstable_mockModule('../src/modules/users/user.repository.js', () => ({
   default: {
     findById: jest.fn(),
+    findByEmail: jest.fn(),
+    searchByEmailPrefix: jest.fn(),
   },
 }));
 
@@ -290,6 +292,82 @@ describe('Project Controller', () => {
       expect(projectMembershipService.addMember).not.toHaveBeenCalled();
       expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 404 }));
     });
+
+    test('resolves an email to the target user id before adding the membership', async () => {
+      mockReq.body = { email: 'sabik@beyond.campus' };
+      userRepository.findByEmail.mockResolvedValue({
+        _id: 'resolved_id',
+        email: 'sabik@beyond.campus',
+        isActive: true,
+      });
+      projectMembershipService.addMember.mockResolvedValue({
+        project: projectId,
+        personaUserId: 'resolved_id',
+        role: 'Admin',
+      });
+
+      await projectController.addMember(mockReq, mockRes, next);
+
+      expect(userRepository.findByEmail).toHaveBeenCalledWith('sabik@beyond.campus');
+      expect(projectMembershipService.addMember).toHaveBeenCalledWith(
+        projectId,
+        'resolved_id',
+        undefined,
+        personaUserId
+      );
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+    });
+
+    test('passes email-lookup errors to next without adding a membership', async () => {
+      mockReq.body = { email: 'nobody@example.com' };
+      const err = new Error('User with email nobody@example.com not found');
+      err.statusCode = 404;
+      userRepository.findByEmail.mockRejectedValue(err);
+
+      await projectController.addMember(mockReq, mockRes, next);
+
+      expect(projectMembershipService.addMember).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledWith(err);
+    });
+
+    test('404s when the email resolves to a deactivated user (parity with search isActive filter)', async () => {
+      mockReq.body = { email: 'gone@example.com' };
+      userRepository.findByEmail.mockResolvedValue({
+        _id: 'inactive_id',
+        isActive: false,
+      });
+
+      await projectController.addMember(mockReq, mockRes, next);
+
+      expect(projectMembershipService.addMember).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 404 }));
+    });
+  });
+
+  describe('searchMembers', () => {
+    test('searches active users by email prefix and returns minimal profile fields', async () => {
+      mockReq.query = { q: 'sabik@' };
+      userRepository.searchByEmailPrefix.mockResolvedValue([
+        { id: 'u1', name: 'Sabik', email: 'sabik@beyond.campus' },
+      ]);
+
+      await projectController.searchMembers(mockReq, mockRes, next);
+
+      expect(userRepository.searchByEmailPrefix).toHaveBeenCalledWith('sabik@');
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: [{ id: 'u1', name: 'Sabik', email: 'sabik@beyond.campus' }],
+      });
+    });
+
+    test('passes errors to next', async () => {
+      const err = new Error('boom');
+      userRepository.searchByEmailPrefix.mockRejectedValue(err);
+
+      await projectController.searchMembers(mockReq, mockRes, next);
+
+      expect(next).toHaveBeenCalledWith(err);
+    });
   });
 
   describe('removeMember', () => {
@@ -478,7 +556,9 @@ describe('Project Controller', () => {
 
       await projectController.updateStore(mockReq, mockRes, next);
 
-      expect(storeService.updateStore).toHaveBeenCalledWith(projectId, 's1', { description: 'updated' });
+      expect(storeService.updateStore).toHaveBeenCalledWith(projectId, 's1', {
+        description: 'updated',
+      });
     });
 
     test('deleteStore 404s when the store does not exist', async () => {

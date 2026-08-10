@@ -123,20 +123,49 @@ class ProjectController {
     }
   }
 
+  /**
+   * Search active Persona Users by email prefix (case-insensitive) for the
+   * "Add Admin" autocomplete. Admin-only (route-level). Returns minimal
+   * profile fields (name + email) — never clerkId or role.
+   */
+  async searchMembers(req, res, next) {
+    try {
+      const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+      const users = await userRepository.searchByEmailPrefix(q);
+      res.json({ success: true, data: users });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async addMember(req, res, next) {
     try {
-      const { personaUserId } = req.body;
+      const { personaUserId, email } = req.body;
+
+      // Resolve by email when given (the human-friendly path — most Admins
+      // know the invitee's email, not their internal User id). Emails are
+      // stored lowercase, so normalize before lookup.
+      let targetUser;
+      if (email) {
+        targetUser = await userRepository.findByEmail(email.trim().toLowerCase());
+        // Parity with searchByEmailPrefix (which filters isActive) — a
+        // deactivated account can't be invited by email either.
+        if (targetUser && !targetUser.isActive) {
+          throw new NotFoundError('Persona User not found', 'User');
+        }
+      } else {
+        targetUser = await userRepository.findById(personaUserId);
+      }
 
       // Guards against a dangling membership row for a nonexistent Persona
       // User — the service layer itself doesn't validate this reference.
-      const targetUser = await userRepository.findById(personaUserId);
       if (!targetUser) {
         throw new NotFoundError('Persona User not found', 'User');
       }
 
       const membership = await projectMembershipService.addMember(
         req.projectAdminContext.domain,
-        personaUserId,
+        targetUser._id,
         undefined,
         req.projectAdminContext.personaUserId
       );

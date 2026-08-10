@@ -23,6 +23,12 @@ import { createStoreSchema, updateStoreSchema } from '../stores/store.validator.
 
 const router = express.Router();
 const mutateLimiter = rateLimiter('MUTATE', RATE_LIMITS.MUTATE);
+// Typeahead searches fire on every keystroke — lighter than MUTATE so the
+// "Add Admin" email autocomplete isn't throttled mid-typing.
+const memberSearchLimiter = rateLimiter('PROJECT_MEMBER_SEARCH', {
+  maxRequests: 60,
+  windowMs: 60 * 1000,
+});
 
 // Mirrors developerKnowledge.routes.js's exact upload config — memory
 // storage only, never written to disk, same size/type limits.
@@ -250,7 +256,11 @@ adminRouter.post('/cancel-deletion', mutateLimiter, projectController.cancelDele
  *   post:
  *     tags: [Projects]
  *     summary: Add a Project Admin (Admin only)
- *     description: v1 supports exactly one role (Admin, AD-08 §9) — adds an existing Persona User by internal ID.
+ *     description: >
+ *       v1 supports exactly one role (Admin, AD-08 §9). Accepts either the
+ *       internal Persona User id (personaUserId) or the invitee's email —
+ *       exactly one of the two. Email is resolved to the user's internal id
+ *       server-side, so Admins don't need DB access to invite a colleague.
  *     security: [{ clerkAuth: [] }]
  *     parameters:
  *       - name: projectId
@@ -263,14 +273,48 @@ adminRouter.post('/cancel-deletion', mutateLimiter, projectController.cancelDele
  *         application/json:
  *           schema:
  *             type: object
- *             required: [personaUserId]
- *             properties:
- *               personaUserId: { type: string }
+ *             oneOf:
+ *               - type: object
+ *                 required: [personaUserId]
+ *                 properties:
+ *                   personaUserId: { type: string }
+ *               - type: object
+ *                 required: [email]
+ *                 properties:
+ *                   email: { type: string, format: email }
  *     responses:
  *       201: { description: Membership created }
+ *       400: { description: Neither personaUserId nor email provided (or both) }
  *       404: { description: Persona User not found }
  */
 adminRouter.get('/members', projectController.listMembers);
+
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/members/search:
+ *   get:
+ *     tags: [Projects]
+ *     summary: Search Persona Users by email prefix (Admin only)
+ *     description: >
+ *       Powers the "Add Admin" email autocomplete. Returns minimal profile
+ *       fields (name + email) for active users whose email starts with the
+ *       query. Never returns clerkId or role.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: q
+ *         in: query
+ *         required: true
+ *         schema: { type: string }
+ *         description: Email prefix to match (case-insensitive)
+ *     responses:
+ *       200: { description: Matching active users (name + email only) }
+ */
+adminRouter.get('/members/search', memberSearchLimiter, projectController.searchMembers);
+
 adminRouter.post(
   '/members',
   mutateLimiter,

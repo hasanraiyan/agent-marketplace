@@ -19,12 +19,16 @@ export const requestProjectDeletion = (projectId) =>
 export const cancelProjectDeletion = (projectId) =>
   api.post(`/projects/${projectId}/cancel-deletion`);
 
-// Members (blueprint Phase 10 — already merged on the backend). v1 adds an
-// existing Persona User by internal id only, no email lookup.
+// Members (blueprint Phase 10 — already merged on the backend; email invite
+// + email search added later). The backend accepts exactly one of
+// { personaUserId } or { email }, so Studio's "Add Admin" dialog can invite
+// by email — no DB access needed to look up internal ids.
 export const getProjectMembers = (projectId) =>
   api.get(`/projects/${projectId}/members`);
-export const addProjectMember = (projectId, personaUserId) =>
-  api.post(`/projects/${projectId}/members`, { personaUserId });
+export const addProjectMember = (projectId, payload) =>
+  api.post(`/projects/${projectId}/members`, payload);
+export const searchProjectMembers = (projectId, q) =>
+  api.get(`/projects/${projectId}/members/search`, { params: { q } });
 export const removeProjectMember = (projectId, personaUserId) =>
   api.delete(`/projects/${projectId}/members/${personaUserId}`);
 

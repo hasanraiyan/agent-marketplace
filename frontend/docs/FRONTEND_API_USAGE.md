@@ -168,7 +168,8 @@ The following dashboard routes are **redirects** to Agent Studio:
 
 - **Calls:**
   - `getProjectMembers(id)` → GET `/api/v1/projects/:id/members`
-  - `addProjectMember(id, personaUserId)` → POST `/api/v1/projects/:id/members` — add Admin (v1 by internal Persona User id)
+  - `addProjectMember(id, payload)` → POST `/api/v1/projects/:id/members` — add Admin by `{ email }` or `{ personaUserId }` (exactly one; email resolved server-side)
+  - `searchProjectMembers(id, q)` → GET `/api/v1/projects/:id/members/search?q=...` — email autocomplete for the Add Admin dialog (returns name + email only)
   - `removeProjectMember(id, personaUserId)` → DELETE `/api/v1/projects/:id/members/:personaUserId`
 
 ### Credentials

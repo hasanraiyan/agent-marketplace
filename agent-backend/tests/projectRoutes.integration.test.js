@@ -66,6 +66,17 @@ jest.unstable_mockModule('../src/modules/stores/store.service.js', () => ({
   },
 }));
 
+// project.controller.js imports user.repository.js for real — members
+// routes only touch it when exercised, so the suite needs it mocked to
+// avoid a real DB hit for the /members/search tests below.
+jest.unstable_mockModule('../src/modules/users/user.repository.js', () => ({
+  default: {
+    findById: jest.fn(),
+    findByEmail: jest.fn(),
+    searchByEmailPrefix: jest.fn(),
+  },
+}));
+
 const projectMembershipRepository = (
   await import('../src/modules/projects/projectMembership.repository.js')
 ).default;
@@ -233,5 +244,57 @@ describe('project.routes.js — nested :projectId param propagation', () => {
 
     expect(res.status).toBe(404);
     expect(agentService.discoverAgents).not.toHaveBeenCalled();
+  });
+
+  test('GET /:projectId/members/search reaches the controller and returns matching users', async () => {
+    projectMembershipRepository.findByProjectAndUser.mockResolvedValue({
+      project: 'project_abc',
+      personaUserId: 'user_123',
+      role: 'Admin',
+    });
+    const userRepository = (await import('../src/modules/users/user.repository.js')).default;
+    userRepository.searchByEmailPrefix.mockResolvedValue([
+      { id: 'u1', name: 'Sabik', email: 'sabik@beyond.campus' },
+    ]);
+
+    const res = await request(app).get('/api/v1/projects/project_abc/members/search?q=sabik@');
+
+    expect(res.status).toBe(200);
+    expect(userRepository.searchByEmailPrefix).toHaveBeenCalledWith('sabik@');
+    expect(res.body.data).toEqual([{ id: 'u1', name: 'Sabik', email: 'sabik@beyond.campus' }]);
+  });
+
+  test('GET /:projectId/members/search 404s when the caller has no membership', async () => {
+    projectMembershipRepository.findByProjectAndUser.mockResolvedValue(null);
+
+    const res = await request(app).get('/api/v1/projects/not-my-project/members/search?q=a@');
+
+    expect(res.status).toBe(404);
+  });
+
+  test('POST /:projectId/members rejects a body with both personaUserId and email (exactly-one rule)', async () => {
+    projectMembershipRepository.findByProjectAndUser.mockResolvedValue({
+      project: 'project_abc',
+      personaUserId: 'user_123',
+      role: 'Admin',
+    });
+
+    const res = await request(app)
+      .post('/api/v1/projects/project_abc/members')
+      .send({ personaUserId: 'user_x', email: 'x@example.com' });
+
+    expect(res.status).toBe(400);
+  });
+
+  test('POST /:projectId/members rejects a body with neither personaUserId nor email', async () => {
+    projectMembershipRepository.findByProjectAndUser.mockResolvedValue({
+      project: 'project_abc',
+      personaUserId: 'user_123',
+      role: 'Admin',
+    });
+
+    const res = await request(app).post('/api/v1/projects/project_abc/members').send({});
+
+    expect(res.status).toBe(400);
   });
 });

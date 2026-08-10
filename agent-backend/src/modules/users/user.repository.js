@@ -199,6 +199,30 @@ class UserRepository {
     const count = await User.countDocuments({ email });
     return count > 0;
   }
+
+  /**
+   * Search active users by email prefix (case-insensitive) for the
+   * Developer Studio "Add Admin" autocomplete. Returns only the fields
+   * needed to display and pick a user (name + email) — never clerkId or
+   * role. Regex-special characters in the query are escaped.
+   * @param {string} query - Email prefix to match
+   * @param {number} limit - Max results (default: 8)
+   * @returns {Promise<Array>} Matching active users
+   */
+  async searchByEmailPrefix(query, limit = 8) {
+    const q = String(query || '')
+      .trim()
+      .toLowerCase();
+    if (!q) return [];
+
+    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return await User.find({
+      email: { $regex: `^${escaped}`, $options: 'i' },
+      isActive: true,
+    })
+      .select('name email')
+      .limit(limit);
+  }
 }
 
 const userRepository = new UserRepository();

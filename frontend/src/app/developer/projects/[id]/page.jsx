@@ -28,6 +28,7 @@ import {
   cancelProjectDeletion,
   getProjectMembers,
   addProjectMember,
+  searchProjectMembers,
   removeProjectMember,
   getProjectCredentials,
   mintProjectCredential,
@@ -382,7 +383,14 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   const [members, setMembers] = useState([]);
   const [membersLoading, setMembersLoading] = useState(true);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
-  const [newMemberId, setNewMemberId] = useState("");
+  const [memberQuery, setMemberQuery] = useState("");
+  const [memberMode, setMemberMode] = useState("email");
+  const [memberSuggestions, setMemberSuggestions] = useState([]);
+  const [memberSearching, setMemberSearching] = useState(false);
+  // Set when the admin picks an autocomplete suggestion; typing again clears
+  // it so the debounced search doesn't immediately re-fire on the picked
+  // email and re-show the dropdown.
+  const [memberPickedEmail, setMemberPickedEmail] = useState(null);
   const [addingMember, setAddingMember] = useState(false);
   const [removeMemberTarget, setRemoveMemberTarget] = useState(null);
   const [removingMember, setRemovingMember] = useState(false);
@@ -732,20 +740,55 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
 
   const handleAddMember = async (e) => {
     e.preventDefault();
-    if (!newMemberId.trim()) return;
+    const value = memberQuery.trim();
+    if (!value) return;
     setAddingMember(true);
     try {
-      const res = await addProjectMember(projectId, newMemberId.trim());
+      const payload =
+        memberMode === "id" ? { personaUserId: value } : { email: value };
+      const res = await addProjectMember(projectId, payload);
       setMembers((prev) => [...prev, res.data.data]);
       toast.success("Admin added.");
       setAddMemberOpen(false);
-      setNewMemberId("");
+      setMemberQuery("");
+      setMemberSuggestions([]);
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to add Admin.");
     } finally {
       setAddingMember(false);
     }
   };
+
+  // Debounced email autocomplete for the "Add Admin" dialog. Only fires in
+  // email mode with a 3+ char prefix; suggestions clear when the dialog
+  // closes or the mode switches to raw User id.
+  useEffect(() => {
+    if (memberMode !== "email" || !addMemberOpen) {
+      setMemberSuggestions([]);
+      return;
+    }
+    const q = memberQuery.trim().toLowerCase();
+    if (q.length < 3 || (memberPickedEmail && q === memberPickedEmail)) {
+      setMemberSuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setMemberSearching(true);
+      try {
+        const res = await searchProjectMembers(projectId, q);
+        if (!cancelled) setMemberSuggestions(res.data?.data ?? []);
+      } catch {
+        if (!cancelled) setMemberSuggestions([]);
+      } finally {
+        if (!cancelled) setMemberSearching(false);
+      }
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [memberQuery, memberMode, addMemberOpen, memberPickedEmail, projectId]);
 
   const handleRemoveMember = async () => {
     if (!removeMemberTarget) return;
@@ -1157,8 +1200,8 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                 <CardTitle>Members</CardTitle>
                 <CardDescription>
                   Admins who can manage this Project via their own Clerk
-                  session. v1 adds by internal Persona User id only — no email
-                  lookup yet.
+                  session. Add by email (search as you type) or paste an
+                  internal Persona User id.
                 </CardDescription>
               </div>
               <Button
@@ -1927,24 +1970,85 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
             <DialogHeader>
               <DialogTitle>Add Admin</DialogTitle>
               <DialogDescription>
-                Grants Admin membership to an existing Persona User by their
-                internal id.
+                Grants Admin membership to an existing Persona User. Search by
+                email, or switch to paste an internal User id.
               </DialogDescription>
             </DialogHeader>
             <FieldGroup className="py-4">
               <Field>
-                <FieldLabel htmlFor="new-member-id">Persona User ID</FieldLabel>
-                <Input
-                  id="new-member-id"
-                  value={newMemberId}
-                  onChange={(e) => setNewMemberId(e.target.value)}
-                  placeholder="e.g. 64f1c2..."
-                  required
-                />
+                <FieldLabel htmlFor="new-member-id">
+                  {memberMode === "email" ? "Email" : "Persona User ID"}
+                </FieldLabel>
+                <div className="relative">
+                  <Input
+                    id="new-member-id"
+                    value={memberQuery}
+                    onChange={(e) => {
+                      setMemberQuery(e.target.value);
+                      setMemberPickedEmail(null);
+                    }}
+                    placeholder={
+                      memberMode === "email"
+                        ? "e.g. sabik@beyond.campus"
+                        : "e.g. 64f1c2..."
+                    }
+                    type={memberMode === "email" ? "email" : "text"}
+                    required
+                  />
+                  {memberMode === "email" &&
+                    !memberSearching &&
+                    memberSuggestions.length === 0 &&
+                    memberQuery.trim().length >= 3 &&
+                    memberQuery.trim().toLowerCase() !== memberPickedEmail && (
+                      <p className="mt-1 rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                        No matching users — they may not have a Persona account
+                        yet, or the email is wrong.
+                      </p>
+                    )}
+                  {memberMode === "email" && memberSuggestions.length > 0 && (
+                    <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
+                      {memberSuggestions.map((u) => (
+                        <button
+                          key={u.id}
+                          type="button"
+                          className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm transition-colors hover:bg-accent"
+                          onClick={() => {
+                            setMemberQuery(u.email);
+                            setMemberPickedEmail(u.email.toLowerCase());
+                            setMemberSuggestions([]);
+                          }}
+                        >
+                          <span className="font-medium">{u.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {u.email}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {memberMode === "email" && memberSearching && (
+                    <Loader2 className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                  )}
+                </div>
                 <FieldDescription>
-                  v1 has no email lookup — use the internal Persona User id.
+                  {memberMode === "email"
+                    ? "Start typing an email — matching Persona users appear below."
+                    : "Paste the internal Persona User id (shown in the Members table)."}
                 </FieldDescription>
               </Field>
+              <button
+                type="button"
+                className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                onClick={() => {
+                  setMemberMode((m) => (m === "email" ? "id" : "email"));
+                  setMemberQuery("");
+                  setMemberSuggestions([]);
+                }}
+              >
+                {memberMode === "email"
+                  ? "Add by internal User id instead"
+                  : "Add by email instead"}
+              </button>
             </FieldGroup>
             <DialogFooter>
               <Button
