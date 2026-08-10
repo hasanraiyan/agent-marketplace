@@ -60,7 +60,9 @@ def test_get_file():
     assert file["content"] == "# Preferences"
     sent = route.calls.last.request
     assert sent.url.params["path"] == "/memories/user/index.md"
-    assert sent.url.params["scope"] == "user"
+    # scope is omitted when not specified — the server applies the
+    # documented 'user' default (memory.service.js: getMemoryFile(scope='user')).
+    assert "scope" not in sent.url.params
 
 
 @respx.mock
