@@ -27,7 +27,10 @@ async client is the `await`-ed equivalent of the sync one (resource methods diff
 | `.threads`      | `Threads`             | `AsyncThreads`          | `/api/v1/developer/threads`                                           |
 | `.files`        | `Files`               | `AsyncFiles`            | `/api/v1/developer/files`                                             |
 | `.audit_logs`   | `AuditLogs`           | `AsyncAuditLogs`        | `/api/v1/developer/audit-logs`                                        |
+| `.memory`       | `Memory`              | `AsyncMemory`           | `/api/v1/developer/memory`                                            |
+| `.stores`       | `Stores`              | `AsyncStores`           | `/api/v1/developer/stores`                                            |
 | `.chat`         | `ChatClient`          | `AsyncChatClient`       | `/api/v1/developer/agui` (streaming)                                  |
+| `.architect`    | `ArchitectClient`     | `AsyncArchitectClient`  | `/api/v1/developer/architect/agui` (streaming)                        |
 
 Every method on every resource client is a thin, typed 1:1 wrapper over a real endpoint — there's
 no hidden behavior. See [Resources](/guides/sdk-python/resources/agents) for the per-resource

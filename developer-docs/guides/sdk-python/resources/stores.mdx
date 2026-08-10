@@ -9,6 +9,13 @@ Stores are **named, scoped mount points you create and assign to Agents** (`Agen
 settable via `agents.update()`), generalizing the fixed `/memories/user/`/`/memories/agent/` mounts
 into arbitrarily-named ones. A Store is mounted at `/stores/<name>/` in the Agent's filesystem.
 
+<Note>
+  As of this release, the **Python SDK doesn't type `storeMounts` on its `Agent`/`agents`
+  create/update inputs yet** (the Node SDK does). At runtime the backend accepts it, but
+  `mypy`/`pyright` won't know about it — pass it as an extra dict key, or use the Node SDK for
+  typed store mounting. See [Compatibility — parity](/guides/sdk-python/compatibility#version-compatibility).
+</Note>
+
 ## Ownership rules
 
 - **Config CRUD** (`create`/`list`/`get`/`update`/`delete`) works with a **bare Project

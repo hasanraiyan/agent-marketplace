@@ -54,14 +54,15 @@ anywhere Python does. The documented recipes are conventions, not requirements:
 
 ## Version compatibility
 
-- **SDK version:** `0.2.x` (currently `0.2.3`). The docs in this section track that release.
+- **SDK version:** `0.3.x` (currently `0.3.0`). The docs in this section track that release.
 - **API version:** the SDK calls the `/api/v1/` Developer Platform API. The API is versioned by URL
   prefix and does not add custom versioning — the SDK follows the platform's compatibility rules
   (no breaking changes to existing endpoints without approval).
-- **Parity with the Node SDK:** `personaai` mirrors `@personaai/sdk`'s resource surface. Known
+- **Parity with the Node SDK:** `personaai` mirrors `@personaai/sdk`'s resource surface —
+  including `Memory`, `Stores`, and the `Architect` chat client (added in 0.3.0). Known
   differences as of this release:
-  - No `Memory` or `Stores` resources, and no `Architect` chat client (the Node SDK has these; the
-    Python SDK doesn't yet).
+  - `Agent`/`CreateAgentInput`/`UpdateAgentInput` lack `storeMounts` and `interruptOn` (the Node
+    SDK's Agent types have these; the Python SDK doesn't yet).
   - No `contextOverride` or cancellation parameter on chat calls — wrap in `asyncio.wait_for(...)`
     for timeouts.
   - `ChatResult` has no `error` field — a failed run raises `PersonaApiError` rather than returning
