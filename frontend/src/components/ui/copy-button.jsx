@@ -22,7 +22,12 @@ import { Button } from "@/components/ui/button";
  *   the value itself in a monospace chip with a trailing copy icon — for
  *   table cells/detail rows where nothing else renders the id.
  */
-export function CopyButton({ value, label = "Value", variant = "icon", className }) {
+export function CopyButton({
+  value,
+  label = "Value",
+  variant = "icon",
+  className,
+}) {
   const [copied, setCopied] = React.useState(false);
   const timeoutRef = React.useRef(null);
 
@@ -60,7 +65,9 @@ export function CopyButton({ value, label = "Value", variant = "icon", className
         <Icon
           className={cn(
             "size-3 shrink-0",
-            copied ? "text-emerald-500" : "text-muted-foreground/70 group-hover:text-foreground",
+            copied
+              ? "text-emerald-500"
+              : "text-muted-foreground/70 group-hover:text-foreground",
           )}
         />
       </button>

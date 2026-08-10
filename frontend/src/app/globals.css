@@ -132,7 +132,11 @@
 }
 
 @utility bg-dot-grid {
-  background-image: radial-gradient(circle, var(--border) 0.5px, transparent 0.5px);
+  background-image: radial-gradient(
+    circle,
+    var(--border) 0.5px,
+    transparent 0.5px
+  );
   background-size: 32px 32px;
   background-position: center;
 }
@@ -227,21 +231,21 @@
 @utility scrollbar-thin {
   scrollbar-width: thin;
   scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
-  
+
   &::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
-  
+
   &::-webkit-scrollbar-track {
     background: transparent;
   }
-  
+
   &::-webkit-scrollbar-thumb {
     background-color: rgba(156, 163, 175, 0.25);
     border-radius: 9999px;
   }
-  
+
   &::-webkit-scrollbar-thumb:hover {
     background-color: rgba(156, 163, 175, 0.45);
   }

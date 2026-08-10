@@ -174,7 +174,8 @@ function NameDescriptionTable({
   const selectable = !!onBulkDelete;
 
   const allIds = items.map((item) => item._id || item.id);
-  const allSelected = selectable && selected.size > 0 && selected.size === allIds.length;
+  const allSelected =
+    selectable && selected.size > 0 && selected.size === allIds.length;
   const toggleAll = () => {
     setSelected(allSelected ? new Set() : new Set(allIds));
   };
@@ -234,7 +235,9 @@ function NameDescriptionTable({
             <TableHead className="hidden lg:table-cell">ID</TableHead>
             <TableHead>Description</TableHead>
             <TableHead className="hidden md:table-cell">Created</TableHead>
-            {showActions && <TableHead className="text-right">Actions</TableHead>}
+            {showActions && (
+              <TableHead className="text-right">Actions</TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -412,7 +415,9 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   const [deleteProviderTarget, setDeleteProviderTarget] = useState(null);
   const [deletingProvider, setDeletingProvider] = useState(false);
   const [testingProviderId, setTestingProviderId] = useState(null);
-  const [selectedProviderIds, setSelectedProviderIds] = useState(() => new Set());
+  const [selectedProviderIds, setSelectedProviderIds] = useState(
+    () => new Set(),
+  );
   const [bulkDeletingProviders, setBulkDeletingProviders] = useState(false);
   const [stores, setStores] = useState([]);
   const [storesLoading, setStoresLoading] = useState(true);
@@ -567,7 +572,9 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
           setAuditLogsPages(res.data.data.pagination.pages || 1);
         }
       } catch (err) {
-        toast.error(err.response?.data?.message || "Failed to load audit logs.");
+        toast.error(
+          err.response?.data?.message || "Failed to load audit logs.",
+        );
       } finally {
         setAuditLogsLoading(false);
       }
@@ -800,7 +807,9 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
 
   const toggleAllProviders = () => {
     setSelectedProviderIds((prev) =>
-      prev.size === providers.length ? new Set() : new Set(providers.map((p) => p.id)),
+      prev.size === providers.length
+        ? new Set()
+        : new Set(providers.map((p) => p.id)),
     );
   };
   const toggleOneProvider = (id) => {
@@ -827,7 +836,9 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
       const res = await testProjectProviderConnection(projectId, provider.id);
       const result = res.data?.data;
       if (result?.success === false) {
-        toast.error(result?.message || `Couldn't connect to ${provider.label}.`);
+        toast.error(
+          result?.message || `Couldn't connect to ${provider.label}.`,
+        );
       } else {
         toast.success(`${provider.label} connection OK.`);
       }
@@ -930,10 +941,14 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
     const { deleted, failed } = res.data.data;
     if (deleted.length > 0) {
       const deletedSet = new Set(deleted);
-      setItems((prev) => prev.filter((item) => !deletedSet.has(item._id || item.id)));
+      setItems((prev) =>
+        prev.filter((item) => !deletedSet.has(item._id || item.id)),
+      );
     }
     if (failed.length === 0) {
-      toast.success(`${deleted.length} ${resourceLabel}${deleted.length === 1 ? "" : "s"} deleted.`);
+      toast.success(
+        `${deleted.length} ${resourceLabel}${deleted.length === 1 ? "" : "s"} deleted.`,
+      );
     } else {
       toast.error(
         `${deleted.length} deleted, ${failed.length} couldn't be deleted (still in use, or not found).`,
@@ -1499,100 +1514,104 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                       </Button>
                     </div>
                   )}
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-10">
-                        <Checkbox
-                          checked={
-                            selectedProviderIds.size > 0 &&
-                            selectedProviderIds.size === providers.length
-                          }
-                          onCheckedChange={toggleAllProviders}
-                          aria-label="Select all"
-                        />
-                      </TableHead>
-                      <TableHead>Label</TableHead>
-                      <TableHead className="hidden lg:table-cell">ID</TableHead>
-                      <TableHead>Base URL</TableHead>
-                      <TableHead className="hidden md:table-cell">
-                        Default Model
-                      </TableHead>
-                      <TableHead className="hidden md:table-cell">
-                        Created
-                      </TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {providers.map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-10">
                           <Checkbox
-                            checked={selectedProviderIds.has(p.id)}
-                            onCheckedChange={() => toggleOneProvider(p.id)}
-                            aria-label={`Select ${p.label}`}
+                            checked={
+                              selectedProviderIds.size > 0 &&
+                              selectedProviderIds.size === providers.length
+                            }
+                            onCheckedChange={toggleAllProviders}
+                            aria-label="Select all"
                           />
-                        </TableCell>
-                        <TableCell className="font-medium">{p.label}</TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          <CopyButton
-                            value={p.id}
-                            label={`${p.label || "Provider"} ID`}
-                            variant="inline"
-                            className="max-w-[160px]"
-                          />
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {p.baseURL}
-                        </TableCell>
-                        <TableCell className="hidden text-muted-foreground md:table-cell">
-                          {p.defaultModel || "—"}
-                        </TableCell>
-                        <TableCell className="hidden text-muted-foreground md:table-cell">
-                          {p.createdAt
-                            ? new Date(p.createdAt).toLocaleDateString()
-                            : "—"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={testingProviderId === p.id}
-                              onClick={() => handleTestProviderConnection(p)}
-                            >
-                              {testingProviderId === p.id ? (
-                                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                              ) : (
-                                <Zap className="mr-1.5 size-3.5" />
-                              )}
-                              Test
-                            </Button>
-                            <Link
-                              href={developerRoutes.projectProviderEdit(
-                                projectId,
-                                p.id,
-                              )}
-                            >
-                              <Button variant="ghost" size="sm">
-                                Edit
-                              </Button>
-                            </Link>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => setDeleteProviderTarget(p)}
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        </TableCell>
+                        </TableHead>
+                        <TableHead>Label</TableHead>
+                        <TableHead className="hidden lg:table-cell">
+                          ID
+                        </TableHead>
+                        <TableHead>Base URL</TableHead>
+                        <TableHead className="hidden md:table-cell">
+                          Default Model
+                        </TableHead>
+                        <TableHead className="hidden md:table-cell">
+                          Created
+                        </TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {providers.map((p) => (
+                        <TableRow key={p.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedProviderIds.has(p.id)}
+                              onCheckedChange={() => toggleOneProvider(p.id)}
+                              aria-label={`Select ${p.label}`}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {p.label}
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            <CopyButton
+                              value={p.id}
+                              label={`${p.label || "Provider"} ID`}
+                              variant="inline"
+                              className="max-w-[160px]"
+                            />
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {p.baseURL}
+                          </TableCell>
+                          <TableCell className="hidden text-muted-foreground md:table-cell">
+                            {p.defaultModel || "—"}
+                          </TableCell>
+                          <TableCell className="hidden text-muted-foreground md:table-cell">
+                            {p.createdAt
+                              ? new Date(p.createdAt).toLocaleDateString()
+                              : "—"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={testingProviderId === p.id}
+                                onClick={() => handleTestProviderConnection(p)}
+                              >
+                                {testingProviderId === p.id ? (
+                                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                                ) : (
+                                  <Zap className="mr-1.5 size-3.5" />
+                                )}
+                                Test
+                              </Button>
+                              <Link
+                                href={developerRoutes.projectProviderEdit(
+                                  projectId,
+                                  p.id,
+                                )}
+                              >
+                                <Button variant="ghost" size="sm">
+                                  Edit
+                                </Button>
+                              </Link>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => setDeleteProviderTarget(p)}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
@@ -1610,8 +1629,8 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
               <CardDescription>
                 This Project&apos;s lifecycle trail — credentials minted/
                 revoked, membership changes, suspend/restore. Resource CRUD
-                (Agents/Skills/Knowledge/Providers/MCPs) isn&apos;t logged
-                here yet.
+                (Agents/Skills/Knowledge/Providers/MCPs) isn&apos;t logged here
+                yet.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -2208,9 +2227,9 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this Store?</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleteStoreTarget?.name} and all of its data will be
-              permanently deleted, and it will be removed from every Agent
-              that mounts it. This cannot be undone.
+              {deleteStoreTarget?.name} and all of its data will be permanently
+              deleted, and it will be removed from every Agent that mounts it.
+              This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

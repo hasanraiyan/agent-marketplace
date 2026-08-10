@@ -1,0 +1,79 @@
+import { vi } from 'vitest';
+import {
+  createRuntime,
+  type CreateRuntimeOptions,
+  type ResolveUser,
+  type RuntimeHooks,
+  type RuntimeCapabilities,
+} from '../src/index.js';
+
+export function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify({ success: true, data: body }), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+export function jsonErrorResponse(status: number, message: string, code = 'ERROR'): Response {
+  return new Response(JSON.stringify({ success: false, message, code }), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+export function sseResponse(events: unknown[], status = 200): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const event of events) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      }
+      controller.close();
+    },
+  });
+  return new Response(stream, { status, headers: { 'content-type': 'text/event-stream' } });
+}
+
+export function makeRuntime(overrides: {
+  fetchMock: ReturnType<typeof vi.fn>;
+  resolveUser?: ResolveUser;
+  hooks?: RuntimeHooks;
+  mode?: CreateRuntimeOptions['mode'];
+  mountPath?: string;
+  heartbeatIntervalMs?: number;
+  capabilities?: RuntimeCapabilities;
+}) {
+  return createRuntime({
+    baseUrl: 'https://api.example.com',
+    credential: 'key.secret',
+    fetch: overrides.fetchMock as unknown as typeof fetch,
+    resolveUser: overrides.resolveUser ?? (() => 'user-1'),
+    hooks: overrides.hooks,
+    mode: overrides.mode,
+    mountPath: overrides.mountPath,
+    heartbeatIntervalMs: overrides.heartbeatIntervalMs,
+    capabilities: overrides.capabilities,
+  });
+}
+
+/**
+ * A mock SSE `Response` whose ReadableStream emits each event only after a
+ * delay (via `pull()`), so tests can force a gap between events long enough
+ * for a heartbeat to fire.
+ */
+export function delayedSseResponse(events: unknown[], delayMs: number, status = 200): Response {
+  const encoder = new TextEncoder();
+  let index = 0;
+  const stream = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      if (index >= events.length) {
+        controller.close();
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify(events[index])}\n\n`));
+      index += 1;
+    },
+  });
+  return new Response(stream, { status, headers: { 'content-type': 'text/event-stream' } });
+}

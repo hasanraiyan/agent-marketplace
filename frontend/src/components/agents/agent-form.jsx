@@ -143,7 +143,7 @@ export function AgentForm({
     try {
       const res = await uploadAvatar(file);
       toast.dismiss(toastId);
-      
+
       if (res.data?.success && res.data?.data?.url) {
         update("avatar", res.data.data.url);
         toast.success("Image uploaded successfully!");
@@ -178,10 +178,15 @@ export function AgentForm({
         tagline: initialData.tagline || "",
         bio: initialData.bio || "",
         personalityTraits: initialData.personalityTraits || [],
-        socialLinks: { ...DEFAULT_SOCIAL_LINKS, ...(initialData.socialLinks || {}) },
+        socialLinks: {
+          ...DEFAULT_SOCIAL_LINKS,
+          ...(initialData.socialLinks || {}),
+        },
         skills: (initialData.skills || []).map((s) => s._id || s.id || s),
         mcps: (initialData.mcps || []).map((m) => m._id || m.id || m),
-        knowledgeBases: (initialData.knowledgeBases || []).map((kb) => kb._id || kb.id || kb),
+        knowledgeBases: (initialData.knowledgeBases || []).map(
+          (kb) => kb._id || kb.id || kb,
+        ),
         systemPrompt: initialData.systemPrompt || "",
         providerId: initialData.providerId || "",
         modelName: initialData.modelName || "",
@@ -409,7 +414,8 @@ export function AgentForm({
     if (sanitized.tags?.length === 0) delete sanitized.tags;
     if (!sanitized.tagline) delete sanitized.tagline;
     if (!sanitized.bio) delete sanitized.bio;
-    if (sanitized.personalityTraits?.length === 0) delete sanitized.personalityTraits;
+    if (sanitized.personalityTraits?.length === 0)
+      delete sanitized.personalityTraits;
     if (
       sanitized.socialLinks &&
       Object.values(sanitized.socialLinks).every((v) => !v)
@@ -599,8 +605,8 @@ export function AgentForm({
 
         <div className="grid gap-6">
           <FieldDescription className="text-xs -mt-2">
-            Personal touches that make this persona feel like someone, not
-            just a config. All optional.
+            Personal touches that make this persona feel like someone, not just
+            a config. All optional.
           </FieldDescription>
 
           <Field>
@@ -800,7 +806,9 @@ export function AgentForm({
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {availableMcps.map((mcp) => {
-                const isSelected = (form.mcps || []).includes(mcp._id || mcp.id);
+                const isSelected = (form.mcps || []).includes(
+                  mcp._id || mcp.id,
+                );
                 const authLabel =
                   mcp.authType !== "oauth"
                     ? "No auth"
@@ -891,9 +899,7 @@ export function AgentForm({
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-bold truncate">
-                          {kb.name}
-                        </p>
+                        <p className="text-sm font-bold truncate">{kb.name}</p>
                         {isSelected && (
                           <Check className="size-3.5 text-emerald-600 shrink-0" />
                         )}

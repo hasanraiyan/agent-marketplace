@@ -43,7 +43,8 @@ export function SiteHeader({ fallback = DASHBOARD_FALLBACK }) {
         : pathname === route.path || pathname.startsWith(`${route.path}/`),
     );
 
-  const title = pageHeader.title || (activeRoute ? activeRoute.title : fallback.title);
+  const title =
+    pageHeader.title || (activeRoute ? activeRoute.title : fallback.title);
   const fallbackAction = fallback.action;
   const actions =
     pageHeader.actions !== null && pageHeader.actions !== undefined
@@ -70,7 +71,9 @@ export function SiteHeader({ fallback = DASHBOARD_FALLBACK }) {
               {title}
             </h1>
             {pageHeader.description ? (
-              <div className={`truncate text-xs text-muted-foreground ${pageHeader.tabs ? "hidden sm:block" : ""}`}>
+              <div
+                className={`truncate text-xs text-muted-foreground ${pageHeader.tabs ? "hidden sm:block" : ""}`}
+              >
                 {pageHeader.description}
               </div>
             ) : null}

@@ -166,12 +166,19 @@ function ThreadItem({ thread, agent, isActive, onRename, onDelete }) {
             side={isMobile ? "bottom" : "right"}
             align={isMobile ? "end" : "start"}
           >
-            <DropdownMenuItem onSelect={() => setRenaming(true)} className="cursor-pointer">
+            <DropdownMenuItem
+              onSelect={() => setRenaming(true)}
+              className="cursor-pointer"
+            >
               <PencilIcon className="size-3.5 mr-2" />
               <span>Rename</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onSelect={handleDelete} className="cursor-pointer">
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={handleDelete}
+              className="cursor-pointer"
+            >
               <Trash2Icon className="size-3.5 mr-2" />
               <span>Delete</span>
             </DropdownMenuItem>
@@ -246,7 +253,10 @@ export function NavThreads({
       className="group/collapsible data-[state=open]:flex-1 data-[state=open]:min-h-0 flex flex-col overflow-hidden border-t border-slate-150/50 dark:border-slate-850/40 mt-4 pt-4"
     >
       <SidebarGroup className="group-data-[collapsible=icon]:hidden pr-0 group-data-[state=open]/collapsible:flex-1 group-data-[state=open]/collapsible:min-h-0 flex flex-col overflow-hidden p-0">
-        <SidebarGroupLabel asChild className="cursor-pointer select-none text-[11px] font-bold tracking-wider uppercase text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-350 transition-colors px-3 mb-2">
+        <SidebarGroupLabel
+          asChild
+          className="cursor-pointer select-none text-[11px] font-bold tracking-wider uppercase text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-350 transition-colors px-3 mb-2"
+        >
           <CollapsibleTrigger className="flex w-full items-center justify-between">
             <span className="flex items-center gap-1.5">
               Threads

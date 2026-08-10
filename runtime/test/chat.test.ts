@@ -1,0 +1,305 @@
+import { describe, expect, it, vi } from 'vitest';
+import { EventType } from '@personaai/sdk';
+import { jsonErrorResponse, sseResponse, makeRuntime } from './helpers.js';
+
+async function drain(body: AsyncIterable<string>): Promise<string[]> {
+  const frames: string[] = [];
+  for await (const chunk of body) frames.push(chunk);
+  return frames;
+}
+
+describe('POST /chat', () => {
+  it('returns SSE headers and formats frames as data: <json>\\n\\n with no event:/id: lines', async () => {
+    const events = [
+      { type: EventType.TEXT_MESSAGE_CHUNK, delta: 'Hi' },
+      { type: EventType.RUN_FINISHED, threadId: 't1', runId: 'r1' },
+    ];
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse(events));
+    const runtime = makeRuntime({ fetchMock });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/chat',
+      headers: {},
+      query: {},
+      body: { agentId: 'agent-1', messages: [{ role: 'user', content: 'hi' }] },
+      userId: null,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.kind).toBe('stream');
+    if (response.kind !== 'stream') return;
+    expect(response.headers['content-type']).toBe('text/event-stream');
+
+    const frames = await drain(response.body);
+    expect(frames).toEqual([
+      `data: ${JSON.stringify(events[0])}\n\n`,
+      `data: ${JSON.stringify(events[1])}\n\n`,
+    ]);
+  });
+
+  it('fires beforeRun before the stream is consumed, afterRun once it completes', async () => {
+    const order: string[] = [];
+    const events = [{ type: EventType.TEXT_MESSAGE_CHUNK, delta: 'hi' }];
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse(events));
+    const runtime = makeRuntime({
+      fetchMock,
+      hooks: {
+        beforeRun: async () => {
+          order.push('beforeRun');
+        },
+        afterRun: async () => {
+          order.push('afterRun');
+        },
+      },
+    });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/chat',
+      headers: {},
+      query: {},
+      body: { agentId: 'agent-1', messages: [] },
+      userId: null,
+    });
+
+    expect(order).toEqual(['beforeRun']);
+    if (response.kind === 'stream') await drain(response.body);
+    expect(order).toEqual(['beforeRun', 'afterRun']);
+  });
+
+  it('afterRun still fires (with erroredInBand: true) when the last event is RUN_ERROR', async () => {
+    let capturedResult: unknown;
+    const events = [
+      { type: EventType.TEXT_MESSAGE_CHUNK, delta: 'partial' },
+      {
+        type: EventType.RUN_ERROR,
+        code: 'PROVIDER_AUTH_ERROR',
+        message: 'bad key',
+        retryable: false,
+      },
+    ];
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse(events));
+    const runtime = makeRuntime({
+      fetchMock,
+      hooks: { afterRun: (_ctx, result) => void (capturedResult = result) },
+    });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/chat',
+      headers: {},
+      query: {},
+      body: { agentId: 'agent-1', messages: [] },
+      userId: null,
+    });
+    if (response.kind === 'stream') await drain(response.body);
+
+    expect(capturedResult).toMatchObject({ erroredInBand: true, text: 'partial', eventCount: 2 });
+  });
+
+  it('a throwing afterRun does not corrupt the stream with a synthesized RUN_ERROR, and does not fire onError', async () => {
+    const events = [
+      { type: EventType.TEXT_MESSAGE_CHUNK, delta: 'Hi' },
+      { type: EventType.RUN_FINISHED, threadId: 't1', runId: 'r1' },
+    ];
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse(events));
+    const onError = vi.fn();
+    const runtime = makeRuntime({
+      fetchMock,
+      hooks: {
+        afterRun: () => {
+          throw new Error('audit log write failed');
+        },
+        onError,
+      },
+    });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/chat',
+      headers: {},
+      query: {},
+      body: { agentId: 'agent-1', messages: [{ role: 'user', content: 'hi' }] },
+      userId: null,
+    });
+    if (response.kind !== 'stream') throw new Error('expected a stream response');
+    const frames = await drain(response.body);
+
+    expect(frames).toEqual([
+      `data: ${JSON.stringify(events[0])}\n\n`,
+      `data: ${JSON.stringify(events[1])}\n\n`,
+    ]);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('immediate failure (401 on the initial POST) returns a buffered error; onError called, afterRun not', async () => {
+    const onError = vi.fn();
+    const afterRun = vi.fn();
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonErrorResponse(401, 'bad credential', 'PROVIDER_AUTH_ERROR')
+    );
+    const runtime = makeRuntime({ fetchMock, hooks: { onError, afterRun } });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/chat',
+      headers: {},
+      query: {},
+      body: { agentId: 'agent-1', messages: [] },
+      userId: null,
+    });
+
+    expect(response.kind).toBe('buffered');
+    expect(response.status).toBe(401);
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(afterRun).not.toHaveBeenCalled();
+  });
+
+  it('mid-stream failure yields the good events then a synthesized RUN_ERROR frame, calls onError', async () => {
+    const onError = vi.fn();
+    const encoder = new TextEncoder();
+    const goodEvent = { type: EventType.TEXT_MESSAGE_CHUNK, delta: 'ok' };
+    let pullCount = 0;
+    // `pull()` fires once per `reader.read()` call, so this deterministically
+    // delivers the good chunk on the first read and errors on the second —
+    // unlike enqueueing then erroring inside `start()`, which the streams
+    // spec resets the queue for before any read ever happens.
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pullCount += 1;
+        if (pullCount === 1) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(goodEvent)}\n\n`));
+        } else {
+          controller.error(new Error('connection reset'));
+        }
+      },
+    });
+    const fetchMock = vi.fn(
+      async (_url: string, _init?: RequestInit) =>
+        new Response(stream, { status: 200, headers: { 'content-type': 'text/event-stream' } })
+    );
+    const runtime = makeRuntime({ fetchMock, hooks: { onError }, mode: 'production' });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/chat',
+      headers: {},
+      query: {},
+      body: { agentId: 'agent-1', messages: [] },
+      userId: null,
+    });
+
+    expect(response.kind).toBe('stream');
+    if (response.kind !== 'stream') return;
+    const frames = await drain(response.body);
+
+    expect(frames[0]).toBe(`data: ${JSON.stringify(goodEvent)}\n\n`);
+    expect(frames).toHaveLength(2);
+    const errorFrame = JSON.parse(frames[1]!.replace(/^data: /, '').trim());
+    expect(errorFrame.type).toBe(EventType.RUN_ERROR);
+    expect(errorFrame.code).toBe('INTERNAL_ERROR');
+    expect(errorFrame.message).toBe('An internal error occurred.');
+    expect(onError).toHaveBeenCalledTimes(1);
+  });
+
+  it('a malformed body (missing agentId/messages) returns 400 and calls no hooks', async () => {
+    const beforeRun = vi.fn();
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse([]));
+    const runtime = makeRuntime({ fetchMock, hooks: { beforeRun } });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/chat',
+      headers: {},
+      query: {},
+      body: { messages: [] },
+      userId: null,
+    });
+
+    expect(response.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(beforeRun).not.toHaveBeenCalled();
+  });
+
+  it('fires beforeToolCall on TOOL_CALL_START and afterToolCall on the matching TOOL_CALL_RESULT', async () => {
+    const beforeToolCall = vi.fn();
+    const afterToolCall = vi.fn();
+    const events = [
+      { type: EventType.TOOL_CALL_START, toolCallId: 'tc1', toolCallName: 'search' },
+      { type: EventType.TOOL_CALL_RESULT, toolCallId: 'tc1', content: '{"results":[]}' },
+    ];
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse(events));
+    const runtime = makeRuntime({ fetchMock, hooks: { beforeToolCall, afterToolCall } });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/chat',
+      headers: {},
+      query: {},
+      body: { agentId: 'agent-1', messages: [], threadId: 'thread-1' },
+      userId: null,
+    });
+    if (response.kind === 'stream') await drain(response.body);
+
+    expect(beforeToolCall).toHaveBeenCalledWith({
+      userId: 'user-1',
+      agentId: 'agent-1',
+      threadId: 'thread-1',
+      toolName: 'search',
+      toolCallId: 'tc1',
+    });
+    expect(afterToolCall).toHaveBeenCalledWith(
+      {
+        userId: 'user-1',
+        agentId: 'agent-1',
+        threadId: 'thread-1',
+        toolName: 'search',
+        toolCallId: 'tc1',
+      },
+      '{"results":[]}'
+    );
+  });
+
+  it('fires onThreadCreate when RUN_STARTED reports a new threadId and none was supplied', async () => {
+    const onThreadCreate = vi.fn();
+    const events = [{ type: EventType.RUN_STARTED, threadId: 'implicit-t1', runId: 'r1' }];
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse(events));
+    const runtime = makeRuntime({ fetchMock, hooks: { onThreadCreate } });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/chat',
+      headers: {},
+      query: {},
+      body: { agentId: 'agent-1', messages: [{ role: 'user', content: 'hi' }] },
+      userId: null,
+    });
+    if (response.kind === 'stream') await drain(response.body);
+
+    expect(onThreadCreate).toHaveBeenCalledWith({
+      userId: 'user-1',
+      agentId: 'agent-1',
+      threadId: 'implicit-t1',
+    });
+  });
+
+  it('does not fire onThreadCreate when a threadId was already supplied', async () => {
+    const onThreadCreate = vi.fn();
+    const events = [{ type: EventType.RUN_STARTED, threadId: 'thread-1', runId: 'r1' }];
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse(events));
+    const runtime = makeRuntime({ fetchMock, hooks: { onThreadCreate } });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/chat',
+      headers: {},
+      query: {},
+      body: { agentId: 'agent-1', messages: [], threadId: 'thread-1' },
+      userId: null,
+    });
+    if (response.kind === 'stream') await drain(response.body);
+
+    expect(onThreadCreate).not.toHaveBeenCalled();
+  });
+});

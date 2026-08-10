@@ -13,7 +13,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://api.persona.hasanraiyan.me/api/v1";
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://api.persona.hasanraiyan.me/api/v1";
 
 /**
  * Developer Studio "Test" playground — chat with one of this Project's own

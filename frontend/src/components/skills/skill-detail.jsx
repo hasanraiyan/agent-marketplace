@@ -24,7 +24,13 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   AlertDialog,
@@ -38,7 +44,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { FolderOpen, FileText, FileCode, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  FolderOpen,
+  FileText,
+  FileCode,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import { toast } from "sonner";
 import { deleteSkill, getUsedByAgents } from "@/lib/api/skills";
 import { useRouter } from "next/navigation";
@@ -57,14 +69,20 @@ export function SkillDetail({ skill }) {
   // files[] is canonical; codeSnippets is the unmigrated legacy shape
   const bundledFiles =
     skill?.files?.length > 0
-      ? skill.files.map((f) => ({ path: f.path, content: f.content ?? "" })).sort((a, b) => a.path.localeCompare(b.path))
-      : (skill?.codeSnippets || []).map((s) => ({ path: s.filename, content: s.code ?? "" })).sort((a, b) => a.path.localeCompare(b.path));
+      ? skill.files
+          .map((f) => ({ path: f.path, content: f.content ?? "" }))
+          .sort((a, b) => a.path.localeCompare(b.path))
+      : (skill?.codeSnippets || [])
+          .map((s) => ({ path: s.filename, content: s.code ?? "" }))
+          .sort((a, b) => a.path.localeCompare(b.path));
 
   useEffect(() => {
     if (skill) {
       getUsedByAgents(skill._id || skill.id)
         .then((res) => setUsedByAgents(res.data?.data || []))
-        .catch(err => console.error("Failed to fetch agents using skill", err));
+        .catch((err) =>
+          console.error("Failed to fetch agents using skill", err),
+        );
     }
   }, [skill]);
 
@@ -94,8 +112,7 @@ export function SkillDetail({ skill }) {
 
   const skillId = skill._id || skill.id;
   const isOwner =
-    skill.isOwner === true ||
-    mySkills.some((s) => (s._id || s.id) === skillId);
+    skill.isOwner === true || mySkills.some((s) => (s._id || s.id) === skillId);
 
   const handleCopyText = () => {
     if (typeof window !== "undefined" && skill.instructions) {
@@ -127,9 +144,15 @@ export function SkillDetail({ skill }) {
                         className="text-xs font-semibold px-2.5 py-0.5 rounded-full"
                       >
                         {skill.isPublic ? (
-                          <><Globe className="size-3 mr-1" />Public</>
+                          <>
+                            <Globe className="size-3 mr-1" />
+                            Public
+                          </>
                         ) : (
-                          <><Lock className="size-3 mr-1" />Private</>
+                          <>
+                            <Lock className="size-3 mr-1" />
+                            Private
+                          </>
                         )}
                       </Badge>
                       <Badge
@@ -137,7 +160,9 @@ export function SkillDetail({ skill }) {
                         className="text-xs font-semibold px-2.5 py-0.5 border-zinc-150/60 dark:border-zinc-800 bg-background/50 rounded-full"
                       >
                         <User className="size-3 mr-1" />
-                        {skill.isOwner ? "You" : skill.ownerId?.username || "Community"}
+                        {skill.isOwner
+                          ? "You"
+                          : skill.ownerId?.username || "Community"}
                       </Badge>
                     </div>
 
@@ -206,7 +231,8 @@ export function SkillDetail({ skill }) {
                       No agents using this skill
                     </h4>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-xs leading-relaxed font-medium">
-                      Attach this skill to an agent in the agent builder to enable its capabilities.
+                      Attach this skill to an agent in the agent builder to
+                      enable its capabilities.
                     </p>
                   </div>
                 )}
@@ -262,14 +288,18 @@ export function SkillDetail({ skill }) {
                     Bundled Files
                   </CardTitle>
                   <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-                    Supporting files shipped alongside SKILL.md — the agent reads them on demand.
+                    Supporting files shipped alongside SKILL.md — the agent
+                    reads them on demand.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {bundledFiles.map((file) => {
                     const isExpanded = expandedFile === file.path;
                     const ext = file.path.split(".").pop()?.toLowerCase();
-                    const Icon = ext === "md" || ext === "markdown" || ext === "txt" ? FileText : FileCode;
+                    const Icon =
+                      ext === "md" || ext === "markdown" || ext === "txt"
+                        ? FileText
+                        : FileCode;
                     return (
                       <div
                         key={file.path}
@@ -277,7 +307,9 @@ export function SkillDetail({ skill }) {
                       >
                         <button
                           type="button"
-                          onClick={() => setExpandedFile(isExpanded ? null : file.path)}
+                          onClick={() =>
+                            setExpandedFile(isExpanded ? null : file.path)
+                          }
                           className="w-full flex items-center gap-2.5 px-4 py-3 text-left transition-colors hover:bg-zinc-100/50 dark:hover:bg-zinc-900/40"
                         >
                           {isExpanded ? (
@@ -311,7 +343,9 @@ export function SkillDetail({ skill }) {
             {/* Quick Actions Card */}
             <Card className="border border-zinc-150/60 dark:border-zinc-900/60 bg-card rounded-3xl p-5 space-y-4 ring-0 shadow-none">
               <div className="space-y-1">
-                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Actions</h3>
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                  Actions
+                </h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
                   Manage this skill configuration.
                 </p>
@@ -363,7 +397,11 @@ export function SkillDetail({ skill }) {
 
                 <div className="flex items-center justify-between px-5 py-3.5 text-xs">
                   <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 font-medium">
-                    {skill.isPublic ? <Globe className="size-3.5" /> : <Lock className="size-3.5" />}
+                    {skill.isPublic ? (
+                      <Globe className="size-3.5" />
+                    ) : (
+                      <Lock className="size-3.5" />
+                    )}
                     <span>Visibility</span>
                   </div>
                   <span className="font-semibold text-zinc-900 dark:text-zinc-150 capitalize">
@@ -425,22 +463,37 @@ export function SkillDetail({ skill }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this skill?</AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
-              <p>This action cannot be undone. This will permanently delete <strong>{skill.name}</strong>.</p>
+              <p>
+                This action cannot be undone. This will permanently delete{" "}
+                <strong>{skill.name}</strong>.
+              </p>
               {usedByAgents.length > 0 && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-400 text-xs">
-                  <p className="font-bold mb-1">Used by {usedByAgents.length} agents:</p>
+                  <p className="font-bold mb-1">
+                    Used by {usedByAgents.length} agents:
+                  </p>
                   <ul className="list-disc list-inside space-y-0.5">
-                    {usedByAgents.slice(0, 3).map(a => <li key={a.id || a._id}>{a.name}</li>)}
-                    {usedByAgents.length > 3 && <li>...and {usedByAgents.length - 3} others</li>}
+                    {usedByAgents.slice(0, 3).map((a) => (
+                      <li key={a.id || a._id}>{a.name}</li>
+                    ))}
+                    {usedByAgents.length > 3 && (
+                      <li>...and {usedByAgents.length - 3} others</li>
+                    )}
                   </ul>
-                  <p className="mt-2 text-[10px]">Removing this skill will affect these agents immediately.</p>
+                  <p className="mt-2 text-[10px]">
+                    Removing this skill will affect these agents immediately.
+                  </p>
                 </div>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               {isDeleting ? "Deleting..." : "Delete Permanently"}
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -4,7 +4,14 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft, Pencil, Trash2, Upload, Search } from "lucide-react";
+import {
+  Loader2,
+  ArrowLeft,
+  Pencil,
+  Trash2,
+  Upload,
+  Search,
+} from "lucide-react";
 import {
   getProjectKnowledge,
   updateProjectKnowledge,
@@ -188,7 +195,11 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
     setSearching(true);
     setSearchError(null);
     try {
-      const res = await searchProjectKnowledge(projectId, kbId, searchQuery.trim());
+      const res = await searchProjectKnowledge(
+        projectId,
+        kbId,
+        searchQuery.trim(),
+      );
       setSearchResults(res.data?.data || []);
     } catch (err) {
       setSearchResults(null);
@@ -351,8 +362,8 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
         <CardHeader>
           <CardTitle>Test Retrieval</CardTitle>
           <CardDescription>
-            Run a search the way an Agent would, to check what this
-            Knowledge Base actually returns before wiring it up.
+            Run a search the way an Agent would, to check what this Knowledge
+            Base actually returns before wiring it up.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -377,8 +388,8 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
             <p className="text-sm text-destructive">{searchError}</p>
           )}
 
-          {searchResults && (
-            searchResults.length > 0 ? (
+          {searchResults &&
+            (searchResults.length > 0 ? (
               <div className="space-y-3">
                 {searchResults.map((r, i) => (
                   <div key={i} className="rounded-md border p-3 text-sm">
@@ -402,8 +413,7 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
               <p className="text-sm text-muted-foreground">
                 No matching chunks found.
               </p>
-            )
-          )}
+            ))}
         </CardContent>
       </Card>
 

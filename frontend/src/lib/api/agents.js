@@ -24,7 +24,12 @@ export async function getMyMainAgent() {
   const ownerId = profile?.id || profile?._id;
   if (!ownerId) return null;
 
-  const res = await searchAgents({ ownerId, page: 1, limit: 100, sortBy: "newest" });
+  const res = await searchAgents({
+    ownerId,
+    page: 1,
+    limit: 100,
+    sortBy: "newest",
+  });
   const agents = res.data?.data || [];
   return agents.find((a) => a.isMainAgent) || null;
 }

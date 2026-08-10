@@ -110,7 +110,8 @@ export function HeroSection() {
                   <div className="size-3 rounded-full bg-green-500/60" />
                 </div>
                 <div className="mx-auto flex h-7 w-64 items-center justify-center rounded-lg bg-background/60 text-xs text-muted-foreground">
-                  <span className="opacity-60">persona.hasanraiyan.me</span>/dashboard
+                  <span className="opacity-60">persona.hasanraiyan.me</span>
+                  /dashboard
                 </div>
               </div>
               {/* Dashboard mock */}

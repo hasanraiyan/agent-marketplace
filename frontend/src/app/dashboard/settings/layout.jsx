@@ -34,9 +34,7 @@ export default function SettingsLayout({ children }) {
 
         {/* Content area */}
         <main className="flex-1 overflow-y-auto scroll-smooth">
-          <div className="max-w-5xl mx-auto">
-            {children}
-          </div>
+          <div className="max-w-5xl mx-auto">{children}</div>
         </main>
       </div>
     </div>

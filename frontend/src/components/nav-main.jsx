@@ -58,14 +58,18 @@ export function NavMain({ items, myAgentId }) {
                     "h-9 rounded-xl transition-all duration-200 px-3",
                     active
                       ? "bg-slate-200/70 text-slate-900 font-bold dark:bg-slate-800/80 dark:text-white shadow-xs"
-                      : "text-slate-650 hover:text-slate-950 hover:bg-slate-100/50 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800/30"
+                      : "text-slate-650 hover:text-slate-950 hover:bg-slate-100/50 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800/30",
                   )}
                 >
                   <Link href={item.url} className="flex items-center gap-2.5">
-                    <span className={cn(
-                      "transition-transform duration-200 group-hover/menu-button:translate-x-0.5",
-                      active ? "text-[#1E60FF]" : "text-slate-450 dark:text-slate-500"
-                    )}>
+                    <span
+                      className={cn(
+                        "transition-transform duration-200 group-hover/menu-button:translate-x-0.5",
+                        active
+                          ? "text-[#1E60FF]"
+                          : "text-slate-450 dark:text-slate-500",
+                      )}
+                    >
                       {item.icon}
                     </span>
                     <span className="text-xs font-semibold">{item.title}</span>

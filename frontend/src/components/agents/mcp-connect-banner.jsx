@@ -19,9 +19,12 @@ export function McpConnectBanner({ mcps }) {
   const perUserMcps = useMemo(
     () =>
       (mcps || []).filter(
-        (m) => m.authType === "oauth" && m.authMode === "user" && m.isEnabled !== false
+        (m) =>
+          m.authType === "oauth" &&
+          m.authMode === "user" &&
+          m.isEnabled !== false,
       ),
-    [mcps]
+    [mcps],
   );
   const idsKey = perUserMcps.map((m) => m._id).join(",");
 
@@ -33,8 +36,8 @@ export function McpConnectBanner({ mcps }) {
       perUserMcps.map((m) =>
         getUserConnectionStatus(m._id)
           .then((res) => [m._id, Boolean(res.data?.data?.connected)])
-          .catch(() => [m._id, false])
-      )
+          .catch(() => [m._id, false]),
+      ),
     ).then((entries) => {
       if (!cancelled) setStatuses(Object.fromEntries(entries));
     });
@@ -48,7 +51,8 @@ export function McpConnectBanner({ mcps }) {
   const handleConnect = useCallback(async (mcpId) => {
     setConnectingId(mcpId);
     try {
-      const returnTo = typeof window !== "undefined" ? window.location.href : undefined;
+      const returnTo =
+        typeof window !== "undefined" ? window.location.href : undefined;
       const res = await getUserAuthorizeUrl(mcpId, returnTo);
       const url = res.data?.data?.url;
       if (url) window.location.href = url;
@@ -80,7 +84,9 @@ export function McpConnectBanner({ mcps }) {
             onClick={() => handleConnect(m._id)}
             disabled={connectingId === m._id}
           >
-            {connectingId === m._id && <Loader2 className="mr-1.5 size-3 animate-spin" />}
+            {connectingId === m._id && (
+              <Loader2 className="mr-1.5 size-3 animate-spin" />
+            )}
             Connect {m.name}
           </Button>
         ))}

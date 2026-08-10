@@ -79,9 +79,7 @@ export default function DangerZonePage() {
       await signOut();
       router.push("/");
     } catch (err) {
-      toast.error(
-        err.response?.data?.message || "Failed to delete account.",
-      );
+      toast.error(err.response?.data?.message || "Failed to delete account.");
       setIsAccountDeleting(false);
     }
   };
@@ -93,16 +91,20 @@ export default function DangerZonePage() {
         <div>
           <h3 className="font-bold text-destructive">Destructive Actions</h3>
           <p className="text-sm text-destructive/80">
-            These actions are permanent and cannot be undone. Please proceed with extreme caution.
+            These actions are permanent and cannot be undone. Please proceed
+            with extreme caution.
           </p>
         </div>
       </div>
 
       <Card className="border-destructive/20 shadow-sm">
         <CardHeader>
-          <CardTitle className="text-destructive">Delete All Chat History</CardTitle>
+          <CardTitle className="text-destructive">
+            Delete All Chat History
+          </CardTitle>
           <CardDescription>
-            Permanently deletes all conversations, chat history, and agent state across all agents. This action is irreversible.
+            Permanently deletes all conversations, chat history, and agent state
+            across all agents. This action is irreversible.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -121,7 +123,8 @@ export default function DangerZonePage() {
         <CardHeader>
           <CardTitle className="text-destructive">Delete Account</CardTitle>
           <CardDescription>
-            Permanently delete your account and all associated data. This action is irreversible.
+            Permanently delete your account and all associated data. This action
+            is irreversible.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -144,7 +147,9 @@ export default function DangerZonePage() {
               Are you absolutely sure?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This action will permanently delete your **entire conversation history** across all agents. You will lose all message threads and agent memory state.
+              This action will permanently delete your **entire conversation
+              history** across all agents. You will lose all message threads and
+              agent memory state.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="my-4 space-y-2">
@@ -160,7 +165,10 @@ export default function DangerZonePage() {
             />
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting} onClick={() => setConfirmText("")}>
+            <AlertDialogCancel
+              disabled={isDeleting}
+              onClick={() => setConfirmText("")}
+            >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
@@ -184,7 +192,10 @@ export default function DangerZonePage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={isAccountAlertOpen} onOpenChange={setIsAccountAlertOpen}>
+      <AlertDialog
+        open={isAccountAlertOpen}
+        onOpenChange={setIsAccountAlertOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="text-destructive flex items-center gap-2">
@@ -192,12 +203,15 @@ export default function DangerZonePage() {
               Delete Account?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This action will permanently delete your account and all associated data including agents, skills, providers and conversation history. This action is irreversible.
+              This action will permanently delete your account and all
+              associated data including agents, skills, providers and
+              conversation history. This action is irreversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="my-4 space-y-2">
             <p className="text-sm font-medium">
-              Please type <span className="font-bold">DELETE ACCOUNT</span> to confirm:
+              Please type <span className="font-bold">DELETE ACCOUNT</span> to
+              confirm:
             </p>
             <Input
               value={confirmAccountText}
@@ -208,7 +222,10 @@ export default function DangerZonePage() {
             />
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isAccountDeleting} onClick={() => setConfirmAccountText("")}>
+            <AlertDialogCancel
+              disabled={isAccountDeleting}
+              onClick={() => setConfirmAccountText("")}
+            >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
@@ -216,7 +233,9 @@ export default function DangerZonePage() {
                 e.preventDefault();
                 handleDeleteAccount();
               }}
-              disabled={isAccountDeleting || confirmAccountText !== "DELETE ACCOUNT"}
+              disabled={
+                isAccountDeleting || confirmAccountText !== "DELETE ACCOUNT"
+              }
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isAccountDeleting ? (

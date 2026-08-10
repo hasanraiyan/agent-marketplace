@@ -82,7 +82,10 @@ export function PersonaOnboardingWizard({
     const trait = customTrait.trim();
     if (!trait) return;
     setForm((prev) => {
-      if (prev.personalityTraits.includes(trait) || prev.personalityTraits.length >= MAX_TRAITS) {
+      if (
+        prev.personalityTraits.includes(trait) ||
+        prev.personalityTraits.length >= MAX_TRAITS
+      ) {
         return prev;
       }
       return { ...prev, personalityTraits: [...prev.personalityTraits, trait] };
@@ -172,9 +175,7 @@ export function PersonaOnboardingWizard({
 
             {step === "bio" && (
               <div className="space-y-3">
-                <h2 className="text-lg font-bold">
-                  Give it a short bio
-                </h2>
+                <h2 className="text-lg font-bold">Give it a short bio</h2>
                 <Textarea
                   autoFocus
                   placeholder="Tell people who this persona is..."
@@ -199,7 +200,10 @@ export function PersonaOnboardingWizard({
                         key={trait}
                         type="button"
                         onClick={() => toggleTrait(trait)}
-                        disabled={!selected && form.personalityTraits.length >= MAX_TRAITS}
+                        disabled={
+                          !selected &&
+                          form.personalityTraits.length >= MAX_TRAITS
+                        }
                         className={cn(
                           "flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-40",
                           selected
@@ -232,13 +236,17 @@ export function PersonaOnboardingWizard({
                     type="url"
                     placeholder="Website (https://...)"
                     value={form.socialLinks.website}
-                    onChange={(e) => updateSocialLink("website", e.target.value)}
+                    onChange={(e) =>
+                      updateSocialLink("website", e.target.value)
+                    }
                   />
                   <Input
                     type="url"
                     placeholder="X / Twitter (https://...)"
                     value={form.socialLinks.twitter}
-                    onChange={(e) => updateSocialLink("twitter", e.target.value)}
+                    onChange={(e) =>
+                      updateSocialLink("twitter", e.target.value)
+                    }
                   />
                   <Input
                     type="url"
@@ -250,7 +258,9 @@ export function PersonaOnboardingWizard({
                     type="url"
                     placeholder="LinkedIn (https://...)"
                     value={form.socialLinks.linkedin}
-                    onChange={(e) => updateSocialLink("linkedin", e.target.value)}
+                    onChange={(e) =>
+                      updateSocialLink("linkedin", e.target.value)
+                    }
                   />
                 </div>
               </div>

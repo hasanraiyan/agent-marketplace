@@ -246,8 +246,8 @@ export default function ProjectStoreEditorPage({ params: paramsPromise }) {
                     </SelectContent>
                   </Select>
                   <FieldDescription>
-                    Read-only stores are safe to assign to Agents serving
-                    many different founders.
+                    Read-only stores are safe to assign to Agents serving many
+                    different founders.
                   </FieldDescription>
                 </Field>
               </div>

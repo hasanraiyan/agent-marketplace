@@ -19,7 +19,12 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AgentForm } from "@/components/agents/agent-form";
 import { AguiAgentChat } from "@/components/agents/agui-agent-chat";
-import { getAgent, updateAgent, createAgent, getMyMainAgent } from "@/lib/api/agents";
+import {
+  getAgent,
+  updateAgent,
+  createAgent,
+  getMyMainAgent,
+} from "@/lib/api/agents";
 import { getProviders } from "@/lib/api/providers";
 import { getProfile } from "@/lib/api/profile";
 import { createThread } from "@/lib/api/threads";
@@ -27,7 +32,8 @@ import { useDashboardHeader } from "@/components/dashboard-header-context";
 
 const ARCHITECT_AGENT_ID = "000000000000000000000000";
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://api.persona.hasanraiyan.me/api/v1";
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://api.persona.hasanraiyan.me/api/v1";
 const AGUI_RUNTIME_URL =
   process.env.NEXT_PUBLIC_AGUI_RUNTIME_URL || `${BASE_URL}/agui`;
 
@@ -258,8 +264,8 @@ export function AgentBuilderPage({
         activeTab === "configure"
           ? "Configure agent details"
           : activeTab === "preview"
-          ? "Test your agent"
-          : "Build with Sage",
+            ? "Test your agent"
+            : "Build with Sage",
       leading: (
         <Avatar className="size-8">
           <AvatarImage src={agent?.avatarUrl || agent?.avatar} />
@@ -370,7 +376,9 @@ export function AgentBuilderPage({
     <div className="flex h-[calc(100vh-var(--header-height))] max-h-[calc(100vh-var(--header-height))] flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* Left Column: Chat / Architect */}
-        <div className={`min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 ${activeTab === "chat" ? "flex" : "hidden lg:flex"}`}>
+        <div
+          className={`min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 ${activeTab === "chat" ? "flex" : "hidden lg:flex"}`}
+        >
           {authToken && architectThreadId ? (
             <AguiAgentChat
               url={runtimeUrl}
@@ -399,7 +407,9 @@ export function AgentBuilderPage({
         </div>
 
         {/* Right Column: Configure & Preview */}
-        <div className={`min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-slate-50 dark:bg-slate-900 ${activeTab !== "chat" ? "flex" : "hidden lg:flex"}`}>
+        <div
+          className={`min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-slate-50 dark:bg-slate-900 ${activeTab !== "chat" ? "flex" : "hidden lg:flex"}`}
+        >
           <Tabs
             value={activeTab === "chat" ? "configure" : activeTab}
             onValueChange={setActiveTab}

@@ -39,7 +39,9 @@ function SelectCard({ active, onClick, icon: Icon, title, subtitle }) {
     >
       <Icon className="size-6" />
       <span className="text-sm">{title}</span>
-      <span className="text-[10px] text-muted-foreground font-normal">{subtitle}</span>
+      <span className="text-[10px] text-muted-foreground font-normal">
+        {subtitle}
+      </span>
     </button>
   );
 }
@@ -57,7 +59,9 @@ export function McpEditor({ mcp, mode = "new" }) {
   const [formAuthMode, setFormAuthMode] = useState(mcp?.authMode || "owner");
   const [formClientId, setFormClientId] = useState(mcp?.oauth?.clientId || "");
   const [formClientSecret, setFormClientSecret] = useState("");
-  const [formUseDcr, setFormUseDcr] = useState(mcp?.oauth?.dynamicallyRegistered ?? isCreating);
+  const [formUseDcr, setFormUseDcr] = useState(
+    mcp?.oauth?.dynamicallyRegistered ?? isCreating,
+  );
   const [formApiKey, setFormApiKey] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -100,11 +104,15 @@ export function McpEditor({ mcp, mode = "new" }) {
           ? {
               oauth: {
                 clientId: formClientId,
-                ...(formClientSecret.trim() ? { clientSecret: formClientSecret } : {}),
+                ...(formClientSecret.trim()
+                  ? { clientSecret: formClientSecret }
+                  : {}),
               },
             }
           : {}),
-      ...(formAuthType === "apiKey" && formApiKey.trim() ? { apiKey: formApiKey.trim() } : {}),
+      ...(formAuthType === "apiKey" && formApiKey.trim()
+        ? { apiKey: formApiKey.trim() }
+        : {}),
     };
 
     setIsSaving(true);
@@ -140,13 +148,22 @@ export function McpEditor({ mcp, mode = "new" }) {
             <Server className="size-5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">{isCreating ? "Add MCP Server" : `Edit ${mcp?.name}`}</h1>
-            <p className="text-xs text-muted-foreground">Configure a remote MCP server connection.</p>
+            <h1 className="text-xl font-bold">
+              {isCreating ? "Add MCP Server" : `Edit ${mcp?.name}`}
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              Configure a remote MCP server connection.
+            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={handleCancel} disabled={isSaving}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleCancel}
+            disabled={isSaving}
+          >
             <X className="size-4 mr-2" />
             Cancel
           </Button>
@@ -165,13 +182,17 @@ export function McpEditor({ mcp, mode = "new" }) {
             <div className="space-y-1">
               <h2 className="text-sm font-bold">General Information</h2>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Choose a name, description, and server URL for your MCP connector.
+                Choose a name, description, and server URL for your MCP
+                connector.
               </p>
             </div>
 
             <div className="lg:col-span-2 space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="mcp-name" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                <Label
+                  htmlFor="mcp-name"
+                  className="text-xs font-bold uppercase tracking-widest text-muted-foreground"
+                >
                   Server Name
                   <Info className="size-3 ml-1 inline cursor-help" />
                 </Label>
@@ -185,7 +206,10 @@ export function McpEditor({ mcp, mode = "new" }) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="mcp-desc" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                <Label
+                  htmlFor="mcp-desc"
+                  className="text-xs font-bold uppercase tracking-widest text-muted-foreground"
+                >
                   Description
                 </Label>
                 <Textarea
@@ -213,7 +237,9 @@ export function McpEditor({ mcp, mode = "new" }) {
 
             <div className="lg:col-span-2 space-y-6">
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Transport</Label>
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  Transport
+                </Label>
                 <div className="grid grid-cols-2 gap-4">
                   <SelectCard
                     active={formTransport === "http"}
@@ -233,7 +259,10 @@ export function McpEditor({ mcp, mode = "new" }) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="mcp-url" className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                <Label
+                  htmlFor="mcp-url"
+                  className="text-xs font-bold uppercase tracking-widest text-muted-foreground"
+                >
                   Server URL
                 </Label>
                 <Input
@@ -260,7 +289,9 @@ export function McpEditor({ mcp, mode = "new" }) {
 
             <div className="lg:col-span-2 space-y-6">
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Auth Type</Label>
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  Auth Type
+                </Label>
                 <div className="grid grid-cols-3 gap-4">
                   <SelectCard
                     active={formAuthType === "none"}
@@ -288,17 +319,22 @@ export function McpEditor({ mcp, mode = "new" }) {
 
               {formAuthType === "apiKey" && (
                 <div className="space-y-2 border p-4 rounded-xl bg-muted/10">
-                  <Label htmlFor="mcp-api-key" className="text-xs font-bold">API Key</Label>
+                  <Label htmlFor="mcp-api-key" className="text-xs font-bold">
+                    API Key
+                  </Label>
                   <Input
                     id="mcp-api-key"
                     type="password"
-                    placeholder={!isCreating ? "Leave blank to keep current key" : ""}
+                    placeholder={
+                      !isCreating ? "Leave blank to keep current key" : ""
+                    }
                     value={formApiKey}
                     onChange={(e) => setFormApiKey(e.target.value)}
                     className="font-mono text-sm bg-muted/20"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Sent as <code>Authorization: Bearer &lt;key&gt;</code> on every request to this server.
+                    Sent as <code>Authorization: Bearer &lt;key&gt;</code> on
+                    every request to this server.
                   </p>
                 </div>
               )}
@@ -323,16 +359,30 @@ export function McpEditor({ mcp, mode = "new" }) {
                         }`}
                       >
                         {formUseDcr && (
-                          <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          <svg
+                            className="size-3"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={3}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M5 13l4 4L19 7"
+                            />
                           </svg>
                         )}
                       </div>
                       <div>
-                        <p className="text-sm font-semibold">Auto-register client with server</p>
+                        <p className="text-sm font-semibold">
+                          Auto-register client with server
+                        </p>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          Dynamically register with the server&apos;s OAuth authorization server (RFC 7591).
-                          No need to manually obtain a Client ID or Secret — the platform handles it automatically.
+                          Dynamically register with the server&apos;s OAuth
+                          authorization server (RFC 7591). No need to manually
+                          obtain a Client ID or Secret — the platform handles it
+                          automatically.
                         </p>
                       </div>
                     </div>
@@ -341,15 +391,19 @@ export function McpEditor({ mcp, mode = "new" }) {
                   {formUseDcr ? (
                     <>
                       <p className="text-xs text-muted-foreground">
-                        When you save, the platform will auto-discover the server&apos;s OAuth endpoints via{" "}
-                        <code>/.well-known</code> and dynamically register a client with the
-                        authorization server. If the server doesn&apos;t support Dynamic Client Registration,
+                        When you save, the platform will auto-discover the
+                        server&apos;s OAuth endpoints via{" "}
+                        <code>/.well-known</code> and dynamically register a
+                        client with the authorization server. If the server
+                        doesn&apos;t support Dynamic Client Registration,
                         you&apos;ll be prompted to enter credentials manually.
                       </p>
 
                       {/* Still need to know who authenticates */}
                       <div className="space-y-2 pt-2">
-                        <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Who authenticates?</Label>
+                        <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                          Who authenticates?
+                        </Label>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <SelectCard
                             active={formAuthMode === "owner"}
@@ -371,12 +425,18 @@ export function McpEditor({ mcp, mode = "new" }) {
                   ) : (
                     <>
                       <p className="text-xs text-muted-foreground -mt-2">
-                        Authorization and token endpoints are auto-discovered from the server&apos;s{" "}
-                        <code>/.well-known</code> metadata.
+                        Authorization and token endpoints are auto-discovered
+                        from the server&apos;s <code>/.well-known</code>{" "}
+                        metadata.
                       </p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="mcp-client-id" className="text-xs font-bold">Client ID</Label>
+                          <Label
+                            htmlFor="mcp-client-id"
+                            className="text-xs font-bold"
+                          >
+                            Client ID
+                          </Label>
                           <Input
                             id="mcp-client-id"
                             value={formClientId}
@@ -385,20 +445,33 @@ export function McpEditor({ mcp, mode = "new" }) {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="mcp-client-secret" className="text-xs font-bold">Client Secret</Label>
+                          <Label
+                            htmlFor="mcp-client-secret"
+                            className="text-xs font-bold"
+                          >
+                            Client Secret
+                          </Label>
                           <Input
                             id="mcp-client-secret"
                             type="password"
-                            placeholder={!isCreating ? "Leave blank to keep current secret" : ""}
+                            placeholder={
+                              !isCreating
+                                ? "Leave blank to keep current secret"
+                                : ""
+                            }
                             value={formClientSecret}
-                            onChange={(e) => setFormClientSecret(e.target.value)}
+                            onChange={(e) =>
+                              setFormClientSecret(e.target.value)
+                            }
                             className="font-mono text-sm bg-muted/20"
                           />
                         </div>
                       </div>
 
                       <div className="space-y-2 pt-2">
-                        <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Who authenticates?</Label>
+                        <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                          Who authenticates?
+                        </Label>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <SelectCard
                             active={formAuthMode === "owner"}

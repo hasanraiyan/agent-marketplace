@@ -1,0 +1,65 @@
+---
+title: Errors
+description: The runtime's error response shape, the two detail modes, and which underlying errors pass through curated versus get sanitized.
+---
+
+Every error response is:
+
+```json
+{ "error": { "code": "...", "message": "...", "detail": "..." } }
+```
+
+`detail` is optional and only ever present in `mode: 'development'` — see below.
+
+## Modes
+
+`mode: 'development' | 'production'`, default `'production'` unless `NODE_ENV === 'development'`.
+This fail-safe default matters: a host that forgets to set `mode` explicitly gets the safer,
+detail-hiding behavior automatically.
+
+```ts
+createRuntime({
+  // ...
+  mode: 'development', // or 'production' — see default rule above
+});
+```
+
+## Two-tier trust model
+
+- **Errors already curated into a developer-facing message** pass through as-is:
+  - `RuntimeHttpError` — routing/validation errors this runtime raises itself (bad route, missing
+    required field, malformed body, etc.).
+  - `PersonaApiError` / `PersonaAuthError` / `PersonaValidationError` from `@personaai/sdk` — these
+    already carry a safe `message` and machine-readable `code` from the Persona API itself.
+  - In both cases, `detail` (the upstream response envelope, where applicable) is only attached in
+    `mode: 'development'` — the curated `message`/`code` are always present regardless of mode.
+- **Anything else is treated as untrusted** — a bug in your own hook code, a raw network error, an
+  unexpected exception from deep inside a dependency:
+  - Always `500` / `INTERNAL_ERROR`.
+  - `mode: 'production'`: a fixed generic message, no stack, no internal detail.
+  - `mode: 'development'`: the real message and stack under `detail`.
+
+This two-tier split is what actually prevents internal implementation details (LangGraph, Qdrant,
+internal service names, stack traces) from ever reaching a caller of this runtime in production,
+while still giving you full detail while developing against it locally.
+
+## Mid-stream failures
+
+If a `/chat` or `/architect` stream fails after headers are already committed (SSE has started),
+the runtime cannot change the HTTP status code retroactively. Instead it synthesizes a sanitized
+`RUN_ERROR` AG-UI event as the last frame of the stream, following the same two-tier trust rule for
+what that event's message contains. The corresponding [lifecycle hook](/guides/runtime/hooks)
+behavior: this is treated as a normal completed run (`afterRun` fires with
+`result.erroredInBand: true`), not a thrown exception (`onError` does not fire) — see
+[Lifecycle hooks](/guides/runtime/hooks#beforerun--afterrun) for the full explanation.
+
+## Status codes at a glance
+
+| Status | When |
+| --- | --- |
+| `401` | `resolveUser` returned `null` or threw. |
+| `404` | Unknown route, or (for resume routes) an evicted/unknown/someone-else's run id. |
+| `405` | A method not supported on an otherwise-known path (e.g. `POST /agents` when only `GET /agents` is always-on and `agentsWrite` is disabled). |
+| `404` (not `403`) for disabled capabilities | A disabled capability's routes are absent from the route table entirely — see [Capabilities](/guides/runtime/capabilities). |
+| `503` | `GET /health`'s `whoami()` call failed. |
+| `500` | Anything untrusted/unexpected — see two-tier trust model above. |

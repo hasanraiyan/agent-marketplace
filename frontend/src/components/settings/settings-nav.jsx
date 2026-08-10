@@ -67,7 +67,8 @@ const NAV_GROUPS = [
         icon: Trash2Icon,
         href: "/dashboard/settings/danger",
         keywords: ["delete", "threads", "conversations", "history", "clear"],
-        className: "text-destructive hover:text-destructive hover:bg-destructive/10",
+        className:
+          "text-destructive hover:text-destructive hover:bg-destructive/10",
       },
     ],
   },

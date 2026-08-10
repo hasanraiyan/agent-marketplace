@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { memo, useState } from 'react';
+import { memo, useState } from "react";
 import {
   AlertCircle,
   BotIcon,
@@ -17,13 +17,13 @@ import {
   Cpu,
   Wrench,
   BookText,
-} from 'lucide-react';
-import Link from 'next/link';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeSanitize from 'rehype-sanitize';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+} from "lucide-react";
+import Link from "next/link";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   tryParseJson,
   parseToolArgs,
@@ -38,24 +38,30 @@ import {
   toolTitle,
   searchResults,
   getDomain,
-} from './utils';
-import { TodoChecklist } from './TodoChecklist';
-import { toast } from 'sonner';
-import { RequestResponsePanel } from './tool-cards/RequestResponsePanel';
-import { GrepResultsView, parseGrepResults } from './tool-cards/GrepResultsView';
-import { LsDirectoryCard } from './tool-cards/LsDirectoryCard';
-import { ReadFileCard } from './tool-cards/ReadFileCard';
-import { FileDiffCard, computeFileDiffStats } from './tool-cards/DiffView';
-import { SubagentActivityDialog } from './SubagentActivityDialog';
+} from "./utils";
+import { TodoChecklist } from "./TodoChecklist";
+import { toast } from "sonner";
+import { RequestResponsePanel } from "./tool-cards/RequestResponsePanel";
+import {
+  GrepResultsView,
+  parseGrepResults,
+} from "./tool-cards/GrepResultsView";
+import { LsDirectoryCard } from "./tool-cards/LsDirectoryCard";
+import { ReadFileCard } from "./tool-cards/ReadFileCard";
+import { FileDiffCard, computeFileDiffStats } from "./tool-cards/DiffView";
+import { SubagentActivityDialog } from "./SubagentActivityDialog";
 
-export { FileSystemActionCard, ActionArguments } from './tool-cards/FileSystemActionCard';
+export {
+  FileSystemActionCard,
+  ActionArguments,
+} from "./tool-cards/FileSystemActionCard";
 
 export function subToolIcon(name) {
-  const n = (name || '').toLowerCase();
-  if (n.includes('search')) return Globe;
-  if (n.includes('grep')) return Search;
-  if (n.includes('todo')) return ListTodo;
-  if (n.includes('file') || n === 'glob' || n === 'ls') return FileText;
+  const n = (name || "").toLowerCase();
+  if (n.includes("search")) return Globe;
+  if (n.includes("grep")) return Search;
+  if (n.includes("todo")) return ListTodo;
+  if (n.includes("file") || n === "glob" || n === "ls") return FileText;
   return Wrench;
 }
 
@@ -64,11 +70,11 @@ export function subToolIcon(name) {
 // tail shown while the subagent is still running.
 export function SubAgentTimeline({ items, compact = false, onOpenFile }) {
   return (
-    <div className={compact ? 'space-y-1' : 'space-y-1.5'}>
+    <div className={compact ? "space-y-1" : "space-y-1.5"}>
       {items.map((item, index) => {
-        if (item.type === 'text') {
+        if (item.type === "text") {
           const text = compact
-            ? item.text.trimEnd().split('\n').slice(-2).join('\n')
+            ? item.text.trimEnd().split("\n").slice(-2).join("\n")
             : item.text;
           if (!text) return null;
           // The live tail stays plain text (it shows mid-stream fragments);
@@ -97,7 +103,7 @@ export function SubAgentTimeline({ items, compact = false, onOpenFile }) {
             </div>
           );
         }
-        const running = item.status === 'running';
+        const running = item.status === "running";
         // Full view: the subagent's tool calls are first-class, expandable
         // trace cards — its plan renders as the real checklist, its searches
         // as result cards — exactly like the main transcript.
@@ -110,7 +116,7 @@ export function SubAgentTimeline({ items, compact = false, onOpenFile }) {
                 name: item.name,
                 argumentsText: item.argsText,
                 resultText: item.resultText,
-                status: running ? 'running' : 'completed',
+                status: running ? "running" : "completed",
               }}
               onOpenFile={onOpenFile}
             />
@@ -129,7 +135,7 @@ export function SubAgentTimeline({ items, compact = false, onOpenFile }) {
               {toolTitle({
                 name: item.name,
                 argumentsText: item.argsText,
-                status: running ? 'running' : 'completed',
+                status: running ? "running" : "completed",
               })}
             </span>
           </div>
@@ -144,17 +150,17 @@ export function SubAgentTimeline({ items, compact = false, onOpenFile }) {
 export const ToolTrace = memo(function ToolTrace({ tool, onOpenFile }) {
   const [open, setOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const done = tool.status === 'completed';
+  const done = tool.status === "completed";
   const results = searchResults(tool);
   const parsedResult = tryParseJson(tool.resultText);
-  const isError = parsedResult?.status === 'error';
-  const nameLower = (tool.name || '').toLowerCase();
+  const isError = parsedResult?.status === "error";
+  const nameLower = (tool.name || "").toLowerCase();
 
-  if (nameLower === 'present_file') {
+  if (nameLower === "present_file") {
     const args = parseToolArgs(tool.argumentsText) || {};
-    const filePath = args.filePath || args.file_path || args.path || '';
-    const fileName = filePath.split('/').pop() || filePath;
-    const description = args.description || '';
+    const filePath = args.filePath || args.file_path || args.path || "";
+    const fileName = filePath.split("/").pop() || filePath;
+    const description = args.description || "";
 
     const handleOpenClick = () => {
       if (onOpenFile && filePath) {
@@ -196,22 +202,28 @@ export const ToolTrace = memo(function ToolTrace({ tool, onOpenFile }) {
       </div>
     );
   }
-  const isWebSearch = tool.name === 'search_web' || nameLower.includes('google') || nameLower.startsWith('tavily');
-  const isKbSearch = nameLower.startsWith('search_') && !isWebSearch;
-  const isKbListSources = nameLower === 'list_knowledge_base_sources' || nameLower.startsWith('list_sources_');
+  const isWebSearch =
+    tool.name === "search_web" ||
+    nameLower.includes("google") ||
+    nameLower.startsWith("tavily");
+  const isKbSearch = nameLower.startsWith("search_") && !isWebSearch;
+  const isKbListSources =
+    nameLower === "list_knowledge_base_sources" ||
+    nameLower.startsWith("list_sources_");
 
-  const isGrep = nameLower.includes('grep');
+  const isGrep = nameLower.includes("grep");
   const isTodo = isTodoTool(tool.name);
   const isSkill = isSkillTool(tool.name);
   const isAgent = isAgentTool(tool.name);
-  const isSubagent = nameLower === 'task';
+  const isSubagent = nameLower === "task";
   const todos = isTodo ? parseTodos(tool.argumentsText, tool.resultText) : null;
   const todosDone = todos
-    ? todos.filter((todo) => todo.status === 'completed').length
+    ? todos.filter((todo) => todo.status === "completed").length
     : 0;
   const subEvents = Array.isArray(tool.subEvents) ? tool.subEvents : [];
-  const subToolUses = subEvents.filter((item) => item.type === 'tool').length;
-  const isFileDiff = (isFileWriteTool(tool.name) || isFileEditTool(tool.name)) && !isError;
+  const subToolUses = subEvents.filter((item) => item.type === "tool").length;
+  const isFileDiff =
+    (isFileWriteTool(tool.name) || isFileEditTool(tool.name)) && !isError;
   const diffStats = isFileDiff ? computeFileDiffStats(tool) : null;
   const isExpandable = Boolean(
     tool.resultText || tool.argumentsText || subEvents.length,
@@ -230,7 +242,7 @@ export const ToolTrace = memo(function ToolTrace({ tool, onOpenFile }) {
               ? Cpu
               : isAgent || isSubagent
                 ? BotIcon
-                : tool.name?.includes('file')
+                : tool.name?.includes("file")
                   ? FileText
                   : Wrench;
 
@@ -254,22 +266,24 @@ export const ToolTrace = memo(function ToolTrace({ tool, onOpenFile }) {
         <span className="flex w-6 shrink-0 justify-center pt-0.5">
           <Icon
             className={cn(
-              'size-[18px]',
+              "size-[18px]",
               isError
-                ? 'text-red-500'
+                ? "text-red-500"
                 : done
-                  ? 'text-slate-400'
-                  : 'animate-pulse text-orange-500',
+                  ? "text-slate-400"
+                  : "animate-pulse text-orange-500",
             )}
           />
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
             <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
-              {isTodo && todos ? `Plan (${todosDone}/${todos.length})` : toolTitle(tool)}
+              {isTodo && todos
+                ? `Plan (${todosDone}/${todos.length})`
+                : toolTitle(tool)}
               {isSubagent && subToolUses > 0 ? (
                 <span className="ml-1.5 font-normal text-slate-400 dark:text-slate-500">
-                  · {subToolUses} tool {subToolUses === 1 ? 'use' : 'uses'}
+                  · {subToolUses} tool {subToolUses === 1 ? "use" : "uses"}
                 </span>
               ) : null}
             </span>
@@ -285,7 +299,7 @@ export const ToolTrace = memo(function ToolTrace({ tool, onOpenFile }) {
               <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums dark:bg-slate-800/80">
                 <span className="text-emerald-600 dark:text-emerald-400">
                   +{diffStats.added}
-                </span>{' '}
+                </span>{" "}
                 <span className="text-red-500 dark:text-red-400">
                   -{diffStats.removed}
                 </span>
@@ -294,21 +308,21 @@ export const ToolTrace = memo(function ToolTrace({ tool, onOpenFile }) {
             isError || !(isTodo && todos) ? (
               <span
                 className={cn(
-                  'rounded-md px-2 py-0.5 text-[11px] font-medium',
+                  "rounded-md px-2 py-0.5 text-[11px] font-medium",
                   isError
-                    ? 'bg-red-500/10 text-red-600 dark:text-red-400'
-                    : 'bg-[#1E60FF]/10 text-[#1E60FF]',
+                    ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                    : "bg-[#1E60FF]/10 text-[#1E60FF]",
                 )}
               >
                 {isError
-                  ? 'Failed'
+                  ? "Failed"
                   : isWebSearch && done && results.length
                     ? `${results.length} results`
                     : isGrep && done
                       ? `${parseGrepResults(tool.resultText).length} matches`
                       : done
-                        ? 'Result'
-                        : 'Running'}
+                        ? "Result"
+                        : "Running"}
               </span>
             ) : null}
           </span>
@@ -317,7 +331,7 @@ export const ToolTrace = memo(function ToolTrace({ tool, onOpenFile }) {
 
       {isError ? (
         <div className="ml-8 mt-1 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400">
-          {parsedResult.message || 'The tool call failed.'}
+          {parsedResult.message || "The tool call failed."}
         </div>
       ) : null}
 
@@ -327,7 +341,11 @@ export const ToolTrace = memo(function ToolTrace({ tool, onOpenFile }) {
             <BotIcon className="size-3 animate-pulse text-orange-500" />
             Subagent working
           </div>
-          <SubAgentTimeline items={subEvents.slice(-4)} compact onOpenFile={onOpenFile} />
+          <SubAgentTimeline
+            items={subEvents.slice(-4)}
+            compact
+            onOpenFile={onOpenFile}
+          />
         </div>
       ) : null}
       {open ? (
@@ -369,10 +387,15 @@ export const ToolTrace = memo(function ToolTrace({ tool, onOpenFile }) {
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
                   <CheckCircle2 className="size-4" />
-                  Skill Successfully {parseToolArgs(tool.argumentsText)?.action === 'delete' ? 'Deleted' : 'Saved'}
+                  Skill Successfully{" "}
+                  {parseToolArgs(tool.argumentsText)?.action === "delete"
+                    ? "Deleted"
+                    : "Saved"}
                 </div>
-                {parseToolArgs(tool.argumentsText)?.action !== 'delete' && (
-                  <Link href={`/studio/skills/${parsedResult?.data?._id || parsedResult?.data?.id}`}>
+                {parseToolArgs(tool.argumentsText)?.action !== "delete" && (
+                  <Link
+                    href={`/studio/skills/${parsedResult?.data?._id || parsedResult?.data?.id}`}
+                  >
                     <Button size="sm" variant="outline" className="w-full">
                       <Edit className="mr-2 size-3.5" />
                       View or Edit Skill
@@ -386,7 +409,9 @@ export const ToolTrace = memo(function ToolTrace({ tool, onOpenFile }) {
                   <CheckCircle2 className="size-4" />
                   Agent Successfully Saved
                 </div>
-                <Link href={`/dashboard/agents/${parsedResult?.data?._id || parsedResult?.data?.id}`}>
+                <Link
+                  href={`/dashboard/agents/${parsedResult?.data?._id || parsedResult?.data?.id}`}
+                >
                   <Button size="sm" variant="outline" className="w-full">
                     <BotIcon className="mr-2 size-3.5" />
                     View Agent Details
@@ -407,14 +432,14 @@ export const ToolTrace = memo(function ToolTrace({ tool, onOpenFile }) {
                     <div className="max-h-48 overflow-auto space-y-1.5 scrollbar-thin">
                       {results.map((result, index) => (
                         <a
-                           key={result.url || index}
-                           href={result.url}
-                           target="_blank"
-                           rel="noreferrer"
-                           className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-3 py-2 hover:border-blue-500 hover:bg-blue-50/10 dark:border-slate-800/60 dark:bg-slate-950 dark:hover:border-blue-500/30 dark:hover:bg-blue-950/10 transition-all duration-200"
+                          key={result.url || index}
+                          href={result.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-3 py-2 hover:border-blue-500 hover:bg-blue-50/10 dark:border-slate-800/60 dark:bg-slate-950 dark:hover:border-blue-500/30 dark:hover:bg-blue-950/10 transition-all duration-200"
                         >
                           <img
-                            src={`https://www.google.com/s2/favicons?sz=32&domain=${getDomain(result.url || '')}`}
+                            src={`https://www.google.com/s2/favicons?sz=32&domain=${getDomain(result.url || "")}`}
                             alt=""
                             className="size-3.5 shrink-0 rounded-sm"
                           />
@@ -422,7 +447,7 @@ export const ToolTrace = memo(function ToolTrace({ tool, onOpenFile }) {
                             {result.title || result.url}
                           </span>
                           <span className="shrink-0 text-[10px] text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900 px-1.5 py-0.5 rounded border">
-                            {getDomain(result.url || '')}
+                            {getDomain(result.url || "")}
                           </span>
                         </a>
                       ))}
@@ -460,7 +485,11 @@ export const ToolTrace = memo(function ToolTrace({ tool, onOpenFile }) {
       ) : null}
 
       {isSubagent ? (
-        <SubagentActivityDialog tool={tool} open={dialogOpen} onOpenChange={setDialogOpen} />
+        <SubagentActivityDialog
+          tool={tool}
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+        />
       ) : null}
     </div>
   );

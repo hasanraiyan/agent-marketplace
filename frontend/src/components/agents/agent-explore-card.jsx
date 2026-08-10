@@ -26,7 +26,10 @@ export function AgentExploreCard({ agent }) {
   const displayAvatar = avatarUrl || avatar;
 
   return (
-    <Link href={`/dashboard/agents/${agentId}/run`} className="group block h-full">
+    <Link
+      href={`/dashboard/agents/${agentId}/run`}
+      className="group block h-full"
+    >
       <Card className="flex h-full flex-col gap-0 overflow-hidden p-0 ring-foreground/10 transition-all group-hover:shadow-lg group-hover:ring-primary/30">
         <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
           {displayAvatar ? (

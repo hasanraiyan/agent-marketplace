@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useRef, useEffect } from 'react';
-import { ArrowUp, ChevronDown, ImagePlus, Square } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { useRef, useEffect } from "react";
+import { ArrowUp, ChevronDown, ImagePlus, Square } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export function ChatComposer({
   value,
@@ -12,7 +12,7 @@ export function ChatComposer({
   onStop,
   isRunning,
   disabled,
-  placeholder = 'Write a message...',
+  placeholder = "Write a message...",
 }) {
   const canSend = value.trim().length > 0 && !disabled && !isRunning;
   const textareaRef = useRef(null);
@@ -22,7 +22,7 @@ export function ChatComposer({
     if (!textarea) return;
 
     // Reset height to auto to get the correct scrollHeight
-    textarea.style.height = 'auto';
+    textarea.style.height = "auto";
     // Set the height to scrollHeight
     textarea.style.height = `${textarea.scrollHeight}px`;
   }, [value]);
@@ -34,7 +34,7 @@ export function ChatComposer({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key === 'Enter' && !event.shiftKey) {
+          if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault();
             if (isRunning) onStop();
             else if (canSend) onSend();
@@ -69,10 +69,10 @@ export function ChatComposer({
             onClick={isRunning ? onStop : onSend}
             disabled={!isRunning && !canSend}
             className={cn(
-              'size-10 rounded-full',
+              "size-10 rounded-full",
               isRunning
-                ? 'bg-red-50 text-red-500 hover:bg-red-100'
-                : 'bg-[#1E60FF]/10 text-[#1E60FF] hover:bg-[#1E60FF]/15',
+                ? "bg-red-50 text-red-500 hover:bg-red-100"
+                : "bg-[#1E60FF]/10 text-[#1E60FF] hover:bg-[#1E60FF]/15",
             )}
           >
             {isRunning ? (

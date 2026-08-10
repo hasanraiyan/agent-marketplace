@@ -217,7 +217,10 @@ export default function MyAgentsPage() {
         {loading ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-[300px] sm:h-[360px] rounded-[24px] sm:rounded-[32px]" />
+              <Skeleton
+                key={i}
+                className="h-[300px] sm:h-[360px] rounded-[24px] sm:rounded-[32px]"
+              />
             ))}
           </div>
         ) : agents.length === 0 ? (
@@ -229,7 +232,8 @@ export default function MyAgentsPage() {
               No agents yet
             </h3>
             <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2 max-w-sm leading-relaxed font-medium">
-              You haven&apos;t created any agents yet. Start by creating one now to bring your ideas to life!
+              You haven&apos;t created any agents yet. Start by creating one now
+              to bring your ideas to life!
             </p>
             <Link href={studioRoutes.agentNew} className="mt-6">
               <Button className="rounded-full px-6 py-2.5 font-bold shadow-sm active:scale-98 transition-all">

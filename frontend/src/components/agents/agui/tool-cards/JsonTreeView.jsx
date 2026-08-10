@@ -1,27 +1,28 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { ChevronRight, ChevronDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useState } from "react";
+import { ChevronRight, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 function valueClass(value) {
-  if (value === null || value === undefined) return 'text-slate-400 dark:text-slate-500 italic';
+  if (value === null || value === undefined)
+    return "text-slate-400 dark:text-slate-500 italic";
   switch (typeof value) {
-    case 'string':
-      return 'text-orange-600 dark:text-orange-400';
-    case 'number':
-      return 'text-blue-600 dark:text-blue-400';
-    case 'boolean':
-      return 'text-violet-600 dark:text-violet-400';
+    case "string":
+      return "text-orange-600 dark:text-orange-400";
+    case "number":
+      return "text-blue-600 dark:text-blue-400";
+    case "boolean":
+      return "text-violet-600 dark:text-violet-400";
     default:
-      return 'text-slate-600 dark:text-slate-300';
+      return "text-slate-600 dark:text-slate-300";
   }
 }
 
 function formatPrimitive(value) {
-  if (value === null) return 'null';
-  if (value === undefined) return 'undefined';
-  if (typeof value === 'string') return `"${value}"`;
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+  if (typeof value === "string") return `"${value}"`;
   return String(value);
 }
 
@@ -31,16 +32,27 @@ function collapsedPreview(value) {
   const isArray = Array.isArray(value);
   const entries = isArray ? value : Object.entries(value);
   const inner = isArray
-    ? entries.map((v) => (v !== null && typeof v === 'object' ? (Array.isArray(v) ? '[…]' : '{…}') : formatPrimitive(v)))
-    : entries.map(([k, v]) => `${k}: ${v !== null && typeof v === 'object' ? (Array.isArray(v) ? '[…]' : '{…}') : formatPrimitive(v)}`);
-  const text = `${isArray ? '[' : '{'}${inner.join(', ')}${isArray ? ']' : '}'}`;
+    ? entries.map((v) =>
+        v !== null && typeof v === "object"
+          ? Array.isArray(v)
+            ? "[…]"
+            : "{…}"
+          : formatPrimitive(v),
+      )
+    : entries.map(
+        ([k, v]) =>
+          `${k}: ${v !== null && typeof v === "object" ? (Array.isArray(v) ? "[…]" : "{…}") : formatPrimitive(v)}`,
+      );
+  const text = `${isArray ? "[" : "{"}${inner.join(", ")}${isArray ? "]" : "}"}`;
   return text.length > 80 ? `${text.slice(0, 77)}…` : text;
 }
 
 function JsonNode({ keyName, value, depth }) {
-  const isObject = value !== null && typeof value === 'object';
+  const isObject = value !== null && typeof value === "object";
   const isArray = isObject && Array.isArray(value);
-  const isEmpty = isObject && (isArray ? value.length === 0 : Object.keys(value).length === 0);
+  const isEmpty =
+    isObject &&
+    (isArray ? value.length === 0 : Object.keys(value).length === 0);
   // Top level (depth 0) starts expanded so the shape is visible at a glance;
   // nested objects/arrays start collapsed to keep the tree from opening fully.
   const [open, setOpen] = useState(depth === 0);
@@ -49,10 +61,17 @@ function JsonNode({ keyName, value, depth }) {
     return (
       <div className="flex gap-1.5 py-0.5 font-mono text-[11px] leading-relaxed">
         {keyName != null && (
-          <span className="shrink-0 font-semibold text-slate-700 dark:text-slate-200">{keyName}:</span>
+          <span className="shrink-0 font-semibold text-slate-700 dark:text-slate-200">
+            {keyName}:
+          </span>
         )}
-        <span className={cn('break-all', isEmpty ? 'text-slate-400 dark:text-slate-500' : valueClass(value))}>
-          {isEmpty ? (isArray ? '[]' : '{}') : formatPrimitive(value)}
+        <span
+          className={cn(
+            "break-all",
+            isEmpty ? "text-slate-400 dark:text-slate-500" : valueClass(value),
+          )}
+        >
+          {isEmpty ? (isArray ? "[]" : "{}") : formatPrimitive(value)}
         </span>
       </div>
     );
@@ -74,12 +93,18 @@ function JsonNode({ keyName, value, depth }) {
         )}
         <span className="break-all">
           {keyName != null && (
-            <span className="font-semibold text-slate-700 dark:text-slate-200">{keyName}: </span>
+            <span className="font-semibold text-slate-700 dark:text-slate-200">
+              {keyName}:{" "}
+            </span>
           )}
           {open ? (
-            <span className="text-slate-400 dark:text-slate-500">{isArray ? '[' : '{'}</span>
+            <span className="text-slate-400 dark:text-slate-500">
+              {isArray ? "[" : "{"}
+            </span>
           ) : (
-            <span className="text-slate-500 dark:text-slate-400">{collapsedPreview(value)}</span>
+            <span className="text-slate-500 dark:text-slate-400">
+              {collapsedPreview(value)}
+            </span>
           )}
         </span>
       </button>
@@ -87,11 +112,20 @@ function JsonNode({ keyName, value, depth }) {
       {open && (
         <div className="ml-4 border-l border-slate-150 dark:border-slate-800 pl-2.5">
           {entries.map(([k, v]) => (
-            <JsonNode key={k} keyName={isArray ? null : k} value={v} depth={depth + 1} />
+            <JsonNode
+              key={k}
+              keyName={isArray ? null : k}
+              value={v}
+              depth={depth + 1}
+            />
           ))}
         </div>
       )}
-      {open && <div className="text-slate-400 dark:text-slate-500">{isArray ? ']' : '}'}</div>}
+      {open && (
+        <div className="text-slate-400 dark:text-slate-500">
+          {isArray ? "]" : "}"}
+        </div>
+      )}
     </div>
   );
 }
@@ -102,19 +136,26 @@ function JsonNode({ keyName, value, depth }) {
  * via the chevron - same shape as a typical API request/response inspector.
  */
 export function JsonTreeView({ data, className }) {
-  if (data === null || typeof data !== 'object') {
+  if (data === null || typeof data !== "object") {
     return (
-      <div className={cn('font-mono text-[11px]', valueClass(data), className)}>
+      <div className={cn("font-mono text-[11px]", valueClass(data), className)}>
         {formatPrimitive(data)}
       </div>
     );
   }
 
-  const entries = Array.isArray(data) ? data.map((v, i) => [i, v]) : Object.entries(data);
+  const entries = Array.isArray(data)
+    ? data.map((v, i) => [i, v])
+    : Object.entries(data);
   if (entries.length === 0) {
     return (
-      <div className={cn('font-mono text-[11px] text-slate-400 dark:text-slate-500', className)}>
-        {Array.isArray(data) ? '[]' : '{}'}
+      <div
+        className={cn(
+          "font-mono text-[11px] text-slate-400 dark:text-slate-500",
+          className,
+        )}
+      >
+        {Array.isArray(data) ? "[]" : "{}"}
       </div>
     );
   }
@@ -122,7 +163,12 @@ export function JsonTreeView({ data, className }) {
   return (
     <div className={className}>
       {entries.map(([k, v]) => (
-        <JsonNode key={k} keyName={Array.isArray(data) ? null : k} value={v} depth={0} />
+        <JsonNode
+          key={k}
+          keyName={Array.isArray(data) ? null : k}
+          value={v}
+          depth={0}
+        />
       ))}
     </div>
   );

@@ -108,7 +108,8 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
           <p className="text-xs text-muted-foreground/60">
-            &copy; {new Date().getFullYear()} persona.hasanraiyan.me. All rights reserved.
+            &copy; {new Date().getFullYear()} persona.hasanraiyan.me. All rights
+            reserved.
           </p>
           <p className="text-xs text-muted-foreground/40">
             Built with ❤️ for the AI community
