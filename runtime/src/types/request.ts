@@ -21,13 +21,16 @@ export interface RuntimeRequest {
   query: Record<string, string | undefined>;
   /**
    * Already-parsed JSON body, or `undefined` for bodyless requests. For a
-   * multipart request (`POST /files`), this holds the non-file form fields
-   * (e.g. `{ agentId, threadId }`) — the file itself is on `file`, not here.
-   * Parsing raw bytes is the adapter's job either way.
+   * multipart request (`POST /files`, `POST /knowledge/:id/documents`), this
+   * holds the non-file form fields (e.g. `{ agentId, threadId }`) — the
+   * file(s) themselves are on `file`/`files`, not here. Parsing raw bytes is
+   * the adapter's job either way.
    */
   body: unknown;
-  /** The uploaded file, for a multipart `POST /files` request only. */
+  /** The uploaded file, for a multipart `POST /files` request (single-file upload) only. */
   file?: RuntimeUploadedFile;
+  /** The uploaded files, for a multipart `POST /knowledge/:id/documents` request (multi-file upload) only. */
+  files?: RuntimeUploadedFile[];
   /**
    * The resolved external user id. Always `null` on the request the host
    * constructs — the runtime fills this in via `resolveUser` before an

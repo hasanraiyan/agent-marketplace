@@ -9,7 +9,12 @@ export type {
   RuntimeBinaryResponse,
   RuntimeResponse,
 } from './types/response.js';
-export type { ResolveUser, CreateRuntimeOptions, Runtime } from './types/options.js';
+export type {
+  ResolveUser,
+  CreateRuntimeOptions,
+  Runtime,
+  RuntimeCapabilities,
+} from './types/options.js';
 export type {
   RunContext,
   RunResult,

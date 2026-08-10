@@ -56,7 +56,43 @@ describe('GET /health', () => {
         files: true,
         memory: true,
         mcpOAuth: true,
+        agentsWrite: false,
+        mcps: false,
+        providers: false,
+        skills: false,
+        knowledge: false,
+        stores: false,
+        auditLogs: false,
+        architect: false,
       });
+    }
+  });
+
+  it('reflects admin capabilities that were actually enabled', async () => {
+    const fetchMock = vi.fn(
+      async (_url: string, _init?: RequestInit) =>
+        new Response(JSON.stringify({ domain: 'd1' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+    );
+    const runtime = makeRuntime({ fetchMock, capabilities: { providers: true, architect: true } });
+
+    const response = await runtime.handle({
+      method: 'GET',
+      path: '/health',
+      headers: {},
+      query: {},
+      body: undefined,
+      userId: null,
+    });
+
+    expect(response.kind).toBe('buffered');
+    if (response.kind === 'buffered') {
+      const parsed = JSON.parse(response.body);
+      expect(parsed.capabilities.providers).toBe(true);
+      expect(parsed.capabilities.architect).toBe(true);
+      expect(parsed.capabilities.mcps).toBe(false);
     }
   });
 

@@ -4,6 +4,7 @@ import {
   type CreateRuntimeOptions,
   type ResolveUser,
   type RuntimeHooks,
+  type RuntimeCapabilities,
 } from '../src/index.js';
 
 export function jsonResponse(body: unknown, status = 200): Response {
@@ -40,6 +41,7 @@ export function makeRuntime(overrides: {
   mode?: CreateRuntimeOptions['mode'];
   mountPath?: string;
   heartbeatIntervalMs?: number;
+  capabilities?: RuntimeCapabilities;
 }) {
   return createRuntime({
     baseUrl: 'https://api.example.com',
@@ -50,6 +52,7 @@ export function makeRuntime(overrides: {
     mode: overrides.mode,
     mountPath: overrides.mountPath,
     heartbeatIntervalMs: overrides.heartbeatIntervalMs,
+    capabilities: overrides.capabilities,
   });
 }
 

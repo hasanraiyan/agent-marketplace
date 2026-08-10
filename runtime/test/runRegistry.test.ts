@@ -15,7 +15,7 @@ async function* neverGenerator(): AsyncGenerator<never> {
   yield undefined as never;
 }
 
-const runCtx = { userId: 'user-1', agentId: 'agent-1', messages: [] };
+const runCtx = { userId: 'user-1', kind: 'chat' as const, agentId: 'agent-1', messages: [] };
 
 /** A real, finished RunDriver — `finishedAt` reflects actual wall-clock completion time, so tests pass explicit `now` values relative to it rather than mocking global time. */
 async function finishedDriver(id: string): Promise<RunDriver> {

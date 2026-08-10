@@ -5,7 +5,7 @@ shared engine every framework adapter (`@personaai/express`, `@personaai/nextjs`
 to be a thin translation layer over — see
 [the SDK Ecosystem plan](https://github.com/hasanraiyan/agent-marketplace/blob/feat/ai/product-research/11-sdk-new/package-ecosystem.md).
 
-**v0.4.** Not installed directly by most developers yet — there is no published framework
+**v0.5.** Not installed directly by most developers yet — there is no published framework
 adapter for it in this release. See [Quickstart](#quickstart) for how to run it directly against
 raw Node `http` in the meantime, and [Not yet implemented](#not-yet-implemented) for what's
 missing before it's a complete Level 2 runtime.
@@ -66,20 +66,26 @@ createServer(toNodeHandler(runtime)).listen(3210);
 ## Routes
 
 All routes are relative to whatever `mountPath` you configure (default: none, i.e. the runtime
-expects `request.path` already stripped).
+expects `request.path` already stripped). Every route except `/health` requires an authenticated
+user; `resolveUser` returning `null` or throwing responds `401`.
+
+### Always on — end-user-scoped, no capability flag needed
 
 | Method | Path | Proxies to |
 | --- | --- | --- |
 | `POST` | `/chat` | `client.chat.stream(agentId, {messages, threadId, resume, contextOverride})`, streamed out as SSE. `agentId`/`messages` required in the body. Response carries an `x-persona-run-id` header — see [Reconnect and resume](#reconnect-and-resume). |
-| `GET` | `/chat/:runId/resume` | Reattaches to the run started by the matching `POST /chat`, replaying frames after `?since=<seq>` (default `-1`, from the start) then continuing live until the run finishes. `404` if the run is unknown, already evicted, or belongs to a different user. |
+| `GET` | `/chat/:runId/resume` | Reattaches to the run started by the matching `POST /chat`. See [Reconnect and resume](#reconnect-and-resume). |
 | `GET` | `/threads` | `client.threads.list({page, limit})` |
 | `POST` | `/threads` | `client.threads.create({agentId})` |
+| `POST` | `/threads/bulk-delete` | `client.threads.bulkDelete(ids)` |
 | `GET` | `/threads/:id` | `client.threads.get(id)` |
 | `PATCH` | `/threads/:id` | `client.threads.update(id, {title?, isArchived?})` |
 | `DELETE` | `/threads/:id` | `client.threads.delete(id)` → `204` |
-| `GET` | `/agents` | `client.agents.list({page, limit, search, category, scope})` |
+| `GET` | `/threads/:id/messages` | `client.threads.getMessages(id)` — full history + graph state, the same data `chat.stream()` resumes from; load a past conversation on page reopen. |
+| `GET` | `/agents` | `client.agents.list({page, limit, search, category, scope})` — read-only discovery, e.g. "let the user pick an agent." |
 | `GET` | `/files` | `client.files.list({page, limit})` |
 | `POST` | `/files` | `client.files.upload({filename, content, contentType?, agentId?, threadId?})` — multipart, `file` part required. `201` |
+| `POST` | `/files/bulk-delete` | `client.files.bulkDelete(ids)` |
 | `GET` | `/files/:id` | `client.files.download(id)` — raw bytes, streamed through as `kind: 'binary'` |
 | `DELETE` | `/files/:id` | `client.files.delete(id)` → `204` |
 | `GET` | `/memory` | `client.memory.list()` |
@@ -93,35 +99,137 @@ expects `request.path` already stripped).
 | `DELETE` | `/mcps/:id/oauth/owner/connection` | `client.mcps.oauth.disconnectOwnerConnection(id)` → `204` |
 | `GET` | `/health` | `client.whoami()` → `{status, version, capabilities}`. Does **not** require `resolveUser` — it's a liveness/capability probe, not a user-scoped call. |
 
-Every route except `/health` requires an authenticated user; `resolveUser` returning `null` or
-throwing responds `401`. `scope` for memory routes is `'user'` (default) or `'agent'`
-(`agentId` then required).
+`scope` for memory routes is `'user'` (default) or `'agent'` (`agentId` then required).
 
 For `POST /files`, a framework adapter must parse the incoming multipart body and populate
 `RuntimeRequest.file` (`{filename, content: Uint8Array, contentType?}`) plus put any other form
 fields (`agentId`, `threadId`) on `RuntimeRequest.body` — the runtime itself never touches raw
 bytes or a specific multipart parser. See `examples/node-handler.ts`'s `readMultipartBody` for
-the reference approach.
+the reference approach (it also handles `POST /knowledge/:id/documents`'s multi-file `files`
+field, below).
 
-MCP OAuth owner-mode routes affect the shared MCP config for the whole Project — this runtime
-has no concept of roles/permissions beyond "is there a resolved user" (RBAC is explicitly the
-host's own business decision, not Persona's). A production host should gate these behind its own
-authorization check, e.g. inside `resolveUser` or a wrapping middleware in front of the mount
-point, before exposing them to end users.
+### Opt-in — Project-level admin surface, `capabilities.*` gated
+
+See [Capabilities](#capabilities--admin-surface) for what these are, why they default off, and
+how to enable them safely.
+
+| Method | Path | Capability | Proxies to |
+| --- | --- | --- | --- |
+| `POST` | `/agents` | `agentsWrite` | `client.agents.create(input)` |
+| `GET`/`PATCH`/`DELETE` | `/agents/:id` | `agentsWrite` | `client.agents.get/update/delete(id)` |
+| `POST` | `/agents/bulk-delete` | `agentsWrite` | `client.agents.bulkDelete(ids)` |
+| `GET`/`POST` | `/mcps` | `mcps` | `client.mcps.list/create` |
+| `GET`/`PATCH`/`DELETE` | `/mcps/:id` | `mcps` | `client.mcps.get/update/delete(id)` |
+| `POST` | `/mcps/bulk-delete` | `mcps` | `client.mcps.bulkDelete(ids)` |
+| `GET` | `/mcps/:id/usage` | `mcps` | `client.mcps.getUsage(id)` |
+| `POST` | `/mcps/:id/test` | `mcps` | `client.mcps.testConnection(id)` |
+| `GET` | `/mcps/:id/resource?uri=` | `mcps` | `client.mcps.readResource(id, uri)` |
+| `POST` | `/mcps/:id/call-tool` | `mcps` | `client.mcps.callTool(id, name, arguments)` |
+| `GET`/`POST` | `/providers` | `providers` | `client.providers.list/create` — **holds API keys** |
+| `GET`/`PATCH`/`DELETE` | `/providers/:id` | `providers` | `client.providers.get/update/delete(id)` |
+| `POST` | `/providers/bulk-delete` | `providers` | `client.providers.bulkDelete(ids)` |
+| `POST` | `/providers/:id/test` | `providers` | `client.providers.testConnection(id)` |
+| `GET` | `/providers/:id/models` | `providers` | `client.providers.getModels(id)` |
+| `GET` | `/providers/:id/usage` | `providers` | `client.providers.getUsage(id)` |
+| `GET`/`POST` | `/skills` | `skills` | `client.skills.list/create` |
+| `GET`/`PATCH`/`DELETE` | `/skills/:id` | `skills` | `client.skills.get/update/delete(id)` |
+| `POST` | `/skills/bulk-delete` | `skills` | `client.skills.bulkDelete(ids)` |
+| `GET` | `/skills/:id/usage` | `skills` | `client.skills.getUsage(id)` |
+| `GET`/`POST` | `/knowledge` | `knowledge` | `client.knowledge.list/create` |
+| `GET`/`PATCH`/`DELETE` | `/knowledge/:id` | `knowledge` | `client.knowledge.get/update/delete(id)` |
+| `POST` | `/knowledge/bulk-delete` | `knowledge` | `client.knowledge.bulkDelete(ids)` |
+| `GET` | `/knowledge/:id/usage` | `knowledge` | `client.knowledge.getUsage(id)` |
+| `POST` | `/knowledge/:id/documents` | `knowledge` | `client.knowledge.uploadDocuments(id, files)` — multipart, one or more `files` parts required. `201` |
+| `GET` | `/knowledge/:id/documents` | `knowledge` | `client.knowledge.listDocuments(id)` |
+| `DELETE` | `/knowledge/:id/documents/:sourceName` | `knowledge` | `client.knowledge.deleteDocument(id, sourceName)` |
+| `POST` | `/knowledge/:id/search` | `knowledge` | `client.knowledge.search(id, query, {topK?})` |
+| `GET`/`POST` | `/stores` | `stores` | `client.stores.list/create` |
+| `GET`/`PATCH`/`DELETE` | `/stores/:id` | `stores` | `client.stores.get/update/delete(id)` |
+| `GET` | `/stores/:id/files` | `stores` | `client.stores.listFiles(id)` |
+| `GET`/`PUT`/`DELETE` | `/stores/:id/file` | `stores` | `client.stores.getFile/writeFile/deleteFile(id, {path, content?})` |
+| `GET` | `/audit-logs` | `auditLogs` | `client.auditLogs.list({page, limit, eventType})` |
+| `POST` | `/architect` | `architect` | `client.architect.stream({messages, resume})`, streamed out as SSE, same `x-persona-run-id`/reconnect mechanics as `/chat`. No `agentId` — the Architect builds/edits the caller's own Agents. |
+| `GET` | `/architect/:runId/resume` | `architect` | Reattaches to the matching `POST /architect` run. |
+
+A disabled capability's routes are simply absent from the route table — a request to one 404s
+(or, where an always-on route shares the same path with a different method, e.g. `POST /agents`
+while only `GET /agents` is always-on, `405`) rather than 403, so a disabled capability leaks no
+information about what it would have done.
+
+## Capabilities — admin surface
+
+The routes above are split into two trust tiers, and this is a deliberate design choice, not an
+oversight:
+
+- **Always on**: things an end user does in their own chat session — send messages, manage their
+  own conversations/files/memory, connect their own MCP account. Scoped entirely to whichever
+  user `resolveUser` returns.
+- **Opt-in via `capabilities`**: Project-level configuration — LLM provider credentials, skill
+  authoring, knowledge base and vector store management, security audit logs, an agent-building
+  co-pilot, and full Agent/MCP-server CRUD. **Every one of these defaults to `false`.** Upgrading
+  this package never silently exposes new surface to whoever `resolveUser` accepts.
+
+```ts
+createRuntime({
+  // ...
+  capabilities: {
+    agentsWrite: false, // default
+    mcps: false,        // default
+    providers: false,   // default — holds API keys, think hard before enabling
+    skills: false,       // default
+    knowledge: false,    // default
+    stores: false,        // default
+    auditLogs: false,     // default
+    architect: false,     // default
+  },
+});
+```
+
+**Most hosts should never turn any of these on**, and should instead call `@personaai/sdk`
+directly from their own admin backend/CLI/setup script for Project configuration — that's what
+"belongs to the host application" means in practice.
+
+If you *do* want an admin surface reachable over HTTP (e.g. building your own internal admin
+tool on top of this runtime), the right pattern is **two separate `createRuntime()` calls
+mounted at two different paths**, each with its own `resolveUser`:
+
+```ts
+const appRuntime = createRuntime({
+  baseUrl, credential,
+  resolveUser: resolveEndUser, // your normal app auth — any logged-in user
+});
+
+const adminRuntime = createRuntime({
+  baseUrl, credential,
+  resolveUser: resolveAdminUser, // a stricter check — only your team
+  capabilities: { providers: true, skills: true, knowledge: true, stores: true, auditLogs: true, architect: true, mcps: true, agentsWrite: true },
+});
+
+// mount appRuntime at /api/persona, adminRuntime at /api/admin/persona,
+// each behind whatever auth middleware your framework adapter wires up
+```
+
+This is coarse-grained by design: a capability is either fully on or fully off for whoever
+`resolveUser` accepts on that mount — there's no per-user or per-action permission model inside
+the runtime itself (e.g. "this user can update Agents but not delete them" isn't expressible).
+If you need that, enforce it in `resolveUser` (reject the request before it reaches the route) or
+in a hook, not by asking this runtime for finer granularity than "on this mount, for this
+resolved identity, is the capability on."
 
 ## Lifecycle hooks
 
 Plain async event listeners, not middleware — the runtime proceeds with sensible defaults when a
 hook is omitted, and a hook that wants to reject a run just throws (the throw is caught and
-routed through the same sanitized error response as any other failure). **All eight are wired
-in v0.2:**
+routed through the same sanitized error response as any other failure). **All eight are wired.**
 
 ```ts
 createRuntime({
   // ...
   hooks: {
     beforeRun(ctx) {
-      // ctx: { userId, agentId, threadId?, messages } — fires before POST /chat's stream starts.
+      // ctx: { userId, kind: 'chat' | 'architect', agentId?, threadId?, messages }
+      // Fires before POST /chat's or POST /architect's stream starts.
+      // agentId is only set for kind: 'chat' — the Architect has none of its own.
     },
     afterRun(ctx, result) {
       // result: { text, eventCount, interrupted, erroredInBand }
@@ -130,7 +238,8 @@ createRuntime({
       // afterRun still fires (onError does not).
     },
     onError(ctx, error) {
-      // Fires on a thrown exception only: the initial chat request failing
+      // ctx.phase: 'auth' | 'chat' | 'architect'
+      // Fires on a thrown exception only: the initial request failing
       // (auth/validation/network) or the stream dying mid-read. Not on an
       // in-band RUN_ERROR event — see afterRun above.
     },
@@ -266,19 +375,19 @@ modes (`mode: 'development' | 'production'`, default `'production'` unless
 
 ## Not yet implemented
 
-This is v0.4 — still not the full [issue #229](https://github.com/hasanraiyan/agent-marketplace/issues/229)
-checklist, and two of these are intentionally out of scope for this package rather than gaps:
+This is v0.5. Every SDK resource now has a route (see [Routes](#routes)); what's left is either a
+genuine unclosed gap or an intentional package boundary, not an oversight:
 
 - **Multi-instance reconnect/resume** — see
   [Reconnect and resume](#reconnect-and-resume) above. Single-process resume is implemented and
   tested; sharing a live run across separate runtime instances would need a message-broker
-  architecture this package doesn't provide.
+  architecture this package doesn't provide. This is the one real gap.
+- **Fine-grained (per-user, per-action) permissions within an enabled capability** — **by
+  design**, not a gap: see [Capabilities](#capabilities--admin-surface). A capability is on or off
+  per mount; anything finer belongs in `resolveUser` or a hook, not the runtime.
 - Any published framework adapter (`@personaai/express`, `@personaai/nextjs`, `@personaai/node`,
   `@personaai/fastify`, `@personaai/hono`, `@personaai/nestjs`) — **by design**, not a gap: this
   package is the foundation they're meant to wrap, not a replacement for them.
-- Authorization/RBAC for MCP owner-mode OAuth routes — **by design**, not a gap: the runtime
-  exposes the raw capability, gating who's allowed to call it is the host's own business decision
-  (see the Routes section above).
 
 ## Roadmap
 

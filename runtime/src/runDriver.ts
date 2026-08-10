@@ -52,7 +52,14 @@ async function processEvent(
   switch (e.type) {
     case EventType.RUN_STARTED: {
       const threadId = typeof e.threadId === 'string' ? e.threadId : undefined;
-      if (!acc.threadCreateFired && !runCtx.threadId && threadId) {
+      // Only chat runs have threads; the Architect co-pilot doesn't.
+      if (
+        runCtx.kind === 'chat' &&
+        runCtx.agentId &&
+        !acc.threadCreateFired &&
+        !runCtx.threadId &&
+        threadId
+      ) {
         acc.threadCreateFired = true;
         await hooks?.onThreadCreate?.({ userId: runCtx.userId, agentId: runCtx.agentId, threadId });
       }
@@ -204,7 +211,7 @@ export class RunDriver {
       await hooks?.onError?.(
         {
           userId: this.runCtx.userId,
-          phase: 'chat',
+          phase: this.runCtx.kind,
           agentId: this.runCtx.agentId,
           threadId: this.runCtx.threadId,
         },

@@ -131,4 +131,44 @@ describe('threads routes', () => {
       expect(parsed.error.detail).toBeUndefined();
     }
   });
+
+  it('GET /threads/:id/messages proxies to threads.getMessages', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ messages: [], state: {}, subagentTraces: {} })
+    );
+    const runtime = makeRuntime({ fetchMock });
+
+    const response = await runtime.handle({
+      method: 'GET',
+      path: '/threads/t1/messages',
+      headers: {},
+      query: {},
+      body: undefined,
+      userId: null,
+    });
+
+    expect(response.status).toBe(200);
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toContain('/api/v1/developer/threads/t1/messages');
+  });
+
+  it('POST /threads/bulk-delete proxies to threads.bulkDelete', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ deleted: ['t1', 't2'], failed: [] })
+    );
+    const runtime = makeRuntime({ fetchMock });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/threads/bulk-delete',
+      headers: {},
+      query: {},
+      body: { ids: ['t1', 't2'] },
+      userId: null,
+    });
+
+    expect(response.status).toBe(200);
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toEqual({ ids: ['t1', 't2'] });
+  });
 });

@@ -1,5 +1,5 @@
 import type { RouteHandler } from '../routing.js';
-import { RuntimeHttpError } from '../errors.js';
+import { json, noContent, requireParam } from '../routeHelpers.js';
 
 /**
  * MCP OAuth — deliberately narrow. The SDK's `McpOAuthResource` has no
@@ -17,45 +17,32 @@ import { RuntimeHttpError } from '../errors.js';
  * wrapping middleware in front of the mount point.
  */
 
-function json(status: number, value: unknown) {
-  return {
-    kind: 'buffered' as const,
-    status,
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(value),
-  };
-}
-
-function requireMcpId(params: Record<string, string>): string {
-  const id = params.id;
-  if (!id) throw new RuntimeHttpError(400, 'INVALID_REQUEST', '"id" path parameter is required.');
-  return id;
-}
-
 export const getOwnerAuthorizeUrl: RouteHandler = async (_request, ctx) => {
-  const result = await ctx.client.mcps.oauth.getOwnerAuthorizeUrl(requireMcpId(ctx.params));
+  const result = await ctx.client.mcps.oauth.getOwnerAuthorizeUrl(requireParam(ctx.params, 'id'));
   return json(200, result);
 };
 
 export const getUserAuthorizeUrl: RouteHandler = async (request, ctx) => {
   const result = await ctx.client.mcps.oauth.getUserAuthorizeUrl(
-    requireMcpId(ctx.params),
+    requireParam(ctx.params, 'id'),
     request.query.returnTo
   );
   return json(200, result);
 };
 
 export const getUserConnectionStatus: RouteHandler = async (_request, ctx) => {
-  const result = await ctx.client.mcps.oauth.getUserConnectionStatus(requireMcpId(ctx.params));
+  const result = await ctx.client.mcps.oauth.getUserConnectionStatus(
+    requireParam(ctx.params, 'id')
+  );
   return json(200, result);
 };
 
 export const disconnectUserConnection: RouteHandler = async (_request, ctx) => {
-  await ctx.client.mcps.oauth.disconnectUserConnection(requireMcpId(ctx.params));
-  return { kind: 'buffered', status: 204, headers: {}, body: '' };
+  await ctx.client.mcps.oauth.disconnectUserConnection(requireParam(ctx.params, 'id'));
+  return noContent();
 };
 
 export const disconnectOwnerConnection: RouteHandler = async (_request, ctx) => {
-  await ctx.client.mcps.oauth.disconnectOwnerConnection(requireMcpId(ctx.params));
-  return { kind: 'buffered', status: 204, headers: {}, body: '' };
+  await ctx.client.mcps.oauth.disconnectOwnerConnection(requireParam(ctx.params, 'id'));
+  return noContent();
 };

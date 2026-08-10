@@ -33,7 +33,7 @@ describe('RunDriver pump/subscriber correctness', () => {
       }
     }
 
-    const runCtx = { userId: 'user-1', agentId: 'agent-1', messages: [] };
+    const runCtx = { userId: 'user-1', kind: 'chat' as const, agentId: 'agent-1', messages: [] };
     const driver = new RunDriver('run-1', runCtx, upstream(), undefined, 'production');
 
     // waitForFirstFrame() only guarantees the *first* push has happened —
@@ -68,7 +68,7 @@ describe('RunDriver pump/subscriber correctness', () => {
       for (const event of events) yield event;
     }
 
-    const runCtx = { userId: 'user-1', agentId: 'agent-1', messages: [] };
+    const runCtx = { userId: 'user-1', kind: 'chat' as const, agentId: 'agent-1', messages: [] };
     const driver = new RunDriver('run-1', runCtx, upstream(), undefined, 'production');
     await driver.waitForFirstFrame();
 
@@ -87,7 +87,7 @@ describe('RunDriver pump/subscriber correctness', () => {
       yield { type: EventType.RUN_FINISHED, threadId: 't1', runId: 'r1' } as AguiEvent;
     }
 
-    const runCtx = { userId: 'user-1', agentId: 'agent-1', messages: [] };
+    const runCtx = { userId: 'user-1', kind: 'chat' as const, agentId: 'agent-1', messages: [] };
     const driver = new RunDriver('run-1', runCtx, upstream(), undefined, 'production');
     await driver.waitForFirstFrame();
 
@@ -111,7 +111,7 @@ describe('RunDriver pump/subscriber correctness', () => {
       await new Promise(() => {}); // never resolves — keeps the run "in-flight" so the subscription stays live
     }
 
-    const runCtx = { userId: 'user-1', agentId: 'agent-1', messages: [] };
+    const runCtx = { userId: 'user-1', kind: 'chat' as const, agentId: 'agent-1', messages: [] };
     const driver = new RunDriver('run-1', runCtx, upstream(), undefined, 'production');
     await driver.waitForFirstFrame();
 
@@ -131,7 +131,7 @@ describe('RunDriver pump/subscriber correctness', () => {
       await new Promise(() => {});
     }
 
-    const runCtx = { userId: 'user-1', agentId: 'agent-1', messages: [] };
+    const runCtx = { userId: 'user-1', kind: 'chat' as const, agentId: 'agent-1', messages: [] };
     const driver = new RunDriver('run-1', runCtx, upstream(), undefined, 'production');
     await driver.waitForFirstFrame();
 

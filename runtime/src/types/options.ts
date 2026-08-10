@@ -11,6 +11,37 @@ import type { RuntimeHooks } from './hooks.js';
  */
 export type ResolveUser = (request: RuntimeRequest) => string | null | Promise<string | null>;
 
+/**
+ * Every one of these is `false` unless explicitly enabled — always-off by
+ * default so upgrading this package never silently exposes new surface to
+ * whoever `resolveUser` accepts. These resources are Project-level
+ * configuration (LLM provider credentials, skill/knowledge-base/vector-store
+ * management, security audit logs, an agent-building co-pilot) rather than
+ * things an end user does in a chat session — most hosts should manage them
+ * via `@personaai/sdk` directly from their own admin surface and never turn
+ * these on. Turn one on only if you specifically want it reachable through
+ * whatever `resolveUser` gates (which may not be "any logged-in end user" —
+ * that's your call).
+ */
+export interface RuntimeCapabilities {
+  /** Full Agent CRUD (create/get/update/delete/bulk-delete) beyond the always-on read-only `GET /agents` list. @default false */
+  agentsWrite?: boolean;
+  /** Full MCP server CRUD + testConnection/readResource/callTool, beyond the always-on `/mcps/:id/oauth/*` routes. @default false */
+  mcps?: boolean;
+  /** LLM provider configuration — **holds API keys**. @default false */
+  providers?: boolean;
+  /** Skill authoring. @default false */
+  skills?: boolean;
+  /** Knowledge base CRUD, document upload/search. @default false */
+  knowledge?: boolean;
+  /** Vector store CRUD and file read/write. @default false */
+  stores?: boolean;
+  /** Security/compliance audit log read access. @default false */
+  auditLogs?: boolean;
+  /** The Architect co-pilot — builds/edits Agents on the caller's behalf via tool calls. @default false */
+  architect?: boolean;
+}
+
 export interface CreateRuntimeOptions {
   /** Base URL of the Persona Developer Platform API, e.g. "https://api.persona.hasanraiyan.me". */
   baseUrl: string;
@@ -51,6 +82,8 @@ export interface CreateRuntimeOptions {
    * @default 1000
    */
   maxTrackedRuns?: number;
+  /** Opt-in switches for Project-level admin surface. See {@link RuntimeCapabilities} — everything defaults to off. */
+  capabilities?: RuntimeCapabilities;
 }
 
 export interface Runtime {

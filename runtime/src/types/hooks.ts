@@ -2,7 +2,10 @@ import type { ChatMessageInput } from '@personaai/sdk';
 
 export interface RunContext {
   userId: string;
-  agentId: string;
+  /** Which endpoint started this run. */
+  kind: 'chat' | 'architect';
+  /** Absent for `kind: 'architect'` — the Architect co-pilot has no target agentId, it builds/edits Agents itself. */
+  agentId?: string;
   threadId?: string;
   messages: ChatMessageInput[];
 }
@@ -20,14 +23,15 @@ export interface RunResult {
 export interface ErrorContext {
   userId: string | null;
   /** Which stage of request handling the error came from. */
-  phase: 'auth' | 'chat';
+  phase: 'auth' | 'chat' | 'architect';
   agentId?: string;
   threadId?: string;
 }
 
 export interface ToolCallContext {
   userId: string;
-  agentId: string;
+  /** Absent for a tool call inside an Architect run. */
+  agentId?: string;
   threadId?: string;
   toolName: string;
   toolCallId: string;

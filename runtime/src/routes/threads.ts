@@ -1,27 +1,13 @@
 import type { UpdateThreadInput } from '@personaai/sdk';
 import type { RouteHandler } from '../routing.js';
-import { RuntimeHttpError } from '../errors.js';
-
-function json(status: number, value: unknown) {
-  return {
-    kind: 'buffered' as const,
-    status,
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(value),
-  };
-}
-
-function requireId(params: Record<string, string>): string {
-  const id = params.id;
-  if (!id) throw new RuntimeHttpError(400, 'INVALID_REQUEST', '"id" path parameter is required.');
-  return id;
-}
-
-function toInt(value: string | undefined): number | undefined {
-  if (value === undefined) return undefined;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isNaN(parsed) ? undefined : parsed;
-}
+import {
+  json,
+  noContent,
+  requireParam,
+  requireBodyObject,
+  requireStringField,
+  toInt,
+} from '../routeHelpers.js';
 
 export const listThreads: RouteHandler = async (request, ctx) => {
   const items = await ctx.client.threads.list({
@@ -32,19 +18,13 @@ export const listThreads: RouteHandler = async (request, ctx) => {
 };
 
 export const createThread: RouteHandler = async (request, ctx) => {
-  const body = request.body as Record<string, unknown> | undefined;
-  if (typeof body?.agentId !== 'string' || body.agentId.length === 0) {
-    throw new RuntimeHttpError(
-      400,
-      'INVALID_REQUEST',
-      '"agentId" is required and must be a string.'
-    );
-  }
-  const thread = await ctx.client.threads.create({ agentId: body.agentId });
+  const body = requireBodyObject(request.body);
+  const agentId = requireStringField(body, 'agentId');
+  const thread = await ctx.client.threads.create({ agentId });
 
   await ctx.hooks?.onThreadCreate?.({
     userId: request.userId as string,
-    agentId: body.agentId,
+    agentId,
     threadId: thread._id,
   });
 
@@ -52,17 +32,30 @@ export const createThread: RouteHandler = async (request, ctx) => {
 };
 
 export const getThread: RouteHandler = async (_request, ctx) => {
-  const thread = await ctx.client.threads.get(requireId(ctx.params));
+  const thread = await ctx.client.threads.get(requireParam(ctx.params, 'id'));
   return json(200, thread);
 };
 
 export const updateThread: RouteHandler = async (request, ctx) => {
   const body = (request.body as UpdateThreadInput | undefined) ?? {};
-  const thread = await ctx.client.threads.update(requireId(ctx.params), body);
+  const thread = await ctx.client.threads.update(requireParam(ctx.params, 'id'), body);
   return json(200, thread);
 };
 
 export const deleteThread: RouteHandler = async (_request, ctx) => {
-  await ctx.client.threads.delete(requireId(ctx.params));
-  return { kind: 'buffered', status: 204, headers: {}, body: '' };
+  await ctx.client.threads.delete(requireParam(ctx.params, 'id'));
+  return noContent();
+};
+
+export const bulkDeleteThreads: RouteHandler = async (request, ctx) => {
+  const body = requireBodyObject(request.body);
+  const ids = Array.isArray(body.ids) ? (body.ids as string[]) : [];
+  const result = await ctx.client.threads.bulkDelete(ids);
+  return json(200, result);
+};
+
+/** The same message history + graph state `chat.stream()` would resume from — load a past conversation on page reopen. */
+export const getThreadMessages: RouteHandler = async (_request, ctx) => {
+  const messages = await ctx.client.threads.getMessages(requireParam(ctx.params, 'id'));
+  return json(200, messages);
 };

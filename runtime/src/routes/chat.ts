@@ -57,6 +57,7 @@ export const chatRoute: RouteHandler = async (request, ctx) => {
 
   const runCtx: RunContext = {
     userId,
+    kind: 'chat',
     agentId: body.agentId,
     threadId: body.threadId,
     messages: body.messages,

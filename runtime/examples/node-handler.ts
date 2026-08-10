@@ -14,16 +14,23 @@ async function readJsonBody(req: IncomingMessage): Promise<unknown> {
 }
 
 /**
- * `POST /files` needs raw bytes, not JSON — parsed here via Node's native
- * `Request`/`FormData` (undici), no extra multipart-parsing dependency.
- * Only the `content-type` header (which carries the multipart boundary)
- * is forwarded; nothing else about the original request matters for
- * parsing the body itself.
+ * `POST /files` (single-file) and `POST /knowledge/:id/documents`
+ * (multi-file) both need raw bytes, not JSON — parsed here via Node's
+ * native `Request`/`FormData` (undici), no extra multipart-parsing
+ * dependency. Only the `content-type` header (which carries the multipart
+ * boundary) is forwarded; nothing else about the original request matters
+ * for parsing the body itself. A `file` form field becomes the singular
+ * `RuntimeRequest.file`; any number of `files` form fields become the
+ * plural `RuntimeRequest.files` array.
  */
 async function readMultipartBody(
   req: IncomingMessage,
   contentType: string
-): Promise<{ file?: RuntimeUploadedFile; body: Record<string, unknown> }> {
+): Promise<{
+  file?: RuntimeUploadedFile;
+  files?: RuntimeUploadedFile[];
+  body: Record<string, unknown>;
+}> {
   const request = new Request('http://internal/', {
     method: 'POST',
     headers: { 'content-type': contentType },
@@ -33,23 +40,24 @@ async function readMultipartBody(
 
   const formData = await request.formData();
   let file: RuntimeUploadedFile | undefined;
+  const files: RuntimeUploadedFile[] = [];
   const fields: Record<string, unknown> = {};
 
   for (const [key, value] of formData.entries()) {
     if (value instanceof File) {
-      if (key === 'file') {
-        file = {
-          filename: value.name,
-          content: new Uint8Array(await value.arrayBuffer()),
-          contentType: value.type || undefined,
-        };
-      }
+      const uploaded: RuntimeUploadedFile = {
+        filename: value.name,
+        content: new Uint8Array(await value.arrayBuffer()),
+        contentType: value.type || undefined,
+      };
+      if (key === 'file') file = uploaded;
+      else if (key === 'files') files.push(uploaded);
     } else {
       fields[key] = value;
     }
   }
 
-  return { file, body: fields };
+  return { file, files: files.length > 0 ? files : undefined, body: fields };
 }
 
 export async function toRuntimeRequest(req: IncomingMessage): Promise<RuntimeRequest> {
@@ -71,10 +79,12 @@ export async function toRuntimeRequest(req: IncomingMessage): Promise<RuntimeReq
 
   let body: unknown;
   let file: RuntimeUploadedFile | undefined;
+  let files: RuntimeUploadedFile[] | undefined;
   if (!bodyless && contentType.includes('multipart/form-data')) {
     const parsed = await readMultipartBody(req, contentType);
     body = parsed.body;
     file = parsed.file;
+    files = parsed.files;
   } else if (!bodyless) {
     body = await readJsonBody(req);
   }
@@ -86,6 +96,7 @@ export async function toRuntimeRequest(req: IncomingMessage): Promise<RuntimeReq
     query,
     body,
     file,
+    files,
     userId: null,
   };
 }

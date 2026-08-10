@@ -1,26 +1,6 @@
 import type { RouteHandler } from '../routing.js';
 import { RuntimeHttpError } from '../errors.js';
-
-function json(status: number, value: unknown) {
-  return {
-    kind: 'buffered' as const,
-    status,
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(value),
-  };
-}
-
-function requireId(params: Record<string, string>): string {
-  const id = params.id;
-  if (!id) throw new RuntimeHttpError(400, 'INVALID_REQUEST', '"id" path parameter is required.');
-  return id;
-}
-
-function toInt(value: string | undefined): number | undefined {
-  if (value === undefined) return undefined;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isNaN(parsed) ? undefined : parsed;
-}
+import { json, noContent, requireParam, requireBodyObject, toInt } from '../routeHelpers.js';
 
 export const listFiles: RouteHandler = async (request, ctx) => {
   const items = await ctx.client.files.list({
@@ -60,7 +40,7 @@ export const uploadFile: RouteHandler = async (request, ctx) => {
 };
 
 export const downloadFile: RouteHandler = async (_request, ctx) => {
-  const response = await ctx.client.files.download(requireId(ctx.params));
+  const response = await ctx.client.files.download(requireParam(ctx.params, 'id'));
 
   const headers: Record<string, string> = {};
   const contentType = response.headers.get('content-type');
@@ -81,6 +61,13 @@ export const downloadFile: RouteHandler = async (_request, ctx) => {
 };
 
 export const deleteFile: RouteHandler = async (_request, ctx) => {
-  await ctx.client.files.delete(requireId(ctx.params));
-  return { kind: 'buffered', status: 204, headers: {}, body: '' };
+  await ctx.client.files.delete(requireParam(ctx.params, 'id'));
+  return noContent();
+};
+
+export const bulkDeleteFiles: RouteHandler = async (request, ctx) => {
+  const body = requireBodyObject(request.body);
+  const ids = Array.isArray(body.ids) ? (body.ids as string[]) : [];
+  const result = await ctx.client.files.bulkDelete(ids);
+  return json(200, result);
 };

@@ -1,14 +1,12 @@
 import type { RouteHandler } from '../routing.js';
 import { RuntimeHttpError } from '../errors.js';
-
-function json(status: number, value: unknown) {
-  return {
-    kind: 'buffered' as const,
-    status,
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(value),
-  };
-}
+import {
+  json,
+  noContent,
+  requireQueryParam,
+  requireBodyObject,
+  requireStringField,
+} from '../routeHelpers.js';
 
 function requireScope(query: Record<string, string | undefined>): {
   scope: 'user' | 'agent' | undefined;
@@ -31,9 +29,7 @@ export const listMemory: RouteHandler = async (_request, ctx) => {
 };
 
 export const getMemoryFile: RouteHandler = async (request, ctx) => {
-  const path = request.query.path;
-  if (!path)
-    throw new RuntimeHttpError(400, 'INVALID_REQUEST', '"path" query parameter is required.');
+  const path = requireQueryParam(request.query, 'path');
   const { scope, agentId } = requireScope(request.query);
 
   const file = await ctx.client.memory.getFile({ path, scope, agentId });
@@ -41,17 +37,9 @@ export const getMemoryFile: RouteHandler = async (request, ctx) => {
 };
 
 export const writeMemoryFile: RouteHandler = async (request, ctx) => {
-  const body = request.body as Record<string, unknown> | undefined;
-  if (typeof body?.path !== 'string' || body.path.length === 0) {
-    throw new RuntimeHttpError(400, 'INVALID_REQUEST', '"path" is required and must be a string.');
-  }
-  if (typeof body.content !== 'string') {
-    throw new RuntimeHttpError(
-      400,
-      'INVALID_REQUEST',
-      '"content" is required and must be a string.'
-    );
-  }
+  const body = requireBodyObject(request.body);
+  const path = requireStringField(body, 'path');
+  const content = requireStringField(body, 'content');
   const scope = body.scope === 'agent' ? 'agent' : body.scope === 'user' ? 'user' : undefined;
   const agentId = typeof body.agentId === 'string' ? body.agentId : undefined;
   if (scope === 'agent' && !agentId) {
@@ -62,24 +50,17 @@ export const writeMemoryFile: RouteHandler = async (request, ctx) => {
     );
   }
 
-  const file = await ctx.client.memory.writeFile({
-    path: body.path,
-    content: body.content,
-    scope,
-    agentId,
-  });
+  const file = await ctx.client.memory.writeFile({ path, content, scope, agentId });
 
-  await ctx.hooks?.onMemoryWrite?.({ userId: request.userId as string, agentId, path: body.path });
+  await ctx.hooks?.onMemoryWrite?.({ userId: request.userId as string, agentId, path });
 
   return json(200, file);
 };
 
 export const deleteMemoryFile: RouteHandler = async (request, ctx) => {
-  const path = request.query.path;
-  if (!path)
-    throw new RuntimeHttpError(400, 'INVALID_REQUEST', '"path" query parameter is required.');
+  const path = requireQueryParam(request.query, 'path');
   const { scope, agentId } = requireScope(request.query);
 
   await ctx.client.memory.deleteFile({ path, scope, agentId });
-  return { kind: 'buffered', status: 204, headers: {}, body: '' };
+  return noContent();
 };
