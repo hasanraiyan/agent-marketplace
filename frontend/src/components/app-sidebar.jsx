@@ -135,7 +135,8 @@ export function AppSidebar({ ...props }) {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white leading-none">
-                    Persona<span className="text-[#1E60FF] font-black">.ai</span>
+                    Persona
+                    <span className="text-[#1E60FF] font-black">.ai</span>
                   </span>
                   <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold mt-1">
                     v1.0.0

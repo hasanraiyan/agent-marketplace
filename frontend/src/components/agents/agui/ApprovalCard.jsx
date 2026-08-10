@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   ArrowRight,
@@ -7,22 +7,22 @@ import {
   PencilLine,
   ShieldAlert,
   X,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { getFileSystemActionDetails, prettyToolName } from './utils';
-import { FileSystemActionCard, ActionArguments } from './ToolTrace';
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { getFileSystemActionDetails, prettyToolName } from "./utils";
+import { FileSystemActionCard, ActionArguments } from "./ToolTrace";
 
 export function ApprovalCard({ approval, onRespond, disabled }) {
   const actions = approval?.actionRequests || [];
   if (!actions.length) return null;
 
-  const approve = () => onRespond(actions.map(() => ({ type: 'approve' })));
+  const approve = () => onRespond(actions.map(() => ({ type: "approve" })));
   const reject = () =>
     onRespond(
       actions.map(() => ({
-        type: 'reject',
-        message: 'User rejected the action.',
+        type: "reject",
+        message: "User rejected the action.",
       })),
     );
 
@@ -152,10 +152,10 @@ export function ClarificationCard({ clarification, onRespond, disabled }) {
             }
             disabled={disabled}
             className={cn(
-              'group flex h-[52px] w-full items-center gap-3 border-b border-slate-200/80 px-3 text-left transition last:border-b-0 disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#464640]',
+              "group flex h-[52px] w-full items-center gap-3 border-b border-slate-200/80 px-3 text-left transition last:border-b-0 disabled:cursor-not-allowed disabled:opacity-60 dark:border-[#464640]",
               index === 0
-                ? 'rounded-xl bg-white/55 dark:bg-white/[0.06]'
-                : 'hover:bg-white/45 dark:hover:bg-white/[0.05]',
+                ? "rounded-xl bg-white/55 dark:bg-white/[0.06]"
+                : "hover:bg-white/45 dark:hover:bg-white/[0.05]",
             )}
           >
             <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-200/80 text-sm font-semibold text-slate-600 group-hover:bg-slate-300 dark:bg-[#474742] dark:text-[#d5d3ca] dark:group-hover:bg-[#55554f]">

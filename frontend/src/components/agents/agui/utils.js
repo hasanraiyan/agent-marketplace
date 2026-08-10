@@ -51,14 +51,29 @@ export function prettyToolName(name) {
 export function isReadFileTool(name) {
   if (!name) return false;
   const lower = name.toLowerCase();
-  return lower === "read_file" || lower === "view_file" || lower === "read_file_content" || lower.includes("read_file") || lower.includes("view_file");
+  return (
+    lower === "read_file" ||
+    lower === "view_file" ||
+    lower === "read_file_content" ||
+    lower.includes("read_file") ||
+    lower.includes("view_file")
+  );
 }
 
 export function getReadFileToolDetails(tool) {
   const args = parseToolArgs(tool.argumentsText) || {};
-  
+
   // Detect file path key
-  const pathKeys = ["file_path", "filePath", "path", "filename", "fileName", "targetFile", "TargetFile", "target_file"];
+  const pathKeys = [
+    "file_path",
+    "filePath",
+    "path",
+    "filename",
+    "fileName",
+    "targetFile",
+    "TargetFile",
+    "target_file",
+  ];
   let filePath = "";
   for (const k of pathKeys) {
     if (typeof args[k] === "string") {
@@ -74,7 +89,9 @@ export function getReadFileToolDetails(tool) {
   // Gather other metadata arguments (like offset, limit, etc.)
   const otherArgs = {};
   for (const [key, val] of Object.entries(args)) {
-    const isPathKey = pathKeys.some(pk => pk.toLowerCase() === key.toLowerCase());
+    const isPathKey = pathKeys.some(
+      (pk) => pk.toLowerCase() === key.toLowerCase(),
+    );
     if (!isPathKey) {
       otherArgs[key] = val;
     }
@@ -86,26 +103,32 @@ export function getReadFileToolDetails(tool) {
 export function isLsTool(name) {
   if (!name) return false;
   const lower = name.toLowerCase();
-  return lower === "ls" || lower === "list_dir" || lower === "list_directory" || lower.includes("list_dir") || lower.includes("list_directory");
+  return (
+    lower === "ls" ||
+    lower === "list_dir" ||
+    lower === "list_directory" ||
+    lower.includes("list_dir") ||
+    lower.includes("list_directory")
+  );
 }
 
 export function parseLsResults(resultText) {
   if (!resultText) return [];
-  
+
   // Try to parse as JSON first
   const parsed = tryParseJson(resultText);
   if (Array.isArray(parsed)) {
-    return parsed.map(item => {
+    return parsed.map((item) => {
       if (typeof item === "string") {
         const isDir = item.endsWith("/") || item.includes("(directory)");
         return {
           name: item.replace(/\(directory\)/g, "").trim(),
-          isDir
+          isDir,
         };
       }
       return {
         name: item.name || item.path || "",
-        isDir: !!(item.isDir || item.is_dir || item.isDirectory)
+        isDir: !!(item.isDir || item.is_dir || item.isDirectory),
       };
     });
   }
@@ -113,10 +136,13 @@ export function parseLsResults(resultText) {
   // Parse as plain text lines
   return resultText
     .split("\n")
-    .map(line => line.trim())
+    .map((line) => line.trim())
     .filter(Boolean)
-    .map(line => {
-      const isDir = line.endsWith("/") || line.toLowerCase().includes("(directory)") || line.toLowerCase().includes("(dir)");
+    .map((line) => {
+      const isDir =
+        line.endsWith("/") ||
+        line.toLowerCase().includes("(directory)") ||
+        line.toLowerCase().includes("(dir)");
       let name = line
         .replace(/\(directory\)/gi, "")
         .replace(/\(dir\)/gi, "")
@@ -129,9 +155,18 @@ export function getFileSystemActionDetails(action) {
   if (!action.args || typeof action.args !== "object") return null;
 
   const args = action.args;
-  
+
   // Detect file path key
-  const pathKeys = ["file_path", "filePath", "path", "filename", "fileName", "targetFile", "TargetFile", "target_file"];
+  const pathKeys = [
+    "file_path",
+    "filePath",
+    "path",
+    "filename",
+    "fileName",
+    "targetFile",
+    "TargetFile",
+    "target_file",
+  ];
   let filePath = "";
   for (const k of pathKeys) {
     if (typeof args[k] === "string") {
@@ -142,17 +177,17 @@ export function getFileSystemActionDetails(action) {
 
   // Detect file content key
   const contentKeys = [
-    "content", 
-    "codeContent", 
-    "replacementContent", 
-    "ReplacementContent", 
-    "text", 
-    "content_to_write", 
-    "ReplacementChunks"
+    "content",
+    "codeContent",
+    "replacementContent",
+    "ReplacementContent",
+    "text",
+    "content_to_write",
+    "ReplacementChunks",
   ];
   let content = "";
   let hasContent = false;
-  
+
   for (const k of contentKeys) {
     if (args[k] !== undefined && args[k] !== null) {
       if (typeof args[k] === "string") {
@@ -172,8 +207,12 @@ export function getFileSystemActionDetails(action) {
   // Gather other metadata arguments
   const otherArgs = {};
   for (const [key, val] of Object.entries(args)) {
-    const isPathKey = pathKeys.some(pk => pk.toLowerCase() === key.toLowerCase());
-    const isContentKey = contentKeys.some(ck => ck.toLowerCase() === key.toLowerCase());
+    const isPathKey = pathKeys.some(
+      (pk) => pk.toLowerCase() === key.toLowerCase(),
+    );
+    const isContentKey = contentKeys.some(
+      (ck) => ck.toLowerCase() === key.toLowerCase(),
+    );
     if (!isPathKey && !isContentKey) {
       otherArgs[key] = val;
     }
@@ -237,15 +276,18 @@ export function getSuggestedPrompts(agent) {
     return [
       {
         title: "Build a new coding assistant agent",
-        prompt: "Help me design a new Python Coding Assistant agent. I want it to focus on writing clean code and using web search.",
+        prompt:
+          "Help me design a new Python Coding Assistant agent. I want it to focus on writing clean code and using web search.",
       },
       {
         title: "Optimize an existing agent's prompt",
-        prompt: "I want to improve the system prompt of my writing assistant agent. Can you help me make it sound more professional?",
+        prompt:
+          "I want to improve the system prompt of my writing assistant agent. Can you help me make it sound more professional?",
       },
       {
         title: "Explain how skills and providers work",
-        prompt: "What is the difference between an Agent's Skills and its Model Provider? How do I configure Tavily search?",
+        prompt:
+          "What is the difference between an Agent's Skills and its Model Provider? How do I configure Tavily search?",
       },
     ];
   }
@@ -260,15 +302,18 @@ export function getSuggestedPrompts(agent) {
     return [
       {
         title: "Find a bug in my code",
-        prompt: "I have a bug in my React component where state updates are lagging. Can you help me debug it?",
+        prompt:
+          "I have a bug in my React component where state updates are lagging. Can you help me debug it?",
       },
       {
         title: "Write a utility function",
-        prompt: "Write a high-performance helper function in TypeScript to parse and format nested JSON structures.",
+        prompt:
+          "Write a high-performance helper function in TypeScript to parse and format nested JSON structures.",
       },
       {
         title: "Explain a software concept",
-        prompt: "Can you explain the difference between client-side rendering (CSR) and server-side rendering (SSR) in Next.js?",
+        prompt:
+          "Can you explain the difference between client-side rendering (CSR) and server-side rendering (SSR) in Next.js?",
       },
     ];
   }
@@ -280,11 +325,13 @@ export function getSuggestedPrompts(agent) {
     },
     {
       title: "Start a planning session",
-      prompt: "Help me brainstorm and write a structured project outline for my next task.",
+      prompt:
+        "Help me brainstorm and write a structured project outline for my next task.",
     },
     {
       title: "Analyze some text or data",
-      prompt: "I'd like to share some text/code with you to get your feedback and suggestions for improvement.",
+      prompt:
+        "I'd like to share some text/code with you to get your feedback and suggestions for improvement.",
     },
   ];
 }
@@ -369,7 +416,11 @@ export function toolTitle(tool) {
   const name = tool.name?.toLowerCase() || "tool";
   const query = queryFromArgs(tool.argumentsText);
 
-  if (name === "search_web" || name.includes("google") || name.startsWith("tavily")) {
+  if (
+    name === "search_web" ||
+    name.includes("google") ||
+    name.startsWith("tavily")
+  ) {
     if (query) {
       return tool.status === "completed"
         ? `Searched the web for "${query}"`
@@ -380,7 +431,10 @@ export function toolTitle(tool) {
       : "Searching the web";
   }
 
-  if (name === "search_knowledge_base" || name === "list_knowledge_base_sources") {
+  if (
+    name === "search_knowledge_base" ||
+    name === "list_knowledge_base_sources"
+  ) {
     const isSearchAction = name === "search_knowledge_base";
     const args = parseToolArgs(tool.argumentsText);
     const kbName = args?.knowledgeBaseName || "Knowledge Base";
@@ -428,13 +482,28 @@ export function toolTitle(tool) {
   }
 
   if (name.includes("todo")) {
-    return tool.status === "completed" ? "Updated the plan" : "Updating the plan";
+    return tool.status === "completed"
+      ? "Updated the plan"
+      : "Updating the plan";
   }
-  if (name === "read_file" || name === "view_file" || name.includes("read_file") || name.includes("view_file")) {
+  if (
+    name === "read_file" ||
+    name === "view_file" ||
+    name.includes("read_file") ||
+    name.includes("view_file")
+  ) {
     return tool.status === "completed" ? "Read file" : "Reading file";
   }
-  if (name === "ls" || name === "list_dir" || name === "list_directory" || name.includes("list_dir") || name.includes("list_directory")) {
-    return tool.status === "completed" ? "Listed directory" : "Listing directory";
+  if (
+    name === "ls" ||
+    name === "list_dir" ||
+    name === "list_directory" ||
+    name.includes("list_dir") ||
+    name.includes("list_directory")
+  ) {
+    return tool.status === "completed"
+      ? "Listed directory"
+      : "Listing directory";
   }
   if (name.includes("file") || name === "glob") {
     return tool.status === "completed" ? "Updated files" : "Working with files";

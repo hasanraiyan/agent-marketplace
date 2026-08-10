@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import { FileCode, FileText, Loader2 } from 'lucide-react';
-import { getReadFileToolDetails } from '../utils';
+import { FileCode, FileText, Loader2 } from "lucide-react";
+import { getReadFileToolDetails } from "../utils";
 
 // Split file content into display lines + line numbers, stripping any
 // "   1  content" prefixes the tool may have added. Pure — the React
 // Compiler memoizes the call site.
 function processLines(content, lineOffset) {
   if (!content) return { lines: [], lineNumbers: [], isPrefixed: false };
-  const rawLines = content.split('\n');
-  if (rawLines.length > 1 && rawLines[rawLines.length - 1] === '') {
+  const rawLines = content.split("\n");
+  if (rawLines.length > 1 && rawLines[rawLines.length - 1] === "") {
     rawLines.pop();
   }
 
@@ -18,7 +18,7 @@ function processLines(content, lineOffset) {
 
   for (let i = 0; i < rawLines.length; i++) {
     const line = rawLines[i];
-    if (line.trim() === '') continue; // Skip empty lines in validation
+    if (line.trim() === "") continue; // Skip empty lines in validation
 
     const match = line.match(regex);
     if (!match) {
@@ -36,7 +36,7 @@ function processLines(content, lineOffset) {
       const line = rawLines[i];
       const match = line.match(regex);
       if (match) {
-        cleaned.push(match[2] || '');
+        cleaned.push(match[2] || "");
         const num = parseInt(match[1]);
         numbers.push(num);
         lastNum = num;
@@ -56,9 +56,9 @@ function processLines(content, lineOffset) {
 
 export function ReadFileCard({ tool }) {
   const details = getReadFileToolDetails(tool);
-  const content = details?.content ?? '';
+  const content = details?.content ?? "";
   const otherArgs = details?.otherArgs ?? {};
-  const filePath = details?.filePath ?? '';
+  const filePath = details?.filePath ?? "";
   const lineOffset = otherArgs.offset ?? otherArgs.offsetLine ?? 0;
 
   const linesData = processLines(content, lineOffset);
@@ -66,19 +66,34 @@ export function ReadFileCard({ tool }) {
   if (!details) {
     return (
       <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-slate-600 dark:text-slate-300 bg-slate-100/50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-150 dark:border-slate-800/60 scrollbar-thin">
-        {tool.resultText || 'No result yet.'}
+        {tool.resultText || "No result yet."}
       </pre>
     );
   }
 
-  const fileName = filePath.split('/').pop() || filePath;
-  const fileExt = fileName.includes('.')
-    ? fileName.split('.').pop()?.toLowerCase()
-    : '';
-  const isCode = ['js', 'jsx', 'ts', 'tsx', 'json', 'html', 'css', 'py', 'sh', 'go', 'rs', 'md', 'yaml', 'yml'].includes(fileExt);
+  const fileName = filePath.split("/").pop() || filePath;
+  const fileExt = fileName.includes(".")
+    ? fileName.split(".").pop()?.toLowerCase()
+    : "";
+  const isCode = [
+    "js",
+    "jsx",
+    "ts",
+    "tsx",
+    "json",
+    "html",
+    "css",
+    "py",
+    "sh",
+    "go",
+    "rs",
+    "md",
+    "yaml",
+    "yml",
+  ].includes(fileExt);
   const FileIcon = isCode ? FileCode : FileText;
 
-  const done = tool.status === 'completed';
+  const done = tool.status === "completed";
 
   const displayLines = linesData.lines;
   const displayNumbers = linesData.lineNumbers;
@@ -101,7 +116,9 @@ export function ReadFileCard({ tool }) {
       {!done ? (
         <div className="flex flex-col items-center justify-center py-10 text-center text-slate-400 dark:text-slate-500">
           <Loader2 className="size-6.5 animate-spin mb-2 opacity-65 text-indigo-500" />
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-450">Reading file content...</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-450">
+            Reading file content...
+          </span>
         </div>
       ) : content ? (
         <div className="relative max-h-72 overflow-auto bg-[#0D1117] font-mono text-[11.5px] text-[#C9D1D9] border-t border-slate-100 dark:border-slate-850 scrollbar-thin">
@@ -117,8 +134,11 @@ export function ReadFileCard({ tool }) {
             {/* Code Lines */}
             <div className="flex-1 py-3 pl-3 pr-4 overflow-x-auto select-text">
               {displayLines.map((line, i) => (
-                <pre key={i} className="h-5 leading-5 whitespace-pre font-mono text-[#E6EDF2] hover:bg-slate-800/10 dark:hover:bg-slate-800/20 transition-colors">
-                  {line || ' '}
+                <pre
+                  key={i}
+                  className="h-5 leading-5 whitespace-pre font-mono text-[#E6EDF2] hover:bg-slate-800/10 dark:hover:bg-slate-800/20 transition-colors"
+                >
+                  {line || " "}
                 </pre>
               ))}
             </div>
@@ -127,7 +147,9 @@ export function ReadFileCard({ tool }) {
       ) : (
         <div className="flex flex-col items-center justify-center py-8 text-center text-slate-450 dark:text-slate-500">
           <FileText className="size-8 mb-2 opacity-45" />
-          <span className="text-[11px] font-bold uppercase tracking-wider">Empty file or no content</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider">
+            Empty file or no content
+          </span>
         </div>
       )}
 
@@ -135,11 +157,10 @@ export function ReadFileCard({ tool }) {
       {done && content && (
         <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 px-4 py-2 dark:border-slate-800/80 dark:bg-slate-900/20 text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-tight select-none">
           <div>
-            Showing lines {displayNumbers[0]}-{displayNumbers[displayNumbers.length - 1]}
+            Showing lines {displayNumbers[0]}-
+            {displayNumbers[displayNumbers.length - 1]}
           </div>
-          <div>
-            {displayLines.length} lines
-          </div>
+          <div>{displayLines.length} lines</div>
         </div>
       )}
     </div>

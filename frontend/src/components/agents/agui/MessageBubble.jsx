@@ -1,26 +1,21 @@
-'use client';
+"use client";
 
-import { memo, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeSanitize from 'rehype-sanitize';
-import {
-  ChevronDown,
-  ChevronUp,
-  Copy,
-  Check,
-} from 'lucide-react';
-import Prism from 'prismjs';
-import 'prismjs/components/prism-javascript';
-import 'prismjs/components/prism-typescript';
-import 'prismjs/components/prism-python';
-import 'prismjs/components/prism-json';
-import 'prismjs/components/prism-markdown';
-import 'prismjs/components/prism-css';
-import 'prismjs/components/prism-bash';
-import 'prismjs/components/prism-sql';
-import 'prismjs/components/prism-yaml';
-import { cn } from '@/lib/utils';
+import { memo, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
+import { ChevronDown, ChevronUp, Copy, Check } from "lucide-react";
+import Prism from "prismjs";
+import "prismjs/components/prism-javascript";
+import "prismjs/components/prism-typescript";
+import "prismjs/components/prism-python";
+import "prismjs/components/prism-json";
+import "prismjs/components/prism-markdown";
+import "prismjs/components/prism-css";
+import "prismjs/components/prism-bash";
+import "prismjs/components/prism-sql";
+import "prismjs/components/prism-yaml";
+import { cn } from "@/lib/utils";
 
 function ReasoningBubble({ message }) {
   const [open, setOpen] = useState(false);
@@ -100,22 +95,22 @@ function CodeBlock({ language, value }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy text: ', err);
+      console.error("Failed to copy text: ", err);
     }
   };
 
   const getGrammar = (lang) => {
     const l = lang.toLowerCase();
-    if (l === 'js' || l === 'javascript') return Prism.languages.javascript;
-    if (l === 'ts' || l === 'typescript') return Prism.languages.typescript;
-    if (l === 'py' || l === 'python') return Prism.languages.python;
-    if (l === 'json') return Prism.languages.json;
-    if (l === 'html') return Prism.languages.markup;
-    if (l === 'css') return Prism.languages.css;
-    if (l === 'md' || l === 'markdown') return Prism.languages.markdown;
-    if (l === 'bash' || l === 'sh') return Prism.languages.bash;
-    if (l === 'sql') return Prism.languages.sql;
-    if (l === 'yaml' || l === 'yml') return Prism.languages.yaml;
+    if (l === "js" || l === "javascript") return Prism.languages.javascript;
+    if (l === "ts" || l === "typescript") return Prism.languages.typescript;
+    if (l === "py" || l === "python") return Prism.languages.python;
+    if (l === "json") return Prism.languages.json;
+    if (l === "html") return Prism.languages.markup;
+    if (l === "css") return Prism.languages.css;
+    if (l === "md" || l === "markdown") return Prism.languages.markdown;
+    if (l === "bash" || l === "sh") return Prism.languages.bash;
+    if (l === "sql") return Prism.languages.sql;
+    if (l === "yaml" || l === "yml") return Prism.languages.yaml;
     return Prism.languages[l] || Prism.languages.markup;
   };
 
@@ -134,7 +129,9 @@ function CodeBlock({ language, value }) {
   return (
     <div className="my-3 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0D1117] shadow-xs">
       <div className="flex items-center justify-between bg-slate-100/80 dark:bg-[#161B22]/80 px-4 py-1.5 text-xs text-slate-500 dark:text-slate-400 font-sans select-none border-b border-slate-200 dark:border-slate-800">
-        <span className="font-semibold uppercase tracking-wider text-[10px]">{language}</span>
+        <span className="font-semibold uppercase tracking-wider text-[10px]">
+          {language}
+        </span>
         <button
           type="button"
           onClick={handleCopy}
@@ -174,31 +171,35 @@ const markdownComponents = {
     return <>{children}</>;
   },
   code({ node, inline, className, children, ...props }) {
-    const match = /language-(\w+)/.exec(className || '');
-    const language = match ? match[1] : '';
-    const codeValue = String(children).replace(/\n$/, '');
+    const match = /language-(\w+)/.exec(className || "");
+    const language = match ? match[1] : "";
+    const codeValue = String(children).replace(/\n$/, "");
 
     if (!inline) {
-      return (
-        <CodeBlock language={language || 'text'} value={codeValue} />
-      );
+      return <CodeBlock language={language || "text"} value={codeValue} />;
     }
 
     return (
-      <code className={cn("px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-mono break-all", className)} {...props}>
+      <code
+        className={cn(
+          "px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-mono break-all",
+          className,
+        )}
+        {...props}
+      >
         {children}
       </code>
     );
-  }
+  },
 };
 
 // Memoized: during token streaming only the active message object changes
 // identity (replaceById keeps the rest), so re-parsing every bubble's markdown
 // on every frame is pure waste.
 export const MessageBubble = memo(function MessageBubble({ message }) {
-  const isUser = message.role === 'user';
+  const isUser = message.role === "user";
 
-  if (message.role === 'reasoning') {
+  if (message.role === "reasoning") {
     return <ReasoningBubble message={message} />;
   }
 
@@ -206,20 +207,22 @@ export const MessageBubble = memo(function MessageBubble({ message }) {
 
   return (
     <div
-      className={cn('flex w-full', isUser ? 'justify-end' : 'justify-start')}
+      className={cn("flex w-full", isUser ? "justify-end" : "justify-start")}
     >
       <div
         className={cn(
-          'min-w-0 text-[15px] leading-7',
+          "min-w-0 text-[15px] leading-7",
           isUser
-            ? 'max-w-[75%] rounded-2xl rounded-br-md bg-[#1E60FF] px-4 py-3 text-white shadow-sm'
-            : 'max-w-[92%] text-slate-900 dark:text-slate-100',
+            ? "max-w-[75%] rounded-2xl rounded-br-md bg-[#1E60FF] px-4 py-3 text-white shadow-sm"
+            : "max-w-[92%] text-slate-900 dark:text-slate-100",
         )}
       >
         <div
           className={cn(
-            'prose prose-sm max-w-none break-words prose-p:my-1 prose-pre:my-2 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1',
-            isUser ? 'prose-invert [&_*]:text-white text-white' : 'dark:prose-invert',
+            "prose prose-sm max-w-none break-words prose-p:my-1 prose-pre:my-2 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1",
+            isUser
+              ? "prose-invert [&_*]:text-white text-white"
+              : "dark:prose-invert",
           )}
         >
           <ReactMarkdown

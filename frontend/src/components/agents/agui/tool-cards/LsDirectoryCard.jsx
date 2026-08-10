@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { FileText, Folder, FolderOpen, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { parseToolArgs, parseLsResults } from '../utils';
+import { FileText, Folder, FolderOpen, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { parseToolArgs, parseLsResults } from "../utils";
 
 export function LsDirectoryCard({ tool }) {
   const args = parseToolArgs(tool.argumentsText) || {};
-  const path = args.path || args.dir || args.directory || '/';
+  const path = args.path || args.dir || args.directory || "/";
   const items = parseLsResults(tool.resultText);
-  const done = tool.status === 'completed';
+  const done = tool.status === "completed";
 
   return (
     <div className="flex flex-col rounded-xl border border-slate-200/80 bg-white/95 dark:border-slate-800 dark:bg-slate-900/95 overflow-hidden">
@@ -28,7 +28,9 @@ export function LsDirectoryCard({ tool }) {
       {!done ? (
         <div className="flex flex-col items-center justify-center p-5 text-center text-slate-400 dark:text-slate-500">
           <Loader2 className="size-6 animate-spin mb-1.5 opacity-55 text-blue-500" />
-          <span className="text-[11px] font-semibold">Listing Directory Contents...</span>
+          <span className="text-[11px] font-semibold">
+            Listing Directory Contents...
+          </span>
         </div>
       ) : items.length > 0 ? (
         <div className="max-h-56 overflow-auto divide-y divide-slate-100 dark:divide-slate-800/60 scrollbar-thin">
@@ -49,13 +51,13 @@ export function LsDirectoryCard({ tool }) {
               </div>
               <span
                 className={cn(
-                  'shrink-0 rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider',
+                  "shrink-0 rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider",
                   item.isDir
-                    ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400'
-                    : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                    ? "bg-amber-50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400"
+                    : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
                 )}
               >
-                {item.isDir ? 'dir' : 'file'}
+                {item.isDir ? "dir" : "file"}
               </span>
             </div>
           ))}

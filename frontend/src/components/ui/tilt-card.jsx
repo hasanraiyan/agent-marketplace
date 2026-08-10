@@ -7,7 +7,8 @@ export function TiltCard({ children, className = "", maxTilt = 12, ...props }) {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
   const [style, setStyle] = useState({
-    transform: "perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)",
+    transform:
+      "perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)",
     transition: "transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)",
   });
 
@@ -26,8 +27,8 @@ export function TiltCard({ children, className = "", maxTilt = 12, ...props }) {
     setMousePos({ x: mouseX, y: mouseY });
 
     // Normalize to range [-0.5, 0.5]
-    const relativeX = (mouseX / width) - 0.5;
-    const relativeY = (mouseY / height) - 0.5;
+    const relativeX = mouseX / width - 0.5;
+    const relativeY = mouseY / height - 0.5;
 
     // Calculate rotation angles (maxTilt degrees max)
     const rotateX = -relativeY * maxTilt;
@@ -51,7 +52,8 @@ export function TiltCard({ children, className = "", maxTilt = 12, ...props }) {
   const handleMouseLeave = () => {
     setIsHovered(false);
     setStyle({
-      transform: "perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)",
+      transform:
+        "perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)",
       transition: "transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)",
       transformStyle: "preserve-3d",
     });

@@ -1,51 +1,55 @@
-'use client';
+"use client";
 
-import { Ban, Check, Loader2, XCircle } from 'lucide-react';
+import { Ban, Check, Loader2, XCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
-import { tryParseJson, parseToolArgs } from './utils';
-import { SubAgentTimeline } from './ToolTrace';
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+import { tryParseJson, parseToolArgs } from "./utils";
+import { SubAgentTimeline } from "./ToolTrace";
 
 const STATUS_META = {
   running: {
-    label: 'Running',
+    label: "Running",
     Icon: Loader2,
-    className: 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400',
-    iconClassName: 'animate-spin',
+    className:
+      "bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400",
+    iconClassName: "animate-spin",
   },
   completed: {
-    label: 'Completed',
+    label: "Completed",
     Icon: Check,
-    className: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400',
+    className:
+      "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
   },
   failed: {
-    label: 'Failed',
+    label: "Failed",
     Icon: XCircle,
-    className: 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400',
+    className: "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
   },
   denied: {
-    label: 'Denied',
+    label: "Denied",
     Icon: Ban,
-    className: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+    className:
+      "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
   },
   canceled: {
-    label: 'Canceled',
+    label: "Canceled",
     Icon: Ban,
-    className: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+    className:
+      "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
   },
 };
 
 function getSubagentStatus(tool) {
-  if (tool.status !== 'completed') return STATUS_META.running;
+  if (tool.status !== "completed") return STATUS_META.running;
 
   const parsed = tryParseJson(tool.resultText);
-  if (parsed?.status === 'error') {
-    const message = (parsed.message || '').toLowerCase();
+  if (parsed?.status === "error") {
+    const message = (parsed.message || "").toLowerCase();
     if (/denied|reject|declin/.test(message)) return STATUS_META.denied;
     return STATUS_META.failed;
   }
@@ -61,7 +65,7 @@ export function SubagentActivityDialog({ tool, open, onOpenChange }) {
   if (!tool) return null;
 
   const args = parseToolArgs(tool.argumentsText) || {};
-  const goal = args.description || args.task || args.goal || 'Subagent task';
+  const goal = args.description || args.task || args.goal || "Subagent task";
   const subagentType = args.subagent_type || args.subagentType;
   const subEvents = Array.isArray(tool.subEvents) ? tool.subEvents : [];
   const status = getSubagentStatus(tool);
@@ -85,11 +89,11 @@ export function SubagentActivityDialog({ tool, open, onOpenChange }) {
             </div>
             <span
               className={cn(
-                'inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold',
+                "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold",
                 status.className,
               )}
             >
-              <StatusIcon className={cn('size-3.5', status.iconClassName)} />
+              <StatusIcon className={cn("size-3.5", status.iconClassName)} />
               {status.label}
             </span>
           </div>
@@ -100,7 +104,9 @@ export function SubagentActivityDialog({ tool, open, onOpenChange }) {
             <SubAgentTimeline items={subEvents} />
           ) : (
             <div className="flex items-center justify-center py-8 text-xs italic text-slate-400 dark:text-slate-500">
-              {status === STATUS_META.running ? 'Waiting for activity…' : 'No activity recorded.'}
+              {status === STATUS_META.running
+                ? "Waiting for activity…"
+                : "No activity recorded."}
             </div>
           )}
         </div>

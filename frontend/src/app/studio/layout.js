@@ -6,7 +6,8 @@ import { studioRoutes } from "@/lib/studio-routes";
 
 export const metadata = {
   title: "Agent Studio · persona.hasanraiyan.me",
-  description: "Build, configure, test, and publish your persona.hasanraiyan.me agents.",
+  description:
+    "Build, configure, test, and publish your persona.hasanraiyan.me agents.",
 };
 
 const STUDIO_HEADER_FALLBACK = {

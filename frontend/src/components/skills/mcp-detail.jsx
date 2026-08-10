@@ -4,7 +4,15 @@ import { studioRoutes } from "@/lib/studio-routes";
 
 import { useState, useEffect, useCallback } from "react";
 import { useConnectors } from "@/components/connectors/connectors-context";
-import { testMcp, getOwnerAuthorizeUrl, getUserAuthorizeUrl, getUsedByAgents, disconnectOwnerConnection, disconnectUserConnection, getUserConnectionStatus } from "@/lib/api/mcps";
+import {
+  testMcp,
+  getOwnerAuthorizeUrl,
+  getUserAuthorizeUrl,
+  getUsedByAgents,
+  disconnectOwnerConnection,
+  disconnectUserConnection,
+  getUserConnectionStatus,
+} from "@/lib/api/mcps";
 import { toast } from "sonner";
 import {
   Server,
@@ -31,7 +39,13 @@ import {
   KeyRound,
   Unplug,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -52,11 +66,7 @@ import { useRouter } from "next/navigation";
 
 export function McpDetail({ mcp }) {
   const router = useRouter();
-  const {
-    toggleMcp,
-    deleteMcp,
-    refreshMcps,
-  } = useConnectors();
+  const { toggleMcp, deleteMcp, refreshMcps } = useConnectors();
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
@@ -73,12 +83,14 @@ export function McpDetail({ mcp }) {
       setOwnerConnected(mcp.oauth?.ownerConnected || false);
       getUsedByAgents(id)
         .then((res) => setUsedByAgents(res.data?.data || []))
-        .catch(err => console.error("Failed to fetch agents using MCP", err));
+        .catch((err) => console.error("Failed to fetch agents using MCP", err));
 
       if (mcp.authMode === "user" && mcp.authType === "oauth") {
         getUserConnectionStatus(id)
           .then((res) => setUserConnected(res.data?.data?.connected || false))
-          .catch(err => console.error("Failed to fetch user connection status", err));
+          .catch((err) =>
+            console.error("Failed to fetch user connection status", err),
+          );
       }
     }
   }, [mcp]);
@@ -89,13 +101,16 @@ export function McpDetail({ mcp }) {
     try {
       const res = await testMcp(mcp._id);
       const data = res.data?.data || {};
-      const tools = Array.isArray(data) ? data : (data.tools || []);
+      const tools = Array.isArray(data) ? data : data.tools || [];
       const resources = data.resources || [];
       const templates = data.resourceTemplates || [];
       await refreshMcps();
-      const parts = [`${tools.length} tool(s)`, `${resources.length} resource(s)`];
+      const parts = [
+        `${tools.length} tool(s)`,
+        `${resources.length} resource(s)`,
+      ];
       if (templates.length) parts.push(`${templates.length} template(s)`);
-      toast.success(`Connection successful — ${parts.join(', ')} found`);
+      toast.success(`Connection successful — ${parts.join(", ")} found`);
     } catch (err) {
       toast.error(err.response?.data?.message || "Connection test failed");
     } finally {
@@ -111,7 +126,9 @@ export function McpDetail({ mcp }) {
       const url = res.data?.data?.url;
       if (url) window.location.href = url;
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to start OAuth connection");
+      toast.error(
+        err.response?.data?.message || "Failed to start OAuth connection",
+      );
       setIsConnecting(false);
     }
   }, [mcp]);
@@ -124,7 +141,9 @@ export function McpDetail({ mcp }) {
       const url = res.data?.data?.url;
       if (url) window.location.href = url;
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to start OAuth connection");
+      toast.error(
+        err.response?.data?.message || "Failed to start OAuth connection",
+      );
       setIsConnecting(false);
     }
   }, [mcp]);
@@ -203,7 +222,8 @@ export function McpDetail({ mcp }) {
                           className="text-xs font-semibold px-2.5 py-0.5 border-zinc-150/60 dark:border-zinc-800 bg-background/50 flex items-center gap-1 rounded-full"
                         >
                           <Lock className="size-3" />
-                          OAuth · {mcp.authMode === "owner" ? "Shared" : "Per-user"}
+                          OAuth ·{" "}
+                          {mcp.authMode === "owner" ? "Shared" : "Per-user"}
                         </Badge>
                       )}
                       {mcp.authType === "apiKey" && (
@@ -242,7 +262,9 @@ export function McpDetail({ mcp }) {
                       onClick={handleTestConnection}
                       disabled={isTesting}
                     >
-                      {isTesting && <Loader2 className="size-3 mr-1.5 animate-spin" />}
+                      {isTesting && (
+                        <Loader2 className="size-3 mr-1.5 animate-spin" />
+                      )}
                       Test Connection
                     </Button>
                   </div>
@@ -254,13 +276,21 @@ export function McpDetail({ mcp }) {
                   {mcp.authType === "oauth" ? (
                     <div className="space-y-3 pt-1">
                       <div className="flex justify-between items-center text-sm border-b pb-2">
-                        <span className="text-muted-foreground">Client ID:</span>
-                        <span className="font-mono text-xs">{mcp.oauth?.clientId}</span>
+                        <span className="text-muted-foreground">
+                          Client ID:
+                        </span>
+                        <span className="font-mono text-xs">
+                          {mcp.oauth?.clientId}
+                        </span>
                       </div>
                       <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">Client Secret:</span>
+                        <span className="text-muted-foreground">
+                          Client Secret:
+                        </span>
                         <span className="font-mono text-xs">
-                          {mcp.oauth?.hasClientSecret ? "••••••••••••" : "Not set"}
+                          {mcp.oauth?.hasClientSecret
+                            ? "••••••••••••"
+                            : "Not set"}
                         </span>
                       </div>
 
@@ -302,7 +332,9 @@ export function McpDetail({ mcp }) {
                               onClick={handleConnectOwner}
                               disabled={isConnecting}
                             >
-                              {isConnecting && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
+                              {isConnecting && (
+                                <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                              )}
                               {ownerConnected ? "Reconnect" : "Connect"}
                             </Button>
                           </div>
@@ -318,7 +350,9 @@ export function McpDetail({ mcp }) {
                             ) : (
                               <>
                                 <Users className="size-4 text-muted-foreground" />
-                                <span className="text-muted-foreground">Per-user auth</span>
+                                <span className="text-muted-foreground">
+                                  Per-user auth
+                                </span>
                               </>
                             )}
                           </div>
@@ -345,7 +379,9 @@ export function McpDetail({ mcp }) {
                               onClick={handleConnectUser}
                               disabled={isConnecting}
                             >
-                              {isConnecting && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
+                              {isConnecting && (
+                                <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                              )}
                               {userConnected ? "Reconnect" : "Connect"}
                             </Button>
                           </div>
@@ -361,7 +397,8 @@ export function McpDetail({ mcp }) {
                     </div>
                   ) : (
                     <p className="text-xs text-muted-foreground italic pt-1">
-                      No authentication — this server accepts requests without credentials.
+                      No authentication — this server accepts requests without
+                      credentials.
                     </p>
                   )}
                 </div>
@@ -374,9 +411,9 @@ export function McpDetail({ mcp }) {
               <div className="text-xs space-y-1">
                 <p className="font-semibold">Security Boundary</p>
                 <p className="text-muted-foreground leading-relaxed">
-                  Client secrets and OAuth tokens are encrypted at rest and never shown after
-                  they&apos;re saved. Only attach servers you trust with the data your agents can
-                  access.
+                  Client secrets and OAuth tokens are encrypted at rest and
+                  never shown after they&apos;re saved. Only attach servers you
+                  trust with the data your agents can access.
                 </p>
               </div>
             </div>
@@ -404,7 +441,9 @@ export function McpDetail({ mcp }) {
                     onClick={handleTestConnection}
                     disabled={isTesting}
                   >
-                    <RefreshCw className={`size-3.5 mr-1.5 ${isTesting ? "animate-spin" : ""}`} />
+                    <RefreshCw
+                      className={`size-3.5 mr-1.5 ${isTesting ? "animate-spin" : ""}`}
+                    />
                     Refresh
                   </Button>
                 </div>
@@ -428,7 +467,8 @@ export function McpDetail({ mcp }) {
                     <div className="flex flex-col items-center justify-center py-8 px-6 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/20 dark:bg-zinc-900/5 text-center select-none">
                       <Code className="size-6 text-zinc-400 dark:text-zinc-650 mb-2" />
                       <p className="text-xs text-zinc-500 dark:text-zinc-400 italic">
-                        No tools discovered yet. Run &quot;Test Connection&quot; to fetch them.
+                        No tools discovered yet. Run &quot;Test Connection&quot;
+                        to fetch them.
                       </p>
                     </div>
                   )}
@@ -444,7 +484,8 @@ export function McpDetail({ mcp }) {
                   Resources Shared
                 </CardTitle>
                 <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-                  Data resources this MCP server makes available to your agents (files, documents, UI apps).
+                  Data resources this MCP server makes available to your agents
+                  (files, documents, UI apps).
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -488,7 +529,8 @@ export function McpDetail({ mcp }) {
                     <div className="flex flex-col items-center justify-center py-8 px-6 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/20 dark:bg-zinc-900/5 text-center select-none">
                       <Database className="size-6 text-zinc-400 dark:text-zinc-650 mb-2" />
                       <p className="text-xs text-zinc-500 dark:text-zinc-400 italic">
-                        No resources discovered yet. Run &quot;Test Connection&quot; to fetch them.
+                        No resources discovered yet. Run &quot;Test
+                        Connection&quot; to fetch them.
                       </p>
                     </div>
                   )}
@@ -504,7 +546,8 @@ export function McpDetail({ mcp }) {
                   UI App Templates
                 </CardTitle>
                 <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-                  Interactive UI templates this server exposes (e.g. Canva design widgets).
+                  Interactive UI templates this server exposes (e.g. Canva
+                  design widgets).
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -548,7 +591,8 @@ export function McpDetail({ mcp }) {
                     <div className="flex flex-col items-center justify-center py-8 px-6 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/20 dark:bg-zinc-900/5 text-center select-none">
                       <LayoutTemplate className="size-6 text-zinc-400 dark:text-zinc-650 mb-2" />
                       <p className="text-xs text-zinc-500 dark:text-zinc-400 italic">
-                        No UI templates discovered yet. Run &quot;Test Connection&quot; to fetch them.
+                        No UI templates discovered yet. Run &quot;Test
+                        Connection&quot; to fetch them.
                       </p>
                     </div>
                   )}
@@ -562,7 +606,9 @@ export function McpDetail({ mcp }) {
             {/* Quick Actions Card */}
             <Card className="border border-zinc-150/60 dark:border-zinc-900/60 bg-card rounded-3xl p-5 space-y-4 ring-0 shadow-none">
               <div className="space-y-1">
-                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Actions</h3>
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                  Actions
+                </h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
                   Configure, enable, or remove this server.
                 </p>
@@ -581,7 +627,10 @@ export function McpDetail({ mcp }) {
                 </div>
 
                 <Link href={studioRoutes.connectorEdit(mcp._id)}>
-                  <Button variant="outline" className="w-full h-10 font-bold text-sm rounded-full border border-zinc-150/60 dark:border-zinc-800 shadow-none uppercase tracking-wider">
+                  <Button
+                    variant="outline"
+                    className="w-full h-10 font-bold text-sm rounded-full border border-zinc-150/60 dark:border-zinc-800 shadow-none uppercase tracking-wider"
+                  >
                     <Settings className="mr-2 size-4" />
                     Configure
                   </Button>
@@ -623,7 +672,11 @@ export function McpDetail({ mcp }) {
                     <span>Auth Type</span>
                   </div>
                   <span className="font-semibold text-zinc-900 dark:text-zinc-150 capitalize">
-                    {mcp.authType === "none" ? "None" : mcp.authType === "apiKey" ? "API Key" : "OAuth 2.1"}
+                    {mcp.authType === "none"
+                      ? "None"
+                      : mcp.authType === "apiKey"
+                        ? "API Key"
+                        : "OAuth 2.1"}
                   </span>
                 </div>
 
@@ -704,9 +757,10 @@ export function McpDetail({ mcp }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Remove MCP Server?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the <strong>{mcp?.name}</strong> connection
-              configuration, unassign it from every agent, and remove any per-user connections.
-              Agents expecting its tools to be active will fail during execution.
+              This will permanently delete the <strong>{mcp?.name}</strong>{" "}
+              connection configuration, unassign it from every agent, and remove
+              any per-user connections. Agents expecting its tools to be active
+              will fail during execution.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

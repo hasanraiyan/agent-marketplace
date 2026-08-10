@@ -118,14 +118,17 @@ function normalizeSkillToForm(skill) {
 
 function FileIcon({ path, className }) {
   const ext = path.split(".").pop()?.toLowerCase();
-  const Icon = ext === "md" || ext === "markdown" || ext === "txt" ? FileText : FileCode;
+  const Icon =
+    ext === "md" || ext === "markdown" || ext === "txt" ? FileText : FileCode;
   return <Icon className={className} />;
 }
 
 export function SkillEditor({ skill, mode = "edit" }) {
   const router = useRouter();
   const { refreshSkills } = useConnectors();
-  const [form, setForm] = useState(() => (skill ? normalizeSkillToForm(skill) : DEFAULT_FORM));
+  const [form, setForm] = useState(() =>
+    skill ? normalizeSkillToForm(skill) : DEFAULT_FORM,
+  );
   const [loading, setLoading] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   // null = SKILL.md (pinned), otherwise index into form.files
@@ -160,7 +163,7 @@ export function SkillEditor({ skill, mode = "edit" }) {
   }, [form, isDirty, mode]);
 
   const update = (key, value) => {
-    setForm(prev => ({ ...prev, [key]: value }));
+    setForm((prev) => ({ ...prev, [key]: value }));
     setIsDirty(true);
   };
 
@@ -184,7 +187,9 @@ export function SkillEditor({ skill, mode = "edit" }) {
   const handleAddFile = () => {
     const path = validateFilePath(newFilePath);
     if (!path) {
-      toast.error("Invalid file path. Use a relative path like references/guide.md");
+      toast.error(
+        "Invalid file path. Use a relative path like references/guide.md",
+      );
       return;
     }
     if (form.files.some((f) => f.path === path)) {
@@ -207,7 +212,10 @@ export function SkillEditor({ skill, mode = "edit" }) {
   };
 
   const handleDeleteFile = (index) => {
-    update("files", form.files.filter((_, i) => i !== index));
+    update(
+      "files",
+      form.files.filter((_, i) => i !== index),
+    );
     setActiveFile(null);
   };
 
@@ -278,20 +286,36 @@ export function SkillEditor({ skill, mode = "edit" }) {
             <Cpu className="size-5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">{mode === "new" ? "Create Skill" : "Edit Skill"}</h1>
-            {isDirty && <p className="text-[10px] text-amber-500 font-medium uppercase tracking-wider animate-pulse">Unsaved Changes</p>}
+            <h1 className="text-xl font-bold">
+              {mode === "new" ? "Create Skill" : "Edit Skill"}
+            </h1>
+            {isDirty && (
+              <p className="text-[10px] text-amber-500 font-medium uppercase tracking-wider animate-pulse">
+                Unsaved Changes
+              </p>
+            )}
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" asChild disabled={loading}>
-            <Link href={mode === "edit" ? studioRoutes.skill(skill._id || skill.id) : studioRoutes.skills}>
+            <Link
+              href={
+                mode === "edit"
+                  ? studioRoutes.skill(skill._id || skill.id)
+                  : studioRoutes.skills
+              }
+            >
               <X className="size-4 mr-2" />
               Cancel
             </Link>
           </Button>
           <Button size="sm" onClick={handleSave} disabled={loading}>
-            {loading ? <div className="size-4 border-2 border-primary-foreground border-t-transparent animate-spin mr-2" /> : <Save className="size-4 mr-2" />}
+            {loading ? (
+              <div className="size-4 border-2 border-primary-foreground border-t-transparent animate-spin mr-2" />
+            ) : (
+              <Save className="size-4 mr-2" />
+            )}
             {mode === "new" ? "Create Skill" : "Save Changes"}
           </Button>
         </div>
@@ -310,7 +334,9 @@ export function SkillEditor({ skill, mode = "edit" }) {
 
             <div className="lg:col-span-2 space-y-6">
               <Field>
-                <FieldLabel className="text-sm font-bold">Skill Name</FieldLabel>
+                <FieldLabel className="text-sm font-bold">
+                  Skill Name
+                </FieldLabel>
                 <Input
                   placeholder="e.g. data-analysis"
                   value={form.name}
@@ -319,23 +345,37 @@ export function SkillEditor({ skill, mode = "edit" }) {
                 />
                 <p className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-1">
                   <Check className="size-3 text-green-500" />
-                  Will be saved as: <code className="bg-muted px-1 rounded">{form.name || "..."}</code>
+                  Will be saved as:{" "}
+                  <code className="bg-muted px-1 rounded">
+                    {form.name || "..."}
+                  </code>
                 </p>
               </Field>
 
               <Field>
-                <FieldLabel className="text-sm font-bold">Description</FieldLabel>
+                <FieldLabel className="text-sm font-bold">
+                  Description
+                </FieldLabel>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-[10px] text-muted-foreground">
                     What does this skill do, and when should the agent use it?
                   </span>
-                  <span className={cn("text-[10px] font-medium", form.description.length > 1000 ? "text-destructive" : "text-muted-foreground")}>
+                  <span
+                    className={cn(
+                      "text-[10px] font-medium",
+                      form.description.length > 1000
+                        ? "text-destructive"
+                        : "text-muted-foreground",
+                    )}
+                  >
                     {form.description.length} / 1024
                   </span>
                 </div>
                 <Textarea
                   value={form.description}
-                  onChange={(e) => update("description", e.target.value.slice(0, 1024))}
+                  onChange={(e) =>
+                    update("description", e.target.value.slice(0, 1024))
+                  }
                   rows={3}
                   className="bg-muted/20 resize-none"
                 />
@@ -349,13 +389,17 @@ export function SkillEditor({ skill, mode = "edit" }) {
           <div className="space-y-4">
             <div className="flex items-center gap-2 border-b pb-2 text-foreground/80">
               <FolderOpen className="size-4" />
-              <h2 className="text-sm font-bold uppercase tracking-wider">Skill Files</h2>
+              <h2 className="text-sm font-bold uppercase tracking-wider">
+                Skill Files
+              </h2>
             </div>
 
             <p className="text-xs text-muted-foreground leading-relaxed">
-              SKILL.md holds the core workflow. Move detailed reference material into
-              supporting files (e.g. <code className="bg-muted px-1 rounded">references/guide.md</code>,{" "}
-              <code className="bg-muted px-1 rounded">scripts/run.py</code>) — the agent reads them on demand.
+              SKILL.md holds the core workflow. Move detailed reference material
+              into supporting files (e.g.{" "}
+              <code className="bg-muted px-1 rounded">references/guide.md</code>
+              , <code className="bg-muted px-1 rounded">scripts/run.py</code>) —
+              the agent reads them on demand.
             </p>
 
             <div className="rounded-xl border bg-muted/20 overflow-hidden flex flex-col sm:flex-row min-h-[440px]">
@@ -369,7 +413,10 @@ export function SkillEditor({ skill, mode = "edit" }) {
                     variant="ghost"
                     size="icon"
                     className="size-6"
-                    onClick={() => { setAddingFile(true); setNewFilePath(""); }}
+                    onClick={() => {
+                      setAddingFile(true);
+                      setNewFilePath("");
+                    }}
                     title="Add file"
                   >
                     <Plus className="size-3.5" />
@@ -384,12 +431,14 @@ export function SkillEditor({ skill, mode = "edit" }) {
                       "w-full flex items-center gap-2 px-3 py-1.5 text-xs font-mono text-left transition-colors",
                       activeFile == null
                         ? "bg-primary/10 text-primary font-semibold"
-                        : "text-foreground/80 hover:bg-muted/60"
+                        : "text-foreground/80 hover:bg-muted/60",
                     )}
                   >
                     <FileText className="size-3.5 shrink-0" />
                     <span className="truncate">SKILL.md</span>
-                    <span className="ml-auto text-[9px] uppercase tracking-wider text-muted-foreground">main</span>
+                    <span className="ml-auto text-[9px] uppercase tracking-wider text-muted-foreground">
+                      main
+                    </span>
                   </button>
 
                   {form.files.map((file, index) => (
@@ -397,7 +446,9 @@ export function SkillEditor({ skill, mode = "edit" }) {
                       key={index}
                       className={cn(
                         "group flex items-center transition-colors",
-                        activeFile === index ? "bg-primary/10" : "hover:bg-muted/60"
+                        activeFile === index
+                          ? "bg-primary/10"
+                          : "hover:bg-muted/60",
                       )}
                     >
                       <button
@@ -405,10 +456,15 @@ export function SkillEditor({ skill, mode = "edit" }) {
                         onClick={() => setActiveFile(index)}
                         className={cn(
                           "flex-1 min-w-0 flex items-center gap-2 px-3 py-1.5 text-xs font-mono text-left",
-                          activeFile === index ? "text-primary font-semibold" : "text-foreground/80"
+                          activeFile === index
+                            ? "text-primary font-semibold"
+                            : "text-foreground/80",
                         )}
                       >
-                        <FileIcon path={file.path} className="size-3.5 shrink-0" />
+                        <FileIcon
+                          path={file.path}
+                          className="size-3.5 shrink-0"
+                        />
                         <span className="truncate">{file.path}</span>
                       </button>
                       <Button
@@ -434,14 +490,25 @@ export function SkillEditor({ skill, mode = "edit" }) {
                           if (e.key === "Enter") handleAddFile();
                           if (e.key === "Escape") setAddingFile(false);
                         }}
-                        onBlur={() => { if (!newFilePath.trim()) setAddingFile(false); }}
+                        onBlur={() => {
+                          if (!newFilePath.trim()) setAddingFile(false);
+                        }}
                         className="h-7 text-xs font-mono bg-background"
                       />
                       <div className="flex gap-1 mt-1">
-                        <Button size="sm" className="h-6 text-[10px] px-2" onClick={handleAddFile}>
+                        <Button
+                          size="sm"
+                          className="h-6 text-[10px] px-2"
+                          onClick={handleAddFile}
+                        >
                           Add
                         </Button>
-                        <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => setAddingFile(false)}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-[10px] px-2"
+                          onClick={() => setAddingFile(false)}
+                        >
                           Cancel
                         </Button>
                       </div>
@@ -461,7 +528,9 @@ export function SkillEditor({ skill, mode = "edit" }) {
                     <>
                       <Input
                         value={activeEntry.path}
-                        onChange={(e) => handleRenameFile(activeFile, e.target.value)}
+                        onChange={(e) =>
+                          handleRenameFile(activeFile, e.target.value)
+                        }
                         className="h-7 text-xs font-mono max-w-xs bg-muted/20"
                         title="Rename file"
                       />
@@ -476,12 +545,18 @@ export function SkillEditor({ skill, mode = "edit" }) {
                       </Button>
                     </>
                   ) : (
-                    <span className="text-xs font-mono font-semibold text-foreground/80">SKILL.md</span>
+                    <span className="text-xs font-mono font-semibold text-foreground/80">
+                      SKILL.md
+                    </span>
                   )}
-                  <span className={cn(
-                    "ml-auto text-[10px] font-medium",
-                    !activeEntry && form.instructions.length > 45000 ? "text-destructive" : "text-muted-foreground"
-                  )}>
+                  <span
+                    className={cn(
+                      "ml-auto text-[10px] font-medium",
+                      !activeEntry && form.instructions.length > 45000
+                        ? "text-destructive"
+                        : "text-muted-foreground",
+                    )}
+                  >
                     {activeEntry
                       ? `${activeContent.length.toLocaleString()} chars`
                       : `${form.instructions.length.toLocaleString()} / 50,000 chars`}
@@ -499,7 +574,9 @@ export function SkillEditor({ skill, mode = "edit" }) {
                     }
                     highlight={highlightForPath(activePath)}
                     padding={20}
-                    placeholder={activeEntry ? "" : "# Skill Title\n\n## Overview\n..."}
+                    placeholder={
+                      activeEntry ? "" : "# Skill Title\n\n## Overview\n..."
+                    }
                     style={{
                       fontFamily: '"Fira code", "Fira Mono", monospace',
                       fontSize: 14,
@@ -531,7 +608,8 @@ export function SkillEditor({ skill, mode = "edit" }) {
                     Public Marketplace
                   </Label>
                   <p className="text-xs text-muted-foreground leading-relaxed max-w-sm">
-                    Enable this to allow other users to discover and import this skill into their agents.
+                    Enable this to allow other users to discover and import this
+                    skill into their agents.
                   </p>
                 </div>
                 <Switch

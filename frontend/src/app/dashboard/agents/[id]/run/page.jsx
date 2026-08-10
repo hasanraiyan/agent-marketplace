@@ -24,7 +24,8 @@ import { useUserThreads } from "@/hooks/use-user-threads";
 import { cn } from "@/lib/utils";
 
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://api.persona.hasanraiyan.me/api/v1";
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://api.persona.hasanraiyan.me/api/v1";
 const AGUI_RUNTIME_URL =
   process.env.NEXT_PUBLIC_AGUI_RUNTIME_URL || `${BASE_URL}/agui`;
 
@@ -155,7 +156,11 @@ function normaliseLangChainMessages(raw, subagentTraces = {}) {
             : {}),
         };
         toolCalls.push(toolObj);
-        conversation.push({ id: `entry-${toolCallId}`, type: "tool", refId: toolCallId });
+        conversation.push({
+          id: `entry-${toolCallId}`,
+          type: "tool",
+          refId: toolCallId,
+        });
       }
     }
   });
@@ -176,7 +181,11 @@ export default function RunAgentPage() {
 
   const [agent, setAgent] = useState(null);
   const [thread, setThread] = useState(null);
-  const [initialMessages, setInitialMessages] = useState({ messages: [], toolCalls: [], conversation: [] });
+  const [initialMessages, setInitialMessages] = useState({
+    messages: [],
+    toolCalls: [],
+    conversation: [],
+  });
   const [initialState, setInitialState] = useState({});
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState(null);
@@ -215,7 +224,10 @@ export default function RunAgentPage() {
       }
 
       // If the current thread state already matches the URL, skip (prevents re-fetch after promotion)
-      if (urlThreadId && (thread?._id === urlThreadId || thread?.id === urlThreadId)) {
+      if (
+        urlThreadId &&
+        (thread?._id === urlThreadId || thread?.id === urlThreadId)
+      ) {
         return;
       }
 
@@ -244,7 +256,9 @@ export default function RunAgentPage() {
             state: rawState = {},
             subagentTraces = {},
           } = historyRes.data?.data || {};
-          setInitialMessages(normaliseLangChainMessages(rawMessages, subagentTraces));
+          setInitialMessages(
+            normaliseLangChainMessages(rawMessages, subagentTraces),
+          );
           setInitialState(rawState);
           setAgentState(rawState);
           setSelectedFile(null);
@@ -308,7 +322,7 @@ export default function RunAgentPage() {
   }, []);
 
   const fileCount = Object.keys(agentState?.files || {}).filter(
-    (path) => !path.startsWith("/.versions/") && !path.startsWith(".versions/")
+    (path) => !path.startsWith("/.versions/") && !path.startsWith(".versions/"),
   ).length;
   const todos = Array.isArray(agentState?.todos) ? agentState.todos : [];
   const todoCount = todos.length;
@@ -334,7 +348,9 @@ export default function RunAgentPage() {
       title: agent?.name || "Agent",
       description:
         agent?.tagline ||
-        [agent?.category || "other", agent?.modelName].filter(Boolean).join(" · "),
+        [agent?.category || "other", agent?.modelName]
+          .filter(Boolean)
+          .join(" · "),
       leading: (
         <Avatar className="size-8">
           <AvatarImage
@@ -371,7 +387,9 @@ export default function RunAgentPage() {
           )}
           {fileCount > 0 && (
             <Button
-              variant={showFiles && panelTab === "files" ? "secondary" : "ghost"}
+              variant={
+                showFiles && panelTab === "files" ? "secondary" : "ghost"
+              }
               size="icon"
               className="relative size-9 rounded-full"
               title="Toggle Files"

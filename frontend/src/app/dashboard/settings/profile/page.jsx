@@ -98,7 +98,10 @@ export default function ProfileSettingsPage() {
         ]);
         setStats({
           agents: agentCount?.data?.data?.total ?? 0,
-          threads: threadsRes?.data?.data?.total ?? (threadsRes?.data?.data?.length ?? 0),
+          threads:
+            threadsRes?.data?.data?.total ??
+            threadsRes?.data?.data?.length ??
+            0,
           providers: providersRes?.data?.data?.length ?? 0,
         });
       } catch {
@@ -334,14 +337,16 @@ export default function ProfileSettingsPage() {
                 AI Memory & Personalization
               </CardTitle>
               <CardDescription>
-                Agents now remember you through markdown memory files they read and update during
-                conversations — shared user memory plus per-agent memory.
+                Agents now remember you through markdown memory files they read
+                and update during conversations — shared user memory plus
+                per-agent memory.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between gap-4 rounded-xl border border-dashed p-4">
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  View, edit, and delete everything your agents remember from the Memory Dashboard.
+                  View, edit, and delete everything your agents remember from
+                  the Memory Dashboard.
                 </p>
                 <Button type="button" variant="outline" size="sm" asChild>
                   <Link href={studioRoutes.memory}>
@@ -406,8 +411,8 @@ export default function ProfileSettingsPage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Password, two-factor, and connected accounts are managed in
-                your Clerk identity settings.
+                Password, two-factor, and connected accounts are managed in your
+                Clerk identity settings.
               </p>
               <Link
                 href="https://accounts.clerk.com/user"

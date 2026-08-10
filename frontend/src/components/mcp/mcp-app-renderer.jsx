@@ -1,16 +1,19 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { AlertCircle, Maximize2, Minimize2 } from 'lucide-react';
-import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps/app-bridge';
-import { readMcpResource, callMcpTool } from '@/lib/api/mcps';
-import { cn } from '@/lib/utils';
+import { useEffect, useRef, useState, useCallback } from "react";
+import { AlertCircle, Maximize2, Minimize2 } from "lucide-react";
+import {
+  AppBridge,
+  PostMessageTransport,
+} from "@modelcontextprotocol/ext-apps/app-bridge";
+import { readMcpResource, callMcpTool } from "@/lib/api/mcps";
+import { cn } from "@/lib/utils";
 
 function parseJsonObject(value) {
-  if (!value || typeof value !== 'string') return {};
+  if (!value || typeof value !== "string") return {};
   try {
     const parsed = JSON.parse(value);
-    return parsed && typeof parsed === 'object' ? parsed : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
   } catch {
     return {};
   }
@@ -22,7 +25,12 @@ function parseJsonObject(value) {
 // it (see aguiTranslator's extractStructuredContent). Always include `content`
 // too: some widgets fall back to it, and it's required by the CallToolResult shape.
 function buildToolResultPayload(tool) {
-  const content = [{ type: 'text', text: typeof tool?.resultText === 'string' ? tool.resultText : '' }];
+  const content = [
+    {
+      type: "text",
+      text: typeof tool?.resultText === "string" ? tool.resultText : "",
+    },
+  ];
   return tool?.structuredResult !== undefined
     ? { content, structuredContent: tool.structuredResult }
     : { content };
@@ -76,7 +84,7 @@ export function MCPAppRenderer({
   // Fetch the HTML bundle from the backend.
   useEffect(() => {
     if (!mcpId || !resourceUri) {
-      setError('Missing MCP server ID or resource URI');
+      setError("Missing MCP server ID or resource URI");
       setLoading(false);
       return;
     }
@@ -92,14 +100,18 @@ export function MCPAppRenderer({
         if (cancelled) return;
         const data = res.data?.data;
         if (!data?.text) {
-          throw new Error('Empty resource response');
+          throw new Error("Empty resource response");
         }
         setHtml(data.text);
         setLoading(false);
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(err?.response?.data?.message || err.message || 'Failed to load MCP App');
+        setError(
+          err?.response?.data?.message ||
+            err.message ||
+            "Failed to load MCP App",
+        );
         setLoading(false);
       });
 
@@ -123,7 +135,7 @@ export function MCPAppRenderer({
       // backend instead, which already holds this server's auth (OAuth token /
       // API key) server-side. Never send those credentials to the browser.
       null,
-      { name: 'agent-marketplace', version: '1.0.0' },
+      { name: "agent-marketplace", version: "1.0.0" },
       {
         openLinks: {},
         serverTools: {},
@@ -132,10 +144,12 @@ export function MCPAppRenderer({
       },
       {
         hostContext: {
-          theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
-          platform: 'web',
-          displayMode: 'inline',
-          availableDisplayModes: ['inline'],
+          theme: document.documentElement.classList.contains("dark")
+            ? "dark"
+            : "light",
+          platform: "web",
+          displayMode: "inline",
+          availableDisplayModes: ["inline"],
         },
       },
     );
@@ -150,7 +164,11 @@ export function MCPAppRenderer({
       const data = res.data?.data;
       return {
         contents: [
-          { uri: params.uri, mimeType: data?.mimeType || 'text/html', text: data?.text || '' },
+          {
+            uri: params.uri,
+            mimeType: data?.mimeType || "text/html",
+            text: data?.text || "",
+          },
         ],
       };
     };
@@ -159,7 +177,7 @@ export function MCPAppRenderer({
     // sandbox blocks window.open from inside the iframe) - this is the
     // sanctioned escape hatch for outbound links.
     bridge.onopenlink = async ({ url }) => {
-      window.open(url, '_blank', 'noopener,noreferrer');
+      window.open(url, "_blank", "noopener,noreferrer");
       return {};
     };
 
@@ -171,7 +189,10 @@ export function MCPAppRenderer({
 
     bridge.oninitialized = () => {
       bridge.sendToolInput({ arguments: parseJsonObject(tool?.argumentsText) });
-      if (tool?.status === 'completed' && typeof tool?.resultText === 'string') {
+      if (
+        tool?.status === "completed" &&
+        typeof tool?.resultText === "string"
+      ) {
         resultSentRef.current = true;
         bridge.sendToolResult(buildToolResultPayload(tool));
       }
@@ -182,18 +203,20 @@ export function MCPAppRenderer({
         setContentHeight(height);
       }
     };
-    bridge.addEventListener('sizechange', handleSizeChange);
+    bridge.addEventListener("sizechange", handleSizeChange);
 
     let cancelled = false;
     bridge
-      .connect(new PostMessageTransport(iframe.contentWindow, iframe.contentWindow))
+      .connect(
+        new PostMessageTransport(iframe.contentWindow, iframe.contentWindow),
+      )
       .then(() => {
         if (cancelled) return;
         iframe.srcdoc = html;
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(err?.message || 'Failed to connect to MCP App');
+        setError(err?.message || "Failed to connect to MCP App");
       });
 
     bridgeRef.current = bridge;
@@ -201,7 +224,7 @@ export function MCPAppRenderer({
     return () => {
       cancelled = true;
       bridgeRef.current = null;
-      bridge.removeEventListener('sizechange', handleSizeChange);
+      bridge.removeEventListener("sizechange", handleSizeChange);
       bridge.close?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-wire on a new widget load; tool input/result changes are forwarded by the effect below
@@ -212,7 +235,8 @@ export function MCPAppRenderer({
   useEffect(() => {
     const bridge = bridgeRef.current;
     if (!bridge || resultSentRef.current) return;
-    if (tool?.status !== 'completed' || typeof tool?.resultText !== 'string') return;
+    if (tool?.status !== "completed" || typeof tool?.resultText !== "string")
+      return;
     resultSentRef.current = true;
     bridge.sendToolResult(buildToolResultPayload(tool));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- depend on the primitive fields, not `tool` itself (a new object reference every render) which would refire this on every unrelated update
@@ -224,7 +248,12 @@ export function MCPAppRenderer({
 
   if (error) {
     return (
-      <div className={cn('rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-500/30 dark:bg-red-500/10', className)}>
+      <div
+        className={cn(
+          "rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-500/30 dark:bg-red-500/10",
+          className,
+        )}
+      >
         <div className="flex items-start gap-3">
           <AlertCircle className="size-5 shrink-0 text-red-500 mt-0.5" />
           <div className="min-w-0">
@@ -241,16 +270,25 @@ export function MCPAppRenderer({
   }
 
   return (
-    <div className={cn('group relative rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-950', className)}>
+    <div
+      className={cn(
+        "group relative rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-950",
+        className,
+      )}
+    >
       {/* Expand/collapse only appears on hover - end users just see the app,
           no "MCP App" branding or internal tool name. */}
       <button
         type="button"
         onClick={toggleExpanded}
         className="absolute right-2 top-2 z-10 size-6 rounded-md flex items-center justify-center bg-white/80 dark:bg-slate-900/80 text-slate-400 opacity-0 group-hover:opacity-100 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer"
-        title={expanded ? 'Collapse' : 'Expand'}
+        title={expanded ? "Collapse" : "Expand"}
       >
-        {expanded ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+        {expanded ? (
+          <Minimize2 className="size-3.5" />
+        ) : (
+          <Maximize2 className="size-3.5" />
+        )}
       </button>
 
       {/* Loading skeleton - mimics a generic widget layout (content area +
@@ -269,14 +307,19 @@ export function MCPAppRenderer({
         ref={iframeRef}
         sandbox="allow-scripts allow-forms"
         className={cn(
-          'w-full border-0 transition-[height] duration-200 ease-in-out',
-          loading && 'hidden',
+          "w-full border-0 transition-[height] duration-200 ease-in-out",
+          loading && "hidden",
         )}
         style={
           !loading
             ? {
-                height: contentHeight !== null ? `${contentHeight}px` : (expanded ? 'calc(100vh - 12rem)' : `${height}px`),
-                maxHeight: expanded ? 'calc(100vh - 12rem)' : `${height}px`,
+                height:
+                  contentHeight !== null
+                    ? `${contentHeight}px`
+                    : expanded
+                      ? "calc(100vh - 12rem)"
+                      : `${height}px`,
+                maxHeight: expanded ? "calc(100vh - 12rem)" : `${height}px`,
               }
             : undefined
         }

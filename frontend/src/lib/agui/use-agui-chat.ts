@@ -18,16 +18,16 @@
  * - uiBlockToolCallIds for suppressing duplicate tool cards
  */
 
-'use client';
+"use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { EventType } from '@ag-ui/client';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EventType } from "@ag-ui/client";
 
 // ─── Public Types ────────────────────────────────────────────────────────────
 
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant' | 'reasoning' | 'block';
+  role: "user" | "assistant" | "reasoning" | "block";
   content: string;
   timestamp: number;
   blocks?: ChatUIBlock[];
@@ -45,14 +45,14 @@ export interface ToolCall {
   name: string;
   argumentsText: string;
   resultText: string;
-  status: 'running' | 'completed';
+  status: "running" | "completed";
   subEvents?: SubEvent[];
   mcpApp?: { resourceUri: string; mcpId: string };
   structuredResult?: unknown;
 }
 
 export interface SubEvent {
-  type: 'text' | 'tool';
+  type: "text" | "tool";
   text?: string;
   name?: string;
   argsText?: string;
@@ -62,7 +62,7 @@ export interface SubEvent {
 
 export interface ConversationEntry {
   id: string;
-  type: 'message' | 'tool';
+  type: "message" | "tool";
   refId: string;
 }
 
@@ -102,7 +102,13 @@ export interface UseAguiChatOptions {
   url?: string;
   agentId?: string;
   threadId?: string;
-  initialMessages?: ChatMessage[] | { messages?: ChatMessage[]; conversation?: ConversationEntry[]; toolCalls?: ToolCall[] };
+  initialMessages?:
+    | ChatMessage[]
+    | {
+        messages?: ChatMessage[];
+        conversation?: ConversationEntry[];
+        toolCalls?: ToolCall[];
+      };
   initialToolCalls?: ToolCall[];
   initialConversation?: ConversationEntry[];
   headers?: Record<string, string>;
@@ -135,9 +141,12 @@ export interface UseAguiChatReturn {
     decisions: Array<{ type: string; message?: string }>,
     options?: { displayText?: string },
   ) => Promise<void>;
-  respondToClarification: (
-    answer?: { answer?: string; optionIndex?: number | null; freeform?: boolean; skipped?: boolean },
-  ) => Promise<void>;
+  respondToClarification: (answer?: {
+    answer?: string;
+    optionIndex?: number | null;
+    freeform?: boolean;
+    skipped?: boolean;
+  }) => Promise<void>;
 }
 
 // ─── Internal Types ──────────────────────────────────────────────────────────
@@ -157,7 +166,7 @@ function id(prefix: string): string {
 
 function parseJsonMaybe(value: string | unknown): unknown {
   if (!value) return null;
-  if (typeof value === 'object') return value;
+  if (typeof value === "object") return value;
   try {
     return JSON.parse(value);
   } catch {
@@ -166,11 +175,11 @@ function parseJsonMaybe(value: string | unknown): unknown {
 }
 
 function contentToText(content: unknown): string {
-  if (typeof content === 'string') return content;
-  if (!Array.isArray(content)) return '';
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
   return content
-    .map((part) => (typeof part === 'string' ? part : part?.text || ''))
-    .join('');
+    .map((part) => (typeof part === "string" ? part : part?.text || ""))
+    .join("");
 }
 
 function replaceById<T extends { id: string }>(items: T[], item: T): T[] {
@@ -181,23 +190,30 @@ function replaceById<T extends { id: string }>(items: T[], item: T): T[] {
 
 function ensureConversationEntry(
   entries: ConversationEntry[],
-  type: ConversationEntry['type'],
+  type: ConversationEntry["type"],
   refId: string,
 ): ConversationEntry[] {
   if (entries.some((e) => e.type === type && e.refId === refId)) return entries;
   return [...entries, { id: id(`entry-${type}`), type, refId }];
 }
 
-function todosFromToolArgs(name: string, argsText: string): Array<{ content: string; status: string }> | null {
-  if (!name || !name.toLowerCase().includes('todo')) return null;
+function todosFromToolArgs(
+  name: string,
+  argsText: string,
+): Array<{ content: string; status: string }> | null {
+  if (!name || !name.toLowerCase().includes("todo")) return null;
   const parsed = parseJsonMaybe(argsText);
   if (!Array.isArray(parsed?.todos)) return null;
   return parsed.todos
     .map((todo: unknown) => ({
-      content: typeof (todo as Record<string, unknown>)?.content === 'string'
-        ? (todo as Record<string, unknown>).content as string : '',
-      status: typeof (todo as Record<string, unknown>)?.status === 'string'
-        ? (todo as Record<string, unknown>).status as string : 'pending',
+      content:
+        typeof (todo as Record<string, unknown>)?.content === "string"
+          ? ((todo as Record<string, unknown>).content as string)
+          : "",
+      status:
+        typeof (todo as Record<string, unknown>)?.status === "string"
+          ? ((todo as Record<string, unknown>).status as string)
+          : "pending",
     }))
     .filter((todo) => todo.content);
 }
@@ -208,19 +224,24 @@ function applyFileToolToState(
   argsText: string,
   resultText: string,
 ): Record<string, unknown> | null {
-  const tool = String(name || '').toLowerCase();
-  if (tool !== 'write_file' && tool !== 'edit_file') return null;
-  if (typeof resultText === 'string' && /^\s*error/i.test(resultText)) return null;
+  const tool = String(name || "").toLowerCase();
+  if (tool !== "write_file" && tool !== "edit_file") return null;
+  if (typeof resultText === "string" && /^\s*error/i.test(resultText))
+    return null;
 
   const args = parseJsonMaybe(argsText) as Record<string, unknown> | null;
-  const path = typeof args?.file_path === 'string' ? args.file_path as string : args?.path as string;
-  if (typeof path !== 'string' || !path || path.startsWith('/skills/')) return null;
+  const path =
+    typeof args?.file_path === "string"
+      ? (args.file_path as string)
+      : (args?.path as string);
+  if (typeof path !== "string" || !path || path.startsWith("/skills/"))
+    return null;
 
   const files = { ...((state?.files as Record<string, unknown>) || {}) };
   const now = new Date().toISOString();
 
-  if (tool === 'write_file') {
-    if (typeof args?.content !== 'string') return null;
+  if (tool === "write_file") {
+    if (typeof args?.content !== "string") return null;
     files[path] = {
       content: args.content,
       size: (args.content as string).length,
@@ -229,11 +250,22 @@ function applyFileToolToState(
     };
   } else {
     const prev = files[path] as Record<string, unknown> | undefined;
-    if (!prev || typeof prev.content !== 'string' || typeof args?.old_string !== 'string') return null;
-    const replacement = typeof args.new_string === 'string' ? args.new_string as string : '';
+    if (
+      !prev ||
+      typeof prev.content !== "string" ||
+      typeof args?.old_string !== "string"
+    )
+      return null;
+    const replacement =
+      typeof args.new_string === "string" ? (args.new_string as string) : "";
     const content = args.replace_all
-      ? (prev.content as string).split(args.old_string as string).join(replacement)
-      : (prev.content as string).replace(args.old_string as string, replacement);
+      ? (prev.content as string)
+          .split(args.old_string as string)
+          .join(replacement)
+      : (prev.content as string).replace(
+          args.old_string as string,
+          replacement,
+        );
     files[path] = { ...prev, content, size: content.length, modified_at: now };
   }
 
@@ -247,32 +279,41 @@ function appendSubEvent(
 ): SubEvent[] | null {
   const subEvents: SubEvent[] = Array.isArray(current) ? [...current] : [];
 
-  if (kind === 'text' || kind === undefined) {
-    const delta = typeof value?.delta === 'string' ? value.delta as string : '';
+  if (kind === "text" || kind === undefined) {
+    const delta =
+      typeof value?.delta === "string" ? (value.delta as string) : "";
     if (!delta) return null;
     const last = subEvents[subEvents.length - 1];
-    if (last?.type === 'text') {
-      subEvents[subEvents.length - 1] = { ...last, text: `${last.text}${delta}` };
+    if (last?.type === "text") {
+      subEvents[subEvents.length - 1] = {
+        ...last,
+        text: `${last.text}${delta}`,
+      };
     } else {
-      subEvents.push({ type: 'text', text: delta });
+      subEvents.push({ type: "text", text: delta });
     }
-  } else if (kind === 'tool_start') {
+  } else if (kind === "tool_start") {
     subEvents.push({
-      type: 'tool',
-      name: (value?.toolName as string) || 'tool',
-      argsText: typeof value?.args === 'string' ? value.args as string : '',
-      resultText: '',
-      status: 'running',
+      type: "tool",
+      name: (value?.toolName as string) || "tool",
+      argsText: typeof value?.args === "string" ? (value.args as string) : "",
+      resultText: "",
+      status: "running",
     });
-  } else if (kind === 'tool_result') {
+  } else if (kind === "tool_result") {
     let matched = false;
     for (let i = subEvents.length - 1; i >= 0; i -= 1) {
       const item = subEvents[i];
-      if (item.type === 'tool' && item.status === 'running' && item.name === value?.toolName) {
+      if (
+        item.type === "tool" &&
+        item.status === "running" &&
+        item.name === value?.toolName
+      ) {
         subEvents[i] = {
           ...item,
-          resultText: typeof value?.result === 'string' ? value.result as string : '',
-          status: 'completed',
+          resultText:
+            typeof value?.result === "string" ? (value.result as string) : "",
+          status: "completed",
         };
         matched = true;
         break;
@@ -286,32 +327,43 @@ function appendSubEvent(
   return subEvents;
 }
 
-function settleSubEvents(subEvents: SubEvent[] | undefined): SubEvent[] | undefined {
+function settleSubEvents(
+  subEvents: SubEvent[] | undefined,
+): SubEvent[] | undefined {
   if (!Array.isArray(subEvents)) return subEvents;
-  if (!subEvents.some((item) => item.type === 'tool' && item.status === 'running')) return subEvents;
+  if (
+    !subEvents.some((item) => item.type === "tool" && item.status === "running")
+  )
+    return subEvents;
   return subEvents.map((item) =>
-    item.type === 'tool' && item.status === 'running'
-      ? { ...item, status: 'completed' }
+    item.type === "tool" && item.status === "running"
+      ? { ...item, status: "completed" }
       : item,
   );
 }
 
-function normalizeClarificationQuestions(questions: unknown): ClarificationQuestion[] {
+function normalizeClarificationQuestions(
+  questions: unknown,
+): ClarificationQuestion[] {
   if (!Array.isArray(questions)) return [];
   return questions
     .map((q: unknown, index: number) => {
       const question = q as Record<string, unknown>;
-      const text = typeof question?.text === 'string' ? (question.text as string).trim() : '';
+      const text =
+        typeof question?.text === "string"
+          ? (question.text as string).trim()
+          : "";
       if (!text) return null;
       const options = Array.isArray(question.options)
         ? (question.options as Array<unknown>)
-            .map((opt) => (typeof opt === 'string' ? opt.trim() : ''))
+            .map((opt) => (typeof opt === "string" ? opt.trim() : ""))
             .filter(Boolean)
         : [];
       return {
-        id: typeof question.id === 'string' && (question.id as string).trim()
-          ? (question.id as string).trim()
-          : `question_${index + 1}`,
+        id:
+          typeof question.id === "string" && (question.id as string).trim()
+            ? (question.id as string).trim()
+            : `question_${index + 1}`,
         text,
         options,
         required: question.required !== false,
@@ -324,29 +376,35 @@ function normalizeClarificationQuestions(questions: unknown): ClarificationQuest
 function buildClarificationTranscript(answers: ClarificationAnswer[]): string {
   return answers
     .map((answer) => {
-      const value = answer.skipped ? 'Skipped' : answer.answer || '';
+      const value = answer.skipped ? "Skipped" : answer.answer || "";
       return `Q: ${answer.question}\nA: ${value}`;
     })
-    .join('\n\n');
+    .join("\n\n");
 }
 
 function parseInitialState(
-  initialMessages: UseAguiChatOptions['initialMessages'],
+  initialMessages: UseAguiChatOptions["initialMessages"],
   initialToolCalls?: ToolCall[],
   initialConversation?: ConversationEntry[],
 ): InternalState {
   const isParsedHistory = !!(
     initialMessages &&
     !Array.isArray(initialMessages) &&
-    typeof initialMessages === 'object'
+    typeof initialMessages === "object"
   );
   const parsed = isParsedHistory
-    ? (initialMessages as { messages?: ChatMessage[]; conversation?: ConversationEntry[]; toolCalls?: ToolCall[] })
+    ? (initialMessages as {
+        messages?: ChatMessage[];
+        conversation?: ConversationEntry[];
+        toolCalls?: ToolCall[];
+      })
     : null;
 
   return {
     isParsedHistory,
-    initialMessages: parsed?.messages || (Array.isArray(initialMessages) ? initialMessages : []),
+    initialMessages:
+      parsed?.messages ||
+      (Array.isArray(initialMessages) ? initialMessages : []),
     initialToolCalls: parsed?.toolCalls || initialToolCalls || [],
     initialConversation: parsed?.conversation || initialConversation || [],
   };
@@ -358,9 +416,11 @@ function matchType(type: string, ...options: string[]): boolean {
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
-export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn {
+export function useAguiChat(
+  options: UseAguiChatOptions = {},
+): UseAguiChatReturn {
   const {
-    url = '',
+    url = "",
     agentId,
     threadId: externalThreadId,
     initialMessages: rawInitialMessages,
@@ -376,20 +436,29 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
 
   // ── Parse initial state ──
   const initialState = useMemo(
-    () => parseInitialState(rawInitialMessages, rawInitialToolCalls, rawInitialConversation),
+    () =>
+      parseInitialState(
+        rawInitialMessages,
+        rawInitialToolCalls,
+        rawInitialConversation,
+      ),
     // Only re-parse when threadId changes (new conversation)
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [externalThreadId],
   );
 
-  const [messages, setMessages] = useState<ChatMessage[]>(initialState.initialMessages);
-  const [toolCalls, setToolCalls] = useState<ToolCall[]>(initialState.initialToolCalls);
+  const [messages, setMessages] = useState<ChatMessage[]>(
+    initialState.initialMessages,
+  );
+  const [toolCalls, setToolCalls] = useState<ToolCall[]>(
+    initialState.initialToolCalls,
+  );
   const [conversation, setConversation] = useState<ConversationEntry[]>(
     initialState.initialConversation.length > 0
       ? initialState.initialConversation
       : initialState.initialMessages.map((m) => ({
-          id: id('entry-message'),
-          type: 'message' as const,
+          id: id("entry-message"),
+          type: "message" as const,
           refId: m.id,
         })),
   );
@@ -397,9 +466,13 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
   const [isRunning, setIsRunning] = useState(false);
   const [isReasoning, setIsReasoning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [threadId, setThreadId] = useState<string | undefined>(externalThreadId);
-  const [pendingApproval, setPendingApproval] = useState<ApprovalRequest | null>(null);
-  const [pendingClarification, setPendingClarification] = useState<ClarificationRequest | null>(null);
+  const [threadId, setThreadId] = useState<string | undefined>(
+    externalThreadId,
+  );
+  const [pendingApproval, setPendingApproval] =
+    useState<ApprovalRequest | null>(null);
+  const [pendingClarification, setPendingClarification] =
+    useState<ClarificationRequest | null>(null);
 
   // Refs
   const messagesRef = useRef(messages);
@@ -415,15 +488,19 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
 
   // Reset when external threadId changes (new conversation selected)
   useEffect(() => {
-    const parsed = parseInitialState(rawInitialMessages, rawInitialToolCalls, rawInitialConversation);
+    const parsed = parseInitialState(
+      rawInitialMessages,
+      rawInitialToolCalls,
+      rawInitialConversation,
+    );
     setMessages(parsed.initialMessages);
     setToolCalls(parsed.initialToolCalls);
     setConversation(
       parsed.initialConversation.length > 0
         ? parsed.initialConversation
         : parsed.initialMessages.map((m) => ({
-            id: id('entry-message'),
-            type: 'message' as const,
+            id: id("entry-message"),
+            type: "message" as const,
             refId: m.id,
           })),
     );
@@ -439,7 +516,7 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
   const headerEntries = useMemo(
     () =>
       Object.entries(headers || {}).filter(
-        ([, value]) => value !== undefined && value !== null && value !== '',
+        ([, value]) => value !== undefined && value !== null && value !== "",
       ),
     [headers],
   );
@@ -447,20 +524,26 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
   // ── State helpers ──
   const upsertMessage = useCallback((message: ChatMessage) => {
     setMessages((prev) => replaceById(prev, message));
-    setConversation((prev) => ensureConversationEntry(prev, 'message', message.id));
+    setConversation((prev) =>
+      ensureConversationEntry(prev, "message", message.id),
+    );
   }, []);
 
   const upsertTool = useCallback((tool: ToolCall) => {
     setToolCalls((prev) => replaceById(prev, tool));
-    setConversation((prev) => ensureConversationEntry(prev, 'tool', tool.id));
+    setConversation((prev) => ensureConversationEntry(prev, "tool", tool.id));
   }, []);
 
   const settleRunningTools = useCallback(() => {
     setToolCalls((prev) =>
-      prev.some((t) => t.status === 'running')
+      prev.some((t) => t.status === "running")
         ? prev.map((t) =>
-            t.status === 'running'
-              ? { ...t, status: 'completed' as const, subEvents: settleSubEvents(t.subEvents) }
+            t.status === "running"
+              ? {
+                  ...t,
+                  status: "completed" as const,
+                  subEvents: settleSubEvents(t.subEvents),
+                }
               : t,
           )
         : prev,
@@ -476,13 +559,13 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
       const type = event.type as string;
 
       // ── Lifecycle ──
-      if (matchType(type, EventType.RUN_STARTED, 'RUN_STARTED')) {
+      if (matchType(type, EventType.RUN_STARTED, "RUN_STARTED")) {
         setIsRunning(true);
         setError(null);
         return;
       }
 
-      if (matchType(type, EventType.RUN_FINISHED, 'RUN_FINISHED')) {
+      if (matchType(type, EventType.RUN_FINISHED, "RUN_FINISHED")) {
         setIsRunning(false);
         setIsReasoning(false);
         settleRunningTools();
@@ -496,40 +579,49 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
         return;
       }
 
-      if (matchType(type, EventType.RUN_ERROR, 'RUN_ERROR')) {
+      if (matchType(type, EventType.RUN_ERROR, "RUN_ERROR")) {
         setIsRunning(false);
         setIsReasoning(false);
         settleRunningTools();
-        setError((event.message as string) || 'The agent stopped unexpectedly.');
+        setError(
+          (event.message as string) || "The agent stopped unexpectedly.",
+        );
         if (onRunFinished) onRunFinished();
         return;
       }
 
       // ── Text messages ──
-      if (matchType(type, EventType.TEXT_MESSAGE_START, 'TEXT_MESSAGE_START')) {
+      if (matchType(type, EventType.TEXT_MESSAGE_START, "TEXT_MESSAGE_START")) {
         upsertMessage({
           id: event.messageId as string,
-          role: (event.role as ChatMessage['role']) || 'assistant',
-          content: '',
+          role: (event.role as ChatMessage["role"]) || "assistant",
+          content: "",
           timestamp: Date.now(),
         });
         return;
       }
 
       if (
-        matchType(type, EventType.TEXT_MESSAGE_CONTENT, EventType.TEXT_MESSAGE_CHUNK, 'TEXT_MESSAGE_CONTENT', 'TEXT_MESSAGE_CHUNK', 'text')
+        matchType(
+          type,
+          EventType.TEXT_MESSAGE_CONTENT,
+          EventType.TEXT_MESSAGE_CHUNK,
+          "TEXT_MESSAGE_CONTENT",
+          "TEXT_MESSAGE_CHUNK",
+          "text",
+        )
       ) {
         if (suppressClarificationNoticeRef.current) {
           suppressClarificationNoticeRef.current = false;
           return;
         }
-        const messageId = (event.messageId as string) || id('assistant');
-        const delta = (event.delta ?? event.content ?? '') as string;
+        const messageId = (event.messageId as string) || id("assistant");
+        const delta = (event.delta ?? event.content ?? "") as string;
         setMessages((prev) => {
           const current = prev.find((m) => m.id === messageId) || {
             id: messageId,
-            role: 'assistant' as const,
-            content: '',
+            role: "assistant" as const,
+            content: "",
             timestamp: Date.now(),
           };
           return replaceById(prev, {
@@ -537,30 +629,46 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
             content: `${current.content}${delta}`,
           });
         });
-        setConversation((prev) => ensureConversationEntry(prev, 'message', messageId));
+        setConversation((prev) =>
+          ensureConversationEntry(prev, "message", messageId),
+        );
         return;
       }
 
       // ── Reasoning ──
-      if (matchType(type, EventType.REASONING_MESSAGE_START, 'REASONING_MESSAGE_START')) {
+      if (
+        matchType(
+          type,
+          EventType.REASONING_MESSAGE_START,
+          "REASONING_MESSAGE_START",
+        )
+      ) {
         setIsReasoning(true);
         upsertMessage({
-          id: (event.messageId as string) || id('reasoning'),
-          role: 'reasoning',
-          content: '',
+          id: (event.messageId as string) || id("reasoning"),
+          role: "reasoning",
+          content: "",
           timestamp: Date.now(),
         });
         return;
       }
 
-      if (matchType(type, EventType.REASONING_MESSAGE_CONTENT, EventType.REASONING_MESSAGE_CHUNK, 'REASONING_MESSAGE_CONTENT', 'REASONING_MESSAGE_CHUNK')) {
-        const messageId = (event.messageId as string) || id('reasoning');
-        const delta = (event.delta ?? '') as string;
+      if (
+        matchType(
+          type,
+          EventType.REASONING_MESSAGE_CONTENT,
+          EventType.REASONING_MESSAGE_CHUNK,
+          "REASONING_MESSAGE_CONTENT",
+          "REASONING_MESSAGE_CHUNK",
+        )
+      ) {
+        const messageId = (event.messageId as string) || id("reasoning");
+        const delta = (event.delta ?? "") as string;
         setMessages((prev) => {
           const current = prev.find((m) => m.id === messageId) || {
             id: messageId,
-            role: 'reasoning' as const,
-            content: '',
+            role: "reasoning" as const,
+            content: "",
             timestamp: Date.now(),
           };
           return replaceById(prev, {
@@ -568,85 +676,111 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
             content: `${current.content}${delta}`,
           });
         });
-        setConversation((prev) => ensureConversationEntry(prev, 'message', messageId));
+        setConversation((prev) =>
+          ensureConversationEntry(prev, "message", messageId),
+        );
         return;
       }
 
-      if (matchType(type, EventType.REASONING_END, 'REASONING_END')) {
+      if (matchType(type, EventType.REASONING_END, "REASONING_END")) {
         setIsReasoning(false);
         return;
       }
 
       // ── Tool calls ──
-      if (matchType(type, EventType.TOOL_CALL_START, 'TOOL_CALL_START')) {
-        toolNameRef.current.set(event.toolCallId as string, event.toolCallName as string);
+      if (matchType(type, EventType.TOOL_CALL_START, "TOOL_CALL_START")) {
+        toolNameRef.current.set(
+          event.toolCallId as string,
+          event.toolCallName as string,
+        );
         upsertTool({
           id: event.toolCallId as string,
-          name: (event.toolCallName as string) || 'tool',
-          argumentsText: '',
-          resultText: '',
-          status: 'running',
+          name: (event.toolCallName as string) || "tool",
+          argumentsText: "",
+          resultText: "",
+          status: "running",
         });
         return;
       }
 
       if (
-        matchType(type, EventType.TOOL_CALL_ARGS, EventType.TOOL_CALL_CHUNK, 'TOOL_CALL_ARGS', 'TOOL_CALL_CHUNK', 'tool_call')
+        matchType(
+          type,
+          EventType.TOOL_CALL_ARGS,
+          EventType.TOOL_CALL_CHUNK,
+          "TOOL_CALL_ARGS",
+          "TOOL_CALL_CHUNK",
+          "tool_call",
+        )
       ) {
-        const toolCallId = (event.toolCallId ?? event.run_id ?? id('tool')) as string;
-        const toolName = (event.toolCallName ?? event.name ?? toolNameRef.current.get(toolCallId) ?? 'tool') as string;
-        const delta = (event.delta ?? event.args ?? '') as string;
+        const toolCallId = (event.toolCallId ??
+          event.run_id ??
+          id("tool")) as string;
+        const toolName = (event.toolCallName ??
+          event.name ??
+          toolNameRef.current.get(toolCallId) ??
+          "tool") as string;
+        const delta = (event.delta ?? event.args ?? "") as string;
 
         toolNameRef.current.set(toolCallId, toolName);
         setToolCalls((prev) => {
           const existing = prev.find((t) => t.id === toolCallId);
-          if (existing?.status === 'completed') return prev;
+          if (existing?.status === "completed") return prev;
           const current = existing || {
             id: toolCallId,
             name: toolName,
-            argumentsText: '',
-            resultText: '',
-            status: 'running' as const,
+            argumentsText: "",
+            resultText: "",
+            status: "running" as const,
           };
           return replaceById(prev, {
             ...current,
             name: toolName,
             argumentsText: `${current.argumentsText}${delta}`,
-            status: 'running' as const,
+            status: "running" as const,
           });
         });
-        setConversation((prev) => ensureConversationEntry(prev, 'tool', toolCallId));
+        setConversation((prev) =>
+          ensureConversationEntry(prev, "tool", toolCallId),
+        );
         return;
       }
 
-      if (matchType(type, EventType.TOOL_CALL_END, 'TOOL_CALL_END')) {
+      if (matchType(type, EventType.TOOL_CALL_END, "TOOL_CALL_END")) {
         setToolCalls((prev) =>
           prev.map((tool) => {
             if (tool.id !== event.toolCallId) return tool;
             const todos = todosFromToolArgs(tool.name, tool.argumentsText);
             if (todos) setAgentState((state) => ({ ...state, todos }));
-            return { ...tool, status: 'completed' as const };
+            return { ...tool, status: "completed" as const };
           }),
         );
         return;
       }
 
-      if (matchType(type, EventType.TOOL_CALL_RESULT, 'TOOL_CALL_RESULT', 'tool_result')) {
+      if (
+        matchType(
+          type,
+          EventType.TOOL_CALL_RESULT,
+          "TOOL_CALL_RESULT",
+          "tool_result",
+        )
+      ) {
         const toolCallId = (event.toolCallId ?? event.run_id) as string;
-        const resultText = (event.content ?? event.result ?? '') as string;
+        const resultText = (event.content ?? event.result ?? "") as string;
 
         setToolCalls((prev) => {
           const current = prev.find((t) => t.id === toolCallId) || {
             id: toolCallId,
-            name: toolNameRef.current.get(toolCallId) || 'tool',
-            argumentsText: '',
-            resultText: '',
-            status: 'running' as const,
+            name: toolNameRef.current.get(toolCallId) || "tool",
+            argumentsText: "",
+            resultText: "",
+            status: "running" as const,
           };
           const completedTool: ToolCall = {
             ...current,
             resultText,
-            status: 'completed',
+            status: "completed",
             subEvents: settleSubEvents(current.subEvents),
             ...(event.structuredContent !== undefined
               ? { structuredResult: event.structuredContent }
@@ -655,9 +789,17 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
           if (onToolResult) onToolResult(completedTool);
           setAgentState((state) => {
             let next = state;
-            const todos = todosFromToolArgs(completedTool.name, completedTool.argumentsText);
+            const todos = todosFromToolArgs(
+              completedTool.name,
+              completedTool.argumentsText,
+            );
             if (todos) next = { ...next, todos };
-            const withFiles = applyFileToolToState(next, completedTool.name, completedTool.argumentsText, resultText);
+            const withFiles = applyFileToolToState(
+              next,
+              completedTool.name,
+              completedTool.argumentsText,
+              resultText,
+            );
             return withFiles || next;
           });
           return replaceById(prev, completedTool);
@@ -666,9 +808,9 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
       }
 
       // ── CUSTOM events (routing hub) ──
-      if (matchType(type, EventType.CUSTOM, 'CUSTOM')) {
+      if (matchType(type, EventType.CUSTOM, "CUSTOM")) {
         switch (event.name as string) {
-          case 'ui_block': {
+          case "ui_block": {
             const value = event.value as Record<string, unknown>;
             const blockEntry: ChatUIBlock = {
               id: (value.id as string) || crypto.randomUUID(),
@@ -683,28 +825,38 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
               ...prev,
               {
                 id: blockEntry.id,
-                role: 'block' as const,
-                content: '',
+                role: "block" as const,
+                content: "",
                 timestamp: Date.now(),
                 blocks: [blockEntry],
               },
             ]);
-            setConversation((prev) => ensureConversationEntry(prev, 'message', blockEntry.id));
+            setConversation((prev) =>
+              ensureConversationEntry(prev, "message", blockEntry.id),
+            );
             return;
           }
 
-          case 'hitl_request': {
-            if (Array.isArray(event.value && (event.value as Record<string, unknown>).actionRequests)) {
+          case "hitl_request": {
+            if (
+              Array.isArray(
+                event.value &&
+                  (event.value as Record<string, unknown>).actionRequests,
+              )
+            ) {
               setPendingClarification(null);
               setPendingApproval({
-                actionRequests: (event.value as Record<string, unknown>).actionRequests as ApprovalRequest['actionRequests'],
-                reviewConfigs: ((event.value as Record<string, unknown>).reviewConfigs as Array<Record<string, unknown>>) || [],
+                actionRequests: (event.value as Record<string, unknown>)
+                  .actionRequests as ApprovalRequest["actionRequests"],
+                reviewConfigs:
+                  ((event.value as Record<string, unknown>)
+                    .reviewConfigs as Array<Record<string, unknown>>) || [],
               });
             }
             return;
           }
 
-          case 'clarification_request': {
+          case "clarification_request": {
             const questions = normalizeClarificationQuestions(
               (event.value as Record<string, unknown>)?.questions,
             );
@@ -712,8 +864,11 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
               setPendingApproval(null);
               setPendingClarification({
                 questions,
-                currentIndex: Number.isInteger((event.value as Record<string, unknown>)?.currentIndex)
-                  ? (event.value as Record<string, unknown>).currentIndex as number
+                currentIndex: Number.isInteger(
+                  (event.value as Record<string, unknown>)?.currentIndex,
+                )
+                  ? ((event.value as Record<string, unknown>)
+                      .currentIndex as number)
                   : 0,
                 answers: [],
               });
@@ -722,14 +877,18 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
             return;
           }
 
-          case 'subagent_activity': {
+          case "subagent_activity": {
             const val = event.value as Record<string, unknown> | undefined;
             const toolCallId = val?.toolCallId as string | undefined;
             if (toolCallId) {
               setToolCalls((prev) =>
                 prev.map((tool) => {
                   if (tool.id !== toolCallId) return tool;
-                  const subEvents = appendSubEvent(tool.subEvents, val?.kind as string, val || {});
+                  const subEvents = appendSubEvent(
+                    tool.subEvents,
+                    val?.kind as string,
+                    val || {},
+                  );
                   return subEvents ? { ...tool, subEvents } : tool;
                 }),
               );
@@ -737,7 +896,7 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
             return;
           }
 
-          case 'mcp_app': {
+          case "mcp_app": {
             const val = event.value as Record<string, unknown> | undefined;
             const mcpToolCallId = val?.toolCallId as string | undefined;
             const resourceUri = val?.resourceUri as string | undefined;
@@ -758,17 +917,18 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
       }
 
       // ── State snapshot ──
-      if (matchType(type, EventType.STATE_SNAPSHOT, 'STATE_SNAPSHOT')) {
+      if (matchType(type, EventType.STATE_SNAPSHOT, "STATE_SNAPSHOT")) {
         setAgentState((event.snapshot as Record<string, unknown>) || {});
         return;
       }
 
       // ── Messages snapshot ──
-      if (matchType(type, EventType.MESSAGES_SNAPSHOT, 'MESSAGES_SNAPSHOT')) {
+      if (matchType(type, EventType.MESSAGES_SNAPSHOT, "MESSAGES_SNAPSHOT")) {
         const nextMessages = Array.isArray(event.messages)
           ? (event.messages as Array<Record<string, unknown>>).map((msg) => ({
-              id: (msg.id as string) || id('message'),
-              role: ((msg.role as string) || 'assistant') as ChatMessage['role'],
+              id: (msg.id as string) || id("message"),
+              role: ((msg.role as string) ||
+                "assistant") as ChatMessage["role"],
               content: contentToText(msg.content),
               timestamp: Date.now(),
             }))
@@ -776,8 +936,8 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
         setMessages(nextMessages);
         setConversation(
           nextMessages.map((msg) => ({
-            id: id('entry-message'),
-            type: 'message' as const,
+            id: id("entry-message"),
+            type: "message" as const,
             refId: msg.id,
           })),
         );
@@ -785,7 +945,7 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
       }
 
       // ── Title ──
-      if (matchType(type, 'title', EventType.TITLE || 'TITLE')) {
+      if (matchType(type, "title", EventType.TITLE || "TITLE")) {
         const title = event.title as string | undefined;
         if (onTitleGenerated && title) {
           onTitleGenerated(title);
@@ -823,7 +983,7 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
       eventQueueRef.current.push(event);
       if (flushScheduledRef.current) return;
       flushScheduledRef.current = true;
-      if (typeof requestAnimationFrame === 'function' && !document.hidden) {
+      if (typeof requestAnimationFrame === "function" && !document.hidden) {
         requestAnimationFrame(flushEvents);
       } else {
         setTimeout(flushEvents, 32);
@@ -861,17 +1021,17 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
         }
 
         const response = await fetch(url, {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            Accept: 'text/event-stream',
+            "Content-Type": "application/json",
+            Accept: "text/event-stream",
             ...Object.fromEntries(headerEntries),
             ...authHeader,
-            ...(activeThreadId ? { 'X-Thread-Id': activeThreadId } : {}),
+            ...(activeThreadId ? { "X-Thread-Id": activeThreadId } : {}),
           },
           body: JSON.stringify({
             threadId: activeThreadId,
-            runId: id('run'),
+            runId: id("run"),
             agentId,
             messages: bodyMessages.map((msg) => ({
               id: msg.id,
@@ -889,29 +1049,29 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let buffer = '';
+        let buffer = "";
 
         while (true) {
           const { value, done } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
           const packets = buffer.split(/\n\n/);
-          buffer = packets.pop() || '';
+          buffer = packets.pop() || "";
 
           for (const packet of packets) {
             const data = packet
               .split(/\n/)
-              .filter((line) => line.startsWith('data:'))
+              .filter((line) => line.startsWith("data:"))
               .map((line) => line.slice(5).trim())
-              .join('\n');
-            if (!data || data === '[DONE]') continue;
+              .join("\n");
+            if (!data || data === "[DONE]") continue;
             const parsed = parseJsonMaybe(data);
             if (parsed) enqueueEvent(parsed as Record<string, unknown>);
           }
         }
       } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
-          setError((err as Error).message || 'Streaming failed.');
+        if ((err as Error).name !== "AbortError") {
+          setError((err as Error).message || "Streaming failed.");
         }
       } finally {
         flushEvents();
@@ -920,20 +1080,30 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
         abortRef.current = null;
       }
     },
-    [agentId, enqueueEvent, flushEvents, getToken, headerEntries, url, externalThreadId],
+    [
+      agentId,
+      enqueueEvent,
+      flushEvents,
+      getToken,
+      headerEntries,
+      url,
+      externalThreadId,
+    ],
   );
 
   // ── Public API ──
   const appendUserMessage = useCallback((content: string): ChatMessage[] => {
     const userMessage: ChatMessage = {
-      id: id('user'),
-      role: 'user',
+      id: id("user"),
+      role: "user",
       content,
       timestamp: Date.now(),
     };
     const nextMessages = [...messagesRef.current, userMessage];
     setMessages(nextMessages);
-    setConversation((prev) => ensureConversationEntry(prev, 'message', userMessage.id));
+    setConversation((prev) =>
+      ensureConversationEntry(prev, "message", userMessage.id),
+    );
     return nextMessages;
   }, []);
 
@@ -945,7 +1115,7 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
       // A typed reply while an approval is pending = reject-with-feedback
       if (pendingApproval) {
         const decisions = pendingApproval.actionRequests.map(() => ({
-          type: 'reject',
+          type: "reject",
           message: content,
         }));
         await respondToApproval(decisions, { displayText: content });
@@ -960,7 +1130,7 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
       const nextMessages = appendUserMessage(content);
 
       let threadIdOverride: string | undefined;
-      if (externalThreadId === 'new') {
+      if (externalThreadId === "new") {
         promotingRef.current = true;
         // Parent creates a backend thread; we'll get the ID back via onThreadCreated
         threadIdOverride = undefined;
@@ -1017,21 +1187,24 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
   );
 
   const respondToClarification = useCallback(
-    async (
-      { answer = '', optionIndex = null, freeform = false, skipped = false }: {
-        answer?: string;
-        optionIndex?: number | null;
-        freeform?: boolean;
-        skipped?: boolean;
-      } = {},
-    ) => {
+    async ({
+      answer = "",
+      optionIndex = null,
+      freeform = false,
+      skipped = false,
+    }: {
+      answer?: string;
+      optionIndex?: number | null;
+      freeform?: boolean;
+      skipped?: boolean;
+    } = {}) => {
       if (!pendingClarification || !url || isRunning) return;
 
       const currentIndex = pendingClarification.currentIndex || 0;
       const question = pendingClarification.questions[currentIndex];
       if (!question) return;
 
-      const normalizedAnswer = skipped ? '' : String(answer || '').trim();
+      const normalizedAnswer = skipped ? "" : String(answer || "").trim();
       if (!skipped && !normalizedAnswer) return;
 
       const nextAnswer: ClarificationAnswer = {
@@ -1057,7 +1230,10 @@ export function useAguiChat(options: UseAguiChatOptions = {}): UseAguiChatReturn
       const text = buildClarificationTranscript(nextAnswers);
       setPendingClarification(null);
       const nextMessages = appendUserMessage(text);
-      await runStream({ messages: nextMessages, resume: { answers: nextAnswers, text } });
+      await runStream({
+        messages: nextMessages,
+        resume: { answers: nextAnswers, text },
+      });
     },
     [appendUserMessage, isRunning, pendingClarification, runStream, url],
   );
