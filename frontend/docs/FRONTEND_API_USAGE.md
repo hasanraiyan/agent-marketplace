@@ -2,12 +2,13 @@
 
 This document maps frontend pages/components to backend API endpoints (Express routes) the frontend calls.
 
-**Architecture:** persona.hasanraiyan.me has two frontend experiences sharing one backend.
+**Architecture:** persona.hasanraiyan.me has three frontend experiences sharing one backend.
 
 | Experience                 | URL Prefix       | Audience       | Purpose                                 |
 | -------------------------- | ---------------- | -------------- | --------------------------------------- |
 | **Persona** (Consumer)     | `/dashboard/...` | End users      | Discover, use, converse with agents     |
 | **Agent Studio** (Creator) | `/studio/...`    | Agent builders | Create, configure, test, publish agents |
+| **Developer Studio** (Dev) | `/developer/...` | Platform admins | Create Projects, manage credentials/resources |
 
 ---
 
@@ -141,6 +142,69 @@ The following dashboard routes are **redirects** to Agent Studio:
 
 ---
 
+## Developer Studio (Developer) Routes
+
+### `/developer/projects` — Projects
+
+- **File:** `src/app/developer/projects/page.jsx`
+- **Calls:**
+  - `getProjects()` → GET `/api/v1/projects` — list Projects the user administers
+  - `createProject(data)` → POST `/api/v1/projects` — create a Project (initial Admin granted automatically)
+- **Description:** Projects are external consumers of Persona's agent infrastructure — your own app/platform on top of Persona, with its own Admins, credentials, and resources.
+
+### `/developer/projects/[id]` — Project Detail
+
+- **File:** `src/app/developer/projects/[id]/page.jsx`
+- **Calls:**
+  - `getProject(id)` → GET `/api/v1/projects/:id` — fetch Project metadata
+  - `updateProject(id, data)` → PATCH `/api/v1/projects/:id`
+  - `suspendProject(id)` → POST `/api/v1/projects/:id/suspend` — credentials stop authenticating
+  - `reactivateProject(id)` → POST `/api/v1/projects/:id/reactivate`
+  - `requestProjectDeletion(id)` → POST `/api/v1/projects/:id/delete` — grace-period deletion
+  - `cancelProjectDeletion(id)` → POST `/api/v1/projects/:id/cancel-deletion`
+- **Description:** Tabs for Overview, Members, Credentials, Agents, Skills, Stores, Knowledge, Connectors, Providers, and Audit Logs.
+
+### Members
+
+- **Calls:**
+  - `getProjectMembers(id)` → GET `/api/v1/projects/:id/members`
+  - `addProjectMember(id, personaUserId)` → POST `/api/v1/projects/:id/members` — add Admin (v1 by internal Persona User id)
+  - `removeProjectMember(id, personaUserId)` → DELETE `/api/v1/projects/:id/members/:personaUserId`
+
+### Credentials
+
+- **Calls:**
+  - `getProjectCredentials(id)` → GET `/api/v1/projects/:id/credentials`
+  - `mintProjectCredential(id, label)` → POST `/api/v1/projects/:id/credentials` — plaintext secret shown exactly once
+  - `revokeProjectCredential(id, credentialId)` → DELETE `/api/v1/projects/:id/credentials/:credentialId`
+
+### Project Resources — Agents, Skills, Stores, Knowledge, Connectors, Providers
+
+Every resource follows the same list/create/update/delete shape under `/api/v1/projects/:projectId`:
+
+| Resource    | List            | Create           | Update                  | Delete                 |
+| ----------- | --------------- | ---------------- | ----------------------- | ---------------------- |
+| Agents      | GET `/agents`   | POST `/agents`   | PATCH `/agents/:id`     | DELETE `/agents/:id`   |
+| Skills      | GET `/skills`   | POST `/skills`   | PATCH `/skills/:id`     | DELETE `/skills/:id`   |
+| Stores      | GET `/stores`   | POST `/stores`   | PATCH `/stores/:id`     | DELETE `/stores/:id`   |
+| Knowledge   | GET `/knowledge`| POST `/knowledge`| PATCH `/knowledge/:id`  | DELETE `/knowledge/:id`|
+| Connectors  | GET `/mcps`     | POST `/mcps`     | PATCH `/mcps/:id`       | DELETE `/mcps/:id`     |
+| Providers   | GET `/providers`| POST `/providers`| PATCH `/providers/:id`  | DELETE `/providers/:id`|
+
+Resource-specific extras:
+
+- **Providers:** `testProjectProviderConnection()` → POST `/providers/:id/test-connection`, `getProjectProviderModels()` → GET `/providers/:id/models`, `getProjectProviderUsage()` → GET `/providers/:id/usage`
+- **Skills:** `getProjectSkillUsage()` → GET `/skills/:id/usage`
+- **Knowledge:** `getProjectKnowledgeDocuments()` → GET `/knowledge/:id/documents`, `uploadProjectKnowledgeDocuments()` → POST `/knowledge/:id/documents` (multipart), `deleteProjectKnowledgeDocument()` → DELETE `/knowledge/:id/documents/:sourceName`, `searchProjectKnowledge()` → POST `/knowledge/:id/search`, `getProjectKnowledgeUsage()` → GET `/knowledge/:id/usage`
+- **Connectors:** `getProjectMcpOwnerAuthorizeUrl()` → GET `/mcps/:id/oauth/owner/authorize`, `disconnectProjectMcpOwnerConnection()` → DELETE `/mcps/:id/oauth/owner/connection`, `getProjectMcpUsage()` → GET `/mcps/:id/usage`
+- **Bulk delete (best-effort per id):** POST `/agents/bulk-delete`, `/skills/bulk-delete`, `/knowledge/bulk-delete`, `/mcps/bulk-delete`, `/providers/bulk-delete`
+
+### Audit Logs
+
+- **Calls:** `getProjectAuditLogs(id, params)` → GET `/api/v1/projects/:id/audit-logs` — lifecycle events only (credentials minted/revoked, membership changes, suspend/restore)
+
+---
+
 ## API Module Organization
 
 API helpers live in `src/lib/api/`:
@@ -155,6 +219,7 @@ API helpers live in `src/lib/api/`:
 | Knowledge | `knowledge.js` | `getMyKnowledgeBases`, `getKnowledgeBase`, `createKnowledgeBase`, `deleteKnowledgeBase`                                                        |
 | Memory    | `memory.js`    | Memory CRUD operations                                                                                                                         |
 | Profile   | `profile.js`   | `getProfile`, `updateProfile`                                                                                                                  |
+| Projects  | `projects.js`  | `getProjects`, `createProject`, `getProject`, `updateProject`, lifecycle (suspend/reactivate/delete/cancel-deletion), members, credentials, resource CRUD (agents/skills/stores/knowledge/mcps/providers), audit logs |
 | Admin     | `admin.js`     | Admin user management                                                                                                                          |
 | Health    | `health.js`    | Server diagnostics                                                                                                                             |
 | Upload    | `upload.js`    | File upload helpers                                                                                                                            |

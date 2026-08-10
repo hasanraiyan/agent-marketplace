@@ -2,7 +2,7 @@
 
 This guide helps AI coding agents understand and modify the **persona.hasanraiyan.me** repository.
 
-> **Current Architecture (July 2026):** persona.hasanraiyan.me has two intentionally separate frontend experiences
+> **Current Architecture (July 2026):** persona.hasanraiyan.me has three intentionally separate frontend experiences
 > sharing one backend. See "Frontend Architecture" below.
 
 ## Repository Overview
@@ -21,14 +21,15 @@ This guide helps AI coding agents understand and modify the **persona.hasanraiya
 
 ## Frontend Architecture
 
-### Two Experiences, One Platform
+### Three Experiences, One Platform
 
-| Experience                 | URL Prefix     | Audience       | Purpose                             |
-| -------------------------- | -------------- | -------------- | ----------------------------------- |
-| **Persona** (Consumer)     | `/dashboard/*` | End users      | Discover, use, converse with agents |
-| **Agent Studio** (Creator) | `/studio/*`    | Agent builders | Build, configure, test, publish     |
+| Experience                 | URL Prefix       | Audience        | Purpose                                       |
+| -------------------------- | ---------------- | --------------- | --------------------------------------------- |
+| **Persona** (Consumer)     | `/dashboard/*`   | End users       | Discover, use, converse with agents           |
+| **Agent Studio** (Creator) | `/studio/*`      | Agent builders  | Build, configure, test, publish               |
+| **Developer Studio** (Dev) | `/developer/*`   | Platform admins | Create Projects, manage credentials/resources |
 
-Both sit on the **same backend**, use the **same authentication**, and share the **same agent runtime** (AG-UI protocol). Agent Studio is NOT a separate product.
+All three sit on the **same backend**, use the **same authentication**, and share the **same agent runtime** (AG-UI protocol). Agent Studio and Developer Studio are NOT separate products.
 
 ### Frontend Routes
 
@@ -51,6 +52,19 @@ Both sit on the **same backend**, use the **same authentication**, and share the
 - `/studio/connectors` — MCP connector management
 - `/studio/memory` — Persistent memory
 - `/studio/providers` — LLM provider configuration
+
+**Developer Studio (Developer):**
+
+- `/developer` — Developer Studio home (redirects to Projects)
+- `/developer/projects` — Projects (external consumers of Persona's agent infrastructure)
+- `/developer/projects/new` — Create Project
+- `/developer/projects/[id]` — Project detail (overview, members, credentials, agents, skills, stores, knowledge, connectors, providers, audit logs)
+- `/developer/projects/[id]/agents/*` — Project agents (create, edit, test)
+- `/developer/projects/[id]/skills/*` — Project skills (create, edit)
+- `/developer/projects/[id]/knowledge/*` — Project knowledge bases (create, detail)
+- `/developer/projects/[id]/mcps/*` — Project MCP connectors (create, edit)
+- `/developer/projects/[id]/providers/*` — Project AI providers (create, edit)
+- `/developer/projects/[id]/stores/*` — Project stores (create, edit)
 
 **Legacy redirects:** Several `/dashboard/*` creator routes now redirect to their `/studio/*` equivalents.
 
@@ -368,8 +382,10 @@ The memory system uses a **file-based store** backed by MongoDB (not `InMemorySt
 | `agent-backend/src/modules/agui/aguiTranslator.js`  | LangGraph → AG-UI event translation           |
 | `agent-backend/src/middlewares/errorHandler.js`     | Global error handling                         |
 | `frontend/src/lib/studio-routes.js`                 | Canonical Studio route definitions            |
+| `frontend/src/lib/developer-routes.js`             | Canonical Developer Studio route definitions  |
 | `frontend/src/app/dashboard/page.jsx`               | Persona consumer home (agent discovery)       |
 | `frontend/src/app/studio/page.jsx`                  | Agent Studio home                             |
+| `frontend/src/app/developer/page.jsx`              | Developer Studio home (redirects to Projects) |
 | `sdk/typescript/src/index.ts`                       | TypeScript SDK client (`@personaai/sdk`) exports |
 | `sdk/python/src/personaai/client.py`                | Python SDK client (`persona-agent-sdk`) entry    |
 | `sdk/runtime/src/runtime.ts`                        | Runtime engine (`@personaai/runtime`) core        |
