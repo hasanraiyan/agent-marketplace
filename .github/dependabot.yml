@@ -1,22 +1,65 @@
 version: 2
 updates:
+  # ── Production apps: weekly, but batched into few PRs ─────────────────
   - package-ecosystem: "npm"
     directory: "/agent-backend"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    groups:
+      production-updates:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]   # majors stay individual PRs
+      development-tooling:
+        dependency-type: "development"
+
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    groups:
+      production-updates:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+      development-tooling:
+        dependency-type: "development"
+
+  # ── SDKs: monthly, dedupe shared tooling across both dirs ─────────────
   - package-ecosystem: "npm"
-    directory: "/sdk/typescript"
+    directories: ["/sdk/typescript", "/sdk/runtime"]
     schedule:
-      interval: "weekly"
-  - package-ecosystem: "npm"
-    directory: "/sdk/runtime"
-    schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    groups:
+      production-updates:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+      development-tooling:
+        dependency-type: "development"
+        group-by: dependency-name          # one PR per dep, both dirs
+
+  # ── Python SDK: quietest — monthly, dev deps grouped ──────────────────
   - package-ecosystem: "pip"
     directory: "/sdk/python"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    groups:
+      development-tooling:
+        dependency-type: "development"
+
+  # ── GitHub Actions: single workflow file, group everything ────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    groups:
+      actions:
+        patterns: ["*"]
