@@ -14,6 +14,15 @@ import {
   deleteThread,
 } from './routes/threads.js';
 import { listAgents } from './routes/agents.js';
+import { listFiles, uploadFile, downloadFile, deleteFile } from './routes/files.js';
+import { listMemory, getMemoryFile, writeMemoryFile, deleteMemoryFile } from './routes/memory.js';
+import {
+  getOwnerAuthorizeUrl,
+  getUserAuthorizeUrl,
+  getUserConnectionStatus,
+  disconnectUserConnection,
+  disconnectOwnerConnection,
+} from './routes/mcpOAuth.js';
 
 function buildRoutes(): Route[] {
   return [
@@ -25,6 +34,39 @@ function buildRoutes(): Route[] {
     { method: 'PATCH', pattern: ['threads', ':id'], handler: updateThread },
     { method: 'DELETE', pattern: ['threads', ':id'], handler: deleteThread },
     { method: 'GET', pattern: ['agents'], handler: listAgents },
+    { method: 'GET', pattern: ['files'], handler: listFiles },
+    { method: 'POST', pattern: ['files'], handler: uploadFile },
+    { method: 'GET', pattern: ['files', ':id'], handler: downloadFile },
+    { method: 'DELETE', pattern: ['files', ':id'], handler: deleteFile },
+    { method: 'GET', pattern: ['memory'], handler: listMemory },
+    { method: 'GET', pattern: ['memory', 'file'], handler: getMemoryFile },
+    { method: 'PUT', pattern: ['memory', 'file'], handler: writeMemoryFile },
+    { method: 'DELETE', pattern: ['memory', 'file'], handler: deleteMemoryFile },
+    {
+      method: 'GET',
+      pattern: ['mcps', ':id', 'oauth', 'owner', 'authorize'],
+      handler: getOwnerAuthorizeUrl,
+    },
+    {
+      method: 'GET',
+      pattern: ['mcps', ':id', 'oauth', 'user', 'authorize'],
+      handler: getUserAuthorizeUrl,
+    },
+    {
+      method: 'GET',
+      pattern: ['mcps', ':id', 'oauth', 'user', 'status'],
+      handler: getUserConnectionStatus,
+    },
+    {
+      method: 'DELETE',
+      pattern: ['mcps', ':id', 'oauth', 'user', 'connection'],
+      handler: disconnectUserConnection,
+    },
+    {
+      method: 'DELETE',
+      pattern: ['mcps', ':id', 'oauth', 'owner', 'connection'],
+      handler: disconnectOwnerConnection,
+    },
   ];
 }
 

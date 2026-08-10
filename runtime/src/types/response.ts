@@ -16,4 +16,13 @@ export interface RuntimeStreamResponse {
   body: AsyncIterable<string>;
 }
 
-export type RuntimeResponse = RuntimeBufferedResponse | RuntimeStreamResponse;
+/** Raw bytes with a known (or unknown, chunked) length — file downloads only. */
+export interface RuntimeBinaryResponse {
+  kind: 'binary';
+  status: number;
+  headers: Record<string, string>;
+  body: AsyncIterable<Uint8Array>;
+}
+
+export type RuntimeResponse =
+  RuntimeBufferedResponse | RuntimeStreamResponse | RuntimeBinaryResponse;

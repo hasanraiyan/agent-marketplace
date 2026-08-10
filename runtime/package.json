@@ -1,6 +1,6 @@
 {
   "name": "@personaai/runtime",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Framework-agnostic runtime engine for Persona (persona.hasanraiyan.me) — the shared engine every framework adapter (@personaai/express, @personaai/nextjs, ...) wraps. Server-side only.",
   "type": "module",
   "main": "./dist/index.cjs",

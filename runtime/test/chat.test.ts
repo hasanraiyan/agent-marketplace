@@ -186,4 +186,85 @@ describe('POST /chat', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(beforeRun).not.toHaveBeenCalled();
   });
+
+  it('fires beforeToolCall on TOOL_CALL_START and afterToolCall on the matching TOOL_CALL_RESULT', async () => {
+    const beforeToolCall = vi.fn();
+    const afterToolCall = vi.fn();
+    const events = [
+      { type: EventType.TOOL_CALL_START, toolCallId: 'tc1', toolCallName: 'search' },
+      { type: EventType.TOOL_CALL_RESULT, toolCallId: 'tc1', content: '{"results":[]}' },
+    ];
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse(events));
+    const runtime = makeRuntime({ fetchMock, hooks: { beforeToolCall, afterToolCall } });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/chat',
+      headers: {},
+      query: {},
+      body: { agentId: 'agent-1', messages: [], threadId: 'thread-1' },
+      userId: null,
+    });
+    if (response.kind === 'stream') await drain(response.body);
+
+    expect(beforeToolCall).toHaveBeenCalledWith({
+      userId: 'user-1',
+      agentId: 'agent-1',
+      threadId: 'thread-1',
+      toolName: 'search',
+      toolCallId: 'tc1',
+    });
+    expect(afterToolCall).toHaveBeenCalledWith(
+      {
+        userId: 'user-1',
+        agentId: 'agent-1',
+        threadId: 'thread-1',
+        toolName: 'search',
+        toolCallId: 'tc1',
+      },
+      '{"results":[]}'
+    );
+  });
+
+  it('fires onThreadCreate when RUN_STARTED reports a new threadId and none was supplied', async () => {
+    const onThreadCreate = vi.fn();
+    const events = [{ type: EventType.RUN_STARTED, threadId: 'implicit-t1', runId: 'r1' }];
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse(events));
+    const runtime = makeRuntime({ fetchMock, hooks: { onThreadCreate } });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/chat',
+      headers: {},
+      query: {},
+      body: { agentId: 'agent-1', messages: [{ role: 'user', content: 'hi' }] },
+      userId: null,
+    });
+    if (response.kind === 'stream') await drain(response.body);
+
+    expect(onThreadCreate).toHaveBeenCalledWith({
+      userId: 'user-1',
+      agentId: 'agent-1',
+      threadId: 'implicit-t1',
+    });
+  });
+
+  it('does not fire onThreadCreate when a threadId was already supplied', async () => {
+    const onThreadCreate = vi.fn();
+    const events = [{ type: EventType.RUN_STARTED, threadId: 'thread-1', runId: 'r1' }];
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse(events));
+    const runtime = makeRuntime({ fetchMock, hooks: { onThreadCreate } });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/chat',
+      headers: {},
+      query: {},
+      body: { agentId: 'agent-1', messages: [], threadId: 'thread-1' },
+      userId: null,
+    });
+    if (response.kind === 'stream') await drain(response.body);
+
+    expect(onThreadCreate).not.toHaveBeenCalled();
+  });
 });

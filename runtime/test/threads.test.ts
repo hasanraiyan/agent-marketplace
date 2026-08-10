@@ -24,11 +24,12 @@ describe('threads routes', () => {
     expect(url).toContain('limit=10');
   });
 
-  it('POST /threads requires agentId and creates a thread', async () => {
+  it('POST /threads requires agentId, creates a thread, and fires onThreadCreate', async () => {
+    const onThreadCreate = vi.fn();
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       jsonResponse({ _id: 't1', agentId: 'a1' }, 201)
     );
-    const runtime = makeRuntime({ fetchMock });
+    const runtime = makeRuntime({ fetchMock, hooks: { onThreadCreate } });
 
     const response = await runtime.handle({
       method: 'POST',
@@ -40,6 +41,11 @@ describe('threads routes', () => {
     });
 
     expect(response.status).toBe(201);
+    expect(onThreadCreate).toHaveBeenCalledWith({
+      userId: 'user-1',
+      agentId: 'a1',
+      threadId: 't1',
+    });
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(JSON.parse(init.body as string)).toEqual({ agentId: 'a1' });
   });

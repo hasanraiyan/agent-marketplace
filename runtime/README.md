@@ -5,7 +5,7 @@ shared engine every framework adapter (`@personaai/express`, `@personaai/nextjs`
 to be a thin translation layer over — see
 [the SDK Ecosystem plan](https://github.com/hasanraiyan/agent-marketplace/blob/feat/ai/product-research/11-sdk-new/package-ecosystem.md).
 
-**v0.1.** Not installed directly by most developers yet — there is no published framework
+**v0.2.** Not installed directly by most developers yet — there is no published framework
 adapter for it in this release. See [Quickstart](#quickstart) for how to run it directly against
 raw Node `http` in the meantime, and [Not yet implemented](#not-yet-implemented) for what's
 missing before it's a complete Level 2 runtime.
@@ -46,7 +46,8 @@ world — see `RunContext`/the design notes below for why this boundary is absol
 There's no published `@personaai/node` adapter package yet, so this release ships a small,
 tested bridge in `examples/` for running the runtime directly against Node's `http` module —
 **not itself a published entry point**, just enough to demo/smoke-test the runtime end to end
-until `@personaai/node` ships:
+until `@personaai/node` ships. It parses multipart file uploads too, via Node's native
+`Request`/`FormData` (undici) — no extra dependency:
 
 ```ts
 import { createServer } from 'node:http';
@@ -76,26 +77,50 @@ expects `request.path` already stripped).
 | `PATCH` | `/threads/:id` | `client.threads.update(id, {title?, isArchived?})` |
 | `DELETE` | `/threads/:id` | `client.threads.delete(id)` → `204` |
 | `GET` | `/agents` | `client.agents.list({page, limit, search, category, scope})` |
+| `GET` | `/files` | `client.files.list({page, limit})` |
+| `POST` | `/files` | `client.files.upload({filename, content, contentType?, agentId?, threadId?})` — multipart, `file` part required. `201` |
+| `GET` | `/files/:id` | `client.files.download(id)` — raw bytes, streamed through as `kind: 'binary'` |
+| `DELETE` | `/files/:id` | `client.files.delete(id)` → `204` |
+| `GET` | `/memory` | `client.memory.list()` |
+| `GET` | `/memory/file` | `client.memory.getFile({path, scope?, agentId?})` — `path` query param required |
+| `PUT` | `/memory/file` | `client.memory.writeFile({path, content, scope?, agentId?})` — creates or overwrites |
+| `DELETE` | `/memory/file` | `client.memory.deleteFile({path, scope?, agentId?})` → `204` |
+| `GET` | `/mcps/:id/oauth/owner/authorize` | `client.mcps.oauth.getOwnerAuthorizeUrl(id)` → `{url}` to redirect the Project owner to |
+| `GET` | `/mcps/:id/oauth/user/authorize` | `client.mcps.oauth.getUserAuthorizeUrl(id, returnTo?)` → `{url}` to redirect the end user to |
+| `GET` | `/mcps/:id/oauth/user/status` | `client.mcps.oauth.getUserConnectionStatus(id)` |
+| `DELETE` | `/mcps/:id/oauth/user/connection` | `client.mcps.oauth.disconnectUserConnection(id)` → `204` |
+| `DELETE` | `/mcps/:id/oauth/owner/connection` | `client.mcps.oauth.disconnectOwnerConnection(id)` → `204` |
 | `GET` | `/health` | `client.whoami()` → `{status, version, capabilities}`. Does **not** require `resolveUser` — it's a liveness/capability probe, not a user-scoped call. |
 
 Every route except `/health` requires an authenticated user; `resolveUser` returning `null` or
-throwing responds `401`.
+throwing responds `401`. `scope` for memory routes is `'user'` (default) or `'agent'`
+(`agentId` then required).
+
+For `POST /files`, a framework adapter must parse the incoming multipart body and populate
+`RuntimeRequest.file` (`{filename, content: Uint8Array, contentType?}`) plus put any other form
+fields (`agentId`, `threadId`) on `RuntimeRequest.body` — the runtime itself never touches raw
+bytes or a specific multipart parser. See `examples/node-handler.ts`'s `readMultipartBody` for
+the reference approach.
+
+MCP OAuth owner-mode routes affect the shared MCP config for the whole Project — this runtime
+has no concept of roles/permissions beyond "is there a resolved user" (RBAC is explicitly the
+host's own business decision, not Persona's). A production host should gate these behind its own
+authorization check, e.g. inside `resolveUser` or a wrapping middleware in front of the mount
+point, before exposing them to end users.
 
 ## Lifecycle hooks
 
 Plain async event listeners, not middleware — the runtime proceeds with sensible defaults when a
 hook is omitted, and a hook that wants to reject a run just throws (the throw is caught and
-routed through the same sanitized error response as any other failure).
-
-**Wired in v0.1**, all three around the `/chat` route (the only route where "before/after a run"
-unambiguously applies):
+routed through the same sanitized error response as any other failure). **All eight are wired
+in v0.2:**
 
 ```ts
 createRuntime({
   // ...
   hooks: {
     beforeRun(ctx) {
-      // ctx: { userId, agentId, threadId?, messages }
+      // ctx: { userId, agentId, threadId?, messages } — fires before POST /chat's stream starts.
     },
     afterRun(ctx, result) {
       // result: { text, eventCount, interrupted, erroredInBand }
@@ -108,13 +133,29 @@ createRuntime({
       // (auth/validation/network) or the stream dying mid-read. Not on an
       // in-band RUN_ERROR event — see afterRun above.
     },
+    beforeToolCall(ctx) {
+      // ctx: { userId, agentId, threadId?, toolName, toolCallId }
+      // Fires on each TOOL_CALL_START event inside a chat stream.
+    },
+    afterToolCall(ctx, result) {
+      // Fires on the matching TOOL_CALL_RESULT event; `result` is the raw
+      // (string or already-JSON) tool output.
+    },
+    onFileUpload(ctx) {
+      // ctx: { userId, fileName, mimeType? } — fires after POST /files succeeds.
+    },
+    onThreadCreate(ctx) {
+      // ctx: { userId, agentId, threadId } — fires on an explicit POST
+      // /threads, AND when POST /chat's RUN_STARTED event reports a
+      // threadId that wasn't supplied on the way in (Persona created one
+      // implicitly for that turn).
+    },
+    onMemoryWrite(ctx) {
+      // ctx: { userId, agentId?, path } — fires after PUT /memory/file succeeds.
+    },
   },
 });
 ```
-
-**Declared but not yet invoked** — typed now for forward compatibility, so the API surface
-doesn't need a breaking change when they're wired up: `beforeToolCall`, `afterToolCall`,
-`onFileUpload`, `onThreadCreate`, `onMemoryWrite`.
 
 ## Errors
 
@@ -133,20 +174,17 @@ modes (`mode: 'development' | 'production'`, default `'production'` unless
 
 ## Not yet implemented
 
-This is v0.1 — an honest subset, not the full [issue #229](https://github.com/hasanraiyan/agent-marketplace/issues/229)
+This is v0.2 — still not the full [issue #229](https://github.com/hasanraiyan/agent-marketplace/issues/229)
 checklist. Missing, in rough priority order for a future release:
 
-- File upload/retrieval routes
-- Memory read/write routes
-- MCP OAuth callback handling
-- The five deferred lifecycle hooks' actual invocation (`beforeToolCall`, `afterToolCall`,
-  `onFileUpload`, `onThreadCreate`, `onMemoryWrite`)
 - AG-UI-level heartbeats, backpressure, and reconnect/resume semantics (the Node bridge in
   `examples/` handles *transport*-level backpressure via `res.write()`/`drain`, which is not the
   same thing)
 - Any published framework adapter (`@personaai/express`, `@personaai/nextjs`, `@personaai/node`,
   `@personaai/fastify`, `@personaai/hono`, `@personaai/nestjs`) — this package is the foundation
   they're meant to wrap, not a replacement for them
+- Authorization/RBAC for MCP owner-mode OAuth routes — the runtime exposes the raw capability;
+  gating who's allowed to call it is left to the host, by design (see the Routes section above)
 
 ## Roadmap
 

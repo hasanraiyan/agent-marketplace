@@ -90,4 +90,41 @@ describe('toNodeHandler', () => {
     const text = await res.text();
     expect(text).toBe(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''));
   });
+
+  it('round-trips a real multipart file upload, parsed via native Request/FormData', async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      expect(init?.body).toBeInstanceOf(FormData);
+      const form = init!.body as FormData;
+      const file = form.get('file') as File;
+      expect(file.name).toBe('hello.txt');
+      expect(await file.text()).toBe('hello world');
+      expect(form.get('agentId')).toBe('agent-1');
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: { id: 'f1', originalName: 'hello.txt', mimeType: 'text/plain', size: 11 },
+        }),
+        { status: 201, headers: { 'content-type': 'application/json' } }
+      );
+    });
+    const runtime = createRuntime({
+      baseUrl: 'https://api.example.com',
+      credential: 'key.secret',
+      fetch: fetchMock as unknown as typeof fetch,
+      resolveUser: () => 'user-1',
+    });
+
+    const baseUrl = await listen(toNodeHandler(runtime));
+
+    const form = new FormData();
+    form.set('file', new File(['hello world'], 'hello.txt', { type: 'text/plain' }));
+    form.set('agentId', 'agent-1');
+
+    const res = await fetch(`${baseUrl}/files`, { method: 'POST', body: form });
+
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { originalName: string };
+    expect(body.originalName).toBe('hello.txt');
+  });
 });

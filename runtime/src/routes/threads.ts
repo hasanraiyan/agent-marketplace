@@ -41,6 +41,13 @@ export const createThread: RouteHandler = async (request, ctx) => {
     );
   }
   const thread = await ctx.client.threads.create({ agentId: body.agentId });
+
+  await ctx.hooks?.onThreadCreate?.({
+    userId: request.userId as string,
+    agentId: body.agentId,
+    threadId: thread._id,
+  });
+
   return json(201, thread);
 };
 

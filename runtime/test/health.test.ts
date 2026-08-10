@@ -53,9 +53,9 @@ describe('GET /health', () => {
         chat: true,
         threads: true,
         agents: true,
-        files: false,
-        memory: false,
-        mcpOAuth: false,
+        files: true,
+        memory: true,
+        mcpOAuth: true,
       });
     }
   });

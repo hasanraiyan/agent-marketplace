@@ -47,7 +47,8 @@ export interface ThreadCreateContext {
 
 export interface MemoryWriteContext {
   userId: string;
-  agentId: string;
+  /** Set when the write was agent-scoped (`scope: 'agent'`); absent for a user-scoped write. */
+  agentId?: string;
   path: string;
 }
 
@@ -57,26 +58,24 @@ export interface MemoryWriteContext {
  * runtime proceeds with sensible defaults when a hook is omitted, and a
  * hook that wants to reject a run simply throws (the throw is caught and
  * routed through the same sanitized error path as any other failure).
- *
- * v0.1 only actually invokes `beforeRun`/`afterRun`/`onError`, all three
- * around the chat route (the only route where "before/after a run"
- * unambiguously applies). The remaining five hooks are declared here for
- * forward compatibility with later runtime versions but are NOT invoked —
- * see the README's "Not yet implemented" section.
  */
 export interface RuntimeHooks {
   beforeRun?(ctx: RunContext): void | Promise<void>;
   afterRun?(ctx: RunContext, result: RunResult): void | Promise<void>;
   onError?(ctx: ErrorContext, error: unknown): void | Promise<void>;
 
-  /** @remarks Declared for forward compatibility. Not invoked by the runtime yet. */
+  /** Fires when a TOOL_CALL_START event arrives in the chat stream, before its result is known. */
   beforeToolCall?(ctx: ToolCallContext): void | Promise<void>;
-  /** @remarks Declared for forward compatibility. Not invoked by the runtime yet. */
+  /** Fires when the matching TOOL_CALL_RESULT event arrives. `result` is the raw (string or JSON-parsed) tool output. */
   afterToolCall?(ctx: ToolCallContext, result: unknown): void | Promise<void>;
-  /** @remarks Declared for forward compatibility. Not invoked by the runtime yet. */
+  /** Fires after a file finishes uploading via `POST /files`. */
   onFileUpload?(ctx: FileUploadContext): void | Promise<void>;
-  /** @remarks Declared for forward compatibility. Not invoked by the runtime yet. */
+  /**
+   * Fires after a Thread is created — either explicitly via `POST /threads`,
+   * or implicitly by `POST /chat` when no `threadId` was supplied and the
+   * run's `RUN_STARTED` event reports one that didn't exist yet.
+   */
   onThreadCreate?(ctx: ThreadCreateContext): void | Promise<void>;
-  /** @remarks Declared for forward compatibility. Not invoked by the runtime yet. */
+  /** Fires after a memory file is written via `PUT /memory/file`. */
   onMemoryWrite?(ctx: MemoryWriteContext): void | Promise<void>;
 }

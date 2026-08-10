@@ -22,19 +22,97 @@ export function runErrorFrame(err: unknown, mode: 'development' | 'production'):
   } as AguiEvent);
 }
 
-function accumulate(
+interface Accumulator {
+  text: string;
+  interrupted: boolean;
+  erroredInBand: boolean;
+  threadCreateFired: boolean;
+  /** toolCallId -> toolCallName, learned from TOOL_CALL_START, so TOOL_CALL_RESULT can report a name. */
+  toolNames: Map<string, string>;
+}
+
+function newAccumulator(): Accumulator {
+  return {
+    text: '',
+    interrupted: false,
+    erroredInBand: false,
+    threadCreateFired: false,
+    toolNames: new Map(),
+  };
+}
+
+/**
+ * Applies one event's effect on the running accumulator and fires any
+ * lifecycle hooks it triggers. Shared between the peeked first event and
+ * every subsequent one, since the peek-before-commit design in
+ * `routes/chat.ts` means the first event never flows through the same
+ * `for await` loop as the rest.
+ */
+async function processEvent(
   event: AguiEvent,
-  acc: { text: string; interrupted: boolean; erroredInBand: boolean }
-): void {
-  const type = (event as { type: string }).type;
-  if (type === EventType.TEXT_MESSAGE_CHUNK) {
-    const delta = (event as { delta?: string }).delta;
-    if (typeof delta === 'string') acc.text += delta;
-  } else if (type === EventType.CUSTOM) {
-    const name = (event as { name?: string }).name;
-    if (name === 'hitl_request' || name === 'clarification_request') acc.interrupted = true;
-  } else if (type === EventType.RUN_ERROR) {
-    acc.erroredInBand = true;
+  acc: Accumulator,
+  runCtx: RunContext,
+  hooks: RuntimeHooks | undefined
+): Promise<void> {
+  const e = event as Record<string, unknown> & { type: string };
+
+  switch (e.type) {
+    case EventType.RUN_STARTED: {
+      const threadId = typeof e.threadId === 'string' ? e.threadId : undefined;
+      // No threadId was supplied on the way in, but the run reports one —
+      // that means Persona created it implicitly for this turn.
+      if (!acc.threadCreateFired && !runCtx.threadId && threadId) {
+        acc.threadCreateFired = true;
+        await hooks?.onThreadCreate?.({ userId: runCtx.userId, agentId: runCtx.agentId, threadId });
+      }
+      break;
+    }
+    case EventType.TEXT_MESSAGE_CHUNK: {
+      const delta = e.delta;
+      if (typeof delta === 'string') acc.text += delta;
+      break;
+    }
+    case EventType.CUSTOM: {
+      if (e.name === 'hitl_request' || e.name === 'clarification_request') acc.interrupted = true;
+      break;
+    }
+    case EventType.RUN_ERROR: {
+      acc.erroredInBand = true;
+      break;
+    }
+    case EventType.TOOL_CALL_START: {
+      const toolCallId = typeof e.toolCallId === 'string' ? e.toolCallId : undefined;
+      const toolCallName = typeof e.toolCallName === 'string' ? e.toolCallName : 'unknown_tool';
+      if (toolCallId) {
+        acc.toolNames.set(toolCallId, toolCallName);
+        await hooks?.beforeToolCall?.({
+          userId: runCtx.userId,
+          agentId: runCtx.agentId,
+          threadId: runCtx.threadId,
+          toolName: toolCallName,
+          toolCallId,
+        });
+      }
+      break;
+    }
+    case EventType.TOOL_CALL_RESULT: {
+      const toolCallId = typeof e.toolCallId === 'string' ? e.toolCallId : undefined;
+      if (toolCallId) {
+        await hooks?.afterToolCall?.(
+          {
+            userId: runCtx.userId,
+            agentId: runCtx.agentId,
+            threadId: runCtx.threadId,
+            toolName: acc.toolNames.get(toolCallId) ?? 'unknown_tool',
+            toolCallId,
+          },
+          e.content
+        );
+      }
+      break;
+    }
+    default:
+      break;
   }
 }
 
@@ -52,16 +130,16 @@ export async function* chatEventsToSseBody(
   hooks: RuntimeHooks | undefined,
   mode: 'development' | 'production'
 ): AsyncGenerator<string> {
-  const acc = { text: '', interrupted: false, erroredInBand: false };
+  const acc = newAccumulator();
   let count = 0;
 
   try {
-    accumulate(first, acc);
+    await processEvent(first, acc, runCtx, hooks);
     count += 1;
     yield formatSseFrame(first);
 
     for await (const event of rest) {
-      accumulate(event, acc);
+      await processEvent(event, acc, runCtx, hooks);
       count += 1;
       yield formatSseFrame(event);
     }
