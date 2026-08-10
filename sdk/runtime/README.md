@@ -5,10 +5,13 @@ shared engine every framework adapter (`@personaai/express`, `@personaai/nextjs`
 to be a thin translation layer over — see
 [the SDK Ecosystem plan](https://github.com/hasanraiyan/agent-marketplace/blob/feat/ai/product-research/11-sdk-new/package-ecosystem.md).
 
-**v0.5.1.** Not installed directly by most developers yet — there is no published framework
-adapter for it in this release. See [Quickstart](#quickstart) for how to run it directly against
-raw Node `http` in the meantime, and [Not yet implemented](#not-yet-implemented) for what's
-missing before it's a complete Level 2 runtime.
+**v0.5.1.** The first framework adapter has shipped: [`@personaai/express` v0.1.0](https://persona.hasanraiyan.me/guides/express/quickstart)
+(Wave 3 of the
+[SDK Ecosystem plan](https://github.com/hasanraiyan/agent-marketplace/blob/feat/ai/product-research/11-sdk-new/package-ecosystem.md))
+is published and mounts this runtime as an Express Router. For non-Express hosts, see
+[Quickstart](#quickstart) for how to run it directly against raw Node `http`, and
+[Not yet implemented](#not-yet-implemented) for what's missing before it's a complete Level 2
+runtime.
 
 **Server-side only.** The credential this runtime holds is a server-side secret — never bundle
 this into a browser app.
@@ -41,12 +44,13 @@ const runtime = createRuntime({
 `resolveUser` is the single point of contact between your auth world and Persona's runtime
 world — see `RunContext`/the design notes below for why this boundary is absolute.
 
-## Quickstart (raw Node `http`, no framework adapter yet)
+## Quickstart (raw Node `http`)
 
-There's no published `@personaai/node` adapter package yet, so this release ships a small,
-tested bridge at [`examples/node-handler.ts`](./examples/node-handler.ts) in this repo for
-running the runtime directly against Node's `http` module, just enough to demo/smoke-test the
-runtime end to end until `@personaai/node` ships. It parses multipart file uploads too, via
+Using Express? Skip this section and use the published [`@personaai/express` adapter](https://persona.hasanraiyan.me/guides/express/quickstart).
+For every other host there's no `@personaai/node` adapter package yet, so this release ships a
+small, tested bridge at [`examples/node-handler.ts`](./examples/node-handler.ts) in this repo
+for running the runtime directly against Node's `http` module, just enough to demo/smoke-test
+the runtime end to end until `@personaai/node` ships. It parses multipart file uploads too, via
 Node's native `Request`/`FormData` (undici) — no extra dependency.
 
 **This file is not published to npm and has no `exports` entry** (`package.json`'s `files` only
@@ -403,9 +407,10 @@ genuine unclosed gap or an intentional package boundary, not an oversight:
 - **Fine-grained (per-user, per-action) permissions within an enabled capability** — **by
   design**, not a gap: see [Capabilities](#capabilities--admin-surface). A capability is on or off
   per mount; anything finer belongs in `resolveUser` or a hook, not the runtime.
-- Any published framework adapter (`@personaai/express`, `@personaai/nextjs`, `@personaai/node`,
-  `@personaai/fastify`, `@personaai/hono`, `@personaai/nestjs`) — **by design**, not a gap: this
-  package is the foundation they're meant to wrap, not a replacement for them.
+- Framework adapters beyond Express (`@personaai/nextjs`, `@personaai/node`, `@personaai/fastify`,
+  `@personaai/hono`, `@personaai/nestjs`) — **by design**, not a gap: this package is the
+  foundation they're meant to wrap, not a replacement for them. `@personaai/express` (Wave 3)
+  has shipped as the first.
 
 ## Roadmap
 

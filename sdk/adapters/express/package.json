@@ -1,0 +1,81 @@
+{
+  "name": "@personaai/express",
+  "version": "0.1.0",
+  "description": "Express adapter for the Persona runtime (persona.hasanraiyan.me) — mounts @personaai/runtime as an Express Router. Server-side only.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "prepublishOnly": "node -e \"const p=require('./package.json');const d=p.dependencies||{};if((d['@personaai/runtime']||'').startsWith('file:')){console.error('Refusing to publish: @personaai/runtime must be a registry version (e.g. ^0.5.1), not a file: link — see PLAN.md step 12.');process.exit(1)}\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:express4": "pnpm build && pnpm --dir compat/express4 install --prefer-offline && pnpm --dir compat/express4 typecheck && pnpm --dir compat/express4 test",
+    "lint": "eslint src test examples",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"examples/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\" \"examples/**/*.ts\""
+  },
+  "keywords": [
+    "persona",
+    "persona.hasanraiyan.me",
+    "express",
+    "adapter",
+    "runtime",
+    "ag-ui",
+    "agents"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/hasanraiyan/agent-marketplace/tree/feat/ai/sdk/adapters/express#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hasanraiyan/agent-marketplace.git",
+    "directory": "sdk/adapters/express"
+  },
+  "bugs": {
+    "url": "https://github.com/hasanraiyan/agent-marketplace/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "express": ">=4"
+  },
+  "dependencies": {
+    "@personaai/runtime": "^0.5.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.19.0",
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.10.7",
+    "@types/supertest": "^6.0.3",
+    "eslint": "^9.19.0",
+    "express": "^5.2.1",
+    "prettier": "^3.4.2",
+    "supertest": "^7.2.2",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0",
+    "vitest": "^3.0.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

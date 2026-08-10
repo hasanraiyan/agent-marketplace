@@ -113,12 +113,24 @@ SDK makes — manage them from [Developer Studio](https://persona.hasanraiyan.me
 
 ### Express
 
-No special handling — construct the client once at module scope and use it in your route handlers.
+For the **whole runtime surface** — streaming chat, threads, files, memory, MCP OAuth, health —
+mount the official adapter instead of writing this plumbing by hand:
+
+```bash
+npm install @personaai/express
+```
 
 ```ts
-// persona.ts
-export const persona = new PersonaClient({ baseUrl: '...', credential: process.env.PERSONA_CREDENTIAL! });
+import { toExpressRouter } from '@personaai/express';
 
+app.use('/api/persona', toExpressRouter(runtime)); // runtime from @personaai/runtime
+```
+
+`@personaai/express` handles AG-UI streaming, thread/file/memory routes, multipart uploads, and
+user resolution for you. Drop down to this SDK whenever you need a raw call the adapter doesn't
+cover — e.g. a single endpoint in your own route handler:
+
+```ts
 // routes/chat.ts
 import { persona } from '../persona.js';
 app.post('/api/chat', async (req, res) => {

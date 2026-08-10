@@ -63,6 +63,8 @@ jobs:
             toolchain: node
           - dir: runtime
             toolchain: node
+          - dir: adapters/express
+            toolchain: node
           - dir: python
             toolchain: python
 
@@ -98,6 +100,10 @@ jobs:
       - name: Run tests (sdk/${{ matrix.dir }})
         run: cd sdk/${{ matrix.dir }} && pnpm test
         if: matrix.toolchain == 'node'
+
+      - name: Express 4 compatibility suite (sdk/adapters/express)
+        run: cd sdk/adapters/express && pnpm test:express4
+        if: matrix.dir == 'adapters/express'
 
       - name: Check SDK docs coverage (exports vs docs)
         run: node sdk/typescript/scripts/check-docs-coverage.mjs

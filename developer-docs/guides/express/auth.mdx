@@ -1,0 +1,94 @@
+---
+title: Auth & User Resolution
+description: How @personaai/express connects your own authentication to Persona — the runtime-level resolver and the Express middleware pattern, and the 401 behavior.
+---
+
+Persona never authenticates end users. There is no login, no session, no token of its own — the
+runtime receives a translated request and asks *your code* who it's from. The adapter gives you
+two ways to answer, and the two can be combined.
+
+The result of either resolver is the **external user id** Persona scopes the request to: threads,
+files, and memory are that user's, and chat runs under that identity. If no user can be resolved,
+the runtime responds `401` — every route except `GET /health` requires an authenticated user.
+
+## Pattern 1 — Runtime-level resolver (`resolveUser`)
+
+Configured on `createRuntime` (or passed through the factory options). It receives the *translated*
+request — the adapter's `RuntimeRequest` shape — so you read `request.headers`, `request.query`,
+etc. Use this when your auth already works off raw headers (session cookies, JWTs):
+
+```ts
+import { createRuntime } from '@personaai/runtime';
+import { toExpressRouter } from '@personaai/express';
+
+const runtime = createRuntime({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser: async (request) => {
+    // Your auth, your rules. Return the resolved external user id,
+    // or null/throw if the request isn't authenticated → 401.
+    return getUserIdFromSession(request.headers['cookie']);
+  },
+});
+
+app.use('/api/persona', toExpressRouter(runtime));
+```
+
+`resolveUser` may be async; `null` and thrown errors are equivalent (both produce `401`).
+
+## Pattern 2 — Express middleware pattern (`resolveUserFrom`)
+
+If your stack already authenticates users in Express middleware (Clerk, Passport, a JWT check)
+and attaches the identity to `req`, you can resolve from the raw Express `Request` instead. The
+adapter runs your resolver **after** translation, before handing the request to the runtime:
+
+```ts
+import { createExpressAdapter } from '@personaai/express';
+
+const persona = createExpressAdapter({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUserFrom: (req) => req.user?.id ?? null, // whatever your middleware attached
+});
+
+app.use('/api/persona', yourAuthMiddleware); // runs first — sets req.user, rejects unauthenticated
+app.use('/api/persona', persona.router);
+```
+
+The critical ordering rule: **your auth middleware must be mounted before the adapter's router.**
+Express runs them in mount order, and `resolveUserFrom` only sees whatever is on `req` at that
+point.
+
+> **Why both?** `resolveUserFrom` is the ergonomic choice when your auth is Express-native.
+> `resolveUser` is the general choice — it also works if you ever mount the same runtime via a
+> different transport. If you provide both, `resolveUserFrom` wins (it's applied last, and the
+> runtime-level resolver becomes a pass-through of the identity it resolved).
+
+## Unauthenticated requests
+
+When `resolveUserFrom` returns `null` (or `resolveUser` returns `null` or throws), the runtime
+responds `401` with the envelope:
+
+```json
+{
+  "error": { "code": "UNAUTHORIZED", "message": "Could not resolve an authenticated user for this request." }
+}
+```
+
+If you'd rather reject unauthenticated requests in your own middleware (e.g. redirect to login, or
+return your own error page), do it before the adapter — the adapter itself never redirects; it
+only ever lets the runtime answer.
+
+## Using your own identity vs forwarding client input
+
+The adapter never passes through raw identity from the browser. `resolveUserFrom` reads whatever
+*your* middleware verified and attached — Clerk's `req.auth.userId`, Passport's `req.user.id`,
+your JWT payload — and that verified id is what Persona scopes the request to. **Never** derive it
+from an untrusted header the client could forge; always go through a step your backend actually
+authenticated.
+
+## Health is public
+
+`GET /health` does not call the resolver at all — it's a liveness/capability probe backed by the
+SDK's `whoami()`. It's the one route you can mount without any auth in front. See
+[Runtime routes](/guides/runtime/routes) for the full always-on table.
