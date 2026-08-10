@@ -1037,6 +1037,11 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   const canDelete =
     project.status === "ACTIVE" || project.status === "SUSPENDED";
 
+  // Users already holding a membership — the Add Admin autocomplete marks
+  // them as already-member so a duplicate invite can't be offered (the
+  // backend enforces the same rule via the unique compound index).
+  const memberPersonaIds = new Set(members.map((m) => m.personaUserId));
+
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
       <Tabs defaultValue="overview">
@@ -2007,23 +2012,33 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                     )}
                   {memberMode === "email" && memberSuggestions.length > 0 && (
                     <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
-                      {memberSuggestions.map((u) => (
-                        <button
-                          key={u.id}
-                          type="button"
-                          className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm transition-colors hover:bg-accent"
-                          onClick={() => {
-                            setMemberQuery(u.email);
-                            setMemberPickedEmail(u.email.toLowerCase());
-                            setMemberSuggestions([]);
-                          }}
-                        >
-                          <span className="font-medium">{u.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {u.email}
-                          </span>
-                        </button>
-                      ))}
+                      {memberSuggestions.map((u) => {
+                        const alreadyMember = memberPersonaIds.has(u.id);
+                        return (
+                          <button
+                            key={u.id}
+                            type="button"
+                            disabled={alreadyMember}
+                            className={`flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm transition-colors ${
+                              alreadyMember
+                                ? "cursor-not-allowed opacity-50"
+                                : "hover:bg-accent"
+                            }`}
+                            onClick={() => {
+                              if (alreadyMember) return;
+                              setMemberQuery(u.email);
+                              setMemberPickedEmail(u.email.toLowerCase());
+                              setMemberSuggestions([]);
+                            }}
+                          >
+                            <span className="font-medium">{u.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {u.email}
+                              {alreadyMember && " · Already a member"}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                   {memberMode === "email" && memberSearching && (

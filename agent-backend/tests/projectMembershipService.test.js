@@ -39,6 +39,7 @@ describe('ProjectMembership Service', () => {
 
   describe('addMember', () => {
     test('defaults to the Admin role', async () => {
+      projectMembershipRepository.findByProjectAndUser.mockResolvedValue(null);
       projectMembershipRepository.create.mockResolvedValue({
         project: projectId,
         personaUserId: raiyanId,
@@ -60,6 +61,36 @@ describe('ProjectMembership Service', () => {
           targetResourceId: raiyanId,
         })
       );
+    });
+
+    test('rejects re-adding an existing member with a friendly error instead of an E11000/500', async () => {
+      // e.g. the Project creator adding themselves — their membership already
+      // exists (AD-08 §9's unique compound index would throw E11000).
+      projectMembershipRepository.findByProjectAndUser.mockResolvedValue({
+        project: projectId,
+        personaUserId: raiyanId,
+        role: 'Admin',
+      });
+
+      await expect(
+        projectMembershipService.addMember(projectId, raiyanId, undefined, sabikId)
+      ).rejects.toThrow('User is already a member of this Project');
+      expect(projectMembershipRepository.create).not.toHaveBeenCalled();
+      expect(auditLogService.record).not.toHaveBeenCalled();
+    });
+
+    test('maps a concurrent duplicate-key (E11000) from create to the same friendly error', async () => {
+      // The pre-check can race with a simultaneous request; the unique index
+      // is the final backstop and must not leak as a raw 500.
+      projectMembershipRepository.findByProjectAndUser.mockResolvedValue(null);
+      projectMembershipRepository.create.mockRejectedValue(
+        Object.assign(new Error('E11000 duplicate key'), { code: 11000 })
+      );
+
+      await expect(
+        projectMembershipService.addMember(projectId, raiyanId, undefined, sabikId)
+      ).rejects.toThrow('User is already a member of this Project');
+      expect(auditLogService.record).not.toHaveBeenCalled();
     });
   });
 

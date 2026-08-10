@@ -15,11 +15,32 @@ class ProjectMembershipService {
    * explicitly deferred (AD-08 §11).
    */
   async addMember(projectId, personaUserId, role = MEMBERSHIP_ROLE.ADMIN, actorPersonaUserId) {
-    const membership = await projectMembershipRepository.create({
-      project: projectId,
-      personaUserId,
-      role,
-    });
+    // Idempotency guard: the (project, personaUserId) compound index is
+    // unique (AD-08 §9), so re-adding an existing member — e.g. the Project
+    // creator adding themselves — would otherwise surface as an opaque
+    // E11000/500. Fail fast with a friendly error instead; the DB index
+    // stays the backstop for concurrent requests.
+    const existing = await projectMembershipRepository.findByProjectAndUser(
+      projectId,
+      personaUserId
+    );
+    if (existing) {
+      throw new ValidationError('User is already a member of this Project');
+    }
+
+    let membership;
+    try {
+      membership = await projectMembershipRepository.create({
+        project: projectId,
+        personaUserId,
+        role,
+      });
+    } catch (error) {
+      if (error.code === 11000) {
+        throw new ValidationError('User is already a member of this Project');
+      }
+      throw error;
+    }
 
     await auditLogService.record({
       eventType: 'membership.added',
