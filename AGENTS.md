@@ -123,7 +123,7 @@ sdk/
 ├── typescript/        # @personaai/sdk — Node.js/TypeScript API client (tsup + vitest)
 ├── python/            # persona-agent-sdk — Python API client (hatchling + pytest)
 ├── runtime/           # @personaai/runtime — framework-agnostic runtime engine
-├── adapters/          # future: nextjs, express, fastify, hono, nestjs, node
+├── adapters/          # framework adapters — express (implemented), nextjs/fastify/hono/nestjs/node future
 ├── react/             # future
 ├── ui/                # future
 └── themes/            # future

@@ -1,0 +1,80 @@
+---
+title: Streaming & Disconnects
+description: How @personaai/express streams AG-UI chat as SSE with heartbeats and backpressure, powers reconnect/resume, and tears down cleanly when a client disconnects.
+---
+
+`POST /chat` streams the agent's response as Server-Sent Events (AG-UI protocol frames). The
+adapter is responsible only for the wire mechanics — headers first, frames verbatim, backpressure
+honored, teardown on disconnect. The event semantics live in the
+[AG-UI chat reference](/guides/sdk/chat).
+
+## What the adapter writes
+
+On a chat request the adapter:
+
+1. **Flushes headers immediately** (`X-Accel-Buffering: no`, `Cache-Control: no-cache`, the AG-UI
+   content type) so the browser starts receiving events before the first token.
+2. **Writes each frame verbatim** — `data: ...\n\n` payload lines from the runtime, plus
+   `: heartbeat` comment lines on the runtime's heartbeat cadence (default 15s) to keep
+   intermediaries from timing the connection out.
+3. **Honors backpressure** — if `res.write()` returns `false`, it waits for the socket's `drain`
+   event before writing the next frame, so a slow client can't balloon memory.
+4. **Unsubscribes on disconnect** — if the client hangs up mid-stream, the adapter calls
+   `iterator.return()` on the runtime subscription immediately. No zombie pumps, no leaked timers.
+
+Your client sees a normal `EventSource` / `fetch`-stream:
+
+```ts
+const res = await fetch('/api/persona/chat', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ agentId: 'ag_123', messages: [{ role: 'user', content: 'Hi' }] }),
+});
+const runId = res.headers.get('x-persona-run-id'); // for reconnect
+// ...read res.body as an SSE stream, parse data: lines as AG-UI events
+```
+
+## Reconnect & resume
+
+The `POST /chat` response carries an **`x-persona-run-id`** header. If the connection drops, the
+client can reattach to the *same run* and keep receiving the tail of the stream:
+
+```
+GET /api/persona/chat/:runId/resume
+```
+
+The runtime keeps finished runs resumable for `runGraceMs` (default 5 minutes) in-process. Because
+resume state lives in the runtime instance's memory, route all chat traffic for a given user to
+the same instance (sticky sessions) until multi-instance resume ships — see the
+[Reconnect & resume reference](/guides/runtime/reconnect) for the full mechanics and the honest
+limitation.
+
+## Binary streams
+
+File downloads (`GET /files/:id`) and any other `kind: 'binary'` response stream through the same
+writer, chunk by chunk, without buffering the whole file.
+
+## Disconnect teardown, in detail
+
+The adapter registers a `close` handler on the response that calls `return()` on the runtime's
+subscription iterator. Because the runtime's subscriptions return a *fresh* iterator per
+`[Symbol.asyncIterator]()` call, the adapter pins the loop to the single iterator it holds — so
+`return()` always cancels the exact subscription being consumed. A mid-stream disconnect therefore
+stops the upstream run within one event loop tick.
+
+After a normal completion (or after the `close` teardown), the `close` listener is removed — there
+are no lingering listeners across requests.
+
+## Example: live token streaming
+
+```ts
+app.use('/api/persona', persona.router);
+
+// curl -N -X POST http://localhost:3000/api/persona/chat \
+//   -H 'Content-Type: application/json' \
+//   -d '{"agentId":"ag_123","messages":[{"role":"user","content":"Hello"}]}'
+```
+
+Each AG-UI event arrives as `data: {...}` — the `messages/partial` events carry token deltas; the
+terminal `messages/complete` event ends the run. See the
+[AG-UI event reference](/guides/sdk/chat#ag-ui-events) for the full event taxonomy.

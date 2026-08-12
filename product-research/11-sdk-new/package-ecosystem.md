@@ -121,7 +121,8 @@ graph TD
 
 ### 4. `@personaai/express` — Express Adapter
 
-> **New.** Thin adapter.
+> ✅ **Published** as `@personaai/express` v0.1.0 (issue #228) — docs: [Express Adapter guides](https://persona.hasanraiyan.me/guides/express/quickstart).
+> Thin adapter.
 
 | | |
 |---|---|
@@ -344,6 +345,9 @@ After Wave 2, a Next.js developer can go from install to streaming conversation.
 | `@personaai/fastify` | Strong ecosystem. Performance-focused teams. |
 
 These are thin adapters over `@personaai/runtime`. If the runtime is solid from Wave 1, these should be fast to build.
+
+✅ **`@personaai/express` is shipped** (v0.1.0 published);
+`@personaai/hono` and `@personaai/fastify` remain.
 
 ### Wave 4 — The Experience Layer
 

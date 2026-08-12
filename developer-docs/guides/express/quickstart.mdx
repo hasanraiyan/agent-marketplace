@@ -1,0 +1,128 @@
+---
+title: Quickstart
+description: Mount the Persona runtime as an Express Router with @personaai/express — streaming chat, threads, files, and memory in a few lines, behind your own auth.
+---
+
+`@personaai/express` exposes the [Persona runtime](/guides/runtime/quickstart) as an Express
+Router. Mount it, give it a user resolver, and your Express app has the entire runtime surface —
+AG-UI streaming chat, threads, files, memory, MCP OAuth callbacks, health — without writing any
+stream forwarding, protocol parsing, or thread-CRUD plumbing.
+
+It's a thin translation layer: all logic lives in the runtime. If you need a raw call the adapter
+doesn't cover, drop down to [`@personaai/sdk`](/guides/sdk-quickstart) alongside it.
+
+<Warning>
+  **Server-side only.** The credential you configure is a server-side secret — never bundle it
+  into a browser app.
+</Warning>
+
+## Prerequisites
+
+- **Node.js 18+** and **Express 4 or 5** (the `express >= 4` peer range is tested against both)
+- A **Project credential** shaped `"<keyId>.<secret>"`, minted in
+  [Developer Studio](https://persona.hasanraiyan.me/developer)
+- An **Agent** to talk to (create one in Studio, or via the SDK's `agents.create`)
+
+## Install
+
+```bash
+npm install @personaai/express
+```
+
+The package ships ESM, CommonJS, and TypeScript declarations. It depends on
+`@personaai/runtime` (the engine) and peer-depends on `express >= 4`.
+
+## Mount the runtime
+
+```ts
+import express from 'express';
+import { createRuntime } from '@personaai/runtime';
+import { toExpressRouter } from '@personaai/express';
+
+const runtime = createRuntime({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser: (request) => getUserIdFromSession(request.headers['cookie']), // your auth, your rules
+});
+
+const app = express();
+app.use(express.json()); // the adapter coexists with your normal body parsing
+app.use('/api/persona', toExpressRouter(runtime));
+
+app.listen(3000);
+```
+
+That's the whole backend. The runtime surface now lives at `/api/persona/*`:
+
+| Method | Path | What it does |
+| --- | --- | --- |
+| `POST` | `/api/persona/chat` | Streams an agent response as SSE (AG-UI events) |
+| `GET` | `/api/persona/threads` | Lists the user's conversations |
+| `POST` | `/api/persona/threads` | Creates a thread |
+| `GET/POST` | `/api/persona/files` | Lists / uploads files (multipart) |
+| `GET` | `/api/persona/health` | Liveness + capability probe (no auth required) |
+
+The complete route table is in the [Express routes reference](/guides/express/routes), and the
+underlying SDK calls each route proxies to are in the
+[Runtime routes reference](/guides/runtime/routes).
+
+## Two ways to tell the runtime who a request is from
+
+Persona never authenticates users. The runtime asks *you* who a request is from — see the
+[auth guide](/guides/express/auth) for the full picture. Both idioms in brief:
+
+**Runtime-level resolver** — receives the translated request; read cookies, headers, or JWTs
+however your app already does (shown above).
+
+**Express middleware pattern** — your own auth middleware runs *before* the adapter and attaches
+the identity to `req`. Use the `createExpressAdapter` factory and a `resolveUserFrom` resolver:
+
+```ts
+import { createExpressAdapter } from '@personaai/express';
+
+const persona = createExpressAdapter({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUserFrom: (req) => req.user?.id ?? null, // set by your auth middleware
+  hooks: {
+    afterRun: (ctx) => deductCredits(ctx.userId), // your business logic, additive
+  },
+});
+
+app.use('/api/persona', yourAuthMiddleware); // Clerk, Passport, a JWT check — whatever
+app.use('/api/persona', persona.router);
+
+// shutdown: persona.runtime.close()
+```
+
+A resolver returning `null` (or throwing) makes the runtime respond `401`. Every route except
+`GET /health` requires an authenticated user.
+
+## Lifecycle hooks
+
+All eight hooks (`beforeRun`, `afterRun`, `onError`, `beforeToolCall`, `afterToolCall`,
+`onFileUpload`, `onThreadCreate`, `onMemoryWrite`) pass straight through to the runtime — see the
+[Runtime Hooks reference](/guides/runtime/hooks). Configure them on `createRuntime` or in the
+factory options; the adapter never inspects them.
+
+## What you get for free
+
+- **SSE streaming** with heartbeats and `drain`-based backpressure; the chat `x-persona-run-id`
+  header and `GET /chat/:runId/resume` power reconnects — see
+  [Streaming & disconnects](/guides/express/streaming).
+- **Multipart uploads** parsed natively (`POST /files`, `POST /knowledge/:id/documents`) — and if
+  you already use `multer`, the adapter honors your parsed `req.file`/`req.files`. See
+  [Uploads](/guides/express/uploads).
+- **Clean disconnects** — a client hanging up mid-stream unsubscribes the runtime immediately.
+- **Sanitized errors** — runtime envelopes (`{"error":{code,message}}`) are forwarded verbatim;
+  adapter-side failures (e.g. malformed JSON) respond `400 INVALID_REQUEST` in the same shape.
+
+## Next steps
+
+- [Auth & user resolution](/guides/express/auth) — the two resolver patterns in depth.
+- [Routes](/guides/express/routes) — every route the mount exposes, and adapter translation details.
+- [Uploads](/guides/express/uploads) — multipart parsing, multer coexistence, body-size limits.
+- [Streaming & disconnects](/guides/express/streaming) — SSE, backpressure, reconnect, teardown.
+- Build a chat UI with the raw SDK's `chat.stream` and the AG-UI events it emits (see the
+  [SDK chat guide](/guides/sdk/chat)), or drop in pre-built components when the experience layer ships.
+- Drop to [`@personaai/sdk`](/guides/sdk-quickstart) for any call the adapter doesn't cover.

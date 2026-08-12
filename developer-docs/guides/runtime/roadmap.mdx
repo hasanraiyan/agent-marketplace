@@ -20,10 +20,11 @@ left is either a genuine unclosed gap or an intentional package boundary, not an
     A capability is on or off per mount; anything finer belongs in `resolveUser` or a
     [hook](/guides/runtime/hooks), not the runtime.
   </Accordion>
-  <Accordion title="Any published framework adapter">
-    `@personaai/express`, `@personaai/nextjs`, `@personaai/node`, `@personaai/fastify`,
-    `@personaai/hono`, `@personaai/nestjs` — none exist yet. **By design, not a gap:** this package
-    is the foundation they're meant to wrap, not a replacement for them. Until one ships, use the
+  <Accordion title="Adapters beyond Express">
+    [`@personaai/express` v0.1.0](/guides/express/quickstart) has shipped. `@personaai/nextjs`,
+    `@personaai/node`, `@personaai/fastify`, `@personaai/hono`, `@personaai/nestjs` don't exist
+    yet. **By design, not a gap:** this package is the foundation they're meant to wrap, not a
+    replacement for them. Until your framework's adapter ships, use the
     [raw Node `http` quickstart](/guides/runtime/quickstart#quickstart-raw-node-http).
   </Accordion>
 </AccordionGroup>
@@ -33,9 +34,10 @@ left is either a genuine unclosed gap or an intentional package boundary, not an
 - **A pluggable `RunBroker` interface** for multi-instance reconnect/resume (Redis or similar,
   opt-in). See [Reconnect and resume](/guides/runtime/reconnect#honest-limitation-single-process-in-memory-only).
   Track [issue #229](https://github.com/hasanraiyan/agent-marketplace/issues/229).
-- **Framework adapters** (Wave 2–3 of the [SDK ecosystem plan](https://github.com/hasanraiyan/agent-marketplace/blob/feat/ai/product-research/11-sdk-new/package-ecosystem.md))
-  are the natural next step once this runtime is battle-tested — each should be a thin translation
-  layer, proving the framework-neutral contract here is actually sufficient.
+- **More framework adapters** (Wave 2–3 of the [SDK ecosystem plan](https://github.com/hasanraiyan/agent-marketplace/blob/feat/ai/product-research/11-sdk-new/package-ecosystem.md))
+  — [`@personaai/express`](/guides/express/quickstart) shipped as the first; each remaining
+  adapter should be a thin translation layer, proving the framework-neutral contract here is
+  actually sufficient.
 
 ## Package boundary, for reference
 
@@ -46,4 +48,4 @@ wrapped by a framework adapter. If you're deciding which layer to build against:
 | --- | --- |
 | [`@personaai/sdk`](/guides/sdk-quickstart) | You want direct, typed access to every REST endpoint with no opinions about HTTP routing, streaming, hooks, or auth — e.g. an admin script, a background job, or you're building your own runtime-equivalent from scratch. |
 | `@personaai/runtime` | You want a ready-made set of HTTP routes (chat streaming, threads, files, memory, admin surface) but your framework has no dedicated adapter yet, or you're building one. |
-| A future framework adapter (`@personaai/express`, etc.) | You want the shortest path to "mount this and it just works" inside a specific framework, once one ships. |
+| [`@personaai/express`](/guides/express/quickstart) | You want the shortest path to "mount this and it just works" inside Express — the published adapter wraps the runtime as a Router. |

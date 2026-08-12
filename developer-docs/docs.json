@@ -48,6 +48,16 @@
           },
           "guides/sdk-quickstart-python",
           {
+            "group": "Express Adapter",
+            "pages": [
+              "guides/express/quickstart",
+              "guides/express/routes",
+              "guides/express/auth",
+              "guides/express/uploads",
+              "guides/express/streaming"
+            ]
+          },
+          {
             "group": "Python SDK Reference",
             "pages": [
               "guides/sdk-python/configuration",

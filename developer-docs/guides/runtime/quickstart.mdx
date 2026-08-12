@@ -18,11 +18,12 @@ lifecycle hooks, and capability gating already built in.
 </Warning>
 
 <Note>
-  **v0.5.1, current release.** There is no published framework adapter yet — no `@personaai/express`,
-  no `@personaai/nextjs`. This page's [Quickstart](#quickstart-raw-node-http) section shows the
-  only way to run it end-to-end today: a small, tested Node `http` bridge shipped in the package's
-  `examples/` directory. See [Not yet implemented & roadmap](/guides/runtime/roadmap) for what's
-  still missing.
+  **v0.5.1, current release.** Framework adapters are starting to ship: [`@personaai/express`
+  v0.1.0](/guides/express/quickstart) is published and lets you mount this runtime as an Express
+  Router. This page's [Quickstart](#quickstart-raw-node-http) section still shows the raw Node
+  `http` bridge shipped in the package's `examples/` directory — useful for non-Express hosts and
+  for smoke-testing the runtime end-to-end. See [Not yet implemented & roadmap](/guides/runtime/roadmap)
+  for what's still missing.
 </Note>
 
 ## Install
@@ -86,7 +87,9 @@ process alive, but accumulating many uncleaned timers is still wasteful.
 
 ## Quickstart (raw Node `http`)
 
-There's no published `@personaai/node` adapter yet, so the package ships a small, tested bridge at
+Prefer Express? Skip this section and use the [`@personaai/express` adapter](/guides/express/quickstart).
+For every other host (plain `http`, Fastify-style mounts, serverless wrappers) there's no
+`@personaai/node` adapter yet, so the package ships a small, tested bridge at
 `examples/node-handler.ts` in the [GitHub repo](https://github.com/hasanraiyan/agent-marketplace/tree/feat/ai/sdk/runtime/examples)
 for running the runtime directly against Node's `http` module — just enough to demo/smoke-test the
 runtime end-to-end until a real adapter ships. It also parses multipart file uploads via Node's

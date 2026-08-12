@@ -4,10 +4,10 @@ This document maps frontend pages/components to backend API endpoints (Express r
 
 **Architecture:** persona.hasanraiyan.me has three frontend experiences sharing one backend.
 
-| Experience                 | URL Prefix       | Audience       | Purpose                                 |
-| -------------------------- | ---------------- | -------------- | --------------------------------------- |
-| **Persona** (Consumer)     | `/dashboard/...` | End users      | Discover, use, converse with agents     |
-| **Agent Studio** (Creator) | `/studio/...`    | Agent builders | Create, configure, test, publish agents |
+| Experience                 | URL Prefix       | Audience        | Purpose                                       |
+| -------------------------- | ---------------- | --------------- | --------------------------------------------- |
+| **Persona** (Consumer)     | `/dashboard/...` | End users       | Discover, use, converse with agents           |
+| **Agent Studio** (Creator) | `/studio/...`    | Agent builders  | Create, configure, test, publish agents       |
 | **Developer Studio** (Dev) | `/developer/...` | Platform admins | Create Projects, manage credentials/resources |
 
 ---
@@ -183,14 +183,14 @@ The following dashboard routes are **redirects** to Agent Studio:
 
 Every resource follows the same list/create/update/delete shape under `/api/v1/projects/:projectId`:
 
-| Resource    | List            | Create           | Update                  | Delete                 |
-| ----------- | --------------- | ---------------- | ----------------------- | ---------------------- |
-| Agents      | GET `/agents`   | POST `/agents`   | PATCH `/agents/:id`     | DELETE `/agents/:id`   |
-| Skills      | GET `/skills`   | POST `/skills`   | PATCH `/skills/:id`     | DELETE `/skills/:id`   |
-| Stores      | GET `/stores`   | POST `/stores`   | PATCH `/stores/:id`     | DELETE `/stores/:id`   |
-| Knowledge   | GET `/knowledge`| POST `/knowledge`| PATCH `/knowledge/:id`  | DELETE `/knowledge/:id`|
-| Connectors  | GET `/mcps`     | POST `/mcps`     | PATCH `/mcps/:id`       | DELETE `/mcps/:id`     |
-| Providers   | GET `/providers`| POST `/providers`| PATCH `/providers/:id`  | DELETE `/providers/:id`|
+| Resource   | List             | Create            | Update                 | Delete                  |
+| ---------- | ---------------- | ----------------- | ---------------------- | ----------------------- |
+| Agents     | GET `/agents`    | POST `/agents`    | PATCH `/agents/:id`    | DELETE `/agents/:id`    |
+| Skills     | GET `/skills`    | POST `/skills`    | PATCH `/skills/:id`    | DELETE `/skills/:id`    |
+| Stores     | GET `/stores`    | POST `/stores`    | PATCH `/stores/:id`    | DELETE `/stores/:id`    |
+| Knowledge  | GET `/knowledge` | POST `/knowledge` | PATCH `/knowledge/:id` | DELETE `/knowledge/:id` |
+| Connectors | GET `/mcps`      | POST `/mcps`      | PATCH `/mcps/:id`      | DELETE `/mcps/:id`      |
+| Providers  | GET `/providers` | POST `/providers` | PATCH `/providers/:id` | DELETE `/providers/:id` |
 
 Resource-specific extras:
 
@@ -210,20 +210,20 @@ Resource-specific extras:
 
 API helpers live in `src/lib/api/`:
 
-| Module    | File           | Functions                                                                                                                                      |
-| --------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Agents    | `agents.js`    | `searchAgents`, `getAgent`, `getAgentBySlug`, `createAgent`, `updateAgent`, `deleteAgent`                                                      |
-| Threads   | `threads.js`   | `createThread`, `getThreads`, `getThread`, `deleteThread`, `updateThreadTitle`, `getMessages`                                                  |
-| Skills    | `skills.js`    | `getMySkills`, `getSkill`, `createSkill`, `updateSkill`, `deleteSkill`, `getPublicSkills`                                                      |
-| Providers | `providers.js` | `getProviders`, `createProvider`, `updateProvider`, `deleteProvider`, `testProviderConnection`, `getProviderModels`, `testProviderCredentials` |
-| MCPs      | `mcps.js`      | `getMyMcps`, `getMcp`, `createMcp`, `updateMcp`, `deleteMcp`, `getMcpTools`                                                                    |
-| Knowledge | `knowledge.js` | `getMyKnowledgeBases`, `getKnowledgeBase`, `createKnowledgeBase`, `deleteKnowledgeBase`                                                        |
-| Memory    | `memory.js`    | Memory CRUD operations                                                                                                                         |
-| Profile   | `profile.js`   | `getProfile`, `updateProfile`                                                                                                                  |
+| Module    | File           | Functions                                                                                                                                                                                                             |
+| --------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Agents    | `agents.js`    | `searchAgents`, `getAgent`, `getAgentBySlug`, `createAgent`, `updateAgent`, `deleteAgent`                                                                                                                             |
+| Threads   | `threads.js`   | `createThread`, `getThreads`, `getThread`, `deleteThread`, `updateThreadTitle`, `getMessages`                                                                                                                         |
+| Skills    | `skills.js`    | `getMySkills`, `getSkill`, `createSkill`, `updateSkill`, `deleteSkill`, `getPublicSkills`                                                                                                                             |
+| Providers | `providers.js` | `getProviders`, `createProvider`, `updateProvider`, `deleteProvider`, `testProviderConnection`, `getProviderModels`, `testProviderCredentials`                                                                        |
+| MCPs      | `mcps.js`      | `getMyMcps`, `getMcp`, `createMcp`, `updateMcp`, `deleteMcp`, `getMcpTools`                                                                                                                                           |
+| Knowledge | `knowledge.js` | `getMyKnowledgeBases`, `getKnowledgeBase`, `createKnowledgeBase`, `deleteKnowledgeBase`                                                                                                                               |
+| Memory    | `memory.js`    | Memory CRUD operations                                                                                                                                                                                                |
+| Profile   | `profile.js`   | `getProfile`, `updateProfile`                                                                                                                                                                                         |
 | Projects  | `projects.js`  | `getProjects`, `createProject`, `getProject`, `updateProject`, lifecycle (suspend/reactivate/delete/cancel-deletion), members, credentials, resource CRUD (agents/skills/stores/knowledge/mcps/providers), audit logs |
-| Admin     | `admin.js`     | Admin user management                                                                                                                          |
-| Health    | `health.js`    | Server diagnostics                                                                                                                             |
-| Upload    | `upload.js`    | File upload helpers                                                                                                                            |
+| Admin     | `admin.js`     | Admin user management                                                                                                                                                                                                 |
+| Health    | `health.js`    | Server diagnostics                                                                                                                                                                                                    |
+| Upload    | `upload.js`    | File upload helpers                                                                                                                                                                                                   |
 
 ---
 

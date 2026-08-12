@@ -33,7 +33,7 @@ updates:
 
   # ── SDKs: monthly, dedupe shared tooling across both dirs ─────────────
   - package-ecosystem: "npm"
-    directories: ["/sdk/typescript", "/sdk/runtime"]
+    directories: ["/sdk/typescript", "/sdk/runtime", "/sdk/adapters/express"]
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 3
