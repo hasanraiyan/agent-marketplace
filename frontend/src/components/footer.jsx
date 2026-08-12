@@ -20,8 +20,8 @@ export function Footer() {
               </span>
             </Link>
             <p className="mt-4 text-sm leading-relaxed text-zinc-500">
-              An index of AI minds you can talk to, build, or embed in your
-              own product.
+              An index of AI minds you can talk to, build, or embed in your own
+              product.
             </p>
           </div>
 

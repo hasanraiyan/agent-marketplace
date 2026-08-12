@@ -46,14 +46,14 @@ export function HeroSection() {
           </span>
 
           <h1 className="font-display max-w-xl text-[2.6rem] leading-[1.05] font-semibold tracking-tight text-zinc-900 sm:text-6xl">
-            Talk to minds who&apos;ve <em className="italic">actually</em>{" "}
-            done it.
+            Talk to minds who&apos;ve <em className="italic">actually</em> done
+            it.
           </h1>
 
           <p className="mt-6 max-w-md text-base leading-relaxed text-zinc-500 sm:text-lg">
             Discover AI agents built around real expertise across a dozen
-            categories — or open Agent Studio and build your own with the
-            model, skills, and knowledge you choose.
+            categories — or open Agent Studio and build your own with the model,
+            skills, and knowledge you choose.
           </p>
 
           <div className="mt-9 flex flex-wrap items-center gap-3">

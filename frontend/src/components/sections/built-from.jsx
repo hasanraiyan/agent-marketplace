@@ -46,17 +46,14 @@ export function BuiltFromSection() {
             What a mind is built from.
           </h2>
           <p className="max-w-xl text-base text-zinc-500">
-            No fixed template — every agent in Studio is assembled from the
-            same five real pieces.
+            No fixed template — every agent in Studio is assembled from the same
+            five real pieces.
           </p>
         </div>
 
         <div className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-200 sm:grid-cols-2 lg:grid-cols-5">
           {pieces.map((piece) => (
-            <div
-              key={piece.title}
-              className="flex flex-col gap-3 bg-white p-6"
-            >
+            <div key={piece.title} className="flex flex-col gap-3 bg-white p-6">
               <piece.icon className="size-5 text-[#1E60FF]" />
               <p className="text-sm font-semibold text-zinc-900">
                 {piece.title}
