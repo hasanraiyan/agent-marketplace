@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { TiltCard } from "@/components/ui/tilt-card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,10 +64,10 @@ export function OwnedAgentGrid({
         const displayAvatar = agent.avatarUrl || agent.avatar;
 
         return (
-          <div
+          <TiltCard
             key={agentId}
             onClick={() => router.push(openHref(agentId))}
-            className="group relative flex flex-col overflow-hidden rounded-[24px] sm:rounded-[32px] h-[300px] sm:h-[360px] bg-zinc-950 border border-zinc-150/10 dark:border-zinc-900/80 transition-all hover:border-zinc-800 cursor-pointer"
+            className="group flex flex-col overflow-hidden rounded-[24px] sm:rounded-[32px] h-[300px] sm:h-[360px] bg-zinc-950 border border-white/10 transition-colors hover:border-white/20 cursor-pointer"
           >
             {/* Photo Background */}
             {displayAvatar ? (
@@ -90,7 +91,7 @@ export function OwnedAgentGrid({
                 {agent.isMainAgent && (
                   <Badge
                     variant="secondary"
-                    className="bg-primary/90 text-primary-foreground backdrop-blur-md border border-white/10 px-2.5 py-0.5 text-[9px] uppercase tracking-wider font-extrabold flex items-center gap-1"
+                    className="bg-[#1E60FF]/90 text-white backdrop-blur-md border border-white/10 px-2.5 py-0.5 text-[9px] uppercase tracking-wider font-extrabold flex items-center gap-1"
                   >
                     <Sparkles className="size-2.5" />
                     Main Clone
@@ -124,7 +125,7 @@ export function OwnedAgentGrid({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="end"
-                  className="rounded-xl shadow-md border-zinc-150/80 dark:border-zinc-850"
+                  className="rounded-xl shadow-md border-zinc-200"
                 >
                   <Link href={editHref(agentId)}>
                     <DropdownMenuItem
@@ -151,7 +152,7 @@ export function OwnedAgentGrid({
 
             {/* Bottom Content Area */}
             <div className="absolute bottom-4 sm:bottom-5 left-4 sm:left-5 right-4 sm:right-5 z-20 flex flex-col justify-end text-white select-none">
-              <h3 className="line-clamp-1 text-base sm:text-lg font-bold tracking-tight leading-snug">
+              <h3 className="font-display line-clamp-1 text-base sm:text-lg font-semibold tracking-tight leading-snug">
                 {agent.name}
               </h3>
               <p className="mt-1 line-clamp-2 text-[11px] sm:text-xs text-white/70 leading-relaxed font-medium">
@@ -180,7 +181,7 @@ export function OwnedAgentGrid({
                 </Link>
               </div>
             </div>
-          </div>
+          </TiltCard>
         );
       })}
     </div>
