@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { ARCHITECT_AGENT_ID } from '../agents/architectConstants.js';
 
 const conversationSchema = new mongoose.Schema(
   {
@@ -83,6 +84,28 @@ const conversationSchema = new mongoose.Schema(
     },
   },
   { timestamps: true }
+);
+
+// The Architect's ("Sage") own thread is never shown in "my conversations"
+// (thread.repository.js's findBySubject/countBySubject exclude it) and has
+// no real Agent behind it, so it's a working scratchpad, not history worth
+// keeping indefinitely. A partial TTL index lets MongoDB itself expire it 30
+// days after its last message — no cron job, no app code involved. Scoped
+// to agentId: ARCHITECT_AGENT_ID via partialFilterExpression, so every other
+// agent's threads are completely unaffected, kept indefinitely as before.
+//
+// Known gap: MongoDB's TTL monitor deletes the Conversation document
+// directly — it does not (and cannot) call checkpointService.cleanupThreads,
+// so the matching LangGraph checkpoint documents are not purged by this
+// index. They're small and harmless to leave orphaned for now; revisit with
+// a periodic orphan sweep if that ever matters.
+conversationSchema.index(
+  { lastMessageAt: 1 },
+  {
+    expireAfterSeconds: 60 * 60 * 24 * 30,
+    partialFilterExpression: { agentId: new mongoose.Types.ObjectId(ARCHITECT_AGENT_ID) },
+    name: 'architect_thread_ttl',
+  }
 );
 
 const Conversation = mongoose.model('Conversation', conversationSchema);
