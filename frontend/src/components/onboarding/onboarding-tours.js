@@ -52,13 +52,6 @@ export const onboardingTours = [
         selector: "#onboarding-dashboard-settings",
         side: "right",
       },
-      {
-        icon: "✨",
-        title: "Build your own agent",
-        content: "Open Agent Studio to create and configure one.",
-        selector: "#onboarding-dashboard-studio-cta",
-        side: "right",
-      },
     ],
   },
   {

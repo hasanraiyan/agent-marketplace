@@ -9,8 +9,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { SlidersHorizontalIcon } from "lucide-react";
-import { studioRoutes } from "@/lib/studio-routes";
 import { cn } from "@/lib/utils";
 
 export function NavMain({ items }) {
@@ -21,30 +19,9 @@ export function NavMain({ items }) {
     return pathname === url || pathname.startsWith(`${url}/`);
   };
 
-  // Creator entry point. Points at the Studio workspace rather than a single
-  // creation form; the old create route now redirects there too.
-  const ctaHref = studioRoutes.home;
-  const ctaLabel = "Agent Studio";
-  const CtaIcon = SlidersHorizontalIcon;
-
   return (
     <SidebarGroup className="p-0">
-      <SidebarGroupContent className="flex flex-col gap-3">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              tooltip={ctaLabel}
-              className="h-10 w-full justify-center gap-2 rounded-xl !bg-[#1E60FF] !text-white hover:!bg-[#154ed0] hover:!text-white font-bold text-sm tracking-wide shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none"
-            >
-              <Link href={ctaHref} id="onboarding-dashboard-studio-cta">
-                <CtaIcon className="size-4 shrink-0" />
-                <span>{ctaLabel}</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-
+      <SidebarGroupContent>
         <SidebarMenu className="gap-1">
           {items.map((item) => {
             const active = isActive(item.url);
