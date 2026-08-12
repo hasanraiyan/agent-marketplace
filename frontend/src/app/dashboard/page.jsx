@@ -14,6 +14,8 @@ import {
   UserIcon,
   MoreHorizontalIcon,
   ArrowLeft,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { TiltCard } from "@/components/ui/tilt-card";
@@ -43,6 +45,74 @@ const DB_CATEGORY_MAP = {
   all: "other",
 };
 
+// Horizontal scroll rail with mouse-friendly arrow controls. Touch devices
+// already swipe fine, so the arrows only render at md+ — they exist for
+// laptop/desktop, where there's no swipe gesture to scroll a wide row.
+function HScroller({ children, count = 0 }) {
+  const railRef = useRef(null);
+  const [canLeft, setCanLeft] = useState(false);
+  const [canRight, setCanRight] = useState(false);
+
+  const update = () => {
+    const el = railRef.current;
+    if (!el) return;
+    setCanLeft(el.scrollLeft > 4);
+    setCanRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+  };
+
+  useEffect(() => {
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [count]);
+
+  const scroll = (direction) => {
+    const el = railRef.current;
+    if (!el) return;
+    el.scrollBy({
+      left: direction * Math.min(el.clientWidth * 0.8, 400),
+      behavior: "smooth",
+    });
+    setTimeout(update, 350);
+  };
+
+  return (
+    <div className="relative">
+      <div
+        ref={railRef}
+        onScroll={update}
+        className="flex gap-5 overflow-x-auto no-scrollbar py-2 px-0.5 scroll-smooth md:px-9"
+      >
+        {children}
+      </div>
+
+      <div
+        className={`pointer-events-none absolute inset-y-0 left-0 z-20 w-10 bg-gradient-to-r from-white to-transparent transition-opacity ${canLeft ? "opacity-100" : "opacity-0"}`}
+      />
+      <div
+        className={`pointer-events-none absolute inset-y-0 right-0 z-20 w-10 bg-gradient-to-l from-white to-transparent transition-opacity ${canRight ? "opacity-100" : "opacity-0"}`}
+      />
+
+      <button
+        type="button"
+        onClick={() => scroll(-1)}
+        aria-label="Scroll left"
+        className={`hidden md:flex absolute left-1 top-1/2 z-30 size-8 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 shadow-sm transition-all hover:border-[#1E60FF]/30 hover:text-[#1E60FF] ${canLeft ? "opacity-100" : "pointer-events-none opacity-0"}`}
+      >
+        <ChevronLeftIcon className="size-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => scroll(1)}
+        aria-label="Scroll right"
+        className={`hidden md:flex absolute right-1 top-1/2 z-30 size-8 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 shadow-sm transition-all hover:border-[#1E60FF]/30 hover:text-[#1E60FF] ${canRight ? "opacity-100" : "pointer-events-none opacity-0"}`}
+      >
+        <ChevronRightIcon className="size-4" />
+      </button>
+    </div>
+  );
+}
+
 export default function ExplorePage() {
   const router = useRouter();
   const { isSignedIn } = useUser();
@@ -57,8 +127,6 @@ export default function ExplorePage() {
 
   const [dbAgents, setDbAgents] = useState([]);
   const [dbLoading, setDbLoading] = useState(true);
-
-  const sliderRef = useRef(null);
 
   // Hide the default site header for this page only
   useEffect(() => {
@@ -319,23 +387,25 @@ export default function ExplorePage() {
         </div>
 
         {/* Category Selection Pills */}
-        <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-2 mb-10 w-full">
-          {CATEGORIES.map((cat) => {
-            const isActive = category === cat.value;
-            return (
-              <button
-                key={cat.value}
-                onClick={() => setCategory(cat.value)}
-                className={`rounded-full px-5 py-2 text-[13px] transition-all whitespace-nowrap cursor-pointer select-none ${
-                  isActive
-                    ? "bg-[#1E60FF] text-white font-bold shadow-sm shadow-[#1E60FF]/20"
-                    : "bg-zinc-100/80 hover:bg-zinc-200/80 text-zinc-500 hover:text-zinc-900 font-medium"
-                }`}
-              >
-                {cat.label}
-              </button>
-            );
-          })}
+        <div className="mb-10 w-full">
+          <HScroller count={CATEGORIES.length}>
+            {CATEGORIES.map((cat) => {
+              const isActive = category === cat.value;
+              return (
+                <button
+                  key={cat.value}
+                  onClick={() => setCategory(cat.value)}
+                  className={`rounded-full px-5 py-2 text-[13px] transition-all whitespace-nowrap cursor-pointer select-none ${
+                    isActive
+                      ? "bg-[#1E60FF] text-white font-bold shadow-sm shadow-[#1E60FF]/20"
+                      : "bg-zinc-100/80 hover:bg-zinc-200/80 text-zinc-500 hover:text-zinc-900 font-medium"
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              );
+            })}
+          </HScroller>
         </div>
 
         {/* Featured Minds Slider */}
@@ -344,54 +414,45 @@ export default function ExplorePage() {
             <p className="font-mono text-[11px] tracking-[0.18em] text-zinc-400 uppercase mb-4">
               Featured
             </p>
-            <div className="relative w-full">
-              <div
-                ref={sliderRef}
-                className="flex gap-5 overflow-x-auto no-scrollbar py-2 px-0.5 scroll-smooth"
-              >
-                {featuredList.map((mind) => (
-                  <TiltCard
-                    key={mind.id}
-                    onClick={() => handleMindClick(mind)}
-                    className="w-[190px] sm:w-[230px] h-[255px] sm:h-[310px] shrink-0 relative rounded-[24px] sm:rounded-[32px] overflow-hidden group cursor-pointer"
-                  >
-                    {/* Photo */}
-                    <img
-                      src={mind.avatarUrl}
-                      alt={mind.name}
-                      className="absolute inset-0 size-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    />
-                    {/* Gradient Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10" />
+            <HScroller count={featuredList.length}>
+              {featuredList.map((mind) => (
+                <TiltCard
+                  key={mind.id}
+                  onClick={() => handleMindClick(mind)}
+                  className="w-[190px] sm:w-[230px] h-[255px] sm:h-[310px] shrink-0 relative rounded-[24px] sm:rounded-[32px] overflow-hidden group cursor-pointer"
+                >
+                  {/* Photo */}
+                  <img
+                    src={mind.avatarUrl}
+                    alt={mind.name}
+                    className="absolute inset-0 size-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                  {/* Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10" />
 
-                    {/* Name + description — fades out on hover */}
-                    <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 right-4 sm:right-6 z-20 flex flex-col justify-end text-white select-none transition-opacity duration-300 group-hover:opacity-0">
-                      <h3 className="font-display text-lg sm:text-2xl font-semibold tracking-tight leading-none">
-                        {mind.name}
-                      </h3>
-                      <p className="text-white/80 text-[11px] sm:text-[13px] font-medium leading-snug line-clamp-2 mt-1.5">
-                        {mind.description}
+                  {/* Name + description — fades out on hover */}
+                  <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 right-4 sm:right-6 z-20 flex flex-col justify-end text-white select-none transition-opacity duration-300 group-hover:opacity-0">
+                    <h3 className="font-display text-lg sm:text-2xl font-semibold tracking-tight leading-none">
+                      {mind.name}
+                    </h3>
+                    <p className="text-white/80 text-[11px] sm:text-[13px] font-medium leading-snug line-clamp-2 mt-1.5">
+                      {mind.description}
+                    </p>
+                  </div>
+
+                  {/* Sample-prompt reveal — a preview of an actual conversation,
+                      not just a profile blurb */}
+                  <div className="absolute inset-x-4 bottom-4 sm:inset-x-6 sm:bottom-6 z-20 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                    <div className="flex items-start gap-1.5 rounded-2xl rounded-bl-none bg-white/95 px-3.5 py-3 backdrop-blur-sm">
+                      <MessageSquareIcon className="size-3.5 shrink-0 text-[#1E60FF] mt-0.5" />
+                      <p className="text-[11px] sm:text-xs font-semibold leading-snug text-zinc-800 line-clamp-3">
+                        {mind.chatPrompt}
                       </p>
                     </div>
-
-                    {/* Sample-prompt reveal — a preview of an actual conversation,
-                        not just a profile blurb */}
-                    <div className="absolute inset-x-4 bottom-4 sm:inset-x-6 sm:bottom-6 z-20 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                      <div className="flex items-start gap-1.5 rounded-2xl rounded-bl-none bg-white/95 px-3.5 py-3 backdrop-blur-sm">
-                        <MessageSquareIcon className="size-3.5 shrink-0 text-[#1E60FF] mt-0.5" />
-                        <p className="text-[11px] sm:text-xs font-semibold leading-snug text-zinc-800 line-clamp-3">
-                          {mind.chatPrompt}
-                        </p>
-                      </div>
-                    </div>
-                  </TiltCard>
-                ))}
-              </div>
-
-              {/* Fade overlays */}
-              <div className="absolute left-0 top-0 bottom-0 w-10 bg-gradient-to-r from-white to-transparent pointer-events-none z-20" />
-              <div className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-white to-transparent pointer-events-none z-20" />
-            </div>
+                  </div>
+                </TiltCard>
+              ))}
+            </HScroller>
           </div>
         )}
 
