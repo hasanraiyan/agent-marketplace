@@ -3,6 +3,7 @@ import authMiddleware from '../auth/auth.middleware.js';
 import rateLimiter, { RATE_LIMITS } from '../rateLimiter/rateLimiter.middleware.js';
 import threadRepository from '../threads/thread.repository.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
+import { ARCHITECT_AGENT_ID } from '../agents/architectConstants.js';
 import aguiController from './agui.controller.js';
 
 const aguiRouter = express.Router();
@@ -33,10 +34,19 @@ aguiRouter.use(async (req, res, next) => {
       // with a bare id string never matches (blueprint Phase 9, PR-42 fix).
       const thread = await threadRepository.findById(threadDbId).catch(() => null);
       const threadAgentId = thread?.agentId?._id ?? thread?.agentId;
-      const belongsToCaller =
-        thread &&
-        thread.userId.toString() === userId.toString() &&
+      // The Architect's sentinel id has no real Agent document, so its
+      // `agentId` ref never resolves — Mongoose populate nulls out an
+      // unresolvable ref instead of leaving the raw id, and
+      // thread.controller.js's create() is the only path that allows a
+      // thread to reference a nonexistent agent, exclusively for this
+      // sentinel. So a populated-null agentId reliably means "this is an
+      // Architect thread" and can't be spoofed by claiming the sentinel
+      // against a thread whose (real, existing) agent actually populated.
+      const agentMatches =
+        (agentId === ARCHITECT_AGENT_ID && thread?.agentId == null) ||
         String(threadAgentId) === String(agentId);
+      const belongsToCaller =
+        thread && thread.userId.toString() === userId.toString() && agentMatches;
 
       if (!belongsToCaller) {
         // A threadId was explicitly given but doesn't resolve to one of the
