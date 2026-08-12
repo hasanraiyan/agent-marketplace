@@ -14,28 +14,9 @@ import { ArrowRightIcon } from "lucide-react";
 // z-index — the front card sits straightest and is the most legible, the
 // rest peek out at sharper angles further back.
 const ctaCards = [
+
   {
-    tag: "Health & Fitness",
-    line: "Build a routine, read your labs, stay consistent.",
-    seed: "health-fitness",
-    z: "z-10",
-    fanClass: "translate-x-[-56px] translate-y-[-36px] rotate-[-12deg]",
-  },
-  {
-    tag: "Entrepreneurship",
-    line: "Pressure-test a pitch, price a product, plan a launch.",
-    seed: "entrepreneurship",
-    z: "z-[14]",
-    fanClass: "translate-x-[46px] translate-y-[-44px] rotate-[9deg]",
-  },
-  {
-    tag: "Mind & Behavior",
-    line: "Reframe a thought, sit with a decision.",
-    seed: "mind-behavior",
-    z: "z-[18]",
-    fanClass: "translate-x-[-40px] translate-y-[14px] rotate-[-7deg]",
-  },
-  {
+
     tag: "Careers",
     line: "Rewrite a resume, rehearse an interview.",
     seed: "careers",
