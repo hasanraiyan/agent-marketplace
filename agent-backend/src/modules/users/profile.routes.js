@@ -64,6 +64,7 @@ router.get('/', authMiddleware, profileController.getProfile);
 router.patch(
   '/',
   authMiddleware,
+  mutateLimiter,
   validateBody(updateProfileSchema),
   profileController.updateProfile
 );
@@ -100,6 +101,7 @@ router.delete('/', authMiddleware, mutateLimiter, profileController.deleteProfil
 router.post(
   '/onboarding',
   authMiddleware,
+  mutateLimiter,
   validateBody(markOnboardingSeenSchema),
   profileController.markOnboardingSeen
 );
