@@ -1,9 +1,11 @@
 "use client";
 
 import { studioRoutes } from "@/lib/studio-routes";
+import { developerRoutes } from "@/lib/developer-routes";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Mail,
   Calendar,
@@ -13,6 +15,7 @@ import {
   BrainIcon,
   SettingsIcon,
   Sparkles,
+  MapIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,10 +43,33 @@ import { countAgents } from "@/lib/api/agents";
 import { getThreads } from "@/lib/api/threads";
 import { getProviders } from "@/lib/api/providers";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
+import { requestOnboardingReplay } from "@/hooks/use-onboarding-section";
+
+const GUIDED_TOURS = [
+  {
+    section: "dashboard",
+    label: "Dashboard",
+    description: "Explore, My Agents, your conversations, and settings.",
+    href: "/dashboard",
+  },
+  {
+    section: "studio",
+    label: "Agent Studio",
+    description: "Providers, skills, knowledge, connectors, and memory.",
+    href: studioRoutes.home,
+  },
+  {
+    section: "developer",
+    label: "Developer Studio",
+    description: "Projects, members, and credentials.",
+    href: developerRoutes.projects,
+  },
+];
 
 export default function ProfileSettingsPage() {
   const { user: clerkUser } = useUser();
   const { isLoaded, isSignedIn } = useAuth();
+  const router = useRouter();
 
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -423,6 +449,43 @@ export default function ProfileSettingsPage() {
                   Manage Identity
                 </Button>
               </Link>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapIcon className="size-4" />
+                Guided Tours
+              </CardTitle>
+              <CardDescription>
+                Replay the walkthrough for any section.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
+              {GUIDED_TOURS.map((tour) => (
+                <div
+                  key={tour.section}
+                  className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
+                >
+                  <div>
+                    <p className="text-sm font-semibold">{tour.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {tour.description}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      requestOnboardingReplay(tour.section);
+                      router.push(tour.href);
+                    }}
+                  >
+                    Replay
+                  </Button>
+                </div>
+              ))}
             </CardContent>
           </Card>
         </div>

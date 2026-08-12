@@ -60,6 +60,7 @@ import {
 } from "@/lib/api/projects";
 import { developerRoutes } from "@/lib/developer-routes";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
+import { useOnboardingSection } from "@/hooks/use-onboarding-section";
 import {
   Card,
   CardHeader,
@@ -365,6 +366,7 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   const params = React.use(paramsPromise);
   const projectId = params.id;
   const { isLoaded, isSignedIn } = useAuth();
+  useOnboardingSection("developerProject");
 
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1115,7 +1117,7 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
       <Tabs defaultValue="overview">
-        <TabsList variant="pill">
+        <TabsList variant="pill" id="onboarding-developer-project-tabs">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="credentials">Credentials</TabsTrigger>
@@ -1129,7 +1131,7 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
         </TabsList>
 
         <TabsContent value="overview" className="mt-6 flex flex-col gap-6">
-          <Card className="max-w-2xl">
+          <Card className="max-w-2xl" id="onboarding-developer-project-details">
             <CardHeader className="flex flex-row items-start justify-between gap-4">
               <div>
                 <CardTitle>Project Details</CardTitle>
@@ -1164,7 +1166,10 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
             </CardContent>
           </Card>
 
-          <Card className="max-w-2xl border-destructive/20">
+          <Card
+            className="max-w-2xl border-destructive/20"
+            id="onboarding-developer-project-lifecycle"
+          >
             <CardHeader>
               <CardTitle>Lifecycle</CardTitle>
               <CardDescription>

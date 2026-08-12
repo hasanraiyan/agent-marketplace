@@ -164,6 +164,7 @@ export function DeveloperSidebar({ ...props }) {
                 >
                   <Link
                     href={personaRoutes.explore}
+                    id="onboarding-developer-back-to-persona"
                     className="flex items-center gap-2.5"
                   >
                     <ArrowLeftIcon className="size-4 shrink-0 text-slate-450 dark:text-slate-500" />
