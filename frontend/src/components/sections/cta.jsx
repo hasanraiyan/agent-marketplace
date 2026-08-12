@@ -3,37 +3,58 @@ import { Button } from "@/components/ui/button";
 import { TiltCard } from "@/components/ui/tilt-card";
 import { ArrowRightIcon } from "lucide-react";
 
-// The three categories the Hero's own card stack didn't cover — completes
-// coverage across the page instead of repeating the same set. Avatars use
-// the product's real default (agent.model.js's DiceBear fallback, the same
-// art every agent gets until it has a custom photo) — not a fake identity,
-// not a live fetch against a DB that currently has zero public agents.
+// All seven real categories from the Discover feed / Index section, copy
+// matched to categories.jsx exactly. Avatars use the product's real default
+// (agent.model.js's DiceBear fallback, the same art every agent gets until
+// it has a custom photo) — not a fake identity, not a live fetch against a
+// DB that currently has zero public agents.
 //
-// Positioned as a physical deck: all three centered on the same point,
-// each offset a little and rotated a different amount, stacked by z-index
-// — the front card sits straightest and is the most legible, the two
-// behind it peek out at sharper angles.
+// Positioned as a physical deck: all cards centered on the same point,
+// each offset a little and rotated a different amount, stacked by
+// z-index — the front card sits straightest and is the most legible, the
+// rest peek out at sharper angles further back.
 const ctaCards = [
   {
     tag: "Health & Fitness",
     line: "Build a routine, read your labs, stay consistent.",
     seed: "health-fitness",
-    wrapClass:
-      "left-1/2 top-1/2 -translate-x-[calc(50%+32px)] -translate-y-[calc(50%+18px)] rotate-[-9deg] z-10",
+    z: "z-10",
+    fanClass: "translate-x-[-56px] translate-y-[-36px] rotate-[-12deg]",
+  },
+  {
+    tag: "Entrepreneurship",
+    line: "Pressure-test a pitch, price a product, plan a launch.",
+    seed: "entrepreneurship",
+    z: "z-[14]",
+    fanClass: "translate-x-[46px] translate-y-[-44px] rotate-[9deg]",
   },
   {
     tag: "Mind & Behavior",
     line: "Reframe a thought, sit with a decision.",
     seed: "mind-behavior",
-    wrapClass:
-      "left-1/2 top-1/2 -translate-x-[calc(50%-26px)] -translate-y-[calc(50%-10px)] rotate-[7deg] z-20",
+    z: "z-[18]",
+    fanClass: "translate-x-[-40px] translate-y-[14px] rotate-[-7deg]",
+  },
+  {
+    tag: "Careers",
+    line: "Rewrite a resume, rehearse an interview.",
+    seed: "careers",
+    z: "z-[22]",
+    fanClass: "translate-x-[52px] translate-y-[6px] rotate-[8deg]",
+  },
+  {
+    tag: "The Library of Minds",
+    line: "Historical thinkers and working experts, reconstructed.",
+    seed: "library-of-minds",
+    z: "z-[26]",
+    fanClass: "translate-x-[-20px] translate-y-[40px] rotate-[-4deg]",
   },
   {
     tag: "Life & Relationships",
     line: "Talk through a conflict, plan a hard conversation.",
     seed: "life-relationships",
-    wrapClass:
-      "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rotate-[-2deg] z-30",
+    z: "z-40",
+    fanClass: "translate-x-[6px] translate-y-[-6px] rotate-[-1deg]",
   },
 ];
 
@@ -73,32 +94,40 @@ export function CTASection() {
           {/* Photo-card deck — same TiltCard treatment as Discover's
               Featured Minds (image, gradient overlay, text at the bottom),
               stacked like a small pile of photos instead of spread out. */}
-          <div className="relative hidden h-72 lg:block">
+          <div className="relative hidden h-[26rem] lg:block">
             {ctaCards.map((card) => (
+              // Outer: centers every card on the same point. Inner: the
+              // per-card fan offset/rotation. Kept as two elements so hover
+              // can reset just the inner transform without fighting the
+              // centering transform on the same element.
               <div
                 key={card.tag}
-                className={`absolute h-64 w-52 transition-transform duration-300 hover:z-40 hover:rotate-0 ${card.wrapClass}`}
+                className={`absolute top-1/2 left-1/2 h-64 w-52 -translate-x-1/2 -translate-y-1/2 hover:z-50 ${card.z}`}
               >
-                <TiltCard
-                  maxTilt={10}
-                  className="size-full overflow-hidden rounded-2xl border border-zinc-200 shadow-md"
+                <div
+                  className={`size-full transition-transform duration-300 hover:translate-x-0 hover:translate-y-0 hover:rotate-0 ${card.fanClass}`}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={avatarUrl(card.seed)}
-                    alt=""
-                    className="absolute inset-0 size-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-                  <div className="absolute inset-x-4 bottom-4 text-white">
-                    <p className="font-mono text-[10px] tracking-[0.14em] text-white/70 uppercase">
-                      {card.tag}
-                    </p>
-                    <p className="font-display mt-1 text-sm leading-snug font-medium">
-                      {card.line}
-                    </p>
-                  </div>
-                </TiltCard>
+                  <TiltCard
+                    maxTilt={10}
+                    className="size-full overflow-hidden rounded-2xl border border-zinc-200 shadow-md"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={avatarUrl(card.seed)}
+                      alt=""
+                      className="absolute inset-0 size-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+                    <div className="absolute inset-x-4 bottom-4 text-white">
+                      <p className="font-mono text-[10px] tracking-[0.14em] text-white/70 uppercase">
+                        {card.tag}
+                      </p>
+                      <p className="font-display mt-1 text-sm leading-snug font-medium">
+                        {card.line}
+                      </p>
+                    </div>
+                  </TiltCard>
+                </div>
               </div>
             ))}
           </div>
