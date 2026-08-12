@@ -16,16 +16,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { useUser, useAuth } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { useThreads } from "@/components/threads-context";
-import { getMyMainAgent } from "@/lib/api/agents";
-import {
-  CompassIcon,
-  UserIcon,
-  Settings2Icon,
-  CircleHelpIcon,
-  SparklesIcon,
-} from "lucide-react";
+import { CompassIcon, UserIcon, Settings2Icon } from "lucide-react";
 import { toast } from "sonner";
 
 // Persona is the consumer experience: discover an agent, use it, keep talking.
@@ -53,36 +46,15 @@ const NAV_SECONDARY = [
     icon: <Settings2Icon />,
     id: "onboarding-dashboard-settings",
   },
-  {
-    title: "Help & Docs",
-    url: "#",
-    icon: <CircleHelpIcon />,
-  },
 ];
 
 export function AppSidebar({ ...props }) {
   const { user } = useUser();
-  const { isLoaded, isSignedIn } = useAuth();
   const userData = {
     name: user?.fullName || "Guest User",
     email: user?.primaryEmailAddress?.emailAddress || "",
     avatar: user?.imageUrl || "",
   };
-
-  const [myAgentId, setMyAgentId] = React.useState(null);
-
-  React.useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
-    let cancelled = false;
-    getMyMainAgent()
-      .then((agent) => {
-        if (!cancelled) setMyAgentId(agent?.id || agent?._id || null);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [isLoaded, isSignedIn]);
 
   const {
     groups,
@@ -121,37 +93,29 @@ export function AppSidebar({ ...props }) {
   return (
     <Sidebar
       collapsible="offcanvas"
-      className="border-r border-slate-100 bg-[#fbfbfb] dark:border-slate-850 dark:bg-[#0c0c0e] select-none"
+      className="border-r border-zinc-100 bg-[#fbfbfb] select-none"
       {...props}
     >
-      <SidebarHeader className="border-b border-slate-100/60 dark:border-slate-800/40 py-4 px-4 bg-slate-50/20 dark:bg-slate-950/10">
+      <SidebarHeader className="border-b border-zinc-100/60 bg-zinc-50/20 px-4 py-4">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
               asChild
-              className="data-[slot=sidebar-menu-button]:p-0 hover:bg-transparent dark:hover:bg-transparent"
+              className="data-[slot=sidebar-menu-button]:p-0 hover:bg-transparent"
             >
-              <Link href="/" className="flex items-center gap-3">
-                <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-tr from-[#1E60FF] via-[#5d73ff] to-[#8c52ff] text-white shadow-md shadow-[#1E60FF]/25 dark:shadow-none transition-transform duration-300 hover:scale-[1.05]">
-                  <SparklesIcon className="size-4.5 text-white" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white leading-none">
-                    Persona
-                    <span className="text-[#1E60FF] font-black">.ai</span>
-                  </span>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold mt-1">
-                    v1.0.0
-                  </span>
-                </div>
+              <Link href="/" className="flex items-center gap-2.5">
+                <span className="size-2 rounded-full bg-[#1E60FF]" />
+                <span className="font-display text-base font-semibold tracking-tight text-zinc-900 leading-none">
+                  Persona<span className="text-zinc-400">.ai</span>
+                </span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent className="px-3.5 py-3 gap-4">
-        <NavMain items={NAV_MAIN} myAgentId={myAgentId} />
+      <SidebarContent className="gap-4 px-3.5 py-3">
+        <NavMain items={NAV_MAIN} />
         <NavThreads
           groups={groups}
           loading={threadsLoading}

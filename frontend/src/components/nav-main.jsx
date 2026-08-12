@@ -13,7 +13,7 @@ import { SlidersHorizontalIcon } from "lucide-react";
 import { studioRoutes } from "@/lib/studio-routes";
 import { cn } from "@/lib/utils";
 
-export function NavMain({ items, myAgentId }) {
+export function NavMain({ items }) {
   const pathname = usePathname();
 
   const isActive = (url) => {
@@ -57,8 +57,8 @@ export function NavMain({ items, myAgentId }) {
                   className={cn(
                     "h-9 rounded-xl transition-all duration-200 px-3",
                     active
-                      ? "bg-slate-200/70 text-slate-900 font-bold dark:bg-slate-800/80 dark:text-white shadow-xs"
-                      : "text-slate-650 hover:text-slate-950 hover:bg-slate-100/50 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800/30",
+                      ? "bg-zinc-200/70 text-zinc-900 font-bold shadow-xs"
+                      : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100/50",
                   )}
                 >
                   <Link
@@ -69,9 +69,7 @@ export function NavMain({ items, myAgentId }) {
                     <span
                       className={cn(
                         "transition-transform duration-200 group-hover/menu-button:translate-x-0.5",
-                        active
-                          ? "text-[#1E60FF]"
-                          : "text-slate-450 dark:text-slate-500",
+                        active ? "text-[#1E60FF]" : "text-zinc-400",
                       )}
                     >
                       {item.icon}

@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useRef, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -55,7 +54,7 @@ function InlineRename({ currentTitle, onConfirm, onCancel }) {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
-        className="h-6 min-w-0 flex-1 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 text-xs text-slate-800 dark:text-slate-250 outline-none ring-0 focus:border-[#1E60FF] focus:ring-1 focus:ring-[#1E60FF]"
+        className="h-6 min-w-0 flex-1 rounded-md border border-zinc-200 bg-white px-2 text-xs text-zinc-800 outline-none ring-0 focus:border-[#1E60FF] focus:ring-1 focus:ring-[#1E60FF]"
       />
       <button
         type="button"
@@ -107,8 +106,8 @@ function ThreadItem({ thread, agent, isActive, onRename, onDelete }) {
         className={cn(
           "group/thread h-9 gap-2.5 pr-8 rounded-xl transition-all duration-200 border-l-2 border-transparent px-3",
           isActive
-            ? "bg-slate-200/50 dark:bg-slate-850/60 text-slate-900 dark:text-white font-semibold shadow-xs border-l-[#1E60FF]!"
-            : "text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-100 hover:bg-slate-100/40 dark:hover:bg-slate-800/20",
+            ? "bg-zinc-200/50 text-zinc-900 font-semibold shadow-xs border-l-[#1E60FF]!"
+            : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100/40",
         )}
       >
         {renaming ? (
@@ -155,9 +154,9 @@ function ThreadItem({ thread, agent, isActive, onRename, onDelete }) {
           <DropdownMenuTrigger asChild>
             <SidebarMenuAction
               showOnHover
-              className="right-2 top-2 size-5 rounded-md hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors"
+              className="right-2 top-2 size-5 rounded-md hover:bg-zinc-200/50 transition-colors"
             >
-              <MoreHorizontalIcon className="size-3 text-slate-500 dark:text-slate-400" />
+              <MoreHorizontalIcon className="size-3 text-zinc-500" />
               <span className="sr-only">More</span>
             </SidebarMenuAction>
           </DropdownMenuTrigger>
@@ -199,7 +198,6 @@ export function NavThreads({
   onRename,
   onDelete,
 }) {
-  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(true);
 
   const activeThreadId = (() => {
@@ -228,11 +226,11 @@ export function NavThreads({
 
   if (loading) {
     return (
-      <SidebarGroup className="group-data-[collapsible=icon]:hidden border-t border-slate-100/60 dark:border-slate-800/40 mt-4 pt-4 px-0">
-        <SidebarGroupLabel className="text-[11px] font-bold tracking-wider uppercase text-slate-400 dark:text-slate-500 mb-2 px-3">
+      <SidebarGroup className="group-data-[collapsible=icon]:hidden border-t border-zinc-100/60 pt-4 px-0">
+        <SidebarGroupLabel className="text-[11px] font-bold tracking-wider uppercase text-zinc-400 mb-2 px-3">
           Threads
         </SidebarGroupLabel>
-        <SidebarMenu className="px-1.5">
+        <SidebarMenu>
           {[1, 2, 3].map((i) => (
             <SidebarMenuItem key={i}>
               <div className="flex items-center gap-2.5 px-3 py-2">
@@ -251,18 +249,18 @@ export function NavThreads({
       id="onboarding-dashboard-threads"
       open={isOpen}
       onOpenChange={setIsOpen}
-      className="group/collapsible data-[state=open]:flex-1 data-[state=open]:min-h-0 flex flex-col overflow-hidden border-t border-slate-150/50 dark:border-slate-850/40 mt-4 pt-4"
+      className="group/collapsible data-[state=open]:flex-1 data-[state=open]:min-h-0 flex flex-col overflow-hidden border-t border-zinc-200/50 pt-4"
     >
-      <SidebarGroup className="group-data-[collapsible=icon]:hidden pr-0 group-data-[state=open]/collapsible:flex-1 group-data-[state=open]/collapsible:min-h-0 flex flex-col overflow-hidden p-0">
+      <SidebarGroup className="group-data-[collapsible=icon]:hidden group-data-[state=open]/collapsible:flex-1 group-data-[state=open]/collapsible:min-h-0 flex flex-col overflow-hidden p-0">
         <SidebarGroupLabel
           asChild
-          className="cursor-pointer select-none text-[11px] font-bold tracking-wider uppercase text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-350 transition-colors px-3 mb-2"
+          className="cursor-pointer select-none text-[11px] font-bold tracking-wider uppercase text-zinc-400 hover:text-zinc-600 transition-colors px-3 mb-2"
         >
           <CollapsibleTrigger className="flex w-full items-center justify-between">
             <span className="flex items-center gap-1.5">
               Threads
               {allThreads.length > 0 && (
-                <span className="rounded-full bg-slate-100 dark:bg-slate-800/80 px-1.5 py-0.2 text-[9px] font-semibold text-slate-550 dark:text-slate-450 select-none">
+                <span className="rounded-full bg-zinc-100 px-1.5 py-0.2 text-[9px] font-semibold text-zinc-500 select-none">
                   {allThreads.length}
                 </span>
               )}
@@ -270,7 +268,7 @@ export function NavThreads({
             <ChevronRightIcon className="size-3.5 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 text-muted-foreground" />
           </CollapsibleTrigger>
         </SidebarGroupLabel>
-        <CollapsibleContent className="group-data-[state=open]/collapsible:flex-1 group-data-[state=open]/collapsible:min-h-0 flex flex-col overflow-hidden px-1.5">
+        <CollapsibleContent className="group-data-[state=open]/collapsible:flex-1 group-data-[state=open]/collapsible:min-h-0 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto select-none no-scrollbar min-h-0">
             <SidebarMenu className="gap-0.5">
               {allThreads.length === 0 ? (
@@ -302,7 +300,7 @@ export function NavThreads({
                   <button
                     onClick={onLoadMore}
                     disabled={loadingMore}
-                    className="w-full text-center text-xs font-semibold text-muted-foreground hover:text-[#1E60FF] py-1.5 px-2 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100/50 dark:hover:bg-slate-800/30 transition-all cursor-pointer disabled:opacity-50"
+                    className="w-full text-center text-xs font-semibold text-muted-foreground hover:text-[#1E60FF] py-1.5 px-2 border border-dashed border-zinc-200 rounded-lg hover:bg-zinc-100/50 transition-all cursor-pointer disabled:opacity-50"
                   >
                     {loadingMore ? "Loading more..." : "Load More Chats"}
                   </button>
