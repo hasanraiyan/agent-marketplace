@@ -1,4 +1,7 @@
 import { ChatOpenAI } from '@langchain/openai';
+import { ChatAnthropic } from '@langchain/anthropic';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatDeepSeek } from '@langchain/deepseek';
 import { createMiddleware } from 'langchain';
 import { getConfig } from '@langchain/langgraph';
 import {
@@ -221,26 +224,56 @@ class AgentFactory {
         ? `${apiKey.substring(0, 6)}...${apiKey.substring(apiKey.length - 4)}`
         : '***'
       : 'empty';
+    const providerType = provider.type || 'custom';
 
-    logger.info('[AgentFactory] Creating ChatOpenAI client config', {
+    logger.info('[AgentFactory] Creating chat model client', {
       provider: provider.label,
+      providerType,
       baseURL: provider.baseURL,
       modelName: modelName,
       apiKey: maskedKey,
       apiKeyLength: apiKey ? apiKey.length : 0,
     });
 
-    // Initializing dynamic ChatOpenAI class representing the base model
-    return new ChatOpenAI({
-      apiKey: apiKey,
-      openAIApiKey: apiKey,
-      modelName: modelName,
-      streaming: true,
-      configuration: {
-        baseURL: provider.baseURL,
-        apiKey: apiKey,
-      },
-    });
+    // Each native type uses its own LangChain integration; 'custom' (and
+    // 'openai') keep the original generic OpenAI-compatible construction.
+    switch (providerType) {
+      case 'anthropic':
+        return new ChatAnthropic({
+          apiKey,
+          model: modelName,
+          streaming: true,
+          anthropicApiUrl: provider.baseURL,
+        });
+      case 'gemini':
+        return new ChatGoogleGenerativeAI({
+          apiKey,
+          model: modelName,
+          streaming: true,
+          baseUrl: provider.baseURL,
+        });
+      case 'deepseek':
+        return new ChatDeepSeek({
+          apiKey,
+          model: modelName,
+          streaming: true,
+          configuration: { baseURL: provider.baseURL },
+        });
+      case 'openai':
+      case 'custom':
+      default:
+        // Initializing dynamic ChatOpenAI class representing the base model
+        return new ChatOpenAI({
+          apiKey: apiKey,
+          openAIApiKey: apiKey,
+          modelName: modelName,
+          streaming: true,
+          configuration: {
+            baseURL: provider.baseURL,
+            apiKey: apiKey,
+          },
+        });
+    }
   }
 
   /**

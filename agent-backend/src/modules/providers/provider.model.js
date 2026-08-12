@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { PROVIDER_TYPES } from './provider.constants.js';
 
 const providerSchema = new mongoose.Schema(
   {
@@ -37,6 +38,15 @@ const providerSchema = new mongoose.Schema(
       trim: true,
       minlength: 1,
       maxlength: 100,
+    },
+    // Determines which LangChain chat model agent.factory.js constructs at
+    // runtime, and which model-listing strategy provider.service.js uses.
+    // Defaults to 'custom' so pre-existing rows without this field behave
+    // exactly as before it was introduced.
+    type: {
+      type: String,
+      enum: PROVIDER_TYPES,
+      default: 'custom',
     },
     baseURL: {
       type: String,

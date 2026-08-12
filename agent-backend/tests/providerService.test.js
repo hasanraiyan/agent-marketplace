@@ -323,11 +323,15 @@ describe('Provider Service', () => {
         })
       );
       const result = await providerService.testConnectionWithCredentials(
+        'custom',
         'https://test.api/v1',
         'key123'
       );
       expect(result.success).toBe(true);
-      expect(result.models).toEqual([{ id: 'gpt-4' }, { id: 'gpt-3.5' }]);
+      expect(result.models).toEqual([
+        { id: 'gpt-4', label: 'gpt-4' },
+        { id: 'gpt-3.5', label: 'gpt-3.5' },
+      ]);
     });
 
     test('should throw error on fetch failure', async () => {
@@ -340,7 +344,7 @@ describe('Provider Service', () => {
         })
       );
       await expect(
-        providerService.testConnectionWithCredentials('https://test.api/v1', 'key123')
+        providerService.testConnectionWithCredentials('custom', 'https://test.api/v1', 'key123')
       ).rejects.toThrow(
         'Connection test failed: Failed to fetch models: 401 Unauthorized - Invalid API Key'
       );
@@ -360,7 +364,10 @@ describe('Provider Service', () => {
       );
 
       const models = await providerService.getAvailableModels(mockProvider._id, mockUserId);
-      expect(models).toEqual([{ id: 'gpt-4' }, { id: 'gpt-4-turbo' }]);
+      expect(models).toEqual([
+        { id: 'gpt-4', label: 'gpt-4' },
+        { id: 'gpt-4-turbo', label: 'gpt-4-turbo' },
+      ]);
     });
 
     test('should throw if unauthorized', async () => {
@@ -391,7 +398,155 @@ describe('Provider Service', () => {
         domain: 'project-1',
         principalType: 'ProjectMachine',
       });
-      expect(models).toEqual([{ id: 'gpt-4' }]);
+      expect(models).toEqual([{ id: 'gpt-4', label: 'gpt-4' }]);
+    });
+  });
+
+  describe('preset baseURL fill for native provider types', () => {
+    test('createProvider fills the preset baseURL when a native type omits one', async () => {
+      encryption.encrypt.mockReturnValue('encrypted-token');
+      providerRepository.create.mockResolvedValue(mockProvider);
+
+      await providerService.createProvider(mockUserId, {
+        label: 'My Anthropic',
+        type: 'anthropic',
+        apiKey: 'sk-ant-key',
+        defaultModel: 'claude-sonnet-4-6',
+      });
+
+      expect(providerRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'anthropic',
+          baseURL: 'https://api.anthropic.com/v1',
+        })
+      );
+    });
+
+    test('createProvider leaves an explicit baseURL untouched for a native type', async () => {
+      encryption.encrypt.mockReturnValue('encrypted-token');
+      providerRepository.create.mockResolvedValue(mockProvider);
+
+      await providerService.createProvider(mockUserId, {
+        label: 'My Gemini Proxy',
+        type: 'gemini',
+        baseURL: 'https://my-proxy.example.com',
+        apiKey: 'key',
+        defaultModel: 'gemini-2.5-flash',
+      });
+
+      expect(providerRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ baseURL: 'https://my-proxy.example.com' })
+      );
+    });
+
+    test('createProvider does not fill a baseURL for custom type', async () => {
+      encryption.encrypt.mockReturnValue('encrypted-token');
+      providerRepository.create.mockResolvedValue(mockProvider);
+
+      await providerService.createProvider(mockUserId, {
+        label: 'My Custom',
+        type: 'custom',
+        baseURL: 'https://custom.example.com/v1',
+        apiKey: 'key',
+        defaultModel: 'my-model',
+      });
+
+      expect(providerRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ baseURL: 'https://custom.example.com/v1' })
+      );
+    });
+
+    test('updateProvider fills the preset baseURL when switching to a native type', async () => {
+      providerRepository.findById.mockResolvedValue(mockProvider);
+      providerRepository.update.mockResolvedValue(mockProvider);
+      agentRepository.findAgentsUsingProvider.mockResolvedValue([]);
+
+      await providerService.updateProvider(mockUserId, mockProvider._id, {
+        type: 'deepseek',
+      });
+
+      expect(providerRepository.update).toHaveBeenCalledWith(
+        mockProvider._id,
+        expect.objectContaining({ type: 'deepseek', baseURL: 'https://api.deepseek.com' })
+      );
+    });
+  });
+
+  describe('getModelsForProviderType', () => {
+    test('anthropic: uses x-api-key/anthropic-version headers and maps display_name', async () => {
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              data: [{ id: 'claude-sonnet-4-6', display_name: 'Claude Sonnet 4.6' }],
+            }),
+        })
+      );
+
+      const models = await providerService.getModelsForProviderType(
+        'anthropic',
+        'https://api.anthropic.com/v1',
+        'sk-ant-key'
+      );
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://api.anthropic.com/v1/models',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'x-api-key': 'sk-ant-key',
+            'anthropic-version': '2023-06-01',
+          }),
+        })
+      );
+      expect(models).toEqual([{ id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' }]);
+    });
+
+    test('gemini: uses ?key= query param and strips the models/ name prefix', async () => {
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              models: [{ name: 'models/gemini-2.5-flash', displayName: 'Gemini 2.5 Flash' }],
+            }),
+        })
+      );
+
+      const models = await providerService.getModelsForProviderType(
+        'gemini',
+        'https://generativelanguage.googleapis.com/v1beta',
+        'gem-key'
+      );
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('key=gem-key'),
+        expect.any(Object)
+      );
+      expect(models).toEqual([{ id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' }]);
+    });
+
+    test('deepseek and openai reuse the generic OpenAI-compatible fetch', async () => {
+      global.fetch = jest.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ id: 'deepseek-chat' }] }),
+        })
+      );
+
+      const models = await providerService.getModelsForProviderType(
+        'deepseek',
+        'https://api.deepseek.com',
+        'ds-key'
+      );
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://api.deepseek.com/models',
+        expect.objectContaining({
+          headers: expect.objectContaining({ Authorization: 'Bearer ds-key' }),
+        })
+      );
+      expect(models).toEqual([{ id: 'deepseek-chat', label: 'deepseek-chat' }]);
     });
   });
 

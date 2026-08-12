@@ -79,6 +79,7 @@ class ProviderController {
     try {
       const validatedData = testConnectionSchema.parse(req.body);
       const result = await providerService.testConnectionWithCredentials(
+        validatedData.type,
         validatedData.baseURL,
         validatedData.apiKey
       );

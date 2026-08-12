@@ -4,6 +4,7 @@ import agentFactory from '../agents/agent.factory.js';
 import encryption from '../../utils/encryption.js';
 import { ARCHITECT_AGENT_ID } from '../tools/index.js';
 import { personaExecutionContext } from '../agents/agent.service.js';
+import { PROVIDER_TYPE_PRESETS } from './provider.constants.js';
 import {
   isResourceOwner,
   ownerFilterForContext,
@@ -48,12 +49,26 @@ class ProviderService {
     return {
       id: provider._id,
       label: provider.label,
+      type: provider.type || 'custom',
       baseURL: provider.baseURL,
       defaultModel: provider.defaultModel,
       isDefault: provider.isDefault,
       createdAt: provider.createdAt,
       updatedAt: provider.updatedAt,
     };
+  }
+
+  /**
+   * Non-'custom' types have a canonical baseURL (provider.constants.js);
+   * fills it in when the caller didn't send one, so the native types never
+   * need a user-supplied Base URL. 'custom' is a no-op — its preset is
+   * `null`, and the zod validators already require an explicit baseURL for it.
+   */
+  _fillPresetBaseUrl(data) {
+    if (data.type && data.type !== 'custom' && !data.baseURL) {
+      return { ...data, baseURL: PROVIDER_TYPE_PRESETS[data.type] };
+    }
+    return data;
   }
 
   /**
@@ -70,7 +85,7 @@ class ProviderService {
       await providerRepository.clearDefaultKeys(ownerFilterForContext(context));
     }
 
-    const { apiKey, ...rest } = providerData;
+    const { apiKey, ...rest } = this._fillPresetBaseUrl(providerData);
 
     // Encrypt the API key
     const apiKeyEncrypted = encryption.encrypt(apiKey);
@@ -135,6 +150,8 @@ class ProviderService {
     if (updateData.isDefault) {
       await providerRepository.clearDefaultKeys(ownerFilterForContext(context));
     }
+
+    updateData = this._fillPresetBaseUrl(updateData);
 
     // Handle apiKey update if provided
     if (updateData.apiKey) {
@@ -210,6 +227,13 @@ class ProviderService {
     return true;
   }
 
+  /**
+   * OpenAI-shaped REST listing: `GET {baseURL}/models`, Bearer auth,
+   * `{data:[{id,...}]}`. Covers 'openai' and 'custom' (any genuinely
+   * OpenAI-compatible endpoint) as well as 'deepseek', whose REST API is
+   * OpenAI-shaped even though its chat model uses a dedicated LangChain
+   * class (agent.factory.js `_buildLLM`).
+   */
   async fetchModelsFromApi(baseURL, apiKey) {
     try {
       const response = await fetch(`${baseURL}/models`, {
@@ -238,15 +262,114 @@ class ProviderService {
         throw new Error('Invalid response format: expected { data: [...] }');
       }
 
-      // We only need the ID and optionally the provider info, but returning just ID is standard
-      return data.data.map((model) => ({ id: model.id }));
+      return data.data.map((model) => ({ id: model.id, label: model.id }));
     } catch (error) {
       throw new Error(`Connection test failed: ${error.message}`);
     }
   }
 
-  async testConnectionWithCredentials(baseURL, apiKey) {
-    const models = await this.fetchModelsFromApi(baseURL, apiKey);
+  /**
+   * Anthropic's native model listing: `GET {baseURL}/models`, `x-api-key` +
+   * `anthropic-version` headers (no Bearer), `{data:[{id,display_name}]}`.
+   */
+  async fetchAnthropicModels(baseURL, apiKey) {
+    try {
+      const response = await fetch(`${baseURL}/models`, {
+        method: 'GET',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        let errorMessage = `Failed to fetch models: ${response.status} ${response.statusText}`;
+        try {
+          const errorBody = await response.json();
+          if (errorBody && errorBody.error) {
+            errorMessage += ` - ${errorBody.error.message || JSON.stringify(errorBody.error)}`;
+          }
+        } catch (e) {
+          // Ignore json parsing error
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      if (!data || !Array.isArray(data.data)) {
+        throw new Error('Invalid response format: expected { data: [...] }');
+      }
+
+      return data.data.map((model) => ({ id: model.id, label: model.display_name || model.id }));
+    } catch (error) {
+      throw new Error(`Connection test failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Gemini's native model listing: `GET {baseURL}/models?key=<apiKey>`,
+   * `{models:[{name:"models/gemini-...", displayName}]}` — `name` is
+   * prefixed `models/` and must be stripped to get a usable model id.
+   */
+  async fetchGeminiModels(baseURL, apiKey) {
+    try {
+      const response = await fetch(`${baseURL}/models?key=${encodeURIComponent(apiKey)}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        let errorMessage = `Failed to fetch models: ${response.status} ${response.statusText}`;
+        try {
+          const errorBody = await response.json();
+          if (errorBody && errorBody.error) {
+            errorMessage += ` - ${errorBody.error.message || JSON.stringify(errorBody.error)}`;
+          }
+        } catch (e) {
+          // Ignore json parsing error
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      if (!data || !Array.isArray(data.models)) {
+        throw new Error('Invalid response format: expected { models: [...] }');
+      }
+
+      return data.models.map((model) => ({
+        id: model.name.replace(/^models\//, ''),
+        label: model.displayName || model.name,
+      }));
+    } catch (error) {
+      throw new Error(`Connection test failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Type-aware model-listing dispatcher — the single entry point used by
+   * both the pre-save (`testConnectionWithCredentials`) and post-save
+   * (`getAvailableModels`) flows, so every caller gets the right strategy
+   * for the provider's `type` without duplicating the switch.
+   */
+  async getModelsForProviderType(type, baseURL, apiKey) {
+    switch (type) {
+      case 'anthropic':
+        return this.fetchAnthropicModels(baseURL, apiKey);
+      case 'gemini':
+        return this.fetchGeminiModels(baseURL, apiKey);
+      case 'openai':
+      case 'deepseek':
+      case 'custom':
+      default:
+        return this.fetchModelsFromApi(baseURL, apiKey);
+    }
+  }
+
+  async testConnectionWithCredentials(type, baseURL, apiKey) {
+    const resolvedType = type || 'custom';
+    const resolvedBaseUrl = baseURL || PROVIDER_TYPE_PRESETS[resolvedType];
+    const models = await this.getModelsForProviderType(resolvedType, resolvedBaseUrl, apiKey);
     return { success: true, models };
   }
 
@@ -272,7 +395,7 @@ class ProviderService {
     provider = await this._ensureLatestEncryption(provider);
 
     const apiKey = encryption.decrypt(provider.apiKeyEncrypted);
-    return this.fetchModelsFromApi(provider.baseURL, apiKey);
+    return this.getModelsForProviderType(provider.type || 'custom', provider.baseURL, apiKey);
   }
 
   /** See `getAvailableModels`'s doc comment — identical `context` generalization. */
@@ -290,7 +413,7 @@ class ProviderService {
     provider = await this._ensureLatestEncryption(provider);
 
     const apiKey = encryption.decrypt(provider.apiKeyEncrypted);
-    await this.fetchModelsFromApi(provider.baseURL, apiKey);
+    await this.getModelsForProviderType(provider.type || 'custom', provider.baseURL, apiKey);
 
     return { success: true, message: 'Connection successful.' };
   }
