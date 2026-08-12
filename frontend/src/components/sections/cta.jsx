@@ -1,54 +1,32 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ArrowRightIcon, SparklesIcon } from "lucide-react";
+import { ArrowRightIcon } from "lucide-react";
 
 export function CTASection() {
   return (
-    <section id="cta" className="relative py-24 sm:py-32">
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-slate-50/50">
-          {/* Background effects */}
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute inset-0 bg-dot-grid opacity-10" />
-          </div>
-
-          <div className="relative px-6 py-16 text-center sm:px-12 sm:py-24 lg:px-20">
-            <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/15 ring-1 ring-primary/30 sm:size-16">
-              <SparklesIcon className="size-7 text-primary sm:size-8" />
-            </div>
-
-            <h2 className="mt-8 text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-              Ready to Supercharge <br className="hidden sm:block" />
-              <span className="gradient-text">Your Workflow?</span>
-            </h2>
-
-            <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-              Join thousands of professionals using AI agents to 10x their
-              productivity. Start free, no credit card required.
-            </p>
-
-            <div className="mx-auto mt-10 flex w-full max-w-md flex-col gap-3 sm:flex-row">
-              <Input
-                type="email"
-                placeholder="Enter your email"
-                className="h-12 rounded-xl border-border/50 bg-background/60 pl-4 text-base backdrop-blur-sm focus-visible:border-primary focus-visible:ring-primary/30"
-                id="cta-email-input"
-              />
-              <Button
-                size="lg"
-                className="h-12 gap-2 rounded-xl px-8 text-base glow-primary"
-                id="cta-btn"
-              >
-                Get Started
-                <ArrowRightIcon className="size-4" />
-              </Button>
-            </div>
-
-            <p className="mt-4 text-xs text-muted-foreground/50">
-              Free forever plan available · No credit card required · Cancel
-              anytime
-            </p>
-          </div>
+    <section className="relative border-t border-zinc-200 bg-[#FBFAF7] py-24 sm:py-28">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col items-start gap-6 rounded-3xl border border-zinc-200 bg-white px-8 py-14 sm:px-14 sm:py-20">
+          <span className="font-mono text-[11px] tracking-[0.18em] text-[#1E60FF] uppercase">
+            Get started
+          </span>
+          <h2 className="font-display max-w-xl text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl md:text-5xl">
+            Find a mind worth talking to.
+          </h2>
+          <p className="max-w-md text-base leading-relaxed text-zinc-500 sm:text-lg">
+            Free to start, no credit card. Bring your own model key when
+            you&apos;re ready to build one.
+          </p>
+          <Button
+            size="lg"
+            className="h-12 gap-2 rounded-full bg-[#1E60FF] px-7 text-base text-white shadow-md shadow-[#1E60FF]/20 transition-all hover:scale-[1.02] hover:bg-[#154ed0] active:scale-[0.98]"
+            asChild
+          >
+            <Link href="/sign-up">
+              Start talking
+              <ArrowRightIcon className="size-4" />
+            </Link>
+          </Button>
         </div>
       </div>
     </section>

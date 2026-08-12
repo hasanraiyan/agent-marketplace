@@ -1,139 +1,88 @@
-import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import {
-  SearchIcon,
-  SlidersHorizontalIcon,
-  RocketIcon,
-  BarChart3Icon,
-  ArrowDownIcon,
+  CompassIcon,
+  HammerIcon,
+  BracesIcon,
+  ArrowRightIcon,
 } from "lucide-react";
 
-const steps = [
+const paths = [
   {
-    number: "01",
-    icon: SearchIcon,
+    icon: CompassIcon,
+    tag: "For anyone",
     title: "Discover",
     description:
-      "Browse our curated library of professional AI agents. Filter by category, capability, and model to find the perfect match for your task.",
-    gradient: "from-blue-500 to-cyan-500",
-    bg: "bg-blue-500/10",
-    ring: "ring-blue-500/20",
+      "Browse minds by category and start a conversation instantly. Sign in only when you want to save it.",
+    cta: "Open Discover",
+    href: "/dashboard",
   },
   {
-    number: "02",
-    icon: SlidersHorizontalIcon,
-    title: "Customize",
+    icon: HammerIcon,
+    tag: "For creators",
+    title: "Agent Studio",
     description:
-      "Configure agents to match your workflow. Set parameters, connect your tools, define guardrails, and tailor behavior to your needs.",
-    gradient: "from-violet-500 to-purple-500",
-    bg: "bg-violet-500/10",
-    ring: "ring-violet-500/20",
+      "Describe the mind you want in plain language and the Architect co-pilot builds it with you — or configure the system prompt, provider, and tools by hand.",
+    cta: "Open Studio",
+    href: "/studio",
   },
   {
-    number: "03",
-    icon: RocketIcon,
-    title: "Deploy",
+    icon: BracesIcon,
+    tag: "For developers",
+    title: "Developer Platform",
     description:
-      "Launch your agents in seconds. They run in secure sandboxes with full observability — monitor tasks, costs, and results in real-time.",
-    gradient: "from-emerald-500 to-teal-500",
-    bg: "bg-emerald-500/10",
-    ring: "ring-emerald-500/20",
-  },
-  {
-    number: "04",
-    icon: BarChart3Icon,
-    title: "Scale",
-    description:
-      "Orchestrate multi-agent workflows, track performance analytics, and scale from one agent to hundreds with enterprise controls.",
-    gradient: "from-amber-500 to-orange-500",
-    bg: "bg-amber-500/10",
-    ring: "ring-amber-500/20",
+      "Create a Project, mint an API credential, and embed Persona's agents in your own product with the SDK.",
+    cta: "Open Developer Studio",
+    href: "/developer",
   },
 ];
 
 export function HowItWorksSection() {
   return (
-    <section id="how-it-works" className="relative py-24 sm:py-32">
-      {/* Subtle background */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background via-muted/20 to-background" />
-
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-16 flex flex-col items-center text-center">
-          <Badge
-            variant="outline"
-            className="mb-4 gap-1.5 border-primary/25 bg-primary/5 px-3 py-1 text-primary"
-          >
-            <RocketIcon className="size-3" />
-            How It Works
-          </Badge>
-          <h2 className="max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-            From Zero to <span className="gradient-text">Deployed</span> in
-            Minutes
+    <section
+      id="how-it-works"
+      className="relative border-t border-zinc-200 bg-[#FBFAF7] py-24 sm:py-28"
+    >
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-14 flex flex-col items-start gap-3">
+          <span className="font-mono text-[11px] tracking-[0.18em] text-[#1E60FF] uppercase">
+            How it works
+          </span>
+          <h2 className="font-display max-w-lg text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">
+            Three ways in, one platform underneath.
           </h2>
-          <p className="mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
-            Getting started with AI agents has never been easier. Four simple
-            steps to transform your workflow.
-          </p>
         </div>
 
-        {/* Steps */}
-        <div className="relative">
-          {/* Connecting line (desktop) */}
-          <div className="pointer-events-none absolute left-1/2 top-0 hidden h-full w-px -translate-x-1/2 bg-gradient-to-b from-border/0 via-border to-border/0 lg:block" />
-
-          <div className="grid gap-8 sm:gap-12 lg:gap-16">
-            {steps.map((step, i) => (
-              <div
-                key={step.number}
-                className={`flex flex-col items-center gap-6 lg:flex-row lg:gap-16 ${
-                  i % 2 === 1 ? "lg:flex-row-reverse" : ""
-                }`}
-              >
-                {/* Content Side */}
-                <div
-                  className={`flex flex-1 flex-col ${i % 2 === 1 ? "lg:items-end lg:text-right" : "lg:items-start lg:text-left"} items-center text-center`}
-                >
-                  <span
-                    className={`mb-3 inline-block bg-gradient-to-r ${step.gradient} bg-clip-text text-sm font-bold text-transparent`}
-                  >
-                    STEP {step.number}
-                  </span>
-                  <h3 className="text-2xl font-bold sm:text-3xl">
-                    {step.title}
-                  </h3>
-                  <p className="mt-3 max-w-md text-base leading-relaxed text-muted-foreground">
-                    {step.description}
-                  </p>
-                </div>
-
-                {/* Center Dot (desktop) */}
-                <div className="relative z-10 hidden lg:flex">
-                  <div
-                    className={`flex size-16 items-center justify-center rounded-2xl ${step.bg} ring-2 ${step.ring} backdrop-blur-sm`}
-                  >
-                    <step.icon className="size-7 text-foreground" />
-                  </div>
-                </div>
-
-                {/* Icon card (mobile) */}
-                <div
-                  className={`flex size-14 items-center justify-center rounded-xl ${step.bg} ring-1 ${step.ring} lg:hidden`}
-                >
-                  <step.icon className="size-6 text-foreground" />
-                </div>
-
-                {/* Empty space for layout balance */}
-                <div className="hidden flex-1 lg:block" />
-
-                {/* Arrow between steps (mobile) */}
-                {i < steps.length - 1 && (
-                  <div className="flex justify-center lg:hidden">
-                    <ArrowDownIcon className="size-5 text-border" />
-                  </div>
-                )}
+        <div className="grid gap-6 lg:grid-cols-3">
+          {paths.map((path) => (
+            <div
+              key={path.title}
+              className="flex flex-col rounded-2xl border border-zinc-200 bg-white p-8"
+            >
+              <div className="flex size-11 items-center justify-center rounded-xl bg-[#1E60FF]/10">
+                <path.icon className="size-5 text-[#1E60FF]" />
               </div>
-            ))}
-          </div>
+              <span className="mt-6 font-mono text-[11px] tracking-[0.14em] text-zinc-400 uppercase">
+                {path.tag}
+              </span>
+              <h3 className="font-display mt-2 text-2xl font-semibold text-zinc-900">
+                {path.title}
+              </h3>
+              <p className="mt-3 flex-1 text-sm leading-relaxed text-zinc-500">
+                {path.description}
+              </p>
+              <Button
+                variant="ghost"
+                className="mt-6 justify-start gap-1.5 self-start px-0 text-sm font-medium text-zinc-700 hover:bg-transparent hover:text-[#1E60FF]"
+                asChild
+              >
+                <Link href={path.href}>
+                  {path.cta}
+                  <ArrowRightIcon className="size-3.5" />
+                </Link>
+              </Button>
+            </div>
+          ))}
         </div>
       </div>
     </section>

@@ -12,10 +12,9 @@ import {
 import { Separator } from "@/components/ui/separator";
 import {
   MenuIcon,
-  SparklesIcon,
   LayoutGridIcon,
   BookOpenIcon,
-  DollarSignIcon,
+  LibraryIcon,
 } from "lucide-react";
 import {
   DesktopAuthButtons,
@@ -23,9 +22,9 @@ import {
 } from "@/components/auth-buttons";
 
 const navLinks = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutGridIcon },
+  { href: "#categories", label: "The Index", icon: LibraryIcon },
   { href: "#how-it-works", label: "How It Works", icon: BookOpenIcon },
-  { href: "#pricing", label: "Pricing", icon: DollarSignIcon },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutGridIcon },
 ];
 
 export function Navbar() {
@@ -49,16 +48,10 @@ export function Navbar() {
     >
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <Link
-          href="/"
-          className="group flex items-center gap-2.5"
-          id="logo-link"
-        >
-          <div className="flex size-9 items-center justify-center rounded-xl bg-primary/15 ring-1 ring-primary/30 transition-all group-hover:bg-primary/25 group-hover:ring-primary/50 group-hover:shadow-lg group-hover:shadow-primary/20">
-            <SparklesIcon className="size-5 text-primary" />
-          </div>
-          <span className="text-lg font-semibold tracking-tight">
-            Persona<span className="gradient-text">.ai</span>
+        <Link href="/" className="flex items-center gap-2" id="logo-link">
+          <span className="size-2 rounded-full bg-[#1E60FF]" />
+          <span className="font-display text-lg font-semibold tracking-tight text-zinc-900">
+            Persona<span className="text-zinc-400">.ai</span>
           </span>
         </Link>
 
@@ -97,9 +90,9 @@ export function Navbar() {
             side="right"
             className="w-72 bg-background/95 backdrop-blur-xl"
           >
-            <SheetTitle className="flex items-center gap-2 p-4">
-              <SparklesIcon className="size-5 text-primary" />
-              <span className="font-semibold">persona.hasanraiyan.me</span>
+            <SheetTitle className="font-display flex items-center gap-2 p-4 text-base">
+              <span className="size-2 rounded-full bg-[#1E60FF]" />
+              Persona.ai
             </SheetTitle>
             <Separator />
             <div className="flex flex-col gap-1 p-4">

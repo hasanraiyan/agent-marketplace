@@ -1,230 +1,114 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import {
-  ArrowRightIcon,
-  SparklesIcon,
-  ZapIcon,
-  ShieldCheckIcon,
-  PlayIcon,
-} from "lucide-react";
+import { TiltCard } from "@/components/ui/tilt-card";
+import { ArrowRightIcon, PlayCircleIcon } from "lucide-react";
+
+// Same seven categories the product actually ships in the Discover feed
+// (frontend/src/app/dashboard/page.jsx) — kept in sync by hand since that
+// list isn't exported as a shared module.
+const heroCards = [
+  {
+    label: "Technology",
+    line: "Debug a stack trace, review an architecture.",
+    rotate: "lg:rotate-[-6deg]",
+  },
+  {
+    label: "Careers",
+    line: "Rewrite a resume, rehearse an interview.",
+    rotate: "lg:rotate-[3deg]",
+  },
+  {
+    label: "The Library of Minds",
+    line: "Historical thinkers, reconstructed for conversation.",
+    rotate: "lg:rotate-[-2deg]",
+  },
+  {
+    label: "Entrepreneurship",
+    line: "Pressure-test a pitch, price a product.",
+    rotate: "lg:rotate-[8deg]",
+  },
+];
 
 export function HeroSection() {
   return (
     <section
       id="hero"
-      className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-white pt-16"
+      className="relative overflow-hidden bg-white pt-32 pb-20 sm:pt-40 sm:pb-28"
     >
-      {/* ── Background Effects ──────────────────────────── */}
-      <div className="pointer-events-none absolute inset-0">
-        {/* Subtle Grid pattern */}
-        <div className="absolute inset-0 bg-dot-grid opacity-30" />
-      </div>
+      <div className="pointer-events-none absolute inset-0 bg-index-rule opacity-[0.35]" />
 
-      {/* ── Content ────────────────────────────────────── */}
-      <div className="relative z-10 mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-        <div className="flex flex-col items-center text-center">
-          {/* Badge */}
-          <div className="animate-fade-up">
-            <Badge
-              variant="outline"
-              className="mb-6 gap-2 border-primary/30 bg-primary/5 px-4 py-1.5 text-primary"
-            >
-              <SparklesIcon className="size-3.5" />
-              Now in Beta — Join 2,000+ early adopters
-            </Badge>
-          </div>
+      <div className="relative mx-auto grid max-w-7xl gap-16 px-4 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:gap-8 lg:px-8">
+        {/* ── Copy ─────────────────────────────────────────── */}
+        <div className="animate-fade-up flex flex-col items-start text-left">
+          <span className="mb-6 inline-flex items-center gap-2 font-mono text-[11px] tracking-[0.18em] text-zinc-500 uppercase">
+            <span className="size-1.5 rounded-full bg-[#1E60FF]" />
+            Persona.ai — an index of minds
+          </span>
 
-          {/* Headline */}
-          <h1
-            className="animate-fade-up max-w-4xl text-4xl leading-[1.1] font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
-            style={{ animationDelay: "0.1s" }}
-          >
-            Deploy & Orchestrate{" "}
-            <span className="gradient-text">AI Agents</span> That Work For You
+          <h1 className="font-display max-w-xl text-[2.6rem] leading-[1.05] font-semibold tracking-tight text-zinc-900 sm:text-6xl">
+            Talk to minds who&apos;ve <em className="italic">actually</em>{" "}
+            done it.
           </h1>
 
-          {/* Subtitle */}
-          <p
-            className="animate-fade-up mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg md:text-xl"
-            style={{ animationDelay: "0.2s" }}
-          >
-            The professional platform for intelligent AI agents. Create,
-            customize, and orchestrate agents for coding, writing, research, and
-            beyond — all from one unified interface.
+          <p className="mt-6 max-w-md text-base leading-relaxed text-zinc-500 sm:text-lg">
+            Discover AI agents built around real expertise across a dozen
+            categories — or open Agent Studio and build your own with the
+            model, skills, and knowledge you choose.
           </p>
 
-          {/* CTA Row */}
-          <div
-            className="animate-fade-up mt-10 flex w-full max-w-md flex-col gap-3 sm:flex-row sm:items-center"
-            style={{ animationDelay: "0.3s" }}
-          >
-            <div className="relative flex-1">
-              <Input
-                type="email"
-                placeholder="Enter your email"
-                className="h-12 rounded-xl border-border/50 bg-muted/50 pl-4 pr-4 text-base backdrop-blur-sm focus-visible:border-primary focus-visible:ring-primary/30"
-                id="hero-email-input"
-              />
-            </div>
+          <div className="mt-9 flex flex-wrap items-center gap-3">
             <Button
               size="lg"
-              className="h-12 gap-2 rounded-xl px-6 text-base glow-primary"
-              id="hero-cta-btn"
+              className="h-12 gap-2 rounded-full bg-[#1E60FF] px-7 text-base text-white shadow-md shadow-[#1E60FF]/20 transition-all hover:scale-[1.02] hover:bg-[#154ed0] active:scale-[0.98]"
+              asChild
             >
-              Get Early Access
-              <ArrowRightIcon className="size-4" />
+              <Link href="/sign-up">
+                Start talking — it&apos;s free
+                <ArrowRightIcon className="size-4" />
+              </Link>
+            </Button>
+            <Button
+              size="lg"
+              variant="ghost"
+              className="h-12 gap-2 rounded-full px-5 text-base text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+              asChild
+            >
+              <a href="#how-it-works">
+                <PlayCircleIcon className="size-4" />
+                See how it works
+              </a>
             </Button>
           </div>
 
-          {/* Trust Indicators */}
-          <div
-            className="animate-fade-up mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-muted-foreground/70"
-            style={{ animationDelay: "0.4s" }}
-          >
-            <span className="flex items-center gap-1.5">
-              <ZapIcon className="size-3.5 text-yellow-500" />
-              Lightning fast setup
-            </span>
-            <span className="flex items-center gap-1.5">
-              <ShieldCheckIcon className="size-3.5 text-emerald-500" />
-              SOC 2 Compliant
-            </span>
-            <span className="flex items-center gap-1.5">
-              <PlayIcon className="size-3.5 text-primary" />
-              Free tier available
-            </span>
-          </div>
+          <p className="mt-7 font-mono text-xs tracking-wide text-zinc-400">
+            Bring your own OpenAI · Anthropic · Gemini · DeepSeek key when you
+            build
+          </p>
+        </div>
 
-          {/* ── Hero Visual ────────────────────────────── */}
-          <div
-            className="animate-fade-up relative mt-16 w-full max-w-5xl"
-            style={{ animationDelay: "0.5s" }}
-          >
-            <div className="relative overflow-hidden rounded-2xl border border-border/40 bg-card/60 p-1 shadow-2xl shadow-primary/5 backdrop-blur-sm">
-              {/* App mock header */}
-              <div className="flex items-center gap-2 rounded-t-xl bg-muted/50 px-4 py-3">
-                <div className="flex gap-1.5">
-                  <div className="size-3 rounded-full bg-red-500/60" />
-                  <div className="size-3 rounded-full bg-yellow-500/60" />
-                  <div className="size-3 rounded-full bg-green-500/60" />
-                </div>
-                <div className="mx-auto flex h-7 w-64 items-center justify-center rounded-lg bg-background/60 text-xs text-muted-foreground">
-                  <span className="opacity-60">persona.hasanraiyan.me</span>
-                  /dashboard
-                </div>
-              </div>
-              {/* Dashboard mock */}
-              <div className="grid grid-cols-1 gap-3 bg-background/40 p-4 sm:grid-cols-3">
-                {/* Stat Cards */}
-                {[
-                  {
-                    label: "Active Agents",
-                    value: "24",
-                    change: "+3 this week",
-                    color: "text-primary",
-                  },
-                  {
-                    label: "Tasks Completed",
-                    value: "1,847",
-                    change: "98.2% success",
-                    color: "text-emerald-400",
-                  },
-                  {
-                    label: "Time Saved",
-                    value: "142h",
-                    change: "This month",
-                    color: "text-amber-400",
-                  },
-                ].map((stat) => (
-                  <div
-                    key={stat.label}
-                    className="rounded-xl border border-border/30 bg-card/50 p-4"
-                  >
-                    <p className="text-xs text-muted-foreground">
-                      {stat.label}
-                    </p>
-                    <p className={`mt-1 text-2xl font-bold ${stat.color}`}>
-                      {stat.value}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground/60">
-                      {stat.change}
-                    </p>
-                  </div>
-                ))}
-
-                {/* Agent Activity List */}
-                <div className="rounded-xl border border-border/30 bg-card/50 p-4 sm:col-span-2">
-                  <p className="mb-3 text-xs font-medium text-muted-foreground">
-                    Recent Agent Activity
-                  </p>
-                  <div className="space-y-2.5">
-                    {[
-                      {
-                        name: "CodeReview Pro",
-                        status: "Completed",
-                        task: "Reviewed PR #347",
-                        time: "2m ago",
-                        dot: "bg-emerald-400",
-                      },
-                      {
-                        name: "DataAnalyst",
-                        status: "Running",
-                        task: "Processing Q4 metrics",
-                        time: "Active",
-                        dot: "bg-primary",
-                      },
-                      {
-                        name: "ContentWriter",
-                        status: "Queued",
-                        task: "Blog draft pending",
-                        time: "In queue",
-                        dot: "bg-amber-400",
-                      },
-                    ].map((agent) => (
-                      <div
-                        key={agent.name}
-                        className="flex items-center justify-between rounded-lg bg-background/40 px-3 py-2"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <div className={`size-2 rounded-full ${agent.dot}`} />
-                          <div>
-                            <p className="text-sm font-medium">{agent.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {agent.task}
-                            </p>
-                          </div>
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          {agent.time}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Quick Actions */}
-                <div className="rounded-xl border border-border/30 bg-card/50 p-4">
-                  <p className="mb-3 text-xs font-medium text-muted-foreground">
-                    Quick Actions
-                  </p>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">
-                      <SparklesIcon className="size-3.5" />
-                      Deploy Agent
-                    </div>
-                    <div className="flex items-center gap-2 rounded-lg bg-background/40 px-3 py-2 text-sm text-muted-foreground">
-                      <ZapIcon className="size-3.5" />
-                      Run Workflow
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Glow behind card */}
-            <div className="pointer-events-none absolute inset-0 -z-10 translate-y-4 rounded-3xl bg-primary/10 blur-3xl" />
-          </div>
+        {/* ── The Index (fanned mind cards) ───────────────── */}
+        <div
+          className="animate-fade-up relative flex gap-4 overflow-x-auto pb-4 lg:h-[420px] lg:justify-center lg:overflow-visible lg:pb-0"
+          style={{ animationDelay: "0.15s" }}
+        >
+          {heroCards.map((card, i) => (
+            <TiltCard
+              key={card.label}
+              maxTilt={8}
+              className={`w-56 shrink-0 rounded-2xl border border-zinc-200 bg-[#FBFAF7] p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-shadow duration-300 hover:shadow-lg lg:absolute lg:w-64 lg:shrink ${card.rotate} lg:hover:z-20 lg:hover:rotate-0`}
+              style={{
+                top: `${i * 22}%`,
+                left: `${i % 2 === 0 ? 10 : 40}%`,
+              }}
+            >
+              <span className="font-mono text-[10px] tracking-[0.16em] text-[#1E60FF] uppercase">
+                Mind — {card.label}
+              </span>
+              <p className="font-display mt-3 text-lg leading-snug font-medium text-zinc-800">
+                {card.line}
+              </p>
+            </TiltCard>
+          ))}
         </div>
       </div>
     </section>
