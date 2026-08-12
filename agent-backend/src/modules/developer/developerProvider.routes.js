@@ -36,7 +36,14 @@ router.use(developerMachineAuthMiddleware);
  *         application/json:
  *           schema:
  *             type: object
- *             required: [label, baseURL, apiKey, defaultModel]
+ *             required: [label, apiKey, defaultModel]
+ *             properties:
+ *               type: { type: string, enum: [openai, anthropic, gemini, deepseek, custom], default: custom, description: "Native types resolve baseURL to a canonical preset if omitted." }
+ *               label: { type: string }
+ *               baseURL: { type: string, description: "Required only when type is \"custom\"." }
+ *               apiKey: { type: string }
+ *               defaultModel: { type: string }
+ *               isDefault: { type: boolean }
  *     responses:
  *       201: { description: Provider created }
  *       400: { description: "Validation error, or an ExternalUser-asserted request (unsupported for Providers)" }
@@ -91,6 +98,18 @@ router.get('/', developerProviderController.list);
  *         in: path
  *         required: true
  *         schema: { type: string }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               type: { type: string, enum: [openai, anthropic, gemini, deepseek, custom], description: "Switching to \"custom\" requires baseURL in the same request." }
+ *               label: { type: string }
+ *               baseURL: { type: string }
+ *               apiKey: { type: string, description: "New API key (leave empty to keep existing)." }
+ *               defaultModel: { type: string }
+ *               isDefault: { type: boolean }
  *     responses:
  *       200: { description: Updated Provider }
  *       404: { description: Provider not found or unauthorized }

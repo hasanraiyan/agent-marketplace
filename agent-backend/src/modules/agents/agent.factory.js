@@ -243,7 +243,11 @@ class AgentFactory {
           apiKey,
           model: modelName,
           streaming: true,
-          anthropicApiUrl: provider.baseURL,
+          // The Anthropic SDK posts to a relative '/v1/messages' path appended
+          // to this URL, so it must be the bare origin — unlike the stored
+          // baseURL, which keeps a '/v1' suffix for the model-listing endpoint
+          // (GET {baseURL}/models, see provider.service.js fetchAnthropicModels).
+          anthropicApiUrl: provider.baseURL.replace(/\/v1\/?$/, ''),
         });
       case 'gemini':
         return new ChatGoogleGenerativeAI({

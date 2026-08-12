@@ -219,6 +219,29 @@ describe('AgentFactory._buildLLM — provider type-aware construction', () => {
     expect(llm).toBeInstanceOf(ChatAnthropic);
   });
 
+  /**
+   * Regression: the Anthropic SDK posts to a relative '/v1/messages' path
+   * appended to whatever URL is configured, so a stored baseURL of
+   * '.../v1' (needed by the model-listing endpoint, GET {baseURL}/models)
+   * must NOT be passed straight through as anthropicApiUrl — that would
+   * produce '.../v1/v1/messages' and break every Anthropic agent run.
+   */
+  test("type: 'anthropic' strips a trailing /v1 from baseURL before constructing the client", async () => {
+    const llm = await agentFactory._buildLLM(
+      agent,
+      makeProvider({ type: 'anthropic', baseURL: 'https://api.anthropic.com/v1' })
+    );
+    expect(llm.apiUrl).toBe('https://api.anthropic.com');
+  });
+
+  test("type: 'anthropic' leaves a baseURL with no /v1 suffix untouched", async () => {
+    const llm = await agentFactory._buildLLM(
+      agent,
+      makeProvider({ type: 'anthropic', baseURL: 'https://my-anthropic-proxy.example.com' })
+    );
+    expect(llm.apiUrl).toBe('https://my-anthropic-proxy.example.com');
+  });
+
   test("type: 'gemini' constructs ChatGoogleGenerativeAI", async () => {
     const llm = await agentFactory._buildLLM(agent, makeProvider({ type: 'gemini' }));
     expect(llm).toBeInstanceOf(ChatGoogleGenerativeAI);
