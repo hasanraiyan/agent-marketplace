@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { getProjects } from "@/lib/api/projects";
 import { developerRoutes } from "@/lib/developer-routes";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
+import { useOnboardingSection } from "@/hooks/use-onboarding-section";
 import {
   Table,
   TableBody,
@@ -44,6 +45,7 @@ const STATUS_BADGE_VARIANT = {
 
 export default function ProjectsPage() {
   const { isLoaded, isSignedIn } = useAuth();
+  useOnboardingSection("developer");
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
 

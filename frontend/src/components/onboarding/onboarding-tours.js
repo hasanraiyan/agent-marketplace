@@ -8,6 +8,7 @@
 export const ONBOARDING_SECTIONS = {
   dashboard: "dashboardTour",
   studio: "studioTour",
+  developer: "developerTour",
 };
 
 export const onboardingTours = [
@@ -98,6 +99,32 @@ export const onboardingTours = [
         title: "Create your first agent",
         content: "When you're ready, start here.",
         selector: "#onboarding-studio-new-agent",
+        side: "right",
+      },
+    ],
+  },
+  {
+    tour: ONBOARDING_SECTIONS.developer,
+    steps: [
+      {
+        icon: "👋",
+        title: "Welcome to Developer Studio",
+        content:
+          "This is the Project workspace — manage Projects, members, credentials, and the resources your integrations use via the API/SDK.",
+      },
+      {
+        icon: "📁",
+        title: "Projects",
+        content:
+          "Every Project you're a member of lives here — its own providers, agents, and credentials, scoped separately from your personal Studio work.",
+        selector: "#onboarding-developer-projects",
+        side: "right",
+      },
+      {
+        icon: "✨",
+        title: "Create a Project",
+        content: "Start a new Project here when you're ready.",
+        selector: "#onboarding-developer-new-project",
         side: "right",
       },
     ],

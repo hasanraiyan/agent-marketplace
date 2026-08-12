@@ -88,7 +88,7 @@ router.delete('/', authMiddleware, mutateLimiter, profileController.deleteProfil
  *             properties:
  *               section:
  *                 type: string
- *                 enum: [dashboard, studio]
+ *                 enum: [dashboard, studio, developer]
  *     responses:
  *       200:
  *         description: Updated onboardingSeen list

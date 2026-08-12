@@ -29,7 +29,12 @@ import { cn } from "@/lib/utils";
 // Developer Studio's own sections. Only "Projects" exists in v1 — this list
 // grows as later PRs add Project-scoped sub-navigation.
 const DEVELOPER_NAV = [
-  { title: "Projects", url: developerRoutes.projects, icon: FolderKanbanIcon },
+  {
+    title: "Projects",
+    url: developerRoutes.projects,
+    icon: FolderKanbanIcon,
+    id: "onboarding-developer-projects",
+  },
 ];
 
 function DeveloperNavLink({ item, active }) {
@@ -47,7 +52,11 @@ function DeveloperNavLink({ item, active }) {
             : "text-slate-650 hover:bg-slate-100/50 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800/30 dark:hover:text-slate-100",
         )}
       >
-        <Link href={item.url} className="flex items-center gap-2.5">
+        <Link
+          href={item.url}
+          id={item.id}
+          className="flex items-center gap-2.5"
+        >
           <Icon
             className={cn(
               "size-4 shrink-0",
@@ -121,7 +130,10 @@ export function DeveloperSidebar({ ...props }) {
                   tooltip="New Project"
                   className="h-10 w-full justify-center gap-2 rounded-xl border-none !bg-[#1E60FF] text-sm font-bold tracking-wide !text-white shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] hover:!bg-[#154ed0] hover:!text-white active:scale-[0.98]"
                 >
-                  <Link href={developerRoutes.projectNew}>
+                  <Link
+                    href={developerRoutes.projectNew}
+                    id="onboarding-developer-new-project"
+                  >
                     <PlusIcon className="size-4 shrink-0 transition-transform duration-300 group-hover/menu-button:rotate-90" />
                     <span>New Project</span>
                   </Link>
