@@ -2,6 +2,7 @@ import { jest } from '@jest/globals';
 import mongoose from 'mongoose';
 import threadRepository from '../src/modules/threads/thread.repository.js';
 import Conversation from '../src/modules/threads/thread.model.js';
+import { ARCHITECT_AGENT_ID } from '../src/modules/agents/architectConstants.js';
 
 describe('Thread Repository', () => {
   let mockThread;
@@ -46,6 +47,41 @@ describe('Thread Repository', () => {
       const result = await threadRepository.findById('uuid-1234');
       expect(Conversation.findOne).toHaveBeenCalledWith({ threadId: 'uuid-1234' });
       expect(result).toEqual(mockThread);
+    });
+  });
+
+  describe('findBySubject / countBySubject exclude the Architect thread', () => {
+    // Sage's own working thread (agentId: ARCHITECT_AGENT_ID) has no real
+    // Agent behind it, so it can never be opened from a "my conversations"
+    // list — it must never come back from either method.
+    test('findBySubject filters out the Architect sentinel', async () => {
+      const findMock = {
+        sort: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        populate: jest.fn().mockResolvedValue([]),
+      };
+      jest.spyOn(Conversation, 'find').mockReturnValue(findMock);
+
+      await threadRepository.findBySubject({ userId: 'user-1' }, { page: 1, limit: 20 });
+
+      expect(Conversation.find).toHaveBeenCalledWith({
+        userId: 'user-1',
+        isArchived: false,
+        agentId: { $ne: ARCHITECT_AGENT_ID },
+      });
+    });
+
+    test('countBySubject filters out the Architect sentinel', async () => {
+      jest.spyOn(Conversation, 'countDocuments').mockResolvedValue(0);
+
+      await threadRepository.countBySubject({ userId: 'user-1' });
+
+      expect(Conversation.countDocuments).toHaveBeenCalledWith({
+        userId: 'user-1',
+        isArchived: false,
+        agentId: { $ne: ARCHITECT_AGENT_ID },
+      });
     });
   });
 

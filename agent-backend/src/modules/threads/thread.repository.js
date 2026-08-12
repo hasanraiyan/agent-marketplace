@@ -1,5 +1,6 @@
 import Conversation from './thread.model.js';
 import Agent from '../agents/agent.model.js';
+import { ARCHITECT_AGENT_ID } from '../agents/architectConstants.js';
 
 function idLooksLikeObjectId(id) {
   if (id == null) return false;
@@ -33,10 +34,22 @@ class ThreadRepository {
    * `thread.service.js`'s `subjectFilterForContext(context)`. For a Persona
    * caller this is exactly `{ userId }`, byte-for-byte the same filter this
    * method built inline before.
+   *
+   * Excludes the Architect's own thread (agentId: ARCHITECT_AGENT_ID) — it
+   * has no real Agent behind it, so it can never resolve to something a
+   * user could actually open from a "my conversations" list (its `agentId`
+   * populate always comes back null, and the same is true for any
+   * Developer/ExternalUser subject, which never creates one of these
+   * anyway). Sage's working thread is a building tool, not a chat to
+   * revisit.
    */
   async findBySubject(subjectFilter, { page = 1, limit = 20 } = {}) {
     const skip = (page - 1) * limit;
-    return await Conversation.find({ ...subjectFilter, isArchived: false })
+    return await Conversation.find({
+      ...subjectFilter,
+      isArchived: false,
+      agentId: { $ne: ARCHITECT_AGENT_ID },
+    })
       .sort({ lastMessageAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -88,9 +101,13 @@ class ThreadRepository {
     return await Conversation.countDocuments({ userId, isArchived: false });
   }
 
-  /** See `findBySubject`'s doc comment — identical `subjectFilter` generalization. */
+  /** See `findBySubject`'s doc comment — same subjectFilter generalization and Architect exclusion. */
   async countBySubject(subjectFilter) {
-    return await Conversation.countDocuments({ ...subjectFilter, isArchived: false });
+    return await Conversation.countDocuments({
+      ...subjectFilter,
+      isArchived: false,
+      agentId: { $ne: ARCHITECT_AGENT_ID },
+    });
   }
 }
 
