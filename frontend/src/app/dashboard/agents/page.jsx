@@ -3,11 +3,11 @@
 import { studioRoutes } from "@/lib/studio-routes";
 
 import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, Bot, SearchIcon, ArrowLeft } from "lucide-react";
+import { SparklesIcon, SearchIcon, ArrowLeft } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { HScroller } from "@/components/h-scroller";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +33,6 @@ const VISIBILITY_FILTERS = [
 ];
 
 export default function MyAgentsPage() {
-  const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -118,20 +117,20 @@ export default function MyAgentsPage() {
   };
 
   return (
-    <div className="bg-white dark:bg-zinc-950 flex flex-1 flex-col min-h-full w-full overflow-y-auto no-scrollbar relative">
+    <div className="bg-white flex flex-1 flex-col min-h-full w-full overflow-y-auto no-scrollbar relative">
       <div className="w-full max-w-7xl mx-auto pt-4 pb-24 md:pb-12 px-6 md:px-10 lg:px-12 flex flex-col flex-1">
         {/* Top Bar / Sidebar Trigger & Studio CTA */}
         <div className="flex justify-between items-center mb-2">
-          <SidebarTrigger className="-ml-2 h-9 w-9 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-150 cursor-pointer transition-colors" />
+          <SidebarTrigger className="-ml-2 h-9 w-9 text-zinc-500 hover:text-zinc-900 cursor-pointer transition-colors" />
           <Link href={studioRoutes.home}>
-            <button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-5 py-2.5 text-[13px] font-bold transition-all active:scale-98 cursor-pointer shadow-sm shrink-0">
+            <button className="bg-[#1E60FF] hover:bg-[#154ed0] text-white rounded-full px-5 py-2.5 text-[13px] font-bold transition-all active:scale-98 cursor-pointer shadow-sm shadow-[#1E60FF]/20 shrink-0">
               Agent Studio
             </button>
           </Link>
         </div>
 
         {/* Header & Search */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mt-4 sm:mt-6 mb-6">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mt-6 sm:mt-8 mb-6">
           {isSearchingMobile ? (
             /* Mobile Search View */
             <div className="flex items-center gap-3 w-full md:hidden">
@@ -140,52 +139,55 @@ export default function MyAgentsPage() {
                   setIsSearchingMobile(false);
                   setSearch("");
                 }}
-                className="text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 cursor-pointer"
+                className="text-zinc-500 hover:text-zinc-800 cursor-pointer"
               >
                 <ArrowLeft className="size-5" />
               </button>
               <div className="relative flex-1">
-                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 size-4.5 text-zinc-500 dark:text-zinc-400" />
+                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 size-4.5 text-zinc-400" />
                 <input
                   type="text"
                   placeholder="Search your agents..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   autoFocus
-                  className="w-full bg-transparent border border-zinc-200 dark:border-zinc-800 rounded-full py-2.5 pl-11 pr-5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-zinc-900 dark:text-zinc-100 placeholder-zinc-500 dark:placeholder-zinc-400 font-medium"
+                  className="w-full bg-transparent border border-zinc-200 rounded-full py-2.5 pl-11 pr-5 text-sm outline-none focus:ring-2 focus:ring-[#1E60FF]/20 focus:border-[#1E60FF] transition-all text-zinc-900 placeholder-zinc-400 font-medium"
                 />
               </div>
             </div>
           ) : (
             /* Default Header Row */
             <>
-              <div className="flex items-center justify-between w-full md:w-auto">
+              <div className="flex items-start justify-between w-full md:w-auto">
                 <div>
-                  <h1 className="text-2xl md:text-3xl font-normal tracking-tight text-zinc-900 dark:text-zinc-50 leading-tight">
+                  <p className="font-mono text-[11px] tracking-[0.18em] text-[#1E60FF] uppercase mb-2">
+                    Your minds
+                  </p>
+                  <h1 className="font-display text-2xl md:text-4xl font-semibold tracking-tight text-zinc-900 leading-[1.1]">
                     My Agents
                   </h1>
-                  <p className="text-zinc-500 dark:text-zinc-400 text-sm md:text-sm font-medium mt-1.5">
+                  <p className="text-zinc-500 text-sm md:text-base font-medium mt-2">
                     Your agents, ready when you need them.
                   </p>
                 </div>
                 {/* Mobile Search Trigger Button */}
                 <button
                   onClick={() => setIsSearchingMobile(true)}
-                  className="md:hidden block text-zinc-500 hover:text-zinc-805 dark:text-zinc-400 dark:hover:text-zinc-200 p-2.5 rounded-full hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors cursor-pointer"
+                  className="md:hidden block text-zinc-500 hover:text-zinc-800 p-2.5 rounded-full hover:bg-zinc-50 transition-colors cursor-pointer"
                 >
                   <SearchIcon className="size-5" />
                 </button>
               </div>
 
               {/* Desktop Search (always visible) */}
-              <div className="relative hidden md:block w-[320px]">
-                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 size-4.5 text-zinc-500 dark:text-zinc-400" />
+              <div className="relative hidden md:block w-[320px] shrink-0">
+                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 size-4.5 text-zinc-400" />
                 <input
                   type="text"
                   placeholder="Search your agents..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full bg-transparent border border-zinc-200 dark:border-zinc-800 rounded-full py-2.5 pl-11 pr-5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-zinc-900 dark:text-zinc-100 placeholder-zinc-500 dark:placeholder-zinc-400 font-medium"
+                  className="w-full bg-transparent border border-zinc-200 rounded-full py-2.5 pl-11 pr-5 text-sm outline-none focus:ring-2 focus:ring-[#1E60FF]/20 focus:border-[#1E60FF] transition-all text-zinc-900 placeholder-zinc-400 font-medium"
                 />
               </div>
             </>
@@ -194,23 +196,25 @@ export default function MyAgentsPage() {
 
         {/* Visibility Filter Pills */}
         {agents.length > 0 && (
-          <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-2 mb-6 w-full">
-            {VISIBILITY_FILTERS.map((f) => {
-              const isActive = visibility === f.value;
-              return (
-                <button
-                  key={f.value}
-                  onClick={() => setVisibility(f.value)}
-                  className={`rounded-full px-5 py-2 text-[13px] transition-all whitespace-nowrap cursor-pointer select-none ${
-                    isActive
-                      ? "bg-primary text-primary-foreground font-bold shadow-sm"
-                      : "bg-zinc-100/80 hover:bg-zinc-200/80 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 font-medium"
-                  }`}
-                >
-                  {f.label}
-                </button>
-              );
-            })}
+          <div className="mb-6 w-full">
+            <HScroller count={VISIBILITY_FILTERS.length}>
+              {VISIBILITY_FILTERS.map((f) => {
+                const isActive = visibility === f.value;
+                return (
+                  <button
+                    key={f.value}
+                    onClick={() => setVisibility(f.value)}
+                    className={`rounded-full px-5 py-2 text-[13px] transition-all whitespace-nowrap cursor-pointer select-none ${
+                      isActive
+                        ? "bg-[#1E60FF] text-white font-bold shadow-sm shadow-[#1E60FF]/20"
+                        : "bg-zinc-100/80 hover:bg-zinc-200/80 text-zinc-500 hover:text-zinc-900 font-medium"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                );
+              })}
+            </HScroller>
           </div>
         )}
 
@@ -224,34 +228,32 @@ export default function MyAgentsPage() {
             ))}
           </div>
         ) : agents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 px-6 border border-zinc-150/60 dark:border-zinc-900 rounded-[28px] bg-zinc-50/50 dark:bg-zinc-900/10 text-center select-none max-w-2xl mx-auto mt-8">
-            <div className="size-16 rounded-3xl bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center mb-5 text-zinc-400 dark:text-zinc-600">
-              <Bot className="size-8" />
-            </div>
-            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-150">
-              No agents yet
+          <div className="flex flex-col items-center py-16 text-center select-none max-w-md mx-auto mt-4">
+            <span className="font-mono text-[11px] tracking-[0.18em] text-[#1E60FF] uppercase mb-3">
+              Your minds
+            </span>
+            <h3 className="font-display text-2xl font-semibold text-zinc-900">
+              You haven&apos;t built one yet.
             </h3>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2 max-w-sm leading-relaxed font-medium">
-              You haven&apos;t created any agents yet. Start by creating one now
-              to bring your ideas to life!
+            <p className="text-sm text-zinc-500 mt-2.5 max-w-sm leading-relaxed">
+              Describe what you want in chat and Sage builds it with you — or
+              configure it by hand. Both are one click away.
             </p>
-            <Link href={studioRoutes.agentNew} className="mt-6">
-              <Button className="rounded-full px-6 py-2.5 font-bold shadow-sm active:scale-98 transition-all">
-                <Plus className="mr-1.5 size-4" />
-                Build Your First Agent
+            <Link href={studioRoutes.agentNew} className="mt-7">
+              <Button className="h-11 gap-2 rounded-full bg-[#1E60FF] px-6 text-sm font-semibold text-white shadow-sm shadow-[#1E60FF]/20 transition-all hover:scale-[1.02] hover:bg-[#154ed0] active:scale-[0.98]">
+                <SparklesIcon className="size-4" />
+                Start building
               </Button>
             </Link>
           </div>
         ) : filteredAgents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 px-6 border border-zinc-150/60 dark:border-zinc-900 rounded-[28px] bg-zinc-50/50 dark:bg-zinc-900/10 text-center select-none max-w-2xl mx-auto mt-8">
-            <div className="size-16 rounded-3xl bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center mb-5 text-zinc-400 dark:text-zinc-650">
-              <SearchIcon className="size-8" />
-            </div>
-            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-150">
+          <div className="flex flex-col items-center py-16 text-center select-none max-w-md mx-auto mt-4">
+            <h3 className="font-display text-xl font-semibold text-zinc-900">
               No agents match
             </h3>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2 max-w-sm leading-relaxed font-medium">
-              Try a different search term or filter to see more of your agents.
+            <p className="text-sm text-zinc-500 mt-2 max-w-sm leading-relaxed">
+              Try a different search term or filter to see more of your
+              agents.
             </p>
             <Button
               variant="outline"
