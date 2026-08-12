@@ -7,7 +7,6 @@ import { useUser } from "@clerk/nextjs";
 import {
   SearchIcon,
   BotIcon,
-  Loader2,
   CompassIcon,
   MessageSquareIcon,
   PlusIcon,
@@ -19,6 +18,7 @@ import {
 } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { TiltCard } from "@/components/ui/tilt-card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { searchAgents } from "@/lib/api/agents";
 import { studioRoutes } from "@/lib/studio-routes";
 import { useOnboardingSection } from "@/hooks/use-onboarding-section";
@@ -408,8 +408,52 @@ export default function ExplorePage() {
           </HScroller>
         </div>
 
+        {/* Loading skeleton — mirrors the real Featured/Trending layout
+            instead of a bare spinner, so the page doesn't jump/reflow once
+            data arrives. */}
+        {dbLoading && (
+          <>
+            <div className="mb-12">
+              <p className="font-mono text-[11px] tracking-[0.18em] text-zinc-400 uppercase mb-4">
+                Featured
+              </p>
+              <div className="flex gap-5 overflow-x-hidden py-2 px-0.5">
+                {[1, 2, 3, 4].map((i) => (
+                  <Skeleton
+                    key={i}
+                    className="w-[190px] sm:w-[230px] h-[255px] sm:h-[310px] shrink-0 rounded-[24px] sm:rounded-[32px]"
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="w-full">
+              <p className="font-mono text-[11px] tracking-[0.18em] text-zinc-400 uppercase mb-2">
+                Trending
+              </p>
+              <div className="flex flex-col gap-1 w-full">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between py-4 px-4 -mx-4 gap-4"
+                  >
+                    <div className="flex items-center gap-4">
+                      <Skeleton className="size-14 shrink-0 rounded-full" />
+                      <div className="flex flex-col gap-2">
+                        <Skeleton className="h-4 w-32 rounded-md" />
+                        <Skeleton className="h-3 w-48 rounded-md" />
+                      </div>
+                    </div>
+                    <Skeleton className="hidden h-12 w-64 rounded-2xl sm:block" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Featured Minds Slider */}
-        {featuredList.length > 0 && (
+        {!dbLoading && featuredList.length > 0 && (
           <div className="mb-12">
             <p className="font-mono text-[11px] tracking-[0.18em] text-zinc-400 uppercase mb-4">
               Featured
@@ -457,7 +501,7 @@ export default function ExplorePage() {
         )}
 
         {/* Trending Minds Vertical List */}
-        {trendingList.length > 0 && (
+        {!dbLoading && trendingList.length > 0 && (
           <div className="w-full">
             <p className="font-mono text-[11px] tracking-[0.18em] text-zinc-400 uppercase mb-2">
               Trending
@@ -510,23 +554,17 @@ export default function ExplorePage() {
         )}
 
         {/* Empty State when no results found */}
-        {featuredList.length === 0 && trendingList.length === 0 && (
+        {!dbLoading && featuredList.length === 0 && trendingList.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-center select-none">
-            {dbLoading ? (
-              <Loader2 className="size-8 text-[#1E60FF] animate-spin" />
-            ) : (
-              <>
-                <div className="size-16 rounded-full bg-[#1E60FF]/5 border border-[#1E60FF]/10 flex items-center justify-center mb-4 text-[#1E60FF]">
-                  <BotIcon className="size-8" />
-                </div>
-                <h3 className="font-display text-lg font-semibold text-zinc-900">
-                  No minds found
-                </h3>
-                <p className="text-sm text-zinc-400 mt-1 max-w-xs">
-                  Try adjusting your search query or select another category.
-                </p>
-              </>
-            )}
+            <div className="size-16 rounded-full bg-[#1E60FF]/5 border border-[#1E60FF]/10 flex items-center justify-center mb-4 text-[#1E60FF]">
+              <BotIcon className="size-8" />
+            </div>
+            <h3 className="font-display text-lg font-semibold text-zinc-900">
+              No minds found
+            </h3>
+            <p className="text-sm text-zinc-400 mt-1 max-w-xs">
+              Try adjusting your search query or select another category.
+            </p>
           </div>
         )}
       </div>
