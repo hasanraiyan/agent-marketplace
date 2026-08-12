@@ -1,18 +1,9 @@
-import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export const CARD_CLASS =
   "w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-8 shadow-[0_1px_2px_rgba(0,0,0,0.04)]";
-
-export function LoadingCard() {
-  return (
-    <div className={`${CARD_CLASS} flex items-center justify-center py-16`}>
-      <Loader2 className="size-6 animate-spin text-[#1E60FF]" />
-    </div>
-  );
-}
 
 /** One button per OAuth strategy Clerk actually reports as enabled — icon
  * and label come straight from Clerk's own environment response, so a new

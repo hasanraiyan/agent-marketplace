@@ -9,14 +9,13 @@ import {
   AuthField,
   CARD_CLASS,
   GlobalAuthError,
-  LoadingCard,
   OrDivider,
   SocialButton,
   submitButtonClass,
 } from "@/components/auth/auth-ui";
-import { useClerkAuthConfig } from "@/hooks/use-clerk-auth-config";
+import { socialProviders, attributes } from "@/lib/clerk-auth-config.json";
 
-function identifierLabel(attributes) {
+function identifierLabel() {
   const parts = [];
   if (attributes.email_address?.enabled) parts.push("Email");
   if (attributes.username?.enabled) parts.push("username");
@@ -27,7 +26,6 @@ export default function SignInPage() {
   const { signIn, errors, fetchStatus } = useSignIn();
   const router = useRouter();
   const busy = fetchStatus === "fetching";
-  const { loading, socialProviders, attributes } = useClerkAuthConfig();
 
   const [step, setStep] = useState("sign-in");
   const [identifier, setIdentifier] = useState("");
@@ -35,8 +33,6 @@ export default function SignInPage() {
   const [resetEmail, setResetEmail] = useState("");
   const [resetCode, setResetCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
-
-  if (loading) return <LoadingCard />;
 
   const finalizeAndGo = async () => {
     await signIn.finalize({
@@ -186,7 +182,7 @@ export default function SignInPage() {
       >
         <AuthField
           id="identifier"
-          label={identifierLabel(attributes)}
+          label={identifierLabel()}
           autoComplete="username"
           value={identifier}
           onChange={(e) => setIdentifier(e.target.value)}

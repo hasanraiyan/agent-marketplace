@@ -9,18 +9,16 @@ import {
   AuthField,
   CARD_CLASS,
   GlobalAuthError,
-  LoadingCard,
   OrDivider,
   SocialButton,
   submitButtonClass,
 } from "@/components/auth/auth-ui";
-import { useClerkAuthConfig } from "@/hooks/use-clerk-auth-config";
+import { socialProviders, attributes } from "@/lib/clerk-auth-config.json";
 
 export default function SignUpPage() {
   const { signUp, errors, fetchStatus } = useSignUp();
   const router = useRouter();
   const busy = fetchStatus === "fetching";
-  const { loading, socialProviders, attributes } = useClerkAuthConfig();
 
   const [step, setStep] = useState("details");
   const [firstName, setFirstName] = useState("");
@@ -29,8 +27,6 @@ export default function SignUpPage() {
   const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
-
-  if (loading) return <LoadingCard />;
 
   const showFirstName = attributes.first_name?.enabled;
   const showLastName = attributes.last_name?.enabled;
