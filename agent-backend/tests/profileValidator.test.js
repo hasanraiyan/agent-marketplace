@@ -100,6 +100,9 @@ describe('Profile Validator', () => {
       expect(markOnboardingSeenSchema.parse({ section: 'dashboard' }).section).toBe('dashboard');
       expect(markOnboardingSeenSchema.parse({ section: 'studio' }).section).toBe('studio');
       expect(markOnboardingSeenSchema.parse({ section: 'developer' }).section).toBe('developer');
+      expect(markOnboardingSeenSchema.parse({ section: 'developerProject' }).section).toBe(
+        'developerProject'
+      );
     });
 
     test('should reject an unknown section', () => {

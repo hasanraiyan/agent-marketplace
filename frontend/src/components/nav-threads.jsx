@@ -248,6 +248,7 @@ export function NavThreads({
 
   return (
     <Collapsible
+      id="onboarding-dashboard-threads"
       open={isOpen}
       onOpenChange={setIsOpen}
       className="group/collapsible data-[state=open]:flex-1 data-[state=open]:min-h-0 flex flex-col overflow-hidden border-t border-slate-150/50 dark:border-slate-850/40 mt-4 pt-4"
