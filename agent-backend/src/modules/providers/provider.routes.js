@@ -50,14 +50,19 @@ router.get('/', providerController.getAll);
  *         application/json:
  *           schema:
  *             type: object
- *             required: [label, baseURL, apiKey, defaultModel]
+ *             required: [label, apiKey, defaultModel]
  *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [openai, anthropic, gemini, deepseek, custom]
+ *                 default: custom
+ *                 description: Which LangChain integration/model-listing strategy to use. Native types (openai/anthropic/gemini/deepseek) resolve baseURL to a canonical preset if omitted.
  *               label:
  *                 type: string
  *                 description: Human-readable name (e.g. "My OpenAI Proxy")
  *               baseURL:
  *                 type: string
- *                 description: API base URL (e.g. https://api.openai.com/v1)
+ *                 description: API base URL (e.g. https://api.openai.com/v1). Required only when type is "custom" — native types fill in a preset if omitted.
  *               apiKey:
  *                 type: string
  *                 description: Plaintext API key (encrypted at rest via AES-256-GCM)
@@ -87,7 +92,7 @@ router.post('/', mutateLimiter, validateBody(createProviderSchema), providerCont
  *   post:
  *     tags: [Providers]
  *     summary: Test provider credentials
- *     description: Tests whether the given provider credentials (baseURL + apiKey + model) can successfully make an API call. Does not save the provider.
+ *     description: Tests whether the given provider credentials (type + baseURL + apiKey) can successfully make an API call. Does not save the provider.
  *     security: [{ clerkAuth: [] }]
  *     requestBody:
  *       content:
@@ -95,11 +100,14 @@ router.post('/', mutateLimiter, validateBody(createProviderSchema), providerCont
  *           schema:
  *             type: object
  *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [openai, anthropic, gemini, deepseek, custom]
+ *                 default: custom
  *               baseURL:
  *                 type: string
+ *                 description: Required only when type is "custom".
  *               apiKey:
- *                 type: string
- *               model:
  *                 type: string
  *     responses:
  *       200:
@@ -137,6 +145,10 @@ router.post(
  *           schema:
  *             type: object
  *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [openai, anthropic, gemini, deepseek, custom]
+ *                 description: Switching to "custom" requires baseURL in the same request.
  *               label:
  *                 type: string
  *               baseURL:

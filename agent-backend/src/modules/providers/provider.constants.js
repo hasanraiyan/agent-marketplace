@@ -7,6 +7,12 @@ export const PROVIDER_TYPES = ['openai', 'anthropic', 'gemini', 'deepseek', 'cus
 // Canonical base URL per native type, auto-filled server-side when a
 // non-custom provider is created/updated without an explicit baseURL.
 // 'custom' has no preset — the user must supply their own baseURL.
+//
+// These are the model-listing endpoint bases (GET {baseURL}/models in
+// provider.service.js), which is why 'anthropic' keeps its '/v1' suffix.
+// agent.factory.js `_buildLLM` strips that suffix before passing the value
+// to ChatAnthropic's `anthropicApiUrl` — the Anthropic SDK appends its own
+// relative '/v1/messages' path, so it needs the bare origin, not this URL.
 export const PROVIDER_TYPE_PRESETS = {
   openai: 'https://api.openai.com/v1',
   anthropic: 'https://api.anthropic.com/v1',
