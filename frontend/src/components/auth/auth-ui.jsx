@@ -1,31 +1,23 @@
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function GoogleIcon(props) {
+export const CARD_CLASS =
+  "w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-8 shadow-[0_1px_2px_rgba(0,0,0,0.04)]";
+
+export function LoadingCard() {
   return (
-    <svg viewBox="0 0 24 24" className="size-4" {...props}>
-      <path
-        fill="#4285F4"
-        d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.46c-.28 1.5-1.13 2.78-2.4 3.63v3.02h3.88c2.27-2.09 3.58-5.17 3.58-8.84Z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 24c3.24 0 5.95-1.07 7.94-2.9l-3.88-3.02c-1.08.72-2.45 1.15-4.06 1.15-3.13 0-5.78-2.11-6.73-4.95H1.26v3.11C3.24 21.3 7.28 24 12 24Z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M5.27 14.28A7.2 7.2 0 0 1 4.9 12c0-.79.14-1.56.37-2.28V6.61H1.26A11.98 11.98 0 0 0 0 12c0 1.94.46 3.77 1.26 5.39l4.01-3.11Z"
-      />
-      <path
-        fill="#EA4335"
-        d="M12 4.77c1.76 0 3.34.6 4.58 1.79l3.44-3.44C17.94 1.19 15.24 0 12 0 7.28 0 3.24 2.7 1.26 6.61l4.01 3.11C6.22 6.88 8.87 4.77 12 4.77Z"
-      />
-    </svg>
+    <div className={`${CARD_CLASS} flex items-center justify-center py-16`}>
+      <Loader2 className="size-6 animate-spin text-[#1E60FF]" />
+    </div>
   );
 }
 
-export function GoogleButton({ onClick, disabled, label = "Continue with Google" }) {
+/** One button per OAuth strategy Clerk actually reports as enabled — icon
+ * and label come straight from Clerk's own environment response, so a new
+ * provider connected in the dashboard shows up without a code change. */
+export function SocialButton({ provider, onClick, disabled }) {
   return (
     <Button
       type="button"
@@ -34,8 +26,11 @@ export function GoogleButton({ onClick, disabled, label = "Continue with Google"
       disabled={disabled}
       className="h-11 w-full gap-2.5 rounded-xl border-zinc-200 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
     >
-      <GoogleIcon />
-      {label}
+      {provider.logoUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={provider.logoUrl} alt="" className="size-4" />
+      )}
+      Continue with {provider.name}
     </Button>
   );
 }

@@ -7,19 +7,27 @@ import { useSignIn } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import {
   AuthField,
+  CARD_CLASS,
   GlobalAuthError,
-  GoogleButton,
+  LoadingCard,
   OrDivider,
+  SocialButton,
   submitButtonClass,
 } from "@/components/auth/auth-ui";
+import { useClerkAuthConfig } from "@/hooks/use-clerk-auth-config";
 
-const CARD_CLASS =
-  "w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-8 shadow-[0_1px_2px_rgba(0,0,0,0.04)]";
+function identifierLabel(attributes) {
+  const parts = [];
+  if (attributes.email_address?.enabled) parts.push("Email");
+  if (attributes.username?.enabled) parts.push("username");
+  return parts.length ? parts.join(" or ") : "Email or username";
+}
 
 export default function SignInPage() {
   const { signIn, errors, fetchStatus } = useSignIn();
   const router = useRouter();
   const busy = fetchStatus === "fetching";
+  const { loading, socialProviders, attributes } = useClerkAuthConfig();
 
   const [step, setStep] = useState("sign-in");
   const [identifier, setIdentifier] = useState("");
@@ -27,6 +35,8 @@ export default function SignInPage() {
   const [resetEmail, setResetEmail] = useState("");
   const [resetCode, setResetCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
+
+  if (loading) return <LoadingCard />;
 
   const finalizeAndGo = async () => {
     await signIn.finalize({
@@ -41,9 +51,9 @@ export default function SignInPage() {
     if (signIn.status === "complete") await finalizeAndGo();
   };
 
-  const handleGoogle = async () => {
+  const handleSocial = async (strategy) => {
     await signIn.sso({
-      strategy: "oauth_google",
+      strategy,
       redirectCallbackUrl: `${window.location.origin}/sso-callback`,
       redirectUrl: "/dashboard",
     });
@@ -152,18 +162,31 @@ export default function SignInPage() {
         Sign in to talk to your minds.
       </p>
 
-      <div className="mt-6">
-        <GoogleButton onClick={handleGoogle} disabled={busy} />
-      </div>
+      {socialProviders.length > 0 && (
+        <>
+          <div className="mt-6 flex flex-col gap-2.5">
+            {socialProviders.map((provider) => (
+              <SocialButton
+                key={provider.strategy}
+                provider={provider}
+                disabled={busy}
+                onClick={() => handleSocial(provider.strategy)}
+              />
+            ))}
+          </div>
+          <div className="my-6">
+            <OrDivider />
+          </div>
+        </>
+      )}
 
-      <div className="my-6">
-        <OrDivider />
-      </div>
-
-      <form onSubmit={handleSignIn} className="flex flex-col gap-4">
+      <form
+        onSubmit={handleSignIn}
+        className={`flex flex-col gap-4 ${socialProviders.length > 0 ? "" : "mt-6"}`}
+      >
         <AuthField
           id="identifier"
-          label="Email or username"
+          label={identifierLabel(attributes)}
           autoComplete="username"
           value={identifier}
           onChange={(e) => setIdentifier(e.target.value)}

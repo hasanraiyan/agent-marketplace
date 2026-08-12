@@ -7,19 +7,20 @@ import { useSignUp } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import {
   AuthField,
+  CARD_CLASS,
   GlobalAuthError,
-  GoogleButton,
+  LoadingCard,
   OrDivider,
+  SocialButton,
   submitButtonClass,
 } from "@/components/auth/auth-ui";
-
-const CARD_CLASS =
-  "w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-8 shadow-[0_1px_2px_rgba(0,0,0,0.04)]";
+import { useClerkAuthConfig } from "@/hooks/use-clerk-auth-config";
 
 export default function SignUpPage() {
   const { signUp, errors, fetchStatus } = useSignUp();
   const router = useRouter();
   const busy = fetchStatus === "fetching";
+  const { loading, socialProviders, attributes } = useClerkAuthConfig();
 
   const [step, setStep] = useState("details");
   const [firstName, setFirstName] = useState("");
@@ -29,6 +30,13 @@ export default function SignUpPage() {
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
 
+  if (loading) return <LoadingCard />;
+
+  const showFirstName = attributes.first_name?.enabled;
+  const showLastName = attributes.last_name?.enabled;
+  const showUsername = attributes.username?.enabled;
+  const showEmail = attributes.email_address?.enabled;
+
   const finalizeAndGo = async () => {
     await signUp.finalize({
       navigate: ({ decorateUrl }) => router.push(decorateUrl("/dashboard")),
@@ -37,13 +45,13 @@ export default function SignUpPage() {
 
   const handleDetails = async (e) => {
     e.preventDefault();
-    const { error } = await signUp.password({
-      emailAddress,
-      password,
-      username,
-      firstName: firstName || undefined,
-      lastName: lastName || undefined,
-    });
+    const params = { password };
+    if (showEmail) params.emailAddress = emailAddress;
+    if (showUsername) params.username = username;
+    if (showFirstName && firstName) params.firstName = firstName;
+    if (showLastName && lastName) params.lastName = lastName;
+
+    const { error } = await signUp.password(params);
     if (error) return;
 
     if (signUp.status === "complete") {
@@ -51,9 +59,14 @@ export default function SignUpPage() {
       return;
     }
 
-    const { error: sendError } = await signUp.verifications.sendEmailCode();
-    if (sendError) return;
-    setStep("verify");
+    if (signUp.unverifiedFields.includes("email_address")) {
+      const { error: sendError } = await signUp.verifications.sendEmailCode();
+      if (sendError) return;
+      setStep("verify");
+      return;
+    }
+
+    setStep("unsupported");
   };
 
   const handleVerify = async (e) => {
@@ -61,15 +74,37 @@ export default function SignUpPage() {
     const { error } = await signUp.verifications.verifyEmailCode({ code });
     if (error) return;
     if (signUp.status === "complete") await finalizeAndGo();
+    else setStep("unsupported");
   };
 
-  const handleGoogle = async () => {
+  const handleSocial = async (strategy) => {
     await signUp.sso({
-      strategy: "oauth_google",
+      strategy,
       redirectCallbackUrl: `${window.location.origin}/sso-callback`,
       redirectUrl: "/dashboard",
     });
   };
+
+  if (step === "unsupported") {
+    return (
+      <div className={CARD_CLASS}>
+        <h1 className="font-display text-2xl font-semibold text-zinc-900">
+          Almost there
+        </h1>
+        <p className="mt-1.5 text-sm text-zinc-500">
+          Your account needs one more step that isn&apos;t supported here yet.
+          Contact support or try again shortly.
+        </p>
+        <button
+          type="button"
+          onClick={() => setStep("details")}
+          className="mt-6 text-sm font-medium text-zinc-500 hover:text-zinc-900"
+        >
+          Back
+        </button>
+      </div>
+    );
+  }
 
   if (step === "verify") {
     return (
@@ -118,52 +153,77 @@ export default function SignUpPage() {
         Free to start — bring your own model key when you build.
       </p>
 
-      <div className="mt-6">
-        <GoogleButton onClick={handleGoogle} disabled={busy} />
-      </div>
+      {socialProviders.length > 0 && (
+        <>
+          <div className="mt-6 flex flex-col gap-2.5">
+            {socialProviders.map((provider) => (
+              <SocialButton
+                key={provider.strategy}
+                provider={provider}
+                disabled={busy}
+                onClick={() => handleSocial(provider.strategy)}
+              />
+            ))}
+          </div>
+          <div className="my-6">
+            <OrDivider />
+          </div>
+        </>
+      )}
 
-      <div className="my-6">
-        <OrDivider />
-      </div>
-
-      <form onSubmit={handleDetails} className="flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-3">
+      <form
+        onSubmit={handleDetails}
+        className={`flex flex-col gap-4 ${socialProviders.length > 0 ? "" : "mt-6"}`}
+      >
+        {(showFirstName || showLastName) && (
+          <div className="grid grid-cols-2 gap-3">
+            {showFirstName && (
+              <AuthField
+                id="first-name"
+                label="First name"
+                autoComplete="given-name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                error={errors?.fields?.firstName}
+                required={attributes.first_name?.required}
+              />
+            )}
+            {showLastName && (
+              <AuthField
+                id="last-name"
+                label="Last name"
+                autoComplete="family-name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                error={errors?.fields?.lastName}
+                required={attributes.last_name?.required}
+              />
+            )}
+          </div>
+        )}
+        {showUsername && (
           <AuthField
-            id="first-name"
-            label="First name"
-            autoComplete="given-name"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-            error={errors?.fields?.firstName}
+            id="username"
+            label="Username"
+            autoComplete="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            error={errors?.fields?.username}
+            required={attributes.username?.required}
           />
+        )}
+        {showEmail && (
           <AuthField
-            id="last-name"
-            label="Last name"
-            autoComplete="family-name"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
-            error={errors?.fields?.lastName}
+            id="email"
+            label="Email address"
+            type="email"
+            autoComplete="email"
+            value={emailAddress}
+            onChange={(e) => setEmailAddress(e.target.value)}
+            error={errors?.fields?.emailAddress}
+            required={attributes.email_address?.required}
           />
-        </div>
-        <AuthField
-          id="username"
-          label="Username"
-          autoComplete="username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          error={errors?.fields?.username}
-          required
-        />
-        <AuthField
-          id="email"
-          label="Email address"
-          type="email"
-          autoComplete="email"
-          value={emailAddress}
-          onChange={(e) => setEmailAddress(e.target.value)}
-          error={errors?.fields?.emailAddress}
-          required
-        />
+        )}
         <AuthField
           id="password"
           label="Password"
@@ -172,7 +232,7 @@ export default function SignUpPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           error={errors?.fields?.password}
-          required
+          required={attributes.password?.required}
         />
         <div id="clerk-captcha" className="flex justify-center empty:hidden" />
         <GlobalAuthError errors={errors} />
