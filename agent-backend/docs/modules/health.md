@@ -27,10 +27,10 @@ src/modules/health/
 
 ## Public API
 
-| Method | Path | Auth | Purpose |
-|--------|------|------|---------|
-| `GET` | `/api/v1/health` | None | Overall server health with uptime |
-| `GET` | `/api/v1/health/db` | None | Database connectivity check |
+| Method | Path                | Auth | Purpose                           |
+| ------ | ------------------- | ---- | --------------------------------- |
+| `GET`  | `/api/v1/health`    | None | Overall server health with uptime |
+| `GET`  | `/api/v1/health/db` | None | Database connectivity check       |
 
 ## Response Format
 
@@ -50,9 +50,9 @@ src/modules/health/
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-|-----------|------|---------|
-| MongoDB | External | Database connectivity check |
+| Dependency | Type     | Purpose                     |
+| ---------- | -------- | --------------------------- |
+| MongoDB    | External | Database connectivity check |
 
 ## Important Notes
 

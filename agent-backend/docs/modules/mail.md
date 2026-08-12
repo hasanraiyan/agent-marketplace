@@ -26,6 +26,7 @@ src/modules/mail/
 ## Email Templates
 
 ### Verification Email
+
 Sent when a user registers and needs to verify their email address.
 
 - **Template:** Mailgen with OTP code button
@@ -33,6 +34,7 @@ Sent when a user registers and needs to verify their email address.
 - **Includes:** Verification code, expiry notice (10 minutes)
 
 ### Welcome Email
+
 Sent after successful email verification.
 
 - **Template:** Mailgen with "Get Started" button
@@ -40,6 +42,7 @@ Sent after successful email verification.
 - **Includes:** Link to the platform
 
 ### Password Reset Email
+
 Sent when a user requests a password reset.
 
 - **Template:** Mailgen with OTP code button
@@ -56,11 +59,11 @@ WEBSITE_URL=https://persona.hasanraiyan.me/  # Used in email links
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-|-----------|------|---------|
-| Config | Internal | Resend API key, sender address, website URL |
-| `resend` | External | Email delivery service |
-| `mailgen` | External | HTML email template generation |
+| Dependency | Type     | Purpose                                     |
+| ---------- | -------- | ------------------------------------------- |
+| Config     | Internal | Resend API key, sender address, website URL |
+| `resend`   | External | Email delivery service                      |
+| `mailgen`  | External | HTML email template generation              |
 
 ## Important Notes
 

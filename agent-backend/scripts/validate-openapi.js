@@ -30,7 +30,9 @@ async function validate() {
     );
 
     if (pathCount === 0) {
-      console.error('FAIL: OpenAPI spec has 0 paths — route files may be missing @openapi annotations.');
+      console.error(
+        'FAIL: OpenAPI spec has 0 paths — route files may be missing @openapi annotations.'
+      );
       process.exit(1);
     }
 

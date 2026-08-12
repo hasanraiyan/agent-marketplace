@@ -66,7 +66,11 @@ describe('storeService', () => {
       domain: 'someone-elses-domain',
     });
 
-    expect(storeRepository.update).toHaveBeenCalledWith('s1', { domain: 'proj-1' }, { name: 'renamed' });
+    expect(storeRepository.update).toHaveBeenCalledWith(
+      's1',
+      { domain: 'proj-1' },
+      { name: 'renamed' }
+    );
   });
 
   test('updateStore invalidates the factory cache for every agent using the store', async () => {
@@ -102,7 +106,7 @@ describe('storeService', () => {
     expect(storeRepository.delete).toHaveBeenCalledWith('s1', { domain: 'proj-1' });
   });
 
-  test('deleteStore purges every founder\'s partition for an externalUser-scoped store', async () => {
+  test("deleteStore purges every founder's partition for an externalUser-scoped store", async () => {
     storeRepository.findById.mockResolvedValue({
       _id: 's1',
       domain: 'proj-1',
@@ -182,8 +186,14 @@ describe('storeService', () => {
         updatedAt: new Date(),
       }));
 
-      await storeService.writeStoreFile('proj-1', 's1', 'founder-a', { path: '/x.md', content: 'x' });
-      await storeService.writeStoreFile('proj-1', 's1', 'founder-b', { path: '/x.md', content: 'x' });
+      await storeService.writeStoreFile('proj-1', 's1', 'founder-a', {
+        path: '/x.md',
+        content: 'x',
+      });
+      await storeService.writeStoreFile('proj-1', 's1', 'founder-b', {
+        path: '/x.md',
+        content: 'x',
+      });
 
       const [callA, callB] = MemoryFile.findOneAndUpdate.mock.calls;
       expect(callA[0].namespace).toEqual(['stores', 'proj-1', 'founder-a', 'notes']);

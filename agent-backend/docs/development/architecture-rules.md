@@ -5,6 +5,7 @@ This document captures the architectural constraints that every developer must f
 ## Layer Boundaries
 
 ### ✅ Allowed
+
 - **Route** → Controller, Middleware
 - **Controller** → Service
 - **Service** → Service (cross-module), Repository
@@ -13,6 +14,7 @@ This document captures the architectural constraints that every developer must f
 - **Any** → Utils (`src/utils/`)
 
 ### ❌ Forbidden
+
 - **Route** → Model, Repository, Service (directly)
 - **Controller** → Model, Repository
 - **Repository** → Service, Controller
@@ -21,11 +23,13 @@ This document captures the architectural constraints that every developer must f
 ## Module Boundaries
 
 ### ✅ Allowed
+
 - Import another module via its barrel (`index.js`)
 - Import another module's service
 - Import another module's repository (if no service exists)
 
 ### ❌ Forbidden
+
 - Import another module's internal files (bypassing `index.js`)
 - Import a model from one module into another module's controller
 - Circular dependencies between modules
@@ -48,16 +52,16 @@ const provider = await Provider.findOne({ ownerId: userId, isDefault: true });
 
 All module files follow: `<module>.<layer>.js`
 
-| Layer | File Name |
-|-------|-----------|
-| Routes | `<module>.routes.js` |
+| Layer      | File Name                |
+| ---------- | ------------------------ |
+| Routes     | `<module>.routes.js`     |
 | Controller | `<module>.controller.js` |
-| Service | `<module>.service.js` |
+| Service    | `<module>.service.js`    |
 | Repository | `<module>.repository.js` |
-| Model | `<module>.model.js` |
-| Validator | `<module>.validator.js` |
-| Factory | `<module>.factory.js` |
-| Barrel | `index.js` |
+| Model      | `<module>.model.js`      |
+| Validator  | `<module>.validator.js`  |
+| Factory    | `<module>.factory.js`    |
+| Barrel     | `index.js`               |
 
 ## Response Format
 
@@ -84,18 +88,18 @@ res.json(formatters.formatList(items, total, page, limit));
 
 ## Authentication Rules
 
-| Route Type | Middleware |
-|-----------|------------|
-| Public | No middleware |
-| Public with optional user context | `optionalAuthMiddleware` |
-| User-only | `authMiddleware` |
-| Admin-only | `authMiddleware` + `adminMiddleware` |
+| Route Type                        | Middleware                           |
+| --------------------------------- | ------------------------------------ |
+| Public                            | No middleware                        |
+| Public with optional user context | `optionalAuthMiddleware`             |
+| User-only                         | `authMiddleware`                     |
+| Admin-only                        | `authMiddleware` + `adminMiddleware` |
 
 ## Rate Limiting Rules
 
-| Operation | Rate Limit |
-|-----------|-----------|
-| Chat/streaming | 20 requests/min |
+| Operation                          | Rate Limit      |
+| ---------------------------------- | --------------- |
+| Chat/streaming                     | 20 requests/min |
 | Mutations (create, update, delete) | 30 requests/min |
 
 ## Code Organization

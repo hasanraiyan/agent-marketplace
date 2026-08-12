@@ -2,10 +2,10 @@
 
 ## Environment Files
 
-| File | Purpose | When Used |
-|------|---------|-----------|
-| `.env` | Development/production configuration | `NODE_ENV != test` |
-| `.env.test` | Test configuration | `NODE_ENV === test` |
+| File        | Purpose                              | When Used           |
+| ----------- | ------------------------------------ | ------------------- |
+| `.env`      | Development/production configuration | `NODE_ENV != test`  |
+| `.env.test` | Test configuration                   | `NODE_ENV === test` |
 
 Create your configuration:
 
@@ -62,17 +62,17 @@ Required for transactional emails (verification, password reset).
 
 ## Optional Configuration
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `PORT` | `3000` | Server port |
-| `BACKEND_URL` | `https://api.persona.hasanraiyan.me` | Public URL for OAuth redirects |
-| `WEBSITE_URL` | `https://persona.hasanraiyan.me/` | Frontend URL for email links |
-| `LANGSMITH_API_KEY` | — | LangSmith observability |
-| `QDRANT_URL` | `https://your-cluster.cloud.qdrant.io` | Vector store URL |
-| `QDRANT_API_KEY` | — | Vector store auth |
-| `TAVILY_API_KEY` | — | Web search tool |
-| `DISABLE_CRON` | `false` | Disable background jobs |
-| `DEBUG` | — | Enable debug logging |
+| Variable            | Default                                | Purpose                        |
+| ------------------- | -------------------------------------- | ------------------------------ |
+| `PORT`              | `3000`                                 | Server port                    |
+| `BACKEND_URL`       | `https://api.persona.hasanraiyan.me`   | Public URL for OAuth redirects |
+| `WEBSITE_URL`       | `https://persona.hasanraiyan.me/`      | Frontend URL for email links   |
+| `LANGSMITH_API_KEY` | —                                      | LangSmith observability        |
+| `QDRANT_URL`        | `https://your-cluster.cloud.qdrant.io` | Vector store URL               |
+| `QDRANT_API_KEY`    | —                                      | Vector store auth              |
+| `TAVILY_API_KEY`    | —                                      | Web search tool                |
+| `DISABLE_CRON`      | `false`                                | Disable background jobs        |
+| `DEBUG`             | —                                      | Enable debug logging           |
 
 ## Encryption Keys
 

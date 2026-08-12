@@ -19,8 +19,9 @@ describe('contextOverrideMiddleware (REQ-2)', () => {
     const request = { systemMessage: new SystemMessage('base prompt') };
     const handler = jest.fn(async (req) => req);
 
-    const result = await runWithConfigurable({ contextOverride: 'stage=seed, sector=fintech' }, () =>
-      contextOverrideMiddleware.wrapModelCall(request, handler)
+    const result = await runWithConfigurable(
+      { contextOverride: 'stage=seed, sector=fintech' },
+      () => contextOverrideMiddleware.wrapModelCall(request, handler)
     );
 
     expect(handler).toHaveBeenCalledTimes(1);
@@ -40,7 +41,7 @@ describe('contextOverrideMiddleware (REQ-2)', () => {
     expect(result.systemMessage).toBe(request.systemMessage);
   });
 
-  test('does not leak a prior turn\'s contextOverride into a turn that omits it', async () => {
+  test("does not leak a prior turn's contextOverride into a turn that omits it", async () => {
     const request = { systemMessage: new SystemMessage('base prompt') };
     const handler = jest.fn(async (req) => req);
 

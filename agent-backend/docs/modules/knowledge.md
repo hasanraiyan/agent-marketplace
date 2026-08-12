@@ -61,54 +61,54 @@ flowchart TD
 
 ### KnowledgeBase
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | String (200) | Knowledge base name |
-| `description` | String (1000) | KB description |
-| `ownerId` | ObjectId (User) | KB owner |
-| `isPublic` | Boolean | Public visibility flag |
-| `documentCount` | Number | Number of uploaded documents |
-| `chunkCount` | Number | Total chunk count |
-| `qdrantCollectionName` | String (unique) | Qdrant collection identifier |
-| `documents` | [Document] | Document manifest |
-| `embeddingModel` | String | Embedding model name |
-| `chunkSize` | Number (default: 800) | Chunk size in characters |
-| `chunkOverlap` | Number (default: 100) | Chunk overlap |
-| `topK` | Number (default: 5) | Results per search |
+| Field                  | Type                  | Description                  |
+| ---------------------- | --------------------- | ---------------------------- |
+| `name`                 | String (200)          | Knowledge base name          |
+| `description`          | String (1000)         | KB description               |
+| `ownerId`              | ObjectId (User)       | KB owner                     |
+| `isPublic`             | Boolean               | Public visibility flag       |
+| `documentCount`        | Number                | Number of uploaded documents |
+| `chunkCount`           | Number                | Total chunk count            |
+| `qdrantCollectionName` | String (unique)       | Qdrant collection identifier |
+| `documents`            | [Document]            | Document manifest            |
+| `embeddingModel`       | String                | Embedding model name         |
+| `chunkSize`            | Number (default: 800) | Chunk size in characters     |
+| `chunkOverlap`         | Number (default: 100) | Chunk overlap                |
+| `topK`                 | Number (default: 5)   | Results per search           |
 
 ### KnowledgeChunk
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `knowledgeBaseId` | ObjectId | Parent KB |
-| `sourceName` | String | Source document name |
-| `chunkIndex` | Number | Position in document |
-| `content` | String | Chunk text content |
-| `vectorId` | String | Qdrant point ID |
+| Field             | Type     | Description          |
+| ----------------- | -------- | -------------------- |
+| `knowledgeBaseId` | ObjectId | Parent KB            |
+| `sourceName`      | String   | Source document name |
+| `chunkIndex`      | Number   | Position in document |
+| `content`         | String   | Chunk text content   |
+| `vectorId`        | String   | Qdrant point ID      |
 
 ## Supported File Types
 
-| Type | Extension | MIME Type |
-|------|-----------|-----------|
-| PDF | `.pdf` | `application/pdf` |
-| Text | `.txt` | `text/plain` |
-| Markdown | `.md` | `text/markdown` |
-| CSV | `.csv` | `text/csv` |
-| JSON | `.json` | `application/json` |
+| Type     | Extension | MIME Type          |
+| -------- | --------- | ------------------ |
+| PDF      | `.pdf`    | `application/pdf`  |
+| Text     | `.txt`    | `text/plain`       |
+| Markdown | `.md`     | `text/markdown`    |
+| CSV      | `.csv`    | `text/csv`         |
+| JSON     | `.json`   | `application/json` |
 
 ## Public API
 
-| Method | Path | Auth | Purpose |
-|--------|------|------|---------|
-| `POST` | `/api/v1/knowledge` | Required | Create knowledge base |
-| `GET` | `/api/v1/knowledge` | Required | List knowledge bases |
-| `GET` | `/api/v1/knowledge/:id` | Required | Get KB details |
-| `PATCH` | `/api/v1/knowledge/:id` | Required | Update KB |
-| `DELETE` | `/api/v1/knowledge/:id` | Required | Delete KB |
-| `POST` | `/api/v1/knowledge/:id/upload` | Required | Upload documents |
-| `GET` | `/api/v1/knowledge/:id/documents` | Required | List documents |
-| `DELETE` | `/api/v1/knowledge/:id/documents/:sourceName` | Required | Delete a document |
-| `POST` | `/api/v1/knowledge/:id/search` | Required | Search KB |
+| Method   | Path                                          | Auth     | Purpose               |
+| -------- | --------------------------------------------- | -------- | --------------------- |
+| `POST`   | `/api/v1/knowledge`                           | Required | Create knowledge base |
+| `GET`    | `/api/v1/knowledge`                           | Required | List knowledge bases  |
+| `GET`    | `/api/v1/knowledge/:id`                       | Required | Get KB details        |
+| `PATCH`  | `/api/v1/knowledge/:id`                       | Required | Update KB             |
+| `DELETE` | `/api/v1/knowledge/:id`                       | Required | Delete KB             |
+| `POST`   | `/api/v1/knowledge/:id/upload`                | Required | Upload documents      |
+| `GET`    | `/api/v1/knowledge/:id/documents`             | Required | List documents        |
+| `DELETE` | `/api/v1/knowledge/:id/documents/:sourceName` | Required | Delete a document     |
+| `POST`   | `/api/v1/knowledge/:id/search`                | Required | Search KB             |
 
 ## Agent Tools
 
@@ -119,13 +119,13 @@ When an agent has knowledge bases attached, two tools are provided:
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-|-----------|------|---------|
+| Dependency  | Type     | Purpose                   |
+| ----------- | -------- | ------------------------- |
 | Auth module | Internal | Authentication middleware |
-| Qdrant | External | Vector storage and search |
-| OpenAI | External | Text embeddings |
-| Multer | External | File upload handling |
-| PDF-Parse | External | PDF text extraction |
+| Qdrant      | External | Vector storage and search |
+| OpenAI      | External | Text embeddings           |
+| Multer      | External | File upload handling      |
+| PDF-Parse   | External | PDF text extraction       |
 
 ## Important Business Rules
 

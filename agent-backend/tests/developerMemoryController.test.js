@@ -66,7 +66,10 @@ describe('Developer Memory Controller (REQ-3)', () => {
 
     test('reads via the composed identityKey', async () => {
       mockReq.query = { path: '/memories/user/index.md' };
-      memoryService.getMemoryFile.mockResolvedValue({ path: '/memories/user/index.md', content: 'hi' });
+      memoryService.getMemoryFile.mockResolvedValue({
+        path: '/memories/user/index.md',
+        content: 'hi',
+      });
 
       await developerMemoryController.getFile(mockReq, mockRes, next);
 
@@ -126,7 +129,10 @@ describe('Developer Memory Controller (REQ-3)', () => {
 
     test('writes via the composed identityKey', async () => {
       mockReq.body = { path: '/memories/user/index.md', content: 'hi' };
-      memoryService.writeMemoryFile.mockResolvedValue({ path: '/memories/user/index.md', content: 'hi' });
+      memoryService.writeMemoryFile.mockResolvedValue({
+        path: '/memories/user/index.md',
+        content: 'hi',
+      });
 
       await developerMemoryController.writeFile(mockReq, mockRes, next);
 

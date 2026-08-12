@@ -14,7 +14,9 @@ function mapFileError(error, res) {
     return true;
   }
   if (error.message === EXTERNAL_USER_REQUIRED_MESSAGE) {
-    res.status(400).json({ success: false, message: error.message, code: 'EXTERNAL_USER_REQUIRED' });
+    res
+      .status(400)
+      .json({ success: false, message: error.message, code: 'EXTERNAL_USER_REQUIRED' });
     return true;
   }
   return false;
@@ -123,7 +125,9 @@ class DeveloperStoreController {
     try {
       const { path } = req.query;
       if (!path) {
-        return res.status(400).json({ success: false, message: 'path query parameter is required' });
+        return res
+          .status(400)
+          .json({ success: false, message: 'path query parameter is required' });
       }
       const file = await storeService.getStoreFile(
         req.projectContext.domain,
@@ -161,7 +165,9 @@ class DeveloperStoreController {
     try {
       const { path } = req.query;
       if (!path) {
-        return res.status(400).json({ success: false, message: 'path query parameter is required' });
+        return res
+          .status(400)
+          .json({ success: false, message: 'path query parameter is required' });
       }
       await storeService.deleteStoreFile(
         req.projectContext.domain,

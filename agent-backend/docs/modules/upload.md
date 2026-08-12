@@ -25,15 +25,15 @@ src/modules/upload/
 
 ## Public API
 
-| Method | Path | Auth | Purpose |
-|--------|------|------|---------|
+| Method | Path                    | Auth     | Purpose             |
+| ------ | ----------------------- | -------- | ------------------- |
 | `POST` | `/api/v1/upload/avatar` | Required | Upload avatar image |
 
 ## Upload Limits
 
-| Constraint | Value |
-|------------|-------|
-| Max file size | 5 MB |
+| Constraint    | Value                     |
+| ------------- | ------------------------- |
+| Max file size | 5 MB                      |
 | Allowed types | jpg, jpeg, png, webp, gif |
 
 ## Storage
@@ -44,10 +44,10 @@ src/modules/upload/
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-|-----------|------|---------|
+| Dependency  | Type     | Purpose                   |
+| ----------- | -------- | ------------------------- |
 | Auth module | Internal | Authentication middleware |
-| `multer` | External | File upload handling |
+| `multer`    | External | File upload handling      |
 
 ## Important Notes
 

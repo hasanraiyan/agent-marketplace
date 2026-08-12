@@ -63,7 +63,7 @@ src/modules/webhooks/
 ```javascript
 {
   data: {
-    id: "clerk_user_id"
+    id: 'clerk_user_id';
   }
 }
 ```
@@ -72,8 +72,8 @@ src/modules/webhooks/
 
 ## Route
 
-| Method | Path | Auth | Purpose |
-|--------|------|------|---------|
+| Method | Path                     | Auth           | Purpose               |
+| ------ | ------------------------ | -------------- | --------------------- |
 | `POST` | `/api/v1/webhooks/clerk` | Svix signature | Clerk webhook handler |
 
 ## Raw Body Parsing
@@ -82,18 +82,21 @@ Webhooks use `express.raw({ type: 'application/json' })` to preserve the raw req
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-|-----------|------|---------|
+| Dependency   | Type     | Purpose                           |
+| ------------ | -------- | --------------------------------- |
 | Users module | Internal | User repository for DB operations |
-| `svix` | External | Webhook signature verification |
+| `svix`       | External | Webhook signature verification    |
 
 ## Important Business Rules
 
 ### Idempotency
+
 The `user.created` handler checks for duplicate users by `clerkId` or email and skips creation if the user already exists, preventing duplicate records from webhook retries.
 
 ### Silent Skip
+
 If a `user.updated` or `user.deleted` webhook arrives for a user that doesn't exist in the local database, it logs a warning and skips rather than throwing an error.
 
 ### Route Order
+
 The webhook route is registered before Clerk middleware and `express.json()` in `src/index.js` to allow raw body parsing.

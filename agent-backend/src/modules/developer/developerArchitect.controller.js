@@ -41,7 +41,9 @@ class DeveloperArchitectController {
 
   async runAgent(req, res, next) {
     const context = req.projectContext;
-    const scopeKey = context.externalUserId ? `${context.domain}:${context.externalUserId}` : `${context.domain}:project`;
+    const scopeKey = context.externalUserId
+      ? `${context.domain}:${context.externalUserId}`
+      : `${context.domain}:project`;
     const concurrencyKey = `concurrency:CHAT:architect:${scopeKey}`;
 
     if (rateLimiterService.getConcurrency(concurrencyKey) >= 2) {

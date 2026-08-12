@@ -14,21 +14,21 @@ persona.hasanraiyan.me Backend is a REST API that powers an **intelligent agent 
 
 ## Tech Stack
 
-| Category | Technology |
-|----------|------------|
-| **Runtime** | Node.js 22+ (ES Modules) |
-| **Framework** | Express 5 |
-| **Database** | MongoDB via Mongoose 9 |
-| **Validation** | Zod 4 |
-| **Authentication** | Clerk (external auth provider) |
-| **AI Framework** | LangChain, LangGraph, Deep Agents |
-| **Vector Store** | Qdrant (for knowledge base RAG) |
-| **Email** | Resend + Mailgen |
-| **MCP** | `@modelcontextprotocol/sdk`, `@langchain/mcp-adapters` |
-| **Encryption** | AES-256-GCM (field-level) |
-| **Testing** | Jest + Supertest |
-| **Formatting** | Prettier |
-| **Package Manager** | pnpm |
+| Category            | Technology                                             |
+| ------------------- | ------------------------------------------------------ |
+| **Runtime**         | Node.js 22+ (ES Modules)                               |
+| **Framework**       | Express 5                                              |
+| **Database**        | MongoDB via Mongoose 9                                 |
+| **Validation**      | Zod 4                                                  |
+| **Authentication**  | Clerk (external auth provider)                         |
+| **AI Framework**    | LangChain, LangGraph, Deep Agents                      |
+| **Vector Store**    | Qdrant (for knowledge base RAG)                        |
+| **Email**           | Resend + Mailgen                                       |
+| **MCP**             | `@modelcontextprotocol/sdk`, `@langchain/mcp-adapters` |
+| **Encryption**      | AES-256-GCM (field-level)                              |
+| **Testing**         | Jest + Supertest                                       |
+| **Formatting**      | Prettier                                               |
+| **Package Manager** | pnpm                                                   |
 
 ## Architecture Principles
 

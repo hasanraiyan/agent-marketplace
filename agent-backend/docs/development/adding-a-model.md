@@ -39,7 +39,7 @@ const mySchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: true,    // Adds createdAt, updatedAt
+    timestamps: true, // Adds createdAt, updatedAt
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   }
@@ -59,6 +59,7 @@ export default mongoose.model('MyEntity', mySchema);
 ## Model Best Practices
 
 ### 1. Owner Reference
+
 If the resource is user-owned, include `ownerId` with an index:
 
 ```javascript
@@ -71,20 +72,23 @@ ownerId: {
 ```
 
 ### 2. Timestamps
+
 Always use `{ timestamps: true }` for automatic `createdAt` / `updatedAt`.
 
 ### 3. Indexes
+
 Create indexes for fields used in queries:
 
-| Query Pattern | Index |
-|--------------|-------|
-| Find by owner | `{ ownerId: 1 }` |
-| Find by owner + name | `{ ownerId: 1, name: 1 }` |
-| Find unique slug | `{ slug: 1 }` (unique) |
-| Find active users | `{ isActive: 1 }` |
-| Sort by creation date | `{ createdAt: -1 }` |
+| Query Pattern         | Index                     |
+| --------------------- | ------------------------- |
+| Find by owner         | `{ ownerId: 1 }`          |
+| Find by owner + name  | `{ ownerId: 1, name: 1 }` |
+| Find unique slug      | `{ slug: 1 }` (unique)    |
+| Find active users     | `{ isActive: 1 }`         |
+| Sort by creation date | `{ createdAt: -1 }`       |
 
 ### 4. Validation
+
 Add field-level validation in the schema:
 
 ```javascript
@@ -98,6 +102,7 @@ name: {
 ```
 
 ### 5. References
+
 Use ObjectId references for related entities:
 
 ```javascript
@@ -124,6 +129,7 @@ export const myEntitySchema = z.object({
 ## When to Create a Model
 
 Create a model when:
+
 - Your module owns a distinct data entity
 - The data has relationships to other entities
 - The data needs indexes for query performance

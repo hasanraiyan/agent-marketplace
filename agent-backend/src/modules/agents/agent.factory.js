@@ -25,10 +25,7 @@ import {
   projectSkillLibraryStore,
   projectSkillLibraryNamespace,
 } from '../skills/projectSkillLibraryStore.js';
-import {
-  domainStoreNamespace,
-  externalUserStoreNamespace,
-} from '../stores/storeNamespace.js';
+import { domainStoreNamespace, externalUserStoreNamespace } from '../stores/storeNamespace.js';
 import checkpointService from '../threads/checkpoint.service.js';
 import { LRUCache } from 'lru-cache';
 import agentRepository from './agent.repository.js';
@@ -243,27 +240,29 @@ class AgentFactory {
           apiKey,
           model: modelName,
           streaming: true,
-          // The Anthropic SDK posts to a relative '/v1/messages' path appended
-          // to this URL, so it must be the bare origin — unlike the stored
-          // baseURL, which keeps a '/v1' suffix for the model-listing endpoint
-          // (GET {baseURL}/models, see provider.service.js fetchAnthropicModels).
-          anthropicApiUrl: provider.baseURL.replace(/\/v1\/?$/, ''),
         });
       case 'gemini':
         return new ChatGoogleGenerativeAI({
           apiKey,
           model: modelName,
           streaming: true,
-          baseUrl: provider.baseURL,
         });
       case 'deepseek':
         return new ChatDeepSeek({
           apiKey,
           model: modelName,
           streaming: true,
-          configuration: { baseURL: provider.baseURL },
         });
       case 'openai':
+        return new ChatOpenAI({
+          apiKey: apiKey,
+          openAIApiKey: apiKey,
+          modelName: modelName,
+          streaming: true,
+          configuration: {
+            apiKey: apiKey,
+          },
+        });
       case 'custom':
       default:
         // Initializing dynamic ChatOpenAI class representing the base model
@@ -601,10 +600,13 @@ class AgentFactory {
     for (const store of agent.storeMounts || []) {
       if (!store?.name) continue;
       if (store.scope === 'externalUser' && !executionContext?.externalUserId) {
-        logger.warn('[AgentFactory] skipping externalUser-scoped store, no external user in context', {
-          storeId: store._id,
-          agentId: agentIdStr,
-        });
+        logger.warn(
+          '[AgentFactory] skipping externalUser-scoped store, no external user in context',
+          {
+            storeId: store._id,
+            agentId: agentIdStr,
+          }
+        );
         continue;
       }
       const storeNamespace =

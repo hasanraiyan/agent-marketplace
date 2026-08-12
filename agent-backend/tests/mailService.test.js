@@ -155,7 +155,8 @@ describe('Mail Service', () => {
             name: testName,
             intro: 'Welcome to persona.hasanraiyan.me! Your email has been verified successfully.',
             action: expect.objectContaining({
-              instructions: "You're all set! Start exploring what persona.hasanraiyan.me has to offer.",
+              instructions:
+                "You're all set! Start exploring what persona.hasanraiyan.me has to offer.",
               button: expect.objectContaining({
                 color: '#22BC66',
                 text: 'Get Started',

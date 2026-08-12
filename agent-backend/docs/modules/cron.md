@@ -25,8 +25,8 @@ src/modules/cron/
 
 ## Registered Jobs
 
-| Job Name | Schedule | Description | Config Variable |
-|----------|----------|-------------|-----------------|
+| Job Name              | Schedule                    | Description                                    | Config Variable                                        |
+| --------------------- | --------------------------- | ---------------------------------------------- | ------------------------------------------------------ |
 | `deleteInactiveUsers` | `0 3 * * *` (daily at 3 AM) | Purge inactive users older than retention days | `CRON_DELETE_INACTIVE_USERS`, `ACCOUNT_RETENTION_DAYS` |
 
 ## Disabling Cron Jobs
@@ -60,15 +60,15 @@ flowchart LR
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-|-----------|------|---------|
-| Users module | Internal | User model and repository |
-| Agents module | Internal | Agent cleanup |
-| Skills module | Internal | Skill cleanup |
-| Providers module | Internal | Provider cleanup |
-| MCP module | Internal | MCP server cleanup |
-| Threads module | Internal | Thread and checkpoint cleanup |
-| `node-cron` | External | Cron scheduling |
+| Dependency       | Type     | Purpose                       |
+| ---------------- | -------- | ----------------------------- |
+| Users module     | Internal | User model and repository     |
+| Agents module    | Internal | Agent cleanup                 |
+| Skills module    | Internal | Skill cleanup                 |
+| Providers module | Internal | Provider cleanup              |
+| MCP module       | Internal | MCP server cleanup            |
+| Threads module   | Internal | Thread and checkpoint cleanup |
+| `node-cron`      | External | Cron scheduling               |
 
 ## Lifecycle
 

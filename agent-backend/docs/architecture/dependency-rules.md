@@ -2,13 +2,13 @@
 
 ## Layer Dependency Matrix
 
-| From ↓ \ To → | Route | Controller | Service | Repository | Model | Middleware | Validator |
-|---------------|-------|------------|---------|------------|-------|------------|-----------|
-| **Route** | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| **Controller** | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Service** | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| **Repository** | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| **Model** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| From ↓ \ To →  | Route | Controller | Service | Repository | Model | Middleware | Validator |
+| -------------- | ----- | ---------- | ------- | ---------- | ----- | ---------- | --------- |
+| **Route**      | ❌    | ✅         | ❌      | ❌         | ❌    | ✅         | ❌        |
+| **Controller** | ❌    | ❌         | ✅      | ❌         | ❌    | ❌         | ❌        |
+| **Service**    | ❌    | ❌         | ✅      | ✅         | ❌    | ❌         | ❌        |
+| **Repository** | ❌    | ❌         | ❌      | ❌         | ✅    | ❌         | ❌        |
+| **Model**      | ❌    | ❌         | ❌      | ❌         | ❌    | ❌         | ❌        |
 
 **Legend:** ✅ Allowed | ❌ Forbidden
 
@@ -176,16 +176,17 @@ import BaseError from '../../utils/errors/BaseError.js';
 ## Enforcement
 
 These rules are enforced through:
+
 1. **Code reviews** — All PRs must respect layer boundaries
 2. **No architectural enforcement tool** — Currently relies on developer discipline
 3. **Convention** — Consistent file structure makes violations easy to spot
 
 ## Rationale
 
-| Rule | Reason |
-|------|--------|
-| No route → model | Routes would contain business logic or data access — hard to test and reuse |
-| No controller → model | Controllers would bypass service validation and business rules |
-| No controller → repository | Same as above; services exist for a reason |
-| No repository → service | Would create circular dependency — repositories must be self-contained |
-| Barrel exports only | Protects internal implementation; modules can refactor without affecting consumers |
+| Rule                       | Reason                                                                             |
+| -------------------------- | ---------------------------------------------------------------------------------- |
+| No route → model           | Routes would contain business logic or data access — hard to test and reuse        |
+| No controller → model      | Controllers would bypass service validation and business rules                     |
+| No controller → repository | Same as above; services exist for a reason                                         |
+| No repository → service    | Would create circular dependency — repositories must be self-contained             |
+| Barrel exports only        | Protects internal implementation; modules can refactor without affecting consumers |

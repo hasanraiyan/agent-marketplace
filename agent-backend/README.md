@@ -99,6 +99,7 @@ pnpm run start
 ## API Documentation
 
 API docs and interactive reference are available at:
+
 - **Swagger UI**: `http://localhost:3000/docs` (when server is running)
 - **OpenAPI JSON**: `http://localhost:3000/openapi.json`
 - **Markdown docs**: See [docs/api/](docs/api/overview.md) for the complete route table, auth flow, error codes, and pagination format.

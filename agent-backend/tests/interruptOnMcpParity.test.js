@@ -54,7 +54,10 @@ class ScriptedToolCallChatModel extends BaseChatModel {
 
 async function buildAndRunInterruptCycle({ toolName, toolCallArgs, extraTools }) {
   const model = new ScriptedToolCallChatModel([
-    new AIMessage({ content: '', tool_calls: [{ name: toolName, args: toolCallArgs, id: 'call_1' }] }),
+    new AIMessage({
+      content: '',
+      tool_calls: [{ name: toolName, args: toolCallArgs, id: 'call_1' }],
+    }),
     new AIMessage({ content: 'done' }),
   ]);
 
@@ -68,7 +71,10 @@ async function buildAndRunInterruptCycle({ toolName, toolCallArgs, extraTools })
 
   const config = { configurable: { thread_id: `t-${toolName}` } };
 
-  const paused = await agentInstance.invoke({ messages: [{ role: 'user', content: 'go' }] }, config);
+  const paused = await agentInstance.invoke(
+    { messages: [{ role: 'user', content: 'go' }] },
+    config
+  );
   const interruptValue = paused.__interrupt__?.[0]?.value;
 
   const resumed = await agentInstance.invoke(
@@ -96,7 +102,8 @@ describe('interruptOn gates MCP-sourced tool names the same way as built-in tool
   test('MCP-sourced tool (server-prefixed name): pauses on interrupt, executes after approval', async () => {
     const mcpTool = tool(async () => 'mcp tool executed', {
       name: 'canva__search_designs',
-      description: 'a fake MCP-registered tool, named the way @langchain/mcp-adapters prefixes MCP tools',
+      description:
+        'a fake MCP-registered tool, named the way @langchain/mcp-adapters prefixes MCP tools',
       schema: z.object({}),
     });
 

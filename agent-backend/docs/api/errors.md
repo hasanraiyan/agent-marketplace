@@ -39,40 +39,40 @@ For validation errors, additional details are included:
 
 ## Error Classes
 
-| Class | Status Code | Error Code | When Used |
-|-------|-------------|------------|-----------|
-| `BaseError` | 500 | `INTERNAL_ERROR` | Base class for all custom errors |
-| `ValidationError` | 400 | `VALIDATION_ERROR` | Request validation failures |
-| `NotFoundError` | 404 | `NOT_FOUND` | Resource not found |
-| `RateLimitError` | 429 | `RATE_LIMIT_ERROR` | Rate limit exceeded |
-| `BaseError` | 401 | `UNAUTHORIZED` | Authentication required |
-| `BaseError` | 403 | `FORBIDDEN` | Insufficient permissions |
+| Class             | Status Code | Error Code         | When Used                        |
+| ----------------- | ----------- | ------------------ | -------------------------------- |
+| `BaseError`       | 500         | `INTERNAL_ERROR`   | Base class for all custom errors |
+| `ValidationError` | 400         | `VALIDATION_ERROR` | Request validation failures      |
+| `NotFoundError`   | 404         | `NOT_FOUND`        | Resource not found               |
+| `RateLimitError`  | 429         | `RATE_LIMIT_ERROR` | Rate limit exceeded              |
+| `BaseError`       | 401         | `UNAUTHORIZED`     | Authentication required          |
+| `BaseError`       | 403         | `FORBIDDEN`        | Insufficient permissions         |
 
 ## Error Codes
 
-| Code | Status | Description |
-|------|--------|-------------|
-| `VALIDATION_ERROR` | 400 | Request body/query/params failed Zod validation |
-| `UNAUTHORIZED` | 401 | No valid authentication token |
-| `FORBIDDEN` | 403 | Authenticated but insufficient permissions |
-| `NOT_FOUND` | 404 | Requested resource does not exist |
-| `CONFLICT` | 409 | Resource conflict (e.g., duplicate slug) |
-| `RATE_LIMIT_ERROR` | 429 | Too many requests |
-| `INTERNAL_ERROR` | 500 | Unexpected server error |
+| Code               | Status | Description                                     |
+| ------------------ | ------ | ----------------------------------------------- |
+| `VALIDATION_ERROR` | 400    | Request body/query/params failed Zod validation |
+| `UNAUTHORIZED`     | 401    | No valid authentication token                   |
+| `FORBIDDEN`        | 403    | Authenticated but insufficient permissions      |
+| `NOT_FOUND`        | 404    | Requested resource does not exist               |
+| `CONFLICT`         | 409    | Resource conflict (e.g., duplicate slug)        |
+| `RATE_LIMIT_ERROR` | 429    | Too many requests                               |
+| `INTERNAL_ERROR`   | 500    | Unexpected server error                         |
 
 ## HTTP Status Codes
 
-| Code | Description |
-|------|-------------|
-| 200 | Success |
-| 201 | Created |
-| 400 | Bad Request (validation error) |
-| 401 | Unauthorized (no/invalid auth token) |
-| 403 | Forbidden (insufficient permissions) |
-| 404 | Not Found |
-| 409 | Conflict |
-| 429 | Rate Limited |
-| 500 | Internal Server Error |
+| Code | Description                          |
+| ---- | ------------------------------------ |
+| 200  | Success                              |
+| 201  | Created                              |
+| 400  | Bad Request (validation error)       |
+| 401  | Unauthorized (no/invalid auth token) |
+| 403  | Forbidden (insufficient permissions) |
+| 404  | Not Found                            |
+| 409  | Conflict                             |
+| 429  | Rate Limited                         |
+| 500  | Internal Server Error                |
 
 ## Error Handling Flow
 
@@ -106,7 +106,7 @@ throw new NotFoundError('Agent not found');
 
 // Validation failure
 throw new ValidationError('Invalid configuration', {
-  errors: [{ field: 'name', message: 'Name is required' }]
+  errors: [{ field: 'name', message: 'Name is required' }],
 });
 
 // Generic error

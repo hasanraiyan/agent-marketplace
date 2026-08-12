@@ -47,9 +47,11 @@ export default new MyService();
 ## Service Best Practices
 
 ### 1. Business Logic Only
+
 Services should contain business rules, not HTTP concerns. Don't access `req`, `res`, or `next` in services.
 
 ### 2. Throw Errors, Don't Catch
+
 Let errors propagate to the controller → global error handler.
 
 ```javascript
@@ -71,6 +73,7 @@ async getById(id) {
 ```
 
 ### 3. Cross-Module via Services Only
+
 Access other modules through their services, not repositories or models.
 
 ```javascript
@@ -84,11 +87,13 @@ const provider = await providerRepository.findByUser(userId);
 ```
 
 ### 4. Use Singleton Pattern
+
 ```javascript
 export default new MyService();
 ```
 
 ### 5. Log Important Operations
+
 ```javascript
 logger.info('Entity created', { entityId: result._id, userId });
 logger.error('Failed to create entity', { error: err.message, data });
@@ -97,6 +102,7 @@ logger.error('Failed to create entity', { error: err.message, data });
 ## When to Create a Service
 
 Create a service when you have:
+
 - Business rules to enforce
 - Cross-module coordination
 - Data transformation logic

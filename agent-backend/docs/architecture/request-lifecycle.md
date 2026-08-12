@@ -57,9 +57,9 @@ sequenceDiagram
 import express from 'express';
 const app = express();
 
-app.use(cors());                                    // Cross-origin support
-app.use(noCacheHeaders());                          // Prevent caching
-app.use(requestLogger());                           // Log every request
+app.use(cors()); // Cross-origin support
+app.use(noCacheHeaders()); // Prevent caching
+app.use(requestLogger()); // Log every request
 ```
 
 ### 2. Route Resolution
@@ -92,18 +92,20 @@ Within each module, the route handler chains middleware:
 
 ```javascript
 // Example: agent.routes.js
-router.post('/search',
-  optionalAuthMiddleware,       // Auth (optional)
-  validateBody(searchSchema),   // Validation
-  agentController.search        // Controller
+router.post(
+  '/search',
+  optionalAuthMiddleware, // Auth (optional)
+  validateBody(searchSchema), // Validation
+  agentController.search // Controller
 );
 
-router.use(authMiddleware);     // All remaining routes require auth
+router.use(authMiddleware); // All remaining routes require auth
 
-router.post('/',
-  rateLimiter('MUTATE', { maxRequests: 30, windowMs: 60000 }),  // Rate limit
-  validateBody(createSchema),   // Validation
-  agentController.create        // Controller
+router.post(
+  '/',
+  rateLimiter('MUTATE', { maxRequests: 30, windowMs: 60000 }), // Rate limit
+  validateBody(createSchema), // Validation
+  agentController.create // Controller
 );
 ```
 

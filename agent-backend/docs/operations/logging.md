@@ -10,12 +10,12 @@ The backend uses a **swappable logger** implementation (Dependency Inversion pat
 
 Default logger at `src/utils/logger/ConsoleLogger.js`:
 
-| Method | Level | Description |
-|--------|-------|-------------|
-| `info(message, data)` | INFO | General operational messages |
-| `warn(message, data)` | WARN | Warning conditions |
-| `error(message, error)` | ERROR | Error conditions with stack traces |
-| `debug(message, data)` | DEBUG | Debug details (only shown in development/test) |
+| Method                  | Level | Description                                    |
+| ----------------------- | ----- | ---------------------------------------------- |
+| `info(message, data)`   | INFO  | General operational messages                   |
+| `warn(message, data)`   | WARN  | Warning conditions                             |
+| `error(message, error)` | ERROR | Error conditions with stack traces             |
+| `debug(message, data)`  | DEBUG | Debug details (only shown in development/test) |
 
 ## Log Format
 
@@ -43,7 +43,7 @@ Examples:
 Debug logs are only printed when:
 
 ```javascript
-process.env.DEBUG || process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test'
+process.env.DEBUG || process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 ```
 
 Set `DEBUG=true` in `.env` to enable debug logging in any environment.
@@ -58,6 +58,7 @@ POST /api/v1/agents {"name":"test"} → 201 (120ms)
 ```
 
 Format includes:
+
 - HTTP method
 - Original URL with query params (if any)
 - Response status code

@@ -125,7 +125,10 @@ class CheckpointService {
           // handling they already have for the live-stream case.
           pendingInterrupt =
             info.kind === 'hitl'
-              ? { kind: 'hitl', value: { actionRequests: info.actionRequests, reviewConfigs: info.reviewConfigs } }
+              ? {
+                  kind: 'hitl',
+                  value: { actionRequests: info.actionRequests, reviewConfigs: info.reviewConfigs },
+                }
               : { kind: 'clarification', value: { questions: info.questions, currentIndex: 0 } };
         }
       } catch (err) {

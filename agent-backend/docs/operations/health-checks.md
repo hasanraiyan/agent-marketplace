@@ -78,10 +78,10 @@ Shows basic API info including DB status:
 
 For load balancers and orchestration platforms:
 
-| Endpoint | Recommended Interval | Expected Status |
-|----------|--------------------|-----------------|
-| `GET /api/v1/health` | 30 seconds | 200 |
-| `GET /api/v1/health/db` | 60 seconds | 200 |
+| Endpoint                | Recommended Interval | Expected Status |
+| ----------------------- | -------------------- | --------------- |
+| `GET /api/v1/health`    | 30 seconds           | 200             |
+| `GET /api/v1/health/db` | 60 seconds           | 200             |
 
 ## Health Check Characteristics
 

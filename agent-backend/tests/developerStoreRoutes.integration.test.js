@@ -45,9 +45,8 @@ const projectService = (await import('../src/modules/projects/project.service.js
 const externalUserService = (await import('../src/modules/externalUsers/externalUser.service.js'))
   .default;
 const storeService = (await import('../src/modules/stores/store.service.js')).default;
-const { default: developerStoreRouter } = await import(
-  '../src/modules/developer/developerStore.routes.js'
-);
+const { default: developerStoreRouter } =
+  await import('../src/modules/developer/developerStore.routes.js');
 
 describe('developerStore.routes.js — mount integration', () => {
   let app;
@@ -102,7 +101,7 @@ describe('developerStore.routes.js — mount integration', () => {
     expect(storeService.createStore).not.toHaveBeenCalled();
   });
 
-  test('a domain-scoped store\'s file route works with a bare machine credential', async () => {
+  test("a domain-scoped store's file route works with a bare machine credential", async () => {
     storeService.getStoreFile.mockResolvedValue({ path: '/a.md', content: 'hi' });
 
     const res = await request(app)
@@ -114,7 +113,7 @@ describe('developerStore.routes.js — mount integration', () => {
     expect(storeService.getStoreFile).toHaveBeenCalledWith('project-1', 's1', undefined, '/a.md');
   });
 
-  test('an externalUser-scoped store\'s file route 400s with no asserted external user', async () => {
+  test("an externalUser-scoped store's file route 400s with no asserted external user", async () => {
     storeService.getStoreFile.mockRejectedValue(
       new Error('This store requires an asserted external user (x-persona-external-user-id)')
     );

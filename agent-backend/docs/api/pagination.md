@@ -29,10 +29,10 @@ Paginated endpoints return a standardized pagination envelope alongside the data
 
 ## Pagination Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `page` | Number | 1 | Page number (1-indexed) |
-| `limit` | Number | 10 | Items per page (max: 100) |
+| Parameter | Type   | Default | Description               |
+| --------- | ------ | ------- | ------------------------- |
+| `page`    | Number | 1       | Page number (1-indexed)   |
+| `limit`   | Number | 10      | Items per page (max: 100) |
 
 ## Default Constants
 
@@ -58,14 +58,14 @@ const skip = (page - 1) * limit;
 
 The following endpoints support pagination:
 
-| Endpoint | Parameters | Notes |
-|----------|-----------|-------|
-| `GET /api/v1/agents/search` | `page`, `limit` | POST body |
-| `GET /api/v1/threads` | `page`, `limit` | Query params |
-| `GET /api/v1/skills` | `page`, `limit` | Query params |
-| `GET /api/v1/mcps` | `page`, `limit` | Query params |
-| `GET /api/v1/knowledge` | `page`, `limit` | Query params |
-| `GET /api/v1/admin/users` | `page`, `limit` | Query params |
+| Endpoint                    | Parameters      | Notes        |
+| --------------------------- | --------------- | ------------ |
+| `GET /api/v1/agents/search` | `page`, `limit` | POST body    |
+| `GET /api/v1/threads`       | `page`, `limit` | Query params |
+| `GET /api/v1/skills`        | `page`, `limit` | Query params |
+| `GET /api/v1/mcps`          | `page`, `limit` | Query params |
+| `GET /api/v1/knowledge`     | `page`, `limit` | Query params |
+| `GET /api/v1/admin/users`   | `page`, `limit` | Query params |
 
 ## Response Helper
 

@@ -86,6 +86,7 @@ Sets `req.user` if authenticated, silently continues if not. Useful for endpoint
 ### authService (User Sync)
 
 `syncUser(clerkId)` is the bridge between Clerk and the local database:
+
 1. Tries to find user by `clerkId`
 2. If not found, fetches user data from Clerk API
 3. Creates a local user record
@@ -93,10 +94,10 @@ Sets `req.user` if authenticated, silently continues if not. Useful for endpoint
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-|-----------|------|---------|
-| Users module | Internal | User repository for DB lookup |
-| `@clerk/express` | External | Clerk session verification |
+| Dependency       | Type     | Purpose                       |
+| ---------------- | -------- | ----------------------------- |
+| Users module     | Internal | User repository for DB lookup |
+| `@clerk/express` | External | Clerk session verification    |
 
 ## Public API
 
@@ -105,10 +106,13 @@ No dedicated REST endpoints — this is middleware-only. Auth endpoints (login, 
 ## Important Details
 
 ### User Sync on First Login
+
 When a user logs in via Clerk for the first time, `syncUser()` automatically creates their local user record. This happens transparently — developers don't need to manage user creation separately.
 
 ### Auto-Sync via Webhooks
+
 The [Webhooks module](webhooks.md) also handles `user.created` and `user.deleted` events from Clerk for lifecycle management outside of authentication flows.
 
 ### Clerk Webhook Verification
+
 Clerk webhook events are verified using **Svix** signature verification, not Clerk middleware. See the webhooks module for details.

@@ -23,7 +23,11 @@ const developerStoreController = (
 ).default;
 
 describe('Developer Store Controller', () => {
-  const runtimeContext = { domain: 'proj-1', principalType: 'ProjectRuntime', externalUserId: 'sabik' };
+  const runtimeContext = {
+    domain: 'proj-1',
+    principalType: 'ProjectRuntime',
+    externalUserId: 'sabik',
+  };
   const machineContext = { domain: 'proj-1', principalType: 'ProjectMachine' };
 
   let mockReq;
@@ -43,7 +47,10 @@ describe('Developer Store Controller', () => {
 
     await developerStoreController.create(mockReq, mockRes, next);
 
-    expect(storeService.createStore).toHaveBeenCalledWith('proj-1', { name: 'notes', scope: 'domain' });
+    expect(storeService.createStore).toHaveBeenCalledWith('proj-1', {
+      name: 'notes',
+      scope: 'domain',
+    });
     expect(mockRes.status).toHaveBeenCalledWith(201);
   });
 
@@ -71,7 +78,12 @@ describe('Developer Store Controller', () => {
 
       await developerStoreController.getFile(mockReq, mockRes, next);
 
-      expect(storeService.getStoreFile).toHaveBeenCalledWith('proj-1', undefined, undefined, '/a.md');
+      expect(storeService.getStoreFile).toHaveBeenCalledWith(
+        'proj-1',
+        undefined,
+        undefined,
+        '/a.md'
+      );
       expect(mockRes.status).not.toHaveBeenCalledWith(400);
     });
 

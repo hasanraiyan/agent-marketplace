@@ -19,10 +19,7 @@ class MyRepository {
   }
 
   async findByOwner(ownerId, skip = 0, limit = 10) {
-    return Model.find({ ownerId })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    return Model.find({ ownerId }).sort({ createdAt: -1 }).skip(skip).limit(limit);
   }
 
   async count(filter = {}) {
@@ -51,6 +48,7 @@ export default new MyRepository();
 ## Repository Best Practices
 
 ### 1. No Business Logic
+
 Repositories should contain only database operations, no business rules.
 
 ```javascript
@@ -74,12 +72,15 @@ async findActive() {
 ```
 
 ### 2. Return Mongoose Documents
+
 Repositories should return raw Mongoose documents. Formatting is the service/controller's job.
 
 ### 3. Use Indexes
+
 Ensure queries are covered by MongoDB indexes defined in the model.
 
 ### 4. Ownership Filtering
+
 For owned resources, always include `ownerId` in queries:
 
 ```javascript
@@ -90,13 +91,13 @@ async findByOwnerAndId(ownerId, id) {
 
 ## Standard Repository Methods
 
-| Method | Description |
-|--------|-------------|
-| `create(data)` | Create a new document |
-| `findById(id)` | Find by primary key |
-| `findByOwner(ownerId, skip, limit)` | Find all owned by user |
-| `count(filter)` | Count matching documents |
-| `update(id, data)` | Update document |
-| `delete(id)` | Delete document |
-| `findOne(filter)` | Find single matching document |
-| `find(filter, skip, limit)` | Find with complex filters |
+| Method                              | Description                   |
+| ----------------------------------- | ----------------------------- |
+| `create(data)`                      | Create a new document         |
+| `findById(id)`                      | Find by primary key           |
+| `findByOwner(ownerId, skip, limit)` | Find all owned by user        |
+| `count(filter)`                     | Count matching documents      |
+| `update(id, data)`                  | Update document               |
+| `delete(id)`                        | Delete document               |
+| `findOne(filter)`                   | Find single matching document |
+| `find(filter, skip, limit)`         | Find with complex filters     |

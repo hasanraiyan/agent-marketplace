@@ -11,6 +11,7 @@ mongosh --version  # MongoDB client (optional, for verification)
 ## Step 1: Start MongoDB
 
 **Local MongoDB:**
+
 ```bash
 # On macOS with Homebrew
 brew services start mongodb-community
@@ -40,6 +41,7 @@ cp .env.example .env
 ```
 
 Edit `.env` with at minimum:
+
 - `MONGODB_URI` — MongoDB connection string
 - `JWT_SECRET` — Any random string (used for OAuth state signing)
 - At least one AI provider API key
@@ -59,6 +61,7 @@ pnpm run dev
 The server starts with `nodemon` for auto-reload on file changes.
 
 Expected output:
+
 ```
 [INFO] 2026-... - Connecting to MongoDB
 [INFO] 2026-... - MongoDB connected successfully
@@ -113,13 +116,13 @@ This offline smoke test verifies that LangChain, LangGraph, and Deep Agents pack
 
 ## Common Issues
 
-| Issue | Solution |
-|-------|----------|
+| Issue                      | Solution                                       |
+| -------------------------- | ---------------------------------------------- |
 | MongoDB connection refused | Ensure MongoDB is running on `localhost:27017` |
-| `pnpm: command not found` | Install pnpm: `npm install -g pnpm` |
-| Module not found errors | Run `pnpm install` to reinstall dependencies |
-| Port 3000 in use | Set `PORT=3001` in `.env` |
-| Node.js version too old | Upgrade to Node.js 22+ |
+| `pnpm: command not found`  | Install pnpm: `npm install -g pnpm`            |
+| Module not found errors    | Run `pnpm install` to reinstall dependencies   |
+| Port 3000 in use           | Set `PORT=3001` in `.env`                      |
+| Node.js version too old    | Upgrade to Node.js 22+                         |
 
 ## Next Steps
 

@@ -16,10 +16,12 @@ export const createEntitySchema = z.object({
   age: z.number().int().min(0).max(150).optional(),
   tags: z.array(z.string()).max(10).optional(),
   visibility: z.enum(['private', 'unlisted', 'public']).default('private'),
-  config: z.object({
-    setting1: z.boolean(),
-    setting2: z.string().max(500),
-  }).optional(),
+  config: z
+    .object({
+      setting1: z.boolean(),
+      setting2: z.string().max(500),
+    })
+    .optional(),
 });
 
 // Update schema — all fields optional
@@ -54,6 +56,7 @@ router.get('/', validateQuery(searchEntitySchema), controller.search);
 ## Validation Middleware
 
 The `validateBody(schema)` function:
+
 1. Parses `req.body` against the Zod schema
 2. On success: replaces `req.body` with validated data
 3. On failure: throws `ValidationError` with field-level details
@@ -78,6 +81,7 @@ The `validateBody(schema)` function:
 ## Schema Validation Utilities
 
 ### validateSchema
+
 Throws `ValidationError` on failure:
 
 ```javascript
@@ -87,6 +91,7 @@ const validated = validateSchema(mySchema, data, { stripUnknown: true });
 ```
 
 ### safeValidateSchema
+
 Returns result object instead of throwing:
 
 ```javascript
@@ -105,13 +110,13 @@ if (result.success) {
 ```javascript
 import { schemas } from '../../utils/validators/schemaValidator.js';
 
-schemas.nonEmptyString;      // z.string().min(1)
-schemas.email;               // z.string().email()
-schemas.password;            // z.string().min(8)
-schemas.url;                 // z.string().url()
-schemas.objectId;            // z.string().regex(/^[0-9a-fA-F]{24}$/)
-schemas.positiveNumber;      // z.number().positive()
-schemas.integer;             // z.number().int()
+schemas.nonEmptyString; // z.string().min(1)
+schemas.email; // z.string().email()
+schemas.password; // z.string().min(8)
+schemas.url; // z.string().url()
+schemas.objectId; // z.string().regex(/^[0-9a-fA-F]{24}$/)
+schemas.positiveNumber; // z.number().positive()
+schemas.integer; // z.number().int()
 ```
 
 ## Best Practices

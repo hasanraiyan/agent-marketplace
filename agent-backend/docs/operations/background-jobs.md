@@ -35,13 +35,14 @@ sequenceDiagram
 
 ### deleteInactiveUsers
 
-| Property | Value |
-|----------|-------|
-| **Schedule** | Daily at 3:00 AM (`0 3 * * *`) |
-| **Module** | `src/modules/cron/deleteInactiveUsers.js` |
-| **Config** | `CRON_DELETE_INACTIVE_USERS` (schedule), `ACCOUNT_RETENTION_DAYS` (retention) |
+| Property     | Value                                                                         |
+| ------------ | ----------------------------------------------------------------------------- |
+| **Schedule** | Daily at 3:00 AM (`0 3 * * *`)                                                |
+| **Module**   | `src/modules/cron/deleteInactiveUsers.js`                                     |
+| **Config**   | `CRON_DELETE_INACTIVE_USERS` (schedule), `ACCOUNT_RETENTION_DAYS` (retention) |
 
 **What it does:**
+
 1. Finds users marked as `isActive: false` past the retention period (default 30 days)
 2. For each user:
    a. Deletes LangGraph checkpoints
@@ -66,6 +67,7 @@ Schedules follow the standard cron format:
 ```
 
 Examples:
+
 - `0 3 * * *` — Daily at 3:00 AM
 - `0 */6 * * *` — Every 6 hours
 - `*/30 * * * *` — Every 30 minutes

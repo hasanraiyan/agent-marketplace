@@ -35,19 +35,19 @@
 
 ## Tech Stack
 
-| Category        | Technology           |
-| --------------- | -------------------- |
-| Runtime         | Node.js (ES Modules) |
-| Framework       | Express 5            |
-| Database        | MongoDB + Mongoose   |
-| Validation      | Zod                  |
+| Category        | Technology                     |
+| --------------- | ------------------------------ |
+| Runtime         | Node.js (ES Modules)           |
+| Framework       | Express 5                      |
+| Database        | MongoDB + Mongoose             |
+| Validation      | Zod                            |
 | Auth            | Clerk (external auth provider) |
-| Email           | Resend + Mailgen     |
-| Testing         | Jest + Supertest     |
-| Formatting      | Prettier             |
-| Git Hooks       | Husky + lint-staged  |
-| Package Manager | pnpm                 |
-| API Docs        | Swagger (OpenAPI)    |
+| Email           | Resend + Mailgen               |
+| Testing         | Jest + Supertest               |
+| Formatting      | Prettier                       |
+| Git Hooks       | Husky + lint-staged            |
+| Package Manager | pnpm                           |
+| API Docs        | Swagger (OpenAPI)              |
 
 ---
 
@@ -447,11 +447,11 @@ router.post('/', validateBody(createSchema), controller.create);
 
 ### Middleware Levels
 
-| Middleware | File | Behavior |
-| ---------- | ---- | -------- |
-| `authMiddleware` | `src/modules/auth/auth.middleware.js` | Required — returns 401 if no valid session |
-| `optionalAuthMiddleware` | `src/modules/auth/optional-auth.middleware.js` | Sets `req.user` if authenticated, continues if not |
-| `adminMiddleware` | `src/modules/users/admin.middleware.js` | Checks `role === 'admin'` (use after `authMiddleware`) |
+| Middleware               | File                                           | Behavior                                               |
+| ------------------------ | ---------------------------------------------- | ------------------------------------------------------ |
+| `authMiddleware`         | `src/modules/auth/auth.middleware.js`          | Required — returns 401 if no valid session             |
+| `optionalAuthMiddleware` | `src/modules/auth/optional-auth.middleware.js` | Sets `req.user` if authenticated, continues if not     |
+| `adminMiddleware`        | `src/modules/users/admin.middleware.js`        | Checks `role === 'admin'` (use after `authMiddleware`) |
 
 ### Role-Based Access
 
@@ -463,9 +463,11 @@ export const UserRole = z.enum(['normal', 'admin']);
 ### Webhook-Based User Sync
 
 Clerk sends lifecycle events (user.created, user.updated, user.deleted) to:
+
 ```
 POST /api/v1/webhooks/clerk
 ```
+
 Verified with Svix signatures. See `src/modules/webhooks/`.
 
 ---
@@ -482,8 +484,8 @@ Middleware → Service → Repository (Store)
 
 ```js
 export const RATE_LIMITS = {
-  CHAT: { maxRequests: 20, windowMs: 60 * 1000 },   // Chat/streaming
-  MUTATE: { maxRequests: 30, windowMs: 60 * 1000 },  // Create/update/delete
+  CHAT: { maxRequests: 20, windowMs: 60 * 1000 }, // Chat/streaming
+  MUTATE: { maxRequests: 30, windowMs: 60 * 1000 }, // Create/update/delete
 };
 ```
 
@@ -778,10 +780,7 @@ class WidgetRepository {
   }
 
   async findByOwner(ownerId, skip = 0, limit = 10) {
-    return Widget.find({ ownerId })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    return Widget.find({ ownerId }).sort({ createdAt: -1 }).skip(skip).limit(limit);
   }
 
   async count(ownerId) {

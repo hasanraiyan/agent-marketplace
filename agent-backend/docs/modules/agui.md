@@ -74,19 +74,19 @@ sequenceDiagram
 
 ### Event Types Produced
 
-| AG-UI Event | Source LangGraph Event | Description |
-|-------------|----------------------|-------------|
-| `TEXT_MESSAGE_CHUNK` | `on_chat_model_stream` (text content) | Streaming assistant text |
-| `REASONING_MESSAGE_START` | First reasoning delta | Start of reasoning block |
-| `REASONING_MESSAGE_CONTENT` | `reasoning_content` / `reasoning` deltas | Streaming reasoning |
-| `REASONING_END` | End of reasoning | Close reasoning block |
-| `TOOL_CALL_CHUNK` | `tool_call_chunks` or `on_tool_start` | Tool call with name + args |
-| `TOOL_CALL_RESULT` | `on_tool_end` | Tool execution result |
-| `STATE_SNAPSHOT` | End of turn / interrupt | Virtual filesystem + todo snapshot |
-| `CUSTOM` (hitl_request) | GraphInterrupt (HITL) | Human-in-the-loop approval request |
-| `CUSTOM` (clarification_request) | GraphInterrupt (questions) | Clarification questions |
-| `CUSTOM` (subagent_activity) | Nested model/tool events | Subagent progress |
-| `CUSTOM` (mcp_app) | Tool with MCP App widget | MCP widget resource URI |
+| AG-UI Event                      | Source LangGraph Event                   | Description                        |
+| -------------------------------- | ---------------------------------------- | ---------------------------------- |
+| `TEXT_MESSAGE_CHUNK`             | `on_chat_model_stream` (text content)    | Streaming assistant text           |
+| `REASONING_MESSAGE_START`        | First reasoning delta                    | Start of reasoning block           |
+| `REASONING_MESSAGE_CONTENT`      | `reasoning_content` / `reasoning` deltas | Streaming reasoning                |
+| `REASONING_END`                  | End of reasoning                         | Close reasoning block              |
+| `TOOL_CALL_CHUNK`                | `tool_call_chunks` or `on_tool_start`    | Tool call with name + args         |
+| `TOOL_CALL_RESULT`               | `on_tool_end`                            | Tool execution result              |
+| `STATE_SNAPSHOT`                 | End of turn / interrupt                  | Virtual filesystem + todo snapshot |
+| `CUSTOM` (hitl_request)          | GraphInterrupt (HITL)                    | Human-in-the-loop approval request |
+| `CUSTOM` (clarification_request) | GraphInterrupt (questions)               | Clarification questions            |
+| `CUSTOM` (subagent_activity)     | Nested model/tool events                 | Subagent progress                  |
+| `CUSTOM` (mcp_app)               | Tool with MCP App widget                 | MCP widget resource URI            |
 
 ### Key Design Decisions
 
@@ -107,18 +107,18 @@ When a guarded tool is hit (e.g., `upsert_agent`, `manage_skill`), LangGraph pau
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-|-----------|------|---------|
-| Agents module | Internal | `agentFactory.buildAgent()` |
-| Threads module | Internal | Thread lookup, checkpoint service |
-| Auth module | Internal | Authentication |
-| Rate Limiter module | Internal | Chat rate limiting |
+| Dependency          | Type     | Purpose                           |
+| ------------------- | -------- | --------------------------------- |
+| Agents module       | Internal | `agentFactory.buildAgent()`       |
+| Threads module      | Internal | Thread lookup, checkpoint service |
+| Auth module         | Internal | Authentication                    |
+| Rate Limiter module | Internal | Chat rate limiting                |
 
 ## Public API
 
-| Method | Path | Auth | Purpose |
-|--------|------|------|---------|
-| `GET` | `/api/v1/agui` | Required | AG-UI protocol info |
+| Method | Path           | Auth     | Purpose                        |
+| ------ | -------------- | -------- | ------------------------------ |
+| `GET`  | `/api/v1/agui` | Required | AG-UI protocol info            |
 | `POST` | `/api/v1/agui` | Required | Send message & stream response |
 
 ## Important Business Rules

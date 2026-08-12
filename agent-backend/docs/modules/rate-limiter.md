@@ -27,10 +27,10 @@ src/modules/rateLimiter/
 
 ## Rate Limit Presets
 
-| Preset | Max Requests | Window | Used By |
-|--------|-------------|--------|---------|
-| `CHAT` | 20 | 60 seconds | AG-UI chat |
-| `MUTATE` | 30 | 60 seconds | Create/update/delete operations |
+| Preset   | Max Requests | Window     | Used By                         |
+| -------- | ------------ | ---------- | ------------------------------- |
+| `CHAT`   | 20           | 60 seconds | AG-UI chat                      |
+| `MUTATE` | 30           | 60 seconds | Create/update/delete operations |
 
 ## Middleware Usage
 
@@ -38,10 +38,7 @@ src/modules/rateLimiter/
 import rateLimiter, { RATE_LIMITS } from '../rateLimiter/rateLimiter.middleware.js';
 
 // Apply to specific routes
-router.post('/', 
-  rateLimiter('MUTATE', RATE_LIMITS.MUTATE),
-  controller.create
-);
+router.post('/', rateLimiter('MUTATE', RATE_LIMITS.MUTATE), controller.create);
 
 // Apply to entire router
 router.use(rateLimiter('CHAT', RATE_LIMITS.CHAT));
@@ -63,6 +60,7 @@ When rate limited, the API returns:
 ```
 
 With headers:
+
 ```
 X-RateLimit-Limit: 30
 X-RateLimit-Remaining: 0
@@ -81,9 +79,9 @@ The rate limiter uses an **in-memory store** by default:
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-|-----------|------|---------|
-| None | — | Standalone module with no internal dependencies |
+| Dependency | Type | Purpose                                         |
+| ---------- | ---- | ----------------------------------------------- |
+| None       | —    | Standalone module with no internal dependencies |
 
 ## Important Notes
 

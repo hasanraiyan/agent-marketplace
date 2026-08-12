@@ -69,17 +69,17 @@ flowchart TB
 
 ## Layer Responsibilities
 
-| Layer | Responsibility | Examples |
-|-------|---------------|---------|
-| **Routes** | Define HTTP methods, paths, middleware chains | `agent.routes.js`, `thread.routes.js` |
-| **Controllers** | Extract request data, call services, format responses | `agent.controller.js`, `health.controller.js` |
-| **Services** | Business logic, orchestration, cross-module coordination | `agent.service.js`, `mcp.service.js` |
-| **Repositories** | Database access, query execution, data persistence | `agent.repository.js`, `user.repository.js` |
-| **Models** | Mongoose schemas, data validation, indexes | `agent.model.js`, `thread.model.js` |
-| **Validators** | Zod schemas for request validation | `agent.validator.js`, `mcp.validator.js` |
-| **Middleware** | Cross-cutting concerns (auth, rate limiting, error handling) | `auth.middleware.js`, `rateLimiter.middleware.js` |
-| **Factories** | Complex object construction (agent graph compilation) | `agent.factory.js` |
-| **Tools** | LangChain-compatible tool definitions for AI agents | `knowledge.tools.js`, `mcp.tools.js`, `search.tool.js` |
+| Layer            | Responsibility                                               | Examples                                               |
+| ---------------- | ------------------------------------------------------------ | ------------------------------------------------------ |
+| **Routes**       | Define HTTP methods, paths, middleware chains                | `agent.routes.js`, `thread.routes.js`                  |
+| **Controllers**  | Extract request data, call services, format responses        | `agent.controller.js`, `health.controller.js`          |
+| **Services**     | Business logic, orchestration, cross-module coordination     | `agent.service.js`, `mcp.service.js`                   |
+| **Repositories** | Database access, query execution, data persistence           | `agent.repository.js`, `user.repository.js`            |
+| **Models**       | Mongoose schemas, data validation, indexes                   | `agent.model.js`, `thread.model.js`                    |
+| **Validators**   | Zod schemas for request validation                           | `agent.validator.js`, `mcp.validator.js`               |
+| **Middleware**   | Cross-cutting concerns (auth, rate limiting, error handling) | `auth.middleware.js`, `rateLimiter.middleware.js`      |
+| **Factories**    | Complex object construction (agent graph compilation)        | `agent.factory.js`                                     |
+| **Tools**        | LangChain-compatible tool definitions for AI agents          | `knowledge.tools.js`, `mcp.tools.js`, `search.tool.js` |
 
 ## Core Module Relationships
 

@@ -19,7 +19,9 @@ function docKey(namespace, key) {
 
 jest.unstable_mockModule('../src/modules/memory/memory-file.model.js', () => ({
   default: {
-    findOne: jest.fn(async ({ namespace, key }) => memoryFileDocs.get(docKey(namespace, key)) || null),
+    findOne: jest.fn(
+      async ({ namespace, key }) => memoryFileDocs.get(docKey(namespace, key)) || null
+    ),
     findOneAndUpdate: jest.fn(async ({ namespace, key }, update) => {
       const now = new Date();
       const existing = memoryFileDocs.get(docKey(namespace, key));
@@ -133,11 +135,21 @@ describe('Agent.storeMounts wiring in agent.factory.js', () => {
   });
 
   test('a domain-scoped store shares one namespace across every external user', async () => {
-    const store = { _id: 'store-1', domain: 'proj-1', name: 'notes', scope: 'domain', accessMode: 'readwrite' };
+    const store = {
+      _id: 'store-1',
+      domain: 'proj-1',
+      name: 'notes',
+      scope: 'domain',
+      accessMode: 'readwrite',
+    };
     agentRepository.findById.mockResolvedValue(baseAgentDoc({ storeMounts: [store] }));
 
     currentScriptedModel = new ScriptedToolCallChatModel(
-      toolCallResponses('write_file', { file_path: '/stores/notes/x.md', content: 'shared' }, 'call_1')
+      toolCallResponses(
+        'write_file',
+        { file_path: '/stores/notes/x.md', content: 'shared' },
+        'call_1'
+      )
     );
     const buildA = await agentFactory.buildAgent('agent-1', 'ext-user-a', new MemorySaver(), {
       principalType: 'ProjectRuntime',
@@ -167,7 +179,7 @@ describe('Agent.storeMounts wiring in agent.factory.js', () => {
     expect(JSON.stringify(readMsg.content)).toContain('shared');
   });
 
-  test('an externalUser-scoped store never leaks one founder\'s partition to another', async () => {
+  test("an externalUser-scoped store never leaks one founder's partition to another", async () => {
     const store = {
       _id: 'store-2',
       domain: 'proj-1',

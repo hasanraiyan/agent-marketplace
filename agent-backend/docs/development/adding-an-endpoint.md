@@ -8,11 +8,7 @@ In `<module>.routes.js`, add a new route:
 
 ```javascript
 // GET /api/v1/<module>/search
-router.get(
-  '/search',
-  authMiddleware,
-  controller.search
-);
+router.get('/search', authMiddleware, controller.search);
 
 // POST /api/v1/<module> (with validation and rate limiting)
 router.post(
@@ -27,6 +23,7 @@ router.post(
 ### Route Middleware Order
 
 Always apply middleware in this order:
+
 1. **Auth** — `authMiddleware` or `optionalAuthMiddleware`
 2. **Rate Limiter** — For mutation endpoints
 3. **Validation** — `validateBody(schema)` or `validateQuery(schema)`
@@ -68,17 +65,17 @@ router.post('/search', authMiddleware, controller.search);
 
 ### Annotation Rules
 
-| Rule | Example |
-|------|---------|
-| **Auth-required endpoints** | `security: [{ clerkAuth: [] }]` |
-| **Public endpoints** (webhooks, OAuth callbacks) | Omit `security` key entirely |
-| **Path parameters** | `/users/{id}` — use `{param}` syntax |
-| **Header parameters** | `in: header` for things like `x-agent-id` |
-| **Multipart uploads** | `content: multipart/form-data` |
-| **Response codes** | 201 for create, 400/401/403/404/503 as appropriate |
-| **Shared schemas** | `$ref: '#/components/schemas/SchemaName'` |
-| **YAML indentation** | Exactly 2 spaces per level |
-| **Tags** | Match module name: `[Agents]`, `[MCP]`, `[Knowledge]` |
+| Rule                                             | Example                                               |
+| ------------------------------------------------ | ----------------------------------------------------- |
+| **Auth-required endpoints**                      | `security: [{ clerkAuth: [] }]`                       |
+| **Public endpoints** (webhooks, OAuth callbacks) | Omit `security` key entirely                          |
+| **Path parameters**                              | `/users/{id}` — use `{param}` syntax                  |
+| **Header parameters**                            | `in: header` for things like `x-agent-id`             |
+| **Multipart uploads**                            | `content: multipart/form-data`                        |
+| **Response codes**                               | 201 for create, 400/401/403/404/503 as appropriate    |
+| **Shared schemas**                               | `$ref: '#/components/schemas/SchemaName'`             |
+| **YAML indentation**                             | Exactly 2 spaces per level                            |
+| **Tags**                                         | Match module name: `[Agents]`, `[MCP]`, `[Knowledge]` |
 
 ## Step 2: Add Validation (if needed)
 

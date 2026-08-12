@@ -37,14 +37,14 @@ src/modules/skills/
 
 ## Data Model (Skill)
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `ownerId` | ObjectId (User) | Skill owner |
-| `name` | String (2-64, lowercase, hyphens) | Skill name |
-| `description` | String (1024) | Skill description |
-| `instructions` | String (50000) | SKILL.md body content |
-| `files` | [File] | Bundled reference files |
-| `isPublic` | Boolean | Public visibility flag |
+| Field          | Type                              | Description             |
+| -------------- | --------------------------------- | ----------------------- |
+| `ownerId`      | ObjectId (User)                   | Skill owner             |
+| `name`         | String (2-64, lowercase, hyphens) | Skill name              |
+| `description`  | String (1024)                     | Skill description       |
+| `instructions` | String (50000)                    | SKILL.md body content   |
+| `files`        | [File]                            | Bundled reference files |
+| `isPublic`     | Boolean                           | Public visibility flag  |
 
 Each file entry:
 | Field | Type | Description |
@@ -80,39 +80,43 @@ flowchart LR
 
 ## Public API
 
-| Method | Path | Auth | Purpose |
-|--------|------|------|---------|
-| `GET` | `/api/v1/skills/search` | Required | Search skills |
-| `GET` | `/api/v1/skills/public` | Required | List public skills |
-| `GET` | `/api/v1/skills` | Required | List user's own skills |
-| `POST` | `/api/v1/skills` | Required | Create skill |
-| `GET` | `/api/v1/skills/:id` | Required | Get skill details |
-| `GET` | `/api/v1/skills/:id/agents` | Required | List agents using this skill |
-| `PATCH` | `/api/v1/skills/:id` | Required | Update skill |
-| `DELETE` | `/api/v1/skills/:id` | Required | Delete skill |
+| Method   | Path                        | Auth     | Purpose                      |
+| -------- | --------------------------- | -------- | ---------------------------- |
+| `GET`    | `/api/v1/skills/search`     | Required | Search skills                |
+| `GET`    | `/api/v1/skills/public`     | Required | List public skills           |
+| `GET`    | `/api/v1/skills`            | Required | List user's own skills       |
+| `POST`   | `/api/v1/skills`            | Required | Create skill                 |
+| `GET`    | `/api/v1/skills/:id`        | Required | Get skill details            |
+| `GET`    | `/api/v1/skills/:id/agents` | Required | List agents using this skill |
+| `PATCH`  | `/api/v1/skills/:id`        | Required | Update skill                 |
+| `DELETE` | `/api/v1/skills/:id`        | Required | Delete skill                 |
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-|-----------|------|---------|
-| Auth module | Internal | Authentication |
-| Rate Limiter module | Internal | Rate limiting |
+| Dependency          | Type     | Purpose        |
+| ------------------- | -------- | -------------- |
+| Auth module         | Internal | Authentication |
+| Rate Limiter module | Internal | Rate limiting  |
 
 ## Important Business Rules
 
 ### Skill Name Constraints
+
 - Must be lowercase, containing only `[a-z0-9-]`
 - Unique per owner (cannot have two skills with the same name)
 - 2-64 characters
 
 ### Skill Files
+
 - Files are validated by `skillValidation.js`
 - File paths can be nested (e.g., `references/api.md`)
 - Allowed MIME types are validated
 - Content length limits are enforced
 
 ### Agent Skills Store
+
 The `agentSkillsStore` provides a read-only `BaseStore` facade that serves each agent's attached skills as a filesystem. The Architect agent has a static hardcoded skill injected at startup.
 
 ### Skill Library
+
 The `skillLibraryStore` provides a read-write store for the Architect agent to create and manage skill files directly through its filesystem tools. The library is namespaced per-user.

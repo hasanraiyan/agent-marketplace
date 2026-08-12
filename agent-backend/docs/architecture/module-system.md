@@ -49,21 +49,19 @@ export { default as agentRepository } from './agent.repository.js';
 ### Routes (`<module>.routes.js`)
 
 Responsible for:
+
 - Defining HTTP methods and paths
 - Chaining middleware (auth, rate limiting, validation)
 - Binding controllers to routes
 
 ```javascript
-router.post('/',
-  authMiddleware,
-  validateBody(createSchema),
-  controller.create
-);
+router.post('/', authMiddleware, validateBody(createSchema), controller.create);
 ```
 
 ### Controllers (`<module>.controller.js`)
 
 Responsible for:
+
 - Extracting request data (`req.body`, `req.params`, `req.query`, `req.user`)
 - Calling the appropriate service method
 - Formatting and sending the response
@@ -74,6 +72,7 @@ Responsible for:
 ### Services (`<module>.service.js`)
 
 Responsible for:
+
 - Business logic and validation
 - Orchestrating cross-module operations
 - Coordinating multiple repository calls
@@ -84,6 +83,7 @@ Responsible for:
 ### Repositories (`<module>.repository.js`)
 
 Responsible for:
+
 - Database queries and CRUD operations
 - Query building and filtering
 - Data transformation for storage/retrieval
@@ -93,6 +93,7 @@ Responsible for:
 ### Models (`<module>.model.js`)
 
 Responsible for:
+
 - Mongoose schema definition
 - Indexes, validations, defaults
 - Virtual properties
@@ -101,6 +102,7 @@ Responsible for:
 ### Validators (`<module>.validator.js`)
 
 Responsible for:
+
 - Zod schemas for request body validation
 - Field constraints (min/max length, regex, enum values)
 - Reusable schema exports
@@ -108,36 +110,38 @@ Responsible for:
 ## Module Dependencies
 
 Modules can import from:
+
 - `src/config/` — Environment configuration
 - `src/utils/` — Shared utilities (errors, formatters, logger, validators)
 - Other `src/modules/<name>/` — Cross-module services/repositories
 - External npm packages
 
 Modules should NOT import from:
+
 - Another module's internal files (only via the barrel `index.js`)
 - `src/middlewares/` directly (middleware is applied in routes)
 
 ## Current Modules
 
-| Module | Data Owner | Complexity | Key Internal Dependencies |
-|--------|-----------|------------|--------------------------|
-| Agents | Yes (Agent) | High | Providers, Skills, MCP, Knowledge, Tools, Memory |
-| AG-UI | No | High | Agents (Factory), Threads (Checkpoints) |
-| Auth | No | Medium | Users (Repository) |
-| Cron | No | Low | Users, Agents, Skills, Providers, MCP, Threads |
-| Health | No | Low | None |
-| Knowledge | Yes (KnowledgeBase, KnowledgeChunk) | High | Qdrant, MongoDB |
-| Mail | No | Low | Config (Resend) |
-| MCP | Yes (Mcp, McpUserConnection) | High | Config (JWT), Encryption |
-| Memory | Yes (MemoryFile) | Medium | None |
-| Providers | Yes (Provider) | Medium | Encryption |
-| Rate Limiter | No | Low | None |
-| Skills | Yes (Skill) | Medium | None |
-| Threads | Yes (Conversation) | High | None |
-| Tools | No | Medium | MCP (Tools), Knowledge (Tools) |
-| Upload | No | Low | Auth (Middleware) |
-| Users | Yes (User) | Medium | None |
-| Webhooks | No | Low | Users (Repository) |
+| Module       | Data Owner                          | Complexity | Key Internal Dependencies                        |
+| ------------ | ----------------------------------- | ---------- | ------------------------------------------------ |
+| Agents       | Yes (Agent)                         | High       | Providers, Skills, MCP, Knowledge, Tools, Memory |
+| AG-UI        | No                                  | High       | Agents (Factory), Threads (Checkpoints)          |
+| Auth         | No                                  | Medium     | Users (Repository)                               |
+| Cron         | No                                  | Low        | Users, Agents, Skills, Providers, MCP, Threads   |
+| Health       | No                                  | Low        | None                                             |
+| Knowledge    | Yes (KnowledgeBase, KnowledgeChunk) | High       | Qdrant, MongoDB                                  |
+| Mail         | No                                  | Low        | Config (Resend)                                  |
+| MCP          | Yes (Mcp, McpUserConnection)        | High       | Config (JWT), Encryption                         |
+| Memory       | Yes (MemoryFile)                    | Medium     | None                                             |
+| Providers    | Yes (Provider)                      | Medium     | Encryption                                       |
+| Rate Limiter | No                                  | Low        | None                                             |
+| Skills       | Yes (Skill)                         | Medium     | None                                             |
+| Threads      | Yes (Conversation)                  | High       | None                                             |
+| Tools        | No                                  | Medium     | MCP (Tools), Knowledge (Tools)                   |
+| Upload       | No                                  | Low        | Auth (Middleware)                                |
+| Users        | Yes (User)                          | Medium     | None                                             |
+| Webhooks     | No                                  | Low        | Users (Repository)                               |
 
 ## Creating a New Module
 

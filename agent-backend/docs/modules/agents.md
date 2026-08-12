@@ -60,53 +60,53 @@ sequenceDiagram
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-|-----------|------|---------|
-| Auth module | Internal | Authentication middleware |
-| Providers module | Internal | Resolve LLM provider config |
-| Skills module | Internal | Agent skills store |
-| MCP module | Internal | MCP tool resolution |
-| Knowledge module | Internal | Knowledge base tools |
-| Tools module | Internal | Tool resolution |
-| Threads module | Internal | Checkpointer for graph persistence |
-| Memory module | Internal | File-based memory store |
-| Rate Limiter module | Internal | Rate limiting middleware |
-| Encryption | Utility | API key decryption for LLM client |
+| Dependency          | Type     | Purpose                            |
+| ------------------- | -------- | ---------------------------------- |
+| Auth module         | Internal | Authentication middleware          |
+| Providers module    | Internal | Resolve LLM provider config        |
+| Skills module       | Internal | Agent skills store                 |
+| MCP module          | Internal | MCP tool resolution                |
+| Knowledge module    | Internal | Knowledge base tools               |
+| Tools module        | Internal | Tool resolution                    |
+| Threads module      | Internal | Checkpointer for graph persistence |
+| Memory module       | Internal | File-based memory store            |
+| Rate Limiter module | Internal | Rate limiting middleware           |
+| Encryption          | Utility  | API key decryption for LLM client  |
 
 ## Data Model (Agent)
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `ownerId` | ObjectId (User) | Agent owner |
-| `name` | String (2-100) | Agent name |
-| `slug` | String (unique) | URL-friendly identifier |
-| `description` | String (500) | Short description |
-| `systemPrompt` | String (10+) | AI system prompt |
-| `providerId` | ObjectId (Provider) | LLM provider reference |
-| `modelName` | String | Override provider's default model |
-| `webSearchEnabled` | Boolean | Enable web search capability |
-| `skills` | [ObjectId (Skill)] | Attached skills |
-| `mcps` | [ObjectId (Mcp)] | Attached MCP servers |
-| `knowledgeBases` | [ObjectId (KnowledgeBase)] | Attached knowledge bases |
-| `interruptOn` | Map(String → Boolean) | HITL interrupt config for tools |
-| `visibility` | enum: private/unlisted/public | Agent visibility |
-| `category` | enum | Agent category |
-| `isMainAgent` | Boolean | Primary agent flag |
-| `messageCount` | Number | Usage counter |
+| Field              | Type                          | Description                       |
+| ------------------ | ----------------------------- | --------------------------------- |
+| `ownerId`          | ObjectId (User)               | Agent owner                       |
+| `name`             | String (2-100)                | Agent name                        |
+| `slug`             | String (unique)               | URL-friendly identifier           |
+| `description`      | String (500)                  | Short description                 |
+| `systemPrompt`     | String (10+)                  | AI system prompt                  |
+| `providerId`       | ObjectId (Provider)           | LLM provider reference            |
+| `modelName`        | String                        | Override provider's default model |
+| `webSearchEnabled` | Boolean                       | Enable web search capability      |
+| `skills`           | [ObjectId (Skill)]            | Attached skills                   |
+| `mcps`             | [ObjectId (Mcp)]              | Attached MCP servers              |
+| `knowledgeBases`   | [ObjectId (KnowledgeBase)]    | Attached knowledge bases          |
+| `interruptOn`      | Map(String → Boolean)         | HITL interrupt config for tools   |
+| `visibility`       | enum: private/unlisted/public | Agent visibility                  |
+| `category`         | enum                          | Agent category                    |
+| `isMainAgent`      | Boolean                       | Primary agent flag                |
+| `messageCount`     | Number                        | Usage counter                     |
 
 ## Public API
 
-| Method | Path | Auth | Purpose |
-|--------|------|------|---------|
-| `POST` | `/api/v1/agents/search` | Optional | Search agents with filters |
-| `POST` | `/api/v1/agents/count` | Optional | Count matching agents |
-| `GET` | `/api/v1/agents/slug/:slug` | Optional | Get agent by URL slug |
-| `GET` | `/api/v1/agents/:id` | Optional | Get agent by ID |
-| `POST` | `/api/v1/agents` | Required | Create agent |
-| `PATCH` | `/api/v1/agents/:id` | Required | Update agent |
-| `DELETE` | `/api/v1/agents/:id` | Required | Delete agent |
-| `GET` | `/api/v1/agents/:id/memory` | Required | Get agent memory |
-| `DELETE` | `/api/v1/agents/:id/memory/:key` | Required | Delete memory key |
+| Method   | Path                             | Auth     | Purpose                    |
+| -------- | -------------------------------- | -------- | -------------------------- |
+| `POST`   | `/api/v1/agents/search`          | Optional | Search agents with filters |
+| `POST`   | `/api/v1/agents/count`           | Optional | Count matching agents      |
+| `GET`    | `/api/v1/agents/slug/:slug`      | Optional | Get agent by URL slug      |
+| `GET`    | `/api/v1/agents/:id`             | Optional | Get agent by ID            |
+| `POST`   | `/api/v1/agents`                 | Required | Create agent               |
+| `PATCH`  | `/api/v1/agents/:id`             | Required | Update agent               |
+| `DELETE` | `/api/v1/agents/:id`             | Required | Delete agent               |
+| `GET`    | `/api/v1/agents/:id/memory`      | Required | Get agent memory           |
+| `DELETE` | `/api/v1/agents/:id/memory/:key` | Required | Delete memory key          |
 
 ## Authentication & Authorization
 
@@ -148,6 +148,7 @@ flowchart LR
 ### The Architect Agent
 
 A special system agent (identified by `ARCHITECT_AGENT_ID`) that helps users create and configure agents. It:
+
 - Uses the user's default provider
 - Has hardcoded system prompt with builder instructions
 - Has HITL interrupts enabled for dangerous actions (agent CRUD, skill management)

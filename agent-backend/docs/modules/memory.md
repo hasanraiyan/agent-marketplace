@@ -29,13 +29,13 @@ src/modules/memory/
 
 ## Data Model (MemoryFile)
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `ownerId` | ObjectId (User) | Memory owner |
-| `namespace` | String | Memory scope (user/agent) |
-| `key` | String | Memory key/path |
-| `content` | String | Memory file content |
-| `version` | Number | Version counter for conflict resolution |
+| Field       | Type            | Description                             |
+| ----------- | --------------- | --------------------------------------- |
+| `ownerId`   | ObjectId (User) | Memory owner                            |
+| `namespace` | String          | Memory scope (user/agent)               |
+| `key`       | String          | Memory key/path                         |
+| `content`   | String          | Memory file content                     |
+| `version`   | Number          | Version counter for conflict resolution |
 
 ## Memory Namespaces
 
@@ -54,16 +54,17 @@ flowchart TD
 
 ## Public API
 
-| Method | Path | Auth | Purpose |
-|--------|------|------|---------|
-| `GET` | `/api/v1/memory` | Required | List memory files |
-| `PUT` | `/api/v1/memory/file` | Required | Write a memory file |
+| Method   | Path                  | Auth     | Purpose              |
+| -------- | --------------------- | -------- | -------------------- |
+| `GET`    | `/api/v1/memory`      | Required | List memory files    |
+| `PUT`    | `/api/v1/memory/file` | Required | Write a memory file  |
 | `DELETE` | `/api/v1/memory/file` | Required | Delete a memory file |
-| `DELETE` | `/api/v1/memory/all` | Required | Clear all memory |
+| `DELETE` | `/api/v1/memory/all`  | Required | Clear all memory     |
 
 ## Filesystem Integration
 
 The `MemoryFilesStore` implements Deep Agents' `StoreBackend` interface, which allows the agent to:
+
 - **Read files** — Via `read_file` tool
 - **Write files** — Via `write_file` tool
 - **Edit files** — Via `edit_file` tool
@@ -74,8 +75,8 @@ The store is composited with other backends in `agent.factory.js`:
 ```javascript
 const backend = new CompositeBackend()
   .withNamespace('workspace', ephemeralState)
-  .withNamespace('memories', memoryFilesStore)     // Persistent
-  .withNamespace('skills', agentSkillsStore)        // Read-only
+  .withNamespace('memories', memoryFilesStore) // Persistent
+  .withNamespace('skills', agentSkillsStore) // Read-only
   .withNamespace('skill-library', skillLibraryStore); // Read-write
 ```
 
@@ -88,23 +89,28 @@ The system prompt instructs agents to keep these as indexes with one-line pointe
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-|-----------|------|---------|
-| Auth module | Internal | Authentication |
-| Rate Limiter module | Internal | Rate limiting |
-| Deep Agents | External | StoreBackend interface |
+| Dependency          | Type     | Purpose                |
+| ------------------- | -------- | ---------------------- |
+| Auth module         | Internal | Authentication         |
+| Rate Limiter module | Internal | Rate limiting          |
+| Deep Agents         | External | StoreBackend interface |
 
 ## Important Business Rules
 
 ### Memory Persistence
+
 Unlike the ephemeral `InMemoryStore` used previously in the old architecture, the current memory implementation uses MongoDB-backed storage. Memory survives server restarts, deployments, and nodemon reloads.
 
 ### Namespace Routing
+
 The `memory-files-store.js` implements namespace-based routing:
+
 - `userMemoryNamespace(userId)` → User-level memory (shared across all agents for this user)
 - `agentMemoryNamespace(agentId, userId)` → Agent-level memory (specific to this user-agent pair)
 
 ### Agent Memory via Agent Routes
+
 Agents can also access memory through the agents routes:
+
 - `GET /api/v1/agents/:id/memory` — Get agent-specific memory
 - `DELETE /api/v1/agents/:id/memory/:key` — Delete a specific memory key

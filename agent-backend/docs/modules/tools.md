@@ -30,15 +30,15 @@ src/modules/tools/
 
 ### Core Tools (All Agents)
 
-| Tool | Source | Purpose |
-|------|--------|---------|
-| `ask_clarification` | `clarification.tool.js` | Ask user structured questions with options |
-| `present_file` | `present.tool.js` | Display a file to the user (shows inline card) |
+| Tool                | Source                  | Purpose                                        |
+| ------------------- | ----------------------- | ---------------------------------------------- |
+| `ask_clarification` | `clarification.tool.js` | Ask user structured questions with options     |
+| `present_file`      | `present.tool.js`       | Display a file to the user (shows inline card) |
 
 ### Web Search (Conditional)
 
-| Tool | Source | Purpose |
-|------|--------|---------|
+| Tool         | Source           | Purpose                                                |
+| ------------ | ---------------- | ------------------------------------------------------ |
 | `search_web` | `search.tool.js` | Web search via Tavily API (only if `webSearchEnabled`) |
 
 ### MCP Tools (Attached Connectors)
@@ -47,22 +47,22 @@ Dynamic tools from attached MCP servers, discovered via `resolveMcpTools()`.
 
 ### Knowledge Base Tools (Attached KBs)
 
-| Tool | Purpose |
-|------|---------|
-| `knowledge_search` | Semantic search across attached knowledge bases |
-| `list_knowledge_sources` | List document sources in knowledge bases |
+| Tool                     | Purpose                                         |
+| ------------------------ | ----------------------------------------------- |
+| `knowledge_search`       | Semantic search across attached knowledge bases |
+| `list_knowledge_sources` | List document sources in knowledge bases        |
 
 ### Builder Toolbox (Architect Only)
 
 Tools for the Architect meta-agent to create/manage agents:
 
-| Tool | Purpose |
-|------|---------|
-| `upsert_agent` | Create or update an agent |
-| `delete_agent` | Delete an agent |
-| `list_my_agents` | List user's agents |
-| `list_my_providers` | List user's providers |
-| `manage_skill` | List, delete, or toggle skill visibility |
+| Tool                | Purpose                                  |
+| ------------------- | ---------------------------------------- |
+| `upsert_agent`      | Create or update an agent                |
+| `delete_agent`      | Delete an agent                          |
+| `list_my_agents`    | List user's agents                       |
+| `list_my_providers` | List user's providers                    |
+| `manage_skill`      | List, delete, or toggle skill visibility |
 
 These tools are HITL-guarded (require human approval before execution).
 
@@ -94,16 +94,18 @@ export const resolveAgentTools = async (agentConfig, userId) => {
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-|-----------|------|---------|
-| MCP module | Internal | MCP tool resolution |
+| Dependency       | Type     | Purpose                        |
+| ---------------- | -------- | ------------------------------ |
+| MCP module       | Internal | MCP tool resolution            |
 | Knowledge module | Internal | Knowledge base tool resolution |
-| Agents module | Internal | Architect agent ID constant |
+| Agents module    | Internal | Architect agent ID constant    |
 
 ## Important Notes
 
 ### Architect Agent Detection
+
 When the agent being configured is the Architect (identified by `ARCHITECT_AGENT_ID`), the Builder Toolbox is returned instead of the standard toolset. The Architect does not get MCP or knowledge base tools.
 
 ### MCP App Map
+
 The `mcpAppMap` returned from `resolveMcpTools()` maps tool names to their MCP App resource URIs. This is forwarded to the AG-UI translator so the client can render MCP App widgets alongside tool calls.

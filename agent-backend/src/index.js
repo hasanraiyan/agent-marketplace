@@ -84,10 +84,7 @@ app.use('/api/v1/agui', aguiRouter);
 app.use('/api/v1/developer/agui', developerAguiRouter);
 app.use('/api/v1/developer/architect/agui', developerArchitectRouter);
 app.use('/api/v1/projects/:projectId/architect/agui', projectArchitectAguiRouter);
-app.use(
-  '/api/v1/projects/:projectId/agents/:agentId/test/agui',
-  projectAgentTestAguiRouter,
-);
+app.use('/api/v1/projects/:projectId/agents/:agentId/test/agui', projectAgentTestAguiRouter);
 
 app.use(express.json());
 

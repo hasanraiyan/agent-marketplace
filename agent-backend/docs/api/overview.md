@@ -9,6 +9,7 @@ http://localhost:3000/api/v1
 All API routes are prefixed with `/api/v1/`.
 
 Exceptions:
+
 - `GET /` — Root welcome page
 - `GET /docs` — Swagger UI
 - `GET /openapi.json` — OpenAPI spec download
@@ -73,35 +74,35 @@ See [Error Reference](errors.md) for all error codes.
 
 ## Available Endpoints
 
-| Method | Path | Module | Auth |
-|--------|------|--------|------|
-| `GET` | `/` | Root | None |
-| `GET` | `/docs` | Swagger UI | None |
-| `GET` | `/openapi.json` | OpenAPI | None |
-| `GET` | `/api/v1/health` | Health | None |
-| `GET` | `/api/v1/health/db` | Health | None |
-| `GET/PATCH/DELETE` | `/api/v1/profile` | Users | Required |
-| `GET/DELETE` | `/api/v1/admin/users` | Users | Admin |
-| `GET/POST/PUT/DELETE` | `/api/v1/providers` | Providers | Required |
-| `POST/GET/PATCH/DELETE` | `/api/v1/agents` | Agents | Optional/Required |
-| `POST/GET/DELETE/PATCH` | `/api/v1/threads` | Threads | Required |
-| `GET/POST/PATCH/DELETE` | `/api/v1/skills` | Skills | Required |
-| `GET/POST/PATCH/DELETE` | `/api/v1/mcps` | MCP | Required (mostly) |
-| `GET/POST` | `/api/v1/agui` | AG-UI | Required |
-| `POST` | `/api/v1/upload/avatar` | Upload | Required |
-| `POST/GET/PATCH/DELETE` | `/api/v1/knowledge` | Knowledge | Required |
-| `GET/PUT/DELETE` | `/api/v1/memory` | Memory | Required |
-| `POST` | `/api/v1/webhooks/clerk` | Webhooks | Svix |
+| Method                  | Path                     | Module     | Auth              |
+| ----------------------- | ------------------------ | ---------- | ----------------- |
+| `GET`                   | `/`                      | Root       | None              |
+| `GET`                   | `/docs`                  | Swagger UI | None              |
+| `GET`                   | `/openapi.json`          | OpenAPI    | None              |
+| `GET`                   | `/api/v1/health`         | Health     | None              |
+| `GET`                   | `/api/v1/health/db`      | Health     | None              |
+| `GET/PATCH/DELETE`      | `/api/v1/profile`        | Users      | Required          |
+| `GET/DELETE`            | `/api/v1/admin/users`    | Users      | Admin             |
+| `GET/POST/PUT/DELETE`   | `/api/v1/providers`      | Providers  | Required          |
+| `POST/GET/PATCH/DELETE` | `/api/v1/agents`         | Agents     | Optional/Required |
+| `POST/GET/DELETE/PATCH` | `/api/v1/threads`        | Threads    | Required          |
+| `GET/POST/PATCH/DELETE` | `/api/v1/skills`         | Skills     | Required          |
+| `GET/POST/PATCH/DELETE` | `/api/v1/mcps`           | MCP        | Required (mostly) |
+| `GET/POST`              | `/api/v1/agui`           | AG-UI      | Required          |
+| `POST`                  | `/api/v1/upload/avatar`  | Upload     | Required          |
+| `POST/GET/PATCH/DELETE` | `/api/v1/knowledge`      | Knowledge  | Required          |
+| `GET/PUT/DELETE`        | `/api/v1/memory`         | Memory     | Required          |
+| `POST`                  | `/api/v1/webhooks/clerk` | Webhooks   | Svix              |
 
 ## HTTP Methods Used
 
-| Method | Purpose |
-|--------|---------|
-| `GET` | Retrieve resources |
-| `POST` | Create resources / execute actions |
-| `PATCH` | Partial updates |
-| `PUT` | Full resource replacement |
-| `DELETE` | Remove resources |
+| Method   | Purpose                            |
+| -------- | ---------------------------------- |
+| `GET`    | Retrieve resources                 |
+| `POST`   | Create resources / execute actions |
+| `PATCH`  | Partial updates                    |
+| `PUT`    | Full resource replacement          |
+| `DELETE` | Remove resources                   |
 
 ## Request Body Format
 
@@ -111,11 +112,11 @@ File uploads use `multipart/form-data` (upload and knowledge base routes).
 
 ## Headers
 
-| Header | Required For | Description |
-|--------|-------------|-------------|
+| Header          | Required For            | Description                                                  |
+| --------------- | ----------------------- | ------------------------------------------------------------ |
 | `Authorization` | Auth-required endpoints | Clerk session token (via `__session` cookie or Bearer token) |
-| `x-agent-id` | AG-UI | Agent ID for chat |
-| `x-thread-id` | AG-UI (optional) | Thread ID for resuming conversations |
+| `x-agent-id`    | AG-UI                   | Agent ID for chat                                            |
+| `x-thread-id`   | AG-UI (optional)        | Thread ID for resuming conversations                         |
 
 ## Rate Limiting
 

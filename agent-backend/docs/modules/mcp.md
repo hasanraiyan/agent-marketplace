@@ -125,29 +125,29 @@ OAuth `state` parameters are signed using HMAC-SHA256 with the JWT secret to pre
 
 ### Mcp
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `ownerId` | ObjectId | Connector owner |
-| `name` | String (2-100) | Server name |
-| `transport` | enum: http/sse | MCP transport protocol |
-| `url` | String | Server URL |
-| `authType` | enum: none/oauth/apiKey | Authentication method |
-| `authMode` | enum: owner/user | Token sharing model |
-| `oauth` | Object | OAuth configuration (client_id, endpoints, scopes, tokens) |
-| `apiKeyEncrypted` | String (encrypted) | Static API key |
-| `tools` | [Tool] | Discovered tool definitions |
-| `resources` | [Resource] | Discovered resource definitions |
-| `resourceTemplates` | [ResourceTemplate] | Discovered URI templates |
+| Field               | Type                    | Description                                                |
+| ------------------- | ----------------------- | ---------------------------------------------------------- |
+| `ownerId`           | ObjectId                | Connector owner                                            |
+| `name`              | String (2-100)          | Server name                                                |
+| `transport`         | enum: http/sse          | MCP transport protocol                                     |
+| `url`               | String                  | Server URL                                                 |
+| `authType`          | enum: none/oauth/apiKey | Authentication method                                      |
+| `authMode`          | enum: owner/user        | Token sharing model                                        |
+| `oauth`             | Object                  | OAuth configuration (client_id, endpoints, scopes, tokens) |
+| `apiKeyEncrypted`   | String (encrypted)      | Static API key                                             |
+| `tools`             | [Tool]                  | Discovered tool definitions                                |
+| `resources`         | [Resource]              | Discovered resource definitions                            |
+| `resourceTemplates` | [ResourceTemplate]      | Discovered URI templates                                   |
 
 ### McpUserConnection
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `mcpId` | ObjectId | MCP server reference |
-| `userId` | ObjectId | User who authorized |
-| `accessTokenEncrypted` | String (encrypted) | User's access token |
+| Field                   | Type               | Description          |
+| ----------------------- | ------------------ | -------------------- |
+| `mcpId`                 | ObjectId           | MCP server reference |
+| `userId`                | ObjectId           | User who authorized  |
+| `accessTokenEncrypted`  | String (encrypted) | User's access token  |
 | `refreshTokenEncrypted` | String (encrypted) | User's refresh token |
-| `expiresAt` | Date | Token expiry |
+| `expiresAt`             | Date               | Token expiry         |
 
 ## Tool Resolution
 
@@ -166,47 +166,51 @@ MCP tool schemas are recursively loosened so missing/hallucinated fields don't c
 
 ## Public API
 
-| Method | Path | Auth | Purpose |
-|--------|------|------|---------|
-| `GET` | `/api/v1/mcps` | Required | List user's MCP servers |
-| `POST` | `/api/v1/mcps` | Required | Create MCP server |
-| `GET` | `/api/v1/mcps/:id` | Required | Get MCP server details |
-| `PATCH` | `/api/v1/mcps/:id` | Required | Update MCP server |
-| `DELETE` | `/api/v1/mcps/:id` | Required | Delete MCP server |
-| `POST` | `/api/v1/mcps/:id/test` | Required | Test connection |
-| `GET` | `/api/v1/mcps/:id/resource` | Required | Read a resource |
-| `POST` | `/api/v1/mcps/:id/call-tool` | Required | Call an MCP tool directly |
-| `GET` | `/api/v1/mcps/:id/agents` | Required | List agents using this MCP |
-| `GET` | `/api/v1/mcps/:id/oauth/owner/authorize` | Required | Get owner OAuth URL |
-| `GET` | `/api/v1/mcps/:id/oauth/user/authorize` | Required | Get user OAuth URL |
-| `GET` | `/api/v1/mcps/:id/oauth/user/status` | Required | Check user connection status |
-| `DELETE` | `/api/v1/mcps/:id/oauth/user/connection` | Required | Disconnect user |
-| `DELETE` | `/api/v1/mcps/:id/oauth/owner/connection` | Required | Disconnect owner |
-| `GET` | `/api/v1/mcps/oauth/owner/callback` | None | OAuth owner callback |
-| `GET` | `/api/v1/mcps/oauth/user/callback` | None | OAuth user callback |
+| Method   | Path                                      | Auth     | Purpose                      |
+| -------- | ----------------------------------------- | -------- | ---------------------------- |
+| `GET`    | `/api/v1/mcps`                            | Required | List user's MCP servers      |
+| `POST`   | `/api/v1/mcps`                            | Required | Create MCP server            |
+| `GET`    | `/api/v1/mcps/:id`                        | Required | Get MCP server details       |
+| `PATCH`  | `/api/v1/mcps/:id`                        | Required | Update MCP server            |
+| `DELETE` | `/api/v1/mcps/:id`                        | Required | Delete MCP server            |
+| `POST`   | `/api/v1/mcps/:id/test`                   | Required | Test connection              |
+| `GET`    | `/api/v1/mcps/:id/resource`               | Required | Read a resource              |
+| `POST`   | `/api/v1/mcps/:id/call-tool`              | Required | Call an MCP tool directly    |
+| `GET`    | `/api/v1/mcps/:id/agents`                 | Required | List agents using this MCP   |
+| `GET`    | `/api/v1/mcps/:id/oauth/owner/authorize`  | Required | Get owner OAuth URL          |
+| `GET`    | `/api/v1/mcps/:id/oauth/user/authorize`   | Required | Get user OAuth URL           |
+| `GET`    | `/api/v1/mcps/:id/oauth/user/status`      | Required | Check user connection status |
+| `DELETE` | `/api/v1/mcps/:id/oauth/user/connection`  | Required | Disconnect user              |
+| `DELETE` | `/api/v1/mcps/:id/oauth/owner/connection` | Required | Disconnect owner             |
+| `GET`    | `/api/v1/mcps/oauth/owner/callback`       | None     | OAuth owner callback         |
+| `GET`    | `/api/v1/mcps/oauth/user/callback`        | None     | OAuth user callback          |
 
 OAuth callbacks deliberately don't use authMiddleware (they're hit by the auth server's browser redirect, which has no session).
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-|-----------|------|---------|
-| Auth module | Internal | Authentication middleware |
-| Rate Limiter module | Internal | Rate limiting |
-| Encryption | Utility | Token encryption/decryption |
-| Config | Internal | JWT secret for OAuth state |
+| Dependency          | Type     | Purpose                     |
+| ------------------- | -------- | --------------------------- |
+| Auth module         | Internal | Authentication middleware   |
+| Rate Limiter module | Internal | Rate limiting               |
+| Encryption          | Utility  | Token encryption/decryption |
+| Config              | Internal | JWT secret for OAuth state  |
 
 ## Important Business Rules
 
 ### OAuth Callbacks Are Public
+
 The OAuth callback routes (`/oauth/owner/callback`, `/oauth/user/callback`) deliberately bypass authMiddleware. The auth server redirects the browser to these URLs, and the redirect doesn't carry a session cookie. Identity is recovered from the signed `state` parameter.
 
 ### Owner vs User Mode
+
 - **Owner** — The MCP creator authorizes once; all users of the agent share that token
 - **User** — Each end-user authorizes their own connection; one user's authorization doesn't grant access to another's
 
 ### Token Refresh
+
 Access tokens are refreshed automatically 60 seconds before expiry. The `mcp-token.service.js` handles this transparently during tool resolution.
 
 ### API Key Auth
+
 For `authType: 'apiKey'`, a static bearer token is sent on every request. No OAuth flow needed — just configure the key once.

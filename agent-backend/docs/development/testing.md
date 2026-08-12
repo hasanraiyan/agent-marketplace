@@ -90,9 +90,7 @@ describe('MyService.create', () => {
 
   it('should throw on duplicate name', async () => {
     await service.create({ name: 'Test' }, userId);
-    await expect(
-      service.create({ name: 'Test' }, userId)
-    ).rejects.toThrow();
+    await expect(service.create({ name: 'Test' }, userId)).rejects.toThrow();
   });
 });
 ```
@@ -125,13 +123,13 @@ From `tests/jest.setup.js`:
 
 ## What to Test
 
-| Layer | What to Test |
-|-------|-------------|
+| Layer          | What to Test                                         |
+| -------------- | ---------------------------------------------------- |
 | **Controller** | HTTP status codes, response format, auth enforcement |
-| **Service** | Business logic, validation rules, error handling |
-| **Repository** | CRUD operations, query filters, data integrity |
-| **Validator** | Valid inputs pass, invalid inputs fail, edge cases |
-| **Middleware** | Auth rejection, rate limiting, error formatting |
+| **Service**    | Business logic, validation rules, error handling     |
+| **Repository** | CRUD operations, query filters, data integrity       |
+| **Validator**  | Valid inputs pass, invalid inputs fail, edge cases   |
+| **Middleware** | Auth rejection, rate limiting, error formatting      |
 
 ## Test Coverage
 
