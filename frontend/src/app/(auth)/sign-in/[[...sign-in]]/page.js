@@ -1,5 +1,206 @@
-import { SignIn } from "@clerk/nextjs";
+"use client";
 
-export default function Page() {
-  return <SignIn fallbackRedirectUrl="/dashboard" />;
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useSignIn } from "@clerk/nextjs";
+import { Button } from "@/components/ui/button";
+import {
+  AuthField,
+  GlobalAuthError,
+  GoogleButton,
+  OrDivider,
+  submitButtonClass,
+} from "@/components/auth/auth-ui";
+
+const CARD_CLASS =
+  "w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-8 shadow-[0_1px_2px_rgba(0,0,0,0.04)]";
+
+export default function SignInPage() {
+  const { signIn, errors, fetchStatus } = useSignIn();
+  const router = useRouter();
+  const busy = fetchStatus === "fetching";
+
+  const [step, setStep] = useState("sign-in");
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetCode, setResetCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+
+  const finalizeAndGo = async () => {
+    await signIn.finalize({
+      navigate: ({ decorateUrl }) => router.push(decorateUrl("/dashboard")),
+    });
+  };
+
+  const handleSignIn = async (e) => {
+    e.preventDefault();
+    const { error } = await signIn.password({ identifier, password });
+    if (error) return;
+    if (signIn.status === "complete") await finalizeAndGo();
+  };
+
+  const handleGoogle = async () => {
+    await signIn.sso({
+      strategy: "oauth_google",
+      redirectCallbackUrl: `${window.location.origin}/sso-callback`,
+      redirectUrl: "/dashboard",
+    });
+  };
+
+  const handleSendReset = async (e) => {
+    e.preventDefault();
+    const { error } = await signIn.create({ identifier: resetEmail });
+    if (error) return;
+    const { error: sendError } = await signIn.resetPasswordEmailCode.sendCode();
+    if (sendError) return;
+    setStep("reset-code");
+  };
+
+  const handleSubmitReset = async (e) => {
+    e.preventDefault();
+    const { error: verifyError } =
+      await signIn.resetPasswordEmailCode.verifyCode({ code: resetCode });
+    if (verifyError) return;
+    const { error: submitError } =
+      await signIn.resetPasswordEmailCode.submitPassword({
+        password: newPassword,
+      });
+    if (submitError) return;
+    if (signIn.status === "complete") await finalizeAndGo();
+  };
+
+  if (step === "forgot" || step === "reset-code") {
+    return (
+      <div className={CARD_CLASS}>
+        <h1 className="font-display text-2xl font-semibold text-zinc-900">
+          Reset your password
+        </h1>
+        <p className="mt-1.5 text-sm text-zinc-500">
+          {step === "forgot"
+            ? "Enter your email and we'll send you a reset code."
+            : `Enter the code we sent to ${resetEmail} and choose a new password.`}
+        </p>
+
+        {step === "forgot" ? (
+          <form onSubmit={handleSendReset} className="mt-6 flex flex-col gap-4">
+            <AuthField
+              id="reset-email"
+              label="Email address"
+              type="email"
+              autoComplete="email"
+              value={resetEmail}
+              onChange={(e) => setResetEmail(e.target.value)}
+              error={errors?.fields?.identifier}
+              required
+            />
+            <GlobalAuthError errors={errors} />
+            <Button type="submit" disabled={busy} className={submitButtonClass}>
+              Send reset code
+            </Button>
+          </form>
+        ) : (
+          <form
+            onSubmit={handleSubmitReset}
+            className="mt-6 flex flex-col gap-4"
+          >
+            <AuthField
+              id="reset-code"
+              label="Reset code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={resetCode}
+              onChange={(e) => setResetCode(e.target.value)}
+              error={errors?.fields?.code}
+              required
+            />
+            <AuthField
+              id="new-password"
+              label="New password"
+              type="password"
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              error={errors?.fields?.password}
+              required
+            />
+            <GlobalAuthError errors={errors} />
+            <Button type="submit" disabled={busy} className={submitButtonClass}>
+              Set new password
+            </Button>
+          </form>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setStep("sign-in")}
+          className="mt-6 text-sm font-medium text-zinc-500 hover:text-zinc-900"
+        >
+          Back to sign in
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={CARD_CLASS}>
+      <h1 className="font-display text-2xl font-semibold text-zinc-900">
+        Welcome back
+      </h1>
+      <p className="mt-1.5 text-sm text-zinc-500">
+        Sign in to talk to your minds.
+      </p>
+
+      <div className="mt-6">
+        <GoogleButton onClick={handleGoogle} disabled={busy} />
+      </div>
+
+      <div className="my-6">
+        <OrDivider />
+      </div>
+
+      <form onSubmit={handleSignIn} className="flex flex-col gap-4">
+        <AuthField
+          id="identifier"
+          label="Email or username"
+          autoComplete="username"
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
+          error={errors?.fields?.identifier}
+          required
+        />
+        <div>
+          <AuthField
+            id="password"
+            label="Password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            error={errors?.fields?.password}
+            required
+          />
+          <button
+            type="button"
+            onClick={() => setStep("forgot")}
+            className="mt-2 text-xs font-medium text-[#1E60FF] hover:underline"
+          >
+            Forgot password?
+          </button>
+        </div>
+        <GlobalAuthError errors={errors} />
+        <Button type="submit" disabled={busy} className={submitButtonClass}>
+          Sign in
+        </Button>
+      </form>
+
+      <p className="mt-6 text-center text-sm text-zinc-500">
+        Don&apos;t have an account?{" "}
+        <Link href="/sign-up" className="font-medium text-[#1E60FF] hover:underline">
+          Sign up
+        </Link>
+      </p>
+    </div>
+  );
 }

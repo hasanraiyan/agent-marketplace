@@ -4,6 +4,7 @@ const isPublicRoute = createRouteMatcher([
   "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
+  "/sso-callback(.*)",
   "/forgot-password(.*)",
   "/dashboard/agents/(.*)", // Allow public viewing of agents with dashboard layout
   "/developer/invitations/(.*)", // Post-accept landing page (Clerk redirect target)
