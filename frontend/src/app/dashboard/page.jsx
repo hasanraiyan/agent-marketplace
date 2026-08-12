@@ -81,7 +81,7 @@ function HScroller({ children, count = 0 }) {
       <div
         ref={railRef}
         onScroll={update}
-        className="flex gap-5 overflow-x-auto no-scrollbar py-2 px-0.5 scroll-smooth md:px-9"
+        className="flex gap-5 overflow-x-auto no-scrollbar py-2 px-0.5 scroll-smooth"
       >
         {children}
       </div>
