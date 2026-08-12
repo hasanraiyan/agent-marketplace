@@ -1,33 +1,41 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { TiltCard } from "@/components/ui/tilt-card";
+import { HScroller } from "@/components/h-scroller";
 import { ArrowRightIcon, PlayCircleIcon } from "lucide-react";
 
 // Same seven categories the product actually ships in the Discover feed
 // (frontend/src/app/dashboard/page.jsx) — kept in sync by hand since that
-// list isn't exported as a shared module.
+// list isn't exported as a shared module. Avatars use the product's real
+// default (agent.model.js's DiceBear fallback, the same art every agent
+// gets until it has a custom photo) — not a fake identity, not a live
+// fetch against a DB that currently has zero public agents.
 const heroCards = [
   {
     label: "Technology",
     line: "Debug a stack trace, review an architecture.",
-    rotate: "lg:rotate-[-6deg]",
+    seed: "technology",
   },
   {
     label: "Careers",
     line: "Rewrite a resume, rehearse an interview.",
-    rotate: "lg:rotate-[3deg]",
+    seed: "careers",
   },
   {
     label: "The Library of Minds",
     line: "Historical thinkers, reconstructed for conversation.",
-    rotate: "lg:rotate-[-2deg]",
+    seed: "library-of-minds",
   },
   {
     label: "Entrepreneurship",
     line: "Pressure-test a pitch, price a product.",
-    rotate: "lg:rotate-[8deg]",
+    seed: "entrepreneurship",
   },
 ];
+
+function avatarUrl(seed) {
+  return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(seed)}&backgroundColor=1e60ff,154ed0,0a2a80`;
+}
 
 export function HeroSection() {
   return (
@@ -37,9 +45,9 @@ export function HeroSection() {
     >
       <div className="pointer-events-none absolute inset-0 bg-index-rule opacity-[0.35]" />
 
-      <div className="relative mx-auto grid max-w-7xl gap-16 px-4 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:gap-8 lg:px-8">
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* ── Copy ─────────────────────────────────────────── */}
-        <div className="animate-fade-up flex flex-col items-start text-left">
+        <div className="animate-fade-up flex max-w-2xl flex-col items-start text-left">
           <span className="mb-6 inline-flex items-center gap-2 font-mono text-[11px] tracking-[0.18em] text-zinc-500 uppercase">
             <span className="size-1.5 rounded-full bg-[#1E60FF]" />
             Persona.ai — an index of minds
@@ -86,29 +94,41 @@ export function HeroSection() {
           </p>
         </div>
 
-        {/* ── The Index (fanned mind cards) ───────────────── */}
+        {/* ── The Index (card row) ──────────────────────────
+            Same HScroller + TiltCard + photo-card pattern as Discover's
+            Featured Minds row (image, gradient overlay, text at the
+            bottom) — swipes on mobile, arrow controls at md+ — instead
+            of a one-off fanned/absolute layout that broke at tablet and
+            small-laptop widths. */}
         <div
-          className="animate-fade-up relative flex gap-4 overflow-x-auto pb-4 lg:h-[420px] lg:justify-center lg:overflow-visible lg:pb-0"
+          className="animate-fade-up mt-16"
           style={{ animationDelay: "0.15s" }}
         >
-          {heroCards.map((card, i) => (
-            <TiltCard
-              key={card.label}
-              maxTilt={8}
-              className={`w-56 shrink-0 rounded-2xl border border-zinc-200 bg-[#FBFAF7] p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-shadow duration-300 hover:shadow-lg lg:absolute lg:w-64 lg:shrink ${card.rotate} lg:hover:z-20 lg:hover:rotate-0`}
-              style={{
-                top: `${i * 22}%`,
-                left: `${i % 2 === 0 ? 10 : 40}%`,
-              }}
-            >
-              <span className="font-mono text-[10px] tracking-[0.16em] text-[#1E60FF] uppercase">
-                Mind — {card.label}
-              </span>
-              <p className="font-display mt-3 text-lg leading-snug font-medium text-zinc-800">
-                {card.line}
-              </p>
-            </TiltCard>
-          ))}
+          <HScroller count={heroCards.length}>
+            {heroCards.map((card) => (
+              <TiltCard
+                key={card.label}
+                maxTilt={8}
+                className="h-64 w-52 shrink-0 overflow-hidden rounded-2xl border border-zinc-200 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-shadow duration-300 hover:shadow-lg sm:h-72 sm:w-60"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={avatarUrl(card.seed)}
+                  alt=""
+                  className="absolute inset-0 size-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+                <div className="absolute inset-x-4 bottom-4 text-white">
+                  <p className="font-mono text-[10px] tracking-[0.16em] text-white/70 uppercase">
+                    Mind — {card.label}
+                  </p>
+                  <p className="font-display mt-1.5 text-base leading-snug font-medium">
+                    {card.line}
+                  </p>
+                </div>
+              </TiltCard>
+            ))}
+          </HScroller>
         </div>
       </div>
     </section>
