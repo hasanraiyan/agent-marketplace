@@ -71,4 +71,27 @@ describe('Provider model — domain/ownerType fields', () => {
     await expect(provider.validate()).resolves.toBeUndefined();
     expect(provider.ownerId).toBeUndefined();
   });
+
+  /**
+   * Provider type-aware setup: `type` defaults to 'custom' so pre-existing
+   * documents with no `type` in the DB behave exactly as before this field
+   * was introduced (agent.factory.js `_buildLLM` and provider.service.js's
+   * model-listing dispatcher both fall back to 'custom' the same way).
+   */
+  test('defaults type to "custom" when not specified', () => {
+    const provider = new Provider(minimalValidProvider);
+    expect(provider.type).toBe('custom');
+  });
+
+  test('accepts each native provider type', () => {
+    for (const type of ['openai', 'anthropic', 'gemini', 'deepseek', 'custom']) {
+      const provider = new Provider({ ...minimalValidProvider, type });
+      expect(provider.type).toBe(type);
+    }
+  });
+
+  test('rejects an unrecognized provider type', async () => {
+    const provider = new Provider({ ...minimalValidProvider, type: 'not-a-real-type' });
+    await expect(provider.validate()).rejects.toThrow();
+  });
 });

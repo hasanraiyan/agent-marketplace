@@ -4,12 +4,14 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, RefreshCw } from "lucide-react";
 import {
   getProjectProviders,
   createProjectProvider,
   updateProjectProvider,
+  getProjectProviderModels,
 } from "@/lib/api/projects";
+import { testProviderCredentials } from "@/lib/api/providers";
 import { developerRoutes } from "@/lib/developer-routes";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
 import {
@@ -24,12 +26,27 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Field,
   FieldGroup,
   FieldLabel,
   FieldDescription,
 } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
+
+const PROVIDER_TYPES = [
+  { value: "openai", label: "OpenAI" },
+  { value: "anthropic", label: "Anthropic (Claude)" },
+  { value: "gemini", label: "Gemini" },
+  { value: "deepseek", label: "DeepSeek" },
+  { value: "custom", label: "Custom" },
+];
 
 export default function ProjectProviderEditorPage({ params: paramsPromise }) {
   const params = React.use(paramsPromise);
@@ -39,12 +56,15 @@ export default function ProjectProviderEditorPage({ params: paramsPromise }) {
   const router = useRouter();
 
   const [formData, setFormData] = useState({
+    type: "",
     label: "",
     baseURL: "",
     apiKey: "",
     defaultModel: "",
     isDefault: false,
   });
+  const [models, setModels] = useState([]);
+  const [loadingModels, setLoadingModels] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(isEditing);
 
@@ -71,12 +91,14 @@ export default function ProjectProviderEditorPage({ params: paramsPromise }) {
         const provider = providers.find((p) => p.id === providerId);
         if (provider) {
           setFormData({
+            type: provider.type || "custom",
             label: provider.label || "",
             baseURL: provider.baseURL || "",
             apiKey: "",
             defaultModel: provider.defaultModel || "",
             isDefault: provider.isDefault || false,
           });
+          fetchModels(provider.id);
         } else {
           toast.error("Provider not found");
           router.push(developerRoutes.project(projectId));
@@ -97,11 +119,67 @@ export default function ProjectProviderEditorPage({ params: paramsPromise }) {
     }));
   };
 
+  const fetchModels = async (existingId = null) => {
+    setLoadingModels(true);
+    try {
+      let res;
+      if (existingId && !formData.apiKey && isEditing) {
+        // Fetch models using this Project's saved provider credentials
+        // (reads the saved provider's type/baseURL server-side — doesn't
+        // need `formData.type`, which may still be stale right after the
+        // load effect's setFormData call).
+        res = await getProjectProviderModels(projectId, existingId);
+      } else {
+        // Not yet saved (or rotating the key) — test raw credentials via
+        // the same pre-save endpoint Studio's provider form uses; it only
+        // proxies to the provider's API, it doesn't touch Project data.
+        if (!formData.type) {
+          toast.error("Please select a provider type first.");
+          setLoadingModels(false);
+          return;
+        }
+        const needsBaseUrl = formData.type === "custom";
+        if (!formData.apiKey || (needsBaseUrl && !formData.baseURL)) {
+          toast.error(
+            needsBaseUrl
+              ? "Please provide both Base URL and API Key to fetch models."
+              : "Please provide an API Key to fetch models.",
+          );
+          setLoadingModels(false);
+          return;
+        }
+        res = await testProviderCredentials(
+          formData.type,
+          needsBaseUrl ? formData.baseURL : undefined,
+          formData.apiKey,
+        );
+      }
+
+      if (res?.data?.success) {
+        const fetchedModels = res.data.data?.models || res.data.data;
+        setModels(fetchedModels || []);
+        toast.success("Models fetched successfully");
+      }
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message ||
+          "Failed to fetch models. Check your credentials.",
+      );
+      setModels([]);
+    } finally {
+      setLoadingModels(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
       const dataToSubmit = { ...formData };
+      if (dataToSubmit.type !== "custom") {
+        // Native types resolve to a canonical Base URL server-side.
+        delete dataToSubmit.baseURL;
+      }
       if (isEditing && !dataToSubmit.apiKey) delete dataToSubmit.apiKey;
 
       if (isEditing) {
@@ -141,12 +219,44 @@ export default function ProjectProviderEditorPage({ params: paramsPromise }) {
           <CardHeader>
             <CardTitle>Provider Configuration</CardTitle>
             <CardDescription>
-              Connection details for this Project&apos;s OpenAI-compatible AI
-              provider.
+              Pick a provider and add your API key — or choose Custom for any
+              OpenAI-compatible endpoint.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="type">Provider</FieldLabel>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value) => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      type: value,
+                      baseURL: "",
+                      defaultModel: "",
+                    }));
+                    setModels([]);
+                  }}
+                  required
+                >
+                  <SelectTrigger id="type">
+                    <SelectValue placeholder="Select a provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROVIDER_TYPES.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  Choose OpenAI, Anthropic, Gemini, or DeepSeek for native
+                  support, or Custom for any OpenAI-compatible endpoint.
+                </FieldDescription>
+              </Field>
+
               <Field>
                 <FieldLabel htmlFor="label">Label</FieldLabel>
                 <Input
@@ -163,21 +273,23 @@ export default function ProjectProviderEditorPage({ params: paramsPromise }) {
                 </FieldDescription>
               </Field>
 
-              <Field>
-                <FieldLabel htmlFor="baseURL">Base URL</FieldLabel>
-                <Input
-                  id="baseURL"
-                  name="baseURL"
-                  type="url"
-                  placeholder="https://api.openai.com/v1"
-                  value={formData.baseURL}
-                  onChange={handleChange}
-                  required
-                />
-                <FieldDescription>
-                  The API endpoint for the provider.
-                </FieldDescription>
-              </Field>
+              {formData.type === "custom" && (
+                <Field>
+                  <FieldLabel htmlFor="baseURL">Base URL</FieldLabel>
+                  <Input
+                    id="baseURL"
+                    name="baseURL"
+                    type="url"
+                    placeholder="https://api.openai.com/v1"
+                    value={formData.baseURL}
+                    onChange={handleChange}
+                    required
+                  />
+                  <FieldDescription>
+                    The API endpoint for the provider.
+                  </FieldDescription>
+                </Field>
+              )}
 
               <Field>
                 <FieldLabel htmlFor="apiKey">API Key</FieldLabel>
@@ -198,15 +310,53 @@ export default function ProjectProviderEditorPage({ params: paramsPromise }) {
               </Field>
 
               <Field>
-                <FieldLabel htmlFor="defaultModel">Default Model</FieldLabel>
-                <Input
-                  id="defaultModel"
-                  name="defaultModel"
-                  placeholder="e.g. gpt-4o"
+                <div className="flex items-center justify-between mb-2">
+                  <FieldLabel htmlFor="defaultModel">Default Model</FieldLabel>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fetchModels(isEditing ? providerId : null)}
+                    disabled={loadingModels}
+                  >
+                    {loadingModels ? (
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-2 h-3 w-3" />
+                    )}
+                    Fetch Models
+                  </Button>
+                </div>
+
+                <Select
                   value={formData.defaultModel}
-                  onChange={handleChange}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, defaultModel: value }))
+                  }
                   required
-                />
+                >
+                  <SelectTrigger id="defaultModel">
+                    <SelectValue placeholder="Select a default model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {models.length > 0 ? (
+                      models.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.id}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="none" disabled>
+                        {formData.defaultModel || "No models fetched yet"}
+                      </SelectItem>
+                    )}
+                    {models.length === 0 && formData.defaultModel && (
+                      <SelectItem value={formData.defaultModel}>
+                        {formData.defaultModel}
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
                 <FieldDescription>
                   The model used by default for Agents attached to this
                   provider.

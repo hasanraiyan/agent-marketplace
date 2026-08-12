@@ -41,6 +41,14 @@ import { useDashboardHeader } from "@/components/dashboard-header-context";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 
+const PROVIDER_TYPES = [
+  { value: "openai", label: "OpenAI" },
+  { value: "anthropic", label: "Anthropic (Claude)" },
+  { value: "gemini", label: "Gemini" },
+  { value: "deepseek", label: "DeepSeek" },
+  { value: "custom", label: "Custom" },
+];
+
 export default function ProviderEditorPage({ params: paramsPromise }) {
   const router = useRouter();
   const params = React.use(paramsPromise);
@@ -48,6 +56,7 @@ export default function ProviderEditorPage({ params: paramsPromise }) {
   const isEditing = id !== "new";
 
   const [formData, setFormData] = useState({
+    type: "",
     label: "",
     baseURL: "",
     apiKey: "",
@@ -73,6 +82,7 @@ export default function ProviderEditorPage({ params: paramsPromise }) {
           const provider = providers.find((p) => p.id === id);
           if (provider) {
             setFormData({
+              type: provider.type || "custom",
               label: provider.label || "",
               baseURL: provider.baseURL || "",
               apiKey: "",
@@ -107,19 +117,36 @@ export default function ProviderEditorPage({ params: paramsPromise }) {
     setLoadingModels(true);
     try {
       let res;
-      if (existingId && !formData.apiKey && isEditing && formData.baseURL) {
+      if (existingId && !formData.apiKey && isEditing) {
         // Fetch models using existing provider credentials on the backend
+        // (reads the saved provider's type/baseURL server-side — doesn't
+        // need `formData.type`, which may still be stale right after the
+        // load effect's setFormData call).
         res = await getProviderModels(existingId);
       } else {
-        // Use provided baseURL and apiKey to test credentials and fetch models
-        if (!formData.baseURL || !formData.apiKey) {
+        // Use provided type/baseURL/apiKey to test credentials and fetch models.
+        // Base URL is only required (and only shown) for the 'custom' type —
+        // native types resolve to a canonical URL server-side.
+        if (!formData.type) {
+          toast.error("Please select a provider type first.");
+          setLoadingModels(false);
+          return;
+        }
+        const needsBaseUrl = formData.type === "custom";
+        if (!formData.apiKey || (needsBaseUrl && !formData.baseURL)) {
           toast.error(
-            "Please provide both Base URL and API Key to fetch models.",
+            needsBaseUrl
+              ? "Please provide both Base URL and API Key to fetch models."
+              : "Please provide an API Key to fetch models.",
           );
           setLoadingModels(false);
           return;
         }
-        res = await testProviderCredentials(formData.baseURL, formData.apiKey);
+        res = await testProviderCredentials(
+          formData.type,
+          needsBaseUrl ? formData.baseURL : undefined,
+          formData.apiKey,
+        );
       }
 
       if (res?.data?.success) {
@@ -143,6 +170,11 @@ export default function ProviderEditorPage({ params: paramsPromise }) {
     setSaving(true);
     try {
       const dataToSubmit = { ...formData };
+
+      if (dataToSubmit.type !== "custom") {
+        // Native types resolve to a canonical Base URL server-side.
+        delete dataToSubmit.baseURL;
+      }
 
       if (isEditing && !dataToSubmit.apiKey) {
         delete dataToSubmit.apiKey;
@@ -198,12 +230,44 @@ export default function ProviderEditorPage({ params: paramsPromise }) {
           <CardHeader>
             <CardTitle>Provider Configuration</CardTitle>
             <CardDescription>
-              Enter the connection details for your OpenAI-compatible AI
-              provider.
+              Pick a provider and add your API key — or choose Custom for any
+              OpenAI-compatible endpoint.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="type">Provider</FieldLabel>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value) => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      type: value,
+                      baseURL: "",
+                      defaultModel: "",
+                    }));
+                    setModels([]);
+                  }}
+                  required
+                >
+                  <SelectTrigger id="type">
+                    <SelectValue placeholder="Select a provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROVIDER_TYPES.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  Choose OpenAI, Anthropic, Gemini, or DeepSeek for native
+                  support, or Custom for any OpenAI-compatible endpoint.
+                </FieldDescription>
+              </Field>
+
               <Field>
                 <FieldLabel htmlFor="label">Label</FieldLabel>
                 <Input
@@ -219,21 +283,23 @@ export default function ProviderEditorPage({ params: paramsPromise }) {
                 </FieldDescription>
               </Field>
 
-              <Field>
-                <FieldLabel htmlFor="baseURL">Base URL</FieldLabel>
-                <Input
-                  id="baseURL"
-                  name="baseURL"
-                  type="url"
-                  placeholder="https://api.openai.com/v1"
-                  value={formData.baseURL}
-                  onChange={handleChange}
-                  required
-                />
-                <FieldDescription>
-                  The API endpoint for the provider.
-                </FieldDescription>
-              </Field>
+              {formData.type === "custom" && (
+                <Field>
+                  <FieldLabel htmlFor="baseURL">Base URL</FieldLabel>
+                  <Input
+                    id="baseURL"
+                    name="baseURL"
+                    type="url"
+                    placeholder="https://api.openai.com/v1"
+                    value={formData.baseURL}
+                    onChange={handleChange}
+                    required
+                  />
+                  <FieldDescription>
+                    The API endpoint for the provider.
+                  </FieldDescription>
+                </Field>
+              )}
 
               <Field>
                 <FieldLabel htmlFor="apiKey">API Key</FieldLabel>

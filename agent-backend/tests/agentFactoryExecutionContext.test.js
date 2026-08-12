@@ -4,6 +4,10 @@ import agentRepository from '../src/modules/agents/agent.repository.js';
 import providerRepository from '../src/modules/providers/provider.repository.js';
 import encryption from '../src/utils/encryption.js';
 import { personaExecutionContext } from '../src/modules/agents/agent.service.js';
+import { ChatOpenAI } from '@langchain/openai';
+import { ChatAnthropic } from '@langchain/anthropic';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatDeepSeek } from '@langchain/deepseek';
 
 jest.mock('../src/modules/agents/agent.repository.js');
 jest.mock('../src/modules/providers/provider.repository.js');
@@ -167,5 +171,61 @@ describe('AgentFactory.buildAgent — executionContext generalization', () => {
       const second = await agentFactory.buildAgent('agent-1', 'sabik', null, context);
       expect(second.cacheHit).toBe(true);
     });
+  });
+});
+
+/**
+ * Provider type-aware setup: `_buildLLM` branches on `provider.type` to
+ * construct the right LangChain chat model. Calls `_buildLLM` directly
+ * rather than going through the full `buildAgent`/DeepAgent graph
+ * compilation pipeline above — that path is unrelated to this branching
+ * and would only add unnecessary weight to what's a pure construction test.
+ */
+describe('AgentFactory._buildLLM — provider type-aware construction', () => {
+  const agent = { providerId: 'provider-1', modelName: undefined };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    encryption.decrypt = jest.fn().mockReturnValue('decrypted-key');
+  });
+
+  function makeProvider(overrides = {}) {
+    return {
+      label: 'Test Provider',
+      apiKeyEncrypted: 'encrypted-key',
+      defaultModel: 'default-model',
+      baseURL: 'https://example.com',
+      ...overrides,
+    };
+  }
+
+  test('defaults to ChatOpenAI when type is missing (pre-existing providers)', async () => {
+    const llm = await agentFactory._buildLLM(agent, makeProvider());
+    expect(llm).toBeInstanceOf(ChatOpenAI);
+  });
+
+  test("type: 'openai' constructs ChatOpenAI", async () => {
+    const llm = await agentFactory._buildLLM(agent, makeProvider({ type: 'openai' }));
+    expect(llm).toBeInstanceOf(ChatOpenAI);
+  });
+
+  test("type: 'custom' constructs ChatOpenAI", async () => {
+    const llm = await agentFactory._buildLLM(agent, makeProvider({ type: 'custom' }));
+    expect(llm).toBeInstanceOf(ChatOpenAI);
+  });
+
+  test("type: 'anthropic' constructs ChatAnthropic", async () => {
+    const llm = await agentFactory._buildLLM(agent, makeProvider({ type: 'anthropic' }));
+    expect(llm).toBeInstanceOf(ChatAnthropic);
+  });
+
+  test("type: 'gemini' constructs ChatGoogleGenerativeAI", async () => {
+    const llm = await agentFactory._buildLLM(agent, makeProvider({ type: 'gemini' }));
+    expect(llm).toBeInstanceOf(ChatGoogleGenerativeAI);
+  });
+
+  test("type: 'deepseek' constructs ChatDeepSeek", async () => {
+    const llm = await agentFactory._buildLLM(agent, makeProvider({ type: 'deepseek' }));
+    expect(llm).toBeInstanceOf(ChatDeepSeek);
   });
 });

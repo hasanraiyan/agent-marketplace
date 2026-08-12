@@ -53,6 +53,47 @@ describe('Provider Validator', () => {
       const result = createProviderSchema.parse(omitIsDefault);
       expect(result.isDefault).toBe(false);
     });
+
+    it('should default type to custom if omitted', () => {
+      const result = createProviderSchema.parse({
+        label: 'My OpenAI',
+        baseURL: 'https://api.openai.com/v1',
+        apiKey: 'sk-1234567890abcdef',
+        defaultModel: 'gpt-4',
+      });
+      expect(result.type).toBe('custom');
+    });
+
+    it('should fail if type is custom and baseURL is missing', () => {
+      const result = createProviderSchema.safeParse({
+        label: 'My Custom',
+        type: 'custom',
+        apiKey: 'sk-1234567890abcdef',
+        defaultModel: 'gpt-4',
+      });
+      expect(result.success).toBe(false);
+      expect(result.error.issues[0].path).toEqual(['baseURL']);
+    });
+
+    it('should pass for a native type without baseURL', () => {
+      const result = createProviderSchema.safeParse({
+        label: 'My Anthropic',
+        type: 'anthropic',
+        apiKey: 'sk-ant-1234567890abcdef',
+        defaultModel: 'claude-sonnet-4-6',
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject an unknown type value', () => {
+      const result = createProviderSchema.safeParse({
+        label: 'My Provider',
+        type: 'not-a-real-type',
+        apiKey: 'sk-1234567890abcdef',
+        defaultModel: 'gpt-4',
+      });
+      expect(result.success).toBe(false);
+    });
   });
 
   describe('updateProviderSchema', () => {
@@ -81,6 +122,22 @@ describe('Provider Validator', () => {
 
       const result = updateProviderSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
+    });
+
+    it('should allow switching to a native type without baseURL', () => {
+      const result = updateProviderSchema.safeParse({ type: 'gemini' });
+      expect(result.success).toBe(true);
+    });
+
+    it('should fail switching to custom without a baseURL', () => {
+      const result = updateProviderSchema.safeParse({ type: 'custom' });
+      expect(result.success).toBe(false);
+      expect(result.error.issues[0].path).toEqual(['baseURL']);
+    });
+
+    it('should not require baseURL when type is not part of the update', () => {
+      const result = updateProviderSchema.safeParse({ label: 'Renamed' });
+      expect(result.success).toBe(true);
     });
   });
 });
