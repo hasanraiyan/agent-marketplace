@@ -37,7 +37,7 @@ export function NavMain({ items, myAgentId }) {
               tooltip={ctaLabel}
               className="h-10 w-full justify-center gap-2 rounded-xl !bg-[#1E60FF] !text-white hover:!bg-[#154ed0] hover:!text-white font-bold text-sm tracking-wide shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-none"
             >
-              <Link href={ctaHref}>
+              <Link href={ctaHref} id="onboarding-dashboard-studio-cta">
                 <CtaIcon className="size-4 shrink-0" />
                 <span>{ctaLabel}</span>
               </Link>
@@ -61,7 +61,11 @@ export function NavMain({ items, myAgentId }) {
                       : "text-slate-650 hover:text-slate-950 hover:bg-slate-100/50 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800/30",
                   )}
                 >
-                  <Link href={item.url} className="flex items-center gap-2.5">
+                  <Link
+                    href={item.url}
+                    id={item.id}
+                    className="flex items-center gap-2.5"
+                  >
                     <span
                       className={cn(
                         "transition-transform duration-200 group-hover/menu-button:translate-x-0.5",

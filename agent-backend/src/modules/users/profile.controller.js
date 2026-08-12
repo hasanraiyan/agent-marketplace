@@ -23,6 +23,7 @@ export const getProfile = async (req, res, next) => {
         role: user.role,
         emailVerified: user.emailVerified,
         profile: user.profile || { summary: '', preferences: {} },
+        onboardingSeen: user.onboardingSeen || [],
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       })
@@ -66,10 +67,29 @@ export const updateProfile = async (req, res, next) => {
           role: user.role,
           emailVerified: user.emailVerified,
           profile: user.profile || { summary: '', preferences: {} },
+          onboardingSeen: user.onboardingSeen || [],
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
         },
         'Profile updated successfully'
+      )
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const markOnboardingSeen = async (req, res, next) => {
+  try {
+    const { section } = req.body;
+    const user = await userRepository.addOnboardingSeenSection(req.user.id, section);
+
+    logger.info('Onboarding section marked seen', { userId: user.id, section });
+
+    res.json(
+      successFormatter.formatSuccess(
+        { onboardingSeen: user.onboardingSeen || [] },
+        'Onboarding updated'
       )
     );
   } catch (error) {
@@ -93,5 +113,6 @@ export const deleteProfile = async (req, res, next) => {
 export default {
   getProfile,
   updateProfile,
+  markOnboardingSeen,
   deleteProfile,
 };

@@ -64,3 +64,31 @@ describe('User Repository — searchByEmailPrefix', () => {
     expect(chain.select().limit).toHaveBeenCalledWith(8);
   });
 });
+
+describe('User Repository — addOnboardingSeenSection', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('adds the section via an atomic $addToSet and returns the updated user', async () => {
+    const updated = { id: 'u1', onboardingSeen: ['dashboard'] };
+    jest.spyOn(User, 'findByIdAndUpdate').mockResolvedValue(updated);
+
+    const result = await userRepository.addOnboardingSeenSection('u1', 'dashboard');
+
+    expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
+      'u1',
+      { $addToSet: { onboardingSeen: 'dashboard' } },
+      { returnDocument: 'after' }
+    );
+    expect(result).toEqual(updated);
+  });
+
+  test('throws NotFoundError when the user does not exist', async () => {
+    jest.spyOn(User, 'findByIdAndUpdate').mockResolvedValue(null);
+
+    await expect(userRepository.addOnboardingSeenSection('missing', 'studio')).rejects.toThrow(
+      'User with id missing not found'
+    );
+  });
+});

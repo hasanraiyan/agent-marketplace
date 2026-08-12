@@ -36,7 +36,11 @@ export function NavSecondary({ items, ...props }) {
                       : "text-slate-650 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-100 hover:bg-slate-100/50 dark:hover:bg-slate-800/30",
                   )}
                 >
-                  <Link href={item.url} className="flex items-center gap-2.5">
+                  <Link
+                    href={item.url}
+                    id={item.id}
+                    className="flex items-center gap-2.5"
+                  >
                     <span
                       className={cn(
                         "transition-transform duration-200 group-hover/menu-button:translate-x-0.5",

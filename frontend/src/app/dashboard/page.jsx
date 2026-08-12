@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { searchAgents, createAgent } from "@/lib/api/agents";
 import { getProviders } from "@/lib/api/providers";
 import { studioRoutes } from "@/lib/studio-routes";
+import { useOnboardingSection } from "@/hooks/use-onboarding-section";
 
 const CATEGORIES = [
   { value: "all", label: "All" },
@@ -50,6 +51,7 @@ const DB_CATEGORY_MAP = {
 export default function ExplorePage() {
   const router = useRouter();
   const { isSignedIn } = useUser();
+  useOnboardingSection("dashboard");
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [isSearchingMobile, setIsSearchingMobile] = useState(false);

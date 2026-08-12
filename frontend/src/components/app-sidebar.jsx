@@ -36,11 +36,13 @@ const NAV_MAIN = [
     title: "Explore",
     url: "/dashboard",
     icon: <CompassIcon />,
+    id: "onboarding-dashboard-explore",
   },
   {
     title: "My Agents",
     url: "/dashboard/agents",
     icon: <UserIcon />,
+    id: "onboarding-dashboard-my-agents",
   },
 ];
 
@@ -49,6 +51,7 @@ const NAV_SECONDARY = [
     title: "Settings",
     url: "/dashboard/settings",
     icon: <Settings2Icon />,
+    id: "onboarding-dashboard-settings",
   },
   {
     title: "Help & Docs",

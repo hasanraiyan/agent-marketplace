@@ -1,6 +1,7 @@
 import {
   updateProfileSchema,
   changePasswordSchema,
+  markOnboardingSeenSchema,
 } from '../src/modules/users/profile.validator.js';
 
 describe('Profile Validator', () => {
@@ -91,6 +92,22 @@ describe('Profile Validator', () => {
         newPassword: '12345678',
       });
       expect(result.newPassword).toBe('12345678');
+    });
+  });
+
+  describe('markOnboardingSeenSchema', () => {
+    test('should accept each known section', () => {
+      expect(markOnboardingSeenSchema.parse({ section: 'dashboard' }).section).toBe('dashboard');
+      expect(markOnboardingSeenSchema.parse({ section: 'studio' }).section).toBe('studio');
+      expect(markOnboardingSeenSchema.parse({ section: 'developer' }).section).toBe('developer');
+    });
+
+    test('should reject an unknown section', () => {
+      expect(() => markOnboardingSeenSchema.parse({ section: 'not-a-real-section' })).toThrow();
+    });
+
+    test('should reject a missing section', () => {
+      expect(() => markOnboardingSeenSchema.parse({})).toThrow();
     });
   });
 });

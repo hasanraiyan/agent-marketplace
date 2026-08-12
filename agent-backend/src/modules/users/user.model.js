@@ -17,6 +17,10 @@ export const userSchema = z.object({
       lastUpdated: z.date().default(() => new Date()),
     })
     .optional(),
+  // First-run onboarding tours the user has completed or skipped (e.g.
+  // 'dashboard', 'studio') — a plain string array, not a Mongoose enum, so
+  // adding more sections later needs no migration.
+  onboardingSeen: z.array(z.string()).default([]),
   createdAt: z.date().default(() => new Date()),
   updatedAt: z.date().default(() => new Date()),
 });
@@ -81,6 +85,10 @@ const userMongooseSchema = new mongoose.Schema(
         type: Date,
         default: Date.now,
       },
+    },
+    onboardingSeen: {
+      type: [String],
+      default: [],
     },
   },
   {

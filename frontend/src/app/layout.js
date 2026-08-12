@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AxiosTokenProvider } from "@/components/auth/axios-token-provider";
 import { ThemeProvider } from "@/components/theme-provider";
+import { OnboardingProvider } from "@/components/onboarding/onboarding-provider";
 import { Analytics } from "@vercel/analytics/next";
 import "prismjs/themes/prism.css";
 
@@ -69,7 +70,9 @@ export default function RootLayout({ children }) {
             enableSystem={false}
           >
             <AxiosTokenProvider />
-            <TooltipProvider>{children}</TooltipProvider>
+            <TooltipProvider>
+              <OnboardingProvider>{children}</OnboardingProvider>
+            </TooltipProvider>
             <Toaster />
           </ThemeProvider>
           <Analytics />
