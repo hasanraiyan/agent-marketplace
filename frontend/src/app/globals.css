@@ -196,6 +196,42 @@
   animation: fade-up 0.5s ease-out forwards;
 }
 
+/* Circular auto-rotating card ring (landing CTA). Two layers spinning at the
+   same duration in opposite directions: .orbit-ring moves every card's
+   position around the circle; .orbit-card-counter (nested inside each
+   card's own fixed placement transform) cancels that same rotation back
+   out, so card content stays upright as it orbits instead of tumbling. */
+@keyframes orbit-ring-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes orbit-card-counter-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.orbit-ring {
+  animation: orbit-ring-spin 48s linear infinite;
+}
+
+.orbit-card-counter {
+  animation: orbit-card-counter-spin 48s linear infinite;
+}
+
+.orbit-wrap:hover .orbit-ring,
+.orbit-wrap:hover .orbit-card-counter {
+  animation-play-state: paused;
+}
+
 @keyframes shimmer {
   0% {
     background-position: 200% 0;
@@ -248,6 +284,10 @@
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
+  }
+  .orbit-ring,
+  .orbit-card-counter {
+    animation: none !important;
   }
 }
 

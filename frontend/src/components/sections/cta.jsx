@@ -4,59 +4,62 @@ import { TiltCard } from "@/components/ui/tilt-card";
 import { ArrowRightIcon } from "lucide-react";
 
 // All seven real categories from the Discover feed / Index section, copy
-// matched to categories.jsx exactly. Avatars use the product's real default
-// (agent.model.js's DiceBear fallback, the same art every agent gets until
-// it has a custom photo) — not a fake identity, not a live fetch against a
-// DB that currently has zero public agents.
-//
-// Positioned as a physical deck: all cards centered on the same point,
-// each offset a little and rotated a different amount, stacked by
-// z-index — the front card sits straightest and is the most legible, the
-// rest peek out at sharper angles further back.
+// matched to categories.jsx exactly — Technology and Careers each split
+// into their two real halves instead of duplicated or invented, to reach
+// enough cards for a full ring without ever showing the same content twice.
+// Avatars use the product's real default (agent.model.js's DiceBear
+// fallback, the same art every agent gets until it has a custom photo) —
+// not a fake identity, not a live fetch against a DB that currently has
+// zero public agents.
 const ctaCards = [
   {
     tag: "Health & Fitness",
     line: "Build a routine, read your labs, stay consistent.",
     seed: "health-fitness",
-    z: "z-10",
-    fanClass: "translate-x-[-56px] translate-y-[-36px] rotate-[-12deg]",
   },
   {
     tag: "Entrepreneurship",
     line: "Pressure-test a pitch, price a product, plan a launch.",
     seed: "entrepreneurship",
-    z: "z-[14]",
-    fanClass: "translate-x-[46px] translate-y-[-44px] rotate-[9deg]",
   },
   {
     tag: "Mind & Behavior",
-    line: "Reframe a thought, sit with a decision.",
+    line: "Reframe a thought, understand a pattern, sit with a decision.",
     seed: "mind-behavior",
-    z: "z-[18]",
-    fanClass: "translate-x-[-40px] translate-y-[14px] rotate-[-7deg]",
   },
   {
-    tag: "Careers",
-    line: "Rewrite a resume, rehearse an interview.",
-    seed: "careers",
-    z: "z-[22]",
-    fanClass: "translate-x-[52px] translate-y-[6px] rotate-[8deg]",
-  },
-  {
-    tag: "The Library of Minds",
-    line: "Historical thinkers and working experts, reconstructed.",
-    seed: "library-of-minds",
-    z: "z-[26]",
-    fanClass: "translate-x-[-20px] translate-y-[40px] rotate-[-4deg]",
+    tag: "Technology",
+    line: "Debug a stack trace.",
+    seed: "technology-1",
   },
   {
     tag: "Life & Relationships",
     line: "Talk through a conflict, plan a hard conversation.",
     seed: "life-relationships",
-    z: "z-40",
-    fanClass: "translate-x-[6px] translate-y-[-6px] rotate-[-1deg]",
+  },
+  {
+    tag: "The Library of Minds",
+    line: "Historical thinkers and working experts, reconstructed.",
+    seed: "library-of-minds",
+  },
+  {
+    tag: "Careers",
+    line: "Rewrite a resume, rehearse an interview.",
+    seed: "careers-1",
+  },
+  {
+    tag: "Technology",
+    line: "Review an architecture, learn a tool.",
+    seed: "technology-2",
+  },
+  {
+    tag: "Careers",
+    line: "Plan the next move.",
+    seed: "careers-2",
   },
 ];
+
+const RADIUS = 112;
 
 function avatarUrl(seed) {
   return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(seed)}&backgroundColor=1e60ff,154ed0,0a2a80`;
@@ -91,45 +94,48 @@ export function CTASection() {
             </Button>
           </div>
 
-          {/* Photo-card deck — same TiltCard treatment as Discover's
-              Featured Minds (image, gradient overlay, text at the bottom),
-              stacked like a small pile of photos instead of spread out. */}
-          <div className="relative hidden h-[26rem] lg:block">
-            {ctaCards.map((card) => (
-              // Outer: centers every card on the same point. Inner: the
-              // per-card fan offset/rotation. Kept as two elements so hover
-              // can reset just the inner transform without fighting the
-              // centering transform on the same element.
-              <div
-                key={card.tag}
-                className={`absolute top-1/2 left-1/2 h-64 w-52 -translate-x-1/2 -translate-y-1/2 hover:z-50 ${card.z}`}
-              >
-                <div
-                  className={`size-full transition-transform duration-300 hover:translate-x-0 hover:translate-y-0 hover:rotate-0 ${card.fanClass}`}
-                >
-                  <TiltCard
-                    maxTilt={10}
-                    className="size-full overflow-hidden rounded-2xl border border-zinc-200 shadow-md"
+          {/* Auto-rotating card ring — same TiltCard treatment as
+              Discover's Featured Minds. Pauses on hover; see globals.css
+              for the counter-rotation that keeps cards upright while the
+              ring turns, and the prefers-reduced-motion override. */}
+          <div className="orbit-wrap relative hidden h-[26rem] lg:block">
+            <div className="orbit-ring absolute inset-0">
+              {ctaCards.map((card, i) => {
+                const angle = (360 / ctaCards.length) * i;
+                return (
+                  <div
+                    key={`${card.tag}-${card.seed}`}
+                    className="absolute top-1/2 left-1/2 h-44 w-36"
+                    style={{
+                      transform: `translate(-50%, -50%) rotate(${angle}deg) translate(${RADIUS}px) rotate(${-angle}deg)`,
+                    }}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={avatarUrl(card.seed)}
-                      alt=""
-                      className="absolute inset-0 size-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-                    <div className="absolute inset-x-4 bottom-4 text-white">
-                      <p className="font-mono text-[10px] tracking-[0.14em] text-white/70 uppercase">
-                        {card.tag}
-                      </p>
-                      <p className="font-display mt-1 text-sm leading-snug font-medium">
-                        {card.line}
-                      </p>
+                    <div className="orbit-card-counter size-full">
+                      <TiltCard
+                        maxTilt={8}
+                        className="size-full overflow-hidden rounded-2xl border border-zinc-200 shadow-md"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={avatarUrl(card.seed)}
+                          alt=""
+                          className="absolute inset-0 size-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+                        <div className="absolute inset-x-3 bottom-3 text-white">
+                          <p className="font-mono text-[9px] tracking-[0.12em] text-white/70 uppercase">
+                            {card.tag}
+                          </p>
+                          <p className="font-display mt-1 text-xs leading-snug font-medium">
+                            {card.line}
+                          </p>
+                        </div>
+                      </TiltCard>
                     </div>
-                  </TiltCard>
-                </div>
-              </div>
-            ))}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
