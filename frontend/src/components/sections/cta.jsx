@@ -8,24 +8,32 @@ import { ArrowRightIcon } from "lucide-react";
 // the product's real default (agent.model.js's DiceBear fallback, the same
 // art every agent gets until it has a custom photo) — not a fake identity,
 // not a live fetch against a DB that currently has zero public agents.
+//
+// Positioned as a physical deck: all three centered on the same point,
+// each offset a little and rotated a different amount, stacked by z-index
+// — the front card sits straightest and is the most legible, the two
+// behind it peek out at sharper angles.
 const ctaCards = [
   {
     tag: "Health & Fitness",
     line: "Build a routine, read your labs, stay consistent.",
     seed: "health-fitness",
-    position: "left-[4%] top-[4%] lg:rotate-[-5deg]",
+    wrapClass:
+      "left-1/2 top-1/2 -translate-x-[calc(50%+32px)] -translate-y-[calc(50%+18px)] rotate-[-9deg] z-10",
   },
   {
     tag: "Mind & Behavior",
     line: "Reframe a thought, sit with a decision.",
     seed: "mind-behavior",
-    position: "left-[32%] top-[30%] lg:rotate-[4deg]",
+    wrapClass:
+      "left-1/2 top-1/2 -translate-x-[calc(50%-26px)] -translate-y-[calc(50%-10px)] rotate-[7deg] z-20",
   },
   {
     tag: "Life & Relationships",
     line: "Talk through a conflict, plan a hard conversation.",
     seed: "life-relationships",
-    position: "left-[10%] top-[56%] lg:rotate-[-2deg]",
+    wrapClass:
+      "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rotate-[-2deg] z-30",
   },
 ];
 
@@ -62,31 +70,36 @@ export function CTASection() {
             </Button>
           </div>
 
-          {/* Photo-card stack — same TiltCard treatment as Discover's
-              Featured Minds: image, gradient overlay, text at the bottom. */}
-          <div className="relative hidden h-96 lg:block">
+          {/* Photo-card deck — same TiltCard treatment as Discover's
+              Featured Minds (image, gradient overlay, text at the bottom),
+              stacked like a small pile of photos instead of spread out. */}
+          <div className="relative hidden h-72 lg:block">
             {ctaCards.map((card) => (
-              <TiltCard
+              <div
                 key={card.tag}
-                maxTilt={8}
-                className={`absolute h-64 w-52 overflow-hidden rounded-2xl border border-zinc-200 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-transform duration-300 hover:z-10 hover:rotate-0 ${card.position}`}
+                className={`absolute h-64 w-52 transition-transform duration-300 hover:z-40 hover:rotate-0 ${card.wrapClass}`}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={avatarUrl(card.seed)}
-                  alt=""
-                  className="absolute inset-0 size-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-                <div className="absolute inset-x-4 bottom-4 text-white">
-                  <p className="font-mono text-[10px] tracking-[0.14em] text-white/70 uppercase">
-                    {card.tag}
-                  </p>
-                  <p className="font-display mt-1 text-sm leading-snug font-medium">
-                    {card.line}
-                  </p>
-                </div>
-              </TiltCard>
+                <TiltCard
+                  maxTilt={10}
+                  className="size-full overflow-hidden rounded-2xl border border-zinc-200 shadow-md"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={avatarUrl(card.seed)}
+                    alt=""
+                    className="absolute inset-0 size-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+                  <div className="absolute inset-x-4 bottom-4 text-white">
+                    <p className="font-mono text-[10px] tracking-[0.14em] text-white/70 uppercase">
+                      {card.tag}
+                    </p>
+                    <p className="font-display mt-1 text-sm leading-snug font-medium">
+                      {card.line}
+                    </p>
+                  </div>
+                </TiltCard>
+              </div>
             ))}
           </div>
         </div>
