@@ -30,6 +30,7 @@ import { getMySkills } from "@/lib/api/skills";
 import { getMyMcps } from "@/lib/api/mcps";
 import { getMyKnowledgeBases } from "@/lib/api/knowledge";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
+import { useOnboardingSection } from "@/hooks/use-onboarding-section";
 
 const VISIBILITY_ICON = {
   public: GlobeIcon,
@@ -93,6 +94,7 @@ function ResourceCard({ href, title, count, loading, icon: Icon, hint }) {
 
 export default function StudioHomePage() {
   const { isLoaded, isSignedIn } = useAuth();
+  useOnboardingSection("studio");
 
   const [agents, setAgents] = useState([]);
   const [loadingAgents, setLoadingAgents] = useState(true);

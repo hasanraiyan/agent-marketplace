@@ -163,6 +163,28 @@ class UserRepository {
   }
 
   /**
+   * Marks a first-run onboarding tour section as seen (completed or
+   * skipped). Atomic $addToSet — idempotent, and avoids a read-modify-write
+   * race that the generic `update()` method's plain field replace would have.
+   * @param {string} id - User ID
+   * @param {string} section - Onboarding section key (e.g. 'dashboard')
+   * @returns {Promise<Object>} Updated user
+   */
+  async addOnboardingSeenSection(id, section) {
+    const user = await User.findByIdAndUpdate(
+      id,
+      { $addToSet: { onboardingSeen: section } },
+      { returnDocument: 'after' }
+    );
+
+    if (!user) {
+      throw new NotFoundError(`User with id ${id} not found`);
+    }
+
+    return user;
+  }
+
+  /**
    * Soft delete user by ID (set isActive to false)
    * @param {string} id - User ID
    * @returns {Promise<Object>} Updated user

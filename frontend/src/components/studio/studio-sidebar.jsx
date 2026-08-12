@@ -35,8 +35,18 @@ import { cn } from "@/lib/utils";
 
 // Studio-owned sections. Everything below lives under /studio.
 const STUDIO_NAV = [
-  { title: "Overview", url: studioRoutes.home, icon: LayoutDashboardIcon },
-  { title: "Agents", url: studioRoutes.agents, icon: UsersIcon },
+  {
+    title: "Overview",
+    url: studioRoutes.home,
+    icon: LayoutDashboardIcon,
+    id: "onboarding-studio-overview",
+  },
+  {
+    title: "Agents",
+    url: studioRoutes.agents,
+    icon: UsersIcon,
+    id: "onboarding-studio-agents",
+  },
 ];
 
 // Creator building blocks — all native Studio routes since Phase 2A.
@@ -49,6 +59,7 @@ const CREATOR_RESOURCES = [
     title: "Providers",
     url: studioRoutes.providers,
     icon: SlidersHorizontalIcon,
+    id: "onboarding-studio-providers",
   },
 ];
 
@@ -67,7 +78,11 @@ function StudioNavLink({ item, active }) {
             : "text-slate-650 hover:bg-slate-100/50 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800/30 dark:hover:text-slate-100",
         )}
       >
-        <Link href={item.url} className="flex items-center gap-2.5">
+        <Link
+          href={item.url}
+          id={item.id}
+          className="flex items-center gap-2.5"
+        >
           <Icon
             className={cn(
               "size-4 shrink-0",
@@ -138,7 +153,10 @@ export function StudioSidebar({ ...props }) {
                   tooltip="New Agent"
                   className="h-10 w-full justify-center gap-2 rounded-xl border-none !bg-[#1E60FF] text-sm font-bold tracking-wide !text-white shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] hover:!bg-[#154ed0] hover:!text-white active:scale-[0.98]"
                 >
-                  <Link href="/studio/agents/new">
+                  <Link
+                    href="/studio/agents/new"
+                    id="onboarding-studio-new-agent"
+                  >
                     <PlusIcon className="size-4 shrink-0 transition-transform duration-300 group-hover/menu-button:rotate-90" />
                     <span>New Agent</span>
                   </Link>
@@ -158,7 +176,7 @@ export function StudioSidebar({ ...props }) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup className="p-0">
+        <SidebarGroup className="p-0" id="onboarding-studio-resources">
           <SidebarGroupLabel className="px-3 text-[10px] font-bold tracking-wider text-slate-400 uppercase dark:text-slate-500">
             Resources
           </SidebarGroupLabel>
