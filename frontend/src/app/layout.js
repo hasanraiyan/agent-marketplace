@@ -1,4 +1,4 @@
-import { Inter, Geist_Mono } from "next/font/google";
+import { Inter, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
@@ -19,15 +19,27 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const fraunces = Fraunces({
+  variable: "--font-display",
+  subsets: ["latin"],
+  axes: ["opsz", "SOFT", "WONK"],
+});
+
 export const metadata = {
-  title: "persona.hasanraiyan.me — The Premier AI Agent Platform",
+  title: "Persona.ai — Talk to minds who've actually done it",
   description:
-    "Deploy and orchestrate intelligent AI agents for coding, writing, research, and more. persona.hasanraiyan.me is the professional platform for AI-powered productivity.",
-  keywords: ["AI agents", "platform", "automation", "productivity", "AI tools"],
+    "Discover and chat with AI agents built around real expertise, or build your own in Agent Studio with the provider, skills, and knowledge you choose. Free to start.",
+  keywords: [
+    "AI agents",
+    "AI assistant",
+    "agent builder",
+    "LangGraph",
+    "AI marketplace",
+  ],
   openGraph: {
-    title: "persona.hasanraiyan.me — The Premier AI Agent Platform",
+    title: "Persona.ai — Talk to minds who've actually done it",
     description:
-      "Deploy and orchestrate intelligent AI agents. persona.hasanraiyan.me provides professional-grade AI solutions for every workflow.",
+      "Discover and chat with AI agents built around real expertise, or build your own in Agent Studio with the provider, skills, and knowledge you choose.",
     type: "website",
   },
 };
@@ -59,7 +71,7 @@ export default function RootLayout({ children }) {
     >
       <html
         lang="en"
-        className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
+        className={`${inter.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
         suppressHydrationWarning
       >
         <body className="flex min-h-full flex-col bg-background text-foreground">
