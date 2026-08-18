@@ -195,15 +195,23 @@ export function PersonaSidebar({
   return (
     <>
       {/* Backdrop — shown whenever the sidebar is overlaying (narrow host,
-          not necessarily a narrow viewport — see @container on PersonaChatView's root). */}
+          not necessarily a narrow viewport — see @container on PersonaChatView's root).
+          absolute, not fixed: contained within PersonaChatView's own
+          (relative) root instead of the whole browser viewport, so this
+          stays scoped to a small host like PersonaChatLauncher's floating
+          panel instead of covering the entire page. */}
       <div
-        className="fixed inset-0 z-20 bg-black/30 @3xl/persona-chat:hidden"
+        className="absolute inset-0 z-20 bg-black/30 @3xl/persona-chat:hidden"
         onClick={onClose}
         aria-hidden="true"
       />
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-30 flex w-72 max-w-[80vw] flex-col border-r border-[var(--persona-border,#e4e4e7)] bg-[var(--persona-card,#fafafa)] shadow-2xl dark:border-[var(--persona-border,#27272a)] dark:bg-[var(--persona-card,#18181b)]',
+          // absolute + max-w-[80cqw] (not fixed + 80vw): scoped to
+          // PersonaChatView's own (relative, @container) root instead of
+          // the browser viewport, so this is correctly capped to a small
+          // host like PersonaChatLauncher's floating panel too.
+          'absolute inset-y-0 left-0 z-30 flex w-72 max-w-[80cqw] flex-col border-r border-[var(--persona-border,#e4e4e7)] bg-[var(--persona-card,#fafafa)] shadow-2xl dark:border-[var(--persona-border,#27272a)] dark:bg-[var(--persona-card,#18181b)]',
           '@3xl/persona-chat:static @3xl/persona-chat:z-auto @3xl/persona-chat:w-60 @3xl/persona-chat:max-w-none @3xl/persona-chat:shadow-none',
           className
         )}

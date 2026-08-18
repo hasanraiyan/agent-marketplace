@@ -399,7 +399,7 @@ function PersonaSidebar({
     /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
       "div",
       {
-        className: "fixed inset-0 z-20 bg-black/30 @3xl/persona-chat:hidden",
+        className: "absolute inset-0 z-20 bg-black/30 @3xl/persona-chat:hidden",
         onClick: onClose,
         "aria-hidden": "true"
       }
@@ -408,7 +408,11 @@ function PersonaSidebar({
       "aside",
       {
         className: cn(
-          "fixed inset-y-0 left-0 z-30 flex w-72 max-w-[80vw] flex-col border-r border-[var(--persona-border,#e4e4e7)] bg-[var(--persona-card,#fafafa)] shadow-2xl dark:border-[var(--persona-border,#27272a)] dark:bg-[var(--persona-card,#18181b)]",
+          // absolute + max-w-[80cqw] (not fixed + 80vw): scoped to
+          // PersonaChatView's own (relative, @container) root instead of
+          // the browser viewport, so this is correctly capped to a small
+          // host like PersonaChatLauncher's floating panel too.
+          "absolute inset-y-0 left-0 z-30 flex w-72 max-w-[80cqw] flex-col border-r border-[var(--persona-border,#e4e4e7)] bg-[var(--persona-card,#fafafa)] shadow-2xl dark:border-[var(--persona-border,#27272a)] dark:bg-[var(--persona-card,#18181b)]",
           "@3xl/persona-chat:static @3xl/persona-chat:z-auto @3xl/persona-chat:w-60 @3xl/persona-chat:max-w-none @3xl/persona-chat:shadow-none",
           className
         ),
@@ -1195,7 +1199,7 @@ function PersonaFilesDrawer({
     /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
       "div",
       {
-        className: "fixed inset-0 z-20 bg-black/30 @5xl/persona-chat:hidden",
+        className: "absolute inset-0 z-20 bg-black/30 @5xl/persona-chat:hidden",
         onClick: onClose,
         "aria-hidden": "true"
       }
@@ -1204,7 +1208,9 @@ function PersonaFilesDrawer({
       "aside",
       {
         className: cn(
-          "fixed inset-y-0 right-0 z-30 flex w-full max-w-xs flex-col border-l border-[var(--persona-border,#e4e4e7)]/80 bg-[var(--persona-bg,#ffffff)] shadow-2xl dark:border-[var(--persona-border,#27272a)]/80 dark:bg-[var(--persona-bg,#09090b)] sm:max-w-sm",
+          // absolute + @min-[40rem] (not fixed + sm:): scoped to
+          // PersonaChatView's own (relative, @container) root, same reason.
+          "absolute inset-y-0 right-0 z-30 flex w-full max-w-xs flex-col border-l border-[var(--persona-border,#e4e4e7)]/80 bg-[var(--persona-bg,#ffffff)] shadow-2xl dark:border-[var(--persona-border,#27272a)]/80 dark:bg-[var(--persona-bg,#09090b)] @min-[40rem]/persona-chat:max-w-sm",
           "@5xl/persona-chat:static @5xl/persona-chat:z-auto @5xl/persona-chat:w-80 @5xl/persona-chat:max-w-none @5xl/persona-chat:shrink-0 @5xl/persona-chat:bg-[var(--persona-card,#fafafa)]/50 @5xl/persona-chat:shadow-none @5xl/persona-chat:backdrop-blur-md dark:@5xl/persona-chat:bg-[var(--persona-card,#09090b)]/50",
           className
         ),
@@ -1680,7 +1686,12 @@ function PersonaChatView({
         // they correctly stay in overlay mode inside a narrow host (e.g.
         // PersonaChatLauncher's small floating panel) even on a wide desktop
         // viewport, the same way they already do on an actual narrow phone.
-        "@container/persona-chat flex w-full overflow-hidden bg-[var(--persona-bg,#ffffff)] font-sans text-[var(--persona-text,#18181b)] dark:bg-[var(--persona-bg,#09090b)] dark:text-[var(--persona-text,#f4f4f5)]",
+        // relative: the containing block PersonaSidebar/PersonaFilesDrawer's
+        // overlay mode positions against (see their own comments) — without
+        // it their `absolute inset-y-0` escapes to the nearest positioned
+        // ANCESTOR instead, which used to be nothing at all (fixed to the
+        // browser viewport) inside PersonaChatLauncher's small floating panel.
+        "@container/persona-chat relative flex w-full overflow-hidden bg-[var(--persona-bg,#ffffff)] font-sans text-[var(--persona-text,#18181b)] dark:bg-[var(--persona-bg,#09090b)] dark:text-[var(--persona-text,#f4f4f5)]",
         // Host page is responsible for the height; component just fills it
         "h-full min-h-0",
         classNames.root,
@@ -1855,7 +1866,7 @@ function PersonaChatLauncher({
 }
 
 // src/index.ts
-var VERSION = "0.7.3";
+var VERSION = "0.7.4";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   PersonaChatLauncher,

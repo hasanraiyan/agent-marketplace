@@ -357,6 +357,6 @@ declare function usePersonaChatWidget(options?: UsePersonaChatWidgetOptions): {
     memoryLoading: boolean;
 };
 
-declare const VERSION = "0.7.3";
+declare const VERSION = "0.7.4";
 
 export { type ClassNamesOverride, PersonaChatLauncher, type PersonaChatLauncherProps, PersonaChatView, type PersonaChatViewProps, PersonaComposer, type PersonaComposerProps, type PersonaCustomTheme, PersonaFileSkeletonRow, PersonaFilesDrawer, type PersonaFilesDrawerProps, PersonaInterruptCard, type PersonaInterruptCardProps, PersonaMarkdown, type PersonaMarkdownProps, PersonaMessageFeed, type PersonaMessageFeedProps, PersonaMessageSkeletonRow, PersonaSidebar, type PersonaSidebarProps, PersonaSkeleton, type PersonaSkeletonProps, PersonaThreadSkeletonRow, type PersonaToolClusterLabels, type PersonaToolClusterMeta, PersonaToolGroup, type PersonaToolGroupItem, type PersonaToolGroupProps, PersonaToolTrace, type PersonaToolTraceProps, type StarterPromptItem, type ToolRendererMap, type ToolRendererProps, type UsePersonaChatWidgetOptions, VERSION, buildThemeStyles, cn, groupToolCalls, toolGroupKey, usePersonaChatWidget };

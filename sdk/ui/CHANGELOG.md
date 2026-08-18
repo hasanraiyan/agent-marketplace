@@ -3,6 +3,21 @@
 All notable changes to `@personaai/ui` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.7.4
+
+- **Fix: sidebar/files drawer overlay pinned to the browser viewport instead of the chat panel.**
+  0.7.3 fixed *when* `PersonaSidebar`/`PersonaFilesDrawer` should overlay (container-query based,
+  correctly triggers inside a narrow host like `PersonaChatLauncher`'s floating panel) but not
+  *where* the overlay renders — both still used `position: fixed`, which is always positioned
+  against the browser viewport regardless of any ancestor, not the small panel. Opening the
+  sidebar inside the launcher pinned it (and its backdrop) to the left edge of the entire page,
+  completely detached from the chat panel on the other side of the screen. `PersonaChatView`'s
+  root is now `relative`, and both overlays are `absolute` instead of `fixed` — contained within
+  it exactly like `position: fixed` already did for a full-page `PersonaChatView` that fills the
+  viewport (no visual change there), and now correctly scoped to a small host too. Also switched
+  their remaining viewport-relative sizing (`max-w-[80vw]`, `sm:max-w-sm`) to the container-query
+  equivalents (`max-w-[80cqw]`, `@min-[40rem]/persona-chat:max-w-sm`) for the same reason.
+
 ## 0.7.3
 
 - **Fix: sidebar/files drawer squeezed the chat instead of overlaying inside `PersonaChatLauncher`.**
