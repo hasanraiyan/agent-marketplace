@@ -3,6 +3,21 @@
 All notable changes to `@personaai/ui` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.7.3
+
+- **Fix: sidebar/files drawer squeezed the chat instead of overlaying inside `PersonaChatLauncher`.**
+  `PersonaSidebar` and `PersonaFilesDrawer` decided dock-vs-overlay with viewport media queries
+  (`md:`/`lg:`) — correct for a full-page `PersonaChatView`, but inside the launcher's narrow
+  floating panel (`24rem` default) the *browser viewport* is still desktop-width even though the
+  panel itself is small, so the sidebar/drawer wrongly docked statically and compressed the
+  message area into a sliver instead of overlaying like they already correctly do on an actual
+  narrow phone. `PersonaChatView`'s root is now a named CSS container
+  (`@container/persona-chat`), and `PersonaSidebar`/`PersonaFilesDrawer` key their dock
+  breakpoints off `@3xl/persona-chat` (768px) and `@5xl/persona-chat` (1024px) — the exact same
+  pixel thresholds as the `md:`/`lg:` they replace, just measured against the widget's own width
+  instead of the viewport. One rule now correctly covers both a narrow phone and a narrow FAB
+  panel on a wide desktop.
+
 ## 0.7.2
 
 - **Fix: republish of a broken 0.7.1.** The published `0.7.1` tarball contained only 5 files

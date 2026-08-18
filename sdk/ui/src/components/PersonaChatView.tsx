@@ -79,8 +79,12 @@ export function PersonaChatView({
     <div
       style={themeStyles}
       className={cn(
-        // Fill whatever height the host container provides — no internal height set
-        'flex w-full overflow-hidden bg-[var(--persona-bg,#ffffff)] font-sans text-[var(--persona-text,#18181b)] dark:bg-[var(--persona-bg,#09090b)] dark:text-[var(--persona-text,#f4f4f5)]',
+        // @container/persona-chat: PersonaSidebar and PersonaFilesDrawer dock
+        // vs. overlay based on THIS width, not the browser viewport — so
+        // they correctly stay in overlay mode inside a narrow host (e.g.
+        // PersonaChatLauncher's small floating panel) even on a wide desktop
+        // viewport, the same way they already do on an actual narrow phone.
+        '@container/persona-chat flex w-full overflow-hidden bg-[var(--persona-bg,#ffffff)] font-sans text-[var(--persona-text,#18181b)] dark:bg-[var(--persona-bg,#09090b)] dark:text-[var(--persona-text,#f4f4f5)]',
         // Host page is responsible for the height; component just fills it
         'h-full min-h-0',
         classNames.root,

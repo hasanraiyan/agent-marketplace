@@ -108,16 +108,17 @@ export function PersonaFilesDrawer({
 
   return (
     <>
-      {/* Backdrop — mobile/tablet only, where the drawer overlays instead of docking inline. */}
+      {/* Backdrop — shown whenever the drawer is overlaying (narrow host,
+          not necessarily a narrow viewport — see @container on PersonaChatView's root). */}
       <div
-        className="fixed inset-0 z-20 bg-black/30 lg:hidden"
+        className="fixed inset-0 z-20 bg-black/30 @5xl/persona-chat:hidden"
         onClick={onClose}
         aria-hidden="true"
       />
       <aside
         className={cn(
           'fixed inset-y-0 right-0 z-30 flex w-full max-w-xs flex-col border-l border-[var(--persona-border,#e4e4e7)]/80 bg-[var(--persona-bg,#ffffff)] shadow-2xl dark:border-[var(--persona-border,#27272a)]/80 dark:bg-[var(--persona-bg,#09090b)] sm:max-w-sm',
-          'lg:static lg:z-auto lg:w-80 lg:max-w-none lg:shrink-0 lg:bg-[var(--persona-card,#fafafa)]/50 lg:shadow-none lg:backdrop-blur-md lg:dark:bg-[var(--persona-card,#09090b)]/50',
+          '@5xl/persona-chat:static @5xl/persona-chat:z-auto @5xl/persona-chat:w-80 @5xl/persona-chat:max-w-none @5xl/persona-chat:shrink-0 @5xl/persona-chat:bg-[var(--persona-card,#fafafa)]/50 @5xl/persona-chat:shadow-none @5xl/persona-chat:backdrop-blur-md dark:@5xl/persona-chat:bg-[var(--persona-card,#09090b)]/50',
           className
         )}
       >

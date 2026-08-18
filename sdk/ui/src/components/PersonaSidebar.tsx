@@ -194,16 +194,17 @@ export function PersonaSidebar({
 
   return (
     <>
-      {/* Backdrop — mobile/tablet only, where the sidebar overlays instead of docking inline. */}
+      {/* Backdrop — shown whenever the sidebar is overlaying (narrow host,
+          not necessarily a narrow viewport — see @container on PersonaChatView's root). */}
       <div
-        className="fixed inset-0 z-20 bg-black/30 md:hidden"
+        className="fixed inset-0 z-20 bg-black/30 @3xl/persona-chat:hidden"
         onClick={onClose}
         aria-hidden="true"
       />
       <aside
         className={cn(
           'fixed inset-y-0 left-0 z-30 flex w-72 max-w-[80vw] flex-col border-r border-[var(--persona-border,#e4e4e7)] bg-[var(--persona-card,#fafafa)] shadow-2xl dark:border-[var(--persona-border,#27272a)] dark:bg-[var(--persona-card,#18181b)]',
-          'md:static md:z-auto md:w-60 md:max-w-none md:shadow-none',
+          '@3xl/persona-chat:static @3xl/persona-chat:z-auto @3xl/persona-chat:w-60 @3xl/persona-chat:max-w-none @3xl/persona-chat:shadow-none',
           className
         )}
       >
