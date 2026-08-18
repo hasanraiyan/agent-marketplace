@@ -44,12 +44,7 @@ export function PersonaChatView({
     stop,
     reload,
     clear,
-  } = useChat({
-    agentId,
-    threadId: activeThreadId,
-  });
-
-  // ── Thread helpers ────────────────────────────────────────────────────────
+  } = useChat({ agentId, threadId: activeThreadId });
 
   const setActiveThread = useCallback(
     (id: string | undefined) => {
@@ -60,72 +55,56 @@ export function PersonaChatView({
   );
 
   const handleSelectThread = useCallback(
-    (id: string | undefined) => {
-      clear();
-      setActiveThread(id);
-    },
+    (id: string | undefined) => { clear(); setActiveThread(id); },
     [clear, setActiveThread]
   );
 
   const handleNewChat = useCallback(() => {
-    clear();
-    setActiveThread(undefined);
+    clear(); setActiveThread(undefined);
   }, [clear, setActiveThread]);
 
-  // Create thread lazily on first message send
   const handleSend = useCallback(
     async (content?: string) => {
       let tid = activeThreadId;
       if (!tid) {
         try {
-          const newThread = await createThread(agentId);
-          tid = newThread?._id;
+          const t = await createThread(agentId);
+          tid = t?._id;
           if (tid) setActiveThread(tid);
-        } catch {
-          // proceed without thread
-        }
+        } catch { /* no-op */ }
       }
       void sendMessage(content, tid ? { threadId: tid } : undefined);
     },
     [activeThreadId, agentId, createThread, sendMessage, setActiveThread]
   );
 
-  // ── File upload ───────────────────────────────────────────────────────────
-
   const handleUploadFile = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      const formData = new FormData();
-      formData.append('file', file);
-      try {
-        await uploadFile(formData);
-        setFilesDrawerOpen(true);
-      } catch { /* silently ignore */ }
+      const fd = new FormData();
+      fd.append('file', file);
+      try { await uploadFile(fd); setFilesDrawerOpen(true); } catch { /* no-op */ }
     },
     [uploadFile]
   );
 
-  // ── Custom theme CSS vars ─────────────────────────────────────────────────
-
-  const themeStyles = theme
-    ? ({
-        '--persona-primary': theme.primaryColor,
-        '--persona-bg': theme.backgroundColor,
-        '--persona-card': theme.cardBackgroundColor,
-        '--persona-text': theme.textColor,
-        borderRadius: theme.borderRadius,
-      } as React.CSSProperties)
-    : undefined;
-
-  // ── Render ────────────────────────────────────────────────────────────────
+  const themeStyles = theme ? ({
+    '--persona-primary': theme.primaryColor,
+    '--persona-bg': theme.backgroundColor,
+    '--persona-card': theme.cardBackgroundColor,
+    '--persona-text': theme.textColor,
+    borderRadius: theme.borderRadius,
+  } as React.CSSProperties) : undefined;
 
   return (
     <div
       style={themeStyles}
       className={cn(
-        // Full-height native feel — fills whatever container the host page gives
-        'flex h-full w-full overflow-hidden bg-white font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100',
+        // Fill whatever height the host container provides — no internal height set
+        'flex w-full overflow-hidden bg-white font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100',
+        // Host page is responsible for the height; component just fills it
+        'h-full min-h-0',
         classNames.root,
         className
       )}
@@ -143,21 +122,19 @@ export function PersonaChatView({
       )}
 
       {/* ── Main canvas ── */}
-      <div className={cn('flex flex-1 flex-col overflow-hidden', classNames.main)}>
+      <div className={cn('flex min-h-0 flex-1 flex-col', classNames.main)}>
 
-        {/* Top toolbar */}
-        <div className="flex h-12 shrink-0 items-center justify-between border-b border-zinc-200 px-4 dark:border-zinc-800">
-          <div className="flex items-center gap-2">
+        {/* Toolbar */}
+        <div className="flex h-11 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-3 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => setSidebarOpen((p) => !p)}
-              className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              className="rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
             >
               {sidebarOpen ? <PanelLeftClose className="size-4" /> : <PanelLeft className="size-4" />}
             </button>
-            <span className="text-sm font-semibold tracking-tight text-zinc-800 dark:text-zinc-200">
-              {title}
-            </span>
+            <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{title}</span>
           </div>
 
           {showFilesDrawer && (
@@ -165,7 +142,7 @@ export function PersonaChatView({
               type="button"
               onClick={() => setFilesDrawerOpen((p) => !p)}
               className={cn(
-                'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors',
+                'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
                 filesDrawerOpen
                   ? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100'
                   : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'
@@ -177,19 +154,24 @@ export function PersonaChatView({
           )}
         </div>
 
-        {/* Message feed — flex-1 + overflow-y-auto so it scrolls internally */}
-        <PersonaMessageFeed
-          messages={messages}
-          isStreaming={isStreaming}
-          error={error}
-          toolRenderers={toolRenderers}
-          onReload={reload}
-          greeting={greeting}
-          className={cn('flex-1 overflow-y-auto', classNames.messageList)}
-        />
+        {/* Message feed — takes remaining space and scrolls internally */}
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <PersonaMessageFeed
+            messages={messages}
+            isStreaming={isStreaming}
+            error={error}
+            toolRenderers={toolRenderers}
+            onReload={reload}
+            greeting={greeting}
+            className={classNames.messageList}
+          />
+        </div>
 
-        {/* Composer — pinned to bottom, never shrinks */}
-        <div className={cn('shrink-0 border-t border-zinc-100 p-3 dark:border-zinc-800/60 md:p-4', classNames.composer)}>
+        {/* Composer — always visible at bottom, never clipped */}
+        <div className={cn(
+          'shrink-0 border-t border-zinc-100 bg-white px-3 pb-4 pt-3 dark:border-zinc-800 dark:bg-zinc-950',
+          classNames.composer
+        )}>
           <PersonaComposer
             input={input}
             onInputChange={setInput}
@@ -203,7 +185,7 @@ export function PersonaChatView({
         </div>
       </div>
 
-      {/* ── Right artifacts drawer ── */}
+      {/* ── Right files drawer ── */}
       {showFilesDrawer && (
         <PersonaFilesDrawer
           isOpen={filesDrawerOpen}

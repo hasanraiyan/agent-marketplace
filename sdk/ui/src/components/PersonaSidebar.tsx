@@ -188,19 +188,21 @@ export function PersonaSidebar({
   return (
     <aside
       className={cn(
-        'flex w-64 shrink-0 flex-col border-r border-zinc-200/80 bg-zinc-50/50 p-3 backdrop-blur-md dark:border-zinc-800/80 dark:bg-zinc-950/50',
+        'flex w-60 shrink-0 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900',
         className
       )}
     >
-      {/* Top New Chat Button */}
-      <button
-        type="button"
-        onClick={onCreateThread}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-zinc-800 active:scale-[0.98] dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
-      >
-        <Plus className="size-3.5" />
-        <span>New Chat</span>
-      </button>
+      {/* New Chat */}
+      <div className="p-3">
+        <button
+          type="button"
+          onClick={onCreateThread}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-xs font-semibold text-zinc-800 shadow-sm transition-all hover:bg-zinc-100 active:scale-[0.98] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
+        >
+          <Plus className="size-3.5" />
+          <span>New Chat</span>
+        </button>
+      </div>
 
       {/* Search Filter */}
       {threads.length > 5 && (

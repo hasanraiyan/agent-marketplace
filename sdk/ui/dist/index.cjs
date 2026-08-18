@@ -205,22 +205,22 @@ function PersonaSidebar({
     "aside",
     {
       className: cn(
-        "flex w-64 shrink-0 flex-col border-r border-zinc-200/80 bg-zinc-50/50 p-3 backdrop-blur-md dark:border-zinc-800/80 dark:bg-zinc-950/50",
+        "flex w-60 shrink-0 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900",
         className
       ),
       children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "p-3", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
           "button",
           {
             type: "button",
             onClick: onCreateThread,
-            className: "flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-zinc-800 active:scale-[0.98] dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white",
+            className: "flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-xs font-semibold text-zinc-800 shadow-sm transition-all hover:bg-zinc-100 active:scale-[0.98] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700",
             children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.Plus, { className: "size-3.5" }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "New Chat" })
             ]
           }
-        ),
+        ) }),
         threads.length > 5 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "relative my-3", children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_lucide_react.Search, { className: "absolute left-2.5 top-2 size-3.5 text-zinc-400" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
@@ -528,7 +528,7 @@ function PersonaComposer({
             type: "button",
             onClick: onSubmit,
             disabled: !input.trim() || disabled,
-            className: "flex size-8 items-center justify-center rounded-xl bg-zinc-900 text-white shadow-sm transition-all hover:bg-zinc-800 disabled:opacity-30 disabled:pointer-events-none active:scale-95 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white",
+            className: "flex size-8 items-center justify-center rounded-xl bg-zinc-800 text-white shadow-sm transition-all hover:bg-zinc-700 disabled:opacity-25 disabled:pointer-events-none active:scale-95 dark:bg-zinc-200 dark:text-zinc-900 dark:hover:bg-zinc-100",
             children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_lucide_react4.ArrowUp, { className: "size-4 stroke-[2.5]" })
           }
         ) })
@@ -744,10 +744,7 @@ function PersonaChatView({
     stop,
     reload,
     clear
-  } = (0, import_react7.useChat)({
-    agentId,
-    threadId: activeThreadId
-  });
+  } = (0, import_react7.useChat)({ agentId, threadId: activeThreadId });
   const setActiveThread = (0, import_react6.useCallback)(
     (id) => {
       if (onThreadChange) onThreadChange(id);
@@ -771,8 +768,8 @@ function PersonaChatView({
       let tid = activeThreadId;
       if (!tid) {
         try {
-          const newThread = await createThread(agentId);
-          tid = newThread?._id;
+          const t = await createThread(agentId);
+          tid = t?._id;
           if (tid) setActiveThread(tid);
         } catch {
         }
@@ -785,10 +782,10 @@ function PersonaChatView({
     async (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      const formData = new FormData();
-      formData.append("file", file);
+      const fd = new FormData();
+      fd.append("file", file);
       try {
-        await uploadFile(formData);
+        await uploadFile(fd);
         setFilesDrawerOpen(true);
       } catch {
       }
@@ -807,8 +804,10 @@ function PersonaChatView({
     {
       style: themeStyles,
       className: cn(
-        // Full-height native feel — fills whatever container the host page gives
-        "flex h-full w-full overflow-hidden bg-white font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100",
+        // Fill whatever height the host container provides — no internal height set
+        "flex w-full overflow-hidden bg-white font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100",
+        // Host page is responsible for the height; component just fills it
+        "h-full min-h-0",
         classNames.root,
         className
       ),
@@ -824,19 +823,19 @@ function PersonaChatView({
             className: cn("hidden md:flex", classNames.sidebar)
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: cn("flex flex-1 flex-col overflow-hidden", classNames.main), children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex h-12 shrink-0 items-center justify-between border-b border-zinc-200 px-4 dark:border-zinc-800", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex items-center gap-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: cn("flex min-h-0 flex-1 flex-col", classNames.main), children: [
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex h-11 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-3 dark:border-zinc-800 dark:bg-zinc-950", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex items-center gap-1.5", children: [
               /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
                 "button",
                 {
                   type: "button",
                   onClick: () => setSidebarOpen((p) => !p),
-                  className: "rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200",
+                  className: "rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800 dark:hover:text-zinc-200",
                   children: sidebarOpen ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.PanelLeftClose, { className: "size-4" }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.PanelLeft, { className: "size-4" })
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "text-sm font-semibold tracking-tight text-zinc-800 dark:text-zinc-200", children: title })
+              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "text-sm font-semibold text-zinc-800 dark:text-zinc-200", children: title })
             ] }),
             showFilesDrawer && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
               "button",
@@ -844,7 +843,7 @@ function PersonaChatView({
                 type: "button",
                 onClick: () => setFilesDrawerOpen((p) => !p),
                 className: cn(
-                  "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors",
+                  "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
                   filesDrawerOpen ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                 ),
                 children: [
@@ -854,7 +853,7 @@ function PersonaChatView({
               }
             )
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "min-h-0 flex-1 overflow-y-auto", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
             PersonaMessageFeed,
             {
               messages,
@@ -863,10 +862,13 @@ function PersonaChatView({
               toolRenderers,
               onReload: reload,
               greeting,
-              className: cn("flex-1 overflow-y-auto", classNames.messageList)
+              className: classNames.messageList
             }
-          ),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: cn("shrink-0 border-t border-zinc-100 p-3 dark:border-zinc-800/60 md:p-4", classNames.composer), children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+          ) }),
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: cn(
+            "shrink-0 border-t border-zinc-100 bg-white px-3 pb-4 pt-3 dark:border-zinc-800 dark:bg-zinc-950",
+            classNames.composer
+          ), children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
             PersonaComposer,
             {
               input,
