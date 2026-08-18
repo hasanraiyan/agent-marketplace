@@ -44,6 +44,7 @@ export class PersonaModule implements NestModule {
       useFactory: () => {
         return createRuntime({
           ...options,
+          mountPath: options.mountPath ?? options.routePrefix ?? '/api/persona',
           resolveUser: options.resolveUserFrom
             ? (req) => req.userId ?? null
             : options.resolveUser!,
@@ -94,6 +95,7 @@ export class PersonaModule implements NestModule {
         }
         return createRuntime({
           ...options,
+          mountPath: options.mountPath ?? options.routePrefix ?? '/api/persona',
           resolveUser: options.resolveUserFrom
             ? (req) => req.userId ?? null
             : options.resolveUser!,
