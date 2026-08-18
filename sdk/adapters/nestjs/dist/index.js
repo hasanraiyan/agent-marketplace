@@ -407,7 +407,7 @@ PersonaModule = __decorateClass([
 ], PersonaModule);
 
 // src/index.ts
-var VERSION = "0.1.0";
+var VERSION = "0.1.1";
 
 export { PERSONA_CLIENT, PERSONA_MODULE_OPTIONS, PERSONA_RUNTIME, PersonaMiddleware, PersonaModule, PersonaService, TranslationError, VERSION, toRuntimeRequest, writeRuntimeResponse };
 //# sourceMappingURL=index.js.map

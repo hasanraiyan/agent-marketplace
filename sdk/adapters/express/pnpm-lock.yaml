@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@personaai/runtime':
-        specifier: ^0.5.1
-        version: 0.5.1
+        specifier: ^0.5.2
+        version: 0.5.2
     devDependencies:
       '@eslint/js':
         specifier: ^9.19.0
@@ -451,12 +451,12 @@ packages:
   '@paralleldrive/cuid2@2.3.1':
     resolution: {integrity: sha512-XO7cAxhnTZl0Yggq6jOgjiOHhbgcO4NqFqwSmQpjK3b6TEE6Uj/jfSk6wzYyemh3+I0sHirKSetjQwn5cZktFw==}
 
-  '@personaai/runtime@0.5.1':
-    resolution: {integrity: sha512-D3lGOhZkwbSC/qBuINp3r9ISynyZTrS4DZ90+GLYxwdNXRSMdmiLtUcxwQum9ZL5N+izye3ZSgU88hdo04zz7A==}
+  '@personaai/runtime@0.5.2':
+    resolution: {integrity: sha512-hF3xSv+XSLA2mEPA0nphKXE9dMJ6yFSyMe8hgk7Uq3GyO/iap/7qRF/DsNhKIB5K++s/j2NccOQNwA3BMr8feg==}
     engines: {node: '>=18'}
 
-  '@personaai/sdk@0.4.1':
-    resolution: {integrity: sha512-WAGDxX5d8swWikEytcV87uqIE+7ZBGmDDfY2LuLTgyrd6Hi9DhoMG/z/kxDmdMNb4V7aMz6Lf06dT/u8uKkLqQ==}
+  '@personaai/sdk@0.4.3':
+    resolution: {integrity: sha512-jqtJGrY/uSCL+wUiTzNEZFRuE9e3hK10ai5AnekUQxGb4R0P/MAAO5hNAaM0qGDT5nQZUaeMpduA2OVIkSAqXg==}
     engines: {node: '>=18'}
 
   '@rollup/rollup-android-arm-eabi@4.62.4':
@@ -1963,12 +1963,12 @@ snapshots:
     dependencies:
       '@noble/hashes': 1.8.0
 
-  '@personaai/runtime@0.5.1':
+  '@personaai/runtime@0.5.2':
     dependencies:
       '@ag-ui/core': 0.0.57
-      '@personaai/sdk': 0.4.1
+      '@personaai/sdk': 0.4.3
 
-  '@personaai/sdk@0.4.1':
+  '@personaai/sdk@0.4.3':
     dependencies:
       '@ag-ui/core': 0.0.57
 

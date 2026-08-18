@@ -6,4 +6,4 @@ export * from './persona.module.js';
 export * from './translate.js';
 export * from './write.js';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.1.1';

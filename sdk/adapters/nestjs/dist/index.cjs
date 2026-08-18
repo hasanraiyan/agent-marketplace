@@ -409,7 +409,7 @@ exports.PersonaModule = __decorateClass([
 ], exports.PersonaModule);
 
 // src/index.ts
-var VERSION = "0.1.0";
+var VERSION = "0.1.1";
 
 exports.PERSONA_CLIENT = PERSONA_CLIENT;
 exports.PERSONA_MODULE_OPTIONS = PERSONA_MODULE_OPTIONS;
