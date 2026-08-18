@@ -118,7 +118,7 @@ export function PersonaComposer({
                 type="button"
                 onClick={onSubmit}
                 disabled={!input.trim() || disabled}
-                className="flex size-8 items-center justify-center rounded-xl bg-zinc-800 text-white shadow-sm transition-all hover:bg-zinc-700 disabled:opacity-25 disabled:pointer-events-none active:scale-95 dark:bg-zinc-200 dark:text-zinc-900 dark:hover:bg-zinc-100"
+                className="flex size-8 items-center justify-center rounded-xl bg-[var(--persona-primary,#27272a)] text-white shadow-sm transition-all hover:brightness-90 disabled:pointer-events-none disabled:opacity-25 active:scale-95 dark:bg-[var(--persona-primary,#e4e4e7)] dark:text-zinc-900 dark:hover:brightness-110"
               >
                 <ArrowUp className="size-4 stroke-[2.5]" />
               </button>

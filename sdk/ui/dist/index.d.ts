@@ -26,12 +26,28 @@ interface ClassNamesOverride {
     messageAssistant?: string;
     filesDrawer?: string;
 }
+/**
+ * Every color here is applied uniformly across light and dark mode (the same
+ * value both times) — set via CSS custom properties that each component's
+ * light *and* dark Tailwind classes both fall back to when unset, so an
+ * unthemed app keeps its normal zinc palette in both modes, and a themed one
+ * gets its brand color in both modes without needing separate light/dark
+ * values here.
+ */
 interface PersonaCustomTheme {
     primaryColor?: string;
     backgroundColor?: string;
     cardBackgroundColor?: string;
     textColor?: string;
     borderRadius?: string;
+    userMessageBg?: string;
+    userMessageText?: string;
+    assistantMessageBg?: string;
+    assistantMessageText?: string;
+    userAvatarBg?: string;
+    userAvatarText?: string;
+    assistantAvatarBg?: string;
+    assistantAvatarText?: string;
 }
 interface PersonaChatViewProps {
     agentId?: string;
@@ -45,13 +61,21 @@ interface PersonaChatViewProps {
     theme?: PersonaCustomTheme;
     showSidebar?: boolean;
     showFilesDrawer?: boolean;
+    /** @default true */
+    showUserAvatar?: boolean;
+    /** @default true */
+    showAssistantAvatar?: boolean;
+    /** Replaces the default user-icon avatar entirely (e.g. a profile picture). */
+    userAvatar?: ReactNode;
+    /** Replaces the default bot-icon avatar entirely. */
+    assistantAvatar?: ReactNode;
     className?: string;
     children?: ReactNode;
 }
 
 declare function cn(...inputs: ClassValue[]): string;
 
-declare function PersonaChatView({ agentId, threadId: controlledThreadId, onThreadChange, greeting, title, starterPrompts, toolRenderers, classNames, theme, showSidebar, showFilesDrawer, className, }: PersonaChatViewProps): React.JSX.Element;
+declare function PersonaChatView({ agentId, threadId: controlledThreadId, onThreadChange, greeting, title, starterPrompts, toolRenderers, classNames, theme, showSidebar, showFilesDrawer, showUserAvatar, showAssistantAvatar, userAvatar, assistantAvatar, className, }: PersonaChatViewProps): React.JSX.Element;
 
 interface PersonaSidebarProps {
     threads: PersonaThread[];
@@ -91,9 +115,31 @@ interface PersonaMessageFeedProps {
     /** Called when a present_file tool card's "Open" button is clicked. */
     onOpenFile?: (path: string) => void;
     greeting?: string;
+    showUserAvatar?: boolean;
+    showAssistantAvatar?: boolean;
+    userAvatar?: React.ReactNode;
+    assistantAvatar?: React.ReactNode;
     className?: string;
 }
-declare function PersonaMessageFeed({ messages, isStreaming, isLoading, error, toolRenderers, onReload, onOpenFile, greeting, className, }: PersonaMessageFeedProps): React.JSX.Element;
+declare function PersonaMessageFeed({ messages, isStreaming, isLoading, error, toolRenderers, onReload, onOpenFile, greeting, showUserAvatar, showAssistantAvatar, userAvatar, assistantAvatar, className, }: PersonaMessageFeedProps): React.JSX.Element;
+
+interface PersonaMarkdownProps {
+    content: string;
+    className?: string;
+}
+/**
+ * Renders assistant message content as Markdown — GFM (tables, strikethrough,
+ * task lists), LaTeX ($inline$ / $$block$$ via KaTeX), and fenced code blocks
+ * with a copy button.
+ *
+ * No rehype-raw / rehype-sanitize: react-markdown never parses raw HTML found
+ * in the source text by default (it renders as literal escaped text) — that's
+ * the actual XSS boundary here, and it's already in effect without either
+ * plugin. Adding sanitize on top would need a KaTeX-aware schema (its output
+ * classes aren't in rehype-sanitize's default allowlist) for no additional
+ * safety, so it's deliberately left out rather than risked being misconfigured.
+ */
+declare function PersonaMarkdown({ content, className }: PersonaMarkdownProps): React.JSX.Element;
 
 interface PersonaToolTraceProps {
     toolCall: PersonaToolCall;
@@ -129,6 +175,6 @@ interface PersonaInterruptCardProps {
 }
 declare function PersonaInterruptCard({ interrupt, onRespond, isStreaming, className, }: PersonaInterruptCardProps): React.JSX.Element;
 
-declare const VERSION = "0.3.2";
+declare const VERSION = "0.4.0";
 
-export { type ClassNamesOverride, PersonaChatView, type PersonaChatViewProps, PersonaComposer, type PersonaComposerProps, type PersonaCustomTheme, PersonaFilesDrawer, type PersonaFilesDrawerProps, PersonaInterruptCard, type PersonaInterruptCardProps, PersonaMessageFeed, type PersonaMessageFeedProps, PersonaSidebar, type PersonaSidebarProps, PersonaToolTrace, type PersonaToolTraceProps, type StarterPromptItem, type ToolRendererMap, type ToolRendererProps, VERSION, cn };
+export { type ClassNamesOverride, PersonaChatView, type PersonaChatViewProps, PersonaComposer, type PersonaComposerProps, type PersonaCustomTheme, PersonaFilesDrawer, type PersonaFilesDrawerProps, PersonaInterruptCard, type PersonaInterruptCardProps, PersonaMarkdown, type PersonaMarkdownProps, PersonaMessageFeed, type PersonaMessageFeedProps, PersonaSidebar, type PersonaSidebarProps, PersonaToolTrace, type PersonaToolTraceProps, type StarterPromptItem, type ToolRendererMap, type ToolRendererProps, VERSION, cn };

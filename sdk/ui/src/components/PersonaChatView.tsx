@@ -23,6 +23,10 @@ export function PersonaChatView({
   theme,
   showSidebar = true,
   showFilesDrawer = true,
+  showUserAvatar = true,
+  showAssistantAvatar = true,
+  userAvatar,
+  assistantAvatar,
   className,
 }: PersonaChatViewProps) {
   const [internalThreadId, setInternalThreadId] = useState<string | undefined>(undefined);
@@ -116,11 +120,23 @@ export function PersonaChatView({
     [uploadFile]
   );
 
+  // Only set the vars a caller actually provided — React omits an
+  // `undefined` style property entirely, so every unset one correctly falls
+  // through to its class's own `var(--x, <default>)` fallback instead of
+  // resolving to the literal string "undefined".
   const themeStyles = theme ? ({
     '--persona-primary': theme.primaryColor,
     '--persona-bg': theme.backgroundColor,
     '--persona-card': theme.cardBackgroundColor,
     '--persona-text': theme.textColor,
+    '--persona-user-bg': theme.userMessageBg,
+    '--persona-user-text': theme.userMessageText,
+    '--persona-assistant-bg': theme.assistantMessageBg,
+    '--persona-assistant-text': theme.assistantMessageText,
+    '--persona-user-avatar-bg': theme.userAvatarBg,
+    '--persona-user-avatar-text': theme.userAvatarText,
+    '--persona-assistant-avatar-bg': theme.assistantAvatarBg,
+    '--persona-assistant-avatar-text': theme.assistantAvatarText,
     borderRadius: theme.borderRadius,
   } as React.CSSProperties) : undefined;
 
@@ -200,6 +216,10 @@ export function PersonaChatView({
             onReload={reload}
             onOpenFile={openWorkspaceFile}
             greeting={greeting}
+            showUserAvatar={showUserAvatar}
+            showAssistantAvatar={showAssistantAvatar}
+            userAvatar={userAvatar}
+            assistantAvatar={assistantAvatar}
             className={classNames.messageList}
           />
         </div>

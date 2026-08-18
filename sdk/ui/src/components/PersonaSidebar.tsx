@@ -145,7 +145,7 @@ export function PersonaSidebar({
                       <span
                         className={cn(
                           'size-1.5 shrink-0 rounded-full',
-                          isActive ? 'bg-blue-500' : 'bg-transparent'
+                          isActive ? 'bg-[var(--persona-primary,#3b82f6)]' : 'bg-transparent'
                         )}
                       />
                       <MessageSquare className="size-3.5 shrink-0 opacity-60" />

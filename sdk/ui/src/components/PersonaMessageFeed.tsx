@@ -5,6 +5,7 @@ import type { PersonaMessage } from '@personaai/react';
 import type { ToolRendererMap } from '../types.js';
 import { cn } from '../utils/cn.js';
 import { PersonaToolTrace } from './PersonaToolTrace.js';
+import { PersonaMarkdown } from './PersonaMarkdown.js';
 import { Bot, User, Check, Copy, RotateCcw, Sparkles, BrainCircuit, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 
 function ReasoningBlock({ reasoning, isReasoning }: { reasoning: string; isReasoning?: boolean }) {
@@ -46,6 +47,10 @@ export interface PersonaMessageFeedProps {
   /** Called when a present_file tool card's "Open" button is clicked. */
   onOpenFile?: (path: string) => void;
   greeting?: string;
+  showUserAvatar?: boolean;
+  showAssistantAvatar?: boolean;
+  userAvatar?: React.ReactNode;
+  assistantAvatar?: React.ReactNode;
   className?: string;
 }
 
@@ -58,6 +63,10 @@ export function PersonaMessageFeed({
   onReload,
   onOpenFile,
   greeting = 'How can I assist you today?',
+  showUserAvatar = true,
+  showAssistantAvatar = true,
+  userAvatar,
+  assistantAvatar,
   className,
 }: PersonaMessageFeedProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -108,18 +117,20 @@ export function PersonaMessageFeed({
                 isUser ? 'justify-end' : 'justify-start'
               )}
             >
-              {!isUser && (
-                <div className="flex size-8 shrink-0 select-none items-center justify-center rounded-xl bg-zinc-100 text-zinc-800 shadow-2xs dark:bg-zinc-800 dark:text-zinc-200 mt-0.5">
-                  <Bot className="size-4" />
-                </div>
+              {!isUser && showAssistantAvatar && (
+                assistantAvatar ?? (
+                  <div className="mt-0.5 flex size-8 shrink-0 select-none items-center justify-center rounded-xl bg-[var(--persona-assistant-avatar-bg,#f4f4f5)] text-[var(--persona-assistant-avatar-text,#27272a)] shadow-2xs dark:bg-[var(--persona-assistant-avatar-bg,#27272a)] dark:text-[var(--persona-assistant-avatar-text,#e4e4e7)]">
+                    <Bot className="size-4" />
+                  </div>
+                )
               )}
 
               <div
                 className={cn(
                   'group relative min-w-0 max-w-[85%] rounded-2xl px-4 py-3 text-xs md:text-sm',
                   isUser
-                    ? 'bg-zinc-900 text-white font-medium rounded-tr-xs dark:bg-zinc-100 dark:text-zinc-900'
-                    : 'bg-zinc-100/80 text-zinc-900 rounded-tl-xs border border-zinc-200/60 dark:bg-zinc-900/70 dark:text-zinc-100 dark:border-zinc-800/60'
+                    ? 'rounded-tr-xs bg-[var(--persona-user-bg,#18181b)] font-medium text-[var(--persona-user-text,#ffffff)] dark:bg-[var(--persona-user-bg,#f4f4f5)] dark:text-[var(--persona-user-text,#18181b)]'
+                    : 'rounded-tl-xs border border-zinc-200/60 bg-[var(--persona-assistant-bg,rgb(244_244_245_/_0.8))] text-[var(--persona-assistant-text,#18181b)] dark:border-zinc-800/60 dark:bg-[var(--persona-assistant-bg,rgb(24_24_27_/_0.7))] dark:text-[var(--persona-assistant-text,#f4f4f5)]'
                 )}
               >
                 {/* Reasoning / thinking trace, shown before the answer */}
@@ -141,8 +152,15 @@ export function PersonaMessageFeed({
                   </div>
                 )}
 
-                {/* Message text */}
-                <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                {/* Message text — Markdown (tables, LaTeX, code blocks) for
+                    the assistant; the user's own literal text stays plain,
+                    unrendered, so it can't surprise them with formatting
+                    they didn't intend. */}
+                {isUser ? (
+                  <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                ) : (
+                  <PersonaMarkdown content={msg.content} />
+                )}
 
                 {/* Streaming pulse */}
                 {msg.isStreaming && (
@@ -178,10 +196,12 @@ export function PersonaMessageFeed({
                 )}
               </div>
 
-              {isUser && (
-                <div className="flex size-8 shrink-0 select-none items-center justify-center rounded-xl bg-zinc-200 text-zinc-700 shadow-2xs dark:bg-zinc-800 dark:text-zinc-300 mt-0.5">
-                  <User className="size-4" />
-                </div>
+              {isUser && showUserAvatar && (
+                userAvatar ?? (
+                  <div className="mt-0.5 flex size-8 shrink-0 select-none items-center justify-center rounded-xl bg-[var(--persona-user-avatar-bg,#e4e4e7)] text-[var(--persona-user-avatar-text,#3f3f46)] shadow-2xs dark:bg-[var(--persona-user-avatar-bg,#27272a)] dark:text-[var(--persona-user-avatar-text,#d4d4d8)]">
+                    <User className="size-4" />
+                  </div>
+                )
               )}
             </div>
           );

@@ -3,6 +3,31 @@
 All notable changes to `@personaai/ui` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.4.0
+
+- **New: Markdown rendering for assistant messages** — tables (GFM), LaTeX ($inline$ /
+  $$block$$ via KaTeX), and fenced code blocks with a copy button, via the new exported
+  `PersonaMarkdown` component (`react-markdown` + `remark-gfm` + `remark-math` +
+  `rehype-katex`). The user's own messages stay plain text, deliberately — rendering their
+  literal input as Markdown risks surprising them with formatting they didn't intend.
+  **Requires importing `katex/dist/katex.min.css` once in your app** for the math output to be
+  positioned/styled correctly — this package has no CSS build step of its own to bundle it into.
+  No `rehype-sanitize`: react-markdown never parses raw HTML found in the source text by default
+  (it renders as literal escaped text) — that's the actual XSS boundary, already in effect
+  without it. Adding sanitize on top would need a KaTeX-aware schema (its output classes aren't
+  in the default allowlist) for no additional safety, so it's deliberately left out.
+- **New: working theme colors.** `theme` was previously decorative — it set
+  `--persona-primary`/`--persona-bg`/`--persona-card`/`--persona-text` CSS variables that no
+  component actually read, so setting it did nothing visible. Every component now reads its
+  colors through `var(--x, <default>)`, so an unthemed app keeps the exact same zinc palette as
+  before, and a themed one actually changes. Added `userMessageBg`/`userMessageText`/
+  `assistantMessageBg`/`assistantMessageText`/`userAvatarBg`/`userAvatarText`/
+  `assistantAvatarBg`/`assistantAvatarText` to `PersonaCustomTheme`; wired `primaryColor` into
+  the composer's send button and the sidebar's active-thread indicator.
+- **New: avatar control** — `showUserAvatar`/`showAssistantAvatar` (default `true`) toggle
+  visibility; `userAvatar`/`assistantAvatar` (`ReactNode`) replace the default icon entirely
+  (e.g. a real profile picture) on `PersonaChatView` and `PersonaMessageFeed`.
+
 ## 0.3.2
 
 - **New: `write_todos` tool card** — `PersonaToolTrace` now special-cases the todo tool into a
