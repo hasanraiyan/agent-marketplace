@@ -618,7 +618,7 @@ function useConnection(autoCheck = true) {
 }
 
 // src/index.ts
-var VERSION = "0.1.1";
+var VERSION = "0.1.2";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   PersonaProvider,

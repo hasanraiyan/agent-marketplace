@@ -584,7 +584,7 @@ function useConnection(autoCheck = true) {
 }
 
 // src/index.ts
-var VERSION = "0.1.1";
+var VERSION = "0.1.2";
 export {
   PersonaProvider,
   VERSION,

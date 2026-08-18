@@ -196,6 +196,9 @@ async function writeRuntimeResponse(res, response) {
     res.end(response.body);
     return;
   }
+  if (typeof res.setHeader === "function") {
+    res.setHeader("X-Accel-Buffering", "no");
+  }
   if (typeof res.flushHeaders === "function") {
     res.flushHeaders();
   }
@@ -214,6 +217,9 @@ async function writeRuntimeResponse(res, response) {
     for await (const chunk of iterable) {
       if (closed) break;
       const canContinue = res.write(chunk);
+      if (typeof res.flush === "function") {
+        res.flush();
+      }
       if (!canContinue) await waitForDrainOrClose(res);
     }
     if (!closed) res.end();
@@ -280,6 +286,7 @@ var PersonaModule = class {
       useFactory: () => {
         return createRuntime({
           ...options,
+          mountPath: options.mountPath ?? options.routePrefix ?? "/api/persona",
           resolveUser: options.resolveUserFrom ? (req) => req.userId ?? null : options.resolveUser
         });
       }
@@ -324,6 +331,7 @@ var PersonaModule = class {
         }
         return createRuntime({
           ...options,
+          mountPath: options.mountPath ?? options.routePrefix ?? "/api/persona",
           resolveUser: options.resolveUserFrom ? (req) => req.userId ?? null : options.resolveUser
         });
       },

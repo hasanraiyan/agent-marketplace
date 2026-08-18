@@ -213,6 +213,6 @@ declare function useConnection(autoCheck?: boolean): {
     checkHealth: () => Promise<PersonaHealthInfo | null>;
 };
 
-declare const VERSION = "0.1.1";
+declare const VERSION = "0.1.2";
 
 export { type PersonaAgentSummary, type PersonaFileItem, type PersonaHealthInfo, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, PersonaProvider, type PersonaProviderProps, type PersonaRole, type PersonaStreamingEvent, type PersonaThread, type PersonaToolCall, type UseChatOptions, VERSION, useAgents, useChat, useConnection, useFiles, useMemory, usePersonaContext, useThreads };
