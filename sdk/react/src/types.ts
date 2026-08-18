@@ -181,7 +181,17 @@ export interface UseChatOptions {
 
 export interface SendMessageOverride {
   agentId?: string;
-  threadId?: string;
+  /**
+   * A plain id, or a promise/thunk for one still in flight (e.g. a thread
+   * being lazily created for the first message of a new conversation).
+   * `sendMessage` only awaits this right before building the request body —
+   * its own optimistic UI update (adding the user's message + a streaming
+   * placeholder) already ran synchronously before that point, so callers
+   * don't have to choose between "wait for the thread to exist" and
+   * "show the message instantly": passing an in-flight promise here gets
+   * both.
+   */
+  threadId?: string | Promise<string | undefined>;
   /** Answers/approves a paused interrupt from a previous turn instead of starting a fresh one. */
   resume?: PersonaResumeValue;
 }

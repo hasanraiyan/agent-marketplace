@@ -3,6 +3,15 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.3.4
+
+- **`SendMessageOverride.threadId` now also accepts `Promise<string | undefined>`.** `sendMessage`
+  resolves it right before building the request body — after its own optimistic update (the
+  user's message + a streaming placeholder) has already run synchronously. A caller can now pass
+  an in-flight thread-creation promise straight through and get both an instant message and a
+  real `threadId` once it exists, instead of having to choose between the two. Plain strings and
+  `undefined` behave exactly as before.
+
 ## 0.3.3
 
 - **New: `useMcpConnections({ agentId?, returnTo?, autoFetch? })`.** Until now there was no way

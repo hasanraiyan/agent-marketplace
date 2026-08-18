@@ -237,6 +237,7 @@ function useChat(options = {}) {
           role: m.role === "assistant" ? "assistant" : "user",
           content: m.content
         }));
+        const resolvedThreadId = await (overrideOptions?.threadId ?? options.threadId);
         const response = await fetchWithAuth("/chat", {
           method: "POST",
           headers: {
@@ -245,7 +246,7 @@ function useChat(options = {}) {
           body: JSON.stringify({
             agentId: targetAgentId,
             messages: payloadMessages,
-            threadId: overrideOptions?.threadId || options.threadId,
+            threadId: resolvedThreadId,
             resume: overrideOptions?.resume
           }),
           signal: controller.signal
@@ -872,7 +873,7 @@ function useMcpConnections(options = {}) {
 }
 
 // src/index.ts
-var VERSION = "0.3.3";
+var VERSION = "0.3.4";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   PersonaProvider,

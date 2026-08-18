@@ -8,4 +8,4 @@ export * from './hooks/useAgents.js';
 export * from './hooks/useConnection.js';
 export * from './hooks/useMcpConnections.js';
 
-export const VERSION = '0.3.3';
+export const VERSION = '0.3.4';

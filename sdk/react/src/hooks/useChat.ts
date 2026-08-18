@@ -229,6 +229,13 @@ export function useChat(options: UseChatOptions = {}) {
           content: m.content,
         }));
 
+        // Resolved here, not earlier — everything above this line (the
+        // optimistic message + placeholder, clearing input, etc.) already
+        // ran synchronously, so a caller passing an in-flight thread-creation
+        // promise gets an instant UI update without the message send itself
+        // waiting on it any longer than the network call already would.
+        const resolvedThreadId = await (overrideOptions?.threadId ?? options.threadId);
+
         const response = await fetchWithAuth('/chat', {
           method: 'POST',
           headers: {
@@ -237,7 +244,7 @@ export function useChat(options: UseChatOptions = {}) {
           body: JSON.stringify({
             agentId: targetAgentId,
             messages: payloadMessages,
-            threadId: overrideOptions?.threadId || options.threadId,
+            threadId: resolvedThreadId,
             resume: overrideOptions?.resume,
           }),
           signal: controller.signal,

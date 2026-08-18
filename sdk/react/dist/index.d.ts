@@ -232,7 +232,17 @@ interface UseChatOptions {
 }
 interface SendMessageOverride {
     agentId?: string;
-    threadId?: string;
+    /**
+     * A plain id, or a promise/thunk for one still in flight (e.g. a thread
+     * being lazily created for the first message of a new conversation).
+     * `sendMessage` only awaits this right before building the request body —
+     * its own optimistic UI update (adding the user's message + a streaming
+     * placeholder) already ran synchronously before that point, so callers
+     * don't have to choose between "wait for the thread to exist" and
+     * "show the message instantly": passing an in-flight promise here gets
+     * both.
+     */
+    threadId?: string | Promise<string | undefined>;
     /** Answers/approves a paused interrupt from a previous turn instead of starting a fresh one. */
     resume?: PersonaResumeValue;
 }
@@ -405,6 +415,6 @@ declare function useMcpConnections(options?: UseMcpConnectionsOptions): {
     refetch: () => Promise<PersonaMcpConnection[]>;
 };
 
-declare const VERSION = "0.3.3";
+declare const VERSION = "0.3.4";
 
 export { type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaWorkspaceFile, type SendMessageOverride, type UseChatOptions, type UseMcpConnectionsOptions, VERSION, useAgents, useChat, useConnection, useFiles, useMcpConnections, useMemory, usePersonaContext, useThreads };
