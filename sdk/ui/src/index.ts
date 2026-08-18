@@ -8,4 +8,4 @@ export * from './components/PersonaToolTrace.js';
 export * from './components/PersonaFilesDrawer.js';
 export * from './components/PersonaInterruptCard.js';
 
-export const VERSION = '0.2.0';
+export const VERSION = '0.2.1';

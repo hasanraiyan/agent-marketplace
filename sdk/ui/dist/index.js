@@ -1113,7 +1113,7 @@ function PersonaChatView({
 }
 
 // src/index.ts
-var VERSION = "0.2.0";
+var VERSION = "0.2.1";
 export {
   PersonaChatView,
   PersonaComposer,

@@ -3,6 +3,11 @@
 All notable changes to `@personaai/ui` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.2.1
+
+Republish of 0.2.0 — that version number was rejected by the registry (already used), no content
+changes.
+
 ## 0.2.0
 
 Requires `@personaai/react` ^0.2.0.
