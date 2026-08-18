@@ -45,6 +45,25 @@ function parsePresentedFile(content: string): PersonaPresentedFile | null {
   }
 }
 
+// buildFilesTodosSnapshot (aguiTranslator.js) emits snake_case
+// created_at/modified_at on the wire — both from the live STATE_SNAPSHOT
+// event and from a reloaded thread's persisted state (checkpoint.service.js
+// runs the same function). Normalize to the SDK's usual camelCase shape.
+function normalizeWorkspaceFiles(
+  raw: Record<string, { content: string; size: number; created_at: string | null; modified_at: string | null }>
+): Record<string, PersonaWorkspaceFile> {
+  const normalized: Record<string, PersonaWorkspaceFile> = {};
+  for (const [path, file] of Object.entries(raw || {})) {
+    normalized[path] = {
+      content: file.content,
+      size: file.size,
+      createdAt: file.created_at,
+      modifiedAt: file.modified_at,
+    };
+  }
+  return normalized;
+}
+
 // checkpointService.getMessages() wraps a paused thread's interrupt as
 // `{ kind, value }` (see checkpoint.service.js) — the same envelope shape
 // the live hitl_request/clarification_request CUSTOM events carry, just
@@ -137,7 +156,7 @@ export function useChat(options: UseChatOptions = {}) {
         // Restore the workspace files/todos this thread already had (same
         // cleaned shape checkpoint.service.js now derives via
         // buildFilesTodosSnapshot, matching the live STATE_SNAPSHOT event).
-        setFiles((data?.state?.files ?? {}) as Record<string, PersonaWorkspaceFile>);
+        setFiles(normalizeWorkspaceFiles(data?.state?.files ?? {}));
         setTodos((data?.state?.todos ?? []) as PersonaTodo[]);
         return loaded;
       } catch (err) {
@@ -300,7 +319,7 @@ export function useChat(options: UseChatOptions = {}) {
                   patchAssistant({});
                 }
               } else if (event.type === 'STATE_SNAPSHOT') {
-                setFiles(event.snapshot.files);
+                setFiles(normalizeWorkspaceFiles(event.snapshot.files));
                 setTodos(event.snapshot.todos);
               } else if (event.type === 'REASONING_MESSAGE_CONTENT') {
                 accumulatedReasoning += event.delta;

@@ -97,6 +97,18 @@ function parsePresentedFile(content) {
     return null;
   }
 }
+function normalizeWorkspaceFiles(raw) {
+  const normalized = {};
+  for (const [path, file] of Object.entries(raw || {})) {
+    normalized[path] = {
+      content: file.content,
+      size: file.size,
+      createdAt: file.created_at,
+      modifiedAt: file.modified_at
+    };
+  }
+  return normalized;
+}
 function normalizePendingInterrupt(pending) {
   if (!pending || typeof pending !== "object") return null;
   const p = pending;
@@ -165,7 +177,7 @@ function useChat(options = {}) {
         }));
         setMessages(loaded);
         setInterrupt(normalizePendingInterrupt(data?.pendingInterrupt));
-        setFiles(data?.state?.files ?? {});
+        setFiles(normalizeWorkspaceFiles(data?.state?.files ?? {}));
         setTodos(data?.state?.todos ?? []);
         return loaded;
       } catch (err) {
@@ -298,7 +310,7 @@ function useChat(options = {}) {
                   patchAssistant({});
                 }
               } else if (event.type === "STATE_SNAPSHOT") {
-                setFiles(event.snapshot.files);
+                setFiles(normalizeWorkspaceFiles(event.snapshot.files));
                 setTodos(event.snapshot.todos);
               } else if (event.type === "REASONING_MESSAGE_CONTENT") {
                 accumulatedReasoning += event.delta;
@@ -811,7 +823,7 @@ function useConnection(autoCheck = true) {
 }
 
 // src/index.ts
-var VERSION = "0.3.0";
+var VERSION = "0.3.1";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   PersonaProvider,

@@ -3,6 +3,16 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.3.1
+
+- Fixed `PersonaWorkspaceFile`'s `createdAt`/`modifiedAt`: the wire field
+  (`buildFilesTodosSnapshot` in `aguiTranslator.js`) is `created_at`/
+  `modified_at` (snake_case), not camelCase — 0.3.0's type didn't match, so
+  those two fields always came through `undefined` (content/size were
+  unaffected, since those field names did match). `useChat` now normalizes
+  both the live `STATE_SNAPSHOT` event and a reloaded thread's persisted
+  state through the same mapping.
+
 ## 0.3.0
 
 - **New: agent workspace files** — `useChat` now tracks the agent's own virtual filesystem

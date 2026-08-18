@@ -172,8 +172,14 @@ type PersonaStreamingEvent = {
     type: 'REASONING_END';
 } | {
     type: 'STATE_SNAPSHOT';
+    /** Raw wire shape (snake_case timestamps) — useChat normalizes this into `files`/`todos`. */
     snapshot: {
-        files: Record<string, PersonaWorkspaceFile>;
+        files: Record<string, {
+            content: string;
+            size: number;
+            created_at: string | null;
+            modified_at: string | null;
+        }>;
         todos: PersonaTodo[];
     };
 } | {
@@ -359,6 +365,6 @@ declare function useConnection(autoCheck?: boolean): {
     checkHealth: () => Promise<PersonaHealthInfo | null>;
 };
 
-declare const VERSION = "0.3.0";
+declare const VERSION = "0.3.1";
 
 export { type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaWorkspaceFile, type SendMessageOverride, type UseChatOptions, VERSION, useAgents, useChat, useConnection, useFiles, useMemory, usePersonaContext, useThreads };

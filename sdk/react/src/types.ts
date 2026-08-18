@@ -150,7 +150,14 @@ export type PersonaStreamingEvent =
   | { type: 'REASONING_MESSAGE_START'; messageId: string }
   | { type: 'REASONING_MESSAGE_CONTENT'; messageId: string; delta: string }
   | { type: 'REASONING_END' }
-  | { type: 'STATE_SNAPSHOT'; snapshot: { files: Record<string, PersonaWorkspaceFile>; todos: PersonaTodo[] } }
+  | {
+      type: 'STATE_SNAPSHOT';
+      /** Raw wire shape (snake_case timestamps) — useChat normalizes this into `files`/`todos`. */
+      snapshot: {
+        files: Record<string, { content: string; size: number; created_at: string | null; modified_at: string | null }>;
+        todos: PersonaTodo[];
+      };
+    }
   | { type: 'RUN_ERROR'; code: string; message: string; retryable?: boolean; providerName?: string }
   | { type: 'CUSTOM'; name: 'hitl_request'; value: { actionRequests: PersonaHitlActionRequest[]; reviewConfigs: unknown[] } }
   | { type: 'CUSTOM'; name: 'clarification_request'; value: { questions: PersonaClarificationQuestion[]; currentIndex: number } }
