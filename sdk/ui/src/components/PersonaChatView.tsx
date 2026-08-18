@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useChat, useThreads, useFiles, useMemory } from '@personaai/react';
 import type { PersonaChatViewProps } from '../types.js';
 import { cn } from '../utils/cn.js';
@@ -31,6 +31,19 @@ export function PersonaChatView({
   const [sidebarOpen, setSidebarOpen] = useState(showSidebar);
   const [filesDrawerOpen, setFilesDrawerOpen] = useState(false);
 
+  // The sidebar renders as a full-screen overlay below the md breakpoint
+  // (see PersonaSidebar) — defaulting it open there would cover the entire
+  // chat on first load. Desktop keeps its default; this only corrects the
+  // initial state for a narrow viewport, one mount-only check (can't read
+  // viewport width during SSR/the initial render without a hydration
+  // mismatch, so this trades one extra render for correctness instead).
+  useEffect(() => {
+    if (showSidebar && window.matchMedia('(max-width: 767px)').matches) {
+      setSidebarOpen(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const { threads, createThread, deleteThread, renameThread } = useThreads();
   const { files, uploadFile, deleteFile } = useFiles();
   const { memory, getFile, deleteFile: deleteMemoryFile } = useMemory();
@@ -45,6 +58,9 @@ export function PersonaChatView({
     error,
     interrupt,
     resumeInterrupt,
+    files: workspaceFiles,
+    todos,
+    presentedFile,
     stop,
     reload,
     clear,
@@ -81,6 +97,12 @@ export function PersonaChatView({
     },
     [activeThreadId, agentId, createThread, sendMessage, setActiveThread]
   );
+
+  // The agent just called present_file — open the drawer to it rather than
+  // leaving a highlighted file behind a closed panel.
+  useEffect(() => {
+    if (presentedFile) setFilesDrawerOpen(true);
+  }, [presentedFile]);
 
   const handleUploadFile = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -122,7 +144,8 @@ export function PersonaChatView({
           onCreateThread={handleNewChat}
           onDeleteThread={deleteThread}
           onRenameThread={renameThread}
-          className={cn('hidden md:flex', classNames.sidebar)}
+          onClose={() => setSidebarOpen(false)}
+          className={classNames.sidebar}
         />
       )}
 
@@ -209,6 +232,9 @@ export function PersonaChatView({
           onClose={() => setFilesDrawerOpen(false)}
           files={files}
           memory={memory}
+          workspaceFiles={workspaceFiles}
+          todos={todos}
+          presentedFile={presentedFile}
           onDeleteFile={deleteFile}
           onGetMemoryFile={(path) => getFile({ path })}
           onDeleteMemoryFile={(path) => deleteMemoryFile({ path })}

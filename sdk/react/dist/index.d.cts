@@ -60,6 +60,28 @@ type PersonaResumeValue = {
     answers: unknown[];
     text?: string;
 };
+/**
+ * A file in the agent's own virtual workspace (deepagents' state-backed
+ * filesystem — `write_file`/`read_file` tool calls, distinct from
+ * `PersonaFileItem` uploads). Populated from `STATE_SNAPSHOT` events, or
+ * from a reloaded thread's persisted state.
+ */
+interface PersonaWorkspaceFile {
+    content: string;
+    size: number;
+    createdAt: string | null;
+    modifiedAt: string | null;
+}
+interface PersonaTodo {
+    content: string;
+    status: string;
+}
+/** Set when the agent calls `present_file` to highlight a workspace file. */
+interface PersonaPresentedFile {
+    path: string;
+    title: string;
+    description: string;
+}
 interface PersonaProviderProps {
     /** Base URL where the Persona runtime / adapter is mounted, e.g. "http://localhost:4000/api/persona" */
     baseUrl: string;
@@ -151,11 +173,8 @@ type PersonaStreamingEvent = {
 } | {
     type: 'STATE_SNAPSHOT';
     snapshot: {
-        files: Record<string, unknown>;
-        todos: Array<{
-            content: string;
-            status: string;
-        }>;
+        files: Record<string, PersonaWorkspaceFile>;
+        todos: PersonaTodo[];
     };
 } | {
     type: 'RUN_ERROR';
@@ -234,6 +253,10 @@ declare function useChat(options?: UseChatOptions): {
     error: Error | null;
     interrupt: PersonaInterrupt | null;
     resumeInterrupt: (resume: PersonaResumeValue, displayContent: string) => Promise<void>;
+    files: Record<string, PersonaWorkspaceFile>;
+    todos: PersonaTodo[];
+    presentedFile: PersonaPresentedFile | null;
+    dismissPresentedFile: () => void;
     stop: () => void;
     reload: () => void;
     clear: () => void;
@@ -336,6 +359,6 @@ declare function useConnection(autoCheck?: boolean): {
     checkHealth: () => Promise<PersonaHealthInfo | null>;
 };
 
-declare const VERSION = "0.2.0";
+declare const VERSION = "0.3.0";
 
-export { type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaToolCall, type SendMessageOverride, type UseChatOptions, VERSION, useAgents, useChat, useConnection, useFiles, useMemory, usePersonaContext, useThreads };
+export { type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaWorkspaceFile, type SendMessageOverride, type UseChatOptions, VERSION, useAgents, useChat, useConnection, useFiles, useMemory, usePersonaContext, useThreads };

@@ -58,7 +58,7 @@ describe('Checkpoint Service', () => {
 
       const result = await checkpointService.getMessages('thread_1', 'user_1');
       expect(result.messages).toEqual([{ id: 'msg_1', role: 'assistant', content: 'hello' }]);
-      expect(result.state).toEqual({});
+      expect(result.state).toEqual({ files: {}, todos: [] });
       expect(result.subagentTraces).toEqual({});
       expect(mockGetTuple).toHaveBeenCalledWith({ configurable: { thread_id: 'uuid123' } });
     });

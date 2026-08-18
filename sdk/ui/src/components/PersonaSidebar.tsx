@@ -12,6 +12,8 @@ export interface PersonaSidebarProps {
   onCreateThread: () => void;
   onDeleteThread?: (threadId: string) => void;
   onRenameThread?: (threadId: string, newTitle: string) => void;
+  /** Dismisses the sidebar on mobile, where it overlays instead of docking inline. */
+  onClose?: () => void;
   className?: string;
 }
 
@@ -56,6 +58,7 @@ export function PersonaSidebar({
   onCreateThread,
   onDeleteThread,
   onRenameThread,
+  onClose,
   className,
 }: PersonaSidebarProps) {
   const [search, setSearch] = useState('');
@@ -186,12 +189,20 @@ export function PersonaSidebar({
   }
 
   return (
-    <aside
-      className={cn(
-        'flex w-60 shrink-0 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900',
-        className
-      )}
-    >
+    <>
+      {/* Backdrop — mobile/tablet only, where the sidebar overlays instead of docking inline. */}
+      <div
+        className="fixed inset-0 z-20 bg-black/30 md:hidden"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-30 flex w-72 max-w-[80vw] flex-col border-r border-zinc-200 bg-zinc-50 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900',
+          'md:static md:z-auto md:w-60 md:max-w-none md:shadow-none',
+          className
+        )}
+      >
       {/* New Chat */}
       <div className="p-3">
         <button
@@ -230,6 +241,7 @@ export function PersonaSidebar({
           </>
         )}
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

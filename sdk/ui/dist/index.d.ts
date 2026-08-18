@@ -1,5 +1,5 @@
 import React, { ReactNode, ComponentType } from 'react';
-import { PersonaToolCall, PersonaThread, PersonaMessage, PersonaFileItem, PersonaMemoryList, PersonaMemoryFile, PersonaInterrupt, PersonaResumeValue } from '@personaai/react';
+import { PersonaToolCall, PersonaThread, PersonaMessage, PersonaFileItem, PersonaMemoryList, PersonaWorkspaceFile, PersonaTodo, PersonaPresentedFile, PersonaMemoryFile, PersonaInterrupt, PersonaResumeValue } from '@personaai/react';
 import { ClassValue } from 'clsx';
 
 interface StarterPromptItem {
@@ -60,9 +60,11 @@ interface PersonaSidebarProps {
     onCreateThread: () => void;
     onDeleteThread?: (threadId: string) => void;
     onRenameThread?: (threadId: string, newTitle: string) => void;
+    /** Dismisses the sidebar on mobile, where it overlays instead of docking inline. */
+    onClose?: () => void;
     className?: string;
 }
-declare function PersonaSidebar({ threads, activeThreadId, onSelectThread, onCreateThread, onDeleteThread, onRenameThread, className, }: PersonaSidebarProps): React.JSX.Element;
+declare function PersonaSidebar({ threads, activeThreadId, onSelectThread, onCreateThread, onDeleteThread, onRenameThread, onClose, className, }: PersonaSidebarProps): React.JSX.Element;
 
 interface PersonaComposerProps {
     input: string;
@@ -103,12 +105,17 @@ interface PersonaFilesDrawerProps {
     onClose: () => void;
     files: PersonaFileItem[];
     memory: PersonaMemoryList;
+    /** The agent's own virtual workspace files (deepagents' write_file/read_file), distinct from uploads. */
+    workspaceFiles?: Record<string, PersonaWorkspaceFile>;
+    todos?: PersonaTodo[];
+    /** Set when the agent calls `present_file` — auto-opens the Workspace tab on that file. */
+    presentedFile?: PersonaPresentedFile | null;
     onDeleteFile?: (fileId: string) => void;
     onGetMemoryFile?: (path: string) => Promise<PersonaMemoryFile>;
     onDeleteMemoryFile?: (path: string) => Promise<void>;
     className?: string;
 }
-declare function PersonaFilesDrawer({ isOpen, onClose, files, memory, onDeleteFile, onGetMemoryFile, onDeleteMemoryFile, className, }: PersonaFilesDrawerProps): React.JSX.Element | null;
+declare function PersonaFilesDrawer({ isOpen, onClose, files, memory, workspaceFiles, todos, presentedFile, onDeleteFile, onGetMemoryFile, onDeleteMemoryFile, className, }: PersonaFilesDrawerProps): React.JSX.Element | null;
 
 interface PersonaInterruptCardProps {
     interrupt: PersonaInterrupt;
@@ -118,6 +125,6 @@ interface PersonaInterruptCardProps {
 }
 declare function PersonaInterruptCard({ interrupt, onRespond, isStreaming, className, }: PersonaInterruptCardProps): React.JSX.Element;
 
-declare const VERSION = "0.2.1";
+declare const VERSION = "0.3.0";
 
 export { type ClassNamesOverride, PersonaChatView, type PersonaChatViewProps, PersonaComposer, type PersonaComposerProps, type PersonaCustomTheme, PersonaFilesDrawer, type PersonaFilesDrawerProps, PersonaInterruptCard, type PersonaInterruptCardProps, PersonaMessageFeed, type PersonaMessageFeedProps, PersonaSidebar, type PersonaSidebarProps, PersonaToolTrace, type PersonaToolTraceProps, type StarterPromptItem, type ToolRendererMap, type ToolRendererProps, VERSION, cn };

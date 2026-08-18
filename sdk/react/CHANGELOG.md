@@ -3,6 +3,20 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.3.0
+
+- **New: agent workspace files** — `useChat` now tracks the agent's own virtual filesystem
+  (deepagents' `write_file`/`read_file` state, distinct from `useFiles`'s uploads) via `files`
+  (`Record<path, PersonaWorkspaceFile>`) and `todos`, populated from `STATE_SNAPSHOT` events —
+  previously typed but never actually consumed, so this data existed on the wire and went
+  nowhere. Restored on thread reload too (`checkpoint.service.js` now runs the same
+  `buildFilesTodosSnapshot` cleanup on `state` that the live event uses, so a reopened thread's
+  workspace isn't raw LangGraph internals).
+- **New: `present_file` support** — `useChat` recognizes the `present_file` tool's result and
+  surfaces it as `presentedFile` (`{path, title, description}`), so the workspace file the agent
+  is pointing at can actually be highlighted somewhere. Previously nothing in the SDK reacted to
+  this tool at all — the whole point of "highlight this file for the user" silently went nowhere.
+
 ## 0.2.0
 
 Corrects the hooks against the actual Developer Platform wire contract (`@personaai/sdk`'s real

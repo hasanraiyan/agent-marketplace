@@ -5,10 +5,13 @@ import { usePersonaContext } from '../context/PersonaContext.js';
 import type {
   PersonaInterrupt,
   PersonaMessage,
+  PersonaPresentedFile,
   PersonaResumeValue,
   PersonaStreamingEvent,
   PersonaSubagentActivityEntry,
+  PersonaTodo,
   PersonaToolCall,
+  PersonaWorkspaceFile,
   SendMessageOverride,
   UseChatOptions,
 } from '../types.js';
@@ -22,6 +25,23 @@ function isErrorToolContent(content: string): boolean {
     return JSON.parse(content)?.status === 'error';
   } catch {
     return false;
+  }
+}
+
+// present_file's result is `{status:'success', filePath, title, description}`
+// (see present.tool.js) — a signal to highlight that path in the workspace
+// files panel, not something meant to render as a generic tool-result blob.
+function parsePresentedFile(content: string): PersonaPresentedFile | null {
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed?.status !== 'success' || typeof parsed.filePath !== 'string') return null;
+    return {
+      path: parsed.filePath,
+      title: typeof parsed.title === 'string' ? parsed.title : parsed.filePath,
+      description: typeof parsed.description === 'string' ? parsed.description : '',
+    };
+  } catch {
+    return null;
   }
 }
 
@@ -62,6 +82,9 @@ export function useChat(options: UseChatOptions = {}) {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [interrupt, setInterrupt] = useState<PersonaInterrupt | null>(null);
+  const [files, setFiles] = useState<Record<string, PersonaWorkspaceFile>>({});
+  const [todos, setTodos] = useState<PersonaTodo[]>([]);
+  const [presentedFile, setPresentedFile] = useState<PersonaPresentedFile | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const loadedThreadIdRef = useRef<string | undefined>(undefined);
@@ -78,6 +101,10 @@ export function useChat(options: UseChatOptions = {}) {
     stop();
     setMessages([]);
     setError(null);
+    setInterrupt(null);
+    setFiles({});
+    setTodos([]);
+    setPresentedFile(null);
   }, [stop]);
 
   const loadThreadMessages = useCallback(
@@ -107,6 +134,11 @@ export function useChat(options: UseChatOptions = {}) {
         // is currently paused — otherwise it wouldn't reappear until the
         // next live stream re-surfaces it.
         setInterrupt(normalizePendingInterrupt(data?.pendingInterrupt));
+        // Restore the workspace files/todos this thread already had (same
+        // cleaned shape checkpoint.service.js now derives via
+        // buildFilesTodosSnapshot, matching the live STATE_SNAPSHOT event).
+        setFiles((data?.state?.files ?? {}) as Record<string, PersonaWorkspaceFile>);
+        setTodos((data?.state?.todos ?? []) as PersonaTodo[]);
         return loaded;
       } catch (err) {
         const errorObj = err instanceof Error ? err : new Error(String(err));
@@ -261,8 +293,15 @@ export function useChat(options: UseChatOptions = {}) {
                 if (existing) {
                   existing.result = event.content;
                   existing.isError = isErrorToolContent(event.content);
+                  if (existing.toolName === 'present_file' && !existing.isError) {
+                    const presented = parsePresentedFile(event.content);
+                    if (presented) setPresentedFile(presented);
+                  }
                   patchAssistant({});
                 }
+              } else if (event.type === 'STATE_SNAPSHOT') {
+                setFiles(event.snapshot.files);
+                setTodos(event.snapshot.todos);
               } else if (event.type === 'REASONING_MESSAGE_CONTENT') {
                 accumulatedReasoning += event.delta;
                 patchAssistant({ reasoning: accumulatedReasoning, isReasoning: true });
@@ -386,6 +425,8 @@ export function useChat(options: UseChatOptions = {}) {
     [sendMessage]
   );
 
+  const dismissPresentedFile = useCallback(() => setPresentedFile(null), []);
+
   return {
     messages,
     input,
@@ -399,6 +440,10 @@ export function useChat(options: UseChatOptions = {}) {
     error,
     interrupt,
     resumeInterrupt,
+    files,
+    todos,
+    presentedFile,
+    dismissPresentedFile,
     stop,
     reload,
     clear,

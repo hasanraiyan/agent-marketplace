@@ -84,6 +84,19 @@ function isErrorToolContent(content) {
     return false;
   }
 }
+function parsePresentedFile(content) {
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed?.status !== "success" || typeof parsed.filePath !== "string") return null;
+    return {
+      path: parsed.filePath,
+      title: typeof parsed.title === "string" ? parsed.title : parsed.filePath,
+      description: typeof parsed.description === "string" ? parsed.description : ""
+    };
+  } catch {
+    return null;
+  }
+}
 function normalizePendingInterrupt(pending) {
   if (!pending || typeof pending !== "object") return null;
   const p = pending;
@@ -112,6 +125,9 @@ function useChat(options = {}) {
   const [isLoadingHistory, setIsLoadingHistory] = (0, import_react2.useState)(false);
   const [error, setError] = (0, import_react2.useState)(null);
   const [interrupt, setInterrupt] = (0, import_react2.useState)(null);
+  const [files, setFiles] = (0, import_react2.useState)({});
+  const [todos, setTodos] = (0, import_react2.useState)([]);
+  const [presentedFile, setPresentedFile] = (0, import_react2.useState)(null);
   const abortControllerRef = (0, import_react2.useRef)(null);
   const loadedThreadIdRef = (0, import_react2.useRef)(void 0);
   const stop = (0, import_react2.useCallback)(() => {
@@ -125,6 +141,10 @@ function useChat(options = {}) {
     stop();
     setMessages([]);
     setError(null);
+    setInterrupt(null);
+    setFiles({});
+    setTodos([]);
+    setPresentedFile(null);
   }, [stop]);
   const loadThreadMessages = (0, import_react2.useCallback)(
     async (id) => {
@@ -145,6 +165,8 @@ function useChat(options = {}) {
         }));
         setMessages(loaded);
         setInterrupt(normalizePendingInterrupt(data?.pendingInterrupt));
+        setFiles(data?.state?.files ?? {});
+        setTodos(data?.state?.todos ?? []);
         return loaded;
       } catch (err) {
         const errorObj = err instanceof Error ? err : new Error(String(err));
@@ -269,8 +291,15 @@ function useChat(options = {}) {
                 if (existing) {
                   existing.result = event.content;
                   existing.isError = isErrorToolContent(event.content);
+                  if (existing.toolName === "present_file" && !existing.isError) {
+                    const presented = parsePresentedFile(event.content);
+                    if (presented) setPresentedFile(presented);
+                  }
                   patchAssistant({});
                 }
+              } else if (event.type === "STATE_SNAPSHOT") {
+                setFiles(event.snapshot.files);
+                setTodos(event.snapshot.todos);
               } else if (event.type === "REASONING_MESSAGE_CONTENT") {
                 accumulatedReasoning += event.delta;
                 patchAssistant({ reasoning: accumulatedReasoning, isReasoning: true });
@@ -374,6 +403,7 @@ function useChat(options = {}) {
     (resume, displayContent) => sendMessage(displayContent, { resume }),
     [sendMessage]
   );
+  const dismissPresentedFile = (0, import_react2.useCallback)(() => setPresentedFile(null), []);
   return {
     messages,
     input,
@@ -387,6 +417,10 @@ function useChat(options = {}) {
     error,
     interrupt,
     resumeInterrupt,
+    files,
+    todos,
+    presentedFile,
+    dismissPresentedFile,
     stop,
     reload,
     clear,
@@ -777,7 +811,7 @@ function useConnection(autoCheck = true) {
 }
 
 // src/index.ts
-var VERSION = "0.2.0";
+var VERSION = "0.3.0";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   PersonaProvider,

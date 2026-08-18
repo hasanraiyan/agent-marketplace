@@ -56,6 +56,31 @@ export type PersonaResumeValue =
   | { decisions: Array<{ type: 'approve' | 'reject'; message?: string }> }
   | { answers: unknown[]; text?: string };
 
+/**
+ * A file in the agent's own virtual workspace (deepagents' state-backed
+ * filesystem — `write_file`/`read_file` tool calls, distinct from
+ * `PersonaFileItem` uploads). Populated from `STATE_SNAPSHOT` events, or
+ * from a reloaded thread's persisted state.
+ */
+export interface PersonaWorkspaceFile {
+  content: string;
+  size: number;
+  createdAt: string | null;
+  modifiedAt: string | null;
+}
+
+export interface PersonaTodo {
+  content: string;
+  status: string;
+}
+
+/** Set when the agent calls `present_file` to highlight a workspace file. */
+export interface PersonaPresentedFile {
+  path: string;
+  title: string;
+  description: string;
+}
+
 export interface PersonaProviderProps {
   /** Base URL where the Persona runtime / adapter is mounted, e.g. "http://localhost:4000/api/persona" */
   baseUrl: string;
@@ -125,7 +150,7 @@ export type PersonaStreamingEvent =
   | { type: 'REASONING_MESSAGE_START'; messageId: string }
   | { type: 'REASONING_MESSAGE_CONTENT'; messageId: string; delta: string }
   | { type: 'REASONING_END' }
-  | { type: 'STATE_SNAPSHOT'; snapshot: { files: Record<string, unknown>; todos: Array<{ content: string; status: string }> } }
+  | { type: 'STATE_SNAPSHOT'; snapshot: { files: Record<string, PersonaWorkspaceFile>; todos: PersonaTodo[] } }
   | { type: 'RUN_ERROR'; code: string; message: string; retryable?: boolean; providerName?: string }
   | { type: 'CUSTOM'; name: 'hitl_request'; value: { actionRequests: PersonaHitlActionRequest[]; reviewConfigs: unknown[] } }
   | { type: 'CUSTOM'; name: 'clarification_request'; value: { questions: PersonaClarificationQuestion[]; currentIndex: number } }

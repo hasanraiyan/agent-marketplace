@@ -9,7 +9,7 @@ import { personaExecutionContext, isThreadSubject } from './thread.service.js';
 // at module-evaluation time. See agentFactory's own getGlobalStore() for the
 // existing instance of this same pattern.
 import agentFactory from '../agents/agent.factory.js';
-import { describeInterrupt } from '../agui/aguiTranslator.js';
+import { describeInterrupt, buildFilesTodosSnapshot } from '../agui/aguiTranslator.js';
 
 const logger = loggerService.getLogger();
 
@@ -195,7 +195,18 @@ class CheckpointService {
     }
 
     const { messages = [], ...state } = snapshot.checkpoint.channel_values;
-    return { messages: normalizeMessages(messages), state, subagentTraces, pendingInterrupt };
+    // Reshape the raw deepagents virtual filesystem (files as arrays of
+    // lines, unfiltered /skills/ entries, directory markers) into the same
+    // clean { files, todos } shape the live STATE_SNAPSHOT event carries —
+    // otherwise a reloaded thread's workspace files look nothing like the
+    // ones a live stream produces for the same agent.
+    const cleanedFilesTodos = buildFilesTodosSnapshot(state);
+    return {
+      messages: normalizeMessages(messages),
+      state: { ...state, ...cleanedFilesTodos },
+      subagentTraces,
+      pendingInterrupt,
+    };
   }
 }
 
