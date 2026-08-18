@@ -1880,12 +1880,34 @@ function PersonaChatLauncher({
       "div",
       {
         className: cn(
-          "fixed bottom-24 z-40 flex max-h-[calc(100vh-7rem)] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-[var(--persona-border,#e4e4e7)] bg-[var(--persona-bg,#ffffff)] shadow-2xl dark:border-[var(--persona-border,#27272a)] dark:bg-[var(--persona-bg,#09090b)]",
-          isRight ? "right-6" : "left-6",
+          // z-[9999]: a floating widget mounted into an arbitrary host page
+          // has to reliably beat that page's OWN header/nav z-index (which
+          // this can't know ahead of time) — the old bespoke chat widgets
+          // this SDK replaces used the same value for the same reason.
+          "fixed inset-0 z-[9999] flex flex-col overflow-hidden bg-[var(--persona-bg,#ffffff)] shadow-2xl animate-[persona-drawer-up_0.25s_ease-out] dark:bg-[var(--persona-bg,#09090b)]",
+          // Below sm (640px): a true full-screen takeover, not a small
+          // floating card leaving gaps a host page's own fixed/sticky
+          // header can render through — see PersonaChatView's own
+          // @container comment for the matching reasoning on its sidebar.
+          // Width/height only take effect at sm+ (arbitrary-value classes
+          // bound to the CSS vars set below) — full-screen below sm
+          // ignores them entirely via inset-0 above, same reasoning.
+          "sm:inset-auto sm:bottom-24 sm:h-[var(--persona-panel-h)] sm:w-[var(--persona-panel-w)] sm:max-h-[calc(100vh-7rem)] sm:max-w-[calc(100vw-2rem)] sm:animate-none sm:rounded-2xl sm:border sm:border-[var(--persona-border,#e4e4e7)] sm:dark:border-[var(--persona-border,#27272a)]",
+          isRight ? "sm:right-6" : "sm:left-6",
           panelClassName
         ),
-        style: { width: panelWidth, height: panelHeight },
+        style: { "--persona-panel-w": panelWidth, "--persona-panel-h": panelHeight },
         children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(PersonaChatView, { ...chatViewProps, theme, className: "h-full w-full" })
+      }
+    ),
+    isOpen && /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+      "button",
+      {
+        type: "button",
+        onClick: () => setOpen(false),
+        "aria-label": "Close chat",
+        className: "fixed right-4 top-14 z-[10000] flex size-9 items-center justify-center rounded-full bg-[var(--persona-primary,#18181b)] text-white shadow-lg sm:hidden dark:bg-[var(--persona-primary,#f4f4f5)] dark:text-zinc-900",
+        children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(import_lucide_react11.X, { className: "size-5" })
       }
     ),
     /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
@@ -1895,7 +1917,13 @@ function PersonaChatLauncher({
         onClick: () => setOpen(!isOpen),
         "aria-label": isOpen ? "Close chat" : "Open chat",
         className: cn(
-          "fixed bottom-6 z-40 flex size-14 items-center justify-center rounded-full bg-[var(--persona-primary,#18181b)] text-white shadow-xl transition-transform hover:scale-105 active:scale-95 dark:bg-[var(--persona-primary,#f4f4f5)] dark:text-zinc-900",
+          "fixed bottom-6 z-[9999] items-center justify-center rounded-full bg-[var(--persona-primary,#18181b)] text-white shadow-xl transition-transform hover:scale-105 active:scale-95 dark:bg-[var(--persona-primary,#f4f4f5)] dark:text-zinc-900",
+          // Open on mobile: the full-screen panel already covers this and
+          // the dedicated close button above handles closing, so showing
+          // this too would just float on top of the panel's own content.
+          // Every other state (closed on mobile, either state on sm+,
+          // where the panel never covers the FAB) shows it as normal.
+          isOpen ? "hidden sm:flex" : "flex",
           isRight ? "right-6" : "left-6",
           fabClassName
         ),
@@ -1906,7 +1934,7 @@ function PersonaChatLauncher({
 }
 
 // src/index.ts
-var VERSION = "0.7.5";
+var VERSION = "0.7.6";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   PersonaChatLauncher,

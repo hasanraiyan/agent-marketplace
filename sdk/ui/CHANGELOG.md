@@ -3,6 +3,20 @@
 All notable changes to `@personaai/ui` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.7.6
+
+- **Fix: `PersonaChatLauncher` on mobile was a small floating card leaving gaps a host page's
+  own fixed/sticky header could render through, at a z-index (`z-40`) too low to reliably beat
+  one either.** Below the `sm` breakpoint (640px) the panel is now a true full-screen takeover —
+  `inset-0`, `z-[9999]` (matching what bespoke chat widgets built before this SDK existed used
+  for the same reason), sliding up from the bottom on open (new `persona-drawer-up` keyframe).
+  `panelWidth`/`panelHeight` and the floating-card treatment (rounded corners, border,
+  `bottom-24` positioning) now only apply at `sm` and up, where the panel never covers the host
+  page's own chrome in the first place. Since the full-screen panel now covers the FAB itself,
+  added a dedicated mobile-only close button (positioned below `PersonaChatView`'s own toolbar,
+  not overlapping its "Artifacts" button) — the FAB itself is hidden while open on mobile and
+  reappears once closed, unchanged on `sm`+ where the panel never covered it.
+
 ## 0.7.5
 
 - **New: `PersonaMcpConnectBanner` + built into `PersonaChatView`/`PersonaChatLauncher`

@@ -17,3 +17,14 @@
 @import "tailwindcss/utilities" layer(utilities);
 
 @source "./**/*.{ts,tsx}";
+
+/* PersonaChatLauncher's mobile full-screen panel slides up like a bottom
+   sheet/drawer on open, referenced via animate-[persona-drawer-up_...]. */
+@keyframes persona-drawer-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
