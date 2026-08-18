@@ -27,6 +27,8 @@ export function PersonaChatView({
   showAssistantAvatar = true,
   userAvatar,
   assistantAvatar,
+  groupTools = true,
+  toolClusterLabels,
   className,
 }: PersonaChatViewProps) {
   const [internalThreadId, setInternalThreadId] = useState<string | undefined>(undefined);
@@ -220,6 +222,8 @@ export function PersonaChatView({
             showAssistantAvatar={showAssistantAvatar}
             userAvatar={userAvatar}
             assistantAvatar={assistantAvatar}
+            groupTools={groupTools}
+            toolClusterLabels={toolClusterLabels}
             className={classNames.messageList}
           />
         </div>

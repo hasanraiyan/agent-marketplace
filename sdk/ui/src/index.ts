@@ -6,7 +6,9 @@ export * from './components/PersonaComposer.js';
 export * from './components/PersonaMessageFeed.js';
 export * from './components/PersonaMarkdown.js';
 export * from './components/PersonaToolTrace.js';
+export * from './components/PersonaToolGroup.js';
 export * from './components/PersonaFilesDrawer.js';
 export * from './components/PersonaInterruptCard.js';
+export * from './utils/toolGrouping.js';
 
-export const VERSION = '0.4.0';
+export const VERSION = '0.5.0';

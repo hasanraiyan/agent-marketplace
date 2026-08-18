@@ -1,5 +1,6 @@
 import type { ReactNode, ComponentType } from 'react';
 import type { PersonaMessage, PersonaThread, PersonaToolCall } from '@personaai/react';
+import type { PersonaToolClusterLabels } from './utils/toolGrouping.js';
 
 export interface StarterPromptItem {
   title: string;
@@ -76,6 +77,10 @@ export interface PersonaChatViewProps {
   userAvatar?: ReactNode;
   /** Replaces the default bot-icon avatar entirely. */
   assistantAvatar?: ReactNode;
+  /** Clusters consecutive tool calls into one collapsible group instead of one card each. @default true */
+  groupTools?: boolean;
+  /** Overrides/extends the default tool-cluster title+icon map (see `PersonaToolGroup`). */
+  toolClusterLabels?: PersonaToolClusterLabels;
   className?: string;
   children?: ReactNode;
 }

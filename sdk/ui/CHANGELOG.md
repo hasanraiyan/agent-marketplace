@@ -3,6 +3,24 @@
 All notable changes to `@personaai/ui` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.5.0
+
+- **New: tool call grouping.** Consecutive tool calls in one message used to render as one card
+  each with a small fixed gap regardless of how many there were. Ported the clustering scheme
+  from persona.hasanraiyan.me's own frontend: a lone call still renders as a plain
+  `PersonaToolTrace` card ("a one-item accordion is just noise"), but 2+ consecutive calls
+  collapse into one new `PersonaToolGroup` with a single header — a semantic title derived from
+  what the cluster is actually doing (`toolGroupKey` buckets by name/args into
+  `memory`/`file`/`search`/`task`/`plan`, `mixed` as the fallback), a combined status
+  icon, and a step count. Auto-opens the moment anything in the group starts running; never
+  auto-closes once opened. `present_file` never joins a group, matching the reference — its job
+  is "highlight this file", which a generic "N steps" header would bury.
+  - New exports: `PersonaToolGroup`, and the underlying `groupToolCalls`/`toolGroupKey` utilities
+    (`../utils/toolGrouping.js`) for anyone building custom message rendering.
+  - Configurable: `PersonaMessageFeed`/`PersonaChatView` gained `groupTools` (default `true`,
+    set `false` to go back to one card per call) and `toolClusterLabels` (override/extend any
+    cluster's title+icon, or add labels for your own tool names).
+
 ## 0.4.0
 
 - **New: Markdown rendering for assistant messages** — tables (GFM), LaTeX ($inline$ /

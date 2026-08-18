@@ -37,9 +37,12 @@ __export(index_exports, {
   PersonaMarkdown: () => PersonaMarkdown,
   PersonaMessageFeed: () => PersonaMessageFeed,
   PersonaSidebar: () => PersonaSidebar,
+  PersonaToolGroup: () => PersonaToolGroup,
   PersonaToolTrace: () => PersonaToolTrace,
   VERSION: () => VERSION,
-  cn: () => cn
+  cn: () => cn,
+  groupToolCalls: () => groupToolCalls,
+  toolGroupKey: () => toolGroupKey
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -51,8 +54,8 @@ function cn(...inputs) {
 }
 
 // src/components/PersonaChatView.tsx
-var import_react8 = require("react");
-var import_react9 = require("@personaai/react");
+var import_react9 = require("react");
+var import_react10 = require("@personaai/react");
 
 // src/components/PersonaSidebar.tsx
 var import_react = require("react");
@@ -269,7 +272,7 @@ function PersonaSidebar({
 }
 
 // src/components/PersonaMessageFeed.tsx
-var import_react4 = require("react");
+var import_react5 = require("react");
 
 // src/components/PersonaToolTrace.tsx
 var import_react2 = require("react");
@@ -492,16 +495,128 @@ function PersonaToolTrace({
   );
 }
 
-// src/components/PersonaMarkdown.tsx
+// src/components/PersonaToolGroup.tsx
 var import_react3 = require("react");
+
+// src/utils/toolGrouping.ts
+function safeParseArgs(args) {
+  if (!args) return {};
+  try {
+    const parsed = JSON.parse(args);
+    return typeof parsed === "object" && parsed ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+function toolGroupKey(tool) {
+  const name = tool.toolName.toLowerCase();
+  if (name.includes("memory") || name.includes("preference")) return "memory";
+  const args = safeParseArgs(tool.args);
+  const path = args.file_path ?? args.path ?? args.filePath ?? "";
+  if (typeof path === "string" && path.includes("/memories")) return "memory";
+  if (name.includes("file") || name === "ls" || name === "glob" || name === "grep") return "file";
+  if (name.includes("search") || name.startsWith("tavily")) return "search";
+  if (name === "task") return "task";
+  if (name.includes("todo")) return "plan";
+  return name;
+}
+function groupToolCalls(toolCalls) {
+  const items = [];
+  let buffer = [];
+  const flush = () => {
+    if (buffer.length === 0) return;
+    items.push({ type: buffer.length === 1 ? "single" : "group", tools: buffer });
+    buffer = [];
+  };
+  for (const tool of toolCalls) {
+    if (tool.toolName === "present_file") {
+      flush();
+      items.push({ type: "single", tools: [tool] });
+    } else {
+      buffer.push(tool);
+    }
+  }
+  flush();
+  return items;
+}
+
+// src/components/PersonaToolGroup.tsx
+var import_lucide_react3 = require("lucide-react");
+var import_jsx_runtime3 = require("react/jsx-runtime");
+var DEFAULT_CLUSTER_LABELS = {
+  memory: { title: "Personalizing memory", icon: import_lucide_react3.Brain },
+  file: { title: "Working with files", icon: import_lucide_react3.FileText },
+  search: { title: "Searching the web", icon: import_lucide_react3.Globe },
+  task: { title: "Running subagents", icon: import_lucide_react3.Bot },
+  plan: { title: "Updating the plan", icon: import_lucide_react3.ListTodo },
+  mixed: { title: "Performing actions", icon: import_lucide_react3.Wrench }
+};
+function clusterMeta(tools, labels) {
+  const merged = { ...DEFAULT_CLUSTER_LABELS, ...labels };
+  const groups = new Set(tools.map(toolGroupKey));
+  const key = groups.size === 1 ? [...groups][0] : "mixed";
+  return merged[key] ?? merged.mixed;
+}
+function PersonaToolGroup({
+  tools,
+  toolRenderers,
+  onOpenFile,
+  clusterLabels,
+  className
+}) {
+  const hasError = tools.some((t) => t.isError);
+  const anyRunning = tools.some((t) => !t.result && !t.isError);
+  const { title, icon: ClusterIcon = import_lucide_react3.Wrench } = clusterMeta(tools, clusterLabels);
+  const [isOpen, setIsOpen] = (0, import_react3.useState)(anyRunning);
+  const wasRunningRef = (0, import_react3.useRef)(anyRunning);
+  (0, import_react3.useEffect)(() => {
+    if (anyRunning && !wasRunningRef.current) setIsOpen(true);
+    wasRunningRef.current = anyRunning;
+  }, [anyRunning]);
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: cn("my-2 min-w-0", className), children: [
+    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+      "button",
+      {
+        type: "button",
+        onClick: () => setIsOpen((prev) => !prev),
+        className: "flex w-full items-center justify-between gap-2 rounded-lg px-1 py-1.5 text-left text-xs font-semibold text-zinc-500 transition-colors hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200",
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "flex min-w-0 items-center gap-2", children: [
+            anyRunning ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Loader2, { className: "size-4 shrink-0 animate-spin text-blue-500" }) : hasError ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.AlertCircle, { className: "size-4 shrink-0 text-red-500" }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.CheckCircle2, { className: "size-4 shrink-0 text-emerald-500" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ClusterIcon, { className: "size-4 shrink-0 text-zinc-400 dark:text-zinc-500" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "truncate", children: title }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "shrink-0 text-[10px] font-normal text-zinc-400 dark:text-zinc-500", children: [
+              tools.length,
+              " step",
+              tools.length > 1 ? "s" : ""
+            ] })
+          ] }),
+          isOpen ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.ChevronUp, { className: "size-3.5 shrink-0" }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.ChevronDown, { className: "size-3.5 shrink-0" })
+        ]
+      }
+    ),
+    isOpen && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "mt-2 space-y-2 pl-4", children: tools.map((tool) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+      PersonaToolTrace,
+      {
+        toolCall: tool,
+        toolRenderers,
+        onOpenFile
+      },
+      tool.toolCallId
+    )) })
+  ] });
+}
+
+// src/components/PersonaMarkdown.tsx
+var import_react4 = require("react");
 var import_react_markdown = __toESM(require("react-markdown"), 1);
 var import_remark_gfm = __toESM(require("remark-gfm"), 1);
 var import_remark_math = __toESM(require("remark-math"), 1);
 var import_rehype_katex = __toESM(require("rehype-katex"), 1);
-var import_lucide_react3 = require("lucide-react");
-var import_jsx_runtime3 = require("react/jsx-runtime");
+var import_lucide_react4 = require("lucide-react");
+var import_jsx_runtime4 = require("react/jsx-runtime");
 function CodeBlock({ className, children }) {
-  const [copied, setCopied] = (0, import_react3.useState)(false);
+  const [copied, setCopied] = (0, import_react4.useState)(false);
   const language = /language-(\w+)/.exec(className || "")?.[1];
   const text = String(children).replace(/\n$/, "");
   function handleCopy() {
@@ -509,9 +624,9 @@ function CodeBlock({ className, children }) {
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }
-  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "group/code relative my-2 overflow-hidden rounded-xl border border-zinc-200/80 dark:border-zinc-800/80", children: [
-    language && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "flex items-center justify-between bg-zinc-100 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400", children: language }),
-    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "group/code relative my-2 overflow-hidden rounded-xl border border-zinc-200/80 dark:border-zinc-800/80", children: [
+    language && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "flex items-center justify-between bg-zinc-100 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400", children: language }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
       "button",
       {
         type: "button",
@@ -521,28 +636,28 @@ function CodeBlock({ className, children }) {
           "absolute right-2 top-2 rounded-md p-1 text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-200/70 hover:text-zinc-700 group-hover/code:opacity-100 dark:hover:bg-zinc-800 dark:hover:text-zinc-200",
           !language && "top-2"
         ),
-        children: copied ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Check, { className: "size-3.5 text-emerald-500" }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Copy, { className: "size-3.5" })
+        children: copied ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_lucide_react4.Check, { className: "size-3.5 text-emerald-500" }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_lucide_react4.Copy, { className: "size-3.5" })
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("pre", { className: "overflow-x-auto bg-zinc-950 p-3 text-xs leading-relaxed text-zinc-100", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("code", { className: "whitespace-pre break-words font-mono", children: text }) })
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("pre", { className: "overflow-x-auto bg-zinc-950 p-3 text-xs leading-relaxed text-zinc-100", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("code", { className: "whitespace-pre break-words font-mono", children: text }) })
   ] });
 }
 function PersonaMarkdown({ content, className }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
     "div",
     {
       className: cn(
         "min-w-0 space-y-2 text-[13px] leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
         className
       ),
-      children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+      children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
         import_react_markdown.default,
         {
           remarkPlugins: [import_remark_gfm.default, import_remark_math.default],
           rehypePlugins: [import_rehype_katex.default],
           components: {
-            p: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "my-2 whitespace-pre-wrap break-words", children }),
-            a: ({ href, children }) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+            p: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { className: "my-2 whitespace-pre-wrap break-words", children }),
+            a: ({ href, children }) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
               "a",
               {
                 href,
@@ -552,26 +667,26 @@ function PersonaMarkdown({ content, className }) {
                 children
               }
             ),
-            ul: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("ul", { className: "my-2 list-disc space-y-1 pl-5", children }),
-            ol: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("ol", { className: "my-2 list-decimal space-y-1 pl-5", children }),
-            li: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("li", { className: "pl-0.5", children }),
-            h1: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { className: "mb-2 mt-4 text-base font-bold text-zinc-900 dark:text-zinc-100", children }),
-            h2: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { className: "mb-1.5 mt-3 text-[15px] font-bold text-zinc-900 dark:text-zinc-100", children }),
-            h3: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { className: "mb-1 mt-3 text-sm font-bold text-zinc-900 dark:text-zinc-100", children }),
-            h4: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h4", { className: "mb-1 mt-2 text-[13px] font-bold text-zinc-900 dark:text-zinc-100", children }),
-            blockquote: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("blockquote", { className: "my-2 border-l-2 border-zinc-300 pl-3 text-zinc-500 dark:border-zinc-700 dark:text-zinc-400", children }),
-            hr: () => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("hr", { className: "my-3 border-zinc-200 dark:border-zinc-800" }),
-            strong: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("strong", { className: "font-semibold", children }),
-            table: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "my-2 overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("table", { className: "w-full min-w-max border-collapse text-left text-xs", children }) }),
-            thead: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("thead", { className: "bg-zinc-100 dark:bg-zinc-900", children }),
-            th: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { className: "border-b border-zinc-200 px-2.5 py-1.5 font-semibold text-zinc-700 dark:border-zinc-800 dark:text-zinc-300", children }),
-            td: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { className: "border-b border-zinc-100 px-2.5 py-1.5 text-zinc-600 last:border-b-0 dark:border-zinc-900 dark:text-zinc-400", children }),
+            ul: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("ul", { className: "my-2 list-disc space-y-1 pl-5", children }),
+            ol: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("ol", { className: "my-2 list-decimal space-y-1 pl-5", children }),
+            li: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("li", { className: "pl-0.5", children }),
+            h1: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h1", { className: "mb-2 mt-4 text-base font-bold text-zinc-900 dark:text-zinc-100", children }),
+            h2: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h2", { className: "mb-1.5 mt-3 text-[15px] font-bold text-zinc-900 dark:text-zinc-100", children }),
+            h3: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h3", { className: "mb-1 mt-3 text-sm font-bold text-zinc-900 dark:text-zinc-100", children }),
+            h4: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h4", { className: "mb-1 mt-2 text-[13px] font-bold text-zinc-900 dark:text-zinc-100", children }),
+            blockquote: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("blockquote", { className: "my-2 border-l-2 border-zinc-300 pl-3 text-zinc-500 dark:border-zinc-700 dark:text-zinc-400", children }),
+            hr: () => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("hr", { className: "my-3 border-zinc-200 dark:border-zinc-800" }),
+            strong: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("strong", { className: "font-semibold", children }),
+            table: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "my-2 overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("table", { className: "w-full min-w-max border-collapse text-left text-xs", children }) }),
+            thead: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("thead", { className: "bg-zinc-100 dark:bg-zinc-900", children }),
+            th: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("th", { className: "border-b border-zinc-200 px-2.5 py-1.5 font-semibold text-zinc-700 dark:border-zinc-800 dark:text-zinc-300", children }),
+            td: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("td", { className: "border-b border-zinc-100 px-2.5 py-1.5 text-zinc-600 last:border-b-0 dark:border-zinc-900 dark:text-zinc-400", children }),
             code: ({ className: codeClassName, children }) => {
               const isBlock = /language-/.test(codeClassName || "");
-              if (isBlock) return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(CodeBlock, { className: codeClassName, children });
-              return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("code", { className: "rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-[0.85em] text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200", children });
+              if (isBlock) return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(CodeBlock, { className: codeClassName, children });
+              return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("code", { className: "rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-[0.85em] text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200", children });
             },
-            pre: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_jsx_runtime3.Fragment, { children })
+            pre: ({ children }) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_jsx_runtime4.Fragment, { children })
           },
           children: content
         }
@@ -581,30 +696,30 @@ function PersonaMarkdown({ content, className }) {
 }
 
 // src/components/PersonaMessageFeed.tsx
-var import_lucide_react4 = require("lucide-react");
-var import_jsx_runtime4 = require("react/jsx-runtime");
+var import_lucide_react5 = require("lucide-react");
+var import_jsx_runtime5 = require("react/jsx-runtime");
 function ReasoningBlock({ reasoning, isReasoning }) {
-  const [isOpen, setIsOpen] = (0, import_react4.useState)(Boolean(isReasoning));
-  (0, import_react4.useEffect)(() => {
+  const [isOpen, setIsOpen] = (0, import_react5.useState)(Boolean(isReasoning));
+  (0, import_react5.useEffect)(() => {
     if (isReasoning) setIsOpen(true);
   }, [isReasoning]);
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mb-2 overflow-hidden rounded-xl border border-zinc-200/70 bg-zinc-50/60 text-xs dark:border-zinc-800/70 dark:bg-zinc-950/40", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mb-2 overflow-hidden rounded-xl border border-zinc-200/70 bg-zinc-50/60 text-xs dark:border-zinc-800/70 dark:bg-zinc-950/40", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
       "button",
       {
         type: "button",
         onClick: () => setIsOpen((prev) => !prev),
         className: "flex w-full items-center justify-between px-3 py-1.5 text-left text-zinc-500 transition-colors hover:bg-zinc-100/60 dark:text-zinc-400 dark:hover:bg-zinc-900/40",
         children: [
-          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "flex items-center gap-1.5", children: [
-            isReasoning ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_lucide_react4.Loader2, { className: "size-3 animate-spin" }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_lucide_react4.BrainCircuit, { className: "size-3" }),
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "font-medium", children: isReasoning ? "Thinking\u2026" : "Thought process" })
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("span", { className: "flex items-center gap-1.5", children: [
+            isReasoning ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.Loader2, { className: "size-3 animate-spin" }) : /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.BrainCircuit, { className: "size-3" }),
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "font-medium", children: isReasoning ? "Thinking\u2026" : "Thought process" })
           ] }),
-          isOpen ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_lucide_react4.ChevronDown, { className: "size-3" }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_lucide_react4.ChevronRight, { className: "size-3" })
+          isOpen ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.ChevronDown, { className: "size-3" }) : /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.ChevronRight, { className: "size-3" })
         ]
       }
     ),
-    isOpen && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { className: "whitespace-pre-wrap break-words border-t border-zinc-200/60 p-2.5 text-zinc-500 dark:border-zinc-800/60 dark:text-zinc-400", children: reasoning })
+    isOpen && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { className: "whitespace-pre-wrap break-words border-t border-zinc-200/60 p-2.5 text-zinc-500 dark:border-zinc-800/60 dark:text-zinc-400", children: reasoning })
   ] });
 }
 function PersonaMessageFeed({
@@ -620,11 +735,13 @@ function PersonaMessageFeed({
   showAssistantAvatar = true,
   userAvatar,
   assistantAvatar,
+  groupTools = true,
+  toolClusterLabels,
   className
 }) {
-  const [copiedId, setCopiedId] = (0, import_react4.useState)(null);
-  const scrollEndRef = (0, import_react4.useRef)(null);
-  (0, import_react4.useEffect)(() => {
+  const [copiedId, setCopiedId] = (0, import_react5.useState)(null);
+  const scrollEndRef = (0, import_react5.useRef)(null);
+  (0, import_react5.useEffect)(() => {
     scrollEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isStreaming]);
   function handleCopy(text, id) {
@@ -633,18 +750,18 @@ function PersonaMessageFeed({
     setTimeout(() => setCopiedId(null), 2e3);
   }
   if (messages.length === 0 && isLoading) {
-    return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: cn("flex min-h-0 flex-1 items-center justify-center p-8", className), children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "size-5 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-700 dark:border-t-zinc-300" }) });
+    return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: cn("flex min-h-0 flex-1 items-center justify-center p-8", className), children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "size-5 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-700 dark:border-t-zinc-300" }) });
   }
   if (messages.length === 0) {
-    return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: cn("flex min-h-0 flex-1 flex-col items-center justify-center p-8 text-center", className), children: [
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mb-4 flex size-12 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-900 shadow-2xs dark:bg-zinc-800 dark:text-zinc-100", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_lucide_react4.Sparkles, { className: "size-6" }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h2", { className: "text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 md:text-2xl", children: greeting })
+    return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: cn("flex min-h-0 flex-1 flex-col items-center justify-center p-8 text-center", className), children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mb-4 flex size-12 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-900 shadow-2xs dark:bg-zinc-800 dark:text-zinc-100", children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.Sparkles, { className: "size-6" }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("h2", { className: "text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 md:text-2xl", children: greeting })
     ] });
   }
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: cn("min-h-0 flex-1 space-y-6 overflow-y-auto p-4 md:p-6", className), children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mx-auto max-w-3xl space-y-6", children: [
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: cn("min-h-0 flex-1 space-y-6 overflow-y-auto p-4 md:p-6", className), children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mx-auto max-w-3xl space-y-6", children: [
     messages.map((msg) => {
       const isUser = msg.role === "user";
-      return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+      return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
         "div",
         {
           className: cn(
@@ -652,8 +769,8 @@ function PersonaMessageFeed({
             isUser ? "justify-end" : "justify-start"
           ),
           children: [
-            !isUser && showAssistantAvatar && (assistantAvatar ?? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mt-0.5 flex size-8 shrink-0 select-none items-center justify-center rounded-xl bg-[var(--persona-assistant-avatar-bg,#f4f4f5)] text-[var(--persona-assistant-avatar-text,#27272a)] shadow-2xs dark:bg-[var(--persona-assistant-avatar-bg,#27272a)] dark:text-[var(--persona-assistant-avatar-text,#e4e4e7)]", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_lucide_react4.Bot, { className: "size-4" }) })),
-            /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+            !isUser && showAssistantAvatar && (assistantAvatar ?? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mt-0.5 flex size-8 shrink-0 select-none items-center justify-center rounded-xl bg-[var(--persona-assistant-avatar-bg,#f4f4f5)] text-[var(--persona-assistant-avatar-text,#27272a)] shadow-2xs dark:bg-[var(--persona-assistant-avatar-bg,#27272a)] dark:text-[var(--persona-assistant-avatar-text,#e4e4e7)]", children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.Bot, { className: "size-4" }) })),
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
               "div",
               {
                 className: cn(
@@ -661,8 +778,27 @@ function PersonaMessageFeed({
                   isUser ? "rounded-tr-xs bg-[var(--persona-user-bg,#18181b)] font-medium text-[var(--persona-user-text,#ffffff)] dark:bg-[var(--persona-user-bg,#f4f4f5)] dark:text-[var(--persona-user-text,#18181b)]" : "rounded-tl-xs border border-zinc-200/60 bg-[var(--persona-assistant-bg,rgb(244_244_245_/_0.8))] text-[var(--persona-assistant-text,#18181b)] dark:border-zinc-800/60 dark:bg-[var(--persona-assistant-bg,rgb(24_24_27_/_0.7))] dark:text-[var(--persona-assistant-text,#f4f4f5)]"
                 ),
                 children: [
-                  !isUser && msg.reasoning && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(ReasoningBlock, { reasoning: msg.reasoning, isReasoning: msg.isReasoning }),
-                  msg.toolCalls && msg.toolCalls.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mb-2 space-y-1", children: msg.toolCalls.map((tc) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                  !isUser && msg.reasoning && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(ReasoningBlock, { reasoning: msg.reasoning, isReasoning: msg.isReasoning }),
+                  msg.toolCalls && msg.toolCalls.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mb-2 space-y-1", children: groupTools ? groupToolCalls(msg.toolCalls).map(
+                    (item) => item.type === "group" ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                      PersonaToolGroup,
+                      {
+                        tools: item.tools,
+                        toolRenderers,
+                        onOpenFile,
+                        clusterLabels: toolClusterLabels
+                      },
+                      item.tools[0].toolCallId
+                    ) : /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                      PersonaToolTrace,
+                      {
+                        toolCall: item.tools[0],
+                        toolRenderers,
+                        onOpenFile
+                      },
+                      item.tools[0].toolCallId
+                    )
+                  ) : msg.toolCalls.map((tc) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
                     PersonaToolTrace,
                     {
                       toolCall: tc,
@@ -671,48 +807,48 @@ function PersonaMessageFeed({
                     },
                     tc.toolCallId
                   )) }),
-                  isUser ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "whitespace-pre-wrap break-words", children: msg.content }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(PersonaMarkdown, { content: msg.content }),
-                  msg.isStreaming && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "inline-block size-2 ml-1 rounded-full bg-blue-500 animate-pulse" }),
-                  !isUser && !msg.isStreaming && msg.content && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mt-2 flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100", children: [
-                    onReload && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                  isUser ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "whitespace-pre-wrap break-words", children: msg.content }) : /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(PersonaMarkdown, { content: msg.content }),
+                  msg.isStreaming && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "inline-block size-2 ml-1 rounded-full bg-blue-500 animate-pulse" }),
+                  !isUser && !msg.isStreaming && msg.content && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mt-2 flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100", children: [
+                    onReload && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
                       "button",
                       {
                         type: "button",
                         onClick: onReload,
                         title: "Regenerate response",
                         className: "rounded p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200",
-                        children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_lucide_react4.RotateCcw, { className: "size-3" })
+                        children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.RotateCcw, { className: "size-3" })
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
                       "button",
                       {
                         type: "button",
                         onClick: () => handleCopy(msg.content, msg.id),
                         title: "Copy message",
                         className: "rounded p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200",
-                        children: copiedId === msg.id ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_lucide_react4.Check, { className: "size-3 text-emerald-500" }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_lucide_react4.Copy, { className: "size-3" })
+                        children: copiedId === msg.id ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.Check, { className: "size-3 text-emerald-500" }) : /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.Copy, { className: "size-3" })
                       }
                     )
                   ] })
                 ]
               }
             ),
-            isUser && showUserAvatar && (userAvatar ?? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mt-0.5 flex size-8 shrink-0 select-none items-center justify-center rounded-xl bg-[var(--persona-user-avatar-bg,#e4e4e7)] text-[var(--persona-user-avatar-text,#3f3f46)] shadow-2xs dark:bg-[var(--persona-user-avatar-bg,#27272a)] dark:text-[var(--persona-user-avatar-text,#d4d4d8)]", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_lucide_react4.User, { className: "size-4" }) }))
+            isUser && showUserAvatar && (userAvatar ?? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mt-0.5 flex size-8 shrink-0 select-none items-center justify-center rounded-xl bg-[var(--persona-user-avatar-bg,#e4e4e7)] text-[var(--persona-user-avatar-text,#3f3f46)] shadow-2xs dark:bg-[var(--persona-user-avatar-bg,#27272a)] dark:text-[var(--persona-user-avatar-text,#d4d4d8)]", children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.User, { className: "size-4" }) }))
           ]
         },
         msg.id
       );
     }),
-    error && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "rounded-xl border border-red-200 bg-red-50 p-3 text-center text-xs text-red-600 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400", children: error.message || "Failed to communicate with agent." }),
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { ref: scrollEndRef })
+    error && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "rounded-xl border border-red-200 bg-red-50 p-3 text-center text-xs text-red-600 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400", children: error.message || "Failed to communicate with agent." }),
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { ref: scrollEndRef })
   ] }) });
 }
 
 // src/components/PersonaComposer.tsx
-var import_react5 = require("react");
-var import_lucide_react5 = require("lucide-react");
-var import_jsx_runtime5 = require("react/jsx-runtime");
+var import_react6 = require("react");
+var import_lucide_react6 = require("lucide-react");
+var import_jsx_runtime6 = require("react/jsx-runtime");
 function PersonaComposer({
   input,
   onInputChange,
@@ -726,9 +862,9 @@ function PersonaComposer({
   onUploadFile,
   className
 }) {
-  const textareaRef = (0, import_react5.useRef)(null);
-  const fileInputRef = (0, import_react5.useRef)(null);
-  (0, import_react5.useEffect)(() => {
+  const textareaRef = (0, import_react6.useRef)(null);
+  const fileInputRef = (0, import_react6.useRef)(null);
+  (0, import_react6.useEffect)(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
@@ -742,22 +878,22 @@ function PersonaComposer({
       }
     }
   };
-  return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: cn("relative w-full max-w-3xl mx-auto", className), children: [
-    starterPrompts.length > 0 && !input && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mb-2 flex flex-wrap items-center gap-1.5 px-1", children: starterPrompts.map((item) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: cn("relative w-full max-w-3xl mx-auto", className), children: [
+    starterPrompts.length > 0 && !input && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mb-2 flex flex-wrap items-center gap-1.5 px-1", children: starterPrompts.map((item) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
       "button",
       {
         type: "button",
         onClick: () => onSelectStarter?.(item.prompt),
         className: "flex items-center gap-1.5 rounded-full border border-zinc-200/80 bg-white/80 px-3 py-1 text-[11px] font-medium text-zinc-600 shadow-2xs backdrop-blur-sm transition-all hover:border-zinc-300 hover:bg-white hover:text-zinc-900 active:scale-95 dark:border-zinc-800/80 dark:bg-zinc-900/80 dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:bg-zinc-900 dark:hover:text-zinc-100",
         children: [
-          item.icon && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { children: item.icon }),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { children: item.title })
+          item.icon && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { children: item.icon }),
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { children: item.title })
         ]
       },
       item.title
     )) }),
-    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "relative flex flex-col rounded-2xl border border-zinc-200 bg-white p-2.5 shadow-sm transition-all focus-within:border-zinc-400 focus-within:ring-2 focus-within:ring-zinc-400/20 dark:border-zinc-700 dark:bg-zinc-900", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "relative flex flex-col rounded-2xl border border-zinc-200 bg-white p-2.5 shadow-sm transition-all focus-within:border-zinc-400 focus-within:ring-2 focus-within:ring-zinc-400/20 dark:border-zinc-700 dark:bg-zinc-900", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
         "textarea",
         {
           ref: textareaRef,
@@ -771,9 +907,9 @@ function PersonaComposer({
           className: "w-full resize-none bg-transparent px-2.5 pt-1.5 pb-2 text-sm leading-relaxed placeholder:text-zinc-400 focus:outline-none dark:placeholder:text-zinc-500 dark:!text-zinc-100"
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex items-center justify-between pt-1", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex items-center gap-1", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex items-center justify-between pt-1", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex items-center gap-1", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
             "input",
             {
               ref: fileInputRef,
@@ -782,33 +918,33 @@ function PersonaComposer({
               className: "hidden"
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
             "button",
             {
               type: "button",
               onClick: () => fileInputRef.current?.click(),
               title: "Attach document or receipt",
               className: "rounded-xl p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200",
-              children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.Paperclip, { className: "size-4" })
+              children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.Paperclip, { className: "size-4" })
             }
           )
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { children: isStreaming ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { children: isStreaming ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
           "button",
           {
             type: "button",
             onClick: onStop,
             className: "flex size-8 items-center justify-center rounded-xl bg-red-500 text-white shadow-sm transition-all hover:bg-red-600 active:scale-95",
-            children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.Square, { className: "size-3.5 fill-white" })
+            children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.Square, { className: "size-3.5 fill-white" })
           }
-        ) : /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+        ) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
           "button",
           {
             type: "button",
             onClick: onSubmit,
             disabled: !input.trim() || disabled,
             className: "flex size-8 items-center justify-center rounded-xl bg-[var(--persona-primary,#27272a)] text-white shadow-sm transition-all hover:brightness-90 disabled:pointer-events-none disabled:opacity-25 active:scale-95 dark:bg-[var(--persona-primary,#e4e4e7)] dark:text-zinc-900 dark:hover:brightness-110",
-            children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.ArrowUp, { className: "size-4 stroke-[2.5]" })
+            children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.ArrowUp, { className: "size-4 stroke-[2.5]" })
           }
         ) })
       ] })
@@ -817,13 +953,13 @@ function PersonaComposer({
 }
 
 // src/components/PersonaFilesDrawer.tsx
-var import_react6 = require("react");
-var import_lucide_react6 = require("lucide-react");
-var import_jsx_runtime6 = require("react/jsx-runtime");
+var import_react7 = require("react");
+var import_lucide_react7 = require("lucide-react");
+var import_jsx_runtime7 = require("react/jsx-runtime");
 var TODO_ICON = {
-  pending: import_lucide_react6.CircleDashed,
-  in_progress: import_lucide_react6.CircleDotDashed,
-  completed: import_lucide_react6.CircleCheck
+  pending: import_lucide_react7.CircleDashed,
+  in_progress: import_lucide_react7.CircleDotDashed,
+  completed: import_lucide_react7.CircleCheck
 };
 function PersonaFilesDrawer({
   isOpen,
@@ -838,13 +974,13 @@ function PersonaFilesDrawer({
   onDeleteMemoryFile,
   className
 }) {
-  const [tab, setTab] = (0, import_react6.useState)("files");
-  const [selectedWorkspacePath, setSelectedWorkspacePath] = (0, import_react6.useState)(null);
-  const [selectedMemory, setSelectedMemory] = (0, import_react6.useState)(null);
-  const [loadingMemory, setLoadingMemory] = (0, import_react6.useState)(false);
-  const [copied, setCopied] = (0, import_react6.useState)(false);
+  const [tab, setTab] = (0, import_react7.useState)("files");
+  const [selectedWorkspacePath, setSelectedWorkspacePath] = (0, import_react7.useState)(null);
+  const [selectedMemory, setSelectedMemory] = (0, import_react7.useState)(null);
+  const [loadingMemory, setLoadingMemory] = (0, import_react7.useState)(false);
+  const [copied, setCopied] = (0, import_react7.useState)(false);
   const workspaceEntries = Object.entries(workspaceFiles);
-  (0, import_react6.useEffect)(() => {
+  (0, import_react7.useEffect)(() => {
     if (!presentedFile) return;
     setTab("workspace");
     setSelectedWorkspacePath(presentedFile.path);
@@ -868,8 +1004,8 @@ function PersonaFilesDrawer({
     setTimeout(() => setCopied(false), 2e3);
   }
   const selectedWorkspaceFile = selectedWorkspacePath ? workspaceFiles[selectedWorkspacePath] : void 0;
-  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
-    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_jsx_runtime7.Fragment, { children: [
+    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
       "div",
       {
         className: "fixed inset-0 z-20 bg-black/30 lg:hidden",
@@ -877,7 +1013,7 @@ function PersonaFilesDrawer({
         "aria-hidden": "true"
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+    /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
       "aside",
       {
         className: cn(
@@ -886,9 +1022,9 @@ function PersonaFilesDrawer({
           className
         ),
         children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex items-center justify-between gap-2 border-b border-zinc-200/80 p-3 dark:border-zinc-800/80", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex min-w-0 rounded-xl bg-zinc-200/60 p-0.5 dark:bg-zinc-800/60", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex items-center justify-between gap-2 border-b border-zinc-200/80 p-3 dark:border-zinc-800/80", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex min-w-0 rounded-xl bg-zinc-200/60 p-0.5 dark:bg-zinc-800/60", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
                 "button",
                 {
                   type: "button",
@@ -898,9 +1034,9 @@ function PersonaFilesDrawer({
                     tab === "files" ? "bg-white text-zinc-900 shadow-xs dark:bg-zinc-900 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
                   ),
                   children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.Files, { className: "size-3.5 shrink-0" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "hidden sm:inline", children: "Files" }),
-                    files.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("span", { className: "text-[10px] opacity-70", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.Files, { className: "size-3.5 shrink-0" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "hidden sm:inline", children: "Files" }),
+                    files.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { className: "text-[10px] opacity-70", children: [
                       "(",
                       files.length,
                       ")"
@@ -908,7 +1044,7 @@ function PersonaFilesDrawer({
                   ]
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
                 "button",
                 {
                   type: "button",
@@ -918,9 +1054,9 @@ function PersonaFilesDrawer({
                     tab === "workspace" ? "bg-white text-zinc-900 shadow-xs dark:bg-zinc-900 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
                   ),
                   children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.FolderKanban, { className: "size-3.5 shrink-0" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "hidden sm:inline", children: "Workspace" }),
-                    workspaceEntries.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("span", { className: "text-[10px] opacity-70", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.FolderKanban, { className: "size-3.5 shrink-0" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "hidden sm:inline", children: "Workspace" }),
+                    workspaceEntries.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { className: "text-[10px] opacity-70", children: [
                       "(",
                       workspaceEntries.length,
                       ")"
@@ -928,7 +1064,7 @@ function PersonaFilesDrawer({
                   ]
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
                 "button",
                 {
                   type: "button",
@@ -938,9 +1074,9 @@ function PersonaFilesDrawer({
                     tab === "memory" ? "bg-white text-zinc-900 shadow-xs dark:bg-zinc-900 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
                   ),
                   children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.Brain, { className: "size-3.5 shrink-0" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "hidden sm:inline", children: "Memory" }),
-                    memory?.userFiles?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("span", { className: "text-[10px] opacity-70", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.Brain, { className: "size-3.5 shrink-0" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "hidden sm:inline", children: "Memory" }),
+                    memory?.userFiles?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("span", { className: "text-[10px] opacity-70", children: [
                       "(",
                       memory.userFiles.length,
                       ")"
@@ -949,37 +1085,37 @@ function PersonaFilesDrawer({
                 }
               )
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
               "button",
               {
                 type: "button",
                 onClick: onClose,
                 className: "shrink-0 rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200",
-                children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.X, { className: "size-4" })
+                children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.X, { className: "size-4" })
               }
             )
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "min-h-0 flex-1 overflow-y-auto p-3", children: tab === "files" ? (
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "min-h-0 flex-1 overflow-y-auto p-3", children: tab === "files" ? (
             /* Uploaded files list */
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "space-y-2", children: files.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { className: "py-8 text-center text-xs text-zinc-400", children: "No uploaded files yet." }) : files.map((file) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "space-y-2", children: files.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("p", { className: "py-8 text-center text-xs text-zinc-400", children: "No uploaded files yet." }) : files.map((file) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
               "div",
               {
                 className: "flex items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white p-2.5 shadow-2xs dark:border-zinc-800/70 dark:bg-zinc-900/60",
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex min-w-0 items-center gap-2", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.FileText, { className: "size-4 shrink-0 text-blue-500" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "min-w-0 truncate", children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "block truncate text-xs font-medium text-zinc-800 dark:text-zinc-200", children: file.originalName }),
-                      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "text-[10px] text-zinc-400", children: file.size ? `${(file.size / 1024).toFixed(1)} KB` : "" })
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex min-w-0 items-center gap-2", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.FileText, { className: "size-4 shrink-0 text-blue-500" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "min-w-0 truncate", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "block truncate text-xs font-medium text-zinc-800 dark:text-zinc-200", children: file.originalName }),
+                      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "text-[10px] text-zinc-400", children: file.size ? `${(file.size / 1024).toFixed(1)} KB` : "" })
                     ] })
                   ] }),
-                  onDeleteFile && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+                  onDeleteFile && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
                     "button",
                     {
                       type: "button",
                       onClick: () => onDeleteFile(file.id),
                       className: "shrink-0 rounded p-1 text-zinc-400 hover:text-red-500",
-                      children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.Trash2, { className: "size-3.5" })
+                      children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.Trash2, { className: "size-3.5" })
                     }
                   )
                 ]
@@ -988,20 +1124,20 @@ function PersonaFilesDrawer({
             )) })
           ) : tab === "workspace" ? (
             /* Agent's own virtual workspace — plan (todos) + files it wrote */
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "space-y-4", children: selectedWorkspaceFile ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex items-center justify-between gap-2 border-b border-zinc-200/80 pb-2 dark:border-zinc-800/80", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "truncate text-xs font-semibold text-zinc-800 dark:text-zinc-200", children: selectedWorkspacePath }),
-                /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex shrink-0 items-center gap-1", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "space-y-4", children: selectedWorkspaceFile ? /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex items-center justify-between gap-2 border-b border-zinc-200/80 pb-2 dark:border-zinc-800/80", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "truncate text-xs font-semibold text-zinc-800 dark:text-zinc-200", children: selectedWorkspacePath }),
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex shrink-0 items-center gap-1", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
                     "button",
                     {
                       type: "button",
                       onClick: () => handleCopy(selectedWorkspaceFile.content),
                       className: "p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200",
-                      children: copied ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.Check, { className: "size-3 text-emerald-500" }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.Copy, { className: "size-3" })
+                      children: copied ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.Check, { className: "size-3 text-emerald-500" }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.Copy, { className: "size-3" })
                     }
                   ),
-                  /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
                     "button",
                     {
                       type: "button",
@@ -1012,18 +1148,18 @@ function PersonaFilesDrawer({
                   )
                 ] })
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("pre", { className: "mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-zinc-100 p-2.5 font-mono text-[11px] text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200", children: selectedWorkspaceFile.content })
-            ] }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
-              todos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "space-y-1.5", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "px-0.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500", children: "Plan" }),
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("pre", { className: "mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-zinc-100 p-2.5 font-mono text-[11px] text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200", children: selectedWorkspaceFile.content })
+            ] }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_jsx_runtime7.Fragment, { children: [
+              todos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1.5", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "px-0.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500", children: "Plan" }),
                 todos.map((todo, i) => {
-                  const Icon = TODO_ICON[todo.status] ?? import_lucide_react6.CircleDashed;
-                  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+                  const Icon = TODO_ICON[todo.status] ?? import_lucide_react7.CircleDashed;
+                  return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
                     "div",
                     {
                       className: "flex items-start gap-2 rounded-xl border border-zinc-200/70 bg-white p-2 text-xs dark:border-zinc-800/70 dark:bg-zinc-900/60",
                       children: [
-                        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+                        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
                           Icon,
                           {
                             className: cn(
@@ -1032,7 +1168,7 @@ function PersonaFilesDrawer({
                             )
                           }
                         ),
-                        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+                        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
                           "span",
                           {
                             className: cn(
@@ -1048,20 +1184,20 @@ function PersonaFilesDrawer({
                   );
                 })
               ] }),
-              workspaceEntries.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { className: "py-8 text-center text-xs text-zinc-400", children: "No workspace files yet \u2014 files the agent creates show up here." }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "space-y-1.5", children: [
-                todos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "px-0.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500", children: "Files" }),
-                workspaceEntries.map(([path, file]) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+              workspaceEntries.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("p", { className: "py-8 text-center text-xs text-zinc-400", children: "No workspace files yet \u2014 files the agent creates show up here." }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1.5", children: [
+                todos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "px-0.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500", children: "Files" }),
+                workspaceEntries.map(([path, file]) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
                   "button",
                   {
                     type: "button",
                     onClick: () => setSelectedWorkspacePath(path),
                     className: "flex w-full items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white p-2.5 text-left text-xs transition-all hover:bg-zinc-100/70 dark:border-zinc-800/70 dark:bg-zinc-900/60 dark:hover:bg-zinc-900",
                     children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex min-w-0 items-center gap-2", children: [
-                        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.FileText, { className: "size-3.5 shrink-0 text-amber-500" }),
-                        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "truncate text-zinc-800 dark:text-zinc-200", children: path })
+                      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex min-w-0 items-center gap-2", children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.FileText, { className: "size-3.5 shrink-0 text-amber-500" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "truncate text-zinc-800 dark:text-zinc-200", children: path })
                       ] }),
-                      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "shrink-0 text-[10px] text-zinc-400", children: file.size ? `${(file.size / 1024).toFixed(1)} KB` : "" })
+                      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "shrink-0 text-[10px] text-zinc-400", children: file.size ? `${(file.size / 1024).toFixed(1)} KB` : "" })
                     ]
                   },
                   path
@@ -1070,20 +1206,20 @@ function PersonaFilesDrawer({
             ] }) })
           ) : (
             /* Memory inspector */
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "space-y-3", children: selectedMemory ? /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex items-center justify-between gap-2 border-b border-zinc-200/80 pb-2 dark:border-zinc-800/80", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "truncate text-xs font-semibold text-zinc-800 dark:text-zinc-200", children: selectedMemory.path }),
-                /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex shrink-0 items-center gap-1", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "space-y-3", children: selectedMemory ? /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex items-center justify-between gap-2 border-b border-zinc-200/80 pb-2 dark:border-zinc-800/80", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "truncate text-xs font-semibold text-zinc-800 dark:text-zinc-200", children: selectedMemory.path }),
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex shrink-0 items-center gap-1", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
                     "button",
                     {
                       type: "button",
                       onClick: () => handleCopy(selectedMemory.content),
                       className: "p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200",
-                      children: copied ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.Check, { className: "size-3 text-emerald-500" }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.Copy, { className: "size-3" })
+                      children: copied ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.Check, { className: "size-3 text-emerald-500" }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.Copy, { className: "size-3" })
                     }
                   ),
-                  /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
                     "button",
                     {
                       type: "button",
@@ -1094,38 +1230,38 @@ function PersonaFilesDrawer({
                   )
                 ] })
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("pre", { className: "mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-zinc-100 p-2.5 font-mono text-[11px] text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200", children: selectedMemory.content })
-            ] }) : (memory?.userFiles?.length ?? 0) === 0 && (memory?.agentMemories?.length ?? 0) === 0 ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { className: "py-8 text-center text-xs text-zinc-400", children: "No persistent memory files recorded." }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "space-y-4", children: [
-              (memory?.userFiles?.length ?? 0) > 0 && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "space-y-1.5", children: memory.userFiles.map((f) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("pre", { className: "mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-zinc-100 p-2.5 font-mono text-[11px] text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200", children: selectedMemory.content })
+            ] }) : (memory?.userFiles?.length ?? 0) === 0 && (memory?.agentMemories?.length ?? 0) === 0 ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("p", { className: "py-8 text-center text-xs text-zinc-400", children: "No persistent memory files recorded." }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-4", children: [
+              (memory?.userFiles?.length ?? 0) > 0 && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "space-y-1.5", children: memory.userFiles.map((f) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
                 "button",
                 {
                   type: "button",
                   onClick: () => viewMemoryFile(f.path),
                   className: "flex w-full items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white p-2.5 text-left text-xs transition-all hover:bg-zinc-100/70 dark:border-zinc-800/70 dark:bg-zinc-900/60 dark:hover:bg-zinc-900",
                   children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex min-w-0 items-center gap-2", children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.Brain, { className: "size-3.5 shrink-0 text-purple-500" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "truncate text-zinc-800 dark:text-zinc-200", children: f.path })
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex min-w-0 items-center gap-2", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.Brain, { className: "size-3.5 shrink-0 text-purple-500" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "truncate text-zinc-800 dark:text-zinc-200", children: f.path })
                     ] }),
-                    loadingMemory && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.Loader2, { className: "size-3 shrink-0 animate-spin text-zinc-400" })
+                    loadingMemory && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.Loader2, { className: "size-3 shrink-0 animate-spin text-zinc-400" })
                   ]
                 },
                 f.path
               )) }),
-              memory?.agentMemories?.map((group) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "space-y-1.5", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "px-0.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500", children: group.agentName || "Unknown Agent" }),
-                group.files.map((f) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+              memory?.agentMemories?.map((group) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "space-y-1.5", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "px-0.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500", children: group.agentName || "Unknown Agent" }),
+                group.files.map((f) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
                   "button",
                   {
                     type: "button",
                     onClick: () => viewMemoryFile(f.path),
                     className: "flex w-full items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white p-2.5 text-left text-xs transition-all hover:bg-zinc-100/70 dark:border-zinc-800/70 dark:bg-zinc-900/60 dark:hover:bg-zinc-900",
                     children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex min-w-0 items-center gap-2", children: [
-                        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.Brain, { className: "size-3.5 shrink-0 text-purple-500" }),
-                        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "truncate text-zinc-800 dark:text-zinc-200", children: f.path })
+                      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex min-w-0 items-center gap-2", children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.Brain, { className: "size-3.5 shrink-0 text-purple-500" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "truncate text-zinc-800 dark:text-zinc-200", children: f.path })
                       ] }),
-                      loadingMemory && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.Loader2, { className: "size-3 shrink-0 animate-spin text-zinc-400" })
+                      loadingMemory && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.Loader2, { className: "size-3 shrink-0 animate-spin text-zinc-400" })
                     ]
                   },
                   f.path
@@ -1140,16 +1276,16 @@ function PersonaFilesDrawer({
 }
 
 // src/components/PersonaInterruptCard.tsx
-var import_react7 = require("react");
-var import_lucide_react7 = require("lucide-react");
-var import_jsx_runtime7 = require("react/jsx-runtime");
+var import_react8 = require("react");
+var import_lucide_react8 = require("lucide-react");
+var import_jsx_runtime8 = require("react/jsx-runtime");
 function PersonaInterruptCard({
   interrupt,
   onRespond,
   isStreaming,
   className
 }) {
-  const [answers, setAnswers] = (0, import_react7.useState)({});
+  const [answers, setAnswers] = (0, import_react8.useState)({});
   if (interrupt.kind === "hitl") {
     const approveAll = () => {
       onRespond(
@@ -1168,7 +1304,7 @@ function PersonaInterruptCard({
         "Rejected"
       );
     };
-    return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+    return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
       "div",
       {
         className: cn(
@@ -1176,16 +1312,16 @@ function PersonaInterruptCard({
           className
         ),
         children: [
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "mb-2 flex items-center gap-2 font-semibold text-amber-800 dark:text-amber-300", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.ShieldAlert, { className: "size-4" }),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "mb-2 flex items-center gap-2 font-semibold text-amber-800 dark:text-amber-300", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_lucide_react8.ShieldAlert, { className: "size-4" }),
             "Approval needed"
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("ul", { className: "mb-3 space-y-1 font-mono text-xs text-amber-900/80 dark:text-amber-200/80", children: interrupt.actionRequests.map((action, i) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("li", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("ul", { className: "mb-3 space-y-1 font-mono text-xs text-amber-900/80 dark:text-amber-200/80", children: interrupt.actionRequests.map((action, i) => /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("li", { children: [
             "\u2022 ",
             action.name
           ] }, i)) }),
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex gap-2", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "flex gap-2", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
               "button",
               {
                 type: "button",
@@ -1193,12 +1329,12 @@ function PersonaInterruptCard({
                 onClick: approveAll,
                 className: "flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-50",
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.Check, { className: "size-3.5" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_lucide_react8.Check, { className: "size-3.5" }),
                   " Approve"
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
               "button",
               {
                 type: "button",
@@ -1206,7 +1342,7 @@ function PersonaInterruptCard({
                 onClick: rejectAll,
                 className: "flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 ring-1 ring-zinc-300 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:bg-zinc-900 dark:text-zinc-200 dark:ring-zinc-700",
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.X, { className: "size-3.5" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_lucide_react8.X, { className: "size-3.5" }),
                   " Reject"
                 ]
               }
@@ -1222,7 +1358,7 @@ function PersonaInterruptCard({
     onRespond({ answers: orderedAnswers, text: summary }, summary);
   };
   const canSubmit = !interrupt.questions.some((q, i) => q.required && !answers[i]?.trim());
-  return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
     "div",
     {
       className: cn(
@@ -1230,13 +1366,13 @@ function PersonaInterruptCard({
         className
       ),
       children: [
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "mb-3 flex items-center gap-2 font-semibold text-blue-800 dark:text-blue-300", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.HelpCircle, { className: "size-4" }),
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "mb-3 flex items-center gap-2 font-semibold text-blue-800 dark:text-blue-300", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_lucide_react8.HelpCircle, { className: "size-4" }),
           "A few questions before I continue"
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "space-y-3", children: interrupt.questions.map((q, i) => /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("p", { className: "mb-1.5 text-xs font-medium text-blue-900 dark:text-blue-200", children: q.text }),
-          q.options.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "mb-1.5 flex flex-wrap gap-1.5", children: q.options.map((opt) => /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "space-y-3", children: interrupt.questions.map((q, i) => /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("p", { className: "mb-1.5 text-xs font-medium text-blue-900 dark:text-blue-200", children: q.text }),
+          q.options.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "mb-1.5 flex flex-wrap gap-1.5", children: q.options.map((opt) => /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
             "button",
             {
               type: "button",
@@ -1249,7 +1385,7 @@ function PersonaInterruptCard({
             },
             opt
           )) }),
-          q.allowCustom && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+          q.allowCustom && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
             "input",
             {
               value: q.options.includes(answers[i] ?? "") ? "" : answers[i] || "",
@@ -1259,7 +1395,7 @@ function PersonaInterruptCard({
             }
           )
         ] }, q.id)) }),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
           "button",
           {
             type: "button",
@@ -1275,8 +1411,8 @@ function PersonaInterruptCard({
 }
 
 // src/components/PersonaChatView.tsx
-var import_lucide_react8 = require("lucide-react");
-var import_jsx_runtime8 = require("react/jsx-runtime");
+var import_lucide_react9 = require("lucide-react");
+var import_jsx_runtime9 = require("react/jsx-runtime");
 function PersonaChatView({
   agentId,
   threadId: controlledThreadId,
@@ -1293,20 +1429,22 @@ function PersonaChatView({
   showAssistantAvatar = true,
   userAvatar,
   assistantAvatar,
+  groupTools = true,
+  toolClusterLabels,
   className
 }) {
-  const [internalThreadId, setInternalThreadId] = (0, import_react8.useState)(void 0);
+  const [internalThreadId, setInternalThreadId] = (0, import_react9.useState)(void 0);
   const activeThreadId = controlledThreadId !== void 0 ? controlledThreadId : internalThreadId;
-  const [sidebarOpen, setSidebarOpen] = (0, import_react8.useState)(showSidebar);
-  const [filesDrawerOpen, setFilesDrawerOpen] = (0, import_react8.useState)(false);
-  (0, import_react8.useEffect)(() => {
+  const [sidebarOpen, setSidebarOpen] = (0, import_react9.useState)(showSidebar);
+  const [filesDrawerOpen, setFilesDrawerOpen] = (0, import_react9.useState)(false);
+  (0, import_react9.useEffect)(() => {
     if (showSidebar && window.matchMedia("(max-width: 767px)").matches) {
       setSidebarOpen(false);
     }
   }, []);
-  const { threads, createThread, deleteThread, renameThread } = (0, import_react9.useThreads)();
-  const { files, uploadFile, deleteFile } = (0, import_react9.useFiles)();
-  const { memory, getFile, deleteFile: deleteMemoryFile } = (0, import_react9.useMemory)();
+  const { threads, createThread, deleteThread, renameThread } = (0, import_react10.useThreads)();
+  const { files, uploadFile, deleteFile } = (0, import_react10.useFiles)();
+  const { memory, getFile, deleteFile: deleteMemoryFile } = (0, import_react10.useMemory)();
   const {
     messages,
     input,
@@ -1324,26 +1462,26 @@ function PersonaChatView({
     stop,
     reload,
     clear
-  } = (0, import_react9.useChat)({ agentId, threadId: activeThreadId });
-  const setActiveThread = (0, import_react8.useCallback)(
+  } = (0, import_react10.useChat)({ agentId, threadId: activeThreadId });
+  const setActiveThread = (0, import_react9.useCallback)(
     (id) => {
       if (onThreadChange) onThreadChange(id);
       else setInternalThreadId(id);
     },
     [onThreadChange]
   );
-  const handleSelectThread = (0, import_react8.useCallback)(
+  const handleSelectThread = (0, import_react9.useCallback)(
     (id) => {
       clear();
       setActiveThread(id);
     },
     [clear, setActiveThread]
   );
-  const handleNewChat = (0, import_react8.useCallback)(() => {
+  const handleNewChat = (0, import_react9.useCallback)(() => {
     clear();
     setActiveThread(void 0);
   }, [clear, setActiveThread]);
-  const handleSend = (0, import_react8.useCallback)(
+  const handleSend = (0, import_react9.useCallback)(
     async (content) => {
       let tid = activeThreadId;
       if (!tid) {
@@ -1358,10 +1496,10 @@ function PersonaChatView({
     },
     [activeThreadId, agentId, createThread, sendMessage, setActiveThread]
   );
-  (0, import_react8.useEffect)(() => {
+  (0, import_react9.useEffect)(() => {
     if (presentedFile) setFilesDrawerOpen(true);
   }, [presentedFile]);
-  const handleUploadFile = (0, import_react8.useCallback)(
+  const handleUploadFile = (0, import_react9.useCallback)(
     async (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
@@ -1390,7 +1528,7 @@ function PersonaChatView({
     "--persona-assistant-avatar-text": theme.assistantAvatarText,
     borderRadius: theme.borderRadius
   } : void 0;
-  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+  return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
     "div",
     {
       style: themeStyles,
@@ -1403,7 +1541,7 @@ function PersonaChatView({
         className
       ),
       children: [
-        sidebarOpen && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+        sidebarOpen && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
           PersonaSidebar,
           {
             threads,
@@ -1416,21 +1554,21 @@ function PersonaChatView({
             className: classNames.sidebar
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: cn("flex min-h-0 flex-1 flex-col", classNames.main), children: [
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "flex h-11 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-3 dark:border-zinc-800 dark:bg-zinc-950", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "flex items-center gap-1.5", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: cn("flex min-h-0 flex-1 flex-col", classNames.main), children: [
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "flex h-11 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-3 dark:border-zinc-800 dark:bg-zinc-950", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                 "button",
                 {
                   type: "button",
                   onClick: () => setSidebarOpen((p) => !p),
                   className: "rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800 dark:hover:text-zinc-200",
-                  children: sidebarOpen ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_lucide_react8.PanelLeftClose, { className: "size-4" }) : /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_lucide_react8.PanelLeft, { className: "size-4" })
+                  children: sidebarOpen ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_lucide_react9.PanelLeftClose, { className: "size-4" }) : /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_lucide_react9.PanelLeft, { className: "size-4" })
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "text-sm font-semibold text-zinc-800 dark:text-zinc-200", children: title })
+              /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "text-sm font-semibold text-zinc-800 dark:text-zinc-200", children: title })
             ] }),
-            showFilesDrawer && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            showFilesDrawer && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
               "button",
               {
                 type: "button",
@@ -1440,13 +1578,13 @@ function PersonaChatView({
                   filesDrawerOpen ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                 ),
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(import_lucide_react8.Files, { className: "size-3.5" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { children: "Artifacts" })
+                  /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_lucide_react9.Files, { className: "size-3.5" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { children: "Artifacts" })
                 ]
               }
             )
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "flex min-h-0 flex-1 flex-col", children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "flex min-h-0 flex-1 flex-col", children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
             PersonaMessageFeed,
             {
               messages,
@@ -1461,10 +1599,12 @@ function PersonaChatView({
               showAssistantAvatar,
               userAvatar,
               assistantAvatar,
+              groupTools,
+              toolClusterLabels,
               className: classNames.messageList
             }
           ) }),
-          interrupt && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "shrink-0 border-t border-zinc-100 bg-white px-3 pt-3 dark:border-zinc-800 dark:bg-zinc-950", children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+          interrupt && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "shrink-0 border-t border-zinc-100 bg-white px-3 pt-3 dark:border-zinc-800 dark:bg-zinc-950", children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
             PersonaInterruptCard,
             {
               interrupt,
@@ -1472,10 +1612,10 @@ function PersonaChatView({
               onRespond: (resume, displayContent) => void resumeInterrupt(resume, displayContent)
             }
           ) }),
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: cn(
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: cn(
             "shrink-0 border-t border-zinc-100 bg-white px-3 pb-4 pt-3 dark:border-zinc-800 dark:bg-zinc-950",
             classNames.composer
-          ), children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+          ), children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
             PersonaComposer,
             {
               input,
@@ -1489,7 +1629,7 @@ function PersonaChatView({
             }
           ) })
         ] }),
-        showFilesDrawer && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+        showFilesDrawer && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
           PersonaFilesDrawer,
           {
             isOpen: filesDrawerOpen,
@@ -1511,7 +1651,7 @@ function PersonaChatView({
 }
 
 // src/index.ts
-var VERSION = "0.4.0";
+var VERSION = "0.5.0";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   PersonaChatView,
@@ -1521,8 +1661,11 @@ var VERSION = "0.4.0";
   PersonaMarkdown,
   PersonaMessageFeed,
   PersonaSidebar,
+  PersonaToolGroup,
   PersonaToolTrace,
   VERSION,
-  cn
+  cn,
+  groupToolCalls,
+  toolGroupKey
 });
 //# sourceMappingURL=index.cjs.map

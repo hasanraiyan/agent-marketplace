@@ -5,7 +5,9 @@ import type { PersonaMessage } from '@personaai/react';
 import type { ToolRendererMap } from '../types.js';
 import { cn } from '../utils/cn.js';
 import { PersonaToolTrace } from './PersonaToolTrace.js';
+import { PersonaToolGroup } from './PersonaToolGroup.js';
 import { PersonaMarkdown } from './PersonaMarkdown.js';
+import { groupToolCalls, type PersonaToolClusterLabels } from '../utils/toolGrouping.js';
 import { Bot, User, Check, Copy, RotateCcw, Sparkles, BrainCircuit, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 
 function ReasoningBlock({ reasoning, isReasoning }: { reasoning: string; isReasoning?: boolean }) {
@@ -51,6 +53,10 @@ export interface PersonaMessageFeedProps {
   showAssistantAvatar?: boolean;
   userAvatar?: React.ReactNode;
   assistantAvatar?: React.ReactNode;
+  /** Clusters consecutive tool calls into one collapsible group instead of one card each. @default true */
+  groupTools?: boolean;
+  /** Overrides/extends the default tool-cluster title+icon map. */
+  toolClusterLabels?: PersonaToolClusterLabels;
   className?: string;
 }
 
@@ -67,6 +73,8 @@ export function PersonaMessageFeed({
   showAssistantAvatar = true,
   userAvatar,
   assistantAvatar,
+  groupTools = true,
+  toolClusterLabels,
   className,
 }: PersonaMessageFeedProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -138,17 +146,40 @@ export function PersonaMessageFeed({
                   <ReasoningBlock reasoning={msg.reasoning} isReasoning={msg.isReasoning} />
                 )}
 
-                {/* Render tool executions if any */}
+                {/* Render tool executions if any. Grouped: consecutive
+                    calls cluster into one collapsible "N steps" card
+                    instead of one accordion each — a lone call still
+                    renders as a plain card, and present_file always stands
+                    on its own regardless of what's next to it. */}
                 {msg.toolCalls && msg.toolCalls.length > 0 && (
                   <div className="mb-2 space-y-1">
-                    {msg.toolCalls.map((tc) => (
-                      <PersonaToolTrace
-                        key={tc.toolCallId}
-                        toolCall={tc}
-                        toolRenderers={toolRenderers}
-                        onOpenFile={onOpenFile}
-                      />
-                    ))}
+                    {groupTools
+                      ? groupToolCalls(msg.toolCalls).map((item) =>
+                          item.type === 'group' ? (
+                            <PersonaToolGroup
+                              key={item.tools[0].toolCallId}
+                              tools={item.tools}
+                              toolRenderers={toolRenderers}
+                              onOpenFile={onOpenFile}
+                              clusterLabels={toolClusterLabels}
+                            />
+                          ) : (
+                            <PersonaToolTrace
+                              key={item.tools[0].toolCallId}
+                              toolCall={item.tools[0]}
+                              toolRenderers={toolRenderers}
+                              onOpenFile={onOpenFile}
+                            />
+                          )
+                        )
+                      : msg.toolCalls.map((tc) => (
+                          <PersonaToolTrace
+                            key={tc.toolCallId}
+                            toolCall={tc}
+                            toolRenderers={toolRenderers}
+                            onOpenFile={onOpenFile}
+                          />
+                        ))}
                   </div>
                 )}
 

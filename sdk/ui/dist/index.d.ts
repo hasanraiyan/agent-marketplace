@@ -1,6 +1,32 @@
-import React, { ReactNode, ComponentType } from 'react';
+import React, { ComponentType, ReactNode } from 'react';
 import { PersonaToolCall, PersonaThread, PersonaMessage, PersonaFileItem, PersonaMemoryList, PersonaWorkspaceFile, PersonaTodo, PersonaPresentedFile, PersonaMemoryFile, PersonaInterrupt, PersonaResumeValue } from '@personaai/react';
 import { ClassValue } from 'clsx';
+
+interface PersonaToolClusterMeta {
+    title: string;
+    icon?: ComponentType<{
+        className?: string;
+    }>;
+}
+/** Keyed by `toolGroupKey`'s return value — `mixed` is the fallback when a group's tools don't share one key. */
+type PersonaToolClusterLabels = Record<string, PersonaToolClusterMeta>;
+/**
+ * Which semantic family a tool belongs to, for the cluster header. Memory is
+ * detected by name AND by file ops touching /memories/ paths, matching how
+ * persona.hasanraiyan.me's own frontend classifies tools for the same purpose.
+ */
+declare function toolGroupKey(tool: PersonaToolCall): string;
+interface PersonaToolGroupItem {
+    type: 'single' | 'group';
+    tools: PersonaToolCall[];
+}
+/**
+ * Clusters consecutive tool calls from one message into groups a
+ * `PersonaToolGroup` can render as one collapsible unit, instead of one card
+ * per call. `present_file` never joins a group — its whole purpose is
+ * "highlight this file", which a generic "N steps" cluster header would bury.
+ */
+declare function groupToolCalls(toolCalls: PersonaToolCall[]): PersonaToolGroupItem[];
 
 interface StarterPromptItem {
     title: string;
@@ -69,13 +95,17 @@ interface PersonaChatViewProps {
     userAvatar?: ReactNode;
     /** Replaces the default bot-icon avatar entirely. */
     assistantAvatar?: ReactNode;
+    /** Clusters consecutive tool calls into one collapsible group instead of one card each. @default true */
+    groupTools?: boolean;
+    /** Overrides/extends the default tool-cluster title+icon map (see `PersonaToolGroup`). */
+    toolClusterLabels?: PersonaToolClusterLabels;
     className?: string;
     children?: ReactNode;
 }
 
 declare function cn(...inputs: ClassValue[]): string;
 
-declare function PersonaChatView({ agentId, threadId: controlledThreadId, onThreadChange, greeting, title, starterPrompts, toolRenderers, classNames, theme, showSidebar, showFilesDrawer, showUserAvatar, showAssistantAvatar, userAvatar, assistantAvatar, className, }: PersonaChatViewProps): React.JSX.Element;
+declare function PersonaChatView({ agentId, threadId: controlledThreadId, onThreadChange, greeting, title, starterPrompts, toolRenderers, classNames, theme, showSidebar, showFilesDrawer, showUserAvatar, showAssistantAvatar, userAvatar, assistantAvatar, groupTools, toolClusterLabels, className, }: PersonaChatViewProps): React.JSX.Element;
 
 interface PersonaSidebarProps {
     threads: PersonaThread[];
@@ -119,9 +149,13 @@ interface PersonaMessageFeedProps {
     showAssistantAvatar?: boolean;
     userAvatar?: React.ReactNode;
     assistantAvatar?: React.ReactNode;
+    /** Clusters consecutive tool calls into one collapsible group instead of one card each. @default true */
+    groupTools?: boolean;
+    /** Overrides/extends the default tool-cluster title+icon map. */
+    toolClusterLabels?: PersonaToolClusterLabels;
     className?: string;
 }
-declare function PersonaMessageFeed({ messages, isStreaming, isLoading, error, toolRenderers, onReload, onOpenFile, greeting, showUserAvatar, showAssistantAvatar, userAvatar, assistantAvatar, className, }: PersonaMessageFeedProps): React.JSX.Element;
+declare function PersonaMessageFeed({ messages, isStreaming, isLoading, error, toolRenderers, onReload, onOpenFile, greeting, showUserAvatar, showAssistantAvatar, userAvatar, assistantAvatar, groupTools, toolClusterLabels, className, }: PersonaMessageFeedProps): React.JSX.Element;
 
 interface PersonaMarkdownProps {
     content: string;
@@ -150,6 +184,16 @@ interface PersonaToolTraceProps {
 }
 declare function PersonaToolTrace({ toolCall, toolRenderers, onOpenFile, className, }: PersonaToolTraceProps): React.JSX.Element;
 
+interface PersonaToolGroupProps {
+    tools: PersonaToolCall[];
+    toolRenderers?: ToolRendererMap;
+    onOpenFile?: (path: string) => void;
+    /** Overrides/extends the default cluster title+icon map (keyed by `toolGroupKey`'s output, or `mixed`). */
+    clusterLabels?: PersonaToolClusterLabels;
+    className?: string;
+}
+declare function PersonaToolGroup({ tools, toolRenderers, onOpenFile, clusterLabels, className, }: PersonaToolGroupProps): React.JSX.Element;
+
 interface PersonaFilesDrawerProps {
     isOpen: boolean;
     onClose: () => void;
@@ -175,6 +219,6 @@ interface PersonaInterruptCardProps {
 }
 declare function PersonaInterruptCard({ interrupt, onRespond, isStreaming, className, }: PersonaInterruptCardProps): React.JSX.Element;
 
-declare const VERSION = "0.4.0";
+declare const VERSION = "0.5.0";
 
-export { type ClassNamesOverride, PersonaChatView, type PersonaChatViewProps, PersonaComposer, type PersonaComposerProps, type PersonaCustomTheme, PersonaFilesDrawer, type PersonaFilesDrawerProps, PersonaInterruptCard, type PersonaInterruptCardProps, PersonaMarkdown, type PersonaMarkdownProps, PersonaMessageFeed, type PersonaMessageFeedProps, PersonaSidebar, type PersonaSidebarProps, PersonaToolTrace, type PersonaToolTraceProps, type StarterPromptItem, type ToolRendererMap, type ToolRendererProps, VERSION, cn };
+export { type ClassNamesOverride, PersonaChatView, type PersonaChatViewProps, PersonaComposer, type PersonaComposerProps, type PersonaCustomTheme, PersonaFilesDrawer, type PersonaFilesDrawerProps, PersonaInterruptCard, type PersonaInterruptCardProps, PersonaMarkdown, type PersonaMarkdownProps, PersonaMessageFeed, type PersonaMessageFeedProps, PersonaSidebar, type PersonaSidebarProps, type PersonaToolClusterLabels, type PersonaToolClusterMeta, PersonaToolGroup, type PersonaToolGroupItem, type PersonaToolGroupProps, PersonaToolTrace, type PersonaToolTraceProps, type StarterPromptItem, type ToolRendererMap, type ToolRendererProps, VERSION, cn, groupToolCalls, toolGroupKey };
