@@ -186,6 +186,40 @@ describe('Mcp Service', () => {
       );
     });
 
+    it('registers a manual oauth MCP as a public client when no secret is given', async () => {
+      // PKCE-only public MCP servers (the common real-world case) never
+      // issue a client secret -- a Client ID alone must persist cleanly
+      // as a public client, not be silently mis-tagged confidential.
+      discoverOAuthEndpoints.mockResolvedValue({
+        authorizationEndpoint: 'https://idp.example.com/authorize',
+        tokenEndpoint: 'https://idp.example.com/token',
+        scopesSupported: ['profile'],
+      });
+      mcpRepository.create.mockResolvedValue(mockMcp);
+
+      await mcpService.createMcp(mockUserId, {
+        name: 'My Public MCP',
+        transport: 'sse',
+        url: 'https://example.com/mcp',
+        authType: 'oauth',
+        authMode: 'user',
+        oauth: { clientId: 'client1' },
+      });
+
+      expect(encryption.encrypt).not.toHaveBeenCalled();
+      expect(mcpRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          authType: 'oauth',
+          oauth: expect.objectContaining({
+            clientId: 'client1',
+            clientSecretEncrypted: null,
+            dynamicallyRegistered: false,
+            tokenEndpointAuthMethod: 'none',
+          }),
+        })
+      );
+    });
+
     it('encrypts and stores a static API key for apiKey MCPs', async () => {
       mcpRepository.create.mockResolvedValue(mockMcp);
 

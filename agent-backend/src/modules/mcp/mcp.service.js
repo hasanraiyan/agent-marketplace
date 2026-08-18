@@ -133,18 +133,23 @@ class McpService {
           tokenEndpointAuthMethod: registered.tokenEndpointAuthMethod,
         };
       } else {
-        if (!data.oauth?.clientId || !data.oauth?.clientSecret) {
-          throw new ValidationError(
-            'Client ID and Client Secret are required when auth type is oauth'
-          );
+        // clientSecret is optional -- a manually-entered client can be
+        // public (Client ID only, PKCE covers the rest) just as validly as
+        // confidential, matching what Dynamic Registration itself already
+        // supports above.
+        if (!data.oauth?.clientId) {
+          throw new ValidationError('Client ID is required when auth type is oauth');
         }
         mcpData.oauth = {
           clientId: data.oauth.clientId,
-          clientSecretEncrypted: encryption.encrypt(data.oauth.clientSecret),
+          clientSecretEncrypted: data.oauth.clientSecret
+            ? encryption.encrypt(data.oauth.clientSecret)
+            : null,
           authorizationEndpoint: discovered.authorizationEndpoint,
           tokenEndpoint: discovered.tokenEndpoint,
           scopes: data.oauth.scopes?.length ? data.oauth.scopes : discovered.scopesSupported,
           dynamicallyRegistered: false,
+          tokenEndpointAuthMethod: data.oauth.clientSecret ? 'client_secret_basic' : 'none',
         };
       }
     } else if (mcpData.authType === 'apiKey') {
@@ -258,22 +263,23 @@ class McpService {
         ? await discoverOAuthEndpoints(data.url || existing.url)
         : null;
       const clientId = data.oauth?.clientId || existing.oauth?.clientId;
-      const isDcr = existing.oauth?.dynamicallyRegistered;
       if (!clientId) throw new ValidationError('Client ID is required when auth type is oauth');
-      if (!isDcr && !Boolean(data.oauth?.clientSecret || existing.oauth?.clientSecretEncrypted)) {
-        throw new ValidationError('Client Secret is required when auth type is oauth');
-      }
+      // clientSecret is optional -- a public (PKCE-only) client has none to
+      // require, same relaxation as createMcp's manual branch above.
+      const clientSecretEncrypted = data.oauth?.clientSecret
+        ? encryption.encrypt(data.oauth.clientSecret)
+        : existing.oauth.clientSecretEncrypted;
       updateData.oauth = {
         clientId,
-        clientSecretEncrypted: data.oauth?.clientSecret
-          ? encryption.encrypt(data.oauth.clientSecret)
-          : existing.oauth.clientSecretEncrypted,
+        clientSecretEncrypted,
         authorizationEndpoint:
           discovered?.authorizationEndpoint || existing.oauth.authorizationEndpoint,
         tokenEndpoint: discovered?.tokenEndpoint || existing.oauth.tokenEndpoint,
         scopes: data.oauth?.scopes || existing.oauth?.scopes || [],
         dynamicallyRegistered: existing.oauth?.dynamicallyRegistered || false,
-        tokenEndpointAuthMethod: existing.oauth?.tokenEndpointAuthMethod || 'client_secret_basic',
+        tokenEndpointAuthMethod:
+          existing.oauth?.tokenEndpointAuthMethod ||
+          (clientSecretEncrypted ? 'client_secret_basic' : 'none'),
         ownerToken: existing.oauth?.ownerToken || {},
       };
     } else if (resolvedAuthType === 'apiKey') {

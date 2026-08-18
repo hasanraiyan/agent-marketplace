@@ -27,6 +27,22 @@ describe('Mcp Validator', () => {
       expect(result.success).toBe(true);
     });
 
+    it('should validate an oauth MCP server as a public client (Client ID only, no secret)', () => {
+      // Real MCP servers are commonly PKCE-only public clients (RFC 7591's
+      // 'none' token_endpoint_auth_method) and never issue a secret at all
+      // -- a Client ID alone must be a valid manual registration.
+      const result = createMcpSchema.safeParse({
+        name: 'My MCP',
+        transport: 'sse',
+        url: 'https://example.com/mcp',
+        authType: 'oauth',
+        authMode: 'user',
+        oauth: { clientId: 'abc' },
+      });
+
+      expect(result.success).toBe(true);
+    });
+
     it('should fail if authType is oauth but oauth config is missing', () => {
       const result = createMcpSchema.safeParse({
         name: 'My MCP',

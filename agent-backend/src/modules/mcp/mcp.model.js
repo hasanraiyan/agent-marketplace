@@ -20,7 +20,14 @@ const oauthSchema = new mongoose.Schema(
     tokenEndpointAuthMethod: {
       type: String,
       enum: ['client_secret_basic', 'client_secret_post', 'none'],
-      default: 'client_secret_basic',
+      // 'none' (PKCE-only, public client) is the common case for real MCP
+      // servers -- both createMcp and updateMcp in mcp.service.js always
+      // set this explicitly, so this default only covers a write that
+      // somehow bypasses that, and 'none' is the safer assumption of the
+      // two either way (a client with no secret trying to send one it
+      // doesn't have fails loudly; the reverse silently expects a secret
+      // that was never issued).
+      default: 'none',
     },
     ownerToken: { type: ownerTokenSchema, default: () => ({}) },
   },

@@ -1,8 +1,14 @@
 import { z } from 'zod';
 
+// clientSecret is optional: many real MCP servers are PKCE-only public
+// clients (the MCP-spec-preferred default — see RFC 7591 §2, `none`
+// token_endpoint_auth_method) and never issue a secret at all. A Client ID
+// alone, with PKCE covering proof-of-possession, is a fully valid manual
+// registration — requiring a secret here would make it impossible to
+// manually connect to any public-client MCP server a user doesn't control.
 const oauthConfigSchema = z.object({
   clientId: z.string().min(1, 'Client ID is required'),
-  clientSecret: z.string().min(1, 'Client Secret is required'),
+  clientSecret: z.string().min(1).optional(),
   scopes: z.array(z.string()).optional(),
 });
 
@@ -20,9 +26,12 @@ export const createMcpSchema = z
     isEnabled: z.boolean().default(true),
   })
   .refine(
-    (data) => data.authType !== 'oauth' || data.useDynamicRegistration || Boolean(data.oauth),
+    (data) =>
+      data.authType !== 'oauth' ||
+      data.useDynamicRegistration ||
+      Boolean(data.oauth?.clientId),
     {
-      message: 'Client ID and Client Secret are required when auth type is oauth',
+      message: 'Client ID is required when auth type is oauth',
       path: ['oauth'],
     }
   )
