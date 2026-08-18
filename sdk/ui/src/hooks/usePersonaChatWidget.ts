@@ -84,18 +84,25 @@ export function usePersonaChatWidget(options: UsePersonaChatWidgetOptions = {}) 
   }, [chat, setActiveThread]);
 
   const handleSend = useCallback(
-    async (content?: string) => {
-      let tid = activeThreadId;
-      if (!tid) {
-        try {
-          const t = await createThread(agentId);
-          tid = t?._id;
-          if (tid) setActiveThread(tid);
-        } catch {
-          /* no-op */
-        }
-      }
-      void chat.sendMessage(content, tid ? { threadId: tid } : undefined);
+    (content?: string) => {
+      // Not awaited before sendMessage — sendMessage's own optimistic
+      // update (the user's message + streaming placeholder) runs
+      // synchronously before it needs a resolved threadId, so blocking
+      // the whole send on thread creation first meant the message the
+      // user just typed didn't even appear on screen until that network
+      // round-trip finished. Passing the in-flight promise straight
+      // through gets both: an instant message and a real threadId once
+      // it exists.
+      const threadId = activeThreadId
+        ? Promise.resolve(activeThreadId)
+        : createThread(agentId)
+            .then((t) => {
+              if (t?._id) setActiveThread(t._id);
+              return t?._id;
+            })
+            .catch(() => undefined);
+
+      void chat.sendMessage(content, { threadId });
     },
     [activeThreadId, agentId, createThread, chat, setActiveThread]
   );

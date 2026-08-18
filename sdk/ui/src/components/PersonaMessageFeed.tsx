@@ -172,6 +172,7 @@ export function PersonaMessageFeed({
                               toolRenderers={toolRenderers}
                               onOpenFile={onOpenFile}
                               clusterLabels={toolClusterLabels}
+                              isLive={Boolean(msg.isStreaming)}
                             />
                           ) : (
                             <PersonaToolTrace
@@ -179,6 +180,7 @@ export function PersonaMessageFeed({
                               toolCall={item.tools[0]}
                               toolRenderers={toolRenderers}
                               onOpenFile={onOpenFile}
+                              isLive={Boolean(msg.isStreaming)}
                             />
                           )
                         )
@@ -188,6 +190,7 @@ export function PersonaMessageFeed({
                             toolCall={tc}
                             toolRenderers={toolRenderers}
                             onOpenFile={onOpenFile}
+                            isLive={Boolean(msg.isStreaming)}
                           />
                         ))}
                   </div>

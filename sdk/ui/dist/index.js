@@ -56,17 +56,12 @@ function usePersonaChatWidget(options = {}) {
     setActiveThread(void 0);
   }, [chat, setActiveThread]);
   const handleSend = useCallback(
-    async (content) => {
-      let tid = activeThreadId;
-      if (!tid) {
-        try {
-          const t = await createThread(agentId);
-          tid = t?._id;
-          if (tid) setActiveThread(tid);
-        } catch {
-        }
-      }
-      void chat.sendMessage(content, tid ? { threadId: tid } : void 0);
+    (content) => {
+      const threadId = activeThreadId ? Promise.resolve(activeThreadId) : createThread(agentId).then((t) => {
+        if (t?._id) setActiveThread(t._id);
+        return t?._id;
+      }).catch(() => void 0);
+      void chat.sendMessage(content, { threadId });
     },
     [activeThreadId, agentId, createThread, chat, setActiveThread]
   );
@@ -495,6 +490,7 @@ function PersonaToolTrace({
   toolCall,
   toolRenderers,
   onOpenFile,
+  isLive = false,
   className
 }) {
   const [isOpen, setIsOpen] = useState3(false);
@@ -514,7 +510,7 @@ function PersonaToolTrace({
       return toolCall.result;
     }
   }, [toolCall.result]);
-  const isExecuting = !toolCall.result && !toolCall.isError;
+  const isExecuting = isLive && !toolCall.result && !toolCall.isError;
   const isTodo = isTodoTool(toolCall.toolName);
   const todos = useMemo2(
     () => isTodo ? parseTodos(parsedArgs, parsedResult) : null,
@@ -724,10 +720,11 @@ function PersonaToolGroup({
   toolRenderers,
   onOpenFile,
   clusterLabels,
+  isLive = false,
   className
 }) {
   const hasError = tools.some((t) => t.isError);
-  const anyRunning = tools.some((t) => !t.result && !t.isError);
+  const anyRunning = isLive && tools.some((t) => !t.result && !t.isError);
   const { title, icon: ClusterIcon = Wrench2 } = clusterMeta(tools, clusterLabels);
   const [isOpen, setIsOpen] = useState4(anyRunning);
   const wasRunningRef = useRef(anyRunning);
@@ -762,7 +759,8 @@ function PersonaToolGroup({
       {
         toolCall: tool,
         toolRenderers,
-        onOpenFile
+        onOpenFile,
+        isLive
       },
       tool.toolCallId
     )) })
@@ -959,7 +957,8 @@ function PersonaMessageFeed({
                         tools: item.tools,
                         toolRenderers,
                         onOpenFile,
-                        clusterLabels: toolClusterLabels
+                        clusterLabels: toolClusterLabels,
+                        isLive: Boolean(msg.isStreaming)
                       },
                       item.tools[0].toolCallId
                     ) : /* @__PURE__ */ jsx6(
@@ -967,7 +966,8 @@ function PersonaMessageFeed({
                       {
                         toolCall: item.tools[0],
                         toolRenderers,
-                        onOpenFile
+                        onOpenFile,
+                        isLive: Boolean(msg.isStreaming)
                       },
                       item.tools[0].toolCallId
                     )
@@ -976,7 +976,8 @@ function PersonaMessageFeed({
                     {
                       toolCall: tc,
                       toolRenderers,
-                      onOpenFile
+                      onOpenFile,
+                      isLive: Boolean(msg.isStreaming)
                     },
                     tc.toolCallId
                   )) }),

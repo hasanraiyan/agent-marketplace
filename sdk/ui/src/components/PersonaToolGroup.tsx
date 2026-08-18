@@ -49,6 +49,17 @@ export interface PersonaToolGroupProps {
   onOpenFile?: (path: string) => void;
   /** Overrides/extends the default cluster title+icon map (keyed by `toolGroupKey`'s output, or `mixed`). */
   clusterLabels?: PersonaToolClusterLabels;
+  /**
+   * Whether the parent message is an actively-streaming live run (pass the
+   * message's own `isStreaming`). Gates whether `anyRunning` is trusted to
+   * mean anything: a reloaded historical message's tool calls have no
+   * live "in progress" signal (they're just whatever the server happened to
+   * persist), so `!tool.result` there doesn't reliably mean "still running"
+   * the way it does mid-stream — without this, a completed historical group
+   * could auto-expand on every page load looking like it's re-running.
+   * @default false
+   */
+  isLive?: boolean;
   className?: string;
 }
 
@@ -57,10 +68,11 @@ export function PersonaToolGroup({
   toolRenderers,
   onOpenFile,
   clusterLabels,
+  isLive = false,
   className,
 }: PersonaToolGroupProps) {
   const hasError = tools.some((t) => t.isError);
-  const anyRunning = tools.some((t) => !t.result && !t.isError);
+  const anyRunning = isLive && tools.some((t) => !t.result && !t.isError);
   const { title, icon: ClusterIcon = Wrench } = clusterMeta(tools, clusterLabels);
 
   const [isOpen, setIsOpen] = useState(anyRunning);
@@ -69,7 +81,9 @@ export function PersonaToolGroup({
   useEffect(() => {
     // Auto-open the moment any step in the group starts running, so the user
     // sees it happen live — never auto-*close* on completion, so a card the
-    // user opened to read stays open once the run settles.
+    // user opened to read stays open once the run settles. Gated on isLive
+    // (folded into anyRunning above) so a reloaded historical group never
+    // auto-opens at all — only ever a real live run does.
     if (anyRunning && !wasRunningRef.current) setIsOpen(true);
     wasRunningRef.current = anyRunning;
   }, [anyRunning]);
@@ -110,6 +124,7 @@ export function PersonaToolGroup({
               toolCall={tool}
               toolRenderers={toolRenderers}
               onOpenFile={onOpenFile}
+              isLive={isLive}
             />
           ))}
         </div>

@@ -11,6 +11,19 @@ introduction — versions before 0.2.0 aren't backfilled.
   (the common case for a full-page `PersonaChatView`), the skeleton stretched edge-to-edge while
   real messages sat in a centered, margined column — a visible layout jump the instant loading
   finished. The skeleton container now matches exactly.
+- **Fix: reloaded historical tool calls could show "Running..." with a spinner, or a tool group
+  auto-expanded, on every page load.** `PersonaToolGroup`/`PersonaToolTrace` inferred "still
+  running" from `!toolCall.result` — a reasonable signal mid-stream, but a reloaded historical
+  message has no live "in progress" state at all, so a completed call with a falsy-but-present
+  result could look like it was executing again the moment a thread's history loaded. Both now
+  take a new `isLive` prop (wired from the parent message's own `isStreaming` in
+  `PersonaMessageFeed`) that gates the running/auto-open logic — `false` for anything loaded from
+  history, `true` only for an actual live run.
+- **New: instant send.** Built on `@personaai/react@^0.3.4`'s `sendMessage` accepting an
+  in-flight `threadId` promise — `usePersonaChatWidget`'s `handleSend` no longer awaits thread
+  creation before sending the first message of a new conversation. The message now appears the
+  instant you hit send, same as every message after the first; thread creation happens
+  concurrently instead of blocking it.
 
 ## 0.7.6
 

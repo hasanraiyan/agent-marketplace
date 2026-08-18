@@ -119,6 +119,15 @@ export interface PersonaToolTraceProps {
   toolRenderers?: ToolRendererMap;
   /** Called when the user clicks "Open" on a present_file card. */
   onOpenFile?: (path: string) => void;
+  /**
+   * Whether the parent message is an actively-streaming live run (pass the
+   * message's own `isStreaming`). A reloaded historical tool call has no
+   * live "in progress" signal — `!toolCall.result` there doesn't reliably
+   * mean "still running" the way it does mid-stream — so without this a
+   * completed historical call could show "Running..." with a spinner on
+   * every page load. @default false
+   */
+  isLive?: boolean;
   className?: string;
 }
 
@@ -126,6 +135,7 @@ export function PersonaToolTrace({
   toolCall,
   toolRenderers,
   onOpenFile,
+  isLive = false,
   className,
 }: PersonaToolTraceProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -148,7 +158,7 @@ export function PersonaToolTrace({
     }
   }, [toolCall.result]);
 
-  const isExecuting = !toolCall.result && !toolCall.isError;
+  const isExecuting = isLive && !toolCall.result && !toolCall.isError;
 
   const isTodo = isTodoTool(toolCall.toolName);
   const todos = useMemo(

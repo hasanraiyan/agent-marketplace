@@ -213,9 +213,18 @@ interface PersonaToolTraceProps {
     toolRenderers?: ToolRendererMap;
     /** Called when the user clicks "Open" on a present_file card. */
     onOpenFile?: (path: string) => void;
+    /**
+     * Whether the parent message is an actively-streaming live run (pass the
+     * message's own `isStreaming`). A reloaded historical tool call has no
+     * live "in progress" signal — `!toolCall.result` there doesn't reliably
+     * mean "still running" the way it does mid-stream — so without this a
+     * completed historical call could show "Running..." with a spinner on
+     * every page load. @default false
+     */
+    isLive?: boolean;
     className?: string;
 }
-declare function PersonaToolTrace({ toolCall, toolRenderers, onOpenFile, className, }: PersonaToolTraceProps): react__default.JSX.Element;
+declare function PersonaToolTrace({ toolCall, toolRenderers, onOpenFile, isLive, className, }: PersonaToolTraceProps): react__default.JSX.Element;
 
 interface PersonaToolGroupProps {
     tools: PersonaToolCall[];
@@ -223,9 +232,20 @@ interface PersonaToolGroupProps {
     onOpenFile?: (path: string) => void;
     /** Overrides/extends the default cluster title+icon map (keyed by `toolGroupKey`'s output, or `mixed`). */
     clusterLabels?: PersonaToolClusterLabels;
+    /**
+     * Whether the parent message is an actively-streaming live run (pass the
+     * message's own `isStreaming`). Gates whether `anyRunning` is trusted to
+     * mean anything: a reloaded historical message's tool calls have no
+     * live "in progress" signal (they're just whatever the server happened to
+     * persist), so `!tool.result` there doesn't reliably mean "still running"
+     * the way it does mid-stream — without this, a completed historical group
+     * could auto-expand on every page load looking like it's re-running.
+     * @default false
+     */
+    isLive?: boolean;
     className?: string;
 }
-declare function PersonaToolGroup({ tools, toolRenderers, onOpenFile, clusterLabels, className, }: PersonaToolGroupProps): react__default.JSX.Element;
+declare function PersonaToolGroup({ tools, toolRenderers, onOpenFile, clusterLabels, isLive, className, }: PersonaToolGroupProps): react__default.JSX.Element;
 
 interface PersonaFilesDrawerProps {
     isOpen: boolean;
@@ -327,7 +347,7 @@ declare function usePersonaChatWidget(options?: UsePersonaChatWidgetOptions): {
     workspaceFiles: Record<string, _personaai_react.PersonaWorkspaceFile>;
     handleSelectThread: (id: string | undefined) => void;
     handleNewChat: () => void;
-    handleSend: (content?: string) => Promise<void>;
+    handleSend: (content?: string) => void;
     handleUploadFile: (e: ChangeEvent<HTMLInputElement>) => Promise<void>;
     messages: _personaai_react.PersonaMessage[];
     input: string;

@@ -55,7 +55,7 @@
     "react-dom": ">=18.0.0"
   },
   "dependencies": {
-    "@personaai/react": "^0.3.3",
+    "@personaai/react": "^0.3.4",
     "clsx": "^2.1.1",
     "katex": "^0.16.11",
     "lucide-react": "^1.31.0",

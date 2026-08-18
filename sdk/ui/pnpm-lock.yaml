@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@personaai/react':
-        specifier: ^0.3.2
-        version: 0.3.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^0.3.4
+        version: 0.3.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -492,8 +492,8 @@ packages:
     resolution: {integrity: sha512-dfUnCxiN9H4ap84DvD2ubjw+3vUNpstxa0TneY/Paat8a3R4uQZDLSvWjmznAY/DoahqTHl9V46HF/Zs3F29pg==}
     engines: {node: '>= 10.0.0'}
 
-  '@personaai/react@0.3.2':
-    resolution: {integrity: sha512-CW6DoW68CBX2So5yiEFfupiJOeNwsigkOLT3G856VgCAa9AIZfhr/B30jTBOKdChploH9hjYk1dmLvIJ+aQ7jg==}
+  '@personaai/react@0.3.4':
+    resolution: {integrity: sha512-8YawVwUc4kYzs0UW6v6Ms+xPGeM6OugL4WJg3N8n1Tr3oD6oBscPRy0yWVV3P0gF24xFymhk1uxrYHfS0tq/DQ==}
     engines: {node: '>=18'}
     peerDependencies:
       react: '>=18.0.0'
@@ -1911,7 +1911,7 @@ snapshots:
       '@parcel/watcher-win32-ia32': 2.5.1
       '@parcel/watcher-win32-x64': 2.5.1
 
-  '@personaai/react@0.3.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@personaai/react@0.3.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
