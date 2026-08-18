@@ -228,7 +228,17 @@ import { useState as useState3, useRef, useEffect } from "react";
 
 // src/components/PersonaToolTrace.tsx
 import { useState as useState2, useMemo as useMemo2 } from "react";
-import { Wrench, ChevronDown, ChevronRight as ChevronRight2, CheckCircle2, AlertCircle, Loader2, ArrowRight, Bot } from "lucide-react";
+import {
+  Wrench,
+  ChevronDown,
+  ChevronRight as ChevronRight2,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  ArrowRight,
+  Bot,
+  FileText
+} from "lucide-react";
 import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 function groupSubagentActivity(entries) {
   const groups = [];
@@ -251,6 +261,7 @@ function groupSubagentActivity(entries) {
 function PersonaToolTrace({
   toolCall,
   toolRenderers,
+  onOpenFile,
   className
 }) {
   const [isOpen, setIsOpen] = useState2(false);
@@ -288,11 +299,44 @@ function PersonaToolTrace({
       }
     ) });
   }
+  if (toolCall.toolName === "present_file" && !toolCall.isError) {
+    const args = typeof parsedArgs === "object" && parsedArgs || {};
+    const filePath = args.filePath || args.path || "";
+    const fileName = filePath.split("/").pop() || filePath || "file";
+    const description = args.description || "";
+    return /* @__PURE__ */ jsxs2(
+      "div",
+      {
+        className: cn(
+          "my-2 flex min-w-0 items-center justify-between gap-2 rounded-xl border border-zinc-200/80 bg-zinc-50/50 p-2.5 text-xs dark:border-zinc-800/80 dark:bg-zinc-900/40",
+          className
+        ),
+        children: [
+          /* @__PURE__ */ jsxs2("div", { className: "flex min-w-0 items-center gap-2", children: [
+            /* @__PURE__ */ jsx2("div", { className: "flex size-7 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400", children: /* @__PURE__ */ jsx2(FileText, { className: "size-4" }) }),
+            /* @__PURE__ */ jsxs2("div", { className: "min-w-0", children: [
+              /* @__PURE__ */ jsx2("div", { className: "truncate text-xs font-semibold text-zinc-800 dark:text-zinc-100", children: fileName }),
+              /* @__PURE__ */ jsx2("p", { className: "truncate text-[10px] text-zinc-500 dark:text-zinc-400", children: description || filePath })
+            ] })
+          ] }),
+          filePath && /* @__PURE__ */ jsx2(
+            "button",
+            {
+              type: "button",
+              onClick: () => onOpenFile?.(filePath),
+              className: "shrink-0 rounded-lg border border-zinc-200 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800",
+              children: "Open"
+            }
+          )
+        ]
+      }
+    );
+  }
   return /* @__PURE__ */ jsxs2(
     "div",
     {
       className: cn(
-        "my-2 overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-50/50 text-xs dark:border-zinc-800/80 dark:bg-zinc-900/40",
+        "my-2 min-w-0 overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-50/50 text-xs dark:border-zinc-800/80 dark:bg-zinc-900/40",
         className
       ),
       children: [
@@ -326,11 +370,11 @@ function PersonaToolTrace({
         isOpen && /* @__PURE__ */ jsxs2("div", { className: "border-t border-zinc-200/60 p-3 space-y-2 font-mono text-[11px] dark:border-zinc-800/60", children: [
           toolCall.args && /* @__PURE__ */ jsxs2("div", { children: [
             /* @__PURE__ */ jsx2("span", { className: "text-zinc-500 block mb-1", children: "Arguments:" }),
-            /* @__PURE__ */ jsx2("pre", { className: "overflow-x-auto rounded-lg bg-zinc-100 p-2 text-zinc-800 dark:bg-zinc-950 dark:text-zinc-200", children: typeof parsedArgs === "object" ? JSON.stringify(parsedArgs, null, 2) : toolCall.args })
+            /* @__PURE__ */ jsx2("pre", { className: "overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-zinc-100 p-2 text-zinc-800 dark:bg-zinc-950 dark:text-zinc-200", children: typeof parsedArgs === "object" ? JSON.stringify(parsedArgs, null, 2) : toolCall.args })
           ] }),
           toolCall.result && /* @__PURE__ */ jsxs2("div", { children: [
             /* @__PURE__ */ jsx2("span", { className: "text-zinc-500 block mb-1", children: "Result:" }),
-            /* @__PURE__ */ jsx2("pre", { className: "overflow-x-auto rounded-lg bg-zinc-100 p-2 text-zinc-800 dark:bg-zinc-950 dark:text-zinc-200", children: typeof parsedResult === "object" ? JSON.stringify(parsedResult, null, 2) : toolCall.result })
+            /* @__PURE__ */ jsx2("pre", { className: "overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-zinc-100 p-2 text-zinc-800 dark:bg-zinc-950 dark:text-zinc-200", children: typeof parsedResult === "object" ? JSON.stringify(parsedResult, null, 2) : toolCall.result })
           ] }),
           subagentGroups.length > 0 && /* @__PURE__ */ jsxs2("div", { children: [
             /* @__PURE__ */ jsxs2("span", { className: "text-zinc-500 mb-1 flex items-center gap-1", children: [
@@ -386,7 +430,7 @@ function ReasoningBlock({ reasoning, isReasoning }) {
         ]
       }
     ),
-    isOpen && /* @__PURE__ */ jsx3("p", { className: "whitespace-pre-wrap border-t border-zinc-200/60 p-2.5 text-zinc-500 dark:border-zinc-800/60 dark:text-zinc-400", children: reasoning })
+    isOpen && /* @__PURE__ */ jsx3("p", { className: "whitespace-pre-wrap break-words border-t border-zinc-200/60 p-2.5 text-zinc-500 dark:border-zinc-800/60 dark:text-zinc-400", children: reasoning })
   ] });
 }
 function PersonaMessageFeed({
@@ -396,6 +440,7 @@ function PersonaMessageFeed({
   error,
   toolRenderers,
   onReload,
+  onOpenFile,
   greeting = "How can I assist you today?",
   className
 }) {
@@ -434,7 +479,7 @@ function PersonaMessageFeed({
               "div",
               {
                 className: cn(
-                  "group relative max-w-[85%] rounded-2xl px-4 py-3 text-xs md:text-sm",
+                  "group relative min-w-0 max-w-[85%] rounded-2xl px-4 py-3 text-xs md:text-sm",
                   isUser ? "bg-zinc-900 text-white font-medium rounded-tr-xs dark:bg-zinc-100 dark:text-zinc-900" : "bg-zinc-100/80 text-zinc-900 rounded-tl-xs border border-zinc-200/60 dark:bg-zinc-900/70 dark:text-zinc-100 dark:border-zinc-800/60"
                 ),
                 children: [
@@ -443,11 +488,12 @@ function PersonaMessageFeed({
                     PersonaToolTrace,
                     {
                       toolCall: tc,
-                      toolRenderers
+                      toolRenderers,
+                      onOpenFile
                     },
                     tc.toolCallId
                   )) }),
-                  /* @__PURE__ */ jsx3("div", { className: "whitespace-pre-wrap", children: msg.content }),
+                  /* @__PURE__ */ jsx3("div", { className: "whitespace-pre-wrap break-words", children: msg.content }),
                   msg.isStreaming && /* @__PURE__ */ jsx3("span", { className: "inline-block size-2 ml-1 rounded-full bg-blue-500 animate-pulse" }),
                   !isUser && !msg.isStreaming && msg.content && /* @__PURE__ */ jsxs3("div", { className: "mt-2 flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100", children: [
                     onReload && /* @__PURE__ */ jsx3(
@@ -600,7 +646,7 @@ import {
   FolderKanban,
   X as X2,
   Trash2 as Trash22,
-  FileText,
+  FileText as FileText2,
   Check as Check3,
   Copy as Copy2,
   Loader2 as Loader23,
@@ -756,7 +802,7 @@ function PersonaFilesDrawer({
                 className: "flex items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white p-2.5 shadow-2xs dark:border-zinc-800/70 dark:bg-zinc-900/60",
                 children: [
                   /* @__PURE__ */ jsxs5("div", { className: "flex min-w-0 items-center gap-2", children: [
-                    /* @__PURE__ */ jsx5(FileText, { className: "size-4 shrink-0 text-blue-500" }),
+                    /* @__PURE__ */ jsx5(FileText2, { className: "size-4 shrink-0 text-blue-500" }),
                     /* @__PURE__ */ jsxs5("div", { className: "min-w-0 truncate", children: [
                       /* @__PURE__ */ jsx5("span", { className: "block truncate text-xs font-medium text-zinc-800 dark:text-zinc-200", children: file.originalName }),
                       /* @__PURE__ */ jsx5("span", { className: "text-[10px] text-zinc-400", children: file.size ? `${(file.size / 1024).toFixed(1)} KB` : "" })
@@ -801,7 +847,7 @@ function PersonaFilesDrawer({
                   )
                 ] })
               ] }),
-              /* @__PURE__ */ jsx5("pre", { className: "mt-2 overflow-x-auto whitespace-pre-wrap rounded-lg bg-zinc-100 p-2.5 font-mono text-[11px] text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200", children: selectedWorkspaceFile.content })
+              /* @__PURE__ */ jsx5("pre", { className: "mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-zinc-100 p-2.5 font-mono text-[11px] text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200", children: selectedWorkspaceFile.content })
             ] }) : /* @__PURE__ */ jsxs5(Fragment2, { children: [
               todos.length > 0 && /* @__PURE__ */ jsxs5("div", { className: "space-y-1.5", children: [
                 /* @__PURE__ */ jsx5("span", { className: "px-0.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500", children: "Plan" }),
@@ -847,7 +893,7 @@ function PersonaFilesDrawer({
                     className: "flex w-full items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white p-2.5 text-left text-xs transition-all hover:bg-zinc-100/70 dark:border-zinc-800/70 dark:bg-zinc-900/60 dark:hover:bg-zinc-900",
                     children: [
                       /* @__PURE__ */ jsxs5("div", { className: "flex min-w-0 items-center gap-2", children: [
-                        /* @__PURE__ */ jsx5(FileText, { className: "size-3.5 shrink-0 text-amber-500" }),
+                        /* @__PURE__ */ jsx5(FileText2, { className: "size-3.5 shrink-0 text-amber-500" }),
                         /* @__PURE__ */ jsx5("span", { className: "truncate text-zinc-800 dark:text-zinc-200", children: path })
                       ] }),
                       /* @__PURE__ */ jsx5("span", { className: "shrink-0 text-[10px] text-zinc-400", children: file.size ? `${(file.size / 1024).toFixed(1)} KB` : "" })
@@ -883,7 +929,7 @@ function PersonaFilesDrawer({
                   )
                 ] })
               ] }),
-              /* @__PURE__ */ jsx5("pre", { className: "mt-2 overflow-x-auto whitespace-pre-wrap rounded-lg bg-zinc-100 p-2.5 font-mono text-[11px] text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200", children: selectedMemory.content })
+              /* @__PURE__ */ jsx5("pre", { className: "mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-zinc-100 p-2.5 font-mono text-[11px] text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200", children: selectedMemory.content })
             ] }) : (memory?.userFiles?.length ?? 0) === 0 && (memory?.agentMemories?.length ?? 0) === 0 ? /* @__PURE__ */ jsx5("p", { className: "py-8 text-center text-xs text-zinc-400", children: "No persistent memory files recorded." }) : /* @__PURE__ */ jsxs5("div", { className: "space-y-4", children: [
               (memory?.userFiles?.length ?? 0) > 0 && /* @__PURE__ */ jsx5("div", { className: "space-y-1.5", children: memory.userFiles.map((f) => /* @__PURE__ */ jsxs5(
                 "button",
@@ -1105,6 +1151,7 @@ function PersonaChatView({
     files: workspaceFiles,
     todos,
     presentedFile,
+    openWorkspaceFile,
     stop,
     reload,
     clear
@@ -1231,6 +1278,7 @@ function PersonaChatView({
               error,
               toolRenderers,
               onReload: reload,
+              onOpenFile: openWorkspaceFile,
               greeting,
               className: classNames.messageList
             }
@@ -1282,7 +1330,7 @@ function PersonaChatView({
 }
 
 // src/index.ts
-var VERSION = "0.3.0";
+var VERSION = "0.3.1";
 export {
   PersonaChatView,
   PersonaComposer,

@@ -28,7 +28,7 @@ function ReasoningBlock({ reasoning, isReasoning }: { reasoning: string; isReaso
         {isOpen ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
       </button>
       {isOpen && (
-        <p className="whitespace-pre-wrap border-t border-zinc-200/60 p-2.5 text-zinc-500 dark:border-zinc-800/60 dark:text-zinc-400">
+        <p className="whitespace-pre-wrap break-words border-t border-zinc-200/60 p-2.5 text-zinc-500 dark:border-zinc-800/60 dark:text-zinc-400">
           {reasoning}
         </p>
       )}
@@ -43,6 +43,8 @@ export interface PersonaMessageFeedProps {
   error?: Error | null;
   toolRenderers?: ToolRendererMap;
   onReload?: () => void;
+  /** Called when a present_file tool card's "Open" button is clicked. */
+  onOpenFile?: (path: string) => void;
   greeting?: string;
   className?: string;
 }
@@ -54,6 +56,7 @@ export function PersonaMessageFeed({
   error,
   toolRenderers,
   onReload,
+  onOpenFile,
   greeting = 'How can I assist you today?',
   className,
 }: PersonaMessageFeedProps) {
@@ -113,7 +116,7 @@ export function PersonaMessageFeed({
 
               <div
                 className={cn(
-                  'group relative max-w-[85%] rounded-2xl px-4 py-3 text-xs md:text-sm',
+                  'group relative min-w-0 max-w-[85%] rounded-2xl px-4 py-3 text-xs md:text-sm',
                   isUser
                     ? 'bg-zinc-900 text-white font-medium rounded-tr-xs dark:bg-zinc-100 dark:text-zinc-900'
                     : 'bg-zinc-100/80 text-zinc-900 rounded-tl-xs border border-zinc-200/60 dark:bg-zinc-900/70 dark:text-zinc-100 dark:border-zinc-800/60'
@@ -132,13 +135,14 @@ export function PersonaMessageFeed({
                         key={tc.toolCallId}
                         toolCall={tc}
                         toolRenderers={toolRenderers}
+                        onOpenFile={onOpenFile}
                       />
                     ))}
                   </div>
                 )}
 
                 {/* Message text */}
-                <div className="whitespace-pre-wrap">{msg.content}</div>
+                <div className="whitespace-pre-wrap break-words">{msg.content}</div>
 
                 {/* Streaming pulse */}
                 {msg.isStreaming && (

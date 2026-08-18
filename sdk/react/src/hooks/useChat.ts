@@ -446,6 +446,14 @@ export function useChat(options: UseChatOptions = {}) {
 
   const dismissPresentedFile = useCallback(() => setPresentedFile(null), []);
 
+  // Manually re-open a workspace file — e.g. a present_file tool card's
+  // "Open" button, after the auto-opened drawer was closed or a different
+  // file was selected since.
+  const openWorkspaceFile = useCallback(
+    (path: string) => setPresentedFile({ path, title: path.split('/').pop() || path, description: '' }),
+    []
+  );
+
   return {
     messages,
     input,
@@ -463,6 +471,7 @@ export function useChat(options: UseChatOptions = {}) {
     todos,
     presentedFile,
     dismissPresentedFile,
+    openWorkspaceFile,
     stop,
     reload,
     clear,

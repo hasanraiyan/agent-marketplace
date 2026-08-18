@@ -4,7 +4,17 @@ import React, { useState, useMemo } from 'react';
 import type { PersonaSubagentActivityEntry, PersonaToolCall } from '@personaai/react';
 import type { ToolRendererMap } from '../types.js';
 import { cn } from '../utils/cn.js';
-import { Wrench, ChevronDown, ChevronRight, CheckCircle2, AlertCircle, Loader2, ArrowRight, Bot } from 'lucide-react';
+import {
+  Wrench,
+  ChevronDown,
+  ChevronRight,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  ArrowRight,
+  Bot,
+  FileText,
+} from 'lucide-react';
 
 // Consecutive live-token deltas from the subagent's own model stream arrive
 // as one entry per chunk — merge adjacent 'text' entries into one paragraph
@@ -35,12 +45,15 @@ function groupSubagentActivity(entries: PersonaSubagentActivityEntry[]) {
 export interface PersonaToolTraceProps {
   toolCall: PersonaToolCall;
   toolRenderers?: ToolRendererMap;
+  /** Called when the user clicks "Open" on a present_file card. */
+  onOpenFile?: (path: string) => void;
   className?: string;
 }
 
 export function PersonaToolTrace({
   toolCall,
   toolRenderers,
+  onOpenFile,
   className,
 }: PersonaToolTraceProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -86,10 +99,52 @@ export function PersonaToolTrace({
     );
   }
 
+  // present_file's whole purpose is "highlight this file for the user" — a
+  // generic JSON-args/JSON-result accordion defeats that. Render a compact
+  // open-file card instead, matching persona.hasanraiyan.me's own frontend.
+  if (toolCall.toolName === 'present_file' && !toolCall.isError) {
+    const args = (typeof parsedArgs === 'object' && parsedArgs) || {};
+    const filePath = args.filePath || args.path || '';
+    const fileName = filePath.split('/').pop() || filePath || 'file';
+    const description = args.description || '';
+
+    return (
+      <div
+        className={cn(
+          'my-2 flex min-w-0 items-center justify-between gap-2 rounded-xl border border-zinc-200/80 bg-zinc-50/50 p-2.5 text-xs dark:border-zinc-800/80 dark:bg-zinc-900/40',
+          className
+        )}
+      >
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+            <FileText className="size-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="truncate text-xs font-semibold text-zinc-800 dark:text-zinc-100">
+              {fileName}
+            </div>
+            <p className="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
+              {description || filePath}
+            </p>
+          </div>
+        </div>
+        {filePath && (
+          <button
+            type="button"
+            onClick={() => onOpenFile?.(filePath)}
+            className="shrink-0 rounded-lg border border-zinc-200 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            Open
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
-        'my-2 overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-50/50 text-xs dark:border-zinc-800/80 dark:bg-zinc-900/40',
+        'my-2 min-w-0 overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-50/50 text-xs dark:border-zinc-800/80 dark:bg-zinc-900/40',
         className
       )}
     >
@@ -131,7 +186,7 @@ export function PersonaToolTrace({
           {toolCall.args && (
             <div>
               <span className="text-zinc-500 block mb-1">Arguments:</span>
-              <pre className="overflow-x-auto rounded-lg bg-zinc-100 p-2 text-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
+              <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-zinc-100 p-2 text-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
                 {typeof parsedArgs === 'object' ? JSON.stringify(parsedArgs, null, 2) : toolCall.args}
               </pre>
             </div>
@@ -140,7 +195,7 @@ export function PersonaToolTrace({
           {toolCall.result && (
             <div>
               <span className="text-zinc-500 block mb-1">Result:</span>
-              <pre className="overflow-x-auto rounded-lg bg-zinc-100 p-2 text-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
+              <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-zinc-100 p-2 text-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
                 {typeof parsedResult === 'object' ? JSON.stringify(parsedResult, null, 2) : toolCall.result}
               </pre>
             </div>

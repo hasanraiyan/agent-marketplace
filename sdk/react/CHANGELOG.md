@@ -3,6 +3,12 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.3.2
+
+- **New: `openWorkspaceFile(path)`** on `useChat` — manually re-opens a workspace file (sets
+  `presentedFile`), for UI affordances like a `present_file` tool card's "Open" button that need
+  to re-trigger the same drawer-open flow the live tool call originally did.
+
 ## 0.3.1
 
 - Fixed `PersonaWorkspaceFile`'s `createdAt`/`modifiedAt`: the wire field

@@ -61,6 +61,7 @@ export function PersonaChatView({
     files: workspaceFiles,
     todos,
     presentedFile,
+    openWorkspaceFile,
     stop,
     reload,
     clear,
@@ -191,6 +192,7 @@ export function PersonaChatView({
             error={error}
             toolRenderers={toolRenderers}
             onReload={reload}
+            onOpenFile={openWorkspaceFile}
             greeting={greeting}
             className={classNames.messageList}
           />

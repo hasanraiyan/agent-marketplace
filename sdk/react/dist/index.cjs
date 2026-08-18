@@ -416,6 +416,10 @@ function useChat(options = {}) {
     [sendMessage]
   );
   const dismissPresentedFile = (0, import_react2.useCallback)(() => setPresentedFile(null), []);
+  const openWorkspaceFile = (0, import_react2.useCallback)(
+    (path) => setPresentedFile({ path, title: path.split("/").pop() || path, description: "" }),
+    []
+  );
   return {
     messages,
     input,
@@ -433,6 +437,7 @@ function useChat(options = {}) {
     todos,
     presentedFile,
     dismissPresentedFile,
+    openWorkspaceFile,
     stop,
     reload,
     clear,
@@ -823,7 +828,7 @@ function useConnection(autoCheck = true) {
 }
 
 // src/index.ts
-var VERSION = "0.3.1";
+var VERSION = "0.3.2";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   PersonaProvider,

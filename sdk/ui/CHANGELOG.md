@@ -3,6 +3,23 @@
 All notable changes to `@personaai/ui` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.3.1
+
+Requires `@personaai/react` ^0.3.2.
+
+- **New: `present_file` tool card** — `PersonaToolTrace` special-cases `present_file` into a
+  compact "open this file" card (icon, filename, description, Open button), matching
+  persona.hasanraiyan.me's own frontend, instead of falling through to the generic
+  args/result JSON accordion — which for this tool's `{status,filePath,title,description}`
+  result was a raw JSON dump with no way to actually act on it. The Open button calls
+  `useChat`'s new `openWorkspaceFile`, re-triggering the same drawer-open flow presenting the
+  file live already does.
+- **Fixed: tool card content could overflow and stretch the whole message bubble.** The
+  args/result `<pre>` blocks had no `whitespace-pre-wrap`/`break-words`, and the message bubble
+  had no `min-w-0` — a long unbroken value (a URL, a hash, a base64 blob) in a tool's JSON could
+  force the bubble wider than its `max-w-[85%]` cap instead of wrapping inside it. Same fix
+  applied to `PersonaFilesDrawer`'s memory/workspace file content viewers.
+
 ## 0.3.0
 
 Requires `@personaai/react` ^0.3.0.

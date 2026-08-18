@@ -263,6 +263,7 @@ declare function useChat(options?: UseChatOptions): {
     todos: PersonaTodo[];
     presentedFile: PersonaPresentedFile | null;
     dismissPresentedFile: () => void;
+    openWorkspaceFile: (path: string) => void;
     stop: () => void;
     reload: () => void;
     clear: () => void;
@@ -365,6 +366,6 @@ declare function useConnection(autoCheck?: boolean): {
     checkHealth: () => Promise<PersonaHealthInfo | null>;
 };
 
-declare const VERSION = "0.3.1";
+declare const VERSION = "0.3.2";
 
 export { type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaWorkspaceFile, type SendMessageOverride, type UseChatOptions, VERSION, useAgents, useChat, useConnection, useFiles, useMemory, usePersonaContext, useThreads };

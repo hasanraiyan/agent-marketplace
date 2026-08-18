@@ -241,7 +241,7 @@ export function PersonaFilesDrawer({
                       </button>
                     </div>
                   </div>
-                  <pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded-lg bg-zinc-100 p-2.5 font-mono text-[11px] text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
+                  <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-zinc-100 p-2.5 font-mono text-[11px] text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
                     {selectedWorkspaceFile.content}
                   </pre>
                 </div>
@@ -341,7 +341,7 @@ export function PersonaFilesDrawer({
                       </button>
                     </div>
                   </div>
-                  <pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded-lg bg-zinc-100 p-2.5 font-mono text-[11px] text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
+                  <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-zinc-100 p-2.5 font-mono text-[11px] text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
                     {selectedMemory.content}
                   </pre>
                 </div>

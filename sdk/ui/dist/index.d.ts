@@ -88,17 +88,21 @@ interface PersonaMessageFeedProps {
     error?: Error | null;
     toolRenderers?: ToolRendererMap;
     onReload?: () => void;
+    /** Called when a present_file tool card's "Open" button is clicked. */
+    onOpenFile?: (path: string) => void;
     greeting?: string;
     className?: string;
 }
-declare function PersonaMessageFeed({ messages, isStreaming, isLoading, error, toolRenderers, onReload, greeting, className, }: PersonaMessageFeedProps): React.JSX.Element;
+declare function PersonaMessageFeed({ messages, isStreaming, isLoading, error, toolRenderers, onReload, onOpenFile, greeting, className, }: PersonaMessageFeedProps): React.JSX.Element;
 
 interface PersonaToolTraceProps {
     toolCall: PersonaToolCall;
     toolRenderers?: ToolRendererMap;
+    /** Called when the user clicks "Open" on a present_file card. */
+    onOpenFile?: (path: string) => void;
     className?: string;
 }
-declare function PersonaToolTrace({ toolCall, toolRenderers, className, }: PersonaToolTraceProps): React.JSX.Element;
+declare function PersonaToolTrace({ toolCall, toolRenderers, onOpenFile, className, }: PersonaToolTraceProps): React.JSX.Element;
 
 interface PersonaFilesDrawerProps {
     isOpen: boolean;
@@ -125,6 +129,6 @@ interface PersonaInterruptCardProps {
 }
 declare function PersonaInterruptCard({ interrupt, onRespond, isStreaming, className, }: PersonaInterruptCardProps): React.JSX.Element;
 
-declare const VERSION = "0.3.0";
+declare const VERSION = "0.3.1";
 
 export { type ClassNamesOverride, PersonaChatView, type PersonaChatViewProps, PersonaComposer, type PersonaComposerProps, type PersonaCustomTheme, PersonaFilesDrawer, type PersonaFilesDrawerProps, PersonaInterruptCard, type PersonaInterruptCardProps, PersonaMessageFeed, type PersonaMessageFeedProps, PersonaSidebar, type PersonaSidebarProps, PersonaToolTrace, type PersonaToolTraceProps, type StarterPromptItem, type ToolRendererMap, type ToolRendererProps, VERSION, cn };

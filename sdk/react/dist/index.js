@@ -382,6 +382,10 @@ function useChat(options = {}) {
     [sendMessage]
   );
   const dismissPresentedFile = useCallback(() => setPresentedFile(null), []);
+  const openWorkspaceFile = useCallback(
+    (path) => setPresentedFile({ path, title: path.split("/").pop() || path, description: "" }),
+    []
+  );
   return {
     messages,
     input,
@@ -399,6 +403,7 @@ function useChat(options = {}) {
     todos,
     presentedFile,
     dismissPresentedFile,
+    openWorkspaceFile,
     stop,
     reload,
     clear,
@@ -789,7 +794,7 @@ function useConnection(autoCheck = true) {
 }
 
 // src/index.ts
-var VERSION = "0.3.1";
+var VERSION = "0.3.2";
 export {
   PersonaProvider,
   VERSION,
