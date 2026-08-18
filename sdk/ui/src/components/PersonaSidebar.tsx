@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import type { PersonaThread } from '@personaai/react';
 import { cn } from '../utils/cn.js';
 import { Plus, MessageSquare, Trash2, Edit2, Check, X, Search, ChevronRight } from 'lucide-react';
+import { PersonaThreadSkeletonRow } from './PersonaSkeleton.js';
 
 export interface PersonaSidebarProps {
   threads: PersonaThread[];
@@ -14,6 +15,8 @@ export interface PersonaSidebarProps {
   onRenameThread?: (threadId: string, newTitle: string) => void;
   /** Dismisses the sidebar on mobile, where it overlays instead of docking inline. */
   onClose?: () => void;
+  /** Shows thread-row placeholders instead of the empty state while the initial list loads. */
+  isLoading?: boolean;
   className?: string;
 }
 
@@ -59,6 +62,7 @@ export function PersonaSidebar({
   onDeleteThread,
   onRenameThread,
   onClose,
+  isLoading,
   className,
 }: PersonaSidebarProps) {
   const [search, setSearch] = useState('');
@@ -198,7 +202,7 @@ export function PersonaSidebar({
       />
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-30 flex w-72 max-w-[80vw] flex-col border-r border-zinc-200 bg-zinc-50 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900',
+          'fixed inset-y-0 left-0 z-30 flex w-72 max-w-[80vw] flex-col border-r border-[var(--persona-border,#e4e4e7)] bg-[var(--persona-card,#fafafa)] shadow-2xl dark:border-[var(--persona-border,#27272a)] dark:bg-[var(--persona-card,#18181b)]',
           'md:static md:z-auto md:w-60 md:max-w-none md:shadow-none',
           className
         )}
@@ -208,7 +212,7 @@ export function PersonaSidebar({
         <button
           type="button"
           onClick={onCreateThread}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-xs font-semibold text-zinc-800 shadow-sm transition-all hover:bg-zinc-100 active:scale-[0.98] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--persona-border,#e4e4e7)] bg-[var(--persona-bg,#ffffff)] px-4 py-2.5 text-xs font-semibold text-[var(--persona-text,#27272a)] shadow-sm transition-all hover:bg-zinc-100 active:scale-[0.98] dark:border-[var(--persona-border,#3f3f46)] dark:bg-[var(--persona-bg,#27272a)] dark:text-[var(--persona-text,#f4f4f5)] dark:hover:bg-zinc-700"
         >
           <Plus className="size-3.5" />
           <span>New Chat</span>
@@ -223,14 +227,20 @@ export function PersonaSidebar({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search conversations..."
-            className="w-full rounded-xl border border-zinc-200 bg-white py-1.5 pl-8 pr-3 text-xs text-zinc-800 placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
+            className="w-full rounded-xl border border-[var(--persona-border,#e4e4e7)] bg-[var(--persona-bg,#ffffff)] py-1.5 pl-8 pr-3 text-xs text-[var(--persona-text,#27272a)] placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none dark:border-[var(--persona-border,#27272a)] dark:bg-[var(--persona-bg,#18181b)] dark:text-[var(--persona-text,#f4f4f5)]"
           />
         </div>
       )}
 
       {/* Grouped Thread List */}
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1 scrollbar-thin">
-        {filteredThreads.length === 0 ? (
+        {isLoading && filteredThreads.length === 0 ? (
+          <div className="space-y-0.5">
+            <PersonaThreadSkeletonRow />
+            <PersonaThreadSkeletonRow />
+            <PersonaThreadSkeletonRow />
+          </div>
+        ) : filteredThreads.length === 0 ? (
           <p className="p-4 text-center text-xs text-zinc-400">No past conversations.</p>
         ) : (
           <>

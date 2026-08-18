@@ -40,11 +40,14 @@ export function PersonaChatView({
     threads,
     deleteThread,
     renameThread,
+    threadsLoading,
     files,
     deleteFile,
+    filesLoading,
     memory,
     getMemoryFile,
     deleteMemoryFile,
+    memoryLoading,
     messages,
     input,
     setInput,
@@ -77,7 +80,7 @@ export function PersonaChatView({
       style={themeStyles}
       className={cn(
         // Fill whatever height the host container provides — no internal height set
-        'flex w-full overflow-hidden bg-white font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100',
+        'flex w-full overflow-hidden bg-[var(--persona-bg,#ffffff)] font-sans text-[var(--persona-text,#18181b)] dark:bg-[var(--persona-bg,#09090b)] dark:text-[var(--persona-text,#f4f4f5)]',
         // Host page is responsible for the height; component just fills it
         'h-full min-h-0',
         classNames.root,
@@ -94,6 +97,7 @@ export function PersonaChatView({
           onDeleteThread={deleteThread}
           onRenameThread={renameThread}
           onClose={() => setSidebarOpen(false)}
+          isLoading={threadsLoading}
           className={classNames.sidebar}
         />
       )}
@@ -102,7 +106,7 @@ export function PersonaChatView({
       <div className={cn('flex min-h-0 flex-1 flex-col', classNames.main)}>
 
         {/* Toolbar */}
-        <div className="flex h-11 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-3 dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="flex h-11 shrink-0 items-center justify-between border-b border-[var(--persona-border,#e4e4e7)] bg-[var(--persona-bg,#ffffff)] px-3 dark:border-[var(--persona-border,#27272a)] dark:bg-[var(--persona-bg,#09090b)]">
           <div className="flex items-center gap-1.5">
             <button
               type="button"
@@ -111,7 +115,7 @@ export function PersonaChatView({
             >
               {sidebarOpen ? <PanelLeftClose className="size-4" /> : <PanelLeft className="size-4" />}
             </button>
-            <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{title}</span>
+            <span className="text-sm font-semibold text-[var(--persona-text,#27272a)] dark:text-[var(--persona-text,#e4e4e7)]">{title}</span>
           </div>
 
           {showFilesDrawer && (
@@ -160,7 +164,7 @@ export function PersonaChatView({
 
         {/* Paused HITL approval / clarification question */}
         {interrupt && (
-          <div className="shrink-0 border-t border-zinc-100 bg-white px-3 pt-3 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="shrink-0 border-t border-[var(--persona-border,#f4f4f5)] bg-[var(--persona-bg,#ffffff)] px-3 pt-3 dark:border-[var(--persona-border,#27272a)] dark:bg-[var(--persona-bg,#09090b)]">
             <PersonaInterruptCard
               interrupt={interrupt}
               isStreaming={isStreaming}
@@ -171,7 +175,7 @@ export function PersonaChatView({
 
         {/* Composer — always visible at bottom, never clipped */}
         <div className={cn(
-          'shrink-0 border-t border-zinc-100 bg-white px-3 pb-4 pt-3 dark:border-zinc-800 dark:bg-zinc-950',
+          'shrink-0 border-t border-[var(--persona-border,#f4f4f5)] bg-[var(--persona-bg,#ffffff)] px-3 pb-4 pt-3 dark:border-[var(--persona-border,#27272a)] dark:bg-[var(--persona-bg,#09090b)]',
           classNames.composer
         )}>
           <PersonaComposer
@@ -200,6 +204,8 @@ export function PersonaChatView({
           onDeleteFile={deleteFile}
           onGetMemoryFile={(path) => getMemoryFile({ path })}
           onDeleteMemoryFile={(path) => deleteMemoryFile({ path })}
+          isFilesLoading={filesLoading}
+          isMemoryLoading={memoryLoading}
           className={classNames.filesDrawer}
         />
       )}

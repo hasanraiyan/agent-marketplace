@@ -8,6 +8,7 @@ import { PersonaToolTrace } from './PersonaToolTrace.js';
 import { PersonaToolGroup } from './PersonaToolGroup.js';
 import { PersonaMarkdown } from './PersonaMarkdown.js';
 import { groupToolCalls, type PersonaToolClusterLabels } from '../utils/toolGrouping.js';
+import { PersonaMessageSkeletonRow } from './PersonaSkeleton.js';
 import { Bot, User, Check, Copy, RotateCcw, Sparkles, BrainCircuit, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 
 function ReasoningBlock({ reasoning, isReasoning }: { reasoning: string; isReasoning?: boolean }) {
@@ -92,8 +93,10 @@ export function PersonaMessageFeed({
 
   if (messages.length === 0 && isLoading) {
     return (
-      <div className={cn('flex min-h-0 flex-1 items-center justify-center p-8', className)}>
-        <div className="size-5 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-700 dark:border-t-zinc-300" />
+      <div className={cn('flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4', className)}>
+        <PersonaMessageSkeletonRow align="left" />
+        <PersonaMessageSkeletonRow align="right" />
+        <PersonaMessageSkeletonRow align="left" />
       </div>
     );
   }

@@ -65,7 +65,7 @@ export function PersonaChatLauncher({
       {isOpen && (
         <div
           className={cn(
-            'fixed bottom-24 z-40 flex max-h-[calc(100vh-7rem)] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950',
+            'fixed bottom-24 z-40 flex max-h-[calc(100vh-7rem)] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-[var(--persona-border,#e4e4e7)] bg-[var(--persona-bg,#ffffff)] shadow-2xl dark:border-[var(--persona-border,#27272a)] dark:bg-[var(--persona-bg,#09090b)]',
             isRight ? 'right-6' : 'left-6',
             panelClassName
           )}

@@ -1,0 +1,19 @@
+/*
+ * Built into dist/styles.css by `npm run build:css` (see package.json and
+ * scripts/append-katex.mjs) — a self-contained, fully-expanded stylesheet a
+ * consumer imports once (`import "@personaai/ui/styles.css"`) instead of
+ * having to configure their own Tailwind's content scanning to reach into
+ * this package's dist, or separately import katex/dist/katex.min.css.
+ *
+ * Deliberately imports only `theme` + `utilities`, not the full
+ * `"tailwindcss"` entrypoint: that also pulls in Preflight, a global CSS
+ * reset (margin/border/font resets on `*`, `h1`-`h6`, `button`, etc.) meant
+ * to apply once at the app root. Shipping Preflight inside a component
+ * library's stylesheet would silently reset every unrelated element in the
+ * CONSUMER's whole app the moment they import this file, not just this
+ * package's own components.
+ */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+
+@source "./**/*.{ts,tsx}";

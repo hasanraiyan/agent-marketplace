@@ -20,6 +20,8 @@ export function buildThemeStyles(theme: PersonaCustomTheme | undefined): CSSProp
     '--persona-bg': theme.backgroundColor,
     '--persona-card': theme.cardBackgroundColor,
     '--persona-text': theme.textColor,
+    '--persona-muted-text': theme.mutedTextColor,
+    '--persona-border': theme.borderColor,
     '--persona-user-bg': theme.userMessageBg,
     '--persona-user-text': theme.userMessageText,
     '--persona-assistant-bg': theme.assistantMessageBg,

@@ -10,6 +10,7 @@ import type {
   PersonaPresentedFile,
 } from '@personaai/react';
 import { cn } from '../utils/cn.js';
+import { PersonaFileSkeletonRow } from './PersonaSkeleton.js';
 import {
   Files,
   Brain,
@@ -38,6 +39,10 @@ export interface PersonaFilesDrawerProps {
   onDeleteFile?: (fileId: string) => void;
   onGetMemoryFile?: (path: string) => Promise<PersonaMemoryFile>;
   onDeleteMemoryFile?: (path: string) => Promise<void>;
+  /** Shows row placeholders on the Files tab instead of the empty state while the initial list loads. */
+  isFilesLoading?: boolean;
+  /** Shows row placeholders on the Memory tab instead of the empty state while the initial list loads. */
+  isMemoryLoading?: boolean;
   className?: string;
 }
 
@@ -58,6 +63,8 @@ export function PersonaFilesDrawer({
   onDeleteFile,
   onGetMemoryFile,
   onDeleteMemoryFile,
+  isFilesLoading,
+  isMemoryLoading,
   className,
 }: PersonaFilesDrawerProps) {
   const [tab, setTab] = useState<'files' | 'workspace' | 'memory'>('files');
@@ -109,22 +116,22 @@ export function PersonaFilesDrawer({
       />
       <aside
         className={cn(
-          'fixed inset-y-0 right-0 z-30 flex w-full max-w-xs flex-col border-l border-zinc-200/80 bg-white shadow-2xl dark:border-zinc-800/80 dark:bg-zinc-950 sm:max-w-sm',
-          'lg:static lg:z-auto lg:w-80 lg:max-w-none lg:shrink-0 lg:bg-zinc-50/50 lg:shadow-none lg:backdrop-blur-md lg:dark:bg-zinc-950/50',
+          'fixed inset-y-0 right-0 z-30 flex w-full max-w-xs flex-col border-l border-[var(--persona-border,#e4e4e7)]/80 bg-[var(--persona-bg,#ffffff)] shadow-2xl dark:border-[var(--persona-border,#27272a)]/80 dark:bg-[var(--persona-bg,#09090b)] sm:max-w-sm',
+          'lg:static lg:z-auto lg:w-80 lg:max-w-none lg:shrink-0 lg:bg-[var(--persona-card,#fafafa)]/50 lg:shadow-none lg:backdrop-blur-md lg:dark:bg-[var(--persona-card,#09090b)]/50',
           className
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between gap-2 border-b border-zinc-200/80 p-3 dark:border-zinc-800/80">
+        <div className="flex items-center justify-between gap-2 border-b border-[var(--persona-border,#e4e4e7)]/80 p-3 dark:border-[var(--persona-border,#27272a)]/80">
           {/* Tab switcher */}
-          <div className="flex min-w-0 rounded-xl bg-zinc-200/60 p-0.5 dark:bg-zinc-800/60">
+          <div className="flex min-w-0 rounded-xl bg-[var(--persona-border,#e4e4e7)]/60 p-0.5 dark:bg-[var(--persona-border,#27272a)]/60">
             <button
               type="button"
               onClick={() => setTab('files')}
               className={cn(
                 'flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium transition-all',
                 tab === 'files'
-                  ? 'bg-white text-zinc-900 shadow-xs dark:bg-zinc-900 dark:text-zinc-100'
+                  ? 'bg-[var(--persona-card,#ffffff)] text-[var(--persona-text,#18181b)] shadow-xs dark:bg-[var(--persona-card,#18181b)] dark:text-[var(--persona-text,#f4f4f5)]'
                   : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'
               )}
             >
@@ -139,7 +146,7 @@ export function PersonaFilesDrawer({
               className={cn(
                 'flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium transition-all',
                 tab === 'workspace'
-                  ? 'bg-white text-zinc-900 shadow-xs dark:bg-zinc-900 dark:text-zinc-100'
+                  ? 'bg-[var(--persona-card,#ffffff)] text-[var(--persona-text,#18181b)] shadow-xs dark:bg-[var(--persona-card,#18181b)] dark:text-[var(--persona-text,#f4f4f5)]'
                   : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'
               )}
             >
@@ -156,7 +163,7 @@ export function PersonaFilesDrawer({
               className={cn(
                 'flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium transition-all',
                 tab === 'memory'
-                  ? 'bg-white text-zinc-900 shadow-xs dark:bg-zinc-900 dark:text-zinc-100'
+                  ? 'bg-[var(--persona-card,#ffffff)] text-[var(--persona-text,#18181b)] shadow-xs dark:bg-[var(--persona-card,#18181b)] dark:text-[var(--persona-text,#f4f4f5)]'
                   : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'
               )}
             >
@@ -182,13 +189,19 @@ export function PersonaFilesDrawer({
           {tab === 'files' ? (
             /* Uploaded files list */
             <div className="space-y-2">
-              {files.length === 0 ? (
+              {isFilesLoading && files.length === 0 ? (
+                <>
+                  <PersonaFileSkeletonRow />
+                  <PersonaFileSkeletonRow />
+                  <PersonaFileSkeletonRow />
+                </>
+              ) : files.length === 0 ? (
                 <p className="py-8 text-center text-xs text-zinc-400">No uploaded files yet.</p>
               ) : (
                 files.map((file) => (
                   <div
                     key={file.id}
-                    className="flex items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white p-2.5 shadow-2xs dark:border-zinc-800/70 dark:bg-zinc-900/60"
+                    className="flex items-center justify-between gap-2 rounded-xl border border-[var(--persona-border,#e4e4e7)]/70 bg-[var(--persona-card,#ffffff)] p-2.5 shadow-2xs dark:border-[var(--persona-border,#27272a)]/70 dark:bg-[var(--persona-card,#18181b)]/60"
                   >
                     <div className="flex min-w-0 items-center gap-2">
                       <FileText className="size-4 shrink-0 text-blue-500" />
@@ -257,7 +270,7 @@ export function PersonaFilesDrawer({
                         return (
                           <div
                             key={i}
-                            className="flex items-start gap-2 rounded-xl border border-zinc-200/70 bg-white p-2 text-xs dark:border-zinc-800/70 dark:bg-zinc-900/60"
+                            className="flex items-start gap-2 rounded-xl border border-[var(--persona-border,#e4e4e7)]/70 bg-[var(--persona-card,#ffffff)] p-2 text-xs dark:border-[var(--persona-border,#27272a)]/70 dark:bg-[var(--persona-card,#18181b)]/60"
                           >
                             <Icon
                               className={cn(
@@ -299,7 +312,7 @@ export function PersonaFilesDrawer({
                           key={path}
                           type="button"
                           onClick={() => setSelectedWorkspacePath(path)}
-                          className="flex w-full items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white p-2.5 text-left text-xs transition-all hover:bg-zinc-100/70 dark:border-zinc-800/70 dark:bg-zinc-900/60 dark:hover:bg-zinc-900"
+                          className="flex w-full items-center justify-between gap-2 rounded-xl border border-[var(--persona-border,#e4e4e7)]/70 bg-[var(--persona-card,#ffffff)] p-2.5 text-left text-xs transition-all hover:bg-zinc-100/70 dark:border-[var(--persona-border,#27272a)]/70 dark:bg-[var(--persona-card,#18181b)]/60 dark:hover:bg-zinc-900"
                         >
                           <div className="flex min-w-0 items-center gap-2">
                             <FileText className="size-3.5 shrink-0 text-amber-500" />
@@ -345,6 +358,12 @@ export function PersonaFilesDrawer({
                     {selectedMemory.content}
                   </pre>
                 </div>
+              ) : isMemoryLoading && (memory?.userFiles?.length ?? 0) === 0 && (memory?.agentMemories?.length ?? 0) === 0 ? (
+                <div className="space-y-2">
+                  <PersonaFileSkeletonRow />
+                  <PersonaFileSkeletonRow />
+                  <PersonaFileSkeletonRow />
+                </div>
               ) : (memory?.userFiles?.length ?? 0) === 0 && (memory?.agentMemories?.length ?? 0) === 0 ? (
                 <p className="py-8 text-center text-xs text-zinc-400">No persistent memory files recorded.</p>
               ) : (
@@ -356,7 +375,7 @@ export function PersonaFilesDrawer({
                           key={f.path}
                           type="button"
                           onClick={() => viewMemoryFile(f.path)}
-                          className="flex w-full items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white p-2.5 text-left text-xs transition-all hover:bg-zinc-100/70 dark:border-zinc-800/70 dark:bg-zinc-900/60 dark:hover:bg-zinc-900"
+                          className="flex w-full items-center justify-between gap-2 rounded-xl border border-[var(--persona-border,#e4e4e7)]/70 bg-[var(--persona-card,#ffffff)] p-2.5 text-left text-xs transition-all hover:bg-zinc-100/70 dark:border-[var(--persona-border,#27272a)]/70 dark:bg-[var(--persona-card,#18181b)]/60 dark:hover:bg-zinc-900"
                         >
                           <div className="flex min-w-0 items-center gap-2">
                             <Brain className="size-3.5 shrink-0 text-purple-500" />
@@ -378,7 +397,7 @@ export function PersonaFilesDrawer({
                           key={f.path}
                           type="button"
                           onClick={() => viewMemoryFile(f.path)}
-                          className="flex w-full items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-white p-2.5 text-left text-xs transition-all hover:bg-zinc-100/70 dark:border-zinc-800/70 dark:bg-zinc-900/60 dark:hover:bg-zinc-900"
+                          className="flex w-full items-center justify-between gap-2 rounded-xl border border-[var(--persona-border,#e4e4e7)]/70 bg-[var(--persona-card,#ffffff)] p-2.5 text-left text-xs transition-all hover:bg-zinc-100/70 dark:border-[var(--persona-border,#27272a)]/70 dark:bg-[var(--persona-card,#18181b)]/60 dark:hover:bg-zinc-900"
                         >
                           <div className="flex min-w-0 items-center gap-2">
                             <Brain className="size-3.5 shrink-0 text-purple-500" />

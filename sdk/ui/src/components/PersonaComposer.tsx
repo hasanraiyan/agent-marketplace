@@ -71,8 +71,8 @@ export function PersonaComposer({
         </div>
       )}
 
-      {/* Floating Card Container — explicit bg-white so children inherit correctly */}
-      <div className="relative flex flex-col rounded-2xl border border-zinc-200 bg-white p-2.5 shadow-sm transition-all focus-within:border-zinc-400 focus-within:ring-2 focus-within:ring-zinc-400/20 dark:border-zinc-700 dark:bg-zinc-900">
+      {/* Floating Card Container */}
+      <div className="relative flex flex-col rounded-2xl border border-[var(--persona-border,#e4e4e7)] bg-[var(--persona-card,#ffffff)] p-2.5 shadow-sm transition-all focus-within:border-zinc-400 focus-within:ring-2 focus-within:ring-zinc-400/20 dark:border-[var(--persona-border,#3f3f46)] dark:bg-[var(--persona-card,#18181b)]">
         <textarea
           ref={textareaRef}
           value={input}
@@ -81,8 +81,7 @@ export function PersonaComposer({
           placeholder={placeholder}
           rows={1}
           disabled={disabled}
-          style={{ color: '#111827' }}
-          className="w-full resize-none bg-transparent px-2.5 pt-1.5 pb-2 text-sm leading-relaxed placeholder:text-zinc-400 focus:outline-none dark:placeholder:text-zinc-500 dark:!text-zinc-100"
+          className="w-full resize-none bg-transparent px-2.5 pt-1.5 pb-2 text-sm leading-relaxed text-[var(--persona-text,#111827)] placeholder:text-zinc-400 focus:outline-none dark:text-[var(--persona-text,#f4f4f5)] dark:placeholder:text-zinc-500"
         />
 
         {/* Toolbar: Attachments on left, Send/Stop on right */}

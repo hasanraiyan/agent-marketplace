@@ -3,6 +3,41 @@
 All notable changes to `@personaai/ui` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.7.0
+
+- **Fix: `theme` prop now actually themes the whole widget, not just message bubbles.**
+  `buildThemeStyles` always set `--persona-bg`, `--persona-card`, and `--persona-text` as CSS
+  variables, but no component ever read them — every panel, header, sidebar, files drawer,
+  composer, and tool-trace card was hardcoded to literal `bg-white`/`dark:bg-zinc-950` etc., so a
+  themed app's own colors never reached anything but the primary button and message bubbles.
+  `PersonaChatView`, `PersonaChatLauncher`, `PersonaSidebar`, `PersonaFilesDrawer`, and
+  `PersonaComposer` now read `--persona-bg`/`--persona-card`/`--persona-text` (with the same
+  literal zinc fallbacks as before, so an unthemed app is visually unchanged). Also removed a
+  leftover hardcoded `color: '#111827'` inline style on the composer's textarea that silently
+  overrode any text theming in light mode.
+  - **New theme fields**: `PersonaCustomTheme.borderColor` (`--persona-border`) and
+    `mutedTextColor` (`--persona-muted-text`), needed to theme borders and secondary text
+    alongside backgrounds. Since every value is just a CSS custom property, passing a consumer's
+    own `var(--my-primary)` etc. as the theme values works too — the persona vars become
+    indirections into the consumer's own tokens, correctly picking up whatever light/dark
+    switching the consumer already has, no extra JS required.
+- **New: skeleton loading states.** `useThreads`/`useFiles`/`useMemory` already exposed
+  `isLoading`, but nothing consumed it and no skeleton UI existed — a slow thread list flashed
+  "No past conversations" before the real list arrived. Added a shared `PersonaSkeleton`
+  primitive (themed via the same CSS vars) and wired loading state through
+  `usePersonaChatWidget` into `PersonaMessageFeed` (shimmering message-bubble placeholders,
+  replacing the old bare spinner), `PersonaSidebar` (thread-row placeholders), and
+  `PersonaFilesDrawer` (file/memory-row placeholders on both tabs).
+- **New: a real, self-contained `dist/styles.css`.** `package.json` already exported
+  `./styles.css`, but the file never existed — consumers had to manually add a Tailwind `@source`
+  directive pointing at this package's compiled JS (to make their own Tailwind scan it) and
+  separately `import "katex/dist/katex.min.css"` for LaTeX rendering, both undocumented and easy
+  to miss (the root cause behind more than one "everything's unstyled" report). `npm run build`
+  now runs the Tailwind v4 CLI against this package's own source (`theme` + `utilities` layers
+  only — deliberately skipping Preflight, which would otherwise reset the CONSUMER's whole app on
+  import) and appends `katex.min.css` plus its font files. One import now replaces both:
+  `import "@personaai/ui/styles.css"`.
+
 ## 0.6.0
 
 - **New: `usePersonaChatWidget`** — every stateful/behavioral piece `PersonaChatView` is built on

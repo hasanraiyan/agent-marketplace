@@ -42,9 +42,20 @@ export function usePersonaChatWidget(options: UsePersonaChatWidgetOptions = {}) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const { threads, createThread, deleteThread, renameThread } = useThreads();
-  const { files, uploadFile, deleteFile } = useFiles();
-  const { memory, getFile: getMemoryFile, deleteFile: deleteMemoryFile } = useMemory();
+  const {
+    threads,
+    createThread,
+    deleteThread,
+    renameThread,
+    isLoading: threadsLoading,
+  } = useThreads();
+  const { files, uploadFile, deleteFile, isLoading: filesLoading } = useFiles();
+  const {
+    memory,
+    getFile: getMemoryFile,
+    deleteFile: deleteMemoryFile,
+    isLoading: memoryLoading,
+  } = useMemory();
 
   const chat = useChat({ agentId, threadId: activeThreadId });
 
@@ -127,13 +138,16 @@ export function usePersonaChatWidget(options: UsePersonaChatWidgetOptions = {}) 
     threads,
     deleteThread,
     renameThread,
+    threadsLoading,
     // uploaded files
     files,
     deleteFile,
+    filesLoading,
     // memory
     memory,
     getMemoryFile,
     deleteMemoryFile,
+    memoryLoading,
     // chat — every other useChat field (messages, input, sendMessage,
     // isStreaming, interrupt, todos, etc.) plus the composed handlers below
     ...restChat,

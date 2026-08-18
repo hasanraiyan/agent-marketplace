@@ -190,7 +190,7 @@ export function PersonaToolTrace({
     return (
       <div
         className={cn(
-          'my-2 flex min-w-0 items-center justify-between gap-2 rounded-xl border border-zinc-200/80 bg-zinc-50/50 p-2.5 text-xs dark:border-zinc-800/80 dark:bg-zinc-900/40',
+          'my-2 flex min-w-0 items-center justify-between gap-2 rounded-xl border border-[var(--persona-border,#e4e4e7)]/80 bg-[var(--persona-card,#fafafa)]/50 p-2.5 text-xs dark:border-[var(--persona-border,#27272a)]/80 dark:bg-[var(--persona-card,#18181b)]/40',
           className
         )}
       >
@@ -223,7 +223,7 @@ export function PersonaToolTrace({
   return (
     <div
       className={cn(
-        'my-2 min-w-0 overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-50/50 text-xs dark:border-zinc-800/80 dark:bg-zinc-900/40',
+        'my-2 min-w-0 overflow-hidden rounded-xl border border-[var(--persona-border,#e4e4e7)]/80 bg-[var(--persona-card,#fafafa)]/50 text-xs dark:border-[var(--persona-border,#27272a)]/80 dark:bg-[var(--persona-card,#18181b)]/40',
         className
       )}
     >

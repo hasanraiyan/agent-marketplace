@@ -46,6 +46,8 @@ export interface PersonaCustomTheme {
   backgroundColor?: string;
   cardBackgroundColor?: string;
   textColor?: string;
+  mutedTextColor?: string;
+  borderColor?: string;
   borderRadius?: string;
   userMessageBg?: string;
   userMessageText?: string;

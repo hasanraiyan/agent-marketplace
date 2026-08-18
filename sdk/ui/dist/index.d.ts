@@ -67,6 +67,8 @@ interface PersonaCustomTheme {
     backgroundColor?: string;
     cardBackgroundColor?: string;
     textColor?: string;
+    mutedTextColor?: string;
+    borderColor?: string;
     borderRadius?: string;
     userMessageBg?: string;
     userMessageText?: string;
@@ -143,9 +145,11 @@ interface PersonaSidebarProps {
     onRenameThread?: (threadId: string, newTitle: string) => void;
     /** Dismisses the sidebar on mobile, where it overlays instead of docking inline. */
     onClose?: () => void;
+    /** Shows thread-row placeholders instead of the empty state while the initial list loads. */
+    isLoading?: boolean;
     className?: string;
 }
-declare function PersonaSidebar({ threads, activeThreadId, onSelectThread, onCreateThread, onDeleteThread, onRenameThread, onClose, className, }: PersonaSidebarProps): React__default.JSX.Element;
+declare function PersonaSidebar({ threads, activeThreadId, onSelectThread, onCreateThread, onDeleteThread, onRenameThread, onClose, isLoading, className, }: PersonaSidebarProps): React__default.JSX.Element;
 
 interface PersonaComposerProps {
     input: string;
@@ -234,9 +238,13 @@ interface PersonaFilesDrawerProps {
     onDeleteFile?: (fileId: string) => void;
     onGetMemoryFile?: (path: string) => Promise<PersonaMemoryFile>;
     onDeleteMemoryFile?: (path: string) => Promise<void>;
+    /** Shows row placeholders on the Files tab instead of the empty state while the initial list loads. */
+    isFilesLoading?: boolean;
+    /** Shows row placeholders on the Memory tab instead of the empty state while the initial list loads. */
+    isMemoryLoading?: boolean;
     className?: string;
 }
-declare function PersonaFilesDrawer({ isOpen, onClose, files, memory, workspaceFiles, todos, presentedFile, onDeleteFile, onGetMemoryFile, onDeleteMemoryFile, className, }: PersonaFilesDrawerProps): React__default.JSX.Element | null;
+declare function PersonaFilesDrawer({ isOpen, onClose, files, memory, workspaceFiles, todos, presentedFile, onDeleteFile, onGetMemoryFile, onDeleteMemoryFile, isFilesLoading, isMemoryLoading, className, }: PersonaFilesDrawerProps): React__default.JSX.Element | null;
 
 interface PersonaInterruptCardProps {
     interrupt: PersonaInterrupt;
@@ -245,6 +253,24 @@ interface PersonaInterruptCardProps {
     className?: string;
 }
 declare function PersonaInterruptCard({ interrupt, onRespond, isStreaming, className, }: PersonaInterruptCardProps): React__default.JSX.Element;
+
+interface PersonaSkeletonProps {
+    className?: string;
+}
+/**
+ * Shimmering placeholder block, themed the same way as every other surface
+ * (`--persona-border` for the base tone) so it reads correctly against a
+ * custom `theme` instead of assuming the default zinc palette.
+ */
+declare function PersonaSkeleton({ className }: PersonaSkeletonProps): React$1.JSX.Element;
+/** Placeholder for a single chat bubble row, matching PersonaMessageFeed's real layout. */
+declare function PersonaMessageSkeletonRow({ align }: {
+    align?: 'left' | 'right';
+}): React$1.JSX.Element;
+/** Placeholder for a single thread row in PersonaSidebar. */
+declare function PersonaThreadSkeletonRow(): React$1.JSX.Element;
+/** Placeholder for a single file/memory row in PersonaFilesDrawer. */
+declare function PersonaFileSkeletonRow(): React$1.JSX.Element;
 
 /**
  * Turns a `PersonaCustomTheme` into the CSS custom properties every
@@ -313,8 +339,10 @@ declare function usePersonaChatWidget(options?: UsePersonaChatWidgetOptions): {
     threads: _personaai_react.PersonaThread[];
     deleteThread: (threadId: string) => Promise<void>;
     renameThread: (threadId: string, title: string) => Promise<_personaai_react.PersonaThread>;
+    threadsLoading: boolean;
     files: _personaai_react.PersonaFileItem[];
     deleteFile: (fileId: string) => Promise<void>;
+    filesLoading: boolean;
     memory: _personaai_react.PersonaMemoryList;
     getMemoryFile: (params: {
         path: string;
@@ -326,8 +354,9 @@ declare function usePersonaChatWidget(options?: UsePersonaChatWidgetOptions): {
         scope?: "user" | "agent";
         agentId?: string;
     }) => Promise<void>;
+    memoryLoading: boolean;
 };
 
-declare const VERSION = "0.6.0";
+declare const VERSION = "0.7.0";
 
-export { type ClassNamesOverride, PersonaChatLauncher, type PersonaChatLauncherProps, PersonaChatView, type PersonaChatViewProps, PersonaComposer, type PersonaComposerProps, type PersonaCustomTheme, PersonaFilesDrawer, type PersonaFilesDrawerProps, PersonaInterruptCard, type PersonaInterruptCardProps, PersonaMarkdown, type PersonaMarkdownProps, PersonaMessageFeed, type PersonaMessageFeedProps, PersonaSidebar, type PersonaSidebarProps, type PersonaToolClusterLabels, type PersonaToolClusterMeta, PersonaToolGroup, type PersonaToolGroupItem, type PersonaToolGroupProps, PersonaToolTrace, type PersonaToolTraceProps, type StarterPromptItem, type ToolRendererMap, type ToolRendererProps, type UsePersonaChatWidgetOptions, VERSION, buildThemeStyles, cn, groupToolCalls, toolGroupKey, usePersonaChatWidget };
+export { type ClassNamesOverride, PersonaChatLauncher, type PersonaChatLauncherProps, PersonaChatView, type PersonaChatViewProps, PersonaComposer, type PersonaComposerProps, type PersonaCustomTheme, PersonaFileSkeletonRow, PersonaFilesDrawer, type PersonaFilesDrawerProps, PersonaInterruptCard, type PersonaInterruptCardProps, PersonaMarkdown, type PersonaMarkdownProps, PersonaMessageFeed, type PersonaMessageFeedProps, PersonaMessageSkeletonRow, PersonaSidebar, type PersonaSidebarProps, PersonaSkeleton, type PersonaSkeletonProps, PersonaThreadSkeletonRow, type PersonaToolClusterLabels, type PersonaToolClusterMeta, PersonaToolGroup, type PersonaToolGroupItem, type PersonaToolGroupProps, PersonaToolTrace, type PersonaToolTraceProps, type StarterPromptItem, type ToolRendererMap, type ToolRendererProps, type UsePersonaChatWidgetOptions, VERSION, buildThemeStyles, cn, groupToolCalls, toolGroupKey, usePersonaChatWidget };
