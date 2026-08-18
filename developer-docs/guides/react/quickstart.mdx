@@ -1,0 +1,366 @@
+---
+title: React SDK Quickstart
+description: Install @personaai/react, wrap your app in PersonaProvider, and build a working chat interface with streaming, threads, and file management in under 100 lines.
+---
+
+`@personaai/react` is the official React SDK for [Persona](https://persona.hasanraiyan.me) — a
+set of hooks and a context provider that let you build a full-featured chat UI against any
+Persona backend (Express, NestJS, or raw runtime) without writing fetch calls, SSE parsers, or
+state management by hand.
+
+**v0.3.2, current release.** Requires React 18+.
+
+## Install
+
+```bash
+npm install @personaai/react
+```
+
+```bash
+pnpm add @personaai/react
+```
+
+Peer dependencies: `react >= 18`. No other packages are required.
+
+## Prerequisites
+
+You need a running Persona backend — either:
+
+- [`@personaai/express`](/guides/express/quickstart) mounted in your Express app
+- [`@personaai/nestjs`](/guides/nestjs/quickstart) configured in your NestJS module
+- A [raw runtime](/guides/runtime/quickstart) on any other host
+
+The React SDK is a **client-side** package. It calls your backend's HTTP routes (`/chat`,
+`/threads`, `/files`, `/memory`, `/health`, `/agents`) — it never talks directly to
+persona.hasanraiyan.me or holds any credential.
+
+## Set up the Provider
+
+Wrap your app (or the subtree that needs chat) in `<PersonaProvider>`. It takes three things:
+
+- **`baseUrl`** — where your Persona backend is mounted (e.g. `http://localhost:3000/api/persona`)
+- **`getAuthToken`** — an async getter for the user's Bearer token (Clerk, JWT, session, whatever your app uses). Omit if your backend doesn't require auth.
+- **`defaultAgentId`** — optional; lets you skip passing `agentId` to every hook call.
+
+```tsx
+// app/providers.tsx (Next.js App Router example)
+'use client';
+
+import { PersonaProvider } from '@personaai/react';
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <PersonaProvider
+      baseUrl="http://localhost:3000/api/persona"
+      getAuthToken={async () => {
+        // Your auth — Clerk, NextAuth, a JWT, a cookie, whatever.
+        const token = await getToken();
+        return token;
+      }}
+      defaultAgentId="my-agent-id"
+    >
+      {children}
+    </PersonaProvider>
+  );
+}
+```
+
+```tsx
+// app/layout.tsx
+import { Providers } from './providers';
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}
+```
+
+The Provider is a standard React Context — it doesn't render anything, just makes `fetchWithAuth`
+available to every hook downstream. Every hook must be called inside this provider.
+
+## Minimal chat example
+
+Here's a complete, working chat UI in one file — streaming messages, input box, and error
+handling:
+
+```tsx
+'use client';
+
+import { useChat, useAgents } from '@personaai/react';
+
+export function SimpleChat() {
+  const { agents } = useAgents();
+  const agentId = agents[0]?._id; // pick your default agent
+
+  const {
+    messages,
+    input,
+    setInput,
+    handleSubmit,
+    isStreaming,
+    error,
+    stop,
+  } = useChat({ agentId });
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Message list */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((msg) => (
+          <div
+            key={msg.id}
+            className={`rounded-lg px-4 py-2 max-w-[80%] ${
+              msg.role === 'user'
+                ? 'ml-auto bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-900'
+            }`}
+          >
+            {msg.content}
+            {msg.isStreaming && (
+              <span className="animate-pulse ml-1">▊</span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="bg-red-50 text-red-700 px-4 py-2 text-sm">
+          {error.message}
+        </div>
+      )}
+
+      {/* Input */}
+      <form onSubmit={handleSubmit} className="flex gap-2 border-t p-4">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Type a message..."
+          className="flex-1 rounded-lg border px-3 py-2"
+          disabled={isStreaming}
+        />
+        {isStreaming ? (
+          <button
+            type="button"
+            onClick={stop}
+            className="rounded-lg bg-red-600 px-4 py-2 text-white"
+          >
+            Stop
+          </button>
+        ) : (
+          <button
+            type="submit"
+            className="rounded-lg bg-blue-600 px-4 py-2 text-white"
+            disabled={!input.trim()}
+          >
+            Send
+          </button>
+        )}
+      </form>
+    </div>
+  );
+}
+```
+
+That's a fully working chat — streaming text, stop button, error display, and loading states.
+The `useChat` hook handles SSE parsing, message state, abort controllers, and thread management
+internally.
+
+## Adding thread history
+
+Wrap your chat in a sidebar that lists past conversations:
+
+```tsx
+'use client';
+
+import { useChat, useThreads } from '@personaai/react';
+
+export function ChatWithThreads() {
+  const {
+    threads,
+    createThread,
+    deleteThread,
+    renameThread,
+    isLoading: threadsLoading,
+  } = useThreads();
+
+  const {
+    messages,
+    input,
+    setInput,
+    handleSubmit,
+    sendMessage,
+    isStreaming,
+    error,
+    stop,
+    reload,
+    interrupt,
+    resumeInterrupt,
+  } = useChat({ threadId: undefined }); // threadId managed below
+
+  // Thread selection with lazy creation
+  const [activeThreadId, setActiveThreadId] = useState<string | undefined>();
+
+  const handleNewChat = () => {
+    setActiveThreadId(undefined);
+  };
+
+  const handleSelectThread = (id: string) => {
+    setActiveThreadId(id);
+  };
+
+  return (
+    <div className="flex h-full">
+      {/* Sidebar */}
+      <div className="w-64 border-r overflow-y-auto">
+        <button onClick={handleNewChat} className="w-full p-3 border-b">
+          + New Chat
+        </button>
+        {threadsLoading ? (
+          <div className="p-3 text-sm text-gray-400">Loading...</div>
+        ) : (
+          threads.map((t) => (
+            <button
+              key={t._id}
+              onClick={() => handleSelectThread(t._id)}
+              className={`w-full p-3 text-left border-b text-sm ${
+                activeThreadId === t._id ? 'bg-blue-50' : ''
+              }`}
+            >
+              {t.title || 'Untitled'}
+            </button>
+          ))
+        )}
+      </div>
+
+      {/* Main chat area — same as the simple example above */}
+      <div className="flex-1 flex flex-col">
+        {/* ... messages, input, error ... */}
+      </div>
+    </div>
+  );
+}
+```
+
+## How sendMessage works
+
+`sendMessage` is the raw send function. It takes:
+
+1. **`content`** (optional) — the message text. If omitted, uses the current `input` value.
+2. **`overrideOptions`** (optional) — `{ agentId?, threadId?, resume? }` to override the
+   hook-level defaults for this specific send.
+
+```tsx
+// Send with defaults
+sendMessage();
+
+// Send specific content
+sendMessage('What files do we have?');
+
+// Send to a different agent, in a different thread
+sendMessage('Hello', {
+  agentId: 'other-agent-id',
+  threadId: 'thread-abc-123',
+});
+
+// Resume a paused HITL/clarification interrupt
+sendMessage('Approved', {
+  resume: { decisions: [{ type: 'approve', message: 'Looks good' }] },
+});
+```
+
+When `threadId` is not set and this is the first message, `useChat` will fail unless your
+backend supports implicit thread creation. Use `useThreads().createThread()` first if you need
+explicit thread management.
+
+## Handling interrupts (HITL & clarifications)
+
+When the agent pauses for human-in-the-loop approval or a clarification question, the hook
+exposes an `interrupt` object. Render it and call `resumeInterrupt` when the user responds:
+
+```tsx
+if (interrupt) {
+  if (interrupt.kind === 'hitl') {
+    // Agent wants approval for one or more tool actions
+    interrupt.actionRequests.map((req) => (
+      <div key={req.name} className="border rounded p-3">
+        <p>Agent wants to: <strong>{req.name}</strong></p>
+        <pre>{JSON.stringify(req.args, null, 2)}</pre>
+        <button onClick={() =>
+          resumeInterrupt(
+            { decisions: [{ type: 'approve' }] },
+            'Approved'
+          )
+        }>Approve</button>
+        <button onClick={() =>
+          resumeInterrupt(
+            { decisions: [{ type: 'reject', message: 'Not now' }] },
+            'Rejected'
+          )
+        }>Reject</button>
+      </div>
+    ))
+  }
+
+  if (interrupt.kind === 'clarification') {
+    // Agent is asking the user a question with options
+    interrupt.questions.map((q) => (
+      <div key={q.id} className="border rounded p-3">
+        <p>{q.text}</p>
+        {q.options.map((opt) => (
+          <button
+            key={opt}
+            onClick={() =>
+              resumeInterrupt({ answers: [opt] }, opt)
+            }
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+    ))
+  }
+}
+```
+
+## Full return value of useChat
+
+```ts
+const {
+  messages,           // PersonaMessage[] — all messages in the conversation
+  input,              // string — current input value
+  setInput,           // (value: string) => void — update input
+  handleInputChange,  // (e: ChangeEvent) => void — wired to <input> onChange
+  handleSubmit,       // (e?: FormEvent) => void — wired to <form> onSubmit
+  sendMessage,        // (content?: string, override?: SendMessageOverride) => Promise
+  isStreaming,         // boolean — true while a response is being received
+  isLoading,          // boolean — alias for isStreaming
+  isLoadingHistory,   // boolean — true while loading a thread's past messages
+  error,              // Error | null — last error, cleared on next send
+  interrupt,          // PersonaInterrupt | null — HITL or clarification pause
+  resumeInterrupt,    // (resume: PersonaResumeValue, displayContent: string) => void
+  files,              // Record<string, PersonaWorkspaceFile> — agent's virtual workspace
+  todos,              // PersonaTodo[] — agent's current plan items
+  presentedFile,      // PersonaPresentedFile | null — file the agent wants to highlight
+  dismissPresentedFile, // () => void
+  openWorkspaceFile,  // (path: string) => void — manually open a workspace file
+  stop,               // () => void — abort the current stream
+  reload,             // () => void — resend the last user message
+  clear,              // () => void — reset all state (messages, files, errors, etc.)
+  setMessages,        // (msgs: PersonaMessage[]) => void — replace all messages
+  loadThreadMessages, // (threadId: string) => Promise<PersonaMessage[]>
+} = useChat(options);
+```
+
+## Next steps
+
+- [Hooks reference](/guides/react/hooks) — every hook in depth, with full parameter/return
+  docs.
+- [Streaming events](/guides/react/streaming) — the AG-UI event shapes `useChat` consumes,
+  and how to use the `onEvent` callback.
+- [Types reference](/guides/react/types) — every exported type, interface, and alias.

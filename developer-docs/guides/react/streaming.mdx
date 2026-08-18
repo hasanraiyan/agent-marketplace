@@ -1,0 +1,287 @@
+---
+title: Streaming Events
+description: The AG-UI protocol events that useChat consumes — TEXT_MESSAGE_CHUNK, TOOL_CALL_CHUNK, STATE_SNAPSHOT, REASONING, CUSTOM events, and how to use the onEvent callback for logging, analytics, and custom UI.
+---
+
+When `useChat` sends a message, the backend responds with a stream of
+[AG-UI protocol](https://docs.ag-ui.com) events via Server-Sent Events (SSE). The hook
+parses these internally and updates React state — but if you need to render custom UI for
+specific events, do analytics, or build logging, the `onEvent` callback gives you access to
+every raw event before the hook processes it.
+
+## Event types
+
+The hook recognizes and handles these event types:
+
+| Event type | What the hook does with it |
+| --- | --- |
+| `TEXT_MESSAGE_CHUNK` | Appends `delta` to the assistant message's `content`. |
+| `TOOL_CALL_CHUNK` | Creates or accumulates a `PersonaToolCall` entry in the assistant message's `toolCalls`. The first chunk carries `toolCallId` and `toolCallName`; subsequent chunks stream `args` in pieces. |
+| `TOOL_CALL_RESULT` | Sets `result` on the matching `PersonaToolCall`. Also detects `present_file` results and sets `presentedFile`. Detects error status via `{status: 'error'}` JSON envelope. |
+| `REASONING_MESSAGE_START` | Marks the assistant message as reasoning (`isReasoning: true`). |
+| `REASONING_MESSAGE_CONTENT` | Appends `delta` to the assistant message's `reasoning` field. |
+| `REASONING_END` | Clears `isReasoning: false` — reasoning phase is done, answer text follows. |
+| `STATE_SNAPSHOT` | Updates `files` (agent workspace) and `todos` (agent plan) from the snapshot. Normalizes snake_case timestamps to camelCase. |
+| `RUN_ERROR` | Throws an error, which the hook catches and puts in `error` state. |
+| `CUSTOM` | Handled by `name`: `hitl_request` → sets `interrupt`; `clarification_request` → sets `interrupt`; `subagent_activity` → appends to the matching tool call's `subagentActivity` timeline. `mcp_app` events are **not** handled by the hook — read them via `onEvent`. |
+
+## `PersonaStreamingEvent` — full type
+
+Every event in the stream is one of these shapes (verified against the backend's actual
+`aguiTranslator.js` — not guessed from the AG-UI spec, which the backend uses a subset of):
+
+```ts
+type PersonaStreamingEvent =
+  | {
+      type: 'TEXT_MESSAGE_CHUNK';
+      delta: string;           // the new text to append
+      messageId?: string;
+      role?: 'assistant';
+    }
+  | {
+      type: 'TOOL_CALL_CHUNK';
+      toolCallId?: string;     // present on first chunk, absent on later ones
+      toolCallName?: string;   // present on first chunk only
+      delta?: string;          // args fragment
+      parentMessageId?: string;
+    }
+  | {
+      type: 'TOOL_CALL_RESULT';
+      toolCallId: string;      // matches the TOOL_CALL_CHUNK's toolCallId
+      content: string;         // tool output (may be JSON)
+      messageId?: string;
+      role?: 'tool';
+      structuredContent?: unknown;
+    }
+  | {
+      type: 'REASONING_MESSAGE_START';
+      messageId: string;
+    }
+  | {
+      type: 'REASONING_MESSAGE_CONTENT';
+      messageId: string;
+      delta: string;
+    }
+  | {
+      type: 'REASONING_END';
+    }
+  | {
+      type: 'STATE_SNAPSHOT';
+      snapshot: {
+        files: Record<string, {
+          content: string;
+          size: number;
+          created_at: string | null;   // snake_case on the wire
+          modified_at: string | null;  // normalized to camelCase by the hook
+        }>;
+        todos: Array<{ content: string; status: string }>;
+      };
+    }
+  | {
+      type: 'RUN_ERROR';
+      code: string;
+      message: string;
+      retryable?: boolean;
+      providerName?: string;
+    }
+  // ── CUSTOM events (name discriminates) ──
+  | {
+      type: 'CUSTOM';
+      name: 'hitl_request';
+      value: {
+        actionRequests: Array<{ name: string; args?: unknown }>;
+        reviewConfigs: unknown[];
+      };
+    }
+  | {
+      type: 'CUSTOM';
+      name: 'clarification_request';
+      value: {
+        questions: Array<{
+          id: string;
+          text: string;
+          options: string[];
+          required: boolean;
+          allowCustom: boolean;
+        }>;
+        currentIndex: number;
+      };
+    }
+  | {
+      type: 'CUSTOM';
+      name: 'subagent_activity';
+      value: {
+        toolCallId: string;
+        kind: 'text' | 'tool_start' | 'tool_result';
+        toolName?: string;
+        args?: string;
+        result?: string;
+        delta?: string;
+      };
+    }
+  | {
+      type: 'CUSTOM';
+      name: 'mcp_app';
+      value: {
+        toolCallId: string;
+        resourceUri: string;
+        mcpId: string;
+      };
+    }
+  // catch-all for future custom events
+  | {
+      type: 'CUSTOM';
+      name: string;
+      value: unknown;
+    };
+```
+
+## Using `onEvent` for custom behavior
+
+Pass an `onEvent` callback to `useChat` to intercept every raw event. The callback fires
+**before** the hook updates state — so you can observe the stream without interfering with it.
+
+### Logging and analytics
+
+```tsx
+const chat = useChat({
+  agentId,
+  onEvent: (event) => {
+    // Log every tool call for debugging
+    if (event.type === 'TOOL_CALL_CHUNK' && event.toolCallId && event.toolCallName) {
+      console.log(`[tool] ${event.toolCallName} started (${event.toolCallId})`);
+    }
+
+    // Track streaming latency
+    if (event.type === 'TEXT_MESSAGE_CHUNK') {
+      const elapsed = Date.now() - sendStartTime;
+      analytics.track('first_token', { latencyMs: elapsed });
+    }
+
+    // Track errors
+    if (event.type === 'RUN_ERROR') {
+      analytics.track('agent_error', {
+        code: event.code,
+        message: event.message,
+        retryable: event.retryable,
+      });
+    }
+  },
+});
+```
+
+### Rendering MCP app widgets
+
+The hook doesn't render anything for `mcp_app` CUSTOM events — they're a signal that an MCP
+server has produced an interactive widget. Use `onEvent` to capture them and render your own UI:
+
+```tsx
+const [mcpApps, setMcpApps] = useState<Map<string, { resourceUri: string; mcpId: string }>>(
+  new Map()
+);
+
+const chat = useChat({
+  agentId,
+  onEvent: (event) => {
+    if (event.type === 'CUSTOM' && event.name === 'mcp_app') {
+      setMcpApps((prev) => {
+        const next = new Map(prev);
+        next.set(event.value.toolCallId, {
+          resourceUri: event.value.resourceUri,
+          mcpId: event.value.mcpId,
+        });
+        return next;
+      });
+    }
+  },
+});
+
+// Render MCP app widgets
+{Array.from(mcpApps.entries()).map(([toolCallId, app]) => (
+  <McpWidget
+    key={toolCallId}
+    resourceUri={app.resourceUri}
+    mcpId={app.mcpId}
+  />
+))}
+```
+
+### Tracking subagent activity
+
+When the agent spawns a subagent (via a `task` tool call), the backend streams
+`subagent_activity` CUSTOM events. Each one carries a `toolCallId` linking it to the parent
+tool call, plus a live update on the subagent's progress:
+
+```tsx
+const chat = useChat({
+  agentId,
+  onEvent: (event) => {
+    if (event.type === 'CUSTOM' && event.name === 'subagent_activity') {
+      const { toolCallId, ...entry } = event.value;
+      console.log(`[subagent ${toolCallId}] ${entry.kind}: ${entry.delta || entry.toolName || ''}`);
+    }
+  },
+});
+```
+
+The hook also stores these on the matching `PersonaToolCall`'s `subagentActivity` array, so
+you can render them from `messages[i].toolCalls[j].subagentActivity` without needing
+`onEvent` at all.
+
+## The streaming lifecycle in order
+
+Here's the typical sequence of events for a single assistant turn:
+
+```
+TEXT_MESSAGE_CHUNK      (delta: "Let me")       ─┐
+TEXT_MESSAGE_CHUNK      (delta: " search...")    │ text chunks
+TEXT_MESSAGE_CHUNK      (delta: " for that")    ─┘
+TOOL_CALL_CHUNK         (id: "tc-1",            ─┐
+                          name: "search_web",
+                          delta: "")
+TOOL_CALL_CHUNK         (id: "tc-1",               │ args streaming
+                          delta: '{"query":"..."}')
+TOOL_CALL_RESULT        (id: "tc-1",            ─┘ result arrives
+                          content: '{"results":...}')
+TEXT_MESSAGE_CHUNK      (delta: "Here's what")  ─┐
+TEXT_MESSAGE_CHUNK      (delta: " I found...")   │ answer text
+TEXT_MESSAGE_CHUNK      (delta: "")             ─┘ (empty = done)
+```
+
+With reasoning enabled, the sequence looks like:
+
+```
+REASONING_MESSAGE_START (messageId: "m-1")      ─┐ reasoning
+REASONING_MESSAGE_CONTENT (delta: "The user")     │ thinking
+REASONING_MESSAGE_CONTENT (delta: " wants...")   ─┘ phase
+REASONING_END                                 ──── done thinking
+TEXT_MESSAGE_CHUNK (delta: "The answer")      ─┐ answer
+TEXT_MESSAGE_CHUNK (delta: " is...")          ─┘ text
+```
+
+With HITL interrupt:
+
+```
+TEXT_MESSAGE_CHUNK (delta: "I'll delete")     ─┐ text
+TEXT_MESSAGE_CHUNK (delta: " that file")     ─┘
+TOOL_CALL_CHUNK    (id: "tc-1", name: "delete_file", delta: '{"fileId":"..."}')
+CUSTOM             (name: "hitl_request",    ──── stream pauses here
+                     value: { actionRequests: [...] })
+```
+
+The stream pauses. The user approves via `resumeInterrupt`, which calls `sendMessage` with
+`resume`, and the stream resumes:
+
+```
+TOOL_CALL_RESULT   (id: "tc-1", content: '{"status":"deleted"}')
+TEXT_MESSAGE_CHUNK (delta: "Done!")
+```
+
+## SSE wire format
+
+The raw HTTP response uses standard SSE framing. Each line is `data: <json>\n\n`. Comment
+lines (`: heartbeat\n\n`) are sent during gaps between events (e.g. a long-running tool call)
+to keep the connection alive through proxy idle timeouts.
+
+The hook handles this parsing internally — you never need to deal with raw SSE unless you're
+building a non-React client.

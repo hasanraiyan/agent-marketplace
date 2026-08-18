@@ -1,0 +1,494 @@
+---
+title: Hooks Reference
+description: Every hook @personaai/react exports — useChat, useThreads, useFiles, useMemory, useAgents, and useConnection — with full parameters, return values, and real-world usage patterns.
+---
+
+All hooks are client-side React hooks (`'use client'`). Every one must be called inside a
+`<PersonaProvider>` — they read `fetchWithAuth` and `defaultAgentId` from context. Every hook
+returns an object with at least `isLoading` and `error` fields.
+
+---
+
+## `useChat`
+
+The primary hook — manages a full chat conversation: sending messages, receiving streamed
+responses, thread history loading, interrupt handling (HITL and clarifications), workspace
+files/todos tracking, and error state.
+
+```ts
+import { useChat } from '@personaai/react';
+```
+
+### Options
+
+| Parameter | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `agentId` | `string` | No | from provider's `defaultAgentId` | Which agent to chat with. Can be overridden per-send via `sendMessage(content, { agentId })`. |
+| `threadId` | `string` | No | `undefined` | The active thread. When set, messages are loaded from this thread's history on mount. Pass `undefined` to start a new conversation (or let `useThreads` manage it). |
+| `initialMessages` | `PersonaMessage[]` | No | `[]` | Pre-populated messages — useful for rendering a conversation that was loaded from another source. |
+| `onFinish` | `(message: PersonaMessage) => void` | No | — | Called after a complete assistant response is assembled. The message has `isStreaming: false` and full `toolCalls`. |
+| `onError` | `(error: Error) => void` | No | — | Called when a stream error occurs. The error is also stored in the `error` state field. |
+| `onEvent` | `(event: PersonaStreamingEvent) => void` | No | — | Called for every raw AG-UI streaming event. Useful for logging, analytics, or rendering custom UI for events the hook doesn't handle natively (e.g. `mcp_app`). See [Streaming events](/guides/react/streaming). |
+
+### Return value
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `messages` | `PersonaMessage[]` | All messages — user and assistant — in the current conversation. Each assistant message may have `toolCalls`, `reasoning`, and `isReasoning` fields populated during streaming. |
+| `input` | `string` | The current text input value. |
+| `setInput` | `(value: string) => void` | Replace the entire input value. |
+| `handleInputChange` | `(e: ChangeEvent) => void` | Direct wire for `<input onChange>` or `<textarea onChange>`. |
+| `handleSubmit` | `(e?: FormEvent) => void` | Direct wire for `<form onSubmit>`. Calls `sendMessage()` with the current input. Prevents default. |
+| `sendMessage` | `(content?, override?) => Promise<void>` | Send a message. `content` defaults to `input`. `override` can set `agentId`, `threadId`, or `resume` for this send only. |
+| `isStreaming` | `boolean` | `true` while a response is being received. |
+| `isLoading` | `boolean` | Alias for `isStreaming`. |
+| `isLoadingHistory` | `boolean` | `true` while loading a thread's past messages via `GET /threads/:id/messages`. |
+| `error` | `Error \| null` | The last error. Cleared automatically on the next `sendMessage`. |
+| `interrupt` | `PersonaInterrupt \| null` | Set when the agent pauses for HITL approval or a clarification question. See [Handling interrupts](#handling-interrupts-hitl--clarifications) below. |
+| `resumeInterrupt` | `(resume, displayContent) => void` | Resume a paused interrupt. `resume` is the answer/approval payload. `displayContent` is the text shown in the user's chat bubble (e.g. "Approved" or the typed answer). |
+| `files` | `Record<string, PersonaWorkspaceFile>` | The agent's virtual workspace files — populated from `STATE_SNAPSHOT` events. Keys are file paths. |
+| `todos` | `PersonaTodo[]` | The agent's current plan/todo items, updated with each `STATE_SNAPSHOT`. Each has `content` and `status`. |
+| `presentedFile` | `PersonaPresentedFile \| null` | Set when the agent calls `present_file` — contains `path`, `title`, and `description`. |
+| `dismissPresentedFile` | `() => void` | Clears `presentedFile` back to `null`. |
+| `openWorkspaceFile` | `(path: string) => void` | Manually opens a workspace file in `presentedFile`. |
+| `stop` | `() => void` | Aborts the current stream. The assistant message stays at whatever content was received so far. |
+| `reload` | `() => void` | Resends the last user message (replays the turn). Useful when the response errored or was interrupted. |
+| `clear` | `() => void` | Resets all state — messages, files, todos, errors, interrupts, presented file. Does not delete anything server-side. |
+| `setMessages` | `(msgs: PersonaMessage[]) => void` | Replace the entire message array. |
+| `loadThreadMessages` | `(id: string) => Promise<PersonaMessage[]>` | Manually load a thread's message history. Returns the loaded messages and updates `messages` state. |
+
+### Usage patterns
+
+**Basic chat in a page:**
+
+```tsx
+const { messages, input, setInput, handleSubmit, isStreaming } = useChat();
+```
+
+**Thread-aware chat with sidebar:**
+
+```tsx
+const [threadId, setThreadId] = useState<string | undefined>();
+const chat = useChat({ agentId, threadId });
+```
+
+**Monitoring events for analytics:**
+
+```tsx
+const chat = useChat({
+  agentId,
+  onEvent: (event) => {
+    if (event.type === 'TOOL_CALL_CHUNK') {
+      analytics.track('tool_call_started', { tool: event.toolCallName });
+    }
+  },
+});
+```
+
+**Controlling the send (e.g. adding metadata):**
+
+```tsx
+const handleSend = async () => {
+  await chat.sendMessage(input, {
+    agentId: 'support-agent',
+    threadId: currentThread?._id,
+  });
+};
+```
+
+---
+
+## `useThreads`
+
+Lists, creates, deletes, renames, and archives threads for the current user.
+
+```ts
+import { useThreads } from '@personaai/react';
+```
+
+### Options
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `autoFetch` | `boolean` | `true` | Automatically fetch the thread list on mount. Set `false` to fetch manually via `refetch()`. |
+
+### Return value
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `threads` | `PersonaThread[]` | All threads for the current user, most recently updated first. |
+| `isLoading` | `boolean` | `true` while fetching the thread list. |
+| `error` | `Error \| null` | Last error from any thread operation. |
+| `refetch` | `() => Promise<PersonaThread[]>` | Re-fetch the thread list. |
+| `createThread` | `(agentId?: string) => Promise<PersonaThread>` | Create a new thread. Uses the provider's `defaultAgentId` if none is passed. Returns the created thread and refreshes the list. |
+| `deleteThread` | `(threadId: string) => Promise<void>` | Delete a single thread. |
+| `bulkDeleteThreads` | `(ids: string[]) => Promise<{ deleted: string[]; failed: ... }>` | Delete up to 100 threads in one call. Returns which IDs succeeded and which failed. |
+| `deleteAllThreads` | `() => Promise<void>` | Convenience — bulk-deletes every currently-loaded thread (chunked into batches of 100). |
+| `updateThread` | `(id, input) => Promise<PersonaThread>` | General-purpose update. `input` can contain `{ title?, isArchived? }`. |
+| `renameThread` | `(id, title) => Promise<PersonaThread>` | Convenience wrapper over `updateThread` for title-only renames. |
+| `getThread` | `(id: string) => Promise<PersonaThread>` | Fetch a single thread by ID. |
+
+### Thread object shape
+
+```ts
+interface PersonaThread {
+  _id: string;
+  agentId: string | { _id: string; name: string; avatar?: string; slug: string };
+  title?: string;
+  isArchived?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+`agentId` is a bare string on `create()` and `get()` calls, but populated as a full object
+(including `name`, `slug`, and optionally `avatar`) on `list()` responses.
+
+### Usage pattern — thread sidebar
+
+```tsx
+const {
+  threads,
+  createThread,
+  deleteThread,
+  renameThread,
+  isLoading,
+} = useThreads();
+
+const handleNew = async () => {
+  const thread = await createThread(); // uses defaultAgentId from provider
+  setActiveThreadId(thread._id);
+};
+
+const handleRename = (id: string) => {
+  const newTitle = window.prompt('New title:');
+  if (newTitle) renameThread(id, newTitle);
+};
+```
+
+---
+
+## `useFiles`
+
+Lists, uploads, downloads, and deletes user-uploaded files (the `POST /files` surface —
+distinct from the agent's virtual workspace files tracked by `useChat`'s `files` field).
+
+```ts
+import { useFiles } from '@personaai/react';
+```
+
+### Options
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `autoFetch` | `boolean` | `true` | Automatically fetch the file list on mount. |
+
+### Return value
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `files` | `PersonaFileItem[]` | All uploaded files. |
+| `isLoading` | `boolean` | `true` while fetching the file list. |
+| `isUploading` | `boolean` | `true` while a file upload is in progress. |
+| `error` | `Error \| null` | Last error. |
+| `refetch` | `() => Promise<PersonaFileItem[]>` | Re-fetch the file list. |
+| `uploadFile` | `(file: FormData \| { name, uri, type? }) => Promise<PersonaFileItem>` | Upload a file. Accepts a `FormData` (browser) or a `{ name, uri, type? }` object (React Native). Auto-refreshes the file list after upload. |
+| `deleteFile` | `(fileId: string) => Promise<void>` | Delete a single file. |
+| `bulkDeleteFiles` | `(ids: string[]) => Promise<{ deleted, failed }>` | Delete multiple files at once. |
+| `getDownloadUrl` | `(fileId: string) => string` | Returns the download URL for a file (relative path: `/files/:id`). |
+
+### File object shape
+
+```ts
+interface PersonaFileItem {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  size: number;        // bytes
+  agentId: string | null;
+  threadId: string | null;
+  createdAt: string;
+}
+```
+
+### Usage pattern — upload with drag-and-drop
+
+```tsx
+const { uploadFile, files, isUploading } = useFiles();
+
+const handleDrop = async (e: React.DragEvent) => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('file', file);
+  await uploadFile(formData);
+};
+
+return (
+  <div onDrop={handleDrop} className="border-2 border-dashed p-8">
+    {isUploading ? 'Uploading...' : 'Drop a file here'}
+    {files.map((f) => (
+      <div key={f.id}>{f.originalName} ({(f.size / 1024).toFixed(1)} KB)</div>
+    ))}
+  </div>
+);
+```
+
+### Important: `files` vs `useChat`'s `files`
+
+This hook's `files` (uploaded files via `GET /files`) is a completely different thing from
+`useChat`'s `files` (the agent's virtual workspace files from `STATE_SNAPSHOT` events). They
+just happen to share the same name. When using both hooks together, rename one:
+
+```tsx
+const { files: uploadedFiles, uploadFile } = useFiles();
+const { files: workspaceFiles } = useChat({ agentId });
+```
+
+---
+
+## `useMemory`
+
+Reads and writes the user's persistent memory — files that survive across threads and sessions,
+managed by the agent's memory system.
+
+```ts
+import { useMemory } from '@personaai/react';
+```
+
+### Options
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `autoFetch` | `boolean` | `true` | Automatically fetch the full memory list on mount. |
+
+### Return value
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `memory` | `PersonaMemoryList` | The full memory structure. Contains `userFiles` (user-scoped) and `agentMemories` (agent-scoped groups). |
+| `isLoading` | `boolean` | `true` while fetching. |
+| `error` | `Error \| null` | Last error. |
+| `refetch` | `() => Promise<PersonaMemoryList>` | Re-fetch the full memory list. |
+| `getFile` | `(params) => Promise<PersonaMemoryFile>` | Read a single memory file by path. Params: `{ path, scope?, agentId? }`. |
+| `writeFile` | `(params) => Promise<PersonaMemoryFile>` | Create or overwrite a memory file. Params: `{ path, content, scope?, agentId? }`. Auto-refreshes the list. |
+| `deleteFile` | `(params) => Promise<void>` | Delete a memory file. Params: `{ path, scope?, agentId? }`. Auto-refreshes the list. |
+
+### Memory object shape
+
+```ts
+interface PersonaMemoryList {
+  userFiles: PersonaMemoryFile[];           // files scoped to the user
+  agentMemories: PersonaMemoryAgentGroup[]; // files scoped per-agent
+}
+
+interface PersonaMemoryFile {
+  scope?: 'user' | 'agent';
+  agentId?: string;
+  path: string;
+  content: string;
+  mimeType?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface PersonaMemoryAgentGroup {
+  agentId: string;
+  agentName: string | null; // null if the agent no longer exists
+  files: PersonaMemoryFile[];
+}
+```
+
+### Usage pattern — read agent memory
+
+```tsx
+const { memory, getFile } = useMemory();
+
+// List all agent-scoped memory files
+const agentFiles = memory.agentMemories.flatMap((group) =>
+  group.files.map((f) => ({
+    agent: group.agentName,
+    path: f.path,
+    content: f.content,
+  }))
+);
+
+// Read a specific file
+const prefs = await getFile({
+  path: 'preferences.json',
+  scope: 'agent',
+  agentId: 'my-agent-id',
+});
+```
+
+---
+
+## `useAgents`
+
+Lists available agents for the current user — useful for building an agent picker or showing
+which agent a conversation is directed to.
+
+```ts
+import { useAgents } from '@personaai/react';
+```
+
+### Options
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `autoFetch` | `boolean` | `true` | Automatically fetch the agent list on mount. |
+
+### Return value
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `agents` | `PersonaAgentSummary[]` | All visible agents. |
+| `isLoading` | `boolean` | `true` while fetching. |
+| `error` | `Error \| null` | Last error. |
+| `refetch` | `() => Promise<PersonaAgentSummary[]>` | Re-fetch. |
+
+### Agent summary shape
+
+```ts
+interface PersonaAgentSummary {
+  _id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  tagline?: string;
+  avatar?: string; // URL
+}
+```
+
+### Usage pattern — agent picker
+
+```tsx
+const { agents, isLoading } = useAgents();
+
+if (isLoading) return <div>Loading agents...</div>;
+
+return (
+  <select value={selectedAgentId} onChange={(e) => setSelectedAgentId(e.target.value)}>
+    {agents.map((a) => (
+      <option key={a._id} value={a._id}>
+        {a.name}
+      </option>
+    ))}
+  </select>
+);
+```
+
+---
+
+## `useConnection`
+
+Checks the health/connectivity of your Persona backend — useful for showing a connection
+status indicator or for retry logic.
+
+```ts
+import { useConnection } from '@personaai/react';
+```
+
+### Options
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `autoCheck` | `boolean` | `true` | Automatically check health on mount. |
+
+### Return value
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `isConnected` | `boolean` | `true` if the last health check succeeded (HTTP 200). |
+| `health` | `PersonaHealthInfo \| null` | The health response body. |
+| `isLoading` | `boolean` | `true` while checking. |
+| `checkHealth` | `() => Promise<PersonaHealthInfo \| null>` | Manually trigger a health check. |
+
+### Health info shape
+
+```ts
+interface PersonaHealthInfo {
+  status: string;           // e.g. "ok"
+  version?: string;         // runtime version
+  capabilities?: Record<string, boolean>;
+}
+```
+
+### Usage pattern — connection status bar
+
+```tsx
+const { isConnected, health, checkHealth } = useConnection();
+
+return (
+  <div className={`px-3 py-1 text-xs ${
+    isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+  }`}>
+    {isConnected
+      ? `Connected (v${health?.version || '?'})`
+      : 'Disconnected'}
+    <button onClick={checkHealth} className="ml-2 underline">
+      Retry
+    </button>
+  </div>
+);
+```
+
+---
+
+## `PersonaProvider`
+
+The context provider that all hooks depend on. Not a hook itself, but the setup is critical.
+
+```ts
+import { PersonaProvider } from '@personaai/react';
+```
+
+### Props
+
+| Prop | Type | Required | Description |
+| --- | --- | --- | --- |
+| `baseUrl` | `string` | Yes | Base URL of your Persona backend (e.g. `http://localhost:3000/api/persona`). Trailing slashes are stripped. |
+| `getAuthToken` | `() => Promise<string \| null \| undefined> \| string \| null \| undefined` | No | Async getter for the user's Bearer JWT. If omitted, no `Authorization` header is sent — only works if your backend doesn't require auth. |
+| `defaultAgentId` | `string` | No | Default agent ID used by all hooks when no `agentId` is passed. |
+| `children` | `ReactNode` | Yes | The subtree that needs access to Persona hooks. |
+
+### What it does
+
+- Strips trailing slashes from `baseUrl`
+- Creates a `fetchWithAuth` function that:
+  - Calls `getAuthToken()` on every request
+  - Sets `Authorization: Bearer <token>` if a token is returned
+  - Prepends `baseUrl` to every path
+- Stores everything in React Context — all hooks read from this context
+
+### Usage in Next.js App Router
+
+```tsx
+// app/providers.tsx
+'use client';
+
+import { PersonaProvider } from '@personaai/react';
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <PersonaProvider
+      baseUrl={process.env.NEXT_PUBLIC_PERSONA_URL!}
+      getAuthToken={async () => {
+        const res = await fetch('/api/auth/token');
+        const data = await res.json();
+        return data.token;
+      }}
+      defaultAgentId={process.env.NEXT_PUBLIC_DEFAULT_AGENT_ID}
+    >
+      {children}
+    </PersonaProvider>
+  );
+}
+```
+
+### Usage in a Next.js Route Handler (server-side)
+
+For server-side usage where you want the SDK client directly, use `@personaai/sdk` instead.
+`PersonaProvider` is for client components only.

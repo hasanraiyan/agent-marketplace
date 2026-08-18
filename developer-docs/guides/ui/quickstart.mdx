@@ -1,0 +1,261 @@
+---
+title: UI Components Quickstart
+description: Install @personaai/ui, import the styles, and drop a PersonaChatView into your app for a fully-featured chat widget with sidebar, files drawer, theming, and streaming.
+---
+
+`@personaai/ui` is a set of pre-built React components for [Persona](https://persona.hasanraiyan.me) — full chat widgets and standalone building blocks that compose on top of `@personaai/react` hooks. Use them to get a polished chat UI without writing message rendering, tool call cards, sidebar, files drawer, or theming from scratch.
+
+**v0.7.3, current release.** Requires `@personaai/react` ^0.3.2 and React 18+.
+
+## Install
+
+```bash
+npm install @personaai/ui @personaai/react
+```
+
+```bash
+pnpm add @personaai/ui @personaai/react
+```
+
+`@personaai/react` is a peer dependency. You also need a `<PersonaProvider>` wrapping your app — see the [React SDK quickstart](/guides/react/quickstart) if you haven't set that up yet.
+
+## Import the stylesheet
+
+**Required.** `@personaai/ui` ships a self-contained `styles.css` that bundles all Tailwind utility classes the components use, plus KaTeX styles for LaTeX math rendering. Import it once in your app's entry point:
+
+```ts
+// In your root layout, entry point, or a global CSS file:
+import '@personaai/ui/styles.css';
+```
+
+Without this import, every component renders unstyled — this is the most common setup issue.
+
+<Note>
+  The `styles.css` is built with Tailwind v4's CLI against this package's own source. It uses `theme` + `utilities` layers only, deliberately skipping Preflight, so it doesn't reset your own app's base styles.
+</Note>
+
+## Minimal example — PersonaChatView
+
+`PersonaChatView` is the fully-assembled chat widget: sidebar, message feed, composer, files drawer, interrupt card — all wired together. Drop it into a page and you have a complete chat experience:
+
+```tsx
+'use client';
+
+import { PersonaProvider } from '@personaai/react';
+import { PersonaChatView } from '@personaai/ui';
+import '@personaai/ui/styles.css';
+
+function ChatPage() {
+  return (
+    <div className="h-screen">
+      <PersonaChatView
+        agentId="my-agent-id"
+        greeting="How can I help you today?"
+        title="Support Chat"
+      />
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <PersonaProvider
+      baseUrl="http://localhost:3000/api/persona"
+      getAuthToken={async () => getToken()}
+      defaultAgentId="my-agent-id"
+    >
+      <ChatPage />
+    </PersonaProvider>
+  );
+}
+```
+
+That's a complete chat UI — streaming messages, sidebar with thread history, files drawer, tool call cards, markdown rendering, and theme support — all in ~20 lines.
+
+## PersonaChatLauncher — floating widget
+
+For embedding a chat bubble on any page (support widget style), use `PersonaChatLauncher`. It renders a floating action button (FAB) that toggles a `PersonaChatView` panel:
+
+```tsx
+'use client';
+
+import { PersonaProvider } from '@personaai/react';
+import { PersonaChatLauncher } from '@personaai/ui';
+import '@personaai/ui/styles.css';
+
+export default function App() {
+  return (
+    <PersonaProvider
+      baseUrl="http://localhost:3000/api/persona"
+      defaultAgentId="my-agent-id"
+    >
+      {/* Your existing app content */}
+      <main>
+        <h1>Welcome to my site</h1>
+        {/* Chat bubble appears in the corner */}
+        <PersonaChatLauncher
+          agentId="my-agent-id"
+          position="bottom-right"
+          panelWidth="24rem"
+          panelHeight="36rem"
+          greeting="Hi! How can I assist you?"
+        />
+      </main>
+    </PersonaProvider>
+  );
+}
+```
+
+The launcher passes every `PersonaChatView` prop straight through — the panel is a full `PersonaChatView` inside a floating container.
+
+## PersonaChatLauncher props (launcher-specific)
+
+In addition to all `PersonaChatViewProps`, the launcher accepts:
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `position` | `'bottom-right' \| 'bottom-left'` | `'bottom-right'` | Which corner the FAB and panel appear in. |
+| `defaultOpen` | `boolean` | `false` | Initial open state (uncontrolled). |
+| `open` | `boolean` | — | Controlled open state. Pass to manage externally. |
+| `onOpenChange` | `(open: boolean) => void` | — | Called when the open state changes. |
+| `fabIcon` | `ReactNode` | MessageCircle icon | Custom icon for the FAB button (shown while closed). |
+| `panelWidth` | `string` | `'24rem'` | CSS width of the floating panel. |
+| `panelHeight` | `string` | `'36rem'` | CSS height of the floating panel. |
+| `fabClassName` | `string` | — | Extra CSS class on the FAB button. |
+| `panelClassName` | `string` | — | Extra CSS class on the floating panel container. |
+
+### Controlled launcher
+
+```tsx
+const [isOpen, setIsOpen] = useState(false);
+
+<PersonaChatLauncher
+  open={isOpen}
+  onOpenChange={setIsOpen}
+  agentId="my-agent-id"
+/>
+<button onClick={() => setIsOpen(true)}>Open Chat</button>
+```
+
+### Container-query responsive behavior
+
+The launcher uses CSS container queries (`@container/persona-chat`) — sidebar and files drawer dock vs. overlay based on the **panel's own width**, not the browser viewport. This means they correctly stay in overlay mode inside the launcher's narrow floating panel even on a wide desktop, the same way they do on a narrow phone. No manual configuration needed.
+
+## Custom theme
+
+Pass a `theme` prop to change colors. Every value maps to a CSS custom property, so passing your own `var(--your-token)` works too — the persona vars become indirections that pick up your existing light/dark switching:
+
+```tsx
+<PersonaChatView
+  agentId="my-agent-id"
+  theme={{
+    primaryColor: '#6366f1',           // indigo — send button, active sidebar item
+    backgroundColor: '#fafafa',
+    cardBackgroundColor: '#ffffff',
+    textColor: '#1e293b',
+    mutedTextColor: '#64748b',
+    borderColor: '#e2e8f0',
+    borderRadius: '0.75rem',
+    userMessageBg: '#6366f1',
+    userMessageText: '#ffffff',
+    assistantMessageBg: 'transparent',
+    assistantMessageText: '#1e293b',
+    userAvatarBg: '#c7d2fe',
+    userAvatarText: '#3730a3',
+    assistantAvatarBg: '#f1f5f9',
+    assistantAvatarText: '#475569',
+  }}
+/>
+```
+
+### Using your own design tokens
+
+Since every theme value is a CSS custom property, you can pass your own tokens as values:
+
+```tsx
+<PersonaChatView
+  theme={{
+    primaryColor: 'var(--brand-primary)',
+    backgroundColor: 'var(--surface)',
+    textColor: 'var(--text-primary)',
+    borderColor: 'var(--border)',
+  }}
+/>
+```
+
+The components render `style="--persona-primary: var(--brand-primary)"` — CSS resolves the outer var first, then the inner one, correctly picking up whatever light/dark switching your app already has. No extra JS required.
+
+### Theme property reference
+
+| Property | CSS variable | Used by |
+| --- | --- | --- |
+| `primaryColor` | `--persona-primary` | Send button, active sidebar item, FAB button |
+| `backgroundColor` | `--persona-bg` | Widget root, headers, composer |
+| `cardBackgroundColor` | `--persona-card` | Sidebar, files drawer, tool cards |
+| `textColor` | `--persona-text` | All text in the widget |
+| `mutedTextColor` | `--persona-muted-text` | Secondary text, timestamps |
+| `borderColor` | `--persona-border` | All borders |
+| `borderRadius` | CSS `border-radius` on root | Widget root border radius |
+| `userMessageBg` | `--persona-user-bg` | User message bubble background |
+| `userMessageText` | `--persona-user-text` | User message text color |
+| `assistantMessageBg` | `--persona-assistant-bg` | Assistant message area (default: transparent) |
+| `assistantMessageText` | `--persona-assistant-text` | Assistant message text color |
+| `userAvatarBg` | `--persona-user-avatar-bg` | User avatar background |
+| `userAvatarText` | `--persona-user-avatar-text` | User avatar icon color |
+| `assistantAvatarBg` | `--persona-assistant-avatar-bg` | Assistant avatar background |
+| `assistantAvatarText` | `--persona-assistant-avatar-text` | Assistant avatar icon color |
+
+Every unset property falls through to the component's built-in zinc palette defaults — an unthemed widget looks identical to one with no `theme` prop at all.
+
+## Starter prompts
+
+Show quick-action buttons above the composer on the first message:
+
+```tsx
+<PersonaChatView
+  agentId="my-agent-id"
+  starterPrompts={[
+    { title: '📝 Summarize', prompt: 'Summarize the latest report' },
+    { title: '🔍 Search', prompt: 'Search for recent news about AI' },
+    { title: '💻 Code', prompt: 'Write a Python script to parse CSV files' },
+  ]}
+/>
+```
+
+Starter prompts only appear when the message list is empty — once the user sends their first message, they disappear.
+
+## Tool call rendering
+
+Tool calls render as expandable cards by default. You can:
+
+1. **Disable grouping** — render one card per tool call instead of clustering consecutive calls:
+   ```tsx
+   <PersonaChatView groupTools={false} />
+   ```
+
+2. **Customize cluster labels** — override the auto-generated titles for grouped tool calls:
+   ```tsx
+   <PersonaChatView
+     toolClusterLabels={{
+       search: { title: 'Looking things up', icon: SearchIcon },
+       custom_tool: { title: 'Running custom logic', icon: WrenchIcon },
+     }}
+   />
+   ```
+
+3. **Provide custom tool renderers** — render specific tools with your own React component:
+   ```tsx
+   <PersonaChatView
+     toolRenderers={{
+       search_web: SearchResultCard,    // renders search results
+       write_file: FileWriteCard,       // renders file write preview
+       default: GenericToolCard,        // fallback for unhandled tools
+     }}
+   />
+   ```
+
+## Next steps
+
+- [Components reference](/guides/ui/components) — every exported component and building block.
+- [Theming reference](/guides/ui/theming) — the full `PersonaCustomTheme` shape and CSS variable system.
+- [Launcher reference](/guides/ui/launcher) — `PersonaChatLauncher` in depth.

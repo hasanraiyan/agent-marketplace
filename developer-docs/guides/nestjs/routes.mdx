@@ -1,0 +1,85 @@
+---
+title: Routes
+description: Every route the @personaai/nestjs middleware exposes, how it translates NestJS requests, and which SDK call each route proxies to.
+---
+
+The adapter exposes the runtime's entire route table on whatever `routePrefix` you configure (default: `/api/persona`). The middleware is a single catch-all: `PersonaMiddleware` handles every request under the prefix and forwards it to `runtime.handle()`. The runtime owns matching, params, and 404/405 — the adapter adds no routes of its own.
+
+## Always-on routes (end-user scoped)
+
+| Method | Path (relative to prefix) | What it does |
+| --- | --- | --- |
+| `POST` | `/chat` | Streams an agent response as SSE (AG-UI events); response carries `x-persona-run-id` |
+| `GET` | `/chat/:runId/resume` | Reattaches to the run started by the matching `POST /chat` |
+| `GET` | `/threads` | Lists the user's conversations |
+| `POST` | `/threads` | Creates a thread |
+| `POST` | `/threads/bulk-delete` | Deletes several threads at once |
+| `GET` | `/threads/:id` | Gets a thread |
+| `PATCH` | `/threads/:id` | Updates title / archive state |
+| `DELETE` | `/threads/:id` | Deletes a thread (`204`) |
+| `GET` | `/threads/:id/messages` | Full message history + graph state (resume source) |
+| `GET` | `/agents` | Read-only agent discovery for your users |
+| `GET` | `/files` | Lists the user's files |
+| `POST` | `/files` | Uploads a file (multipart, `file` part) — `201` |
+| `POST` | `/files/bulk-delete` | Deletes several files |
+| `GET` | `/files/:id` | Downloads a file (binary) |
+| `DELETE` | `/files/:id` | Deletes a file (`204`) |
+| `GET` | `/memory` | Lists memory entries |
+| `GET` | `/memory/file` | Reads a memory file (`path` query param) |
+| `PUT` | `/memory/file` | Writes a memory file |
+| `DELETE` | `/memory/file` | Deletes a memory file (`204`) |
+| `GET` | `/mcps/:id/oauth/owner/authorize` | Owner OAuth authorize URL (redirect target) |
+| `GET` | `/mcps/:id/oauth/user/authorize` | End-user OAuth authorize URL |
+| `GET` | `/mcps/:id/oauth/user/status` | End-user MCP connection status |
+| `DELETE` | `/mcps/:id/oauth/user/connection` | Disconnects the end user's connection (`204`) |
+| `DELETE` | `/mcps/:id/oauth/owner/connection` | Disconnects the owner's connection (`204`) |
+| `GET` | `/health` | Liveness + capability probe — **no auth required** |
+
+Every route except `GET /health` requires an authenticated user (`401` when the resolver returns `null` or throws). For the exact SDK call each route proxies to, see the [Runtime routes reference](/guides/runtime/routes).
+
+## Opt-in admin routes
+
+The Project-level admin surface (agents CRUD, providers, skills, knowledge, stores, MCPs, audit logs, architect) is off by default — it's gated behind `capabilities.*` on the runtime. When a capability is disabled, its routes are simply absent (a request `404`s or `405`s, never `403`). See [Runtime capabilities](/guides/runtime/capabilities).
+
+To expose the admin surface, register a *second* module with capabilities on and stricter auth:
+
+```ts
+@Module({
+  imports: [
+    PersonaModule.forRoot({
+      baseUrl: '...',
+      credential: '...',
+      resolveUser: resolveEndUser, // normal app auth
+    }),
+    PersonaModule.forRootAsync({
+      // register under a different route prefix
+      // This requires a second module registration with its own prefix
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+In practice, for the admin surface you'd create a second `PersonaModule.forRoot()` with `routePrefix: '/api/admin/persona'` and stricter `resolveUser` in a separate feature module, or use `PersonaService.runtime.handle()` directly in an admin controller.
+
+## How the middleware translates a request
+
+`PersonaMiddleware` translates the NestJS request to the runtime's framework-neutral contract before `runtime.handle()` runs:
+
+| Concern | Behavior |
+| --- | --- |
+| **Path** | Uses `req.path` — NestJS strips the route prefix automatically when the middleware is configured via `configure()`. |
+| **Query** | Parsed from `req.originalUrl` via `URLSearchParams`, so repeated keys collapse to the last value (`Record<string, string>`). |
+| **Headers** | Copied verbatim; array-valued headers are joined with `, `. |
+| **Method** | Uppercased; `GET`/`DELETE` are treated as bodyless. |
+| **JSON bodies** | Uses `req.body` when a NestJS body parser already ran, otherwise reads and parses the raw stream itself. Malformed JSON → `400 INVALID_REQUEST`. |
+| **Multipart bodies** | Parsed natively (see [Uploads](/guides/nestjs/uploads)); already-parsed `req.file`/`req.files` from multer are honored. |
+| **Auth** | `resolveUserFrom` (if provided) runs after translation and stamps the result as the runtime request's `userId` (see [Auth](/guides/nestjs/auth)). |
+
+## Error responses
+
+- Runtime responses — including sanitized error envelopes `{"error":{code,message}}` — are forwarded **verbatim** (status, headers, body).
+- Adapter translation failures (malformed JSON, unparsable multipart) respond `400 INVALID_REQUEST` in the same envelope shape.
+- Any other adapter-side error is forwarded to NestJS's exception filter — unless headers are already sent, in which case the connection is ended cleanly.
+
+See [Runtime errors](/guides/runtime/errors) for the two detail modes (`development` vs `production`).

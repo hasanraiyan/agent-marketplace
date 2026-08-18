@@ -8,8 +8,13 @@
 
 | Package | Location | Status | Purpose |
 |---|---|---|---|
-| `@personaai/sdk` | `sdk/typescript/` | **v0.2.3 — Shipped** | Raw TypeScript API client. Server-side only. Covers agents, threads, files, knowledge, MCP, providers, skills, audit logs, and AG-UI chat streaming. |
-| `personaai` (Python) | `sdk/python/` | **Shipped** | Python API client. Sync + async. Same resource coverage as the TypeScript SDK. |
+| `@personaai/sdk` | `sdk/typescript/` | **v0.4.2 — Shipped** | Raw TypeScript API client. Server-side only. Covers agents, threads, files, knowledge, MCP, providers, skills, audit logs, and AG-UI chat streaming. |
+| `personaai` (Python) | `sdk/python/` | **v0.3.0 — Shipped** | Python API client. Sync + async. Same resource coverage as the TypeScript SDK. |
+| `@personaai/runtime` | `sdk/runtime/` | **v0.5.1 — Shipped** | Framework-agnostic runtime engine. |
+| `@personaai/react` | `sdk/react/` | **v0.3.2 — Shipped** | React hooks + context provider for client-side chat UIs. |
+| `@personaai/ui` | `sdk/ui/` | **v0.7.3 — Shipped** | Pre-built React chat components. |
+| `@personaai/express` | `sdk/adapters/express/` | **v0.1.0 — Shipped** | Express adapter. |
+| `@personaai/nestjs` | `sdk/adapters/nestjs/` | **v0.1.0 — Shipped** | NestJS adapter. |
 | Flutter app | `persona/` | **Exists** | Consumer mobile app. Not part of the package ecosystem. |
 
 **Starting point:** We have the foundation layer (Level 1 — raw SDK) in two languages. Everything above it needs to be built.
@@ -78,7 +83,7 @@ graph TD
 
 ### 2. `@personaai/runtime` — The Engine
 
-> **New.** This is the core of Level 2 — the "brain" that all framework adapters share.
+> **Shipped** (v0.5.1). This is the core of Level 2 — the "brain" that all framework adapters share.
 
 | | |
 |---|---|
@@ -166,7 +171,7 @@ graph TD
 
 ### 7. `@personaai/nestjs` — NestJS Adapter
 
-> **New.** Adapter using NestJS idioms.
+> **Shipped** (v0.1.0). Adapter using NestJS idioms.
 
 | | |
 |---|---|
@@ -196,7 +201,7 @@ graph TD
 
 ### 9. `@personaai/react` — Hooks & State
 
-> **New.** This is Level 3 of the abstraction ladder.
+> **Shipped** (v0.3.2). This is Level 3 of the abstraction ladder.
 
 | | |
 |---|---|
@@ -226,7 +231,7 @@ graph TD
 
 ### 10. `@personaai/ui` — UI Components
 
-> **New.** This is Level 4 of the abstraction ladder.
+> **Shipped** (v0.7.3). This is Level 4 of the abstraction ladder.
 
 | | |
 |---|---|
@@ -347,17 +352,18 @@ After Wave 2, a Next.js developer can go from install to streaming conversation.
 These are thin adapters over `@personaai/runtime`. If the runtime is solid from Wave 1, these should be fast to build.
 
 ✅ **`@personaai/express` is shipped** (v0.1.0 published);
+✅ **`@personaai/nestjs` is shipped** (v0.1.0 published);
 `@personaai/hono` and `@personaai/fastify` remain.
 
 ### Wave 4 — The Experience Layer
 
 | Package | Why last |
 |---|---|
-| `@personaai/ui` | Requires hooks to be stable and battle-tested first. |
-| `@personaai/themes` | Requires UI components to exist first. |
-| `@personaai/nestjs` | Smaller audience. More complex adapter (DI, decorators). |
+| `@personaai/ui` | ✅ **Shipped** (v0.7.3). |
+| `@personaai/themes` | Not yet started — genuinely still future work. |
+| `@personaai/nestjs` | ✅ **Shipped** (v0.1.0). |
 
-UI components are last not because they're unimportant — they're the highest-leverage DX layer — but because they need stable hooks to build on. Shipping flawed components is worse than shipping no components.
+`@personaai/ui` shipped with its own inline theming system (`PersonaCustomTheme` + CSS custom properties) rather than a separate `@personaai/themes` package — the themes package may still be useful for sharing presets across projects, but is not required for UI components to work.
 
 ---
 
@@ -407,15 +413,15 @@ Plus 1 existing Python SDK.
 **11 JavaScript packages. That's the ecosystem.**
 
 ```
-@personaai/sdk          ← Exists (v0.2.3)
-@personaai/runtime      ← New (Wave 1)
-@personaai/react        ← New (Wave 1)
+@personaai/sdk          ← Shipped (v0.4.2)
+@personaai/runtime      ← Shipped (v0.5.1)
+@personaai/react        ← Shipped (v0.3.2)
 @personaai/nextjs       ← New (Wave 2)
 @personaai/node         ← New (Wave 2)
-@personaai/express      ← New (Wave 3)
+@personaai/express      ← Shipped (v0.1.0)
 @personaai/hono         ← New (Wave 3)
 @personaai/fastify      ← New (Wave 3)
-@personaai/ui           ← New (Wave 4)
-@personaai/themes       ← New (Wave 4)
-@personaai/nestjs       ← New (Wave 4)
+@personaai/ui           ← Shipped (v0.7.3)
+@personaai/themes       ← New (future)
+@personaai/nestjs       ← Shipped (v0.1.0)
 ```

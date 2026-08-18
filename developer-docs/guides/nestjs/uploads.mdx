@@ -1,0 +1,68 @@
+---
+title: Uploads
+description: How @personaai/nestjs handles multipart file uploads — native FormData parsing, multer coexistence, and request body size limits.
+---
+
+Two routes accept file uploads, and the adapter parses them **natively** — zero extra dependencies:
+
+- `POST /files` — single-file upload, `file` part required (plus optional `agentId`/`threadId` form fields)
+- `POST /knowledge/:id/documents` — one or more `files` parts (plus optional `agentId`/`threadId`)
+
+Both are *always-on* (`/files`) or *capability-gated* (`/knowledge` — enable `capabilities.knowledge`) routes of the runtime; the adapter's job is only to translate the incoming multipart body into the runtime's `file`/`files`/`body` fields.
+
+## Native parsing
+
+When a multipart request arrives, the adapter reads the raw stream and parses it with Node's built-in `FormData` (undici, shipped with Node 18+) — no `multer`, `busboy`, or `formidable` required:
+
+```bash
+curl -X POST http://localhost:3000/api/persona/files \
+  -H "Authorization: Bearer <credential>" \
+  -F "file=@resume.pdf;type=application/pdf" \
+  -F "agentId=ag_123"
+```
+
+The `file` part becomes `RuntimeRequest.file` (`{filename, content, contentType}`); any other form fields (`agentId`, `threadId`) land on `RuntimeRequest.body` and flow through to the SDK upload call.
+
+## Using multer yourself
+
+The adapter coexists with `multer`. If your own middleware already parsed the multipart body, the adapter detects the parsed `req.file`/`req.files` and **honors them** instead of reading the stream again:
+
+```ts
+import * as multer from 'multer';
+
+const upload = multer({ storage: multer.memoryStorage() });
+
+// multer parses first; the adapter uses its output
+app.use('/api/persona/files', upload.single('file'), (req, res, next) => {
+  // the adapter middleware sees req.file already populated
+  next();
+});
+```
+
+**One warning:** if a body parser ran *without* capturing the file (e.g. `express.json()` on a multipart request, or a multer instance configured to discard), the adapter detects that the stream was already consumed and responds `400 INVALID_REQUEST` — it can't reconstruct the body.
+
+In NestJS, the standard approach is to use `FileInterceptor` from `@nestjs/platform-express` on specific routes, or to let the adapter handle multipart natively for the `/api/persona/*` routes.
+
+## Body size limits
+
+The adapter buffers request bodies (JSON *and* multipart) in memory **with no size limit of its own**. Enforce one with your own middleware when you need it:
+
+```ts
+// In your main.ts or a global middleware
+app.use(express.json({ limit: '10mb' }));
+```
+
+For multipart specifically, configure multer's `limits` option:
+
+```ts
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25 MB
+});
+```
+
+Choose limits that match your product — typical chat attachments are 1–25 MB.
+
+## Downloads are binary
+
+The mirror image: `GET /files/:id` streams the file back through as raw bytes (`kind: 'binary'`), chunk by chunk, with the correct `Content-Type`. The adapter handles `Content-Disposition`-style headers from the runtime verbatim.

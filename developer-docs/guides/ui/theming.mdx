@@ -1,0 +1,159 @@
+---
+title: Theming
+description: The PersonaCustomTheme prop, CSS custom property system, and how to integrate with your own design tokens for light/dark mode support.
+---
+
+Every color in `@personaai/ui` components is applied via CSS custom properties with literal zinc fallbacks — an unthemed app gets the default zinc palette, and a themed app gets its brand colors. The mechanism is slightly unusual but deliberately designed: every theme value is a plain CSS variable with a fallback, so passing your own `var(--your-token)` works and picks up your existing light/dark switching for free.
+
+## How it works
+
+When you pass a `theme` prop, the component computes a `CSSProperties` object where each theme field maps to a `--persona-*` CSS variable. This is applied as an inline `style` on a root element that wraps the entire widget.
+
+Every component reads its colors through `var(--persona-x, <default>)` in its Tailwind classes:
+
+```tsx
+// PersonaChatView's root:
+className="bg-[var(--persona-bg,#ffffff)] dark:bg-[var(--persona-bg,#09090b)]"
+
+// PersonaComposer's send button:
+className="bg-[var(--persona-primary,#27272a)] dark:bg-[var(--persona-primary,#e4e4e7)]"
+```
+
+Two things to notice:
+
+1. **Both light and dark classes use the same `--persona-*` variable** with the same fallback. A theme value is applied uniformly across light and dark mode — the same color both times. This is intentional: a brand's primary color doesn't usually change between modes, and if it does, you can use your own `var(--brand-primary)` which resolves differently in each mode.
+
+2. **The fallback is the original hardcoded value** — so an unthemed app produces pixel-identical output to a widget without the theme prop at all.
+
+## PersonaCustomTheme — full shape
+
+```ts
+interface PersonaCustomTheme {
+  // Global
+  primaryColor?: string;           // --persona-primary — send button, active sidebar item, FAB
+  backgroundColor?: string;       // --persona-bg — widget root, headers, composer background
+  cardBackgroundColor?: string;   // --persona-card — sidebar, files drawer, tool cards
+  textColor?: string;             // --persona-text — all text in the widget
+  mutedTextColor?: string;        // --persona-muted-text — secondary text, timestamps
+  borderColor?: string;           // --persona-border — all borders and dividers
+  borderRadius?: string;          // CSS border-radius on widget root
+
+  // User messages
+  userMessageBg?: string;         // --persona-user-bg — bubble background
+  userMessageText?: string;       // --persona-user-text — bubble text color
+
+  // Assistant messages
+  assistantMessageBg?: string;    // --persona-assistant-bg — message area (default: transparent)
+  assistantMessageText?: string;  // --persona-assistant-text — message text color
+
+  // User avatar
+  userAvatarBg?: string;          // --persona-user-avatar-bg — avatar circle background
+  userAvatarText?: string;        // --persona-user-avatar-text — avatar icon color
+
+  // Assistant avatar
+  assistantAvatarBg?: string;     // --persona-assistant-avatar-bg — avatar circle background
+  assistantAvatarText?: string;   // --persona-assistant-avatar-text — avatar icon color
+}
+```
+
+All fields are optional. Unset fields are omitted from the inline style entirely — React doesn't render `undefined` style properties, so the CSS class fallback takes effect.
+
+## CSS variable map
+
+The `buildThemeStyles` utility produces:
+
+```ts
+{
+  '--persona-primary': theme.primaryColor,
+  '--persona-bg': theme.backgroundColor,
+  '--persona-card': theme.cardBackgroundColor,
+  '--persona-text': theme.textColor,
+  '--persona-muted-text': theme.mutedTextColor,
+  '--persona-border': theme.borderColor,
+  '--persona-user-bg': theme.userMessageBg,
+  '--persona-user-text': theme.userMessageText,
+  '--persona-assistant-bg': theme.assistantMessageBg,
+  '--persona-assistant-text': theme.assistantMessageText,
+  '--persona-user-avatar-bg': theme.userAvatarBg,
+  '--persona-user-avatar-text': theme.userAvatarText,
+  '--persona-assistant-avatar-bg': theme.assistantAvatarBg,
+  '--persona-assistant-avatar-text': theme.assistantAvatarText,
+  borderRadius: theme.borderRadius,
+}
+```
+
+## Using your own design tokens
+
+The key insight: since every value is a CSS custom property, passing `var(--your-token)` as a theme value creates a chain of CSS variable indirection:
+
+```tsx
+<PersonaChatView
+  theme={{
+    primaryColor: 'var(--brand-primary)',
+    backgroundColor: 'var(--surface-bg)',
+    textColor: 'var(--text-primary)',
+    borderColor: 'var(--border-default)',
+  }}
+/>
+```
+
+The rendered inline style becomes:
+
+```css
+style="--persona-primary: var(--brand-primary); --persona-bg: var(--surface-bg); ..."
+```
+
+When a component renders `bg-[var(--persona-bg,#ffffff)]`, CSS resolves:
+1. `var(--persona-bg)` → `var(--surface-bg)` (from inline style)
+2. `var(--surface-bg)` → your actual color value (from your stylesheet)
+
+This means:
+- **Your existing light/dark switching works automatically** — if `--surface-bg` resolves to `#ffffff` in light mode and `#1a1a1a` in dark mode, the widget follows.
+- **No extra JS required** — it's pure CSS variable resolution.
+- **The zinc fallback is never reached** — because `--persona-bg` is set, even though its value is another `var()`.
+
+## Example: Tailwind CSS + custom theme
+
+```tsx
+// In your Tailwind config or CSS:
+// :root { --brand-primary: #6366f1; --surface: #ffffff; --text: #1e293b; }
+// .dark { --surface: #0f172a; --text: #e2e8f0; }
+
+<PersonaChatView
+  theme={{
+    primaryColor: 'var(--brand-primary)',
+    backgroundColor: 'var(--surface)',
+    textColor: 'var(--text)',
+  }}
+/>
+```
+
+## Example: Chakra UI / CSS-in-JS
+
+```tsx
+const { colorMode } = useColorMode();
+
+const theme: PersonaCustomTheme = {
+  primaryColor: colorMode === 'dark' ? '#818cf8' : '#6366f1',
+  backgroundColor: colorMode === 'dark' ? '#1a202c' : '#ffffff',
+  textColor: colorMode === 'dark' ? '#e2e8f0' : '#1a202a',
+  borderColor: colorMode === 'dark' ? '#2d3748' : '#e2e8f0',
+};
+
+<PersonaChatView theme={theme} />
+```
+
+## Theme propagation in PersonaChatLauncher
+
+`PersonaChatLauncher` has a subtlety: the FAB button is a **sibling** of `PersonaChatView`'s subtree, not a descendant. CSS custom properties set on `PersonaChatView`'s root don't reach the FAB.
+
+The launcher solves this by computing `buildThemeStyles` once and applying it to a **common ancestor** of both the FAB and the panel. `PersonaChatView` also sets the same styles on its own root (harmless duplication), but the launcher's wrapper ensures the FAB picks up `primaryColor` for its background.
+
+This is handled automatically — no configuration needed. If you're building your own layout with a FAB-style button and `PersonaMessageFeed`, apply `buildThemeStyles` to a parent element that wraps both.
+
+## What's NOT controlled by theme
+
+- **Typography** — font family, size, and weight are hardcoded (system font stack, consistent sizing). Theme controls color only.
+- **Spacing** — padding and gap values are fixed.
+- **Layout** — sidebar width, drawer width, panel dimensions are fixed (or controlled by props like `panelWidth`).
+- **Shadows and borders** — border widths and shadow levels are not themeable (only border color is).

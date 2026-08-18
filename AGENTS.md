@@ -116,17 +116,20 @@ agent-backend/
 ## SDK Directory Structure
 
 All published SDK packages live under one `sdk/` folder. Package *names* (what users install) are
-independent of their folder: `@personaai/sdk`, `@personaai/runtime`, and `persona-agent-sdk` (PyPI).
+independent of their folder: `@personaai/sdk`, `@personaai/runtime`, `@personaai/react`, `@personaai/ui`,
+`@personaai/express`, `@personaai/nestjs`, and `persona-agent-sdk` (PyPI).
 
 ```
 sdk/
 ├── typescript/        # @personaai/sdk — Node.js/TypeScript API client (tsup + vitest)
 ├── python/            # persona-agent-sdk — Python API client (hatchling + pytest)
 ├── runtime/           # @personaai/runtime — framework-agnostic runtime engine
-├── adapters/          # framework adapters — express (implemented), nextjs/fastify/hono/nestjs/node future
-├── react/             # future
-├── ui/                # future
-└── themes/            # future
+├── adapters/
+│   ├── express/       # @personaai/express — Express adapter (implemented)
+│   └── nestjs/        # @personaai/nestjs — NestJS adapter (implemented)
+├── react/             # @personaai/react — React hooks + context provider (implemented)
+├── ui/                # @personaai/ui — Pre-built React chat components (implemented)
+└── themes/            # future — not yet started
 ```
 
 Each package has its own toolchain, version, and release cycle — there is **no root pnpm workspace**
@@ -389,6 +392,9 @@ The memory system uses a **file-based store** backed by MongoDB (not `InMemorySt
 | `sdk/typescript/src/index.ts`                       | TypeScript SDK client (`@personaai/sdk`) exports |
 | `sdk/python/src/personaai/client.py`                | Python SDK client (`persona-agent-sdk`) entry    |
 | `sdk/runtime/src/runtime.ts`                        | Runtime engine (`@personaai/runtime`) core        |
+| `sdk/react/src/index.ts`                            | React hooks + context (`@personaai/react`) exports |
+| `sdk/ui/src/index.ts`                               | Pre-built React components (`@personaai/ui`) exports |
+| `sdk/adapters/nestjs/src/index.ts`                  | NestJS adapter (`@personaai/nestjs`) exports       |
 
 ## Configuration
 

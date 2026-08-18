@@ -48,6 +48,24 @@
           },
           "guides/sdk-quickstart-python",
           {
+            "group": "React SDK Reference",
+            "pages": [
+              "guides/react/quickstart",
+              "guides/react/hooks",
+              "guides/react/streaming",
+              "guides/react/types"
+            ]
+          },
+          {
+            "group": "UI Components Reference",
+            "pages": [
+              "guides/ui/quickstart",
+              "guides/ui/components",
+              "guides/ui/theming",
+              "guides/ui/launcher"
+            ]
+          },
+          {
             "group": "Express Adapter",
             "pages": [
               "guides/express/quickstart",
@@ -55,6 +73,16 @@
               "guides/express/auth",
               "guides/express/uploads",
               "guides/express/streaming"
+            ]
+          },
+          {
+            "group": "NestJS Adapter",
+            "pages": [
+              "guides/nestjs/quickstart",
+              "guides/nestjs/routes",
+              "guides/nestjs/auth",
+              "guides/nestjs/uploads",
+              "guides/nestjs/streaming"
             ]
           },
           {

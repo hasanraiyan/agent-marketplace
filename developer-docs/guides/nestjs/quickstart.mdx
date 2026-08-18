@@ -1,0 +1,222 @@
+---
+title: Quickstart
+description: Install @personaai/nestjs, register PersonaModule in your NestJS app, and get streaming chat, threads, files, and memory behind your own auth in a few lines.
+---
+
+`@personaai/nestjs` is a NestJS adapter for the [Persona runtime](/guides/runtime/quickstart) — a dynamic module, an injectable service, and middleware that let you mount the entire runtime surface (AG-UI streaming chat, threads, files, memory, MCP OAuth, health) in a NestJS application without writing any SSE forwarding, protocol parsing, or thread-CRUD plumbing.
+
+It's a thin translation layer: all logic lives in the runtime. If you need a raw call the adapter doesn't cover, drop down to [`@personaai/sdk`](/guides/sdk-quickstart) via `PersonaService.client`.
+
+<Warning>
+  **Server-side only.** The credential you configure is a server-side secret — never bundle it into a browser app.
+</Warning>
+
+## Prerequisites
+
+- **Node.js 18+** and **NestJS 10 or 11** (peer dependencies: `@nestjs/common ^10 || ^11`, `@nestjs/core ^10 || ^11`)
+- A **Project credential** shaped `"<keyId>.<secret>"`, minted in [Developer Studio](https://persona.hasanraiyan.me/developer)
+- An **Agent** to talk to (create one in Studio, or via the SDK's `agents.create`)
+
+## Install
+
+```bash
+npm install @personaai/nestjs
+```
+
+```bash
+pnpm add @personaai/nestjs
+```
+
+The package ships ESM and CommonJS. Dependencies: `@personaai/runtime` and `@personaai/sdk` (installed automatically). Peer dependencies: `@nestjs/common`, `@nestjs/core`, and optionally `reflect-metadata` and `rxjs`.
+
+## Register the module
+
+Add `PersonaModule.forRoot()` to your root module:
+
+```ts
+// app.module.ts
+import { Module } from '@nestjs/common';
+import { PersonaModule } from '@personaai/nestjs';
+
+@Module({
+  imports: [
+    PersonaModule.forRoot({
+      baseUrl: process.env.PERSONA_BASE_URL!,
+      credential: process.env.PERSONA_CREDENTIAL!,
+      resolveUser: (request) => {
+        // Your auth, your rules — return the external user id, or null for 401.
+        // This receives the translated RuntimeRequest, not the raw NestJS request.
+        return request.headers['x-user-id'] ?? null;
+      },
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+That's it. The Persona runtime surface is now mounted at `/api/persona/*` (the default `routePrefix`).
+
+### Change the mount path
+
+```ts
+PersonaModule.forRoot({
+  // ...
+  routePrefix: '/api/ai/chat', // or routePrefix (alias)
+})
+```
+
+Both `routePrefix` and `mountPath` are accepted — `routePrefix` is preferred for clarity. The middleware is configured to match `${routePrefix}/*` automatically.
+
+## Use the service
+
+Inject `PersonaService` in any controller or service to interact with the Persona API programmatically:
+
+```ts
+// chat.controller.ts
+import { Controller, Post, Body, Req } from '@nestjs/common';
+import { PersonaService } from '@personaai/nestjs';
+
+@Controller('chat')
+export class ChatController {
+  constructor(private readonly persona: PersonaService) {}
+
+  @Post()
+  async chat(@Req() req: any, @Body() body: { agentId: string; message: string }) {
+    // Create a client scoped to this user
+    const client = this.persona.forUser(req.userId);
+
+    // Use the client to send a message
+    const result = await client.chat.sendMessage(body.agentId, {
+      messages: [{ role: 'user', content: body.message }],
+    });
+
+    return result;
+  }
+}
+```
+
+### `PersonaService` properties
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `options` | `PersonaModuleOptions` | The original configuration. |
+| `runtime` | `Runtime` | The underlying runtime instance — call `runtime.handle()` directly if you need to. |
+| `client` | `PersonaClient` | An unscoped SDK client (no `externalUserId`). Use for admin operations. |
+
+### `PersonaService.forUser(externalUserId)`
+
+Creates a new `PersonaClient` scoped to a specific end-user. Use this for threads, chat, files, and memory operations that need user context:
+
+```ts
+const userClient = this.persona.forUser('user-123');
+const threads = await userClient.threads.list();
+```
+
+## Async module configuration
+
+For dependency injection of config services (e.g. `ConfigService`), use `forRootAsync`:
+
+```ts
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { PersonaModule } from '@personaai/nestjs';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot(),
+    PersonaModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        baseUrl: config.getOrThrow('PERSONA_BASE_URL'),
+        credential: config.getOrThrow('PERSONA_CREDENTIAL'),
+        resolveUser: (request) => request.headers['x-user-id'] ?? null,
+      }),
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+### `forRootAsync` options
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `imports` | `ModuleMetadata['imports']` | Modules to import (e.g. `ConfigModule`). |
+| `useFactory` | `(...args) => PersonaModuleOptions \| Promise<PersonaModuleOptions>` | Factory function. |
+| `useClass` | `Type<PersonaOptionsFactory>` | A class that implements `PersonaOptionsFactory`. |
+| `useExisting` | `Type<PersonaOptionsFactory>` | Use an already-provided factory instance. |
+| `inject` | `any[]` | Tokens to inject into the factory. |
+
+A class-based factory:
+
+```ts
+@Injectable()
+export class PersonaConfigFactory implements PersonaOptionsFactory {
+  constructor(private readonly config: ConfigService) {}
+
+  createPersonaOptions(): PersonaModuleOptions {
+    return {
+      baseUrl: this.config.getOrThrow('PERSONA_BASE_URL'),
+      credential: this.config.getOrThrow('PERSONA_CREDENTIAL'),
+      resolveUser: (request) => request.headers['x-user-id'] ?? null,
+    };
+  }
+}
+```
+
+## What you get
+
+Every route the runtime exposes is available at `${routePrefix}/*`:
+
+| Method | Path | What it does |
+| --- | --- | --- |
+| `POST` | `/api/persona/chat` | Streams an agent response as SSE (AG-UI events) |
+| `GET` | `/api/persona/threads` | Lists the user's conversations |
+| `POST` | `/api/persona/threads` | Creates a thread |
+| `GET/POST` | `/api/persona/files` | Lists / uploads files (multipart) |
+| `GET` | `/api/persona/health` | Liveness + capability probe (no auth required) |
+
+The complete route table is in the [Runtime routes reference](/guides/runtime/routes).
+
+## Middleware and body parsers
+
+The `PersonaMiddleware` translates NestJS requests to the runtime's framework-neutral contract. It:
+
+- Reads `req.originalUrl` for path and query parameters
+- Reads `req.method` for HTTP method
+- Reads `req.headers` for headers
+- Handles multipart requests natively (via `req.readable` stream) or from pre-parsed `req.file`/`req.files` (multer)
+- Falls back to reading `req.body` if a JSON body parser already ran
+
+**Important:** If you're using `multer` or another body parser, mount it on the same route prefix as the adapter so the middleware sees the parsed body. If a body parser runs and discards the multipart body (e.g. `express.json()` on a multipart request), the adapter responds `400 INVALID_REQUEST`.
+
+## Lifecycle hooks
+
+All eight hooks (`beforeRun`, `afterRun`, `onError`, `beforeToolCall`, `afterToolCall`, `onFileUpload`, `onThreadCreate`, `onMemoryWrite`) pass straight through to the runtime — see the [Runtime Hooks reference](/guides/runtime/hooks). Configure them on `PersonaModule.forRoot()`:
+
+```ts
+PersonaModule.forRoot({
+  baseUrl: '...',
+  credential: '...',
+  resolveUser: (req) => req.headers['x-user-id'] ?? null,
+  hooks: {
+    afterRun: (ctx, result) => {
+      // deductCredits(ctx.userId) or log analytics
+    },
+  },
+});
+```
+
+## Clean shutdown
+
+`PersonaService` implements `OnModuleDestroy` and calls `runtime.close()` automatically when the NestJS app shuts down. This stops the runtime's internal eviction timer. No manual cleanup needed.
+
+## Next steps
+
+- [Auth & user resolution](/guides/nestjs/auth) — the two resolver patterns in depth.
+- [Routes](/guides/nestjs/routes) — every route the middleware exposes.
+- [Uploads](/guides/nestjs/uploads) — multipart parsing and multer coexistence.
+- [Streaming & disconnects](/guides/nestjs/streaming) — SSE, backpressure, reconnect, teardown.
+- Build a chat UI with the raw SDK's `chat.stream` and the AG-UI events it emits (see the [SDK chat guide](/guides/sdk/chat)), or drop in pre-built components with `@personaai/react` and `@personaai/ui`.
+- Drop to [`@personaai/sdk`](/guides/sdk-quickstart) for any call the adapter doesn't cover.

@@ -1,0 +1,430 @@
+---
+title: Components Reference
+description: Every component @personaai/ui exports — the two full widgets (PersonaChatView, PersonaChatLauncher) and the ~10 standalone building blocks, with props, use cases, and when to reach for each piece.
+---
+
+`@personaai/ui` exports two full widgets and a set of standalone building blocks. The widgets compose the building blocks internally — use the widgets when you want a complete chat experience, and the building blocks when you need to assemble your own layout.
+
+## Full widgets
+
+### `PersonaChatView`
+
+The complete, self-contained chat widget — sidebar, message feed, composer, files drawer, interrupt card, and toolbar. All behavior wiring (thread creation, lazy message loading, file upload, present_file auto-open) is handled by `usePersonaChatWidget` internally.
+
+```tsx
+import { PersonaChatView } from '@personaai/ui';
+```
+
+#### Props
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `agentId` | `string` | — | Agent to direct chats to. |
+| `threadId` | `string` | — | Controlled active thread. Omit to let the widget manage it. |
+| `onThreadChange` | `(threadId: string \| undefined) => void` | — | Called when the active thread changes. |
+| `greeting` | `string` | `'How can I assist you today?'` | Empty-state greeting text. |
+| `title` | `string` | `'AI Assistant'` | Title shown in the toolbar header. |
+| `starterPrompts` | `StarterPromptItem[]` | `[]` | Quick-action buttons above the composer (only on first message). |
+| `toolRenderers` | `ToolRendererMap` | — | Custom React components for specific tool names. |
+| `classNames` | `ClassNamesOverride` | `{}` | Extra CSS classes on internal elements (root, sidebar, main, header, composer, messageList, messageUser, messageAssistant, filesDrawer). |
+| `theme` | `PersonaCustomTheme` | — | Color overrides. See [Theming](/guides/ui/theming). |
+| `showSidebar` | `boolean` | `true` | Whether the sidebar is enabled. |
+| `showFilesDrawer` | `boolean` | `true` | Whether the files drawer is enabled. |
+| `showUserAvatar` | `boolean` | `true` | Show user avatar on messages. |
+| `showAssistantAvatar` | `boolean` | `true` | Show assistant avatar on messages. |
+| `userAvatar` | `ReactNode` | — | Custom user avatar (replaces default icon entirely). |
+| `assistantAvatar` | `ReactNode` | — | Custom assistant avatar (replaces default icon entirely). |
+| `groupTools` | `boolean` | `true` | Cluster consecutive tool calls into collapsible groups. |
+| `toolClusterLabels` | `PersonaToolClusterLabels` | — | Override/extend group titles and icons. |
+| `className` | `string` | — | Extra CSS class on the root element. |
+
+#### Layout structure
+
+```
+PersonaChatView
+├── PersonaSidebar (left, conditionally rendered)
+├── Main canvas
+│   ├── Toolbar (sidebar toggle, title, files drawer toggle)
+│   ├── PersonaMessageFeed (scrollable message list)
+│   ├── PersonaInterruptCard (HITL/clarification, conditionally rendered)
+│   └── PersonaComposer (input, send/stop, file upload)
+└── PersonaFilesDrawer (right, conditionally rendered)
+```
+
+#### The widget handles
+
+- Thread selection and lazy creation (first message creates a thread automatically)
+- History loading when switching threads
+- Sidebar/files-drawer toggle state
+- Auto-closing sidebar on mobile viewport mount
+- Present_file auto-opening the files drawer
+
+#### When to use instead of building blocks
+
+Use `PersonaChatView` when you want a standard chat layout with sidebar + main area + files drawer. If you need a different layout (composer at the top, sidebar on the right, no sidebar, a floating widget), compose the building blocks yourself.
+
+---
+
+### `PersonaChatLauncher`
+
+A floating action button (FAB) that toggles a `PersonaChatView` panel — for mounting a chat widget on any page rather than a dedicated chat route. Accepts every `PersonaChatViewProps` and passes them through.
+
+```tsx
+import { PersonaChatLauncher } from '@personaai/ui';
+```
+
+#### Additional props (beyond PersonaChatViewProps)
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `position` | `'bottom-right' \| 'bottom-left'` | `'bottom-right'` | Corner for FAB and panel. |
+| `defaultOpen` | `boolean` | `false` | Initial open state (uncontrolled). |
+| `open` | `boolean` | — | Controlled open state. |
+| `onOpenChange` | `(open: boolean) => void` | — | Open state change callback. |
+| `fabIcon` | `ReactNode` | `MessageCircle` | Custom FAB icon (shown while closed). |
+| `panelWidth` | `string` | `'24rem'` | Panel CSS width. |
+| `panelHeight` | `string` | `'36rem'` | Panel CSS height. |
+| `fabClassName` | `string` | — | Extra class on FAB button. |
+| `panelClassName` | `string` | — | Extra class on floating panel. |
+
+#### Container-query responsive behavior
+
+The launcher's root is a named CSS container (`@container/persona-chat`). `PersonaSidebar` and `PersonaFilesDrawer` key their dock-vs-overlay breakpoints off `@3xl/persona-chat` (768px) and `@5xl/persona-chat` (1024px) — the same pixel thresholds as the normal `md:`/`lg:`, but measured against the **widget's own width** instead of the browser viewport. This means sidebar and drawer correctly stay in overlay mode inside the launcher's narrow floating panel even on a wide desktop.
+
+#### Theme propagation
+
+The FAB button is a sibling of `PersonaChatView`'s subtree, not a descendant — it can't inherit CSS variables `PersonaChatView` sets on its own root. The launcher computes `buildThemeStyles` once and applies it to a common ancestor of both the FAB and the panel, so `primaryColor` correctly reaches the FAB button.
+
+---
+
+## Standalone building blocks
+
+### `PersonaMessageFeed`
+
+The scrollable message list — renders messages, tool call cards, reasoning blocks, avatars, markdown, streaming indicators, and copy/reload buttons.
+
+```tsx
+import { PersonaMessageFeed } from '@personaai/ui';
+```
+
+#### Props
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `messages` | `PersonaMessage[]` | — | The message array from `useChat`. |
+| `isStreaming` | `boolean` | — | Show streaming pulse on the latest message. |
+| `isLoading` | `boolean` | — | Show skeleton placeholders instead of empty state. |
+| `error` | `Error \| null` | — | Error banner below messages. |
+| `toolRenderers` | `ToolRendererMap` | — | Custom tool card renderers. |
+| `onReload` | `() => void` | — | Regenerate button callback. |
+| `onOpenFile` | `(path: string) => void` | — | present_file "Open" button callback. |
+| `greeting` | `string` | `'How can I assist you today?'` | Empty-state greeting. |
+| `showUserAvatar` | `boolean` | `true` | User avatar visibility. |
+| `showAssistantAvatar` | `boolean` | `true` | Assistant avatar visibility. |
+| `userAvatar` | `ReactNode` | — | Custom user avatar. |
+| `assistantAvatar` | `ReactNode` | — | Custom assistant avatar. |
+| `groupTools` | `boolean` | `true` | Cluster tool calls into groups. |
+| `toolClusterLabels` | `PersonaToolClusterLabels` | — | Override cluster titles/icons. |
+| `className` | `string` | — | Extra class on root. |
+
+#### Standalone usage
+
+```tsx
+import { useChat } from '@personaai/react';
+import { PersonaMessageFeed } from '@personaai/ui';
+
+function CustomChat() {
+  const chat = useChat({ agentId });
+
+  return (
+    <div className="flex h-screen">
+      {/* Your custom sidebar */}
+      <YourCustomSidebar />
+
+      {/* Message feed fills the remaining space */}
+      <PersonaMessageFeed
+        messages={chat.messages}
+        isStreaming={chat.isStreaming}
+        isLoading={chat.isLoadingHistory}
+        error={chat.error}
+        onReload={chat.reload}
+      />
+
+      {/* Your custom composer */}
+      <YourCustomComposer onSend={chat.sendMessage} />
+    </div>
+  );
+}
+```
+
+#### Rendering behavior
+
+- User messages: plain text with `whitespace-pre-wrap`, right-aligned, bubble background.
+- Assistant messages: Markdown-rendered (tables, LaTeX, fenced code blocks with copy button), left-aligned, full-width, no bubble background (since v0.7.1).
+- Tool calls: rendered as `PersonaToolTrace` cards, optionally grouped into `PersonaToolGroup` clusters.
+- Reasoning: collapsible "Thinking…" block above the answer.
+- Streaming: pulsing blue dot after the content.
+
+---
+
+### `PersonaComposer`
+
+The message input area — auto-resizing textarea, send/stop button, file upload button, and starter prompt badges.
+
+```tsx
+import { PersonaComposer } from '@personaai/ui';
+```
+
+#### Props
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `input` | `string` | — | Current input value. |
+| `onInputChange` | `(value: string) => void` | — | Input change handler. |
+| `onSubmit` | `() => void` | — | Submit handler. |
+| `onStop` | `() => void` | — | Stop streaming handler. |
+| `isStreaming` | `boolean` | — | Show stop button instead of send. |
+| `disabled` | `boolean` | — | Disable the input. |
+| `placeholder` | `string` | `'Ask anything...'` | Input placeholder text. |
+| `starterPrompts` | `StarterPromptItem[]` | `[]` | Quick-action badges. |
+| `onSelectStarter` | `(prompt: string) => void` | — | Called when a starter prompt is clicked. |
+| `onUploadFile` | `(e: ChangeEvent) => void` | — | File upload handler. |
+| `className` | `string` | — | Extra class on root. |
+
+#### Behavior
+
+- Auto-resizes textarea height based on content (max 180px).
+- Enter sends (Shift+Enter for newline).
+- File upload button triggers a hidden `<input type="file">`.
+- Starter prompts appear as pill badges above the input, only when input is empty.
+
+---
+
+### `PersonaSidebar`
+
+Thread list sidebar — search, date-grouped threads, inline rename, delete, and new-chat button.
+
+```tsx
+import { PersonaSidebar } from '@personaai/ui';
+```
+
+#### Props
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `threads` | `PersonaThread[]` | Thread list from `useThreads`. |
+| `activeThreadId` | `string` | Currently selected thread. |
+| `onSelectThread` | `(id: string \| undefined) => void` | Thread selection handler. |
+| `onCreateThread` | `() => void` | New chat handler. |
+| `onDeleteThread` | `(id: string) => void` | Delete handler (optional). |
+| `onRenameThread` | `(id: string, title: string) => void` | Rename handler (optional). |
+| `onClose` | `() => void` | Dismiss handler (for mobile overlay). |
+| `isLoading` | `boolean` | Show skeleton placeholders. |
+
+#### Responsive behavior
+
+- Below `@3xl/persona-chat` (768px): full-screen overlay with backdrop.
+- Above: docked inline panel.
+- Auto-closes on mobile mount (handled by `usePersonaChatWidget`).
+- Thread search appears when there are >5 threads.
+
+#### Date grouping
+
+Threads are grouped into: Today, Yesterday, Previous 7 Days, Older — based on `updatedAt`.
+
+---
+
+### `PersonaFilesDrawer`
+
+Three-tab drawer: Files (uploads), Workspace (agent's virtual filesystem + plan), Memory (persistent memory files).
+
+```tsx
+import { PersonaFilesDrawer } from '@personaai/ui';
+```
+
+#### Props
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `isOpen` | `boolean` | Whether the drawer is open. |
+| `onClose` | `() => void` | Close handler. |
+| `files` | `PersonaFileItem[]` | Uploaded files from `useFiles`. |
+| `memory` | `PersonaMemoryList` | Memory data from `useMemory`. |
+| `workspaceFiles` | `Record<string, PersonaWorkspaceFile>` | Agent workspace files from `useChat`. |
+| `todos` | `PersonaTodo[]` | Agent plan items from `useChat`. |
+| `presentedFile` | `PersonaPresentedFile \| null` | Auto-opens Workspace tab on this file. |
+| `onDeleteFile` | `(id: string) => void` | Delete upload handler. |
+| `onGetMemoryFile` | `(path: string) => Promise<PersonaMemoryFile>` | Read memory file handler. |
+| `onDeleteMemoryFile` | `(path: string) => Promise<void>` | Delete memory file handler. |
+| `isFilesLoading` | `boolean` | Show file tab skeletons. |
+| `isMemoryLoading` | `boolean` | Show memory tab skeletons. |
+
+#### Responsive behavior
+
+- Below `@5xl/persona-chat` (1024px): full-screen overlay with backdrop.
+- Above: docked inline panel (80 wide).
+
+---
+
+### `PersonaToolTrace`
+
+A single tool call card — expandable accordion showing arguments, result, status, and subagent activity timeline. Special-cases `present_file` into a compact "Open this file" card, and `write_todos` into a checklist.
+
+```tsx
+import { PersonaToolTrace } from '@personaai/ui';
+```
+
+#### Props
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `toolCall` | `PersonaToolCall` | The tool call data from `useChat`. |
+| `toolRenderers` | `ToolRendererMap` | Custom renderers for specific tool names. |
+| `onOpenFile` | `(path: string) => void` | present_file "Open" handler. |
+
+#### Rendering behavior
+
+- **`present_file`**: Compact card with file icon, name, description, and Open button.
+- **`write_todos`**: Checklist with completed/in-progress/pending icons, title shows "Plan (x/y)".
+- **`task` (subagent)**: Nested timeline showing the subagent's text output and tool calls.
+- **Custom tool renderer**: If `toolRenderers[toolCall.toolName]` exists and the result is ready, delegates to that component instead.
+- **Generic**: Expandable accordion with JSON-formatted args and result.
+
+---
+
+### `PersonaToolGroup`
+
+Clusters 2+ consecutive tool calls into one collapsible card with a semantic title derived from what the cluster is doing (memory, file, search, task, plan, or mixed).
+
+```tsx
+import { PersonaToolGroup } from '@personaai/ui';
+```
+
+#### Props
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `tools` | `PersonaToolCall[]` | The clustered tool calls. |
+| `toolRenderers` | `ToolRendererMap` | Custom tool renderers (passed through). |
+| `onOpenFile` | `(path: string) => void` | present_file handler (passed through). |
+| `clusterLabels` | `PersonaToolClusterLabels` | Override/extend cluster titles and icons. |
+
+#### Auto-open behavior
+
+Auto-opens the moment any tool in the group starts running. Never auto-closes once opened — a card the user expanded stays open after completion.
+
+---
+
+### `PersonaMarkdown`
+
+Renders assistant message content as Markdown — tables (GFM), LaTeX (`$inline$` / `$$block$$` via KaTeX), and fenced code blocks with a copy button. Used internally by `PersonaMessageFeed` for assistant messages.
+
+```tsx
+import { PersonaMarkdown } from '@personaai/ui';
+```
+
+#### Props
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `content` | `string` | The markdown text to render. |
+| `className` | `string` | Extra class on root. |
+
+#### Note on user messages
+
+User messages are deliberately rendered as plain text — rendering their literal input as Markdown could surprise them with formatting they didn't intend.
+
+---
+
+### `PersonaInterruptCard`
+
+Renders HITL approval requests (approve/reject buttons for tool actions) and clarification questions (option buttons or free-text input). Displayed between the message feed and composer when `useChat`'s `interrupt` is set.
+
+```tsx
+import { PersonaInterruptCard } from '@personaai/ui';
+```
+
+#### Props
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `interrupt` | `PersonaInterrupt` | The interrupt data from `useChat`. |
+| `isStreaming` | `boolean` | Disable buttons while streaming. |
+| `onRespond` | `(resume: PersonaResumeValue, displayContent: string) => void` | Resume handler (wraps `resumeInterrupt`). |
+
+---
+
+### `PersonaSkeleton`
+
+Skeleton loading primitives — shimmering placeholders used internally by `PersonaMessageFeed`, `PersonaSidebar`, and `PersonaFilesDrawer` when `isLoading` is true.
+
+```tsx
+import { PersonaMessageSkeletonRow, PersonaThreadSkeletonRow, PersonaFileSkeletonRow } from '@personaai/ui';
+```
+
+These are internal components — you're unlikely to need them directly unless you're building a custom loading state that matches the widget's visual style.
+
+---
+
+## Custom tool renderers
+
+Pass a `toolRenderers` map to render specific tools with your own component:
+
+```tsx
+interface ToolRendererProps {
+  toolCall: PersonaToolCall;
+  args?: Record<string, unknown> | string;
+  result?: Record<string, unknown> | string;
+  isExecuting?: boolean;
+  isError?: boolean;
+}
+
+// Map tool names to your components
+const toolRenderers: ToolRendererMap = {
+  search_web: SearchResultsCard,
+  write_file: FileWritePreview,
+  create_calendar_event: CalendarEventCard,
+  default: GenericToolCard,  // fallback for any unhandled tool name
+};
+```
+
+The renderer receives parsed `args` and `result` (if available), plus `isExecuting` (true while the tool is still running) and `isError` (true if the tool returned an error).
+
+---
+
+## `usePersonaChatWidget`
+
+The behavioral hook that `PersonaChatView` is built on — every stateful piece (thread selection, lazy creation, sidebar/drawer state, present_file auto-open) extracted into its own hook. `PersonaChatView` is just one layout built on top of it.
+
+```tsx
+import { usePersonaChatWidget } from '@personaai/ui';
+```
+
+### Options
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `agentId` | `string` | — | Agent ID. |
+| `threadId` | `string` | — | Controlled thread. |
+| `onThreadChange` | `(id: string \| undefined) => void` | — | Thread change callback. |
+| `defaultSidebarOpen` | `boolean` | `true` | Initial sidebar state. |
+
+### When to use
+
+Use `usePersonaChatWidget` when you're building a completely custom layout (not `PersonaChatView`) but want the same behavior wiring — thread management, lazy creation, sidebar state, present_file auto-open — without reimplementing it against the raw `useChat`/`useThreads` hooks.
+
+### Return value
+
+Returns every field from `useChat` plus:
+- `activeThreadId`, `setActiveThread` — thread selection
+- `sidebarOpen`, `setSidebarOpen` — sidebar state
+- `filesDrawerOpen`, `setFilesDrawerOpen` — drawer state
+- `threads`, `deleteThread`, `renameThread`, `threadsLoading` — thread management
+- `files`, `deleteFile`, `filesLoading` — uploaded files
+- `memory`, `getMemoryFile`, `deleteMemoryFile`, `memoryLoading` — memory
+- `workspaceFiles` — agent workspace files (renamed from `useChat`'s `files` to avoid collision)
+- `handleSelectThread`, `handleNewChat`, `handleSend`, `handleUploadFile` — composed handlers
+
+### Name collision
+
+`useFiles()` and `useChat()` both name their very different `files` field the same thing. The hook exposes them as `files` (uploads) and `workspaceFiles` (agent workspace) respectively.

@@ -1,0 +1,386 @@
+---
+title: Types Reference
+description: Every exported type, interface, and alias from @personaai/react — message shapes, tool calls, interrupts, workspace files, streaming events, and hook option types.
+---
+
+Every type below is exported from the package root — import directly from `@personaai/react`:
+
+```ts
+import type {
+  PersonaMessage,
+  PersonaStreamingEvent,
+  // ...
+} from '@personaai/react';
+```
+
+## Core message types
+
+### `PersonaRole`
+
+```ts
+type PersonaRole = 'user' | 'assistant' | 'system';
+```
+
+### `PersonaMessage`
+
+The central type — represents one message in the conversation. Used by `useChat`'s `messages`
+array and as the argument to `onFinish`.
+
+```ts
+interface PersonaMessage {
+  id: string;
+  role: PersonaRole;
+  content: string;
+  createdAt: Date;
+  isStreaming?: boolean;        // true while this message is being received
+  toolCalls?: PersonaToolCall[]; // tool invocations in this turn
+  reasoning?: string;           // model reasoning/thinking text (streamed ahead of the answer)
+  isReasoning?: boolean;        // true while reasoning is actively streaming
+}
+```
+
+**When `isReasoning` is true**, `reasoning` contains the partial thinking text and `content`
+is still empty — the model hasn't started generating the final answer yet. When `REASONING_END`
+fires, `isReasoning` goes false and `content` starts filling.
+
+**When `toolCalls` is non-empty**, each entry is a `PersonaToolCall` representing one tool
+invocation. A single assistant turn can have multiple tool calls, and each one goes through
+the cycle: `TOOL_CALL_CHUNK` (args streaming) → `TOOL_CALL_RESULT` (result arrives).
+
+### `PersonaToolCall`
+
+```ts
+interface PersonaToolCall {
+  toolCallId: string;
+  toolName: string;
+  args?: string;                              // JSON string of arguments
+  result?: string;                            // JSON string of result (or error envelope)
+  isError?: boolean;                          // true if result is {status:'error',...}
+  subagentActivity?: PersonaSubagentActivityEntry[]; // live updates for task/subagent tools
+}
+```
+
+`args` arrives in chunks — the first `TOOL_CALL_CHUNK` sets `toolCallId` and `toolName`,
+and subsequent chunks append to `args`. By the time `TOOL_CALL_RESULT` arrives, `args`
+is the complete JSON string.
+
+`isError` is detected by the hook parsing `result` for `{status: 'error', message}` — the
+backend doesn't set a boolean field on the event itself.
+
+`subagentActivity` only appears on `task` (subagent) tool calls, accumulating live updates
+as the subagent runs.
+
+### `PersonaSubagentActivityEntry`
+
+```ts
+interface PersonaSubagentActivityEntry {
+  kind: 'text' | 'tool_start' | 'tool_result';
+  toolName?: string;
+  args?: string;
+  result?: string;
+  delta?: string;
+}
+```
+
+Each entry represents one live update on a subagent's timeline. `text` entries carry `delta`
+(text the subagent is generating). `tool_start` entries carry `toolName` and `args` (the
+subagent is calling another tool). `tool_result` entries carry `result` (that tool finished).
+
+---
+
+## Interrupt types (HITL & clarifications)
+
+### `PersonaInterrupt`
+
+A discriminated union — either a HITL approval request or a clarification question. Set on
+`useChat`'s `interrupt` field when the stream pauses.
+
+```ts
+type PersonaInterrupt =
+  | {
+      kind: 'hitl';
+      actionRequests: PersonaHitlActionRequest[];
+      reviewConfigs: unknown[];
+    }
+  | {
+      kind: 'clarification';
+      questions: PersonaClarificationQuestion[];
+    };
+```
+
+### `PersonaHitlActionRequest`
+
+```ts
+interface PersonaHitlActionRequest {
+  name: string;         // the tool name (e.g. "delete_file", "send_email")
+  args?: unknown;       // the tool's arguments, as parsed JSON
+}
+```
+
+### `PersonaClarificationQuestion`
+
+```ts
+interface PersonaClarificationQuestion {
+  id: string;
+  text: string;           // the question text
+  options: string[];      // multiple-choice options (may be empty if free-text only)
+  required: boolean;      // if true, the user must answer before the run can resume
+  allowCustom: boolean;   // if true, the user can type a custom answer not in options
+}
+```
+
+### `PersonaResumeValue`
+
+What to pass in `sendMessage(content, { resume })` to unpause a paused run:
+
+```ts
+type PersonaResumeValue =
+  | {
+      decisions: Array<{
+        type: 'approve' | 'reject';
+        message?: string;
+      }>;
+    }
+  | {
+      answers: unknown[];
+      text?: string;
+    };
+```
+
+For `hitl` interrupts, use the `decisions` shape. For `clarification` interrupts, use the
+`answers` shape.
+
+---
+
+## Workspace & file types
+
+### `PersonaWorkspaceFile`
+
+The agent's own virtual filesystem — files the agent has written via `write_file` tool calls,
+tracked through `STATE_SNAPSHOT` events. **Distinct from `PersonaFileItem`** (user uploads).
+
+```ts
+interface PersonaWorkspaceFile {
+  content: string;
+  size: number;
+  createdAt: string | null;
+  modifiedAt: string | null;
+}
+```
+
+These are normalized from the wire's `snake_case` timestamps (`created_at`/`modified_at`) to
+`camelCase` by the hook.
+
+### `PersonaPresentedFile`
+
+Set when the agent calls `present_file` — a signal to highlight a specific workspace file.
+
+```ts
+interface PersonaPresentedFile {
+  path: string;
+  title: string;
+  description: string;
+}
+```
+
+### `PersonaFileItem`
+
+A user-uploaded file (from `useFiles`). **Distinct from `PersonaWorkspaceFile`** — different
+hook, different API, different shape.
+
+```ts
+interface PersonaFileItem {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  size: number;           // bytes
+  agentId: string | null;
+  threadId: string | null;
+  createdAt: string;
+}
+```
+
+### `PersonaTodo`
+
+An item from the agent's plan — updated with each `STATE_SNAPSHOT` event.
+
+```ts
+interface PersonaTodo {
+  content: string;    // the task description
+  status: string;     // e.g. "pending", "in_progress", "done"
+}
+```
+
+---
+
+## Memory types
+
+### `PersonaMemoryFile`
+
+```ts
+interface PersonaMemoryFile {
+  scope?: 'user' | 'agent';
+  agentId?: string;
+  path: string;
+  content: string;
+  mimeType?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+```
+
+### `PersonaMemoryAgentGroup`
+
+```ts
+interface PersonaMemoryAgentGroup {
+  agentId: string;
+  agentName: string | null; // null if the agent no longer exists
+  files: PersonaMemoryFile[];
+}
+```
+
+### `PersonaMemoryList`
+
+```ts
+interface PersonaMemoryList {
+  userFiles: PersonaMemoryFile[];
+  agentMemories: PersonaMemoryAgentGroup[];
+}
+```
+
+---
+
+## Thread types
+
+### `PersonaThread`
+
+```ts
+interface PersonaThread {
+  _id: string;
+  agentId: string | { _id: string; name: string; avatar?: string; slug: string };
+  title?: string;
+  isArchived?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+`agentId` is a bare string on `create()`/`get()` responses, but populated as a full object
+on `list()` responses.
+
+---
+
+## Agent types
+
+### `PersonaAgentSummary`
+
+```ts
+interface PersonaAgentSummary {
+  _id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  tagline?: string;
+  avatar?: string; // URL
+}
+```
+
+---
+
+## Connection types
+
+### `PersonaHealthInfo`
+
+```ts
+interface PersonaHealthInfo {
+  status: string;                  // e.g. "ok"
+  version?: string;                // runtime version
+  capabilities?: Record<string, boolean>;
+}
+```
+
+---
+
+## Provider types
+
+### `PersonaProviderProps`
+
+The props for `<PersonaProvider>`:
+
+```ts
+interface PersonaProviderProps {
+  baseUrl: string;
+  getAuthToken?: () =>
+    | Promise<string | null | undefined>
+    | string
+    | null
+    | undefined;
+  defaultAgentId?: string;
+  children: ReactNode;
+}
+```
+
+---
+
+## Hook option types
+
+### `UseChatOptions`
+
+```ts
+interface UseChatOptions {
+  agentId?: string;
+  threadId?: string;
+  initialMessages?: PersonaMessage[];
+  onFinish?: (message: PersonaMessage) => void;
+  onError?: (error: Error) => void;
+  onEvent?: (event: PersonaStreamingEvent) => void;
+}
+```
+
+### `SendMessageOverride`
+
+Per-send overrides for `sendMessage`:
+
+```ts
+interface SendMessageOverride {
+  agentId?: string;
+  threadId?: string;
+  resume?: PersonaResumeValue;
+}
+```
+
+---
+
+## Streaming event type
+
+See [Streaming Events](/guides/react/streaming) for the full
+`PersonaStreamingEvent` union with every variant documented.
+
+```ts
+type PersonaStreamingEvent =
+  | { type: 'TEXT_MESSAGE_CHUNK'; delta: string; messageId?: string; role?: 'assistant' }
+  | { type: 'TOOL_CALL_CHUNK'; toolCallId?: string; toolCallName?: string; delta?: string; parentMessageId?: string }
+  | { type: 'TOOL_CALL_RESULT'; toolCallId: string; content: string; messageId?: string; role?: 'tool'; structuredContent?: unknown }
+  | { type: 'REASONING_MESSAGE_START'; messageId: string }
+  | { type: 'REASONING_MESSAGE_CONTENT'; messageId: string; delta: string }
+  | { type: 'REASONING_END' }
+  | { type: 'STATE_SNAPSHOT'; snapshot: { files: Record<string, { content: string; size: number; created_at: string | null; modified_at: string | null }>; todos: PersonaTodo[] } }
+  | { type: 'RUN_ERROR'; code: string; message: string; retryable?: boolean; providerName?: string }
+  | { type: 'CUSTOM'; name: 'hitl_request'; value: { actionRequests: PersonaHitlActionRequest[]; reviewConfigs: unknown[] } }
+  | { type: 'CUSTOM'; name: 'clarification_request'; value: { questions: PersonaClarificationQuestion[]; currentIndex: number } }
+  | { type: 'CUSTOM'; name: 'subagent_activity'; value: { toolCallId: string } & PersonaSubagentActivityEntry }
+  | { type: 'CUSTOM'; name: 'mcp_app'; value: { toolCallId: string; resourceUri: string; mcpId: string } }
+  | { type: 'CUSTOM'; name: string; value: unknown };
+```
+
+---
+
+## Exported utilities
+
+### `VERSION`
+
+```ts
+export const VERSION = '0.3.2';
+```
+
+The current package version. Useful for runtime compatibility checks.

@@ -1,0 +1,255 @@
+---
+title: Chat Launcher
+description: PersonaChatLauncher in depth — the floating action button widget, its responsive panel behavior, controlled/uncontrolled open state, and how container queries make sidebar and drawer work correctly inside the floating panel.
+---
+
+`PersonaChatLauncher` is a floating action button (FAB) that toggles a `PersonaChatView` panel — for mounting a chat widget on any page as a support-style bubble, rather than dedicating a full-page route to chat.
+
+```tsx
+import { PersonaChatLauncher } from '@personaai/ui';
+```
+
+## Basic usage
+
+```tsx
+<PersonaChatLauncher
+  agentId="my-agent-id"
+  position="bottom-right"
+  greeting="Hi! How can I help?"
+  title="Support"
+/>
+```
+
+Renders a 56px round button in the bottom-right corner. Clicking it opens a floating panel containing a full `PersonaChatView`. Clicking again (or the X button) closes it.
+
+## Panel dimensions
+
+The panel is a fixed-size floating container. Control its size with `panelWidth` and `panelHeight`:
+
+```tsx
+<PersonaChatLauncher
+  agentId="my-agent-id"
+  panelWidth="28rem"    // default: 24rem (384px)
+  panelHeight="32rem"   // default: 36rem (576px)
+/>
+```
+
+The panel has `max-h-[calc(100vh-7rem)]` and `max-w-[calc(100vw-2rem)]` constraints — it never overflows the viewport, even if you set very large dimensions.
+
+## Position
+
+```tsx
+// Bottom-right (default)
+<PersonaChatLauncher position="bottom-right" />
+
+// Bottom-left
+<PersonaChatLauncher position="bottom-left" />
+```
+
+Both the FAB and the panel respect the position — `right-6` / `left-6` for the FAB, `right-6` / `left-6` for the panel.
+
+## Controlled vs. uncontrolled open state
+
+**Uncontrolled** (default): The launcher manages its own open/closed state internally.
+
+```tsx
+<PersonaChatLauncher defaultOpen={true} />  // starts open
+```
+
+**Controlled**: You manage the state externally.
+
+```tsx
+function App() {
+  const [chatOpen, setChatOpen] = useState(false);
+
+  return (
+    <>
+      <button onClick={() => setChatOpen(true)}>Open Support</button>
+      <PersonaChatLauncher
+        open={chatOpen}
+        onOpenChange={setChatOpen}
+        agentId="my-agent-id"
+      />
+    </>
+  );
+}
+```
+
+When `open` is provided, `onOpenChange` is called on every toggle, and the internal state is bypassed.
+
+## Custom FAB icon
+
+Replace the default `MessageCircle` icon with your own:
+
+```tsx
+<PersonaChatLauncher
+  fabIcon={<HelpCircle className="size-6" />}
+  agentId="my-agent-id"
+/>
+```
+
+The icon renders inside the FAB button (56px round, themed with `--persona-primary`).
+
+## Container-query responsive behavior
+
+This is the most important technical detail about the launcher. Inside the floating panel:
+
+- `PersonaSidebar` needs to decide whether to dock inline or overlay as a full-screen panel.
+- `PersonaFilesDrawer` needs the same decision.
+
+Normally these components use Tailwind's `md:` / `lg:` responsive prefixes, which key off the **browser viewport**. But inside the launcher's floating panel (24rem wide on a 1440px desktop), the viewport is still desktop-width even though the panel is narrow — so the sidebar/drawer would wrongly dock inline and compress the message area into a sliver.
+
+Since v0.7.3, `PersonaChatView`'s root is a named CSS container (`@container/persona-chat`), and both `PersonaSidebar` and `PersonaFilesDrawer` key their breakpoints off container queries:
+
+```css
+/* Sidebar: overlay below 768px container-width, dock above */
+@container persona-chat (max-width: 767px) { /* full-screen overlay */ }
+@container persona-chat (min-width: 768px)  { /* docked inline */ }
+
+/* Drawer: overlay below 1024px container-width, dock above */
+@container persona-chat (max-width: 1023px) { /* full-screen overlay */ }
+@container persona-chat (min-width: 1024px)  { /* docked inline */ }
+```
+
+This means:
+
+- On a **narrow phone** (375px viewport): the panel is also narrow → container is narrow → sidebar/drawer overlay correctly.
+- On a **wide desktop** (1440px viewport) with the launcher's 24rem panel: the panel is still 384px → container is narrow → sidebar/drawer overlay correctly.
+- On a **full-page PersonaChatView** (1200px wide): the container is wide → sidebar/drawer dock inline correctly.
+
+One rule covers all cases, no configuration needed.
+
+## Theme propagation
+
+The FAB button is a **sibling** of `PersonaChatView`'s subtree, not a descendant. CSS custom properties set on `PersonaChatView`'s root don't reach the FAB.
+
+The launcher handles this by computing `buildThemeStyles(theme)` once and applying it to a **common ancestor** (`<div style={themeStyles} className="contents">`) that wraps both the FAB and the panel. The `className="contents"` makes this wrapper invisible to layout — it contributes no box, just provides the CSS variable scope.
+
+`PersonaChatView` also sets the same styles on its own root (harmless duplication), but the launcher's wrapper ensures `primaryColor` correctly colors the FAB button.
+
+## Props reference
+
+### Launcher-specific props
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `position` | `'bottom-right' \| 'bottom-left'` | `'bottom-right'` | Corner for FAB and panel. |
+| `defaultOpen` | `boolean` | `false` | Initial open state (uncontrolled). |
+| `open` | `boolean` | — | Controlled open state. |
+| `onOpenChange` | `(open: boolean) => void` | — | Open state change callback. |
+| `fabIcon` | `ReactNode` | `MessageCircle` | Custom FAB icon. |
+| `panelWidth` | `string` | `'24rem'` | Panel CSS width. |
+| `panelHeight` | `string` | `'36rem'` | Panel CSS height. |
+| `fabClassName` | `string` | — | Extra class on FAB button. |
+| `panelClassName` | `string` | — | Extra class on floating panel. |
+
+### Passed-through PersonaChatViewProps
+
+Everything else is passed straight through to the internal `PersonaChatView`:
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `agentId` | `string` | Agent to chat with. |
+| `threadId` | `string` | Controlled thread. |
+| `onThreadChange` | `(id) => void` | Thread change callback. |
+| `greeting` | `string` | Empty-state greeting. |
+| `title` | `string` | Toolbar title. |
+| `starterPrompts` | `StarterPromptItem[]` | Quick-action buttons. |
+| `toolRenderers` | `ToolRendererMap` | Custom tool card renderers. |
+| `classNames` | `ClassNamesOverride` | Internal element class overrides. |
+| `theme` | `PersonaCustomTheme` | Color theme. |
+| `showSidebar` | `boolean` | Sidebar visibility. |
+| `showFilesDrawer` | `boolean` | Files drawer visibility. |
+| `showUserAvatar` | `boolean` | User avatar visibility. |
+| `showAssistantAvatar` | `boolean` | Assistant avatar visibility. |
+| `userAvatar` | `ReactNode` | Custom user avatar. |
+| `assistantAvatar` | `ReactNode` | Custom assistant avatar. |
+| `groupTools` | `boolean` | Tool call grouping. |
+| `toolClusterLabels` | `PersonaToolClusterLabels` | Cluster title overrides. |
+
+## Layout structure
+
+```
+<div style={themeStyles} className="contents">       ← common ancestor for theme vars
+  {isOpen && (
+    <div className="fixed bottom-24 right-6 ...">    ← floating panel
+      <PersonaChatView {...props} />
+    </div>
+  )}
+  <button className="fixed bottom-6 right-6 ...">    ← FAB button
+    {fabIcon ?? <MessageCircle />}
+  </button>
+</div>
+```
+
+## Accessibility
+
+- FAB has `aria-label="Open chat"` / `aria-label="Close chat"` toggled by state.
+- Panel content is a full `PersonaChatView` with standard keyboard navigation (Enter to send, Shift+Enter for newline, Escape to stop streaming).
+
+## Integration examples
+
+### With Next.js App Router
+
+```tsx
+// app/layout.tsx
+import { PersonaLauncher } from '@/components/PersonaLauncher';
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        {children}
+        <PersonaLauncher />
+      </body>
+    </html>
+  );
+}
+
+// components/PersonaLauncher.tsx
+'use client';
+import { PersonaProvider } from '@personaai/react';
+import { PersonaChatLauncher } from '@personaai/ui';
+import '@personaai/ui/styles.css';
+
+export function PersonaLauncher() {
+  return (
+    <PersonaProvider
+      baseUrl={process.env.NEXT_PUBLIC_PERSONA_URL!}
+      getAuthToken={async () => {
+        const res = await fetch('/api/auth/token');
+        return (await res.json()).token;
+      }}
+      defaultAgentId={process.env.NEXT_PUBLIC_DEFAULT_AGENT_ID}
+    >
+      <PersonaChatLauncher
+        agentId={process.env.NEXT_PUBLIC_DEFAULT_AGENT_ID}
+        position="bottom-right"
+        title="Support"
+        greeting="How can we help?"
+      />
+    </PersonaProvider>
+  );
+}
+```
+
+### With a help desk ticketing system
+
+```tsx
+function HelpDesk() {
+  const [ticketContext, setTicketContext] = useState(null);
+
+  return (
+    <PersonaProvider baseUrl="..." getAuthToken={...}>
+      <PersonaChatLauncher
+        agentId="help-desk-agent"
+        greeting={`Hi! I see you're looking at ticket #${ticketContext?.id}. How can I help?`}
+        starterPrompts={[
+          { title: '📋 Summarize', prompt: `Summarize ticket ${ticketContext?.id}` },
+          { title: '💬 Draft reply', prompt: `Draft a reply for this customer` },
+        ]}
+      />
+    </PersonaProvider>
+  );
+}
+```

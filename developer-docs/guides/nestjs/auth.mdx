@@ -1,0 +1,98 @@
+---
+title: Auth & User Resolution
+description: How @personaai/nestjs connects your own authentication to Persona — the runtime-level resolver and the NestJS request-level resolver, and the 401 behavior.
+---
+
+Persona never authenticates end users. There is no login, no session, no token of its own — the runtime receives a translated request and asks *your code* who it's from. The adapter gives you two ways to answer, and the two can be combined.
+
+The result of either resolver is the **external user id** Persona scopes the request to: threads, files, and memory are that user's, and chat runs under that identity. If no user can be resolved, the runtime responds `401` — every route except `GET /health` requires an authenticated user.
+
+## Pattern 1 — Runtime-level resolver (`resolveUser`)
+
+Configured on `PersonaModule.forRoot()`. It receives the *translated* request — the adapter's `RuntimeRequest` shape — so you read `request.headers`, `request.query`, etc. Use this when your auth already works off raw headers (session cookies, JWTs):
+
+```ts
+PersonaModule.forRoot({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser: async (request) => {
+    // Your auth, your rules. Return the resolved external user id,
+    // or null/throw if the request isn't authenticated → 401.
+    return getUserIdFromSession(request.headers['cookie']);
+  },
+});
+```
+
+`resolveUser` may be async; `null` and thrown errors are equivalent (both produce `401`).
+
+## Pattern 2 — NestJS request-level resolver (`resolveUserFrom`)
+
+If your stack authenticates users via NestJS guards and attaches the identity to the raw request, you can resolve from the NestJS `Request` object instead. The adapter runs your resolver **after** translation, before handing the request to the runtime:
+
+```ts
+PersonaModule.forRoot({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUserFrom: (req) => req.userId ?? null, // set by your guard/middleware
+});
+```
+
+The critical ordering rule: **your auth guard must run before the Persona middleware.** In NestJS, middleware runs in the order configured by the module. Since `PersonaModule` uses `configure()` to register `PersonaMiddleware` on the `routePrefix`, any guard on the same routes runs after the middleware. To ensure your auth runs first, either:
+
+1. Use a global guard with a higher priority, or
+2. Use the runtime-level `resolveUser` instead (it reads from the translated request, which has all headers available).
+
+In practice, if your auth attaches `userId` to the raw NestJS request via a guard, `resolveUserFrom` reads it from there.
+
+> **Why both?** `resolveUserFrom` is the ergonomic choice when your auth is NestJS-native (guards, decorators). `resolveUser` is the general choice — it also works if you ever need to resolve from the translated request shape. If you provide both, `resolveUserFrom` wins (it's applied last, and the runtime-level resolver becomes a pass-through of the identity it resolved).
+
+## Unauthenticated requests
+
+When `resolveUserFrom` returns `null` (or `resolveUser` returns `null` or throws), the runtime responds `401` with the envelope:
+
+```json
+{
+  "error": { "code": "UNAUTHORIZED", "message": "Could not resolve an authenticated user for this request." }
+}
+```
+
+If you'd rather reject unauthenticated requests in your own guard (e.g. NestJS `UnauthorizedException`), do it before the adapter middleware — the adapter itself never rejects; it only lets the runtime answer.
+
+## Using your own identity vs forwarding client input
+
+The adapter never passes through raw identity from the browser. `resolveUserFrom` reads whatever *your* guard verified and attached — `req.userId` from a JWT guard, `req.user.id` from Passport, etc. — and that verified id is what Persona scopes the request to. **Never** derive it from an untrusted header the client could forge; always go through a step your backend actually authenticated.
+
+## Health is public
+
+`GET /health` does not call the resolver at all — it's a liveness/capability probe backed by the SDK's `whoami()`. It's the one route you can reach without any auth in front.
+
+## Example: JWT guard integration
+
+```ts
+// persona.config.ts
+import { PersonaModule } from '@personaai/nestjs';
+
+export const personaConfig = PersonaModule.forRoot({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser: (request) => {
+    // request.headers['authorization'] was already set by your JWT guard
+    // If the guard rejected, we wouldn't get here.
+    // Extract the user id from whatever your guard attached.
+    const authHeader = request.headers['authorization'];
+    if (!authHeader?.startsWith('Bearer ')) return null;
+
+    const token = authHeader.slice(7);
+    const payload = verifyJwt(token); // your JWT verification
+    return payload?.sub ?? null;
+  },
+});
+```
+
+```ts
+// app.module.ts
+@Module({
+  imports: [personaConfig],
+})
+export class AppModule {}
+```
