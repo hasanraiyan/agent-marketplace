@@ -1833,7 +1833,7 @@ function PersonaChatLauncher({
 }
 
 // src/index.ts
-var VERSION = "0.7.1";
+var VERSION = "0.7.2";
 export {
   PersonaChatLauncher,
   PersonaChatView,

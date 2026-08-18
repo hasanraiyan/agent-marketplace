@@ -3,6 +3,21 @@
 All notable changes to `@personaai/ui` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.7.2
+
+- **Fix: republish of a broken 0.7.1.** The published `0.7.1` tarball contained only 5 files
+  (the JS bundles and `package.json`) — `dist/index.d.ts`/`.d.cts`, `dist/styles.css`, and the
+  bundled KaTeX fonts were all missing, even though they exist at that commit, because `npm
+  publish` packs whatever happens to be sitting in `dist/` on disk and never rebuilds anything
+  itself. A `tsup --watch` process running at the same time had just cleaned `dist/` (`clean:
+  true`) without finishing its slower `.d.ts` regeneration yet, and `dev`/`--watch` never runs
+  the separate CSS build at all — so publishing while that was running shipped an incomplete
+  package (consumers saw `TS7016: Could not find a declaration file for module '@personaai/ui'`).
+  0.7.1 can't be fixed in place (npm never allows overwriting a published version), so this is a
+  clean republish of the same 0.7.1 content as 0.7.2. Also added a `prepublishOnly` script that
+  always runs the full build (`tsup` + CSS) synchronously right before `npm publish` packs the
+  tarball, regardless of what else is running, so this class of bug can't recur.
+
 ## 0.7.1
 
 - **Assistant messages are now full-width, plain text — no bubble background or border.**
