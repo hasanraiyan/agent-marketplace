@@ -16,6 +16,8 @@ export interface PersonaComposerProps {
   starterPrompts?: StarterPromptItem[];
   onSelectStarter?: (prompt: string) => void;
   onUploadFile?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  /** Shows a small "Powered by persona.hasanraiyan.me" link below the input. @default true */
+  showPoweredBy?: boolean;
   className?: string;
 }
 
@@ -30,6 +32,7 @@ export function PersonaComposer({
   starterPrompts = [],
   onSelectStarter,
   onUploadFile,
+  showPoweredBy = true,
   className,
 }: PersonaComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -125,6 +128,19 @@ export function PersonaComposer({
           </div>
         </div>
       </div>
+
+      {showPoweredBy && (
+        <div className="mt-1.5 flex justify-center">
+          <a
+            href="https://persona.hasanraiyan.me"
+            target="_blank"
+            rel="noreferrer"
+            className="text-[10px] font-medium text-zinc-400 transition-colors hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-400"
+          >
+            Powered by persona.hasanraiyan.me
+          </a>
+        </div>
+      )}
     </div>
   );
 }

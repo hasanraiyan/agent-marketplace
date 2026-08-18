@@ -1826,6 +1826,7 @@ function PersonaComposer({
   starterPrompts = [],
   onSelectStarter,
   onUploadFile,
+  showPoweredBy = true,
   className
 }) {
   const textareaRef = useRef3(null);
@@ -1913,7 +1914,17 @@ function PersonaComposer({
           }
         ) })
       ] })
-    ] })
+    ] }),
+    showPoweredBy && /* @__PURE__ */ jsx14("div", { className: "mt-1.5 flex justify-center", children: /* @__PURE__ */ jsx14(
+      "a",
+      {
+        href: "https://persona.hasanraiyan.me",
+        target: "_blank",
+        rel: "noreferrer",
+        className: "text-[10px] font-medium text-zinc-400 transition-colors hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-400",
+        children: "Powered by persona.hasanraiyan.me"
+      }
+    ) })
   ] });
 }
 
@@ -2443,6 +2454,7 @@ function PersonaChatView({
   showSidebar = true,
   showFilesDrawer = true,
   showMcpConnectBanner = true,
+  showPoweredBy = true,
   showUserAvatar = true,
   showAssistantAvatar = true,
   userAvatar,
@@ -2603,7 +2615,8 @@ function PersonaChatView({
                 isStreaming,
                 starterPrompts: messages.length === 0 ? starterPrompts : [],
                 onSelectStarter: (p) => void handleSend(p),
-                onUploadFile: handleUploadFile
+                onUploadFile: handleUploadFile,
+                showPoweredBy
               }
             )
           ] })
@@ -2715,7 +2728,7 @@ function PersonaChatLauncher({
 }
 
 // src/index.ts
-var VERSION = "0.9.0";
+var VERSION = "0.9.1";
 export {
   PersonaChatLauncher,
   PersonaChatView,

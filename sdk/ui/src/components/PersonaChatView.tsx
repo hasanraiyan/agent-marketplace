@@ -25,6 +25,7 @@ export function PersonaChatView({
   showSidebar = true,
   showFilesDrawer = true,
   showMcpConnectBanner = true,
+  showPoweredBy = true,
   showUserAvatar = true,
   showAssistantAvatar = true,
   userAvatar,
@@ -202,6 +203,7 @@ export function PersonaChatView({
             starterPrompts={messages.length === 0 ? starterPrompts : []}
             onSelectStarter={(p) => void handleSend(p)}
             onUploadFile={handleUploadFile}
+            showPoweredBy={showPoweredBy}
           />
         </div>
       </div>

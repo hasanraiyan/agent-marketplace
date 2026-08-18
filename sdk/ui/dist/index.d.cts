@@ -93,6 +93,8 @@ interface PersonaChatViewProps {
     showFilesDrawer?: boolean;
     /** Shows a "Connect" prompt above the composer for any user-mode MCP this Agent needs that isn't authorized yet. @default true */
     showMcpConnectBanner?: boolean;
+    /** Shows a small "Powered by persona.hasanraiyan.me" link below the composer. @default true */
+    showPoweredBy?: boolean;
     /** @default true */
     showUserAvatar?: boolean;
     /** @default true */
@@ -111,7 +113,7 @@ interface PersonaChatViewProps {
 
 declare function cn(...inputs: ClassValue[]): string;
 
-declare function PersonaChatView({ agentId, threadId: controlledThreadId, onThreadChange, greeting, title, starterPrompts, toolRenderers, classNames, theme, showSidebar, showFilesDrawer, showMcpConnectBanner, showUserAvatar, showAssistantAvatar, userAvatar, assistantAvatar, groupTools, toolClusterLabels, className, }: PersonaChatViewProps): React$1.JSX.Element;
+declare function PersonaChatView({ agentId, threadId: controlledThreadId, onThreadChange, greeting, title, starterPrompts, toolRenderers, classNames, theme, showSidebar, showFilesDrawer, showMcpConnectBanner, showPoweredBy, showUserAvatar, showAssistantAvatar, userAvatar, assistantAvatar, groupTools, toolClusterLabels, className, }: PersonaChatViewProps): React$1.JSX.Element;
 
 interface PersonaChatLauncherProps extends PersonaChatViewProps {
     /** @default 'bottom-right' */
@@ -164,9 +166,11 @@ interface PersonaComposerProps {
     starterPrompts?: StarterPromptItem[];
     onSelectStarter?: (prompt: string) => void;
     onUploadFile?: (e: React__default.ChangeEvent<HTMLInputElement>) => void;
+    /** Shows a small "Powered by persona.hasanraiyan.me" link below the input. @default true */
+    showPoweredBy?: boolean;
     className?: string;
 }
-declare function PersonaComposer({ input, onInputChange, onSubmit, onStop, isStreaming, disabled, placeholder, starterPrompts, onSelectStarter, onUploadFile, className, }: PersonaComposerProps): React__default.JSX.Element;
+declare function PersonaComposer({ input, onInputChange, onSubmit, onStop, isStreaming, disabled, placeholder, starterPrompts, onSelectStarter, onUploadFile, showPoweredBy, className, }: PersonaComposerProps): React__default.JSX.Element;
 
 interface PersonaMessageFeedProps {
     messages: PersonaMessage[];
@@ -533,6 +537,6 @@ declare function usePersonaChatWidget(options?: UsePersonaChatWidgetOptions): {
     mcpConnectionsLoading: boolean;
 };
 
-declare const VERSION = "0.9.0";
+declare const VERSION = "0.9.1";
 
 export { type ClassNamesOverride, type DiffRow, PersonaChatLauncher, type PersonaChatLauncherProps, PersonaChatView, type PersonaChatViewProps, PersonaComposer, type PersonaComposerProps, type PersonaCustomTheme, PersonaDialog, type PersonaDialogProps, type PersonaDiffStats, PersonaFileDiffCard, type PersonaFileDiffCardProps, PersonaFileSkeletonRow, PersonaFilesDrawer, type PersonaFilesDrawerProps, type PersonaGrepMatch, PersonaGrepResultsCard, type PersonaGrepResultsCardProps, PersonaInterruptCard, type PersonaInterruptCardProps, PersonaLsDirectoryCard, type PersonaLsDirectoryCardProps, type PersonaLsEntry, PersonaMarkdown, type PersonaMarkdownProps, PersonaMcpConnectBanner, type PersonaMcpConnectBannerProps, PersonaMessageFeed, type PersonaMessageFeedProps, PersonaMessageSkeletonRow, PersonaReadFileCard, type PersonaReadFileCardProps, type PersonaSearchResult, PersonaSearchResultsCard, type PersonaSearchResultsCardProps, PersonaSidebar, type PersonaSidebarProps, PersonaSkeleton, type PersonaSkeletonProps, PersonaSubagentActivityDialog, type PersonaSubagentActivityDialogProps, type PersonaSubagentStatus, type PersonaSubagentTimelineItem, PersonaThreadSkeletonRow, type PersonaToolClusterLabels, type PersonaToolClusterMeta, PersonaToolGroup, type PersonaToolGroupItem, type PersonaToolGroupProps, PersonaToolTrace, type PersonaToolTraceProps, type StarterPromptItem, type ToolRendererMap, type ToolRendererProps, type UsePersonaChatWidgetOptions, VERSION, buildSubagentTimeline, buildThemeStyles, classifySubagentStatus, cn, computeFileDiffStats, computeLineDiff, getDomain, getFilePathFromArgs, getToolIcon, getToolTitle, groupToolCalls, isFileEditTool, isFileWriteTool, isGrepTool, isKbListSourcesTool, isKbSearchTool, isLsTool, isReadFileTool, isSubagentTool, isWebSearchTool, parseGrepResults, parseLsResults, queryFromArgs, searchResults, toolGroupKey, usePersonaChatWidget };

@@ -73,6 +73,8 @@ export interface PersonaChatViewProps {
   showFilesDrawer?: boolean;
   /** Shows a "Connect" prompt above the composer for any user-mode MCP this Agent needs that isn't authorized yet. @default true */
   showMcpConnectBanner?: boolean;
+  /** Shows a small "Powered by persona.hasanraiyan.me" link below the composer. @default true */
+  showPoweredBy?: boolean;
   /** @default true */
   showUserAvatar?: boolean;
   /** @default true */

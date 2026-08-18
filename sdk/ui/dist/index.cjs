@@ -1887,6 +1887,7 @@ function PersonaComposer({
   starterPrompts = [],
   onSelectStarter,
   onUploadFile,
+  showPoweredBy = true,
   className
 }) {
   const textareaRef = (0, import_react13.useRef)(null);
@@ -1974,7 +1975,17 @@ function PersonaComposer({
           }
         ) })
       ] })
-    ] })
+    ] }),
+    showPoweredBy && /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "mt-1.5 flex justify-center", children: /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+      "a",
+      {
+        href: "https://persona.hasanraiyan.me",
+        target: "_blank",
+        rel: "noreferrer",
+        className: "text-[10px] font-medium text-zinc-400 transition-colors hover:text-zinc-600 dark:text-zinc-600 dark:hover:text-zinc-400",
+        children: "Powered by persona.hasanraiyan.me"
+      }
+    ) })
   ] });
 }
 
@@ -2491,6 +2502,7 @@ function PersonaChatView({
   showSidebar = true,
   showFilesDrawer = true,
   showMcpConnectBanner = true,
+  showPoweredBy = true,
   showUserAvatar = true,
   showAssistantAvatar = true,
   userAvatar,
@@ -2651,7 +2663,8 @@ function PersonaChatView({
                 isStreaming,
                 starterPrompts: messages.length === 0 ? starterPrompts : [],
                 onSelectStarter: (p) => void handleSend(p),
-                onUploadFile: handleUploadFile
+                onUploadFile: handleUploadFile,
+                showPoweredBy
               }
             )
           ] })
@@ -2763,7 +2776,7 @@ function PersonaChatLauncher({
 }
 
 // src/index.ts
-var VERSION = "0.9.0";
+var VERSION = "0.9.1";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   PersonaChatLauncher,

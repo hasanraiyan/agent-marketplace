@@ -3,6 +3,12 @@
 All notable changes to `@personaai/ui` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.9.1
+
+- **Feature: `PersonaComposer`/`PersonaChatView` show a small "Powered by persona.hasanraiyan.me"
+  link below the input box by default.** A real `<a target="_blank">` link, not just text. New
+  `showPoweredBy` prop (`@default true`) on both components lets a consumer opt out.
+
 ## 0.9.0
 
 - **Feature: subagent (`task` tool) activity now opens a full detail dialog, matching
