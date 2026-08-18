@@ -3,6 +3,17 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.3.3
+
+- **New: `useMcpConnections({ agentId?, returnTo?, autoFetch? })`.** Until now there was no way
+  for a consumer of this SDK to find out whether the current user has connected an
+  `authType: 'oauth', authMode: 'user'` MCP an Agent has attached — a tool call against an
+  unconnected one is silently dropped from the Agent's toolset server-side, with no signal
+  anywhere in the chat stream. Calls the new `@personaai/runtime`
+  `GET /agents/:id/mcp-connections` route (requires `@personaai/runtime@^0.5.2`) and returns
+  `{ connections, unconnected, isLoading, error, refetch }` — `unconnected` is a convenience
+  filter for the common case of just wanting what still needs a "Connect" button.
+
 ## 0.3.2
 
 - **New: `openWorkspaceFile(path)`** on `useChat` — manually re-opens a workspace file (sets

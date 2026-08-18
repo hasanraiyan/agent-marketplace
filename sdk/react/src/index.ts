@@ -6,5 +6,6 @@ export * from './hooks/useThreads.js';
 export * from './hooks/useFiles.js';
 export * from './hooks/useAgents.js';
 export * from './hooks/useConnection.js';
+export * from './hooks/useMcpConnections.js';
 
-export const VERSION = '0.3.2';
+export const VERSION = '0.3.3';

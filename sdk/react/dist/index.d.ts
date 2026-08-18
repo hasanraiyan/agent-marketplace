@@ -366,6 +366,45 @@ declare function useConnection(autoCheck?: boolean): {
     checkHealth: () => Promise<PersonaHealthInfo | null>;
 };
 
-declare const VERSION = "0.3.2";
+/**
+ * One `authType: 'oauth', authMode: 'user'` MCP an Agent has attached, and
+ * whether the current end user has connected it yet. `authorizeUrl` is only
+ * present when `connected` is `false` — navigate the browser there (a
+ * same-tab redirect is fine; it's a real OAuth authorization URL) to start
+ * the consent flow.
+ */
+interface PersonaMcpConnection {
+    mcpId: string;
+    name: string;
+    description: string;
+    connected: boolean;
+    authorizeUrl: string | null;
+}
+interface UseMcpConnectionsOptions {
+    /** @default the PersonaProvider's defaultAgentId */
+    agentId?: string;
+    /** Where the browser lands after OAuth consent completes. @default window.location.href */
+    returnTo?: string;
+    /** @default true */
+    autoFetch?: boolean;
+}
+/**
+ * Surfaces the gap that used to be invisible entirely: a user-mode MCP tool
+ * call for a user who hasn't connected yet is silently dropped from the
+ * Agent's toolset server-side, with no signal in the chat stream at all.
+ * Check this before (or alongside) a chat session to show a real "Connect
+ * your account" affordance instead of a capability that just quietly isn't
+ * there.
+ */
+declare function useMcpConnections(options?: UseMcpConnectionsOptions): {
+    connections: PersonaMcpConnection[];
+    /** Convenience filter for the common "show a banner for what's missing" case. */
+    unconnected: PersonaMcpConnection[];
+    isLoading: boolean;
+    error: Error | null;
+    refetch: () => Promise<PersonaMcpConnection[]>;
+};
 
-export { type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaWorkspaceFile, type SendMessageOverride, type UseChatOptions, VERSION, useAgents, useChat, useConnection, useFiles, useMemory, usePersonaContext, useThreads };
+declare const VERSION = "0.3.3";
+
+export { type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaWorkspaceFile, type SendMessageOverride, type UseChatOptions, type UseMcpConnectionsOptions, VERSION, useAgents, useChat, useConnection, useFiles, useMcpConnections, useMemory, usePersonaContext, useThreads };

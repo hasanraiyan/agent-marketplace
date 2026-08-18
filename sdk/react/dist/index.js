@@ -793,8 +793,51 @@ function useConnection(autoCheck = true) {
   };
 }
 
+// src/hooks/useMcpConnections.ts
+import { useCallback as useCallback7, useEffect as useEffect7, useState as useState7 } from "react";
+function useMcpConnections(options = {}) {
+  const { defaultAgentId, fetchWithAuth } = usePersonaContext();
+  const agentId = options.agentId ?? defaultAgentId;
+  const autoFetch = options.autoFetch ?? true;
+  const [connections, setConnections] = useState7([]);
+  const [isLoading, setIsLoading] = useState7(false);
+  const [error, setError] = useState7(null);
+  const fetchConnections = useCallback7(async () => {
+    if (!agentId) return [];
+    setIsLoading(true);
+    setError(null);
+    try {
+      const returnTo = options.returnTo ?? (typeof window !== "undefined" ? window.location.href : void 0);
+      const query = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : "";
+      const res = await fetchWithAuth(`/agents/${agentId}/mcp-connections${query}`);
+      if (!res.ok) throw new Error(`Failed to load MCP connections: ${res.statusText}`);
+      const data = await res.json();
+      const items = Array.isArray(data) ? data : data?.items || [];
+      setConnections(items);
+      return items;
+    } catch (err) {
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+      setError(errorObj);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, [agentId, fetchWithAuth, options.returnTo]);
+  useEffect7(() => {
+    if (autoFetch) void fetchConnections();
+  }, [autoFetch, fetchConnections]);
+  return {
+    connections,
+    /** Convenience filter for the common "show a banner for what's missing" case. */
+    unconnected: connections.filter((c) => !c.connected),
+    isLoading,
+    error,
+    refetch: fetchConnections
+  };
+}
+
 // src/index.ts
-var VERSION = "0.3.2";
+var VERSION = "0.3.3";
 export {
   PersonaProvider,
   VERSION,
@@ -802,6 +845,7 @@ export {
   useChat,
   useConnection,
   useFiles,
+  useMcpConnections,
   useMemory,
   usePersonaContext,
   useThreads
