@@ -52,11 +52,31 @@ function normalizeMessages(rawMessages) {
           return entry;
         })
       : [];
+    const content = extractContentText(msg.content);
+
+    // A single agent turn is routinely MULTIPLE separate AIMessage objects
+    // in LangGraph's own history -- one per LLM call within the ReAct loop
+    // (decide to call a tool with empty/no content, then -- once the tool
+    // result comes back -- a second AIMessage with the final text) -- even
+    // though live streaming already folds all of that into one assistant
+    // bubble (streamPersonaAgent/useChat's sendMessage track a single
+    // message id for the whole run, regardless of how many AIMessages it
+    // took). Without merging here, reloading a thread split that same turn
+    // back into multiple separate bubbles that never appeared live. Simple
+    // concatenation (no separator) matches how live streaming itself builds
+    // the text -- accumulatedText += delta, with no notion of AIMessage
+    // boundaries either.
+    const last = normalized[normalized.length - 1];
+    if (role === 'assistant' && last?.role === 'assistant') {
+      if (content) last.content = last.content ? `${last.content}${content}` : content;
+      if (toolCalls.length > 0) last.toolCalls = [...(last.toolCalls || []), ...toolCalls];
+      continue;
+    }
 
     normalized.push({
       id: msg.id || `${type}-${normalized.length}`,
       role,
-      content: extractContentText(msg.content),
+      content,
       ...(toolCalls.length > 0 ? { toolCalls } : {}),
     });
   }
