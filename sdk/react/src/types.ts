@@ -2,12 +2,23 @@ import type { ReactNode } from 'react';
 
 export type PersonaRole = 'user' | 'assistant' | 'system';
 
+/** One live update on a running `task` (subagent) tool call's timeline. */
+export interface PersonaSubagentActivityEntry {
+  kind: 'text' | 'tool_start' | 'tool_result';
+  toolName?: string;
+  args?: string;
+  result?: string;
+  delta?: string;
+}
+
 export interface PersonaToolCall {
   toolCallId: string;
   toolName: string;
   args?: string;
   result?: string;
   isError?: boolean;
+  /** Nested activity timeline — only present on `task` (subagent) tool calls. */
+  subagentActivity?: PersonaSubagentActivityEntry[];
 }
 
 export interface PersonaMessage {
@@ -17,7 +28,33 @@ export interface PersonaMessage {
   createdAt: Date;
   isStreaming?: boolean;
   toolCalls?: PersonaToolCall[];
+  /** Model reasoning/thinking text streamed ahead of the final answer, when the provider exposes it. */
+  reasoning?: string;
+  isReasoning?: boolean;
 }
+
+export interface PersonaHitlActionRequest {
+  name: string;
+  args?: unknown;
+}
+
+export interface PersonaClarificationQuestion {
+  id: string;
+  text: string;
+  options: string[];
+  required: boolean;
+  allowCustom: boolean;
+}
+
+/** A paused human-in-the-loop tool approval, or a paused clarification question. */
+export type PersonaInterrupt =
+  | { kind: 'hitl'; actionRequests: PersonaHitlActionRequest[]; reviewConfigs: unknown[] }
+  | { kind: 'clarification'; questions: PersonaClarificationQuestion[] };
+
+/** What to send back in `sendMessage(content, { resume })` to unpause a paused run. */
+export type PersonaResumeValue =
+  | { decisions: Array<{ type: 'approve' | 'reject'; message?: string }> }
+  | { answers: unknown[]; text?: string };
 
 export interface PersonaProviderProps {
   /** Base URL where the Persona runtime / adapter is mounted, e.g. "http://localhost:4000/api/persona" */
@@ -31,36 +68,74 @@ export interface PersonaProviderProps {
 
 export interface PersonaThread {
   _id: string;
-  agentId: string;
+  /** A bare id string on create()/get(); populated as an object on list(). */
+  agentId: string | { _id: string; name: string; avatar?: string; slug: string };
   title?: string;
   isArchived?: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
+/** Mirrors the wire shape of `GET/POST /files` — `id`, not `_id`. */
+export interface PersonaFileItem {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  /** Bytes. */
+  size: number;
+  agentId: string | null;
+  threadId: string | null;
+  createdAt: string;
+}
+
 export interface PersonaMemoryFile {
+  scope?: 'user' | 'agent';
+  agentId?: string;
   path: string;
   content: string;
+  mimeType?: string;
+  createdAt?: string;
   updatedAt?: string;
 }
 
-export interface PersonaMemoryList {
-  user: Array<{ path: string; size?: number; updatedAt?: string }>;
-  agents: Record<string, Array<{ path: string; size?: number; updatedAt?: string }>>;
+/** One agent's group of agent-scoped memory files, as returned by `GET /memory`. */
+export interface PersonaMemoryAgentGroup {
+  agentId: string;
+  /** `null` if the agent no longer exists. */
+  agentName: string | null;
+  files: PersonaMemoryFile[];
 }
 
-/** AG-UI Streaming Protocol Event types emitted during streaming */
+export interface PersonaMemoryList {
+  userFiles: PersonaMemoryFile[];
+  agentMemories: PersonaMemoryAgentGroup[];
+}
+
+/**
+ * AG-UI protocol events emitted during streaming — mirrors exactly what
+ * `aguiTranslator.js` produces server-side (verified against that file, not
+ * guessed from the AG-UI spec: this backend only emits a subset, and uses
+ * `TOOL_CALL_CHUNK` rather than separate START/ARGS events for tool calls,
+ * and `REASONING_END` rather than `REASONING_MESSAGE_END`).
+ */
 export type PersonaStreamingEvent =
-  | { type: 'TEXT_MESSAGE_CHUNK'; delta: string; messageId?: string }
-  | { type: 'TOOL_CALL_START'; toolCallId: string; toolName: string; parentMessageId?: string }
-  | { type: 'TOOL_CALL_ARGS'; toolCallId: string; delta: string }
-  | { type: 'TOOL_CALL_RESULT'; toolCallId: string; result: string; isError?: boolean }
-  | { type: 'RUN_STARTED'; runId: string; threadId?: string }
-  | { type: 'RUN_FINISHED'; runId: string; tokenUsage?: { promptTokens?: number; completionTokens?: number } }
-  | { type: 'RUN_ERROR'; code: string; message: string }
-  | { type: 'STEP_STARTED'; stepName: string }
-  | { type: 'STEP_FINISHED'; stepName: string }
-  | { type: 'CUSTOM'; name: string; payload: unknown };
+  | { type: 'TEXT_MESSAGE_CHUNK'; delta: string; messageId?: string; role?: 'assistant' }
+  | { type: 'TOOL_CALL_CHUNK'; toolCallId?: string; toolCallName?: string; delta?: string; parentMessageId?: string }
+  | { type: 'TOOL_CALL_RESULT'; toolCallId: string; content: string; messageId?: string; role?: 'tool'; structuredContent?: unknown }
+  | { type: 'REASONING_MESSAGE_START'; messageId: string }
+  | { type: 'REASONING_MESSAGE_CONTENT'; messageId: string; delta: string }
+  | { type: 'REASONING_END' }
+  | { type: 'STATE_SNAPSHOT'; snapshot: { files: Record<string, unknown>; todos: Array<{ content: string; status: string }> } }
+  | { type: 'RUN_ERROR'; code: string; message: string; retryable?: boolean; providerName?: string }
+  | { type: 'CUSTOM'; name: 'hitl_request'; value: { actionRequests: PersonaHitlActionRequest[]; reviewConfigs: unknown[] } }
+  | { type: 'CUSTOM'; name: 'clarification_request'; value: { questions: PersonaClarificationQuestion[]; currentIndex: number } }
+  | {
+      type: 'CUSTOM';
+      name: 'subagent_activity';
+      value: { toolCallId: string } & PersonaSubagentActivityEntry;
+    }
+  | { type: 'CUSTOM'; name: 'mcp_app'; value: { toolCallId: string; resourceUri: string; mcpId: string } }
+  | { type: 'CUSTOM'; name: string & {}; value: unknown };
 
 export interface UseChatOptions {
   agentId?: string;
@@ -70,4 +145,11 @@ export interface UseChatOptions {
   onError?: (error: Error) => void;
   /** Hook for receiving every low-level AG-UI streaming event (tool calls, steps, subagents) */
   onEvent?: (event: PersonaStreamingEvent) => void;
+}
+
+export interface SendMessageOverride {
+  agentId?: string;
+  threadId?: string;
+  /** Answers/approves a paused interrupt from a previous turn instead of starting a fresh one. */
+  resume?: PersonaResumeValue;
 }

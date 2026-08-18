@@ -3,6 +3,13 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.4.2
+
+- Fixed `ThreadMessages`'s field name: 0.4.1 added it as `interrupt`, but the actual wire field
+  `checkpointService.getMessages()` returns is `pendingInterrupt` — the type never matched
+  reality, so no correctly-typed consumer could have been reading it. Renamed to
+  `pendingInterrupt` to match. Type-only change; no runtime behavior differs.
+
 ## 0.4.1
 
 Patch release — ships two fixes merged after the 0.4.0 npm release, plus a packaging cleanup:

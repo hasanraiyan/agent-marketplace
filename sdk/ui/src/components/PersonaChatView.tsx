@@ -8,6 +8,7 @@ import { PersonaSidebar } from './PersonaSidebar.js';
 import { PersonaMessageFeed } from './PersonaMessageFeed.js';
 import { PersonaComposer } from './PersonaComposer.js';
 import { PersonaFilesDrawer } from './PersonaFilesDrawer.js';
+import { PersonaInterruptCard } from './PersonaInterruptCard.js';
 import { PanelLeftClose, PanelLeft, Files } from 'lucide-react';
 
 export function PersonaChatView({
@@ -30,7 +31,7 @@ export function PersonaChatView({
   const [sidebarOpen, setSidebarOpen] = useState(showSidebar);
   const [filesDrawerOpen, setFilesDrawerOpen] = useState(false);
 
-  const { threads, createThread, deleteThread } = useThreads();
+  const { threads, createThread, deleteThread, renameThread } = useThreads();
   const { files, uploadFile, deleteFile } = useFiles();
   const { memory, getFile, deleteFile: deleteMemoryFile } = useMemory();
 
@@ -40,7 +41,10 @@ export function PersonaChatView({
     setInput,
     sendMessage,
     isStreaming,
+    isLoadingHistory,
     error,
+    interrupt,
+    resumeInterrupt,
     stop,
     reload,
     clear,
@@ -117,6 +121,7 @@ export function PersonaChatView({
           onSelectThread={handleSelectThread}
           onCreateThread={handleNewChat}
           onDeleteThread={deleteThread}
+          onRenameThread={renameThread}
           className={cn('hidden md:flex', classNames.sidebar)}
         />
       )}
@@ -159,6 +164,7 @@ export function PersonaChatView({
           <PersonaMessageFeed
             messages={messages}
             isStreaming={isStreaming}
+            isLoading={isLoadingHistory}
             error={error}
             toolRenderers={toolRenderers}
             onReload={reload}
@@ -166,6 +172,17 @@ export function PersonaChatView({
             className={classNames.messageList}
           />
         </div>
+
+        {/* Paused HITL approval / clarification question */}
+        {interrupt && (
+          <div className="shrink-0 border-t border-zinc-100 bg-white px-3 pt-3 dark:border-zinc-800 dark:bg-zinc-950">
+            <PersonaInterruptCard
+              interrupt={interrupt}
+              isStreaming={isStreaming}
+              onRespond={(resume, displayContent) => void resumeInterrupt(resume, displayContent)}
+            />
+          </div>
+        )}
 
         {/* Composer — always visible at bottom, never clipped */}
         <div className={cn(

@@ -6,8 +6,10 @@ import { usePersonaContext } from '../context/PersonaContext.js';
 export interface PersonaAgentSummary {
   _id: string;
   name: string;
+  slug: string;
   description?: string;
-  avatarUrl?: string;
+  tagline?: string;
+  avatar?: string;
 }
 
 export function useAgents(autoFetch = true) {
@@ -23,7 +25,10 @@ export function useAgents(autoFetch = true) {
       const res = await fetchWithAuth('/agents');
       if (!res.ok) throw new Error(`Failed to list agents: ${res.statusText}`);
       const data = await res.json();
-      const items = Array.isArray(data) ? data : data?.agents || data?.items || [];
+      // Real shape is { items, pagination }.
+      const items: PersonaAgentSummary[] = Array.isArray(data)
+        ? data
+        : data?.items || data?.agents || [];
       setAgents(items);
       return items;
     } catch (err) {

@@ -49,15 +49,17 @@ describe('Checkpoint Service', () => {
       checkpointService.checkpointer = { getTuple: mockGetTuple };
       threadRepository.findById.mockResolvedValue(mockThread);
       mockGetTuple.mockResolvedValue({
-        checkpoint: { channel_values: { messages: [{ role: 'assistant', content: 'hello' }] } },
+        checkpoint: {
+          channel_values: {
+            messages: [{ id: 'msg_1', getType: () => 'ai', content: 'hello', tool_calls: [] }],
+          },
+        },
       });
 
       const result = await checkpointService.getMessages('thread_1', 'user_1');
-      expect(result).toEqual({
-        messages: [{ role: 'assistant', content: 'hello' }],
-        state: {},
-        subagentTraces: {},
-      });
+      expect(result.messages).toEqual([{ id: 'msg_1', role: 'assistant', content: 'hello' }]);
+      expect(result.state).toEqual({});
+      expect(result.subagentTraces).toEqual({});
       expect(mockGetTuple).toHaveBeenCalledWith({ configurable: { thread_id: 'uuid123' } });
     });
 

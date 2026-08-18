@@ -1,6 +1,6 @@
 {
   "name": "@personaai/ui",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Customizable, Claude & ChatGPT inspired React UI components for the Persona AI agent runtime.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -53,7 +53,7 @@
     "react-dom": ">=18.0.0"
   },
   "dependencies": {
-    "@personaai/react": "^0.1.2",
+    "@personaai/react": "^0.2.0",
     "clsx": "^2.1.1",
     "lucide-react": "^1.31.0",
     "tailwind-merge": "^3.6.0"

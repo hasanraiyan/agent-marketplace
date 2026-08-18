@@ -23,6 +23,7 @@ __export(index_exports, {
   PersonaChatView: () => PersonaChatView,
   PersonaComposer: () => PersonaComposer,
   PersonaFilesDrawer: () => PersonaFilesDrawer,
+  PersonaInterruptCard: () => PersonaInterruptCard,
   PersonaMessageFeed: () => PersonaMessageFeed,
   PersonaSidebar: () => PersonaSidebar,
   PersonaToolTrace: () => PersonaToolTrace,
@@ -39,8 +40,8 @@ function cn(...inputs) {
 }
 
 // src/components/PersonaChatView.tsx
-var import_react6 = require("react");
-var import_react7 = require("@personaai/react");
+var import_react7 = require("react");
+var import_react8 = require("@personaai/react");
 
 // src/components/PersonaSidebar.tsx
 var import_react = require("react");
@@ -251,6 +252,24 @@ var import_react3 = require("react");
 var import_react2 = require("react");
 var import_lucide_react2 = require("lucide-react");
 var import_jsx_runtime2 = require("react/jsx-runtime");
+function groupSubagentActivity(entries) {
+  const groups = [];
+  for (const entry of entries) {
+    if (entry.kind === "text") {
+      const last = groups[groups.length - 1];
+      if (last?.kind === "text") {
+        last.text += entry.delta || "";
+      } else {
+        groups.push({ kind: "text", text: entry.delta || "" });
+      }
+    } else if (entry.kind === "tool_start") {
+      groups.push({ kind: "tool_start", toolName: entry.toolName, args: entry.args });
+    } else {
+      groups.push({ kind: "tool_result", toolName: entry.toolName, result: entry.result });
+    }
+  }
+  return groups;
+}
 function PersonaToolTrace({
   toolCall,
   toolRenderers,
@@ -274,6 +293,10 @@ function PersonaToolTrace({
     }
   }, [toolCall.result]);
   const isExecuting = !toolCall.result && !toolCall.isError;
+  const subagentGroups = (0, import_react2.useMemo)(
+    () => toolCall.subagentActivity?.length ? groupSubagentActivity(toolCall.subagentActivity) : [],
+    [toolCall.subagentActivity]
+  );
   const CustomRenderer = toolRenderers?.[toolCall.toolName] || toolRenderers?.default;
   if (CustomRenderer && toolCall.result) {
     return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: cn("my-2", className), children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
@@ -330,6 +353,30 @@ function PersonaToolTrace({
           toolCall.result && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
             /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "text-zinc-500 block mb-1", children: "Result:" }),
             /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("pre", { className: "overflow-x-auto rounded-lg bg-zinc-100 p-2 text-zinc-800 dark:bg-zinc-950 dark:text-zinc-200", children: typeof parsedResult === "object" ? JSON.stringify(parsedResult, null, 2) : toolCall.result })
+          ] }),
+          subagentGroups.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "text-zinc-500 mb-1 flex items-center gap-1", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_lucide_react2.Bot, { className: "size-3" }),
+              "Subagent activity:"
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "space-y-1.5 border-l-2 border-zinc-200 pl-2.5 dark:border-zinc-800", children: subagentGroups.map(
+              (group, i) => group.kind === "text" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { className: "whitespace-pre-wrap text-zinc-600 dark:text-zinc-400", children: group.text }, i) : group.kind === "tool_start" ? /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "flex items-center gap-1 text-zinc-500", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_lucide_react2.ArrowRight, { className: "size-3 shrink-0" }),
+                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "font-semibold", children: group.toolName }),
+                group.args && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "truncate opacity-70", children: [
+                  "(",
+                  group.args,
+                  ")"
+                ] })
+              ] }, i) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "flex items-start gap-1 text-emerald-600 dark:text-emerald-400", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_lucide_react2.CheckCircle2, { className: "mt-0.5 size-3 shrink-0" }),
+                /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "truncate opacity-90", children: [
+                  group.toolName,
+                  ": ",
+                  group.result
+                ] })
+              ] }, i)
+            ) })
           ] })
         ] })
       ]
@@ -340,9 +387,34 @@ function PersonaToolTrace({
 // src/components/PersonaMessageFeed.tsx
 var import_lucide_react3 = require("lucide-react");
 var import_jsx_runtime3 = require("react/jsx-runtime");
+function ReasoningBlock({ reasoning, isReasoning }) {
+  const [isOpen, setIsOpen] = (0, import_react3.useState)(Boolean(isReasoning));
+  (0, import_react3.useEffect)(() => {
+    if (isReasoning) setIsOpen(true);
+  }, [isReasoning]);
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "mb-2 overflow-hidden rounded-xl border border-zinc-200/70 bg-zinc-50/60 text-xs dark:border-zinc-800/70 dark:bg-zinc-950/40", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+      "button",
+      {
+        type: "button",
+        onClick: () => setIsOpen((prev) => !prev),
+        className: "flex w-full items-center justify-between px-3 py-1.5 text-left text-zinc-500 transition-colors hover:bg-zinc-100/60 dark:text-zinc-400 dark:hover:bg-zinc-900/40",
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "flex items-center gap-1.5", children: [
+            isReasoning ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.Loader2, { className: "size-3 animate-spin" }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.BrainCircuit, { className: "size-3" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "font-medium", children: isReasoning ? "Thinking\u2026" : "Thought process" })
+          ] }),
+          isOpen ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.ChevronDown, { className: "size-3" }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_lucide_react3.ChevronRight, { className: "size-3" })
+        ]
+      }
+    ),
+    isOpen && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "whitespace-pre-wrap border-t border-zinc-200/60 p-2.5 text-zinc-500 dark:border-zinc-800/60 dark:text-zinc-400", children: reasoning })
+  ] });
+}
 function PersonaMessageFeed({
   messages,
   isStreaming,
+  isLoading,
   error,
   toolRenderers,
   onReload,
@@ -358,6 +430,9 @@ function PersonaMessageFeed({
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2e3);
+  }
+  if (messages.length === 0 && isLoading) {
+    return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: cn("flex flex-1 items-center justify-center p-8", className), children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "size-5 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-700 dark:border-t-zinc-300" }) });
   }
   if (messages.length === 0) {
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: cn("flex flex-1 flex-col items-center justify-center p-8 text-center", className), children: [
@@ -385,6 +460,7 @@ function PersonaMessageFeed({
                   isUser ? "bg-zinc-900 text-white font-medium rounded-tr-xs dark:bg-zinc-100 dark:text-zinc-900" : "bg-zinc-100/80 text-zinc-900 rounded-tl-xs border border-zinc-200/60 dark:bg-zinc-900/70 dark:text-zinc-100 dark:border-zinc-800/60"
                 ),
                 children: [
+                  !isUser && msg.reasoning && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ReasoningBlock, { reasoning: msg.reasoning, isReasoning: msg.isReasoning }),
                   msg.toolCalls && msg.toolCalls.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "mb-2 space-y-1", children: msg.toolCalls.map((tc) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                     PersonaToolTrace,
                     {
@@ -478,7 +554,7 @@ function PersonaComposer({
       },
       item.title
     )) }),
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "relative flex flex-col rounded-2xl border border-zinc-200/90 bg-white p-2.5 shadow-md transition-all focus-within:border-zinc-400 focus-within:ring-2 focus-within:ring-zinc-400/20 dark:border-zinc-800 dark:bg-zinc-900 dark:focus-within:border-zinc-600", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "relative flex flex-col rounded-2xl border border-zinc-200 bg-white p-2.5 shadow-sm transition-all focus-within:border-zinc-400 focus-within:ring-2 focus-within:ring-zinc-400/20 dark:border-zinc-700 dark:bg-zinc-900", children: [
       /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
         "textarea",
         {
@@ -489,7 +565,8 @@ function PersonaComposer({
           placeholder,
           rows: 1,
           disabled,
-          className: "w-full resize-none bg-transparent px-2.5 pt-1.5 pb-2 text-xs leading-relaxed text-zinc-900 placeholder:text-zinc-400 focus:outline-none dark:text-zinc-100 dark:placeholder:text-zinc-500 md:text-sm"
+          style: { color: "#111827" },
+          className: "w-full resize-none bg-transparent px-2.5 pt-1.5 pb-2 text-sm leading-relaxed placeholder:text-zinc-400 focus:outline-none dark:placeholder:text-zinc-500 dark:!text-zinc-100"
         }
       ),
       /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "flex items-center justify-between pt-1", children: [
@@ -615,9 +692,9 @@ function PersonaFilesDrawer({
                 children: [
                   /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.Brain, { className: "size-3.5" }),
                   /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { children: "Memory" }),
-                  memory?.user?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("span", { className: "text-[10px] opacity-70", children: [
+                  memory?.userFiles?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("span", { className: "text-[10px] opacity-70", children: [
                     "(",
-                    memory.user.length,
+                    memory.userFiles.length,
                     ")"
                   ] })
                 ]
@@ -644,22 +721,22 @@ function PersonaFilesDrawer({
                 /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex items-center gap-2 truncate", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.FileText, { className: "size-4 shrink-0 text-blue-500" }),
                   /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "truncate", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "block truncate text-xs font-medium text-zinc-800 dark:text-zinc-200", children: file.filename }),
-                    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "text-[10px] text-zinc-400", children: file.sizeBytes ? `${(file.sizeBytes / 1024).toFixed(1)} KB` : "" })
+                    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "block truncate text-xs font-medium text-zinc-800 dark:text-zinc-200", children: file.originalName }),
+                    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "text-[10px] text-zinc-400", children: file.size ? `${(file.size / 1024).toFixed(1)} KB` : "" })
                   ] })
                 ] }),
                 onDeleteFile && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
                   "button",
                   {
                     type: "button",
-                    onClick: () => onDeleteFile(file._id),
+                    onClick: () => onDeleteFile(file.id),
                     className: "rounded p-1 text-zinc-400 hover:text-red-500",
                     children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.Trash2, { className: "size-3.5" })
                   }
                 )
               ]
             },
-            file._id
+            file.id
           )) })
         ) : (
           /* Memory inspector */
@@ -688,31 +765,187 @@ function PersonaFilesDrawer({
               ] })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("pre", { className: "mt-2 overflow-x-auto whitespace-pre-wrap rounded-lg bg-zinc-100 p-2.5 font-mono text-[11px] text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200", children: selectedMemory.content })
-          ] }) : memory?.user?.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { className: "py-8 text-center text-xs text-zinc-400", children: "No persistent memory files recorded." }) : /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "space-y-1.5", children: memory?.user?.map((f) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
-            "button",
-            {
-              type: "button",
-              onClick: () => viewMemoryFile(f.path),
-              className: "flex w-full items-center justify-between rounded-xl border border-zinc-200/70 bg-white p-2.5 text-left text-xs transition-all hover:bg-zinc-100/70 dark:border-zinc-800/70 dark:bg-zinc-900/60 dark:hover:bg-zinc-900",
-              children: [
-                /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex items-center gap-2 truncate", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.Brain, { className: "size-3.5 text-purple-500" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "truncate text-zinc-800 dark:text-zinc-200", children: f.path })
-                ] }),
-                loadingMemory && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.Loader2, { className: "size-3 animate-spin text-zinc-400" })
-              ]
-            },
-            f.path
-          )) }) })
+          ] }) : (memory?.userFiles?.length ?? 0) === 0 && (memory?.agentMemories?.length ?? 0) === 0 ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { className: "py-8 text-center text-xs text-zinc-400", children: "No persistent memory files recorded." }) : /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "space-y-4", children: [
+            (memory?.userFiles?.length ?? 0) > 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "space-y-1.5", children: memory.userFiles.map((f) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+              "button",
+              {
+                type: "button",
+                onClick: () => viewMemoryFile(f.path),
+                className: "flex w-full items-center justify-between rounded-xl border border-zinc-200/70 bg-white p-2.5 text-left text-xs transition-all hover:bg-zinc-100/70 dark:border-zinc-800/70 dark:bg-zinc-900/60 dark:hover:bg-zinc-900",
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex items-center gap-2 truncate", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.Brain, { className: "size-3.5 text-purple-500" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "truncate text-zinc-800 dark:text-zinc-200", children: f.path })
+                  ] }),
+                  loadingMemory && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.Loader2, { className: "size-3 animate-spin text-zinc-400" })
+                ]
+              },
+              f.path
+            )) }),
+            memory?.agentMemories?.map((group) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "space-y-1.5", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "px-0.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500", children: group.agentName || "Unknown Agent" }),
+              group.files.map((f) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+                "button",
+                {
+                  type: "button",
+                  onClick: () => viewMemoryFile(f.path),
+                  className: "flex w-full items-center justify-between rounded-xl border border-zinc-200/70 bg-white p-2.5 text-left text-xs transition-all hover:bg-zinc-100/70 dark:border-zinc-800/70 dark:bg-zinc-900/60 dark:hover:bg-zinc-900",
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "flex items-center gap-2 truncate", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.Brain, { className: "size-3.5 text-purple-500" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "truncate text-zinc-800 dark:text-zinc-200", children: f.path })
+                    ] }),
+                    loadingMemory && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_lucide_react5.Loader2, { className: "size-3 animate-spin text-zinc-400" })
+                  ]
+                },
+                f.path
+              ))
+            ] }, group.agentId))
+          ] }) })
         ) })
       ]
     }
   );
 }
 
-// src/components/PersonaChatView.tsx
+// src/components/PersonaInterruptCard.tsx
+var import_react6 = require("react");
 var import_lucide_react6 = require("lucide-react");
 var import_jsx_runtime6 = require("react/jsx-runtime");
+function PersonaInterruptCard({
+  interrupt,
+  onRespond,
+  isStreaming,
+  className
+}) {
+  const [answers, setAnswers] = (0, import_react6.useState)({});
+  if (interrupt.kind === "hitl") {
+    const approveAll = () => {
+      onRespond(
+        { decisions: interrupt.actionRequests.map(() => ({ type: "approve" })) },
+        "Approved"
+      );
+    };
+    const rejectAll = () => {
+      onRespond(
+        {
+          decisions: interrupt.actionRequests.map(() => ({
+            type: "reject",
+            message: "User declined the action."
+          }))
+        },
+        "Rejected"
+      );
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+      "div",
+      {
+        className: cn(
+          "mx-auto w-full max-w-3xl rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm dark:border-amber-900/50 dark:bg-amber-950/30",
+          className
+        ),
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mb-2 flex items-center gap-2 font-semibold text-amber-800 dark:text-amber-300", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.ShieldAlert, { className: "size-4" }),
+            "Approval needed"
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("ul", { className: "mb-3 space-y-1 font-mono text-xs text-amber-900/80 dark:text-amber-200/80", children: interrupt.actionRequests.map((action, i) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("li", { children: [
+            "\u2022 ",
+            action.name
+          ] }, i)) }),
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex gap-2", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+              "button",
+              {
+                type: "button",
+                disabled: isStreaming,
+                onClick: approveAll,
+                className: "flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-50",
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.Check, { className: "size-3.5" }),
+                  " Approve"
+                ]
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+              "button",
+              {
+                type: "button",
+                disabled: isStreaming,
+                onClick: rejectAll,
+                className: "flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 ring-1 ring-zinc-300 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:bg-zinc-900 dark:text-zinc-200 dark:ring-zinc-700",
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.X, { className: "size-3.5" }),
+                  " Reject"
+                ]
+              }
+            )
+          ] })
+        ]
+      }
+    );
+  }
+  const submit = () => {
+    const orderedAnswers = interrupt.questions.map((_, i) => answers[i] ?? "");
+    const summary = interrupt.questions.map((q, i) => `${q.text}: ${answers[i] ?? ""}`).join("\n");
+    onRespond({ answers: orderedAnswers, text: summary }, summary);
+  };
+  const canSubmit = !interrupt.questions.some((q, i) => q.required && !answers[i]?.trim());
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+    "div",
+    {
+      className: cn(
+        "mx-auto w-full max-w-3xl rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-sm dark:border-blue-900/50 dark:bg-blue-950/30",
+        className
+      ),
+      children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mb-3 flex items-center gap-2 font-semibold text-blue-800 dark:text-blue-300", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.HelpCircle, { className: "size-4" }),
+          "A few questions before I continue"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "space-y-3", children: interrupt.questions.map((q, i) => /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { className: "mb-1.5 text-xs font-medium text-blue-900 dark:text-blue-200", children: q.text }),
+          q.options.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mb-1.5 flex flex-wrap gap-1.5", children: q.options.map((opt) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+            "button",
+            {
+              type: "button",
+              onClick: () => setAnswers((prev) => ({ ...prev, [i]: opt })),
+              className: cn(
+                "rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 transition-colors",
+                answers[i] === opt ? "bg-blue-600 text-white ring-blue-600" : "bg-white text-blue-700 ring-blue-200 hover:bg-blue-100 dark:bg-zinc-900 dark:text-blue-300 dark:ring-blue-900/60"
+              ),
+              children: opt
+            },
+            opt
+          )) }),
+          q.allowCustom && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+            "input",
+            {
+              value: q.options.includes(answers[i] ?? "") ? "" : answers[i] || "",
+              onChange: (e) => setAnswers((prev) => ({ ...prev, [i]: e.target.value })),
+              placeholder: "Or type your own answer...",
+              className: "w-full rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-xs text-zinc-800 outline-none focus:border-blue-400 dark:border-blue-900/60 dark:bg-zinc-900 dark:text-zinc-100"
+            }
+          )
+        ] }, q.id)) }),
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+          "button",
+          {
+            type: "button",
+            disabled: isStreaming || !canSubmit,
+            onClick: submit,
+            className: "mt-3 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-40",
+            children: "Submit"
+          }
+        )
+      ]
+    }
+  );
+}
+
+// src/components/PersonaChatView.tsx
+var import_lucide_react7 = require("lucide-react");
+var import_jsx_runtime7 = require("react/jsx-runtime");
 function PersonaChatView({
   agentId,
   threadId: controlledThreadId,
@@ -727,43 +960,46 @@ function PersonaChatView({
   showFilesDrawer = true,
   className
 }) {
-  const [internalThreadId, setInternalThreadId] = (0, import_react6.useState)(void 0);
+  const [internalThreadId, setInternalThreadId] = (0, import_react7.useState)(void 0);
   const activeThreadId = controlledThreadId !== void 0 ? controlledThreadId : internalThreadId;
-  const [sidebarOpen, setSidebarOpen] = (0, import_react6.useState)(showSidebar);
-  const [filesDrawerOpen, setFilesDrawerOpen] = (0, import_react6.useState)(false);
-  const { threads, createThread, deleteThread } = (0, import_react7.useThreads)();
-  const { files, uploadFile, deleteFile } = (0, import_react7.useFiles)();
-  const { memory, getFile, deleteFile: deleteMemoryFile } = (0, import_react7.useMemory)();
+  const [sidebarOpen, setSidebarOpen] = (0, import_react7.useState)(showSidebar);
+  const [filesDrawerOpen, setFilesDrawerOpen] = (0, import_react7.useState)(false);
+  const { threads, createThread, deleteThread, renameThread } = (0, import_react8.useThreads)();
+  const { files, uploadFile, deleteFile } = (0, import_react8.useFiles)();
+  const { memory, getFile, deleteFile: deleteMemoryFile } = (0, import_react8.useMemory)();
   const {
     messages,
     input,
     setInput,
     sendMessage,
     isStreaming,
+    isLoadingHistory,
     error,
+    interrupt,
+    resumeInterrupt,
     stop,
     reload,
     clear
-  } = (0, import_react7.useChat)({ agentId, threadId: activeThreadId });
-  const setActiveThread = (0, import_react6.useCallback)(
+  } = (0, import_react8.useChat)({ agentId, threadId: activeThreadId });
+  const setActiveThread = (0, import_react7.useCallback)(
     (id) => {
       if (onThreadChange) onThreadChange(id);
       else setInternalThreadId(id);
     },
     [onThreadChange]
   );
-  const handleSelectThread = (0, import_react6.useCallback)(
+  const handleSelectThread = (0, import_react7.useCallback)(
     (id) => {
       clear();
       setActiveThread(id);
     },
     [clear, setActiveThread]
   );
-  const handleNewChat = (0, import_react6.useCallback)(() => {
+  const handleNewChat = (0, import_react7.useCallback)(() => {
     clear();
     setActiveThread(void 0);
   }, [clear, setActiveThread]);
-  const handleSend = (0, import_react6.useCallback)(
+  const handleSend = (0, import_react7.useCallback)(
     async (content) => {
       let tid = activeThreadId;
       if (!tid) {
@@ -778,7 +1014,7 @@ function PersonaChatView({
     },
     [activeThreadId, agentId, createThread, sendMessage, setActiveThread]
   );
-  const handleUploadFile = (0, import_react6.useCallback)(
+  const handleUploadFile = (0, import_react7.useCallback)(
     async (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
@@ -799,7 +1035,7 @@ function PersonaChatView({
     "--persona-text": theme.textColor,
     borderRadius: theme.borderRadius
   } : void 0;
-  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+  return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
     "div",
     {
       style: themeStyles,
@@ -812,7 +1048,7 @@ function PersonaChatView({
         className
       ),
       children: [
-        sidebarOpen && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+        sidebarOpen && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
           PersonaSidebar,
           {
             threads,
@@ -820,24 +1056,25 @@ function PersonaChatView({
             onSelectThread: handleSelectThread,
             onCreateThread: handleNewChat,
             onDeleteThread: deleteThread,
+            onRenameThread: renameThread,
             className: cn("hidden md:flex", classNames.sidebar)
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: cn("flex min-h-0 flex-1 flex-col", classNames.main), children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex h-11 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-3 dark:border-zinc-800 dark:bg-zinc-950", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "flex items-center gap-1.5", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: cn("flex min-h-0 flex-1 flex-col", classNames.main), children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex h-11 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-3 dark:border-zinc-800 dark:bg-zinc-950", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
                 "button",
                 {
                   type: "button",
                   onClick: () => setSidebarOpen((p) => !p),
                   className: "rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800 dark:hover:text-zinc-200",
-                  children: sidebarOpen ? /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.PanelLeftClose, { className: "size-4" }) : /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.PanelLeft, { className: "size-4" })
+                  children: sidebarOpen ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.PanelLeftClose, { className: "size-4" }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.PanelLeft, { className: "size-4" })
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "text-sm font-semibold text-zinc-800 dark:text-zinc-200", children: title })
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { className: "text-sm font-semibold text-zinc-800 dark:text-zinc-200", children: title })
             ] }),
-            showFilesDrawer && /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+            showFilesDrawer && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
               "button",
               {
                 type: "button",
@@ -847,17 +1084,18 @@ function PersonaChatView({
                   filesDrawerOpen ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                 ),
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_lucide_react6.Files, { className: "size-3.5" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { children: "Artifacts" })
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(import_lucide_react7.Files, { className: "size-3.5" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("span", { children: "Artifacts" })
                 ]
               }
             )
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "min-h-0 flex-1 overflow-y-auto", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "min-h-0 flex-1 overflow-y-auto", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
             PersonaMessageFeed,
             {
               messages,
               isStreaming,
+              isLoading: isLoadingHistory,
               error,
               toolRenderers,
               onReload: reload,
@@ -865,10 +1103,18 @@ function PersonaChatView({
               className: classNames.messageList
             }
           ) }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: cn(
+          interrupt && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "shrink-0 border-t border-zinc-100 bg-white px-3 pt-3 dark:border-zinc-800 dark:bg-zinc-950", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+            PersonaInterruptCard,
+            {
+              interrupt,
+              isStreaming,
+              onRespond: (resume, displayContent) => void resumeInterrupt(resume, displayContent)
+            }
+          ) }),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: cn(
             "shrink-0 border-t border-zinc-100 bg-white px-3 pb-4 pt-3 dark:border-zinc-800 dark:bg-zinc-950",
             classNames.composer
-          ), children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+          ), children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
             PersonaComposer,
             {
               input,
@@ -882,7 +1128,7 @@ function PersonaChatView({
             }
           ) })
         ] }),
-        showFilesDrawer && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+        showFilesDrawer && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
           PersonaFilesDrawer,
           {
             isOpen: filesDrawerOpen,
@@ -901,12 +1147,13 @@ function PersonaChatView({
 }
 
 // src/index.ts
-var VERSION = "0.1.0";
+var VERSION = "0.2.0";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   PersonaChatView,
   PersonaComposer,
   PersonaFilesDrawer,
+  PersonaInterruptCard,
   PersonaMessageFeed,
   PersonaSidebar,
   PersonaToolTrace,

@@ -5,11 +5,41 @@ import type { PersonaMessage } from '@personaai/react';
 import type { ToolRendererMap } from '../types.js';
 import { cn } from '../utils/cn.js';
 import { PersonaToolTrace } from './PersonaToolTrace.js';
-import { Bot, User, Check, Copy, RotateCcw, Sparkles } from 'lucide-react';
+import { Bot, User, Check, Copy, RotateCcw, Sparkles, BrainCircuit, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+
+function ReasoningBlock({ reasoning, isReasoning }: { reasoning: string; isReasoning?: boolean }) {
+  const [isOpen, setIsOpen] = useState(Boolean(isReasoning));
+
+  useEffect(() => {
+    if (isReasoning) setIsOpen(true);
+  }, [isReasoning]);
+
+  return (
+    <div className="mb-2 overflow-hidden rounded-xl border border-zinc-200/70 bg-zinc-50/60 text-xs dark:border-zinc-800/70 dark:bg-zinc-950/40">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="flex w-full items-center justify-between px-3 py-1.5 text-left text-zinc-500 transition-colors hover:bg-zinc-100/60 dark:text-zinc-400 dark:hover:bg-zinc-900/40"
+      >
+        <span className="flex items-center gap-1.5">
+          {isReasoning ? <Loader2 className="size-3 animate-spin" /> : <BrainCircuit className="size-3" />}
+          <span className="font-medium">{isReasoning ? 'Thinking…' : 'Thought process'}</span>
+        </span>
+        {isOpen ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+      </button>
+      {isOpen && (
+        <p className="whitespace-pre-wrap border-t border-zinc-200/60 p-2.5 text-zinc-500 dark:border-zinc-800/60 dark:text-zinc-400">
+          {reasoning}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export interface PersonaMessageFeedProps {
   messages: PersonaMessage[];
   isStreaming?: boolean;
+  isLoading?: boolean;
   error?: Error | null;
   toolRenderers?: ToolRendererMap;
   onReload?: () => void;
@@ -20,6 +50,7 @@ export interface PersonaMessageFeedProps {
 export function PersonaMessageFeed({
   messages,
   isStreaming,
+  isLoading,
   error,
   toolRenderers,
   onReload,
@@ -37,6 +68,14 @@ export function PersonaMessageFeed({
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  }
+
+  if (messages.length === 0 && isLoading) {
+    return (
+      <div className={cn('flex flex-1 items-center justify-center p-8', className)}>
+        <div className="size-5 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-700 dark:border-t-zinc-300" />
+      </div>
+    );
   }
 
   if (messages.length === 0) {
@@ -80,6 +119,11 @@ export function PersonaMessageFeed({
                     : 'bg-zinc-100/80 text-zinc-900 rounded-tl-xs border border-zinc-200/60 dark:bg-zinc-900/70 dark:text-zinc-100 dark:border-zinc-800/60'
                 )}
               >
+                {/* Reasoning / thinking trace, shown before the answer */}
+                {!isUser && msg.reasoning && (
+                  <ReasoningBlock reasoning={msg.reasoning} isReasoning={msg.isReasoning} />
+                )}
+
                 {/* Render tool executions if any */}
                 {msg.toolCalls && msg.toolCalls.length > 0 && (
                   <div className="mb-2 space-y-1">

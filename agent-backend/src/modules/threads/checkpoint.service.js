@@ -13,6 +13,57 @@ import { describeInterrupt } from '../agui/aguiTranslator.js';
 
 const logger = loggerService.getLogger();
 
+function extractContentText(content) {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((block) => (typeof block === 'string' ? block : (block?.text ?? '')))
+      .join('');
+  }
+  return '';
+}
+
+// Reconstruct a clean, transport-safe transcript from the raw LangChain
+// BaseMessage instances persisted in the checkpoint's channel_values. Never
+// hand these instances to res.json() directly — their default serialization
+// is LangChain's internal `{ lc, type, id, kwargs }` envelope, not something
+// SDK consumers should have to parse.
+function normalizeMessages(rawMessages) {
+  const normalized = [];
+  const toolCallById = new Map();
+
+  for (const msg of rawMessages || []) {
+    const type = typeof msg?.getType === 'function' ? msg.getType() : msg?.type;
+
+    if (type === 'tool') {
+      const entry = toolCallById.get(msg.tool_call_id);
+      if (entry) {
+        entry.result = extractContentText(msg.content);
+        entry.isError = msg.status === 'error';
+      }
+      continue;
+    }
+
+    const role = type === 'human' ? 'user' : type === 'system' ? 'system' : 'assistant';
+    const toolCalls = Array.isArray(msg.tool_calls)
+      ? msg.tool_calls.map((tc) => {
+          const entry = { toolCallId: tc.id, toolName: tc.name, args: JSON.stringify(tc.args ?? {}) };
+          if (tc.id) toolCallById.set(tc.id, entry);
+          return entry;
+        })
+      : [];
+
+    normalized.push({
+      id: msg.id || `${type}-${normalized.length}`,
+      role,
+      content: extractContentText(msg.content),
+      ...(toolCalls.length > 0 ? { toolCalls } : {}),
+    });
+  }
+
+  return normalized;
+}
+
 class CheckpointService {
   constructor() {
     if (process.env.MONGODB_URI) {
@@ -144,7 +195,7 @@ class CheckpointService {
     }
 
     const { messages = [], ...state } = snapshot.checkpoint.channel_values;
-    return { messages, state, subagentTraces, pendingInterrupt };
+    return { messages: normalizeMessages(messages), state, subagentTraces, pendingInterrupt };
   }
 }
 

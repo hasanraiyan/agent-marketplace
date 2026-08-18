@@ -2,14 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { usePersonaContext } from '../context/PersonaContext.js';
+import type { PersonaFileItem } from '../types.js';
 
-export interface PersonaFileItem {
-  _id: string;
-  filename: string;
-  contentType?: string;
-  sizeBytes?: number;
-  createdAt: string;
-}
+export type { PersonaFileItem };
 
 export function useFiles(autoFetch = true) {
   const { fetchWithAuth } = usePersonaContext();
@@ -25,7 +20,11 @@ export function useFiles(autoFetch = true) {
       const res = await fetchWithAuth('/files');
       if (!res.ok) throw new Error(`Failed to list files: ${res.statusText}`);
       const data = await res.json();
-      const items = Array.isArray(data) ? data : data?.files || data?.items || [];
+      // Real shape is { items, pagination } — bare array/`.files` are
+      // defensive fallbacks, not the actual wire contract.
+      const items: PersonaFileItem[] = Array.isArray(data)
+        ? data
+        : data?.items || data?.files || [];
       setFiles(items);
       return items;
     } catch (err) {
@@ -79,7 +78,22 @@ export function useFiles(autoFetch = true) {
     async (fileId: string) => {
       const res = await fetchWithAuth(`/files/${fileId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(`Failed to delete file: ${res.statusText}`);
-      setFiles((prev) => prev.filter((f) => f._id !== fileId));
+      setFiles((prev) => prev.filter((f) => f.id !== fileId));
+    },
+    [fetchWithAuth]
+  );
+
+  const bulkDeleteFiles = useCallback(
+    async (fileIds: string[]) => {
+      const res = await fetchWithAuth('/files/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: fileIds }),
+      });
+      if (!res.ok) throw new Error(`Failed to bulk-delete files: ${res.statusText}`);
+      const idSet = new Set(fileIds);
+      setFiles((prev) => prev.filter((f) => !idSet.has(f.id)));
+      return (await res.json()) as { deleted: string[]; failed: Array<{ id: string; reason: string }> };
     },
     [fetchWithAuth]
   );
@@ -105,6 +119,7 @@ export function useFiles(autoFetch = true) {
     refetch: fetchFiles,
     uploadFile,
     deleteFile,
+    bulkDeleteFiles,
     getDownloadUrl,
   };
 }

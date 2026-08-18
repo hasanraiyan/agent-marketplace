@@ -76,14 +76,44 @@ function usePersonaContext() {
 
 // src/hooks/useChat.ts
 var import_react2 = require("react");
+function isErrorToolContent(content) {
+  if (typeof content !== "string" || !content.trim().startsWith("{")) return false;
+  try {
+    return JSON.parse(content)?.status === "error";
+  } catch {
+    return false;
+  }
+}
+function normalizePendingInterrupt(pending) {
+  if (!pending || typeof pending !== "object") return null;
+  const p = pending;
+  if (p.kind === "hitl") {
+    return {
+      kind: "hitl",
+      actionRequests: p.value?.actionRequests ?? [],
+      reviewConfigs: p.value?.reviewConfigs ?? []
+    };
+  }
+  if (p.kind === "clarification") {
+    return {
+      kind: "clarification",
+      questions: p.value?.questions ?? []
+    };
+  }
+  return null;
+}
 function useChat(options = {}) {
   const { defaultAgentId, fetchWithAuth } = usePersonaContext();
   const agentId = options.agentId || defaultAgentId;
+  const threadId = options.threadId;
   const [messages, setMessages] = (0, import_react2.useState)(options.initialMessages || []);
   const [input, setInput] = (0, import_react2.useState)("");
   const [isStreaming, setIsStreaming] = (0, import_react2.useState)(false);
+  const [isLoadingHistory, setIsLoadingHistory] = (0, import_react2.useState)(false);
   const [error, setError] = (0, import_react2.useState)(null);
+  const [interrupt, setInterrupt] = (0, import_react2.useState)(null);
   const abortControllerRef = (0, import_react2.useRef)(null);
+  const loadedThreadIdRef = (0, import_react2.useRef)(void 0);
   const stop = (0, import_react2.useCallback)(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -96,6 +126,43 @@ function useChat(options = {}) {
     setMessages([]);
     setError(null);
   }, [stop]);
+  const loadThreadMessages = (0, import_react2.useCallback)(
+    async (id) => {
+      setIsLoadingHistory(true);
+      setError(null);
+      try {
+        const res = await fetchWithAuth(`/threads/${id}/messages`);
+        if (!res.ok) throw new Error(`Failed to load thread history: ${res.statusText}`);
+        const body = await res.json();
+        const data = body?.data ?? body;
+        const raw = data?.messages ?? [];
+        const loaded = raw.map((m, i) => ({
+          id: m.id || `history-${id}-${i}`,
+          role: m.role,
+          content: m.content,
+          createdAt: /* @__PURE__ */ new Date(),
+          toolCalls: m.toolCalls
+        }));
+        setMessages(loaded);
+        setInterrupt(normalizePendingInterrupt(data?.pendingInterrupt));
+        return loaded;
+      } catch (err) {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        setError(errorObj);
+        return [];
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    },
+    [fetchWithAuth]
+  );
+  (0, import_react2.useEffect)(() => {
+    if (!threadId || isStreaming) return;
+    if (loadedThreadIdRef.current === threadId) return;
+    if (messages.length > 0) return;
+    loadedThreadIdRef.current = threadId;
+    void loadThreadMessages(threadId);
+  }, [threadId, isStreaming, messages.length, loadThreadMessages]);
   const sendMessage = (0, import_react2.useCallback)(
     async (contentToSend, overrideOptions) => {
       const prompt = (contentToSend ?? input).trim();
@@ -127,6 +194,7 @@ function useChat(options = {}) {
       setInput("");
       setIsStreaming(true);
       setError(null);
+      setInterrupt(null);
       const controller = new AbortController();
       abortControllerRef.current = controller;
       try {
@@ -142,7 +210,8 @@ function useChat(options = {}) {
           body: JSON.stringify({
             agentId: targetAgentId,
             messages: payloadMessages,
-            threadId: overrideOptions?.threadId || options.threadId
+            threadId: overrideOptions?.threadId || options.threadId,
+            resume: overrideOptions?.resume
           }),
           signal: controller.signal
         });
@@ -157,7 +226,15 @@ function useChat(options = {}) {
         const decoder = new TextDecoder("utf-8");
         let buffer = "";
         let accumulatedText = "";
+        let accumulatedReasoning = "";
         const toolCallsMap = /* @__PURE__ */ new Map();
+        const patchAssistant = (patch) => {
+          setMessages(
+            (prev) => prev.map(
+              (msg) => msg.id === assistantMessageId ? { ...msg, toolCalls: Array.from(toolCallsMap.values()), ...patch } : msg
+            )
+          );
+        };
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -174,47 +251,49 @@ function useChat(options = {}) {
               options.onEvent?.(event);
               if (event.type === "TEXT_MESSAGE_CHUNK" && event.delta) {
                 accumulatedText += event.delta;
-                setMessages(
-                  (prev) => prev.map(
-                    (msg) => msg.id === assistantMessageId ? {
-                      ...msg,
-                      content: accumulatedText,
-                      isStreaming: true,
-                      toolCalls: Array.from(toolCallsMap.values())
-                    } : msg
-                  )
-                );
-              } else if (event.type === "TOOL_CALL_START") {
-                toolCallsMap.set(event.toolCallId, {
-                  toolCallId: event.toolCallId,
-                  toolName: event.toolName,
-                  args: ""
-                });
-                setMessages(
-                  (prev) => prev.map(
-                    (msg) => msg.id === assistantMessageId ? { ...msg, toolCalls: Array.from(toolCallsMap.values()) } : msg
-                  )
-                );
-              } else if (event.type === "TOOL_CALL_ARGS") {
+                patchAssistant({ content: accumulatedText, isStreaming: true });
+              } else if (event.type === "TOOL_CALL_CHUNK" && event.toolCallId) {
                 const existing = toolCallsMap.get(event.toolCallId);
                 if (existing) {
-                  existing.args = (existing.args || "") + event.delta;
-                  setMessages(
-                    (prev) => prev.map(
-                      (msg) => msg.id === assistantMessageId ? { ...msg, toolCalls: Array.from(toolCallsMap.values()) } : msg
-                    )
-                  );
+                  existing.args = (existing.args || "") + (event.delta || "");
+                } else {
+                  toolCallsMap.set(event.toolCallId, {
+                    toolCallId: event.toolCallId,
+                    toolName: event.toolCallName || "",
+                    args: event.delta || ""
+                  });
                 }
+                patchAssistant({});
               } else if (event.type === "TOOL_CALL_RESULT") {
                 const existing = toolCallsMap.get(event.toolCallId);
                 if (existing) {
-                  existing.result = event.result;
-                  existing.isError = event.isError;
-                  setMessages(
-                    (prev) => prev.map(
-                      (msg) => msg.id === assistantMessageId ? { ...msg, toolCalls: Array.from(toolCallsMap.values()) } : msg
-                    )
-                  );
+                  existing.result = event.content;
+                  existing.isError = isErrorToolContent(event.content);
+                  patchAssistant({});
+                }
+              } else if (event.type === "REASONING_MESSAGE_CONTENT") {
+                accumulatedReasoning += event.delta;
+                patchAssistant({ reasoning: accumulatedReasoning, isReasoning: true });
+              } else if (event.type === "REASONING_END") {
+                patchAssistant({ isReasoning: false });
+              } else if (event.type === "CUSTOM") {
+                if (event.name === "hitl_request") {
+                  const value2 = event.value;
+                  setInterrupt({
+                    kind: "hitl",
+                    actionRequests: value2.actionRequests,
+                    reviewConfigs: value2.reviewConfigs
+                  });
+                } else if (event.name === "clarification_request") {
+                  const value2 = event.value;
+                  setInterrupt({ kind: "clarification", questions: value2.questions });
+                } else if (event.name === "subagent_activity") {
+                  const { toolCallId, ...entry } = event.value;
+                  const existing = toolCallsMap.get(toolCallId);
+                  if (existing) {
+                    existing.subagentActivity = [...existing.subagentActivity || [], entry];
+                    patchAssistant({});
+                  }
                 }
               } else if (event.type === "RUN_ERROR") {
                 throw new Error(event.message || "Stream error from agent");
@@ -232,7 +311,8 @@ function useChat(options = {}) {
           content: accumulatedText,
           createdAt: /* @__PURE__ */ new Date(),
           isStreaming: false,
-          toolCalls: Array.from(toolCallsMap.values())
+          toolCalls: Array.from(toolCallsMap.values()),
+          ...accumulatedReasoning ? { reasoning: accumulatedReasoning, isReasoning: false } : {}
         };
         setMessages(
           (prev) => prev.map((msg) => msg.id === assistantMessageId ? finalMessage : msg)
@@ -290,6 +370,10 @@ function useChat(options = {}) {
     setMessages(messages.slice(0, lastUserIndex));
     void sendMessage(lastUserMessage.content);
   }, [isStreaming, messages, sendMessage]);
+  const resumeInterrupt = (0, import_react2.useCallback)(
+    (resume, displayContent) => sendMessage(displayContent, { resume }),
+    [sendMessage]
+  );
   return {
     messages,
     input,
@@ -299,11 +383,15 @@ function useChat(options = {}) {
     sendMessage,
     isStreaming,
     isLoading: isStreaming,
+    isLoadingHistory,
     error,
+    interrupt,
+    resumeInterrupt,
     stop,
     reload,
     clear,
-    setMessages
+    setMessages,
+    loadThreadMessages
   };
 }
 
@@ -311,7 +399,7 @@ function useChat(options = {}) {
 var import_react3 = require("react");
 function useMemory(autoFetch = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [memory, setMemory] = (0, import_react3.useState)({ user: [], agents: {} });
+  const [memory, setMemory] = (0, import_react3.useState)({ userFiles: [], agentMemories: [] });
   const [isLoading, setIsLoading] = (0, import_react3.useState)(false);
   const [error, setError] = (0, import_react3.useState)(null);
   const fetchMemory = (0, import_react3.useCallback)(async () => {
@@ -328,7 +416,7 @@ function useMemory(autoFetch = true) {
     } catch (err) {
       const errorObj = err instanceof Error ? err : new Error(String(err));
       setError(errorObj);
-      return { user: [], agents: {} };
+      return { userFiles: [], agentMemories: [] };
     } finally {
       setIsLoading(false);
     }
@@ -401,7 +489,7 @@ function useThreads(autoFetch = true) {
       const res = await fetchWithAuth("/threads");
       if (!res.ok) throw new Error(`Failed to list threads: ${res.statusText}`);
       const data = await res.json();
-      const items = Array.isArray(data) ? data : data?.threads || data?.items || [];
+      const items = Array.isArray(data) ? data : data?.items || data?.threads || (Array.isArray(data?.data) ? data.data : void 0) || [];
       setThreads(items);
       return items;
     } catch (err) {
@@ -421,7 +509,8 @@ function useThreads(autoFetch = true) {
         body: JSON.stringify({ agentId: targetAgentId })
       });
       if (!res.ok) throw new Error(`Failed to create thread: ${res.statusText}`);
-      const created = await res.json();
+      const data = await res.json();
+      const created = data?.data ?? data;
       void fetchThreads();
       return created;
     },
@@ -432,6 +521,56 @@ function useThreads(autoFetch = true) {
       const res = await fetchWithAuth(`/threads/${threadId}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Failed to delete thread: ${res.statusText}`);
       setThreads((prev) => prev.filter((t) => t._id !== threadId));
+    },
+    [fetchWithAuth]
+  );
+  const bulkDeleteThreads = (0, import_react4.useCallback)(
+    async (threadIds) => {
+      const res = await fetchWithAuth("/threads/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: threadIds })
+      });
+      if (!res.ok) throw new Error(`Failed to bulk-delete threads: ${res.statusText}`);
+      const data = await res.json();
+      const result = data?.data ?? data;
+      const deletedSet = new Set(result.deleted);
+      setThreads((prev) => prev.filter((t) => !deletedSet.has(t._id)));
+      return result;
+    },
+    [fetchWithAuth]
+  );
+  const deleteAllThreads = (0, import_react4.useCallback)(async () => {
+    const ids = threads.map((t) => t._id);
+    for (let i = 0; i < ids.length; i += 100) {
+      await bulkDeleteThreads(ids.slice(i, i + 100));
+    }
+  }, [threads, bulkDeleteThreads]);
+  const updateThread = (0, import_react4.useCallback)(
+    async (threadId, input) => {
+      const res = await fetchWithAuth(`/threads/${threadId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input)
+      });
+      if (!res.ok) throw new Error(`Failed to update thread: ${res.statusText}`);
+      const data = await res.json();
+      const updated = data?.data ?? data;
+      setThreads((prev) => prev.map((t) => t._id === threadId ? { ...t, ...updated } : t));
+      return updated;
+    },
+    [fetchWithAuth]
+  );
+  const renameThread = (0, import_react4.useCallback)(
+    (threadId, title) => updateThread(threadId, { title }),
+    [updateThread]
+  );
+  const getThread = (0, import_react4.useCallback)(
+    async (threadId) => {
+      const res = await fetchWithAuth(`/threads/${threadId}`);
+      if (!res.ok) throw new Error(`Failed to fetch thread: ${res.statusText}`);
+      const data = await res.json();
+      return data?.data ?? data;
     },
     [fetchWithAuth]
   );
@@ -446,7 +585,12 @@ function useThreads(autoFetch = true) {
     error,
     refetch: fetchThreads,
     createThread,
-    deleteThread
+    deleteThread,
+    bulkDeleteThreads,
+    deleteAllThreads,
+    updateThread,
+    renameThread,
+    getThread
   };
 }
 
@@ -465,7 +609,7 @@ function useFiles(autoFetch = true) {
       const res = await fetchWithAuth("/files");
       if (!res.ok) throw new Error(`Failed to list files: ${res.statusText}`);
       const data = await res.json();
-      const items = Array.isArray(data) ? data : data?.files || data?.items || [];
+      const items = Array.isArray(data) ? data : data?.items || data?.files || [];
       setFiles(items);
       return items;
     } catch (err) {
@@ -513,7 +657,21 @@ function useFiles(autoFetch = true) {
     async (fileId) => {
       const res = await fetchWithAuth(`/files/${fileId}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Failed to delete file: ${res.statusText}`);
-      setFiles((prev) => prev.filter((f) => f._id !== fileId));
+      setFiles((prev) => prev.filter((f) => f.id !== fileId));
+    },
+    [fetchWithAuth]
+  );
+  const bulkDeleteFiles = (0, import_react5.useCallback)(
+    async (fileIds) => {
+      const res = await fetchWithAuth("/files/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: fileIds })
+      });
+      if (!res.ok) throw new Error(`Failed to bulk-delete files: ${res.statusText}`);
+      const idSet = new Set(fileIds);
+      setFiles((prev) => prev.filter((f) => !idSet.has(f.id)));
+      return await res.json();
     },
     [fetchWithAuth]
   );
@@ -536,6 +694,7 @@ function useFiles(autoFetch = true) {
     refetch: fetchFiles,
     uploadFile,
     deleteFile,
+    bulkDeleteFiles,
     getDownloadUrl
   };
 }
@@ -554,7 +713,7 @@ function useAgents(autoFetch = true) {
       const res = await fetchWithAuth("/agents");
       if (!res.ok) throw new Error(`Failed to list agents: ${res.statusText}`);
       const data = await res.json();
-      const items = Array.isArray(data) ? data : data?.agents || data?.items || [];
+      const items = Array.isArray(data) ? data : data?.items || data?.agents || [];
       setAgents(items);
       return items;
     } catch (err) {
@@ -618,7 +777,7 @@ function useConnection(autoCheck = true) {
 }
 
 // src/index.ts
-var VERSION = "0.1.2";
+var VERSION = "0.2.0";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   PersonaProvider,

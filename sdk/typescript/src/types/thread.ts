@@ -50,7 +50,9 @@ export interface ThreadMessages {
    * Set when this Thread is currently paused on a HITL/clarification
    * interrupt — lets a caller re-show the approval/clarification card on
    * page load without waiting for the next live `chat.stream()` call to
-   * re-surface it. Same shape as `ChatResult.interrupt`.
+   * re-surface it. Same shape as `ChatResult.interrupt`. Named
+   * `pendingInterrupt` (not `interrupt`) to match the actual wire field
+   * checkpointService.getMessages() returns.
    */
-  interrupt?: ChatInterrupt;
+  pendingInterrupt?: ChatInterrupt;
 }

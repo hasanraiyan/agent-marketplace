@@ -1,5 +1,5 @@
 import React, { ReactNode, ComponentType } from 'react';
-import { PersonaToolCall, PersonaThread, PersonaMessage, PersonaFileItem, PersonaMemoryList, PersonaMemoryFile } from '@personaai/react';
+import { PersonaToolCall, PersonaThread, PersonaMessage, PersonaFileItem, PersonaMemoryList, PersonaMemoryFile, PersonaInterrupt, PersonaResumeValue } from '@personaai/react';
 import { ClassValue } from 'clsx';
 
 interface StarterPromptItem {
@@ -82,13 +82,14 @@ declare function PersonaComposer({ input, onInputChange, onSubmit, onStop, isStr
 interface PersonaMessageFeedProps {
     messages: PersonaMessage[];
     isStreaming?: boolean;
+    isLoading?: boolean;
     error?: Error | null;
     toolRenderers?: ToolRendererMap;
     onReload?: () => void;
     greeting?: string;
     className?: string;
 }
-declare function PersonaMessageFeed({ messages, isStreaming, error, toolRenderers, onReload, greeting, className, }: PersonaMessageFeedProps): React.JSX.Element;
+declare function PersonaMessageFeed({ messages, isStreaming, isLoading, error, toolRenderers, onReload, greeting, className, }: PersonaMessageFeedProps): React.JSX.Element;
 
 interface PersonaToolTraceProps {
     toolCall: PersonaToolCall;
@@ -109,6 +110,14 @@ interface PersonaFilesDrawerProps {
 }
 declare function PersonaFilesDrawer({ isOpen, onClose, files, memory, onDeleteFile, onGetMemoryFile, onDeleteMemoryFile, className, }: PersonaFilesDrawerProps): React.JSX.Element | null;
 
-declare const VERSION = "0.1.0";
+interface PersonaInterruptCardProps {
+    interrupt: PersonaInterrupt;
+    onRespond: (resume: PersonaResumeValue, displayContent: string) => void;
+    isStreaming?: boolean;
+    className?: string;
+}
+declare function PersonaInterruptCard({ interrupt, onRespond, isStreaming, className, }: PersonaInterruptCardProps): React.JSX.Element;
 
-export { type ClassNamesOverride, PersonaChatView, type PersonaChatViewProps, PersonaComposer, type PersonaComposerProps, type PersonaCustomTheme, PersonaFilesDrawer, type PersonaFilesDrawerProps, PersonaMessageFeed, type PersonaMessageFeedProps, PersonaSidebar, type PersonaSidebarProps, PersonaToolTrace, type PersonaToolTraceProps, type StarterPromptItem, type ToolRendererMap, type ToolRendererProps, VERSION, cn };
+declare const VERSION = "0.2.0";
+
+export { type ClassNamesOverride, PersonaChatView, type PersonaChatViewProps, PersonaComposer, type PersonaComposerProps, type PersonaCustomTheme, PersonaFilesDrawer, type PersonaFilesDrawerProps, PersonaInterruptCard, type PersonaInterruptCardProps, PersonaMessageFeed, type PersonaMessageFeedProps, PersonaSidebar, type PersonaSidebarProps, PersonaToolTrace, type PersonaToolTraceProps, type StarterPromptItem, type ToolRendererMap, type ToolRendererProps, VERSION, cn };

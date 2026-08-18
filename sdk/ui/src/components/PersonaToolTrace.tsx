@@ -1,10 +1,36 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import type { PersonaToolCall } from '@personaai/react';
+import type { PersonaSubagentActivityEntry, PersonaToolCall } from '@personaai/react';
 import type { ToolRendererMap } from '../types.js';
 import { cn } from '../utils/cn.js';
-import { Wrench, ChevronDown, ChevronRight, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Wrench, ChevronDown, ChevronRight, CheckCircle2, AlertCircle, Loader2, ArrowRight, Bot } from 'lucide-react';
+
+// Consecutive live-token deltas from the subagent's own model stream arrive
+// as one entry per chunk — merge adjacent 'text' entries into one paragraph
+// rather than rendering dozens of one-word timeline rows.
+function groupSubagentActivity(entries: PersonaSubagentActivityEntry[]) {
+  const groups: Array<
+    | { kind: 'text'; text: string }
+    | { kind: 'tool_start'; toolName?: string; args?: string }
+    | { kind: 'tool_result'; toolName?: string; result?: string }
+  > = [];
+  for (const entry of entries) {
+    if (entry.kind === 'text') {
+      const last = groups[groups.length - 1];
+      if (last?.kind === 'text') {
+        last.text += entry.delta || '';
+      } else {
+        groups.push({ kind: 'text', text: entry.delta || '' });
+      }
+    } else if (entry.kind === 'tool_start') {
+      groups.push({ kind: 'tool_start', toolName: entry.toolName, args: entry.args });
+    } else {
+      groups.push({ kind: 'tool_result', toolName: entry.toolName, result: entry.result });
+    }
+  }
+  return groups;
+}
 
 export interface PersonaToolTraceProps {
   toolCall: PersonaToolCall;
@@ -38,6 +64,11 @@ export function PersonaToolTrace({
   }, [toolCall.result]);
 
   const isExecuting = !toolCall.result && !toolCall.isError;
+
+  const subagentGroups = useMemo(
+    () => (toolCall.subagentActivity?.length ? groupSubagentActivity(toolCall.subagentActivity) : []),
+    [toolCall.subagentActivity]
+  );
 
   // Custom tool renderer delegation
   const CustomRenderer = toolRenderers?.[toolCall.toolName] || toolRenderers?.default;
@@ -112,6 +143,35 @@ export function PersonaToolTrace({
               <pre className="overflow-x-auto rounded-lg bg-zinc-100 p-2 text-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
                 {typeof parsedResult === 'object' ? JSON.stringify(parsedResult, null, 2) : toolCall.result}
               </pre>
+            </div>
+          )}
+
+          {subagentGroups.length > 0 && (
+            <div>
+              <span className="text-zinc-500 mb-1 flex items-center gap-1">
+                <Bot className="size-3" />
+                Subagent activity:
+              </span>
+              <div className="space-y-1.5 border-l-2 border-zinc-200 pl-2.5 dark:border-zinc-800">
+                {subagentGroups.map((group, i) =>
+                  group.kind === 'text' ? (
+                    <p key={i} className="whitespace-pre-wrap text-zinc-600 dark:text-zinc-400">
+                      {group.text}
+                    </p>
+                  ) : group.kind === 'tool_start' ? (
+                    <div key={i} className="flex items-center gap-1 text-zinc-500">
+                      <ArrowRight className="size-3 shrink-0" />
+                      <span className="font-semibold">{group.toolName}</span>
+                      {group.args && <span className="truncate opacity-70">({group.args})</span>}
+                    </div>
+                  ) : (
+                    <div key={i} className="flex items-start gap-1 text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle2 className="mt-0.5 size-3 shrink-0" />
+                      <span className="truncate opacity-90">{group.toolName}: {group.result}</span>
+                    </div>
+                  )
+                )}
+              </div>
             </div>
           )}
         </div>

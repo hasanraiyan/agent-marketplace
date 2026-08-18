@@ -6,5 +6,6 @@ export * from './components/PersonaComposer.js';
 export * from './components/PersonaMessageFeed.js';
 export * from './components/PersonaToolTrace.js';
 export * from './components/PersonaFilesDrawer.js';
+export * from './components/PersonaInterruptCard.js';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';

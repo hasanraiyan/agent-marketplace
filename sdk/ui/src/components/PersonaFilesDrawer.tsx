@@ -90,7 +90,9 @@ export function PersonaFilesDrawer({
           >
             <Brain className="size-3.5" />
             <span>Memory</span>
-            {memory?.user?.length > 0 && <span className="text-[10px] opacity-70">({memory.user.length})</span>}
+            {memory?.userFiles?.length > 0 && (
+              <span className="text-[10px] opacity-70">({memory.userFiles.length})</span>
+            )}
           </button>
         </div>
 
@@ -113,17 +115,17 @@ export function PersonaFilesDrawer({
             ) : (
               files.map((file) => (
                 <div
-                  key={file._id}
+                  key={file.id}
                   className="flex items-center justify-between rounded-xl border border-zinc-200/70 bg-white p-2.5 shadow-2xs dark:border-zinc-800/70 dark:bg-zinc-900/60"
                 >
                   <div className="flex items-center gap-2 truncate">
                     <FileText className="size-4 shrink-0 text-blue-500" />
                     <div className="truncate">
                       <span className="block truncate text-xs font-medium text-zinc-800 dark:text-zinc-200">
-                        {file.filename}
+                        {file.originalName}
                       </span>
                       <span className="text-[10px] text-zinc-400">
-                        {file.sizeBytes ? `${(file.sizeBytes / 1024).toFixed(1)} KB` : ''}
+                        {file.size ? `${(file.size / 1024).toFixed(1)} KB` : ''}
                       </span>
                     </div>
                   </div>
@@ -131,7 +133,7 @@ export function PersonaFilesDrawer({
                   {onDeleteFile && (
                     <button
                       type="button"
-                      onClick={() => onDeleteFile(file._id)}
+                      onClick={() => onDeleteFile(file.id)}
                       className="rounded p-1 text-zinc-400 hover:text-red-500"
                     >
                       <Trash2 className="size-3.5" />
@@ -171,23 +173,49 @@ export function PersonaFilesDrawer({
                   {selectedMemory.content}
                 </pre>
               </div>
-            ) : memory?.user?.length === 0 ? (
+            ) : (memory?.userFiles?.length ?? 0) === 0 && (memory?.agentMemories?.length ?? 0) === 0 ? (
               <p className="py-8 text-center text-xs text-zinc-400">No persistent memory files recorded.</p>
             ) : (
-              <div className="space-y-1.5">
-                {memory?.user?.map((f) => (
-                  <button
-                    key={f.path}
-                    type="button"
-                    onClick={() => viewMemoryFile(f.path)}
-                    className="flex w-full items-center justify-between rounded-xl border border-zinc-200/70 bg-white p-2.5 text-left text-xs transition-all hover:bg-zinc-100/70 dark:border-zinc-800/70 dark:bg-zinc-900/60 dark:hover:bg-zinc-900"
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <Brain className="size-3.5 text-purple-500" />
-                      <span className="truncate text-zinc-800 dark:text-zinc-200">{f.path}</span>
-                    </div>
-                    {loadingMemory && <Loader2 className="size-3 animate-spin text-zinc-400" />}
-                  </button>
+              <div className="space-y-4">
+                {(memory?.userFiles?.length ?? 0) > 0 && (
+                  <div className="space-y-1.5">
+                    {memory.userFiles.map((f) => (
+                      <button
+                        key={f.path}
+                        type="button"
+                        onClick={() => viewMemoryFile(f.path)}
+                        className="flex w-full items-center justify-between rounded-xl border border-zinc-200/70 bg-white p-2.5 text-left text-xs transition-all hover:bg-zinc-100/70 dark:border-zinc-800/70 dark:bg-zinc-900/60 dark:hover:bg-zinc-900"
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <Brain className="size-3.5 text-purple-500" />
+                          <span className="truncate text-zinc-800 dark:text-zinc-200">{f.path}</span>
+                        </div>
+                        {loadingMemory && <Loader2 className="size-3 animate-spin text-zinc-400" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {memory?.agentMemories?.map((group) => (
+                  <div key={group.agentId} className="space-y-1.5">
+                    <span className="px-0.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                      {group.agentName || 'Unknown Agent'}
+                    </span>
+                    {group.files.map((f) => (
+                      <button
+                        key={f.path}
+                        type="button"
+                        onClick={() => viewMemoryFile(f.path)}
+                        className="flex w-full items-center justify-between rounded-xl border border-zinc-200/70 bg-white p-2.5 text-left text-xs transition-all hover:bg-zinc-100/70 dark:border-zinc-800/70 dark:bg-zinc-900/60 dark:hover:bg-zinc-900"
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <Brain className="size-3.5 text-purple-500" />
+                          <span className="truncate text-zinc-800 dark:text-zinc-200">{f.path}</span>
+                        </div>
+                        {loadingMemory && <Loader2 className="size-3 animate-spin text-zinc-400" />}
+                      </button>
+                    ))}
+                  </div>
                 ))}
               </div>
             )}

@@ -6,7 +6,7 @@ import type { PersonaMemoryFile, PersonaMemoryList } from '../types.js';
 
 export function useMemory(autoFetch = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [memory, setMemory] = useState<PersonaMemoryList>({ user: [], agents: {} });
+  const [memory, setMemory] = useState<PersonaMemoryList>({ userFiles: [], agentMemories: [] });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
@@ -24,7 +24,7 @@ export function useMemory(autoFetch = true) {
     } catch (err) {
       const errorObj = err instanceof Error ? err : new Error(String(err));
       setError(errorObj);
-      return { user: [], agents: {} };
+      return { userFiles: [], agentMemories: [] };
     } finally {
       setIsLoading(false);
     }
