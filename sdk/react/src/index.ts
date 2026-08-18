@@ -6,4 +6,4 @@ export * from './hooks/useThreads.js';
 export * from './hooks/useAgents.js';
 export * from './hooks/useConnection.js';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.1.1';
