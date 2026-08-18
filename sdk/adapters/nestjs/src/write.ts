@@ -33,6 +33,10 @@ export async function writeRuntimeResponse(
     return;
   }
 
+  if (typeof res.setHeader === 'function') {
+    res.setHeader('X-Accel-Buffering', 'no');
+  }
+
   if (typeof res.flushHeaders === 'function') {
     res.flushHeaders();
   }
@@ -52,6 +56,9 @@ export async function writeRuntimeResponse(
     for await (const chunk of iterable) {
       if (closed) break;
       const canContinue = res.write(chunk);
+      if (typeof res.flush === 'function') {
+        res.flush();
+      }
       if (!canContinue) await waitForDrainOrClose(res);
     }
     if (!closed) res.end();
