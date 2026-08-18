@@ -9,7 +9,13 @@ import agentService from '../agents/agent.service.js';
 import { ARCHITECT_AGENT_ID } from '../agents/architectConstants.js';
 import threadRepository from '../threads/thread.repository.js';
 import threadService from '../threads/thread.service.js';
-import { foldSubagentEvent, settleTrace } from '../agui/subagentTrace.js';
+import checkpointService from '../threads/checkpoint.service.js';
+import {
+  foldSubagentEvent,
+  settleTrace,
+  extractTaskToolCallIds,
+  reconcileSubagentTraceKeys,
+} from '../agui/subagentTrace.js';
 import { readJsonBody, runAgentAsAguiEvents } from '../agui/agui.service.js';
 import { AGUI_SCHEMA_VERSION, buildAguiSchemaDocument } from '../agui/aguiEventSchemas.js';
 
@@ -200,11 +206,32 @@ class DeveloperAguiController {
       res.end();
 
       if (resolvedThread && Object.keys(subagentTraces).length > 0) {
+        // The live-stream key for a `task` call's trace can diverge from
+        // that same call's real tool_call.id once the checkpoint is
+        // assembled (provider-adapter-internal ID synthesis gap — see
+        // subagentTrace.js's reconcileSubagentTraceKeys doc comment).
+        // Reconciling against the checkpoint here — the one place both the
+        // live fold and the reload path can agree — before persisting,
+        // rather than persisting the provisional key and having it silently
+        // never match on reload.
+        let reconciled = subagentTraces;
+        try {
+          const snapshot = await checkpointService.checkpointer?.getTuple({
+            configurable: { thread_id: langGraphThreadId },
+          });
+          const rawMessages = snapshot?.checkpoint?.channel_values?.messages;
+          if (rawMessages) {
+            reconciled = reconcileSubagentTraceKeys(subagentTraces, extractTaskToolCallIds(rawMessages));
+          }
+        } catch {
+          // Persist provisional keys rather than dropping the traces entirely.
+        }
+
         // Per-key $set merges this run's traces with earlier turns' instead
         // of replacing the whole map. Fire-and-forget — persistence must
         // not delay or fail the response.
         const setOps = {};
-        for (const [callId, items] of Object.entries(subagentTraces)) {
+        for (const [callId, items] of Object.entries(reconciled)) {
           setOps[`subagentTraces.${callId}`] = settleTrace(items);
         }
         threadRepository.update(resolvedThread._id, { $set: setOps }).catch(() => {});

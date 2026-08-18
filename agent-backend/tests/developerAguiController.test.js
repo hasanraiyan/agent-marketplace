@@ -29,7 +29,7 @@ jest.unstable_mockModule('../src/modules/threads/thread.service.js', () => ({
 
 jest.unstable_mockModule('../src/modules/threads/checkpoint.service.js', () => ({
   default: {
-    checkpointer: {},
+    checkpointer: { getTuple: jest.fn() },
     _autoTitleThread: jest.fn(),
   },
 }));
@@ -49,6 +49,8 @@ const agentRepository = (await import('../src/modules/agents/agent.repository.js
 const agentFactory = (await import('../src/modules/agents/agent.factory.js')).default;
 const threadRepository = (await import('../src/modules/threads/thread.repository.js')).default;
 const threadService = (await import('../src/modules/threads/thread.service.js')).default;
+const checkpointService = (await import('../src/modules/threads/checkpoint.service.js')).default;
+const { translateLangGraphStream } = await import('../src/modules/agui/aguiTranslator.js');
 const developerAguiController = (
   await import('../src/modules/developer/developerAgui.controller.js')
 ).default;
@@ -282,6 +284,85 @@ describe('Developer AG-UI Controller — runAgent', () => {
       expect(mockRes.write).toHaveBeenCalledWith(
         expect.stringContaining('"threadId":"agui-project-1-agent-1-sabik"')
       );
+    });
+  });
+
+  describe('Subagent trace persistence', () => {
+    beforeEach(() => {
+      agentRepository.findById.mockResolvedValue({
+        _id: 'agent-1',
+        domain: 'project-1',
+        visibility: 'public',
+        isActive: true,
+        deletedAt: null,
+      });
+      agentFactory.buildAgent.mockResolvedValue({
+        agentInstance: {
+          getState: jest.fn().mockResolvedValue({ tasks: [] }),
+          streamEvents: jest.fn().mockReturnValue((async function* () {})()),
+        },
+        agentConfig: {},
+        providerConfig: {},
+        llm: {},
+        mcpAppMap: {},
+      });
+      threadService.getThreadById.mockResolvedValue({
+        _id: 'thread-mongo-id-1',
+        threadId: 'real-langgraph-thread-uuid',
+        agentId: 'agent-1',
+      });
+      mockReq.headers['x-thread-id'] = 'thread-mongo-id-1';
+    });
+
+    test('persists subagentTraces re-keyed to the checkpoint real tool_call id, not the live-stream provisional key', async () => {
+      // Live stream folds this run's one task call's activity under a
+      // provisional (run_id-shaped) key, exactly like the real mismatch
+      // reported: aguiTranslator.js falls back to event.run_id when the
+      // provider never streamed a stable tool_call id.
+      translateLangGraphStream.mockImplementation(async function* () {
+        yield {
+          type: 'CUSTOM',
+          name: 'subagent_activity',
+          value: { toolCallId: 'run-provisional-id', kind: 'text', delta: 'done' },
+        };
+      });
+      // The checkpoint's real id for that same task call, once assembled.
+      checkpointService.checkpointer.getTuple.mockResolvedValue({
+        checkpoint: {
+          channel_values: {
+            messages: [
+              { getType: () => 'ai', tool_calls: [{ id: 'call_5310987', name: 'task' }] },
+            ],
+          },
+        },
+      });
+
+      await developerAguiController.runAgent(mockReq, mockRes, next);
+
+      expect(threadRepository.update).toHaveBeenCalledWith('thread-mongo-id-1', {
+        $set: {
+          'subagentTraces.call_5310987': [{ type: 'text', text: 'done' }],
+        },
+      });
+    });
+
+    test('falls back to the provisional key if the checkpoint lookup fails, never dropping the trace', async () => {
+      translateLangGraphStream.mockImplementation(async function* () {
+        yield {
+          type: 'CUSTOM',
+          name: 'subagent_activity',
+          value: { toolCallId: 'run-provisional-id', kind: 'text', delta: 'done' },
+        };
+      });
+      checkpointService.checkpointer.getTuple.mockRejectedValue(new Error('boom'));
+
+      await developerAguiController.runAgent(mockReq, mockRes, next);
+
+      expect(threadRepository.update).toHaveBeenCalledWith('thread-mongo-id-1', {
+        $set: {
+          'subagentTraces.run-provisional-id': [{ type: 'text', text: 'done' }],
+        },
+      });
     });
   });
 });

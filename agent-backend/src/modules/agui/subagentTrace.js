@@ -49,3 +49,51 @@ export function settleTrace(items) {
   }
   return items;
 }
+
+// The live stream's own toolCallId for a `task` call (bound from a
+// tool_call_chunk's id, or a LangChain run_id fallback when the provider
+// never streamed one — see aguiTranslator.js's `streamedId || event.run_id`)
+// can end up DIFFERENT from that same call's `tool_calls[].id` once
+// LangGraph/the provider adapter finishes assembling and persisting the
+// checkpoint. Root cause is provider-adapter-internal (confirmed for at
+// least @langchain/google-genai: it can synthesize a fresh id per streamed
+// chunk rather than reusing one) and not reliably fixable by watching the
+// stream more closely — the checkpoint's id is the only value BOTH the live
+// fold (this file) and the reload path (checkpoint.service.js) can agree on
+// after the fact. Extracts every `task` tool call's real id, in the order
+// it appears across the raw checkpoint messages (same raw shape
+// checkpoint.service.js's normalizeMessages consumes) — same type-detection
+// pattern as that function, kept independent of it since this only needs
+// the ids, not a full transcript rebuild.
+export function extractTaskToolCallIds(rawMessages) {
+  const ids = [];
+  for (const msg of rawMessages || []) {
+    const type = typeof msg?.getType === 'function' ? msg.getType() : msg?.type;
+    if (type !== 'ai' || !Array.isArray(msg.tool_calls)) continue;
+    for (const tc of msg.tool_calls) {
+      if (tc?.name === 'task' && tc.id) ids.push(tc.id);
+    }
+  }
+  return ids;
+}
+
+// Re-keys this run's freshly-folded subagentTraces (in the order their
+// owning `task` tool calls started, i.e. object key insertion order) against
+// the real `task` tool_call ids the checkpoint now has (also in call order)
+// — only the LAST N of them belong to THIS run (N = number of entries just
+// folded); earlier turns' task calls must not be touched. Falls back to the
+// original provisional key for any entry it can't confidently match, so a
+// mismatch never means losing data — worst case is the pre-existing
+// key-mismatch bug for that one entry, not a crash or a dropped trace.
+export function reconcileSubagentTraceKeys(subagentTraces, realTaskToolCallIds) {
+  const provisionalKeys = Object.keys(subagentTraces);
+  if (provisionalKeys.length === 0) return subagentTraces;
+
+  const relevant = realTaskToolCallIds.slice(-provisionalKeys.length);
+  const reconciled = {};
+  provisionalKeys.forEach((provisionalKey, i) => {
+    const realId = relevant[i];
+    reconciled[realId || provisionalKey] = subagentTraces[provisionalKey];
+  });
+  return reconciled;
+}

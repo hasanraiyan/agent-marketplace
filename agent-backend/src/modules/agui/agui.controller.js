@@ -6,8 +6,9 @@ import NotFoundError from '../../utils/errors/NotFoundError.js';
 import threadRepository from '../threads/thread.repository.js';
 import agentRepository from '../agents/agent.repository.js';
 import agentService, { personaExecutionContext } from '../agents/agent.service.js';
+import checkpointService from '../threads/checkpoint.service.js';
 import { loggerService } from '../../utils/index.js';
-import { foldSubagentEvent, settleTrace } from './subagentTrace.js';
+import { foldSubagentEvent, settleTrace, extractTaskToolCallIds, reconcileSubagentTraceKeys } from './subagentTrace.js';
 import { readJsonBody, runAgentAsAguiEvents } from './agui.service.js';
 
 const logger = loggerService.getLogger();
@@ -107,11 +108,34 @@ class AguiController {
       res.end();
 
       if (context.threadDbId && Object.keys(subagentTraces).length > 0) {
+        // The live-stream key for a `task` call's trace can diverge from
+        // that same call's real tool_call.id once the checkpoint is
+        // assembled (provider-adapter-internal ID synthesis gap — see
+        // subagentTrace.js's reconcileSubagentTraceKeys doc comment).
+        // Reconciling against the checkpoint here — the one place both the
+        // live fold and the reload path can agree — before persisting,
+        // rather than persisting the provisional key and having it silently
+        // never match on reload.
+        let reconciled = subagentTraces;
+        try {
+          const snapshot = await checkpointService.checkpointer?.getTuple({
+            configurable: { thread_id: threadId },
+          });
+          const rawMessages = snapshot?.checkpoint?.channel_values?.messages;
+          if (rawMessages) {
+            reconciled = reconcileSubagentTraceKeys(subagentTraces, extractTaskToolCallIds(rawMessages));
+          }
+        } catch (err) {
+          logger.warn('[AG-UI] failed to reconcile subagent trace keys, persisting provisional keys', {
+            err: err.message,
+          });
+        }
+
         // Per-key $set merges this run's traces with earlier turns' instead of
         // replacing the whole map. Fire-and-forget — persistence must not
         // delay or fail the response.
         const setOps = {};
-        for (const [callId, items] of Object.entries(subagentTraces)) {
+        for (const [callId, items] of Object.entries(reconciled)) {
           setOps[`subagentTraces.${callId}`] = settleTrace(items);
         }
         threadRepository
