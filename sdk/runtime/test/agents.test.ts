@@ -45,3 +45,43 @@ describe('GET /agents', () => {
     expect(url).not.toContain('scope=');
   });
 });
+
+describe('GET /agents/:id/mcp-connections', () => {
+  it('is reachable with no capabilities enabled -- same always-on tier as the MCP OAuth routes, not agentsWrite-gated Agent CRUD', async () => {
+    const connections = [
+      { mcpId: 'm1', name: 'Pocketly', description: '', connected: false, authorizeUrl: 'https://x/authorize' },
+    ];
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse(connections));
+    const runtime = makeRuntime({ fetchMock }); // no `capabilities` passed — everything gated defaults off
+
+    const response = await runtime.handle({
+      method: 'GET',
+      path: '/agents/a1/mcp-connections',
+      headers: {},
+      query: {},
+      body: undefined,
+      userId: 'user-1',
+    });
+
+    expect(response.status).toBe(200);
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toBe('https://api.example.com/api/v1/developer/agents/a1/mcp-connections');
+  });
+
+  it('forwards returnTo as a query param', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse([]));
+    const runtime = makeRuntime({ fetchMock });
+
+    await runtime.handle({
+      method: 'GET',
+      path: '/agents/a1/mcp-connections',
+      headers: {},
+      query: { returnTo: 'https://app.example.com/copilot' },
+      body: undefined,
+      userId: 'user-1',
+    });
+
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toContain('returnTo=');
+  });
+});

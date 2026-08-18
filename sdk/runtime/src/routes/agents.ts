@@ -21,6 +21,22 @@ export const listAgents: RouteHandler = async (request, ctx) => {
   return json(200, items);
 };
 
+/**
+ * Always on, read-only, end-user-scoped — same tier as the MCP OAuth
+ * routes below, not the agentsWrite-gated Agent CRUD routes further down.
+ * A chat-only consumer needs this to show "connect your account" for a
+ * tool it can't otherwise reach: mcp.tools.js silently drops a user-mode
+ * MCP's tools from an Agent's toolset when the calling user hasn't
+ * connected yet, with no other signal anywhere.
+ */
+export const getAgentMcpConnections: RouteHandler = async (request, ctx) => {
+  const connections = await ctx.client.agents.getMcpConnections(
+    requireParam(ctx.params, 'id'),
+    request.query.returnTo
+  );
+  return json(200, connections);
+};
+
 // Everything below requires capabilities.agentsWrite — provisioning agents
 // is Project-admin work, not something an end-user chat session does.
 

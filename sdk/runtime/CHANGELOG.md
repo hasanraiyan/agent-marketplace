@@ -4,6 +4,16 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.5.2
+
+- **New: `GET /agents/:id/mcp-connections`, always on (not gated behind any capability).** The
+  underlying per-MCP status/authorize primitives (`getUserConnectionStatus`,
+  `getUserAuthorizeUrl`) already existed as always-on routes, but there was no way to discover
+  *which* MCPs an Agent has attached without `agentsWrite` (a write-tier capability inappropriate
+  to grant just to show a "connect your account" banner in a chat UI). Returns
+  `{ mcpId, name, description, connected, authorizeUrl }[]` for every `authType: 'oauth',
+  authMode: 'user'` MCP the Agent has, in one call. Requires `@personaai/sdk@^0.4.3`.
+
 ## 0.5.1
 
 Patch release — three backward-compatible bug fixes from review findings:

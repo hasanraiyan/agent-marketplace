@@ -26,6 +26,7 @@ import {
   updateAgent,
   deleteAgent,
   bulkDeleteAgents,
+  getAgentMcpConnections,
 } from './routes/agents.js';
 import {
   listFiles,
@@ -173,6 +174,11 @@ function buildRoutes(capabilities: Required<RuntimeCapabilities>): Route[] {
       method: 'DELETE',
       pattern: ['mcps', ':id', 'oauth', 'owner', 'connection'],
       handler: disconnectOwnerConnection,
+    },
+    {
+      method: 'GET',
+      pattern: ['agents', ':id', 'mcp-connections'],
+      handler: getAgentMcpConnections,
     },
   ];
 
