@@ -3,6 +3,17 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.4.3
+
+- **New: `agents.getMcpConnections(agentId, returnTo?)`.** Until now there was no way for an
+  external caller to find out whether the calling user has connected an `authType: 'oauth',
+  authMode: 'user'` MCP an Agent has attached — a tool call against an unconnected one is
+  silently dropped from the Agent's toolset with no signal anywhere. Returns
+  `{ mcpId, name, description, connected, authorizeUrl }[]` for every user-mode MCP the Agent
+  has, so a consumer can show a real "Connect" affordance up front instead of a capability just
+  quietly not being there. Requires the client to assert an external user
+  (`ProjectRuntimeContext`).
+
 ## 0.4.2
 
 - Fixed `ThreadMessages`'s field name: 0.4.1 added it as `interrupt`, but the actual wire field

@@ -126,6 +126,20 @@ export interface UpdateAgentInput {
   isActive?: boolean;
 }
 
+/**
+ * One `authType: 'oauth', authMode: 'user'` MCP attached to an Agent, and
+ * whether the calling identity (the client's asserted external user) has
+ * connected it yet. `authorizeUrl` is only present when `connected` is
+ * `false` — send the browser there to start the OAuth consent flow.
+ */
+export interface McpConnection {
+  mcpId: string;
+  name: string;
+  description: string;
+  connected: boolean;
+  authorizeUrl: string | null;
+}
+
 export interface DiscoverAgentsParams {
   /** @default 1 */
   page?: number;

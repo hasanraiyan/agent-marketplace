@@ -154,4 +154,39 @@ describe('AgentsResource', () => {
     expect(init.method).toBe('POST');
     expect(JSON.parse(init.body as string)).toEqual({ ids: ['a1', 'a2'] });
   });
+
+  it('getMcpConnections() GETs the mcp-connections sub-route and returns the array', async () => {
+    const connections = [
+      { mcpId: 'm1', name: 'Pocketly', description: '', connected: false, authorizeUrl: 'https://x/authorize' },
+    ];
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ success: true, data: connections })
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch, 'user-1');
+
+    const result = await client.agents.getMcpConnections('a1');
+    expect(result).toEqual(connections);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.example.com/api/v1/developer/agents/a1/mcp-connections');
+    expect((init.headers as Record<string, string>)['x-persona-external-user-id']).toBe('user-1');
+  });
+
+  it('getMcpConnections() forwards returnTo as a query param when given, omits it otherwise', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ success: true, data: [] })
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    await client.agents.getMcpConnections('a1', 'https://app.example.com/copilot');
+    const [urlWithReturnTo] = fetchMock.mock.calls[0] as [string];
+    expect(urlWithReturnTo).toBe(
+      'https://api.example.com/api/v1/developer/agents/a1/mcp-connections?returnTo=https%3A%2F%2Fapp.example.com%2Fcopilot'
+    );
+
+    await client.agents.getMcpConnections('a1');
+    const [urlWithoutReturnTo] = fetchMock.mock.calls[1] as [string];
+    expect(urlWithoutReturnTo).toBe(
+      'https://api.example.com/api/v1/developer/agents/a1/mcp-connections'
+    );
+  });
 });

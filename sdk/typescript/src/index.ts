@@ -34,6 +34,7 @@ export type {
   CreateAgentInput,
   UpdateAgentInput,
   DiscoverAgentsParams,
+  McpConnection,
 } from './types/agent.js';
 export { KnowledgeResource } from './resources/knowledge.js';
 export type {

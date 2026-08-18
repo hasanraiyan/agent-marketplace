@@ -3,6 +3,7 @@ import type {
   Agent,
   CreateAgentInput,
   DiscoverAgentsParams,
+  McpConnection,
   UpdateAgentInput,
 } from '../types/agent.js';
 import type { BulkDeleteResult } from '../types/bulkDelete.js';
@@ -85,5 +86,23 @@ export class AgentsResource {
     return this.http.request<BulkDeleteResult>('POST', '/api/v1/developer/agents/bulk-delete', {
       body: { ids },
     });
+  }
+
+  /**
+   * Per-user OAuth connection status for every `authType: 'oauth',
+   * authMode: 'user'` MCP this Agent has attached. Requires the client to
+   * assert an external user (`ProjectRuntimeContext`) — there's no
+   * per-user connection concept for a bare Project credential.
+   * @param agentId - The Agent's `_id`.
+   * @param returnTo - Where to send the browser after OAuth consent
+   *   completes, for any MCP that isn't connected yet. Defaults to this
+   *   platform's own site if omitted.
+   */
+  async getMcpConnections(agentId: string, returnTo?: string): Promise<McpConnection[]> {
+    return this.http.request<McpConnection[]>(
+      'GET',
+      `/api/v1/developer/agents/${agentId}/mcp-connections`,
+      { query: returnTo ? { returnTo } : undefined }
+    );
   }
 }
