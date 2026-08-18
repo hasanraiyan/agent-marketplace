@@ -5,6 +5,11 @@ introduction — versions before 0.2.0 aren't backfilled.
 
 ## 0.7.0
 
+- **Assistant messages are now full-width, plain text — no bubble background or border.**
+  Previously capped at `max-w-[85%]` with a card-style background/border like the user bubble;
+  now the assistant reply fills the remaining row width next to its avatar with no surface at
+  all, matching the plain-text assistant style used by Claude/ChatGPT. The user's own message
+  keeps its bubble (background, border-radius, max-width) unchanged.
 - **Fix: `theme` prop now actually themes the whole widget, not just message bubbles.**
   `buildThemeStyles` always set `--persona-bg`, `--persona-card`, and `--persona-text` as CSS
   variables, but no component ever read them — every panel, header, sidebar, files drawer,

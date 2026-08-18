@@ -138,10 +138,10 @@ export function PersonaMessageFeed({
 
               <div
                 className={cn(
-                  'group relative min-w-0 max-w-[85%] rounded-2xl px-4 py-3 text-xs md:text-sm',
+                  'group relative min-w-0 text-xs md:text-sm',
                   isUser
-                    ? 'rounded-tr-xs bg-[var(--persona-user-bg,#18181b)] font-medium text-[var(--persona-user-text,#ffffff)] dark:bg-[var(--persona-user-bg,#f4f4f5)] dark:text-[var(--persona-user-text,#18181b)]'
-                    : 'rounded-tl-xs border border-zinc-200/60 bg-[var(--persona-assistant-bg,rgb(244_244_245_/_0.8))] text-[var(--persona-assistant-text,#18181b)] dark:border-zinc-800/60 dark:bg-[var(--persona-assistant-bg,rgb(24_24_27_/_0.7))] dark:text-[var(--persona-assistant-text,#f4f4f5)]'
+                    ? 'max-w-[85%] rounded-2xl rounded-tr-xs bg-[var(--persona-user-bg,#18181b)] px-4 py-3 font-medium text-[var(--persona-user-text,#ffffff)] dark:bg-[var(--persona-user-bg,#f4f4f5)] dark:text-[var(--persona-user-text,#18181b)]'
+                    : 'flex-1 py-1 text-[var(--persona-assistant-text,#18181b)] dark:text-[var(--persona-assistant-text,#f4f4f5)]'
                 )}
               >
                 {/* Reasoning / thinking trace, shown before the answer */}
