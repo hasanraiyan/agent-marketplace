@@ -3,6 +3,21 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.3.5
+
+- **Fix: a completed subagent's activity timeline was lost on thread reload.** agent-backend
+  already persists and returns each subagent's folded text/tool timeline in
+  `GET /threads/:id/messages`'s `subagentTraces` field (keyed by the owning `task` tool call's
+  `toolCallId`) — but `loadThreadMessages` never read that field at all, so a `task` tool call
+  came back from history with no `subagentActivity`, and its detail view showed "No activity
+  recorded" even though the run genuinely did things. `loadThreadMessages` now matches each tool
+  call's `toolCallId` against `subagentTraces` and converts the persisted folded/paired shape
+  (`{type:'text',text}` / `{type:'tool',name,argsText,resultText,status}`) back into the same
+  kind-based `PersonaSubagentActivityEntry[]` shape the live stream produces, so everything
+  downstream (`buildSubagentTimeline`, the live-preview row, `PersonaSubagentActivityDialog` in
+  `@personaai/ui`) renders identically whether the run just happened or the page was just reloaded.
+  No `@personaai/ui` changes needed — purely a reload-path wiring gap in this package.
+
 ## 0.3.4
 
 - **`SendMessageOverride.threadId` now also accepts `Promise<string | undefined>`.** `sendMessage`

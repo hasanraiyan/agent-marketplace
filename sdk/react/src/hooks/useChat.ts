@@ -28,6 +28,38 @@ function isErrorToolContent(content: string): boolean {
   }
 }
 
+// Persisted subagent trace item shape (agent-backend's foldSubagentEvent/
+// subagentTrace.js) — already folded/paired server-side for compact storage,
+// DIFFERENT from the raw per-event `PersonaSubagentActivityEntry` shape the
+// live SSE stream sends (kind: 'text'|'tool_start'|'tool_result'). Reloading
+// a thread previously never read `data.subagentTraces` at all — a completed
+// subagent's activity (its own text/tool timeline) was silently dropped on
+// reload even though the backend already persists and returns it, keyed by
+// the owning `task` tool call's toolCallId (see agui.controller.js's
+// `subagentTraces[callId]`, matching `PersonaToolCall.toolCallId` exactly).
+type PersistedSubagentTraceItem =
+  | { type: 'text'; text: string }
+  | { type: 'tool'; name: string; argsText: string; resultText: string; status: 'running' | 'completed' };
+
+// Re-expands the folded/paired persisted shape back into the raw kind-based
+// entries `PersonaSubagentActivityEntry` (and everything downstream that
+// consumes it — buildSubagentTimeline, the live-preview row, the activity
+// dialog) already knows how to render, so no sdk/ui changes are needed.
+function persistedTraceToActivityEntries(items: PersistedSubagentTraceItem[]): PersonaSubagentActivityEntry[] {
+  const entries: PersonaSubagentActivityEntry[] = [];
+  for (const item of items) {
+    if (item.type === 'text') {
+      if (item.text) entries.push({ kind: 'text', delta: item.text });
+    } else {
+      entries.push({ kind: 'tool_start', toolName: item.name, args: item.argsText });
+      if (item.status === 'completed') {
+        entries.push({ kind: 'tool_result', toolName: item.name, result: item.resultText });
+      }
+    }
+  }
+  return entries;
+}
+
 // present_file's result is `{status:'success', filePath, title, description}`
 // (see present.tool.js) — a signal to highlight that path in the workspace
 // files panel, not something meant to render as a generic tool-result blob.
@@ -141,12 +173,18 @@ export function useChat(options: UseChatOptions = {}) {
           content: string;
           toolCalls?: PersonaToolCall[];
         }>;
+        const subagentTraces = (data?.subagentTraces ?? {}) as Record<string, PersistedSubagentTraceItem[]>;
         const loaded: PersonaMessage[] = raw.map((m, i) => ({
           id: m.id || `history-${id}-${i}`,
           role: m.role,
           content: m.content,
           createdAt: new Date(),
-          toolCalls: m.toolCalls,
+          toolCalls: m.toolCalls?.map((tc) => {
+            const trace = subagentTraces[tc.toolCallId];
+            return Array.isArray(trace) && trace.length > 0
+              ? { ...tc, subagentActivity: persistedTraceToActivityEntries(trace) }
+              : tc;
+          }),
         }));
         setMessages(loaded);
         // Re-show the approval/clarification card on reload if this thread

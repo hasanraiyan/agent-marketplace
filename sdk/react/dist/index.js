@@ -50,6 +50,20 @@ function isErrorToolContent(content) {
     return false;
   }
 }
+function persistedTraceToActivityEntries(items) {
+  const entries = [];
+  for (const item of items) {
+    if (item.type === "text") {
+      if (item.text) entries.push({ kind: "text", delta: item.text });
+    } else {
+      entries.push({ kind: "tool_start", toolName: item.name, args: item.argsText });
+      if (item.status === "completed") {
+        entries.push({ kind: "tool_result", toolName: item.name, result: item.resultText });
+      }
+    }
+  }
+  return entries;
+}
 function parsePresentedFile(content) {
   try {
     const parsed = JSON.parse(content);
@@ -134,12 +148,16 @@ function useChat(options = {}) {
         const body = await res.json();
         const data = body?.data ?? body;
         const raw = data?.messages ?? [];
+        const subagentTraces = data?.subagentTraces ?? {};
         const loaded = raw.map((m, i) => ({
           id: m.id || `history-${id}-${i}`,
           role: m.role,
           content: m.content,
           createdAt: /* @__PURE__ */ new Date(),
-          toolCalls: m.toolCalls
+          toolCalls: m.toolCalls?.map((tc) => {
+            const trace = subagentTraces[tc.toolCallId];
+            return Array.isArray(trace) && trace.length > 0 ? { ...tc, subagentActivity: persistedTraceToActivityEntries(trace) } : tc;
+          })
         }));
         setMessages(loaded);
         setInterrupt(normalizePendingInterrupt(data?.pendingInterrupt));
@@ -838,7 +856,7 @@ function useMcpConnections(options = {}) {
 }
 
 // src/index.ts
-var VERSION = "0.3.4";
+var VERSION = "0.3.5";
 export {
   PersonaProvider,
   VERSION,

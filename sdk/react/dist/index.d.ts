@@ -415,6 +415,6 @@ declare function useMcpConnections(options?: UseMcpConnectionsOptions): {
     refetch: () => Promise<PersonaMcpConnection[]>;
 };
 
-declare const VERSION = "0.3.4";
+declare const VERSION = "0.3.5";
 
 export { type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaWorkspaceFile, type SendMessageOverride, type UseChatOptions, type UseMcpConnectionsOptions, VERSION, useAgents, useChat, useConnection, useFiles, useMcpConnections, useMemory, usePersonaContext, useThreads };
