@@ -166,6 +166,28 @@ declare function useThreads(autoFetch?: boolean): {
     deleteThread: (threadId: string) => Promise<void>;
 };
 
+interface PersonaFileItem {
+    _id: string;
+    filename: string;
+    contentType?: string;
+    sizeBytes?: number;
+    createdAt: string;
+}
+declare function useFiles(autoFetch?: boolean): {
+    files: PersonaFileItem[];
+    isLoading: boolean;
+    isUploading: boolean;
+    error: Error | null;
+    refetch: () => Promise<any>;
+    uploadFile: (fileOrFormData: FormData | {
+        name: string;
+        uri: string;
+        type?: string;
+    }) => Promise<PersonaFileItem>;
+    deleteFile: (fileId: string) => Promise<void>;
+    getDownloadUrl: (fileId: string) => string;
+};
+
 interface PersonaAgentSummary {
     _id: string;
     name: string;
@@ -193,4 +215,4 @@ declare function useConnection(autoCheck?: boolean): {
 
 declare const VERSION = "0.1.1";
 
-export { type PersonaAgentSummary, type PersonaHealthInfo, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, PersonaProvider, type PersonaProviderProps, type PersonaRole, type PersonaStreamingEvent, type PersonaThread, type PersonaToolCall, type UseChatOptions, VERSION, useAgents, useChat, useConnection, useMemory, usePersonaContext, useThreads };
+export { type PersonaAgentSummary, type PersonaFileItem, type PersonaHealthInfo, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, PersonaProvider, type PersonaProviderProps, type PersonaRole, type PersonaStreamingEvent, type PersonaThread, type PersonaToolCall, type UseChatOptions, VERSION, useAgents, useChat, useConnection, useFiles, useMemory, usePersonaContext, useThreads };

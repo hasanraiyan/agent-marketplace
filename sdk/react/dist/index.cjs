@@ -25,6 +25,7 @@ __export(index_exports, {
   useAgents: () => useAgents,
   useChat: () => useChat,
   useConnection: () => useConnection,
+  useFiles: () => useFiles,
   useMemory: () => useMemory,
   usePersonaContext: () => usePersonaContext,
   useThreads: () => useThreads
@@ -449,14 +450,104 @@ function useThreads(autoFetch = true) {
   };
 }
 
-// src/hooks/useAgents.ts
+// src/hooks/useFiles.ts
 var import_react5 = require("react");
+function useFiles(autoFetch = true) {
+  const { fetchWithAuth } = usePersonaContext();
+  const [files, setFiles] = (0, import_react5.useState)([]);
+  const [isLoading, setIsLoading] = (0, import_react5.useState)(false);
+  const [isUploading, setIsUploading] = (0, import_react5.useState)(false);
+  const [error, setError] = (0, import_react5.useState)(null);
+  const fetchFiles = (0, import_react5.useCallback)(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetchWithAuth("/files");
+      if (!res.ok) throw new Error(`Failed to list files: ${res.statusText}`);
+      const data = await res.json();
+      const items = Array.isArray(data) ? data : data?.files || data?.items || [];
+      setFiles(items);
+      return items;
+    } catch (err) {
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+      setError(errorObj);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchWithAuth]);
+  const uploadFile = (0, import_react5.useCallback)(
+    async (fileOrFormData) => {
+      setIsUploading(true);
+      setError(null);
+      try {
+        let body;
+        if (fileOrFormData instanceof FormData) {
+          body = fileOrFormData;
+        } else {
+          body = new FormData();
+          body.append("file", fileOrFormData);
+        }
+        const res = await fetchWithAuth("/files", {
+          method: "POST",
+          body
+        });
+        if (!res.ok) {
+          const errText = await res.text().catch(() => "Upload failed");
+          throw new Error(`Upload error (${res.status}): ${errText}`);
+        }
+        const uploaded = await res.json();
+        void fetchFiles();
+        return uploaded;
+      } catch (err) {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        setError(errorObj);
+        throw errorObj;
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [fetchWithAuth, fetchFiles]
+  );
+  const deleteFile = (0, import_react5.useCallback)(
+    async (fileId) => {
+      const res = await fetchWithAuth(`/files/${fileId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Failed to delete file: ${res.statusText}`);
+      setFiles((prev) => prev.filter((f) => f._id !== fileId));
+    },
+    [fetchWithAuth]
+  );
+  const getDownloadUrl = (0, import_react5.useCallback)(
+    (fileId) => {
+      return `/files/${fileId}`;
+    },
+    []
+  );
+  (0, import_react5.useEffect)(() => {
+    if (autoFetch) {
+      void fetchFiles();
+    }
+  }, [autoFetch, fetchFiles]);
+  return {
+    files,
+    isLoading,
+    isUploading,
+    error,
+    refetch: fetchFiles,
+    uploadFile,
+    deleteFile,
+    getDownloadUrl
+  };
+}
+
+// src/hooks/useAgents.ts
+var import_react6 = require("react");
 function useAgents(autoFetch = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [agents, setAgents] = (0, import_react5.useState)([]);
-  const [isLoading, setIsLoading] = (0, import_react5.useState)(false);
-  const [error, setError] = (0, import_react5.useState)(null);
-  const fetchAgents = (0, import_react5.useCallback)(async () => {
+  const [agents, setAgents] = (0, import_react6.useState)([]);
+  const [isLoading, setIsLoading] = (0, import_react6.useState)(false);
+  const [error, setError] = (0, import_react6.useState)(null);
+  const fetchAgents = (0, import_react6.useCallback)(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -474,7 +565,7 @@ function useAgents(autoFetch = true) {
       setIsLoading(false);
     }
   }, [fetchWithAuth]);
-  (0, import_react5.useEffect)(() => {
+  (0, import_react6.useEffect)(() => {
     if (autoFetch) {
       void fetchAgents();
     }
@@ -488,13 +579,13 @@ function useAgents(autoFetch = true) {
 }
 
 // src/hooks/useConnection.ts
-var import_react6 = require("react");
+var import_react7 = require("react");
 function useConnection(autoCheck = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [health, setHealth] = (0, import_react6.useState)(null);
-  const [isConnected, setIsConnected] = (0, import_react6.useState)(false);
-  const [isLoading, setIsLoading] = (0, import_react6.useState)(false);
-  const checkHealth = (0, import_react6.useCallback)(async () => {
+  const [health, setHealth] = (0, import_react7.useState)(null);
+  const [isConnected, setIsConnected] = (0, import_react7.useState)(false);
+  const [isLoading, setIsLoading] = (0, import_react7.useState)(false);
+  const checkHealth = (0, import_react7.useCallback)(async () => {
     setIsLoading(true);
     try {
       const res = await fetchWithAuth("/health");
@@ -513,7 +604,7 @@ function useConnection(autoCheck = true) {
       setIsLoading(false);
     }
   }, [fetchWithAuth]);
-  (0, import_react6.useEffect)(() => {
+  (0, import_react7.useEffect)(() => {
     if (autoCheck) {
       void checkHealth();
     }
@@ -535,6 +626,7 @@ var VERSION = "0.1.1";
   useAgents,
   useChat,
   useConnection,
+  useFiles,
   useMemory,
   usePersonaContext,
   useThreads

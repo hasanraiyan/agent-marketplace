@@ -416,14 +416,104 @@ function useThreads(autoFetch = true) {
   };
 }
 
-// src/hooks/useAgents.ts
+// src/hooks/useFiles.ts
 import { useCallback as useCallback4, useEffect as useEffect3, useState as useState4 } from "react";
+function useFiles(autoFetch = true) {
+  const { fetchWithAuth } = usePersonaContext();
+  const [files, setFiles] = useState4([]);
+  const [isLoading, setIsLoading] = useState4(false);
+  const [isUploading, setIsUploading] = useState4(false);
+  const [error, setError] = useState4(null);
+  const fetchFiles = useCallback4(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetchWithAuth("/files");
+      if (!res.ok) throw new Error(`Failed to list files: ${res.statusText}`);
+      const data = await res.json();
+      const items = Array.isArray(data) ? data : data?.files || data?.items || [];
+      setFiles(items);
+      return items;
+    } catch (err) {
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+      setError(errorObj);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchWithAuth]);
+  const uploadFile = useCallback4(
+    async (fileOrFormData) => {
+      setIsUploading(true);
+      setError(null);
+      try {
+        let body;
+        if (fileOrFormData instanceof FormData) {
+          body = fileOrFormData;
+        } else {
+          body = new FormData();
+          body.append("file", fileOrFormData);
+        }
+        const res = await fetchWithAuth("/files", {
+          method: "POST",
+          body
+        });
+        if (!res.ok) {
+          const errText = await res.text().catch(() => "Upload failed");
+          throw new Error(`Upload error (${res.status}): ${errText}`);
+        }
+        const uploaded = await res.json();
+        void fetchFiles();
+        return uploaded;
+      } catch (err) {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        setError(errorObj);
+        throw errorObj;
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [fetchWithAuth, fetchFiles]
+  );
+  const deleteFile = useCallback4(
+    async (fileId) => {
+      const res = await fetchWithAuth(`/files/${fileId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Failed to delete file: ${res.statusText}`);
+      setFiles((prev) => prev.filter((f) => f._id !== fileId));
+    },
+    [fetchWithAuth]
+  );
+  const getDownloadUrl = useCallback4(
+    (fileId) => {
+      return `/files/${fileId}`;
+    },
+    []
+  );
+  useEffect3(() => {
+    if (autoFetch) {
+      void fetchFiles();
+    }
+  }, [autoFetch, fetchFiles]);
+  return {
+    files,
+    isLoading,
+    isUploading,
+    error,
+    refetch: fetchFiles,
+    uploadFile,
+    deleteFile,
+    getDownloadUrl
+  };
+}
+
+// src/hooks/useAgents.ts
+import { useCallback as useCallback5, useEffect as useEffect4, useState as useState5 } from "react";
 function useAgents(autoFetch = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [agents, setAgents] = useState4([]);
-  const [isLoading, setIsLoading] = useState4(false);
-  const [error, setError] = useState4(null);
-  const fetchAgents = useCallback4(async () => {
+  const [agents, setAgents] = useState5([]);
+  const [isLoading, setIsLoading] = useState5(false);
+  const [error, setError] = useState5(null);
+  const fetchAgents = useCallback5(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -441,7 +531,7 @@ function useAgents(autoFetch = true) {
       setIsLoading(false);
     }
   }, [fetchWithAuth]);
-  useEffect3(() => {
+  useEffect4(() => {
     if (autoFetch) {
       void fetchAgents();
     }
@@ -455,13 +545,13 @@ function useAgents(autoFetch = true) {
 }
 
 // src/hooks/useConnection.ts
-import { useCallback as useCallback5, useEffect as useEffect4, useState as useState5 } from "react";
+import { useCallback as useCallback6, useEffect as useEffect5, useState as useState6 } from "react";
 function useConnection(autoCheck = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [health, setHealth] = useState5(null);
-  const [isConnected, setIsConnected] = useState5(false);
-  const [isLoading, setIsLoading] = useState5(false);
-  const checkHealth = useCallback5(async () => {
+  const [health, setHealth] = useState6(null);
+  const [isConnected, setIsConnected] = useState6(false);
+  const [isLoading, setIsLoading] = useState6(false);
+  const checkHealth = useCallback6(async () => {
     setIsLoading(true);
     try {
       const res = await fetchWithAuth("/health");
@@ -480,7 +570,7 @@ function useConnection(autoCheck = true) {
       setIsLoading(false);
     }
   }, [fetchWithAuth]);
-  useEffect4(() => {
+  useEffect5(() => {
     if (autoCheck) {
       void checkHealth();
     }
@@ -501,6 +591,7 @@ export {
   useAgents,
   useChat,
   useConnection,
+  useFiles,
   useMemory,
   usePersonaContext,
   useThreads
