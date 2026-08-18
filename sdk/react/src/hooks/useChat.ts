@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { usePersonaContext } from '../context/PersonaContext.js';
-import type { PersonaMessage, UseChatOptions } from '../types.js';
+import type { PersonaMessage, PersonaStreamingEvent, PersonaToolCall, UseChatOptions } from '../types.js';
 
 export function useChat(options: UseChatOptions = {}) {
   const { defaultAgentId, fetchWithAuth } = usePersonaContext();
@@ -56,6 +56,7 @@ export function useChat(options: UseChatOptions = {}) {
         content: '',
         createdAt: new Date(),
         isStreaming: true,
+        toolCalls: [],
       };
 
       const nextMessages = [...messages, userMessage];
@@ -99,6 +100,7 @@ export function useChat(options: UseChatOptions = {}) {
         const decoder = new TextDecoder('utf-8');
         let buffer = '';
         let accumulatedText = '';
+        const toolCallsMap = new Map<string, PersonaToolCall>();
 
         while (true) {
           const { done, value } = await reader.read();
@@ -116,17 +118,62 @@ export function useChat(options: UseChatOptions = {}) {
             if (raw === '[DONE]') break;
 
             try {
-              const event = JSON.parse(raw);
+              const event = JSON.parse(raw) as PersonaStreamingEvent;
+              options.onEvent?.(event);
+
               if (event.type === 'TEXT_MESSAGE_CHUNK' && event.delta) {
                 accumulatedText += event.delta;
                 setMessages((prev) =>
                   prev.map((msg) =>
                     msg.id === assistantMessageId
-                      ? { ...msg, content: accumulatedText, isStreaming: true }
+                      ? {
+                          ...msg,
+                          content: accumulatedText,
+                          isStreaming: true,
+                          toolCalls: Array.from(toolCallsMap.values()),
+                        }
                       : msg
                   )
                 );
-              } else if (event.type === 'ERROR') {
+              } else if (event.type === 'TOOL_CALL_START') {
+                toolCallsMap.set(event.toolCallId, {
+                  toolCallId: event.toolCallId,
+                  toolName: event.toolName,
+                  args: '',
+                });
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, toolCalls: Array.from(toolCallsMap.values()) }
+                      : msg
+                  )
+                );
+              } else if (event.type === 'TOOL_CALL_ARGS') {
+                const existing = toolCallsMap.get(event.toolCallId);
+                if (existing) {
+                  existing.args = (existing.args || '') + event.delta;
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantMessageId
+                        ? { ...msg, toolCalls: Array.from(toolCallsMap.values()) }
+                        : msg
+                    )
+                  );
+                }
+              } else if (event.type === 'TOOL_CALL_RESULT') {
+                const existing = toolCallsMap.get(event.toolCallId);
+                if (existing) {
+                  existing.result = event.result;
+                  existing.isError = event.isError;
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantMessageId
+                        ? { ...msg, toolCalls: Array.from(toolCallsMap.values()) }
+                        : msg
+                    )
+                  );
+                }
+              } else if (event.type === 'RUN_ERROR') {
                 throw new Error(event.message || 'Stream error from agent');
               }
             } catch (e) {
@@ -143,6 +190,7 @@ export function useChat(options: UseChatOptions = {}) {
           content: accumulatedText,
           createdAt: new Date(),
           isStreaming: false,
+          toolCalls: Array.from(toolCallsMap.values()),
         };
 
         setMessages((prev) =>
@@ -198,7 +246,13 @@ export function useChat(options: UseChatOptions = {}) {
 
   const reload = useCallback(() => {
     if (messages.length === 0 || isStreaming) return;
-    const lastUserIndex = messages.findLastIndex((m) => m.role === 'user');
+    let lastUserIndex = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        lastUserIndex = i;
+        break;
+      }
+    }
     if (lastUserIndex === -1) return;
 
     const lastUserMessage = messages[lastUserIndex];

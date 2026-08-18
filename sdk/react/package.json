@@ -1,6 +1,6 @@
 {
   "name": "@personaai/react",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "React hooks and state management library for the Persona AI agent runtime. Client-side only.",
   "type": "module",
   "main": "./dist/index.cjs",
