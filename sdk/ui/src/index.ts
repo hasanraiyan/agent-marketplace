@@ -15,4 +15,4 @@ export * from './utils/toolGrouping.js';
 export * from './utils/themeStyles.js';
 export * from './hooks/usePersonaChatWidget.js';
 
-export const VERSION = '0.7.0';
+export const VERSION = '0.7.1';
