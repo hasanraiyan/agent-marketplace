@@ -35,6 +35,7 @@ import providerRepository from '../providers/provider.repository.js';
 import encryption from '../../utils/encryption.js';
 
 import { resolveAgentTools } from '../tools/index.js';
+import { sanitizeToolsForGemini } from './sanitizeToolsForGemini.js';
 import {
   ARCHITECT_AGENT_ID,
   PROJECT_ARCHITECT_AGENT_ID,
@@ -487,11 +488,18 @@ class AgentFactory {
     const llm = await this._buildLLM(agent, provider);
 
     // Completely abstracted Tool Registry injection
-    const { tools: dynamicTools, mcpAppMap } = await resolveAgentTools(
+    const { tools: resolvedTools, mcpAppMap } = await resolveAgentTools(
       agent,
       userId,
       executionContext
     );
+    // Gemini's function-calling API 400s the WHOLE request if any tool
+    // schema contains a keyword it doesn't recognize — exclusiveMinimum/
+    // exclusiveMaximum from a .positive()/.gt() constraint, from either
+    // this repo's own built-in tools or an attached MCP server's, being the
+    // concrete case seen in production. See sanitizeToolsForGemini.js.
+    const dynamicTools =
+      provider.type === 'gemini' ? sanitizeToolsForGemini(resolvedTools) : resolvedTools;
 
     // 4. Assemble Custom DeepAgent Runtime
     // Wrap checkpointer with a Proxy to preserve prototype methods (e.g. getTuple)
