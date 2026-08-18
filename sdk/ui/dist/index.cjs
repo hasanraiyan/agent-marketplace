@@ -37,6 +37,7 @@ __export(index_exports, {
   PersonaFilesDrawer: () => PersonaFilesDrawer,
   PersonaInterruptCard: () => PersonaInterruptCard,
   PersonaMarkdown: () => PersonaMarkdown,
+  PersonaMcpConnectBanner: () => PersonaMcpConnectBanner,
   PersonaMessageFeed: () => PersonaMessageFeed,
   PersonaMessageSkeletonRow: () => PersonaMessageSkeletonRow,
   PersonaSidebar: () => PersonaSidebar,
@@ -89,6 +90,9 @@ function usePersonaChatWidget(options = {}) {
     isLoading: memoryLoading
   } = (0, import_react2.useMemory)();
   const chat = (0, import_react2.useChat)({ agentId, threadId: activeThreadId });
+  const { unconnected: unconnectedMcps, isLoading: mcpConnectionsLoading } = (0, import_react2.useMcpConnections)({
+    agentId
+  });
   const setActiveThread = (0, import_react.useCallback)(
     (id) => {
       if (onThreadChange) onThreadChange(id);
@@ -163,6 +167,10 @@ function usePersonaChatWidget(options = {}) {
     getMemoryFile,
     deleteMemoryFile,
     memoryLoading,
+    // MCP connections — every authType:'oauth', authMode:'user' MCP this
+    // Agent needs that the current user hasn't authorized yet
+    unconnectedMcps,
+    mcpConnectionsLoading,
     // chat — every other useChat field (messages, input, sendMessage,
     // isStreaming, interrupt, todos, etc.) plus the composed handlers below
     ...restChat,
@@ -1611,9 +1619,36 @@ function PersonaInterruptCard({
   );
 }
 
-// src/components/PersonaChatView.tsx
+// src/components/PersonaMcpConnectBanner.tsx
 var import_lucide_react9 = require("lucide-react");
 var import_jsx_runtime10 = require("react/jsx-runtime");
+function PersonaMcpConnectBanner({ connections, className }) {
+  if (connections.length === 0) return null;
+  return /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: cn("flex flex-col gap-1.5", className), children: connections.map((connection) => /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+    "a",
+    {
+      href: connection.authorizeUrl ?? void 0,
+      className: cn(
+        "flex items-center gap-2 rounded-xl border border-[var(--persona-border,#e4e4e7)] bg-[var(--persona-card,#fafafa)] px-3 py-2 text-xs transition-colors hover:bg-[var(--persona-border,#e4e4e7)]/40 dark:border-[var(--persona-border,#27272a)] dark:bg-[var(--persona-card,#18181b)] dark:hover:bg-[var(--persona-border,#27272a)]/40",
+        !connection.authorizeUrl && "pointer-events-none opacity-50"
+      ),
+      children: [
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_lucide_react9.Link2, { className: "size-3.5 shrink-0 text-[var(--persona-primary,#3b82f6)]" }),
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("span", { className: "min-w-0 flex-1 truncate text-[var(--persona-text,#27272a)] dark:text-[var(--persona-text,#e4e4e7)]", children: [
+          "Connect ",
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: "font-semibold", children: connection.name }),
+          " to unlock more of what I can do"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: "shrink-0 rounded-lg bg-[var(--persona-primary,#18181b)] px-2.5 py-1 font-semibold text-white dark:bg-[var(--persona-primary,#f4f4f5)] dark:text-zinc-900", children: "Connect" })
+      ]
+    },
+    connection.mcpId
+  )) });
+}
+
+// src/components/PersonaChatView.tsx
+var import_lucide_react10 = require("lucide-react");
+var import_jsx_runtime11 = require("react/jsx-runtime");
 function PersonaChatView({
   agentId,
   threadId: controlledThreadId,
@@ -1626,6 +1661,7 @@ function PersonaChatView({
   theme,
   showSidebar = true,
   showFilesDrawer = true,
+  showMcpConnectBanner = true,
   showUserAvatar = true,
   showAssistantAvatar = true,
   userAvatar,
@@ -1663,6 +1699,7 @@ function PersonaChatView({
     todos,
     presentedFile,
     openWorkspaceFile,
+    unconnectedMcps,
     stop,
     reload,
     handleSelectThread,
@@ -1676,7 +1713,7 @@ function PersonaChatView({
     defaultSidebarOpen: showSidebar
   });
   const themeStyles = buildThemeStyles(theme);
-  return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+  return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(
     "div",
     {
       style: themeStyles,
@@ -1698,7 +1735,7 @@ function PersonaChatView({
         className
       ),
       children: [
-        sidebarOpen && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+        sidebarOpen && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
           PersonaSidebar,
           {
             threads,
@@ -1712,21 +1749,21 @@ function PersonaChatView({
             className: classNames.sidebar
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: cn("flex min-h-0 flex-1 flex-col", classNames.main), children: [
-          /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "flex h-11 shrink-0 items-center justify-between border-b border-[var(--persona-border,#e4e4e7)] bg-[var(--persona-bg,#ffffff)] px-3 dark:border-[var(--persona-border,#27272a)] dark:bg-[var(--persona-bg,#09090b)]", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "flex items-center gap-1.5", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: cn("flex min-h-0 flex-1 flex-col", classNames.main), children: [
+          /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "flex h-11 shrink-0 items-center justify-between border-b border-[var(--persona-border,#e4e4e7)] bg-[var(--persona-bg,#ffffff)] px-3 dark:border-[var(--persona-border,#27272a)] dark:bg-[var(--persona-bg,#09090b)]", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "flex items-center gap-1.5", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
                 "button",
                 {
                   type: "button",
                   onClick: () => setSidebarOpen((p) => !p),
                   className: "rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800 dark:hover:text-zinc-200",
-                  children: sidebarOpen ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_lucide_react9.PanelLeftClose, { className: "size-4" }) : /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_lucide_react9.PanelLeft, { className: "size-4" })
+                  children: sidebarOpen ? /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_lucide_react10.PanelLeftClose, { className: "size-4" }) : /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_lucide_react10.PanelLeft, { className: "size-4" })
                 }
               ),
-              /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: "text-sm font-semibold text-[var(--persona-text,#27272a)] dark:text-[var(--persona-text,#e4e4e7)]", children: title })
+              /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "text-sm font-semibold text-[var(--persona-text,#27272a)] dark:text-[var(--persona-text,#e4e4e7)]", children: title })
             ] }),
-            showFilesDrawer && /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+            showFilesDrawer && /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(
               "button",
               {
                 type: "button",
@@ -1736,13 +1773,13 @@ function PersonaChatView({
                   filesDrawerOpen ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                 ),
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_lucide_react9.Files, { className: "size-3.5" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { children: "Artifacts" })
+                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_lucide_react10.Files, { className: "size-3.5" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { children: "Artifacts" })
                 ]
               }
             )
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "flex min-h-0 flex-1 flex-col", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "flex min-h-0 flex-1 flex-col", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
             PersonaMessageFeed,
             {
               messages,
@@ -1762,7 +1799,7 @@ function PersonaChatView({
               className: classNames.messageList
             }
           ) }),
-          interrupt && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "shrink-0 border-t border-[var(--persona-border,#f4f4f5)] bg-[var(--persona-bg,#ffffff)] px-3 pt-3 dark:border-[var(--persona-border,#27272a)] dark:bg-[var(--persona-bg,#09090b)]", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+          interrupt && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "shrink-0 border-t border-[var(--persona-border,#f4f4f5)] bg-[var(--persona-bg,#ffffff)] px-3 pt-3 dark:border-[var(--persona-border,#27272a)] dark:bg-[var(--persona-bg,#09090b)]", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
             PersonaInterruptCard,
             {
               interrupt,
@@ -1770,24 +1807,27 @@ function PersonaChatView({
               onRespond: (resume, displayContent) => void resumeInterrupt(resume, displayContent)
             }
           ) }),
-          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: cn(
+          /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: cn(
             "shrink-0 border-t border-[var(--persona-border,#f4f4f5)] bg-[var(--persona-bg,#ffffff)] px-3 pb-4 pt-3 dark:border-[var(--persona-border,#27272a)] dark:bg-[var(--persona-bg,#09090b)]",
             classNames.composer
-          ), children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
-            PersonaComposer,
-            {
-              input,
-              onInputChange: setInput,
-              onSubmit: () => void handleSend(),
-              onStop: stop,
-              isStreaming,
-              starterPrompts: messages.length === 0 ? starterPrompts : [],
-              onSelectStarter: (p) => void handleSend(p),
-              onUploadFile: handleUploadFile
-            }
-          ) })
+          ), children: [
+            showMcpConnectBanner && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(PersonaMcpConnectBanner, { connections: unconnectedMcps, className: "mb-3" }),
+            /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+              PersonaComposer,
+              {
+                input,
+                onInputChange: setInput,
+                onSubmit: () => void handleSend(),
+                onStop: stop,
+                isStreaming,
+                starterPrompts: messages.length === 0 ? starterPrompts : [],
+                onSelectStarter: (p) => void handleSend(p),
+                onUploadFile: handleUploadFile
+              }
+            )
+          ] })
         ] }),
-        showFilesDrawer && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+        showFilesDrawer && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
           PersonaFilesDrawer,
           {
             isOpen: filesDrawerOpen,
@@ -1812,8 +1852,8 @@ function PersonaChatView({
 
 // src/components/PersonaChatLauncher.tsx
 var import_react11 = require("react");
-var import_lucide_react10 = require("lucide-react");
-var import_jsx_runtime11 = require("react/jsx-runtime");
+var import_lucide_react11 = require("lucide-react");
+var import_jsx_runtime12 = require("react/jsx-runtime");
 function PersonaChatLauncher({
   position = "bottom-right",
   defaultOpen = false,
@@ -1835,8 +1875,8 @@ function PersonaChatLauncher({
   };
   const isRight = position !== "bottom-left";
   const themeStyles = buildThemeStyles(theme);
-  return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { style: themeStyles, className: "contents", children: [
-    isOpen && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { style: themeStyles, className: "contents", children: [
+    isOpen && /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
       "div",
       {
         className: cn(
@@ -1845,10 +1885,10 @@ function PersonaChatLauncher({
           panelClassName
         ),
         style: { width: panelWidth, height: panelHeight },
-        children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(PersonaChatView, { ...chatViewProps, theme, className: "h-full w-full" })
+        children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(PersonaChatView, { ...chatViewProps, theme, className: "h-full w-full" })
       }
     ),
-    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
       "button",
       {
         type: "button",
@@ -1859,14 +1899,14 @@ function PersonaChatLauncher({
           isRight ? "right-6" : "left-6",
           fabClassName
         ),
-        children: isOpen ? /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_lucide_react10.X, { className: "size-6" }) : fabIcon ?? /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(import_lucide_react10.MessageCircle, { className: "size-6" })
+        children: isOpen ? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(import_lucide_react11.X, { className: "size-6" }) : fabIcon ?? /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(import_lucide_react11.MessageCircle, { className: "size-6" })
       }
     )
   ] });
 }
 
 // src/index.ts
-var VERSION = "0.7.4";
+var VERSION = "0.7.5";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   PersonaChatLauncher,
@@ -1876,6 +1916,7 @@ var VERSION = "0.7.4";
   PersonaFilesDrawer,
   PersonaInterruptCard,
   PersonaMarkdown,
+  PersonaMcpConnectBanner,
   PersonaMessageFeed,
   PersonaMessageSkeletonRow,
   PersonaSidebar,

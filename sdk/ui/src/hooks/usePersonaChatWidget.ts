@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type ChangeEvent } from 'react';
-import { useChat, useFiles, useMemory, useThreads } from '@personaai/react';
+import { useChat, useFiles, useMcpConnections, useMemory, useThreads } from '@personaai/react';
 
 export interface UsePersonaChatWidgetOptions {
   agentId?: string;
@@ -58,6 +58,9 @@ export function usePersonaChatWidget(options: UsePersonaChatWidgetOptions = {}) 
   } = useMemory();
 
   const chat = useChat({ agentId, threadId: activeThreadId });
+  const { unconnected: unconnectedMcps, isLoading: mcpConnectionsLoading } = useMcpConnections({
+    agentId,
+  });
 
   const setActiveThread = useCallback(
     (id: string | undefined) => {
@@ -148,6 +151,10 @@ export function usePersonaChatWidget(options: UsePersonaChatWidgetOptions = {}) 
     getMemoryFile,
     deleteMemoryFile,
     memoryLoading,
+    // MCP connections — every authType:'oauth', authMode:'user' MCP this
+    // Agent needs that the current user hasn't authorized yet
+    unconnectedMcps,
+    mcpConnectionsLoading,
     // chat — every other useChat field (messages, input, sendMessage,
     // isStreaming, interrupt, todos, etc.) plus the composed handlers below
     ...restChat,

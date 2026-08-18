@@ -3,6 +3,16 @@
 All notable changes to `@personaai/ui` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.7.5
+
+- **New: `PersonaMcpConnectBanner` + built into `PersonaChatView`/`PersonaChatLauncher`
+  automatically.** Built on `@personaai/react@^0.3.3`'s new `useMcpConnections` — until now, a
+  tool call against a user-mode MCP the current user hadn't authorized yet just silently didn't
+  work, with no signal anywhere the UI could act on. `PersonaChatView` now shows a "Connect"
+  prompt above the composer for any such MCP automatically (new `showMcpConnectBanner` prop,
+  `@default true`, same convention as `showSidebar`/`showFilesDrawer`). `PersonaMcpConnectBanner`
+  is also exported standalone for a custom layout that doesn't use the assembled widget.
+
 ## 0.7.4
 
 - **Fix: sidebar/files drawer overlay pinned to the browser viewport instead of the chat panel.**

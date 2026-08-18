@@ -9,6 +9,7 @@ import { PersonaMessageFeed } from './PersonaMessageFeed.js';
 import { PersonaComposer } from './PersonaComposer.js';
 import { PersonaFilesDrawer } from './PersonaFilesDrawer.js';
 import { PersonaInterruptCard } from './PersonaInterruptCard.js';
+import { PersonaMcpConnectBanner } from './PersonaMcpConnectBanner.js';
 import { PanelLeftClose, PanelLeft, Files } from 'lucide-react';
 
 export function PersonaChatView({
@@ -23,6 +24,7 @@ export function PersonaChatView({
   theme,
   showSidebar = true,
   showFilesDrawer = true,
+  showMcpConnectBanner = true,
   showUserAvatar = true,
   showAssistantAvatar = true,
   userAvatar,
@@ -60,6 +62,7 @@ export function PersonaChatView({
     todos,
     presentedFile,
     openWorkspaceFile,
+    unconnectedMcps,
     stop,
     reload,
     handleSelectThread,
@@ -187,6 +190,9 @@ export function PersonaChatView({
           'shrink-0 border-t border-[var(--persona-border,#f4f4f5)] bg-[var(--persona-bg,#ffffff)] px-3 pb-4 pt-3 dark:border-[var(--persona-border,#27272a)] dark:bg-[var(--persona-bg,#09090b)]',
           classNames.composer
         )}>
+          {showMcpConnectBanner && (
+            <PersonaMcpConnectBanner connections={unconnectedMcps} className="mb-3" />
+          )}
           <PersonaComposer
             input={input}
             onInputChange={setInput}

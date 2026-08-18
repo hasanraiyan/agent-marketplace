@@ -11,8 +11,9 @@ export * from './components/PersonaToolGroup.js';
 export * from './components/PersonaFilesDrawer.js';
 export * from './components/PersonaInterruptCard.js';
 export * from './components/PersonaSkeleton.js';
+export * from './components/PersonaMcpConnectBanner.js';
 export * from './utils/toolGrouping.js';
 export * from './utils/themeStyles.js';
 export * from './hooks/usePersonaChatWidget.js';
 
-export const VERSION = '0.7.4';
+export const VERSION = '0.7.5';

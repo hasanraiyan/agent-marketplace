@@ -71,6 +71,8 @@ export interface PersonaChatViewProps {
   theme?: PersonaCustomTheme;
   showSidebar?: boolean;
   showFilesDrawer?: boolean;
+  /** Shows a "Connect" prompt above the composer for any user-mode MCP this Agent needs that isn't authorized yet. @default true */
+  showMcpConnectBanner?: boolean;
   /** @default true */
   showUserAvatar?: boolean;
   /** @default true */
