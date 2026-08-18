@@ -3,6 +3,30 @@
 All notable changes to `@personaai/ui` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.6.0
+
+- **New: `usePersonaChatWidget`** — every stateful/behavioral piece `PersonaChatView` is built on
+  (thread selection, lazy thread creation on the first message, sidebar/files-drawer open state,
+  the present_file auto-open effect) extracted into its own exported hook. Every individual piece
+  (`PersonaSidebar`, `PersonaComposer`, `PersonaMessageFeed`, ...) was already separately
+  exported, but the *behavior* wiring them together only existed inside `PersonaChatView` — a
+  consumer building a different layout (composer somewhere else, a custom sidebar, a floating
+  widget) had no way to reuse it short of reimplementing it against the raw `useChat`/
+  `useThreads` hooks. `PersonaChatView` itself is now just one layout built on top of this hook,
+  proving the extraction is complete.
+  - Bug caught during the extraction: `useFiles()`'s `files` (uploads) and `useChat()`'s `files`
+    (the agent's own workspace files) name their very different fields the same thing — naively
+    spreading both into one flat object silently drops one. The hook exposes them as `files` /
+    `workspaceFiles` respectively.
+- **New: `PersonaChatLauncher`** — a floating action button that toggles a `PersonaChatView`
+  panel, for mounting a chat bubble on any page rather than a dedicated full-page route. Accepts
+  every `PersonaChatViewProps` plus `position` (`bottom-right`/`bottom-left`), `open`/
+  `onOpenChange`/`defaultOpen`, `fabIcon`, and `panelWidth`/`panelHeight`. Its `primaryColor`
+  theme (if set) reaches the FAB button too, not just the panel — the FAB is a sibling of
+  `PersonaChatView`'s subtree, not a descendant, so it can't inherit CSS variables
+  `PersonaChatView` sets on its own root alone; the theme vars are now computed once via the new
+  shared `buildThemeStyles` util and applied to a common ancestor of both.
+
 ## 0.5.0
 
 - **New: tool call grouping.** Consecutive tool calls in one message used to render as one card

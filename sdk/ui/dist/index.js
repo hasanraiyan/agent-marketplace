@@ -5,12 +5,129 @@ function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
-// src/components/PersonaChatView.tsx
-import { useState as useState8, useCallback, useEffect as useEffect5 } from "react";
-import { useChat, useThreads, useFiles, useMemory } from "@personaai/react";
+// src/hooks/usePersonaChatWidget.ts
+import { useCallback, useEffect, useState } from "react";
+import { useChat, useFiles, useMemory, useThreads } from "@personaai/react";
+function usePersonaChatWidget(options = {}) {
+  const { agentId, threadId: controlledThreadId, onThreadChange, defaultSidebarOpen = true } = options;
+  const [internalThreadId, setInternalThreadId] = useState(void 0);
+  const activeThreadId = controlledThreadId !== void 0 ? controlledThreadId : internalThreadId;
+  const [sidebarOpen, setSidebarOpen] = useState(defaultSidebarOpen);
+  const [filesDrawerOpen, setFilesDrawerOpen] = useState(false);
+  useEffect(() => {
+    if (defaultSidebarOpen && window.matchMedia("(max-width: 767px)").matches) {
+      setSidebarOpen(false);
+    }
+  }, []);
+  const { threads, createThread, deleteThread, renameThread } = useThreads();
+  const { files, uploadFile, deleteFile } = useFiles();
+  const { memory, getFile: getMemoryFile, deleteFile: deleteMemoryFile } = useMemory();
+  const chat = useChat({ agentId, threadId: activeThreadId });
+  const setActiveThread = useCallback(
+    (id) => {
+      if (onThreadChange) onThreadChange(id);
+      else setInternalThreadId(id);
+    },
+    [onThreadChange]
+  );
+  const handleSelectThread = useCallback(
+    (id) => {
+      chat.clear();
+      setActiveThread(id);
+    },
+    [chat, setActiveThread]
+  );
+  const handleNewChat = useCallback(() => {
+    chat.clear();
+    setActiveThread(void 0);
+  }, [chat, setActiveThread]);
+  const handleSend = useCallback(
+    async (content) => {
+      let tid = activeThreadId;
+      if (!tid) {
+        try {
+          const t = await createThread(agentId);
+          tid = t?._id;
+          if (tid) setActiveThread(tid);
+        } catch {
+        }
+      }
+      void chat.sendMessage(content, tid ? { threadId: tid } : void 0);
+    },
+    [activeThreadId, agentId, createThread, chat, setActiveThread]
+  );
+  useEffect(() => {
+    if (chat.presentedFile) setFilesDrawerOpen(true);
+  }, [chat.presentedFile]);
+  const handleUploadFile = useCallback(
+    async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const fd = new FormData();
+      fd.append("file", file);
+      try {
+        await uploadFile(fd);
+        setFilesDrawerOpen(true);
+      } catch {
+      }
+    },
+    [uploadFile]
+  );
+  const { files: workspaceFiles, ...restChat } = chat;
+  return {
+    // thread selection
+    activeThreadId,
+    setActiveThread,
+    // sidebar / files-drawer UI state
+    sidebarOpen,
+    setSidebarOpen,
+    filesDrawerOpen,
+    setFilesDrawerOpen,
+    // threads
+    threads,
+    deleteThread,
+    renameThread,
+    // uploaded files
+    files,
+    deleteFile,
+    // memory
+    memory,
+    getMemoryFile,
+    deleteMemoryFile,
+    // chat — every other useChat field (messages, input, sendMessage,
+    // isStreaming, interrupt, todos, etc.) plus the composed handlers below
+    ...restChat,
+    workspaceFiles,
+    // composed handlers (thread-aware wrappers over the raw chat/upload calls)
+    handleSelectThread,
+    handleNewChat,
+    handleSend,
+    handleUploadFile
+  };
+}
+
+// src/utils/themeStyles.ts
+function buildThemeStyles(theme) {
+  if (!theme) return void 0;
+  return {
+    "--persona-primary": theme.primaryColor,
+    "--persona-bg": theme.backgroundColor,
+    "--persona-card": theme.cardBackgroundColor,
+    "--persona-text": theme.textColor,
+    "--persona-user-bg": theme.userMessageBg,
+    "--persona-user-text": theme.userMessageText,
+    "--persona-assistant-bg": theme.assistantMessageBg,
+    "--persona-assistant-text": theme.assistantMessageText,
+    "--persona-user-avatar-bg": theme.userAvatarBg,
+    "--persona-user-avatar-text": theme.userAvatarText,
+    "--persona-assistant-avatar-bg": theme.assistantAvatarBg,
+    "--persona-assistant-avatar-text": theme.assistantAvatarText,
+    borderRadius: theme.borderRadius
+  };
+}
 
 // src/components/PersonaSidebar.tsx
-import { useState, useMemo } from "react";
+import { useState as useState2, useMemo } from "react";
 import { Plus, MessageSquare, Trash2, Edit2, Check, X, Search } from "lucide-react";
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 function groupThreadsByDate(threads) {
@@ -48,9 +165,9 @@ function PersonaSidebar({
   onClose,
   className
 }) {
-  const [search, setSearch] = useState("");
-  const [renamingId, setRenamingId] = useState(null);
-  const [renameValue, setRenameValue] = useState("");
+  const [search, setSearch] = useState2("");
+  const [renamingId, setRenamingId] = useState2(null);
+  const [renameValue, setRenameValue] = useState2("");
   const filteredThreads = useMemo(() => {
     if (!search.trim()) return threads;
     return threads.filter(
@@ -224,10 +341,10 @@ function PersonaSidebar({
 }
 
 // src/components/PersonaMessageFeed.tsx
-import { useState as useState5, useRef as useRef2, useEffect as useEffect2 } from "react";
+import { useState as useState6, useRef as useRef2, useEffect as useEffect3 } from "react";
 
 // src/components/PersonaToolTrace.tsx
-import { useState as useState2, useMemo as useMemo2 } from "react";
+import { useState as useState3, useMemo as useMemo2 } from "react";
 import {
   Wrench,
   ChevronDown,
@@ -311,7 +428,7 @@ function PersonaToolTrace({
   onOpenFile,
   className
 }) {
-  const [isOpen, setIsOpen] = useState2(false);
+  const [isOpen, setIsOpen] = useState3(false);
   const parsedArgs = useMemo2(() => {
     if (!toolCall.args) return void 0;
     try {
@@ -460,7 +577,7 @@ function PersonaToolTrace({
 }
 
 // src/components/PersonaToolGroup.tsx
-import { useEffect, useRef, useState as useState3 } from "react";
+import { useEffect as useEffect2, useRef, useState as useState4 } from "react";
 
 // src/utils/toolGrouping.ts
 function safeParseArgs(args) {
@@ -543,9 +660,9 @@ function PersonaToolGroup({
   const hasError = tools.some((t) => t.isError);
   const anyRunning = tools.some((t) => !t.result && !t.isError);
   const { title, icon: ClusterIcon = Wrench2 } = clusterMeta(tools, clusterLabels);
-  const [isOpen, setIsOpen] = useState3(anyRunning);
+  const [isOpen, setIsOpen] = useState4(anyRunning);
   const wasRunningRef = useRef(anyRunning);
-  useEffect(() => {
+  useEffect2(() => {
     if (anyRunning && !wasRunningRef.current) setIsOpen(true);
     wasRunningRef.current = anyRunning;
   }, [anyRunning]);
@@ -584,7 +701,7 @@ function PersonaToolGroup({
 }
 
 // src/components/PersonaMarkdown.tsx
-import { useState as useState4 } from "react";
+import { useState as useState5 } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -592,7 +709,7 @@ import rehypeKatex from "rehype-katex";
 import { Check as Check2, Copy } from "lucide-react";
 import { Fragment as Fragment2, jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
 function CodeBlock({ className, children }) {
-  const [copied, setCopied] = useState4(false);
+  const [copied, setCopied] = useState5(false);
   const language = /language-(\w+)/.exec(className || "")?.[1];
   const text = String(children).replace(/\n$/, "");
   function handleCopy() {
@@ -675,8 +792,8 @@ function PersonaMarkdown({ content, className }) {
 import { Bot as Bot3, User, Check as Check3, Copy as Copy2, RotateCcw, Sparkles, BrainCircuit, ChevronDown as ChevronDown3, ChevronRight as ChevronRight3, Loader2 as Loader23 } from "lucide-react";
 import { jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
 function ReasoningBlock({ reasoning, isReasoning }) {
-  const [isOpen, setIsOpen] = useState5(Boolean(isReasoning));
-  useEffect2(() => {
+  const [isOpen, setIsOpen] = useState6(Boolean(isReasoning));
+  useEffect3(() => {
     if (isReasoning) setIsOpen(true);
   }, [isReasoning]);
   return /* @__PURE__ */ jsxs5("div", { className: "mb-2 overflow-hidden rounded-xl border border-zinc-200/70 bg-zinc-50/60 text-xs dark:border-zinc-800/70 dark:bg-zinc-950/40", children: [
@@ -715,9 +832,9 @@ function PersonaMessageFeed({
   toolClusterLabels,
   className
 }) {
-  const [copiedId, setCopiedId] = useState5(null);
+  const [copiedId, setCopiedId] = useState6(null);
   const scrollEndRef = useRef2(null);
-  useEffect2(() => {
+  useEffect3(() => {
     scrollEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isStreaming]);
   function handleCopy(text, id) {
@@ -822,7 +939,7 @@ function PersonaMessageFeed({
 }
 
 // src/components/PersonaComposer.tsx
-import { useRef as useRef3, useEffect as useEffect3 } from "react";
+import { useRef as useRef3, useEffect as useEffect4 } from "react";
 import { Square, Paperclip, ArrowUp } from "lucide-react";
 import { jsx as jsx6, jsxs as jsxs6 } from "react/jsx-runtime";
 function PersonaComposer({
@@ -840,7 +957,7 @@ function PersonaComposer({
 }) {
   const textareaRef = useRef3(null);
   const fileInputRef = useRef3(null);
-  useEffect3(() => {
+  useEffect4(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
@@ -929,7 +1046,7 @@ function PersonaComposer({
 }
 
 // src/components/PersonaFilesDrawer.tsx
-import { useEffect as useEffect4, useState as useState6 } from "react";
+import { useEffect as useEffect5, useState as useState7 } from "react";
 import {
   Files,
   Brain as Brain2,
@@ -963,13 +1080,13 @@ function PersonaFilesDrawer({
   onDeleteMemoryFile,
   className
 }) {
-  const [tab, setTab] = useState6("files");
-  const [selectedWorkspacePath, setSelectedWorkspacePath] = useState6(null);
-  const [selectedMemory, setSelectedMemory] = useState6(null);
-  const [loadingMemory, setLoadingMemory] = useState6(false);
-  const [copied, setCopied] = useState6(false);
+  const [tab, setTab] = useState7("files");
+  const [selectedWorkspacePath, setSelectedWorkspacePath] = useState7(null);
+  const [selectedMemory, setSelectedMemory] = useState7(null);
+  const [loadingMemory, setLoadingMemory] = useState7(false);
+  const [copied, setCopied] = useState7(false);
   const workspaceEntries = Object.entries(workspaceFiles);
-  useEffect4(() => {
+  useEffect5(() => {
     if (!presentedFile) return;
     setTab("workspace");
     setSelectedWorkspacePath(presentedFile.path);
@@ -1265,7 +1382,7 @@ function PersonaFilesDrawer({
 }
 
 // src/components/PersonaInterruptCard.tsx
-import { useState as useState7 } from "react";
+import { useState as useState8 } from "react";
 import { ShieldAlert, HelpCircle, Check as Check5, X as X3 } from "lucide-react";
 import { jsx as jsx8, jsxs as jsxs8 } from "react/jsx-runtime";
 function PersonaInterruptCard({
@@ -1274,7 +1391,7 @@ function PersonaInterruptCard({
   isStreaming,
   className
 }) {
-  const [answers, setAnswers] = useState7({});
+  const [answers, setAnswers] = useState8({});
   if (interrupt.kind === "hitl") {
     const approveAll = () => {
       onRespond(
@@ -1422,101 +1539,45 @@ function PersonaChatView({
   toolClusterLabels,
   className
 }) {
-  const [internalThreadId, setInternalThreadId] = useState8(void 0);
-  const activeThreadId = controlledThreadId !== void 0 ? controlledThreadId : internalThreadId;
-  const [sidebarOpen, setSidebarOpen] = useState8(showSidebar);
-  const [filesDrawerOpen, setFilesDrawerOpen] = useState8(false);
-  useEffect5(() => {
-    if (showSidebar && window.matchMedia("(max-width: 767px)").matches) {
-      setSidebarOpen(false);
-    }
-  }, []);
-  const { threads, createThread, deleteThread, renameThread } = useThreads();
-  const { files, uploadFile, deleteFile } = useFiles();
-  const { memory, getFile, deleteFile: deleteMemoryFile } = useMemory();
   const {
+    activeThreadId,
+    sidebarOpen,
+    setSidebarOpen,
+    filesDrawerOpen,
+    setFilesDrawerOpen,
+    threads,
+    deleteThread,
+    renameThread,
+    files,
+    deleteFile,
+    memory,
+    getMemoryFile,
+    deleteMemoryFile,
     messages,
     input,
     setInput,
-    sendMessage,
     isStreaming,
     isLoadingHistory,
     error,
     interrupt,
     resumeInterrupt,
-    files: workspaceFiles,
+    workspaceFiles,
     todos,
     presentedFile,
     openWorkspaceFile,
     stop,
     reload,
-    clear
-  } = useChat({ agentId, threadId: activeThreadId });
-  const setActiveThread = useCallback(
-    (id) => {
-      if (onThreadChange) onThreadChange(id);
-      else setInternalThreadId(id);
-    },
-    [onThreadChange]
-  );
-  const handleSelectThread = useCallback(
-    (id) => {
-      clear();
-      setActiveThread(id);
-    },
-    [clear, setActiveThread]
-  );
-  const handleNewChat = useCallback(() => {
-    clear();
-    setActiveThread(void 0);
-  }, [clear, setActiveThread]);
-  const handleSend = useCallback(
-    async (content) => {
-      let tid = activeThreadId;
-      if (!tid) {
-        try {
-          const t = await createThread(agentId);
-          tid = t?._id;
-          if (tid) setActiveThread(tid);
-        } catch {
-        }
-      }
-      void sendMessage(content, tid ? { threadId: tid } : void 0);
-    },
-    [activeThreadId, agentId, createThread, sendMessage, setActiveThread]
-  );
-  useEffect5(() => {
-    if (presentedFile) setFilesDrawerOpen(true);
-  }, [presentedFile]);
-  const handleUploadFile = useCallback(
-    async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const fd = new FormData();
-      fd.append("file", file);
-      try {
-        await uploadFile(fd);
-        setFilesDrawerOpen(true);
-      } catch {
-      }
-    },
-    [uploadFile]
-  );
-  const themeStyles = theme ? {
-    "--persona-primary": theme.primaryColor,
-    "--persona-bg": theme.backgroundColor,
-    "--persona-card": theme.cardBackgroundColor,
-    "--persona-text": theme.textColor,
-    "--persona-user-bg": theme.userMessageBg,
-    "--persona-user-text": theme.userMessageText,
-    "--persona-assistant-bg": theme.assistantMessageBg,
-    "--persona-assistant-text": theme.assistantMessageText,
-    "--persona-user-avatar-bg": theme.userAvatarBg,
-    "--persona-user-avatar-text": theme.userAvatarText,
-    "--persona-assistant-avatar-bg": theme.assistantAvatarBg,
-    "--persona-assistant-avatar-text": theme.assistantAvatarText,
-    borderRadius: theme.borderRadius
-  } : void 0;
+    handleSelectThread,
+    handleNewChat,
+    handleSend,
+    handleUploadFile
+  } = usePersonaChatWidget({
+    agentId,
+    threadId: controlledThreadId,
+    onThreadChange,
+    defaultSidebarOpen: showSidebar
+  });
+  const themeStyles = buildThemeStyles(theme);
   return /* @__PURE__ */ jsxs9(
     "div",
     {
@@ -1629,7 +1690,7 @@ function PersonaChatView({
             todos,
             presentedFile,
             onDeleteFile: deleteFile,
-            onGetMemoryFile: (path) => getFile({ path }),
+            onGetMemoryFile: (path) => getMemoryFile({ path }),
             onDeleteMemoryFile: (path) => deleteMemoryFile({ path }),
             className: classNames.filesDrawer
           }
@@ -1639,9 +1700,65 @@ function PersonaChatView({
   );
 }
 
+// src/components/PersonaChatLauncher.tsx
+import { useState as useState9 } from "react";
+import { MessageCircle, X as X4 } from "lucide-react";
+import { jsx as jsx10, jsxs as jsxs10 } from "react/jsx-runtime";
+function PersonaChatLauncher({
+  position = "bottom-right",
+  defaultOpen = false,
+  open: controlledOpen,
+  onOpenChange,
+  fabIcon,
+  panelWidth = "24rem",
+  panelHeight = "36rem",
+  fabClassName,
+  panelClassName,
+  theme,
+  ...chatViewProps
+}) {
+  const [internalOpen, setInternalOpen] = useState9(defaultOpen);
+  const isOpen = controlledOpen !== void 0 ? controlledOpen : internalOpen;
+  const setOpen = (next) => {
+    onOpenChange?.(next);
+    if (controlledOpen === void 0) setInternalOpen(next);
+  };
+  const isRight = position !== "bottom-left";
+  const themeStyles = buildThemeStyles(theme);
+  return /* @__PURE__ */ jsxs10("div", { style: themeStyles, className: "contents", children: [
+    isOpen && /* @__PURE__ */ jsx10(
+      "div",
+      {
+        className: cn(
+          "fixed bottom-24 z-40 flex max-h-[calc(100vh-7rem)] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950",
+          isRight ? "right-6" : "left-6",
+          panelClassName
+        ),
+        style: { width: panelWidth, height: panelHeight },
+        children: /* @__PURE__ */ jsx10(PersonaChatView, { ...chatViewProps, theme, className: "h-full w-full" })
+      }
+    ),
+    /* @__PURE__ */ jsx10(
+      "button",
+      {
+        type: "button",
+        onClick: () => setOpen(!isOpen),
+        "aria-label": isOpen ? "Close chat" : "Open chat",
+        className: cn(
+          "fixed bottom-6 z-40 flex size-14 items-center justify-center rounded-full bg-[var(--persona-primary,#18181b)] text-white shadow-xl transition-transform hover:scale-105 active:scale-95 dark:bg-[var(--persona-primary,#f4f4f5)] dark:text-zinc-900",
+          isRight ? "right-6" : "left-6",
+          fabClassName
+        ),
+        children: isOpen ? /* @__PURE__ */ jsx10(X4, { className: "size-6" }) : fabIcon ?? /* @__PURE__ */ jsx10(MessageCircle, { className: "size-6" })
+      }
+    )
+  ] });
+}
+
 // src/index.ts
-var VERSION = "0.5.0";
+var VERSION = "0.6.0";
 export {
+  PersonaChatLauncher,
   PersonaChatView,
   PersonaComposer,
   PersonaFilesDrawer,
@@ -1652,8 +1769,10 @@ export {
   PersonaToolGroup,
   PersonaToolTrace,
   VERSION,
+  buildThemeStyles,
   cn,
   groupToolCalls,
-  toolGroupKey
+  toolGroupKey,
+  usePersonaChatWidget
 };
 //# sourceMappingURL=index.js.map

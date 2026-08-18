@@ -30,6 +30,7 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/index.ts
 var index_exports = {};
 __export(index_exports, {
+  PersonaChatLauncher: () => PersonaChatLauncher,
   PersonaChatView: () => PersonaChatView,
   PersonaComposer: () => PersonaComposer,
   PersonaFilesDrawer: () => PersonaFilesDrawer,
@@ -40,9 +41,11 @@ __export(index_exports, {
   PersonaToolGroup: () => PersonaToolGroup,
   PersonaToolTrace: () => PersonaToolTrace,
   VERSION: () => VERSION,
+  buildThemeStyles: () => buildThemeStyles,
   cn: () => cn,
   groupToolCalls: () => groupToolCalls,
-  toolGroupKey: () => toolGroupKey
+  toolGroupKey: () => toolGroupKey,
+  usePersonaChatWidget: () => usePersonaChatWidget
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -53,12 +56,129 @@ function cn(...inputs) {
   return (0, import_tailwind_merge.twMerge)((0, import_clsx.clsx)(inputs));
 }
 
-// src/components/PersonaChatView.tsx
-var import_react9 = require("react");
-var import_react10 = require("@personaai/react");
+// src/hooks/usePersonaChatWidget.ts
+var import_react = require("react");
+var import_react2 = require("@personaai/react");
+function usePersonaChatWidget(options = {}) {
+  const { agentId, threadId: controlledThreadId, onThreadChange, defaultSidebarOpen = true } = options;
+  const [internalThreadId, setInternalThreadId] = (0, import_react.useState)(void 0);
+  const activeThreadId = controlledThreadId !== void 0 ? controlledThreadId : internalThreadId;
+  const [sidebarOpen, setSidebarOpen] = (0, import_react.useState)(defaultSidebarOpen);
+  const [filesDrawerOpen, setFilesDrawerOpen] = (0, import_react.useState)(false);
+  (0, import_react.useEffect)(() => {
+    if (defaultSidebarOpen && window.matchMedia("(max-width: 767px)").matches) {
+      setSidebarOpen(false);
+    }
+  }, []);
+  const { threads, createThread, deleteThread, renameThread } = (0, import_react2.useThreads)();
+  const { files, uploadFile, deleteFile } = (0, import_react2.useFiles)();
+  const { memory, getFile: getMemoryFile, deleteFile: deleteMemoryFile } = (0, import_react2.useMemory)();
+  const chat = (0, import_react2.useChat)({ agentId, threadId: activeThreadId });
+  const setActiveThread = (0, import_react.useCallback)(
+    (id) => {
+      if (onThreadChange) onThreadChange(id);
+      else setInternalThreadId(id);
+    },
+    [onThreadChange]
+  );
+  const handleSelectThread = (0, import_react.useCallback)(
+    (id) => {
+      chat.clear();
+      setActiveThread(id);
+    },
+    [chat, setActiveThread]
+  );
+  const handleNewChat = (0, import_react.useCallback)(() => {
+    chat.clear();
+    setActiveThread(void 0);
+  }, [chat, setActiveThread]);
+  const handleSend = (0, import_react.useCallback)(
+    async (content) => {
+      let tid = activeThreadId;
+      if (!tid) {
+        try {
+          const t = await createThread(agentId);
+          tid = t?._id;
+          if (tid) setActiveThread(tid);
+        } catch {
+        }
+      }
+      void chat.sendMessage(content, tid ? { threadId: tid } : void 0);
+    },
+    [activeThreadId, agentId, createThread, chat, setActiveThread]
+  );
+  (0, import_react.useEffect)(() => {
+    if (chat.presentedFile) setFilesDrawerOpen(true);
+  }, [chat.presentedFile]);
+  const handleUploadFile = (0, import_react.useCallback)(
+    async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const fd = new FormData();
+      fd.append("file", file);
+      try {
+        await uploadFile(fd);
+        setFilesDrawerOpen(true);
+      } catch {
+      }
+    },
+    [uploadFile]
+  );
+  const { files: workspaceFiles, ...restChat } = chat;
+  return {
+    // thread selection
+    activeThreadId,
+    setActiveThread,
+    // sidebar / files-drawer UI state
+    sidebarOpen,
+    setSidebarOpen,
+    filesDrawerOpen,
+    setFilesDrawerOpen,
+    // threads
+    threads,
+    deleteThread,
+    renameThread,
+    // uploaded files
+    files,
+    deleteFile,
+    // memory
+    memory,
+    getMemoryFile,
+    deleteMemoryFile,
+    // chat — every other useChat field (messages, input, sendMessage,
+    // isStreaming, interrupt, todos, etc.) plus the composed handlers below
+    ...restChat,
+    workspaceFiles,
+    // composed handlers (thread-aware wrappers over the raw chat/upload calls)
+    handleSelectThread,
+    handleNewChat,
+    handleSend,
+    handleUploadFile
+  };
+}
+
+// src/utils/themeStyles.ts
+function buildThemeStyles(theme) {
+  if (!theme) return void 0;
+  return {
+    "--persona-primary": theme.primaryColor,
+    "--persona-bg": theme.backgroundColor,
+    "--persona-card": theme.cardBackgroundColor,
+    "--persona-text": theme.textColor,
+    "--persona-user-bg": theme.userMessageBg,
+    "--persona-user-text": theme.userMessageText,
+    "--persona-assistant-bg": theme.assistantMessageBg,
+    "--persona-assistant-text": theme.assistantMessageText,
+    "--persona-user-avatar-bg": theme.userAvatarBg,
+    "--persona-user-avatar-text": theme.userAvatarText,
+    "--persona-assistant-avatar-bg": theme.assistantAvatarBg,
+    "--persona-assistant-avatar-text": theme.assistantAvatarText,
+    borderRadius: theme.borderRadius
+  };
+}
 
 // src/components/PersonaSidebar.tsx
-var import_react = require("react");
+var import_react3 = require("react");
 var import_lucide_react = require("lucide-react");
 var import_jsx_runtime = require("react/jsx-runtime");
 function groupThreadsByDate(threads) {
@@ -96,16 +216,16 @@ function PersonaSidebar({
   onClose,
   className
 }) {
-  const [search, setSearch] = (0, import_react.useState)("");
-  const [renamingId, setRenamingId] = (0, import_react.useState)(null);
-  const [renameValue, setRenameValue] = (0, import_react.useState)("");
-  const filteredThreads = (0, import_react.useMemo)(() => {
+  const [search, setSearch] = (0, import_react3.useState)("");
+  const [renamingId, setRenamingId] = (0, import_react3.useState)(null);
+  const [renameValue, setRenameValue] = (0, import_react3.useState)("");
+  const filteredThreads = (0, import_react3.useMemo)(() => {
     if (!search.trim()) return threads;
     return threads.filter(
       (t) => (t.title || "New Chat").toLowerCase().includes(search.toLowerCase())
     );
   }, [threads, search]);
-  const groups = (0, import_react.useMemo)(() => groupThreadsByDate(filteredThreads), [filteredThreads]);
+  const groups = (0, import_react3.useMemo)(() => groupThreadsByDate(filteredThreads), [filteredThreads]);
   function startRename(t) {
     setRenamingId(t._id);
     setRenameValue(t.title || "New Chat");
@@ -272,10 +392,10 @@ function PersonaSidebar({
 }
 
 // src/components/PersonaMessageFeed.tsx
-var import_react5 = require("react");
+var import_react7 = require("react");
 
 // src/components/PersonaToolTrace.tsx
-var import_react2 = require("react");
+var import_react4 = require("react");
 var import_lucide_react2 = require("lucide-react");
 var import_jsx_runtime2 = require("react/jsx-runtime");
 function isTodoTool(name) {
@@ -347,8 +467,8 @@ function PersonaToolTrace({
   onOpenFile,
   className
 }) {
-  const [isOpen, setIsOpen] = (0, import_react2.useState)(false);
-  const parsedArgs = (0, import_react2.useMemo)(() => {
+  const [isOpen, setIsOpen] = (0, import_react4.useState)(false);
+  const parsedArgs = (0, import_react4.useMemo)(() => {
     if (!toolCall.args) return void 0;
     try {
       return JSON.parse(toolCall.args);
@@ -356,7 +476,7 @@ function PersonaToolTrace({
       return toolCall.args;
     }
   }, [toolCall.args]);
-  const parsedResult = (0, import_react2.useMemo)(() => {
+  const parsedResult = (0, import_react4.useMemo)(() => {
     if (!toolCall.result) return void 0;
     try {
       return JSON.parse(toolCall.result);
@@ -366,12 +486,12 @@ function PersonaToolTrace({
   }, [toolCall.result]);
   const isExecuting = !toolCall.result && !toolCall.isError;
   const isTodo = isTodoTool(toolCall.toolName);
-  const todos = (0, import_react2.useMemo)(
+  const todos = (0, import_react4.useMemo)(
     () => isTodo ? parseTodos(parsedArgs, parsedResult) : null,
     [isTodo, parsedArgs, parsedResult]
   );
   const todosDone = todos ? todos.filter((t) => t.status === "completed").length : 0;
-  const subagentGroups = (0, import_react2.useMemo)(
+  const subagentGroups = (0, import_react4.useMemo)(
     () => toolCall.subagentActivity?.length ? groupSubagentActivity(toolCall.subagentActivity) : [],
     [toolCall.subagentActivity]
   );
@@ -496,7 +616,7 @@ function PersonaToolTrace({
 }
 
 // src/components/PersonaToolGroup.tsx
-var import_react3 = require("react");
+var import_react5 = require("react");
 
 // src/utils/toolGrouping.ts
 function safeParseArgs(args) {
@@ -567,9 +687,9 @@ function PersonaToolGroup({
   const hasError = tools.some((t) => t.isError);
   const anyRunning = tools.some((t) => !t.result && !t.isError);
   const { title, icon: ClusterIcon = import_lucide_react3.Wrench } = clusterMeta(tools, clusterLabels);
-  const [isOpen, setIsOpen] = (0, import_react3.useState)(anyRunning);
-  const wasRunningRef = (0, import_react3.useRef)(anyRunning);
-  (0, import_react3.useEffect)(() => {
+  const [isOpen, setIsOpen] = (0, import_react5.useState)(anyRunning);
+  const wasRunningRef = (0, import_react5.useRef)(anyRunning);
+  (0, import_react5.useEffect)(() => {
     if (anyRunning && !wasRunningRef.current) setIsOpen(true);
     wasRunningRef.current = anyRunning;
   }, [anyRunning]);
@@ -608,7 +728,7 @@ function PersonaToolGroup({
 }
 
 // src/components/PersonaMarkdown.tsx
-var import_react4 = require("react");
+var import_react6 = require("react");
 var import_react_markdown = __toESM(require("react-markdown"), 1);
 var import_remark_gfm = __toESM(require("remark-gfm"), 1);
 var import_remark_math = __toESM(require("remark-math"), 1);
@@ -616,7 +736,7 @@ var import_rehype_katex = __toESM(require("rehype-katex"), 1);
 var import_lucide_react4 = require("lucide-react");
 var import_jsx_runtime4 = require("react/jsx-runtime");
 function CodeBlock({ className, children }) {
-  const [copied, setCopied] = (0, import_react4.useState)(false);
+  const [copied, setCopied] = (0, import_react6.useState)(false);
   const language = /language-(\w+)/.exec(className || "")?.[1];
   const text = String(children).replace(/\n$/, "");
   function handleCopy() {
@@ -699,8 +819,8 @@ function PersonaMarkdown({ content, className }) {
 var import_lucide_react5 = require("lucide-react");
 var import_jsx_runtime5 = require("react/jsx-runtime");
 function ReasoningBlock({ reasoning, isReasoning }) {
-  const [isOpen, setIsOpen] = (0, import_react5.useState)(Boolean(isReasoning));
-  (0, import_react5.useEffect)(() => {
+  const [isOpen, setIsOpen] = (0, import_react7.useState)(Boolean(isReasoning));
+  (0, import_react7.useEffect)(() => {
     if (isReasoning) setIsOpen(true);
   }, [isReasoning]);
   return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mb-2 overflow-hidden rounded-xl border border-zinc-200/70 bg-zinc-50/60 text-xs dark:border-zinc-800/70 dark:bg-zinc-950/40", children: [
@@ -739,9 +859,9 @@ function PersonaMessageFeed({
   toolClusterLabels,
   className
 }) {
-  const [copiedId, setCopiedId] = (0, import_react5.useState)(null);
-  const scrollEndRef = (0, import_react5.useRef)(null);
-  (0, import_react5.useEffect)(() => {
+  const [copiedId, setCopiedId] = (0, import_react7.useState)(null);
+  const scrollEndRef = (0, import_react7.useRef)(null);
+  (0, import_react7.useEffect)(() => {
     scrollEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isStreaming]);
   function handleCopy(text, id) {
@@ -846,7 +966,7 @@ function PersonaMessageFeed({
 }
 
 // src/components/PersonaComposer.tsx
-var import_react6 = require("react");
+var import_react8 = require("react");
 var import_lucide_react6 = require("lucide-react");
 var import_jsx_runtime6 = require("react/jsx-runtime");
 function PersonaComposer({
@@ -862,9 +982,9 @@ function PersonaComposer({
   onUploadFile,
   className
 }) {
-  const textareaRef = (0, import_react6.useRef)(null);
-  const fileInputRef = (0, import_react6.useRef)(null);
-  (0, import_react6.useEffect)(() => {
+  const textareaRef = (0, import_react8.useRef)(null);
+  const fileInputRef = (0, import_react8.useRef)(null);
+  (0, import_react8.useEffect)(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
@@ -953,7 +1073,7 @@ function PersonaComposer({
 }
 
 // src/components/PersonaFilesDrawer.tsx
-var import_react7 = require("react");
+var import_react9 = require("react");
 var import_lucide_react7 = require("lucide-react");
 var import_jsx_runtime7 = require("react/jsx-runtime");
 var TODO_ICON = {
@@ -974,13 +1094,13 @@ function PersonaFilesDrawer({
   onDeleteMemoryFile,
   className
 }) {
-  const [tab, setTab] = (0, import_react7.useState)("files");
-  const [selectedWorkspacePath, setSelectedWorkspacePath] = (0, import_react7.useState)(null);
-  const [selectedMemory, setSelectedMemory] = (0, import_react7.useState)(null);
-  const [loadingMemory, setLoadingMemory] = (0, import_react7.useState)(false);
-  const [copied, setCopied] = (0, import_react7.useState)(false);
+  const [tab, setTab] = (0, import_react9.useState)("files");
+  const [selectedWorkspacePath, setSelectedWorkspacePath] = (0, import_react9.useState)(null);
+  const [selectedMemory, setSelectedMemory] = (0, import_react9.useState)(null);
+  const [loadingMemory, setLoadingMemory] = (0, import_react9.useState)(false);
+  const [copied, setCopied] = (0, import_react9.useState)(false);
   const workspaceEntries = Object.entries(workspaceFiles);
-  (0, import_react7.useEffect)(() => {
+  (0, import_react9.useEffect)(() => {
     if (!presentedFile) return;
     setTab("workspace");
     setSelectedWorkspacePath(presentedFile.path);
@@ -1276,7 +1396,7 @@ function PersonaFilesDrawer({
 }
 
 // src/components/PersonaInterruptCard.tsx
-var import_react8 = require("react");
+var import_react10 = require("react");
 var import_lucide_react8 = require("lucide-react");
 var import_jsx_runtime8 = require("react/jsx-runtime");
 function PersonaInterruptCard({
@@ -1285,7 +1405,7 @@ function PersonaInterruptCard({
   isStreaming,
   className
 }) {
-  const [answers, setAnswers] = (0, import_react8.useState)({});
+  const [answers, setAnswers] = (0, import_react10.useState)({});
   if (interrupt.kind === "hitl") {
     const approveAll = () => {
       onRespond(
@@ -1433,101 +1553,45 @@ function PersonaChatView({
   toolClusterLabels,
   className
 }) {
-  const [internalThreadId, setInternalThreadId] = (0, import_react9.useState)(void 0);
-  const activeThreadId = controlledThreadId !== void 0 ? controlledThreadId : internalThreadId;
-  const [sidebarOpen, setSidebarOpen] = (0, import_react9.useState)(showSidebar);
-  const [filesDrawerOpen, setFilesDrawerOpen] = (0, import_react9.useState)(false);
-  (0, import_react9.useEffect)(() => {
-    if (showSidebar && window.matchMedia("(max-width: 767px)").matches) {
-      setSidebarOpen(false);
-    }
-  }, []);
-  const { threads, createThread, deleteThread, renameThread } = (0, import_react10.useThreads)();
-  const { files, uploadFile, deleteFile } = (0, import_react10.useFiles)();
-  const { memory, getFile, deleteFile: deleteMemoryFile } = (0, import_react10.useMemory)();
   const {
+    activeThreadId,
+    sidebarOpen,
+    setSidebarOpen,
+    filesDrawerOpen,
+    setFilesDrawerOpen,
+    threads,
+    deleteThread,
+    renameThread,
+    files,
+    deleteFile,
+    memory,
+    getMemoryFile,
+    deleteMemoryFile,
     messages,
     input,
     setInput,
-    sendMessage,
     isStreaming,
     isLoadingHistory,
     error,
     interrupt,
     resumeInterrupt,
-    files: workspaceFiles,
+    workspaceFiles,
     todos,
     presentedFile,
     openWorkspaceFile,
     stop,
     reload,
-    clear
-  } = (0, import_react10.useChat)({ agentId, threadId: activeThreadId });
-  const setActiveThread = (0, import_react9.useCallback)(
-    (id) => {
-      if (onThreadChange) onThreadChange(id);
-      else setInternalThreadId(id);
-    },
-    [onThreadChange]
-  );
-  const handleSelectThread = (0, import_react9.useCallback)(
-    (id) => {
-      clear();
-      setActiveThread(id);
-    },
-    [clear, setActiveThread]
-  );
-  const handleNewChat = (0, import_react9.useCallback)(() => {
-    clear();
-    setActiveThread(void 0);
-  }, [clear, setActiveThread]);
-  const handleSend = (0, import_react9.useCallback)(
-    async (content) => {
-      let tid = activeThreadId;
-      if (!tid) {
-        try {
-          const t = await createThread(agentId);
-          tid = t?._id;
-          if (tid) setActiveThread(tid);
-        } catch {
-        }
-      }
-      void sendMessage(content, tid ? { threadId: tid } : void 0);
-    },
-    [activeThreadId, agentId, createThread, sendMessage, setActiveThread]
-  );
-  (0, import_react9.useEffect)(() => {
-    if (presentedFile) setFilesDrawerOpen(true);
-  }, [presentedFile]);
-  const handleUploadFile = (0, import_react9.useCallback)(
-    async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const fd = new FormData();
-      fd.append("file", file);
-      try {
-        await uploadFile(fd);
-        setFilesDrawerOpen(true);
-      } catch {
-      }
-    },
-    [uploadFile]
-  );
-  const themeStyles = theme ? {
-    "--persona-primary": theme.primaryColor,
-    "--persona-bg": theme.backgroundColor,
-    "--persona-card": theme.cardBackgroundColor,
-    "--persona-text": theme.textColor,
-    "--persona-user-bg": theme.userMessageBg,
-    "--persona-user-text": theme.userMessageText,
-    "--persona-assistant-bg": theme.assistantMessageBg,
-    "--persona-assistant-text": theme.assistantMessageText,
-    "--persona-user-avatar-bg": theme.userAvatarBg,
-    "--persona-user-avatar-text": theme.userAvatarText,
-    "--persona-assistant-avatar-bg": theme.assistantAvatarBg,
-    "--persona-assistant-avatar-text": theme.assistantAvatarText,
-    borderRadius: theme.borderRadius
-  } : void 0;
+    handleSelectThread,
+    handleNewChat,
+    handleSend,
+    handleUploadFile
+  } = usePersonaChatWidget({
+    agentId,
+    threadId: controlledThreadId,
+    onThreadChange,
+    defaultSidebarOpen: showSidebar
+  });
+  const themeStyles = buildThemeStyles(theme);
   return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
     "div",
     {
@@ -1640,7 +1704,7 @@ function PersonaChatView({
             todos,
             presentedFile,
             onDeleteFile: deleteFile,
-            onGetMemoryFile: (path) => getFile({ path }),
+            onGetMemoryFile: (path) => getMemoryFile({ path }),
             onDeleteMemoryFile: (path) => deleteMemoryFile({ path }),
             className: classNames.filesDrawer
           }
@@ -1650,10 +1714,66 @@ function PersonaChatView({
   );
 }
 
+// src/components/PersonaChatLauncher.tsx
+var import_react11 = require("react");
+var import_lucide_react10 = require("lucide-react");
+var import_jsx_runtime10 = require("react/jsx-runtime");
+function PersonaChatLauncher({
+  position = "bottom-right",
+  defaultOpen = false,
+  open: controlledOpen,
+  onOpenChange,
+  fabIcon,
+  panelWidth = "24rem",
+  panelHeight = "36rem",
+  fabClassName,
+  panelClassName,
+  theme,
+  ...chatViewProps
+}) {
+  const [internalOpen, setInternalOpen] = (0, import_react11.useState)(defaultOpen);
+  const isOpen = controlledOpen !== void 0 ? controlledOpen : internalOpen;
+  const setOpen = (next) => {
+    onOpenChange?.(next);
+    if (controlledOpen === void 0) setInternalOpen(next);
+  };
+  const isRight = position !== "bottom-left";
+  const themeStyles = buildThemeStyles(theme);
+  return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { style: themeStyles, className: "contents", children: [
+    isOpen && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+      "div",
+      {
+        className: cn(
+          "fixed bottom-24 z-40 flex max-h-[calc(100vh-7rem)] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950",
+          isRight ? "right-6" : "left-6",
+          panelClassName
+        ),
+        style: { width: panelWidth, height: panelHeight },
+        children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(PersonaChatView, { ...chatViewProps, theme, className: "h-full w-full" })
+      }
+    ),
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+      "button",
+      {
+        type: "button",
+        onClick: () => setOpen(!isOpen),
+        "aria-label": isOpen ? "Close chat" : "Open chat",
+        className: cn(
+          "fixed bottom-6 z-40 flex size-14 items-center justify-center rounded-full bg-[var(--persona-primary,#18181b)] text-white shadow-xl transition-transform hover:scale-105 active:scale-95 dark:bg-[var(--persona-primary,#f4f4f5)] dark:text-zinc-900",
+          isRight ? "right-6" : "left-6",
+          fabClassName
+        ),
+        children: isOpen ? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_lucide_react10.X, { className: "size-6" }) : fabIcon ?? /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(import_lucide_react10.MessageCircle, { className: "size-6" })
+      }
+    )
+  ] });
+}
+
 // src/index.ts
-var VERSION = "0.5.0";
+var VERSION = "0.6.0";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  PersonaChatLauncher,
   PersonaChatView,
   PersonaComposer,
   PersonaFilesDrawer,
@@ -1664,8 +1784,10 @@ var VERSION = "0.5.0";
   PersonaToolGroup,
   PersonaToolTrace,
   VERSION,
+  buildThemeStyles,
   cn,
   groupToolCalls,
-  toolGroupKey
+  toolGroupKey,
+  usePersonaChatWidget
 });
 //# sourceMappingURL=index.cjs.map

@@ -1,4 +1,6 @@
-import React, { ComponentType, ReactNode } from 'react';
+import * as React$1 from 'react';
+import React__default, { ComponentType, ReactNode, CSSProperties, ChangeEvent } from 'react';
+import * as _personaai_react from '@personaai/react';
 import { PersonaToolCall, PersonaThread, PersonaMessage, PersonaFileItem, PersonaMemoryList, PersonaWorkspaceFile, PersonaTodo, PersonaPresentedFile, PersonaMemoryFile, PersonaInterrupt, PersonaResumeValue } from '@personaai/react';
 import { ClassValue } from 'clsx';
 
@@ -105,7 +107,32 @@ interface PersonaChatViewProps {
 
 declare function cn(...inputs: ClassValue[]): string;
 
-declare function PersonaChatView({ agentId, threadId: controlledThreadId, onThreadChange, greeting, title, starterPrompts, toolRenderers, classNames, theme, showSidebar, showFilesDrawer, showUserAvatar, showAssistantAvatar, userAvatar, assistantAvatar, groupTools, toolClusterLabels, className, }: PersonaChatViewProps): React.JSX.Element;
+declare function PersonaChatView({ agentId, threadId: controlledThreadId, onThreadChange, greeting, title, starterPrompts, toolRenderers, classNames, theme, showSidebar, showFilesDrawer, showUserAvatar, showAssistantAvatar, userAvatar, assistantAvatar, groupTools, toolClusterLabels, className, }: PersonaChatViewProps): React$1.JSX.Element;
+
+interface PersonaChatLauncherProps extends PersonaChatViewProps {
+    /** @default 'bottom-right' */
+    position?: 'bottom-right' | 'bottom-left';
+    /** Uncontrolled initial open state. @default false */
+    defaultOpen?: boolean;
+    /** Controlled open state — omit to let the launcher manage it internally. */
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+    /** Replaces the default chat-bubble icon (shown while closed). */
+    fabIcon?: React__default.ReactNode;
+    /** @default '24rem' */
+    panelWidth?: string;
+    /** @default '36rem' */
+    panelHeight?: string;
+    fabClassName?: string;
+    panelClassName?: string;
+}
+/**
+ * A floating action button that toggles a `PersonaChatView` panel — for
+ * mounting a chat bubble on any page (a support-widget-style entry point),
+ * rather than a dedicated full-page chat route. Accepts every
+ * `PersonaChatViewProps` and passes them straight through to the panel.
+ */
+declare function PersonaChatLauncher({ position, defaultOpen, open: controlledOpen, onOpenChange, fabIcon, panelWidth, panelHeight, fabClassName, panelClassName, theme, ...chatViewProps }: PersonaChatLauncherProps): React__default.JSX.Element;
 
 interface PersonaSidebarProps {
     threads: PersonaThread[];
@@ -118,7 +145,7 @@ interface PersonaSidebarProps {
     onClose?: () => void;
     className?: string;
 }
-declare function PersonaSidebar({ threads, activeThreadId, onSelectThread, onCreateThread, onDeleteThread, onRenameThread, onClose, className, }: PersonaSidebarProps): React.JSX.Element;
+declare function PersonaSidebar({ threads, activeThreadId, onSelectThread, onCreateThread, onDeleteThread, onRenameThread, onClose, className, }: PersonaSidebarProps): React__default.JSX.Element;
 
 interface PersonaComposerProps {
     input: string;
@@ -130,10 +157,10 @@ interface PersonaComposerProps {
     placeholder?: string;
     starterPrompts?: StarterPromptItem[];
     onSelectStarter?: (prompt: string) => void;
-    onUploadFile?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onUploadFile?: (e: React__default.ChangeEvent<HTMLInputElement>) => void;
     className?: string;
 }
-declare function PersonaComposer({ input, onInputChange, onSubmit, onStop, isStreaming, disabled, placeholder, starterPrompts, onSelectStarter, onUploadFile, className, }: PersonaComposerProps): React.JSX.Element;
+declare function PersonaComposer({ input, onInputChange, onSubmit, onStop, isStreaming, disabled, placeholder, starterPrompts, onSelectStarter, onUploadFile, className, }: PersonaComposerProps): React__default.JSX.Element;
 
 interface PersonaMessageFeedProps {
     messages: PersonaMessage[];
@@ -147,15 +174,15 @@ interface PersonaMessageFeedProps {
     greeting?: string;
     showUserAvatar?: boolean;
     showAssistantAvatar?: boolean;
-    userAvatar?: React.ReactNode;
-    assistantAvatar?: React.ReactNode;
+    userAvatar?: React__default.ReactNode;
+    assistantAvatar?: React__default.ReactNode;
     /** Clusters consecutive tool calls into one collapsible group instead of one card each. @default true */
     groupTools?: boolean;
     /** Overrides/extends the default tool-cluster title+icon map. */
     toolClusterLabels?: PersonaToolClusterLabels;
     className?: string;
 }
-declare function PersonaMessageFeed({ messages, isStreaming, isLoading, error, toolRenderers, onReload, onOpenFile, greeting, showUserAvatar, showAssistantAvatar, userAvatar, assistantAvatar, groupTools, toolClusterLabels, className, }: PersonaMessageFeedProps): React.JSX.Element;
+declare function PersonaMessageFeed({ messages, isStreaming, isLoading, error, toolRenderers, onReload, onOpenFile, greeting, showUserAvatar, showAssistantAvatar, userAvatar, assistantAvatar, groupTools, toolClusterLabels, className, }: PersonaMessageFeedProps): React__default.JSX.Element;
 
 interface PersonaMarkdownProps {
     content: string;
@@ -173,7 +200,7 @@ interface PersonaMarkdownProps {
  * classes aren't in rehype-sanitize's default allowlist) for no additional
  * safety, so it's deliberately left out rather than risked being misconfigured.
  */
-declare function PersonaMarkdown({ content, className }: PersonaMarkdownProps): React.JSX.Element;
+declare function PersonaMarkdown({ content, className }: PersonaMarkdownProps): React__default.JSX.Element;
 
 interface PersonaToolTraceProps {
     toolCall: PersonaToolCall;
@@ -182,7 +209,7 @@ interface PersonaToolTraceProps {
     onOpenFile?: (path: string) => void;
     className?: string;
 }
-declare function PersonaToolTrace({ toolCall, toolRenderers, onOpenFile, className, }: PersonaToolTraceProps): React.JSX.Element;
+declare function PersonaToolTrace({ toolCall, toolRenderers, onOpenFile, className, }: PersonaToolTraceProps): React__default.JSX.Element;
 
 interface PersonaToolGroupProps {
     tools: PersonaToolCall[];
@@ -192,7 +219,7 @@ interface PersonaToolGroupProps {
     clusterLabels?: PersonaToolClusterLabels;
     className?: string;
 }
-declare function PersonaToolGroup({ tools, toolRenderers, onOpenFile, clusterLabels, className, }: PersonaToolGroupProps): React.JSX.Element;
+declare function PersonaToolGroup({ tools, toolRenderers, onOpenFile, clusterLabels, className, }: PersonaToolGroupProps): React__default.JSX.Element;
 
 interface PersonaFilesDrawerProps {
     isOpen: boolean;
@@ -209,7 +236,7 @@ interface PersonaFilesDrawerProps {
     onDeleteMemoryFile?: (path: string) => Promise<void>;
     className?: string;
 }
-declare function PersonaFilesDrawer({ isOpen, onClose, files, memory, workspaceFiles, todos, presentedFile, onDeleteFile, onGetMemoryFile, onDeleteMemoryFile, className, }: PersonaFilesDrawerProps): React.JSX.Element | null;
+declare function PersonaFilesDrawer({ isOpen, onClose, files, memory, workspaceFiles, todos, presentedFile, onDeleteFile, onGetMemoryFile, onDeleteMemoryFile, className, }: PersonaFilesDrawerProps): React__default.JSX.Element | null;
 
 interface PersonaInterruptCardProps {
     interrupt: PersonaInterrupt;
@@ -217,8 +244,90 @@ interface PersonaInterruptCardProps {
     isStreaming?: boolean;
     className?: string;
 }
-declare function PersonaInterruptCard({ interrupt, onRespond, isStreaming, className, }: PersonaInterruptCardProps): React.JSX.Element;
+declare function PersonaInterruptCard({ interrupt, onRespond, isStreaming, className, }: PersonaInterruptCardProps): React__default.JSX.Element;
 
-declare const VERSION = "0.5.0";
+/**
+ * Turns a `PersonaCustomTheme` into the CSS custom properties every
+ * component reads via `var(--x, <default>)`. Only sets the vars a caller
+ * actually provided — React omits an `undefined` style property entirely, so
+ * every unset one correctly falls through to its own class's fallback
+ * instead of resolving to the literal string "undefined".
+ *
+ * Shared between `PersonaChatView` (sets it on its own root) and
+ * `PersonaChatLauncher` (needs the SAME vars available to its FAB button too
+ * — a sibling of `PersonaChatView`'s subtree, not a descendant, so it can't
+ * inherit vars `PersonaChatView` sets on its own root alone).
+ */
+declare function buildThemeStyles(theme: PersonaCustomTheme | undefined): CSSProperties | undefined;
 
-export { type ClassNamesOverride, PersonaChatView, type PersonaChatViewProps, PersonaComposer, type PersonaComposerProps, type PersonaCustomTheme, PersonaFilesDrawer, type PersonaFilesDrawerProps, PersonaInterruptCard, type PersonaInterruptCardProps, PersonaMarkdown, type PersonaMarkdownProps, PersonaMessageFeed, type PersonaMessageFeedProps, PersonaSidebar, type PersonaSidebarProps, type PersonaToolClusterLabels, type PersonaToolClusterMeta, PersonaToolGroup, type PersonaToolGroupItem, type PersonaToolGroupProps, PersonaToolTrace, type PersonaToolTraceProps, type StarterPromptItem, type ToolRendererMap, type ToolRendererProps, VERSION, cn, groupToolCalls, toolGroupKey };
+interface UsePersonaChatWidgetOptions {
+    agentId?: string;
+    /** Controlled active thread — omit to let the hook manage it internally. */
+    threadId?: string;
+    onThreadChange?: (threadId: string | undefined) => void;
+    /** Initial sidebar visibility, auto-corrected closed on a mobile viewport on mount. @default true */
+    defaultSidebarOpen?: boolean;
+}
+/**
+ * Every stateful/behavioral piece `PersonaChatView` is built on — thread
+ * selection, lazy thread creation on the first message, sidebar/files-drawer
+ * open state, the present_file auto-open effect — extracted into its own
+ * hook. `PersonaChatView` is just one layout built on top of this; a
+ * consumer assembling its own layout (composer somewhere else, a floating
+ * widget, a custom sidebar) can call this directly instead of reimplementing
+ * the same wiring against the raw `useChat`/`useThreads` hooks.
+ */
+declare function usePersonaChatWidget(options?: UsePersonaChatWidgetOptions): {
+    workspaceFiles: Record<string, _personaai_react.PersonaWorkspaceFile>;
+    handleSelectThread: (id: string | undefined) => void;
+    handleNewChat: () => void;
+    handleSend: (content?: string) => Promise<void>;
+    handleUploadFile: (e: ChangeEvent<HTMLInputElement>) => Promise<void>;
+    messages: _personaai_react.PersonaMessage[];
+    input: string;
+    setInput: React$1.Dispatch<React$1.SetStateAction<string>>;
+    handleInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+    handleSubmit: (e?: React.FormEvent) => void;
+    sendMessage: (contentToSend?: string, overrideOptions?: _personaai_react.SendMessageOverride) => Promise<void>;
+    isStreaming: boolean;
+    isLoading: boolean;
+    isLoadingHistory: boolean;
+    error: Error | null;
+    interrupt: _personaai_react.PersonaInterrupt | null;
+    resumeInterrupt: (resume: _personaai_react.PersonaResumeValue, displayContent: string) => Promise<void>;
+    todos: _personaai_react.PersonaTodo[];
+    presentedFile: _personaai_react.PersonaPresentedFile | null;
+    dismissPresentedFile: () => void;
+    openWorkspaceFile: (path: string) => void;
+    stop: () => void;
+    reload: () => void;
+    clear: () => void;
+    setMessages: React$1.Dispatch<React$1.SetStateAction<_personaai_react.PersonaMessage[]>>;
+    loadThreadMessages: (id: string) => Promise<_personaai_react.PersonaMessage[]>;
+    activeThreadId: string | undefined;
+    setActiveThread: (id: string | undefined) => void;
+    sidebarOpen: boolean;
+    setSidebarOpen: React$1.Dispatch<React$1.SetStateAction<boolean>>;
+    filesDrawerOpen: boolean;
+    setFilesDrawerOpen: React$1.Dispatch<React$1.SetStateAction<boolean>>;
+    threads: _personaai_react.PersonaThread[];
+    deleteThread: (threadId: string) => Promise<void>;
+    renameThread: (threadId: string, title: string) => Promise<_personaai_react.PersonaThread>;
+    files: _personaai_react.PersonaFileItem[];
+    deleteFile: (fileId: string) => Promise<void>;
+    memory: _personaai_react.PersonaMemoryList;
+    getMemoryFile: (params: {
+        path: string;
+        scope?: "user" | "agent";
+        agentId?: string;
+    }) => Promise<_personaai_react.PersonaMemoryFile>;
+    deleteMemoryFile: (params: {
+        path: string;
+        scope?: "user" | "agent";
+        agentId?: string;
+    }) => Promise<void>;
+};
+
+declare const VERSION = "0.6.0";
+
+export { type ClassNamesOverride, PersonaChatLauncher, type PersonaChatLauncherProps, PersonaChatView, type PersonaChatViewProps, PersonaComposer, type PersonaComposerProps, type PersonaCustomTheme, PersonaFilesDrawer, type PersonaFilesDrawerProps, PersonaInterruptCard, type PersonaInterruptCardProps, PersonaMarkdown, type PersonaMarkdownProps, PersonaMessageFeed, type PersonaMessageFeedProps, PersonaSidebar, type PersonaSidebarProps, type PersonaToolClusterLabels, type PersonaToolClusterMeta, PersonaToolGroup, type PersonaToolGroupItem, type PersonaToolGroupProps, PersonaToolTrace, type PersonaToolTraceProps, type StarterPromptItem, type ToolRendererMap, type ToolRendererProps, type UsePersonaChatWidgetOptions, VERSION, buildThemeStyles, cn, groupToolCalls, toolGroupKey, usePersonaChatWidget };

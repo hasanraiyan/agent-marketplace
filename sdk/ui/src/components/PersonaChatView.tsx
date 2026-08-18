@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
-import { useChat, useThreads, useFiles, useMemory } from '@personaai/react';
 import type { PersonaChatViewProps } from '../types.js';
 import { cn } from '../utils/cn.js';
+import { usePersonaChatWidget } from '../hooks/usePersonaChatWidget.js';
+import { buildThemeStyles } from '../utils/themeStyles.js';
 import { PersonaSidebar } from './PersonaSidebar.js';
 import { PersonaMessageFeed } from './PersonaMessageFeed.js';
 import { PersonaComposer } from './PersonaComposer.js';
@@ -31,116 +31,46 @@ export function PersonaChatView({
   toolClusterLabels,
   className,
 }: PersonaChatViewProps) {
-  const [internalThreadId, setInternalThreadId] = useState<string | undefined>(undefined);
-  const activeThreadId = controlledThreadId !== undefined ? controlledThreadId : internalThreadId;
-
-  const [sidebarOpen, setSidebarOpen] = useState(showSidebar);
-  const [filesDrawerOpen, setFilesDrawerOpen] = useState(false);
-
-  // The sidebar renders as a full-screen overlay below the md breakpoint
-  // (see PersonaSidebar) — defaulting it open there would cover the entire
-  // chat on first load. Desktop keeps its default; this only corrects the
-  // initial state for a narrow viewport, one mount-only check (can't read
-  // viewport width during SSR/the initial render without a hydration
-  // mismatch, so this trades one extra render for correctness instead).
-  useEffect(() => {
-    if (showSidebar && window.matchMedia('(max-width: 767px)').matches) {
-      setSidebarOpen(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const { threads, createThread, deleteThread, renameThread } = useThreads();
-  const { files, uploadFile, deleteFile } = useFiles();
-  const { memory, getFile, deleteFile: deleteMemoryFile } = useMemory();
-
   const {
+    activeThreadId,
+    sidebarOpen,
+    setSidebarOpen,
+    filesDrawerOpen,
+    setFilesDrawerOpen,
+    threads,
+    deleteThread,
+    renameThread,
+    files,
+    deleteFile,
+    memory,
+    getMemoryFile,
+    deleteMemoryFile,
     messages,
     input,
     setInput,
-    sendMessage,
     isStreaming,
     isLoadingHistory,
     error,
     interrupt,
     resumeInterrupt,
-    files: workspaceFiles,
+    workspaceFiles,
     todos,
     presentedFile,
     openWorkspaceFile,
     stop,
     reload,
-    clear,
-  } = useChat({ agentId, threadId: activeThreadId });
+    handleSelectThread,
+    handleNewChat,
+    handleSend,
+    handleUploadFile,
+  } = usePersonaChatWidget({
+    agentId,
+    threadId: controlledThreadId,
+    onThreadChange,
+    defaultSidebarOpen: showSidebar,
+  });
 
-  const setActiveThread = useCallback(
-    (id: string | undefined) => {
-      if (onThreadChange) onThreadChange(id);
-      else setInternalThreadId(id);
-    },
-    [onThreadChange]
-  );
-
-  const handleSelectThread = useCallback(
-    (id: string | undefined) => { clear(); setActiveThread(id); },
-    [clear, setActiveThread]
-  );
-
-  const handleNewChat = useCallback(() => {
-    clear(); setActiveThread(undefined);
-  }, [clear, setActiveThread]);
-
-  const handleSend = useCallback(
-    async (content?: string) => {
-      let tid = activeThreadId;
-      if (!tid) {
-        try {
-          const t = await createThread(agentId);
-          tid = t?._id;
-          if (tid) setActiveThread(tid);
-        } catch { /* no-op */ }
-      }
-      void sendMessage(content, tid ? { threadId: tid } : undefined);
-    },
-    [activeThreadId, agentId, createThread, sendMessage, setActiveThread]
-  );
-
-  // The agent just called present_file — open the drawer to it rather than
-  // leaving a highlighted file behind a closed panel.
-  useEffect(() => {
-    if (presentedFile) setFilesDrawerOpen(true);
-  }, [presentedFile]);
-
-  const handleUploadFile = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const fd = new FormData();
-      fd.append('file', file);
-      try { await uploadFile(fd); setFilesDrawerOpen(true); } catch { /* no-op */ }
-    },
-    [uploadFile]
-  );
-
-  // Only set the vars a caller actually provided — React omits an
-  // `undefined` style property entirely, so every unset one correctly falls
-  // through to its class's own `var(--x, <default>)` fallback instead of
-  // resolving to the literal string "undefined".
-  const themeStyles = theme ? ({
-    '--persona-primary': theme.primaryColor,
-    '--persona-bg': theme.backgroundColor,
-    '--persona-card': theme.cardBackgroundColor,
-    '--persona-text': theme.textColor,
-    '--persona-user-bg': theme.userMessageBg,
-    '--persona-user-text': theme.userMessageText,
-    '--persona-assistant-bg': theme.assistantMessageBg,
-    '--persona-assistant-text': theme.assistantMessageText,
-    '--persona-user-avatar-bg': theme.userAvatarBg,
-    '--persona-user-avatar-text': theme.userAvatarText,
-    '--persona-assistant-avatar-bg': theme.assistantAvatarBg,
-    '--persona-assistant-avatar-text': theme.assistantAvatarText,
-    borderRadius: theme.borderRadius,
-  } as React.CSSProperties) : undefined;
+  const themeStyles = buildThemeStyles(theme);
 
   return (
     <div
@@ -268,7 +198,7 @@ export function PersonaChatView({
           todos={todos}
           presentedFile={presentedFile}
           onDeleteFile={deleteFile}
-          onGetMemoryFile={(path) => getFile({ path })}
+          onGetMemoryFile={(path) => getMemoryFile({ path })}
           onDeleteMemoryFile={(path) => deleteMemoryFile({ path })}
           className={classNames.filesDrawer}
         />
