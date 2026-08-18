@@ -715,29 +715,43 @@ function PersonaChatView({
     agentId,
     threadId: activeThreadId
   });
+  const setActiveThread = useCallback(
+    (id) => {
+      if (onThreadChange) onThreadChange(id);
+      else setInternalThreadId(id);
+    },
+    [onThreadChange]
+  );
   const handleSelectThread = useCallback(
     (id) => {
       clear();
-      if (onThreadChange) {
-        onThreadChange(id);
-      } else {
-        setInternalThreadId(id);
-      }
+      setActiveThread(id);
     },
-    [clear, onThreadChange]
+    [clear, setActiveThread]
   );
-  const handleCreateThread = useCallback(async () => {
+  const handleNewChat = useCallback(() => {
     clear();
-    const newThread = await createThread(agentId);
-    if (newThread?._id) {
-      handleSelectThread(newThread._id);
-    }
-  }, [clear, createThread, agentId, handleSelectThread]);
+    setActiveThread(void 0);
+  }, [clear, setActiveThread]);
+  const handleSend = useCallback(
+    async (content) => {
+      let tid = activeThreadId;
+      if (!tid) {
+        try {
+          const newThread = await createThread(agentId);
+          tid = newThread?._id;
+          if (tid) setActiveThread(tid);
+        } catch {
+        }
+      }
+      void sendMessage(content, tid ? { threadId: tid } : void 0);
+    },
+    [activeThreadId, agentId, createThread, sendMessage, setActiveThread]
+  );
   const handleUploadFile = useCallback(
     async (e) => {
-      const fileList = e.target.files;
-      if (!fileList || fileList.length === 0) return;
-      const file = fileList[0];
+      const file = e.target.files?.[0];
+      if (!file) return;
       const formData = new FormData();
       formData.append("file", file);
       try {
@@ -760,7 +774,8 @@ function PersonaChatView({
     {
       style: themeStyles,
       className: cn(
-        "relative flex h-[calc(100vh-8rem)] w-full overflow-hidden rounded-2xl border border-zinc-200/80 bg-white font-sans text-zinc-900 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-950 dark:text-zinc-100",
+        // Full-height native feel — fills whatever container the host page gives
+        "flex h-full w-full overflow-hidden bg-white font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100",
         classNames.root,
         className
       ),
@@ -771,35 +786,33 @@ function PersonaChatView({
             threads,
             activeThreadId,
             onSelectThread: handleSelectThread,
-            onCreateThread: handleCreateThread,
+            onCreateThread: handleNewChat,
             onDeleteThread: deleteThread,
-            className: classNames.sidebar
+            className: cn("hidden md:flex", classNames.sidebar)
           }
         ),
-        /* @__PURE__ */ jsxs6("div", { className: cn("relative flex flex-1 flex-col overflow-hidden", classNames.main), children: [
-          /* @__PURE__ */ jsxs6("div", { className: "flex h-12 items-center justify-between border-b border-zinc-200/80 px-4 backdrop-blur-sm dark:border-zinc-800/80", children: [
+        /* @__PURE__ */ jsxs6("div", { className: cn("flex flex-1 flex-col overflow-hidden", classNames.main), children: [
+          /* @__PURE__ */ jsxs6("div", { className: "flex h-12 shrink-0 items-center justify-between border-b border-zinc-200 px-4 dark:border-zinc-800", children: [
             /* @__PURE__ */ jsxs6("div", { className: "flex items-center gap-2", children: [
               /* @__PURE__ */ jsx6(
                 "button",
                 {
                   type: "button",
-                  onClick: () => setSidebarOpen((prev) => !prev),
-                  title: sidebarOpen ? "Collapse sidebar" : "Open sidebar",
-                  className: "rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200",
+                  onClick: () => setSidebarOpen((p) => !p),
+                  className: "rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200",
                   children: sidebarOpen ? /* @__PURE__ */ jsx6(PanelLeftClose, { className: "size-4" }) : /* @__PURE__ */ jsx6(PanelLeft, { className: "size-4" })
                 }
               ),
-              /* @__PURE__ */ jsx6("span", { className: "text-xs font-semibold text-zinc-700 dark:text-zinc-300", children: title })
+              /* @__PURE__ */ jsx6("span", { className: "text-sm font-semibold tracking-tight text-zinc-800 dark:text-zinc-200", children: title })
             ] }),
             showFilesDrawer && /* @__PURE__ */ jsxs6(
               "button",
               {
                 type: "button",
-                onClick: () => setFilesDrawerOpen((prev) => !prev),
-                title: filesDrawerOpen ? "Close files panel" : "Open files & memory",
+                onClick: () => setFilesDrawerOpen((p) => !p),
                 className: cn(
-                  "flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors",
-                  filesDrawerOpen ? "bg-zinc-200/80 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                  "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors",
+                  filesDrawerOpen ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                 ),
                 children: [
                   /* @__PURE__ */ jsx6(Files2, { className: "size-3.5" }),
@@ -817,21 +830,20 @@ function PersonaChatView({
               toolRenderers,
               onReload: reload,
               greeting,
-              className: classNames.messageList
+              className: cn("flex-1 overflow-y-auto", classNames.messageList)
             }
           ),
-          /* @__PURE__ */ jsx6("div", { className: "p-3 md:p-4", children: /* @__PURE__ */ jsx6(
+          /* @__PURE__ */ jsx6("div", { className: cn("shrink-0 border-t border-zinc-100 p-3 dark:border-zinc-800/60 md:p-4", classNames.composer), children: /* @__PURE__ */ jsx6(
             PersonaComposer,
             {
               input,
               onInputChange: setInput,
-              onSubmit: () => void sendMessage(),
+              onSubmit: () => void handleSend(),
               onStop: stop,
               isStreaming,
               starterPrompts: messages.length === 0 ? starterPrompts : [],
-              onSelectStarter: (prompt) => void sendMessage(prompt),
-              onUploadFile: handleUploadFile,
-              className: classNames.composer
+              onSelectStarter: (p) => void handleSend(p),
+              onUploadFile: handleUploadFile
             }
           ) })
         ] }),

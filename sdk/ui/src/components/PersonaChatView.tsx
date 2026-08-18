@@ -8,7 +8,7 @@ import { PersonaSidebar } from './PersonaSidebar.js';
 import { PersonaMessageFeed } from './PersonaMessageFeed.js';
 import { PersonaComposer } from './PersonaComposer.js';
 import { PersonaFilesDrawer } from './PersonaFilesDrawer.js';
-import { PanelLeftClose, PanelLeft, Files, FolderArchive } from 'lucide-react';
+import { PanelLeftClose, PanelLeft, Files } from 'lucide-react';
 
 export function PersonaChatView({
   agentId,
@@ -49,44 +49,65 @@ export function PersonaChatView({
     threadId: activeThreadId,
   });
 
+  // ── Thread helpers ────────────────────────────────────────────────────────
+
+  const setActiveThread = useCallback(
+    (id: string | undefined) => {
+      if (onThreadChange) onThreadChange(id);
+      else setInternalThreadId(id);
+    },
+    [onThreadChange]
+  );
+
   const handleSelectThread = useCallback(
     (id: string | undefined) => {
       clear();
-      if (onThreadChange) {
-        onThreadChange(id);
-      } else {
-        setInternalThreadId(id);
-      }
+      setActiveThread(id);
     },
-    [clear, onThreadChange]
+    [clear, setActiveThread]
   );
 
-  const handleCreateThread = useCallback(async () => {
+  const handleNewChat = useCallback(() => {
     clear();
-    const newThread = await createThread(agentId);
-    if (newThread?._id) {
-      handleSelectThread(newThread._id);
-    }
-  }, [clear, createThread, agentId, handleSelectThread]);
+    setActiveThread(undefined);
+  }, [clear, setActiveThread]);
+
+  // Create thread lazily on first message send
+  const handleSend = useCallback(
+    async (content?: string) => {
+      let tid = activeThreadId;
+      if (!tid) {
+        try {
+          const newThread = await createThread(agentId);
+          tid = newThread?._id;
+          if (tid) setActiveThread(tid);
+        } catch {
+          // proceed without thread
+        }
+      }
+      void sendMessage(content, tid ? { threadId: tid } : undefined);
+    },
+    [activeThreadId, agentId, createThread, sendMessage, setActiveThread]
+  );
+
+  // ── File upload ───────────────────────────────────────────────────────────
 
   const handleUploadFile = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const fileList = e.target.files;
-      if (!fileList || fileList.length === 0) return;
-      const file = fileList[0];
+      const file = e.target.files?.[0];
+      if (!file) return;
       const formData = new FormData();
       formData.append('file', file);
       try {
         await uploadFile(formData);
         setFilesDrawerOpen(true);
-      } catch {
-        // Handle error
-      }
+      } catch { /* silently ignore */ }
     },
     [uploadFile]
   );
 
-  // Apply optional custom theme CSS variables
+  // ── Custom theme CSS vars ─────────────────────────────────────────────────
+
   const themeStyles = theme
     ? ({
         '--persona-primary': theme.primaryColor,
@@ -97,52 +118,56 @@ export function PersonaChatView({
       } as React.CSSProperties)
     : undefined;
 
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
     <div
       style={themeStyles}
       className={cn(
-        'relative flex h-[calc(100vh-8rem)] w-full overflow-hidden rounded-2xl border border-zinc-200/80 bg-white font-sans text-zinc-900 shadow-sm dark:border-zinc-800/80 dark:bg-zinc-950 dark:text-zinc-100',
+        // Full-height native feel — fills whatever container the host page gives
+        'flex h-full w-full overflow-hidden bg-white font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100',
         classNames.root,
         className
       )}
     >
-      {/* Left Session Sidebar */}
+      {/* ── Left sidebar ── */}
       {sidebarOpen && (
         <PersonaSidebar
           threads={threads}
           activeThreadId={activeThreadId}
           onSelectThread={handleSelectThread}
-          onCreateThread={handleCreateThread}
+          onCreateThread={handleNewChat}
           onDeleteThread={deleteThread}
-          className={classNames.sidebar}
+          className={cn('hidden md:flex', classNames.sidebar)}
         />
       )}
 
-      {/* Main Center Canvas */}
-      <div className={cn('relative flex flex-1 flex-col overflow-hidden', classNames.main)}>
-        {/* Minimalist Top Canvas Toolbar */}
-        <div className="flex h-12 items-center justify-between border-b border-zinc-200/80 px-4 backdrop-blur-sm dark:border-zinc-800/80">
+      {/* ── Main canvas ── */}
+      <div className={cn('flex flex-1 flex-col overflow-hidden', classNames.main)}>
+
+        {/* Top toolbar */}
+        <div className="flex h-12 shrink-0 items-center justify-between border-b border-zinc-200 px-4 dark:border-zinc-800">
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setSidebarOpen((prev) => !prev)}
-              title={sidebarOpen ? 'Collapse sidebar' : 'Open sidebar'}
-              className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              onClick={() => setSidebarOpen((p) => !p)}
+              className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
             >
               {sidebarOpen ? <PanelLeftClose className="size-4" /> : <PanelLeft className="size-4" />}
             </button>
-            <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{title}</span>
+            <span className="text-sm font-semibold tracking-tight text-zinc-800 dark:text-zinc-200">
+              {title}
+            </span>
           </div>
 
           {showFilesDrawer && (
             <button
               type="button"
-              onClick={() => setFilesDrawerOpen((prev) => !prev)}
-              title={filesDrawerOpen ? 'Close files panel' : 'Open files & memory'}
+              onClick={() => setFilesDrawerOpen((p) => !p)}
               className={cn(
-                'flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors',
+                'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors',
                 filesDrawerOpen
-                  ? 'bg-zinc-200/80 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100'
+                  ? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100'
                   : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'
               )}
             >
@@ -152,7 +177,7 @@ export function PersonaChatView({
           )}
         </div>
 
-        {/* Message Feed */}
+        {/* Message feed — flex-1 + overflow-y-auto so it scrolls internally */}
         <PersonaMessageFeed
           messages={messages}
           isStreaming={isStreaming}
@@ -160,26 +185,25 @@ export function PersonaChatView({
           toolRenderers={toolRenderers}
           onReload={reload}
           greeting={greeting}
-          className={classNames.messageList}
+          className={cn('flex-1 overflow-y-auto', classNames.messageList)}
         />
 
-        {/* Floating Composer */}
-        <div className="p-3 md:p-4">
+        {/* Composer — pinned to bottom, never shrinks */}
+        <div className={cn('shrink-0 border-t border-zinc-100 p-3 dark:border-zinc-800/60 md:p-4', classNames.composer)}>
           <PersonaComposer
             input={input}
             onInputChange={setInput}
-            onSubmit={() => void sendMessage()}
+            onSubmit={() => void handleSend()}
             onStop={stop}
             isStreaming={isStreaming}
             starterPrompts={messages.length === 0 ? starterPrompts : []}
-            onSelectStarter={(prompt) => void sendMessage(prompt)}
+            onSelectStarter={(p) => void handleSend(p)}
             onUploadFile={handleUploadFile}
-            className={classNames.composer}
           />
         </div>
       </div>
 
-      {/* Right Files & Artifacts Drawer */}
+      {/* ── Right artifacts drawer ── */}
       {showFilesDrawer && (
         <PersonaFilesDrawer
           isOpen={filesDrawerOpen}
