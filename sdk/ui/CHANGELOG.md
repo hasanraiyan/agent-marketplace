@@ -3,6 +3,28 @@
 All notable changes to `@personaai/ui` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.9.0
+
+- **Feature: subagent (`task` tool) activity now opens a full detail dialog, matching
+  persona.hasanraiyan.me's own frontend.** Previously a subagent's own activity rendered as a flat
+  list of text/arrow/checkmark lines inside the same inline accordion every other tool used, with
+  no way to tell a denied/canceled run from a genuine failure.
+  - New `PersonaDialog` — a minimal, dependency-free modal primitive (portal, Escape/click-outside
+    to close, body scroll lock). No new runtime dependency; sdk/ui had no modal library before this.
+  - New `PersonaSubagentActivityDialog`, opened by clicking a `task` tool's row instead of expanding
+    it inline. Shows the subagent's goal, type, and outcome (Running / Completed / Failed / **Denied**
+    / **Canceled** — canceled means it finished with an empty result, denied means the result reads
+    as an declined/rejected approval) plus its full timeline — and critically, the subagent's own
+    tool calls now render as real `PersonaToolTrace` cards recursively (so a subagent's web search
+    shows the actual results list, not a `"search_web: {...}"` text line).
+  - The collapsed row now shows a live "Subagent working" preview automatically while running (last
+    few activity lines, compact) — previously nothing was visible until the row was expanded — and
+    a `"· N tool uses"` count next to the title once it's done.
+  - New `utils/subagentTimeline.ts` (`buildSubagentTimeline`, `classifySubagentStatus`) pairs up the
+    raw `tool_start`/`tool_result` event stream (`PersonaSubagentActivityEntry` has no shared id
+    between them) into the same `{args, result}` shape `PersonaToolCall` already has, so the dialog's
+    tool cards can reuse `PersonaToolTrace` unmodified.
+
 ## 0.8.0
 
 - **Feature: rich per-tool rendering for built-in tools, matching persona.hasanraiyan.me's own

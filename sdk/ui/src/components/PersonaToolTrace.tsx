@@ -13,24 +13,27 @@ import {
   isGrepTool,
   isFileWriteTool,
   isFileEditTool,
+  isSubagentTool,
   searchResults,
   parseLsResults,
   parseGrepResults,
   computeFileDiffStats,
   getFilePathFromArgs,
 } from '../utils/toolPresentation.js';
+import { buildSubagentTimeline } from '../utils/subagentTimeline.js';
 import { PersonaSearchResultsCard } from './tool-cards/PersonaSearchResultsCard.js';
 import { PersonaReadFileCard } from './tool-cards/PersonaReadFileCard.js';
 import { PersonaLsDirectoryCard } from './tool-cards/PersonaLsDirectoryCard.js';
 import { PersonaGrepResultsCard } from './tool-cards/PersonaGrepResultsCard.js';
 import { PersonaFileDiffCard } from './tool-cards/PersonaFileDiffCard.js';
+import { PersonaSubagentActivityDialog } from './PersonaSubagentActivityDialog.js';
 import {
   ChevronDown,
   ChevronRight,
   CheckCircle2,
   AlertCircle,
+  Check,
   Loader2,
-  ArrowRight,
   Bot,
   FileText,
   Circle,
@@ -107,30 +110,67 @@ function PersonaTodoChecklist({ todos }: { todos: PersonaTodo[] }) {
   );
 }
 
-// Consecutive live-token deltas from the subagent's own model stream arrive
-// as one entry per chunk — merge adjacent 'text' entries into one paragraph
-// rather than rendering dozens of one-word timeline rows.
-function groupSubagentActivity(entries: PersonaSubagentActivityEntry[]) {
-  const groups: Array<
-    | { kind: 'text'; text: string }
-    | { kind: 'tool_start'; toolName?: string; args?: string }
-    | { kind: 'tool_result'; toolName?: string; result?: string }
-  > = [];
-  for (const entry of entries) {
-    if (entry.kind === 'text') {
-      const last = groups[groups.length - 1];
-      if (last?.kind === 'text') {
-        last.text += entry.delta || '';
-      } else {
-        groups.push({ kind: 'text', text: entry.delta || '' });
-      }
-    } else if (entry.kind === 'tool_start') {
-      groups.push({ kind: 'tool_start', toolName: entry.toolName, args: entry.args });
-    } else {
-      groups.push({ kind: 'tool_result', toolName: entry.toolName, result: entry.result });
-    }
+function safeParseJson(value: string | undefined): unknown {
+  if (!value) return undefined;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
   }
-  return groups;
+}
+
+// One compact row per subagent tool call: icon + running/done + humanized
+// title, no expandable content — used only in the live "Subagent working"
+// preview, never in the full activity dialog (which renders full PersonaToolTrace
+// cards instead).
+function PersonaSubagentCompactRow({ toolCall }: { toolCall: PersonaToolCall }) {
+  const Icon = getToolIcon(toolCall.toolName);
+  const running = !toolCall.result && !toolCall.isError;
+  const title = getToolTitle(toolCall.toolName, safeParseJson(toolCall.args), running ? 'running' : 'completed');
+
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      {running ? (
+        <Loader2 className="size-3.5 shrink-0 animate-spin text-orange-500" />
+      ) : (
+        <Check className="size-3.5 shrink-0 text-emerald-500" />
+      )}
+      <Icon className="size-3.5 shrink-0 text-zinc-400" />
+      <span className="min-w-0 truncate font-medium text-zinc-600 dark:text-zinc-300">{title}</span>
+    </div>
+  );
+}
+
+// Auto-shown under a running subagent's row (no click required) — the last
+// few activity items in compact form, matching the reference frontend's
+// "Subagent working" preview. Text entries show only their last 2 lines,
+// plain (not Markdown); tool entries are one-line rows, not full cards —
+// the full activity dialog is where the rich rendering happens.
+function PersonaSubagentLivePreview({ activity }: { activity: PersonaSubagentActivityEntry[] }) {
+  const items = useMemo(() => buildSubagentTimeline(activity).slice(-4), [activity]);
+  if (items.length === 0) return null;
+
+  return (
+    <div className="border-t border-[var(--persona-border,#e4e4e7)] bg-[var(--persona-card,#fafafa)]/60 px-3 py-2 dark:border-zinc-800/60 dark:bg-zinc-900/40">
+      <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+        <Bot className="size-3 animate-pulse text-orange-500" />
+        Subagent working
+      </div>
+      <div className="space-y-1">
+        {items.map((item, i) =>
+          item.kind === 'text' ? (
+            item.text.trim() ? (
+              <p key={i} className="whitespace-pre-wrap break-words text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                {item.text.trimEnd().split('\n').slice(-2).join('\n')}
+              </p>
+            ) : null
+          ) : (
+            <PersonaSubagentCompactRow key={item.toolCall.toolCallId} toolCall={item.toolCall} />
+          )
+        )}
+      </div>
+    </div>
+  );
 }
 
 export interface PersonaToolTraceProps {
@@ -158,6 +198,7 @@ export function PersonaToolTrace({
   className,
 }: PersonaToolTraceProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const parsedArgs = useMemo(() => {
     if (!toolCall.args) return undefined;
@@ -187,8 +228,9 @@ export function PersonaToolTrace({
   );
   const todosDone = todos ? todos.filter((t) => t.status === 'completed').length : 0;
 
-  const subagentGroups = useMemo(
-    () => (toolCall.subagentActivity?.length ? groupSubagentActivity(toolCall.subagentActivity) : []),
+  const isSubagent = isSubagentTool(toolCall.toolName);
+  const subToolUses = useMemo(
+    () => (toolCall.subagentActivity || []).filter((e) => e.kind === 'tool_start').length,
     [toolCall.subagentActivity]
   );
 
@@ -277,13 +319,18 @@ export function PersonaToolTrace({
     >
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={() => (isSubagent ? setDialogOpen(true) : setIsOpen((prev) => !prev))}
         className="flex w-full items-center justify-between px-3 py-2 text-left transition-colors hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60"
       >
         <div className="flex min-w-0 items-center gap-2">
           <ToolIcon className={cn('size-3.5 shrink-0', toolCall.isError ? 'text-red-500' : 'text-zinc-500')} />
           <span className="truncate font-semibold text-zinc-800 dark:text-zinc-200">
             {todos ? `Plan (${todosDone}/${todos.length})` : toolTitle}
+            {isSubagent && subToolUses > 0 ? (
+              <span className="ml-1.5 font-normal text-zinc-400 dark:text-zinc-500">
+                · {subToolUses} tool {subToolUses === 1 ? 'use' : 'uses'}
+              </span>
+            ) : null}
           </span>
         </div>
 
@@ -329,6 +376,10 @@ export function PersonaToolTrace({
             : toolCall.result) || 'The tool call failed.'}
         </div>
       )}
+
+      {isSubagent && isExecuting && toolCall.subagentActivity?.length ? (
+        <PersonaSubagentLivePreview activity={toolCall.subagentActivity} />
+      ) : null}
 
       {isOpen && todos ? (
         <div className="border-t border-zinc-200/60 p-3 dark:border-zinc-800/60">
@@ -386,37 +437,19 @@ export function PersonaToolTrace({
               </pre>
             </div>
           )}
-
-          {subagentGroups.length > 0 && (
-            <div>
-              <span className="text-zinc-500 mb-1 flex items-center gap-1">
-                <Bot className="size-3" />
-                Subagent activity:
-              </span>
-              <div className="space-y-1.5 border-l-2 border-zinc-200 pl-2.5 dark:border-zinc-800">
-                {subagentGroups.map((group, i) =>
-                  group.kind === 'text' ? (
-                    <p key={i} className="whitespace-pre-wrap text-zinc-600 dark:text-zinc-400">
-                      {group.text}
-                    </p>
-                  ) : group.kind === 'tool_start' ? (
-                    <div key={i} className="flex items-center gap-1 text-zinc-500">
-                      <ArrowRight className="size-3 shrink-0" />
-                      <span className="font-semibold">{group.toolName}</span>
-                      {group.args && <span className="truncate opacity-70">({group.args})</span>}
-                    </div>
-                  ) : (
-                    <div key={i} className="flex items-start gap-1 text-emerald-600 dark:text-emerald-400">
-                      <CheckCircle2 className="mt-0.5 size-3 shrink-0" />
-                      <span className="truncate opacity-90">{group.toolName}: {group.result}</span>
-                    </div>
-                  )
-                )}
-              </div>
-            </div>
-          )}
         </div>
       ) : null}
+
+      {isSubagent && (
+        <PersonaSubagentActivityDialog
+          toolCall={toolCall}
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          toolRenderers={toolRenderers}
+          onOpenFile={onOpenFile}
+          isLive={isLive}
+        />
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import * as React$1 from 'react';
 import React__default, { ComponentType, ReactNode, CSSProperties, ChangeEvent } from 'react';
 import * as _personaai_react from '@personaai/react';
-import { PersonaToolCall, PersonaThread, PersonaMessage, PersonaFileItem, PersonaMemoryList, PersonaWorkspaceFile, PersonaTodo, PersonaPresentedFile, PersonaMemoryFile, PersonaInterrupt, PersonaResumeValue, PersonaMcpConnection } from '@personaai/react';
+import { PersonaToolCall, PersonaThread, PersonaMessage, PersonaFileItem, PersonaMemoryList, PersonaWorkspaceFile, PersonaTodo, PersonaPresentedFile, PersonaMemoryFile, PersonaInterrupt, PersonaResumeValue, PersonaMcpConnection, PersonaSubagentActivityEntry } from '@personaai/react';
 import { ClassValue } from 'clsx';
 
 interface PersonaToolClusterMeta {
@@ -397,6 +397,55 @@ interface PersonaFileDiffCardProps {
 }
 declare function PersonaFileDiffCard({ filePath, oldContent, newContent, note, className }: PersonaFileDiffCardProps): React__default.JSX.Element;
 
+interface PersonaDialogProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    children: React__default.ReactNode;
+    className?: string;
+}
+/**
+ * Minimal, dependency-free modal primitive (no Radix/headlessui in sdk/ui's
+ * deps) — a portal to `document.body`, a click-outside/Escape-to-close
+ * overlay, and a body scroll lock while open. Consumers own their own
+ * header/body layout inside `children`; this only owns the chrome.
+ */
+declare function PersonaDialog({ open, onOpenChange, children, className }: PersonaDialogProps): React__default.ReactPortal | null;
+
+interface PersonaSubagentActivityDialogProps {
+    toolCall: PersonaToolCall | null;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    toolRenderers?: ToolRendererMap;
+    onOpenFile?: (path: string) => void;
+    isLive?: boolean;
+}
+declare function PersonaSubagentActivityDialog({ toolCall, open, onOpenChange, toolRenderers, onOpenFile, isLive, }: PersonaSubagentActivityDialogProps): React__default.JSX.Element | null;
+
+/**
+ * Turns a subagent's raw activity stream (separate `tool_start`/`tool_result`
+ * events with no shared id — see `PersonaSubagentActivityEntry`) into the
+ * same paired `{args, result}` shape `PersonaToolCall` already has, so a
+ * subagent's own tool calls can be rendered with the exact same
+ * `PersonaToolTrace` cards (search results, diffs, read-file, ...) as the
+ * top-level transcript instead of a flat text line. Ported from
+ * persona.hasanraiyan.me's own frontend, which already stores its
+ * `tool.subEvents` pre-paired at the point they're captured — sdk/react's
+ * event reducer doesn't, so the pairing has to happen here instead.
+ */
+type PersonaSubagentTimelineItem = {
+    kind: 'text';
+    text: string;
+} | {
+    kind: 'tool';
+    toolCall: PersonaToolCall;
+};
+declare function buildSubagentTimeline(entries: PersonaSubagentActivityEntry[]): PersonaSubagentTimelineItem[];
+type PersonaSubagentStatus = 'running' | 'completed' | 'failed' | 'denied' | 'canceled';
+/** Mirrors the reference frontend's getSubagentStatus — completed with an empty
+ * result reads as "canceled", an error result mentioning denial/rejection reads
+ * as "denied" rather than a generic "failed". */
+declare function classifySubagentStatus(toolCall: PersonaToolCall, isLive: boolean): PersonaSubagentStatus;
+
 /**
  * Turns a `PersonaCustomTheme` into the CSS custom properties every
  * component reads via `var(--x, <default>)`. Only sets the vars a caller
@@ -484,6 +533,6 @@ declare function usePersonaChatWidget(options?: UsePersonaChatWidgetOptions): {
     mcpConnectionsLoading: boolean;
 };
 
-declare const VERSION = "0.8.0";
+declare const VERSION = "0.9.0";
 
-export { type ClassNamesOverride, type DiffRow, PersonaChatLauncher, type PersonaChatLauncherProps, PersonaChatView, type PersonaChatViewProps, PersonaComposer, type PersonaComposerProps, type PersonaCustomTheme, type PersonaDiffStats, PersonaFileDiffCard, type PersonaFileDiffCardProps, PersonaFileSkeletonRow, PersonaFilesDrawer, type PersonaFilesDrawerProps, type PersonaGrepMatch, PersonaGrepResultsCard, type PersonaGrepResultsCardProps, PersonaInterruptCard, type PersonaInterruptCardProps, PersonaLsDirectoryCard, type PersonaLsDirectoryCardProps, type PersonaLsEntry, PersonaMarkdown, type PersonaMarkdownProps, PersonaMcpConnectBanner, type PersonaMcpConnectBannerProps, PersonaMessageFeed, type PersonaMessageFeedProps, PersonaMessageSkeletonRow, PersonaReadFileCard, type PersonaReadFileCardProps, type PersonaSearchResult, PersonaSearchResultsCard, type PersonaSearchResultsCardProps, PersonaSidebar, type PersonaSidebarProps, PersonaSkeleton, type PersonaSkeletonProps, PersonaThreadSkeletonRow, type PersonaToolClusterLabels, type PersonaToolClusterMeta, PersonaToolGroup, type PersonaToolGroupItem, type PersonaToolGroupProps, PersonaToolTrace, type PersonaToolTraceProps, type StarterPromptItem, type ToolRendererMap, type ToolRendererProps, type UsePersonaChatWidgetOptions, VERSION, buildThemeStyles, cn, computeFileDiffStats, computeLineDiff, getDomain, getFilePathFromArgs, getToolIcon, getToolTitle, groupToolCalls, isFileEditTool, isFileWriteTool, isGrepTool, isKbListSourcesTool, isKbSearchTool, isLsTool, isReadFileTool, isSubagentTool, isWebSearchTool, parseGrepResults, parseLsResults, queryFromArgs, searchResults, toolGroupKey, usePersonaChatWidget };
+export { type ClassNamesOverride, type DiffRow, PersonaChatLauncher, type PersonaChatLauncherProps, PersonaChatView, type PersonaChatViewProps, PersonaComposer, type PersonaComposerProps, type PersonaCustomTheme, PersonaDialog, type PersonaDialogProps, type PersonaDiffStats, PersonaFileDiffCard, type PersonaFileDiffCardProps, PersonaFileSkeletonRow, PersonaFilesDrawer, type PersonaFilesDrawerProps, type PersonaGrepMatch, PersonaGrepResultsCard, type PersonaGrepResultsCardProps, PersonaInterruptCard, type PersonaInterruptCardProps, PersonaLsDirectoryCard, type PersonaLsDirectoryCardProps, type PersonaLsEntry, PersonaMarkdown, type PersonaMarkdownProps, PersonaMcpConnectBanner, type PersonaMcpConnectBannerProps, PersonaMessageFeed, type PersonaMessageFeedProps, PersonaMessageSkeletonRow, PersonaReadFileCard, type PersonaReadFileCardProps, type PersonaSearchResult, PersonaSearchResultsCard, type PersonaSearchResultsCardProps, PersonaSidebar, type PersonaSidebarProps, PersonaSkeleton, type PersonaSkeletonProps, PersonaSubagentActivityDialog, type PersonaSubagentActivityDialogProps, type PersonaSubagentStatus, type PersonaSubagentTimelineItem, PersonaThreadSkeletonRow, type PersonaToolClusterLabels, type PersonaToolClusterMeta, PersonaToolGroup, type PersonaToolGroupItem, type PersonaToolGroupProps, PersonaToolTrace, type PersonaToolTraceProps, type StarterPromptItem, type ToolRendererMap, type ToolRendererProps, type UsePersonaChatWidgetOptions, VERSION, buildSubagentTimeline, buildThemeStyles, classifySubagentStatus, cn, computeFileDiffStats, computeLineDiff, getDomain, getFilePathFromArgs, getToolIcon, getToolTitle, groupToolCalls, isFileEditTool, isFileWriteTool, isGrepTool, isKbListSourcesTool, isKbSearchTool, isLsTool, isReadFileTool, isSubagentTool, isWebSearchTool, parseGrepResults, parseLsResults, queryFromArgs, searchResults, toolGroupKey, usePersonaChatWidget };

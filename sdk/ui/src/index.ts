@@ -17,9 +17,12 @@ export * from './components/tool-cards/PersonaReadFileCard.js';
 export * from './components/tool-cards/PersonaLsDirectoryCard.js';
 export * from './components/tool-cards/PersonaGrepResultsCard.js';
 export * from './components/tool-cards/PersonaFileDiffCard.js';
+export * from './components/PersonaDialog.js';
+export * from './components/PersonaSubagentActivityDialog.js';
 export * from './utils/toolGrouping.js';
 export * from './utils/toolPresentation.js';
+export * from './utils/subagentTimeline.js';
 export * from './utils/themeStyles.js';
 export * from './hooks/usePersonaChatWidget.js';
 
-export const VERSION = '0.8.0';
+export const VERSION = '0.9.0';
