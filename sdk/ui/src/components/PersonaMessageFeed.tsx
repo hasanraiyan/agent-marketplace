@@ -93,10 +93,17 @@ export function PersonaMessageFeed({
 
   if (messages.length === 0 && isLoading) {
     return (
-      <div className={cn('flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4', className)}>
-        <PersonaMessageSkeletonRow align="left" />
-        <PersonaMessageSkeletonRow align="right" />
-        <PersonaMessageSkeletonRow align="left" />
+      // Same p-4 md:p-6 outer padding and mx-auto max-w-3xl centered column
+      // as the real message list below — without matching it, the skeleton
+      // stretched full-width on any panel wider than 768px while real
+      // messages sit in a centered, margined column, so loading -> loaded
+      // visibly jumped.
+      <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden p-4 md:p-6', className)}>
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+          <PersonaMessageSkeletonRow align="left" />
+          <PersonaMessageSkeletonRow align="right" />
+          <PersonaMessageSkeletonRow align="left" />
+        </div>
       </div>
     );
   }

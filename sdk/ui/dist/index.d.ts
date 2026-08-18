@@ -379,6 +379,6 @@ declare function usePersonaChatWidget(options?: UsePersonaChatWidgetOptions): {
     mcpConnectionsLoading: boolean;
 };
 
-declare const VERSION = "0.7.6";
+declare const VERSION = "0.7.7";
 
 export { type ClassNamesOverride, PersonaChatLauncher, type PersonaChatLauncherProps, PersonaChatView, type PersonaChatViewProps, PersonaComposer, type PersonaComposerProps, type PersonaCustomTheme, PersonaFileSkeletonRow, PersonaFilesDrawer, type PersonaFilesDrawerProps, PersonaInterruptCard, type PersonaInterruptCardProps, PersonaMarkdown, type PersonaMarkdownProps, PersonaMcpConnectBanner, type PersonaMcpConnectBannerProps, PersonaMessageFeed, type PersonaMessageFeedProps, PersonaMessageSkeletonRow, PersonaSidebar, type PersonaSidebarProps, PersonaSkeleton, type PersonaSkeletonProps, PersonaThreadSkeletonRow, type PersonaToolClusterLabels, type PersonaToolClusterMeta, PersonaToolGroup, type PersonaToolGroupItem, type PersonaToolGroupProps, PersonaToolTrace, type PersonaToolTraceProps, type StarterPromptItem, type ToolRendererMap, type ToolRendererProps, type UsePersonaChatWidgetOptions, VERSION, buildThemeStyles, cn, groupToolCalls, toolGroupKey, usePersonaChatWidget };

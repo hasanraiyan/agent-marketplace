@@ -912,11 +912,18 @@ function PersonaMessageFeed({
     setTimeout(() => setCopiedId(null), 2e3);
   }
   if (messages.length === 0 && isLoading) {
-    return /* @__PURE__ */ jsxs6("div", { className: cn("flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4", className), children: [
-      /* @__PURE__ */ jsx6(PersonaMessageSkeletonRow, { align: "left" }),
-      /* @__PURE__ */ jsx6(PersonaMessageSkeletonRow, { align: "right" }),
-      /* @__PURE__ */ jsx6(PersonaMessageSkeletonRow, { align: "left" })
-    ] });
+    return (
+      // Same p-4 md:p-6 outer padding and mx-auto max-w-3xl centered column
+      // as the real message list below — without matching it, the skeleton
+      // stretched full-width on any panel wider than 768px while real
+      // messages sit in a centered, margined column, so loading -> loaded
+      // visibly jumped.
+      /* @__PURE__ */ jsx6("div", { className: cn("flex min-h-0 flex-1 flex-col overflow-hidden p-4 md:p-6", className), children: /* @__PURE__ */ jsxs6("div", { className: "mx-auto flex w-full max-w-3xl flex-col gap-4", children: [
+        /* @__PURE__ */ jsx6(PersonaMessageSkeletonRow, { align: "left" }),
+        /* @__PURE__ */ jsx6(PersonaMessageSkeletonRow, { align: "right" }),
+        /* @__PURE__ */ jsx6(PersonaMessageSkeletonRow, { align: "left" })
+      ] }) })
+    );
   }
   if (messages.length === 0) {
     return /* @__PURE__ */ jsxs6("div", { className: cn("flex min-h-0 flex-1 flex-col items-center justify-center p-8 text-center", className), children: [
@@ -1915,7 +1922,7 @@ function PersonaChatLauncher({
 }
 
 // src/index.ts
-var VERSION = "0.7.6";
+var VERSION = "0.7.7";
 export {
   PersonaChatLauncher,
   PersonaChatView,

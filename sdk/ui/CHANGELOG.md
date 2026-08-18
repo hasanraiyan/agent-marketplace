@@ -3,6 +3,15 @@
 All notable changes to `@personaai/ui` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.7.7
+
+- **Fix: `PersonaMessageFeed`'s loading skeleton didn't match the real message list's layout.**
+  The skeleton rows rendered full-width with just `p-4`; the real message list wraps content in
+  a `mx-auto max-w-3xl` centered column on top of `p-4 md:p-6`. On any panel wider than ~768px
+  (the common case for a full-page `PersonaChatView`), the skeleton stretched edge-to-edge while
+  real messages sat in a centered, margined column — a visible layout jump the instant loading
+  finished. The skeleton container now matches exactly.
+
 ## 0.7.6
 
 - **Fix: `PersonaChatLauncher` on mobile was a small floating card leaving gaps a host page's
