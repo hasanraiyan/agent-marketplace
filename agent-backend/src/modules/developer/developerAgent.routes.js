@@ -132,6 +132,35 @@ router.get('/', developerAgentController.discover);
  *       401: { description: Unauthorized (not the owner) }
  *       404: { description: Agent not found }
  */
+/**
+ * @openapi
+ * /api/v1/developer/agents/{agentId}/mcp-connections:
+ *   get:
+ *     tags: [Developer]
+ *     summary: Per-user OAuth connection status for this Agent's user-mode MCPs
+ *     description: >
+ *       Every `authType: 'oauth', authMode: 'user'` MCP attached to this
+ *       Agent, with whether the caller (the ProjectRuntimeContext's
+ *       asserted external user) has connected it yet and, if not, a ready
+ *       authorizeUrl. Requires x-persona-external-user-id — there's no
+ *       per-user connection concept for a bare Project credential.
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: agentId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: returnTo
+ *         in: query
+ *         required: false
+ *         schema: { type: string }
+ *         description: Where to send the browser after the OAuth consent completes. Defaults to this platform's own site if omitted.
+ *     responses:
+ *       200:
+ *         description: "{ mcpId, name, description, connected, authorizeUrl }[] — authorizeUrl is null when connected is true"
+ *       404: { description: Agent not found (or not visible to this Domain/Subject) }
+ */
+router.get('/:agentId/mcp-connections', developerAgentController.getMcpConnections);
 router.get('/:agentId', developerAgentController.getOne);
 router.patch('/:agentId', validateBody(updateAgentSchema), developerAgentController.update);
 router.delete('/:agentId', developerAgentController.remove);

@@ -1,4 +1,5 @@
 import agentService from '../agents/agent.service.js';
+import mcpService from '../mcp/mcp.service.js';
 import { bulkDelete } from '../../utils/bulkDelete.js';
 import { paginationEnvelope } from '../../utils/pagination.js';
 
@@ -67,6 +68,64 @@ class DeveloperAgentController {
       // Existence-hiding (AD-07 §29): same 404 whether the Agent doesn't
       // exist, isn't executable in this Domain, or is private to someone
       // else — never a distinguishable error.
+      if (error.message === 'Agent not found or is private') {
+        return res.status(404).json({ success: false, message: 'Agent not found' });
+      }
+      next(error);
+    }
+  }
+
+  /**
+   * Per-user OAuth connection status for every `authMode: 'user'` MCP this
+   * Agent has attached — the piece that was missing entirely before this:
+   * a Persona tool call against a user-mode MCP the caller hasn't connected
+   * yet is silently dropped from the Agent's toolset (mcp.tools.js), with
+   * no signal anywhere the caller could act on. This lets a consumer (e.g.
+   * @personaai/ui) check up front and show a real "Connect" affordance
+   * instead of a capability just quietly not being there.
+   *
+   * Reuses getUserConnectionStatus/getUserAuthorizationUrl unmodified —
+   * both already accept the generalized `context` object
+   * (ProjectRuntimeContext here), same as every other Developer Platform
+   * MCP method.
+   */
+  async getMcpConnections(req, res, next) {
+    try {
+      const agent = await agentService.getDeveloperAgentById(
+        req.params.agentId,
+        req.projectContext
+      );
+      const userAuthMcps = (agent.mcps || []).filter(
+        (mcp) => mcp.authType === 'oauth' && mcp.authMode === 'user'
+      );
+
+      const connections = await Promise.all(
+        userAuthMcps.map(async (mcp) => {
+          const { connected } = await mcpService.getUserConnectionStatus(
+            mcp._id,
+            undefined,
+            req.projectContext
+          );
+          const authorizeUrl = connected
+            ? null
+            : await mcpService.getUserAuthorizationUrl(
+                mcp._id,
+                undefined,
+                req.query.returnTo,
+                req.projectContext
+              );
+          return {
+            mcpId: String(mcp._id),
+            name: mcp.name,
+            description: mcp.description || '',
+            connected,
+            authorizeUrl,
+          };
+        })
+      );
+
+      res.json({ success: true, data: connections });
+    } catch (error) {
       if (error.message === 'Agent not found or is private') {
         return res.status(404).json({ success: false, message: 'Agent not found' });
       }

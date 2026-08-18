@@ -26,6 +26,17 @@ jest.unstable_mockModule('../src/modules/agents/agent.service.js', () => ({
     discoverAgents: jest.fn(),
     countDiscoverAgents: jest.fn(),
   },
+  // developerAgent.controller.js now also imports mcp.service.js (for the
+  // new /:agentId/mcp-connections route), whose real module imports this
+  // named export from the real agent.service.js -- not itself mocked here,
+  // so the mock above needs to keep providing it.
+  personaExecutionContext: jest.fn((userId) => ({ principalType: 'PersonaUser', userId })),
+}));
+jest.unstable_mockModule('../src/modules/mcp/mcp.service.js', () => ({
+  default: {
+    getUserConnectionStatus: jest.fn(),
+    getUserAuthorizationUrl: jest.fn(),
+  },
 }));
 jest.unstable_mockModule('../src/modules/idempotency/idempotencyKey.model.js', () => ({
   default: { findOne: jest.fn(), create: jest.fn() },
