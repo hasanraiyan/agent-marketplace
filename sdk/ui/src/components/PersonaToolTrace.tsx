@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import type { PersonaSubagentActivityEntry, PersonaToolCall } from '@personaai/react';
+import type { PersonaSubagentActivityEntry, PersonaToolCall, PersonaTodo } from '@personaai/react';
 import type { ToolRendererMap } from '../types.js';
 import { cn } from '../utils/cn.js';
 import {
@@ -14,7 +14,79 @@ import {
   ArrowRight,
   Bot,
   FileText,
+  Circle,
+  Clock,
 } from 'lucide-react';
+
+function isTodoTool(name: string): boolean {
+  return name.toLowerCase().includes('todo');
+}
+
+// write_todos' result confirms the applied list (`{update:{todos}}` or
+// `{todos}`, Command-update shaped); its args carry the same list while
+// still streaming, before a result exists. Prefer the result once present.
+function parseTodos(args: unknown, result: unknown): PersonaTodo[] | null {
+  const fromResult = (result && typeof result === 'object' ? (result as Record<string, unknown>) : null);
+  const resultTodos = fromResult
+    ? ((fromResult.update as Record<string, unknown> | undefined)?.todos ?? fromResult.todos)
+    : undefined;
+  const raw = Array.isArray(resultTodos)
+    ? resultTodos
+    : Array.isArray((args as Record<string, unknown> | undefined)?.todos)
+      ? (args as Record<string, unknown>).todos
+      : null;
+  if (!Array.isArray(raw)) return null;
+
+  const todos = (raw as unknown[])
+    .map((t) => {
+      const todo = t as Record<string, unknown>;
+      return {
+        content: typeof todo?.content === 'string' ? todo.content : '',
+        status: typeof todo?.status === 'string' ? todo.status : 'pending',
+      };
+    })
+    .filter((t) => t.content);
+  return todos.length ? todos : null;
+}
+
+function PersonaTodoChecklist({ todos }: { todos: PersonaTodo[] }) {
+  return (
+    <ul className="space-y-0">
+      {todos.map((todo, i) => {
+        const isCompleted = todo.status === 'completed';
+        const isInProgress = todo.status === 'in_progress';
+        const Icon = isCompleted ? CheckCircle2 : isInProgress ? Clock : Circle;
+
+        return (
+          <li key={`${i}-${todo.content}`} className="flex items-start gap-2 py-[3px]">
+            <Icon
+              className={cn(
+                'mt-0.5 size-3.5 shrink-0',
+                isCompleted
+                  ? 'fill-blue-600 text-white dark:fill-blue-400 dark:text-zinc-900'
+                  : isInProgress
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : 'text-zinc-300 dark:text-zinc-600'
+              )}
+            />
+            <span
+              className={cn(
+                'min-w-0 flex-1 break-words text-xs leading-5',
+                isCompleted
+                  ? 'text-zinc-400 line-through dark:text-zinc-500'
+                  : isInProgress
+                    ? 'font-semibold text-zinc-900 dark:text-zinc-100'
+                    : 'text-zinc-700 dark:text-zinc-300'
+              )}
+            >
+              {todo.content}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 // Consecutive live-token deltas from the subagent's own model stream arrive
 // as one entry per chunk — merge adjacent 'text' entries into one paragraph
@@ -77,6 +149,13 @@ export function PersonaToolTrace({
   }, [toolCall.result]);
 
   const isExecuting = !toolCall.result && !toolCall.isError;
+
+  const isTodo = isTodoTool(toolCall.toolName);
+  const todos = useMemo(
+    () => (isTodo ? parseTodos(parsedArgs, parsedResult) : null),
+    [isTodo, parsedArgs, parsedResult]
+  );
+  const todosDone = todos ? todos.filter((t) => t.status === 'completed').length : 0;
 
   const subagentGroups = useMemo(
     () => (toolCall.subagentActivity?.length ? groupSubagentActivity(toolCall.subagentActivity) : []),
@@ -153,15 +232,16 @@ export function PersonaToolTrace({
         onClick={() => setIsOpen((prev) => !prev)}
         className="flex w-full items-center justify-between px-3 py-2 text-left font-mono transition-colors hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60"
       >
-        <div className="flex items-center gap-2">
-          <Wrench className="size-3.5 text-zinc-500" />
-          <span className="font-semibold text-zinc-800 dark:text-zinc-200">
-            {toolCall.toolName}
+        <div className="flex min-w-0 items-center gap-2">
+          <Wrench className="size-3.5 shrink-0 text-zinc-500" />
+          <span className="truncate font-semibold text-zinc-800 dark:text-zinc-200">
+            {todos ? `Plan (${todosDone}/${todos.length})` : toolCall.toolName}
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          {isExecuting ? (
+        <div className="flex shrink-0 items-center gap-2">
+          {/* The Plan title already carries its own status (x/y) — no badge. */}
+          {todos ? null : isExecuting ? (
             <span className="flex items-center gap-1 text-[11px] text-blue-500">
               <Loader2 className="size-3 animate-spin" />
               <span>Running...</span>
@@ -181,7 +261,11 @@ export function PersonaToolTrace({
         </div>
       </button>
 
-      {isOpen && (
+      {isOpen && todos ? (
+        <div className="border-t border-zinc-200/60 p-3 dark:border-zinc-800/60">
+          <PersonaTodoChecklist todos={todos} />
+        </div>
+      ) : isOpen ? (
         <div className="border-t border-zinc-200/60 p-3 space-y-2 font-mono text-[11px] dark:border-zinc-800/60">
           {toolCall.args && (
             <div>
@@ -230,7 +314,7 @@ export function PersonaToolTrace({
             </div>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

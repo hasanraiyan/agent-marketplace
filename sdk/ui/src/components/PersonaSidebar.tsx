@@ -229,7 +229,7 @@ export function PersonaSidebar({
       )}
 
       {/* Grouped Thread List */}
-      <div className="mt-3 flex-1 overflow-y-auto pr-1 scrollbar-thin">
+      <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1 scrollbar-thin">
         {filteredThreads.length === 0 ? (
           <p className="p-4 text-center text-xs text-zinc-400">No past conversations.</p>
         ) : (

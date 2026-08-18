@@ -211,7 +211,7 @@ function PersonaSidebar({
               }
             )
           ] }),
-          /* @__PURE__ */ jsx("div", { className: "mt-3 flex-1 overflow-y-auto pr-1 scrollbar-thin", children: filteredThreads.length === 0 ? /* @__PURE__ */ jsx("p", { className: "p-4 text-center text-xs text-zinc-400", children: "No past conversations." }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+          /* @__PURE__ */ jsx("div", { className: "mt-3 min-h-0 flex-1 overflow-y-auto pr-1 scrollbar-thin", children: filteredThreads.length === 0 ? /* @__PURE__ */ jsx("p", { className: "p-4 text-center text-xs text-zinc-400", children: "No past conversations." }) : /* @__PURE__ */ jsxs(Fragment, { children: [
             renderGroup("Today", groups.today),
             renderGroup("Yesterday", groups.yesterday),
             renderGroup("Previous 7 Days", groups.last7Days),
@@ -237,9 +237,56 @@ import {
   Loader2,
   ArrowRight,
   Bot,
-  FileText
+  FileText,
+  Circle,
+  Clock
 } from "lucide-react";
 import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
+function isTodoTool(name) {
+  return name.toLowerCase().includes("todo");
+}
+function parseTodos(args, result) {
+  const fromResult = result && typeof result === "object" ? result : null;
+  const resultTodos = fromResult ? fromResult.update?.todos ?? fromResult.todos : void 0;
+  const raw = Array.isArray(resultTodos) ? resultTodos : Array.isArray(args?.todos) ? args.todos : null;
+  if (!Array.isArray(raw)) return null;
+  const todos = raw.map((t) => {
+    const todo = t;
+    return {
+      content: typeof todo?.content === "string" ? todo.content : "",
+      status: typeof todo?.status === "string" ? todo.status : "pending"
+    };
+  }).filter((t) => t.content);
+  return todos.length ? todos : null;
+}
+function PersonaTodoChecklist({ todos }) {
+  return /* @__PURE__ */ jsx2("ul", { className: "space-y-0", children: todos.map((todo, i) => {
+    const isCompleted = todo.status === "completed";
+    const isInProgress = todo.status === "in_progress";
+    const Icon = isCompleted ? CheckCircle2 : isInProgress ? Clock : Circle;
+    return /* @__PURE__ */ jsxs2("li", { className: "flex items-start gap-2 py-[3px]", children: [
+      /* @__PURE__ */ jsx2(
+        Icon,
+        {
+          className: cn(
+            "mt-0.5 size-3.5 shrink-0",
+            isCompleted ? "fill-blue-600 text-white dark:fill-blue-400 dark:text-zinc-900" : isInProgress ? "text-blue-600 dark:text-blue-400" : "text-zinc-300 dark:text-zinc-600"
+          )
+        }
+      ),
+      /* @__PURE__ */ jsx2(
+        "span",
+        {
+          className: cn(
+            "min-w-0 flex-1 break-words text-xs leading-5",
+            isCompleted ? "text-zinc-400 line-through dark:text-zinc-500" : isInProgress ? "font-semibold text-zinc-900 dark:text-zinc-100" : "text-zinc-700 dark:text-zinc-300"
+          ),
+          children: todo.content
+        }
+      )
+    ] }, `${i}-${todo.content}`);
+  }) });
+}
 function groupSubagentActivity(entries) {
   const groups = [];
   for (const entry of entries) {
@@ -282,6 +329,12 @@ function PersonaToolTrace({
     }
   }, [toolCall.result]);
   const isExecuting = !toolCall.result && !toolCall.isError;
+  const isTodo = isTodoTool(toolCall.toolName);
+  const todos = useMemo2(
+    () => isTodo ? parseTodos(parsedArgs, parsedResult) : null,
+    [isTodo, parsedArgs, parsedResult]
+  );
+  const todosDone = todos ? todos.filter((t) => t.status === "completed").length : 0;
   const subagentGroups = useMemo2(
     () => toolCall.subagentActivity?.length ? groupSubagentActivity(toolCall.subagentActivity) : [],
     [toolCall.subagentActivity]
@@ -347,12 +400,12 @@ function PersonaToolTrace({
             onClick: () => setIsOpen((prev) => !prev),
             className: "flex w-full items-center justify-between px-3 py-2 text-left font-mono transition-colors hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60",
             children: [
-              /* @__PURE__ */ jsxs2("div", { className: "flex items-center gap-2", children: [
-                /* @__PURE__ */ jsx2(Wrench, { className: "size-3.5 text-zinc-500" }),
-                /* @__PURE__ */ jsx2("span", { className: "font-semibold text-zinc-800 dark:text-zinc-200", children: toolCall.toolName })
+              /* @__PURE__ */ jsxs2("div", { className: "flex min-w-0 items-center gap-2", children: [
+                /* @__PURE__ */ jsx2(Wrench, { className: "size-3.5 shrink-0 text-zinc-500" }),
+                /* @__PURE__ */ jsx2("span", { className: "truncate font-semibold text-zinc-800 dark:text-zinc-200", children: todos ? `Plan (${todosDone}/${todos.length})` : toolCall.toolName })
               ] }),
-              /* @__PURE__ */ jsxs2("div", { className: "flex items-center gap-2", children: [
-                isExecuting ? /* @__PURE__ */ jsxs2("span", { className: "flex items-center gap-1 text-[11px] text-blue-500", children: [
+              /* @__PURE__ */ jsxs2("div", { className: "flex shrink-0 items-center gap-2", children: [
+                todos ? null : isExecuting ? /* @__PURE__ */ jsxs2("span", { className: "flex items-center gap-1 text-[11px] text-blue-500", children: [
                   /* @__PURE__ */ jsx2(Loader2, { className: "size-3 animate-spin" }),
                   /* @__PURE__ */ jsx2("span", { children: "Running..." })
                 ] }) : toolCall.isError ? /* @__PURE__ */ jsxs2("span", { className: "flex items-center gap-1 text-[11px] text-red-500", children: [
@@ -367,7 +420,7 @@ function PersonaToolTrace({
             ]
           }
         ),
-        isOpen && /* @__PURE__ */ jsxs2("div", { className: "border-t border-zinc-200/60 p-3 space-y-2 font-mono text-[11px] dark:border-zinc-800/60", children: [
+        isOpen && todos ? /* @__PURE__ */ jsx2("div", { className: "border-t border-zinc-200/60 p-3 dark:border-zinc-800/60", children: /* @__PURE__ */ jsx2(PersonaTodoChecklist, { todos }) }) : isOpen ? /* @__PURE__ */ jsxs2("div", { className: "border-t border-zinc-200/60 p-3 space-y-2 font-mono text-[11px] dark:border-zinc-800/60", children: [
           toolCall.args && /* @__PURE__ */ jsxs2("div", { children: [
             /* @__PURE__ */ jsx2("span", { className: "text-zinc-500 block mb-1", children: "Arguments:" }),
             /* @__PURE__ */ jsx2("pre", { className: "overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-zinc-100 p-2 text-zinc-800 dark:bg-zinc-950 dark:text-zinc-200", children: typeof parsedArgs === "object" ? JSON.stringify(parsedArgs, null, 2) : toolCall.args })
@@ -400,7 +453,7 @@ function PersonaToolTrace({
               ] }, i)
             ) })
           ] })
-        ] })
+        ] }) : null
       ]
     }
   );
@@ -455,15 +508,15 @@ function PersonaMessageFeed({
     setTimeout(() => setCopiedId(null), 2e3);
   }
   if (messages.length === 0 && isLoading) {
-    return /* @__PURE__ */ jsx3("div", { className: cn("flex flex-1 items-center justify-center p-8", className), children: /* @__PURE__ */ jsx3("div", { className: "size-5 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-700 dark:border-t-zinc-300" }) });
+    return /* @__PURE__ */ jsx3("div", { className: cn("flex min-h-0 flex-1 items-center justify-center p-8", className), children: /* @__PURE__ */ jsx3("div", { className: "size-5 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-700 dark:border-t-zinc-300" }) });
   }
   if (messages.length === 0) {
-    return /* @__PURE__ */ jsxs3("div", { className: cn("flex flex-1 flex-col items-center justify-center p-8 text-center", className), children: [
+    return /* @__PURE__ */ jsxs3("div", { className: cn("flex min-h-0 flex-1 flex-col items-center justify-center p-8 text-center", className), children: [
       /* @__PURE__ */ jsx3("div", { className: "mb-4 flex size-12 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-900 shadow-2xs dark:bg-zinc-800 dark:text-zinc-100", children: /* @__PURE__ */ jsx3(Sparkles, { className: "size-6" }) }),
       /* @__PURE__ */ jsx3("h2", { className: "text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 md:text-2xl", children: greeting })
     ] });
   }
-  return /* @__PURE__ */ jsx3("div", { className: cn("flex-1 space-y-6 overflow-y-auto p-4 md:p-6", className), children: /* @__PURE__ */ jsxs3("div", { className: "mx-auto max-w-3xl space-y-6", children: [
+  return /* @__PURE__ */ jsx3("div", { className: cn("min-h-0 flex-1 space-y-6 overflow-y-auto p-4 md:p-6", className), children: /* @__PURE__ */ jsxs3("div", { className: "mx-auto max-w-3xl space-y-6", children: [
     messages.map((msg) => {
       const isUser = msg.role === "user";
       return /* @__PURE__ */ jsxs3(
@@ -794,7 +847,7 @@ function PersonaFilesDrawer({
               }
             )
           ] }),
-          /* @__PURE__ */ jsx5("div", { className: "flex-1 overflow-y-auto p-3", children: tab === "files" ? (
+          /* @__PURE__ */ jsx5("div", { className: "min-h-0 flex-1 overflow-y-auto p-3", children: tab === "files" ? (
             /* Uploaded files list */
             /* @__PURE__ */ jsx5("div", { className: "space-y-2", children: files.length === 0 ? /* @__PURE__ */ jsx5("p", { className: "py-8 text-center text-xs text-zinc-400", children: "No uploaded files yet." }) : files.map((file) => /* @__PURE__ */ jsxs5(
               "div",
@@ -1269,7 +1322,7 @@ function PersonaChatView({
               }
             )
           ] }),
-          /* @__PURE__ */ jsx7("div", { className: "min-h-0 flex-1 overflow-y-auto", children: /* @__PURE__ */ jsx7(
+          /* @__PURE__ */ jsx7("div", { className: "flex min-h-0 flex-1 flex-col", children: /* @__PURE__ */ jsx7(
             PersonaMessageFeed,
             {
               messages,
@@ -1330,7 +1383,7 @@ function PersonaChatView({
 }
 
 // src/index.ts
-var VERSION = "0.3.1";
+var VERSION = "0.3.2";
 export {
   PersonaChatView,
   PersonaComposer,

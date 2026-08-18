@@ -75,7 +75,7 @@ export function PersonaMessageFeed({
 
   if (messages.length === 0 && isLoading) {
     return (
-      <div className={cn('flex flex-1 items-center justify-center p-8', className)}>
+      <div className={cn('flex min-h-0 flex-1 items-center justify-center p-8', className)}>
         <div className="size-5 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-700 dark:border-t-zinc-300" />
       </div>
     );
@@ -83,7 +83,7 @@ export function PersonaMessageFeed({
 
   if (messages.length === 0) {
     return (
-      <div className={cn('flex flex-1 flex-col items-center justify-center p-8 text-center', className)}>
+      <div className={cn('flex min-h-0 flex-1 flex-col items-center justify-center p-8 text-center', className)}>
         <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-900 shadow-2xs dark:bg-zinc-800 dark:text-zinc-100">
           <Sparkles className="size-6" />
         </div>
@@ -95,7 +95,7 @@ export function PersonaMessageFeed({
   }
 
   return (
-    <div className={cn('flex-1 space-y-6 overflow-y-auto p-4 md:p-6', className)}>
+    <div className={cn('min-h-0 flex-1 space-y-6 overflow-y-auto p-4 md:p-6', className)}>
       <div className="mx-auto max-w-3xl space-y-6">
         {messages.map((msg) => {
           const isUser = msg.role === 'user';

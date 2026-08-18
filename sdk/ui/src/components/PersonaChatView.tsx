@@ -183,8 +183,14 @@ export function PersonaChatView({
           )}
         </div>
 
-        {/* Message feed — takes remaining space and scrolls internally */}
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        {/* Message feed — takes remaining space and scrolls internally.
+            No overflow-y-auto here: PersonaMessageFeed's own root already
+            scrolls itself (it's a standalone exported component too), so
+            wrapping it in a second scrollable div nested that scroll
+            behavior for no reason and could show a stray inner scrollbar.
+            This wrapper just needs to be the flex context flex-1 sizes
+            against. */}
+        <div className="flex min-h-0 flex-1 flex-col">
           <PersonaMessageFeed
             messages={messages}
             isStreaming={isStreaming}

@@ -3,7 +3,20 @@
 All notable changes to `@personaai/ui` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
-## 0.3.1
+## 0.3.2
+
+- **New: `write_todos` tool card** — `PersonaToolTrace` now special-cases the todo tool into a
+  bare checklist (matching persona.hasanraiyan.me's own frontend's `TodoChecklist`): the card
+  title becomes `Plan (x/y)` with no separate status badge (the title already carries it), and
+  expanding it shows the checklist instead of raw JSON args/result.
+- **Fixed: nested scroll containers.** `PersonaChatView` wrapped `PersonaMessageFeed` in its own
+  `overflow-y-auto` div, and `PersonaMessageFeed`'s root *also* had `flex-1 overflow-y-auto` — but
+  that inner div wasn't inside a flex parent (the wrapper was a plain block div), so its `flex-1`
+  was dead CSS and the outer div silently did all the real scrolling. `PersonaMessageFeed` is a
+  standalone exported component and should own its own scrolling; the wrapper is now a plain flex
+  context with no scroll behavior of its own, and `min-h-0` was added everywhere a
+  `flex-1 overflow-y-auto` container needed it to actually clip instead of growing to fit content
+  (`PersonaMessageFeed`, `PersonaSidebar`'s thread list, `PersonaFilesDrawer`'s content area).
 
 Requires `@personaai/react` ^0.3.2.
 
