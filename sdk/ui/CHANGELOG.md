@@ -3,6 +3,36 @@
 All notable changes to `@personaai/ui` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.8.0
+
+- **Feature: rich per-tool rendering for built-in tools, matching persona.hasanraiyan.me's own
+  frontend.** Previously `PersonaToolTrace` treated every tool except `write_todos`/`present_file`
+  identically — a generic Wrench icon, the raw tool name as the header, and a JSON args/result dump
+  when expanded. It now recognizes the common deepagents built-in tool set and renders each with a
+  dedicated card:
+  - Humanized titles (`"Searching the web for \"X\""`, `"Read file"`, `"Listed directory"`, ...)
+    and a semantic icon per tool family (`Globe`/search, `FileText`/file ops, `Search`/grep,
+    `BookText`/knowledge-base, `Bot`/subagent) via the new `getToolTitle`/`getToolIcon` exports.
+  - `search_web`/`tavily*`/`*google*` tool calls render a `PersonaSearchResultsCard` (favicon,
+    title, domain link list) with a `"N results"` badge on the collapsed row, plus an animated
+    loading state while still running.
+  - `read_file`/`view_file` tool calls render a `PersonaReadFileCard` — a dark code viewer with
+    line numbers, handling both raw and already-line-numbered tool output.
+  - `write_file`/`edit_file` tool calls show a `+added -removed` diffstat badge on the collapsed
+    row (computed from `old_string`/`new_string`, or the full body for `write_file`) and expand
+    into a `PersonaFileDiffCard` unified diff view.
+  - `grep`-family tool calls show a `"N matches"` badge and expand into a `PersonaGrepResultsCard`
+    grouped by file, with the query highlighted inline.
+  - `ls`/`list_dir` tool calls expand into a `PersonaLsDirectoryCard` file/folder listing.
+  - Errors are now visible on the collapsed row itself (previously only inside the expanded
+    Result: JSON dump).
+
+  All five new cards (`PersonaSearchResultsCard`, `PersonaReadFileCard`, `PersonaLsDirectoryCard`,
+  `PersonaGrepResultsCard`, `PersonaFileDiffCard`) and the underlying `utils/toolPresentation.ts`
+  helpers are exported from the package root for consumers who want to reuse them directly (e.g.
+  inside a custom `toolRenderers` override). Tools that don't match any of the above still fall
+  back to the existing generic args/result accordion — this is additive, not a breaking change.
+
 ## 0.7.7
 
 - **Fix: `PersonaMessageFeed`'s loading skeleton didn't match the real message list's layout.**

@@ -5,7 +5,26 @@ import type { PersonaSubagentActivityEntry, PersonaToolCall, PersonaTodo } from 
 import type { ToolRendererMap } from '../types.js';
 import { cn } from '../utils/cn.js';
 import {
-  Wrench,
+  getToolIcon,
+  getToolTitle,
+  isWebSearchTool,
+  isReadFileTool,
+  isLsTool,
+  isGrepTool,
+  isFileWriteTool,
+  isFileEditTool,
+  searchResults,
+  parseLsResults,
+  parseGrepResults,
+  computeFileDiffStats,
+  getFilePathFromArgs,
+} from '../utils/toolPresentation.js';
+import { PersonaSearchResultsCard } from './tool-cards/PersonaSearchResultsCard.js';
+import { PersonaReadFileCard } from './tool-cards/PersonaReadFileCard.js';
+import { PersonaLsDirectoryCard } from './tool-cards/PersonaLsDirectoryCard.js';
+import { PersonaGrepResultsCard } from './tool-cards/PersonaGrepResultsCard.js';
+import { PersonaFileDiffCard } from './tool-cards/PersonaFileDiffCard.js';
+import {
   ChevronDown,
   ChevronRight,
   CheckCircle2,
@@ -159,6 +178,7 @@ export function PersonaToolTrace({
   }, [toolCall.result]);
 
   const isExecuting = isLive && !toolCall.result && !toolCall.isError;
+  const status: 'running' | 'completed' = isExecuting ? 'running' : 'completed';
 
   const isTodo = isTodoTool(toolCall.toolName);
   const todos = useMemo(
@@ -171,6 +191,24 @@ export function PersonaToolTrace({
     () => (toolCall.subagentActivity?.length ? groupSubagentActivity(toolCall.subagentActivity) : []),
     [toolCall.subagentActivity]
   );
+
+  const ToolIcon = getToolIcon(toolCall.toolName);
+  const toolTitle = getToolTitle(toolCall.toolName, parsedArgs, status);
+
+  const diffStats = !toolCall.isError ? computeFileDiffStats(toolCall.toolName, parsedArgs) : null;
+  const isLs = isLsTool(toolCall.toolName);
+  const isRead = isReadFileTool(toolCall.toolName);
+  const isSearch = isWebSearchTool(toolCall.toolName);
+  const isGrep = isGrepTool(toolCall.toolName);
+  const isDiff = (isFileWriteTool(toolCall.toolName) || isFileEditTool(toolCall.toolName)) && diffStats !== null;
+
+  const results = useMemo(() => (isSearch ? searchResults(parsedResult) : []), [isSearch, parsedResult]);
+  const lsEntries = useMemo(() => (isLs ? parseLsResults(parsedResult) : []), [isLs, parsedResult]);
+  const grepMatches = useMemo(() => (isGrep ? parseGrepResults(parsedResult) : []), [isGrep, parsedResult]);
+  const grepArgs = (typeof parsedArgs === 'object' && parsedArgs) || {};
+  const grepQuery = String((grepArgs as Record<string, unknown>).pattern ?? (grepArgs as Record<string, unknown>).Query ?? (grepArgs as Record<string, unknown>).query ?? '');
+  const grepPath = String((grepArgs as Record<string, unknown>).path ?? (grepArgs as Record<string, unknown>).SearchPath ?? (grepArgs as Record<string, unknown>).searchPath ?? '/');
+  const readFilePath = isRead ? getFilePathFromArgs(parsedArgs) : '';
 
   // Custom tool renderer delegation
   const CustomRenderer = toolRenderers?.[toolCall.toolName] || toolRenderers?.default;
@@ -240,18 +278,23 @@ export function PersonaToolTrace({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between px-3 py-2 text-left font-mono transition-colors hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60"
+        className="flex w-full items-center justify-between px-3 py-2 text-left transition-colors hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60"
       >
         <div className="flex min-w-0 items-center gap-2">
-          <Wrench className="size-3.5 shrink-0 text-zinc-500" />
+          <ToolIcon className={cn('size-3.5 shrink-0', toolCall.isError ? 'text-red-500' : 'text-zinc-500')} />
           <span className="truncate font-semibold text-zinc-800 dark:text-zinc-200">
-            {todos ? `Plan (${todosDone}/${todos.length})` : toolCall.toolName}
+            {todos ? `Plan (${todosDone}/${todos.length})` : toolTitle}
           </span>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
           {/* The Plan title already carries its own status (x/y) — no badge. */}
-          {todos ? null : isExecuting ? (
+          {todos ? null : diffStats ? (
+            <span className="font-mono text-[11px] font-bold tabular-nums">
+              <span className="text-emerald-600 dark:text-emerald-400">+{diffStats.added}</span>{' '}
+              <span className="text-red-500 dark:text-red-400">-{diffStats.removed}</span>
+            </span>
+          ) : isExecuting ? (
             <span className="flex items-center gap-1 text-[11px] text-blue-500">
               <Loader2 className="size-3 animate-spin" />
               <span>Running...</span>
@@ -260,6 +303,14 @@ export function PersonaToolTrace({
             <span className="flex items-center gap-1 text-[11px] text-red-500">
               <AlertCircle className="size-3" />
               <span>Error</span>
+            </span>
+          ) : isSearch && results.length ? (
+            <span className="rounded-md bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-600 dark:text-blue-400">
+              {results.length} results
+            </span>
+          ) : isGrep && grepMatches.length ? (
+            <span className="rounded-md bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-600 dark:text-blue-400">
+              {grepMatches.length} matches
             </span>
           ) : (
             <span className="flex items-center gap-1 text-[11px] text-emerald-500">
@@ -271,9 +322,50 @@ export function PersonaToolTrace({
         </div>
       </button>
 
+      {toolCall.isError && (
+        <div className="border-t border-red-200/60 bg-red-50 px-3 py-2 text-[11px] text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
+          {(typeof parsedResult === 'object' && parsedResult && (parsedResult as Record<string, unknown>).message
+            ? String((parsedResult as Record<string, unknown>).message)
+            : toolCall.result) || 'The tool call failed.'}
+        </div>
+      )}
+
       {isOpen && todos ? (
         <div className="border-t border-zinc-200/60 p-3 dark:border-zinc-800/60">
           <PersonaTodoChecklist todos={todos} />
+        </div>
+      ) : isOpen && isLs ? (
+        <div className="border-t border-zinc-200/60 p-3 dark:border-zinc-800/60">
+          <PersonaLsDirectoryCard path={grepArgs && (grepArgs as Record<string, unknown>).path ? String((grepArgs as Record<string, unknown>).path) : '/'} entries={lsEntries} status={status} />
+        </div>
+      ) : isOpen && isRead ? (
+        <div className="border-t border-zinc-200/60 p-3 dark:border-zinc-800/60">
+          <PersonaReadFileCard filePath={readFilePath} content={typeof parsedResult === 'string' ? parsedResult : toolCall.result || ''} status={status} />
+        </div>
+      ) : isOpen && isDiff ? (
+        <div className="border-t border-zinc-200/60 p-3 dark:border-zinc-800/60">
+          {isFileEditTool(toolCall.toolName) ? (
+            <PersonaFileDiffCard
+              filePath={getFilePathFromArgs(parsedArgs)}
+              oldContent={String((grepArgs as Record<string, unknown>).old_string ?? '')}
+              newContent={String((grepArgs as Record<string, unknown>).new_string ?? '')}
+              note={(grepArgs as Record<string, unknown>).replace_all ? 'Replacing all occurrences' : undefined}
+            />
+          ) : (
+            <PersonaFileDiffCard
+              filePath={getFilePathFromArgs(parsedArgs)}
+              oldContent=""
+              newContent={String((grepArgs as Record<string, unknown>).content ?? '')}
+            />
+          )}
+        </div>
+      ) : isOpen && isGrep ? (
+        <div className="border-t border-zinc-200/60 p-3 dark:border-zinc-800/60">
+          <PersonaGrepResultsCard query={grepQuery} path={grepPath} matches={grepMatches} status={status} />
+        </div>
+      ) : isOpen && isSearch ? (
+        <div className="border-t border-zinc-200/60 p-3 dark:border-zinc-800/60">
+          <PersonaSearchResultsCard results={results} status={status} />
         </div>
       ) : isOpen ? (
         <div className="border-t border-zinc-200/60 p-3 space-y-2 font-mono text-[11px] dark:border-zinc-800/60">

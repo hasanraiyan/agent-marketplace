@@ -1,6 +1,6 @@
 {
   "name": "@personaai/ui",
-  "version": "0.7.7",
+  "version": "0.8.0",
   "description": "Customizable, Claude & ChatGPT inspired React UI components for the Persona AI agent runtime.",
   "type": "module",
   "main": "./dist/index.cjs",

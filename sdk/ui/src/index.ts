@@ -12,8 +12,14 @@ export * from './components/PersonaFilesDrawer.js';
 export * from './components/PersonaInterruptCard.js';
 export * from './components/PersonaSkeleton.js';
 export * from './components/PersonaMcpConnectBanner.js';
+export * from './components/tool-cards/PersonaSearchResultsCard.js';
+export * from './components/tool-cards/PersonaReadFileCard.js';
+export * from './components/tool-cards/PersonaLsDirectoryCard.js';
+export * from './components/tool-cards/PersonaGrepResultsCard.js';
+export * from './components/tool-cards/PersonaFileDiffCard.js';
 export * from './utils/toolGrouping.js';
+export * from './utils/toolPresentation.js';
 export * from './utils/themeStyles.js';
 export * from './hooks/usePersonaChatWidget.js';
 
-export const VERSION = '0.7.7';
+export const VERSION = '0.8.0';
