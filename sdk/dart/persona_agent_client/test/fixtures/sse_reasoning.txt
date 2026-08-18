@@ -1,0 +1,6 @@
+data: {"type":"REASONING_MESSAGE_START","messageId":"m1"}
+data: {"type":"REASONING_MESSAGE_CONTENT","messageId":"m1","delta":"Let me think"}
+data: {"type":"REASONING_MESSAGE_CONTENT","messageId":"m1","delta":"..."}
+data: {"type":"REASONING_END"}
+data: {"type":"TEXT_MESSAGE_CHUNK","delta":"The answer is 42."}
+data: [DONE]

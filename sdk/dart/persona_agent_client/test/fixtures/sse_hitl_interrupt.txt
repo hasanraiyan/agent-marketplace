@@ -1,0 +1,3 @@
+data: {"type":"TOOL_CALL_CHUNK","toolCallId":"call_1","toolCallName":"delete_file","delta":"{\"path\":\"/a.txt\"}"}
+data: {"type":"CUSTOM","name":"hitl_request","value":{"actionRequests":[{"name":"delete_file","args":{"path":"/a.txt"}}],"reviewConfigs":[]}}
+data: [DONE]

@@ -1,0 +1,5 @@
+data: {"type":"TOOL_CALL_CHUNK","toolCallId":"call_task","toolCallName":"task","delta":"{\"description\":\"do research\"}"}
+data: {"type":"CUSTOM","name":"subagent_activity","value":{"toolCallId":"call_task","kind":"tool_start","toolName":"search_web","args":"{\"query\":\"x\"}"}}
+data: {"type":"CUSTOM","name":"subagent_activity","value":{"toolCallId":"call_task","kind":"tool_result","toolName":"search_web","result":"ok"}}
+data: {"type":"TOOL_CALL_RESULT","toolCallId":"call_task","content":"done"}
+data: [DONE]

@@ -1,0 +1,24 @@
+name: persona_agent_client
+description: >-
+  Dart client for the Persona AI agent runtime — AG-UI streaming chat,
+  threads, files, memory, and MCP connections. Framework-agnostic, no
+  Flutter dependency.
+version: 0.1.0
+homepage: https://github.com/hasanraiyan/agent-marketplace/tree/feat/ai/sdk/dart/persona_agent_client
+repository: https://github.com/hasanraiyan/agent-marketplace
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  dio: ^5.8.0
+  freezed_annotation: ^3.1.0
+  json_annotation: ^4.9.0
+  meta: ^1.15.0
+
+dev_dependencies:
+  build_runner: ^2.4.15
+  freezed: ^3.2.3
+  json_serializable: ^6.9.5
+  lints: ^6.0.0
+  test: ^1.25.6

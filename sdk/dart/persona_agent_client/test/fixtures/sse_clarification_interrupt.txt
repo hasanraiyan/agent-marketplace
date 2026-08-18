@@ -1,0 +1,2 @@
+data: {"type":"CUSTOM","name":"clarification_request","value":{"questions":[{"id":"q1","text":"Which account?","options":["Checking","Savings"],"required":true,"allowCustom":false}],"currentIndex":0}}
+data: [DONE]

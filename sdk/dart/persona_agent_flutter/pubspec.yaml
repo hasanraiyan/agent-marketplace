@@ -1,0 +1,33 @@
+name: persona_agent_flutter
+description: >-
+  Flutter chat UI components for the Persona AI agent runtime — message
+  feed, composer, tool-call cards, HITL/clarification interrupts.
+version: 0.1.0
+homepage: https://github.com/hasanraiyan/agent-marketplace/tree/feat/ai/sdk/dart/persona_agent_flutter
+repository: https://github.com/hasanraiyan/agent-marketplace
+
+environment:
+  sdk: ^3.8.0
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # A path dependency during development only — `dart pub publish` rejects
+  # path dependencies outright (verified via --dry-run). BEFORE publishing
+  # this package: 1) publish persona_agent_client to pub.dev first, 2) swap
+  # this to a hosted version constraint (e.g. `^0.1.0`), 3) `flutter pub get`,
+  # 4) THEN publish this package. Never reorder those steps — this one
+  # depends on persona_agent_client actually existing on pub.dev to resolve.
+  persona_agent_client:
+    path: ../persona_agent_client
+  intl: ^0.20.2
+  flutter_markdown_plus: ^1.0.12
+  url_launcher: ^6.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:

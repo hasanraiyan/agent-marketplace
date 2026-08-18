@@ -1,0 +1,5 @@
+data: {"type":"TOOL_CALL_CHUNK","toolCallId":"call_1","toolCallName":"search_web","delta":"{\"query\":"}
+data: {"type":"TOOL_CALL_CHUNK","toolCallId":"call_1","delta":"\"cats\"}"}
+data: {"type":"TOOL_CALL_RESULT","toolCallId":"call_1","content":"{\"results\":[]}"}
+data: {"type":"TEXT_MESSAGE_CHUNK","delta":"No results found."}
+data: [DONE]

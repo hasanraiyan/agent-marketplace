@@ -1,0 +1,6 @@
+data: {"type":"RUN_STARTED","threadId":"t1","runId":"r1"}
+data: {"type":"TEXT_MESSAGE_CHUNK","delta":"Hello"}
+data: {"type":"TEXT_MESSAGE_CHUNK","delta":", world"}
+data: {"type":"TEXT_MESSAGE_CHUNK","delta":"!"}
+data: {"type":"RUN_FINISHED","threadId":"t1","runId":"r1"}
+data: [DONE]

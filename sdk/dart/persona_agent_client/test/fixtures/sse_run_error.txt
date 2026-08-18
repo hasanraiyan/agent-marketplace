@@ -1,0 +1,2 @@
+data: {"type":"TEXT_MESSAGE_CHUNK","delta":"Working on it"}
+data: {"type":"RUN_ERROR","code":"PROVIDER_ERROR","message":"The model provider timed out","retryable":true}

@@ -1,0 +1,2 @@
+data: {"type":"STATE_SNAPSHOT","snapshot":{"files":{"/a.md":{"content":"hi","size":2,"created_at":"2026-01-01T00:00:00Z","modified_at":"2026-01-01T00:00:00Z"}},"todos":[{"content":"write docs","status":"pending"}]}}
+data: [DONE]

@@ -1,0 +1,4 @@
+data: {"type":"TEXT_MESSAGE_CHUNK","delta":"before "}
+data: {this is not valid json
+data: {"type":"TEXT_MESSAGE_CHUNK","delta":"after"}
+data: [DONE]
