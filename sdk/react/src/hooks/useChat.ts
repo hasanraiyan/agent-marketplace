@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePersonaContext } from '../context/PersonaContext.js';
+import { openSSEStream } from '../streaming.js';
 import type {
   PersonaInterrupt,
   PersonaMessage,
@@ -123,7 +124,7 @@ function normalizePendingInterrupt(pending: unknown): PersonaInterrupt | null {
 }
 
 export function useChat(options: UseChatOptions = {}) {
-  const { defaultAgentId, fetchWithAuth } = usePersonaContext();
+  const { defaultAgentId, fetchWithAuth, baseUrl, getAuthToken } = usePersonaContext();
   const agentId = options.agentId || defaultAgentId;
   const threadId = options.threadId;
 
@@ -274,10 +275,17 @@ export function useChat(options: UseChatOptions = {}) {
         // waiting on it any longer than the network call already would.
         const resolvedThreadId = await (overrideOptions?.threadId ?? options.threadId);
 
-        const response = await fetchWithAuth('/chat', {
-          method: 'POST',
+        // openSSEStream, not fetchWithAuth: the transport has to be chosen
+        // before the request goes out. React Native's fetch never populates
+        // response.body and only settles once the whole response has arrived,
+        // so discovering the missing body afterwards would already have cost
+        // us the stream. See src/streaming.ts.
+        const token = getAuthToken ? await getAuthToken() : null;
+        const stream = await openSSEStream({
+          url: `${baseUrl}/chat`,
           headers: {
             'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           body: JSON.stringify({
             agentId: targetAgentId,
@@ -288,17 +296,11 @@ export function useChat(options: UseChatOptions = {}) {
           signal: controller.signal,
         });
 
-        if (!response.ok) {
-          const errText = await response.text().catch(() => 'Stream failed');
-          throw new Error(`Chat error (${response.status}): ${errText}`);
+        if (!stream.ok) {
+          throw new Error(`Chat error (${stream.status}): ${stream.errorText ?? 'Stream failed'}`);
         }
 
-        if (!response.body) {
-          throw new Error('No response body received for streaming.');
-        }
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder('utf-8');
+        const reader = stream.reader;
         let buffer = '';
         let accumulatedText = '';
         let accumulatedReasoning = '';
@@ -318,7 +320,7 @@ export function useChat(options: UseChatOptions = {}) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          buffer += decoder.decode(value, { stream: true });
+          buffer += value ?? '';
           const lines = buffer.split('\n');
           buffer = lines.pop() ?? '';
 
@@ -449,7 +451,7 @@ export function useChat(options: UseChatOptions = {}) {
         abortControllerRef.current = null;
       }
     },
-    [agentId, fetchWithAuth, input, isStreaming, messages, options]
+    [agentId, baseUrl, getAuthToken, input, isStreaming, messages, options]
   );
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

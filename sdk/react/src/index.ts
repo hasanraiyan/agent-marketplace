@@ -7,5 +7,6 @@ export * from './hooks/useFiles.js';
 export * from './hooks/useAgents.js';
 export * from './hooks/useConnection.js';
 export * from './hooks/useMcpConnections.js';
+export * from './streaming.js';
 
 export const VERSION = '0.3.5';
