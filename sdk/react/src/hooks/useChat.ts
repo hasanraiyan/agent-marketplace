@@ -326,6 +326,13 @@ export function useChat(options: UseChatOptions = {}) {
         // mirrors the web timeline where each phase is a separate "Thoughts"
         // bubble. Each phase's message is inserted directly above the assistant
         // message so thoughts render above the answer, not underneath it.
+        //
+        // A monotonic counter shared by reasoning phases AND tool calls stamps
+        // each with a `seq` in stream order (the backend emits REASONING_END
+        // right before the next TOOL_CALL_CHUNK, then the next phase after the
+        // result). Clients sort by it to interleave thoughts and tool calls
+        // chronologically instead of stacking all thoughts above the answer.
+        let streamSeq = 0;
         let activeReasoningId: string | null = null;
         const reasoningById = new Map<string, { content: string }>();
 
@@ -339,13 +346,14 @@ export function useChat(options: UseChatOptions = {}) {
           );
         };
 
-        const insertReasoningMessage = (id: string) => {
+        const insertReasoningMessage = (id: string, seq: number) => {
           const msg: PersonaMessage = {
             id,
             role: 'reasoning',
             content: '',
             createdAt: new Date(),
             isStreaming: true,
+            seq,
           };
           setMessages((prev) => {
             const idx = prev.findIndex((m) => m.id === assistantMessageId);
@@ -391,6 +399,7 @@ export function useChat(options: UseChatOptions = {}) {
                     toolCallId: event.toolCallId,
                     toolName: event.toolCallName || '',
                     args: event.delta || '',
+                    seq: streamSeq++,
                   });
                 }
                 patchAssistant({});
@@ -410,10 +419,11 @@ export function useChat(options: UseChatOptions = {}) {
                 setTodos(event.snapshot.todos);
               } else if (event.type === 'REASONING_MESSAGE_START' && event.messageId) {
                 // A fresh reasoning phase — its own message, regardless of how
-                // many phases this run produces.
+                // many phases this run produces. seq stamps it into stream
+                // order against the tool calls it brackets.
                 activeReasoningId = event.messageId;
                 reasoningById.set(event.messageId, { content: '' });
-                insertReasoningMessage(event.messageId);
+                insertReasoningMessage(event.messageId, streamSeq++);
               } else if (event.type === 'REASONING_MESSAGE_CONTENT') {
                 // Defensive: if the backend ever skips REASONING_MESSAGE_START,
                 // lazily open the message on the first content chunk.
@@ -423,7 +433,7 @@ export function useChat(options: UseChatOptions = {}) {
                     rid || `reasoning-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
                   activeReasoningId = rid;
                   reasoningById.set(rid, { content: '' });
-                  insertReasoningMessage(rid);
+                  insertReasoningMessage(rid, streamSeq++);
                 }
                 const entry = reasoningById.get(rid)!;
                 entry.content += event.delta;
