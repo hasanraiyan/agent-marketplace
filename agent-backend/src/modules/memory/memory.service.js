@@ -1,5 +1,5 @@
 import Agent from '../agents/agent.model.js';
-import MemoryFile from './memory-file.model.js';
+import MemoryFile, { upsertMemoryFile } from './memory-file.model.js';
 import checkpointService from '../threads/checkpoint.service.js';
 import userRepository from '../users/user.repository.js';
 import {
@@ -86,10 +86,9 @@ class MemoryService {
     const namespace = this._namespaceFor(userId, scope, agentId);
     const key = normalizeMemoryKey(path);
 
-    const doc = await MemoryFile.findOneAndUpdate(
+    const doc = await upsertMemoryFile(
       { namespace, key },
-      { $set: { content: String(content ?? ''), mimeType: 'text/markdown' } },
-      { upsert: true, new: true }
+      { $set: { content: String(content ?? ''), mimeType: 'text/markdown' } }
     );
 
     logger.info(`[MemoryService] Wrote memory file for user ${userId}: ${scope}${key}`);

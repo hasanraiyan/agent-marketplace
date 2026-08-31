@@ -1,5 +1,5 @@
 import { BaseStore } from '@langchain/langgraph';
-import MemoryFile from './memory-file.model.js';
+import MemoryFile, { upsertMemoryFile } from './memory-file.model.js';
 
 /**
  * BaseStore over the `memoryfiles` collection: one document per virtual memory
@@ -82,15 +82,14 @@ export class MemoryFilesStore extends BaseStore {
       return;
     }
 
-    await MemoryFile.findOneAndUpdate(
+    await upsertMemoryFile(
       { namespace: op.namespace, key },
       {
         $set: {
           content: this._contentToString(op.value.content),
           mimeType: op.value.mimeType || 'text/markdown',
         },
-      },
-      { upsert: true, new: true }
+      }
     );
   }
 
