@@ -9,4 +9,4 @@ export * from './hooks/useConnection.js';
 export * from './hooks/useMcpConnections.js';
 export * from './streaming.js';
 
-export const VERSION = '0.3.5';
+export const VERSION = '0.4.0';
