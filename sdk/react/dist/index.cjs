@@ -427,8 +427,15 @@ function useChat(options = {}) {
       setInterrupt(null);
       const controller = new AbortController();
       abortControllerRef.current = controller;
+      const finalizeReasoning = () => {
+        setMessages(
+          (prev) => prev.map(
+            (m) => m.role === "reasoning" && m.isStreaming ? { ...m, isStreaming: false } : m
+          )
+        );
+      };
       try {
-        const payloadMessages = nextMessages.map((m) => ({
+        const payloadMessages = nextMessages.filter((m) => m.role !== "reasoning").map((m) => ({
           role: m.role === "assistant" ? "assistant" : "user",
           content: m.content
         }));
@@ -454,14 +461,31 @@ function useChat(options = {}) {
         const reader = stream.reader;
         let buffer = "";
         let accumulatedText = "";
-        let accumulatedReasoning = "";
         const toolCallsMap = /* @__PURE__ */ new Map();
+        let activeReasoningId = null;
+        const reasoningById = /* @__PURE__ */ new Map();
         const patchAssistant = (patch) => {
           setMessages(
             (prev) => prev.map(
               (msg) => msg.id === assistantMessageId ? { ...msg, toolCalls: Array.from(toolCallsMap.values()), ...patch } : msg
             )
           );
+        };
+        const insertReasoningMessage = (id) => {
+          const msg = {
+            id,
+            role: "reasoning",
+            content: "",
+            createdAt: /* @__PURE__ */ new Date(),
+            isStreaming: true
+          };
+          setMessages((prev) => {
+            const idx = prev.findIndex((m) => m.id === assistantMessageId);
+            if (idx === -1) return [...prev, msg];
+            const next = [...prev];
+            next.splice(idx, 0, msg);
+            return next;
+          });
         };
         while (true) {
           const { done, value } = await reader.read();
@@ -506,11 +530,33 @@ function useChat(options = {}) {
               } else if (event.type === "STATE_SNAPSHOT") {
                 setFiles(normalizeWorkspaceFiles(event.snapshot.files));
                 setTodos(event.snapshot.todos);
+              } else if (event.type === "REASONING_MESSAGE_START" && event.messageId) {
+                activeReasoningId = event.messageId;
+                reasoningById.set(event.messageId, { content: "" });
+                insertReasoningMessage(event.messageId);
               } else if (event.type === "REASONING_MESSAGE_CONTENT") {
-                accumulatedReasoning += event.delta;
-                patchAssistant({ reasoning: accumulatedReasoning, isReasoning: true });
+                let rid = event.messageId || activeReasoningId || "";
+                if (!rid || !reasoningById.has(rid)) {
+                  rid = rid || `reasoning-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+                  activeReasoningId = rid;
+                  reasoningById.set(rid, { content: "" });
+                  insertReasoningMessage(rid);
+                }
+                const entry = reasoningById.get(rid);
+                entry.content += event.delta;
+                setMessages(
+                  (prev) => prev.map(
+                    (m) => m.id === rid ? { ...m, content: entry.content, isStreaming: true } : m
+                  )
+                );
               } else if (event.type === "REASONING_END") {
-                patchAssistant({ isReasoning: false });
+                const rid = activeReasoningId;
+                activeReasoningId = null;
+                if (rid) {
+                  setMessages(
+                    (prev) => prev.map((m) => m.id === rid ? { ...m, isStreaming: false } : m)
+                  );
+                }
               } else if (event.type === "CUSTOM") {
                 if (event.name === "hitl_request") {
                   const value2 = event.value;
@@ -546,8 +592,7 @@ function useChat(options = {}) {
           content: accumulatedText,
           createdAt: /* @__PURE__ */ new Date(),
           isStreaming: false,
-          toolCalls: Array.from(toolCallsMap.values()),
-          ...accumulatedReasoning ? { reasoning: accumulatedReasoning, isReasoning: false } : {}
+          toolCalls: Array.from(toolCallsMap.values())
         };
         setMessages(
           (prev) => prev.map((msg) => msg.id === assistantMessageId ? finalMessage : msg)
@@ -577,6 +622,7 @@ function useChat(options = {}) {
       } finally {
         setIsStreaming(false);
         abortControllerRef.current = null;
+        finalizeReasoning();
       }
     },
     [agentId, baseUrl, getAuthToken, input, isStreaming, messages, options]

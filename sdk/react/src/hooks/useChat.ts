@@ -262,11 +262,27 @@ export function useChat(options: UseChatOptions = {}) {
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
+      // Marks any reasoning message still flagged streaming as done — for
+      // runs that end (abort/error) without a final REASONING_END. Declared
+      // outside the try so the finally block can reach it.
+      const finalizeReasoning = () => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.role === 'reasoning' && m.isStreaming ? { ...m, isStreaming: false } : m
+          )
+        );
+      };
+
       try {
-        const payloadMessages = nextMessages.map((m) => ({
-          role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
-          content: m.content,
-        }));
+        // Reasoning messages are ephemeral client-side thoughts — never part
+        // of the transcript sent back to the server (the backend already has
+        // its own persisted copy and would treat them as user turns).
+        const payloadMessages = nextMessages
+          .filter((m) => m.role !== 'reasoning')
+          .map((m) => ({
+            role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
+            content: m.content,
+          }));
 
         // Resolved here, not earlier — everything above this line (the
         // optimistic message + placeholder, clearing input, etc.) already
@@ -303,8 +319,15 @@ export function useChat(options: UseChatOptions = {}) {
         const reader = stream.reader;
         let buffer = '';
         let accumulatedText = '';
-        let accumulatedReasoning = '';
         const toolCallsMap = new Map<string, PersonaToolCall>();
+        // Reasoning streams as its own `role: 'reasoning'` message per phase
+        // (REASONING_MESSAGE_START … CONTENT … REASONING_END), never merged
+        // into the assistant message or into a single accumulated blob —
+        // mirrors the web timeline where each phase is a separate "Thoughts"
+        // bubble. Each phase's message is inserted directly above the assistant
+        // message so thoughts render above the answer, not underneath it.
+        let activeReasoningId: string | null = null;
+        const reasoningById = new Map<string, { content: string }>();
 
         const patchAssistant = (patch: Partial<PersonaMessage>) => {
           setMessages((prev) =>
@@ -314,6 +337,23 @@ export function useChat(options: UseChatOptions = {}) {
                 : msg
             )
           );
+        };
+
+        const insertReasoningMessage = (id: string) => {
+          const msg: PersonaMessage = {
+            id,
+            role: 'reasoning',
+            content: '',
+            createdAt: new Date(),
+            isStreaming: true,
+          };
+          setMessages((prev) => {
+            const idx = prev.findIndex((m) => m.id === assistantMessageId);
+            if (idx === -1) return [...prev, msg];
+            const next = [...prev];
+            next.splice(idx, 0, msg);
+            return next;
+          });
         };
 
         while (true) {
@@ -368,11 +408,38 @@ export function useChat(options: UseChatOptions = {}) {
               } else if (event.type === 'STATE_SNAPSHOT') {
                 setFiles(normalizeWorkspaceFiles(event.snapshot.files));
                 setTodos(event.snapshot.todos);
+              } else if (event.type === 'REASONING_MESSAGE_START' && event.messageId) {
+                // A fresh reasoning phase — its own message, regardless of how
+                // many phases this run produces.
+                activeReasoningId = event.messageId;
+                reasoningById.set(event.messageId, { content: '' });
+                insertReasoningMessage(event.messageId);
               } else if (event.type === 'REASONING_MESSAGE_CONTENT') {
-                accumulatedReasoning += event.delta;
-                patchAssistant({ reasoning: accumulatedReasoning, isReasoning: true });
+                // Defensive: if the backend ever skips REASONING_MESSAGE_START,
+                // lazily open the message on the first content chunk.
+                let rid: string = event.messageId || activeReasoningId || '';
+                if (!rid || !reasoningById.has(rid)) {
+                  rid =
+                    rid || `reasoning-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+                  activeReasoningId = rid;
+                  reasoningById.set(rid, { content: '' });
+                  insertReasoningMessage(rid);
+                }
+                const entry = reasoningById.get(rid)!;
+                entry.content += event.delta;
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === rid ? { ...m, content: entry.content, isStreaming: true } : m
+                  )
+                );
               } else if (event.type === 'REASONING_END') {
-                patchAssistant({ isReasoning: false });
+                const rid = activeReasoningId;
+                activeReasoningId = null;
+                if (rid) {
+                  setMessages((prev) =>
+                    prev.map((m) => (m.id === rid ? { ...m, isStreaming: false } : m))
+                  );
+                }
               } else if (event.type === 'CUSTOM') {
                 if (event.name === 'hitl_request') {
                   const value = event.value as Extract<PersonaInterrupt, { kind: 'hitl' }>;
@@ -412,7 +479,6 @@ export function useChat(options: UseChatOptions = {}) {
           createdAt: new Date(),
           isStreaming: false,
           toolCalls: Array.from(toolCallsMap.values()),
-          ...(accumulatedReasoning ? { reasoning: accumulatedReasoning, isReasoning: false } : {}),
         };
 
         setMessages((prev) =>
@@ -449,6 +515,9 @@ export function useChat(options: UseChatOptions = {}) {
       } finally {
         setIsStreaming(false);
         abortControllerRef.current = null;
+        // A run that ends without a final REASONING_END (abort, error) must
+        // still flip its in-flight reasoning messages to done.
+        finalizeReasoning();
       }
     },
     [agentId, baseUrl, getAuthToken, input, isStreaming, messages, options]

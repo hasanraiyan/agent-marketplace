@@ -3,6 +3,22 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.5.0
+
+- **Breaking: model reasoning now streams as its own messages, one per phase.** Previously
+  `useChat` concatenated every `REASONING_MESSAGE_CONTENT` delta of a run into a single
+  `PersonaMessage.reasoning` string on the assistant message, so an agent that reasoned, called a
+  tool, reasoned again, then answered showed one giant merged "Thoughts" blob. Now each reasoning
+  phase (`REASONING_MESSAGE_START` → `REASONING_MESSAGE_CONTENT` → `REASONING_END`) becomes its own
+  `role: 'reasoning'` message — matching how the web timeline renders them as separate "Thoughts"
+  bubbles. The SDK inserts each phase's message directly above the assistant message, so thoughts
+  render above the answer rather than underneath it. Reasoning messages are excluded from the
+  transcript sent back on the next `sendMessage` (they were never server transcript). On abort or
+  error, any in-flight reasoning message is finalized instead of left spinning.
+  - `PersonaRole` gains `'reasoning'`.
+  - `PersonaMessage.reasoning` / `.isReasoning` are deprecated (kept for type-compat, no longer
+    populated); consumers should render `role: 'reasoning'` messages instead.
+
 ## 0.3.5
 
 - **Fix: a completed subagent's activity timeline was lost on thread reload.** agent-backend

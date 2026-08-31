@@ -1,6 +1,13 @@
 import type { ReactNode } from 'react';
 
-export type PersonaRole = 'user' | 'assistant' | 'system';
+export type PersonaRole = 'user' | 'assistant' | 'system' | 'reasoning';
+
+/**
+ * A reasoning (chain-of-thought) message, streamed ahead of the assistant's
+ * answer. Each provider reasoning phase is its OWN message — the SDK never
+ * merges phases together, matching how the web timeline renders them as
+ * separate "Thoughts" bubbles. `content` holds the accumulated reasoning text.
+ */
 
 /** One live update on a running `task` (subagent) tool call's timeline. */
 export interface PersonaSubagentActivityEntry {
@@ -28,7 +35,11 @@ export interface PersonaMessage {
   createdAt: Date;
   isStreaming?: boolean;
   toolCalls?: PersonaToolCall[];
-  /** Model reasoning/thinking text streamed ahead of the final answer, when the provider exposes it. */
+  /**
+   * @deprecated Model reasoning now streams as its own `role: 'reasoning'`
+   * messages (one per phase, never merged). These fields are retained for
+   * type-compat but are no longer populated on assistant messages.
+   */
   reasoning?: string;
   isReasoning?: boolean;
 }
