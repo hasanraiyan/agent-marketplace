@@ -22,6 +22,13 @@ interface PersonaToolCall {
     args?: string;
     result?: string;
     isError?: boolean;
+    /**
+     * Monotonic stream-order index, assigned when the call's first chunk
+     * arrives. Reasoning phases and tool calls share the same counter, so a
+     * client can interleave them chronologically (thought → tool → thought →
+     * tool → answer). Absent on calls loaded from history.
+     */
+    seq?: number;
     /** Nested activity timeline — only present on `task` (subagent) tool calls. */
     subagentActivity?: PersonaSubagentActivityEntry[];
 }
@@ -32,6 +39,12 @@ interface PersonaMessage {
     createdAt: Date;
     isStreaming?: boolean;
     toolCalls?: PersonaToolCall[];
+    /**
+     * Monotonic stream-order index for `role: 'reasoning'` messages, from the
+     * same counter as `PersonaToolCall.seq` — lets clients place each reasoning
+     * phase in its chronological spot relative to the tool calls that bracket it.
+     */
+    seq?: number;
     /**
      * @deprecated Model reasoning now streams as its own `role: 'reasoning'`
      * messages (one per phase, never merged). These fields are retained for

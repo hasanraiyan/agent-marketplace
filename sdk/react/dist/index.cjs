@@ -462,6 +462,7 @@ function useChat(options = {}) {
         let buffer = "";
         let accumulatedText = "";
         const toolCallsMap = /* @__PURE__ */ new Map();
+        let streamSeq = 0;
         let activeReasoningId = null;
         const reasoningById = /* @__PURE__ */ new Map();
         const patchAssistant = (patch) => {
@@ -471,13 +472,14 @@ function useChat(options = {}) {
             )
           );
         };
-        const insertReasoningMessage = (id) => {
+        const insertReasoningMessage = (id, seq) => {
           const msg = {
             id,
             role: "reasoning",
             content: "",
             createdAt: /* @__PURE__ */ new Date(),
-            isStreaming: true
+            isStreaming: true,
+            seq
           };
           setMessages((prev) => {
             const idx = prev.findIndex((m) => m.id === assistantMessageId);
@@ -512,7 +514,8 @@ function useChat(options = {}) {
                   toolCallsMap.set(event.toolCallId, {
                     toolCallId: event.toolCallId,
                     toolName: event.toolCallName || "",
-                    args: event.delta || ""
+                    args: event.delta || "",
+                    seq: streamSeq++
                   });
                 }
                 patchAssistant({});
@@ -533,14 +536,14 @@ function useChat(options = {}) {
               } else if (event.type === "REASONING_MESSAGE_START" && event.messageId) {
                 activeReasoningId = event.messageId;
                 reasoningById.set(event.messageId, { content: "" });
-                insertReasoningMessage(event.messageId);
+                insertReasoningMessage(event.messageId, streamSeq++);
               } else if (event.type === "REASONING_MESSAGE_CONTENT") {
                 let rid = event.messageId || activeReasoningId || "";
                 if (!rid || !reasoningById.has(rid)) {
                   rid = rid || `reasoning-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
                   activeReasoningId = rid;
                   reasoningById.set(rid, { content: "" });
-                  insertReasoningMessage(rid);
+                  insertReasoningMessage(rid, streamSeq++);
                 }
                 const entry = reasoningById.get(rid);
                 entry.content += event.delta;
