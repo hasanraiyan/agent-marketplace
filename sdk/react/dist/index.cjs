@@ -22,6 +22,8 @@ var index_exports = {};
 __export(index_exports, {
   PersonaProvider: () => PersonaProvider,
   VERSION: () => VERSION,
+  openSSEStream: () => openSSEStream,
+  supportsStreamingFetch: () => supportsStreamingFetch,
   useAgents: () => useAgents,
   useChat: () => useChat,
   useConnection: () => useConnection,
@@ -77,6 +79,181 @@ function usePersonaContext() {
 
 // src/hooks/useChat.ts
 var import_react2 = require("react");
+
+// src/streaming.ts
+function supportsStreamingFetch() {
+  if (typeof navigator !== "undefined" && navigator.product === "ReactNative") {
+    return false;
+  }
+  return typeof fetch !== "undefined" && typeof ReadableStream !== "undefined";
+}
+function fetchReader(response, controller) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  return {
+    async read() {
+      const { done, value } = await reader.read();
+      if (done) return { done: true };
+      return { done: false, value: decoder.decode(value, { stream: true }) };
+    },
+    cancel() {
+      controller.abort();
+      void reader.cancel().catch(() => {
+      });
+    }
+  };
+}
+function xhrStream(opts) {
+  return new Promise((resolveStream, rejectStream) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", opts.url);
+    for (const [key, val] of Object.entries(opts.headers)) xhr.setRequestHeader(key, val);
+    let consumed = 0;
+    let finished = false;
+    let failure = null;
+    const queue = [];
+    let waiting = null;
+    let waitingReject = null;
+    let headersResolved = false;
+    const pump = () => {
+      const text = xhr.responseText;
+      if (text.length <= consumed) return;
+      const chunk = text.slice(consumed);
+      consumed = text.length;
+      if (waiting) {
+        const resolve = waiting;
+        waiting = null;
+        waitingReject = null;
+        resolve({ done: false, value: chunk });
+      } else {
+        queue.push(chunk);
+      }
+    };
+    const finish = (err) => {
+      if (finished) return;
+      finished = true;
+      failure = err ?? null;
+      if (waiting) {
+        const resolve = waiting;
+        const reject = waitingReject;
+        waiting = null;
+        waitingReject = null;
+        if (err && reject) reject(err);
+        else resolve({ done: true });
+      }
+    };
+    const reader = {
+      read() {
+        if (queue.length > 0) {
+          return Promise.resolve({ done: false, value: queue.shift() });
+        }
+        if (finished) {
+          return failure ? Promise.reject(failure) : Promise.resolve({ done: true });
+        }
+        return new Promise((resolve, reject) => {
+          waiting = resolve;
+          waitingReject = reject;
+        });
+      },
+      cancel() {
+        finish();
+        xhr.abort();
+      }
+    };
+    const resolveHeaders = () => {
+      if (headersResolved) return;
+      headersResolved = true;
+      const ok = xhr.status >= 200 && xhr.status < 300;
+      resolveStream({
+        status: xhr.status,
+        ok,
+        getHeader: (name) => xhr.getResponseHeader(name),
+        reader
+      });
+    };
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState === 2) {
+        resolveHeaders();
+      } else if (xhr.readyState === 3) {
+        resolveHeaders();
+        pump();
+      } else if (xhr.readyState === 4) {
+        resolveHeaders();
+        pump();
+        finish();
+      }
+    };
+    xhr.onerror = () => {
+      const err = new Error("Network request failed");
+      if (!headersResolved) rejectStream(err);
+      finish(err);
+    };
+    xhr.ontimeout = () => {
+      const err = new Error("Network request timed out");
+      if (!headersResolved) rejectStream(err);
+      finish(err);
+    };
+    if (opts.signal) {
+      if (opts.signal.aborted) {
+        xhr.abort();
+        finish();
+      } else {
+        opts.signal.addEventListener("abort", () => {
+          finish();
+          xhr.abort();
+        });
+      }
+    }
+    xhr.send(opts.body);
+  });
+}
+async function openSSEStream(opts) {
+  if (!supportsStreamingFetch()) {
+    return xhrStream(opts);
+  }
+  const controller = new AbortController();
+  if (opts.signal) {
+    if (opts.signal.aborted) controller.abort();
+    else opts.signal.addEventListener("abort", () => controller.abort());
+  }
+  const response = await fetch(opts.url, {
+    method: "POST",
+    headers: opts.headers,
+    body: opts.body,
+    signal: controller.signal
+  });
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Stream failed");
+    return {
+      status: response.status,
+      ok: false,
+      errorText,
+      getHeader: (name) => response.headers.get(name),
+      reader: { read: async () => ({ done: true }), cancel: () => controller.abort() }
+    };
+  }
+  if (!response.body) {
+    const text = await response.text();
+    let handed = false;
+    return {
+      status: response.status,
+      ok: true,
+      getHeader: (name) => response.headers.get(name),
+      reader: {
+        read: async () => handed ? { done: true } : (handed = true, { done: false, value: text }),
+        cancel: () => controller.abort()
+      }
+    };
+  }
+  return {
+    status: response.status,
+    ok: true,
+    getHeader: (name) => response.headers.get(name),
+    reader: fetchReader(response, controller)
+  };
+}
+
+// src/hooks/useChat.ts
 function isErrorToolContent(content) {
   if (typeof content !== "string" || !content.trim().startsWith("{")) return false;
   try {
@@ -143,7 +320,7 @@ function normalizePendingInterrupt(pending) {
   return null;
 }
 function useChat(options = {}) {
-  const { defaultAgentId, fetchWithAuth } = usePersonaContext();
+  const { defaultAgentId, fetchWithAuth, baseUrl, getAuthToken } = usePersonaContext();
   const agentId = options.agentId || defaultAgentId;
   const threadId = options.threadId;
   const [messages, setMessages] = (0, import_react2.useState)(options.initialMessages || []);
@@ -256,10 +433,12 @@ function useChat(options = {}) {
           content: m.content
         }));
         const resolvedThreadId = await (overrideOptions?.threadId ?? options.threadId);
-        const response = await fetchWithAuth("/chat", {
-          method: "POST",
+        const token = getAuthToken ? await getAuthToken() : null;
+        const stream = await openSSEStream({
+          url: `${baseUrl}/chat`,
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            ...token ? { Authorization: `Bearer ${token}` } : {}
           },
           body: JSON.stringify({
             agentId: targetAgentId,
@@ -269,15 +448,10 @@ function useChat(options = {}) {
           }),
           signal: controller.signal
         });
-        if (!response.ok) {
-          const errText = await response.text().catch(() => "Stream failed");
-          throw new Error(`Chat error (${response.status}): ${errText}`);
+        if (!stream.ok) {
+          throw new Error(`Chat error (${stream.status}): ${stream.errorText ?? "Stream failed"}`);
         }
-        if (!response.body) {
-          throw new Error("No response body received for streaming.");
-        }
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder("utf-8");
+        const reader = stream.reader;
         let buffer = "";
         let accumulatedText = "";
         let accumulatedReasoning = "";
@@ -292,7 +466,7 @@ function useChat(options = {}) {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          buffer += decoder.decode(value, { stream: true });
+          buffer += value ?? "";
           const lines = buffer.split("\n");
           buffer = lines.pop() ?? "";
           for (const line of lines) {
@@ -405,7 +579,7 @@ function useChat(options = {}) {
         abortControllerRef.current = null;
       }
     },
-    [agentId, fetchWithAuth, input, isStreaming, messages, options]
+    [agentId, baseUrl, getAuthToken, input, isStreaming, messages, options]
   );
   const handleInputChange = (0, import_react2.useCallback)((e) => {
     setInput(e.target.value);
@@ -896,6 +1070,8 @@ var VERSION = "0.3.5";
 0 && (module.exports = {
   PersonaProvider,
   VERSION,
+  openSSEStream,
+  supportsStreamingFetch,
   useAgents,
   useChat,
   useConnection,

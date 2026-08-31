@@ -415,6 +415,62 @@ declare function useMcpConnections(options?: UseMcpConnectionsOptions): {
     refetch: () => Promise<PersonaMcpConnection[]>;
 };
 
+/**
+ * SSE transport for chat streams, with a React Native fallback.
+ *
+ * On the web, `fetch` gives a streaming `response.body` and we read it with a
+ * ReadableStream reader. React Native's `fetch` is the whatwg-fetch polyfill
+ * over XMLHttpRequest: `response.body` is `undefined`, and the promise only
+ * settles once the entire response has arrived. That means the check cannot be
+ * "call fetch, then see whether body exists" - by that point the whole stream
+ * has already been buffered and the chance to stream is gone. The transport has
+ * to be chosen *before* the request is made.
+ *
+ * XMLHttpRequest itself does stream everywhere React Native runs: it appends to
+ * `responseText` and fires `readyState === 3` (LOADING) on every chunk, which is
+ * all an SSE consumer needs. So the RN path issues the request over raw XHR and
+ * hands back the same reader interface the fetch path does, leaving callers
+ * unaware of which one they got.
+ */
+/** Minimal reader interface, mirroring the shape of a ReadableStream reader. */
+interface SSEReader {
+    /** Resolves with the next decoded chunk, or `{ done: true }` at end of stream. */
+    read(): Promise<{
+        done: boolean;
+        value?: string;
+    }>;
+    /** Aborts the underlying request. */
+    cancel(): void;
+}
+interface SSEStream {
+    status: number;
+    ok: boolean;
+    getHeader(name: string): string | null;
+    /** Present only when `ok` is false, so callers can surface the server's message. */
+    errorText?: string;
+    reader: SSEReader;
+}
+interface OpenSSEOptions {
+    url: string;
+    headers: Record<string, string>;
+    body: string;
+    signal?: AbortSignal;
+}
+/**
+ * Whether `fetch` on this platform yields a streaming body.
+ *
+ * `navigator.product === 'ReactNative'` is the long-standing marker React
+ * Native sets, and is checked rather than feature-detecting `ReadableStream`:
+ * newer RN versions do expose a global `ReadableStream` while still leaving
+ * `response.body` undefined, so the presence of the type says nothing about
+ * whether fetch will populate it.
+ */
+declare function supportsStreamingFetch(): boolean;
+/**
+ * Opens an SSE stream, using whichever transport this platform can stream over.
+ */
+declare function openSSEStream(opts: OpenSSEOptions): Promise<SSEStream>;
+
 declare const VERSION = "0.3.5";
 
-export { type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaWorkspaceFile, type SendMessageOverride, type UseChatOptions, type UseMcpConnectionsOptions, VERSION, useAgents, useChat, useConnection, useFiles, useMcpConnections, useMemory, usePersonaContext, useThreads };
+export { type OpenSSEOptions, type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendMessageOverride, type UseChatOptions, type UseMcpConnectionsOptions, VERSION, openSSEStream, supportsStreamingFetch, useAgents, useChat, useConnection, useFiles, useMcpConnections, useMemory, usePersonaContext, useThreads };
