@@ -50,7 +50,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@ag-ui/core": "^0.0.57",
+    "@ag-ui/core": "^0.0.59",
     "@personaai/sdk": "^0.4.3"
   },
   "devDependencies": {

@@ -51,7 +51,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@ag-ui/core": "^0.0.57"
+    "@ag-ui/core": "^0.0.59"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
