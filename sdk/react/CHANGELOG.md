@@ -3,6 +3,23 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.5.3
+
+- **Fix: the exported `VERSION` constant was stuck at `'0.4.0'`.** It had not been bumped since
+  the 0.4.0 release, so 0.5.0, 0.5.1 and 0.5.2 all reported the wrong version to anything reading
+  it (feature detection, bug reports, `@personaai/nextjs`'s re-export). It now tracks
+  `package.json` at `'0.5.3'`.
+
+## 0.5.2
+
+- Rebuilt `dist` so the published artifact carried 0.5.1's sequence stamping.
+
+## 0.5.1
+
+- Reasoning messages and tool calls are stamped with a monotonic `seq` from a shared counter, so a
+  client can place each reasoning phase chronologically against the tool calls that bracket it
+  (`PersonaMessage.seq`, `PersonaToolCall.seq`).
+
 ## 0.5.0
 
 - **Breaking: model reasoning now streams as its own messages, one per phase.** Previously

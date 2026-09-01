@@ -1077,7 +1077,7 @@ function useMcpConnections(options = {}) {
 }
 
 // src/index.ts
-var VERSION = "0.4.0";
+var VERSION = "0.5.3";
 export {
   PersonaProvider,
   VERSION,
