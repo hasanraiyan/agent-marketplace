@@ -173,6 +173,13 @@ export class PersonaService {
 
 ### Next.js — read this one carefully
 
+> **Most Next.js apps should reach for [`@personaai/nextjs`](https://www.npmjs.com/package/@personaai/nextjs)
+> instead.** It mounts the whole runtime (streaming chat, threads, files, memory) from one
+> catch-all route file and re-exports the React hooks, so none of the plumbing below is yours to
+> write — and the credential can't reach the client by construction. Use this SDK directly when
+> you want a raw, single-purpose call. See the
+> [Next.js quickstart](https://dev-docs.persona.hasanraiyan.me/guides/nextjs/quickstart).
+
 Next.js blurs server and client code in one codebase more than Express or Nest does, which makes it
 the one framework people actually leak the credential in by accident.
 

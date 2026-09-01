@@ -1,0 +1,198 @@
+---
+title: Quickstart
+description: Add AI to your Next.js app with @personaai/nextjs — one catch-all route mounts the runtime, one provider wires the hooks, behind your own auth.
+---
+
+`@personaai/nextjs` is **the one package a Next.js app installs**. One App Router catch-all route
+file is the entire backend integration — AG-UI streaming chat, threads, files, memory, MCP OAuth
+callbacks, health — and the same package's root entry gives you `<PersonaProvider>` and every
+React hook on the client.
+
+It's a thin translation layer: all logic lives in the [runtime](/guides/runtime/quickstart). If
+you need a raw call the adapter doesn't cover, drop down to
+[`@personaai/sdk`](/guides/sdk-quickstart) in a server action or route handler alongside it.
+
+<Warning>
+  **The credential is server-side only.** It lives behind `@personaai/nextjs/server`, which the
+  root entry never re-exports — so it cannot reach a client bundle through this package. Keep it
+  in `PERSONA_CREDENTIAL` (no `NEXT_PUBLIC_` prefix).
+</Warning>
+
+## Prerequisites
+
+- **Next.js 14+** with the App Router, **Node.js 18+**
+- A **Project credential** shaped `"<keyId>.<secret>"`, minted in
+  [Developer Studio](https://persona.hasanraiyan.me/developer)
+- An **Agent** to talk to (create one in Studio, or via the SDK's `agents.create`)
+
+## Install
+
+```bash
+npm install @personaai/nextjs
+```
+
+One install covers both halves. The package ships ESM, CommonJS, and TypeScript declarations, and
+pulls in `@personaai/runtime` (the engine) and `@personaai/react` (the hooks) for you.
+
+## 1. Mount the runtime — one route file
+
+```ts app/api/persona/[...persona]/route.ts
+import { createPersonaHandler } from '@personaai/nextjs/server';
+import { auth } from '@clerk/nextjs/server';
+
+export const { GET, POST, PUT, PATCH, DELETE } = createPersonaHandler({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+
+  // The one point where your auth world meets Persona's.
+  resolveUserFrom: async () => (await auth()).userId,
+});
+
+// Chat is a long-lived SSE stream — never let Next cache or statically render it.
+export const dynamic = 'force-dynamic';
+```
+
+That's the whole backend. The runtime surface now lives at `/api/persona/*`:
+
+| Method | Path | What it does |
+| --- | --- | --- |
+| `POST` | `/api/persona/chat` | Streams an agent response as SSE (AG-UI events) |
+| `GET` | `/api/persona/threads` | Lists the user's conversations |
+| `POST` | `/api/persona/threads` | Creates a thread |
+| `GET/POST` | `/api/persona/files` | Lists / uploads files (multipart) |
+| `GET` | `/api/persona/health` | Liveness + capability probe (no auth required) |
+
+The complete route table is in the [Next.js routes reference](/guides/nextjs/routes), and the
+underlying SDK calls each route proxies to are in the
+[Runtime routes reference](/guides/runtime/routes).
+
+<Note>
+  The catch-all segment can be named anything (`[...persona]`, `[...slug]`) and mounted anywhere
+  (`app/api/ai/[...slug]/route.ts`). The adapter reads the segments Next hands it, so the path
+  resolves correctly either way — just point the provider's `baseUrl` at the same place.
+</Note>
+
+## 2. Wrap your layout
+
+`PersonaProvider` ships behind a `'use client'` boundary, so it drops straight into a **server**
+layout — no wrapper file of your own:
+
+```tsx app/layout.tsx
+import { PersonaProvider } from '@personaai/nextjs';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <PersonaProvider baseUrl="/api/persona">{children}</PersonaProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+`baseUrl` is the path you mounted the route at. Because it's same-origin, the browser's own
+session cookie authenticates every call — the resolver in step 1 reads it server-side.
+
+## 3. Chat
+
+```tsx app/chat/page.tsx
+'use client';
+import { useChat } from '@personaai/nextjs';
+
+export default function ChatPage() {
+  const { messages, input, handleInputChange, handleSubmit, isStreaming } = useChat({
+    agentId: process.env.NEXT_PUBLIC_PERSONA_AGENT_ID,
+  });
+
+  return (
+    <main>
+      {messages.map((message) => (
+        <p key={message.id}>
+          <strong>{message.role}:</strong> {message.content}
+        </p>
+      ))}
+      <form onSubmit={handleSubmit}>
+        <input value={input} onChange={handleInputChange} disabled={isStreaming} />
+        <button type="submit">Send</button>
+      </form>
+    </main>
+  );
+}
+```
+
+Every hook — `useChat`, `useThreads`, `useFiles`, `useMemory`, `useAgents`, `useMcpConnections` —
+imports from `@personaai/nextjs`. They are the [React SDK](/guides/react/quickstart)'s hooks
+re-exported verbatim; that reference is the one to read for their full APIs.
+
+## The two entry points
+
+| Import | Contents | Where it runs |
+| --- | --- | --- |
+| `@personaai/nextjs` | Everything from `@personaai/react` — `PersonaProvider` and every hook | Client (`'use client'` boundary) |
+| `@personaai/nextjs/server` | `createPersonaHandler`, `toNextRouteHandlers`, `createRuntime`, and the runtime types | Server only |
+
+The split is a safety boundary as much as an ergonomic one: nothing server-side is re-exported
+from the root, so your credential can't reach the browser through it.
+
+## Telling the runtime who a request is from
+
+Persona never authenticates users. The runtime asks *you* who a request is from — see the
+[auth guide](/guides/nextjs/auth) for the full picture. Both idioms in brief:
+
+**`resolveUserFrom(req)`** — the Next.js-native choice, shown above. It receives the Web `Request`,
+but most Next auth libraries read the session from async context, so it usually ignores its
+argument entirely.
+
+**`resolveUser(request)`** — the general runtime-level resolver; it receives the *translated*
+request, so you read `request.headers` / `request.query` yourself:
+
+```ts
+export const { GET, POST, PUT, PATCH, DELETE } = createPersonaHandler({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser: (request) => getUserIdFromSession(request.headers['cookie']),
+});
+```
+
+A resolver returning `null` (or throwing) makes the runtime respond `401`. Every route except
+`GET /health` requires an authenticated user.
+
+## Lifecycle hooks
+
+All eight hooks (`beforeRun`, `afterRun`, `onError`, `beforeToolCall`, `afterToolCall`,
+`onFileUpload`, `onThreadCreate`, `onMemoryWrite`) pass straight through to the runtime — see the
+[Runtime Hooks reference](/guides/runtime/hooks):
+
+```ts
+export const { GET, POST, PUT, PATCH, DELETE } = createPersonaHandler({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUserFrom: async () => (await auth()).userId,
+  hooks: {
+    afterRun: (ctx) => deductCredits(ctx.userId),
+  },
+});
+```
+
+## What you get for free
+
+- **SSE streaming** with heartbeats and platform-native backpressure; the chat `x-persona-run-id`
+  header and `GET /chat/:runId/resume` power reconnects — see
+  [Streaming & disconnects](/guides/nextjs/streaming).
+- **Multipart uploads** parsed with the platform's own `Request.formData()` — no `multer`, no
+  `formidable`. See [Uploads](/guides/nextjs/uploads).
+- **Clean disconnects** — a client hanging up mid-stream unsubscribes the runtime immediately.
+- **Edge compatible** — the server entry imports nothing from `node:*`, so
+  `export const runtime = 'edge'` works (see [Streaming](/guides/nextjs/streaming#edge-runtime)).
+- **Sanitized errors** — runtime envelopes (`{"error":{code,message}}`) are forwarded verbatim;
+  adapter-side failures (e.g. malformed JSON) respond `400 INVALID_REQUEST` in the same shape.
+
+## Next steps
+
+- [Auth & user resolution](/guides/nextjs/auth) — resolver patterns, middleware ordering, `401`s.
+- [Routes](/guides/nextjs/routes) — every route the mount exposes, and translation details.
+- [Uploads](/guides/nextjs/uploads) — multipart parsing and body-size limits.
+- [Streaming & disconnects](/guides/nextjs/streaming) — SSE, backpressure, reconnect, Edge.
+- [React SDK reference](/guides/react/quickstart) — the hooks this package re-exports.
+- [UI components](/guides/ui/quickstart) — drop-in chat surfaces built on those hooks.

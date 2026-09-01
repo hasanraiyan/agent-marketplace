@@ -407,10 +407,10 @@ genuine unclosed gap or an intentional package boundary, not an oversight:
 - **Fine-grained (per-user, per-action) permissions within an enabled capability** — **by
   design**, not a gap: see [Capabilities](#capabilities--admin-surface). A capability is on or off
   per mount; anything finer belongs in `resolveUser` or a hook, not the runtime.
-- Framework adapters beyond Express (`@personaai/nextjs`, `@personaai/node`, `@personaai/fastify`,
-  `@personaai/hono`, `@personaai/nestjs`) — **by design**, not a gap: this package is the
-  foundation they're meant to wrap, not a replacement for them. `@personaai/express` (Wave 3)
-  has shipped as the first.
+- Framework adapters beyond the shipped ones (`@personaai/node`, `@personaai/fastify`,
+  `@personaai/hono`) — **by design**, not a gap: this package is the foundation they're meant to
+  wrap, not a replacement for them. `@personaai/nextjs` (Wave 2), `@personaai/express` and
+  `@personaai/nestjs` (Wave 3) have shipped.
 
 ## Roadmap
 

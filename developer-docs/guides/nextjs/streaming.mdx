@@ -1,0 +1,121 @@
+---
+title: Streaming, Disconnects & Edge
+description: How @personaai/nextjs streams AG-UI chat as SSE from a route handler, honors backpressure, tears down on disconnect, runs on the Edge runtime, and what reconnect means on serverless.
+---
+
+`POST /chat` streams the agent's response as Server-Sent Events (AG-UI protocol frames). The
+adapter is responsible only for the wire mechanics — headers, frames verbatim, backpressure,
+teardown on disconnect. The event semantics live in the
+[AG-UI chat reference](/guides/sdk/chat), and `useChat` already parses all of it for you.
+
+## What the adapter returns
+
+A chat request becomes a `Response` whose body is a **pull-based `ReadableStream`**:
+
+1. **Headers go out with the response** — `Content-Type: text/event-stream`,
+   `Cache-Control: no-cache`, and `X-Accel-Buffering: no` so an nginx/ingress proxy in front of
+   Next doesn't sit on the stream until the run finishes.
+2. **Frames are written verbatim** — `data: ...\n\n` payload lines from the runtime, plus
+   `: heartbeat` comment lines on the runtime's cadence (default 15s) so intermediaries don't time
+   the connection out. Comment lines are invisible to any `data:`-only parser.
+3. **Backpressure is the platform's** — the stream only pulls the next frame from the runtime when
+   the consumer is ready for it, so a slow client can't balloon memory.
+4. **Disconnects tear down immediately** — when the client hangs up, the platform calls `cancel()`
+   on the stream and the adapter calls `return()` on the runtime subscription. No zombie pumps.
+
+## Required route config
+
+```ts app/api/persona/[...persona]/route.ts
+export const dynamic = 'force-dynamic';
+```
+
+Without it, Next may try to statically evaluate or cache the segment at build time. Chat is a
+long-lived stream against per-user state — it must always be dynamic.
+
+On Vercel (and similar hosts) a long run can also outlive the default function timeout. Raise it
+for this segment:
+
+```ts
+export const maxDuration = 300; // seconds; check your plan's ceiling
+```
+
+## Consuming the stream
+
+The `useChat` hook does all of this. If you're building your own client:
+
+```ts
+const res = await fetch('/api/persona/chat', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ agentId: 'ag_123', messages: [{ role: 'user', content: 'Hi' }] }),
+});
+const runId = res.headers.get('x-persona-run-id'); // for reconnect
+// ...read res.body as an SSE stream, parse data: lines as AG-UI events
+```
+
+Use `fetch` rather than `EventSource` — `POST` bodies and custom headers rule `EventSource` out.
+
+## Reconnect & resume
+
+The `POST /chat` response carries an **`x-persona-run-id`** header. If the connection drops, a
+client can reattach to the *same* run and receive the frames it missed:
+
+```
+GET /api/persona/chat/:runId/resume?since=<lastSeqSeen>
+```
+
+Runs stay resumable for `runGraceMs` (default 5 minutes) — but **in the memory of the process that
+started them**. That has a specific consequence in Next.js deployments:
+
+| Deployment | Reconnect behavior |
+| --- | --- |
+| Long-running Node server (`next start`, a container, a VM) | Works as documented — same process, run found. |
+| Serverless / Edge functions (Vercel, Netlify, Cloudflare) | A resume request usually lands on a *different* invocation than the one pumping the run, so it answers `404 RUN_NOT_FOUND` even while the run is alive elsewhere. |
+
+This is a property of the runtime, not of this adapter — see
+[Reconnect & resume](/guides/runtime/reconnect) for the full mechanics and mitigations. On
+serverless, treat a dropped connection as a lost stream and restart it; the thread's messages are
+persisted server-side either way, so `GET /threads/:id/messages` recovers the conversation.
+
+## Edge runtime
+
+The server entry is Web-standard only — `Request`, `Response`, `ReadableStream`, `fetch`,
+`crypto.randomUUID` — and the built bundle imports nothing from `node:*`. It runs unchanged on the
+Edge runtime:
+
+```ts app/api/persona/[...persona]/route.ts
+import { createPersonaHandler } from '@personaai/nextjs/server';
+
+const persona = createPersonaHandler({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUserFrom: async () => (await auth()).userId,
+});
+
+export const { GET, POST, PUT, PATCH, DELETE } = persona;
+export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
+```
+
+<Warning>
+  Note the shape above: `persona` is assigned to a local first. Destructuring `runtime` out of the
+  handler object into a route export would collide with Next's own `runtime` segment config, which
+  must be the string `'edge'` or `'nodejs'`.
+</Warning>
+
+Two things to weigh before choosing Edge: your auth library must support it (Clerk and Auth.js
+do), and reconnect is even less likely to find its run than on Node serverless. Edge's advantage
+here is streaming latency and no cold-start ceiling on long responses.
+
+## Binary streams
+
+File downloads (`GET /files/:id`) and any other `kind: 'binary'` response go through the same
+pull-based writer, chunk by chunk, without buffering the whole file.
+
+## Development-mode note
+
+Next re-evaluates route modules on hot reload, so a saved edit creates a fresh runtime instance
+(and drops any in-flight resumable runs). That's dev-only behavior; a production build evaluates
+the module once per worker. The runtime's eviction timer is `unref`'d and won't keep a process
+alive, so calling `runtime.close()` is optional — reach for it only if you're creating runtimes
+repeatedly in a long-lived process.

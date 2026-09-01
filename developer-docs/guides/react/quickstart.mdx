@@ -26,9 +26,16 @@ Peer dependencies: `react >= 18`. No other packages are required.
 
 You need a running Persona backend — either:
 
+- [`@personaai/nextjs`](/guides/nextjs/quickstart) mounted in your Next.js app
 - [`@personaai/express`](/guides/express/quickstart) mounted in your Express app
 - [`@personaai/nestjs`](/guides/nestjs/quickstart) configured in your NestJS module
 - A [raw runtime](/guides/runtime/quickstart) on any other host
+
+<Note>
+  **On Next.js, install [`@personaai/nextjs`](/guides/nextjs/quickstart) instead of this package.**
+  It re-exports everything documented here behind a `'use client'` boundary — same hooks, same
+  provider, one install for both halves of the app.
+</Note>
 
 The React SDK is a **client-side** package. It calls your backend's HTTP routes (`/chat`,
 `/threads`, `/files`, `/memory`, `/health`, `/agents`) — it never talks directly to
