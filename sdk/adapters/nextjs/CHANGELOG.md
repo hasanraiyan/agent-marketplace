@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Built-in logging — OFF by default, selectable via `logLevel`/`logger` on `createPersonaHandler` and `toNextRouteHandlers` (child namespaces `adapter:nextjs`, `adapter:nextjs:translate`, `adapter:nextjs:write`, `runtime`, `runtime:sdk`). Server entry logs translate/write/runtime handle; client entry re-exports `@personaai/react@^0.5.4` logging via `@personaai/logger`. Nothing logs unless caller opts in; secrets redacted.
+
 ## 0.1.0 — 2026-09-01
 
 First release of `@personaai/nextjs` — the Next.js hero package for `@personaai/runtime`
