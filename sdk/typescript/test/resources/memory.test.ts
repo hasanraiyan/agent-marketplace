@@ -32,9 +32,7 @@ describe('MemoryResource', () => {
     expect(result).toEqual(data);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://api.example.com/api/v1/developer/memory');
-    expect((init.headers as Record<string, string>)['x-persona-external-user-id']).toBe(
-      'sabik-42'
-    );
+    expect((init.headers as Record<string, string>)['x-persona-external-user-id']).toBe('sabik-42');
   });
 
   it('getFile() sends path/scope/agentId as query params', async () => {
@@ -53,7 +51,11 @@ describe('MemoryResource', () => {
   });
 
   it('writeFile() PUTs the input as the JSON body', async () => {
-    const written = { scope: 'user', path: '/memories/user/prefs.md', content: 'likes concise answers' };
+    const written = {
+      scope: 'user',
+      path: '/memories/user/prefs.md',
+      content: 'likes concise answers',
+    };
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       jsonResponse({ success: true, data: written }, 201)
     );

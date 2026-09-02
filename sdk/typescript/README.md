@@ -109,6 +109,36 @@ the package root.
 (human admin) operations, a completely different auth model than the machine-credential calls this
 SDK makes — manage them from [Developer Studio](https://persona.hasanraiyan.me/developer) instead.
 
+## Logging
+
+Built-in, **off by default** — nothing logs unless you enable it. Selectable per instance or globally, with full level visibility (`off` < `error` < `warn` < `info` < `debug` < `trace`).
+
+```ts
+import { PersonaClient, setLogLevel, createLogger } from '@personaai/sdk';
+
+// Global — affects loggers created without an explicit level
+setLogLevel('debug'); // or 'trace' for wire-level detail
+
+// Per-client — overrides global for this credential/user
+const persona = new PersonaClient({
+  baseUrl: 'https://api.persona.hasanraiyan.me',
+  credential: process.env.PERSONA_CREDENTIAL!,
+  logLevel: 'debug', // or 'info' | 'warn' | 'error' | 'trace' | 'off'
+});
+
+// Custom transport — route to pino/winston/Datadog/etc.
+const logger = createLogger('my-app', {
+  level: 'debug',
+  transport: (level, namespace, message, meta) => {
+    myPino[ level === 'trace' ? 'debug' : level ]({ namespace, ...meta }, message);
+  },
+});
+const persona2 = new PersonaClient({ baseUrl, credential, logger });
+const child = logger.child('http'); // namespaces: sdk:http, sdk:chat, sdk:architect
+```
+
+Secrets are redacted: `Authorization: Bearer <keyId>:***` and any body keys matching `credential|secret|apiKey|token|password` are logged as `***`.
+
 ## Framework recipes
 
 ### Express

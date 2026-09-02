@@ -8,6 +8,7 @@ import {
 } from '../types/chat.js';
 import type { PersonaRunErrorEvent } from '../types/aguiEvents.js';
 import { parseAguiEventStream } from './sse.js';
+import { createLogger, type Logger } from '../logger.js';
 
 /**
  * AG-UI chat client (`/api/v1/developer/agui`) — runs an Agent as the
@@ -16,7 +17,13 @@ import { parseAguiEventStream } from './sse.js';
  * credential has no Subject to chat as; the server rejects it with 400).
  */
 export class ChatClient {
-  constructor(private readonly http: HttpClient) {}
+  private readonly logger: Logger;
+  constructor(
+    private readonly http: HttpClient,
+    logger?: Logger
+  ) {
+    this.logger = logger ?? createLogger('sdk:chat');
+  }
 
   /**
    * Streams the raw AG-UI event sequence for a run — full control for
@@ -38,17 +45,75 @@ export class ChatClient {
     const headers: Record<string, string> = { 'x-agent-id': agentId };
     if (options.threadId) headers['x-thread-id'] = options.threadId;
 
-    const response = await this.http.request<Response>('POST', '/api/v1/developer/agui', {
-      headers,
-      body: {
-        messages: options.messages,
-        resume: options.resume,
-        contextOverride: options.contextOverride,
-      },
-      signal: options.signal,
+    this.logger.debug('chat stream start', {
+      agentId,
+      hasThreadId: !!options.threadId,
+      hasResume: !!options.resume,
+      hasContextOverride: !!options.contextOverride,
+      messageCount: options.messages?.length ?? 0,
+    });
+    this.logger.trace('chat stream request', {
+      agentId,
+      threadId: options.threadId,
+      messagesPreview: options.messages?.map((m) => ({
+        role: (m as { role?: string }).role,
+        contentPreview:
+          typeof (m as { content?: unknown }).content === 'string'
+            ? String((m as { content?: unknown }).content).slice(0, 200)
+            : undefined,
+      })),
+      hasResume: !!options.resume,
     });
 
-    yield* parseAguiEventStream(response);
+    let response: Response;
+    try {
+      response = await this.http.request<Response>('POST', '/api/v1/developer/agui', {
+        headers,
+        body: {
+          messages: options.messages,
+          resume: options.resume,
+          contextOverride: options.contextOverride,
+        },
+        signal: options.signal,
+      });
+      this.logger.debug('chat stream connected', { agentId, status: response.status });
+    } catch (err) {
+      this.logger.error('chat stream failed to connect', {
+        agentId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    }
+
+    let eventCount = 0;
+    try {
+      for await (const event of parseAguiEventStream(response, this.logger)) {
+        eventCount += 1;
+        this.logger.trace('chat event', { agentId, type: event.type, event });
+        if (event.type === EventType.TEXT_MESSAGE_CHUNK) {
+          this.logger.debug('chat text chunk', {
+            agentId,
+            deltaLength: (event as { delta?: string }).delta?.length ?? 0,
+          });
+        } else if (event.type === EventType.CUSTOM) {
+          this.logger.debug('chat custom event', {
+            agentId,
+            name: (event as { name?: string }).name,
+          });
+        } else if (event.type === EventType.RUN_ERROR) {
+          this.logger.warn('chat run error event', { agentId, event });
+        }
+        yield event;
+      }
+      this.logger.info('chat stream ended', { agentId, eventCount });
+    } catch (err) {
+      this.logger.error('chat stream error', {
+        agentId,
+        eventCount,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    }
   }
 
   /**
@@ -69,6 +134,10 @@ export class ChatClient {
    * ```
    */
   async sendMessage(agentId: string, options: SendMessageOptions): Promise<ChatResult> {
+    this.logger.debug('chat sendMessage start', {
+      agentId,
+      messageCount: options.messages?.length ?? 0,
+    });
     let text = '';
     let interrupt: ChatInterrupt | undefined;
     let error: PersonaRunErrorEvent | undefined;
@@ -82,8 +151,10 @@ export class ChatClient {
       } else if (event.type === EventType.CUSTOM) {
         if (event.name === 'hitl_request') {
           interrupt = { kind: 'hitl', value: event.value };
+          this.logger.info('chat interrupt — hitl_request', { agentId });
         } else if (event.name === 'clarification_request') {
           interrupt = { kind: 'clarification', value: event.value };
+          this.logger.info('chat interrupt — clarification_request', { agentId });
         }
       } else if (event.type === EventType.RUN_ERROR) {
         // The base @ag-ui/core RunErrorEvent type only guarantees
@@ -91,7 +162,23 @@ export class ChatClient {
         // the fuller shape (code as a literal enum, retryable, providerName)
         // as passthrough extras, so PersonaRunErrorEvent is the accurate type.
         error = event as unknown as PersonaRunErrorEvent;
+        this.logger.warn('chat run error', { agentId, code: (error as { code?: string }).code });
       }
+    }
+
+    this.logger.debug('chat sendMessage completed', {
+      agentId,
+      textLength: text.length,
+      hasInterrupt: !!interrupt,
+      hasError: !!error,
+      eventCount: events.length,
+    });
+    if (error) {
+      this.logger.warn('chat sendMessage ended with error', { agentId, code: error.code });
+    } else if (interrupt) {
+      this.logger.info('chat sendMessage paused on interrupt', { agentId, kind: interrupt.kind });
+    } else {
+      this.logger.info('chat sendMessage succeeded', { agentId, textLength: text.length });
     }
 
     return { text, interrupt, error, events };

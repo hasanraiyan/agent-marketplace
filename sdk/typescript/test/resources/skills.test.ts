@@ -54,10 +54,7 @@ describe('SkillsResource', () => {
     );
     const client = makeClient(fetchMock as unknown as typeof fetch);
 
-    await client.skills.create(
-      { name: 'x', description: 'y', instructions: 'z' },
-      'idem-key-1'
-    );
+    await client.skills.create({ name: 'x', description: 'y', instructions: 'z' }, 'idem-key-1');
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect((init.headers as Record<string, string>)['Idempotency-Key']).toBe('idem-key-1');
   });

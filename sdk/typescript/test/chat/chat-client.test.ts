@@ -152,7 +152,8 @@ describe('ChatClient', () => {
       {
         type: EventType.RUN_ERROR,
         code: 'PROVIDER_AUTH_ERROR',
-        message: 'Provider "OpenAI" has invalid credentials. Update its API key in Settings and try again.',
+        message:
+          'Provider "OpenAI" has invalid credentials. Update its API key in Settings and try again.',
         retryable: false,
         providerName: 'openai',
       },
@@ -165,7 +166,8 @@ describe('ChatClient', () => {
     expect(result.error).toEqual({
       type: EventType.RUN_ERROR,
       code: 'PROVIDER_AUTH_ERROR',
-      message: 'Provider "OpenAI" has invalid credentials. Update its API key in Settings and try again.',
+      message:
+        'Provider "OpenAI" has invalid credentials. Update its API key in Settings and try again.',
       retryable: false,
       providerName: 'openai',
     });

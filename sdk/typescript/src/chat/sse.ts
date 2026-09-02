@@ -1,4 +1,5 @@
 import type { AguiEvent } from '../types/chat.js';
+import type { Logger } from '../logger.js';
 
 /**
  * Parses a `text/event-stream` `Response` body into a stream of AG-UI
@@ -14,8 +15,14 @@ import type { AguiEvent } from '../types/chat.js';
  * @yields Each parsed {@link AguiEvent}; malformed/partial SSE frames are
  *   skipped rather than thrown.
  */
-export async function* parseAguiEventStream(response: Response): AsyncGenerator<AguiEvent> {
-  if (!response.body) return;
+export async function* parseAguiEventStream(
+  response: Response,
+  logger?: Logger
+): AsyncGenerator<AguiEvent> {
+  if (!response.body) {
+    logger?.debug('sse: no body on response');
+    return;
+  }
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -41,10 +48,13 @@ export async function* parseAguiEventStream(response: Response): AsyncGenerator<
         if (!data) continue;
 
         try {
-          yield JSON.parse(data) as AguiEvent;
+          const event = JSON.parse(data) as AguiEvent;
+          logger?.trace('sse: parsed event', { type: (event as { type?: string }).type });
+          yield event;
         } catch {
           // Malformed/partial SSE frame — skip rather than throw, matching
           // SSE's own tolerant-parsing convention.
+          logger?.warn('sse: skipped malformed frame', { preview: data.slice(0, 200) });
         }
       }
     }

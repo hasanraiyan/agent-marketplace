@@ -1,4 +1,5 @@
 import { errorFromResponse, PersonaApiError } from './errors.js';
+import { createLogger, type Logger, type LogLevel } from './logger.js';
 
 export interface HttpClientOptions {
   /** Base URL of the Persona Developer Platform API, e.g. "https://api.persona.hasanraiyan.me". */
@@ -15,6 +16,10 @@ export interface HttpClientOptions {
   fetch?: typeof fetch;
   /** Maximum number of retries on 429 responses. Defaults to 2. */
   maxRetries?: number;
+  /** Log level for this client — off by default. Overrides the global level set via `setLogLevel()`. */
+  logLevel?: LogLevel;
+  /** Custom logger instance — when provided, `logLevel` is ignored and this logger is used directly. */
+  logger?: Logger;
 }
 
 export interface RequestOptions {
@@ -53,6 +58,7 @@ export class HttpClient {
   private readonly externalUserId: string | undefined;
   private readonly fetchImpl: typeof fetch;
   private readonly maxRetries: number;
+  private readonly logger: Logger;
 
   constructor(options: HttpClientOptions) {
     if (!options.baseUrl) throw new Error('HttpClient: "baseUrl" is required');
@@ -63,12 +69,74 @@ export class HttpClient {
     this.externalUserId = options.externalUserId;
     this.fetchImpl = options.fetch ?? globalThis.fetch;
     this.maxRetries = options.maxRetries ?? 2;
+    this.logger =
+      options.logger ??
+      createLogger(
+        'sdk:http',
+        options.logLevel !== undefined ? { level: options.logLevel } : undefined
+      );
 
     if (!this.fetchImpl) {
       throw new Error(
         'HttpClient: no fetch implementation available — pass one via the `fetch` option (Node 18+ has fetch built in)'
       );
     }
+
+    this.logger.debug('HttpClient initialized', {
+      baseUrl: this.baseUrl,
+      hasExternalUserId: !!this.externalUserId,
+      maxRetries: this.maxRetries,
+    });
+  }
+
+  private redactCredential(cred: string): string {
+    const dot = cred.indexOf('.');
+    if (dot === -1) return '***';
+    return `${cred.slice(0, dot)}:***`;
+  }
+
+  private redactHeaders(headers: Record<string, string>): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(headers)) {
+      if (k.toLowerCase() === 'authorization') {
+        const bearerPrefix = 'Bearer ';
+        if (v.startsWith(bearerPrefix)) {
+          out[k] = `${bearerPrefix}${this.redactCredential(v.slice(bearerPrefix.length))}`;
+        } else {
+          out[k] = '***';
+        }
+      } else {
+        out[k] = v;
+      }
+    }
+    return out;
+  }
+
+  private getBodyPreview(body: unknown): unknown {
+    if (body === undefined) return undefined;
+    if (isFormData(body)) return { type: 'FormData' };
+    if (typeof body === 'string') {
+      return body.length > 500 ? `${body.slice(0, 500)}...[truncated ${body.length} chars]` : body;
+    }
+    if (typeof body === 'object' && body !== null) {
+      try {
+        const obj = body as Record<string, unknown>;
+        const preview: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(obj)) {
+          if (/credential|secret|apiKey|api_key|token|password/i.test(k)) {
+            preview[k] = '***';
+          } else if (typeof v === 'string' && v.length > 500) {
+            preview[k] = `${v.slice(0, 500)}...[truncated ${v.length} chars]`;
+          } else {
+            preview[k] = v as unknown;
+          }
+        }
+        return preview;
+      } catch {
+        return '[unserializable]';
+      }
+    }
+    return body;
   }
 
   private buildUrl(path: string, query?: RequestOptions['query']): string {
@@ -120,24 +188,137 @@ export class HttpClient {
           ? (options.body as FormData)
           : JSON.stringify(options.body);
 
+    const redactedHeadersForLog = this.redactHeaders(headers);
+    const startMs = Date.now();
+    this.logger.debug('request start', {
+      method,
+      path,
+      hasQuery: options.query !== undefined && Object.keys(options.query).length > 0,
+      hasBody: options.body !== undefined,
+      attempt: 0,
+    });
+    this.logger.trace('request details', {
+      method,
+      url,
+      headers: redactedHeadersForLog,
+      query: options.query,
+      bodyPreview: this.getBodyPreview(options.body),
+    });
+
     let attempt = 0;
     for (;;) {
-      const response = await this.fetchImpl(url, {
-        method,
-        headers,
-        body,
-        signal: options.signal,
-      });
+      let response: Response;
+      try {
+        response = await this.fetchImpl(url, {
+          method,
+          headers,
+          body,
+          signal: options.signal,
+        });
+      } catch (err) {
+        const durationMs = Date.now() - startMs;
+        this.logger.error('request failed — network error', {
+          method,
+          path,
+          durationMs,
+          attempt,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        throw err;
+      }
 
       if (response.status === 429 && attempt < this.maxRetries) {
         const retryAfterHeader = response.headers.get('Retry-After');
         const retryAfterSeconds = retryAfterHeader ? Number(retryAfterHeader) : 1;
+        this.logger.warn('rate limited — retrying', {
+          method,
+          path,
+          status: 429,
+          attempt: attempt + 1,
+          maxRetries: this.maxRetries,
+          retryAfterSeconds,
+        });
         await new Promise((resolve) => setTimeout(resolve, Math.max(0, retryAfterSeconds) * 1000));
         attempt += 1;
         continue;
       }
 
-      return this.parseResponse<T>(response);
+      const durationMs = Date.now() - startMs;
+      const contentType = response.headers.get('content-type') ?? '';
+
+      if (!response.ok) {
+        this.logger.warn('request received error status', {
+          method,
+          path,
+          status: response.status,
+          durationMs,
+          attempt,
+          contentType,
+        });
+      } else {
+        // Distinguish streaming vs buffered success at trace/debug, info for the caller-visible outcome
+        if (contentType.includes('text/event-stream')) {
+          this.logger.info('request succeeded — streaming response', {
+            method,
+            path,
+            status: response.status,
+            durationMs,
+            attempt,
+          });
+        } else {
+          this.logger.info('request succeeded', {
+            method,
+            path,
+            status: response.status,
+            durationMs,
+            attempt,
+          });
+        }
+        this.logger.debug('request completed', {
+          method,
+          path,
+          status: response.status,
+          durationMs,
+        });
+      }
+
+      this.logger.trace('response details', {
+        method,
+        path,
+        status: response.status,
+        headers: Object.fromEntries(response.headers.entries()),
+        durationMs,
+        attempt,
+      });
+
+      try {
+        return await this.parseResponse<T>(response);
+      } catch (err) {
+        if (err instanceof PersonaApiError) {
+          const meta = {
+            method,
+            path,
+            status: err.statusCode,
+            code: err.code,
+            message: err.message,
+            durationMs,
+            attempt,
+          };
+          if (err.statusCode >= 500) this.logger.error('request failed', meta);
+          else if (err.statusCode >= 400) this.logger.warn('request failed', meta);
+          else this.logger.info('request failed', meta);
+          this.logger.trace('error response body', { method, path, response: err.response });
+        } else {
+          this.logger.error('request failed — parse error', {
+            method,
+            path,
+            durationMs,
+            attempt,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+        throw err;
+      }
     }
   }
 
