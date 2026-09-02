@@ -1232,6 +1232,558 @@
         }
       }
     },
+    "/api/v1/developer/secrets": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Create a Project secret",
+        "description": "The plaintext value is stored reversibly encrypted and is never returned by this or any other endpoint, including this one — the caller already has the plaintext, since they just supplied it.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "label",
+                  "value"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Secret created (value never included in the response)"
+          },
+          "409": {
+            "description": "A secret with this exact label already exists"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "List this Project's secrets",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Secret[] (label + metadata only, never the value)"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/secrets/{secretId}": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Get a Project secret's metadata",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "secretId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Secret metadata"
+          },
+          "404": {
+            "description": "Not found or unauthorized"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Rename a secret or rotate its value",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "secretId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated secret metadata"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete a secret",
+        "description": "Blocked while any REST API tool still references it — see the usage endpoint.",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "secretId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Secret deleted"
+          },
+          "400": {
+            "description": "Still referenced by one or more REST API tools"
+          },
+          "404": {
+            "description": "Not found or unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/secrets/{secretId}/usage": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "See what's using this secret, before attempting to delete it",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "secretId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ restApiToolCount, restApiTools: [{ _id, name }] }"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/secrets/bulk-delete": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete multiple secrets in one call",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ids"
+                ],
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{ deleted: string[], failed: [{ id, reason }] }"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/rest-tools": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Create a REST API tool (Project-owned or ExternalUser-owned)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "method",
+                  "url"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "REST API tool created"
+          },
+          "409": {
+            "description": "A REST API tool with this exact name already exists"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Discover REST API tools",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "mine"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ items: RestApiTool[], pagination: {...} }"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/rest-tools/test": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Test-call an unsaved draft or a saved tool by id (the builder's \"Send\" button)",
+        "description": "Never reachable from the agent tool-calling path. `testValues` may include `externalUserId` as a stand-in for testing a tool that references {{externalUserId}}, supplied by the authenticated tool-author themselves — never persisted, never usable by an agent.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "toolId": {
+                    "type": "string"
+                  },
+                  "draft": {
+                    "type": "object"
+                  },
+                  "testValues": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{ status, ok, body, mapped }"
+          },
+          "400": {
+            "description": "Missing toolId/draft",
+            "or a required template value": null
+          }
+        }
+      }
+    },
+    "/api/v1/developer/rest-tools/{toolId}": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Get a REST API tool",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "toolId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "REST API tool"
+          },
+          "404": {
+            "description": "Not found or not visible to this Domain/Subject"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Update a REST API tool (owner only)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "toolId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated REST API tool"
+          },
+          "409": {
+            "description": "Another REST API tool with this name already exists"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete a REST API tool (owner only)",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "toolId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "REST API tool deleted"
+          },
+          "404": {
+            "description": "Not found or unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/rest-tools/{toolId}/usage": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "See what's using this tool, before attempting to delete it",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "toolId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ agentCount, agents: [{ _id, name }] }"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/rest-tools/{toolId}/test": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Test-call a saved REST API tool by id",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "toolId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ status, ok, body, mapped }"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/rest-tools/bulk-delete": {
+      "post": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Delete multiple REST API tools in one call",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ids"
+                ],
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{ deleted: string[], failed: [{ id, reason }] }"
+          }
+        }
+      }
+    },
     "/api/v1/developer/providers": {
       "post": {
         "tags": [
@@ -1263,10 +1815,39 @@
                 "type": "object",
                 "required": [
                   "label",
-                  "baseURL",
                   "apiKey",
                   "defaultModel"
-                ]
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "openai",
+                      "anthropic",
+                      "gemini",
+                      "deepseek",
+                      "custom"
+                    ],
+                    "default": "custom",
+                    "description": "Native types resolve baseURL to a canonical preset if omitted."
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "baseURL": {
+                    "type": "string",
+                    "description": "Required only when type is \"custom\"."
+                  },
+                  "apiKey": {
+                    "type": "string"
+                  },
+                  "defaultModel": {
+                    "type": "string"
+                  },
+                  "isDefault": {
+                    "type": "boolean"
+                  }
+                }
               }
             }
           }
@@ -1348,6 +1929,44 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "openai",
+                      "anthropic",
+                      "gemini",
+                      "deepseek",
+                      "custom"
+                    ],
+                    "description": "Switching to \"custom\" requires baseURL in the same request."
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "baseURL": {
+                    "type": "string"
+                  },
+                  "apiKey": {
+                    "type": "string",
+                    "description": "New API key (leave empty to keep existing)."
+                  },
+                  "defaultModel": {
+                    "type": "string"
+                  },
+                  "isDefault": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Updated Provider"
@@ -3380,6 +3999,47 @@
           },
           "404": {
             "description": "Agent not found"
+          }
+        }
+      }
+    },
+    "/api/v1/developer/agents/{agentId}/mcp-connections": {
+      "get": {
+        "tags": [
+          "Developer"
+        ],
+        "summary": "Per-user OAuth connection status for this Agent's user-mode MCPs",
+        "description": "Every `authType: 'oauth', authMode: 'user'` MCP attached to this Agent, with whether the caller (the ProjectRuntimeContext's asserted external user) has connected it yet and, if not, a ready authorizeUrl. Requires x-persona-external-user-id — there's no per-user connection concept for a bare Project credential.\n",
+        "security": [
+          {
+            "projectCredential": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "returnTo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Where to send the browser after the OAuth consent completes. Defaults to this platform's own site if omitted."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ mcpId, name, description, connected, authorizeUrl }[] — authorizeUrl is null when connected is true"
+          },
+          "404": {
+            "description": "Agent not found (or not visible to this Domain/Subject)"
           }
         }
       }
