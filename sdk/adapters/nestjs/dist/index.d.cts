@@ -1,6 +1,7 @@
 import { ModuleMetadata, Type, OnModuleDestroy, NestMiddleware, NestModule, DynamicModule, MiddlewareConsumer } from '@nestjs/common';
 import { CreateRuntimeOptions, ResolveUser, Runtime, RuntimeRequest, RuntimeResponse } from '@personaai/runtime';
-import { PersonaClient } from '@personaai/sdk';
+import { LogLevel, Logger, PersonaClient } from '@personaai/sdk';
+export { LogLevel, Logger, createLogger, createNoopLogger } from '@personaai/sdk';
 
 declare const PERSONA_MODULE_OPTIONS: unique symbol;
 declare const PERSONA_RUNTIME: unique symbol;
@@ -27,6 +28,10 @@ interface PersonaModuleOptions extends Omit<CreateRuntimeOptions, 'resolveUser'>
      * Default: `/api/persona`
      */
     routePrefix?: string;
+    /** Log level for the adapter and the underlying runtime — off by default. */
+    logLevel?: LogLevel;
+    /** Custom logger instance — when provided, `logLevel` is ignored. */
+    logger?: Logger;
 }
 interface PersonaOptionsFactory {
     createPersonaOptions(): Promise<PersonaModuleOptions> | PersonaModuleOptions;
@@ -42,6 +47,8 @@ declare class PersonaService implements OnModuleDestroy {
     readonly options: PersonaModuleOptions;
     readonly runtime: Runtime;
     readonly client: PersonaClient;
+    private readonly logger;
+    private readonly log;
     constructor(options: PersonaModuleOptions, runtime: Runtime, client: PersonaClient);
     /**
      * Constructs a PersonaClient scoped to a specific end-user.
@@ -54,12 +61,16 @@ declare class PersonaService implements OnModuleDestroy {
 declare class PersonaMiddleware implements NestMiddleware {
     private readonly options;
     private readonly runtime;
+    private readonly logger;
+    private readonly log;
     constructor(options: PersonaModuleOptions, runtime: Runtime);
     use(req: any, res: any, next: (error?: any) => void): Promise<void>;
 }
 
 declare class PersonaModule implements NestModule {
     private readonly options;
+    private readonly logger;
+    private readonly log;
     constructor(options: PersonaModuleOptions);
     static forRoot(options: PersonaModuleOptions): DynamicModule;
     static forRootAsync(asyncOptions: PersonaModuleAsyncOptions): DynamicModule;
@@ -70,10 +81,10 @@ declare class PersonaModule implements NestModule {
 declare class TranslationError extends Error {
     constructor(message: string);
 }
-declare function toRuntimeRequest(req: any): Promise<RuntimeRequest>;
+declare function toRuntimeRequest(req: any, logger?: Logger): Promise<RuntimeRequest>;
 
-declare function writeRuntimeResponse(res: any, response: RuntimeResponse): Promise<void>;
+declare function writeRuntimeResponse(res: any, response: RuntimeResponse, logger?: Logger): Promise<void>;
 
-declare const VERSION = "0.1.1";
+declare const VERSION = "0.1.2";
 
 export { type NestResolveUser, PERSONA_CLIENT, PERSONA_MODULE_OPTIONS, PERSONA_RUNTIME, PersonaMiddleware, PersonaModule, type PersonaModuleAsyncOptions, type PersonaModuleOptions, type PersonaOptionsFactory, PersonaService, TranslationError, VERSION, toRuntimeRequest, writeRuntimeResponse };

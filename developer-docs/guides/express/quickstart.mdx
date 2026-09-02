@@ -105,6 +105,31 @@ All eight hooks (`beforeRun`, `afterRun`, `onError`, `beforeToolCall`, `afterToo
 [Runtime Hooks reference](/guides/runtime/hooks). Configure them on `createRuntime` or in the
 factory options; the adapter never inspects them.
 
+## Logging
+
+Built-in, **OFF by default** — nothing logs unless you enable it. Selectable per adapter or
+globally via `setLogLevel` from `@personaai/sdk` (the same logger `runtime` uses, so one setting
+covers both).
+
+```ts
+import { createExpressAdapter } from '@personaai/express';
+import { setLogLevel, createLogger } from '@personaai/sdk';
+
+// Global — affects all SDK/runtime/adapter loggers created without an explicit level
+setLogLevel('debug'); // or 'trace' for wire detail
+
+// Per-adapter — overrides global for this mount
+const persona = createExpressAdapter({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUserFrom: (req) => req.user?.id ?? null,
+  logLevel: 'debug', // 'off' | 'error' | 'warn' | 'info' | 'debug' | 'trace'
+  // logger: createLogger('my-app:express', { level: 'debug', transport: myTransport }),
+});
+```
+
+Levels: `off < error < warn < info < debug < trace` (every level visible). Namespaces: `adapter:express`, `adapter:express:translate`, `adapter:express:multipart`, `adapter:express:write`, `runtime`, `runtime:sdk:http`, etc. — use a custom `transport` to route to pino/winston. Secrets redacted: `Authorization: Bearer <keyId>:***` and secret-bearing body keys never appear.
+
 ## What you get for free
 
 - **SSE streaming** with heartbeats and `drain`-based backpressure; the chat `x-persona-run-id`

@@ -1,4 +1,3 @@
-
 import { describe, expect, it } from 'vitest';
 import { Test } from '@nestjs/testing';
 import { PersonaModule } from '../src/persona.module.js';
