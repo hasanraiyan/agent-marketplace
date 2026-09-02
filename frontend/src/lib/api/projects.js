@@ -182,3 +182,38 @@ export const bulkDeleteProjectAgents = (projectId, ids) =>
 // minted/revoked, membership changes, suspend/restore), not resource CRUD.
 export const getProjectAuditLogs = (projectId, params) =>
   api.get(`/projects/${projectId}/audit-logs`, { params });
+
+// REST API Tool Builder (PERSONA_REST_TOOL_REQUEST.md) — no single-item GET
+// route, same find-by-id-from-list convention as MCP/Agent above.
+export const getProjectRestTools = (projectId) =>
+  api.get(`/projects/${projectId}/rest-tools`);
+export const createProjectRestTool = (projectId, data) =>
+  api.post(`/projects/${projectId}/rest-tools`, data);
+export const updateProjectRestTool = (projectId, toolId, data) =>
+  api.patch(`/projects/${projectId}/rest-tools/${toolId}`, data);
+export const deleteProjectRestTool = (projectId, toolId) =>
+  api.delete(`/projects/${projectId}/rest-tools/${toolId}`);
+export const getProjectRestToolUsage = (projectId, toolId) =>
+  api.get(`/projects/${projectId}/rest-tools/${toolId}/usage`);
+export const bulkDeleteProjectRestTools = (projectId, ids) =>
+  api.post(`/projects/${projectId}/rest-tools/bulk-delete`, { ids });
+// Backs the builder's "Send" button — pass either { toolId } (a saved tool)
+// or { draft } (unsaved form state), plus optional testValues (may include
+// externalUserId as a stand-in for testing a {{externalUserId}} tool).
+export const testProjectRestTool = (projectId, { toolId, draft, testValues } = {}) =>
+  api.post(`/projects/${projectId}/rest-tools/test`, { toolId, draft, testValues });
+
+// Project secrets (REST API Tool Builder's Auth tab) — the value is never
+// returned by any of these, including create; the caller already has it.
+export const getProjectSecrets = (projectId) =>
+  api.get(`/projects/${projectId}/secrets`);
+export const createProjectSecret = (projectId, data) =>
+  api.post(`/projects/${projectId}/secrets`, data);
+export const updateProjectSecret = (projectId, secretId, data) =>
+  api.patch(`/projects/${projectId}/secrets/${secretId}`, data);
+export const deleteProjectSecret = (projectId, secretId) =>
+  api.delete(`/projects/${projectId}/secrets/${secretId}`);
+export const getProjectSecretUsage = (projectId, secretId) =>
+  api.get(`/projects/${projectId}/secrets/${secretId}/usage`);
+export const bulkDeleteProjectSecrets = (projectId, ids) =>
+  api.post(`/projects/${projectId}/secrets/bulk-delete`, { ids });

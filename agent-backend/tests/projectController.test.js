@@ -57,6 +57,31 @@ jest.unstable_mockModule('../src/modules/knowledge/knowledge.service.js', () => 
 jest.unstable_mockModule('../src/modules/mcp/mcp.service.js', () => ({
   default: { discoverMcps: jest.fn(), toSafeJson: jest.fn((mcp) => ({ ...mcp, safe: true })) },
 }));
+// REST API Tool Builder (PERSONA_REST_TOOL_REQUEST.md): project.controller.js
+// now imports these for real too — same boundary-mocking reason as mcp.service.js
+// above (restApiTool.service.js transitively pulls in agent.factory.js).
+jest.unstable_mockModule('../src/modules/restApiTools/restApiTool.service.js', () => ({
+  default: {
+    discoverRestApiTools: jest.fn(),
+    createRestApiTool: jest.fn(),
+    updateRestApiTool: jest.fn(),
+    deleteRestApiTool: jest.fn(),
+    getRestApiToolById: jest.fn(),
+    getRestApiToolUsage: jest.fn(),
+    testCall: jest.fn(),
+    toSafeJson: jest.fn((tool) => ({ ...tool, safe: true })),
+  },
+}));
+jest.unstable_mockModule('../src/modules/projects/projectSecret.service.js', () => ({
+  default: {
+    listSecrets: jest.fn(),
+    createSecret: jest.fn(),
+    updateSecret: jest.fn(),
+    deleteSecret: jest.fn(),
+    getSecretUsage: jest.fn(),
+    toSafeJson: jest.fn((secret) => ({ ...secret, safe: true })),
+  },
+}));
 jest.unstable_mockModule('../src/modules/providers/provider.service.js', () => ({
   default: { listProvidersForProject: jest.fn() },
 }));

@@ -117,7 +117,7 @@ agent-backend/
 
 All published SDK packages live under one `sdk/` folder. Package *names* (what users install) are
 independent of their folder: `@personaai/sdk`, `@personaai/runtime`, `@personaai/react`, `@personaai/ui`,
-`@personaai/express`, `@personaai/nestjs`, and `persona-agent-sdk` (PyPI).
+`@personaai/express`, `@personaai/nestjs`, `@personaai/nextjs`, and `persona-agent-sdk` (PyPI).
 
 ```
 sdk/
@@ -125,6 +125,7 @@ sdk/
 ├── python/            # persona-agent-sdk — Python API client (hatchling + pytest)
 ├── runtime/           # @personaai/runtime — framework-agnostic runtime engine
 ├── adapters/
+│   ├── nextjs/        # @personaai/nextjs — Next.js adapter (implemented)
 │   ├── express/       # @personaai/express — Express adapter (implemented)
 │   └── nestjs/        # @personaai/nestjs — NestJS adapter (implemented)
 ├── react/             # @personaai/react — React hooks + context provider (implemented)
@@ -395,6 +396,7 @@ The memory system uses a **file-based store** backed by MongoDB (not `InMemorySt
 | `sdk/react/src/index.ts`                            | React hooks + context (`@personaai/react`) exports |
 | `sdk/ui/src/index.ts`                               | Pre-built React components (`@personaai/ui`) exports |
 | `sdk/adapters/nestjs/src/index.ts`                  | NestJS adapter (`@personaai/nestjs`) exports       |
+| `sdk/adapters/nextjs/src/server.ts`                 | Next.js adapter (`@personaai/nextjs`) route handlers |
 
 ## Configuration
 

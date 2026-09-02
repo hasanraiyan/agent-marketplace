@@ -19,6 +19,15 @@ import {
   updateKnowledgeBaseSchema,
 } from '../knowledge/knowledge.validator.js';
 import { createMcpSchema, updateMcpSchema } from '../mcp/mcp.validator.js';
+import {
+  createProjectSecretSchema,
+  updateProjectSecretSchema,
+} from './projectSecret.validator.js';
+import {
+  createRestApiToolSchema,
+  updateRestApiToolSchema,
+  testRestApiToolSchema,
+} from '../restApiTools/restApiTool.validator.js';
 import { createAgentSchema, updateAgentSchema } from '../agents/agent.validator.js';
 import { createStoreSchema, updateStoreSchema } from '../stores/store.validator.js';
 
@@ -689,6 +698,50 @@ adminRouter.delete(
   mutateLimiter,
   projectController.disconnectMcpOwnerConnection
 );
+
+adminRouter.post(
+  '/secrets',
+  mutateLimiter,
+  validateBody(createProjectSecretSchema),
+  projectController.createSecret
+);
+adminRouter.get('/secrets', projectController.listSecrets);
+adminRouter.patch(
+  '/secrets/:secretId',
+  mutateLimiter,
+  validateBody(updateProjectSecretSchema),
+  projectController.updateSecret
+);
+adminRouter.delete('/secrets/:secretId', mutateLimiter, projectController.deleteSecret);
+adminRouter.get('/secrets/:secretId/usage', projectController.getSecretUsage);
+adminRouter.post('/secrets/bulk-delete', mutateLimiter, projectController.bulkDeleteSecrets);
+
+adminRouter.get('/rest-tools', projectController.listRestApiTools);
+adminRouter.post(
+  '/rest-tools',
+  mutateLimiter,
+  validateBody(createRestApiToolSchema),
+  projectController.createRestApiTool
+);
+adminRouter.patch(
+  '/rest-tools/:toolId',
+  mutateLimiter,
+  validateBody(updateRestApiToolSchema),
+  projectController.updateRestApiTool
+);
+adminRouter.delete('/rest-tools/:toolId', mutateLimiter, projectController.deleteRestApiTool);
+adminRouter.get('/rest-tools/:toolId/usage', projectController.getRestApiToolUsage);
+adminRouter.post(
+  '/rest-tools/bulk-delete',
+  mutateLimiter,
+  projectController.bulkDeleteRestApiTools
+);
+adminRouter.post(
+  '/rest-tools/test',
+  validateBody(testRestApiToolSchema),
+  projectController.testRestApiTool
+);
+adminRouter.post('/rest-tools/:toolId/test', projectController.testRestApiTool);
 
 /**
  * @openapi

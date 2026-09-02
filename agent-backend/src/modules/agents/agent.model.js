@@ -137,6 +137,12 @@ const agentSchema = new mongoose.Schema(
         ref: 'Mcp',
       },
     ],
+    restApiTools: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'RestApiTool',
+      },
+    ],
     knowledgeBases: [
       {
         type: mongoose.Schema.Types.ObjectId,

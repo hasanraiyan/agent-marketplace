@@ -1,0 +1,145 @@
+---
+title: Auth & User Resolution
+description: How @personaai/nextjs connects your own authentication to Persona — the Request-level resolver, the runtime-level resolver, Clerk/NextAuth recipes, and the 401 behavior.
+---
+
+Persona never authenticates end users. There is no login, no session, no token of its own — the
+route handler receives a request and asks *your code* who it's from. The adapter gives you two
+ways to answer.
+
+The result of either resolver is the **external user id** Persona scopes the request to: threads,
+files, and memory are that user's, and chat runs under that identity. If no user can be resolved,
+the runtime responds `401` — every route except `GET /health` requires an authenticated user.
+
+## Pattern 1 — `resolveUserFrom` (the Next.js-native choice)
+
+It receives the Web `Request` the route handler was called with. In practice most Next auth
+libraries read the session from async context rather than from the request object, so the resolver
+usually ignores its argument:
+
+```ts app/api/persona/[...persona]/route.ts
+import { createPersonaHandler } from '@personaai/nextjs/server';
+import { auth } from '@clerk/nextjs/server';
+
+export const { GET, POST, PUT, PATCH, DELETE } = createPersonaHandler({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUserFrom: async () => (await auth()).userId,
+});
+
+export const dynamic = 'force-dynamic';
+```
+
+The resolver may be async. `null` and thrown errors are equivalent — both produce `401` — so a
+session lookup that throws is treated as "not authenticated", never as a `500`.
+
+### NextAuth / Auth.js
+
+```ts
+import { auth } from '@/auth';
+
+export const { GET, POST, PUT, PATCH, DELETE } = createPersonaHandler({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUserFrom: async () => (await auth())?.user?.id ?? null,
+});
+```
+
+### Supabase
+
+```ts
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+
+export const { GET, POST, PUT, PATCH, DELETE } = createPersonaHandler({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUserFrom: async () => {
+    const supabase = createServerClient(/* ...your config, reading cookies() */);
+    const { data } = await supabase.auth.getUser();
+    return data.user?.id ?? null;
+  },
+});
+```
+
+### Your own session cookie
+
+```ts
+export const { GET, POST, PUT, PATCH, DELETE } = createPersonaHandler({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUserFrom: async (req) => {
+    const token = req.headers.get('cookie'); // or cookies() from next/headers
+    return verifySessionAndGetUserId(token); // your verification, not a raw claim
+  },
+});
+```
+
+## Pattern 2 — Runtime-level resolver (`resolveUser`)
+
+The general resolver, shared with every other Persona adapter. It receives the *translated*
+request (the runtime's `RuntimeRequest` shape), so you read `request.headers`, `request.query`,
+etc. Use it when your auth already works off raw headers, or when you want the same runtime
+mountable through more than one transport:
+
+```ts
+export const { GET, POST, PUT, PATCH, DELETE } = createPersonaHandler({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser: async (request) => getUserIdFromSession(request.headers['cookie']),
+});
+```
+
+> **Which one?** `resolveUserFrom` is the ergonomic choice in Next.js — it runs in the route
+> handler's own async context, which is exactly what `auth()`, `cookies()`, and `headers()` need.
+> `resolveUser` is the portable choice. If you provide both, `resolveUserFrom` wins (it is applied
+> last, and the runtime-level resolver becomes a pass-through of the identity it resolved).
+
+One of the two is required — `createPersonaHandler` throws at module load if neither is given, so
+a misconfiguration fails your build, not a user's request.
+
+## Middleware still runs first
+
+Next.js `middleware.ts` runs before route handlers, so a matcher that covers `/api/persona/:path*`
+gates the mount the same way an Express auth middleware would:
+
+```ts middleware.ts
+import { clerkMiddleware } from '@clerk/nextjs/server';
+
+export default clerkMiddleware();
+
+export const config = {
+  matcher: ['/api/persona/:path*', '/((?!_next|.*\\..*).*)'],
+};
+```
+
+This is complementary, not a replacement: middleware decides whether the request may proceed;
+the resolver tells Persona *whose* request it is. Most Clerk and Auth.js setups need the matcher
+to include your Persona route for `auth()` to see a session inside the handler at all.
+
+## Unauthenticated requests
+
+When the resolver returns `null` (or throws), the runtime responds `401` with the envelope:
+
+```json
+{
+  "error": { "code": "UNAUTHORIZED", "message": "Could not resolve an authenticated user for this request." }
+}
+```
+
+If you'd rather reject unauthenticated requests yourself (redirect to a login page, return your
+own error page), do it in `middleware.ts` — the adapter itself never redirects; it only ever lets
+the runtime answer.
+
+## Using your own identity vs forwarding client input
+
+The adapter never passes through raw identity from the browser. The resolver reads whatever *your*
+auth verified — Clerk's `auth().userId`, an Auth.js session, your own signed cookie — and that
+verified id is what Persona scopes the request to. **Never** derive it from an untrusted header
+the client could forge; always go through a step your backend actually authenticated.
+
+## Health is public
+
+`GET /health` does not call the resolver at all — it's a liveness/capability probe backed by the
+SDK's `whoami()`. It's the one route that answers without an authenticated user. See
+[Runtime routes](/guides/runtime/routes) for the full always-on table.

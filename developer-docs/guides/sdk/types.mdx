@@ -25,7 +25,7 @@ resource, and every type. This page documents **all** of them.
 | Type    | `PaginatedResult<T>`, `PaginationInfo`, `BulkDeleteResult`, `ResourceUsage`                         |
 | Type    | `Provider`, `CreateProviderInput`, `UpdateProviderInput`, `ProviderModel`, `ProviderTestConnectionResult` |
 | Type    | `Skill`, `SkillFile`, `CreateSkillInput`, `UpdateSkillInput`, `DiscoverSkillsParams`                |
-| Type    | `Agent`, `AgentSocialLinks`, `AgentVisibility`, `AgentCategory`, `CreateAgentInput`, `UpdateAgentInput`, `DiscoverAgentsParams` |
+| Type    | `Agent`, `AgentSocialLinks`, `AgentVisibility`, `AgentCategory`, `CreateAgentInput`, `UpdateAgentInput`, `DiscoverAgentsParams`, `McpConnection` |
 | Type    | `KnowledgeBase`, `KnowledgeDocument`, `CreateKnowledgeBaseInput`, `UpdateKnowledgeBaseInput`, `DiscoverKnowledgeBasesParams`, `UploadFileInput`, `UploadDocumentsResult`, `DeleteDocumentResult`, `KnowledgeSearchResult` |
 | Type    | `Mcp`, `McpTransport`, `McpAuthType`, `McpAuthMode`, `McpTool`, `McpResourceSummary`, `McpResourceTemplate`, `McpOAuthConfig`, `McpOAuthInput`, `CreateMcpInput`, `UpdateMcpInput`, `DiscoverMcpsParams`, `McpTestConnectionResult`, `McpReadResourceResult`, `McpUserConnectionStatus` |
 | Type    | `Thread`, `CreateThreadInput`, `UpdateThreadInput`, `ListThreadsParams`, `ThreadMessages`           |
@@ -288,6 +288,21 @@ All fields optional. Array/map fields **replace entirely**: `skills?`, `mcps?`,
 
 `page?` (default 1), `limit?` (default 20), `search?` (free-text vs
 `name`/`description`/`tagline`), `category?: AgentCategory`, `scope?: 'mine'`.
+
+### `McpConnection`
+
+Returned by `agents.getMcpConnections(agentId)` — one entry per
+`authType: 'oauth', authMode: 'user'` MCP attached to the Agent, and whether
+the calling identity (the client's asserted external user) has connected it
+yet.
+
+| Field           | Type              | Description                                                        |
+| --------------- | ----------------- | -------------------------------------------------------------------- |
+| `mcpId`         | `string`          | The attached MCP's id.                                              |
+| `name`          | `string`          | The MCP's display name.                                             |
+| `description`   | `string`          | The MCP's description.                                              |
+| `connected`     | `boolean`         | Whether this calling identity has already connected.                |
+| `authorizeUrl`  | `string \| null`  | Present only when `connected` is `false` — send the browser here to start the OAuth consent flow. |
 
 ## Knowledge types
 

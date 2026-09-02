@@ -66,6 +66,16 @@
             ]
           },
           {
+            "group": "Next.js Adapter",
+            "pages": [
+              "guides/nextjs/quickstart",
+              "guides/nextjs/routes",
+              "guides/nextjs/auth",
+              "guides/nextjs/uploads",
+              "guides/nextjs/streaming"
+            ]
+          },
+          {
             "group": "Express Adapter",
             "pages": [
               "guides/express/quickstart",

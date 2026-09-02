@@ -1,0 +1,96 @@
+---
+title: Uploads
+description: How @personaai/nextjs handles multipart file uploads — native FormData parsing, form-field mapping, body-size limits, and binary downloads.
+---
+
+Two routes accept file uploads, and the adapter parses them with the platform's own
+`Request.formData()` — zero extra dependencies, identical on the Node.js and Edge runtimes:
+
+- `POST /files` — single-file upload, `file` part required (plus optional `agentId`/`threadId` form fields)
+- `POST /knowledge/:id/documents` — one or more `files` parts (plus optional `agentId`/`threadId`)
+
+`/files` is always on; `/knowledge` is capability-gated (enable `capabilities.knowledge` — see
+[Runtime capabilities](/guides/runtime/capabilities)). The adapter's job is only to translate the
+incoming multipart body into the runtime's `file` / `files` / `body` fields.
+
+## Native parsing
+
+There is no `multer`, `busboy`, or `formidable` in this path, and nothing to configure — the
+adapter calls `request.formData()` on the request Next handed it:
+
+```ts
+const form = new FormData();
+form.set('file', myFile); // a File from an <input type="file">
+form.set('agentId', 'ag_123');
+
+await fetch('/api/persona/files', { method: 'POST', body: form });
+```
+
+Field mapping:
+
+| Form field | Becomes |
+| --- | --- |
+| `file` (a File) | `RuntimeRequest.file` — `{ filename, content, contentType }` |
+| `files` (any number of Files) | `RuntimeRequest.files` — an array in submission order |
+| anything else | a key on `RuntimeRequest.body`, forwarded to the SDK upload call |
+
+Do **not** set a `Content-Type` header yourself when posting a `FormData` — the browser adds the
+multipart boundary, and overriding it makes the body unparsable (which the adapter answers with
+`400 INVALID_REQUEST`).
+
+The same shape works from `curl`:
+
+```bash
+curl -X POST http://localhost:3000/api/persona/files \
+  -H "Cookie: <your session cookie>" \
+  -F "file=@resume.pdf;type=application/pdf" \
+  -F "agentId=ag_123"
+```
+
+## Uploading from a Server Action
+
+A Server Action can forward its own `FormData` straight through, since the route is same-origin —
+but it must carry the session forward. Uploading from the client (where the cookie is sent
+automatically) is the simpler path; reach for a Server Action only when you need to validate or
+rewrite the form first.
+
+## Body size limits
+
+The adapter buffers request bodies (JSON *and* multipart) in memory with **no size limit of its
+own**, and App Router route handlers have no built-in limit either — the Pages Router's
+`api.bodyParser.sizeLimit` config does not apply here. Two things to know:
+
+1. **Your host probably has one.** Vercel caps a serverless function's request body at 4.5 MB;
+   other platforms and any reverse proxy in front of your app have their own ceilings. A file
+   larger than that never reaches your route handler at all.
+2. **Enforce your own limit if you need one.** The cheapest place is `middleware.ts`, which runs
+   before the body is ever read:
+
+```ts middleware.ts
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+export function middleware(request: NextRequest) {
+  const length = Number(request.headers.get('content-length') ?? 0);
+  if (request.nextUrl.pathname === '/api/persona/files' && length > MAX_UPLOAD_BYTES) {
+    return NextResponse.json(
+      { error: { code: 'PAYLOAD_TOO_LARGE', message: 'Files must be 10 MB or smaller.' } },
+      { status: 413 }
+    );
+  }
+}
+
+export const config = { matcher: ['/api/persona/:path*'] };
+```
+
+Choose limits that match your product — typical chat attachments are 1–25 MB.
+
+The runtime's `onFileUpload` hook is **not** an enforcement point: it fires *after* a successful
+upload and receives only `{ userId, fileName, mimeType }`. Use it for auditing and metrics, not
+for rejection — see the [Runtime Hooks reference](/guides/runtime/hooks).
+
+## Downloads are binary
+
+The mirror image: `GET /files/:id` streams the file back as raw bytes (`kind: 'binary'`), chunk by
+chunk through a `ReadableStream`, with the runtime's `Content-Type` and content-disposition
+headers forwarded verbatim. Nothing is buffered in memory, so a large download costs the same as a
+small one.

@@ -1114,7 +1114,7 @@ function useMcpConnections(options = {}) {
 }
 
 // src/index.ts
-var VERSION = "0.4.0";
+var VERSION = "0.5.3";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   PersonaProvider,

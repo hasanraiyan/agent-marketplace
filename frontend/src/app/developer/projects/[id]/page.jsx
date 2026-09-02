@@ -57,6 +57,15 @@ import {
   getProjectProviderUsage,
   getProjectSkillUsage,
   getProjectMcpUsage,
+  getProjectRestTools,
+  deleteProjectRestTool,
+  bulkDeleteProjectRestTools,
+  getProjectRestToolUsage,
+  getProjectSecrets,
+  createProjectSecret,
+  deleteProjectSecret,
+  bulkDeleteProjectSecrets,
+  getProjectSecretUsage,
 } from "@/lib/api/projects";
 import { developerRoutes } from "@/lib/developer-routes";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
@@ -430,6 +439,18 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   const [mcpsLoading, setMcpsLoading] = useState(true);
   const [deleteMcpTarget, setDeleteMcpTarget] = useState(null);
   const [deletingMcp, setDeletingMcp] = useState(false);
+  const [restTools, setRestTools] = useState([]);
+  const [restToolsLoading, setRestToolsLoading] = useState(true);
+  const [deleteRestToolTarget, setDeleteRestToolTarget] = useState(null);
+  const [deletingRestTool, setDeletingRestTool] = useState(false);
+  const [secrets, setSecrets] = useState([]);
+  const [secretsLoading, setSecretsLoading] = useState(true);
+  const [deleteSecretTarget, setDeleteSecretTarget] = useState(null);
+  const [deletingSecret, setDeletingSecret] = useState(false);
+  const [newSecretOpen, setNewSecretOpen] = useState(false);
+  const [newSecretLabel, setNewSecretLabel] = useState("");
+  const [newSecretValue, setNewSecretValue] = useState("");
+  const [creatingSecret, setCreatingSecret] = useState(false);
   const [providers, setProviders] = useState([]);
   const [providersLoading, setProvidersLoading] = useState(true);
   const [deleteProviderTarget, setDeleteProviderTarget] = useState(null);
@@ -654,6 +675,42 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
         );
       } finally {
         setMcpsLoading(false);
+      }
+    })();
+  }, [isLoaded, isSignedIn, projectId]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    (async () => {
+      try {
+        setRestToolsLoading(true);
+        const res = await getProjectRestTools(projectId);
+        if (res.data?.success) {
+          setRestTools(res.data.data);
+        }
+      } catch (err) {
+        toast.error(
+          err.response?.data?.message || "Failed to load REST API tools.",
+        );
+      } finally {
+        setRestToolsLoading(false);
+      }
+    })();
+  }, [isLoaded, isSignedIn, projectId]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    (async () => {
+      try {
+        setSecretsLoading(true);
+        const res = await getProjectSecrets(projectId);
+        if (res.data?.success) {
+          setSecrets(res.data.data);
+        }
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Failed to load Secrets.");
+      } finally {
+        setSecretsLoading(false);
       }
     })();
   }, [isLoaded, isSignedIn, projectId]);
@@ -1028,6 +1085,61 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
     }
   };
 
+  const handleDeleteRestTool = async () => {
+    if (!deleteRestToolTarget) return;
+    setDeletingRestTool(true);
+    try {
+      const targetId = deleteRestToolTarget._id || deleteRestToolTarget.id;
+      await deleteProjectRestTool(projectId, targetId);
+      setRestTools((prev) => prev.filter((t) => (t._id || t.id) !== targetId));
+      toast.success("REST API tool deleted.");
+      setDeleteRestToolTarget(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete tool.");
+    } finally {
+      setDeletingRestTool(false);
+    }
+  };
+
+  const handleDeleteSecret = async () => {
+    if (!deleteSecretTarget) return;
+    setDeletingSecret(true);
+    try {
+      const targetId = deleteSecretTarget._id || deleteSecretTarget.id;
+      await deleteProjectSecret(projectId, targetId);
+      setSecrets((prev) => prev.filter((s) => (s._id || s.id) !== targetId));
+      toast.success("Secret deleted.");
+      setDeleteSecretTarget(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete secret.");
+    } finally {
+      setDeletingSecret(false);
+    }
+  };
+
+  const handleCreateSecret = async () => {
+    if (!newSecretLabel.trim() || !newSecretValue.trim()) {
+      toast.error("Label and value are required");
+      return;
+    }
+    setCreatingSecret(true);
+    try {
+      const res = await createProjectSecret(projectId, {
+        label: newSecretLabel.trim(),
+        value: newSecretValue.trim(),
+      });
+      setSecrets((prev) => [...prev, res.data.data]);
+      toast.success("Secret created.");
+      setNewSecretOpen(false);
+      setNewSecretLabel("");
+      setNewSecretValue("");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to create secret.");
+    } finally {
+      setCreatingSecret(false);
+    }
+  };
+
   const handleDeleteAgent = async () => {
     if (!deleteAgentTarget) return;
     setDeletingAgent(true);
@@ -1074,6 +1186,10 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
     runBulkDelete(bulkDeleteProjectSkills, ids, setSkills, "Skill");
   const handleBulkDeleteMcps = (ids) =>
     runBulkDelete(bulkDeleteProjectMcps, ids, setMcps, "Connector");
+  const handleBulkDeleteRestTools = (ids) =>
+    runBulkDelete(bulkDeleteProjectRestTools, ids, setRestTools, "REST API tool");
+  const handleBulkDeleteSecrets = (ids) =>
+    runBulkDelete(bulkDeleteProjectSecrets, ids, setSecrets, "Secret");
   const handleBulkDeleteProviders = (ids) =>
     runBulkDelete(bulkDeleteProjectProviders, ids, setProviders, "Provider");
 
@@ -1126,6 +1242,8 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
           <TabsTrigger value="stores">Stores</TabsTrigger>
           <TabsTrigger value="knowledge">Knowledge</TabsTrigger>
           <TabsTrigger value="connectors">Connectors</TabsTrigger>
+          <TabsTrigger value="rest-tools">REST Tools</TabsTrigger>
+          <TabsTrigger value="secrets">Secrets</TabsTrigger>
           <TabsTrigger value="providers">Providers</TabsTrigger>
           <TabsTrigger value="audit-logs">Audit Logs</TabsTrigger>
         </TabsList>
@@ -1651,6 +1769,68 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                 }
                 onDelete={(mcp) => setDeleteMcpTarget(mcp)}
                 onBulkDelete={handleBulkDeleteMcps}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="rest-tools" className="mt-6">
+          <Card className="max-w-2xl">
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div>
+                <CardTitle>REST API Tools</CardTitle>
+                <CardDescription>
+                  No-code REST tools this Project&apos;s Agents can call.
+                </CardDescription>
+              </div>
+              <Link href={developerRoutes.projectRestToolNew(projectId)}>
+                <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
+                  <Plus className="mr-1.5 size-3.5" />
+                  New REST Tool
+                </Button>
+              </Link>
+            </CardHeader>
+            <CardContent>
+              <NameDescriptionTable
+                items={restTools}
+                loading={restToolsLoading}
+                emptyLabel="No REST API tools yet."
+                getEditHref={(id) =>
+                  developerRoutes.projectRestToolEdit(projectId, id)
+                }
+                onDelete={(tool) => setDeleteRestToolTarget(tool)}
+                onBulkDelete={handleBulkDeleteRestTools}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="secrets" className="mt-6">
+          <Card className="max-w-2xl">
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div>
+                <CardTitle>Secrets</CardTitle>
+                <CardDescription>
+                  Reusable Bearer secrets for REST API tools&apos; Auth tab. Values
+                  are never shown again after creation.
+                </CardDescription>
+              </div>
+              <Button
+                size="sm"
+                className={PRIMARY_CTA_CLASSNAME}
+                onClick={() => setNewSecretOpen(true)}
+              >
+                <Plus className="mr-1.5 size-3.5" />
+                New Secret
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <NameDescriptionTable
+                items={secrets.map((s) => ({ ...s, name: s.label }))}
+                loading={secretsLoading}
+                emptyLabel="No secrets yet."
+                onDelete={(secret) => setDeleteSecretTarget(secret)}
+                onBulkDelete={handleBulkDeleteSecrets}
               />
             </CardContent>
           </Card>
@@ -2601,6 +2781,132 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete REST API tool */}
+      <AlertDialog
+        open={!!deleteRestToolTarget}
+        onOpenChange={(open) => !open && setDeleteRestToolTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this REST API tool?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteRestToolTarget?.name} will be permanently deleted. Any
+              Agents still attaching it will lose access to it. This cannot be
+              undone.
+            </AlertDialogDescription>
+            <UsageWarning
+              getUsage={getProjectRestToolUsage}
+              projectId={projectId}
+              id={deleteRestToolTarget?._id || deleteRestToolTarget?.id}
+            />
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingRestTool}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteRestTool();
+              }}
+              disabled={deletingRestTool}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingRestTool ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete secret */}
+      <AlertDialog
+        open={!!deleteSecretTarget}
+        onOpenChange={(open) => !open && setDeleteSecretTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this secret?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteSecretTarget?.label} will be permanently deleted. This is
+              blocked while any REST API tool still references it. This cannot
+              be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingSecret}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteSecret();
+              }}
+              disabled={deletingSecret}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingSecret ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* New secret */}
+      <Dialog open={newSecretOpen} onOpenChange={setNewSecretOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New secret</DialogTitle>
+            <DialogDescription>
+              Reusable across REST API tools&apos; Auth tab. The value is never
+              shown again after this.
+            </DialogDescription>
+          </DialogHeader>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="new-secret-label-dialog">Label</FieldLabel>
+              <Input
+                id="new-secret-label-dialog"
+                placeholder="e.g. Skilify shared secret"
+                value={newSecretLabel}
+                onChange={(e) => setNewSecretLabel(e.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="new-secret-value-dialog">Value</FieldLabel>
+              <Input
+                id="new-secret-value-dialog"
+                type="password"
+                placeholder="Paste the secret value"
+                value={newSecretValue}
+                onChange={(e) => setNewSecretValue(e.target.value)}
+              />
+            </Field>
+          </FieldGroup>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setNewSecretOpen(false)}
+              disabled={creatingSecret}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleCreateSecret} disabled={creatingSecret}>
+              {creatingSecret && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete agent */}
       <AlertDialog

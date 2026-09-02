@@ -1,0 +1,124 @@
+---
+title: Routes
+description: Every route a @personaai/nextjs mount exposes, how the adapter translates a Next.js Request, and which SDK call each route proxies to.
+---
+
+The adapter exposes the runtime's entire route table under whatever catch-all route you create.
+`app/api/persona/[...persona]/route.ts` forwards every request under `/api/persona/` to
+`runtime.handle()` — the runtime owns matching, params, and 404/405 (with `Allow`). The adapter
+adds no routes of its own.
+
+Each HTTP method is a separate named export in Next.js, which is why the handler object is
+destructured:
+
+```ts app/api/persona/[...persona]/route.ts
+export const { GET, POST, PUT, PATCH, DELETE } = createPersonaHandler({ ... });
+```
+
+All five are the *same* handler — they exist as five exports only because Next requires it. Omit
+one and Next answers `405` for that method before the runtime ever sees the request, so export all
+five unless you deliberately want a method blocked.
+
+<Warning>
+  Do **not** also destructure `runtime` into a route-file export. Next.js treats a route-level
+  `runtime` export as the segment runtime config (`'nodejs'` / `'edge'`), and exporting an object
+  there is a build error. Keep the handler object in a local variable if you need `runtime.close()`.
+</Warning>
+
+## Always-on routes (end-user scoped)
+
+| Method | Path (relative to mount) | What it does |
+| --- | --- | --- |
+| `POST` | `/chat` | Streams an agent response as SSE (AG-UI events); response carries `x-persona-run-id` |
+| `GET` | `/chat/:runId/resume` | Reattaches to the run started by the matching `POST /chat` |
+| `GET` | `/threads` | Lists the user's conversations |
+| `POST` | `/threads` | Creates a thread |
+| `POST` | `/threads/bulk-delete` | Deletes several threads at once |
+| `GET` | `/threads/:id` | Gets a thread |
+| `PATCH` | `/threads/:id` | Updates title / archive state |
+| `DELETE` | `/threads/:id` | Deletes a thread (`204`) |
+| `GET` | `/threads/:id/messages` | Full message history + graph state (resume source) |
+| `GET` | `/agents` | Read-only agent discovery for your users |
+| `GET` | `/agents/:id/mcp-connections` | Per-user MCP connection status for an agent |
+| `GET` | `/files` | Lists the user's files |
+| `POST` | `/files` | Uploads a file (multipart, `file` part) — `201` |
+| `POST` | `/files/bulk-delete` | Deletes several files |
+| `GET` | `/files/:id` | Downloads a file (binary) |
+| `DELETE` | `/files/:id` | Deletes a file (`204`) |
+| `GET` | `/memory` | Lists memory entries |
+| `GET` | `/memory/file` | Reads a memory file (`path` query param) |
+| `PUT` | `/memory/file` | Writes a memory file |
+| `DELETE` | `/memory/file` | Deletes a memory file (`204`) |
+| `GET` | `/mcps/:id/oauth/owner/authorize` | Owner OAuth authorize URL (redirect target) |
+| `GET` | `/mcps/:id/oauth/user/authorize` | End-user OAuth authorize URL |
+| `GET` | `/mcps/:id/oauth/user/status` | End-user MCP connection status |
+| `DELETE` | `/mcps/:id/oauth/user/connection` | Disconnects the end user's connection (`204`) |
+| `DELETE` | `/mcps/:id/oauth/owner/connection` | Disconnects the owner's connection (`204`) |
+| `GET` | `/health` | Liveness + capability probe — **no auth required** |
+
+Every route except `GET /health` requires an authenticated user (`401` when the resolver returns
+`null` or throws). For the exact SDK call each route proxies to, see the
+[Runtime routes reference](/guides/runtime/routes).
+
+## Opt-in admin routes
+
+The Project-level admin surface (agents CRUD, providers, skills, knowledge, stores, MCPs, audit
+logs, architect) is off by default — it's gated behind `capabilities.*` on the runtime. When a
+capability is disabled its routes are simply absent (a request `404`s or `405`s, never `403`). See
+[Runtime capabilities](/guides/runtime/capabilities).
+
+To expose the admin surface, create a *second* catch-all route with capabilities on and stricter
+auth. `toNextRouteHandlers` is the primitive for that — it mounts an existing runtime rather than
+creating one:
+
+```ts app/api/admin/persona/[...persona]/route.ts
+import { createRuntime, toNextRouteHandlers } from '@personaai/nextjs/server';
+
+const adminRuntime = createRuntime({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser: (request) => requireAdmin(request.headers['cookie']), // stricter
+  capabilities: { providers: true, skills: true, knowledge: true },
+});
+
+export const { GET, POST, PUT, PATCH, DELETE } = toNextRouteHandlers(adminRuntime);
+export const dynamic = 'force-dynamic';
+```
+
+Your end-user route stays exactly as it was — two runtimes, two mounts, two auth policies.
+
+## How the adapter translates a request
+
+The adapter maps the Web `Request` a route handler receives to the runtime's framework-neutral
+contract before `runtime.handle()` runs. The behaviors to know:
+
+| Concern | Behavior |
+| --- | --- |
+| **Path** | Taken from the **catch-all segments** Next passes as the handler's second argument (`params`), so the path is mount-relative no matter where you put the route file or what you name the segment. Both the Next 14 (plain object) and Next 15+ (Promise) `params` shapes are accepted. Segments arrive URL-decoded and are re-encoded, so the runtime's own param decoding stays lossless for values containing `%` or `/`. |
+| **Non-catch-all mounts** | With no array `params` present, the full `URL` pathname is used instead — set the runtime's `mountPath` option so it gets stripped. |
+| **Query** | Parsed from the request URL via `URLSearchParams`, so repeated keys collapse to the last value (`Record<string, string>`). |
+| **Headers** | Copied from the Web `Headers`, which already lowercases names and joins repeated values with `, `. |
+| **Method** | Uppercased; `GET`/`DELETE` are treated as bodyless. |
+| **JSON bodies** | Read with `request.text()` and parsed. An empty body becomes `undefined`; malformed JSON → `400 INVALID_REQUEST`, without ever reaching the runtime. |
+| **Multipart bodies** | Parsed with the platform's own `request.formData()` — see [Uploads](/guides/nextjs/uploads). |
+| **Auth** | `resolveUserFrom` (if provided) runs after translation and stamps the result as the runtime request's `userId` (see [Auth](/guides/nextjs/auth)). |
+
+## Response translation
+
+| Runtime response | Becomes |
+| --- | --- |
+| `buffered` (every JSON route) | A `Response` with the pre-serialized body, status and headers verbatim. A `204` is sent with a genuinely null body, as the Fetch spec requires. |
+| `stream` (chat) | A pull-based `ReadableStream`, plus `X-Accel-Buffering: no` so a proxy in front of Next doesn't buffer the SSE stream. |
+| `binary` (file downloads) | A pull-based `ReadableStream` of the raw bytes, headers verbatim. |
+
+## Error responses
+
+- Runtime responses — including sanitized error envelopes `{"error":{code,message}}` — are
+  forwarded **verbatim** (status, headers, body).
+- Adapter translation failures (malformed JSON, unparsable multipart) respond
+  `400 INVALID_REQUEST` in the same envelope shape.
+- `runtime.handle()` never throws for HTTP errors, so there is no third case to handle: anything
+  the runtime can't serve comes back as an error response, not an exception.
+
+See [Runtime errors](/guides/runtime/errors) for the two detail modes (`development` vs
+`production`).

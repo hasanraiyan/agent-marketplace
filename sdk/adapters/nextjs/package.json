@@ -1,0 +1,90 @@
+{
+  "name": "@personaai/nextjs",
+  "version": "0.1.0",
+  "description": "Next.js integration for Persona (persona.hasanraiyan.me) \u2014 one App Router catch-all route mounts the whole agent runtime; the root entry re-exports @personaai/react for the client.",
+  "type": "module",
+  "main": "./dist/client.cjs",
+  "module": "./dist/client.js",
+  "types": "./dist/client.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js",
+      "require": "./dist/client.cjs"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js",
+      "require": "./dist/server.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsup",
+    "dev": "tsup --watch",
+    "prepublishOnly": "node -e \"const p=require('./package.json');const d=p.dependencies||{};for(const k of Object.keys(d)){if(String(d[k]).startsWith('file:')){console.error('Refusing to publish: '+k+' must be a registry version, not a file: link.');process.exit(1)}}\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src test examples",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"examples/**/*.ts*\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\" \"examples/**/*.ts*\""
+  },
+  "keywords": [
+    "persona",
+    "persona.hasanraiyan.me",
+    "nextjs",
+    "next",
+    "app-router",
+    "route-handler",
+    "adapter",
+    "runtime",
+    "ag-ui",
+    "agents"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/hasanraiyan/agent-marketplace/tree/feat/ai/sdk/adapters/nextjs#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hasanraiyan/agent-marketplace.git",
+    "directory": "sdk/adapters/nextjs"
+  },
+  "bugs": {
+    "url": "https://github.com/hasanraiyan/agent-marketplace/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "next": ">=14",
+    "react": ">=18.0.0"
+  },
+  "dependencies": {
+    "@personaai/react": "^0.5.2",
+    "@personaai/runtime": "^0.5.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.19.0",
+    "@types/node": "^22.10.7",
+    "@types/react": "^19.0.0",
+    "eslint": "^9.19.0",
+    "next": "^15.1.6",
+    "prettier": "^3.4.2",
+    "react": "^19.0.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0",
+    "vitest": "^3.0.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
