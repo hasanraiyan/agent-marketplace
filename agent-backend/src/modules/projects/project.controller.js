@@ -9,6 +9,8 @@ import agentService from '../agents/agent.service.js';
 import skillService from '../skills/skill.service.js';
 import knowledgeService from '../knowledge/knowledge.service.js';
 import mcpService from '../mcp/mcp.service.js';
+import projectSecretService from './projectSecret.service.js';
+import restApiToolService from '../restApiTools/restApiTool.service.js';
 import providerService from '../providers/provider.service.js';
 import storeService from '../stores/store.service.js';
 import auditLogService from '../audit/auditLog.service.js';
@@ -929,6 +931,196 @@ class ProjectController {
     try {
       const result = await bulkDelete(req.body.ids, (id) =>
         mcpService.deleteMcp(id, undefined, req.projectAdminContext)
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async createSecret(req, res, next) {
+    try {
+      const secret = await projectSecretService.createSecret(req.projectAdminContext, req.body);
+      res.status(201).json({ success: true, data: secret });
+    } catch (error) {
+      if (error.code === 11000) {
+        return res
+          .status(409)
+          .json({ success: false, message: 'A secret with this exact label already exists' });
+      }
+      next(error);
+    }
+  }
+
+  async listSecrets(req, res, next) {
+    try {
+      const secrets = await projectSecretService.listSecrets(req.projectAdminContext);
+      res.json({ success: true, data: secrets });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateSecret(req, res, next) {
+    try {
+      const secret = await projectSecretService.updateSecret(
+        req.projectAdminContext,
+        req.params.secretId,
+        req.body
+      );
+      res.json({ success: true, data: secret });
+    } catch (error) {
+      if (error.code === 11000) {
+        return res
+          .status(409)
+          .json({ success: false, message: 'Another secret with this label already exists' });
+      }
+      next(error);
+    }
+  }
+
+  async deleteSecret(req, res, next) {
+    try {
+      await projectSecretService.deleteSecret(req.projectAdminContext, req.params.secretId);
+      res.json({ success: true, message: 'Secret deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getSecretUsage(req, res, next) {
+    try {
+      const usage = await projectSecretService.getSecretUsage(
+        req.projectAdminContext,
+        req.params.secretId
+      );
+      res.json({ success: true, data: usage });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async bulkDeleteSecrets(req, res, next) {
+    try {
+      const result = await bulkDelete(req.body.ids, (id) =>
+        projectSecretService.deleteSecret(req.projectAdminContext, id)
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async listRestApiTools(req, res, next) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 20;
+      const filters = { search: req.query.search };
+
+      const tools = await restApiToolService.discoverRestApiTools(req.projectAdminContext, filters, {
+        page,
+        limit,
+      });
+
+      res.json({ success: true, data: tools.map((tool) => restApiToolService.toSafeJson(tool)) });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async createRestApiTool(req, res, next) {
+    try {
+      const tool = await restApiToolService.createRestApiTool(
+        undefined,
+        req.body,
+        req.projectAdminContext
+      );
+      res.status(201).json({ success: true, data: restApiToolService.toSafeJson(tool) });
+    } catch (error) {
+      if (error.code === 11000) {
+        return res
+          .status(409)
+          .json({ success: false, message: 'A REST API tool with this exact name already exists' });
+      }
+      next(error);
+    }
+  }
+
+  async updateRestApiTool(req, res, next) {
+    try {
+      const tool = await restApiToolService.updateRestApiTool(
+        req.params.toolId,
+        undefined,
+        req.body,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: restApiToolService.toSafeJson(tool) });
+    } catch (error) {
+      if (error.code === 11000) {
+        return res
+          .status(409)
+          .json({ success: false, message: 'Another REST API tool with this name already exists' });
+      }
+      next(error);
+    }
+  }
+
+  async deleteRestApiTool(req, res, next) {
+    try {
+      await restApiToolService.deleteRestApiTool(req.params.toolId, undefined, req.projectAdminContext);
+      res.json({ success: true, message: 'REST API tool deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getRestApiToolUsage(req, res, next) {
+    try {
+      const usage = await restApiToolService.getRestApiToolUsage(
+        req.params.toolId,
+        undefined,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: usage });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async bulkDeleteRestApiTools(req, res, next) {
+    try {
+      const result = await bulkDelete(req.body.ids, (id) =>
+        restApiToolService.deleteRestApiTool(id, undefined, req.projectAdminContext)
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async testRestApiTool(req, res, next) {
+    try {
+      const toolId = req.params.toolId || req.body.toolId || null;
+      let toolDraft = req.body.draft;
+
+      if (!toolDraft && toolId) {
+        toolDraft = await restApiToolService.getRestApiToolById(
+          toolId,
+          undefined,
+          req.projectAdminContext
+        );
+      }
+      if (!toolDraft) {
+        return res
+          .status(400)
+          .json({ success: false, message: 'Either toolId or draft is required' });
+      }
+
+      const result = await restApiToolService.testCall(
+        req.projectAdminContext,
+        toolDraft,
+        req.body.testValues || {},
+        toolId
       );
       res.json({ success: true, data: result });
     } catch (error) {

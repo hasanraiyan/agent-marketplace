@@ -167,6 +167,22 @@ class AgentRepository {
   async removeMcpFromAgents(mcpId) {
     return await Agent.updateMany({ mcps: mcpId }, { $pull: { mcps: mcpId } });
   }
+
+  /** REST API Tool Builder — mirrors findAgentsUsingMcp/removeMcpFromAgents exactly. */
+  async findAgentsUsingRestApiTool(toolId, projection = null, limit = null) {
+    let query = Agent.find({ restApiTools: toolId });
+    if (projection) {
+      query = query.select(projection);
+    }
+    if (limit) {
+      query = query.limit(limit);
+    }
+    return await query;
+  }
+
+  async removeRestApiToolFromAgents(toolId) {
+    return await Agent.updateMany({ restApiTools: toolId }, { $pull: { restApiTools: toolId } });
+  }
 }
 
 export default new AgentRepository();

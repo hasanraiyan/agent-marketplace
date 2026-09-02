@@ -3,6 +3,7 @@ import { getBuilderToolbox } from './builder.tools.js';
 import { getProjectBuilderToolbox } from './projectBuilder.tools.js';
 import { askClarificationTool } from './clarification.tool.js';
 import { resolveMcpTools } from '../mcp/mcp.tools.js';
+import { resolveRestApiTools } from '../restApiTools/restApiTool.tools.js';
 import { resolveKnowledgeBaseTools } from '../knowledge/knowledge.tools.js';
 import { presentFileTool } from './present.tool.js';
 
@@ -76,6 +77,13 @@ export const resolveAgentTools = async (
   if (agentConfig.knowledgeBases && agentConfig.knowledgeBases.length > 0) {
     const kbTools = await resolveKnowledgeBaseTools(agentConfig.knowledgeBases, userId);
     tools.push(...kbTools);
+  }
+
+  // 5. REST API tools (no-code builder) — context threaded through exactly
+  // like resolveMcpTools, since {{externalUserId}} resolution needs it.
+  if (agentConfig.restApiTools && agentConfig.restApiTools.length > 0) {
+    const restTools = await resolveRestApiTools(agentConfig, userId, context);
+    tools.push(...restTools);
   }
 
   return { tools, mcpAppMap };

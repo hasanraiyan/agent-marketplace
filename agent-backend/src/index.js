@@ -24,6 +24,8 @@ import {
   developerMemoryRouter,
   developerStoreRouter,
   developerArchitectRouter,
+  developerSecretRouter,
+  developerRestToolRouter,
 } from './modules/developer/index.js';
 import { agentRouter } from './modules/agents/index.js';
 import { threadRouter } from './modules/threads/index.js';
@@ -113,6 +115,8 @@ app.use('/api/v1/developer/files', developerFileRouter);
 app.use('/api/v1/developer/audit-logs', developerAuditLogRouter);
 app.use('/api/v1/developer/memory', developerMemoryRouter);
 app.use('/api/v1/developer/stores', developerStoreRouter);
+app.use('/api/v1/developer/secrets', developerSecretRouter);
+app.use('/api/v1/developer/rest-tools', developerRestToolRouter);
 app.use('/api/v1/developer', developerRouter);
 app.use('/api/v1/agents', agentRouter);
 app.use('/api/v1/threads', threadRouter);

@@ -24,3 +24,7 @@ export { default as developerStoreRouter } from './developerStore.routes.js';
 export { default as developerStoreController } from './developerStore.controller.js';
 export { default as developerArchitectRouter } from './developerArchitect.routes.js';
 export { default as developerArchitectController } from './developerArchitect.controller.js';
+export { default as developerSecretRouter } from './developerSecret.routes.js';
+export { default as developerSecretController } from './developerSecret.controller.js';
+export { default as developerRestToolRouter } from './developerRestTool.routes.js';
+export { default as developerRestToolController } from './developerRestTool.controller.js';
