@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@personaai/runtime':
-        specifier: ^0.5.3
-        version: 0.5.3
+        specifier: ^0.5.4
+        version: 0.5.4
       '@personaai/sdk':
-        specifier: ^0.4.4
-        version: 0.4.4
+        specifier: ^0.4.5
+        version: 0.4.5
     devDependencies:
       '@eslint/js':
         specifier: ^9.19.0
@@ -454,12 +454,16 @@ packages:
   '@paralleldrive/cuid2@2.3.1':
     resolution: {integrity: sha512-XO7cAxhnTZl0Yggq6jOgjiOHhbgcO4NqFqwSmQpjK3b6TEE6Uj/jfSk6wzYyemh3+I0sHirKSetjQwn5cZktFw==}
 
-  '@personaai/runtime@0.5.3':
-    resolution: {integrity: sha512-XMz7dbK5zxfMq573O+dtyQSF/4UHALcZGh53DwgJSYV9fn+H259dxoqqv0+vRGd1rbAk2pz9q0NaYOq6e4aYpg==}
+  '@personaai/logger@0.1.0':
+    resolution: {integrity: sha512-ra5T+aBNzDmiabJ161y87SJJT9x3MHuFfAL1UCxSY3IO6AOJtF5UcXdsLVcxkugeOIto6Ppsm+adGLLR9s50Kw==}
     engines: {node: '>=18'}
 
-  '@personaai/sdk@0.4.4':
-    resolution: {integrity: sha512-LuTUlj/rrysCqBJF5Gutu5ZmSVJ9QbP1WhDCi9hsuSa1BwRAc4o0K1MvNuIuli5jY8+o7/TbUdNtoNVnXAT7mA==}
+  '@personaai/runtime@0.5.4':
+    resolution: {integrity: sha512-KqnwUWyjaRbhutM3SaSfC128xn0WYBGMvgy40j3xBlEOaRN7rl/bJ1+Sd+Ojs5eP9t5+v2mlIQQs9fo2qf9lCQ==}
+    engines: {node: '>=18'}
+
+  '@personaai/sdk@0.4.5':
+    resolution: {integrity: sha512-7jP/A47KabV9QcrXuzZqWkiaCCDID/oTUGuAFi3xlG0a0LkqjXoruoZ5r06umFhC81hs+LS/ciBUqtl7Atogsg==}
     engines: {node: '>=18'}
 
   '@rollup/rollup-android-arm-eabi@4.62.4':
@@ -1966,14 +1970,17 @@ snapshots:
     dependencies:
       '@noble/hashes': 1.8.0
 
-  '@personaai/runtime@0.5.3':
-    dependencies:
-      '@ag-ui/core': 0.0.57
-      '@personaai/sdk': 0.4.4
+  '@personaai/logger@0.1.0': {}
 
-  '@personaai/sdk@0.4.4':
+  '@personaai/runtime@0.5.4':
     dependencies:
       '@ag-ui/core': 0.0.57
+      '@personaai/sdk': 0.4.5
+
+  '@personaai/sdk@0.4.5':
+    dependencies:
+      '@ag-ui/core': 0.0.57
+      '@personaai/logger': 0.1.0
 
   '@rollup/rollup-android-arm-eabi@4.62.4':
     optional: true

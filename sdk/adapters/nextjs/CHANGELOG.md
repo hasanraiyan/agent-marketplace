@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 — 2026-09-03
+
+- Bump `@personaai/runtime` to `^0.5.4` (via `@personaai/sdk@^0.4.5` → `@personaai/logger@^0.1.0`).
+
 ## 0.1.1
 
 - Built-in logging — OFF by default, selectable via `logLevel`/`logger` on `createPersonaHandler` and `toNextRouteHandlers` (child namespaces `adapter:nextjs`, `adapter:nextjs:translate`, `adapter:nextjs:write`, `runtime`, `runtime:sdk`). Server entry logs translate/write/runtime handle; client entry re-exports `@personaai/react@^0.5.4` logging via `@personaai/logger`. Nothing logs unless caller opts in; secrets redacted.
