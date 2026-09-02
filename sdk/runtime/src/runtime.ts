@@ -4,6 +4,7 @@ import type { RuntimeResponse } from './types/response.js';
 import { matchRoute, stripMountPath, type Route } from './routing.js';
 import { createClientForRequest } from './client-factory.js';
 import { errorToResponse, RuntimeHttpError } from './errors.js';
+import { createLogger, type Logger } from '@personaai/sdk';
 import type { RunDriver } from './runDriver.js';
 import { evictStaleRuns, DEFAULT_RUN_GRACE_MS, DEFAULT_MAX_TRACKED_RUNS } from './runRegistry.js';
 import { healthRoute } from './routes/health.js';
@@ -303,6 +304,13 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
   if (!options.credential) throw new Error('createRuntime: "credential" is required');
   if (!options.resolveUser) throw new Error('createRuntime: "resolveUser" is required');
 
+  const logger: Logger =
+    options.logger ??
+    createLogger(
+      'runtime',
+      options.logLevel !== undefined ? { level: options.logLevel } : undefined
+    );
+
   const capabilities = resolveCapabilities(options.capabilities);
   const routes = buildRoutes(capabilities);
   const mode = resolveMode(options);
@@ -311,19 +319,85 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
   const runGraceMs = options.runGraceMs ?? DEFAULT_RUN_GRACE_MS;
   const maxTrackedRuns = options.maxTrackedRuns ?? DEFAULT_MAX_TRACKED_RUNS;
 
+  logger.debug('runtime init', {
+    mode,
+    mountPath: options.mountPath ?? '',
+    capabilities,
+    heartbeatIntervalMs,
+    runGraceMs,
+    maxTrackedRuns,
+  });
+  const enabledCaps = Object.entries(capabilities)
+    .filter(([, v]) => v)
+    .map(([k]) => k);
+  logger.info('runtime created', {
+    mode,
+    mountPath: options.mountPath ?? '',
+    enabledCapabilities: enabledCaps.length ? enabledCaps : ['(core only)'],
+  });
+  logger.trace('runtime config', {
+    baseUrl: options.baseUrl,
+    hasHooks: !!options.hooks,
+    routeCount: routes.length,
+  });
+
   const runs = new Map<string, RunDriver>();
-  const evictionTimer = setInterval(
-    () => evictStaleRuns(runs, Date.now(), runGraceMs, maxTrackedRuns),
-    60_000
-  );
+  const evictionTimer = setInterval(() => {
+    const before = runs.size;
+    evictStaleRuns(runs, Date.now(), runGraceMs, maxTrackedRuns);
+    if (runs.size !== before) {
+      logger.debug('run eviction sweep', { before, after: runs.size, runGraceMs, maxTrackedRuns });
+    } else {
+      logger.trace('run eviction sweep — no evictions', { before });
+    }
+  }, 60_000);
   evictionTimer.unref?.();
 
+  function getRequestPreview(req: RuntimeRequest): Record<string, unknown> {
+    const preview: Record<string, unknown> = {
+      method: req.method,
+      path: req.path,
+      hasQuery: req.query && Object.keys(req.query).length > 0,
+      hasBody: req.body !== undefined,
+      hasFile: !!req.file,
+      fileCount: req.files?.length ?? 0,
+      userId: req.userId ?? null,
+    };
+    // Redact sensitive header values at trace level only
+    if (req.headers) {
+      const redacted: Record<string, string> = {};
+      for (const [k, v] of Object.entries(req.headers)) {
+        if (v === undefined) continue;
+        if (k.toLowerCase() === 'authorization') redacted[k] = '***';
+        else redacted[k] = v;
+      }
+      preview.headers = redacted;
+    }
+    if (req.query && Object.keys(req.query).length) preview.query = req.query;
+    return preview;
+  }
+
   async function handle(request: RuntimeRequest): Promise<RuntimeResponse> {
+    const startMs = Date.now();
+    logger.debug('handle start', { method: request.method, path: request.path });
+    logger.trace('handle request details', getRequestPreview(request));
+
     try {
       const path = stripMountPath(request.path, options.mountPath);
+      logger.trace('stripMountPath', {
+        originalPath: request.path,
+        mountPath: options.mountPath ?? '',
+        strippedPath: path,
+      });
+
       const match = matchRoute(routes, request.method, path);
 
       if (match.kind === 'not-found') {
+        logger.warn('route not found', {
+          method: request.method,
+          path: request.path,
+          strippedPath: path,
+        });
         throw new RuntimeHttpError(
           404,
           'NOT_FOUND',
@@ -331,36 +405,88 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
         );
       }
       if (match.kind === 'method-not-allowed') {
+        logger.warn('method not allowed', {
+          method: request.method,
+          path: request.path,
+          strippedPath: path,
+          allowed: match.allowed,
+        });
         const err = new RuntimeHttpError(
           405,
           'METHOD_NOT_ALLOWED',
           `${request.method} not allowed on ${request.path}. Allowed: ${match.allowed.join(', ')}.`
         );
         const response = errorToResponse(err, mode);
+        logger.debug('handle completed — 405', {
+          method: request.method,
+          path: request.path,
+          allowed: match.allowed,
+          durationMs: Date.now() - startMs,
+        });
         return { ...response, headers: { ...response.headers, Allow: match.allowed.join(', ') } };
       }
 
+      logger.info('route matched', {
+        method: request.method,
+        path: request.path,
+        strippedPath: path,
+        pattern: match.route.pattern.join('/'),
+        params: match.params,
+        requiresAuth: match.route.requiresAuth !== false,
+      });
+      logger.debug('route matched', {
+        method: request.method,
+        path,
+        pattern: match.route.pattern,
+        params: match.params,
+      });
+      logger.trace('route handler', {
+        handler: match.route.handler.name || 'anonymous',
+        pattern: match.route.pattern,
+      });
+
       let userId: string | null = null;
       if (match.route.requiresAuth !== false) {
+        logger.debug('resolving user', { path: request.path });
         try {
           const resolved = await options.resolveUser(request);
           userId = typeof resolved === 'string' && resolved.length > 0 ? resolved : null;
-        } catch {
+          logger.trace('resolveUser result', { userId: userId ?? null, hasResult: !!userId });
+        } catch (err) {
           userId = null;
+          logger.warn('resolveUser threw', {
+            path: request.path,
+            error: err instanceof Error ? err.message : String(err),
+          });
         }
         if (userId === null) {
+          logger.warn('unauthorized — could not resolve user', {
+            method: request.method,
+            path: request.path,
+          });
           throw new RuntimeHttpError(
             401,
             'UNAUTHORIZED',
             'Could not resolve an authenticated user for this request.'
           );
         }
+        logger.debug('user resolved', { userId });
+      } else {
+        logger.debug('skipping auth for public route', { path: request.path });
       }
 
       const resolvedRequest: RuntimeRequest = { ...request, userId };
-      const client = createClientForRequest(options, userId);
+      const client = createClientForRequest(options, userId, logger);
+      const routeLogger = logger.child('route');
 
-      return await match.route.handler(resolvedRequest, {
+      logger.debug('handler start', {
+        method: request.method,
+        path: request.path,
+        handler: match.route.handler.name || 'anonymous',
+        userId,
+      });
+
+      const response = await match.route.handler(resolvedRequest, {
         client,
         hooks: options.hooks,
         mode,
@@ -368,8 +494,53 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
         heartbeatIntervalMs,
         runs,
         capabilities,
+        logger: routeLogger,
       });
+
+      const durationMs = Date.now() - startMs;
+      logger.info('handle succeeded', {
+        method: request.method,
+        path: request.path,
+        status: response.status,
+        kind: response.kind,
+        durationMs,
+        userId,
+      });
+      logger.debug('handle completed', {
+        method: request.method,
+        path: request.path,
+        status: response.status,
+        durationMs,
+      });
+      logger.trace('handle response details', {
+        method: request.method,
+        path: request.path,
+        status: response.status,
+        headers: response.headers,
+        kind: response.kind,
+        durationMs,
+      });
+
+      return response;
     } catch (err) {
+      const durationMs = Date.now() - startMs;
+      const isHttpError = err instanceof RuntimeHttpError;
+      const meta = {
+        method: request.method,
+        path: request.path,
+        durationMs,
+        error: err instanceof Error ? err.message : String(err),
+        code: isHttpError ? (err as RuntimeHttpError).code : undefined,
+        status: isHttpError ? (err as RuntimeHttpError).status : undefined,
+      };
+      if (isHttpError && (err as RuntimeHttpError).status >= 500) {
+        logger.error('handle failed — server error', meta);
+      } else if (isHttpError && (err as RuntimeHttpError).status >= 400) {
+        logger.warn('handle failed — client error', meta);
+      } else {
+        logger.error('handle failed — unexpected error', meta);
+      }
+      logger.trace('handle error details', { error: err, durationMs });
       return errorToResponse(err, mode);
     }
   }
@@ -377,7 +548,9 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
   return {
     handle,
     close() {
+      logger.debug('runtime close', { trackedRuns: runs.size });
       clearInterval(evictionTimer);
+      logger.info('runtime closed', { trackedRuns: runs.size });
     },
   };
 }

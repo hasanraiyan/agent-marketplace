@@ -4,6 +4,10 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.5.3
+
+- **Built-in logging — consumes the foundational logger from `@personaai/sdk@^0.4.4`.** `CreateRuntimeOptions` now accepts `logLevel` (`'off'|'error'|'warn'|'info'|'debug'|'trace'`, default `'off'`) and `logger` (custom `Logger` from the SDK, child-namespaced as `runtime`/`runtime:route`/`runtime:route:chat`/`runtime:sdk`). `createRuntime` logs init (mode, mountPath, capabilities) at `debug`/`info`/`trace`, `handle()` logs route match (`info`/`warn`), auth (`debug`/`warn`), handler start/success (`info`/`debug`/`trace`) and errors (`warn`/`error`), and the per-request `PersonaClient` inherits `runtime:sdk` so every SDK `HttpClient` call also logs when the runtime is enabled. `POST /chat` and `POST /architect` now log `runId` lifecycle via `ctx.logger`. Nothing logs unless the caller opts in — same OFF-default contract as the SDK.
+
 ## 0.5.2
 
 - **New: `GET /agents/:id/mcp-connections`, always on (not gated behind any capability).** The

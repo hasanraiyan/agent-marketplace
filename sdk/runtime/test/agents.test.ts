@@ -49,7 +49,13 @@ describe('GET /agents', () => {
 describe('GET /agents/:id/mcp-connections', () => {
   it('is reachable with no capabilities enabled -- same always-on tier as the MCP OAuth routes, not agentsWrite-gated Agent CRUD', async () => {
     const connections = [
-      { mcpId: 'm1', name: 'Pocketly', description: '', connected: false, authorizeUrl: 'https://x/authorize' },
+      {
+        mcpId: 'm1',
+        name: 'Pocketly',
+        description: '',
+        connected: false,
+        authorizeUrl: 'https://x/authorize',
+      },
     ];
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse(connections));
     const runtime = makeRuntime({ fetchMock }); // no `capabilities` passed — everything gated defaults off

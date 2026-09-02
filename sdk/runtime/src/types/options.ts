@@ -1,6 +1,7 @@
 import type { RuntimeRequest } from './request.js';
 import type { RuntimeResponse } from './response.js';
 import type { RuntimeHooks } from './hooks.js';
+import type { Logger, LogLevel } from '@personaai/sdk';
 
 /**
  * The single point of contact between the host's auth world and the
@@ -84,6 +85,10 @@ export interface CreateRuntimeOptions {
   maxTrackedRuns?: number;
   /** Opt-in switches for Project-level admin surface. See {@link RuntimeCapabilities} — everything defaults to off. */
   capabilities?: RuntimeCapabilities;
+  /** Log level for the runtime — off by default. Overrides the global level set via `setLogLevel()` from `@personaai/sdk`. */
+  logLevel?: LogLevel;
+  /** Custom logger instance — when provided, `logLevel` is ignored. */
+  logger?: Logger;
 }
 
 export interface Runtime {
