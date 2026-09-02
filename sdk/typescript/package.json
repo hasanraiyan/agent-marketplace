@@ -1,6 +1,6 @@
 {
   "name": "@personaai/sdk",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Node.js/TypeScript SDK for the persona.hasanraiyan.me Developer Platform API. Server-side only — never bundle into a browser app.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -51,7 +51,8 @@
     "access": "public"
   },
   "dependencies": {
-    "@ag-ui/core": "^0.0.57"
+    "@ag-ui/core": "^0.0.57",
+    "@personaai/logger": "^0.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",

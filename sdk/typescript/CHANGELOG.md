@@ -3,6 +3,10 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.4.5
+
+- Refactor logger to `@personaai/logger@^0.1.0` — `src/logger.ts` now re-exports the shared isomorphic leaf (`createLogger`, `createNoopLogger`, `setLogLevel`/`getLogLevel`, `LogLevel`, `Logger`, `LogTransport`, `CreateLoggerOptions`) so browser clients (`@personaai/react`, `@personaai/nextjs`) can import from `@personaai/logger` directly without pulling the server bundle. `import { createLogger } from '@personaai/sdk'` keeps working via re-export. No behavior change from 0.4.4; still OFF by default.
+
 ## 0.4.4
 
 - **Built-in logging — off by default, selectable per instance or globally, every level.** New `src/logger.ts` (`createLogger`, `createNoopLogger`, `setLogLevel`/`getLogLevel`, `LogLevel`, `Logger`, `LogTransport`, `CreateLoggerOptions`) — zero dependencies, Node + browser safe, shared as the foundational logger for the ecosystem (see `LOGGING_PLAN.md`). `HttpClientOptions`/`PersonaClientOptions` now accept `logLevel` (`'off'|'error'|'warn'|'info'|'debug'|'trace'`, default `'off'`) and `logger` (custom transport, redacts `Authorization: Bearer <keyId>:***` and secret-bearing body keys). `PersonaClient` fans out to `sdk:http`/`sdk:chat`/`sdk:architect` child loggers; `ChatClient`/`ArchitectClient` and `parseAguiEventStream` emit `debug`/`trace` for stream lifecycle and `info`/`warn` for interrupts and `RUN_ERROR`. Nothing logs unless the caller explicitly enables it.
