@@ -122,7 +122,7 @@ describe('StoresResource', () => {
     expect(deleteInit.method).toBe('DELETE');
   });
 
-  it('an externalUser-scoped Store\'s file routes carry x-persona-external-user-id when the client was constructed with it', async () => {
+  it("an externalUser-scoped Store's file routes carry x-persona-external-user-id when the client was constructed with it", async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       jsonResponse({ success: true, data: { path: '/a.md', content: 'founder data' } })
     );

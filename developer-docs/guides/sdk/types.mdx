@@ -20,7 +20,8 @@ resource, and every type. This page documents **all** of them.
 | Class   | `PersonaApiError`, `PersonaAuthError`, `PersonaValidationError`                                     |
 | Enum    | `EventType` (re-exported from `@ag-ui/core`)                                                        |
 | Const   | `AGUI_SCHEMA_VERSION` (`'1.0.0'`)                                                                   |
-| Type    | `PersonaClientOptions`, `HttpClientOptions`, `RequestOptions`                                       |
+| Const   | `createLogger`, `createNoopLogger`, `setLogLevel`, `getLogLevel`, `isLevelEnabled`                 |
+| Type    | `PersonaClientOptions`, `HttpClientOptions`, `RequestOptions`, `LogLevel`, `Logger`, `LogTransport`, `CreateLoggerOptions` |
 | Type    | `PrincipalContext`, `ProjectMachineContext`, `ProjectRuntimeContext`                                |
 | Type    | `PaginatedResult<T>`, `PaginationInfo`, `BulkDeleteResult`, `ResourceUsage`                         |
 | Type    | `Provider`, `CreateProviderInput`, `UpdateProviderInput`, `ProviderModel`, `ProviderTestConnectionResult` |
@@ -47,6 +48,8 @@ resource, and every type. This page documents **all** of them.
 | `externalUserId` | `string`                | No       | `undefined`    | Asserts this client acts on behalf of one of your own end users.             |
 | `fetch`          | `typeof fetch`          | No       | global `fetch` | Override the fetch implementation (mainly for tests).                        |
 | `maxRetries`     | `number`                | No       | `2`            | Max automatic retries on 429 responses.                                      |
+| `logLevel`       | `LogLevel`              | No       | `'off'`        | Log level — off by default, no output unless set. Selectable per instance.  |
+| `logger`         | `Logger`                | No       | `undefined`    | Custom logger instance — when provided, `logLevel` is ignored.               |
 
 ### `RequestOptions`
 

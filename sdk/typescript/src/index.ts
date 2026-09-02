@@ -122,3 +122,14 @@ export {
   type RunErrorCode,
   type PersonaRunErrorEvent,
 } from './types/aguiEvents.js';
+export {
+  createLogger,
+  createNoopLogger,
+  setLogLevel,
+  getLogLevel,
+  isLevelEnabled,
+  type LogLevel,
+  type Logger,
+  type LogTransport,
+  type CreateLoggerOptions,
+} from './logger.js';

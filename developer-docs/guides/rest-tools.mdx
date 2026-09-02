@@ -1,0 +1,108 @@
+---
+title: REST API Tools
+description: No-code REST tools your Agents can call, built and managed in Studio — no MCP server required.
+---
+
+If your Agent just needs to call your own existing backend — grade an assessment, fetch a user's
+plan, update a record — you don't need to stand up an MCP server for it. A **REST API Tool** is a
+plain HTTP call (method, URL, headers, params, body) that you configure once in Studio and attach
+to an Agent, the same way you'd attach an MCP connector. No SDK involved on either side; Studio
+generates the tool, Persona's backend executes the call at runtime.
+
+This is the reverse direction from everything else in the [Integration
+Guide](/guides/integration-guide): those endpoints are calls **your backend makes to Persona**. A
+REST API Tool call goes **from Persona to your backend** — your endpoint is the one being called,
+and needs to know how to verify the caller and trust the identity it asserts. That's what this
+guide covers.
+
+## Building a tool
+
+Studio → your Project → **REST Tools** tab → **New REST Tool**.
+
+1. **Basics** — name and description (the description is what the model sees when deciding
+   whether to call this tool, so make it specific).
+2. **Set up the API call** — method, URL, and the Path / Params / Headers / Auth / Body tabs. Have
+   an existing `curl` command for this endpoint? Paste it and the form fills itself in.
+3. **Response mapping** — narrow the raw JSON response down to exactly what the agent should see
+   (below).
+
+Any `{{name}}` you type into the URL, a param value, a header value, or the JSON body becomes a
+variable. Most variables are **agent-fillable** — the model supplies them as tool-call arguments,
+same as any other tool. One name is different: `externalUserId`.
+
+## The reserved `{{externalUserId}}` variable
+
+`{{externalUserId}}` is reserved. Use it anywhere the same as any other variable — a header, a
+path segment, a query param, the body — but it is never an agent-fillable argument:
+
+- It's resolved **server-side only**, from the same verified identity your credential already
+  asserts via `x-persona-external-user-id` when a request carries that header (see the
+  [Integration Guide, §2](/guides/integration-guide#2-the-same-endpoint-serves-two-different-purposes-and-you-choose-which)).
+  The model that's driving the conversation never sees this value and has no argument named
+  `externalUserId` it could set, guess, or override.
+- If a tool using `{{externalUserId}}` is ever invoked outside of an end-user session (no asserted
+  external user attached to the call), the call fails outright before any HTTP request goes out —
+  never a request with an empty or spoofable value in that slot.
+
+Practically: you can trust `{{externalUserId}}` inside a REST API Tool the same way you already
+trust a verified OAuth token's `userId` claim. It's the one value in the whole request your
+endpoint doesn't need to double-check.
+
+```
+GET https://api.yourapp.com/learners/{{externalUserId}}/plan
+```
+
+## Verifying the call came from Persona
+
+Configure the **Auth** tab with a **Bearer token (project secret)**. Every call to that tool
+carries
+
+```
+Authorization: Bearer <your secret>
+```
+
+Secrets live in your Project's **Secrets** tab — create one per tool, or create it once and reuse
+it across several tools. The value is encrypted at rest and isn't shown again after you save it,
+so treat it exactly like any other server-to-server shared secret: generate it, paste it into
+Studio, and check for that same value on your endpoint (a plain string comparison against an
+environment variable is enough — most teams already have this pattern for other webhook-style
+integrations).
+
+<Note>
+  This is a static shared secret, not a signed/rotating scheme. If that's not sufficient isolation
+  for a particular tool, don't attach `authType: bearerSecret` to it — put it behind your own
+  additional verification instead.
+</Note>
+
+## Response mapping (`@field`)
+
+By default a tool returns the endpoint's raw JSON response to the agent, verbatim. Add mappings to
+return a smaller, renamed shape instead:
+
+| Field (returned to the agent) | Path (into the response)     |
+| ------------------------------ | ----------------------------- |
+| `learnerName`                  | `@data.user.name`             |
+| `completedModules`             | `@data.progress.completed`    |
+
+`@` starts every path; dot-separated segments walk the JSON tree (numeric segments index arrays,
+e.g. `@items.0.id`). A path that doesn't resolve returns `undefined` for that field rather than
+failing the whole call. Leave the mappings empty to pass the raw response through unmapped.
+
+## Testing before you save
+
+The builder's **Send** button fires a real request against your endpoint using the form's current
+values — no live chat session required. If the tool references `{{externalUserId}}`, the test
+panel lets you supply a stand-in value for that one test call; it's never persisted and never
+reachable from an actual agent conversation.
+
+## Attaching to an Agent
+
+Same as MCP connectors: open the Agent in Studio's editor and toggle it on under **REST API
+Tools**.
+
+## What's not covered yet
+
+- **Studio only** — there's no SDK method to create/update/delete REST API Tools or Secrets
+  programmatically yet. If you need CI/IaC-style provisioning instead of configuring tools by hand
+  in Studio, let us know.
+- **One auth scheme** — static Bearer secret only, no per-request signing.

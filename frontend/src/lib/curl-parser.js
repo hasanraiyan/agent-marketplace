@@ -77,9 +77,25 @@ function splitHeader(value) {
  *   warnings: string[],
  * }}
  */
+/**
+ * Strips markdown code-fence lines (```bash / ```) and a leading shell
+ * prompt marker ($) — both are extremely easy to grab by accident when
+ * copying a curl command out of a raw .md file or a terminal transcript,
+ * and left in, the fence line's own text (e.g. "```bash") gets mistaken
+ * for the URL since it's the first non-flag token in the whole string.
+ */
+function stripPasteArtifacts(input) {
+  const withoutFences = input
+    .split("\n")
+    .filter((line) => !/^\s*```\w*\s*$/.test(line))
+    .join("\n");
+  return withoutFences.trim().replace(/^\$\s+/, "");
+}
+
 export function parseCurl(curlString) {
   const warnings = [];
-  const tokens = tokenize((curlString || "").trim()).filter((t) => t !== "curl");
+  const cleaned = stripPasteArtifacts(curlString || "");
+  const tokens = tokenize(cleaned).filter((t) => t !== "curl");
 
   let method = null;
   let url = null;
@@ -141,6 +157,16 @@ export function parseCurl(curlString) {
 
   const body = bodyParts.length > 0 ? bodyParts.join("&") : null;
   const resolvedMethod = method || (body ? "POST" : "GET");
+
+  // A sanity check, not a hard requirement — {{token}}-only URLs are valid
+  // (the whole host could be a template variable). Catches the other
+  // common mistake: pasting more than one command, or extra prose, so the
+  // first bare word picked up as "the URL" is actually something else.
+  if (!/^(https?:\/\/|\{\{)/.test(baseUrl)) {
+    warnings.push(
+      `"${baseUrl}" doesn't look like a URL — make sure only one cURL command was pasted.`
+    );
+  }
 
   return { method: resolvedMethod, url: baseUrl, queryParams, headers, body, warnings };
 }

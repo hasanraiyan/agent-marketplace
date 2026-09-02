@@ -58,10 +58,7 @@ describe('AgentsResource', () => {
     );
     const client = makeClient(fetchMock as unknown as typeof fetch);
 
-    await client.agents.create(
-      { name: 'X', systemPrompt: 'Y', providerId: 'p1' },
-      'idem-key-1'
-    );
+    await client.agents.create({ name: 'X', systemPrompt: 'Y', providerId: 'p1' }, 'idem-key-1');
     const [, initWithKey] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect((initWithKey.headers as Record<string, string>)['Idempotency-Key']).toBe('idem-key-1');
 
@@ -157,7 +154,13 @@ describe('AgentsResource', () => {
 
   it('getMcpConnections() GETs the mcp-connections sub-route and returns the array', async () => {
     const connections = [
-      { mcpId: 'm1', name: 'Pocketly', description: '', connected: false, authorizeUrl: 'https://x/authorize' },
+      {
+        mcpId: 'm1',
+        name: 'Pocketly',
+        description: '',
+        connected: false,
+        authorizeUrl: 'https://x/authorize',
+      },
     ];
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       jsonResponse({ success: true, data: connections })

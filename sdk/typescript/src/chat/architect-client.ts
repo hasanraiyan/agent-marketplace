@@ -9,6 +9,7 @@ import {
 } from '../types/chat.js';
 import type { PersonaRunErrorEvent } from '../types/aguiEvents.js';
 import { parseAguiEventStream } from './sse.js';
+import { createLogger, type Logger } from '../logger.js';
 
 export interface ArchitectMessageOptions {
   messages: ChatMessageInput[];
@@ -34,26 +35,70 @@ export interface ArchitectMessageOptions {
  * follows (see {@link AgentsResource}).
  */
 export class ArchitectClient {
-  constructor(private readonly http: HttpClient) {}
+  private readonly logger: Logger;
+  constructor(
+    private readonly http: HttpClient,
+    logger?: Logger
+  ) {
+    this.logger = logger ?? createLogger('sdk:architect');
+  }
 
   /**
    * Streams the raw AG-UI event sequence for a run against the Architect.
    * @yields Each raw {@link AguiEvent} as it arrives.
    */
   async *stream(options: ArchitectMessageOptions): AsyncGenerator<AguiEvent> {
-    const response = await this.http.request<Response>(
-      'POST',
-      '/api/v1/developer/architect/agui',
-      {
+    this.logger.debug('architect stream start', {
+      hasResume: !!options.resume,
+      messageCount: options.messages?.length ?? 0,
+    });
+    this.logger.trace('architect stream request', {
+      messagesPreview: options.messages?.map((m) => ({
+        role: (m as { role?: string }).role,
+        contentPreview:
+          typeof (m as { content?: unknown }).content === 'string'
+            ? String((m as { content?: unknown }).content).slice(0, 200)
+            : undefined,
+      })),
+    });
+
+    let response: Response;
+    try {
+      response = await this.http.request<Response>('POST', '/api/v1/developer/architect/agui', {
         body: {
           messages: options.messages,
           resume: options.resume,
         },
         signal: options.signal,
-      },
-    );
+      });
+      this.logger.debug('architect stream connected', { status: response.status });
+    } catch (err) {
+      this.logger.error('architect stream failed to connect', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    }
 
-    yield* parseAguiEventStream(response);
+    let eventCount = 0;
+    try {
+      for await (const event of parseAguiEventStream(response, this.logger)) {
+        eventCount += 1;
+        this.logger.trace('architect event', { type: event.type, event });
+        if (event.type === EventType.CUSTOM) {
+          this.logger.debug('architect custom event', { name: (event as { name?: string }).name });
+        } else if (event.type === EventType.RUN_ERROR) {
+          this.logger.warn('architect run error event', { event });
+        }
+        yield event;
+      }
+      this.logger.info('architect stream ended', { eventCount });
+    } catch (err) {
+      this.logger.error('architect stream error', {
+        eventCount,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    }
   }
 
   /**
@@ -63,6 +108,9 @@ export class ArchitectClient {
    * instead of finishing normally.
    */
   async sendMessage(options: ArchitectMessageOptions): Promise<ChatResult> {
+    this.logger.debug('architect sendMessage start', {
+      messageCount: options.messages?.length ?? 0,
+    });
     let text = '';
     let interrupt: ChatInterrupt | undefined;
     let error: PersonaRunErrorEvent | undefined;
@@ -76,13 +124,27 @@ export class ArchitectClient {
       } else if (event.type === EventType.CUSTOM) {
         if (event.name === 'hitl_request') {
           interrupt = { kind: 'hitl', value: event.value };
+          this.logger.info('architect interrupt — hitl_request');
         } else if (event.name === 'clarification_request') {
           interrupt = { kind: 'clarification', value: event.value };
+          this.logger.info('architect interrupt — clarification_request');
         }
       } else if (event.type === EventType.RUN_ERROR) {
         error = event as unknown as PersonaRunErrorEvent;
+        this.logger.warn('architect run error', { code: (error as { code?: string }).code });
       }
     }
+
+    this.logger.debug('architect sendMessage completed', {
+      textLength: text.length,
+      hasInterrupt: !!interrupt,
+      hasError: !!error,
+      eventCount: events.length,
+    });
+    if (error) this.logger.warn('architect sendMessage ended with error', { code: error.code });
+    else if (interrupt)
+      this.logger.info('architect sendMessage paused on interrupt', { kind: interrupt.kind });
+    else this.logger.info('architect sendMessage succeeded', { textLength: text.length });
 
     return { text, interrupt, error, events };
   }

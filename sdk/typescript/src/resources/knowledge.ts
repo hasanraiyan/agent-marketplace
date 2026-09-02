@@ -31,10 +31,7 @@ export class KnowledgeResource {
    *   of creating a duplicate Knowledge Base.
    * @returns The created {@link KnowledgeBase} (raw Mongo shape — `_id`, not `id`).
    */
-  async create(
-    input: CreateKnowledgeBaseInput,
-    idempotencyKey?: string
-  ): Promise<KnowledgeBase> {
+  async create(input: CreateKnowledgeBaseInput, idempotencyKey?: string): Promise<KnowledgeBase> {
     return this.http.request<KnowledgeBase>('POST', '/api/v1/developer/knowledge', {
       body: input,
       headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
