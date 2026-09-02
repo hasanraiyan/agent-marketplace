@@ -1,5 +1,6 @@
 import type { ModuleMetadata, Type } from '@nestjs/common';
 import type { CreateRuntimeOptions, ResolveUser } from '@personaai/runtime';
+import type { Logger, LogLevel } from '@personaai/sdk';
 
 /**
  * Resolves the external user identity from the incoming request in NestJS.
@@ -23,6 +24,10 @@ export interface PersonaModuleOptions extends Omit<CreateRuntimeOptions, 'resolv
    * Default: `/api/persona`
    */
   routePrefix?: string;
+  /** Log level for the adapter and the underlying runtime — off by default. */
+  logLevel?: LogLevel;
+  /** Custom logger instance — when provided, `logLevel` is ignored. */
+  logger?: Logger;
 }
 
 export interface PersonaOptionsFactory {

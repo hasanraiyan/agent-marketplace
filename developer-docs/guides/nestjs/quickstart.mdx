@@ -191,6 +191,25 @@ The `PersonaMiddleware` translates NestJS requests to the runtime's framework-ne
 
 **Important:** If you're using `multer` or another body parser, mount it on the same route prefix as the adapter so the middleware sees the parsed body. If a body parser runs and discards the multipart body (e.g. `express.json()` on a multipart request), the adapter responds `400 INVALID_REQUEST`.
 
+## Logging
+
+Built-in, **OFF by default** — nothing logs unless you enable it. Selectable per module via
+`logLevel`/`logger`, forwarded to the runtime and SDK (one setting covers all).
+
+```ts
+import { createLogger } from '@personaai/sdk';
+
+PersonaModule.forRoot({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser: (request) => request.headers['x-user-id'] ?? null,
+  logLevel: 'debug', // 'off' | 'error' | 'warn' | 'info' | 'debug' | 'trace'
+  // logger: createLogger('my-app:nestjs', { level: 'debug', transport: myTransport }),
+});
+```
+
+For `forRootAsync`, return `logLevel`/`logger` from the factory — same contract. Levels: `off < error < warn < info < debug < trace`, namespaces `adapter:nestjs`, `adapter:nestjs:module`, `adapter:nestjs:middleware`, `runtime`, `runtime:sdk:http`, etc. Secrets redacted (`Authorization: Bearer <keyId>:***`).
+
 ## Lifecycle hooks
 
 All eight hooks (`beforeRun`, `afterRun`, `onError`, `beforeToolCall`, `afterToolCall`, `onFileUpload`, `onThreadCreate`, `onMemoryWrite`) pass straight through to the runtime — see the [Runtime Hooks reference](/guides/runtime/hooks). Configure them on `PersonaModule.forRoot()`:

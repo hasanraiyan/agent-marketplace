@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2 — 2026-09-03
+
+- **Built-in logging** — OFF by default, selectable per instance via `logLevel` / `logger` on `createExpressAdapter` (forwarded to `createRuntime`) and optionally on `toExpressRouter(runtime, resolveUserFrom, { logLevel, logger })`. Uses `createLogger('adapter:express')` with child namespaces `adapter:express:translate`, `adapter:express:multipart`, `adapter:express:write`, `adapter:express:router`, `adapter:express:factory`. Every level visible: `off < error < warn < info < debug < trace`. Secrets (credentials, `Authorization` header) are never logged. Bump `@personaai/runtime` to `^0.5.3` to consume its new logger.
+
+## 0.1.1 — 2026-08-15
+
+- Patch: align dependency ranges and docs after runtime 0.5.2 release (no API change).
+
 ## 0.1.0 — 2026-08-10
 
 First release of `@personaai/express` — the Express adapter for `@personaai/runtime` (Wave 3 —

@@ -1,6 +1,6 @@
 {
   "name": "@personaai/nestjs",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "NestJS adapter for the Persona runtime (persona.hasanraiyan.me) — dynamic module, injectable service, and middleware for streaming AI agents. Server-side only.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -22,6 +22,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "prepublishOnly": "node -e \"const p=require('./package.json');const d=p.dependencies||{};if((d['@personaai/runtime']||'').startsWith('file:')){console.error('Refusing to publish: @personaai/runtime must be a registry version (e.g. ^0.5.3), not a file: link — see PLAN.md step 12.');process.exit(1)} if((d['@personaai/sdk']||'').startsWith('file:')){console.error('Refusing to publish: @personaai/sdk must be a registry version (e.g. ^0.4.4), not a file: link.');process.exit(1)}\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -67,8 +68,8 @@
     }
   },
   "dependencies": {
-    "@personaai/runtime": "^0.5.2",
-    "@personaai/sdk": "^0.4.3"
+    "@personaai/runtime": "^0.5.3",
+    "@personaai/sdk": "^0.4.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
