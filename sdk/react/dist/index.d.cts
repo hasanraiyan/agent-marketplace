@@ -1,5 +1,7 @@
 import * as react from 'react';
 import react__default, { ReactNode } from 'react';
+import { LogLevel, Logger } from '@personaai/logger';
+export { CreateLoggerOptions, LogLevel, LogTransport, Logger, createLogger, createNoopLogger, getLogLevel, isLevelEnabled, setLogLevel } from '@personaai/logger';
 
 type PersonaRole = 'user' | 'assistant' | 'system' | 'reasoning';
 /**
@@ -112,6 +114,10 @@ interface PersonaProviderProps {
     getAuthToken?: () => Promise<string | null | undefined> | string | null | undefined;
     /** Default Agent ID to direct chat conversations to */
     defaultAgentId?: string;
+    /** Log level for the React SDK — off by default. */
+    logLevel?: LogLevel;
+    /** Custom logger instance — when provided, `logLevel` is ignored. */
+    logger?: Logger;
     children: ReactNode;
 }
 interface PersonaThread {
@@ -275,8 +281,9 @@ interface PersonaContextValue {
     getAuthToken?: () => Promise<string | null | undefined> | string | null | undefined;
     defaultAgentId?: string;
     fetchWithAuth: (path: string, init?: RequestInit) => Promise<Response>;
+    logger: Logger;
 }
-declare function PersonaProvider({ baseUrl, getAuthToken, defaultAgentId, children, }: PersonaProviderProps): react__default.JSX.Element;
+declare function PersonaProvider({ baseUrl, getAuthToken, defaultAgentId, logLevel, logger: loggerProp, children, }: PersonaProviderProps): react__default.JSX.Element;
 declare function usePersonaContext(): PersonaContextValue;
 
 declare function useChat(options?: UseChatOptions): {
@@ -494,6 +501,6 @@ declare function supportsStreamingFetch(): boolean;
  */
 declare function openSSEStream(opts: OpenSSEOptions): Promise<SSEStream>;
 
-declare const VERSION = "0.5.3";
+declare const VERSION = "0.5.4";
 
 export { type OpenSSEOptions, type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendMessageOverride, type UseChatOptions, type UseMcpConnectionsOptions, VERSION, openSSEStream, supportsStreamingFetch, useAgents, useChat, useConnection, useFiles, useMcpConnections, useMemory, usePersonaContext, useThreads };

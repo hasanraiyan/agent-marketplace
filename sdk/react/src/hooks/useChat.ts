@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { usePersonaContext } from '../context/PersonaContext.js';
-import { openSSEStream } from '../streaming.js';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePersonaContext } from "../context/PersonaContext.js";
+import { openSSEStream } from "../streaming.js";
 import type {
   PersonaInterrupt,
   PersonaMessage,
@@ -15,15 +15,16 @@ import type {
   PersonaWorkspaceFile,
   SendMessageOverride,
   UseChatOptions,
-} from '../types.js';
+} from "../types.js";
 
 // A failed tool call's TOOL_CALL_RESULT content is a JSON envelope
 // (`{status:'error',message}`, see aguiTranslator.js's buildToolErrorContent)
 // rather than a separate boolean field on the event itself.
 function isErrorToolContent(content: string): boolean {
-  if (typeof content !== 'string' || !content.trim().startsWith('{')) return false;
+  if (typeof content !== "string" || !content.trim().startsWith("{"))
+    return false;
   try {
-    return JSON.parse(content)?.status === 'error';
+    return JSON.parse(content)?.status === "error";
   } catch {
     return false;
   }
@@ -39,22 +40,38 @@ function isErrorToolContent(content: string): boolean {
 // the owning `task` tool call's toolCallId (see agui.controller.js's
 // `subagentTraces[callId]`, matching `PersonaToolCall.toolCallId` exactly).
 type PersistedSubagentTraceItem =
-  | { type: 'text'; text: string }
-  | { type: 'tool'; name: string; argsText: string; resultText: string; status: 'running' | 'completed' };
+  | { type: "text"; text: string }
+  | {
+      type: "tool";
+      name: string;
+      argsText: string;
+      resultText: string;
+      status: "running" | "completed";
+    };
 
 // Re-expands the folded/paired persisted shape back into the raw kind-based
 // entries `PersonaSubagentActivityEntry` (and everything downstream that
 // consumes it — buildSubagentTimeline, the live-preview row, the activity
 // dialog) already knows how to render, so no sdk/ui changes are needed.
-function persistedTraceToActivityEntries(items: PersistedSubagentTraceItem[]): PersonaSubagentActivityEntry[] {
+function persistedTraceToActivityEntries(
+  items: PersistedSubagentTraceItem[],
+): PersonaSubagentActivityEntry[] {
   const entries: PersonaSubagentActivityEntry[] = [];
   for (const item of items) {
-    if (item.type === 'text') {
-      if (item.text) entries.push({ kind: 'text', delta: item.text });
+    if (item.type === "text") {
+      if (item.text) entries.push({ kind: "text", delta: item.text });
     } else {
-      entries.push({ kind: 'tool_start', toolName: item.name, args: item.argsText });
-      if (item.status === 'completed') {
-        entries.push({ kind: 'tool_result', toolName: item.name, result: item.resultText });
+      entries.push({
+        kind: "tool_start",
+        toolName: item.name,
+        args: item.argsText,
+      });
+      if (item.status === "completed") {
+        entries.push({
+          kind: "tool_result",
+          toolName: item.name,
+          result: item.resultText,
+        });
       }
     }
   }
@@ -67,11 +84,13 @@ function persistedTraceToActivityEntries(items: PersistedSubagentTraceItem[]): P
 function parsePresentedFile(content: string): PersonaPresentedFile | null {
   try {
     const parsed = JSON.parse(content);
-    if (parsed?.status !== 'success' || typeof parsed.filePath !== 'string') return null;
+    if (parsed?.status !== "success" || typeof parsed.filePath !== "string")
+      return null;
     return {
       path: parsed.filePath,
-      title: typeof parsed.title === 'string' ? parsed.title : parsed.filePath,
-      description: typeof parsed.description === 'string' ? parsed.description : '',
+      title: typeof parsed.title === "string" ? parsed.title : parsed.filePath,
+      description:
+        typeof parsed.description === "string" ? parsed.description : "",
     };
   } catch {
     return null;
@@ -83,7 +102,15 @@ function parsePresentedFile(content: string): PersonaPresentedFile | null {
 // event and from a reloaded thread's persisted state (checkpoint.service.js
 // runs the same function). Normalize to the SDK's usual camelCase shape.
 function normalizeWorkspaceFiles(
-  raw: Record<string, { content: string; size: number; created_at: string | null; modified_at: string | null }>
+  raw: Record<
+    string,
+    {
+      content: string;
+      size: number;
+      created_at: string | null;
+      modified_at: string | null;
+    }
+  >,
 ): Record<string, PersonaWorkspaceFile> {
   const normalized: Record<string, PersonaWorkspaceFile> = {};
   for (const [path, file] of Object.entries(raw || {})) {
@@ -102,54 +129,88 @@ function normalizeWorkspaceFiles(
 // the live hitl_request/clarification_request CUSTOM events carry, just
 // nested one level deeper. Flatten both into the same PersonaInterrupt shape.
 function normalizePendingInterrupt(pending: unknown): PersonaInterrupt | null {
-  if (!pending || typeof pending !== 'object') return null;
+  if (!pending || typeof pending !== "object") return null;
   const p = pending as { kind?: string; value?: Record<string, unknown> };
-  if (p.kind === 'hitl') {
+  if (p.kind === "hitl") {
     return {
-      kind: 'hitl',
+      kind: "hitl",
       actionRequests: (p.value?.actionRequests ?? []) as Extract<
         PersonaInterrupt,
-        { kind: 'hitl' }
-      >['actionRequests'],
+        { kind: "hitl" }
+      >["actionRequests"],
       reviewConfigs: (p.value?.reviewConfigs ?? []) as unknown[],
     };
   }
-  if (p.kind === 'clarification') {
+  if (p.kind === "clarification") {
     return {
-      kind: 'clarification',
-      questions: (p.value?.questions ?? []) as Extract<PersonaInterrupt, { kind: 'clarification' }>['questions'],
+      kind: "clarification",
+      questions: (p.value?.questions ?? []) as Extract<
+        PersonaInterrupt,
+        { kind: "clarification" }
+      >["questions"],
     };
   }
   return null;
 }
 
 export function useChat(options: UseChatOptions = {}) {
-  const { defaultAgentId, fetchWithAuth, baseUrl, getAuthToken } = usePersonaContext();
+  const { defaultAgentId, fetchWithAuth, baseUrl, getAuthToken, logger } =
+    usePersonaContext();
+  const chatLogger = useMemo(() => logger.child("chat"), [logger]);
   const agentId = options.agentId || defaultAgentId;
   const threadId = options.threadId;
 
-  const [messages, setMessages] = useState<PersonaMessage[]>(options.initialMessages || []);
-  const [input, setInput] = useState('');
+  // Log hook initialization at most once per mount (debug/info visible, trace for details)
+  // This runs during render, so guard with a ref to avoid spam on every re-render
+  const didLogInitRef = useRef(false);
+  if (!didLogInitRef.current) {
+    didLogInitRef.current = true;
+    chatLogger.debug("useChat init", {
+      agentId,
+      threadId,
+      hasInitialMessages: !!options.initialMessages?.length,
+    });
+    chatLogger.trace("useChat options", {
+      agentId,
+      threadId,
+      initialMessageCount: options.initialMessages?.length ?? 0,
+    });
+  }
+
+  const [messages, setMessages] = useState<PersonaMessage[]>(
+    options.initialMessages || [],
+  );
+  const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [interrupt, setInterrupt] = useState<PersonaInterrupt | null>(null);
   const [files, setFiles] = useState<Record<string, PersonaWorkspaceFile>>({});
   const [todos, setTodos] = useState<PersonaTodo[]>([]);
-  const [presentedFile, setPresentedFile] = useState<PersonaPresentedFile | null>(null);
+  const [presentedFile, setPresentedFile] =
+    useState<PersonaPresentedFile | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const loadedThreadIdRef = useRef<string | undefined>(undefined);
 
   const stop = useCallback(() => {
     if (abortControllerRef.current) {
+      chatLogger.info("stop streaming", {});
+      chatLogger.debug("abort controller", {
+        hasController: !!abortControllerRef.current,
+      });
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setIsStreaming(false);
+      chatLogger.debug("streaming stopped");
+    } else {
+      chatLogger.trace("stop called — no active stream");
     }
-  }, []);
+  }, [chatLogger]);
 
   const clear = useCallback(() => {
+    chatLogger.info("clear chat", { messageCount: messages.length });
+    chatLogger.debug("clear", { messageCount: messages.length });
     stop();
     setMessages([]);
     setError(null);
@@ -157,24 +218,30 @@ export function useChat(options: UseChatOptions = {}) {
     setFiles({});
     setTodos([]);
     setPresentedFile(null);
-  }, [stop]);
+  }, [stop, chatLogger, messages.length]);
 
   const loadThreadMessages = useCallback(
     async (id: string) => {
+      chatLogger.debug("loadThreadMessages start", { threadId: id });
+      chatLogger.trace("loadThreadMessages", { threadId: id });
       setIsLoadingHistory(true);
       setError(null);
       try {
         const res = await fetchWithAuth(`/threads/${id}/messages`);
-        if (!res.ok) throw new Error(`Failed to load thread history: ${res.statusText}`);
+        if (!res.ok)
+          throw new Error(`Failed to load thread history: ${res.statusText}`);
         const body = await res.json();
         const data = body?.data ?? body;
         const raw = (data?.messages ?? []) as Array<{
           id?: string;
-          role: PersonaMessage['role'];
+          role: PersonaMessage["role"];
           content: string;
           toolCalls?: PersonaToolCall[];
         }>;
-        const subagentTraces = (data?.subagentTraces ?? {}) as Record<string, PersistedSubagentTraceItem[]>;
+        const subagentTraces = (data?.subagentTraces ?? {}) as Record<
+          string,
+          PersistedSubagentTraceItem[]
+        >;
         const loaded: PersonaMessage[] = raw.map((m, i) => ({
           id: m.id || `history-${id}-${i}`,
           role: m.role,
@@ -183,7 +250,10 @@ export function useChat(options: UseChatOptions = {}) {
           toolCalls: m.toolCalls?.map((tc) => {
             const trace = subagentTraces[tc.toolCallId];
             return Array.isArray(trace) && trace.length > 0
-              ? { ...tc, subagentActivity: persistedTraceToActivityEntries(trace) }
+              ? {
+                  ...tc,
+                  subagentActivity: persistedTraceToActivityEntries(trace),
+                }
               : tc;
           }),
         }));
@@ -197,16 +267,33 @@ export function useChat(options: UseChatOptions = {}) {
         // buildFilesTodosSnapshot, matching the live STATE_SNAPSHOT event).
         setFiles(normalizeWorkspaceFiles(data?.state?.files ?? {}));
         setTodos((data?.state?.todos ?? []) as PersonaTodo[]);
+        chatLogger.info("loadThreadMessages succeeded", {
+          threadId: id,
+          messageCount: loaded.length,
+        });
+        chatLogger.debug("loadThreadMessages completed", {
+          threadId: id,
+          messageCount: loaded.length,
+        });
         return loaded;
       } catch (err) {
         const errorObj = err instanceof Error ? err : new Error(String(err));
+        chatLogger.warn("loadThreadMessages failed", {
+          threadId: id,
+          error: errorObj.message,
+        });
+        chatLogger.error("loadThreadMessages error", {
+          threadId: id,
+          error: errorObj.message,
+        });
         setError(errorObj);
         return [];
       } finally {
         setIsLoadingHistory(false);
+        chatLogger.trace("loadThreadMessages end", { threadId: id });
       }
     },
-    [fetchWithAuth]
+    [fetchWithAuth, chatLogger],
   );
 
   // Auto-load history the first time a thread with no in-memory messages is
@@ -215,29 +302,66 @@ export function useChat(options: UseChatOptions = {}) {
   // which sets its placeholder messages in the same render batch as the
   // threadId change, so `messages` there is never empty at effect time.
   useEffect(() => {
-    if (!threadId || isStreaming) return;
-    if (loadedThreadIdRef.current === threadId) return;
-    if (messages.length > 0) return;
+    if (!threadId || isStreaming) {
+      chatLogger.trace("auto-load skipped", { threadId, isStreaming });
+      return;
+    }
+    if (loadedThreadIdRef.current === threadId) {
+      chatLogger.trace("auto-load already loaded", { threadId });
+      return;
+    }
+    if (messages.length > 0) {
+      chatLogger.trace("auto-load has messages", {
+        threadId,
+        count: messages.length,
+      });
+      return;
+    }
     loadedThreadIdRef.current = threadId;
+    chatLogger.info("auto-load thread history", { threadId });
+    chatLogger.debug("loadThreadMessages trigger", { threadId });
     void loadThreadMessages(threadId);
-  }, [threadId, isStreaming, messages.length, loadThreadMessages]);
+  }, [threadId, isStreaming, messages.length, loadThreadMessages, chatLogger]);
 
   const sendMessage = useCallback(
     async (contentToSend?: string, overrideOptions?: SendMessageOverride) => {
       const prompt = (contentToSend ?? input).trim();
-      if (!prompt || isStreaming) return;
+      if (!prompt || isStreaming) {
+        chatLogger.trace("sendMessage skipped", {
+          hasPrompt: !!prompt,
+          isStreaming,
+        });
+        return;
+      }
 
       const targetAgentId = overrideOptions?.agentId || agentId;
       if (!targetAgentId) {
-        const err = new Error('No Agent ID specified for useChat.');
+        const err = new Error("No Agent ID specified for useChat.");
+        chatLogger.warn("sendMessage no agentId", {});
+        chatLogger.error("sendMessage failed — no agent", {
+          error: err.message,
+        });
         setError(err);
         options.onError?.(err);
         return;
       }
 
+      chatLogger.debug("sendMessage start", {
+        promptPreview: prompt.slice(0, 100),
+        agentId: targetAgentId,
+        threadId: threadId ?? (overrideOptions?.threadId as string | undefined),
+        hasResume: !!overrideOptions?.resume,
+        messageCount: messages.length,
+      });
+      chatLogger.trace("sendMessage details", {
+        agentId: targetAgentId,
+        promptPreview: prompt.slice(0, 200),
+        hasResume: !!overrideOptions?.resume,
+      });
+
       const userMessage: PersonaMessage = {
         id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        role: 'user',
+        role: "user",
         content: prompt,
         createdAt: new Date(),
       };
@@ -245,8 +369,8 @@ export function useChat(options: UseChatOptions = {}) {
       const assistantMessageId = `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const placeholderAssistant: PersonaMessage = {
         id: assistantMessageId,
-        role: 'assistant',
-        content: '',
+        role: "assistant",
+        content: "",
         createdAt: new Date(),
         isStreaming: true,
         toolCalls: [],
@@ -254,7 +378,7 @@ export function useChat(options: UseChatOptions = {}) {
 
       const nextMessages = [...messages, userMessage];
       setMessages([...nextMessages, placeholderAssistant]);
-      setInput('');
+      setInput("");
       setIsStreaming(true);
       setError(null);
       setInterrupt(null);
@@ -268,8 +392,10 @@ export function useChat(options: UseChatOptions = {}) {
       const finalizeReasoning = () => {
         setMessages((prev) =>
           prev.map((m) =>
-            m.role === 'reasoning' && m.isStreaming ? { ...m, isStreaming: false } : m
-          )
+            m.role === "reasoning" && m.isStreaming
+              ? { ...m, isStreaming: false }
+              : m,
+          ),
         );
       };
 
@@ -278,9 +404,12 @@ export function useChat(options: UseChatOptions = {}) {
         // of the transcript sent back to the server (the backend already has
         // its own persisted copy and would treat them as user turns).
         const payloadMessages = nextMessages
-          .filter((m) => m.role !== 'reasoning')
+          .filter((m) => m.role !== "reasoning")
           .map((m) => ({
-            role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
+            role:
+              m.role === "assistant"
+                ? ("assistant" as const)
+                : ("user" as const),
             content: m.content,
           }));
 
@@ -289,7 +418,9 @@ export function useChat(options: UseChatOptions = {}) {
         // ran synchronously, so a caller passing an in-flight thread-creation
         // promise gets an instant UI update without the message send itself
         // waiting on it any longer than the network call already would.
-        const resolvedThreadId = await (overrideOptions?.threadId ?? options.threadId);
+        const resolvedThreadId = await (overrideOptions?.threadId ??
+          options.threadId);
+        chatLogger.trace("resolved threadId", { threadId: resolvedThreadId });
 
         // openSSEStream, not fetchWithAuth: the transport has to be chosen
         // before the request goes out. React Native's fetch never populates
@@ -297,10 +428,15 @@ export function useChat(options: UseChatOptions = {}) {
         // so discovering the missing body afterwards would already have cost
         // us the stream. See src/streaming.ts.
         const token = getAuthToken ? await getAuthToken() : null;
+        chatLogger.debug("opening SSE stream", {
+          agentId: targetAgentId,
+          hasToken: !!token,
+          hasThreadId: !!resolvedThreadId,
+        });
         const stream = await openSSEStream({
           url: `${baseUrl}/chat`,
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           body: JSON.stringify({
@@ -313,12 +449,31 @@ export function useChat(options: UseChatOptions = {}) {
         });
 
         if (!stream.ok) {
-          throw new Error(`Chat error (${stream.status}): ${stream.errorText ?? 'Stream failed'}`);
+          chatLogger.warn("SSE stream not ok", {
+            status: stream.status,
+            errorText: stream.errorText,
+          });
+          chatLogger.error("chat stream failed", {
+            agentId: targetAgentId,
+            status: stream.status,
+            error: stream.errorText,
+          });
+          throw new Error(
+            `Chat error (${stream.status}): ${stream.errorText ?? "Stream failed"}`,
+          );
         }
+        chatLogger.debug("SSE stream opened", {
+          agentId: targetAgentId,
+          status: stream.status,
+        });
+        chatLogger.info("chat stream started", {
+          agentId: targetAgentId,
+          threadId: resolvedThreadId,
+        });
 
         const reader = stream.reader;
-        let buffer = '';
-        let accumulatedText = '';
+        let buffer = "";
+        let accumulatedText = "";
         const toolCallsMap = new Map<string, PersonaToolCall>();
         // Reasoning streams as its own `role: 'reasoning'` message per phase
         // (REASONING_MESSAGE_START … CONTENT … REASONING_END), never merged
@@ -340,17 +495,21 @@ export function useChat(options: UseChatOptions = {}) {
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === assistantMessageId
-                ? { ...msg, toolCalls: Array.from(toolCallsMap.values()), ...patch }
-                : msg
-            )
+                ? {
+                    ...msg,
+                    toolCalls: Array.from(toolCallsMap.values()),
+                    ...patch,
+                  }
+                : msg,
+            ),
           );
         };
 
         const insertReasoningMessage = (id: string, seq: number) => {
           const msg: PersonaMessage = {
             id,
-            role: 'reasoning',
-            content: '',
+            role: "reasoning",
+            content: "",
             createdAt: new Date(),
             isStreaming: true,
             seq,
@@ -368,123 +527,206 @@ export function useChat(options: UseChatOptions = {}) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          buffer += value ?? '';
-          const lines = buffer.split('\n');
-          buffer = lines.pop() ?? '';
+          buffer += value ?? "";
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
 
           for (const line of lines) {
             const trimmed = line.trim();
-            if (!trimmed || !trimmed.startsWith('data:')) continue;
+            if (!trimmed || !trimmed.startsWith("data:")) continue;
 
-            const raw = trimmed.replace(/^data:\s*/, '');
-            if (raw === '[DONE]') break;
+            const raw = trimmed.replace(/^data:\s*/, "");
+            if (raw === "[DONE]") break;
 
             try {
               const event = JSON.parse(raw) as PersonaStreamingEvent;
+              chatLogger.trace("stream event", { type: event.type, event });
               options.onEvent?.(event);
 
-              if (event.type === 'TEXT_MESSAGE_CHUNK' && event.delta) {
+              if (event.type === "TEXT_MESSAGE_CHUNK" && event.delta) {
+                chatLogger.debug("text chunk", {
+                  deltaLength: event.delta.length,
+                });
                 accumulatedText += event.delta;
                 patchAssistant({ content: accumulatedText, isStreaming: true });
-              } else if (event.type === 'TOOL_CALL_CHUNK' && event.toolCallId) {
+              } else if (event.type === "TOOL_CALL_CHUNK" && event.toolCallId) {
+                chatLogger.debug("tool call chunk", {
+                  toolCallId: event.toolCallId,
+                  toolCallName: event.toolCallName,
+                });
                 // The backend streams tool calls as accumulating chunks
                 // (id/name arrive on the first chunk, args stream in pieces
                 // across subsequent ones) rather than separate start/args
                 // events.
                 const existing = toolCallsMap.get(event.toolCallId);
                 if (existing) {
-                  existing.args = (existing.args || '') + (event.delta || '');
+                  existing.args = (existing.args || "") + (event.delta || "");
                 } else {
                   toolCallsMap.set(event.toolCallId, {
                     toolCallId: event.toolCallId,
-                    toolName: event.toolCallName || '',
-                    args: event.delta || '',
+                    toolName: event.toolCallName || "",
+                    args: event.delta || "",
                     seq: streamSeq++,
                   });
                 }
                 patchAssistant({});
-              } else if (event.type === 'TOOL_CALL_RESULT') {
+              } else if (event.type === "TOOL_CALL_RESULT") {
+                chatLogger.debug("tool call result", {
+                  toolCallId: event.toolCallId,
+                });
                 const existing = toolCallsMap.get(event.toolCallId);
                 if (existing) {
                   existing.result = event.content;
                   existing.isError = isErrorToolContent(event.content);
-                  if (existing.toolName === 'present_file' && !existing.isError) {
+                  if (existing.isError)
+                    chatLogger.warn("tool call error", {
+                      toolCallId: event.toolCallId,
+                    });
+                  if (
+                    existing.toolName === "present_file" &&
+                    !existing.isError
+                  ) {
                     const presented = parsePresentedFile(event.content);
-                    if (presented) setPresentedFile(presented);
+                    if (presented) {
+                      chatLogger.info("present_file", { path: presented.path });
+                      setPresentedFile(presented);
+                    }
                   }
                   patchAssistant({});
                 }
-              } else if (event.type === 'STATE_SNAPSHOT') {
+              } else if (event.type === "STATE_SNAPSHOT") {
+                chatLogger.debug("state snapshot", {
+                  fileCount: Object.keys(event.snapshot.files ?? {}).length,
+                  todoCount: event.snapshot.todos?.length ?? 0,
+                });
                 setFiles(normalizeWorkspaceFiles(event.snapshot.files));
                 setTodos(event.snapshot.todos);
-              } else if (event.type === 'REASONING_MESSAGE_START' && event.messageId) {
+              } else if (
+                event.type === "REASONING_MESSAGE_START" &&
+                event.messageId
+              ) {
+                chatLogger.debug("reasoning start", {
+                  messageId: event.messageId,
+                });
                 // A fresh reasoning phase — its own message, regardless of how
                 // many phases this run produces. seq stamps it into stream
                 // order against the tool calls it brackets.
                 activeReasoningId = event.messageId;
-                reasoningById.set(event.messageId, { content: '' });
+                reasoningById.set(event.messageId, { content: "" });
                 insertReasoningMessage(event.messageId, streamSeq++);
-              } else if (event.type === 'REASONING_MESSAGE_CONTENT') {
+              } else if (event.type === "REASONING_MESSAGE_CONTENT") {
                 // Defensive: if the backend ever skips REASONING_MESSAGE_START,
                 // lazily open the message on the first content chunk.
-                let rid: string = event.messageId || activeReasoningId || '';
+                let rid: string = event.messageId || activeReasoningId || "";
                 if (!rid || !reasoningById.has(rid)) {
                   rid =
-                    rid || `reasoning-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+                    rid ||
+                    `reasoning-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
                   activeReasoningId = rid;
-                  reasoningById.set(rid, { content: '' });
+                  reasoningById.set(rid, { content: "" });
                   insertReasoningMessage(rid, streamSeq++);
+                  chatLogger.debug("reasoning lazy start", { messageId: rid });
                 }
                 const entry = reasoningById.get(rid)!;
                 entry.content += event.delta;
+                chatLogger.trace("reasoning content", {
+                  messageId: rid,
+                  deltaLength: event.delta?.length ?? 0,
+                });
                 setMessages((prev) =>
                   prev.map((m) =>
-                    m.id === rid ? { ...m, content: entry.content, isStreaming: true } : m
-                  )
+                    m.id === rid
+                      ? { ...m, content: entry.content, isStreaming: true }
+                      : m,
+                  ),
                 );
-              } else if (event.type === 'REASONING_END') {
+              } else if (event.type === "REASONING_END") {
+                chatLogger.debug("reasoning end", {
+                  messageId: activeReasoningId,
+                });
                 const rid = activeReasoningId;
                 activeReasoningId = null;
                 if (rid) {
                   setMessages((prev) =>
-                    prev.map((m) => (m.id === rid ? { ...m, isStreaming: false } : m))
+                    prev.map((m) =>
+                      m.id === rid ? { ...m, isStreaming: false } : m,
+                    ),
                   );
                 }
-              } else if (event.type === 'CUSTOM') {
-                if (event.name === 'hitl_request') {
-                  const value = event.value as Extract<PersonaInterrupt, { kind: 'hitl' }>;
+              } else if (event.type === "CUSTOM") {
+                chatLogger.debug("custom event", { name: event.name });
+                if (event.name === "hitl_request") {
+                  const value = event.value as Extract<
+                    PersonaInterrupt,
+                    { kind: "hitl" }
+                  >;
+                  chatLogger.info("hitl interrupt", {
+                    actionCount: value.actionRequests?.length ?? 0,
+                  });
                   setInterrupt({
-                    kind: 'hitl',
+                    kind: "hitl",
                     actionRequests: value.actionRequests,
                     reviewConfigs: value.reviewConfigs,
                   });
-                } else if (event.name === 'clarification_request') {
-                  const value = event.value as Extract<PersonaInterrupt, { kind: 'clarification' }>;
-                  setInterrupt({ kind: 'clarification', questions: value.questions });
-                } else if (event.name === 'subagent_activity') {
-                  const { toolCallId, ...entry } = event.value as { toolCallId: string } & PersonaSubagentActivityEntry;
+                } else if (event.name === "clarification_request") {
+                  const value = event.value as Extract<
+                    PersonaInterrupt,
+                    { kind: "clarification" }
+                  >;
+                  chatLogger.info("clarification interrupt", {
+                    questionCount: value.questions?.length ?? 0,
+                  });
+                  setInterrupt({
+                    kind: "clarification",
+                    questions: value.questions,
+                  });
+                } else if (event.name === "subagent_activity") {
+                  const { toolCallId, ...entry } = event.value as {
+                    toolCallId: string;
+                  } & PersonaSubagentActivityEntry;
+                  chatLogger.trace("subagent activity", {
+                    toolCallId,
+                    kind: entry.kind,
+                  });
                   const existing = toolCallsMap.get(toolCallId);
                   if (existing) {
-                    existing.subagentActivity = [...(existing.subagentActivity || []), entry];
+                    existing.subagentActivity = [
+                      ...(existing.subagentActivity || []),
+                      entry,
+                    ];
                     patchAssistant({});
                   }
                 }
                 // 'mcp_app' custom events carry no chat-transcript UI here —
                 // consumers that render MCP widgets read them via onEvent.
-              } else if (event.type === 'RUN_ERROR') {
-                throw new Error(event.message || 'Stream error from agent');
+              } else if (event.type === "RUN_ERROR") {
+                chatLogger.warn("run error", {
+                  message: event.message,
+                  code: event.code,
+                });
+                chatLogger.error("stream run error", {
+                  code: event.code,
+                  message: event.message,
+                });
+                throw new Error(event.message || "Stream error from agent");
+              } else {
+                chatLogger.trace("unhandled event", { type: event.type });
               }
             } catch (e) {
-              if (e instanceof Error && e.message.startsWith('Stream error')) {
+              if (e instanceof Error && e.message.startsWith("Stream error")) {
                 throw e;
               }
+              chatLogger.warn("event parse error", {
+                raw: raw.slice(0, 200),
+                error: e instanceof Error ? e.message : String(e),
+              });
             }
           }
         }
 
         const finalMessage: PersonaMessage = {
           id: assistantMessageId,
-          role: 'assistant',
+          role: "assistant",
           content: accumulatedText,
           createdAt: new Date(),
           isStreaming: false,
@@ -492,21 +734,45 @@ export function useChat(options: UseChatOptions = {}) {
         };
 
         setMessages((prev) =>
-          prev.map((msg) => (msg.id === assistantMessageId ? finalMessage : msg))
+          prev.map((msg) =>
+            msg.id === assistantMessageId ? finalMessage : msg,
+          ),
         );
 
+        chatLogger.info("sendMessage succeeded", {
+          agentId: targetAgentId,
+          textLength: accumulatedText.length,
+          toolCallCount: toolCallsMap.size,
+        });
+        chatLogger.debug("sendMessage completed", {
+          agentId: targetAgentId,
+          textLength: accumulatedText.length,
+          eventCount: toolCallsMap.size + 1,
+        });
         options.onFinish?.(finalMessage);
       } catch (err) {
         if (controller.signal.aborted) {
+          chatLogger.info("sendMessage aborted", { agentId: targetAgentId });
+          chatLogger.debug("stream aborted", { agentId: targetAgentId });
           setMessages((prev) =>
             prev.map((msg) =>
-              msg.id === assistantMessageId ? { ...msg, isStreaming: false } : msg
-            )
+              msg.id === assistantMessageId
+                ? { ...msg, isStreaming: false }
+                : msg,
+            ),
           );
           return;
         }
 
         const errorObj = err instanceof Error ? err : new Error(String(err));
+        chatLogger.warn("sendMessage failed", {
+          agentId: targetAgentId,
+          error: errorObj.message,
+        });
+        chatLogger.error("sendMessage error", {
+          agentId: targetAgentId,
+          error: errorObj.message,
+        });
         setError(errorObj);
         options.onError?.(errorObj);
 
@@ -516,11 +782,12 @@ export function useChat(options: UseChatOptions = {}) {
               ? {
                   ...msg,
                   content:
-                    msg.content || `⚠️ Error: ${errorObj.message || 'Failed to get response.'}`,
+                    msg.content ||
+                    `⚠️ Error: ${errorObj.message || "Failed to get response."}`,
                   isStreaming: false,
                 }
-              : msg
-          )
+              : msg,
+          ),
         );
       } finally {
         setIsStreaming(false);
@@ -528,56 +795,107 @@ export function useChat(options: UseChatOptions = {}) {
         // A run that ends without a final REASONING_END (abort, error) must
         // still flip its in-flight reasoning messages to done.
         finalizeReasoning();
+        chatLogger.debug("sendMessage finally", {
+          agentId: targetAgentId,
+          isStreaming: false,
+        });
+        chatLogger.trace("sendMessage end", { agentId: targetAgentId });
       }
     },
-    [agentId, baseUrl, getAuthToken, input, isStreaming, messages, options]
+    [
+      agentId,
+      baseUrl,
+      getAuthToken,
+      input,
+      isStreaming,
+      messages,
+      options,
+      chatLogger,
+      threadId,
+    ],
   );
 
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setInput(e.target.value);
-  }, []);
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      chatLogger.trace("handleInputChange", { length: e.target.value.length });
+      setInput(e.target.value);
+    },
+    [chatLogger],
+  );
 
   const handleSubmit = useCallback(
     (e?: React.FormEvent) => {
       if (e) e.preventDefault();
+      chatLogger.debug("handleSubmit", {});
       void sendMessage();
     },
-    [sendMessage]
+    [sendMessage, chatLogger],
   );
 
   const reload = useCallback(() => {
-    if (messages.length === 0 || isStreaming) return;
+    if (messages.length === 0 || isStreaming) {
+      chatLogger.trace("reload skipped", {
+        messageCount: messages.length,
+        isStreaming,
+      });
+      return;
+    }
     let lastUserIndex = -1;
     for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].role === 'user') {
+      if (messages[i].role === "user") {
         lastUserIndex = i;
         break;
       }
     }
-    if (lastUserIndex === -1) return;
+    if (lastUserIndex === -1) {
+      chatLogger.warn("reload no user message", {});
+      return;
+    }
 
     const lastUserMessage = messages[lastUserIndex];
+    chatLogger.info("reload", { messageId: lastUserMessage.id });
+    chatLogger.debug("reload last user", {
+      preview: lastUserMessage.content.slice(0, 100),
+    });
     setMessages(messages.slice(0, lastUserIndex));
     void sendMessage(lastUserMessage.content);
-  }, [isStreaming, messages, sendMessage]);
+  }, [isStreaming, messages, sendMessage, chatLogger]);
 
   // Unpauses a paused HITL/clarification run. `displayContent` becomes the
   // visible user-turn bubble (e.g. "Approved", or the typed clarification
   // answer) — the server resolves the actual resume value from `resume`
   // itself, `displayContent` is only ever used for its own transcript text.
   const resumeInterrupt = useCallback(
-    (resume: PersonaResumeValue, displayContent: string) => sendMessage(displayContent, { resume }),
-    [sendMessage]
+    (resume: PersonaResumeValue, displayContent: string) => {
+      chatLogger.info("resumeInterrupt", {
+        kind: (resume as { decisions?: unknown[] }).decisions
+          ? "hitl"
+          : "clarification",
+        preview: displayContent.slice(0, 50),
+      });
+      return sendMessage(displayContent, { resume });
+    },
+    [sendMessage, chatLogger],
   );
 
-  const dismissPresentedFile = useCallback(() => setPresentedFile(null), []);
+  const dismissPresentedFile = useCallback(() => {
+    chatLogger.debug("dismissPresentedFile", {});
+    setPresentedFile(null);
+  }, [chatLogger]);
 
   // Manually re-open a workspace file — e.g. a present_file tool card's
   // "Open" button, after the auto-opened drawer was closed or a different
   // file was selected since.
   const openWorkspaceFile = useCallback(
-    (path: string) => setPresentedFile({ path, title: path.split('/').pop() || path, description: '' }),
-    []
+    (path: string) => {
+      chatLogger.debug("openWorkspaceFile", { path });
+      setPresentedFile({
+        path,
+        title: path.split("/").pop() || path,
+        description: "",
+      });
+    },
+    [chatLogger],
   );
 
   return {

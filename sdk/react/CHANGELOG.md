@@ -3,6 +3,10 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.5.4
+
+- **Built-in logging — OFF by default, selectable via `PersonaProvider`.** New `PersonaProviderProps.logLevel`/`logger` (via `@personaai/logger@^0.1.0`, no `sdk` in browser bundle) — `fetchWithAuth` logs at `debug`/`info`/`warn`/`error`/`trace`, `useChat` logs `sendMessage` lifecycle, `loadThreadMessages`, `stop`/`clear`/`reload`/`resumeInterrupt`, and every streaming event (`TEXT_MESSAGE_CHUNK`, `TOOL_CALL_*`, `REASONING_*`, `CUSTOM` hitl/clarification, `RUN_ERROR`) at appropriate levels with child namespaces `react`/`react:chat`/`react:fetch`. Nothing logs unless caller opts in; secrets never logged.
+
 ## 0.5.3
 
 - **Fix: the exported `VERSION` constant was stuck at `'0.4.0'`.** It had not been bumped since

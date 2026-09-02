@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
+import type { Logger, LogLevel } from "@personaai/logger";
 
-export type PersonaRole = 'user' | 'assistant' | 'system' | 'reasoning';
+export type PersonaRole = "user" | "assistant" | "system" | "reasoning";
 
 /**
  * A reasoning (chain-of-thought) message, streamed ahead of the assistant's
@@ -11,7 +12,7 @@ export type PersonaRole = 'user' | 'assistant' | 'system' | 'reasoning';
 
 /** One live update on a running `task` (subagent) tool call's timeline. */
 export interface PersonaSubagentActivityEntry {
-  kind: 'text' | 'tool_start' | 'tool_result';
+  kind: "text" | "tool_start" | "tool_result";
   toolName?: string;
   args?: string;
   result?: string;
@@ -72,12 +73,16 @@ export interface PersonaClarificationQuestion {
 
 /** A paused human-in-the-loop tool approval, or a paused clarification question. */
 export type PersonaInterrupt =
-  | { kind: 'hitl'; actionRequests: PersonaHitlActionRequest[]; reviewConfigs: unknown[] }
-  | { kind: 'clarification'; questions: PersonaClarificationQuestion[] };
+  | {
+      kind: "hitl";
+      actionRequests: PersonaHitlActionRequest[];
+      reviewConfigs: unknown[];
+    }
+  | { kind: "clarification"; questions: PersonaClarificationQuestion[] };
 
 /** What to send back in `sendMessage(content, { resume })` to unpause a paused run. */
 export type PersonaResumeValue =
-  | { decisions: Array<{ type: 'approve' | 'reject'; message?: string }> }
+  | { decisions: Array<{ type: "approve" | "reject"; message?: string }> }
   | { answers: unknown[]; text?: string };
 
 /**
@@ -109,16 +114,22 @@ export interface PersonaProviderProps {
   /** Base URL where the Persona runtime / adapter is mounted, e.g. "http://localhost:4000/api/persona" */
   baseUrl: string;
   /** Async or sync getter for the user's Bearer JWT authentication token */
-  getAuthToken?: () => Promise<string | null | undefined> | string | null | undefined;
+  getAuthToken?: () =>
+    Promise<string | null | undefined> | string | null | undefined;
   /** Default Agent ID to direct chat conversations to */
   defaultAgentId?: string;
+  /** Log level for the React SDK — off by default. */
+  logLevel?: LogLevel;
+  /** Custom logger instance — when provided, `logLevel` is ignored. */
+  logger?: Logger;
   children: ReactNode;
 }
 
 export interface PersonaThread {
   _id: string;
   /** A bare id string on create()/get(); populated as an object on list(). */
-  agentId: string | { _id: string; name: string; avatar?: string; slug: string };
+  agentId:
+    string | { _id: string; name: string; avatar?: string; slug: string };
   title?: string;
   isArchived?: boolean;
   createdAt: string;
@@ -138,7 +149,7 @@ export interface PersonaFileItem {
 }
 
 export interface PersonaMemoryFile {
-  scope?: 'user' | 'agent';
+  scope?: "user" | "agent";
   agentId?: string;
   path: string;
   content: string;
@@ -168,30 +179,80 @@ export interface PersonaMemoryList {
  * and `REASONING_END` rather than `REASONING_MESSAGE_END`).
  */
 export type PersonaStreamingEvent =
-  | { type: 'TEXT_MESSAGE_CHUNK'; delta: string; messageId?: string; role?: 'assistant' }
-  | { type: 'TOOL_CALL_CHUNK'; toolCallId?: string; toolCallName?: string; delta?: string; parentMessageId?: string }
-  | { type: 'TOOL_CALL_RESULT'; toolCallId: string; content: string; messageId?: string; role?: 'tool'; structuredContent?: unknown }
-  | { type: 'REASONING_MESSAGE_START'; messageId: string }
-  | { type: 'REASONING_MESSAGE_CONTENT'; messageId: string; delta: string }
-  | { type: 'REASONING_END' }
   | {
-      type: 'STATE_SNAPSHOT';
+      type: "TEXT_MESSAGE_CHUNK";
+      delta: string;
+      messageId?: string;
+      role?: "assistant";
+    }
+  | {
+      type: "TOOL_CALL_CHUNK";
+      toolCallId?: string;
+      toolCallName?: string;
+      delta?: string;
+      parentMessageId?: string;
+    }
+  | {
+      type: "TOOL_CALL_RESULT";
+      toolCallId: string;
+      content: string;
+      messageId?: string;
+      role?: "tool";
+      structuredContent?: unknown;
+    }
+  | { type: "REASONING_MESSAGE_START"; messageId: string }
+  | { type: "REASONING_MESSAGE_CONTENT"; messageId: string; delta: string }
+  | { type: "REASONING_END" }
+  | {
+      type: "STATE_SNAPSHOT";
       /** Raw wire shape (snake_case timestamps) — useChat normalizes this into `files`/`todos`. */
       snapshot: {
-        files: Record<string, { content: string; size: number; created_at: string | null; modified_at: string | null }>;
+        files: Record<
+          string,
+          {
+            content: string;
+            size: number;
+            created_at: string | null;
+            modified_at: string | null;
+          }
+        >;
         todos: PersonaTodo[];
       };
     }
-  | { type: 'RUN_ERROR'; code: string; message: string; retryable?: boolean; providerName?: string }
-  | { type: 'CUSTOM'; name: 'hitl_request'; value: { actionRequests: PersonaHitlActionRequest[]; reviewConfigs: unknown[] } }
-  | { type: 'CUSTOM'; name: 'clarification_request'; value: { questions: PersonaClarificationQuestion[]; currentIndex: number } }
   | {
-      type: 'CUSTOM';
-      name: 'subagent_activity';
+      type: "RUN_ERROR";
+      code: string;
+      message: string;
+      retryable?: boolean;
+      providerName?: string;
+    }
+  | {
+      type: "CUSTOM";
+      name: "hitl_request";
+      value: {
+        actionRequests: PersonaHitlActionRequest[];
+        reviewConfigs: unknown[];
+      };
+    }
+  | {
+      type: "CUSTOM";
+      name: "clarification_request";
+      value: {
+        questions: PersonaClarificationQuestion[];
+        currentIndex: number;
+      };
+    }
+  | {
+      type: "CUSTOM";
+      name: "subagent_activity";
       value: { toolCallId: string } & PersonaSubagentActivityEntry;
     }
-  | { type: 'CUSTOM'; name: 'mcp_app'; value: { toolCallId: string; resourceUri: string; mcpId: string } }
-  | { type: 'CUSTOM'; name: string & {}; value: unknown };
+  | {
+      type: "CUSTOM";
+      name: "mcp_app";
+      value: { toolCallId: string; resourceUri: string; mcpId: string };
+    }
+  | { type: "CUSTOM"; name: string & {}; value: unknown };
 
 export interface UseChatOptions {
   agentId?: string;

@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useState } from 'react';
-import { usePersonaContext } from '../context/PersonaContext.js';
+import { useCallback, useEffect, useState } from "react";
+import { usePersonaContext } from "../context/PersonaContext.js";
 
 /**
  * One `authType: 'oauth', authMode: 'user'` MCP an Agent has attached, and
@@ -50,12 +50,18 @@ export function useMcpConnections(options: UseMcpConnectionsOptions = {}) {
     setError(null);
     try {
       const returnTo =
-        options.returnTo ?? (typeof window !== 'undefined' ? window.location.href : undefined);
-      const query = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : '';
-      const res = await fetchWithAuth(`/agents/${agentId}/mcp-connections${query}`);
-      if (!res.ok) throw new Error(`Failed to load MCP connections: ${res.statusText}`);
+        options.returnTo ??
+        (typeof window !== "undefined" ? window.location.href : undefined);
+      const query = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : "";
+      const res = await fetchWithAuth(
+        `/agents/${agentId}/mcp-connections${query}`,
+      );
+      if (!res.ok)
+        throw new Error(`Failed to load MCP connections: ${res.statusText}`);
       const data = await res.json();
-      const items: PersonaMcpConnection[] = Array.isArray(data) ? data : data?.items || [];
+      const items: PersonaMcpConnection[] = Array.isArray(data)
+        ? data
+        : data?.items || [];
       setConnections(items);
       return items;
     } catch (err) {

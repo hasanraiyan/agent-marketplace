@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useState } from 'react';
-import { usePersonaContext } from '../context/PersonaContext.js';
+import { useCallback, useEffect, useState } from "react";
+import { usePersonaContext } from "../context/PersonaContext.js";
 
 export interface PersonaHealthInfo {
   status: string;
@@ -18,7 +18,7 @@ export function useConnection(autoCheck = true) {
   const checkHealth = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetchWithAuth('/health');
+      const res = await fetchWithAuth("/health");
       if (res.ok) {
         const data = (await res.json()) as PersonaHealthInfo;
         setHealth(data);
