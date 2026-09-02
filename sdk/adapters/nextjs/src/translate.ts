@@ -1,4 +1,6 @@
 import type { RuntimeMethod, RuntimeRequest, RuntimeUploadedFile } from '@personaai/runtime';
+import type { Logger } from '@personaai/logger';
+import { createLogger } from '@personaai/logger';
 
 /** Adapter-side translation failure (a body that isn't valid JSON, an unreadable multipart body). */
 export class TranslationError extends Error {
@@ -83,8 +85,10 @@ async function parseMultipart(req: Request): Promise<{
 /** Translates a Web `Request` (what a Next.js route handler receives) into the runtime's contract. */
 export async function toRuntimeRequest(
   req: Request,
-  ctx?: NextRouteContext
+  ctx?: NextRouteContext,
+  logger?: Logger
 ): Promise<RuntimeRequest> {
+  const tLogger = (logger ?? createLogger('adapter:nextjs')).child('translate');
   const method = (req.method ?? 'GET').toUpperCase() as RuntimeMethod;
   const url = new URL(req.url);
 
@@ -99,18 +103,23 @@ export async function toRuntimeRequest(
 
   const bodyless = method === 'GET' || method === 'DELETE';
   const contentType = (headers['content-type'] ?? '').toLowerCase();
+  tLogger.debug('translate start', { method, path: url.pathname, contentType: contentType || '(none)', hasQuery: Object.keys(query).length > 0 });
+  tLogger.trace('translate details', { method, url: req.url, query, headers: Object.fromEntries(Object.entries(headers).map(([k, v]) => [k, k.toLowerCase() === 'authorization' ? '***' : v])) });
 
   let body: unknown;
   let file: RuntimeUploadedFile | undefined;
   let files: RuntimeUploadedFile[] | undefined;
 
   if (!bodyless && contentType.includes('multipart/form-data')) {
+    tLogger.debug('multipart detected', {});
     try {
       const parsed = await parseMultipart(req);
       file = parsed.file;
       files = parsed.files;
       body = parsed.body;
+      tLogger.info('multipart parsed', { hasFile: !!file, fileCount: files?.length ?? 0, bodyKeys: Object.keys(parsed.body ?? {}) });
     } catch (err) {
+      tLogger.warn('multipart parse failed', { error: err instanceof Error ? err.message : String(err) });
       // A malformed/truncated multipart body is a client error, not a 500.
       throw new TranslationError(
         `Multipart request body could not be parsed: ${err instanceof Error ? err.message : String(err)}`
@@ -118,18 +127,28 @@ export async function toRuntimeRequest(
     }
   } else if (!bodyless) {
     const text = await req.text();
+    tLogger.trace('body text', { length: text.length });
     if (text.length > 0) {
       try {
         body = JSON.parse(text);
+        tLogger.debug('json parsed', { bodyKeys: typeof body === 'object' && body ? Object.keys(body as Record<string, unknown>) : [] });
       } catch {
+        tLogger.warn('invalid json', { preview: text.slice(0, 200) });
         throw new TranslationError('Request body is not valid JSON.');
       }
+    } else {
+      tLogger.trace('empty body', {});
     }
+  } else {
+    tLogger.trace('bodyless method', { method });
   }
+
+  const path = await resolvePath(req, ctx);
+  tLogger.debug('translate complete', { method, path, hasFile: !!file, fileCount: files?.length ?? 0 });
 
   return {
     method,
-    path: await resolvePath(req, ctx),
+    path,
     headers,
     query,
     body,
