@@ -15,8 +15,8 @@ importers:
         specifier: ^0.5.4
         version: 0.5.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@personaai/runtime':
-        specifier: ^0.5.3
-        version: 0.5.3
+        specifier: ^0.5.4
+        version: 0.5.4
     devDependencies:
       '@eslint/js':
         specifier: ^9.19.0
@@ -678,8 +678,8 @@ packages:
       react: '>=18.0.0'
       react-dom: '>=18.0.0'
 
-  '@personaai/runtime@0.5.3':
-    resolution: {integrity: sha512-XMz7dbK5zxfMq573O+dtyQSF/4UHALcZGh53DwgJSYV9fn+H259dxoqqv0+vRGd1rbAk2pz9q0NaYOq6e4aYpg==}
+  '@personaai/runtime@0.5.4':
+    resolution: {integrity: sha512-KqnwUWyjaRbhutM3SaSfC128xn0WYBGMvgy40j3xBlEOaRN7rl/bJ1+Sd+Ojs5eP9t5+v2mlIQQs9fo2qf9lCQ==}
     engines: {node: '>=18'}
 
   '@personaai/sdk@0.4.5':
@@ -2060,7 +2060,7 @@ snapshots:
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
 
-  '@personaai/runtime@0.5.3':
+  '@personaai/runtime@0.5.4':
     dependencies:
       '@ag-ui/core': 0.0.57
       '@personaai/sdk': 0.4.5
