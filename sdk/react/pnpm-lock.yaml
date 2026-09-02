@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@personaai/logger':
+        specifier: ^0.1.0
+        version: 0.1.0
     devDependencies:
       '@eslint/js':
         specifier: ^9.19.0
@@ -436,6 +440,10 @@ packages:
     cpu: [x64]
     os: [linux]
     libc: [glibc]
+
+  '@personaai/logger@0.1.0':
+    resolution: {integrity: sha512-ra5T+aBNzDmiabJ161y87SJJT9x3MHuFfAL1UCxSY3IO6AOJtF5UcXdsLVcxkugeOIto6Ppsm+adGLLR9s50Kw==}
+    engines: {node: '>=18'}
 
   '@rollup/rollup-android-arm-eabi@4.62.4':
     resolution: {integrity: sha512-RrPokAb7dmbxFoeO3TloqHyOjgye8RkBhSqmp4aJMIex4c9r46ZstPnleDQOq1t46VOVjwIuwNogIqbodV1Vvg==}
@@ -1598,6 +1606,8 @@ snapshots:
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
+
+  '@personaai/logger@0.1.0': {}
 
   '@rollup/rollup-android-arm-eabi@4.62.4':
     optional: true

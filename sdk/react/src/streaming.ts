@@ -50,16 +50,22 @@ export interface OpenSSEOptions {
  * whether fetch will populate it.
  */
 export function supportsStreamingFetch(): boolean {
-  if (typeof navigator !== 'undefined' && (navigator as { product?: string }).product === 'ReactNative') {
+  if (
+    typeof navigator !== "undefined" &&
+    (navigator as { product?: string }).product === "ReactNative"
+  ) {
     return false;
   }
-  return typeof fetch !== 'undefined' && typeof ReadableStream !== 'undefined';
+  return typeof fetch !== "undefined" && typeof ReadableStream !== "undefined";
 }
 
 /** Wraps a whatwg ReadableStream reader so it decodes to strings. */
-function fetchReader(response: Response, controller: AbortController): SSEReader {
+function fetchReader(
+  response: Response,
+  controller: AbortController,
+): SSEReader {
   const reader = response.body!.getReader();
-  const decoder = new TextDecoder('utf-8');
+  const decoder = new TextDecoder("utf-8");
 
   return {
     async read() {
@@ -83,8 +89,9 @@ function fetchReader(response: Response, controller: AbortController): SSEReader
 function xhrStream(opts: OpenSSEOptions): Promise<SSEStream> {
   return new Promise<SSEStream>((resolveStream, rejectStream) => {
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', opts.url);
-    for (const [key, val] of Object.entries(opts.headers)) xhr.setRequestHeader(key, val);
+    xhr.open("POST", opts.url);
+    for (const [key, val] of Object.entries(opts.headers))
+      xhr.setRequestHeader(key, val);
 
     let consumed = 0;
     let finished = false;
@@ -132,7 +139,9 @@ function xhrStream(opts: OpenSSEOptions): Promise<SSEStream> {
           return Promise.resolve({ done: false, value: queue.shift() });
         }
         if (finished) {
-          return failure ? Promise.reject(failure) : Promise.resolve({ done: true });
+          return failure
+            ? Promise.reject(failure)
+            : Promise.resolve({ done: true });
         }
         return new Promise((resolve, reject) => {
           waiting = resolve;
@@ -173,12 +182,12 @@ function xhrStream(opts: OpenSSEOptions): Promise<SSEStream> {
     };
 
     xhr.onerror = () => {
-      const err = new Error('Network request failed');
+      const err = new Error("Network request failed");
       if (!headersResolved) rejectStream(err);
       finish(err);
     };
     xhr.ontimeout = () => {
-      const err = new Error('Network request timed out');
+      const err = new Error("Network request timed out");
       if (!headersResolved) rejectStream(err);
       finish(err);
     };
@@ -188,7 +197,7 @@ function xhrStream(opts: OpenSSEOptions): Promise<SSEStream> {
         xhr.abort();
         finish();
       } else {
-        opts.signal.addEventListener('abort', () => {
+        opts.signal.addEventListener("abort", () => {
           finish();
           xhr.abort();
         });
@@ -210,24 +219,27 @@ export async function openSSEStream(opts: OpenSSEOptions): Promise<SSEStream> {
   const controller = new AbortController();
   if (opts.signal) {
     if (opts.signal.aborted) controller.abort();
-    else opts.signal.addEventListener('abort', () => controller.abort());
+    else opts.signal.addEventListener("abort", () => controller.abort());
   }
 
   const response = await fetch(opts.url, {
-    method: 'POST',
+    method: "POST",
     headers: opts.headers,
     body: opts.body,
     signal: controller.signal,
   });
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => 'Stream failed');
+    const errorText = await response.text().catch(() => "Stream failed");
     return {
       status: response.status,
       ok: false,
       errorText,
       getHeader: (name: string) => response.headers.get(name),
-      reader: { read: async () => ({ done: true }), cancel: () => controller.abort() },
+      reader: {
+        read: async () => ({ done: true }),
+        cancel: () => controller.abort(),
+      },
     };
   }
 
@@ -241,7 +253,10 @@ export async function openSSEStream(opts: OpenSSEOptions): Promise<SSEStream> {
       ok: true,
       getHeader: (name: string) => response.headers.get(name),
       reader: {
-        read: async () => (handed ? { done: true } : ((handed = true), { done: false, value: text })),
+        read: async () =>
+          handed
+            ? { done: true }
+            : ((handed = true), { done: false, value: text }),
         cancel: () => controller.abort(),
       },
     };

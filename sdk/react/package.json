@@ -1,6 +1,6 @@
 {
   "name": "@personaai/react",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "React hooks and state management library for the Persona AI agent runtime. Client-side only.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -52,6 +52,9 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "@personaai/logger": "^0.1.0"
   },
   "peerDependencies": {
     "react": ">=18.0.0",

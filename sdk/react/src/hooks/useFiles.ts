@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useState } from 'react';
-import { usePersonaContext } from '../context/PersonaContext.js';
-import type { PersonaFileItem } from '../types.js';
+import { useCallback, useEffect, useState } from "react";
+import { usePersonaContext } from "../context/PersonaContext.js";
+import type { PersonaFileItem } from "../types.js";
 
 export type { PersonaFileItem };
 
@@ -17,7 +17,7 @@ export function useFiles(autoFetch = true) {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetchWithAuth('/files');
+      const res = await fetchWithAuth("/files");
       if (!res.ok) throw new Error(`Failed to list files: ${res.statusText}`);
       const data = await res.json();
       // Real shape is { items, pagination } — bare array/`.files` are
@@ -37,7 +37,9 @@ export function useFiles(autoFetch = true) {
   }, [fetchWithAuth]);
 
   const uploadFile = useCallback(
-    async (fileOrFormData: FormData | { name: string; uri: string; type?: string }) => {
+    async (
+      fileOrFormData: FormData | { name: string; uri: string; type?: string },
+    ) => {
       setIsUploading(true);
       setError(null);
       try {
@@ -47,16 +49,16 @@ export function useFiles(autoFetch = true) {
         } else {
           // React Native FormData support
           body = new FormData();
-          body.append('file', fileOrFormData as unknown as Blob);
+          body.append("file", fileOrFormData as unknown as Blob);
         }
 
-        const res = await fetchWithAuth('/files', {
-          method: 'POST',
+        const res = await fetchWithAuth("/files", {
+          method: "POST",
           body,
         });
 
         if (!res.ok) {
-          const errText = await res.text().catch(() => 'Upload failed');
+          const errText = await res.text().catch(() => "Upload failed");
           throw new Error(`Upload error (${res.status}): ${errText}`);
         }
 
@@ -71,39 +73,40 @@ export function useFiles(autoFetch = true) {
         setIsUploading(false);
       }
     },
-    [fetchWithAuth, fetchFiles]
+    [fetchWithAuth, fetchFiles],
   );
 
   const deleteFile = useCallback(
     async (fileId: string) => {
-      const res = await fetchWithAuth(`/files/${fileId}`, { method: 'DELETE' });
+      const res = await fetchWithAuth(`/files/${fileId}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Failed to delete file: ${res.statusText}`);
       setFiles((prev) => prev.filter((f) => f.id !== fileId));
     },
-    [fetchWithAuth]
+    [fetchWithAuth],
   );
 
   const bulkDeleteFiles = useCallback(
     async (fileIds: string[]) => {
-      const res = await fetchWithAuth('/files/bulk-delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetchWithAuth("/files/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: fileIds }),
       });
-      if (!res.ok) throw new Error(`Failed to bulk-delete files: ${res.statusText}`);
+      if (!res.ok)
+        throw new Error(`Failed to bulk-delete files: ${res.statusText}`);
       const idSet = new Set(fileIds);
       setFiles((prev) => prev.filter((f) => !idSet.has(f.id)));
-      return (await res.json()) as { deleted: string[]; failed: Array<{ id: string; reason: string }> };
+      return (await res.json()) as {
+        deleted: string[];
+        failed: Array<{ id: string; reason: string }>;
+      };
     },
-    [fetchWithAuth]
+    [fetchWithAuth],
   );
 
-  const getDownloadUrl = useCallback(
-    (fileId: string) => {
-      return `/files/${fileId}`;
-    },
-    []
-  );
+  const getDownloadUrl = useCallback((fileId: string) => {
+    return `/files/${fileId}`;
+  }, []);
 
   useEffect(() => {
     if (autoFetch) {

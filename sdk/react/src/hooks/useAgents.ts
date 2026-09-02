@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useState } from 'react';
-import { usePersonaContext } from '../context/PersonaContext.js';
+import { useCallback, useEffect, useState } from "react";
+import { usePersonaContext } from "../context/PersonaContext.js";
 
 export interface PersonaAgentSummary {
   _id: string;
@@ -22,7 +22,7 @@ export function useAgents(autoFetch = true) {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetchWithAuth('/agents');
+      const res = await fetchWithAuth("/agents");
       if (!res.ok) throw new Error(`Failed to list agents: ${res.statusText}`);
       const data = await res.json();
       // Real shape is { items, pagination }.
