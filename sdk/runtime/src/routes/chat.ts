@@ -51,7 +51,16 @@ function parseChatBody(body: unknown): ChatBody {
  * up where it left off. See `routes/chatResume.ts`.
  */
 export const chatRoute: RouteHandler = async (request, ctx) => {
+  const logger = ctx.logger.child('chat');
+  logger.debug('chatRoute start', { userId: request.userId, hasBody: !!request.body });
   const body = parseChatBody(request.body);
+  logger.trace('chatRoute body', {
+    agentId: body.agentId,
+    threadId: body.threadId,
+    messageCount: body.messages?.length ?? 0,
+    hasResume: !!body.resume,
+    hasContextOverride: !!body.contextOverride,
+  });
   // `requiresAuth: true` guarantees request.userId is resolved by the time a route handler runs.
   const userId = request.userId as string;
 
@@ -63,8 +72,11 @@ export const chatRoute: RouteHandler = async (request, ctx) => {
     messages: body.messages,
   };
 
+  logger.debug('beforeRun hook', { agentId: body.agentId, threadId: body.threadId });
   await ctx.hooks?.beforeRun?.(runCtx);
+  logger.trace('beforeRun completed', { agentId: body.agentId });
 
+  logger.debug('starting chat stream', { agentId: body.agentId, threadId: body.threadId });
   const stream = ctx.client.chat.stream(body.agentId, {
     messages: body.messages,
     threadId: body.threadId,
@@ -73,15 +85,34 @@ export const chatRoute: RouteHandler = async (request, ctx) => {
   });
 
   const runId = crypto.randomUUID();
+  logger.info('chat run created', {
+    runId,
+    agentId: body.agentId,
+    threadId: body.threadId,
+    userId,
+  });
   const driver = new RunDriver(runId, runCtx, stream, ctx.hooks, ctx.mode);
   ctx.runs.set(runId, driver);
+  logger.debug('run driver registered', { runId, trackedRuns: ctx.runs.size });
 
   // Rejects only if the very first upstream call failed before producing
   // any frame at all — nothing has been buffered yet, so bubbling this up
   // (through runtime.ts's centralized error mapping) to a clean buffered
   // error response is correct; there's no partial stream to preserve.
-  await driver.waitForFirstFrame();
+  try {
+    await driver.waitForFirstFrame();
+    logger.debug('chat run first frame ready', { runId });
+  } catch (err) {
+    logger.warn('chat run failed before first frame', {
+      runId,
+      agentId: body.agentId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    ctx.runs.delete(runId);
+    throw err;
+  }
 
+  logger.info('chat stream ready', { runId, agentId: body.agentId });
   return {
     kind: 'stream',
     status: 200,

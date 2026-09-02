@@ -1,4 +1,4 @@
-import { PersonaClient } from '@personaai/sdk';
+import { PersonaClient, type Logger } from '@personaai/sdk';
 import type { CreateRuntimeOptions } from './types/options.js';
 
 /**
@@ -9,12 +9,15 @@ import type { CreateRuntimeOptions } from './types/options.js';
  */
 export function createClientForRequest(
   options: CreateRuntimeOptions,
-  userId: string | null
+  userId: string | null,
+  logger?: Logger
 ): PersonaClient {
+  const clientLogger = logger ? logger.child('sdk') : undefined;
   return new PersonaClient({
     baseUrl: options.baseUrl,
     credential: options.credential,
     externalUserId: userId ?? undefined,
     fetch: options.fetch,
+    logger: clientLogger,
   });
 }

@@ -37,7 +37,13 @@ function parseArchitectBody(body: unknown): ArchitectBody {
  * just has no `agentId`/`threadId` of its own to pass through.
  */
 export const architectRoute: RouteHandler = async (request, ctx) => {
+  const logger = ctx.logger.child('architect');
+  logger.debug('architectRoute start', { userId: request.userId });
   const body = parseArchitectBody(request.body);
+  logger.trace('architectRoute body', {
+    messageCount: body.messages?.length ?? 0,
+    hasResume: !!body.resume,
+  });
   const userId = request.userId as string;
 
   const runCtx: RunContext = {
@@ -46,19 +52,35 @@ export const architectRoute: RouteHandler = async (request, ctx) => {
     messages: body.messages,
   };
 
+  logger.debug('beforeRun hook (architect)', { userId });
   await ctx.hooks?.beforeRun?.(runCtx);
+  logger.trace('beforeRun completed (architect)');
 
+  logger.debug('starting architect stream');
   const stream = ctx.client.architect.stream({
     messages: body.messages,
     resume: body.resume,
   });
 
   const runId = crypto.randomUUID();
+  logger.info('architect run created', { runId, userId });
   const driver = new RunDriver(runId, runCtx, stream, ctx.hooks, ctx.mode);
   ctx.runs.set(runId, driver);
+  logger.debug('architect driver registered', { runId, trackedRuns: ctx.runs.size });
 
-  await driver.waitForFirstFrame();
+  try {
+    await driver.waitForFirstFrame();
+    logger.debug('architect first frame ready', { runId });
+  } catch (err) {
+    logger.warn('architect run failed before first frame', {
+      runId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    ctx.runs.delete(runId);
+    throw err;
+  }
 
+  logger.info('architect stream ready', { runId });
   return {
     kind: 'stream',
     status: 200,

@@ -13,6 +13,7 @@ export interface RouteContext {
   runs: Map<string, RunDriver>;
   /** The fully-resolved (all keys present) capabilities this runtime instance was created with. */
   capabilities: Required<RuntimeCapabilities>;
+  logger: import('@personaai/sdk').Logger;
 }
 
 export type RouteHandler = (request: RuntimeRequest, ctx: RouteContext) => Promise<RuntimeResponse>;
