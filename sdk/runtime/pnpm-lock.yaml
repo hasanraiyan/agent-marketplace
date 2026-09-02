@@ -12,8 +12,8 @@ importers:
         specifier: ^0.0.57
         version: 0.0.57
       '@personaai/sdk':
-        specifier: ^0.4.4
-        version: 0.4.4
+        specifier: ^0.4.5
+        version: 0.4.5
     devDependencies:
       '@eslint/js':
         specifier: ^9.19.0
@@ -435,8 +435,12 @@ packages:
     os: [linux]
     libc: [glibc]
 
-  '@personaai/sdk@0.4.4':
-    resolution: {integrity: sha512-LuTUlj/rrysCqBJF5Gutu5ZmSVJ9QbP1WhDCi9hsuSa1BwRAc4o0K1MvNuIuli5jY8+o7/TbUdNtoNVnXAT7mA==}
+  '@personaai/logger@0.1.0':
+    resolution: {integrity: sha512-ra5T+aBNzDmiabJ161y87SJJT9x3MHuFfAL1UCxSY3IO6AOJtF5UcXdsLVcxkugeOIto6Ppsm+adGLLR9s50Kw==}
+    engines: {node: '>=18'}
+
+  '@personaai/sdk@0.4.5':
+    resolution: {integrity: sha512-7jP/A47KabV9QcrXuzZqWkiaCCDID/oTUGuAFi3xlG0a0LkqjXoruoZ5r06umFhC81hs+LS/ciBUqtl7Atogsg==}
     engines: {node: '>=18'}
 
   '@rollup/rollup-android-arm-eabi@4.62.4':
@@ -1585,9 +1589,12 @@ snapshots:
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
 
-  '@personaai/sdk@0.4.4':
+  '@personaai/logger@0.1.0': {}
+
+  '@personaai/sdk@0.4.5':
     dependencies:
       '@ag-ui/core': 0.0.57
+      '@personaai/logger': 0.1.0
 
   '@rollup/rollup-android-arm-eabi@4.62.4':
     optional: true
