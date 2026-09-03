@@ -52,6 +52,8 @@ export function OwnedAgentGrid({
   primaryIcon: PrimaryIcon = Play,
   primaryIconClassName = "fill-current",
   editLabel = "Edit Details",
+  // Hide the manage menu (Edit/Delete) for agents the viewer does not own.
+  canManage = () => true,
 }) {
   const router = useRouter();
 
@@ -112,6 +114,7 @@ export function OwnedAgentGrid({
                 </Badge>
               </div>
 
+              {canManage(agent) ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -148,6 +151,7 @@ export function OwnedAgentGrid({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              ) : null}
             </div>
 
             {/* Bottom Content Area */}

@@ -5,14 +5,7 @@ import { studioRoutes } from "@/lib/studio-routes";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  SearchIcon,
-  ArrowLeft,
-  MessageSquareIcon,
-  SlidersHorizontalIcon,
-  CompassIcon,
-} from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { SearchIcon, ArrowLeft, CompassIcon, MessageSquare } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,74 +13,10 @@ import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { getActiveAgents } from "@/lib/api/threads";
 import { getProfile } from "@/lib/api/profile";
-import { cn } from "@/lib/utils";
+import { OwnedAgentGrid } from "@/components/agents/owned-agent-grid";
 
 // "My Agents" = the agents you actually use: every persona you have a
 // conversation with, most recent first. Agents you *build* live in Studio.
-
-function ActiveAgentCard({ item, isOwned, onOpen }) {
-  const { agent, threadCount, lastMessageAt } = item;
-  const avatar = agent.avatarUrl || agent.avatar;
-  const last = lastMessageAt
-    ? formatDistanceToNow(new Date(lastMessageAt), { addSuffix: true })
-    : "";
-  return (
-    <div className="group flex flex-col rounded-[24px] border border-zinc-100 bg-white p-5 transition-all hover:border-zinc-200 hover:shadow-[0_8px_30px_rgba(15,23,42,0.06)]">
-      <div className="flex items-start gap-4">
-        <button
-          type="button"
-          onClick={() => onOpen(agent)}
-          className="size-14 shrink-0 overflow-hidden rounded-full bg-zinc-100 ring-1 ring-zinc-200/70 cursor-pointer"
-        >
-          {avatar ? (
-            <img src={avatar} alt="" className="size-full object-cover" />
-          ) : null}
-        </button>
-        <div className="min-w-0 flex-1">
-          <button
-            type="button"
-            onClick={() => onOpen(agent)}
-            className="block max-w-full truncate text-left font-display text-lg font-semibold tracking-tight text-zinc-900 cursor-pointer hover:underline"
-          >
-            {agent.name}
-          </button>
-          <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-zinc-500">
-            {agent.tagline || agent.description}
-          </p>
-        </div>
-      </div>
-      <div className="mt-4 flex items-center gap-1.5 text-[11px] font-medium text-zinc-500">
-        <MessageSquareIcon className="size-3.5 text-zinc-400" />
-        {threadCount} chat{threadCount === 1 ? "" : "s"}
-        {last ? <span className="text-zinc-300">·</span> : null}
-        {last ? <span>{last}</span> : null}
-        {isOwned ? (
-          <span className="ml-auto rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-600">
-            Yours
-          </span>
-        ) : null}
-      </div>
-      <div className="mt-4 flex items-center gap-2">
-        <Button
-          onClick={() => onOpen(agent)}
-          className="h-9 flex-1 rounded-full bg-[#1E60FF] text-[13px] font-bold text-white shadow-sm shadow-[#1E60FF]/20 hover:bg-[#154ed0]"
-        >
-          New chat
-        </Button>
-        {isOwned ? (
-          <Link
-            href={studioRoutes.agentBuild(agent._id || agent.id)}
-            className="flex h-9 items-center gap-1.5 rounded-full border border-zinc-200 px-3 text-[12px] font-semibold text-zinc-700 hover:border-zinc-400 hover:text-zinc-900"
-            title="Manage in Studio"
-          >
-            <SlidersHorizontalIcon className="size-3.5" />
-            Studio
-          </Link>
-        ) : null}
-      </div>
-    </div>
-  );
-}
 
 export default function MyAgentsPage() {
   const router = useRouter();
@@ -139,9 +68,6 @@ export default function MyAgentsPage() {
           .includes(q),
     );
   }, [items, search]);
-
-  const openAgent = (agent) =>
-    router.push(`/dashboard/agents/${agent._id || agent.id}/run?threadId=new`);
 
   return (
     <div className="bg-white flex flex-1 flex-col min-h-full w-full overflow-y-auto no-scrollbar relative">
@@ -220,7 +146,10 @@ export default function MyAgentsPage() {
         {loading ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-[200px] rounded-[24px]" />
+              <Skeleton
+                key={i}
+                className="h-[300px] sm:h-[360px] rounded-[24px] sm:rounded-[32px]"
+              />
             ))}
           </div>
         ) : filtered.length === 0 ? (
@@ -246,22 +175,22 @@ export default function MyAgentsPage() {
             ) : null}
           </div>
         ) : (
-          <div
-            className={cn(
-              "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
-            )}
-          >
-            {filtered.map((it) => (
-              <ActiveAgentCard
-                key={it.agent._id || it.agent.id}
-                item={it}
-                isOwned={
-                  profileId && String(it.agent.ownerId) === String(profileId)
-                }
-                onOpen={openAgent}
-              />
-            ))}
-          </div>
+          <OwnedAgentGrid
+            agents={filtered.map((it) => ({
+              ...it.agent,
+              messageCount: it.threadCount,
+            }))}
+            openHref={(id) => `/dashboard/agents/${id}/run?threadId=new`}
+            editHref={(id) => studioRoutes.agentBuild(id)}
+            onDelete={(agent) => router.push(studioRoutes.agent(agent._id || agent.id))}
+            canManage={(agent) =>
+              Boolean(profileId && String(agent.ownerId) === String(profileId))
+            }
+            primaryLabel="Chat"
+            primaryIcon={MessageSquare}
+            primaryIconClassName=""
+            editLabel="Manage in Studio"
+          />
         )}
       </div>
     </div>
