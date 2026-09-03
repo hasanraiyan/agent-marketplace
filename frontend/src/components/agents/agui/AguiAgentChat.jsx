@@ -67,6 +67,7 @@ export function AguiAgentChat({
   composerLeading = null,
   // Fresh bearer token per request (Clerk getToken); avoids stale-token 401s.
   getToken,
+  initialPendingInterrupt = null,
 }) {
   const [input, setInput] = useState(initialInput);
   const [resettingChat, setResettingChat] = useState(false);
@@ -77,6 +78,7 @@ export function AguiAgentChat({
     threadId,
     headers,
     getToken,
+    initialPendingInterrupt,
     initialMessages,
     initialState,
     onToolResult,

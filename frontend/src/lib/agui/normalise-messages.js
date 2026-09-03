@@ -87,8 +87,8 @@ export function normaliseLangChainMessages(raw, subagentTraces = {}) {
       if (Array.isArray(toolCallsArray)) {
         toolCallsArray.forEach((tc) => {
           if (!tc) return;
-          const tcId = tc.id || `tool-${Math.random().toString(16).slice(2)}`;
-          const tcName = tc.name || "tool";
+          const tcId = tc.id || tc.toolCallId || `tool-${Math.random().toString(16).slice(2)}`;
+          const tcName = tc.name || tc.toolName || "tool";
           const tcArgs = tc.args
             ? typeof tc.args === "string"
               ? tc.args

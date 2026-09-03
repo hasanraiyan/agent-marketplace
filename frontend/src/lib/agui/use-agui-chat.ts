@@ -111,6 +111,17 @@ export interface UseAguiChatOptions {
       };
   initialToolCalls?: ToolCall[];
   initialConversation?: ConversationEntry[];
+  /**
+   * A pending interrupt persisted in the thread (from GET /threads/:id/messages):
+   * { kind: 'hitl', value: { actionRequests, reviewConfigs } } or
+   * { kind: 'clarification', value: { questions, currentIndex } }.
+   * Seeds the approval / clarification card on reload so a paused run resumes
+   * where it left off instead of looking like the assistant said nothing.
+   */
+  initialPendingInterrupt?: {
+    kind: "hitl" | "clarification";
+    value: Record<string, unknown>;
+  } | null;
   headers?: Record<string, string>;
   /** Async function that returns an auth token. Used by Clerk-based projects. */
   getToken?: () => Promise<string | null>;
@@ -428,6 +439,7 @@ export function useAguiChat(
     initialMessages: rawInitialMessages,
     initialToolCalls: rawInitialToolCalls,
     initialConversation: rawInitialConversation,
+    initialPendingInterrupt,
     headers,
     getToken,
     onToolResult,
@@ -1117,6 +1129,32 @@ export function useAguiChat(
     );
     return nextMessages;
   }, []);
+
+  // Seed a persisted interrupt (approval / clarification) from thread history.
+  useEffect(() => {
+    if (!initialPendingInterrupt) return;
+    const value = (initialPendingInterrupt.value || {}) as Record<string, unknown>;
+    if (initialPendingInterrupt.kind === "hitl" && Array.isArray(value.actionRequests)) {
+      setPendingClarification(null);
+      setPendingApproval({
+        actionRequests: value.actionRequests as ApprovalRequest["actionRequests"],
+        reviewConfigs: (value.reviewConfigs as Array<Record<string, unknown>>) || [],
+      });
+    } else if (initialPendingInterrupt.kind === "clarification") {
+      const questions = normalizeClarificationQuestions(value.questions);
+      if (questions.length > 0) {
+        setPendingApproval(null);
+        setPendingClarification({
+          questions,
+          currentIndex: Number.isInteger(value.currentIndex)
+            ? (value.currentIndex as number)
+            : 0,
+          answers: [],
+        });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalThreadId, initialPendingInterrupt]);
 
   const send = useCallback(
     async (text: string) => {

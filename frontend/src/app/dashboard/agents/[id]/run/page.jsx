@@ -53,6 +53,7 @@ export default function RunAgentPage() {
     conversation: [],
   });
   const [initialState, setInitialState] = useState({});
+  const [initialPendingInterrupt, setInitialPendingInterrupt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState(null);
   const [agentState, setAgentState] = useState({});
@@ -144,7 +145,9 @@ export default function RunAgentPage() {
             messages: rawMessages = [],
             state: rawState = {},
             subagentTraces = {},
+            pendingInterrupt = null,
           } = historyRes.data?.data || {};
+          setInitialPendingInterrupt(pendingInterrupt);
           setInitialMessages(
             normaliseLangChainMessages(rawMessages, subagentTraces),
           );
@@ -159,6 +162,7 @@ export default function RunAgentPage() {
           setInitialState({});
           setAgentState({});
           setSelectedFile(null);
+          setInitialPendingInterrupt(null);
         }
         if (skillIdToLoad) {
           try {
@@ -393,6 +397,7 @@ export default function RunAgentPage() {
               threadId={threadDbId}
               initialMessages={initialMessages}
               initialState={initialState}
+              initialPendingInterrupt={initialPendingInterrupt}
               title={agent?.name || "Sage"}
               emptyTitle={agent?.name || "Sage"}
               emptyDescription={
