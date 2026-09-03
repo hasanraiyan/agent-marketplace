@@ -70,6 +70,7 @@ export async function* runAgentAsAguiEvents({
   resume,
   contextOverride,
   signal,
+  projectId,
   executionContext = personaExecutionContext(userId),
 }) {
   if (!agentId) {
@@ -174,7 +175,7 @@ export async function* runAgentAsAguiEvents({
     // contextOverride rides here, not inputArg.messages: `configurable` is
     // per-invocation RunnableConfig, never persisted by the checkpointer as
     // durable thread state (see contextOverrideMiddleware in agent.factory.js).
-    configurable: { thread_id: langGraphThreadId, contextOverride },
+    configurable: { thread_id: langGraphThreadId, contextOverride, projectId },
     version: 'v2',
     signal,
     callbacks: [runScopeTracker],

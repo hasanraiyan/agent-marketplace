@@ -322,6 +322,13 @@ class AgentService {
       return false;
     }
 
+    // Humans & Harness: a firm employee is executable by anyone the caller
+    // context grants firm access to (a client inside one of the firm's
+    // projects), regardless of the employee's own visibility.
+    if (context?.firmId && agent.firmId && String(agent.firmId) === String(context.firmId)) {
+      return true;
+    }
+
     // Private agents can only be executed by their owner
     if (agent.visibility === 'private' && !isOwner) {
       return false;

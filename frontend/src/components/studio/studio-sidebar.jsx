@@ -8,6 +8,7 @@ import {
   ArrowLeftIcon,
   BookTextIcon,
   BrainIcon,
+  Building2Icon,
   CpuIcon,
   LayoutDashboardIcon,
   PlugIcon,
@@ -40,6 +41,12 @@ const STUDIO_NAV = [
     url: studioRoutes.home,
     icon: LayoutDashboardIcon,
     id: "onboarding-studio-overview",
+  },
+  {
+    title: "My Firm",
+    url: studioRoutes.firm,
+    icon: Building2Icon,
+    id: "onboarding-studio-firm",
   },
   {
     title: "Agents",

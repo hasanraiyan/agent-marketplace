@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { NavThreads } from "@/components/nav-threads";
 import { NavMain } from "@/components/nav-main";
+import { NavFirms } from "@/components/nav-firms";
 import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
 import Link from "next/link";
@@ -18,7 +19,12 @@ import {
 } from "@/components/ui/sidebar";
 import { useUser } from "@clerk/nextjs";
 import { useThreads } from "@/components/threads-context";
-import { CompassIcon, UserIcon, Settings2Icon } from "lucide-react";
+import {
+  CompassIcon,
+  UserIcon,
+  Settings2Icon,
+  BriefcaseIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 
 // Persona is the consumer experience: discover an agent, use it, keep talking.
@@ -30,6 +36,12 @@ const NAV_MAIN = [
     url: "/dashboard",
     icon: <CompassIcon />,
     id: "onboarding-dashboard-explore",
+  },
+  {
+    title: "My Projects",
+    url: "/dashboard/projects",
+    icon: <BriefcaseIcon />,
+    id: "onboarding-dashboard-my-projects",
   },
   {
     title: "My Agents",
@@ -116,6 +128,7 @@ export function AppSidebar({ ...props }) {
       </SidebarHeader>
       <SidebarContent className="gap-4 px-3.5 py-3">
         <NavMain items={NAV_MAIN} />
+        <NavFirms />
         <NavThreads
           groups={groups}
           loading={threadsLoading}

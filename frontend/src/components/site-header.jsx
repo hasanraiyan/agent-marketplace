@@ -10,6 +10,8 @@ import { useDashboardHeaderState } from "@/components/dashboard-header-context";
 
 const DASHBOARD_ROUTE_MAP = [
   { path: "/dashboard/agents", title: "My Agents" },
+  { path: "/dashboard/projects", title: "My Projects" },
+  { path: "/dashboard/firms", title: "Firm" },
   { path: "/dashboard/settings/profile", title: "Profile" },
   { path: "/dashboard/settings/danger", title: "Danger Zone" },
   { path: "/dashboard/settings", title: "Settings" },

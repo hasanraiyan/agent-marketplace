@@ -58,6 +58,9 @@ export function AguiAgentChat({
   // has no avatar/social links/chat history of its own). Purely additive —
   // every existing caller keeps the exact 'profile' rendering unchanged.
   emptyStateVariant = "profile",
+  // Optional override for the 'simple' empty state's starter buttons:
+  // [{ title, prompt }]. Falls back to getSuggestedPrompts(agent).
+  suggestedPrompts,
 }) {
   const [input, setInput] = useState("");
   const [resettingChat, setResettingChat] = useState(false);
@@ -189,10 +192,13 @@ export function AguiAgentChat({
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 {emptyDescription}
               </p>
-              {getSuggestedPrompts(agent || { name: emptyTitle }).length >
-                0 && (
+              {(suggestedPrompts || getSuggestedPrompts(agent || { name: emptyTitle }))
+                .length > 0 && (
                 <div className="mt-3 flex w-full flex-col gap-2">
-                  {getSuggestedPrompts(agent || { name: emptyTitle }).map(
+                  {(
+                    suggestedPrompts ||
+                    getSuggestedPrompts(agent || { name: emptyTitle })
+                  ).map(
                     (p, i) => (
                       <button
                         key={i}

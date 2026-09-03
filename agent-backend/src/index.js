@@ -36,6 +36,7 @@ import { webhookRouter } from './modules/webhooks/index.js';
 import { uploadRouter } from './modules/upload/index.js';
 import { knowledgeRouter } from './modules/knowledge/index.js';
 import { memoryRouter } from './modules/memory/index.js';
+import { firmRouter, clientProjectRouter } from './modules/firms/index.js';
 import errorHandler from './middlewares/errorHandler.js';
 import swaggerUi from 'swagger-ui-express';
 import openapiSpec from './docs/swagger.config.js';
@@ -125,6 +126,8 @@ app.use('/api/v1/mcps', mcpRouter);
 app.use('/api/v1/upload', uploadRouter);
 app.use('/api/v1/knowledge', knowledgeRouter);
 app.use('/api/v1/memory', memoryRouter);
+app.use('/api/v1/firms', firmRouter);
+app.use('/api/v1/client-projects', clientProjectRouter);
 
 // Serve uploads folder statically
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));

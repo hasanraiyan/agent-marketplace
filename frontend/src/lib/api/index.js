@@ -27,3 +27,7 @@ export * from "./knowledge";
 
 // Developer Platform — Project API
 export * from "./projects";
+
+// Humans & Harness — Firms + Client Projects
+export * from "./firms";
+export * from "./client-projects";

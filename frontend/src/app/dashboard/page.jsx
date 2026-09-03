@@ -3,216 +3,131 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useUser } from "@clerk/nextjs";
 import {
   SearchIcon,
-  BotIcon,
+  Building2Icon,
   CompassIcon,
-  MessageSquareIcon,
+  BriefcaseIcon,
   PlusIcon,
   UserIcon,
   MoreHorizontalIcon,
   ArrowLeft,
+  ArrowRight,
 } from "lucide-react";
+import { motion } from "motion/react";
+import { toast } from "sonner";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { TiltCard } from "@/components/ui/tilt-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HScroller } from "@/components/h-scroller";
-import { searchAgents } from "@/lib/api/agents";
-import { studioRoutes } from "@/lib/studio-routes";
+import { listFirms } from "@/lib/api/firms";
+import { personaRoutes } from "@/lib/studio-routes";
 import { useOnboardingSection } from "@/hooks/use-onboarding-section";
+import {
+  FirmCard,
+  FirmFeaturedCard,
+  FIRM_CATEGORIES,
+  apiError,
+} from "@/components/firms";
 
-const CATEGORIES = [
-  { value: "all", label: "All" },
-  { value: "entrepreneurship", label: "Entrepreneurship" },
-  { value: "health-fitness", label: "Health & Fitness" },
-  { value: "mind-behavior", label: "Mind & Behavior" },
-  { value: "technology", label: "Technology" },
-  { value: "life-relationships", label: "Life & Relationships" },
-  { value: "library-minds", label: "The Library of Minds" },
-  { value: "careers", label: "Careers" },
-];
-
-const DB_CATEGORY_MAP = {
-  entrepreneurship: "productivity",
-  "health-fitness": "research",
-  "mind-behavior": "research",
-  technology: "coding",
-  "life-relationships": "roleplay",
-  "library-minds": "research",
-  careers: "productivity",
-  all: "other",
-};
+const STUDIO_FIRM_URL = "/studio/firm";
 
 export default function ExplorePage() {
   const router = useRouter();
-  const { isSignedIn } = useUser();
   useOnboardingSection("dashboard");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [isSearchingMobile, setIsSearchingMobile] = useState(false);
+  const [firms, setFirms] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const activeCategoryLabel = useMemo(() => {
-    return CATEGORIES.find((c) => c.value === category)?.label || "";
-  }, [category]);
-
-  const [dbAgents, setDbAgents] = useState([]);
-  const [dbLoading, setDbLoading] = useState(true);
+  const activeCategoryLabel = useMemo(
+    () => FIRM_CATEGORIES.find((c) => c.value === category)?.label || "",
+    [category],
+  );
 
   // Hide the default site header for this page only
   useEffect(() => {
     const header = document.querySelector("header");
-    if (header) {
-      header.style.display = "none";
-    }
+    if (header) header.style.display = "none";
     return () => {
-      if (header) {
-        header.style.display = "";
-      }
+      if (header) header.style.display = "";
     };
   }, []);
 
-  // Fetch db agents
+  // Debounce the problem box before it hits the API
   useEffect(() => {
-    const loadDbAgents = async () => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
       try {
-        const res = await searchAgents({ page: 1, limit: 30 });
-        setDbAgents(res.data?.data || []);
+        const params = { page: 1, limit: 40 };
+        if (debouncedSearch) params.search = debouncedSearch;
+        if (category !== "all") params.category = category;
+        const res = await listFirms(params);
+        if (!cancelled) setFirms(res.data?.data || []);
       } catch (err) {
-        console.error("Failed to load DB agents:", err);
+        if (!cancelled) {
+          setFirms([]);
+          toast.error(apiError(err, "Failed to load firms"));
+        }
       } finally {
-        setDbLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
-    loadDbAgents();
-  }, []);
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedSearch, category]);
 
-  // Helper to extract a sample prompt for a mind
-  const getSamplePrompt = (mindName, mindCategory) => {
-    // Dynamic by category
-    const cat = mindCategory || "";
-    if (cat === "productivity") {
-      return "How can I optimize my workflow today?";
-    }
-    if (cat === "coding") {
-      return "Can you help me write or debug some code?";
-    }
-    if (cat === "creative") {
-      return "Can you help me brainstorm some creative ideas?";
-    }
-    if (cat === "research") {
-      return "What are some key research points on this topic?";
-    }
-    if (cat === "roleplay") {
-      return "Let's start an interactive roleplay session.";
-    }
-    return "How can you help me today?";
-  };
+  const featured = useMemo(
+    () =>
+      [...firms]
+        .sort((a, b) => (b.projectCount || 0) - (a.projectCount || 0))
+        .slice(0, 8),
+    [firms],
+  );
 
-  // Dynamic Featured Minds from database actual agents
-  const featuredList = useMemo(() => {
-    const mapped = dbAgents.map((agent) => ({
-      id: agent._id || agent.id,
-      _id: agent._id || agent.id,
-      name: agent.name,
-      description: agent.description,
-      category: agent.category,
-      avatarUrl: agent.avatarUrl || agent.avatar,
-      verified: (agent.messageCount || 0) > 5,
-      isFeatured: true,
-      mindCount: `${agent.messageCount || 0} Chats`,
-      chatPrompt: getSamplePrompt(agent.name, agent.category),
-    }));
+  const openFirm = (firm) => router.push(personaRoutes.firm(firm.slug));
 
-    // Filter by search & category
-    return mapped.filter((mind) => {
-      const matchesSearch =
-        mind.name.toLowerCase().includes(search.toLowerCase()) ||
-        mind.description.toLowerCase().includes(search.toLowerCase());
-
-      let matchesCategory = category === "all";
-      if (!matchesCategory) {
-        matchesCategory = mind.category === DB_CATEGORY_MAP[category];
-      }
-
-      return matchesSearch && matchesCategory;
-    });
-  }, [dbAgents, search, category]);
-
-  // Dynamic Trending Minds from database actual agents
-  const trendingList = useMemo(() => {
-    const mapped = dbAgents.map((agent) => ({
-      id: agent._id || agent.id,
-      _id: agent._id || agent.id,
-      name: agent.name,
-      description: agent.description,
-      category: agent.category,
-      avatarUrl: agent.avatarUrl || agent.avatar,
-      verified: (agent.messageCount || 0) > 5,
-      messageCount: agent.messageCount || 0,
-      mindCount: `${agent.messageCount || 0} Chats`,
-      chatPrompt: getSamplePrompt(agent.name, agent.category),
-    }));
-
-    // Sort by message count descending
-    const sorted = mapped.sort((a, b) => b.messageCount - a.messageCount);
-
-    // Filter by search & category
-    const filtered = sorted.filter((mind) => {
-      const matchesSearch =
-        mind.name.toLowerCase().includes(search.toLowerCase()) ||
-        mind.description.toLowerCase().includes(search.toLowerCase());
-
-      let matchesCategory = category === "all";
-      if (!matchesCategory) {
-        matchesCategory = mind.category === DB_CATEGORY_MAP[category];
-      }
-
-      return matchesSearch && matchesCategory;
-    });
-
-    // Return list with calculated ranking index
-    return filtered.map((mind, idx) => ({
-      ...mind,
-      rank: idx + 1,
-    }));
-  }, [dbAgents, search, category]);
-
-  const handleMindClick = async (mind) => {
-    if (!isSignedIn) {
-      router.push(`/sign-in?redirect_url=/dashboard`);
-      return;
-    }
-
-    const agentId = mind._id || mind.id;
-    if (agentId) {
-      router.push(`/dashboard/agents/${agentId}/run`);
-    }
-  };
+  const searchInput = (autoFocus = false) => (
+    <div className="relative w-full">
+      <SearchIcon className="absolute top-1/2 left-5 size-5 -translate-y-1/2 text-zinc-400" />
+      <input
+        type="text"
+        placeholder="Describe your problem… e.g. “I need a landing page that converts”"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        autoFocus={autoFocus}
+        className="w-full rounded-full border border-zinc-200 bg-white py-3.5 pr-5 pl-13 text-[15px] font-medium text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-all outline-none placeholder:text-zinc-400 focus:border-[#1E60FF] focus:ring-4 focus:ring-[#1E60FF]/10"
+      />
+    </div>
+  );
 
   return (
-    <div className="bg-white flex flex-1 flex-col min-h-full w-full overflow-y-auto no-scrollbar relative">
+    <div className="no-scrollbar relative flex min-h-full w-full flex-1 flex-col overflow-y-auto bg-white">
       <style
         dangerouslySetInnerHTML={{
           __html: `
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `,
         }}
       />
 
-      <div className="w-full max-w-7xl mx-auto pt-4 pb-24 md:pb-12 px-6 md:px-10 lg:px-12 flex flex-col flex-1">
-        {/* Top Bar / Sidebar Trigger & Create Button */}
-        <div className="flex justify-between items-center mb-2">
-          <div className="md:block hidden">
-            <SidebarTrigger className="-ml-2 h-9 w-9 text-zinc-500 hover:text-zinc-900 cursor-pointer transition-colors" />
+      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-6 pt-4 pb-24 md:px-10 md:pb-12 lg:px-12">
+        {/* Top bar */}
+        <div className="mb-2 flex items-center justify-between">
+          <div className="hidden md:block">
+            <SidebarTrigger className="-ml-2 h-9 w-9 cursor-pointer text-zinc-500 transition-colors hover:text-zinc-900" />
           </div>
-          <div className="md:hidden block">
+          <div className="block md:hidden">
             <div className="text-zinc-800">
               <svg
                 viewBox="0 0 24 24"
@@ -227,109 +142,85 @@ export default function ExplorePage() {
               </svg>
             </div>
           </div>
-          {/* Creator entry point: crossing into the build experience, not
-            opening a single form. */}
           <button
-            onClick={() => router.push(studioRoutes.home)}
-            className="bg-[#1E60FF] hover:bg-[#154ed0] text-white rounded-full px-5 py-2.5 text-[13px] font-bold transition-all active:scale-98 cursor-pointer shadow-sm shadow-[#1E60FF]/20 shrink-0"
+            onClick={() => router.push(STUDIO_FIRM_URL)}
+            className="shrink-0 cursor-pointer rounded-full bg-[#1E60FF] px-5 py-2.5 text-[13px] font-bold text-white shadow-sm shadow-[#1E60FF]/20 transition-all hover:bg-[#154ed0] active:scale-98"
           >
-            Agent Studio
+            Build your firm
           </button>
         </div>
 
-        {/* Main Discover Header & Search */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mt-6 sm:mt-8 mb-6">
+        {/* Hero */}
+        <div className="mt-6 mb-6 sm:mt-10">
           {isSearchingMobile ? (
-            /* Mobile Search View */
-            <div className="flex items-center gap-3 w-full md:hidden">
+            <div className="flex w-full items-center gap-3 md:hidden">
               <button
                 onClick={() => {
                   setIsSearchingMobile(false);
                   setSearch("");
                 }}
-                className="text-zinc-500 hover:text-zinc-800 cursor-pointer"
+                className="cursor-pointer text-zinc-500 hover:text-zinc-800"
               >
                 <ArrowLeft className="size-5" />
               </button>
-              <div className="relative flex-1">
-                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 size-4.5 text-zinc-400" />
-                <input
-                  type="text"
-                  placeholder="Search minds..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  autoFocus
-                  className="w-full bg-transparent border border-zinc-200 rounded-full py-2.5 pl-11 pr-5 text-sm outline-none focus:ring-2 focus:ring-[#1E60FF]/20 focus:border-[#1E60FF] transition-all text-zinc-900 placeholder-zinc-400 font-medium"
-                />
-              </div>
+              {searchInput(true)}
             </div>
           ) : (
-            /* Default Discover Header Row */
-            <>
-              <div className="flex items-start justify-between w-full md:w-auto">
-                <div>
-                  <p className="font-mono text-[11px] tracking-[0.18em] text-[#1E60FF] uppercase mb-2">
-                    An index of minds
-                  </p>
-                  {category === "all" ? (
-                    <h1 className="font-display text-2xl md:text-4xl font-semibold tracking-tight text-zinc-900 leading-[1.1]">
-                      Who do you want to talk to?
-                    </h1>
-                  ) : (
-                    <h1 className="font-display text-2xl md:text-4xl tracking-tight leading-[1.1]">
-                      <span
-                        onClick={() => setCategory("all")}
-                        className="text-zinc-400 font-normal hover:text-zinc-600 cursor-pointer transition-colors"
-                      >
-                        Discover
-                      </span>
-                      <span className="text-zinc-300 font-normal"> / </span>
-                      <span className="font-semibold text-zinc-900">
-                        {activeCategoryLabel}
-                      </span>
-                    </h1>
-                  )}
-                  <p className="text-zinc-500 text-sm md:text-base font-medium mt-2">
-                    Talk to trusted minds with real experience.
-                  </p>
-                </div>
-                {/* Mobile Search Trigger Button */}
-                <button
-                  onClick={() => setIsSearchingMobile(true)}
-                  className="md:hidden block text-zinc-500 hover:text-zinc-800 p-2.5 rounded-full hover:bg-zinc-50 transition-colors cursor-pointer"
-                >
-                  <SearchIcon className="size-5" />
-                </button>
+            <div className="flex items-start justify-between gap-4">
+              <div className="max-w-2xl">
+                <p className="mb-2 font-mono text-[11px] tracking-[0.18em] text-[#1E60FF] uppercase">
+                  Humans &amp; Harness
+                </p>
+                {category === "all" ? (
+                  <h1 className="font-display text-3xl leading-[1.05] font-semibold tracking-tight text-zinc-900 md:text-5xl">
+                    Find the firm for your problem
+                  </h1>
+                ) : (
+                  <h1 className="font-display text-3xl leading-[1.05] tracking-tight md:text-5xl">
+                    <span
+                      onClick={() => setCategory("all")}
+                      className="cursor-pointer font-normal text-zinc-400 transition-colors hover:text-zinc-600"
+                    >
+                      Firms
+                    </span>
+                    <span className="font-normal text-zinc-300"> / </span>
+                    <span className="font-semibold text-zinc-900">
+                      {activeCategoryLabel}
+                    </span>
+                  </h1>
+                )}
+                <p className="mt-3 text-sm font-medium text-zinc-500 md:text-base">
+                  One-person companies that sell outcomes, not hours. Pick a
+                  project, and their team gets to work.
+                </p>
               </div>
+              <button
+                onClick={() => setIsSearchingMobile(true)}
+                className="block cursor-pointer rounded-full p-2.5 text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-800 md:hidden"
+              >
+                <SearchIcon className="size-5" />
+              </button>
+            </div>
+          )}
 
-              {/* Desktop Search (always visible) */}
-              <div className="relative hidden md:block w-[320px] shrink-0">
-                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 size-4.5 text-zinc-400" />
-                <input
-                  type="text"
-                  placeholder="Search minds..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full bg-transparent border border-zinc-200 rounded-full py-2.5 pl-11 pr-5 text-sm outline-none focus:ring-2 focus:ring-[#1E60FF]/20 focus:border-[#1E60FF] transition-all text-zinc-900 placeholder-zinc-400 font-medium"
-                />
-              </div>
-            </>
+          {!isSearchingMobile && (
+            <div className="mt-6 hidden max-w-2xl md:block">{searchInput()}</div>
           )}
         </div>
 
-        {/* Category Selection Pills */}
+        {/* Category chips */}
         <div className="mb-10 w-full">
-          <HScroller count={CATEGORIES.length}>
-            {CATEGORIES.map((cat) => {
+          <HScroller count={FIRM_CATEGORIES.length}>
+            {FIRM_CATEGORIES.map((cat) => {
               const isActive = category === cat.value;
               return (
                 <button
                   key={cat.value}
                   onClick={() => setCategory(cat.value)}
-                  className={`rounded-full px-5 py-2 text-[13px] transition-all whitespace-nowrap cursor-pointer select-none ${
+                  className={`cursor-pointer rounded-full px-5 py-2 text-[13px] whitespace-nowrap transition-all select-none ${
                     isActive
-                      ? "bg-[#1E60FF] text-white font-bold shadow-sm shadow-[#1E60FF]/20"
-                      : "bg-zinc-100/80 hover:bg-zinc-200/80 text-zinc-500 hover:text-zinc-900 font-medium"
+                      ? "bg-[#1E60FF] font-bold text-white shadow-sm shadow-[#1E60FF]/20"
+                      : "bg-zinc-100/80 font-medium text-zinc-500 hover:bg-zinc-200/80 hover:text-zinc-900"
                   }`}
                 >
                   {cat.label}
@@ -339,197 +230,139 @@ export default function ExplorePage() {
           </HScroller>
         </div>
 
-        {/* Loading skeleton — mirrors the real Featured/Trending layout
-            instead of a bare spinner, so the page doesn't jump/reflow once
-            data arrives. */}
-        {dbLoading && (
+        {/* Skeletons */}
+        {loading && (
           <>
             <div className="mb-12">
-              <p className="font-mono text-[11px] tracking-[0.18em] text-zinc-400 uppercase mb-4">
-                Featured
+              <p className="mb-4 font-mono text-[11px] tracking-[0.18em] text-zinc-400 uppercase">
+                Featured firms
               </p>
-              <div className="flex gap-5 overflow-x-hidden py-2 px-0.5">
+              <div className="flex gap-5 overflow-x-hidden px-0.5 py-2">
                 {[1, 2, 3, 4].map((i) => (
                   <Skeleton
                     key={i}
-                    className="w-[190px] sm:w-[230px] h-[255px] sm:h-[310px] shrink-0 rounded-[24px] sm:rounded-[32px]"
+                    className="h-[255px] w-[190px] shrink-0 rounded-[24px] sm:h-[310px] sm:w-[230px] sm:rounded-[32px]"
                   />
                 ))}
               </div>
             </div>
-
-            <div className="w-full">
-              <p className="font-mono text-[11px] tracking-[0.18em] text-zinc-400 uppercase mb-2">
-                Trending
+            <div>
+              <p className="mb-4 font-mono text-[11px] tracking-[0.18em] text-zinc-400 uppercase">
+                All firms
               </p>
-              <div className="flex flex-col gap-1 w-full">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between py-4 px-4 -mx-4 gap-4"
-                  >
-                    <div className="flex items-center gap-4">
-                      <Skeleton className="size-14 shrink-0 rounded-full" />
-                      <div className="flex flex-col gap-2">
-                        <Skeleton className="h-4 w-32 rounded-md" />
-                        <Skeleton className="h-3 w-48 rounded-md" />
-                      </div>
-                    </div>
-                    <Skeleton className="hidden h-12 w-64 rounded-2xl sm:block" />
-                  </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <Skeleton key={i} className="h-[196px] rounded-[24px]" />
                 ))}
               </div>
             </div>
           </>
         )}
 
-        {/* Featured Minds Slider */}
-        {!dbLoading && featuredList.length > 0 && (
+        {/* Featured */}
+        {!loading && featured.length > 0 && (
           <div className="mb-12">
-            <p className="font-mono text-[11px] tracking-[0.18em] text-zinc-400 uppercase mb-4">
-              Featured
+            <p className="mb-4 font-mono text-[11px] tracking-[0.18em] text-zinc-400 uppercase">
+              Featured firms
             </p>
-            <HScroller count={featuredList.length}>
-              {featuredList.map((mind) => (
-                <TiltCard
-                  key={mind.id}
-                  onClick={() => handleMindClick(mind)}
-                  className="w-[190px] sm:w-[230px] h-[255px] sm:h-[310px] shrink-0 relative rounded-[24px] sm:rounded-[32px] overflow-hidden group cursor-pointer"
-                >
-                  {/* Photo */}
-                  <img
-                    src={mind.avatarUrl}
-                    alt={mind.name}
-                    className="absolute inset-0 size-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
-                  {/* Gradient Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10" />
-
-                  {/* Name + description — fades out on hover */}
-                  <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 right-4 sm:right-6 z-20 flex flex-col justify-end text-white select-none transition-opacity duration-300 group-hover:opacity-0">
-                    <h3 className="font-display text-lg sm:text-2xl font-semibold tracking-tight leading-none">
-                      {mind.name}
-                    </h3>
-                    <p className="text-white/80 text-[11px] sm:text-[13px] font-medium leading-snug line-clamp-2 mt-1.5">
-                      {mind.description}
-                    </p>
-                  </div>
-
-                  {/* Sample-prompt reveal — a preview of an actual conversation,
-                      not just a profile blurb */}
-                  <div className="absolute inset-x-4 bottom-4 sm:inset-x-6 sm:bottom-6 z-20 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                    <div className="flex items-start gap-1.5 rounded-2xl rounded-bl-none bg-white/95 px-3.5 py-3 backdrop-blur-sm">
-                      <MessageSquareIcon className="size-3.5 shrink-0 text-[#1E60FF] mt-0.5" />
-                      <p className="text-[11px] sm:text-xs font-semibold leading-snug text-zinc-800 line-clamp-3">
-                        {mind.chatPrompt}
-                      </p>
-                    </div>
-                  </div>
-                </TiltCard>
+            <HScroller count={featured.length}>
+              {featured.map((firm) => (
+                <FirmFeaturedCard
+                  key={firm._id || firm.slug}
+                  firm={firm}
+                  onClick={() => openFirm(firm)}
+                />
               ))}
             </HScroller>
           </div>
         )}
 
-        {/* Trending Minds Vertical List */}
-        {!dbLoading && trendingList.length > 0 && (
+        {/* All firms */}
+        {!loading && firms.length > 0 && (
           <div className="w-full">
-            <p className="font-mono text-[11px] tracking-[0.18em] text-zinc-400 uppercase mb-2">
-              Trending
-            </p>
-            <div className="flex flex-col gap-1 w-full">
-              {trendingList.map((mind) => (
-                <div
-                  key={mind.id}
-                  onClick={() => handleMindClick(mind)}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between py-4 px-4 -mx-4 rounded-2xl hover:bg-zinc-50 border-b border-zinc-100 gap-4 cursor-pointer group transition-colors duration-200"
+            <div className="mb-4 flex items-end justify-between">
+              <p className="font-mono text-[11px] tracking-[0.18em] text-zinc-400 uppercase">
+                All firms
+              </p>
+              <span className="text-[11px] font-semibold text-zinc-400">
+                {firms.length} {firms.length === 1 ? "firm" : "firms"}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {firms.map((firm, i) => (
+                <motion.div
+                  key={firm._id || firm.slug}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25, delay: Math.min(i, 9) * 0.04 }}
                 >
-                  {/* Left Info: Avatar + Details */}
-                  <div className="flex items-center gap-4 select-none">
-                    {/* Avatar with rank overlay */}
-                    <div className="relative">
-                      <img
-                        src={mind.avatarUrl}
-                        alt={mind.name}
-                        className="size-14 rounded-full object-cover border border-zinc-150 transition-transform group-hover:scale-102"
-                      />
-                      <div className="absolute -bottom-1 -left-1 bg-white border border-zinc-200 text-zinc-800 text-[10px] font-black size-5.5 rounded-full flex items-center justify-center shadow-sm">
-                        {mind.rank}
-                      </div>
-                    </div>
-
-                    {/* Details */}
-                    <div>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-display text-base font-semibold text-zinc-900">
-                          {mind.name}
-                        </span>
-                        <span className="text-xs text-zinc-400 font-bold ml-2">
-                          {mind.mindCount}
-                        </span>
-                      </div>
-                      <p className="text-xs font-semibold text-zinc-400 mt-0.5 line-clamp-1 max-w-xs sm:max-w-md">
-                        {mind.description}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Right: Speech Bubble */}
-                  <div className="bg-zinc-50 text-zinc-700 px-6 py-3.5 rounded-2xl rounded-tr-none border border-zinc-100 max-w-full sm:max-w-lg flex items-center text-sm font-semibold select-none sm:mr-2 group-hover:border-[#1E60FF]/20 transition-colors">
-                    {mind.chatPrompt}
-                  </div>
-                </div>
+                  <FirmCard firm={firm} />
+                </motion.div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Empty State when no results found */}
-        {!dbLoading && featuredList.length === 0 && trendingList.length === 0 && (
+        {/* Empty */}
+        {!loading && firms.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-center select-none">
-            <div className="size-16 rounded-full bg-[#1E60FF]/5 border border-[#1E60FF]/10 flex items-center justify-center mb-4 text-[#1E60FF]">
-              <BotIcon className="size-8" />
+            <div className="mb-4 flex size-16 items-center justify-center rounded-full border border-[#1E60FF]/10 bg-[#1E60FF]/5 text-[#1E60FF]">
+              <Building2Icon className="size-8" />
             </div>
             <h3 className="font-display text-lg font-semibold text-zinc-900">
-              No minds found
+              {debouncedSearch || category !== "all"
+                ? "No firms match that yet"
+                : "No firms have opened their doors yet"}
             </h3>
-            <p className="text-sm text-zinc-400 mt-1 max-w-xs">
-              Try adjusting your search query or select another category.
+            <p className="mt-1 max-w-xs text-sm text-zinc-400">
+              {debouncedSearch || category !== "all"
+                ? "Try describing the problem differently or browse another category."
+                : "Be the first: turn your expertise into a firm that sells outcomes."}
             </p>
+            {(debouncedSearch || category !== "all") && (
+              <button
+                onClick={() => {
+                  setSearch("");
+                  setCategory("all");
+                }}
+                className="mt-5 cursor-pointer rounded-full border border-zinc-200 px-4 py-2 text-[13px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+              >
+                Clear filters
+              </button>
+            )}
+            {!debouncedSearch && category === "all" && (
+              <Link
+                href={STUDIO_FIRM_URL}
+                className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-[#1E60FF] px-4 py-2 text-[13px] font-bold text-white shadow-sm shadow-[#1E60FF]/20 transition-all hover:bg-[#154ed0]"
+              >
+                Build your firm
+                <ArrowRight className="size-3.5" />
+              </Link>
+            )}
           </div>
         )}
       </div>
 
-      {/* Mobile Bottom Tab Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 border-t border-zinc-150/80 px-6 py-3 flex items-center justify-around md:hidden backdrop-blur-md shadow-lg">
-        {/* Discover (Active) */}
+      {/* Mobile bottom tab bar */}
+      <div className="fixed right-0 bottom-0 left-0 z-40 flex items-center justify-around border-t border-zinc-150/80 bg-white/95 px-6 py-3 shadow-lg backdrop-blur-md md:hidden">
         <Link href="/dashboard" className="flex items-center justify-center">
-          <div className="bg-[#1E60FF]/10 text-[#1E60FF] rounded-full p-2.5">
+          <div className="rounded-full bg-[#1E60FF]/10 p-2.5 text-[#1E60FF]">
             <CompassIcon className="size-5.5" />
           </div>
         </Link>
-
-        {/* Chats / My Agents */}
         <Link
-          href="/dashboard/agents"
+          href={personaRoutes.projects}
           className="flex items-center justify-center text-zinc-500 hover:text-zinc-900"
         >
           <div className="p-2.5">
-            <MessageSquareIcon className="size-5.5" />
+            <BriefcaseIcon className="size-5.5" />
           </div>
         </Link>
-
-        {/* Plus / Create */}
-        <Link
-          href={studioRoutes.agentNew}
-          className="flex items-center justify-center"
-        >
-          <div className="border border-zinc-200 bg-white text-zinc-850 rounded-full p-2.5 hover:bg-zinc-50 shadow-sm transition-colors active:scale-95">
+        <Link href={STUDIO_FIRM_URL} className="flex items-center justify-center">
+          <div className="rounded-full border border-zinc-200 bg-white p-2.5 text-zinc-850 shadow-sm transition-colors hover:bg-zinc-50 active:scale-95">
             <PlusIcon className="size-5.5" />
           </div>
         </Link>
-
-        {/* Profile */}
         <Link
           href="/dashboard/settings/profile"
           className="flex items-center justify-center text-zinc-500 hover:text-zinc-900"
@@ -538,8 +371,6 @@ export default function ExplorePage() {
             <UserIcon className="size-5.5" />
           </div>
         </Link>
-
-        {/* More / Settings */}
         <Link
           href="/dashboard/settings"
           className="flex items-center justify-center text-zinc-500 hover:text-zinc-900"

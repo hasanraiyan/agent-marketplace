@@ -10,6 +10,8 @@ import checkpointService from '../threads/checkpoint.service.js';
 import { loggerService } from '../../utils/index.js';
 import { foldSubagentEvent, settleTrace, extractTaskToolCallIds, reconcileSubagentTraceKeys } from './subagentTrace.js';
 import { readJsonBody, runAgentAsAguiEvents } from './agui.service.js';
+import clientProjectService from '../firms/clientProject.service.js';
+import { buildProjectContext } from '../firms/firm.tools.js';
 
 const logger = loggerService.getLogger();
 
@@ -58,11 +60,23 @@ class AguiController {
         agent = null;
       }
 
+      const executionContext = {
+        ...personaExecutionContext(context.userId),
+        ...(context.firmId ? { firmId: context.firmId } : {}),
+      };
       if (
         !agent ||
-        !agentService.canUserExecuteAgent(agent, personaExecutionContext(context.userId))
+        !agentService.canUserExecuteAgent(agent, executionContext) ||
+        (context.firmId && String(agent.firmId) !== String(context.firmId))
       ) {
         throw new NotFoundError('Agent not found');
+      }
+
+      // Humans & Harness: inject the live SOW brief for this turn only.
+      let contextOverride;
+      if (context.projectId) {
+        const brief = await clientProjectService.agentGetBrief(context.projectId);
+        if (brief) contextOverride = `### ACTIVE PROJECT\n${buildProjectContext(brief)}`;
       }
 
       const input = await readJsonBody(req);
@@ -94,6 +108,9 @@ class AguiController {
         messages: input.messages || [],
         resume: input.resume,
         signal: controller.signal,
+        contextOverride,
+        projectId: context.projectId || undefined,
+        executionContext,
       })) {
         if (res.destroyed) break;
         if (event?.type === EventType.CUSTOM && event.name === 'subagent_activity') {
