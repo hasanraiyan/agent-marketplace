@@ -501,8 +501,16 @@ export function useAguiChat(
     messagesRef.current = messages;
   }, [messages]);
 
-  // Reset when external threadId changes (new conversation selected)
+  // Reset when external threadId changes (new conversation selected).
+  // Exception: the draft → persisted promotion on first send. The parent
+  // swaps threadId "new" for the real id while the first run is streaming;
+  // resetting here would wipe the user's message and the live reply.
   useEffect(() => {
+    if (promotingRef.current) {
+      promotingRef.current = false;
+      setThreadId(externalThreadId);
+      return;
+    }
     const parsed = parseInitialState(
       rawInitialMessages,
       rawInitialToolCalls,
