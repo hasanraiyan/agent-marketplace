@@ -117,6 +117,8 @@ export interface UseAguiChatOptions {
   onToolResult?: (tool: ToolCall) => void;
   /** Called when a draft's server thread ID is available. BeyondCampus uses this to bind thread → localStorage. */
   onThreadCreated?: (threadId: string) => void;
+  /** Called before the first send of a draft ('new') thread; must return the persisted thread id. */
+  onCreateThread?: () => Promise<string | undefined | null>;
   onRunFinished?: () => void;
   onTitleGenerated?: (title: string) => void;
 }
@@ -430,6 +432,7 @@ export function useAguiChat(
     getToken,
     onToolResult,
     onThreadCreated,
+    onCreateThread,
     onRunFinished,
     onTitleGenerated,
   } = options;
@@ -516,7 +519,11 @@ export function useAguiChat(
   const headerEntries = useMemo(
     () =>
       Object.entries(headers || {}).filter(
-        ([, value]) => value !== undefined && value !== null && value !== "",
+        ([key, value]) =>
+          value !== undefined &&
+          value !== null &&
+          value !== "" &&
+          !(key.toLowerCase() === "x-thread-id" && value === "new"),
       ),
     [headers],
   );
@@ -1010,7 +1017,11 @@ export function useAguiChat(
       abortRef.current = controller;
 
       try {
-        const activeThreadId = threadIdOverride || externalThreadId;
+        const activeThreadId =
+          threadIdOverride ||
+          (externalThreadId && externalThreadId !== "new"
+            ? externalThreadId
+            : undefined);
         const authHeader: Record<string, string> = {};
 
         if (getToken) {
@@ -1132,8 +1143,22 @@ export function useAguiChat(
       let threadIdOverride: string | undefined;
       if (externalThreadId === "new") {
         promotingRef.current = true;
-        // Parent creates a backend thread; we'll get the ID back via onThreadCreated
-        threadIdOverride = undefined;
+        // Draft thread: ask the parent to persist one first so the run is
+        // bound to a real thread id (the backend 404s on the placeholder).
+        if (onCreateThread) {
+          try {
+            const createdId = await onCreateThread();
+            if (createdId) {
+              threadIdOverride = createdId;
+              setThreadId(createdId);
+            }
+          } catch (err) {
+            setError(
+              err instanceof Error ? err.message : "Failed to start conversation",
+            );
+            return;
+          }
+        }
       }
 
       await runStream({ messages: nextMessages, threadIdOverride });
@@ -1146,6 +1171,7 @@ export function useAguiChat(
       runStream,
       url,
       externalThreadId,
+      onCreateThread,
     ],
   );
 
