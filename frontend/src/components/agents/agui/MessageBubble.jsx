@@ -220,7 +220,7 @@ export const MessageBubble = memo(function MessageBubble({ message, agent }) {
   if (isUser) {
     return (
       <div className="flex w-full justify-end">
-        <div className="max-w-[78%] rounded-[20px] rounded-br-lg bg-zinc-100 px-4 py-2.5 text-[15px] leading-7 text-zinc-900 shadow-none dark:bg-zinc-800 dark:text-zinc-100">
+        <div className="max-w-[78%] rounded-[20px] rounded-br-lg bg-zinc-100 px-4 py-2.5 font-sans text-[15px] leading-7 tracking-[-0.005em] text-zinc-900 antialiased [font-feature-settings:'cv11','ss01','ss03'] dark:bg-zinc-800 dark:text-zinc-100">
           <div className="prose prose-sm max-w-none break-words whitespace-pre-wrap prose-p:my-0 prose-zinc dark:prose-invert">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
@@ -250,14 +250,15 @@ export const MessageBubble = memo(function MessageBubble({ message, agent }) {
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="mb-1 text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">
+        <div className="mb-1 font-sans text-[12px] font-semibold tracking-[0.01em] text-zinc-500 dark:text-zinc-400">
           {name}
         </div>
         <div
           className={cn(
-            "prose prose-zinc max-w-none break-words text-[15px] leading-7 text-zinc-900 dark:prose-invert dark:text-zinc-100",
-            "prose-p:my-2 prose-li:my-0.5 prose-ul:my-2 prose-ol:my-2 prose-ul:pl-5 prose-ol:pl-5",
-            "prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-zinc-900 dark:prose-headings:text-zinc-100 prose-h1:text-xl prose-h1:mt-4 prose-h2:text-lg prose-h2:mt-4 prose-h3:text-base prose-h3:mt-3",
+            "prose prose-zinc max-w-none break-words font-sans text-[15.5px] leading-[1.75] tracking-[-0.006em] text-zinc-900 antialiased [font-feature-settings:'cv11','ss01','ss03'] dark:prose-invert dark:text-zinc-100",
+            "prose-p:my-2.5 prose-li:my-1 prose-ul:my-2.5 prose-ol:my-2.5 prose-ul:pl-5 prose-ol:pl-5 prose-li:marker:text-zinc-400",
+            "prose-headings:font-display prose-headings:font-medium prose-headings:tracking-[-0.01em] prose-headings:text-zinc-900 dark:prose-headings:text-zinc-100 prose-h1:text-[22px] prose-h1:mt-5 prose-h1:mb-2 prose-h2:text-[19px] prose-h2:mt-5 prose-h2:mb-2 prose-h3:text-[16.5px] prose-h3:mt-4 prose-h3:mb-1.5",
+            "prose-code:font-mono prose-code:text-[13px] prose-code:font-normal prose-code:before:content-none prose-code:after:content-none",
             "prose-strong:font-semibold prose-strong:text-zinc-900 dark:prose-strong:text-zinc-100 prose-a:text-[#1E60FF] prose-a:no-underline hover:prose-a:underline",
             "prose-blockquote:border-l-2 prose-blockquote:border-zinc-200 prose-blockquote:pl-4 prose-blockquote:text-zinc-600 prose-blockquote:not-italic",
             "prose-hr:my-4 prose-hr:border-zinc-200",
