@@ -44,6 +44,40 @@ class SkillController {
     }
   }
 
+  async explore(req, res, next) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = Math.min(parseInt(req.query.limit) || 30, 100);
+      const { skills, total } = await skillService.exploreSkills({
+        search: req.query.search,
+        category: req.query.category,
+        page,
+        limit,
+      });
+      res.json({ success: true, data: skills, pagination: { total, page, limit } });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async play(req, res, next) {
+    try {
+      res.json({ success: true, data: await skillService.getPlayableSkill(req.params.id) });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async personas(req, res, next) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+      res.json({ success: true, data: await skillService.listPersonas({ search: req.query.search, page, limit }) });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getPublicSkills(req, res, next) {
     try {
       const page = parseInt(req.query.page) || 1;

@@ -78,6 +78,12 @@ const conversationSchema = new mongoose.Schema(
     // checkpoints only persist the main thread's messages — the subagent's
     // transcript exists only in the live event stream, so it is folded and
     // saved here to survive thread reloads.
+    // Pinned skill for this conversation ("play" a published skill).
+    skillId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Skill',
+      default: null,
+    },
     // Humans & Harness: set when the thread belongs to a ClientProject.
     projectId: {
       type: mongoose.Schema.Types.ObjectId,

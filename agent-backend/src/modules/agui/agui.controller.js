@@ -12,6 +12,8 @@ import { foldSubagentEvent, settleTrace, extractTaskToolCallIds, reconcileSubage
 import { readJsonBody, runAgentAsAguiEvents } from './agui.service.js';
 import clientProjectService from '../firms/clientProject.service.js';
 import { buildProjectContext } from '../firms/firm.tools.js';
+import skillService from '../skills/skill.service.js';
+import skillRepository from '../skills/skill.repository.js';
 
 const logger = loggerService.getLogger();
 
@@ -77,6 +79,22 @@ class AguiController {
       if (context.projectId) {
         const brief = await clientProjectService.agentGetBrief(context.projectId);
         if (brief) contextOverride = `### ACTIVE PROJECT\n${buildProjectContext(brief)}`;
+      }
+
+      // Pinned skill: inline the creator's instructions for this turn.
+      if (context.skillId) {
+        const pinned = await skillService.getPinnedSkillForAgent(context.skillId, agent);
+        if (pinned) {
+          const block = `### PINNED SKILL: ${pinned.title || pinned.name}\n${pinned.hook ? pinned.hook + '\n' : ''}The visitor came here to use this specific skill of yours. Apply it deliberately in this conversation; if the request drifts outside it, say what the skill covers and still help.\n\n${pinned.instructions}`;
+          contextOverride = contextOverride ? `${contextOverride}\n\n${block}` : block;
+          if (context.threadDbId) {
+            const t = await threadRepository.findById(context.threadDbId).catch(() => null);
+            if (t && !t.skillId) {
+              await threadRepository.update(t._id, { $set: { skillId: pinned._id } }).catch(() => {});
+              await skillRepository.incrementUsage(pinned._id).catch(() => {});
+            }
+          }
+        }
       }
 
       const input = await readJsonBody(req);

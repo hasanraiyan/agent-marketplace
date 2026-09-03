@@ -28,6 +28,9 @@ export default {
   skills: {
     rubric: {
       name: 'system-design-interview-rubric',
+      title: 'System design interview rubric',
+      hook: 'Your design graded on six dimensions with the verdict a real interviewer would give you.',
+      category: 'technology',
       description: 'Menon\'s rubric for grading a system design answer, with the verdicts in his voice. Use for reviewing any design writeup or mock.',
       instructions: `# System design interview rubric
 
@@ -51,6 +54,9 @@ Score table, then a verdict paragraph in the first person as the interviewer, th
     },
     method: {
       name: 'numbers-before-boxes-method',
+      title: 'Numbers before boxes',
+      hook: 'The first fifteen minutes of a design interview, drilled until scoping and estimation are habits.',
+      category: 'technology',
       description: 'The step-by-step method Menon teaches for the first 15 minutes of any design interview, with the estimation shortcuts. Use when teaching, drilling, or reviewing the opening of a design.',
       instructions: `# Numbers before boxes: the first fifteen minutes
 
@@ -67,6 +73,9 @@ One prompt. The client writes the fifteen-minute opening as a document (scope, n
     },
     curriculum: {
       name: 'twelve-week-curriculum-and-tracking',
+      title: '12-week curriculum & readiness score',
+      hook: 'One problem a week in the right order, weak areas drilled on a schedule, and a number that says when you are ready.',
+      category: 'technology',
       description: 'The 12-week curriculum structure, weekly problem sequence, weak-area tracker with spaced repetition, and the readiness score. Use for plans, trackers, and progress reports.',
       instructions: `# Twelve-week curriculum and tracking
 

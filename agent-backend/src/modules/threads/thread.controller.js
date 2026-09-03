@@ -7,7 +7,7 @@ import { createThreadSchema, updateThreadTitleSchema } from './thread.validator.
 class ThreadController {
   async create(req, res, next) {
     try {
-      const { agentId } = createThreadSchema.parse(req.body);
+      const { agentId, skillId } = createThreadSchema.parse(req.body);
       const userId = req.user.id;
 
       // Ensure agent exists
@@ -19,7 +19,11 @@ class ThreadController {
       // We explicitly generate a user friendly unique token for thread sharing potentially later
       const threadId = crypto.randomUUID();
 
-      const thread = await threadService.createThread(userId, { agentId, threadId });
+      const thread = await threadService.createThread(userId, {
+        agentId,
+        threadId,
+        ...(skillId ? { skillId } : {}),
+      });
 
       res.status(201).json({ success: true, data: thread });
     } catch (error) {

@@ -5,6 +5,10 @@ export const createThreadSchema = z.object({
     .string()
     .min(1, 'agentId is required')
     .regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid MongoDB ID'),
+  skillId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid MongoDB ID')
+    .optional(),
 });
 
 export const updateThreadTitleSchema = z.object({

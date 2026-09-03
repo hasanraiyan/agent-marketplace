@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import authMiddleware from '../auth/auth.middleware.js';
+import optionalAuthMiddleware from '../auth/optional-auth.middleware.js';
 import rateLimiter, { RATE_LIMITS } from '../rateLimiter/rateLimiter.middleware.js';
 import { validateBody } from '../../middlewares/validationMiddleware.js';
 import { createSkillSchema, updateSkillSchema } from './skill.validator.js';
@@ -28,6 +29,56 @@ const mutateLimiter = rateLimiter('MUTATE', RATE_LIMITS.MUTATE);
  *       401:
  *         description: Unauthorized
  */
+/**
+ * @openapi
+ * /api/v1/skills/explore:
+ *   get:
+ *     tags: [Skills]
+ *     summary: Explore published skills with their persona byline
+ *     parameters:
+ *       - in: query
+ *         name: search
+ *         schema: { type: string }
+ *       - in: query
+ *         name: category
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Skills
+ */
+router.get('/explore', optionalAuthMiddleware, skillController.explore);
+
+/**
+ * @openapi
+ * /api/v1/skills/personas:
+ *   get:
+ *     tags: [Skills]
+ *     summary: Public personas (creators' main agents) with published-skill counts
+ *     responses:
+ *       200:
+ *         description: Personas
+ */
+router.get('/personas', optionalAuthMiddleware, skillController.personas);
+
+/**
+ * @openapi
+ * /api/v1/skills/play/{id}:
+ *   get:
+ *     tags: [Skills]
+ *     summary: Public view of a skill plus the persona that plays it
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Skill
+ *       404:
+ *         description: Not found
+ */
+router.get('/play/:id', optionalAuthMiddleware, skillController.play);
+
 router.get('/search', authMiddleware, skillController.search);
 
 /**

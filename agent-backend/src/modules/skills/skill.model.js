@@ -1,5 +1,15 @@
 import mongoose from 'mongoose';
 
+export const SKILL_CATEGORIES = Object.freeze([
+  'entrepreneurship',
+  'health-fitness',
+  'mind-behavior',
+  'technology',
+  'life-relationships',
+  'careers',
+  'other',
+]);
+
 const skillSchema = new mongoose.Schema(
   {
     // Developer Platform (AD-03, AD-04 §18): same additive pattern as
@@ -77,6 +87,28 @@ const skillSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    // ── Publishable skill ("a skill is the video") ─────────────────────────
+    // `name` is the slug the runtime mounts; `title` is what people see.
+    title: { type: String, trim: true, maxlength: 120, default: '' },
+    // One line in the buyer's words: what this lets the persona do for you.
+    hook: { type: String, trim: true, maxlength: 200, default: '' },
+    coverImage: { type: String, default: '' },
+    category: {
+      type: String,
+      enum: SKILL_CATEGORIES,
+      default: 'other',
+      index: true,
+    },
+    tags: { type: [String], default: [] },
+    // Three-state visibility like Agents. `isPublic` is kept in sync for
+    // every existing caller (studio import marketplace, runtime filters).
+    visibility: {
+      type: String,
+      enum: ['public', 'unlisted', 'private'],
+      default: 'private',
+      index: true,
+    },
+    usageCount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
@@ -96,6 +128,14 @@ skillSchema.index(
   { ownerId: 1, name: 1 },
   { unique: true, partialFilterExpression: { ownerId: { $exists: true } } }
 );
+
+skillSchema.pre('validate', function syncVisibility() {
+  if (this.isModified('visibility')) {
+    this.isPublic = this.visibility === 'public';
+  } else if (this.isModified('isPublic')) {
+    this.visibility = this.isPublic ? 'public' : this.visibility === 'unlisted' ? 'unlisted' : 'private';
+  }
+});
 
 const Skill = mongoose.model('Skill', skillSchema);
 

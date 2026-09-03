@@ -29,6 +29,9 @@ export default {
   skills: {
     nutrition: {
       name: 'nutrition-rules-with-reasons',
+      title: 'Nutrition rules, with reasons',
+      hook: 'A weekly meal plan built from your own kitchen, protein first, with a plan for when the day goes wrong.',
+      category: 'health-fitness',
       description: 'Ortiz nutrition rules: protein targets, calorie floors, meal structure, and how to build a weekly plan around a real kitchen. Use for any meal plan or food question.',
       instructions: `# Nutrition rules, with reasons
 
@@ -48,6 +51,9 @@ Any mention of an eating disorder history, pregnancy, diabetes, kidney issues, o
     },
     training: {
       name: 'training-programming-framework',
+      title: '4-week training blocks',
+      hook: 'A block for the equipment you actually have, adjusted for bad sleep, missed days, and travel weeks.',
+      category: 'health-fitness',
       description: 'How Ortiz builds 4-week training blocks and adjusts them to sleep, soreness, and schedule. Use for any workout, block, or exercise question.',
       instructions: `# Training programming framework
 
@@ -75,6 +81,9 @@ A 4-week block as a markdown table per week (day, exercise, sets × reps, load o
     },
     habits: {
       name: 'habit-and-checkin-system',
+      title: 'Habit scorecard & Sunday report',
+      hook: 'Five daily habits, one page every Sunday, and a nudge before you drift.',
+      category: 'health-fitness',
       description: 'Ortiz habit scorecard, weekly Sunday report format, and proactive check-in rules. Use for reports, check-ins, and adherence problems.',
       instructions: `# Habit scorecard and Sunday report
 

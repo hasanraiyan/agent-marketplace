@@ -11,3 +11,8 @@ export const updateSkill = (skillId, data) =>
 export const deleteSkill = (skillId) => api.delete(`/skills/${skillId}`);
 export const getUsedByAgents = (skillId) =>
   api.get(`/skills/${skillId}/agents`);
+
+// ── Explore / play (public, "a skill is the video") ─────────────────────────
+export const exploreSkills = (params) => api.get("/skills/explore", { params });
+export const getSkillPlay = (skillId) => api.get(`/skills/play/${skillId}`);
+export const listPersonas = (params) => api.get("/skills/personas", { params });

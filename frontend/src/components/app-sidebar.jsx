@@ -4,7 +4,6 @@ import * as React from "react";
 
 import { NavThreads } from "@/components/nav-threads";
 import { NavMain } from "@/components/nav-main";
-import { NavFirms } from "@/components/nav-firms";
 import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
 import Link from "next/link";
@@ -128,7 +127,6 @@ export function AppSidebar({ ...props }) {
       </SidebarHeader>
       <SidebarContent className="gap-4 px-3.5 py-3">
         <NavMain items={NAV_MAIN} />
-        <NavFirms />
         <NavThreads
           groups={groups}
           loading={threadsLoading}

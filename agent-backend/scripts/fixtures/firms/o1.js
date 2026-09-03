@@ -27,6 +27,9 @@ export default {
   skills: {
     criteria: {
       name: 'o1a-criteria-gap-analysis',
+      title: 'O-1A criteria gap analysis',
+      hook: 'Find out which three criteria you can actually win, and which to stop wasting time on.',
+      category: 'careers',
       description: 'How Extraordinary Path maps a profile to the eight O-1A criteria, picks the three to win, and scores evidence strength. Use for any assessment or planning task.',
       instructions: `# O-1A criteria gap analysis
 
@@ -53,6 +56,9 @@ This is a planning assessment, never an eligibility opinion. Say so in the docum
     },
     campaign: {
       name: 'evidence-campaign-playbook',
+      title: 'Evidence campaign playbook',
+      hook: 'A 90-day plan with judging, speaking, and press opportunities found for you, tracked in one inventory.',
+      category: 'careers',
       description: 'How to run a 90-day evidence campaign: the standing watch for judging and speaking, press outreach, and the evidence inventory. Use for campaign plans, opportunity lists, and progress reports.',
       instructions: `# Evidence campaign playbook
 
@@ -76,6 +82,9 @@ Never advise on filing timing, petition strategy, or how an officer will read ev
     },
     letters: {
       name: 'recommendation-letter-scaffold',
+      title: 'Recommendation letter scaffolds',
+      hook: 'Letters that name a specific contribution and its adoption, drafted for your recommender to edit.',
+      category: 'careers',
       description: 'How to draft recommendation letter scaffolds that name a specific contribution, its significance, and its adoption, for the recommender to edit. Use for any letter task.',
       instructions: `# Recommendation letter scaffold
 
@@ -100,6 +109,9 @@ One markdown file per letter in /workspace/outputs/letters/, plus a cover note t
     },
     handoff: {
       name: 'attorney-handoff-rules',
+      title: 'Attorney handoff brief',
+      hook: 'Every legal question packaged into a one-page brief for the attorney instead of guessed at.',
+      category: 'careers',
       description: 'The regulated boundary: what the firm never says, and how to package a question or a case for the partner attorney. Use whenever a legal question appears.',
       instructions: `# Attorney handoff rules
 

@@ -4,16 +4,57 @@ import { studioRoutes } from "@/lib/studio-routes";
 
 import { useState, useMemo } from "react";
 import { useConnectors } from "@/components/connectors/connectors-context";
-import { Cpu, Plus, SearchIcon, Eye } from "lucide-react";
+import {
+  Cpu,
+  Plus,
+  SearchIcon,
+  Eye,
+  Globe,
+  Link2,
+  Lock,
+  Play,
+} from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SkillCover, skillCategoryLabel } from "@/components/skills/skill-cover";
+import { cn } from "@/lib/utils";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
+
+const VISIBILITY_META = {
+  public: { label: "Public", icon: Globe },
+  unlisted: { label: "Unlisted", icon: Link2 },
+  private: { label: "Private", icon: Lock },
+};
+
+function skillVisibility(skill) {
+  const v = skill?.visibility;
+  if (v === "public" || v === "unlisted" || v === "private") return v;
+  return skill?.isPublic ? "public" : "private";
+}
+
+function VisibilityBadge({ visibility, className }) {
+  const meta = VISIBILITY_META[visibility] || VISIBILITY_META.private;
+  const Icon = meta.icon;
+  return (
+    <Badge
+      variant={visibility === "public" ? "default" : "outline"}
+      className={cn(
+        "text-[9px] h-4.5 px-1.5 uppercase font-bold gap-1",
+        visibility !== "public" && "bg-background/80 backdrop-blur",
+        className,
+      )}
+    >
+      <Icon className="size-2.5!" />
+      {meta.label}
+    </Badge>
+  );
+}
 
 export default function SkillsListPage() {
   const { mySkills, loading } = useConnectors();
@@ -23,9 +64,17 @@ export default function SkillsListPage() {
     const q = (search || "").trim().toLowerCase();
     if (!q) return mySkills;
     return mySkills.filter((s) => {
-      const name = (s.name || "").toLowerCase();
-      const desc = (s.description || "").toLowerCase();
-      return name.includes(q) || desc.includes(q);
+      const haystack = [
+        s.name,
+        s.title,
+        s.hook,
+        s.description,
+        ...(Array.isArray(s.tags) ? s.tags : []),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
     });
   }, [mySkills, search]);
 
@@ -34,7 +83,7 @@ export default function SkillsListPage() {
       <div className="p-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-48 rounded-2xl" />
+            <Skeleton key={i} className="h-72 rounded-2xl" />
           ))}
         </div>
       </div>
@@ -85,39 +134,53 @@ export default function SkillsListPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filtered.map((skill) => {
           const id = skill._id || skill.id;
+          const visibility = skillVisibility(skill);
+          const usageCount = Number(skill.usageCount) || 0;
           return (
             <Link
               key={id}
               href={studioRoutes.skill(id)}
-              className="group flex flex-col rounded-2xl border border-zinc-150/60 dark:border-zinc-900/60 bg-card p-5 hover:border-zinc-300 dark:hover:border-zinc-800 transition-all duration-200 active:scale-[0.98]"
+              className="group flex flex-col rounded-2xl border border-zinc-150/60 dark:border-zinc-900/60 bg-card p-3 hover:border-zinc-300 dark:hover:border-zinc-800 transition-all duration-200 active:scale-[0.98]"
             >
-              {/* Top: Icon + Badge */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="size-11 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-600/20 dark:from-violet-500/10 dark:to-purple-600/10 flex items-center justify-center text-violet-600 dark:text-violet-400">
-                  <Cpu className="size-5" />
-                </div>
-                <Badge
-                  variant={skill.isPublic ? "default" : "outline"}
-                  className="text-[8px] h-4 px-1.5 uppercase font-bold"
-                >
-                  {skill.isPublic ? "Public" : "Private"}
-                </Badge>
+              {/* Cover */}
+              <div className="relative">
+                <SkillCover
+                  skill={skill}
+                  persona={skill.persona}
+                  size="sm"
+                  className="aspect-video w-full rounded-xl"
+                />
+                <VisibilityBadge
+                  visibility={visibility}
+                  className="absolute top-2 left-2"
+                />
               </div>
 
               {/* Content */}
-              <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100 mb-1 line-clamp-1 group-hover:text-primary transition-colors">
-                {skill.name}
-              </h3>
-              <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 flex-1">
-                {skill.description || "No description"}
-              </p>
+              <div className="px-2 pt-4 flex-1 flex flex-col">
+                <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100 mb-1 line-clamp-1 group-hover:text-primary transition-colors">
+                  {skill.title || skill.name}
+                </h3>
+                <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 flex-1">
+                  {skill.hook || skill.description || "No description"}
+                </p>
 
-              {/* Footer */}
-              <div className="flex items-center justify-between pt-3 mt-3 border-t border-zinc-150/60 dark:border-zinc-900/60">
-                <span className="text-[10px] font-medium text-muted-foreground">
-                  {skill.agentCount || 0} agents
-                </span>
-                <Eye className="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                {/* Footer */}
+                <div className="flex items-center justify-between gap-2 pt-3 mt-3 border-t border-zinc-150/60 dark:border-zinc-900/60">
+                  <div className="flex items-center gap-2 min-w-0 text-[10px] font-medium text-muted-foreground">
+                    <span className="truncate">
+                      {skillCategoryLabel(skill.category)}
+                    </span>
+                    {usageCount > 0 && (
+                      <span className="inline-flex items-center gap-1 shrink-0 before:content-['·'] before:text-zinc-300 dark:before:text-zinc-700">
+                        <Play className="size-2.5" />
+                        {usageCount.toLocaleString()}{" "}
+                        {usageCount === 1 ? "play" : "plays"}
+                      </span>
+                    )}
+                  </div>
+                  <Eye className="size-3.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
               </div>
             </Link>
           );

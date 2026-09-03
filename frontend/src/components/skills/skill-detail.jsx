@@ -6,7 +6,10 @@ import { useState, useEffect } from "react";
 import {
   Cpu,
   Globe,
+  Link2,
   Lock,
+  Tag,
+  LayoutGrid,
   Edit,
   Trash2,
   Calendar,
@@ -56,6 +59,19 @@ import { deleteSkill, getUsedByAgents } from "@/lib/api/skills";
 import { useRouter } from "next/navigation";
 import { useConnectors } from "@/components/connectors/connectors-context";
 import Link from "next/link";
+import { SkillCover, skillCategoryLabel } from "@/components/skills/skill-cover";
+
+const VISIBILITY_META = {
+  public: { label: "Public", icon: Globe },
+  unlisted: { label: "Unlisted", icon: Link2 },
+  private: { label: "Private", icon: Lock },
+};
+
+function skillVisibility(skill) {
+  const v = skill?.visibility;
+  if (v === "public" || v === "unlisted" || v === "private") return v;
+  return skill?.isPublic ? "public" : "private";
+}
 
 export function SkillDetail({ skill }) {
   const router = useRouter();
@@ -113,6 +129,12 @@ export function SkillDetail({ skill }) {
   const skillId = skill._id || skill.id;
   const isOwner =
     skill.isOwner === true || mySkills.some((s) => (s._id || s.id) === skillId);
+  const visibility = skillVisibility(skill);
+  const VisibilityIcon = VISIBILITY_META[visibility].icon;
+  const visibilityLabel = VISIBILITY_META[visibility].label;
+  const usageCount = Number(skill.usageCount) || 0;
+  const tags = Array.isArray(skill.tags) ? skill.tags.filter(Boolean) : [];
+  const displayTitle = skill.title || skill.name;
 
   const handleCopyText = () => {
     if (typeof window !== "undefined" && skill.instructions) {
@@ -132,28 +154,29 @@ export function SkillDetail({ skill }) {
             {/* Overview / Identity Card */}
             <Card className="border border-zinc-150/60 dark:border-zinc-900/60 bg-card rounded-3xl ring-0 shadow-none overflow-hidden">
               <CardContent className="px-6 py-6">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-                  <div className="size-20 sm:size-24 rounded-2xl sm:rounded-3xl border border-zinc-150/60 dark:border-zinc-800 shrink-0 flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5 text-primary">
-                    <Cpu className="size-10 sm:size-12" />
-                  </div>
+                <div className="flex flex-col sm:flex-row sm:items-start gap-5">
+                  <SkillCover
+                    skill={skill}
+                    persona={skill.persona}
+                    size="md"
+                    className="w-full sm:w-56 aspect-video sm:aspect-square shrink-0 rounded-2xl sm:rounded-3xl border border-zinc-150/60 dark:border-zinc-800"
+                  />
 
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                       <Badge
-                        variant={skill.isPublic ? "default" : "outline"}
+                        variant={visibility === "public" ? "default" : "outline"}
                         className="text-xs font-semibold px-2.5 py-0.5 rounded-full"
                       >
-                        {skill.isPublic ? (
-                          <>
-                            <Globe className="size-3 mr-1" />
-                            Public
-                          </>
-                        ) : (
-                          <>
-                            <Lock className="size-3 mr-1" />
-                            Private
-                          </>
-                        )}
+                        <VisibilityIcon className="size-3 mr-1" />
+                        {visibilityLabel}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className="text-xs font-semibold px-2.5 py-0.5 border-zinc-150/60 dark:border-zinc-800 bg-background/50 rounded-full"
+                      >
+                        <LayoutGrid className="size-3 mr-1" />
+                        {skillCategoryLabel(skill.category)}
                       </Badge>
                       <Badge
                         variant="outline"
@@ -164,15 +187,51 @@ export function SkillDetail({ skill }) {
                           ? "You"
                           : skill.ownerId?.username || "Community"}
                       </Badge>
+                      {usageCount > 0 && (
+                        <Badge
+                          variant="outline"
+                          className="text-xs font-semibold px-2.5 py-0.5 border-zinc-150/60 dark:border-zinc-800 bg-background/50 rounded-full"
+                        >
+                          <Play className="size-3 mr-1" />
+                          {usageCount.toLocaleString()}{" "}
+                          {usageCount === 1 ? "play" : "plays"}
+                        </Badge>
+                      )}
                     </div>
 
-                    <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 truncate">
-                      {skill.name}
+                    <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 break-words">
+                      {displayTitle}
                     </h2>
+                    {skill.title && skill.title !== skill.name && (
+                      <p className="mt-0.5 font-mono text-[11px] text-zinc-400 dark:text-zinc-500 truncate">
+                        {skill.name}
+                      </p>
+                    )}
+
+                    {skill.hook && (
+                      <p className="text-base sm:text-lg leading-snug text-zinc-800 dark:text-zinc-200 font-semibold mt-2">
+                        {skill.hook}
+                      </p>
+                    )}
 
                     <p className="text-sm sm:text-base leading-relaxed text-zinc-500 dark:text-zinc-400 font-medium mt-1">
                       {skill.description || "No description provided."}
                     </p>
+
+                    {tags.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 mt-3">
+                        <Tag className="size-3 text-zinc-400 dark:text-zinc-500" />
+                        {tags.map((tag) => (
+                          <Badge
+                            key={tag}
+                            variant="secondary"
+                            className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -397,15 +456,31 @@ export function SkillDetail({ skill }) {
 
                 <div className="flex items-center justify-between px-5 py-3.5 text-xs">
                   <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 font-medium">
-                    {skill.isPublic ? (
-                      <Globe className="size-3.5" />
-                    ) : (
-                      <Lock className="size-3.5" />
-                    )}
+                    <VisibilityIcon className="size-3.5" />
                     <span>Visibility</span>
                   </div>
                   <span className="font-semibold text-zinc-900 dark:text-zinc-150 capitalize">
-                    {skill.isPublic ? "Public" : "Private"}
+                    {visibilityLabel}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between px-5 py-3.5 text-xs">
+                  <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 font-medium">
+                    <LayoutGrid className="size-3.5" />
+                    <span>Category</span>
+                  </div>
+                  <span className="font-semibold text-zinc-900 dark:text-zinc-150">
+                    {skillCategoryLabel(skill.category)}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between px-5 py-3.5 text-xs">
+                  <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 font-medium">
+                    <Play className="size-3.5" />
+                    <span>Plays</span>
+                  </div>
+                  <span className="font-semibold text-zinc-900 dark:text-zinc-150">
+                    {usageCount.toLocaleString()}
                   </span>
                 </div>
 
@@ -465,7 +540,7 @@ export function SkillDetail({ skill }) {
             <AlertDialogDescription className="space-y-3">
               <p>
                 This action cannot be undone. This will permanently delete{" "}
-                <strong>{skill.name}</strong>.
+                <strong>{displayTitle}</strong>.
               </p>
               {usedByAgents.length > 0 && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-400 text-xs">

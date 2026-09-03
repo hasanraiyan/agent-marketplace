@@ -74,11 +74,18 @@ aguiRouter.use(async (req, res, next) => {
       project = await clientProjectService.getForRuntime(projectId, userId).catch(() => null);
       if (!project) throw new NotFoundError('Project not found');
     }
+    // Pinned skill: explicit header on the first turn, then remembered on the thread.
+    let skillId = req.headers['x-skill-id'] || req.query.skillId || null;
+    if (!skillId && threadDbId) {
+      const t = await threadRepository.findById(threadDbId).catch(() => null);
+      if (t?.skillId) skillId = String(t.skillId);
+    }
     req.aguiContext = {
       userId,
       agentId,
       langGraphThreadId,
       threadDbId,
+      skillId,
       projectId: project ? String(project._id) : null,
       firmId: project ? String(project.firmId) : null,
     };

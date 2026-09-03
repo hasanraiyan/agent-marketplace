@@ -18,6 +18,9 @@ import {
 } from "@/components/agents/agui-agent-chat";
 import { McpConnectBanner } from "@/components/agents/mcp-connect-banner";
 import { getAgent } from "@/lib/api/agents";
+import { getSkillPlay } from "@/lib/api/skills";
+import { SkillCover, skillCategoryLabel } from "@/components/skills/skill-cover";
+import { XIcon, SparklesIcon } from "lucide-react";
 import { createThread, getThread, getThreadMessages } from "@/lib/api/threads";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
 import { normaliseLangChainMessages } from "@/lib/agui/normalise-messages";
@@ -61,6 +64,9 @@ export default function RunAgentPage() {
   const [showFiles, setShowFiles] = useState(false);
   const [panelTab, setPanelTab] = useState("files");
   const [selectedFile, setSelectedFile] = useState(null);
+  // "Play a skill": the published skill pinned to this conversation.
+  const skillParam = searchParams.get("skill");
+  const [pinnedSkill, setPinnedSkill] = useState(null);
 
   // ── Token refresh ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -101,6 +107,8 @@ export default function RunAgentPage() {
       try {
         const agentRes = await getAgent(agentId);
         setAgent(agentRes.data?.data);
+        // Resolve the pinned skill: explicit ?skill= wins, else the thread's.
+        let skillIdToLoad = skillParam;
 
         if (urlThreadId && urlThreadId !== "new") {
           // ── Resume existing thread ─────────────────────────────────────────
@@ -112,6 +120,10 @@ export default function RunAgentPage() {
           const loadedThread = threadRes.data?.data;
           if (!loadedThread) throw new Error("Thread not found");
           setThread(loadedThread);
+          if (!skillIdToLoad && loadedThread.skillId) {
+            skillIdToLoad =
+              loadedThread.skillId?._id || loadedThread.skillId;
+          }
           setSessionKey(urlThreadId);
 
           const {
@@ -134,6 +146,16 @@ export default function RunAgentPage() {
           setAgentState({});
           setSelectedFile(null);
         }
+        if (skillIdToLoad) {
+          try {
+            const playRes = await getSkillPlay(skillIdToLoad);
+            setPinnedSkill(playRes.data?.data || null);
+          } catch {
+            setPinnedSkill(null);
+          }
+        } else {
+          setPinnedSkill(null);
+        }
       } catch (err) {
         toast.error(err.response?.data?.message || "Failed to load chat");
       } finally {
@@ -143,11 +165,21 @@ export default function RunAgentPage() {
 
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agentId, urlThreadId]);
+  }, [agentId, urlThreadId, skillParam]);
 
   // ── "New Chat" handler ───────────────────────────────────────────────────────
+  const skillQuery = pinnedSkill?._id ? `&skill=${pinnedSkill._id}` : "";
+
   const handleNewChat = useCallback(async () => {
     // Navigate to virtual 'new' thread, the sidebar update will happen once a message is sent.
+    router.replace(
+      `/dashboard/agents/${agentId}/run?threadId=new${skillQuery}`,
+      { scroll: false },
+    );
+  }, [agentId, router, skillQuery]);
+
+  const handleUnpinSkill = useCallback(() => {
+    setPinnedSkill(null);
     router.replace(`/dashboard/agents/${agentId}/run?threadId=new`, {
       scroll: false,
     });
@@ -156,16 +188,20 @@ export default function RunAgentPage() {
   const handleCreateThread = useCallback(async () => {
     try {
       promotingRef.current = true;
-      const res = await createThread({ agentId });
+      const res = await createThread({
+        agentId,
+        ...(pinnedSkill?._id ? { skillId: pinnedSkill._id } : {}),
+      });
       const newThread = res.data?.data;
       const newId = newThread?._id || newThread?.id;
 
       setThread(newThread);
 
-      // Update URL to the new thread ID
-      router.replace(`/dashboard/agents/${agentId}/run?threadId=${newId}`, {
-        scroll: false,
-      });
+      // Update URL to the new thread ID (keep the pinned skill in the URL)
+      router.replace(
+        `/dashboard/agents/${agentId}/run?threadId=${newId}${skillQuery}`,
+        { scroll: false },
+      );
 
       // Refresh sidebar thread list
       refreshThreads();
@@ -176,7 +212,7 @@ export default function RunAgentPage() {
       toast.error("Failed to persist conversation");
       throw err;
     }
-  }, [agentId, refreshThreads, router]);
+  }, [agentId, refreshThreads, router, pinnedSkill, skillQuery]);
 
   const handleOpenFile = useCallback((filePath) => {
     setPanelTab("files");
@@ -335,6 +371,36 @@ export default function RunAgentPage() {
   return (
     <div className="@container/main absolute inset-0 flex flex-col overflow-hidden bg-white">
       <McpConnectBanner mcps={agent?.mcps} />
+      {pinnedSkill ? (
+        <div className="flex items-center gap-3 border-b border-zinc-100 bg-zinc-50/70 px-4 py-2.5">
+          <SkillCover
+            skill={pinnedSkill}
+            persona={pinnedSkill.persona}
+            className="size-9 shrink-0 rounded-lg"
+            showTitle={false}
+          />
+          <div className="min-w-0 flex-1">
+            <p className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.16em] text-zinc-500">
+              <SparklesIcon className="size-3 text-[#1E60FF]" />
+              Playing skill · {skillCategoryLabel(pinnedSkill.category)}
+            </p>
+            <p className="truncate text-[13px] font-semibold text-zinc-900">
+              {pinnedSkill.title}
+              <span className="ml-2 font-medium text-zinc-500">
+                by {pinnedSkill.persona?.name || agent?.name}
+              </span>
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleUnpinSkill}
+            title="Stop using this skill"
+            className="flex size-7 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-200/70 hover:text-zinc-800 cursor-pointer"
+          >
+            <XIcon className="size-3.5" />
+          </button>
+        </div>
+      ) : null}
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {authToken && threadDbId ? (
           <>
@@ -347,9 +413,33 @@ export default function RunAgentPage() {
               initialMessages={initialMessages}
               initialState={initialState}
               title={agent?.name || "Sage"}
-              emptyTitle={agent?.name || "Sage"}
+              emptyTitle={pinnedSkill ? pinnedSkill.title : agent?.name || "Sage"}
               emptyDescription={
-                agent?.description || "Ask this agent to work on your request."
+                pinnedSkill
+                  ? pinnedSkill.hook ||
+                    pinnedSkill.description ||
+                    `${agent?.name} will use this skill for you.`
+                  : agent?.description ||
+                    "Ask this agent to work on your request."
+              }
+              emptyStateVariant={pinnedSkill ? "simple" : "profile"}
+              suggestedPrompts={
+                pinnedSkill
+                  ? [
+                      {
+                        title: `Use "${pinnedSkill.title}" on my situation`,
+                        prompt: `I want to use your "${pinnedSkill.title}" skill. Ask me what you need to know first, then apply it.`,
+                      },
+                      {
+                        title: "What does this skill cover?",
+                        prompt: `Explain what your "${pinnedSkill.title}" skill covers, what it refuses, and what I get out of it.`,
+                      },
+                      {
+                        title: "Show me an example",
+                        prompt: `Give me a short worked example of "${pinnedSkill.title}" applied to a typical case.`,
+                      },
+                    ]
+                  : undefined
               }
               className="min-w-0 flex-1"
               showHeader={false}
@@ -357,6 +447,7 @@ export default function RunAgentPage() {
                 Authorization: `Bearer ${authToken}`,
                 "X-Agent-Id": agentId,
                 "X-Thread-Id": threadDbId,
+                ...(pinnedSkill?._id ? { "X-Skill-Id": pinnedSkill._id } : {}),
               }}
               onStateChange={setAgentState}
               onCreateThread={handleCreateThread}

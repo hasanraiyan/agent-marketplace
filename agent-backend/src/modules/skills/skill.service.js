@@ -1,4 +1,5 @@
 import skillRepository from './skill.repository.js';
+import NotFoundError from '../../utils/errors/NotFoundError.js';
 import agentRepository from '../agents/agent.repository.js';
 import agentFactory from '../agents/agent.factory.js';
 import { personaExecutionContext } from '../agents/agent.service.js';
@@ -71,6 +72,95 @@ class SkillService {
   /**
    * Searches the public skills marketplace
    */
+  /**
+   * The persona that "plays" a creator's skills: their public main agent,
+   * else their first public agent, else null (skill is not playable yet).
+   */
+  async resolvePersonas(ownerIds) {
+    const ids = [...new Set(ownerIds.map(String))];
+    if (!ids.length) return {};
+    const agents = await agentRepository.search(
+      { ownerId: { $in: ids }, isActive: true, visibility: 'public', deletedAt: null },
+      { page: 1, limit: 500, sortBy: 'newest' }
+    );
+    const byOwner = {};
+    for (const a of agents) {
+      const key = String(a.ownerId);
+      const cur = byOwner[key];
+      if (!cur || (a.isMainAgent && !cur.isMainAgent)) byOwner[key] = a;
+    }
+    const out = {};
+    for (const [k, a] of Object.entries(byOwner)) {
+      out[k] = { _id: a._id, name: a.name, slug: a.slug, avatarUrl: a.avatarUrl || a.avatar, tagline: a.tagline, isMainAgent: a.isMainAgent };
+    }
+    return out;
+  }
+
+  publicView(skill, persona) {
+    const o = skill.toObject ? skill.toObject() : { ...skill };
+    delete o.instructions;
+    delete o.files;
+    return {
+      ...o,
+      title: o.title || o.name,
+      persona: persona || null,
+      playable: Boolean(persona),
+    };
+  }
+
+  async exploreSkills(params) {
+    const { skills, total } = await skillRepository.explore(params);
+    const personas = await this.resolvePersonas(skills.map((s) => s.ownerId));
+    return {
+      skills: skills.map((s) => this.publicView(s, personas[String(s.ownerId)])),
+      total,
+    };
+  }
+
+  /** Public "play" view: safe fields + the persona to chat with. */
+  async getPlayableSkill(id) {
+    const skill = await skillRepository.findPlayable(id);
+    if (!skill) throw new NotFoundError('Skill not found');
+    const personas = await this.resolvePersonas([skill.ownerId]);
+    const persona = personas[String(skill.ownerId)];
+    const more = await skillRepository.findPublishedByOwner(skill.ownerId);
+    return {
+      ...this.publicView(skill, persona),
+      moreFromCreator: more
+        .filter((m) => String(m._id) !== String(skill._id))
+        .slice(0, 6)
+        .map((m) => this.publicView(m, persona)),
+    };
+  }
+
+  /** Runtime: the pinned skill for a chat turn. Must belong to the agent's owner. */
+  async getPinnedSkillForAgent(skillId, agent) {
+    const skill = await skillRepository.findById(skillId);
+    if (!skill) return null;
+    if (String(skill.ownerId) !== String(agent.ownerId)) return null;
+    const visible = skill.visibility === 'public' || skill.visibility === 'unlisted' || skill.isPublic;
+    if (!visible) return null;
+    return skill;
+  }
+
+  async listPersonas({ search, page = 1, limit = 20 } = {}) {
+    const filter = { isActive: true, visibility: 'public', isMainAgent: true, deletedAt: null, domain: { $in: ['persona', null] } };
+    if (search) filter.name = { $regex: search, $options: 'i' };
+    const agents = await agentRepository.search(filter, { page, limit, sortBy: 'popular' });
+    const skillCounts = await Promise.all(agents.map((a) => skillRepository.count({ ownerId: a.ownerId, $or: [{ visibility: 'public' }, { isPublic: true }] })));
+    return agents.map((a, i) => ({
+      _id: a._id,
+      name: a.name,
+      slug: a.slug,
+      tagline: a.tagline,
+      description: a.description,
+      avatarUrl: a.avatarUrl || a.avatar,
+      category: a.category,
+      messageCount: a.messageCount,
+      skillCount: skillCounts[i],
+    }));
+  }
+
   async searchPublicSkills(filters, page = 1, limit = 20) {
     const skip = (page - 1) * limit;
     return await skillRepository.findPublicSkills(filters, skip, limit);

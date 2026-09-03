@@ -1,52 +1,224 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
 import {
   SearchIcon,
-  Building2Icon,
-  CompassIcon,
-  BriefcaseIcon,
-  PlusIcon,
-  UserIcon,
-  MoreHorizontalIcon,
   ArrowLeft,
-  ArrowRight,
+  PlayIcon,
+  SparklesIcon,
+  ChevronRightIcon,
 } from "lucide-react";
-import { motion } from "motion/react";
-import { toast } from "sonner";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HScroller } from "@/components/h-scroller";
-import { listFirms } from "@/lib/api/firms";
-import { personaRoutes } from "@/lib/studio-routes";
+import { SkillCover } from "@/components/skills/skill-cover";
+import { exploreSkills, listPersonas } from "@/lib/api/skills";
+import { studioRoutes } from "@/lib/studio-routes";
 import { useOnboardingSection } from "@/hooks/use-onboarding-section";
-import {
-  FirmCard,
-  FirmFeaturedCard,
-  FIRM_CATEGORIES,
-  apiError,
-} from "@/components/firms";
+import { cn } from "@/lib/utils";
 
-const STUDIO_FIRM_URL = "/studio/firm";
+// Explore is Spotify-shaped: rows of "songs" (published skills) and
+// "artists" (personas). A skill card plays — it drops you straight into the
+// creator's persona chat with that skill pinned. A persona card opens the
+// creator's profile.
+
+const CATEGORIES = [
+  { value: "all", label: "All" },
+  { value: "entrepreneurship", label: "Entrepreneurship" },
+  { value: "health-fitness", label: "Health & Fitness" },
+  { value: "mind-behavior", label: "Mind & Behavior" },
+  { value: "technology", label: "Technology" },
+  { value: "life-relationships", label: "Life & Relationships" },
+  { value: "careers", label: "Careers" },
+];
+
+const SEGMENTS = [
+  { value: "all", label: "All" },
+  { value: "skills", label: "Skills" },
+  { value: "personas", label: "Personas" },
+];
+
+export function skillPlayHref(skill) {
+  const personaId = skill?.persona?._id;
+  if (!personaId) return null;
+  return `/dashboard/agents/${personaId}/run?skill=${skill._id}&threadId=new`;
+}
+
+function useDebounced(value, ms = 250) {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setV(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return v;
+}
+
+// ─── Cards ────────────────────────────────────────────────────────────────────
+
+function SkillCard({ skill, onPlay, className }) {
+  const playable = Boolean(skill.persona);
+  return (
+    <button
+      type="button"
+      onClick={() => playable && onPlay(skill)}
+      disabled={!playable}
+      className={cn(
+        "group flex w-[170px] sm:w-[200px] shrink-0 flex-col text-left select-none rounded-[22px] p-2 -m-2 transition-colors",
+        playable
+          ? "cursor-pointer hover:bg-zinc-50"
+          : "cursor-not-allowed opacity-60",
+        className,
+      )}
+    >
+      <div className="relative">
+        <SkillCover
+          skill={skill}
+          persona={skill.persona}
+          className="aspect-square w-full rounded-[18px] shadow-sm transition-transform duration-300 group-hover:scale-[1.02]"
+          size="sm"
+        />
+        {playable ? (
+          <span className="absolute bottom-3 right-3 flex size-10 items-center justify-center rounded-full bg-[#1E60FF] text-white shadow-lg shadow-[#1E60FF]/30 opacity-0 translate-y-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0">
+            <PlayIcon className="size-4 fill-current" />
+          </span>
+        ) : null}
+      </div>
+      <div className="mt-3 px-0.5">
+        <h3 className="text-[13px] font-semibold leading-snug text-zinc-900 line-clamp-2">
+          {skill.title || skill.name}
+        </h3>
+        <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-zinc-500">
+          {skill.persona ? (
+            <>
+              <img
+                src={skill.persona.avatarUrl}
+                alt=""
+                className="size-4 rounded-full object-cover"
+              />
+              <span className="truncate">{skill.persona.name}</span>
+            </>
+          ) : (
+            <span>Not playable yet</span>
+          )}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function PersonaCard({ persona, onOpen }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(persona)}
+      className="group flex w-[150px] sm:w-[170px] shrink-0 flex-col items-center text-center select-none rounded-[22px] p-3 -m-1 transition-colors hover:bg-zinc-50 cursor-pointer"
+    >
+      <div className="relative size-[126px] sm:size-[146px] overflow-hidden rounded-full bg-zinc-100 shadow-sm ring-1 ring-zinc-100">
+        <img
+          src={persona.avatarUrl}
+          alt={persona.name}
+          className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+        />
+      </div>
+      <h3 className="mt-3 text-[13px] font-semibold leading-snug text-zinc-900 line-clamp-1">
+        {persona.name}
+      </h3>
+      <p className="mt-0.5 text-[11px] font-medium text-zinc-500">
+        Persona
+        {persona.skillCount
+          ? ` · ${persona.skillCount} skill${persona.skillCount === 1 ? "" : "s"}`
+          : ""}
+      </p>
+    </button>
+  );
+}
+
+function RowHeader({ title, subtitle, action }) {
+  return (
+    <div className="mb-4 flex items-end justify-between gap-4">
+      <div>
+        <h2 className="font-display text-xl sm:text-2xl font-semibold tracking-tight text-zinc-900">
+          {title}
+        </h2>
+        {subtitle ? (
+          <p className="mt-0.5 text-xs font-medium text-zinc-500">{subtitle}</p>
+        ) : null}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+function SkillRowSkeleton() {
+  return (
+    <div className="flex gap-5 overflow-hidden">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="w-[170px] sm:w-[200px] shrink-0">
+          <Skeleton className="aspect-square w-full rounded-[18px]" />
+          <Skeleton className="mt-3 h-3.5 w-3/4 rounded" />
+          <Skeleton className="mt-2 h-3 w-1/2 rounded" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PersonaRowSkeleton() {
+  return (
+    <div className="flex gap-5 overflow-hidden">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          className="flex w-[150px] sm:w-[170px] shrink-0 flex-col items-center"
+        >
+          <Skeleton className="size-[126px] sm:size-[146px] rounded-full" />
+          <Skeleton className="mt-3 h-3.5 w-2/3 rounded" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyRow({ children }) {
+  return (
+    <div className="rounded-[24px] border border-dashed border-zinc-200 bg-zinc-50/60 px-6 py-10 text-center text-sm font-medium text-zinc-500">
+      {children}
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ExplorePage() {
   const router = useRouter();
+  const { isSignedIn } = useUser();
   useOnboardingSection("dashboard");
+
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [segment, setSegment] = useState("all");
   const [category, setCategory] = useState("all");
   const [isSearchingMobile, setIsSearchingMobile] = useState(false);
-  const [firms, setFirms] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const debouncedSearch = useDebounced(search);
 
-  const activeCategoryLabel = useMemo(
-    () => FIRM_CATEGORIES.find((c) => c.value === category)?.label || "",
-    [category],
-  );
+  const changeSearch = (value) => {
+    setSearch(value);
+    setSkillsLoading(true);
+    setPersonasLoading(true);
+  };
+  const changeCategory = (value) => {
+    setCategory(value);
+    setSkillsLoading(true);
+  };
 
-  // Hide the default site header for this page only
+  const [skills, setSkills] = useState([]);
+  const [skillsLoading, setSkillsLoading] = useState(true);
+  const [personas, setPersonas] = useState([]);
+  const [personasLoading, setPersonasLoading] = useState(true);
+
+  // Hide the default site header for this page only (matches the old explore).
   useEffect(() => {
     const header = document.querySelector("header");
     if (header) header.style.display = "none";
@@ -55,63 +227,71 @@ export default function ExplorePage() {
     };
   }, []);
 
-  // Debounce the problem box before it hits the API
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
-    return () => clearTimeout(t);
-  }, [search]);
-
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
-      setLoading(true);
-      try {
-        const params = { page: 1, limit: 40 };
-        if (debouncedSearch) params.search = debouncedSearch;
-        if (category !== "all") params.category = category;
-        const res = await listFirms(params);
-        if (!cancelled) setFirms(res.data?.data || []);
-      } catch (err) {
-        if (!cancelled) {
-          setFirms([]);
-          toast.error(apiError(err, "Failed to load firms"));
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    load();
+    exploreSkills({
+      search: debouncedSearch || undefined,
+      category: category === "all" ? undefined : category,
+      limit: 60,
+    })
+      .then((res) => {
+        if (!cancelled) setSkills(res.data?.data || []);
+      })
+      .catch((err) => console.error("Failed to load skills:", err))
+      .finally(() => !cancelled && setSkillsLoading(false));
     return () => {
       cancelled = true;
     };
   }, [debouncedSearch, category]);
 
-  const featured = useMemo(
-    () =>
-      [...firms]
-        .sort((a, b) => (b.projectCount || 0) - (a.projectCount || 0))
-        .slice(0, 8),
-    [firms],
+  useEffect(() => {
+    let cancelled = false;
+    listPersonas({ search: debouncedSearch || undefined, limit: 20 })
+      .then((res) => {
+        if (!cancelled) setPersonas(res.data?.data || []);
+      })
+      .catch((err) => console.error("Failed to load personas:", err))
+      .finally(() => !cancelled && setPersonasLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedSearch]);
+
+  const requireAuth = useCallback(
+    (next) => {
+      if (!isSignedIn) {
+        router.push(`/sign-in?redirect_url=${encodeURIComponent(next)}`);
+        return false;
+      }
+      return true;
+    },
+    [isSignedIn, router],
   );
 
-  const openFirm = (firm) => router.push(personaRoutes.firm(firm.slug));
-
-  const searchInput = (autoFocus = false) => (
-    <div className="relative w-full">
-      <SearchIcon className="absolute top-1/2 left-5 size-5 -translate-y-1/2 text-zinc-400" />
-      <input
-        type="text"
-        placeholder="Describe your problem… e.g. “I need a landing page that converts”"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        autoFocus={autoFocus}
-        className="w-full rounded-full border border-zinc-200 bg-white py-3.5 pr-5 pl-13 text-[15px] font-medium text-zinc-900 shadow-[0_1px_2px_rgba(24,24,27,0.04)] transition-all outline-none placeholder:text-zinc-400 focus:border-[#1E60FF] focus:ring-4 focus:ring-[#1E60FF]/10"
-      />
-    </div>
+  const handlePlay = useCallback(
+    (skill) => {
+      const href = skillPlayHref(skill);
+      if (!href) return;
+      if (requireAuth(href)) router.push(href);
+    },
+    [requireAuth, router],
   );
+
+  const handleOpenPersona = useCallback(
+    (persona) => {
+      const href = `/dashboard/agents/${persona._id}`;
+      if (requireAuth(href)) router.push(href);
+    },
+    [requireAuth, router],
+  );
+
+  const trending = useMemo(() => skills.slice(0, 12), [skills]);
+  const isFiltering = Boolean(debouncedSearch) || category !== "all";
+  const showSkills = segment !== "personas";
+  const showPersonas = segment !== "skills";
 
   return (
-    <div className="no-scrollbar relative flex min-h-full w-full flex-1 flex-col overflow-y-auto bg-white">
+    <div className="bg-white flex flex-1 flex-col min-h-full w-full overflow-y-auto no-scrollbar relative">
       <style
         dangerouslySetInnerHTML={{
           __html: `
@@ -121,264 +301,225 @@ export default function ExplorePage() {
         }}
       />
 
-      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-6 pt-4 pb-24 md:px-10 md:pb-12 lg:px-12">
+      <div className="w-full max-w-7xl mx-auto pt-4 pb-24 md:pb-12 px-6 md:px-10 lg:px-12 flex flex-col flex-1">
         {/* Top bar */}
-        <div className="mb-2 flex items-center justify-between">
-          <div className="hidden md:block">
-            <SidebarTrigger className="-ml-2 h-9 w-9 cursor-pointer text-zinc-500 transition-colors hover:text-zinc-900" />
+        <div className="flex justify-between items-center mb-2">
+          <div className="md:block hidden">
+            <SidebarTrigger className="-ml-2 h-9 w-9 text-zinc-500 hover:text-zinc-900 cursor-pointer transition-colors" />
           </div>
-          <div className="block md:hidden">
-            <div className="text-zinc-800">
-              <svg
-                viewBox="0 0 24 24"
-                className="size-6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 3v18M5 9l14 6M19 9L5 15" />
-              </svg>
-            </div>
+          <div className="md:hidden block text-zinc-800">
+            <svg
+              viewBox="0 0 24 24"
+              className="size-6"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 3v18M5 9l14 6M19 9L5 15" />
+            </svg>
           </div>
           <button
-            onClick={() => router.push(STUDIO_FIRM_URL)}
-            className="shrink-0 cursor-pointer rounded-full bg-[#1E60FF] px-5 py-2.5 text-[13px] font-bold text-white shadow-sm shadow-[#1E60FF]/20 transition-all hover:bg-[#154ed0] active:scale-98"
+            onClick={() => router.push(studioRoutes.home)}
+            className="bg-[#1E60FF] hover:bg-[#154ed0] text-white rounded-full px-5 py-2.5 text-[13px] font-bold transition-all active:scale-98 cursor-pointer shadow-sm shadow-[#1E60FF]/20 shrink-0"
           >
-            Build your firm
+            Agent Studio
           </button>
         </div>
 
-        {/* Hero */}
-        <div className="mt-6 mb-6 sm:mt-10">
+        {/* Header + search */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mt-6 sm:mt-8 mb-6">
           {isSearchingMobile ? (
-            <div className="flex w-full items-center gap-3 md:hidden">
+            <div className="flex items-center gap-3 w-full md:hidden">
               <button
                 onClick={() => {
                   setIsSearchingMobile(false);
-                  setSearch("");
+                  changeSearch("");
                 }}
-                className="cursor-pointer text-zinc-500 hover:text-zinc-800"
+                className="text-zinc-500 hover:text-zinc-800 cursor-pointer"
               >
                 <ArrowLeft className="size-5" />
               </button>
-              {searchInput(true)}
+              <div className="relative flex-1">
+                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 size-4.5 text-zinc-400" />
+                <input
+                  type="text"
+                  placeholder="Search skills and personas…"
+                  value={search}
+                  onChange={(e) => changeSearch(e.target.value)}
+                  autoFocus
+                  className="w-full h-11 rounded-full border border-zinc-200 bg-zinc-50 pl-11 pr-4 text-sm font-medium text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-[#1E60FF] focus:bg-white transition-colors"
+                />
+              </div>
             </div>
           ) : (
-            <div className="flex items-start justify-between gap-4">
-              <div className="max-w-2xl">
-                <p className="mb-2 font-mono text-[11px] tracking-[0.18em] text-[#1E60FF] uppercase">
-                  Humans &amp; Harness
-                </p>
-                {category === "all" ? (
-                  <h1 className="font-display text-3xl leading-[1.05] font-semibold tracking-tight text-zinc-900 md:text-5xl">
-                    Find the firm for your problem
-                  </h1>
-                ) : (
-                  <h1 className="font-display text-3xl leading-[1.05] tracking-tight md:text-5xl">
-                    <span
-                      onClick={() => setCategory("all")}
-                      className="cursor-pointer font-normal text-zinc-400 transition-colors hover:text-zinc-600"
-                    >
-                      Firms
-                    </span>
-                    <span className="font-normal text-zinc-300"> / </span>
-                    <span className="font-semibold text-zinc-900">
-                      {activeCategoryLabel}
-                    </span>
-                  </h1>
-                )}
-                <p className="mt-3 text-sm font-medium text-zinc-500 md:text-base">
-                  One-person companies that sell outcomes, not hours. Pick a
-                  project, and their team gets to work.
+            <>
+              <div>
+                <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-zinc-900">
+                  Explore
+                </h1>
+                <p className="mt-1.5 text-sm font-medium text-zinc-500">
+                  Skills are what creators know. Play one and their persona
+                  puts it to work for you.
                 </p>
               </div>
-              <button
-                onClick={() => setIsSearchingMobile(true)}
-                className="block cursor-pointer rounded-full p-2.5 text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-800 md:hidden"
-              >
-                <SearchIcon className="size-5" />
-              </button>
-            </div>
-          )}
-
-          {!isSearchingMobile && (
-            <div className="mt-6 hidden max-w-2xl md:block">{searchInput()}</div>
-          )}
-        </div>
-
-        {/* Category chips */}
-        <div className="mb-10 w-full">
-          <HScroller count={FIRM_CATEGORIES.length}>
-            {FIRM_CATEGORIES.map((cat) => {
-              const isActive = category === cat.value;
-              return (
+              <div className="flex items-center gap-3">
                 <button
-                  key={cat.value}
-                  onClick={() => setCategory(cat.value)}
-                  className={`cursor-pointer rounded-full px-5 py-2 text-[13px] whitespace-nowrap transition-all select-none ${
-                    isActive
-                      ? "bg-[#1E60FF] font-bold text-white shadow-sm shadow-[#1E60FF]/20"
-                      : "bg-zinc-100/80 font-medium text-zinc-500 hover:bg-zinc-200/80 hover:text-zinc-900"
-                  }`}
+                  onClick={() => setIsSearchingMobile(true)}
+                  className="md:hidden flex size-10 items-center justify-center rounded-full border border-zinc-200 text-zinc-600 cursor-pointer"
                 >
-                  {cat.label}
+                  <SearchIcon className="size-4.5" />
                 </button>
-              );
-            })}
-          </HScroller>
+                <div className="relative hidden md:block w-[320px]">
+                  <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 size-4.5 text-zinc-400" />
+                  <input
+                    type="text"
+                    placeholder="Search skills and personas…"
+                    value={search}
+                    onChange={(e) => changeSearch(e.target.value)}
+                    className="w-full h-11 rounded-full border border-zinc-200 bg-zinc-50 pl-11 pr-4 text-sm font-medium text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-[#1E60FF] focus:bg-white transition-colors"
+                  />
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Skeletons */}
-        {loading && (
-          <>
-            <div className="mb-12">
-              <p className="mb-4 font-mono text-[11px] tracking-[0.18em] text-zinc-400 uppercase">
-                Featured firms
-              </p>
-              <div className="flex gap-5 overflow-x-hidden px-0.5 py-2">
-                {[1, 2, 3, 4].map((i) => (
-                  <Skeleton
-                    key={i}
-                    className="h-[255px] w-[190px] shrink-0 rounded-[24px] sm:h-[310px] sm:w-[230px] sm:rounded-[32px]"
+        {/* Segments (only meaningful while searching) + categories */}
+        <div className="flex flex-col gap-3 mb-8">
+          {debouncedSearch ? (
+            <div className="inline-flex w-fit items-center rounded-full bg-zinc-100 p-1">
+              {SEGMENTS.map((s) => (
+                <button
+                  key={s.value}
+                  onClick={() => setSegment(s.value)}
+                  className={cn(
+                    "rounded-full px-4 py-1.5 text-xs font-bold transition-all cursor-pointer",
+                    segment === s.value
+                      ? "bg-white text-zinc-900 shadow-sm"
+                      : "text-zinc-500 hover:text-zinc-800",
+                  )}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
+            {CATEGORIES.map((c) => (
+              <button
+                key={c.value}
+                onClick={() => changeCategory(c.value)}
+                className={cn(
+                  "shrink-0 rounded-full px-4 py-2 text-xs font-bold transition-all cursor-pointer border",
+                  category === c.value
+                    ? "bg-zinc-900 text-white border-zinc-900"
+                    : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400 hover:text-zinc-900",
+                )}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Row 1 — Trending skills */}
+        {showSkills ? (
+          <section className="mb-12">
+            <RowHeader
+              title={isFiltering ? "Skills" : "Trending skills"}
+              subtitle={
+                isFiltering
+                  ? `${skills.length} result${skills.length === 1 ? "" : "s"}`
+                  : "Most played this week"
+              }
+            />
+            {skillsLoading ? (
+              <SkillRowSkeleton />
+            ) : skills.length === 0 ? (
+              <EmptyRow>
+                No skills here yet.{" "}
+                <Link
+                  href={studioRoutes.skillNew}
+                  className="text-[#1E60FF] hover:underline"
+                >
+                  Publish the first one
+                </Link>
+                .
+              </EmptyRow>
+            ) : isFiltering ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-5 gap-y-8">
+                {skills.map((s) => (
+                  <SkillCard
+                    key={s._id}
+                    skill={s}
+                    onPlay={handlePlay}
+                    className="w-full sm:w-full"
                   />
                 ))}
               </div>
-            </div>
-            <div>
-              <p className="mb-4 font-mono text-[11px] tracking-[0.18em] text-zinc-400 uppercase">
-                All firms
-              </p>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <Skeleton key={i} className="h-[196px] rounded-[24px]" />
+            ) : (
+              <HScroller count={trending.length}>
+                {trending.map((s) => (
+                  <SkillCard key={s._id} skill={s} onPlay={handlePlay} />
                 ))}
-              </div>
-            </div>
-          </>
-        )}
+              </HScroller>
+            )}
+          </section>
+        ) : null}
 
-        {/* Featured */}
-        {!loading && featured.length > 0 && (
-          <div className="mb-12">
-            <p className="mb-4 font-mono text-[11px] tracking-[0.18em] text-zinc-400 uppercase">
-              Featured firms
-            </p>
-            <HScroller count={featured.length}>
-              {featured.map((firm) => (
-                <FirmFeaturedCard
-                  key={firm._id || firm.slug}
-                  firm={firm}
-                  onClick={() => openFirm(firm)}
+        {/* Row 2 — Popular personas */}
+        {showPersonas ? (
+          <section className="mb-12">
+            <RowHeader
+              title="Popular personas"
+              subtitle="The creators behind the skills"
+            />
+            {personasLoading ? (
+              <PersonaRowSkeleton />
+            ) : personas.length === 0 ? (
+              <EmptyRow>No personas match.</EmptyRow>
+            ) : (
+              <HScroller count={personas.length}>
+                {personas.map((p) => (
+                  <PersonaCard
+                    key={p._id}
+                    persona={p}
+                    onOpen={handleOpenPersona}
+                  />
+                ))}
+              </HScroller>
+            )}
+          </section>
+        ) : null}
+
+        {/* Row 3 — Browse all skills (grid) when not filtering */}
+        {showSkills && !isFiltering && !skillsLoading && skills.length > 6 ? (
+          <section className="mb-12">
+            <RowHeader
+              title="All skills"
+              subtitle={`${skills.length} published`}
+              action={
+                <span className="hidden sm:inline-flex items-center gap-1 text-xs font-bold text-zinc-500">
+                  <SparklesIcon className="size-3.5 text-[#1E60FF]" />
+                  Newest first after trending
+                  <ChevronRightIcon className="size-3.5" />
+                </span>
+              }
+            />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-5 gap-y-8">
+              {skills.map((s) => (
+                <SkillCard
+                  key={s._id}
+                  skill={s}
+                  onPlay={handlePlay}
+                  className="w-full sm:w-full"
                 />
               ))}
-            </HScroller>
-          </div>
-        )}
-
-        {/* All firms */}
-        {!loading && firms.length > 0 && (
-          <div className="w-full">
-            <div className="mb-4 flex items-end justify-between">
-              <p className="font-mono text-[11px] tracking-[0.18em] text-zinc-400 uppercase">
-                All firms
-              </p>
-              <span className="text-[11px] font-semibold text-zinc-400">
-                {firms.length} {firms.length === 1 ? "firm" : "firms"}
-              </span>
             </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {firms.map((firm, i) => (
-                <motion.div
-                  key={firm._id || firm.slug}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.25, delay: Math.min(i, 9) * 0.04 }}
-                >
-                  <FirmCard firm={firm} />
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Empty */}
-        {!loading && firms.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-center select-none">
-            <div className="mb-4 flex size-16 items-center justify-center rounded-full border border-[#1E60FF]/10 bg-[#1E60FF]/5 text-[#1E60FF]">
-              <Building2Icon className="size-8" />
-            </div>
-            <h3 className="font-display text-lg font-semibold text-zinc-900">
-              {debouncedSearch || category !== "all"
-                ? "No firms match that yet"
-                : "No firms have opened their doors yet"}
-            </h3>
-            <p className="mt-1 max-w-xs text-sm text-zinc-400">
-              {debouncedSearch || category !== "all"
-                ? "Try describing the problem differently or browse another category."
-                : "Be the first: turn your expertise into a firm that sells outcomes."}
-            </p>
-            {(debouncedSearch || category !== "all") && (
-              <button
-                onClick={() => {
-                  setSearch("");
-                  setCategory("all");
-                }}
-                className="mt-5 cursor-pointer rounded-full border border-zinc-200 px-4 py-2 text-[13px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
-              >
-                Clear filters
-              </button>
-            )}
-            {!debouncedSearch && category === "all" && (
-              <Link
-                href={STUDIO_FIRM_URL}
-                className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-[#1E60FF] px-4 py-2 text-[13px] font-bold text-white shadow-sm shadow-[#1E60FF]/20 transition-all hover:bg-[#154ed0]"
-              >
-                Build your firm
-                <ArrowRight className="size-3.5" />
-              </Link>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Mobile bottom tab bar */}
-      <div className="fixed right-0 bottom-0 left-0 z-40 flex items-center justify-around border-t border-zinc-150/80 bg-white/95 px-6 py-3 shadow-lg backdrop-blur-md md:hidden">
-        <Link href="/dashboard" className="flex items-center justify-center">
-          <div className="rounded-full bg-[#1E60FF]/10 p-2.5 text-[#1E60FF]">
-            <CompassIcon className="size-5.5" />
-          </div>
-        </Link>
-        <Link
-          href={personaRoutes.projects}
-          className="flex items-center justify-center text-zinc-500 hover:text-zinc-900"
-        >
-          <div className="p-2.5">
-            <BriefcaseIcon className="size-5.5" />
-          </div>
-        </Link>
-        <Link href={STUDIO_FIRM_URL} className="flex items-center justify-center">
-          <div className="rounded-full border border-zinc-200 bg-white p-2.5 text-zinc-850 shadow-sm transition-colors hover:bg-zinc-50 active:scale-95">
-            <PlusIcon className="size-5.5" />
-          </div>
-        </Link>
-        <Link
-          href="/dashboard/settings/profile"
-          className="flex items-center justify-center text-zinc-500 hover:text-zinc-900"
-        >
-          <div className="p-2.5">
-            <UserIcon className="size-5.5" />
-          </div>
-        </Link>
-        <Link
-          href="/dashboard/settings"
-          className="flex items-center justify-center text-zinc-500 hover:text-zinc-900"
-        >
-          <div className="p-2.5">
-            <MoreHorizontalIcon className="size-5.5" />
-          </div>
-        </Link>
+          </section>
+        ) : null}
       </div>
     </div>
   );

@@ -50,6 +50,9 @@ export default {
   skills: {
     narrative: {
       name: 'pitch-narrative-rubric',
+      title: 'Pitch narrative rubric',
+      hook: 'Get your deck and story scored the way an investor actually reads it, with the three rewrites that matter most.',
+      category: 'entrepreneurship',
       description: 'How Northstar judges a fundraising narrative and deck. Opinions with reasons. Use before drafting or reviewing any deck, memo, or investor email.',
       instructions: `# Pitch narrative rubric
 
@@ -74,6 +77,9 @@ Score each of the five questions 0–2 (0 missing, 1 present but weak, 2 strong)
     },
     targeting: {
       name: 'investor-targeting-playbook',
+      title: 'Investor targeting playbook',
+      hook: 'Build a 75-investor list with a reason and a warm path for every name, not a list of "top VCs".',
+      category: 'entrepreneurship',
       description: 'How Northstar builds a 75-investor target list with a reason per name and a warm-path plan. Use for any target list, tiering, or outreach sequencing task.',
       instructions: `# Investor targeting playbook
 
@@ -103,6 +109,9 @@ A table with columns: Name · Tier · Reason · Warm path · Last relevant check
     },
     outreach: {
       name: 'outreach-voice-rules',
+      title: 'Outreach in your voice',
+      hook: 'Investor and candidate emails under 120 words that sound like you and ask for one thing.',
+      category: 'entrepreneurship',
       description: 'How Northstar writes investor and candidate outreach in the founder\'s own voice. Use for any email, DM, or follow-up sequence.',
       instructions: `# Outreach voice rules
 
@@ -134,6 +143,9 @@ Candidates are not investors. Lead with the problem and why it is interesting to
     },
     cofounder: {
       name: 'cofounder-vetting-framework',
+      title: 'Co-founder vetting framework',
+      hook: 'Define the role, screen for the silent mismatches, and script the equity conversation before it is too late.',
+      category: 'entrepreneurship',
       description: 'Northstar\'s framework for defining, sourcing, and screening a co-founder: the trial-project method and the equity conversation script.',
       instructions: `# Co-founder vetting framework
 

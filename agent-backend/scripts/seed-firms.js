@@ -73,14 +73,59 @@ async function seededSkillNames(ownerId) {
   return [...names];
 }
 
+/** A creator needs one public main agent (their persona) for skills to be playable. */
+async function ensurePersona(owner, firm) {
+  const main = await Agent.findOne({ ownerId: owner._id, isMainAgent: true, isActive: true });
+  if (main) {
+    if (main.visibility !== 'public') {
+      await Agent.updateOne({ _id: main._id }, { $set: { visibility: 'public' } });
+      console.log(`  ~ persona "${main.name}" made public`);
+    }
+    return;
+  }
+  if (!firm?.frontDeskAgentId) return;
+  await Agent.updateOne(
+    { _id: firm.frontDeskAgentId },
+    { $set: { isMainAgent: true, visibility: 'public' } }
+  );
+  console.log('  ~ front desk promoted to persona (main agent, public)');
+}
+
 async function seedFirm(fixture, cliOwner, providerId) {
   const owner = await resolveOwner(fixture, cliOwner);
   const firmSlug = slugify(fixture.firm.name);
   console.log(`\n▸ ${fixture.firm.name} (owner ${owner.email})`);
 
   if (reset) await wipeFirm(firmSlug);
-  if (await Firm.findOne({ slug: firmSlug })) {
-    console.log('  = exists, skipping (use --reset to rebuild)');
+
+  // Skills are published "videos": upsert (idempotent) even when the firm exists.
+  const skillIds = {};
+  for (const [key, sk] of Object.entries(fixture.skills)) {
+    const doc = await Skill.findOneAndUpdate(
+      { ownerId: owner._id, name: sk.name },
+      {
+        $set: {
+          description: sk.description,
+          instructions: sk.instructions,
+          title: sk.title || sk.name,
+          hook: sk.hook || '',
+          category: sk.category || 'other',
+          visibility: 'public',
+          isPublic: true,
+          ownerType: 'PersonaUser',
+          domain: 'persona',
+        },
+      },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
+    );
+    skillIds[key] = doc._id;
+  }
+  console.log(`  + ${Object.keys(skillIds).length} skills (published)`);
+
+  const existingFirm = await Firm.findOne({ slug: firmSlug });
+  if (existingFirm) {
+    await ensurePersona(owner, existingFirm);
+    console.log('  = firm exists, skipping agents/templates (use --reset to rebuild)');
     return;
   }
   const existingForOwner = await Firm.findOne({ ownerId: owner._id });
@@ -88,18 +133,6 @@ async function seedFirm(fixture, cliOwner, providerId) {
     console.log(`  ! owner already has firm "${existingForOwner.name}" — skipping (one firm per user)`);
     return;
   }
-
-  // Skills (upsert by owner+name)
-  const skillIds = {};
-  for (const [key, s] of Object.entries(fixture.skills)) {
-    const doc = await Skill.findOneAndUpdate(
-      { ownerId: owner._id, name: s.name },
-      { $set: { description: s.description, instructions: s.instructions, isPublic: false, ownerType: 'PersonaUser', domain: 'persona' } },
-      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
-    );
-    skillIds[key] = doc._id;
-  }
-  console.log(`  + ${Object.keys(skillIds).length} skills`);
 
   // Firm
   const firm = await Firm.create({
@@ -166,6 +199,7 @@ async function seedFirm(fixture, cliOwner, providerId) {
   firm.status = 'published';
   firm.publishedAt = new Date();
   await firm.save();
+  await ensurePersona(owner, firm);
   console.log(`  ✓ published → /dashboard/firms/${firmSlug}`);
 }
 

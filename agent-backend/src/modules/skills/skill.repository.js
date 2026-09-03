@@ -115,6 +115,40 @@ class SkillRepository {
    * caller-supplied `filter`). Distinct from `findPublicSkills`/
    * `searchSkills` above, which bake in Persona's own visibility rules.
    */
+  /** Explore feed: published skills, most used first. */
+  async explore({ search, category, page = 1, limit = 30 } = {}) {
+    const filter = { domain: { $in: [PERSONA_DOMAIN, null] }, $or: [{ visibility: 'public' }, { isPublic: true }] };
+    if (category && category !== 'all') filter.category = category;
+    if (search) {
+      const rx = { $regex: search, $options: 'i' };
+      filter.$and = [{ $or: [{ title: rx }, { name: rx }, { hook: rx }, { description: rx }, { tags: rx }] }];
+    }
+    const skip = (page - 1) * limit;
+    const [skills, total] = await Promise.all([
+      Skill.find(filter)
+        .select('-instructions -files')
+        .sort({ usageCount: -1, updatedAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Skill.countDocuments(filter),
+    ]);
+    return { skills, total };
+  }
+  async findPlayable(id) {
+    return await Skill.findOne({
+      _id: id,
+      $or: [{ visibility: { $in: ['public', 'unlisted'] } }, { isPublic: true }],
+    });
+  }
+  async incrementUsage(id) {
+    return await Skill.findByIdAndUpdate(id, { $inc: { usageCount: 1 } });
+  }
+  async findPublishedByOwner(ownerId) {
+    return await Skill.find({ ownerId, $or: [{ visibility: 'public' }, { isPublic: true }] })
+      .select('-instructions -files')
+      .sort({ usageCount: -1, updatedAt: -1 });
+  }
+
   async search(filter, { page = 1, limit = 20 } = {}) {
     const skip = (page - 1) * limit;
     return await Skill.find(filter).sort({ updatedAt: -1 }).skip(skip).limit(limit);
