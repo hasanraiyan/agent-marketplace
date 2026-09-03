@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 // Explore is Spotify-shaped: rows of "songs" (published skills) and
 // "artists" (personas). A skill card plays — it drops you straight into the
 // creator's persona chat with that skill pinned. A persona card opens the
-// creator's profile.
+// persona's chat.
 
 const CATEGORIES = [
   { value: "all", label: "All" },
@@ -279,7 +279,7 @@ export default function ExplorePage() {
 
   const handleOpenPersona = useCallback(
     (persona) => {
-      const href = `/dashboard/agents/${persona._id}`;
+      const href = `/dashboard/agents/${persona._id}/run?threadId=new`;
       if (requireAuth(href)) router.push(href);
     },
     [requireAuth, router],
