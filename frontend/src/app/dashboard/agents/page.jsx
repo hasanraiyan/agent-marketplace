@@ -3,118 +3,145 @@
 import { studioRoutes } from "@/lib/studio-routes";
 
 import { useState, useEffect, useMemo } from "react";
-import { SparklesIcon, SearchIcon, ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  SearchIcon,
+  ArrowLeft,
+  MessageSquareIcon,
+  SlidersHorizontalIcon,
+  CompassIcon,
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { HScroller } from "@/components/h-scroller";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
-import { searchAgents, deleteAgent } from "@/lib/api/agents";
+import { getActiveAgents } from "@/lib/api/threads";
 import { getProfile } from "@/lib/api/profile";
-import { OwnedAgentGrid } from "@/components/agents/owned-agent-grid";
+import { cn } from "@/lib/utils";
 
-const VISIBILITY_FILTERS = [
-  { value: "all", label: "All" },
-  { value: "public", label: "Public" },
-  { value: "unlisted", label: "Unlisted" },
-  { value: "private", label: "Private" },
-];
+// "My Agents" = the agents you actually use: every persona you have a
+// conversation with, most recent first. Agents you *build* live in Studio.
+
+function ActiveAgentCard({ item, isOwned, onOpen }) {
+  const { agent, threadCount, lastMessageAt } = item;
+  const avatar = agent.avatarUrl || agent.avatar;
+  const last = lastMessageAt
+    ? formatDistanceToNow(new Date(lastMessageAt), { addSuffix: true })
+    : "";
+  return (
+    <div className="group flex flex-col rounded-[24px] border border-zinc-100 bg-white p-5 transition-all hover:border-zinc-200 hover:shadow-[0_8px_30px_rgba(15,23,42,0.06)]">
+      <div className="flex items-start gap-4">
+        <button
+          type="button"
+          onClick={() => onOpen(agent)}
+          className="size-14 shrink-0 overflow-hidden rounded-full bg-zinc-100 ring-1 ring-zinc-200/70 cursor-pointer"
+        >
+          {avatar ? (
+            <img src={avatar} alt="" className="size-full object-cover" />
+          ) : null}
+        </button>
+        <div className="min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={() => onOpen(agent)}
+            className="block max-w-full truncate text-left font-display text-lg font-semibold tracking-tight text-zinc-900 cursor-pointer hover:underline"
+          >
+            {agent.name}
+          </button>
+          <p className="mt-0.5 line-clamp-2 text-[13px] leading-snug text-zinc-500">
+            {agent.tagline || agent.description}
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 flex items-center gap-1.5 text-[11px] font-medium text-zinc-500">
+        <MessageSquareIcon className="size-3.5 text-zinc-400" />
+        {threadCount} chat{threadCount === 1 ? "" : "s"}
+        {last ? <span className="text-zinc-300">·</span> : null}
+        {last ? <span>{last}</span> : null}
+        {isOwned ? (
+          <span className="ml-auto rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-600">
+            Yours
+          </span>
+        ) : null}
+      </div>
+      <div className="mt-4 flex items-center gap-2">
+        <Button
+          onClick={() => onOpen(agent)}
+          className="h-9 flex-1 rounded-full bg-[#1E60FF] text-[13px] font-bold text-white shadow-sm shadow-[#1E60FF]/20 hover:bg-[#154ed0]"
+        >
+          New chat
+        </Button>
+        {isOwned ? (
+          <Link
+            href={studioRoutes.agentBuild(agent._id || agent.id)}
+            className="flex h-9 items-center gap-1.5 rounded-full border border-zinc-200 px-3 text-[12px] font-semibold text-zinc-700 hover:border-zinc-400 hover:text-zinc-900"
+            title="Manage in Studio"
+          >
+            <SlidersHorizontalIcon className="size-3.5" />
+            Studio
+          </Link>
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
 export default function MyAgentsPage() {
+  const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
-  const [agents, setAgents] = useState([]);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
+  const [profileId, setProfileId] = useState(null);
   const [search, setSearch] = useState("");
-  const [visibility, setVisibility] = useState("all");
   const [isSearchingMobile, setIsSearchingMobile] = useState(false);
 
-  // This page builds its own header (to match Discover) instead of the shared SiteHeader.
+  // This page builds its own header (to match Explore) instead of the shared SiteHeader.
   useEffect(() => {
     const header = document.querySelector("header");
-    if (header) {
-      header.style.display = "none";
-    }
+    if (header) header.style.display = "none";
     return () => {
-      if (header) {
-        header.style.display = "";
-      }
+      if (header) header.style.display = "";
     };
   }, []);
 
-  const filteredAgents = useMemo(() => {
-    const q = (search || "").trim().toLowerCase();
-    return agents.filter((a) => {
-      const matchesSearch =
-        !q ||
-        (a.name || "").toLowerCase().includes(q) ||
-        (a.description || "").toLowerCase().includes(q);
-      const matchesVisibility =
-        visibility === "all" || a.visibility === visibility;
-      return matchesSearch && matchesVisibility;
-    });
-  }, [agents, search, visibility]);
-
-  const fetchMyAgents = async () => {
-    try {
-      setLoading(true);
-      const profileRes = await getProfile();
-      const profile = profileRes.data?.data || profileRes.data;
-      const ownerId = profile?.id || profile?._id;
-
-      if (!ownerId) {
-        toast.error("Unable to resolve your user profile");
-        return;
-      }
-
-      const res = await searchAgents({
-        ownerId,
-        page: 1,
-        limit: 100,
-        sortBy: "newest",
-      });
-      setAgents(res.data?.data || []);
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to load your agents");
-      setAgents([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (isLoaded && isSignedIn) {
-      fetchMyAgents();
-    }
+    if (!isLoaded || !isSignedIn) return;
+    let cancelled = false;
+    Promise.all([getActiveAgents(), getProfile()])
+      .then(([activeRes, profileRes]) => {
+        if (cancelled) return;
+        setItems(activeRes.data?.data || []);
+        const p = profileRes.data?.data || profileRes.data;
+        setProfileId(p?.id || p?._id || null);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        toast.error(err.response?.data?.message || "Failed to load your agents");
+        setItems([]);
+      })
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
   }, [isLoaded, isSignedIn]);
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      await deleteAgent(deleteTarget.id || deleteTarget._id);
-      toast.success("Agent deleted");
-      setDeleteTarget(null);
-      fetchMyAgents();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to delete agent");
-    } finally {
-      setDeleting(false);
-    }
-  };
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(
+      (it) =>
+        (it.agent.name || "").toLowerCase().includes(q) ||
+        (it.agent.tagline || it.agent.description || "")
+          .toLowerCase()
+          .includes(q),
+    );
+  }, [items, search]);
+
+  const openAgent = (agent) =>
+    router.push(`/dashboard/agents/${agent._id || agent.id}/run?threadId=new`);
 
   return (
     <div className="bg-white flex flex-1 flex-col min-h-full w-full overflow-y-auto no-scrollbar relative">
@@ -130,9 +157,8 @@ export default function MyAgentsPage() {
         </div>
 
         {/* Header & Search */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mt-6 sm:mt-8 mb-6">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mt-6 sm:mt-8 mb-8">
           {isSearchingMobile ? (
-            /* Mobile Search View */
             <div className="flex items-center gap-3 w-full md:hidden">
               <button
                 onClick={() => {
@@ -156,21 +182,20 @@ export default function MyAgentsPage() {
               </div>
             </div>
           ) : (
-            /* Default Header Row */
             <>
               <div className="flex items-start justify-between w-full md:w-auto">
                 <div>
                   <p className="font-mono text-[11px] tracking-[0.18em] text-[#1E60FF] uppercase mb-2">
-                    Your minds
+                    In use
                   </p>
                   <h1 className="font-display text-2xl md:text-4xl font-semibold tracking-tight text-zinc-900 leading-[1.1]">
                     My Agents
                   </h1>
                   <p className="text-zinc-500 text-sm md:text-base font-medium mt-2">
-                    Your agents, ready when you need them.
+                    The personas you&apos;re working with, most recent first.
+                    Agents you build live in Studio.
                   </p>
                 </div>
-                {/* Mobile Search Trigger Button */}
                 <button
                   onClick={() => setIsSearchingMobile(true)}
                   className="md:hidden block text-zinc-500 hover:text-zinc-800 p-2.5 rounded-full hover:bg-zinc-50 transition-colors cursor-pointer"
@@ -178,8 +203,6 @@ export default function MyAgentsPage() {
                   <SearchIcon className="size-5" />
                 </button>
               </div>
-
-              {/* Desktop Search (always visible) */}
               <div className="relative hidden md:block w-[320px] shrink-0">
                 <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 size-4.5 text-zinc-400" />
                 <input
@@ -194,117 +217,53 @@ export default function MyAgentsPage() {
           )}
         </div>
 
-        {/* Visibility Filter Pills */}
-        {agents.length > 0 && (
-          <div className="mb-6 w-full">
-            <HScroller count={VISIBILITY_FILTERS.length}>
-              {VISIBILITY_FILTERS.map((f) => {
-                const isActive = visibility === f.value;
-                return (
-                  <button
-                    key={f.value}
-                    onClick={() => setVisibility(f.value)}
-                    className={`rounded-full px-5 py-2 text-[13px] transition-all whitespace-nowrap cursor-pointer select-none ${
-                      isActive
-                        ? "bg-[#1E60FF] text-white font-bold shadow-sm shadow-[#1E60FF]/20"
-                        : "bg-zinc-100/80 hover:bg-zinc-200/80 text-zinc-500 hover:text-zinc-900 font-medium"
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                );
-              })}
-            </HScroller>
-          </div>
-        )}
-
         {loading ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton
-                key={i}
-                className="h-[300px] sm:h-[360px] rounded-[24px] sm:rounded-[32px]"
+              <Skeleton key={i} className="h-[200px] rounded-[24px]" />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center py-16 text-center select-none max-w-md mx-auto mt-4">
+            <span className="font-mono text-[11px] tracking-[0.18em] text-[#1E60FF] uppercase mb-3">
+              In use
+            </span>
+            <h3 className="font-display text-2xl font-semibold text-zinc-900">
+              {search ? "No matches." : "Nothing in use yet."}
+            </h3>
+            <p className="text-sm text-zinc-500 mt-2.5 max-w-sm leading-relaxed">
+              {search
+                ? "Try a different name."
+                : "Play a skill or start a chat with a persona on Explore and it shows up here."}
+            </p>
+            {!search ? (
+              <Link href="/dashboard" className="mt-7">
+                <Button className="h-11 gap-2 rounded-full bg-[#1E60FF] px-6 text-sm font-semibold text-white shadow-sm shadow-[#1E60FF]/20 transition-all hover:scale-[1.02] hover:bg-[#154ed0] active:scale-[0.98]">
+                  <CompassIcon className="size-4" />
+                  Explore
+                </Button>
+              </Link>
+            ) : null}
+          </div>
+        ) : (
+          <div
+            className={cn(
+              "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+            )}
+          >
+            {filtered.map((it) => (
+              <ActiveAgentCard
+                key={it.agent._id || it.agent.id}
+                item={it}
+                isOwned={
+                  profileId && String(it.agent.ownerId) === String(profileId)
+                }
+                onOpen={openAgent}
               />
             ))}
           </div>
-        ) : agents.length === 0 ? (
-          <div className="flex flex-col items-center py-16 text-center select-none max-w-md mx-auto mt-4">
-            <span className="font-mono text-[11px] tracking-[0.18em] text-[#1E60FF] uppercase mb-3">
-              Your minds
-            </span>
-            <h3 className="font-display text-2xl font-semibold text-zinc-900">
-              You haven&apos;t built one yet.
-            </h3>
-            <p className="text-sm text-zinc-500 mt-2.5 max-w-sm leading-relaxed">
-              Describe what you want in chat and Sage builds it with you — or
-              configure it by hand. Both are one click away.
-            </p>
-            <Link href={studioRoutes.agentNew} className="mt-7">
-              <Button className="h-11 gap-2 rounded-full bg-[#1E60FF] px-6 text-sm font-semibold text-white shadow-sm shadow-[#1E60FF]/20 transition-all hover:scale-[1.02] hover:bg-[#154ed0] active:scale-[0.98]">
-                <SparklesIcon className="size-4" />
-                Start building
-              </Button>
-            </Link>
-          </div>
-        ) : filteredAgents.length === 0 ? (
-          <div className="flex flex-col items-center py-16 text-center select-none max-w-md mx-auto mt-4">
-            <h3 className="font-display text-xl font-semibold text-zinc-900">
-              No agents match
-            </h3>
-            <p className="text-sm text-zinc-500 mt-2 max-w-sm leading-relaxed">
-              Try a different search term or filter to see more of your
-              agents.
-            </p>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearch("");
-                setVisibility("all");
-              }}
-              className="mt-6 rounded-full px-6 font-bold transition-all active:scale-98"
-            >
-              Clear filters
-            </Button>
-          </div>
-        ) : (
-          <OwnedAgentGrid
-            agents={filteredAgents}
-            openHref={(id) => `/dashboard/agents/${id}/run`}
-            editHref={studioRoutes.agentBuild}
-            onDelete={setDeleteTarget}
-            primaryLabel="Launch"
-          />
         )}
       </div>
-
-      <AlertDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this agent?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete{" "}
-              <span className="font-medium text-foreground">
-                {deleteTarget?.name}
-              </span>
-              . This action cannot be undone and all conversation history will
-              be lost.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleting ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

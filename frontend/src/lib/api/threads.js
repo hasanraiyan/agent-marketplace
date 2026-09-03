@@ -10,3 +10,4 @@ export const updateThreadTitle = (threadId, data) =>
   api.patch(`/threads/${threadId}/title`, data);
 export const getThreadMessages = (threadId) =>
   api.get(`/threads/${threadId}/messages`);
+export const getActiveAgents = () => api.get("/threads/active-agents");

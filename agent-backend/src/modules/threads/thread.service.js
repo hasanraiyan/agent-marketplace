@@ -87,6 +87,10 @@ class ThreadService {
    * Agent-existence validation stays in the caller (thread.controller.js),
    * unchanged from before this generalization.
    */
+  async getActiveAgents(userId, context = personaExecutionContext(userId)) {
+    return await threadRepository.activeAgentsForSubject(subjectFilterForContext(context));
+  }
+
   async createThread(userId, threadData, context = personaExecutionContext(userId)) {
     return await threadRepository.create({
       ...threadData,

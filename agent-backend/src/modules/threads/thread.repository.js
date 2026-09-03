@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Conversation from './thread.model.js';
 import Agent from '../agents/agent.model.js';
 import { ARCHITECT_AGENT_ID } from '../agents/architectConstants.js';
@@ -54,6 +55,43 @@ class ThreadRepository {
       .skip(skip)
       .limit(limit)
       .populate('agentId', 'name avatar slug');
+  }
+
+  /**
+   * "Active agents": every agent this subject has a conversation with,
+   * newest activity first, with a thread count. Excludes the Architect.
+   */
+  async activeAgentsForSubject(subjectFilter, limit = 50) {
+    // aggregate() does not cast like find(): coerce ids to ObjectId.
+    const match = { ...subjectFilter, isArchived: false };
+    if (match.userId && mongoose.isValidObjectId(match.userId)) {
+      match.userId = new mongoose.Types.ObjectId(String(match.userId));
+    }
+    match.agentId = { $ne: new mongoose.Types.ObjectId(ARCHITECT_AGENT_ID) };
+    const rows = await Conversation.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: '$agentId',
+          threadCount: { $sum: 1 },
+          lastMessageAt: { $max: '$lastMessageAt' },
+          lastThreadId: { $last: '$_id' },
+        },
+      },
+      { $sort: { lastMessageAt: -1 } },
+      { $limit: limit },
+    ]);
+    const agents = await Agent.find({ _id: { $in: rows.map((r) => r._id) }, isActive: true })
+      .select('name slug avatar tagline description category ownerId isMainAgent visibility messageCount');
+    const byId = new Map(agents.map((a) => [String(a._id), a]));
+    return rows
+      .map((r) => {
+        const a = byId.get(String(r._id));
+        if (!a) return null;
+        const o = a.toObject({ virtuals: true });
+        return { agent: o, threadCount: r.threadCount, lastMessageAt: r.lastMessageAt };
+      })
+      .filter(Boolean);
   }
 
   async update(id, updateData) {

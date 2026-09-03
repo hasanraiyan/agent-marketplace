@@ -430,6 +430,7 @@ export default function RunAgentPage() {
                 "X-Thread-Id": threadDbId,
                 ...(pinnedSkill?._id ? { "X-Skill-Id": pinnedSkill._id } : {}),
               }}
+              getToken={getToken}
               onStateChange={setAgentState}
               onCreateThread={handleCreateThread}
               onNewChat={handleNewChat}

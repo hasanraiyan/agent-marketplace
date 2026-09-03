@@ -65,6 +65,8 @@ export function AguiAgentChat({
   initialInput = "",
   // Node rendered at the left of the composer toolbar (e.g. persona button).
   composerLeading = null,
+  // Fresh bearer token per request (Clerk getToken); avoids stale-token 401s.
+  getToken,
 }) {
   const [input, setInput] = useState(initialInput);
   const [resettingChat, setResettingChat] = useState(false);
@@ -74,6 +76,7 @@ export function AguiAgentChat({
     agentId,
     threadId,
     headers,
+    getToken,
     initialMessages,
     initialState,
     onToolResult,

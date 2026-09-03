@@ -31,6 +31,14 @@ class ThreadController {
     }
   }
 
+  async getActiveAgents(req, res, next) {
+    try {
+      res.json({ success: true, data: await threadService.getActiveAgents(req.user.id) });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getAllByUser(req, res, next) {
     try {
       const page = parseInt(req.query.page) || 1;

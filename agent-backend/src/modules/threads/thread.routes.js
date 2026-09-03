@@ -62,6 +62,18 @@ router.post('/', mutateLimiter, validateBody(createThreadSchema), threadControll
  *       401:
  *         description: Unauthorized
  */
+/**
+ * @openapi
+ * /api/v1/threads/active-agents:
+ *   get:
+ *     tags: [Threads]
+ *     summary: Agents the user has conversations with, most recent first
+ *     security: [{ clerkAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Active agents
+ */
+router.get('/active-agents', threadController.getActiveAgents);
 router.get('/', threadController.getAllByUser);
 
 /**
