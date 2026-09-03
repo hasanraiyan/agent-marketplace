@@ -68,6 +68,14 @@ class SkillController {
     }
   }
 
+  async personaProfile(req, res, next) {
+    try {
+      res.json({ success: true, data: await skillService.getPersonaProfile(req.params.agentId) });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async personas(req, res, next) {
     try {
       const page = parseInt(req.query.page) || 1;

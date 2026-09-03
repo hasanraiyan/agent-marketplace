@@ -184,6 +184,53 @@ class SkillService {
     return skill;
   }
 
+  /** Persona profile for the in-chat panel: who, published skills, integrations. */
+  async getPersonaProfile(agentId) {
+    const agent = await agentRepository.findById(agentId);
+    if (!agent || !agent.isMainAgent || agent.visibility !== 'public' || agent.isActive === false) {
+      throw new NotFoundError('Persona not found');
+    }
+    if (typeof agent.populate === 'function') {
+      await agent.populate([
+        { path: 'mcps', select: 'name description transport authMode isEnabled' },
+        { path: 'knowledgeBases', select: 'name description documentCount' },
+      ]);
+    }
+    const personaView = {
+      _id: agent._id,
+      name: agent.name,
+      slug: agent.slug,
+      tagline: agent.tagline,
+      description: agent.description,
+      bio: agent.bio,
+      avatarUrl: agent.avatarUrl || agent.avatar,
+      category: agent.category,
+      tags: agent.tags || [],
+      socialLinks: agent.socialLinks || {},
+      messageCount: agent.messageCount || 0,
+      webSearchEnabled: Boolean(agent.webSearchEnabled),
+      createdAt: agent.createdAt,
+    };
+    const published = await skillRepository.findPublishedByOwner(agent.ownerId);
+    const skills = published.map((sk) => this.publicView(sk, personaView));
+    const integrations = (agent.mcps || [])
+      .filter((m) => m.isEnabled !== false)
+      .map((m) => ({ _id: m._id, name: m.name, description: m.description, transport: m.transport }));
+    const knowledgeBases = (agent.knowledgeBases || []).map((kb) => ({
+      _id: kb._id,
+      name: kb.name,
+      description: kb.description,
+      documentCount: kb.documentCount || 0,
+    }));
+    return {
+      persona: personaView,
+      skills,
+      integrations,
+      knowledgeBases,
+      stats: { skillCount: skills.length, chats: personaView.messageCount, integrationCount: integrations.length },
+    };
+  }
+
   async listPersonas({ search, page = 1, limit = 20 } = {}) {
     const filter = { isActive: true, visibility: 'public', isMainAgent: true, deletedAt: null, domain: { $in: ['persona', null] } };
     if (search) filter.name = { $regex: search, $options: 'i' };

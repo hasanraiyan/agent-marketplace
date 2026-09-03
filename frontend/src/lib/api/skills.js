@@ -16,3 +16,5 @@ export const getUsedByAgents = (skillId) =>
 export const exploreSkills = (params) => api.get("/skills/explore", { params });
 export const getSkillPlay = (skillId) => api.get(`/skills/play/${skillId}`);
 export const listPersonas = (params) => api.get("/skills/personas", { params });
+export const getPersonaProfile = (agentId) =>
+  api.get(`/skills/personas/${agentId}`);

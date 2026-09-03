@@ -62,6 +62,25 @@ router.get('/personas', optionalAuthMiddleware, skillController.personas);
 
 /**
  * @openapi
+ * /api/v1/skills/personas/{agentId}:
+ *   get:
+ *     tags: [Skills]
+ *     summary: Persona profile — who they are, published skills, integrations
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Persona profile
+ *       404:
+ *         description: Not a public persona
+ */
+router.get('/personas/:agentId', optionalAuthMiddleware, skillController.personaProfile);
+
+/**
+ * @openapi
  * /api/v1/skills/play/{id}:
  *   get:
  *     tags: [Skills]

@@ -196,8 +196,9 @@ const markdownComponents = {
 // Memoized: during token streaming only the active message object changes
 // identity (replaceById keeps the rest), so re-parsing every bubble's markdown
 // on every frame is pure waste.
-export const MessageBubble = memo(function MessageBubble({ message }) {
+export const MessageBubble = memo(function MessageBubble({ message, agent }) {
   const isUser = message.role === "user";
+  const [copied, setCopied] = useState(false);
 
   if (message.role === "reasoning") {
     return <ReasoningBubble message={message} />;
@@ -205,24 +206,62 @@ export const MessageBubble = memo(function MessageBubble({ message }) {
 
   if (!isUser && !message.content) return null;
 
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content || "");
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* clipboard unavailable */
+    }
+  };
+
+  // ── User turn: a quiet bubble on the right, plain text preserved ────────
+  if (isUser) {
+    return (
+      <div className="flex w-full justify-end">
+        <div className="max-w-[78%] rounded-[20px] rounded-br-lg bg-zinc-100 px-4 py-2.5 text-[15px] leading-7 text-zinc-900 shadow-none dark:bg-zinc-800 dark:text-zinc-100">
+          <div className="prose prose-sm max-w-none break-words whitespace-pre-wrap prose-p:my-0 prose-zinc dark:prose-invert">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeSanitize]}
+              components={markdownComponents}
+            >
+              {message.content}
+            </ReactMarkdown>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Assistant turn: avatar + name, then comfortable prose ───────────────
+  const avatar = agent?.avatarUrl || agent?.avatar;
+  const name = agent?.name || "Assistant";
   return (
-    <div
-      className={cn("flex w-full", isUser ? "justify-end" : "justify-start")}
-    >
-      <div
-        className={cn(
-          "min-w-0 text-[15px] leading-7",
-          isUser
-            ? "max-w-[75%] rounded-2xl rounded-br-md bg-[#1E60FF] px-4 py-3 text-white shadow-sm"
-            : "max-w-[92%] text-slate-900 dark:text-slate-100",
+    <div className="group/msg flex w-full gap-3">
+      <div className="mt-0.5 size-7 shrink-0 overflow-hidden rounded-full bg-zinc-100 ring-1 ring-zinc-200/70 dark:bg-zinc-800 dark:ring-zinc-700">
+        {avatar ? (
+          <img src={avatar} alt="" className="size-full object-cover" />
+        ) : (
+          <div className="flex size-full items-center justify-center text-[11px] font-bold text-zinc-500">
+            {name.slice(0, 1)}
+          </div>
         )}
-      >
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">
+          {name}
+        </div>
         <div
           className={cn(
-            "prose prose-sm max-w-none break-words prose-p:my-1 prose-pre:my-2 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1",
-            isUser
-              ? "prose-invert [&_*]:text-white text-white"
-              : "dark:prose-invert",
+            "prose prose-zinc max-w-none break-words text-[15px] leading-7 text-zinc-900 dark:prose-invert dark:text-zinc-100",
+            "prose-p:my-2 prose-li:my-0.5 prose-ul:my-2 prose-ol:my-2 prose-ul:pl-5 prose-ol:pl-5",
+            "prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-zinc-900 dark:prose-headings:text-zinc-100 prose-h1:text-xl prose-h1:mt-4 prose-h2:text-lg prose-h2:mt-4 prose-h3:text-base prose-h3:mt-3",
+            "prose-strong:font-semibold prose-strong:text-zinc-900 dark:prose-strong:text-zinc-100 prose-a:text-[#1E60FF] prose-a:no-underline hover:prose-a:underline",
+            "prose-blockquote:border-l-2 prose-blockquote:border-zinc-200 prose-blockquote:pl-4 prose-blockquote:text-zinc-600 prose-blockquote:not-italic",
+            "prose-hr:my-4 prose-hr:border-zinc-200",
+            "prose-table:my-3 prose-table:text-[13.5px] prose-th:bg-zinc-50 prose-th:px-3 prose-th:py-1.5 prose-th:text-left prose-th:font-semibold prose-td:px-3 prose-td:py-1.5 prose-tr:border-zinc-200",
           )}
         >
           <ReactMarkdown
@@ -232,6 +271,24 @@ export const MessageBubble = memo(function MessageBubble({ message }) {
           >
             {message.content}
           </ReactMarkdown>
+        </div>
+        <div className="mt-1 flex items-center gap-1 opacity-0 transition-opacity group-hover/msg:opacity-100">
+          <button
+            type="button"
+            onClick={copy}
+            className="flex h-7 items-center gap-1 rounded-md px-2 text-[11px] font-medium text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800 cursor-pointer"
+            title="Copy"
+          >
+            {copied ? (
+              <>
+                <Check className="size-3.5 text-green-600" /> Copied
+              </>
+            ) : (
+              <>
+                <Copy className="size-3.5" /> Copy
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>

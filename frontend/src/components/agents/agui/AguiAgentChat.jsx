@@ -63,6 +63,8 @@ export function AguiAgentChat({
   suggestedPrompts,
   // Prefill the composer (e.g. "Use your X skill on…") without sending.
   initialInput = "",
+  // Node rendered at the left of the composer toolbar (e.g. persona button).
+  composerLeading = null,
 }) {
   const [input, setInput] = useState(initialInput);
   const [resettingChat, setResettingChat] = useState(false);
@@ -419,7 +421,7 @@ export function AguiAgentChat({
         ) : (
           <div
             className={cn(
-              "mx-auto w-full max-w-4xl space-y-4",
+              "mx-auto w-full max-w-3xl space-y-6 px-1 pb-6",
               contentClassName,
             )}
           >
@@ -494,7 +496,7 @@ export function AguiAgentChat({
 
                 let node = null;
                 if (item.type === "message") {
-                  node = <MessageBubble message={item.data} />;
+                  node = <MessageBubble message={item.data} agent={agent} />;
                 } else if (item.type === "tool_group") {
                   // A lone tool reads as a plain step row — a one-item
                   // accordion is just noise.
@@ -566,6 +568,7 @@ export function AguiAgentChat({
             />
           ) : null}
           <ChatComposer
+            leading={composerLeading}
             value={input}
             onChange={setInput}
             onSend={send}

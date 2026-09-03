@@ -20,6 +20,7 @@ import { McpConnectBanner } from "@/components/agents/mcp-connect-banner";
 import { getAgent } from "@/lib/api/agents";
 import { getSkillPlay } from "@/lib/api/skills";
 import { getProfile } from "@/lib/api/profile";
+import { PersonaProfileDialog } from "@/components/agents/persona-profile-dialog";
 import { createThread, getThread, getThreadMessages } from "@/lib/api/threads";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
 import { normaliseLangChainMessages } from "@/lib/agui/normalise-messages";
@@ -68,6 +69,7 @@ export default function RunAgentPage() {
   const [pinnedSkill, setPinnedSkill] = useState(null);
   // Owner-only controls (Edit, "My Agents") need the internal user id.
   const [profileId, setProfileId] = useState(null);
+  const [profileOpen, setProfileOpen] = useState(false);
   useEffect(() => {
     getProfile()
       .then((res) => {
@@ -396,6 +398,25 @@ export default function RunAgentPage() {
               emptyDescription={
                 agent?.description || "Ask this agent to work on your request."
               }
+              composerLeading={
+                <button
+                  type="button"
+                  onClick={() => setProfileOpen(true)}
+                  title={`About ${agent?.name || "this persona"}`}
+                  className="flex h-9 items-center gap-2 rounded-full border border-zinc-200 pl-1 pr-3 text-xs font-semibold text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900 cursor-pointer"
+                >
+                  <span className="size-7 overflow-hidden rounded-full bg-zinc-100">
+                    {agent?.avatarUrl || agent?.avatar ? (
+                      <img
+                        src={agent.avatarUrl || agent.avatar}
+                        alt=""
+                        className="size-full object-cover"
+                      />
+                    ) : null}
+                  </span>
+                  <span className="hidden sm:inline">{agent?.name}</span>
+                </button>
+              }
               initialInput={
                 pinnedSkill && !initialMessages.messages?.length
                   ? `Use your "${pinnedSkill.title}" skill for me. Here's my situation: `
@@ -415,6 +436,12 @@ export default function RunAgentPage() {
               onRunFinished={handleRunFinished}
               onOpenFile={handleOpenFile}
               onTitleGenerated={handleTitleGenerated}
+            />
+            <PersonaProfileDialog
+              agentId={agentId}
+              agent={agent}
+              open={profileOpen}
+              onOpenChange={setProfileOpen}
             />
             <AguiFilesPanel
               state={agentState}

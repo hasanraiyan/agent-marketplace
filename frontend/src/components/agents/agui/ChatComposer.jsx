@@ -13,6 +13,7 @@ export function ChatComposer({
   isRunning,
   disabled,
   placeholder = "Write a message...",
+  leading = null,
 }) {
   const canSend = value.trim().length > 0 && !disabled && !isRunning;
   const textareaRef = useRef(null);
@@ -46,6 +47,7 @@ export function ChatComposer({
         className="max-h-[40vh] min-h-8 w-full resize-none bg-transparent text-[15px] leading-6 outline-none placeholder:text-slate-400 disabled:opacity-60 dark:placeholder:text-[#aaa9a2]"
       />
       <div className="mt-2 flex items-center gap-2">
+        {leading}
         <Button
           type="button"
           variant="ghost"

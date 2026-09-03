@@ -52,7 +52,10 @@ export function normaliseLangChainMessages(raw, subagentTraces = {}) {
     const typeField = (m.type || m._type || "").toLowerCase();
 
     let role = "assistant";
-    const roleHint = lc || typeField;
+    // The threads API now returns flat { id, role, content } objects; honour
+    // `role` first, then fall back to the LangChain class/type hints.
+    const explicitRole = (m.role || "").toLowerCase();
+    const roleHint = explicitRole || lc || typeField;
     if (roleHint.includes("human") || roleHint.includes("user")) {
       role = "user";
     } else if (roleHint.includes("ai") || roleHint.includes("assistant")) {
