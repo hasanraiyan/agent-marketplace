@@ -198,21 +198,6 @@ const agentSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
-    // Humans & Harness: the Firm this Agent works for (null = not an employee).
-    // Employees are never listed on the marketplace; the Firm is.
-    firmId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Firm',
-      default: null,
-      index: true,
-    },
-    // Employee role inside the Firm. `facing` decides who this employee talks
-    // to: clients (front desk / leads), other employees (internal), or the owner.
-    role: {
-      title: { type: String, default: '', maxlength: 80 },
-      mandate: { type: String, default: '', maxlength: 600 },
-      facing: { type: String, enum: ['client', 'internal', 'owner'], default: 'internal' },
-    },
   },
   {
     timestamps: true,

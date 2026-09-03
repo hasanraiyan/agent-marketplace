@@ -37,12 +37,6 @@ const NAV_MAIN = [
     id: "onboarding-dashboard-explore",
   },
   {
-    title: "My Projects",
-    url: "/dashboard/projects",
-    icon: <BriefcaseIcon />,
-    id: "onboarding-dashboard-my-projects",
-  },
-  {
     title: "My Agents",
     url: "/dashboard/agents",
     icon: <UserIcon />,

@@ -61,8 +61,10 @@ export function AguiAgentChat({
   // Optional override for the 'simple' empty state's starter buttons:
   // [{ title, prompt }]. Falls back to getSuggestedPrompts(agent).
   suggestedPrompts,
+  // Prefill the composer (e.g. "Use your X skill on…") without sending.
+  initialInput = "",
 }) {
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(initialInput);
   const [resettingChat, setResettingChat] = useState(false);
   const scrollRef = useRef(null);
   const chat = useAguiChat({

@@ -6,7 +6,6 @@ import { resolveMcpTools } from '../mcp/mcp.tools.js';
 import { resolveRestApiTools } from '../restApiTools/restApiTool.tools.js';
 import { resolveKnowledgeBaseTools } from '../knowledge/knowledge.tools.js';
 import { presentFileTool } from './present.tool.js';
-import { getFirmProjectToolbox } from '../firms/firm.tools.js';
 
 // Defined in a leaf constants module so consumers that sit inside import
 // cycles with this module (e.g. agentFactory) can import it safely.
@@ -61,8 +60,6 @@ export const resolveAgentTools = async (
   // the /memories/ filesystem routes, so no dedicated memory tools are needed.
   const presentTool = presentFileTool();
   const tools = [clarificationTool, presentTool];
-  // Humans & Harness: every firm employee carries the project tools.
-  if (agentConfig.firmId) tools.push(...getFirmProjectToolbox());
 
   // 2. Core Engine Web Search parsing
   if (agentConfig.webSearchEnabled) {

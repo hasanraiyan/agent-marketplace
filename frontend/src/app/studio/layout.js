@@ -12,11 +12,6 @@ export const metadata = {
 
 const STUDIO_HEADER_FALLBACK = {
   routeMap: [
-    { path: studioRoutes.firmProjectNew, title: "New Project" },
-    { path: studioRoutes.firmProjects, title: "Projects" },
-    { path: studioRoutes.firmTeam, title: "Team" },
-    { path: studioRoutes.firmClients, title: "Clients" },
-    { path: studioRoutes.firm, title: "My Firm" },
     { path: studioRoutes.agentNew, title: "New Agent" },
     { path: studioRoutes.agents, title: "Agents" },
     { path: studioRoutes.skills, title: "Skills" },

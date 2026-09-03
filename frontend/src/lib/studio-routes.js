@@ -45,13 +45,6 @@ export const studioRoutes = {
   providerNew: "/studio/providers/new",
   providerEdit: (id) => `/studio/providers/${id}/edit`,
 
-  // ── My Firm (creator's one-person company) ───────────────────────────────
-  firm: "/studio/firm",
-  firmProjects: "/studio/firm/projects",
-  firmProjectNew: "/studio/firm/projects/new",
-  firmProject: (id) => `/studio/firm/projects/${id}`,
-  firmTeam: "/studio/firm/team",
-  firmClients: "/studio/firm/clients",
 };
 
 /**
@@ -63,14 +56,6 @@ export const personaRoutes = {
   agent: (id) => `/dashboard/agents/${id}`,
   agentRun: (id) => `/dashboard/agents/${id}/run`,
   settings: "/dashboard/settings",
-
-  // ── Humans & Harness — firms + client projects ────────────────────────────
-  firms: "/dashboard",
-  firm: (slug) => `/dashboard/firms/${slug}`,
-  firmProject: (slug, projectSlug) =>
-    `/dashboard/firms/${slug}/projects/${projectSlug}`,
-  projects: "/dashboard/projects",
-  project: (id) => `/dashboard/projects/${id}`,
 };
 
 /**

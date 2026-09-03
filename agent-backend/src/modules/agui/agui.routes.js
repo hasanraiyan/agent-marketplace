@@ -5,7 +5,6 @@ import threadRepository from '../threads/thread.repository.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
 import { ARCHITECT_AGENT_ID } from '../agents/architectConstants.js';
 import aguiController from './agui.controller.js';
-import clientProjectService from '../firms/clientProject.service.js';
 
 const aguiRouter = express.Router();
 
@@ -66,14 +65,6 @@ aguiRouter.use(async (req, res, next) => {
       await threadRepository.touchLastMessageAt(thread._id);
     }
 
-    // Humans & Harness: a run inside a client project. The caller must be the
-    // project's client or the firm owner; the agent must belong to the firm.
-    let project = null;
-    const projectId = req.headers['x-project-id'] || req.query.projectId;
-    if (projectId) {
-      project = await clientProjectService.getForRuntime(projectId, userId).catch(() => null);
-      if (!project) throw new NotFoundError('Project not found');
-    }
     // Pinned skill: explicit header on the first turn, then remembered on the thread.
     let skillId = req.headers['x-skill-id'] || req.query.skillId || null;
     if (!skillId && threadDbId) {
@@ -86,8 +77,6 @@ aguiRouter.use(async (req, res, next) => {
       langGraphThreadId,
       threadDbId,
       skillId,
-      projectId: project ? String(project._id) : null,
-      firmId: project ? String(project.firmId) : null,
     };
     next();
   } catch (err) {

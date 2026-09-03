@@ -84,19 +84,6 @@ const conversationSchema = new mongoose.Schema(
       ref: 'Skill',
       default: null,
     },
-    // Humans & Harness: set when the thread belongs to a ClientProject.
-    projectId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'ClientProject',
-      default: null,
-      index: true,
-    },
-    firmId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Firm',
-      default: null,
-      index: true,
-    },
     subagentTraces: {
       type: mongoose.Schema.Types.Mixed,
       default: {},

@@ -657,12 +657,6 @@ class AgentFactory {
 
     const backend = new CompositeBackend(new VersionedStateBackend(), backendRoutes);
 
-    // Humans & Harness: compile the firm roster into delegatable subagents so
-    // the employee the client talks to can hand specialist work to colleagues
-    // via the `task` tool. Each colleague runs with its own prompt, skills
-    // (inlined, since subagents don't get the /skills/ mount) and tools.
-    const rosterSubagents = agent.firmId ? await this._buildRosterSubagents(agent, userId, executionContext, llm, provider.type === 'gemini') : [];
-
     const agentInstance = await createDeepAgent({
       model: llm,
       systemPrompt: personalizedPrompt,
@@ -679,7 +673,6 @@ class AgentFactory {
       // missing files are skipped gracefully by the memory middleware.
       memory: ['/memories/user/index.md', '/memories/agent/index.md'],
       subagents: [
-        ...rosterSubagents,
         {
           name: 'general-purpose',
           description: DEFAULT_GENERAL_PURPOSE_DESCRIPTION,
@@ -741,66 +734,6 @@ class AgentFactory {
    * Explicitly evicts an agent from the factory cache.
    * Call this when agent configuration or skills are modified.
    */
-  /**
-   * Humans & Harness: the other employees of `agent.firmId` as Deep Agents
-   * subagents. Skill instructions are inlined into each colleague's prompt.
-   */
-  async _buildRosterSubagents(agent, userId, executionContext, llm, isGemini = false) {
-    const agentIdStr = String(agent._id);
-    let colleagues = [];
-    try {
-      colleagues = await agentRepository.search(
-        { firmId: agent.firmId, isActive: true, _id: { $ne: agent._id } },
-        { page: 1, limit: 20 }
-      );
-    } catch (err) {
-      logger.warn('[AgentFactory] roster lookup failed', { agentId: agentIdStr, err: err.message });
-      return [];
-    }
-    const subagents = [];
-    const usedNames = new Set();
-    for (const colleague of colleagues) {
-      try {
-        if (typeof colleague.populate === 'function') {
-          await colleague.populate(['skills', 'mcps', 'knowledgeBases', 'restApiTools']);
-        }
-        const { tools } = await resolveAgentTools(colleague, userId, executionContext);
-        const base = (colleague.role?.title || colleague.name || 'colleague')
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/^-+|-+$/g, '')
-          .slice(0, 40) || 'colleague';
-        let name = base;
-        let n = 2;
-        while (usedNames.has(name)) name = `${base}-${n++}`;
-        usedNames.add(name);
-        const skillText = (colleague.skills || [])
-          .map((sk) => `#### Skill: ${sk.name}\n${sk.description || ''}\n\n${sk.instructions || ''}`)
-          .join('\n\n');
-        const mandate = colleague.role?.mandate ? `Mandate: ${colleague.role.mandate}` : '';
-        subagents.push({
-          name,
-          description: `${colleague.role?.title || colleague.name}${colleague.role?.mandate ? ` — ${colleague.role.mandate}` : colleague.description ? ` — ${colleague.description}` : ''}`,
-          systemPrompt: `${colleague.systemPrompt}\n\n${mandate}\n\nYou are ${colleague.name}, an employee of this firm, working on a task delegated by a colleague. Do the work fully and return a complete, concrete result. Write any files to /workspace/outputs/.${skillText ? `\n\n### YOUR SKILLS (operating principles — follow them)\n${skillText}` : ''}`,
-          tools: isGemini ? sanitizeToolsForGemini(tools) : tools,
-          model: llm,
-        });
-      } catch (err) {
-        logger.warn('[AgentFactory] skipping roster colleague', {
-          colleague: String(colleague._id),
-          err: err.message,
-        });
-      }
-    }
-    if (subagents.length) {
-      logger.info('[AgentFactory] roster compiled', {
-        agentId: agentIdStr,
-        colleagues: subagents.map((s) => s.name),
-      });
-    }
-    return subagents;
-  }
-
   invalidate(agentId) {
     const idStr = agentId?.toString() || agentId;
     if (!idStr) return;

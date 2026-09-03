@@ -19,8 +19,6 @@ import {
 import { McpConnectBanner } from "@/components/agents/mcp-connect-banner";
 import { getAgent } from "@/lib/api/agents";
 import { getSkillPlay } from "@/lib/api/skills";
-import { SkillCover, skillCategoryLabel } from "@/components/skills/skill-cover";
-import { XIcon, SparklesIcon } from "lucide-react";
 import { createThread, getThread, getThreadMessages } from "@/lib/api/threads";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
 import { normaliseLangChainMessages } from "@/lib/agui/normalise-messages";
@@ -178,12 +176,6 @@ export default function RunAgentPage() {
     );
   }, [agentId, router, skillQuery]);
 
-  const handleUnpinSkill = useCallback(() => {
-    setPinnedSkill(null);
-    router.replace(`/dashboard/agents/${agentId}/run?threadId=new`, {
-      scroll: false,
-    });
-  }, [agentId, router]);
 
   const handleCreateThread = useCallback(async () => {
     try {
@@ -371,36 +363,6 @@ export default function RunAgentPage() {
   return (
     <div className="@container/main absolute inset-0 flex flex-col overflow-hidden bg-white">
       <McpConnectBanner mcps={agent?.mcps} />
-      {pinnedSkill ? (
-        <div className="flex items-center gap-3 border-b border-zinc-100 bg-zinc-50/70 px-4 py-2.5">
-          <SkillCover
-            skill={pinnedSkill}
-            persona={pinnedSkill.persona}
-            className="size-9 shrink-0 rounded-lg"
-            showTitle={false}
-          />
-          <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.16em] text-zinc-500">
-              <SparklesIcon className="size-3 text-[#1E60FF]" />
-              Playing skill · {skillCategoryLabel(pinnedSkill.category)}
-            </p>
-            <p className="truncate text-[13px] font-semibold text-zinc-900">
-              {pinnedSkill.title}
-              <span className="ml-2 font-medium text-zinc-500">
-                by {pinnedSkill.persona?.name || agent?.name}
-              </span>
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleUnpinSkill}
-            title="Stop using this skill"
-            className="flex size-7 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-200/70 hover:text-zinc-800 cursor-pointer"
-          >
-            <XIcon className="size-3.5" />
-          </button>
-        </div>
-      ) : null}
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {authToken && threadDbId ? (
           <>
@@ -413,33 +375,14 @@ export default function RunAgentPage() {
               initialMessages={initialMessages}
               initialState={initialState}
               title={agent?.name || "Sage"}
-              emptyTitle={pinnedSkill ? pinnedSkill.title : agent?.name || "Sage"}
+              emptyTitle={agent?.name || "Sage"}
               emptyDescription={
-                pinnedSkill
-                  ? pinnedSkill.hook ||
-                    pinnedSkill.description ||
-                    `${agent?.name} will use this skill for you.`
-                  : agent?.description ||
-                    "Ask this agent to work on your request."
+                agent?.description || "Ask this agent to work on your request."
               }
-              emptyStateVariant={pinnedSkill ? "simple" : "profile"}
-              suggestedPrompts={
-                pinnedSkill
-                  ? [
-                      {
-                        title: `Use "${pinnedSkill.title}" on my situation`,
-                        prompt: `I want to use your "${pinnedSkill.title}" skill. Ask me what you need to know first, then apply it.`,
-                      },
-                      {
-                        title: "What does this skill cover?",
-                        prompt: `Explain what your "${pinnedSkill.title}" skill covers, what it refuses, and what I get out of it.`,
-                      },
-                      {
-                        title: "Show me an example",
-                        prompt: `Give me a short worked example of "${pinnedSkill.title}" applied to a typical case.`,
-                      },
-                    ]
-                  : undefined
+              initialInput={
+                pinnedSkill && !initialMessages.messages?.length
+                  ? `Use your "${pinnedSkill.title}" skill for me. Here's my situation: `
+                  : ""
               }
               className="min-w-0 flex-1"
               showHeader={false}

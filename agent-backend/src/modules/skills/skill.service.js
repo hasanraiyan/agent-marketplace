@@ -31,6 +31,7 @@ class SkillService {
       ...skillData,
       ...ownerFieldsForContext(context),
     });
+    if (wantsPublish(skillData)) await this.attachToPersona(userId, skill._id);
     return skill;
   }
 
@@ -132,13 +133,28 @@ class SkillService {
   /** Publishing (public or unlisted) requires a public persona to play through. */
   async assertCanPublish(ownerId) {
     const personas = await this.resolvePersonas([ownerId]);
-    if (!personas[String(ownerId)]) {
+    const persona = personas[String(ownerId)];
+    if (!persona) {
       throw new BaseError(
         'Publish your persona first: your main agent must be public before a skill can be published.',
         400,
         'PERSONA_REQUIRED'
       );
     }
+    return persona;
+  }
+
+  /** A published skill is always attached to the persona, so the runtime mounts it. */
+  async attachToPersona(ownerId, skillId) {
+    const personas = await this.resolvePersonas([ownerId]);
+    const persona = personas[String(ownerId)];
+    if (!persona) return;
+    const agent = await agentRepository.findById(persona._id);
+    if (!agent) return;
+    const has = (agent.skills || []).some((id) => String(id) === String(skillId));
+    if (has) return;
+    await agentRepository.update(agent._id, { $addToSet: { skills: skillId } });
+    agentFactory.invalidate(agent._id);
   }
 
   /** Public "play" view: safe fields + the persona to chat with. */
@@ -220,6 +236,7 @@ class SkillService {
     for (const agent of agents) {
       agentFactory.invalidate(agent._id);
     }
+    if (wantsPublish(updateData)) await this.attachToPersona(userId, id);
 
     return skill;
   }
