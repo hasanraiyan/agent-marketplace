@@ -19,6 +19,7 @@ import {
 import { McpConnectBanner } from "@/components/agents/mcp-connect-banner";
 import { getAgent } from "@/lib/api/agents";
 import { getSkillPlay } from "@/lib/api/skills";
+import { getProfile } from "@/lib/api/profile";
 import { createThread, getThread, getThreadMessages } from "@/lib/api/threads";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
 import { normaliseLangChainMessages } from "@/lib/agui/normalise-messages";
@@ -65,6 +66,19 @@ export default function RunAgentPage() {
   // "Play a skill": the published skill pinned to this conversation.
   const skillParam = searchParams.get("skill");
   const [pinnedSkill, setPinnedSkill] = useState(null);
+  // Owner-only controls (Edit, "My Agents") need the internal user id.
+  const [profileId, setProfileId] = useState(null);
+  useEffect(() => {
+    getProfile()
+      .then((res) => {
+        const p = res.data?.data;
+        setProfileId(p?.id || p?._id || null);
+      })
+      .catch(() => setProfileId(null));
+  }, []);
+  const isOwner = Boolean(
+    agent?.ownerId && profileId && String(agent.ownerId) === String(profileId),
+  );
 
   // ── Token refresh ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -256,11 +270,11 @@ export default function RunAgentPage() {
       actions: (
         <>
           <Link
-            href="/dashboard/agents"
+            href={isOwner ? "/dashboard/agents" : "/dashboard"}
             className="hidden items-center gap-1 text-sm text-muted-foreground hover:text-foreground sm:inline-flex"
           >
             <ArrowLeft className="size-4" />
-            My Agents
+            {isOwner ? "My Agents" : "Explore"}
           </Link>
           {todoCount > 0 && (
             <Button
@@ -301,17 +315,20 @@ export default function RunAgentPage() {
           >
             <NewChatIcon className="size-4" />
           </Button>
-          <Link href={studioRoutes.agentBuild(agentId)}>
-            <Button variant="outline" size="sm" className="rounded-full">
-              Edit
-            </Button>
-          </Link>
+          {isOwner ? (
+            <Link href={studioRoutes.agentBuild(agentId)}>
+              <Button variant="outline" size="sm" className="rounded-full">
+                Edit
+              </Button>
+            </Link>
+          ) : null}
         </>
       ),
     },
     [
       agent,
       agentId,
+      isOwner,
       handleNewChat,
       showFiles,
       fileCount,
