@@ -1,7 +1,8 @@
 import agentService from '../agents/agent.service.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
 import BaseError from '../../utils/errors/BaseError.js';
-import { loggerService, formatters } from '../../utils/index.js';
+import { loggerService } from '../../utils/index.js';
+import { successFormatter } from '../../utils/formatters/index.js';
 import { mintVoiceTicket } from './voiceTicket.service.js';
 import { resolveVoiceProvider, buildVoiceLiveConfig } from './voice.service.js';
 import {
@@ -73,7 +74,7 @@ class ProjectAgentVoiceTestController {
       });
 
       res.json(
-        formatters.formatSuccess(
+        successFormatter.formatSuccess(
           {
             ticket,
             wsUrl,
