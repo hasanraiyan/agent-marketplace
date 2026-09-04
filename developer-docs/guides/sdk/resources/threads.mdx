@@ -29,6 +29,7 @@ can see and resume past conversations by name.
 | `delete(threadId)`                       | `DELETE /api/v1/developer/threads/{id}` | `void`                 |
 | `bulkDelete(ids)`                        | `POST /api/v1/developer/threads/bulk-delete` | `BulkDeleteResult` |
 | `getMessages(threadId)`                  | `GET /api/v1/developer/threads/{id}/messages` | `ThreadMessages`  |
+| `reset(threadId)`                        | `POST /api/v1/developer/threads/{id}/reset` | `Thread`            |
 
 ## create(input, idempotencyKey?)
 
@@ -86,6 +87,19 @@ building a live UI around.
 
 - `delete(threadId)` deletes the Thread and its message history.
 - `bulkDelete(ids)` — best-effort, up to 100 ids per call.
+
+## reset(threadId)
+
+```ts
+const thread = await userClient.threads.reset(thread._id);
+```
+
+Clears a Thread's conversation content **in place** — message history, workspace files/todos, and
+subagent traces — while keeping the Thread itself (same `_id`/`threadId`/title). Use this instead
+of `delete()` + `create()` when you want the user to start a fresh conversation without losing the
+Thread's identity — a new Thread from `create()` gets a new `_id`, which breaks anything (a saved
+link, a client-side reference) still holding onto the old one. Long-term agent memory is not
+affected — only this Thread's own conversation state is cleared.
 
 ## Complete example
 

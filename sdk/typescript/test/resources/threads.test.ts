@@ -127,6 +127,20 @@ describe('ThreadsResource', () => {
     expect(url).toBe('https://api.example.com/api/v1/developer/threads/t1/messages');
   });
 
+  it('reset() POSTs to the reset sub-route and returns the reset Thread', async () => {
+    const resetThread = { _id: 't1', title: 'New Conversation', subagentTraces: {} };
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ success: true, data: resetThread })
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    const result = await client.threads.reset('t1');
+    expect(result).toEqual(resetThread);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.example.com/api/v1/developer/threads/t1/reset');
+    expect(init.method).toBe('POST');
+  });
+
   it('bulkDelete() POSTs { ids } to the bulk-delete sub-route and returns { deleted, failed }', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       jsonResponse({

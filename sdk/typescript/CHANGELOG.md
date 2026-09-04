@@ -3,6 +3,15 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.5.0
+
+- **New: `threads.reset(threadId)`.** Clears a Thread's conversation content in place — message
+  history, workspace files/todos, and subagent traces — while keeping the Thread itself (same
+  `_id`/`threadId`/title). Use this instead of `delete()` + `create()` when a caller wants a fresh
+  conversation without losing the Thread's identity, since a new Thread from `create()` gets a new
+  `_id` and breaks anything still holding onto the old one. Long-term agent memory is untouched.
+  `POST /api/v1/developer/threads/{id}/reset`, returns the reset `Thread`.
+
 ## 0.4.5
 
 - Refactor logger to `@personaai/logger@^0.1.0` — `src/logger.ts` now re-exports the shared isomorphic leaf (`createLogger`, `createNoopLogger`, `setLogLevel`/`getLogLevel`, `LogLevel`, `Logger`, `LogTransport`, `CreateLoggerOptions`) so browser clients (`@personaai/react`, `@personaai/nextjs`) can import from `@personaai/logger` directly without pulling the server bundle. `import { createLogger } from '@personaai/sdk'` keeps working via re-export. No behavior change from 0.4.4; still OFF by default.

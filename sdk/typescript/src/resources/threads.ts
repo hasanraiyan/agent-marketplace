@@ -88,6 +88,21 @@ export class ThreadsResource {
   }
 
   /**
+   * Clears a Thread's conversation content in place — message history,
+   * workspace files/todos, and subagent traces — while keeping the Thread
+   * itself (same `_id`/`threadId`/title). Use this to let a caller start a
+   * fresh conversation without losing the Thread's identity the way
+   * {@link ThreadsResource.delete} + {@link ThreadsResource.create} would
+   * (a new Thread means a new id, breaking anything that held onto the
+   * old one). Long-term agent memory is not affected.
+   * @param threadId - The Thread's `_id`.
+   * @returns The reset {@link Thread}.
+   */
+  async reset(threadId: string): Promise<Thread> {
+    return this.http.request<Thread>('POST', `/api/v1/developer/threads/${threadId}/reset`);
+  }
+
+  /**
    * Best-effort batch delete — partial failures don't throw or abort the
    * rest of the batch.
    * @param ids - Up to 100 Thread ids per call.
