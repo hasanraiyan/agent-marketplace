@@ -1,28 +1,28 @@
 {
   "name": "@personaai/devtools",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Devtools for the Persona SDK — inspect runtime, threads, chat and logs. Framework-agnostic core + React panel + Next.js helper. OFF by default, dev-only.",
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/core/index.d.ts",
-      "import": "./dist/core/index.js",
-      "require": "./dist/core/index.cjs"
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js",
+      "require": "./dist/core.cjs"
     },
     "./core": {
-      "types": "./dist/core/index.d.ts",
-      "import": "./dist/core/index.js",
-      "require": "./dist/core/index.cjs"
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js",
+      "require": "./dist/core.cjs"
     },
     "./react": {
-      "types": "./dist/react/index.d.ts",
-      "import": "./dist/react/index.js",
-      "require": "./dist/react/index.cjs"
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js",
+      "require": "./dist/react.cjs"
     },
     "./nextjs": {
-      "types": "./dist/nextjs/index.d.ts",
-      "import": "./dist/nextjs/index.js",
-      "require": "./dist/nextjs/index.cjs"
+      "types": "./dist/nextjs.d.ts",
+      "import": "./dist/nextjs.js",
+      "require": "./dist/nextjs.cjs"
     },
     "./package.json": "./package.json"
   },
