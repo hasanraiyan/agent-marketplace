@@ -25,6 +25,12 @@ export function useDevtoolsSnapshot(options: UseDevtoolsOptions = {}) {
     try {
       const url = `${baseUrl.replace(/\/+$/, '')}/__persona/devtools`;
       const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (res.status === 404) {
+        // Server devtools not mounted — not an error, just client-only mode.
+        // Stop further polling by returning null without setting error.
+        setError(null);
+        return null;
+      }
       if (!res.ok) throw new Error(`Devtools fetch ${res.status}: ${res.statusText}`);
       const data = (await res.json()) as DevtoolsSnapshot;
       setSnapshot(data);
