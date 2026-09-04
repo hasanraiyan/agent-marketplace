@@ -57,7 +57,8 @@ export const VOICE_MODE_PREAMBLE = `You are speaking with the user out loud, not
 - Never use markdown: no bullet lists, no headings, no code fences, no bold/italic markers.
 - Spell out numbers, dates, and abbreviations the way you'd say them aloud.
 - Never read a URL or file path aloud; describe what it is instead.
-- Ask one question at a time and wait for the answer before moving on.`;
+- Ask one question at a time and wait for the answer before moving on.
+- You have an \`end_call\` tool. Once the conversation has naturally concluded — the user says goodbye, has nothing else to ask, or asks to hang up — say a brief goodbye out loud, then call \`end_call\` as your last action. Never call it before you've said goodbye, and never leave a call open indefinitely once it's clearly over.`;
 
 /** VoiceSession close reasons — sent in the voice_session_ended CUSTOM event. */
 export const CLOSE_REASON = Object.freeze({
@@ -66,7 +67,31 @@ export const CLOSE_REASON = Object.freeze({
   IDLE: 'idle',
   UPSTREAM_ERROR: 'upstream_error',
   UPSTREAM_GOAWAY: 'upstream_goaway',
+  AGENT_ENDED: 'agent_ended',
 });
+
+/**
+ * A voice-only synthetic tool — never goes through `resolveAgentTools`
+ * (which is shared with the text runtime), so it never leaks into a Chat
+ * session and never needs a real LangChain tool object. Handled specially
+ * in VoiceSession._invokeToolCallWithTimeout rather than looked up in
+ * `toolsByName`. Always appended to every voice session's declarations
+ * regardless of the Agent's own configured tools — every voice call needs
+ * a way to hang up, independent of what the Agent was built with.
+ *
+ * Calling it doesn't cut the connection immediately: VoiceSession only
+ * closes the session once the CURRENT turn's `turnComplete` arrives, so
+ * the model can say a goodbye and then call this as its final action,
+ * without being cut off mid-sentence.
+ */
+export const END_CALL_TOOL_NAME = 'end_call';
+
+export const END_CALL_TOOL_DECLARATION = {
+  name: END_CALL_TOOL_NAME,
+  description:
+    'Ends the voice call. Call this once the conversation has reached a natural conclusion — for example after the user says goodbye, confirms they have nothing else to ask, or asks to hang up. Say your goodbye out loud first, then call this tool as the final action of that same turn — never call it before you have said goodbye.',
+  parameters: { type: 'object', properties: {} },
+};
 
 export const AGUI_VOICE_SCHEMA_VERSION = '1.1.0';
 

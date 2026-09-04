@@ -11,6 +11,7 @@ import {
   CONTEXT_WINDOW_TRIGGER_TOKENS,
   CONTEXT_WINDOW_SLIDING_TARGET_TOKENS,
   EXCLUDED_VOICE_TOOL_NAMES,
+  END_CALL_TOOL_DECLARATION,
 } from './voice.constants.js';
 
 const logger = loggerService.getLogger();
@@ -168,6 +169,12 @@ export async function buildVoiceLiveConfig(agent, domain, context) {
   const systemInstruction = `${VOICE_MODE_PREAMBLE}\n\n${agent.systemPrompt || ''}`.trim();
 
   const { functionDeclarations, toolsByName } = await resolveVoiceTools(agent, domain, context);
+  // end_call is always present, regardless of the Agent's own configured
+  // tools — every voice call needs a way to hang up. It's handled specially
+  // in VoiceSession (never routed through `toolsByName`), so it's appended
+  // here rather than inside resolveVoiceTools, which only resolves the
+  // Agent's real, executable tools.
+  const allDeclarations = [...functionDeclarations, END_CALL_TOOL_DECLARATION];
 
   const liveConfig = {
     responseModalities: [Modality.AUDIO],
@@ -182,7 +189,7 @@ export async function buildVoiceLiveConfig(agent, domain, context) {
       triggerTokens: CONTEXT_WINDOW_TRIGGER_TOKENS,
       slidingWindow: { targetTokens: CONTEXT_WINDOW_SLIDING_TARGET_TOKENS },
     },
-    ...(functionDeclarations.length > 0 ? { tools: [{ functionDeclarations }] } : {}),
+    tools: [{ functionDeclarations: allDeclarations }],
   };
 
   return { model, voiceName, liveConfig, toolsByName };

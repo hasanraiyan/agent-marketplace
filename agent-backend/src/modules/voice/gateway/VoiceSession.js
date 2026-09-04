@@ -11,6 +11,7 @@ import {
   IDLE_TIMEOUT_MS,
   TOOL_CALL_TIMEOUT_MS,
   CLOSE_REASON,
+  END_CALL_TOOL_NAME,
 } from '../voice.constants.js';
 
 const logger = loggerService.getLogger();
@@ -78,6 +79,10 @@ export class VoiceSession {
     this.runId = null;
     this.agentSpeaking = false;
     this.lastUsage = null;
+    // Set once the model calls end_call. Checked at the NEXT turnComplete
+    // rather than acted on immediately, so a goodbye the model says after
+    // calling the tool still gets fully sent before the session closes.
+    this.endCallRequested = false;
 
     this.startedAt = 0;
     this.lastClientAudioAt = 0;
@@ -319,6 +324,13 @@ export class VoiceSession {
       }
       this._endTurn();
       this.turnSeq += 1; // next agent utterance is a new generation too
+
+      if (this.endCallRequested) {
+        // Wait for THIS turn to fully complete before closing - the model
+        // may have said its goodbye after calling end_call, and that audio
+        // has just finished sending above.
+        this._closeSession(CLOSE_REASON.AGENT_ENDED);
+      }
     }
   }
 
@@ -380,7 +392,6 @@ export class VoiceSession {
    * @returns {Promise<{id: string, name: string, cancelled: boolean, response: {output?: *, error?: string}}>}
    */
   async _invokeToolCallWithTimeout(fc) {
-    const tool = this.toolsByName.get(fc.name);
     const controller = new AbortController();
     const entry = { controller, cancelled: false };
     this.pendingToolCalls.set(fc.id, entry);
@@ -392,6 +403,18 @@ export class VoiceSession {
       parentMessageId: this.runId || this.threadId,
     });
 
+    if (fc.name === END_CALL_TOOL_NAME) {
+      // A synthetic, voice-only tool (voice.constants.js) - never in
+      // toolsByName, since there's no real LangChain tool object behind
+      // it. Acknowledged immediately so the model can keep generating
+      // (e.g. its goodbye) in the same turn; the actual close happens at
+      // this turn's turnComplete (_handleServerContent).
+      this.endCallRequested = true;
+      this.pendingToolCalls.delete(fc.id);
+      return { id: fc.id, name: fc.name, cancelled: entry.cancelled, response: { output: 'ok' } };
+    }
+
+    const tool = this.toolsByName.get(fc.name);
     let timeoutHandle;
     try {
       if (!tool) {

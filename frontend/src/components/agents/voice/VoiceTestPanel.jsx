@@ -27,6 +27,15 @@ const STATE_LABEL = {
   ended: "Call ended",
 };
 
+const END_REASON_LABEL = {
+  client_closed: "You ended the call.",
+  agent_ended: "The agent ended the call.",
+  max_duration: "Call ended — maximum duration reached.",
+  idle: "Call ended — no audio detected for a while.",
+  upstream_error: "Call ended — a connection error occurred.",
+  upstream_goaway: "Call ended — the connection was reset.",
+};
+
 const STATE_ORB_CLASS = {
   idle: "bg-muted-foreground/30",
   connecting: "bg-amber-500 animate-pulse",
@@ -76,6 +85,7 @@ export function VoiceTestPanel({ projectId, agentId, agentName }) {
     partial,
     toolCalls,
     error,
+    endReason,
     start,
     stop,
     mute,
@@ -113,6 +123,11 @@ export function VoiceTestPanel({ projectId, agentId, agentName }) {
           <Badge variant={state === "error" ? "destructive" : "secondary"}>
             {STATE_LABEL[state] || state}
           </Badge>
+          {state === "ended" && endReason ? (
+            <p className="max-w-xs text-center text-xs text-muted-foreground">
+              {END_REASON_LABEL[endReason] || endReason}
+            </p>
+          ) : null}
           {error ? (
             <p className="max-w-xs text-center text-xs text-destructive">
               {error.message}

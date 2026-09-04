@@ -27,6 +27,7 @@ export function useVoiceSession({ projectId, agentId }) {
   const [partial, setPartial] = useState(null); // in-progress {speaker, text} or null
   const [toolCalls, setToolCalls] = useState([]); // {id, name, status, summary}
   const [error, setError] = useState(null);
+  const [endReason, setEndReason] = useState(null);
 
   const wsRef = useRef(null);
   const streamRef = useRef(null);
@@ -200,6 +201,7 @@ export function useVoiceSession({ projectId, agentId }) {
           break;
         case "voice_session_ended":
           setState("ended");
+          setEndReason(value?.reason || null);
           teardownAudio();
           try {
             wsRef.current?.close();
@@ -287,6 +289,7 @@ export function useVoiceSession({ projectId, agentId }) {
 
   const start = useCallback(async () => {
     setError(null);
+    setEndReason(null);
     setTranscript([]);
     setPartial(null);
     setToolCalls([]);
@@ -342,6 +345,7 @@ export function useVoiceSession({ projectId, agentId }) {
     partial,
     toolCalls,
     error,
+    endReason,
     start,
     stop,
     mute,
