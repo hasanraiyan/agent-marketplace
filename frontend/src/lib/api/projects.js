@@ -57,6 +57,12 @@ export const revokeProjectCredential = (projectId, credentialId) =>
 // Project's own resources, parallel to the SDK, not a read-only sibling.
 export const getProjectAgents = (projectId) =>
   api.get(`/projects/${projectId}/agents`);
+// Voice Agents (voice-agent-plan.md §7 route (b), §13.1) — mints a
+// single-use voice session ticket for the Agent Test playground's Voice
+// tab. Clerk + projectAdminAuthMiddleware, same as every other admin call
+// on this page — never a Project credential.
+export const createProjectAgentVoiceSession = (projectId, agentId) =>
+  api.post(`/projects/${projectId}/agents/${agentId}/test/voice/sessions`);
 export const getProjectSkills = (projectId) =>
   api.get(`/projects/${projectId}/skills`);
 export const getProjectKnowledge = (projectId) =>

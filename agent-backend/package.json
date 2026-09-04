@@ -28,6 +28,7 @@
     "@ag-ui/core": "^0.0.57",
     "@agendajs/mongo-backend": "^4.0.3",
     "@clerk/express": "^2.1.4",
+    "@google/genai": "2.21.0",
     "@langchain/anthropic": "^1.5.1",
     "@langchain/core": "^1.2.5",
     "@langchain/deepseek": "^1.1.6",
@@ -59,6 +60,7 @@
     "svix": "^1.95.2",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
+    "ws": "^8.20.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

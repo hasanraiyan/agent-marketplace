@@ -6,11 +6,13 @@ import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { ArrowLeft, BotIcon, Loader2, PencilIcon } from "lucide-react";
 import { AguiAgentChat } from "@/components/agents/agui-agent-chat";
+import { VoiceTestPanel } from "@/components/agents/voice/VoiceTestPanel";
 import { getProjectAgents } from "@/lib/api/projects";
 import { developerRoutes } from "@/lib/developer-routes";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -145,30 +147,53 @@ export default function ProjectAgentTestPage({ params: paramsPromise }) {
 
   return (
     <div className="@container/main absolute inset-0 flex flex-col overflow-hidden bg-white dark:bg-slate-950">
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        {authToken ? (
-          <AguiAgentChat
-            key={agentId}
-            agent={agent}
-            url={runtimeUrl}
+      <Tabs defaultValue="chat" className="flex min-h-0 flex-1 flex-col gap-0">
+        <div className="flex justify-center border-b border-border/60 px-4 pt-3">
+          <TabsList>
+            <TabsTrigger value="chat">Chat</TabsTrigger>
+            <TabsTrigger value="voice">Voice</TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent
+          value="chat"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
+        >
+          {authToken ? (
+            <AguiAgentChat
+              key={agentId}
+              agent={agent}
+              url={runtimeUrl}
+              agentId={agentId}
+              threadId={agentId}
+              title={agent.name || "Agent"}
+              emptyTitle={`Test ${agent.name || "your agent"}`}
+              emptyDescription={
+                agent.description ||
+                "Send a prompt to see how this Agent behaves with its current configuration."
+              }
+              className="min-w-0 flex-1"
+              showHeader={false}
+              headers={{ Authorization: `Bearer ${authToken}` }}
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center">
+              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent
+          value="voice"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:hidden"
+        >
+          <VoiceTestPanel
+            projectId={projectId}
             agentId={agentId}
-            threadId={agentId}
-            title={agent.name || "Agent"}
-            emptyTitle={`Test ${agent.name || "your agent"}`}
-            emptyDescription={
-              agent.description ||
-              "Send a prompt to see how this Agent behaves with its current configuration."
-            }
-            className="min-w-0 flex-1"
-            showHeader={false}
-            headers={{ Authorization: `Bearer ${authToken}` }}
+            agentName={agent.name}
           />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
-          </div>
-        )}
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
