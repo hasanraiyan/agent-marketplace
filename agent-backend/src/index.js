@@ -28,6 +28,7 @@ import {
   developerRestToolRouter,
 } from './modules/developer/index.js';
 import { agentRouter } from './modules/agents/index.js';
+import { projectAgentVoiceTestRouter, attachVoiceGateway } from './modules/voice/index.js';
 import { threadRouter } from './modules/threads/index.js';
 import { skillRouter } from './modules/skills/index.js';
 import { mcpRouter } from './modules/mcp/index.js';
@@ -102,6 +103,11 @@ app.use('/api/v1/profile', profileRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/providers', providerRouter);
 app.use('/api/v1/projects', projectRouter);
+// Voice Agents (voice-agent-plan.md Phase 1, Section 7 route (b)) - ticket
+// minting only, a normal JSON POST behind Clerk + projectAdminAuthMiddleware.
+// The actual conversation happens over the WS gateway (attachVoiceGateway),
+// never through this router.
+app.use('/api/v1/projects/:projectId', projectAgentVoiceTestRouter);
 // Mounted before the generic /api/v1/developer prefix (below) so a more
 // specific path always matches first, avoiding double authentication via
 // prefix fallthrough.
@@ -193,6 +199,11 @@ async function startServer() {
         }
         logger.info(`MongoDB connected: ${dbStatus}`);
       });
+      // Voice Agents (voice-agent-plan.md Phase 1) - Express middleware
+      // never runs on a WebSocket 'upgrade' request, so this attaches its
+      // own 'upgrade' listener directly to the http.Server rather than
+      // being an Express route.
+      attachVoiceGateway(server);
       server.unref();
     }
   } catch (error) {
