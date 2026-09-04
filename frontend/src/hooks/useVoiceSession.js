@@ -221,7 +221,19 @@ export function useVoiceSession({ projectId, agentId }) {
         const buf = event.data;
         const view = new DataView(buf);
         const turnSeq = view.getUint32(0, true);
-        if (turnSeq === acceptedTurnSeqRef.current) {
+        // The server bumps turnSeq on EVERY new agent utterance (not just
+        // on a barge-in) — turn 1 is seq 0, turn 2 is seq 1, and so on. A
+        // strict equality check here only ever matched the very first
+        // turn's frames, since acceptedTurnSeqRef only advances inside the
+        // voice_interrupted handler below, which never fires on a normal
+        // turn boundary — so every turn after the first was silently
+        // dropped. Accepting (and adopting) anything >= the last accepted
+        // value handles normal progression automatically; WebSocket
+        // delivers messages in send order on one connection, so a
+        // voice_interrupted event always arrives before any frame from the
+        // new generation it announces — nothing older can arrive after it.
+        if (turnSeq >= acceptedTurnSeqRef.current) {
+          acceptedTurnSeqRef.current = turnSeq;
           const pcmBytes = buf.slice(4);
           playerNodeRef.current?.port.postMessage(pcmBytes, [pcmBytes]);
         }
