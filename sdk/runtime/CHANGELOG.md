@@ -4,6 +4,14 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.6.0
+
+- **New: `POST /threads/:id/reset`, always on.** Proxies to `@personaai/sdk@^0.5.0`'s new
+  `threads.reset(threadId)` — clears a Thread's message history, workspace files/todos, and
+  subagent traces in place, keeping the same `_id`/`threadId`/title, so a caller can start a fresh
+  conversation without the identity change that `delete()` + `create()` would force. Bumps the
+  `@personaai/sdk` dependency to `^0.5.0` (was `^0.4.5`) to pick up the new method.
+
 ## 0.5.4
 
 - Logger now via `@personaai/sdk@^0.4.5` re-exporting `@personaai/logger@^0.1.0` — no direct `logger` dep needed (still OFF by default, same `runtime`/`runtime:route`/`runtime:sdk` namespaces). Keeps `sdk` as the single server import; client adapters (`react`/`nextjs`) import `logger` directly.

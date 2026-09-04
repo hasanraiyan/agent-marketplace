@@ -91,6 +91,7 @@ user; `resolveUser` returning `null` or throwing responds `401`.
 | `PATCH` | `/threads/:id` | `client.threads.update(id, {title?, isArchived?})` |
 | `DELETE` | `/threads/:id` | `client.threads.delete(id)` → `204` |
 | `GET` | `/threads/:id/messages` | `client.threads.getMessages(id)` — full history + graph state, the same data `chat.stream()` resumes from; load a past conversation on page reopen. |
+| `POST` | `/threads/:id/reset` | `client.threads.reset(id)` — clears message history/files/todos/subagent traces in place, keeping the same Thread id/title. |
 | `GET` | `/agents` | `client.agents.list({page, limit, search, category, scope})` — read-only discovery, e.g. "let the user pick an agent." |
 | `GET` | `/files` | `client.files.list({page, limit})` |
 | `POST` | `/files` | `client.files.upload({filename, content, contentType?, agentId?, threadId?})` — multipart, `file` part required. `201` |

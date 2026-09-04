@@ -19,6 +19,7 @@ import {
   deleteThread,
   bulkDeleteThreads,
   getThreadMessages,
+  resetThread,
 } from './routes/threads.js';
 import {
   listAgents,
@@ -133,6 +134,7 @@ function buildRoutes(capabilities: Required<RuntimeCapabilities>): Route[] {
     { method: 'PATCH', pattern: ['threads', ':id'], handler: updateThread },
     { method: 'DELETE', pattern: ['threads', ':id'], handler: deleteThread },
     { method: 'GET', pattern: ['threads', ':id', 'messages'], handler: getThreadMessages },
+    { method: 'POST', pattern: ['threads', ':id', 'reset'], handler: resetThread },
 
     // Agents — read-only discovery always on; write ops behind agentsWrite.
     { method: 'GET', pattern: ['agents'], handler: listAgents },

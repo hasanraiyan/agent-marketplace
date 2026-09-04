@@ -59,3 +59,9 @@ export const getThreadMessages: RouteHandler = async (_request, ctx) => {
   const messages = await ctx.client.threads.getMessages(requireParam(ctx.params, 'id'));
   return json(200, messages);
 };
+
+/** Clears a Thread's conversation content in place (same id/title) — see `@personaai/sdk`'s `threads.reset()`. */
+export const resetThread: RouteHandler = async (_request, ctx) => {
+  const thread = await ctx.client.threads.reset(requireParam(ctx.params, 'id'));
+  return json(200, thread);
+};

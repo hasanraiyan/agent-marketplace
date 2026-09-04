@@ -152,6 +152,27 @@ describe('threads routes', () => {
     expect(url).toContain('/api/v1/developer/threads/t1/messages');
   });
 
+  it('POST /threads/:id/reset proxies to threads.reset', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ _id: 't1', title: 'New Conversation', subagentTraces: {} })
+    );
+    const runtime = makeRuntime({ fetchMock });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/threads/t1/reset',
+      headers: {},
+      query: {},
+      body: undefined,
+      userId: null,
+    });
+
+    expect(response.status).toBe(200);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/api/v1/developer/threads/t1/reset');
+    expect(init.method).toBe('POST');
+  });
+
   it('POST /threads/bulk-delete proxies to threads.bulkDelete', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       jsonResponse({ deleted: ['t1', 't2'], failed: [] })
