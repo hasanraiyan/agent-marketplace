@@ -64,7 +64,18 @@ class ProjectAgentVoiceTestController {
         threadId: null,
       });
 
-      const protocol = req.protocol === 'https' ? 'wss' : 'ws';
+      // req.protocol only reports 'https' when Express's `trust proxy` is
+      // configured (it isn't, app-wide) — reading X-Forwarded-Proto
+      // directly here avoids depending on that global setting (which also
+      // controls req.ip, used elsewhere for anonymous rate-limit keys).
+      // Behind any TLS-terminating reverse proxy/CDN, req.protocol alone
+      // would always resolve to 'http' and hand the browser a ws:// URL,
+      // which every browser refuses to open from an https: page.
+      const forwardedProto = req.headers['x-forwarded-proto'];
+      const isHttps = forwardedProto
+        ? forwardedProto.split(',')[0].trim() === 'https'
+        : req.protocol === 'https';
+      const protocol = isHttps ? 'wss' : 'ws';
       const wsUrl = `${protocol}://${req.get('host')}/api/v1/developer/voice?ticket=${encodeURIComponent(ticket)}`;
 
       logger.info('[Voice] test session ticket minted', {
