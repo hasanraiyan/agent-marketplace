@@ -49,11 +49,50 @@ function Chat() {
 | Hook            | Purpose                                                                    |
 | --------------- | -------------------------------------------------------------------------- |
 | `useChat`       | Streaming chat — messages, send, stop, reload, interrupts, workspace files |
+| `useVoice`      | Real-time voice calls (Gemini Live) — start/stop/mute, live transcript, tool calls |
 | `useThreads`    | Thread CRUD — list, create, delete, rename, reset, archive                 |
 | `useFiles`      | Upload management — list, upload, delete                                   |
 | `useMemory`     | Persistent memory — read, write, delete                                    |
 | `useAgents`     | Agent discovery — list available agents                                    |
 | `useConnection` | Health check — backend connectivity status                                 |
+
+## Voice
+
+Real-time voice calls with an Agent, powered by Gemini Live. Requires your backend to be running
+`@personaai/runtime@^0.7.0` (or a framework adapter on top of it) so `POST /voice/sessions` exists
+to mint tickets — see that package's README for why the actual call bypasses your backend and
+goes straight to Persona instead of relaying through it like `useChat` does.
+
+```tsx
+import { useVoice } from "@personaai/react";
+
+function VoiceCall() {
+  const { state, transcript, partial, toolCalls, start, stop, mute, isMuted } = useVoice();
+
+  return (
+    <div>
+      <p>State: {state}</p>
+      {state === "idle" ? (
+        <button onClick={start}>Start call</button>
+      ) : (
+        <>
+          <button onClick={() => mute(!isMuted)}>{isMuted ? "Unmute" : "Mute"}</button>
+          <button onClick={stop}>End call</button>
+        </>
+      )}
+      {transcript.map((line) => (
+        <p key={line.id}>
+          <b>{line.speaker}:</b> {line.text}
+        </p>
+      ))}
+      {partial && <p style={{ opacity: 0.6 }}>{partial.text}</p>}
+    </div>
+  );
+}
+```
+
+Requires a browser with `AudioWorklet` support (every current evergreen browser). Needs an HTTPS
+page in production — browsers refuse an insecure `ws://` connection from an `https:` page.
 
 ## Devtools
 

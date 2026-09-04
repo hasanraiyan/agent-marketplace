@@ -1210,15 +1210,439 @@ function useThreads(autoFetch = true) {
   };
 }
 
+// src/hooks/useVoice.ts
+import { useCallback as useCallback4, useEffect as useEffect4, useMemo as useMemo3, useRef as useRef2, useState as useState4 } from "react";
+
+// src/hooks/voiceWorklets.ts
+var RECORDER_WORKLET_SOURCE = `
+class PCMRecorderProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this._buffer = [];
+    this._chunkSamples = 320; // 20ms @ 16kHz
+  }
+
+  process(inputs) {
+    const input = inputs[0];
+    const channel = input && input[0];
+    if (channel) {
+      for (let i = 0; i < channel.length; i++) {
+        this._buffer.push(channel[i]);
+      }
+      while (this._buffer.length >= this._chunkSamples) {
+        const chunk = this._buffer.splice(0, this._chunkSamples);
+        const int16 = new Int16Array(chunk.length);
+        for (let i = 0; i < chunk.length; i++) {
+          const s = Math.max(-1, Math.min(1, chunk[i]));
+          int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+        }
+        this.port.postMessage(int16.buffer, [int16.buffer]);
+      }
+    }
+    return true;
+  }
+}
+
+registerProcessor('pcm-recorder-processor', PCMRecorderProcessor);
+`;
+var PLAYER_WORKLET_SOURCE = `
+class PCMPlayerProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this._queue = [];
+    this._readOffset = 0;
+    this.port.onmessage = (event) => {
+      const msg = event.data;
+      if (msg && msg.type === 'flush') {
+        this._queue = [];
+        this._readOffset = 0;
+        return;
+      }
+      const int16 = new Int16Array(msg);
+      const float32 = new Float32Array(int16.length);
+      for (let i = 0; i < int16.length; i++) {
+        float32[i] = int16[i] / 0x8000;
+      }
+      this._queue.push(float32);
+    };
+  }
+
+  process(_inputs, outputs) {
+    const output = outputs[0][0];
+    let outIdx = 0;
+    while (outIdx < output.length) {
+      if (this._queue.length === 0) {
+        output[outIdx++] = 0;
+        continue;
+      }
+      const current = this._queue[0];
+      const remaining = current.length - this._readOffset;
+      const toCopy = Math.min(remaining, output.length - outIdx);
+      output.set(current.subarray(this._readOffset, this._readOffset + toCopy), outIdx);
+      outIdx += toCopy;
+      this._readOffset += toCopy;
+      if (this._readOffset >= current.length) {
+        this._queue.shift();
+        this._readOffset = 0;
+      }
+    }
+    return true;
+  }
+}
+
+registerProcessor('pcm-player-processor', PCMPlayerProcessor);
+`;
+function toModuleUrl(source) {
+  const blob = new Blob([source], { type: "application/javascript" });
+  return URL.createObjectURL(blob);
+}
+function recorderWorkletUrl() {
+  return toModuleUrl(RECORDER_WORKLET_SOURCE);
+}
+function playerWorkletUrl() {
+  return toModuleUrl(PLAYER_WORKLET_SOURCE);
+}
+
+// src/hooks/useVoice.ts
+function useVoice(options = {}) {
+  const { defaultAgentId, fetchWithAuth, logger } = usePersonaContext();
+  const voiceLogger = useMemo3(() => logger.child("voice"), [logger]);
+  const agentId = options.agentId || defaultAgentId;
+  const [state, setState] = useState4("idle");
+  const [isMuted, setIsMuted] = useState4(false);
+  const [transcript, setTranscript] = useState4(
+    []
+  );
+  const [partial, setPartial] = useState4(
+    null
+  );
+  const [toolCalls, setToolCalls] = useState4([]);
+  const [error, setError] = useState4(null);
+  const [endReason, setEndReason] = useState4(
+    null
+  );
+  const wsRef = useRef2(null);
+  const streamRef = useRef2(null);
+  const inputCtxRef = useRef2(null);
+  const outputCtxRef = useRef2(null);
+  const recorderNodeRef = useRef2(null);
+  const playerNodeRef = useRef2(null);
+  const acceptedTurnSeqRef = useRef2(0);
+  const mountedRef = useRef2(true);
+  useEffect4(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+  const teardownAudio = useCallback4(() => {
+    try {
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+    } catch {
+    }
+    streamRef.current = null;
+    try {
+      recorderNodeRef.current?.disconnect();
+    } catch {
+    }
+    recorderNodeRef.current = null;
+    try {
+      playerNodeRef.current?.disconnect();
+    } catch {
+    }
+    playerNodeRef.current = null;
+    try {
+      void inputCtxRef.current?.close();
+    } catch {
+    }
+    inputCtxRef.current = null;
+    try {
+      void outputCtxRef.current?.close();
+    } catch {
+    }
+    outputCtxRef.current = null;
+  }, []);
+  const stop = useCallback4(() => {
+    voiceLogger.debug("stop() called");
+    try {
+      wsRef.current?.close(1e3, "client_stop");
+    } catch {
+    }
+    wsRef.current = null;
+    teardownAudio();
+    if (mountedRef.current) setState("idle");
+  }, [teardownAudio, voiceLogger]);
+  useEffect4(() => stop, [stop]);
+  const startCapture = useCallback4(async (inputSampleRate) => {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: 1
+      }
+    });
+    streamRef.current = stream;
+    const inputCtx = new AudioContext({ sampleRate: inputSampleRate });
+    inputCtxRef.current = inputCtx;
+    await inputCtx.audioWorklet.addModule(recorderWorkletUrl());
+    const source = inputCtx.createMediaStreamSource(stream);
+    const recorderNode = new AudioWorkletNode(
+      inputCtx,
+      "pcm-recorder-processor"
+    );
+    recorderNode.port.onmessage = (event) => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(event.data);
+      }
+    };
+    recorderNodeRef.current = recorderNode;
+    source.connect(recorderNode);
+  }, []);
+  const setupPlayback = useCallback4(async (outputSampleRate) => {
+    const outputCtx = new AudioContext({ sampleRate: outputSampleRate });
+    outputCtxRef.current = outputCtx;
+    await outputCtx.audioWorklet.addModule(playerWorkletUrl());
+    const playerNode = new AudioWorkletNode(outputCtx, "pcm-player-processor");
+    playerNode.connect(outputCtx.destination);
+    playerNodeRef.current = playerNode;
+  }, []);
+  const upsertToolCall = useCallback4(
+    (id, patch) => {
+      setToolCalls((prev) => {
+        const idx = prev.findIndex((t) => t.id === id);
+        if (idx === -1) return [...prev, { id, status: "running", ...patch }];
+        const next = [...prev];
+        next[idx] = { ...next[idx], ...patch };
+        return next;
+      });
+    },
+    []
+  );
+  const handleTranscript = useCallback4(
+    (value) => {
+      const { speaker, text, isFinal } = value;
+      if (isFinal) {
+        setPartial((prev) => prev?.speaker === speaker ? null : prev);
+        setTranscript((prev) => [
+          ...prev,
+          { id: `${speaker}-${prev.length}`, speaker, text }
+        ]);
+      } else {
+        setPartial({ id: "partial", speaker, text });
+      }
+    },
+    []
+  );
+  const handleCustomEvent = useCallback4(
+    (name, value) => {
+      switch (name) {
+        case "voice_session_ready":
+          voiceLogger.debug("voice_session_ready", value);
+          Promise.all([
+            setupPlayback(value.outputSampleRate),
+            startCapture(value.inputSampleRate)
+          ]).then(() => {
+            if (mountedRef.current) setState("listening");
+          }).catch((err) => {
+            voiceLogger.error("audio graph setup failed", {
+              error: err instanceof Error ? err.message : String(err)
+            });
+            if (mountedRef.current) {
+              setError(err instanceof Error ? err : new Error(String(err)));
+              setState("error");
+            }
+          });
+          break;
+        case "voice_activity":
+          if (value.speaker === "user" && value.state === "start") {
+            setState("listening");
+          } else if (value.speaker === "user" && value.state === "end") {
+            setState("thinking");
+          } else if (value.speaker === "agent" && value.state === "start") {
+            setState("speaking");
+          } else if (value.speaker === "agent" && value.state === "end") {
+            setState("listening");
+          }
+          break;
+        case "voice_transcript":
+          handleTranscript(
+            value
+          );
+          break;
+        case "voice_interrupted":
+          acceptedTurnSeqRef.current = value.turnSeq;
+          playerNodeRef.current?.port.postMessage({ type: "flush" });
+          break;
+        case "voice_session_resumed":
+          voiceLogger.info("session transparently resumed");
+          break;
+        case "voice_session_ended":
+          voiceLogger.info("session ended", { reason: value.reason });
+          setState("ended");
+          setEndReason(value.reason ?? null);
+          teardownAudio();
+          try {
+            wsRef.current?.close();
+          } catch {
+          }
+          wsRef.current = null;
+          break;
+        default:
+          break;
+      }
+    },
+    [handleTranscript, setupPlayback, startCapture, teardownAudio, voiceLogger]
+  );
+  const handleMessage = useCallback4(
+    (event) => {
+      if (typeof event.data !== "string") {
+        const buf = event.data;
+        const view = new DataView(buf);
+        const turnSeq = view.getUint32(0, true);
+        if (turnSeq >= acceptedTurnSeqRef.current) {
+          acceptedTurnSeqRef.current = turnSeq;
+          const pcmBytes = buf.slice(4);
+          playerNodeRef.current?.port.postMessage(pcmBytes, [pcmBytes]);
+        }
+        return;
+      }
+      let msg;
+      try {
+        msg = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+      switch (msg.type) {
+        case "CUSTOM":
+          handleCustomEvent(
+            msg.name,
+            msg.value
+          );
+          break;
+        case "TOOL_CALL_CHUNK":
+          upsertToolCall(msg.toolCallId, {
+            name: msg.toolCallName,
+            status: "running"
+          });
+          break;
+        case "TOOL_CALL_RESULT": {
+          let parsed = null;
+          try {
+            parsed = JSON.parse(msg.content);
+          } catch {
+            parsed = { output: msg.content };
+          }
+          upsertToolCall(msg.toolCallId, {
+            status: parsed?.error ? "error" : "done",
+            summary: parsed?.error || (typeof parsed?.output === "string" ? parsed.output : JSON.stringify(parsed?.output ?? ""))
+          });
+          break;
+        }
+        case "RUN_ERROR":
+          voiceLogger.warn("RUN_ERROR", { message: msg.message });
+          setError(
+            new Error(msg.message || "The agent run failed.")
+          );
+          setState("error");
+          break;
+        default:
+          break;
+      }
+    },
+    [handleCustomEvent, upsertToolCall, voiceLogger]
+  );
+  const start = useCallback4(async () => {
+    if (!agentId) {
+      const err = new Error(
+        "useVoice: no agentId provided and no defaultAgentId set on PersonaProvider"
+      );
+      setError(err);
+      setState("error");
+      return;
+    }
+    setError(null);
+    setEndReason(null);
+    setTranscript([]);
+    setPartial(null);
+    setToolCalls([]);
+    acceptedTurnSeqRef.current = 0;
+    setState("connecting");
+    voiceLogger.debug("start() called", { agentId });
+    try {
+      const res = await fetchWithAuth("/voice/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentId })
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to start voice session: ${res.statusText}`);
+      }
+      const data = await res.json();
+      const ticket = data?.data ?? data;
+      if (!ticket?.wsUrl) {
+        throw new Error("Server did not return a voice session URL.");
+      }
+      const ws = new WebSocket(ticket.wsUrl);
+      ws.binaryType = "arraybuffer";
+      wsRef.current = ws;
+      ws.onmessage = handleMessage;
+      ws.onerror = () => {
+        voiceLogger.warn("WebSocket error");
+        if (mountedRef.current) {
+          setError(new Error("Voice connection error."));
+          setState("error");
+        }
+      };
+      ws.onclose = () => {
+        if (mountedRef.current && wsRef.current === ws) {
+          setState((prev) => prev === "error" ? prev : "idle");
+        }
+      };
+    } catch (err) {
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+      voiceLogger.error("start() failed", { error: errorObj.message });
+      if (mountedRef.current) {
+        setError(errorObj);
+        setState("error");
+      }
+      teardownAudio();
+    }
+  }, [agentId, fetchWithAuth, handleMessage, teardownAudio, voiceLogger]);
+  const mute = useCallback4((muted) => {
+    setIsMuted(muted);
+    streamRef.current?.getAudioTracks().forEach((track) => {
+      track.enabled = !muted;
+    });
+  }, []);
+  const sendText = useCallback4((text) => {
+    if (!text?.trim() || wsRef.current?.readyState !== WebSocket.OPEN) return;
+    wsRef.current.send(JSON.stringify({ type: "voice.text", text }));
+  }, []);
+  return {
+    state,
+    isMuted,
+    transcript,
+    partial,
+    toolCalls,
+    error,
+    endReason,
+    start,
+    stop,
+    mute,
+    sendText
+  };
+}
+
 // src/hooks/useFiles.ts
-import { useCallback as useCallback4, useEffect as useEffect4, useState as useState4 } from "react";
+import { useCallback as useCallback5, useEffect as useEffect5, useState as useState5 } from "react";
 function useFiles(autoFetch = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [files, setFiles] = useState4([]);
-  const [isLoading, setIsLoading] = useState4(false);
-  const [isUploading, setIsUploading] = useState4(false);
-  const [error, setError] = useState4(null);
-  const fetchFiles = useCallback4(async () => {
+  const [files, setFiles] = useState5([]);
+  const [isLoading, setIsLoading] = useState5(false);
+  const [isUploading, setIsUploading] = useState5(false);
+  const [error, setError] = useState5(null);
+  const fetchFiles = useCallback5(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -1236,7 +1660,7 @@ function useFiles(autoFetch = true) {
       setIsLoading(false);
     }
   }, [fetchWithAuth]);
-  const uploadFile = useCallback4(
+  const uploadFile = useCallback5(
     async (fileOrFormData) => {
       setIsUploading(true);
       setError(null);
@@ -1269,7 +1693,7 @@ function useFiles(autoFetch = true) {
     },
     [fetchWithAuth, fetchFiles]
   );
-  const deleteFile = useCallback4(
+  const deleteFile = useCallback5(
     async (fileId) => {
       const res = await fetchWithAuth(`/files/${fileId}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Failed to delete file: ${res.statusText}`);
@@ -1277,7 +1701,7 @@ function useFiles(autoFetch = true) {
     },
     [fetchWithAuth]
   );
-  const bulkDeleteFiles = useCallback4(
+  const bulkDeleteFiles = useCallback5(
     async (fileIds) => {
       const res = await fetchWithAuth("/files/bulk-delete", {
         method: "POST",
@@ -1292,10 +1716,10 @@ function useFiles(autoFetch = true) {
     },
     [fetchWithAuth]
   );
-  const getDownloadUrl = useCallback4((fileId) => {
+  const getDownloadUrl = useCallback5((fileId) => {
     return `/files/${fileId}`;
   }, []);
-  useEffect4(() => {
+  useEffect5(() => {
     if (autoFetch) {
       void fetchFiles();
     }
@@ -1314,13 +1738,13 @@ function useFiles(autoFetch = true) {
 }
 
 // src/hooks/useAgents.ts
-import { useCallback as useCallback5, useEffect as useEffect5, useState as useState5 } from "react";
+import { useCallback as useCallback6, useEffect as useEffect6, useState as useState6 } from "react";
 function useAgents(autoFetch = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [agents, setAgents] = useState5([]);
-  const [isLoading, setIsLoading] = useState5(false);
-  const [error, setError] = useState5(null);
-  const fetchAgents = useCallback5(async () => {
+  const [agents, setAgents] = useState6([]);
+  const [isLoading, setIsLoading] = useState6(false);
+  const [error, setError] = useState6(null);
+  const fetchAgents = useCallback6(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -1338,7 +1762,7 @@ function useAgents(autoFetch = true) {
       setIsLoading(false);
     }
   }, [fetchWithAuth]);
-  useEffect5(() => {
+  useEffect6(() => {
     if (autoFetch) {
       void fetchAgents();
     }
@@ -1352,13 +1776,13 @@ function useAgents(autoFetch = true) {
 }
 
 // src/hooks/useConnection.ts
-import { useCallback as useCallback6, useEffect as useEffect6, useState as useState6 } from "react";
+import { useCallback as useCallback7, useEffect as useEffect7, useState as useState7 } from "react";
 function useConnection(autoCheck = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [health, setHealth] = useState6(null);
-  const [isConnected, setIsConnected] = useState6(false);
-  const [isLoading, setIsLoading] = useState6(false);
-  const checkHealth = useCallback6(async () => {
+  const [health, setHealth] = useState7(null);
+  const [isConnected, setIsConnected] = useState7(false);
+  const [isLoading, setIsLoading] = useState7(false);
+  const checkHealth = useCallback7(async () => {
     setIsLoading(true);
     try {
       const res = await fetchWithAuth("/health");
@@ -1377,7 +1801,7 @@ function useConnection(autoCheck = true) {
       setIsLoading(false);
     }
   }, [fetchWithAuth]);
-  useEffect6(() => {
+  useEffect7(() => {
     if (autoCheck) {
       void checkHealth();
     }
@@ -1391,15 +1815,15 @@ function useConnection(autoCheck = true) {
 }
 
 // src/hooks/useMcpConnections.ts
-import { useCallback as useCallback7, useEffect as useEffect7, useState as useState7 } from "react";
+import { useCallback as useCallback8, useEffect as useEffect8, useState as useState8 } from "react";
 function useMcpConnections(options = {}) {
   const { defaultAgentId, fetchWithAuth } = usePersonaContext();
   const agentId = options.agentId ?? defaultAgentId;
   const autoFetch = options.autoFetch ?? true;
-  const [connections, setConnections] = useState7([]);
-  const [isLoading, setIsLoading] = useState7(false);
-  const [error, setError] = useState7(null);
-  const fetchConnections = useCallback7(async () => {
+  const [connections, setConnections] = useState8([]);
+  const [isLoading, setIsLoading] = useState8(false);
+  const [error, setError] = useState8(null);
+  const fetchConnections = useCallback8(async () => {
     if (!agentId) return [];
     setIsLoading(true);
     setError(null);
@@ -1423,7 +1847,7 @@ function useMcpConnections(options = {}) {
       setIsLoading(false);
     }
   }, [agentId, fetchWithAuth, options.returnTo]);
-  useEffect7(() => {
+  useEffect8(() => {
     if (autoFetch) void fetchConnections();
   }, [autoFetch, fetchConnections]);
   return {
@@ -1444,7 +1868,7 @@ import {
   getLogLevel,
   isLevelEnabled
 } from "@personaai/logger";
-var VERSION = "0.6.0";
+var VERSION = "0.7.0";
 export {
   PersonaProvider,
   VERSION,
@@ -1462,6 +1886,7 @@ export {
   useMcpConnections,
   useMemory,
   usePersonaContext,
-  useThreads
+  useThreads,
+  useVoice
 };
 //# sourceMappingURL=index.js.map

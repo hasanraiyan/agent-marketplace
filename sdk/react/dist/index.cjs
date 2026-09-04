@@ -36,7 +36,8 @@ __export(index_exports, {
   useMcpConnections: () => useMcpConnections,
   useMemory: () => useMemory,
   usePersonaContext: () => usePersonaContext,
-  useThreads: () => useThreads
+  useThreads: () => useThreads,
+  useVoice: () => useVoice
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -1252,15 +1253,439 @@ function useThreads(autoFetch = true) {
   };
 }
 
-// src/hooks/useFiles.ts
+// src/hooks/useVoice.ts
 var import_react5 = require("react");
+
+// src/hooks/voiceWorklets.ts
+var RECORDER_WORKLET_SOURCE = `
+class PCMRecorderProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this._buffer = [];
+    this._chunkSamples = 320; // 20ms @ 16kHz
+  }
+
+  process(inputs) {
+    const input = inputs[0];
+    const channel = input && input[0];
+    if (channel) {
+      for (let i = 0; i < channel.length; i++) {
+        this._buffer.push(channel[i]);
+      }
+      while (this._buffer.length >= this._chunkSamples) {
+        const chunk = this._buffer.splice(0, this._chunkSamples);
+        const int16 = new Int16Array(chunk.length);
+        for (let i = 0; i < chunk.length; i++) {
+          const s = Math.max(-1, Math.min(1, chunk[i]));
+          int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+        }
+        this.port.postMessage(int16.buffer, [int16.buffer]);
+      }
+    }
+    return true;
+  }
+}
+
+registerProcessor('pcm-recorder-processor', PCMRecorderProcessor);
+`;
+var PLAYER_WORKLET_SOURCE = `
+class PCMPlayerProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this._queue = [];
+    this._readOffset = 0;
+    this.port.onmessage = (event) => {
+      const msg = event.data;
+      if (msg && msg.type === 'flush') {
+        this._queue = [];
+        this._readOffset = 0;
+        return;
+      }
+      const int16 = new Int16Array(msg);
+      const float32 = new Float32Array(int16.length);
+      for (let i = 0; i < int16.length; i++) {
+        float32[i] = int16[i] / 0x8000;
+      }
+      this._queue.push(float32);
+    };
+  }
+
+  process(_inputs, outputs) {
+    const output = outputs[0][0];
+    let outIdx = 0;
+    while (outIdx < output.length) {
+      if (this._queue.length === 0) {
+        output[outIdx++] = 0;
+        continue;
+      }
+      const current = this._queue[0];
+      const remaining = current.length - this._readOffset;
+      const toCopy = Math.min(remaining, output.length - outIdx);
+      output.set(current.subarray(this._readOffset, this._readOffset + toCopy), outIdx);
+      outIdx += toCopy;
+      this._readOffset += toCopy;
+      if (this._readOffset >= current.length) {
+        this._queue.shift();
+        this._readOffset = 0;
+      }
+    }
+    return true;
+  }
+}
+
+registerProcessor('pcm-player-processor', PCMPlayerProcessor);
+`;
+function toModuleUrl(source) {
+  const blob = new Blob([source], { type: "application/javascript" });
+  return URL.createObjectURL(blob);
+}
+function recorderWorkletUrl() {
+  return toModuleUrl(RECORDER_WORKLET_SOURCE);
+}
+function playerWorkletUrl() {
+  return toModuleUrl(PLAYER_WORKLET_SOURCE);
+}
+
+// src/hooks/useVoice.ts
+function useVoice(options = {}) {
+  const { defaultAgentId, fetchWithAuth, logger } = usePersonaContext();
+  const voiceLogger = (0, import_react5.useMemo)(() => logger.child("voice"), [logger]);
+  const agentId = options.agentId || defaultAgentId;
+  const [state, setState] = (0, import_react5.useState)("idle");
+  const [isMuted, setIsMuted] = (0, import_react5.useState)(false);
+  const [transcript, setTranscript] = (0, import_react5.useState)(
+    []
+  );
+  const [partial, setPartial] = (0, import_react5.useState)(
+    null
+  );
+  const [toolCalls, setToolCalls] = (0, import_react5.useState)([]);
+  const [error, setError] = (0, import_react5.useState)(null);
+  const [endReason, setEndReason] = (0, import_react5.useState)(
+    null
+  );
+  const wsRef = (0, import_react5.useRef)(null);
+  const streamRef = (0, import_react5.useRef)(null);
+  const inputCtxRef = (0, import_react5.useRef)(null);
+  const outputCtxRef = (0, import_react5.useRef)(null);
+  const recorderNodeRef = (0, import_react5.useRef)(null);
+  const playerNodeRef = (0, import_react5.useRef)(null);
+  const acceptedTurnSeqRef = (0, import_react5.useRef)(0);
+  const mountedRef = (0, import_react5.useRef)(true);
+  (0, import_react5.useEffect)(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+  const teardownAudio = (0, import_react5.useCallback)(() => {
+    try {
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+    } catch {
+    }
+    streamRef.current = null;
+    try {
+      recorderNodeRef.current?.disconnect();
+    } catch {
+    }
+    recorderNodeRef.current = null;
+    try {
+      playerNodeRef.current?.disconnect();
+    } catch {
+    }
+    playerNodeRef.current = null;
+    try {
+      void inputCtxRef.current?.close();
+    } catch {
+    }
+    inputCtxRef.current = null;
+    try {
+      void outputCtxRef.current?.close();
+    } catch {
+    }
+    outputCtxRef.current = null;
+  }, []);
+  const stop = (0, import_react5.useCallback)(() => {
+    voiceLogger.debug("stop() called");
+    try {
+      wsRef.current?.close(1e3, "client_stop");
+    } catch {
+    }
+    wsRef.current = null;
+    teardownAudio();
+    if (mountedRef.current) setState("idle");
+  }, [teardownAudio, voiceLogger]);
+  (0, import_react5.useEffect)(() => stop, [stop]);
+  const startCapture = (0, import_react5.useCallback)(async (inputSampleRate) => {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: 1
+      }
+    });
+    streamRef.current = stream;
+    const inputCtx = new AudioContext({ sampleRate: inputSampleRate });
+    inputCtxRef.current = inputCtx;
+    await inputCtx.audioWorklet.addModule(recorderWorkletUrl());
+    const source = inputCtx.createMediaStreamSource(stream);
+    const recorderNode = new AudioWorkletNode(
+      inputCtx,
+      "pcm-recorder-processor"
+    );
+    recorderNode.port.onmessage = (event) => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(event.data);
+      }
+    };
+    recorderNodeRef.current = recorderNode;
+    source.connect(recorderNode);
+  }, []);
+  const setupPlayback = (0, import_react5.useCallback)(async (outputSampleRate) => {
+    const outputCtx = new AudioContext({ sampleRate: outputSampleRate });
+    outputCtxRef.current = outputCtx;
+    await outputCtx.audioWorklet.addModule(playerWorkletUrl());
+    const playerNode = new AudioWorkletNode(outputCtx, "pcm-player-processor");
+    playerNode.connect(outputCtx.destination);
+    playerNodeRef.current = playerNode;
+  }, []);
+  const upsertToolCall = (0, import_react5.useCallback)(
+    (id, patch) => {
+      setToolCalls((prev) => {
+        const idx = prev.findIndex((t) => t.id === id);
+        if (idx === -1) return [...prev, { id, status: "running", ...patch }];
+        const next = [...prev];
+        next[idx] = { ...next[idx], ...patch };
+        return next;
+      });
+    },
+    []
+  );
+  const handleTranscript = (0, import_react5.useCallback)(
+    (value) => {
+      const { speaker, text, isFinal } = value;
+      if (isFinal) {
+        setPartial((prev) => prev?.speaker === speaker ? null : prev);
+        setTranscript((prev) => [
+          ...prev,
+          { id: `${speaker}-${prev.length}`, speaker, text }
+        ]);
+      } else {
+        setPartial({ id: "partial", speaker, text });
+      }
+    },
+    []
+  );
+  const handleCustomEvent = (0, import_react5.useCallback)(
+    (name, value) => {
+      switch (name) {
+        case "voice_session_ready":
+          voiceLogger.debug("voice_session_ready", value);
+          Promise.all([
+            setupPlayback(value.outputSampleRate),
+            startCapture(value.inputSampleRate)
+          ]).then(() => {
+            if (mountedRef.current) setState("listening");
+          }).catch((err) => {
+            voiceLogger.error("audio graph setup failed", {
+              error: err instanceof Error ? err.message : String(err)
+            });
+            if (mountedRef.current) {
+              setError(err instanceof Error ? err : new Error(String(err)));
+              setState("error");
+            }
+          });
+          break;
+        case "voice_activity":
+          if (value.speaker === "user" && value.state === "start") {
+            setState("listening");
+          } else if (value.speaker === "user" && value.state === "end") {
+            setState("thinking");
+          } else if (value.speaker === "agent" && value.state === "start") {
+            setState("speaking");
+          } else if (value.speaker === "agent" && value.state === "end") {
+            setState("listening");
+          }
+          break;
+        case "voice_transcript":
+          handleTranscript(
+            value
+          );
+          break;
+        case "voice_interrupted":
+          acceptedTurnSeqRef.current = value.turnSeq;
+          playerNodeRef.current?.port.postMessage({ type: "flush" });
+          break;
+        case "voice_session_resumed":
+          voiceLogger.info("session transparently resumed");
+          break;
+        case "voice_session_ended":
+          voiceLogger.info("session ended", { reason: value.reason });
+          setState("ended");
+          setEndReason(value.reason ?? null);
+          teardownAudio();
+          try {
+            wsRef.current?.close();
+          } catch {
+          }
+          wsRef.current = null;
+          break;
+        default:
+          break;
+      }
+    },
+    [handleTranscript, setupPlayback, startCapture, teardownAudio, voiceLogger]
+  );
+  const handleMessage = (0, import_react5.useCallback)(
+    (event) => {
+      if (typeof event.data !== "string") {
+        const buf = event.data;
+        const view = new DataView(buf);
+        const turnSeq = view.getUint32(0, true);
+        if (turnSeq >= acceptedTurnSeqRef.current) {
+          acceptedTurnSeqRef.current = turnSeq;
+          const pcmBytes = buf.slice(4);
+          playerNodeRef.current?.port.postMessage(pcmBytes, [pcmBytes]);
+        }
+        return;
+      }
+      let msg;
+      try {
+        msg = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+      switch (msg.type) {
+        case "CUSTOM":
+          handleCustomEvent(
+            msg.name,
+            msg.value
+          );
+          break;
+        case "TOOL_CALL_CHUNK":
+          upsertToolCall(msg.toolCallId, {
+            name: msg.toolCallName,
+            status: "running"
+          });
+          break;
+        case "TOOL_CALL_RESULT": {
+          let parsed = null;
+          try {
+            parsed = JSON.parse(msg.content);
+          } catch {
+            parsed = { output: msg.content };
+          }
+          upsertToolCall(msg.toolCallId, {
+            status: parsed?.error ? "error" : "done",
+            summary: parsed?.error || (typeof parsed?.output === "string" ? parsed.output : JSON.stringify(parsed?.output ?? ""))
+          });
+          break;
+        }
+        case "RUN_ERROR":
+          voiceLogger.warn("RUN_ERROR", { message: msg.message });
+          setError(
+            new Error(msg.message || "The agent run failed.")
+          );
+          setState("error");
+          break;
+        default:
+          break;
+      }
+    },
+    [handleCustomEvent, upsertToolCall, voiceLogger]
+  );
+  const start = (0, import_react5.useCallback)(async () => {
+    if (!agentId) {
+      const err = new Error(
+        "useVoice: no agentId provided and no defaultAgentId set on PersonaProvider"
+      );
+      setError(err);
+      setState("error");
+      return;
+    }
+    setError(null);
+    setEndReason(null);
+    setTranscript([]);
+    setPartial(null);
+    setToolCalls([]);
+    acceptedTurnSeqRef.current = 0;
+    setState("connecting");
+    voiceLogger.debug("start() called", { agentId });
+    try {
+      const res = await fetchWithAuth("/voice/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentId })
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to start voice session: ${res.statusText}`);
+      }
+      const data = await res.json();
+      const ticket = data?.data ?? data;
+      if (!ticket?.wsUrl) {
+        throw new Error("Server did not return a voice session URL.");
+      }
+      const ws = new WebSocket(ticket.wsUrl);
+      ws.binaryType = "arraybuffer";
+      wsRef.current = ws;
+      ws.onmessage = handleMessage;
+      ws.onerror = () => {
+        voiceLogger.warn("WebSocket error");
+        if (mountedRef.current) {
+          setError(new Error("Voice connection error."));
+          setState("error");
+        }
+      };
+      ws.onclose = () => {
+        if (mountedRef.current && wsRef.current === ws) {
+          setState((prev) => prev === "error" ? prev : "idle");
+        }
+      };
+    } catch (err) {
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+      voiceLogger.error("start() failed", { error: errorObj.message });
+      if (mountedRef.current) {
+        setError(errorObj);
+        setState("error");
+      }
+      teardownAudio();
+    }
+  }, [agentId, fetchWithAuth, handleMessage, teardownAudio, voiceLogger]);
+  const mute = (0, import_react5.useCallback)((muted) => {
+    setIsMuted(muted);
+    streamRef.current?.getAudioTracks().forEach((track) => {
+      track.enabled = !muted;
+    });
+  }, []);
+  const sendText = (0, import_react5.useCallback)((text) => {
+    if (!text?.trim() || wsRef.current?.readyState !== WebSocket.OPEN) return;
+    wsRef.current.send(JSON.stringify({ type: "voice.text", text }));
+  }, []);
+  return {
+    state,
+    isMuted,
+    transcript,
+    partial,
+    toolCalls,
+    error,
+    endReason,
+    start,
+    stop,
+    mute,
+    sendText
+  };
+}
+
+// src/hooks/useFiles.ts
+var import_react6 = require("react");
 function useFiles(autoFetch = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [files, setFiles] = (0, import_react5.useState)([]);
-  const [isLoading, setIsLoading] = (0, import_react5.useState)(false);
-  const [isUploading, setIsUploading] = (0, import_react5.useState)(false);
-  const [error, setError] = (0, import_react5.useState)(null);
-  const fetchFiles = (0, import_react5.useCallback)(async () => {
+  const [files, setFiles] = (0, import_react6.useState)([]);
+  const [isLoading, setIsLoading] = (0, import_react6.useState)(false);
+  const [isUploading, setIsUploading] = (0, import_react6.useState)(false);
+  const [error, setError] = (0, import_react6.useState)(null);
+  const fetchFiles = (0, import_react6.useCallback)(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -1278,7 +1703,7 @@ function useFiles(autoFetch = true) {
       setIsLoading(false);
     }
   }, [fetchWithAuth]);
-  const uploadFile = (0, import_react5.useCallback)(
+  const uploadFile = (0, import_react6.useCallback)(
     async (fileOrFormData) => {
       setIsUploading(true);
       setError(null);
@@ -1311,7 +1736,7 @@ function useFiles(autoFetch = true) {
     },
     [fetchWithAuth, fetchFiles]
   );
-  const deleteFile = (0, import_react5.useCallback)(
+  const deleteFile = (0, import_react6.useCallback)(
     async (fileId) => {
       const res = await fetchWithAuth(`/files/${fileId}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Failed to delete file: ${res.statusText}`);
@@ -1319,7 +1744,7 @@ function useFiles(autoFetch = true) {
     },
     [fetchWithAuth]
   );
-  const bulkDeleteFiles = (0, import_react5.useCallback)(
+  const bulkDeleteFiles = (0, import_react6.useCallback)(
     async (fileIds) => {
       const res = await fetchWithAuth("/files/bulk-delete", {
         method: "POST",
@@ -1334,10 +1759,10 @@ function useFiles(autoFetch = true) {
     },
     [fetchWithAuth]
   );
-  const getDownloadUrl = (0, import_react5.useCallback)((fileId) => {
+  const getDownloadUrl = (0, import_react6.useCallback)((fileId) => {
     return `/files/${fileId}`;
   }, []);
-  (0, import_react5.useEffect)(() => {
+  (0, import_react6.useEffect)(() => {
     if (autoFetch) {
       void fetchFiles();
     }
@@ -1356,13 +1781,13 @@ function useFiles(autoFetch = true) {
 }
 
 // src/hooks/useAgents.ts
-var import_react6 = require("react");
+var import_react7 = require("react");
 function useAgents(autoFetch = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [agents, setAgents] = (0, import_react6.useState)([]);
-  const [isLoading, setIsLoading] = (0, import_react6.useState)(false);
-  const [error, setError] = (0, import_react6.useState)(null);
-  const fetchAgents = (0, import_react6.useCallback)(async () => {
+  const [agents, setAgents] = (0, import_react7.useState)([]);
+  const [isLoading, setIsLoading] = (0, import_react7.useState)(false);
+  const [error, setError] = (0, import_react7.useState)(null);
+  const fetchAgents = (0, import_react7.useCallback)(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -1380,7 +1805,7 @@ function useAgents(autoFetch = true) {
       setIsLoading(false);
     }
   }, [fetchWithAuth]);
-  (0, import_react6.useEffect)(() => {
+  (0, import_react7.useEffect)(() => {
     if (autoFetch) {
       void fetchAgents();
     }
@@ -1394,13 +1819,13 @@ function useAgents(autoFetch = true) {
 }
 
 // src/hooks/useConnection.ts
-var import_react7 = require("react");
+var import_react8 = require("react");
 function useConnection(autoCheck = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [health, setHealth] = (0, import_react7.useState)(null);
-  const [isConnected, setIsConnected] = (0, import_react7.useState)(false);
-  const [isLoading, setIsLoading] = (0, import_react7.useState)(false);
-  const checkHealth = (0, import_react7.useCallback)(async () => {
+  const [health, setHealth] = (0, import_react8.useState)(null);
+  const [isConnected, setIsConnected] = (0, import_react8.useState)(false);
+  const [isLoading, setIsLoading] = (0, import_react8.useState)(false);
+  const checkHealth = (0, import_react8.useCallback)(async () => {
     setIsLoading(true);
     try {
       const res = await fetchWithAuth("/health");
@@ -1419,7 +1844,7 @@ function useConnection(autoCheck = true) {
       setIsLoading(false);
     }
   }, [fetchWithAuth]);
-  (0, import_react7.useEffect)(() => {
+  (0, import_react8.useEffect)(() => {
     if (autoCheck) {
       void checkHealth();
     }
@@ -1433,15 +1858,15 @@ function useConnection(autoCheck = true) {
 }
 
 // src/hooks/useMcpConnections.ts
-var import_react8 = require("react");
+var import_react9 = require("react");
 function useMcpConnections(options = {}) {
   const { defaultAgentId, fetchWithAuth } = usePersonaContext();
   const agentId = options.agentId ?? defaultAgentId;
   const autoFetch = options.autoFetch ?? true;
-  const [connections, setConnections] = (0, import_react8.useState)([]);
-  const [isLoading, setIsLoading] = (0, import_react8.useState)(false);
-  const [error, setError] = (0, import_react8.useState)(null);
-  const fetchConnections = (0, import_react8.useCallback)(async () => {
+  const [connections, setConnections] = (0, import_react9.useState)([]);
+  const [isLoading, setIsLoading] = (0, import_react9.useState)(false);
+  const [error, setError] = (0, import_react9.useState)(null);
+  const fetchConnections = (0, import_react9.useCallback)(async () => {
     if (!agentId) return [];
     setIsLoading(true);
     setError(null);
@@ -1465,7 +1890,7 @@ function useMcpConnections(options = {}) {
       setIsLoading(false);
     }
   }, [agentId, fetchWithAuth, options.returnTo]);
-  (0, import_react8.useEffect)(() => {
+  (0, import_react9.useEffect)(() => {
     if (autoFetch) void fetchConnections();
   }, [autoFetch, fetchConnections]);
   return {
@@ -1480,7 +1905,7 @@ function useMcpConnections(options = {}) {
 
 // src/index.ts
 var import_logger2 = require("@personaai/logger");
-var VERSION = "0.6.0";
+var VERSION = "0.7.0";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   PersonaProvider,
@@ -1499,6 +1924,7 @@ var VERSION = "0.6.0";
   useMcpConnections,
   useMemory,
   usePersonaContext,
-  useThreads
+  useThreads,
+  useVoice
 });
 //# sourceMappingURL=index.cjs.map

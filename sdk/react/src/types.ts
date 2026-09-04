@@ -280,3 +280,69 @@ export interface SendMessageOverride {
   /** Answers/approves a paused interrupt from a previous turn instead of starting a fresh one. */
   resume?: PersonaResumeValue;
 }
+
+// ---- Voice (useVoice) ----------------------------------------------------
+
+/**
+ * `useVoice`'s call state, driven by `voice_activity` events from the
+ * server (never guessed client-side). `'idle'` before `start()` and again
+ * after a clean `stop()`; `'ended'` after the server itself closed the
+ * session (see {@link PersonaVoiceEndReason}).
+ */
+export type PersonaVoiceState =
+  | "idle"
+  | "connecting"
+  | "listening"
+  | "thinking"
+  | "speaking"
+  | "error"
+  | "ended";
+
+/** A committed transcript line. See `partial` on {@link UseVoiceResult} for the in-progress one. */
+export interface PersonaVoiceTranscriptLine {
+  id: string;
+  speaker: "user" | "agent";
+  text: string;
+}
+
+export interface PersonaVoiceToolCall {
+  id: string;
+  name?: string;
+  status: "running" | "done" | "error";
+  /** Tool output (success) or error message — whichever applies. */
+  summary?: string;
+}
+
+/** Why a voice session ended — the terminal `voice_session_ended` event's `reason`. */
+export type PersonaVoiceEndReason =
+  | "client_closed"
+  | "agent_ended"
+  | "max_duration"
+  | "idle"
+  | "upstream_error"
+  | "upstream_goaway";
+
+export interface UseVoiceOptions {
+  /** Falls back to `PersonaProvider`'s `defaultAgentId` if omitted. */
+  agentId?: string;
+}
+
+export interface UseVoiceResult {
+  state: PersonaVoiceState;
+  isMuted: boolean;
+  /** Committed lines, oldest first. */
+  transcript: PersonaVoiceTranscriptLine[];
+  /** The current speaker's in-progress (not yet final) line, or `null`. */
+  partial: PersonaVoiceTranscriptLine | null;
+  toolCalls: PersonaVoiceToolCall[];
+  error: Error | null;
+  /** Set once the session ends — see {@link PersonaVoiceEndReason}. */
+  endReason: PersonaVoiceEndReason | null;
+  /** Mints a ticket via the host backend, then opens the call. Resets all state above. */
+  start: () => Promise<void>;
+  /** Ends the call and tears down the mic/speaker audio graph. Safe to call at any time. */
+  stop: () => void;
+  mute: (muted: boolean) => void;
+  /** Sends a typed message mid-call instead of speaking — the agent may reply in either voice or text. */
+  sendText: (text: string) => void;
+}

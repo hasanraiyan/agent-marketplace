@@ -275,6 +275,51 @@ interface SendMessageOverride {
     /** Answers/approves a paused interrupt from a previous turn instead of starting a fresh one. */
     resume?: PersonaResumeValue;
 }
+/**
+ * `useVoice`'s call state, driven by `voice_activity` events from the
+ * server (never guessed client-side). `'idle'` before `start()` and again
+ * after a clean `stop()`; `'ended'` after the server itself closed the
+ * session (see {@link PersonaVoiceEndReason}).
+ */
+type PersonaVoiceState = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error" | "ended";
+/** A committed transcript line. See `partial` on {@link UseVoiceResult} for the in-progress one. */
+interface PersonaVoiceTranscriptLine {
+    id: string;
+    speaker: "user" | "agent";
+    text: string;
+}
+interface PersonaVoiceToolCall {
+    id: string;
+    name?: string;
+    status: "running" | "done" | "error";
+    /** Tool output (success) or error message — whichever applies. */
+    summary?: string;
+}
+/** Why a voice session ended — the terminal `voice_session_ended` event's `reason`. */
+type PersonaVoiceEndReason = "client_closed" | "agent_ended" | "max_duration" | "idle" | "upstream_error" | "upstream_goaway";
+interface UseVoiceOptions {
+    /** Falls back to `PersonaProvider`'s `defaultAgentId` if omitted. */
+    agentId?: string;
+}
+interface UseVoiceResult {
+    state: PersonaVoiceState;
+    isMuted: boolean;
+    /** Committed lines, oldest first. */
+    transcript: PersonaVoiceTranscriptLine[];
+    /** The current speaker's in-progress (not yet final) line, or `null`. */
+    partial: PersonaVoiceTranscriptLine | null;
+    toolCalls: PersonaVoiceToolCall[];
+    error: Error | null;
+    /** Set once the session ends — see {@link PersonaVoiceEndReason}. */
+    endReason: PersonaVoiceEndReason | null;
+    /** Mints a ticket via the host backend, then opens the call. Resets all state above. */
+    start: () => Promise<void>;
+    /** Ends the call and tears down the mic/speaker audio graph. Safe to call at any time. */
+    stop: () => void;
+    mute: (muted: boolean) => void;
+    /** Sends a typed message mid-call instead of speaking — the agent may reply in either voice or text. */
+    sendText: (text: string) => void;
+}
 
 interface PersonaContextValue {
     baseUrl: string;
@@ -357,6 +402,25 @@ declare function useThreads(autoFetch?: boolean): {
     resetThread: (threadId: string) => Promise<PersonaThread>;
     getThread: (threadId: string) => Promise<PersonaThread>;
 };
+
+/**
+ * Drives a real-time voice call with an Agent (powered by Gemini Live).
+ *
+ * Ticket minting goes through YOUR OWN backend (`POST /voice/sessions` on
+ * whichever `@personaai/runtime`-based adapter you've mounted) via
+ * `fetchWithAuth` — same as every other hook in this package. The actual
+ * call does NOT: once a ticket comes back, this hook opens a WebSocket
+ * DIRECTLY to Persona (`ticket.wsUrl`), bypassing your backend entirely for
+ * the live audio. This is deliberate — see the package README's Voice
+ * section for why (short version: a multi-minute relay would not survive
+ * on a serverless deployment the way `POST /chat`'s bounded SSE relay
+ * does), and it means your backend never has to become a WebSocket relay.
+ *
+ * Requires a browser with `AudioWorklet` support (all current evergreen
+ * browsers). The processor code itself needs no `/public` file of your
+ * own — it's embedded and loaded via a Blob URL (see `voiceWorklets.ts`).
+ */
+declare function useVoice(options?: UseVoiceOptions): UseVoiceResult;
 
 declare function useFiles(autoFetch?: boolean): {
     files: PersonaFileItem[];
@@ -502,6 +566,6 @@ declare function supportsStreamingFetch(): boolean;
  */
 declare function openSSEStream(opts: OpenSSEOptions): Promise<SSEStream>;
 
-declare const VERSION = "0.6.0";
+declare const VERSION = "0.7.0";
 
-export { type OpenSSEOptions, type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendMessageOverride, type UseChatOptions, type UseMcpConnectionsOptions, VERSION, openSSEStream, supportsStreamingFetch, useAgents, useChat, useConnection, useFiles, useMcpConnections, useMemory, usePersonaContext, useThreads };
+export { type OpenSSEOptions, type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendMessageOverride, type UseChatOptions, type UseMcpConnectionsOptions, type UseVoiceOptions, type UseVoiceResult, VERSION, openSSEStream, supportsStreamingFetch, useAgents, useChat, useConnection, useFiles, useMcpConnections, useMemory, usePersonaContext, useThreads, useVoice };

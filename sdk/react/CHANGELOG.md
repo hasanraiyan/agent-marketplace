@@ -3,6 +3,20 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.7.0
+
+- **New: `useVoice()`.** Real-time voice calls with an Agent, powered by Gemini Live. Mints a
+  session ticket via `fetchWithAuth('/voice/sessions')` (your own backend, `POST /voice/sessions`
+  on `@personaai/runtime@^0.7.0`), then opens a WebSocket **directly to Persona** with the
+  returned `wsUrl` — deliberately not relayed through your backend the way `useChat` is, since a
+  multi-minute bidirectional relay wouldn't survive on a serverless deployment the way `/chat`'s
+  bounded SSE relay does. Owns the whole client-side audio pipeline: two `AudioWorklet`
+  processors (16kHz mic capture, 24kHz playback) loaded from embedded Blob URLs — no `/public`
+  file needed in the host app. Returns `{state, isMuted, transcript, partial, toolCalls, error,
+  endReason, start, stop, mute, sendText}`. New types: `PersonaVoiceState`,
+  `PersonaVoiceTranscriptLine`, `PersonaVoiceToolCall`, `PersonaVoiceEndReason`,
+  `UseVoiceOptions`, `UseVoiceResult`.
+
 ## 0.6.0
 
 - **New: `useThreads()` gains `resetThread(threadId)`.** `POST`s to the runtime's new
