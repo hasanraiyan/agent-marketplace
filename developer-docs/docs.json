@@ -127,6 +127,10 @@
             ]
           },
           {
+            "group": "Devtools",
+            "pages": ["guides/devtools/quickstart"]
+          },
+          {
             "group": "Runtime Reference",
             "pages": [
               "guides/runtime/quickstart",

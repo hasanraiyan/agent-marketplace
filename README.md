@@ -30,14 +30,14 @@ persona.hasanraiyan.me provides three intentionally separate experiences sharing
 
 Every Project owns its own resources, managed under `/developer/projects/[id]`:
 
-| Resource    | Route prefix  | Description                                            |
-| ----------- | ------------- | ------------------------------------------------------ |
-| Agents      | `agents/*`    | Create, edit, and test your own agents                 |
-| Skills      | `skills/*`    | Reusable capabilities your agents can use              |
-| Knowledge   | `knowledge/*` | Knowledge bases (RAG) for your agents                  |
-| Connectors  | `mcps/*`      | MCP server connectors (create, edit)                   |
-| Providers   | `providers/*` | AI providers, with connection testing                  |
-| Stores      | `stores/*`    | Named, scoped mount points agents can be assigned to   |
+| Resource   | Route prefix  | Description                                          |
+| ---------- | ------------- | ---------------------------------------------------- |
+| Agents     | `agents/*`    | Create, edit, and test your own agents               |
+| Skills     | `skills/*`    | Reusable capabilities your agents can use            |
+| Knowledge  | `knowledge/*` | Knowledge bases (RAG) for your agents                |
+| Connectors | `mcps/*`      | MCP server connectors (create, edit)                 |
+| Providers  | `providers/*` | AI providers, with connection testing                |
+| Stores     | `stores/*`    | Named, scoped mount points agents can be assigned to |
 
 **Audit Logs** track each Project's lifecycle trail — credentials minted/revoked, membership changes, and suspend/restore events.
 
@@ -56,6 +56,14 @@ persona-agent/
 │   ├── src/app/            # Route pages (dashboard/, studio/, developer/, (auth)/)
 │   ├── src/components/     # UI components
 │   └── src/lib/            # API helpers and utilities
+├── sdk/                    # All published SDK packages (see SDK Directory Structure)
+│   ├── typescript/         # @personaai/sdk — TypeScript API client
+│   ├── runtime/            # @personaai/runtime — framework-agnostic engine
+│   ├── react/              # @personaai/react — React hooks
+│   ├── devtools/           # @personaai/devtools — devtools (core/react/nextjs, dev-only, no runtime change)
+│   ├── adapters/nextjs/    # @personaai/nextjs — Next.js adapter (re-exports react)
+│   ├── adapters/express/   # @personaai/express — Express adapter
+│   └── adapters/nestjs/    # @personaai/nestjs — NestJS adapter
 ├── deep-agent/             # Standalone LangGraph Deep Agent package
 ├── persona/                # Flutter mobile app (partial)
 ├── architecture/           # Architecture documentation & ADRs

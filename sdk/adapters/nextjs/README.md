@@ -61,12 +61,38 @@ That's the whole integration. Streaming chat, threads, files, memory, MCP OAuth 
 
 ## Two entry points
 
-| Import | Contents | Where it runs |
-| --- | --- | --- |
-| `@personaai/nextjs` | Everything from `@personaai/react` — `PersonaProvider`, `useChat`, `useThreads`, … | Client (`'use client'` boundary) |
-| `@personaai/nextjs/server` | `createPersonaHandler`, `toNextRouteHandlers`, `createRuntime`, runtime types | Server only |
+| Import                     | Contents                                                                           | Where it runs                    |
+| -------------------------- | ---------------------------------------------------------------------------------- | -------------------------------- |
+| `@personaai/nextjs`        | Everything from `@personaai/react` — `PersonaProvider`, `useChat`, `useThreads`, … | Client (`'use client'` boundary) |
+| `@personaai/nextjs/server` | `createPersonaHandler`, `toNextRouteHandlers`, `createRuntime`, runtime types      | Server only                      |
 
 The split is a safety boundary as much as an ergonomic one: your Project credential is only reachable from `/server`, so it can never be pulled into a client bundle through the root entry.
+
+## Devtools
+
+Floating panel — same as `@personaai/devtools/react` but with the `'use client'` boundary already applied for `app/layout.tsx`:
+
+```bash
+npm install -D @personaai/devtools
+```
+
+```tsx
+// app/layout.tsx
+import { PersonaDevtools } from '@personaai/devtools/nextjs';
+import { useChat, useThreads } from '@personaai/nextjs';
+
+function Devtools() {
+  const { threads } = useThreads();
+  const { messages, files, todos } = useChat();
+  return <PersonaDevtools clientState={{ threads, messages, files, todos }} />;
+}
+
+{
+  process.env.NODE_ENV === 'development' && <Devtools />;
+}
+```
+
+No runtime/adapter change — purely `sdk/devtools` `core`/`react` client state. See `@personaai/devtools` `sdk/devtools/README.md`.
 
 ## Full documentation
 
