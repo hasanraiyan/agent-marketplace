@@ -218,12 +218,24 @@ packages:
     peerDependencies:
       express: '>=4'
 
+  '@personaai/logger@0.1.0':
+    resolution: {integrity: sha512-ra5T+aBNzDmiabJ161y87SJJT9x3MHuFfAL1UCxSY3IO6AOJtF5UcXdsLVcxkugeOIto6Ppsm+adGLLR9s50Kw==}
+    engines: {node: '>=18'}
+
   '@personaai/runtime@0.5.1':
     resolution: {integrity: sha512-D3lGOhZkwbSC/qBuINp3r9ISynyZTrS4DZ90+GLYxwdNXRSMdmiLtUcxwQum9ZL5N+izye3ZSgU88hdo04zz7A==}
     engines: {node: '>=18'}
 
+  '@personaai/runtime@0.6.0':
+    resolution: {integrity: sha512-3FcPDK2JV8zc/joQwCTJ8WeFri1TD/iUaHxSnJZUR2otqZPuBaVR9FrK/RtX6zOwhg3gW7aUVXvzbYqG9W/REA==}
+    engines: {node: '>=18'}
+
   '@personaai/sdk@0.4.1':
     resolution: {integrity: sha512-WAGDxX5d8swWikEytcV87uqIE+7ZBGmDDfY2LuLTgyrd6Hi9DhoMG/z/kxDmdMNb4V7aMz6Lf06dT/u8uKkLqQ==}
+    engines: {node: '>=18'}
+
+  '@personaai/sdk@0.5.0':
+    resolution: {integrity: sha512-n5eUYjwU4iHylqlrPNJmWB5BP0FkadwBapwrE5nz7ttiqzi2SQucrYWcKMoukbz6GJsDDclRNEQTq7rUzTlVjg==}
     engines: {node: '>=18'}
 
   '@rollup/rollup-android-arm-eabi@4.62.4':
@@ -1098,17 +1110,30 @@ snapshots:
 
   '@personaai/express@file:../..(express@4.22.2)':
     dependencies:
-      '@personaai/runtime': 0.5.1
+      '@personaai/runtime': 0.6.0
+      '@personaai/sdk': 0.5.0
       express: 4.22.2
+
+  '@personaai/logger@0.1.0': {}
 
   '@personaai/runtime@0.5.1':
     dependencies:
       '@ag-ui/core': 0.0.57
       '@personaai/sdk': 0.4.1
 
+  '@personaai/runtime@0.6.0':
+    dependencies:
+      '@ag-ui/core': 0.0.57
+      '@personaai/sdk': 0.5.0
+
   '@personaai/sdk@0.4.1':
     dependencies:
       '@ag-ui/core': 0.0.57
+
+  '@personaai/sdk@0.5.0':
+    dependencies:
+      '@ag-ui/core': 0.0.57
+      '@personaai/logger': 0.1.0
 
   '@rollup/rollup-android-arm-eabi@4.62.4':
     optional: true

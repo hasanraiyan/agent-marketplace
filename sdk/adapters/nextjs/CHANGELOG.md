@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3 — 2026-09-04
+
+- Bump `@personaai/runtime` to `^0.6.0` to pick up the new `POST /threads/:id/reset` route (no adapter code change — this is a generic passthrough).
+
 ## 0.1.2 — 2026-09-03
 
 - Bump `@personaai/runtime` to `^0.5.4` (via `@personaai/sdk@^0.4.5` → `@personaai/logger@^0.1.0`).

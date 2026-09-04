@@ -15,8 +15,8 @@ importers:
         specifier: ^0.5.4
         version: 0.5.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@personaai/runtime':
-        specifier: ^0.5.4
-        version: 0.5.4
+        specifier: ^0.6.0
+        version: 0.6.0
     devDependencies:
       '@eslint/js':
         specifier: ^9.19.0
@@ -678,12 +678,12 @@ packages:
       react: '>=18.0.0'
       react-dom: '>=18.0.0'
 
-  '@personaai/runtime@0.5.4':
-    resolution: {integrity: sha512-KqnwUWyjaRbhutM3SaSfC128xn0WYBGMvgy40j3xBlEOaRN7rl/bJ1+Sd+Ojs5eP9t5+v2mlIQQs9fo2qf9lCQ==}
+  '@personaai/runtime@0.6.0':
+    resolution: {integrity: sha512-3FcPDK2JV8zc/joQwCTJ8WeFri1TD/iUaHxSnJZUR2otqZPuBaVR9FrK/RtX6zOwhg3gW7aUVXvzbYqG9W/REA==}
     engines: {node: '>=18'}
 
-  '@personaai/sdk@0.4.5':
-    resolution: {integrity: sha512-7jP/A47KabV9QcrXuzZqWkiaCCDID/oTUGuAFi3xlG0a0LkqjXoruoZ5r06umFhC81hs+LS/ciBUqtl7Atogsg==}
+  '@personaai/sdk@0.5.0':
+    resolution: {integrity: sha512-n5eUYjwU4iHylqlrPNJmWB5BP0FkadwBapwrE5nz7ttiqzi2SQucrYWcKMoukbz6GJsDDclRNEQTq7rUzTlVjg==}
     engines: {node: '>=18'}
 
   '@rollup/rollup-android-arm-eabi@4.63.1':
@@ -2060,12 +2060,12 @@ snapshots:
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
 
-  '@personaai/runtime@0.5.4':
+  '@personaai/runtime@0.6.0':
     dependencies:
       '@ag-ui/core': 0.0.57
-      '@personaai/sdk': 0.4.5
+      '@personaai/sdk': 0.5.0
 
-  '@personaai/sdk@0.4.5':
+  '@personaai/sdk@0.5.0':
     dependencies:
       '@ag-ui/core': 0.0.57
       '@personaai/logger': 0.1.0
