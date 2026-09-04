@@ -146,6 +146,29 @@ router.delete('/:threadId', developerThreadController.remove);
 
 /**
  * @openapi
+ * /api/v1/developer/threads/{threadId}/reset:
+ *   post:
+ *     tags: [Developer]
+ *     summary: Reset a Thread's conversation (Subject only)
+ *     description: >
+ *       Clears message history, workspace files/todos, and subagent traces
+ *       in place — the Thread itself (its id and title) is kept, so it can
+ *       be reused as a fresh conversation instead of creating a new one.
+ *       Long-term agent memory is not affected.
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: threadId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Reset Thread }
+ *       404: { description: Thread not found or unauthorized }
+ */
+router.post('/:threadId/reset', developerThreadController.reset);
+
+/**
+ * @openapi
  * /api/v1/developer/threads/bulk-delete:
  *   post:
  *     tags: [Developer]

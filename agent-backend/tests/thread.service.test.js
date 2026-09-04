@@ -225,6 +225,27 @@ describe('Thread Service — Subject generalization (blueprint Phase 9, PR-39)',
     });
   });
 
+  describe('resetThread', () => {
+    test('rejects a cross-subject reset', async () => {
+      threadRepository.findById.mockResolvedValue({ userId: 'someone-else' });
+
+      await expect(threadService.resetThread('t1', mockUserId)).rejects.toThrow(
+        'Thread not found'
+      );
+      expect(threadRepository.update).not.toHaveBeenCalled();
+    });
+
+    test('clears subagentTraces (not title) when the subject matches', async () => {
+      threadRepository.findById.mockResolvedValue({ userId: mockUserId });
+      threadRepository.update.mockResolvedValue({ threadId: 'uuid-1', subagentTraces: {} });
+
+      const result = await threadService.resetThread('t1', mockUserId);
+
+      expect(threadRepository.update).toHaveBeenCalledWith('t1', { subagentTraces: {} });
+      expect(result).toEqual({ threadId: 'uuid-1', subagentTraces: {} });
+    });
+  });
+
   describe('deleteAllThreadsForSubject', () => {
     test('deletes via the Subject filter, not a bare userId', async () => {
       threadRepository.deleteAllBySubject.mockResolvedValue({ deletedCount: 0, threadIds: [] });

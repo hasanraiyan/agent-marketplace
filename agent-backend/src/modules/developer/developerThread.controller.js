@@ -138,6 +138,27 @@ class DeveloperThreadController {
     }
   }
 
+  async reset(req, res, next) {
+    try {
+      const thread = await threadService.resetThread(
+        req.params.threadId,
+        undefined,
+        req.projectContext
+      );
+
+      if (thread && thread.threadId) {
+        await checkpointService.cleanupThreads(thread.threadId);
+      }
+
+      res.json({ success: true, data: thread });
+    } catch (error) {
+      if (error.message === 'Thread not found') {
+        return res.status(404).json({ success: false, message: 'Thread not found' });
+      }
+      next(error);
+    }
+  }
+
   async bulkDelete(req, res, next) {
     try {
       const result = await bulkDelete(req.body.ids, async (id) => {

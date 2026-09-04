@@ -127,6 +127,35 @@ router.delete('/:id', mutateLimiter, threadController.delete);
 
 /**
  * @openapi
+ * /api/v1/threads/{id}/reset:
+ *   post:
+ *     tags: [Threads]
+ *     summary: Reset a thread's conversation
+ *     description: >
+ *       Clears a thread's message history, workspace files/todos, and
+ *       subagent traces in place — the thread itself (its id and title) is
+ *       kept, so it can be reused as a fresh conversation instead of
+ *       creating a new one. Long-term agent memory is not affected.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Thread ID to reset
+ *     responses:
+ *       200:
+ *         description: Thread reset
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Thread not found
+ */
+router.post('/:id/reset', mutateLimiter, threadController.reset);
+
+/**
+ * @openapi
  * /api/v1/threads/{id}/title:
  *   patch:
  *     tags: [Threads]

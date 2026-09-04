@@ -15,6 +15,7 @@ jest.unstable_mockModule('../src/modules/threads/thread.service.js', () => ({
     getThreadsForSubject: jest.fn(),
     updateThreadTitle: jest.fn(),
     deleteThread: jest.fn(),
+    resetThread: jest.fn(),
     deleteAllThreadsForSubject: jest.fn(),
   },
 }));
@@ -130,6 +131,33 @@ describe('Thread Controller', () => {
       await threadController.delete(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(404);
+    });
+  });
+
+  describe('reset thread', () => {
+    test('resets via threadService.resetThread and cleans up checkpoints', async () => {
+      mockReq.params.id = 'thread_1';
+      threadService.resetThread.mockResolvedValue({ threadId: 'uuid-1', subagentTraces: {} });
+      checkpointService.cleanupThreads.mockResolvedValue();
+
+      await threadController.reset(mockReq, mockRes, mockNext);
+
+      expect(threadService.resetThread).toHaveBeenCalledWith('thread_1', 'user_1');
+      expect(checkpointService.cleanupThreads).toHaveBeenCalledWith('uuid-1');
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: { threadId: 'uuid-1', subagentTraces: {} },
+      });
+    });
+
+    test('collapses "Thread not found" to a 404', async () => {
+      mockReq.params.id = 'thread_1';
+      threadService.resetThread.mockRejectedValue(new Error('Thread not found'));
+
+      await threadController.reset(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+      expect(checkpointService.cleanupThreads).not.toHaveBeenCalled();
     });
   });
 

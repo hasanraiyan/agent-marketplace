@@ -153,6 +153,26 @@ class ThreadService {
   }
 
   /**
+   * Clears a Thread's conversation content in place — same document, same
+   * `threadId` (unlike deleteThread, nothing about the Thread's identity
+   * changes, so any SDK consumer holding onto the id/URL keeps working).
+   * Callers must also cascade `checkpointService.cleanupThreads(thread.
+   * threadId)` themselves (mirrors deleteThread's own cascade pattern) —
+   * that's what actually wipes the LangGraph checkpoint (messages, and
+   * DeepAgents' files/todos, which live in the same checkpoint blob).
+   * `subagentTraces` lives on this document, outside the checkpoint, so it
+   * must be cleared here or a reset thread would still show a stale
+   * subagent timeline with no messages behind it. Long-term memory (a
+   * separate Store namespaced by user/agent, not by thread) is
+   * deliberately untouched — it's meant to survive across threads.
+   * Returns the updated document so the caller can read its `threadId`.
+   */
+  async resetThread(id, userId, context = personaExecutionContext(userId)) {
+    await this.getThreadById(id, userId, context);
+    return await threadRepository.update(id, { subagentTraces: {} });
+  }
+
+  /**
    * Deletes every Thread belonging to a Subject. `context` defaults to
    * `personaExecutionContext(userId)` — zero behavior change for every
    * existing caller (including `user.service.js`'s account-deletion

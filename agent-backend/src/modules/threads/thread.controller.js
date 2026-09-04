@@ -86,6 +86,25 @@ class ThreadController {
     }
   }
 
+  async reset(req, res, next) {
+    try {
+      const thread = await threadService.resetThread(req.params.id, req.user.id);
+
+      // Cascading cleanup of LangGraph checkpoint data — same operation
+      // thread deletion uses, just without deleting the Thread doc itself.
+      if (thread && thread.threadId) {
+        await checkpointService.cleanupThreads(thread.threadId);
+      }
+
+      res.json({ success: true, data: thread });
+    } catch (error) {
+      if (error.message === 'Thread not found') {
+        return res.status(404).json({ success: false, message: 'Thread not found' });
+      }
+      next(error);
+    }
+  }
+
   async updateTitle(req, res, next) {
     try {
       const { title } = updateThreadTitleSchema.parse(req.body);
