@@ -3,7 +3,7 @@ title: Devtools Quickstart
 description: Inspect every feature the SDK exposes in Next.js — threads, chat, workspace and logs — with a floating panel. Dev-only, zero runtime changes.
 ---
 
-`@personaai/devtools` is the devtools for the Persona SDKs. One package, three subpaths (`core` / `react` / `nextjs`), keeps the `sdk/devtools/{core,react,nextjs}` layout you approved.
+`@personaai/devtools` is the devtools for the Persona SDKs. One package, three subpaths (`core` / `react` / `nextjs`), keeps the `sdk/devtools/{core,react,nextjs}` layout you approved. **v0.1.2 current.**
 
 - `@personaai/devtools/core` — framework-agnostic snapshot utilities + in-memory ring buffer (no React)
 - `@personaai/devtools/react` — floating `<PersonaDevtools />` panel (TanStack Query style)
@@ -12,14 +12,14 @@ description: Inspect every feature the SDK exposes in Next.js — threads, chat,
 It covers **every feature a Next.js app reaches via `@personaai/nextjs`** — which already re-exports `@personaai/react` on `sdk/adapters/nextjs/src/client.ts:15` (`PersonaProvider`, `useChat`, `useThreads`, `useAgents`, `useFiles`, `useMemory`, `useConnection`, `useMcpConnections`) and wraps `@personaai/runtime` on `sdk/adapters/nextjs/src/server.ts:177` (`createPersonaHandler`, `toNextRouteHandlers`, `createRuntime` + all `RuntimeCapabilities`).
 
 <Note>
-  **Dev-only, zero runtime changes.** No new route is required. The panel is a pure client component that reads the hooks you already use. It never bundles into production unless you import it.
+  **Dev-only, zero runtime changes.** No new route is required. The panel is a pure client component that reads the hooks you already use. It never bundles into production unless you import it. No `devtools: true` flag on `createPersonaHandler` — that was removed to avoid republishing `runtime`.
 </Note>
 
 ## Install
 
 ```bash
-npm install -D @personaai/devtools
-# or: pnpm add -D @personaai/devtools
+npm install -D @personaai/devtools@^0.1.2
+# or: pnpm add -D @personaai/devtools@^0.1.2
 ```
 
 Peer `react >=18` is optional — `core` works on Express/NestJS servers with no React installed. The panel itself requires React.
@@ -58,7 +58,7 @@ function Devtools() {
 }
 ```
 
-Without `clientState` the panel still renders but shows empty placeholders — pass whatever hooks you use.
+Without `clientState` the panel still renders but shows a Setup placeholder with the snippet above — pass whatever hooks you use.
 
 ## Optional: poll a server snapshot
 
@@ -85,10 +85,10 @@ export async function GET() {
 Then:
 
 ```tsx
-<PersonaDevtools baseUrl="/api/persona" clientState={{ threads, messages, files, todos }} />
+<PersonaDevtools baseUrl="/api/persona" pollIntervalMs={3000} clientState={{ threads, messages, files, todos }} />
 ```
 
-`baseUrl` on, `intervalMs:3000` polls `baseUrl/__persona/devtools`. Omit `baseUrl` for client-only mode (default).
+`baseUrl` without `pollIntervalMs` is client-only (default `pollIntervalMs: 0`). Set `pollIntervalMs={3000}` to poll `baseUrl/__persona/devtools`. Omit `baseUrl` for pure client-only mode — this avoids the `GET __persona/devtools 404` spam seen in `0.1.0`.
 
 ## Tabs
 
@@ -97,7 +97,7 @@ Then:
 | **Chat** | `useChat()` `sdk/react/src/hooks/useChat.ts:156` | `messages`, `isStreaming`, `interrupt` (hitl/clarification), last 3 messages preview |
 | **Threads** | `useThreads()` `sdk/react/src/hooks/useThreads.ts:7` | list, count, active `threadId` |
 | **Workspace** | `useChat()` `files`/`todos`/`presentedFile` (from `STATE_SNAPSHOT`) | file count, todo count, file tree preview |
-| **Runtime** | `GET __persona/devtools` if `baseUrl` set | `mode`, `mountPath`, `capabilities` `sdk/runtime/src/types/options.ts:27`, `routeCount`, `runCount`, full route table |
+| **Runtime** | `GET __persona/devtools` if `baseUrl` + `pollIntervalMs>0` | `mode`, `mountPath`, `capabilities` `sdk/runtime/src/types/options.ts:27`, `routeCount`, `runCount`, full route table |
 | **Logs** | core `store` ring buffer + `fetchWithAuth` history | last 50 requests (redacted `Authorization`) + last 100 logs |
 
 ## API
@@ -108,12 +108,14 @@ import { PersonaDevtools, useDevtoolsSnapshot } from '@personaai/devtools/react'
 import { PersonaDevtools as PersonaDevtoolsNext } from '@personaai/devtools/nextjs';
 
 <PersonaDevtools
-  baseUrl?: string            // poll server snapshot — omit for client-only
+  baseUrl?: string            // poll server snapshot — omit for client-only (recommended)
   clientState?: { threads?, messages?, files?, todos? }
   defaultOpen?: boolean        // default false
-  pollIntervalMs?: number      // default 3000, 0 = manual only
+  pollIntervalMs?: number      // default 0 — no polling, avoids 404 spam; set 3000 to poll __persona/devtools
 />
 ```
+
+`@personaai/devtools` `package.json` `exports` are `"."` → `dist/core.js`, `"./core"` → `dist/core.js`, `"./react"` → `dist/react.js`, `"./nextjs"` → `dist/nextjs.js` (flat `dist/`, fixed in `0.1.1` — `0.1.0` incorrectly pointed to `dist/*/index.js` and caused `Module not found: Can't resolve '@personaai/devtools/nextjs'`).
 
 ## Production safety
 
@@ -122,6 +124,15 @@ import { PersonaDevtools as PersonaDevtoolsNext } from '@personaai/devtools/next
 - Even if imported, hidden in `production` unless `window.__PERSONA_DEVTOOLS_FORCE__ = true` — see `sdk/devtools/src/react/DevtoolsPanel.tsx`.
 - Never logs secrets — callers must redact before logging (same rule as `@personaai/logger` `sdk/logger/src/logger.ts:1`).
 
+## Troubleshooting
+
+| Error | Cause | Fix |
+|---|---|---|
+| `Module not found: Can't resolve '@personaai/devtools/nextjs'` | `0.1.0` exports pointed to `dist/nextjs/index.js` but `tsup` emits flat `dist/nextjs.js` | Upgrade to `^0.1.1` (exports fixed to `dist/*.js`) |
+| `package.json is not parseable: expected value at line 1 column 1` / `BOM` | `0.1.0` `package.json` written with UTF-8 BOM | Upgrade to `^0.1.1` (rewritten `utf8NoBOM`, `0.1.2` current) |
+| `GET __persona/devtools 404` spam | `baseUrl` set with default `pollIntervalMs:3000` but runtime has no devtools route (by design — no runtime change) | Omit `baseUrl` for client-only, or set `pollIntervalMs={0}` (default in `0.1.1+`), or mount custom `__persona/devtools` route as above |
+| Panel shows only button + empty | No `clientState` passed and no server snapshot | Pass `clientState={{ threads, messages, files, todos }}` from hooks as in Quickstart — panel now shows Setup snippet when empty |
+
 ## No runtime republish needed
 
-This package has no dependency on `@personaai/runtime` (`sdk/devtools/package.json` only `logger` + optional `react`). It composes the runtime via the existing `PersonaContext` and optional `fetch(__persona/devtools)` — zero lines changed in `sdk/runtime`.
+This package has no dependency on `@personaai/runtime` (`sdk/devtools/package.json` only `logger` + optional `react`). It composes the runtime via the existing `PersonaContext` and optional `fetch(__persona/devtools)` — zero lines changed in `sdk/runtime`. `0.1.2` only bumps `sdk/devtools` for the `exports`/BOM/panel fixes.
