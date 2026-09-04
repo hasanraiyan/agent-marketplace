@@ -31,6 +31,8 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   blocks?: ChatUIBlock[];
+  /** Wall-clock ms the reasoning block streamed, stamped when it closes. */
+  durationMs?: number;
 }
 
 export interface ChatUIBlock {
@@ -342,6 +344,26 @@ function settleSubEvents(
   );
 }
 
+// Stamp every still-open reasoning block with its stream duration. The
+// backend sends a bare REASONING_END (no messageId) and only ever keeps one
+// reasoning block open, so duration is simply now minus the block's start
+// timestamp (set when REASONING_MESSAGE_START arrived). Returns the original
+// array untouched when nothing is open, avoiding a pointless re-render.
+function stampReasoningFinished(
+  messages: ChatMessage[],
+  finishedAt: number,
+): ChatMessage[] {
+  let changed = false;
+  const next = messages.map((m) => {
+    if (m.role === "reasoning" && m.durationMs === undefined) {
+      changed = true;
+      return { ...m, durationMs: Math.max(0, finishedAt - m.timestamp) };
+    }
+    return m;
+  });
+  return changed ? next : messages;
+}
+
 function normalizeClarificationQuestions(
   questions: unknown,
 ): ClarificationQuestion[] {
@@ -569,6 +591,9 @@ export function useAguiChat(
         setIsRunning(false);
         setIsReasoning(false);
         settleRunningTools();
+        // An aborted run never sends REASONING_END — close out any block
+        // still open so it still reports its duration.
+        setMessages((prev) => stampReasoningFinished(prev, Date.now()));
         // Bind thread on first send (draft → server thread)
         if (event.threadId && !threadId) {
           const newId = event.threadId as string;
@@ -583,6 +608,7 @@ export function useAguiChat(
         setIsRunning(false);
         setIsReasoning(false);
         settleRunningTools();
+        setMessages((prev) => stampReasoningFinished(prev, Date.now()));
         setError(
           (event.message as string) || "The agent stopped unexpectedly.",
         );
@@ -684,6 +710,7 @@ export function useAguiChat(
 
       if (matchType(type, EventType.REASONING_END, "REASONING_END")) {
         setIsReasoning(false);
+        setMessages((prev) => stampReasoningFinished(prev, Date.now()));
         return;
       }
 

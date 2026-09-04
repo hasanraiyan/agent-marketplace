@@ -1,10 +1,12 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
 import { ChevronDown, ChevronUp, Copy, Check } from "lucide-react";
+import { ThinkingIndicator } from "./ThinkingIndicator";
+import { ExpandableContent } from "./ExpandableContent";
 import Prism from "prismjs";
 import "prismjs/components/prism-javascript";
 import "prismjs/components/prism-typescript";
@@ -17,17 +19,56 @@ import "prismjs/components/prism-sql";
 import "prismjs/components/prism-yaml";
 import { cn } from "@/lib/utils";
 
-function ReasoningBubble({ message }) {
-  const [open, setOpen] = useState(false);
+function formatElapsed(ms) {
+  const seconds = Math.max(0, Math.round(ms / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}m ${seconds % 60}s`;
+}
+
+// Claude-style thinking block, adapted from JimLiu/claude-agent-kit (MIT)
+// thinking-details.tsx: italic collapsible header, auto-open while streaming,
+// auto-collapse when done, long traces fade behind [Show more].
+function ReasoningBubble({ message, isStreaming = false }) {
+  // Open state derives from the live stream (open while thinking,
+  // collapsed when done) unless the user toggles it manually.
+  const [manualOpen, setManualOpen] = useState(null);
+  const open = manualOpen ?? isStreaming;
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!isStreaming) return;
+    const interval = window.setInterval(() => setNow(Date.now()), 500);
+    return () => window.clearInterval(interval);
+  }, [isStreaming]);
+
+  const startedAt =
+    typeof message.timestamp === "number" ? message.timestamp : now;
+  const liveElapsed = formatElapsed(Math.max(0, now - startedAt));
+  // Shown once the backend stamps reasoning with a duration; until then a
+  // finished block simply reads "Thought".
+  const doneElapsed =
+    typeof message.durationMs === "number"
+      ? formatElapsed(message.durationMs)
+      : null;
 
   return (
-    <div className="max-w-[92%]">
+    <div className="max-w-[92%] text-slate-500 dark:text-slate-400">
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
-        className="flex items-center gap-1 rounded-md px-1 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+        onClick={() => setManualOpen(!open)}
+        aria-expanded={open}
+        className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-[13px] font-medium italic opacity-80 transition-opacity select-none hover:opacity-100"
       >
-        Thoughts
+        {isStreaming ? (
+          <ThinkingIndicator />
+        ) : (
+          <span>
+            {message.content
+              ? `Thought${doneElapsed ? ` for ${doneElapsed}` : ""}`
+              : "Thinking"}
+          </span>
+        )}
         {open ? (
           <ChevronUp className="size-3.5" />
         ) : (
@@ -35,17 +76,25 @@ function ReasoningBubble({ message }) {
         )}
       </button>
       {open ? (
-        <div className="ml-3 border-l border-slate-200 pl-3 text-sm leading-6 text-slate-500 dark:border-slate-700 dark:text-slate-400 prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-pre:my-2 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1">
+        <div className="ml-1 border-l-2 border-slate-200 pl-3 text-sm leading-6 font-normal dark:border-slate-700">
           {message.content ? (
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeSanitize]}
-              components={markdownComponents}
-            >
-              {message.content}
-            </ReactMarkdown>
+            <ExpandableContent maxHeight={250}>
+              <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-pre:my-2 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 text-slate-500 dark:text-slate-400">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeSanitize]}
+                  components={markdownComponents}
+                >
+                  {message.content}
+                </ReactMarkdown>
+              </div>
+            </ExpandableContent>
           ) : (
-            <ThinkingText label="Thinking" />
+            <span className="text-[13px] italic opacity-70">
+              {isStreaming
+                ? `Started ${liveElapsed} ago`
+                : "No reasoning captured."}
+            </span>
           )}
         </div>
       ) : null}
@@ -196,11 +245,14 @@ const markdownComponents = {
 // Memoized: during token streaming only the active message object changes
 // identity (replaceById keeps the rest), so re-parsing every bubble's markdown
 // on every frame is pure waste.
-export const MessageBubble = memo(function MessageBubble({ message }) {
+export const MessageBubble = memo(function MessageBubble({
+  message,
+  isStreaming = false,
+}) {
   const isUser = message.role === "user";
 
   if (message.role === "reasoning") {
-    return <ReasoningBubble message={message} />;
+    return <ReasoningBubble message={message} isStreaming={isStreaming} />;
   }
 
   if (!isUser && !message.content) return null;

@@ -20,7 +20,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAguiChat } from "@/lib/agui/use-agui-chat";
 import { getSuggestedPrompts, tryParseJson, parseToolArgs } from "./utils";
-import { MessageBubble, ThinkingText, NewChatIcon } from "./MessageBubble";
+import { MessageBubble, NewChatIcon } from "./MessageBubble";
+import { ThinkingIndicator } from "./ThinkingIndicator";
 import { ToolTrace } from "./ToolTrace";
 import { MCPAppRenderer } from "@/components/mcp/mcp-app-renderer";
 import { ApprovalCard, ClarificationCard } from "./ApprovalCard";
@@ -113,6 +114,14 @@ export function AguiAgentChat({
     chat.messages.find((message) => message.id === messageId);
   const toolById = (toolId) =>
     chat.toolCalls.find((tool) => tool.id === toolId);
+
+  // The live reasoning bubble (last reasoning message while streaming) renders
+  // the animated ThinkingIndicator in its header; the footer indicator only
+  // covers the tool-running phase when no reasoning is streaming.
+  const liveReasoningId = chat.isReasoning
+    ? [...chat.messages].reverse().find((m) => m.role === "reasoning")?.id
+    : undefined;
+  const showFooterThinking = chat.isRunning && !chat.isReasoning;
 
   return (
     <div
@@ -486,7 +495,15 @@ export function AguiAgentChat({
 
                 let node = null;
                 if (item.type === "message") {
-                  node = <MessageBubble message={item.data} />;
+                  node = (
+                    <MessageBubble
+                      message={item.data}
+                      isStreaming={
+                        item.data.role === "reasoning" &&
+                        item.data.id === liveReasoningId
+                      }
+                    />
+                  );
                 } else if (item.type === "tool_group") {
                   // A lone tool reads as a plain step row — a one-item
                   // accordion is just noise.
@@ -530,7 +547,11 @@ export function AguiAgentChat({
                 disabled={chat.isRunning}
               />
             ) : null}
-            {chat.isRunning ? <ThinkingText label="Thinking" /> : null}
+            {showFooterThinking ? (
+              <div className="max-w-[92%] px-1 py-1.5">
+                <ThinkingIndicator />
+              </div>
+            ) : null}
           </div>
         )}
       </div>
