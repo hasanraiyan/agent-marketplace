@@ -16,7 +16,7 @@ resource, and every type. This page documents **all** of them.
 | Kind    | Export                                                                                             |
 | ------- | -------------------------------------------------------------------------------------------------- |
 | Class   | `PersonaClient`, `HttpClient`, `ChatClient`, `ArchitectClient`                                      |
-| Class   | `ProvidersResource`, `SkillsResource`, `AgentsResource`, `KnowledgeResource`, `McpsResource`, `McpOAuthResource`, `ThreadsResource`, `MemoryResource`, `StoresResource`, `FilesResource`, `AuditLogsResource` |
+| Class   | `ProvidersResource`, `SkillsResource`, `AgentsResource`, `KnowledgeResource`, `McpsResource`, `McpOAuthResource`, `ThreadsResource`, `MemoryResource`, `StoresResource`, `FilesResource`, `AuditLogsResource`, `VoiceResource` |
 | Class   | `PersonaApiError`, `PersonaAuthError`, `PersonaValidationError`                                     |
 | Enum    | `EventType` (re-exported from `@ag-ui/core`)                                                        |
 | Const   | `AGUI_SCHEMA_VERSION` (`'1.0.0'`)                                                                   |
@@ -34,6 +34,7 @@ resource, and every type. This page documents **all** of them.
 | Type    | `Store`, `StoreScope`, `StoreAccessMode`, `CreateStoreInput`, `UpdateStoreInput`, `DiscoverStoresParams`, `StoreFile`, `GetStoreFileParams`, `DeleteStoreFileParams`, `WriteStoreFileInput` |
 | Type    | `PersonaFile`, `UploadFilePayload`, `ListFilesParams`                                               |
 | Type    | `AuditLogEntry`, `ListAuditLogsParams`                                                              |
+| Type    | `VoiceSessionInfo`, `VoiceSessionTicket`                                                            |
 | Type    | `AguiEvent`, `ChatMessageInput`, `ChatResume`, `SendMessageOptions`, `ChatInterrupt`, `ChatResult`, `ArchitectMessageOptions` |
 | Type    | `ClarificationQuestion`, `ClarificationRequestPayload`, `HitlRequestPayload`, `McpAppPayload`, `SubagentActivityPayload`, `RunErrorCode`, `PersonaRunErrorEvent` |
 
@@ -660,6 +661,32 @@ string; threadId?: string }` — see `UploadFileInput` for the content rules.
 
 `{ page?: number; limit?: number; eventType?: string }` — `eventType` is an optional exact-match
 filter.
+
+## Voice types
+
+`client.voice.createSession(agentId)` mints a single-use ticket for the voice WebSocket gateway
+(real-time audio, powered by Gemini Live). Call it from your own server, then hand the returned
+`wsUrl` to your own frontend, which opens `new WebSocket(wsUrl)` directly — this SDK never opens
+the WebSocket or touches audio itself, so your Project credential never reaches a browser.
+
+### `VoiceSessionTicket`
+
+| Field       | Type               | Description                                                                 |
+| ----------- | ------------------ | ---------------------------------------------------------------------------- |
+| `ticket`    | `string`           | Opaque, single-use, HMAC-signed. Also embedded in `wsUrl`'s query string.    |
+| `wsUrl`     | `string`           | Full `wss://` URL, ticket included — pass directly to `new WebSocket(wsUrl)`. |
+| `expiresAt` | `string`           | ISO 8601 — the ticket is rejected after this instant (60s from mint).       |
+| `session`   | `VoiceSessionInfo` | Model/voice/sample-rate metadata for building the client's audio graph.     |
+
+### `VoiceSessionInfo`
+
+| Field              | Type     | Description                                                     |
+| ------------------- | -------- | ---------------------------------------------------------------- |
+| `model`             | `string` | Gemini Live model this session is running.                       |
+| `voice`             | `string` | Prebuilt voice name (e.g. `'Zephyr'`).                            |
+| `inputSampleRate`   | `number` | PCM16 sample rate the client must send mic audio at.              |
+| `outputSampleRate`  | `number` | PCM16 sample rate the server sends agent audio at.                |
+| `maxDurationMs`     | `number` | Server-enforced hard cap for this session.                       |
 
 ## Chat types
 

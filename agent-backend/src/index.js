@@ -28,7 +28,11 @@ import {
   developerRestToolRouter,
 } from './modules/developer/index.js';
 import { agentRouter } from './modules/agents/index.js';
-import { projectAgentVoiceTestRouter, attachVoiceGateway } from './modules/voice/index.js';
+import {
+  projectAgentVoiceTestRouter,
+  developerVoiceRouter,
+  attachVoiceGateway,
+} from './modules/voice/index.js';
 import { threadRouter } from './modules/threads/index.js';
 import { skillRouter } from './modules/skills/index.js';
 import { mcpRouter } from './modules/mcp/index.js';
@@ -123,6 +127,12 @@ app.use('/api/v1/projects/:projectId', projectAgentVoiceTestRouter);
 // specific path always matches first, avoiding double authentication via
 // prefix fallthrough.
 app.use('/api/v1/developer/agents', developerAgentRouter);
+// Ticket minting only (Project credential, developerMachineAuthMiddleware)
+// — the actual conversation happens over the WS gateway
+// (attachVoiceGateway), never through this router. Coexists fine with the
+// WS upgrade handler at the same base path: Express never sees 'upgrade'
+// requests at all, only ordinary GET/POST ones.
+app.use('/api/v1/developer/voice', developerVoiceRouter);
 app.use('/api/v1/developer/skills', developerSkillRouter);
 app.use('/api/v1/developer/knowledge', developerKnowledgeRouter);
 app.use('/api/v1/developer/mcps', developerMcpRouter);

@@ -3,7 +3,13 @@ import { loggerService } from '../../../utils/index.js';
 import { redeemVoiceTicket } from '../voiceTicket.service.js';
 import { resolveVoiceProvider, buildVoiceLiveConfig } from '../voice.service.js';
 import agentService from '../../agents/agent.service.js';
-import { createProjectAdminContext } from '../../auth/projectPrincipalContext.js';
+import agentRepository from '../../agents/agent.repository.js';
+import { ARCHITECT_AGENT_ID } from '../../agents/architectConstants.js';
+import NotFoundError from '../../../utils/errors/NotFoundError.js';
+import {
+  createProjectAdminContext,
+  createProjectRuntimeContext,
+} from '../../auth/projectPrincipalContext.js';
 import { VoiceSession } from './VoiceSession.js';
 
 const logger = loggerService.getLogger();
@@ -76,20 +82,47 @@ async function handleVoiceUpgrade(req, socket, head, url, wss) {
   const claims = redeemVoiceTicket(ticket);
 
   let context;
+  let agent;
+
   if (claims.principalType === 'ProjectAdmin') {
+    // Developer Studio test route (projectAgentVoiceTest.controller.js) -
+    // the admin-browsing lookup, which also verifies Project ownership.
     context = createProjectAdminContext({
       domain: claims.domain,
       personaUserId: claims.subjectId,
       membershipRole: claims.membershipRole,
     });
+    agent = await agentService.getDeveloperAgentById(claims.agentId, context);
+  } else if (claims.principalType === 'ProjectRuntime') {
+    // Machine route (developerVoice.controller.js) - mirrors
+    // developerAgui.controller.js's own runtime lookup exactly
+    // (agentRepository.findById + canUserExecuteAgent + an explicit
+    // ARCHITECT_AGENT_ID block), rather than trusting the ticket's
+    // mint-time validation alone.
+    context = createProjectRuntimeContext({
+      domain: claims.domain,
+      credentialId: claims.credentialId,
+      externalUserId: claims.subjectId,
+    });
+
+    if (String(claims.agentId) === ARCHITECT_AGENT_ID) {
+      throw new NotFoundError('Agent not found');
+    }
+
+    let candidate = null;
+    try {
+      candidate = await agentRepository.findById(claims.agentId);
+    } catch {
+      candidate = null;
+    }
+    if (!candidate || !agentService.canUserExecuteAgent(candidate, context)) {
+      throw new NotFoundError('Agent not found');
+    }
+    agent = candidate;
   } else {
-    // ProjectMachine / ProjectRuntime tickets arrive in Phase 2 alongside
-    // the machine route - not reachable yet since only the Developer
-    // Studio test route mints tickets today.
     throw new Error(`Unsupported voice ticket principalType "${claims.principalType}"`);
   }
 
-  const agent = await agentService.getDeveloperAgentById(claims.agentId, context);
   const provider = await resolveVoiceProvider(agent, claims.domain);
   // Re-resolved here (not carried over from the ticket-mint call) rather
   // than trusting a snapshot from up to 60s ago - also the only place the

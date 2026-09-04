@@ -101,6 +101,8 @@ export { FilesResource } from './resources/files.js';
 export type { PersonaFile, UploadFilePayload, ListFilesParams } from './types/file.js';
 export { AuditLogsResource } from './resources/auditLogs.js';
 export type { AuditLogEntry, ListAuditLogsParams } from './types/auditLog.js';
+export { VoiceResource } from './resources/voice.js';
+export type { VoiceSessionInfo, VoiceSessionTicket } from './types/voice.js';
 export { ChatClient } from './chat/chat-client.js';
 export { ArchitectClient, type ArchitectMessageOptions } from './chat/architect-client.js';
 export { EventType } from './types/chat.js';

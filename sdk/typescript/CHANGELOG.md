@@ -3,6 +3,16 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.6.0
+
+- **New: `client.voice.createSession(agentId)`** (`VoiceResource`, `VoiceSessionTicket`,
+  `VoiceSessionInfo`). Mints a single-use ticket for the voice WebSocket gateway (real-time audio,
+  powered by Gemini Live) — `POST /api/v1/developer/voice/sessions`, requires `externalUserId`
+  (same as `chat`/`threads`, since voice always runs as a Subject). This SDK never opens the
+  WebSocket or touches audio itself: call this from your own server, then hand the returned
+  `wsUrl` (ticket already embedded) to your own frontend, which opens `new WebSocket(wsUrl)`
+  directly — your Project credential never reaches a browser.
+
 ## 0.5.0
 
 - **New: `threads.reset(threadId)`.** Clears a Thread's conversation content in place — message
