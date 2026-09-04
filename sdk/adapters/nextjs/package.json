@@ -67,7 +67,7 @@
   },
   "dependencies": {
     "@personaai/logger": "^0.1.0",
-    "@personaai/react": "^0.5.4",
+    "@personaai/react": "^0.6.0",
     "@personaai/runtime": "^0.6.0"
   },
   "devDependencies": {
