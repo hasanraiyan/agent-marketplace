@@ -100,7 +100,7 @@ const handleSend = async () => {
 
 ## `useThreads`
 
-Lists, creates, deletes, renames, and archives threads for the current user.
+Lists, creates, deletes, renames, resets, and archives threads for the current user.
 
 ```ts
 import { useThreads } from '@personaai/react';
@@ -126,6 +126,7 @@ import { useThreads } from '@personaai/react';
 | `deleteAllThreads` | `() => Promise<void>` | Convenience — bulk-deletes every currently-loaded thread (chunked into batches of 100). |
 | `updateThread` | `(id, input) => Promise<PersonaThread>` | General-purpose update. `input` can contain `{ title?, isArchived? }`. |
 | `renameThread` | `(id, title) => Promise<PersonaThread>` | Convenience wrapper over `updateThread` for title-only renames. |
+| `resetThread` | `(threadId: string) => Promise<PersonaThread>` | Clears a thread's message history, workspace files/todos, and subagent traces **in place** — same thread id/title, so it can be reused as a fresh conversation instead of deleting and creating a new one (which would change the id). Long-term agent memory is not affected. |
 | `getThread` | `(id: string) => Promise<PersonaThread>` | Fetch a single thread by ID. |
 
 ### Thread object shape
@@ -152,6 +153,7 @@ const {
   createThread,
   deleteThread,
   renameThread,
+  resetThread,
   isLoading,
 } = useThreads();
 
@@ -163,6 +165,10 @@ const handleNew = async () => {
 const handleRename = (id: string) => {
   const newTitle = window.prompt('New title:');
   if (newTitle) renameThread(id, newTitle);
+};
+
+const handleClear = async (id: string) => {
+  await resetThread(id); // same thread id/title, conversation cleared
 };
 ```
 

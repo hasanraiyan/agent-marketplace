@@ -49,7 +49,7 @@ function Chat() {
 | Hook | Purpose |
 | --- | --- |
 | `useChat` | Streaming chat — messages, send, stop, reload, interrupts, workspace files |
-| `useThreads` | Thread CRUD — list, create, delete, rename, archive |
+| `useThreads` | Thread CRUD — list, create, delete, rename, reset, archive |
 | `useFiles` | Upload management — list, upload, delete |
 | `useMemory` | Persistent memory — read, write, delete |
 | `useAgents` | Agent discovery — list available agents |

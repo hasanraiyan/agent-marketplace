@@ -25,6 +25,7 @@ See [Capabilities](/guides/runtime/capabilities) for the reasoning and how to en
 | `PATCH` | `/threads/:id` | `client.threads.update(id, {title?, isArchived?})` |
 | `DELETE` | `/threads/:id` | `client.threads.delete(id)` → `204` |
 | `GET` | `/threads/:id/messages` | `client.threads.getMessages(id)` — full history + graph state, the same data `chat.stream()` resumes from; use it to load a past conversation on page reopen. Includes a pending `interrupt` (HITL/clarification), if any, so a reload can re-show the approval/clarification card immediately. |
+| `POST` | `/threads/:id/reset` | `client.threads.reset(id)` — clears message history, workspace files/todos, and subagent traces in place, keeping the same thread id/title (unlike delete + create, which would change the id). |
 | `GET` | `/agents` | `client.agents.list({page, limit, search, category, scope})` — read-only discovery, e.g. "let the user pick an agent." |
 | `GET` | `/files` | `client.files.list({page, limit})` |
 | `POST` | `/files` | `client.files.upload({filename, content, contentType?, agentId?, threadId?})` — multipart, `file` part required. `201` |
