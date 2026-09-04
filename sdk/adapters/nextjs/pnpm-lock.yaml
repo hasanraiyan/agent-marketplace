@@ -12,11 +12,11 @@ importers:
         specifier: ^0.1.0
         version: 0.1.0
       '@personaai/react':
-        specifier: ^0.6.0
-        version: 0.6.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^0.7.0
+        version: 0.7.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@personaai/runtime':
-        specifier: ^0.6.0
-        version: 0.6.0
+        specifier: ^0.7.0
+        version: 0.7.0
     devDependencies:
       '@eslint/js':
         specifier: ^9.19.0
@@ -671,19 +671,19 @@ packages:
     resolution: {integrity: sha512-ra5T+aBNzDmiabJ161y87SJJT9x3MHuFfAL1UCxSY3IO6AOJtF5UcXdsLVcxkugeOIto6Ppsm+adGLLR9s50Kw==}
     engines: {node: '>=18'}
 
-  '@personaai/react@0.6.0':
-    resolution: {integrity: sha512-RqW+a1IdW4/pJ+YYX/umBgJ/hvTyxLiI2DOLjTSJv0sHDtv2WKveIunmgi5X9fjZK/iCRw97y6ZnXO1fJKPC2A==}
+  '@personaai/react@0.7.0':
+    resolution: {integrity: sha512-GpIpjkzmx/ETssmPv1YbdRex1+XbPWOyJVyh4UvlJwF6YWCKui+JcLoLkM9pLUybqRFlxnsQDwyr1jt0AXhEwA==}
     engines: {node: '>=18'}
     peerDependencies:
       react: '>=18.0.0'
       react-dom: '>=18.0.0'
 
-  '@personaai/runtime@0.6.0':
-    resolution: {integrity: sha512-3FcPDK2JV8zc/joQwCTJ8WeFri1TD/iUaHxSnJZUR2otqZPuBaVR9FrK/RtX6zOwhg3gW7aUVXvzbYqG9W/REA==}
+  '@personaai/runtime@0.7.0':
+    resolution: {integrity: sha512-bpi00Y1KR9V28sr+yZeFiHpultW19Qcmw33SAvHHsXUUZ6iwNlo4nmZFuYZCPT4Zot4H503RfRDfXhaNp0SiJg==}
     engines: {node: '>=18'}
 
-  '@personaai/sdk@0.5.0':
-    resolution: {integrity: sha512-n5eUYjwU4iHylqlrPNJmWB5BP0FkadwBapwrE5nz7ttiqzi2SQucrYWcKMoukbz6GJsDDclRNEQTq7rUzTlVjg==}
+  '@personaai/sdk@0.6.0':
+    resolution: {integrity: sha512-n6vV01WCgDecHTJwHEbppQxgK4Y2lXD9gnHgYeXa60oUwQiXYApAjm9EcIUQE8UBu30QDU+vzpIxBZDxr+iNDg==}
     engines: {node: '>=18'}
 
   '@rollup/rollup-android-arm-eabi@4.63.1':
@@ -2054,18 +2054,18 @@ snapshots:
 
   '@personaai/logger@0.1.0': {}
 
-  '@personaai/react@0.6.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@personaai/react@0.7.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@personaai/logger': 0.1.0
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
 
-  '@personaai/runtime@0.6.0':
+  '@personaai/runtime@0.7.0':
     dependencies:
       '@ag-ui/core': 0.0.57
-      '@personaai/sdk': 0.5.0
+      '@personaai/sdk': 0.6.0
 
-  '@personaai/sdk@0.5.0':
+  '@personaai/sdk@0.6.0':
     dependencies:
       '@ag-ui/core': 0.0.57
       '@personaai/logger': 0.1.0

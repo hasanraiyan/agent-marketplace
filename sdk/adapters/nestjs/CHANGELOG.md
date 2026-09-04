@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5 — 2026-09-05
+
+- Bump `@personaai/runtime` to `^0.7.0` and `@personaai/sdk` to `^0.6.0` to pick up the new `POST /voice/sessions` route (real-time voice sessions, powered by Gemini Live — no adapter code change, this is a generic passthrough).
+
 ## 0.1.4 — 2026-09-04
 
 - Bump `@personaai/runtime` to `^0.6.0` and `@personaai/sdk` to `^0.5.0` to pick up the new `POST /threads/:id/reset` route (no adapter code change — this is a generic passthrough).

@@ -1,6 +1,6 @@
 {
   "name": "@personaai/nestjs",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "NestJS adapter for the Persona runtime (persona.hasanraiyan.me) — dynamic module, injectable service, and middleware for streaming AI agents. Server-side only.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -68,8 +68,8 @@
     }
   },
   "dependencies": {
-    "@personaai/runtime": "^0.6.0",
-    "@personaai/sdk": "^0.5.0"
+    "@personaai/runtime": "^0.7.0",
+    "@personaai/sdk": "^0.6.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",

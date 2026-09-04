@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.4 — 2026-09-05
+
+- Bump `@personaai/runtime` to `^0.7.0` to pick up the new `POST /voice/sessions` route (no adapter code change — this is a generic passthrough).
+- Bump `@personaai/react` to `^0.7.0` so the client-side re-export's new `useVoice()` hook is available.
+
 ## 0.1.3 — 2026-09-04
 
 - Bump `@personaai/runtime` to `^0.6.0` to pick up the new `POST /threads/:id/reset` route (no adapter code change — this is a generic passthrough).
