@@ -19,7 +19,14 @@ aguiRouter.use(async (req, res, next) => {
 
     const userId = req.user._id;
     const agentId = req.headers['x-agent-id'] || req.query.agentId;
-    const threadDbId = req.headers['x-thread-id'] || req.query.threadId;
+    let threadDbId = req.headers['x-thread-id'] || req.query.threadId;
+    // Virtual ids from the frontend's lazy-create flow (run/page.jsx sets
+    // `_id: "new"` until the first message persists the thread). Treat them
+    // as "no thread yet" so we fall back to deterministic langGraph id rather
+    // than trying to look up a document that can never exist.
+    if (threadDbId === 'new' || (typeof threadDbId === 'string' && threadDbId.startsWith('new-'))) {
+      threadDbId = null;
+    }
 
     let langGraphThreadId = agentId ? `agui-${agentId}-${userId}` : null;
     if (agentId && threadDbId) {

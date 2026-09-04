@@ -117,6 +117,8 @@ export interface UseAguiChatOptions {
   /** Async function that returns an auth token. Used by Clerk-based projects. */
   getToken?: () => Promise<string | null>;
   onToolResult?: (tool: ToolCall) => void;
+  /** Lazy-create a persisted thread for the virtual `new` id (Persona). */
+  onCreateThread?: () => Promise<string | undefined | null>;
   /** Called when a draft's server thread ID is available. BeyondCampus uses this to bind thread → localStorage. */
   onThreadCreated?: (threadId: string) => void;
   onRunFinished?: () => void;
@@ -451,6 +453,7 @@ export function useAguiChat(
     headers,
     getToken,
     onToolResult,
+    onCreateThread,
     onThreadCreated,
     onRunFinished,
     onTitleGenerated,
@@ -1037,7 +1040,16 @@ export function useAguiChat(
       abortRef.current = controller;
 
       try {
-        const activeThreadId = threadIdOverride || externalThreadId;
+        // `threadIdOverride` is the source of truth when set: `null` means
+        // "explicitly no thread" (virtual `new` without a creator), a string
+        // means the newly created thread. Otherwise fall back to the prop,
+        // treating the sentinel `"new"` as no thread.
+        const resolvedExternal =
+          externalThreadId === "new" ? undefined : externalThreadId;
+        const activeThreadId =
+          threadIdOverride !== undefined
+            ? threadIdOverride || undefined
+            : resolvedExternal;
         const authHeader: Record<string, string> = {};
 
         if (getToken) {
@@ -1047,17 +1059,23 @@ export function useAguiChat(
           }
         }
 
+        // `headerEntries` may still carry a stale `X-Thread-Id: new` from the
+        // parent's `headers` prop (run/page.jsx always sets it). Strip it when
+        // there is no real thread so the fallback header below is authoritative.
+        const baseHeaderEntries = Object.fromEntries(headerEntries);
+        if (!activeThreadId) delete baseHeaderEntries["X-Thread-Id"];
+
         const response = await fetch(url, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Accept: "text/event-stream",
-            ...Object.fromEntries(headerEntries),
+            ...baseHeaderEntries,
             ...authHeader,
             ...(activeThreadId ? { "X-Thread-Id": activeThreadId } : {}),
           },
           body: JSON.stringify({
-            threadId: activeThreadId,
+            ...(activeThreadId ? { threadId: activeThreadId } : {}),
             runId: id("run"),
             agentId,
             messages: bodyMessages.map((msg) => ({
@@ -1156,11 +1174,32 @@ export function useAguiChat(
 
       const nextMessages = appendUserMessage(content);
 
-      let threadIdOverride: string | undefined;
+      let threadIdOverride: string | null | undefined;
       if (externalThreadId === "new") {
-        promotingRef.current = true;
-        // Parent creates a backend thread; we'll get the ID back via onThreadCreated
-        threadIdOverride = undefined;
+        if (onCreateThread) {
+          promotingRef.current = true;
+          try {
+            const newId = await onCreateThread();
+            if (newId) {
+              setThreadId(newId);
+              if (onThreadCreated) onThreadCreated(newId);
+              threadIdOverride = newId;
+            } else {
+              // Creator returned nothing — send without a thread header and
+              // let the backend fall back to deterministic langGraph id.
+              threadIdOverride = null;
+            }
+          } catch (err) {
+            // Creation failed — surface it and do not attempt the run.
+            setError(
+              (err as Error)?.message || "Failed to create conversation.",
+            );
+            return;
+          }
+        } else {
+          // No lazy creator (e.g. preview): send without a thread header.
+          threadIdOverride = null;
+        }
       }
 
       await runStream({ messages: nextMessages, threadIdOverride });
@@ -1168,6 +1207,8 @@ export function useAguiChat(
     [
       appendUserMessage,
       isRunning,
+      onCreateThread,
+      onThreadCreated,
       pendingApproval,
       pendingClarification,
       runStream,
