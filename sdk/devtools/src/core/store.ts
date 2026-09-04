@@ -35,7 +35,7 @@ export function createDevtoolsStore(options: DevtoolsStoreOptions = {}): Devtool
     },
     getSnapshot(partial) {
       return {
-        version: '0.1.1',
+        version: '0.1.2',
         timestamp: new Date().toISOString(),
         ...partial,
         recentRequests: [...requests],

@@ -1,6 +1,6 @@
 {
   "name": "@personaai/devtools",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Devtools for the Persona SDK — inspect runtime, threads, chat and logs. Framework-agnostic core + React panel + Next.js helper. OFF by default, dev-only.",
   "type": "module",
   "exports": {

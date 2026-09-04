@@ -232,7 +232,7 @@ function Devtools() {
           </div>
 
           <div className="border-t border-zinc-200 bg-white px-3 py-1 text-[10px] text-zinc-500" style={{ borderTop: '1px solid #e4e4e7', background: 'white', padding: '4px 12px', fontSize: 10, color: '#71717a' }}>
-            @personaai/devtools 0.1.1 — dev only. Pass <code>clientState</code> to see data.
+            @personaai/devtools 0.1.2 — dev only. Pass <code>clientState</code> to see data.
           </div>
         </div>
       ) : null}
