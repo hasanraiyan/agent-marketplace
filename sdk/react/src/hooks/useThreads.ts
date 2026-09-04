@@ -127,6 +127,26 @@ export function useThreads(autoFetch = true) {
     [updateThread],
   );
 
+  // Clears a thread's conversation content in place (message history, files/
+  // todos, subagent traces) while keeping the same thread id/title — unlike
+  // deleteThread, nothing about the thread's identity changes, so callers
+  // can reuse it as a fresh conversation instead of creating a new one.
+  const resetThread = useCallback(
+    async (threadId: string) => {
+      const res = await fetchWithAuth(`/threads/${threadId}/reset`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error(`Failed to reset thread: ${res.statusText}`);
+      const data = await res.json();
+      const reset = (data?.data ?? data) as PersonaThread;
+      setThreads((prev) =>
+        prev.map((t) => (t._id === threadId ? { ...t, ...reset } : t)),
+      );
+      return reset;
+    },
+    [fetchWithAuth],
+  );
+
   const getThread = useCallback(
     async (threadId: string) => {
       const res = await fetchWithAuth(`/threads/${threadId}`);
@@ -154,6 +174,7 @@ export function useThreads(autoFetch = true) {
     deleteAllThreads,
     updateThread,
     renameThread,
+    resetThread,
     getThread,
   };
 }

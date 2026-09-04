@@ -3,7 +3,7 @@ import react__default, { ReactNode } from 'react';
 import { LogLevel, Logger } from '@personaai/logger';
 export { CreateLoggerOptions, LogLevel, LogTransport, Logger, createLogger, createNoopLogger, getLogLevel, isLevelEnabled, setLogLevel } from '@personaai/logger';
 
-type PersonaRole = 'user' | 'assistant' | 'system' | 'reasoning';
+type PersonaRole = "user" | "assistant" | "system" | "reasoning";
 /**
  * A reasoning (chain-of-thought) message, streamed ahead of the assistant's
  * answer. Each provider reasoning phase is its OWN message — the SDK never
@@ -12,7 +12,7 @@ type PersonaRole = 'user' | 'assistant' | 'system' | 'reasoning';
  */
 /** One live update on a running `task` (subagent) tool call's timeline. */
 interface PersonaSubagentActivityEntry {
-    kind: 'text' | 'tool_start' | 'tool_result';
+    kind: "text" | "tool_start" | "tool_result";
     toolName?: string;
     args?: string;
     result?: string;
@@ -68,17 +68,17 @@ interface PersonaClarificationQuestion {
 }
 /** A paused human-in-the-loop tool approval, or a paused clarification question. */
 type PersonaInterrupt = {
-    kind: 'hitl';
+    kind: "hitl";
     actionRequests: PersonaHitlActionRequest[];
     reviewConfigs: unknown[];
 } | {
-    kind: 'clarification';
+    kind: "clarification";
     questions: PersonaClarificationQuestion[];
 };
 /** What to send back in `sendMessage(content, { resume })` to unpause a paused run. */
 type PersonaResumeValue = {
     decisions: Array<{
-        type: 'approve' | 'reject';
+        type: "approve" | "reject";
         message?: string;
     }>;
 } | {
@@ -146,7 +146,7 @@ interface PersonaFileItem {
     createdAt: string;
 }
 interface PersonaMemoryFile {
-    scope?: 'user' | 'agent';
+    scope?: "user" | "agent";
     agentId?: string;
     path: string;
     content: string;
@@ -173,34 +173,34 @@ interface PersonaMemoryList {
  * and `REASONING_END` rather than `REASONING_MESSAGE_END`).
  */
 type PersonaStreamingEvent = {
-    type: 'TEXT_MESSAGE_CHUNK';
+    type: "TEXT_MESSAGE_CHUNK";
     delta: string;
     messageId?: string;
-    role?: 'assistant';
+    role?: "assistant";
 } | {
-    type: 'TOOL_CALL_CHUNK';
+    type: "TOOL_CALL_CHUNK";
     toolCallId?: string;
     toolCallName?: string;
     delta?: string;
     parentMessageId?: string;
 } | {
-    type: 'TOOL_CALL_RESULT';
+    type: "TOOL_CALL_RESULT";
     toolCallId: string;
     content: string;
     messageId?: string;
-    role?: 'tool';
+    role?: "tool";
     structuredContent?: unknown;
 } | {
-    type: 'REASONING_MESSAGE_START';
+    type: "REASONING_MESSAGE_START";
     messageId: string;
 } | {
-    type: 'REASONING_MESSAGE_CONTENT';
+    type: "REASONING_MESSAGE_CONTENT";
     messageId: string;
     delta: string;
 } | {
-    type: 'REASONING_END';
+    type: "REASONING_END";
 } | {
-    type: 'STATE_SNAPSHOT';
+    type: "STATE_SNAPSHOT";
     /** Raw wire shape (snake_case timestamps) — useChat normalizes this into `files`/`todos`. */
     snapshot: {
         files: Record<string, {
@@ -212,41 +212,41 @@ type PersonaStreamingEvent = {
         todos: PersonaTodo[];
     };
 } | {
-    type: 'RUN_ERROR';
+    type: "RUN_ERROR";
     code: string;
     message: string;
     retryable?: boolean;
     providerName?: string;
 } | {
-    type: 'CUSTOM';
-    name: 'hitl_request';
+    type: "CUSTOM";
+    name: "hitl_request";
     value: {
         actionRequests: PersonaHitlActionRequest[];
         reviewConfigs: unknown[];
     };
 } | {
-    type: 'CUSTOM';
-    name: 'clarification_request';
+    type: "CUSTOM";
+    name: "clarification_request";
     value: {
         questions: PersonaClarificationQuestion[];
         currentIndex: number;
     };
 } | {
-    type: 'CUSTOM';
-    name: 'subagent_activity';
+    type: "CUSTOM";
+    name: "subagent_activity";
     value: {
         toolCallId: string;
     } & PersonaSubagentActivityEntry;
 } | {
-    type: 'CUSTOM';
-    name: 'mcp_app';
+    type: "CUSTOM";
+    name: "mcp_app";
     value: {
         toolCallId: string;
         resourceUri: string;
         mcpId: string;
     };
 } | {
-    type: 'CUSTOM';
+    type: "CUSTOM";
     name: string & {};
     value: unknown;
 };
@@ -354,6 +354,7 @@ declare function useThreads(autoFetch?: boolean): {
         isArchived?: boolean;
     }) => Promise<PersonaThread>;
     renameThread: (threadId: string, title: string) => Promise<PersonaThread>;
+    resetThread: (threadId: string) => Promise<PersonaThread>;
     getThread: (threadId: string) => Promise<PersonaThread>;
 };
 
@@ -501,6 +502,6 @@ declare function supportsStreamingFetch(): boolean;
  */
 declare function openSSEStream(opts: OpenSSEOptions): Promise<SSEStream>;
 
-declare const VERSION = "0.5.4";
+declare const VERSION = "0.6.0";
 
 export { type OpenSSEOptions, type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendMessageOverride, type UseChatOptions, type UseMcpConnectionsOptions, VERSION, openSSEStream, supportsStreamingFetch, useAgents, useChat, useConnection, useFiles, useMcpConnections, useMemory, usePersonaContext, useThreads };

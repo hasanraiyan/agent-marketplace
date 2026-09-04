@@ -3,6 +3,15 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.6.0
+
+- **New: `useThreads()` gains `resetThread(threadId)`.** `POST`s to the runtime's new
+  `/threads/:id/reset` (added in `@personaai/runtime@0.6.0`) — clears a thread's message history,
+  workspace files/todos, and subagent traces in place, keeping the same thread id/title, so the UI
+  can offer a "clear conversation" action without the identity change `deleteThread` +
+  `createThread` would force. Updates the local `threads` list in place, same pattern as
+  `updateThread`.
+
 ## 0.5.4
 
 - **Built-in logging — OFF by default, selectable via `PersonaProvider`.** New `PersonaProviderProps.logLevel`/`logger` (via `@personaai/logger@^0.1.0`, no `sdk` in browser bundle) — `fetchWithAuth` logs at `debug`/`info`/`warn`/`error`/`trace`, `useChat` logs `sendMessage` lifecycle, `loadThreadMessages`, `stop`/`clear`/`reload`/`resumeInterrupt`, and every streaming event (`TEXT_MESSAGE_CHUNK`, `TOOL_CALL_*`, `REASONING_*`, `CUSTOM` hitl/clarification, `RUN_ERROR`) at appropriate levels with child namespaces `react`/`react:chat`/`react:fetch`. Nothing logs unless caller opts in; secrets never logged.
