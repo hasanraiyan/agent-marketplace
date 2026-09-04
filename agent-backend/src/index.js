@@ -56,6 +56,17 @@ const logger = loggerService.getLogger();
 
 const app = express();
 
+// This app runs behind a TLS-terminating reverse proxy/CDN in production
+// (confirmed: req.protocol was reporting 'http' for real HTTPS traffic).
+// Without this, req.protocol/req.ip both read the raw socket instead of
+// X-Forwarded-Proto/X-Forwarded-For, which silently broke ws vs wss
+// selection (voice ticket minting) and collapses every anonymous caller
+// behind the proxy onto one shared rate-limit bucket keyed by req.ip
+// (rateLimiter.middleware.js). `1` trusts exactly one hop — correct for a
+// single reverse proxy/CDN in front of this process; bump to the real hop
+// count if there's more than one (e.g. CDN -> reverse proxy -> Node).
+app.set('trust proxy', 1);
+
 app.use(cors());
 
 // Prevent browser and proxy caching for all API responses

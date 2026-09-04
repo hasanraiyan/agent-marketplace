@@ -123,7 +123,14 @@ export class VoiceSession {
     const generation = ++this.sessionGeneration;
     const config = {
       ...this.liveConfig,
-      sessionResumption: { transparent: true, ...(resumeHandle ? { handle: resumeHandle } : {}) },
+      // `transparent: true` is Vertex-AI-only ("Gemini Enterprise Agent
+      // Platform mode") — the public Developer API (what an API-key-based
+      // Gemini provider actually uses, generativelanguage.googleapis.com)
+      // rejects it outright: "transparent parameter is only supported in
+      // Gemini Enterprise Agent Platform mode, not in Gemini Developer API
+      // mode." Confirmed against a live key. Resumption itself (the
+      // `handle`) still works without it.
+      sessionResumption: resumeHandle ? { handle: resumeHandle } : {},
     };
 
     const session = await connectGeminiLive({
