@@ -23,5 +23,6 @@ export type {
   FileUploadContext,
   ThreadCreateContext,
   MemoryWriteContext,
+  VoiceSessionCreateContext,
   RuntimeHooks,
 } from './types/hooks.js';

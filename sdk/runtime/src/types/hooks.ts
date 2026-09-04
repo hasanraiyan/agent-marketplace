@@ -56,6 +56,11 @@ export interface MemoryWriteContext {
   path: string;
 }
 
+export interface VoiceSessionCreateContext {
+  userId: string;
+  agentId: string;
+}
+
 /**
  * Lifecycle hooks — the host application's voice inside the runtime's
  * request handling. Plain async event listeners, not middleware: the
@@ -82,4 +87,6 @@ export interface RuntimeHooks {
   onThreadCreate?(ctx: ThreadCreateContext): void | Promise<void>;
   /** Fires after a memory file is written via `PUT /memory/file`. */
   onMemoryWrite?(ctx: MemoryWriteContext): void | Promise<void>;
+  /** Fires after a voice session ticket is minted via `POST /voice/sessions`. */
+  onVoiceSessionCreate?(ctx: VoiceSessionCreateContext): void | Promise<void>;
 }

@@ -21,6 +21,7 @@ import {
   getThreadMessages,
   resetThread,
 } from './routes/threads.js';
+import { createVoiceSession } from './routes/voice.js';
 import {
   listAgents,
   createAgent,
@@ -135,6 +136,11 @@ function buildRoutes(capabilities: Required<RuntimeCapabilities>): Route[] {
     { method: 'DELETE', pattern: ['threads', ':id'], handler: deleteThread },
     { method: 'GET', pattern: ['threads', ':id', 'messages'], handler: getThreadMessages },
     { method: 'POST', pattern: ['threads', ':id', 'reset'], handler: resetThread },
+
+    // Voice — always on, end-user-scoped real-time voice sessions
+    // (powered by Gemini Live). Mints a ticket only; the host's own
+    // frontend opens the WebSocket directly, this runtime never proxies it.
+    { method: 'POST', pattern: ['voice', 'sessions'], handler: createVoiceSession },
 
     // Agents — read-only discovery always on; write ops behind agentsWrite.
     { method: 'GET', pattern: ['agents'], handler: listAgents },

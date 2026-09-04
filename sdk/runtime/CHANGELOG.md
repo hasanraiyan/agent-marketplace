@@ -4,6 +4,19 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.7.0
+
+- **New: `POST /voice/sessions`, always on.** Proxies to `@personaai/sdk@^0.6.0`'s new
+  `client.voice.createSession(agentId)` — mints a single-use ticket for the voice WebSocket
+  gateway (real-time audio, powered by Gemini Live). Body: `{ agentId }`. This runtime never
+  proxies the WebSocket itself or touches audio — the host's own frontend takes the returned
+  `wsUrl` (ticket already embedded) and opens `new WebSocket(wsUrl)` directly, so the Project
+  credential never needs to sit in front of an open connection. New `onVoiceSessionCreate` hook
+  fires after the ticket is minted (`{ userId, agentId }`), same pattern as `onThreadCreate`.
+  Not gated behind a `RuntimeCapabilities` flag — like `chat`/`threads`, this is an end-user
+  chat-session action, not Project-level admin configuration. Bumps the `@personaai/sdk`
+  dependency to `^0.6.0` (was `^0.5.0`) to pick up the new method.
+
 ## 0.6.0
 
 - **New: `POST /threads/:id/reset`, always on.** Proxies to `@personaai/sdk@^0.5.0`'s new

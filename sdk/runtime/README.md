@@ -92,6 +92,7 @@ user; `resolveUser` returning `null` or throwing responds `401`.
 | `DELETE` | `/threads/:id` | `client.threads.delete(id)` → `204` |
 | `GET` | `/threads/:id/messages` | `client.threads.getMessages(id)` — full history + graph state, the same data `chat.stream()` resumes from; load a past conversation on page reopen. |
 | `POST` | `/threads/:id/reset` | `client.threads.reset(id)` — clears message history/files/todos/subagent traces in place, keeping the same Thread id/title. |
+| `POST` | `/voice/sessions` | `client.voice.createSession(agentId)` → `{ticket, wsUrl, expiresAt, session}`. `agentId` required in the body. This route only mints the ticket — your frontend takes `wsUrl` (ticket already embedded) and opens `new WebSocket(wsUrl)` **directly to Persona**, not back through this runtime. Real-time audio, powered by Gemini Live. `201` |
 | `GET` | `/agents` | `client.agents.list({page, limit, search, category, scope})` — read-only discovery, e.g. "let the user pick an agent." |
 | `GET` | `/files` | `client.files.list({page, limit})` |
 | `POST` | `/files` | `client.files.upload({filename, content, contentType?, agentId?, threadId?})` — multipart, `file` part required. `201` |
@@ -230,7 +231,7 @@ resolved identity, is the capability on."
 
 Plain async event listeners, not middleware — the runtime proceeds with sensible defaults when a
 hook is omitted, and a hook that wants to reject a run just throws (the throw is caught and
-routed through the same sanitized error response as any other failure). **All eight are wired.**
+routed through the same sanitized error response as any other failure). **All nine are wired.**
 
 ```ts
 createRuntime({
@@ -272,6 +273,11 @@ createRuntime({
     },
     onMemoryWrite(ctx) {
       // ctx: { userId, agentId?, path } — fires after PUT /memory/file succeeds.
+    },
+    onVoiceSessionCreate(ctx) {
+      // ctx: { userId, agentId } — fires after POST /voice/sessions mints a
+      // ticket. Note this only covers the mint; the actual call happens on
+      // a direct browser-to-Persona WebSocket this runtime never sees.
     },
   },
 });
