@@ -126,6 +126,18 @@ export function classifyRuntimeError(err, providerConfig) {
     return { code: 'TOOL_ERROR', retryable: false, providerName };
   }
 
+  // Reasoning-family OpenAI models (o-series, gpt-5.x) reject function tools
+  // together with a non-'none' reasoning_effort on /v1/chat/completions.
+  // agent.factory.js's _buildLLM disables reasoning outright for these
+  // models to avoid this, but this classification stays as a safety net for
+  // whatever it hasn't caught yet (a new model-name pattern, a gateway that
+  // ignores the reasoning override, etc).
+  const isReasoningToolsUnsupported =
+    lower.includes('reasoning_effort') && lower.includes('not supported') && lower.includes('function tools');
+  if (isReasoningToolsUnsupported) {
+    return { code: 'PROVIDER_MODEL_UNSUPPORTED', retryable: false, providerName };
+  }
+
   return { code: 'INTERNAL_ERROR', retryable: false, providerName };
 }
 
@@ -136,6 +148,12 @@ export function formatRuntimeError(err, providerConfig) {
   if (code === 'PROVIDER_AUTH_ERROR') {
     const providerLabel = providerConfig?.label || 'this provider';
     return `Provider "${providerLabel}" has invalid credentials. Update its API key in Settings and try again.`;
+  }
+
+  if (code === 'PROVIDER_MODEL_UNSUPPORTED') {
+    const providerLabel = providerConfig?.label || 'this provider';
+    const modelLabel = providerConfig?.modelName ? `"${providerConfig.modelName}"` : 'This model';
+    return `${modelLabel} on provider "${providerLabel}" doesn't support tool calling together with reasoning on this API surface. Try a different model, or contact support if this persists.`;
   }
 
   return rawMessage;

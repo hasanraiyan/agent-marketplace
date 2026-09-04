@@ -36,6 +36,7 @@ import encryption from '../../utils/encryption.js';
 
 import { resolveAgentTools } from '../tools/index.js';
 import { sanitizeToolsForGemini } from './sanitizeToolsForGemini.js';
+import { sanitizeMessagesForModel, inspectMessageContent } from './sanitizeMessagesForModel.js';
 import {
   ARCHITECT_AGENT_ID,
   PROJECT_ARCHITECT_AGENT_ID,
@@ -45,6 +46,26 @@ import { loggerService } from '../../utils/index.js';
 import { ARCHITECT_SKILL } from '../skills/architectSkill.js';
 
 const logger = loggerService.getLogger();
+
+// Mirrors @langchain/openai's own `isReasoningModel` heuristic (o-series and
+// gpt-5.x, excluding the non-reasoning gpt-5-chat variant) — see
+// node_modules/@langchain/openai/dist/utils/misc.js. Every deep agent binds
+// tools, and OpenAI's real /v1/chat/completions endpoint rejects tool calls
+// together with a non-'none' reasoning_effort for these models ("Function
+// tools with reasoning_effort are not supported for <model> in
+// /v1/chat/completions. ... use /v1/responses or set reasoning_effort to
+// 'none'."), which broke every turn for newer models like gpt-5.6-luna.
+// TEMPORARY: until we've verified the Responses API path (streaming, tool
+// calls, interrupts) end-to-end, we just turn reasoning off for the whole
+// family via `reasoning: { effort: 'none' }` — the other fix OpenAI's error
+// itself names — rather than switching API surface. Revisit once Responses
+// API support is verified; then this can go back to routing these models
+// through `useResponsesApi` instead of disabling reasoning outright.
+function isOpenAIReasoningModel(modelName) {
+  const name = modelName || '';
+  if (/^o\d/.test(name)) return true;
+  return name.startsWith('gpt-5') && !name.startsWith('gpt-5-chat');
+}
 
 // Shared long-term memory store for all agents.
 let globalStore = null;
@@ -64,17 +85,115 @@ function getGlobalStore() {
 // agui.service.js on each `streamEvents(...)` call, never persisted by the
 // checkpointer) and is read fresh on every model call via `wrapModelCall`,
 // which runs per-invocation even though the graph object itself is cached.
+//
+// CROSS-PROVIDER MESSAGE SANITIZATION: This middleware is also the correct
+// place to sanitize message history for provider compatibility. When a thread's
+// checkpoint was created with Gemini, `AIMessage.content` can contain
+// `{ type: 'functionCall', functionCall: { ... } }` blocks — a Gemini-specific
+// format that OpenAI's Chat Completions API strictly rejects with:
+//   "400 Invalid value: 'functionCall'. Supported values are: 'text', 'image_url', ..."
+// This runs per-invocation so the cached compiled graph is never an obstacle.
 export const contextOverrideMiddleware = createMiddleware({
   name: 'ContextOverrideMiddleware',
   wrapModelCall(request, handler) {
-    const contextOverride = getConfig()?.configurable?.contextOverride;
-    if (!contextOverride) return handler(request);
-    return handler({
-      ...request,
-      systemMessage: request.systemMessage.concat(
-        `\n\n### CURRENT CONTEXT (this turn only — do not save to memory)\n${contextOverride}`
-      ),
+    const configurable = getConfig()?.configurable;
+    const contextOverride = configurable?.contextOverride;
+
+    // --- Step 1: Log raw model call entry ---
+    logger.debug('[MW][Step 1/6: Model Call Enter] wrapModelCall invoked', {
+      hasMessages: Array.isArray(request.messages),
+      messageCount: Array.isArray(request.messages) ? request.messages.length : 'n/a',
+      hasSystemMessage: Boolean(request.systemMessage),
+      hasContextOverride: Boolean(contextOverride),
     });
+
+    // --- Step 3: Determine target provider for sanitization ---
+    // (hoisted before Step 2 so the loop can use these without re-declaring)
+    const modelId = request.model?.constructor?.name || '';
+    const isOpenAICompatible =
+      modelId.includes('OpenAI') || modelId.includes('DeepSeek') || modelId === 'ChatOpenAI';
+    const isGemini = modelId.includes('GoogleGenerativeAI') || modelId.includes('Gemini');
+    const isAnthropic = modelId.includes('Anthropic') || modelId.includes('Claude');
+    const targetProviderType = isGemini
+      ? 'gemini'
+      : isAnthropic
+        ? 'anthropic'
+        : isOpenAICompatible
+          ? 'openai'
+          : 'custom';
+
+    logger.debug('[MW][Step 3/6: Provider Detection]', {
+      modelConstructorName: modelId,
+      detectedProvider: targetProviderType,
+    });
+
+    // --- Step 2: Inspect message history for cross-provider incompatibilities ---
+    const messages = Array.isArray(request.messages) ? request.messages : [];
+    const incompatibleMessages = [];
+    if (isOpenAICompatible) {
+      for (let i = 0; i < messages.length; i++) {
+        const msg = messages[i];
+        const inspection = inspectMessageContent(msg, 'openai');
+        if (inspection.hasIncompatible) {
+          incompatibleMessages.push({
+            index: i,
+            role: msg._getType?.() || msg.type || 'unknown',
+            types: inspection.types,
+            details: inspection.details,
+          });
+        }
+      }
+    }
+
+    logger.debug('[MW][Step 2/6: Provider Compatibility Inspection] completed', {
+      totalMessages: messages.length,
+      incompatibleCount: incompatibleMessages.length,
+      incompatibleMessages,
+    });
+
+    // --- Step 4: Sanitize message history for target provider ---
+    let sanitizedRequest = request;
+    if (isOpenAICompatible && incompatibleMessages.length > 0) {
+      const { messages: cleanMessages, totalModified, modificationLog } = sanitizeMessagesForModel(messages, targetProviderType);
+      logger.warn('[MW][Step 4/6: Message Sanitization] Cross-provider content blocks detected and stripped', {
+        targetProvider: targetProviderType,
+        totalModified,
+        modificationLog,
+        note: 'This happens when a thread checkpoint was created by a different provider (e.g. Gemini→OpenAI switch). The functionCall content blocks from Gemini are invalid for OpenAI.',
+      });
+      sanitizedRequest = {
+        ...request,
+        messages: cleanMessages,
+      };
+    } else {
+      logger.debug('[MW][Step 4/6: Message Sanitization] No sanitization needed', {
+        provider: targetProviderType,
+        incompatibleCount: incompatibleMessages.length,
+      });
+    }
+
+    // --- Step 5: Apply contextOverride to system message ---
+    let finalRequest = sanitizedRequest;
+    if (contextOverride) {
+      logger.debug('[MW][Step 5/6: Context Override] Appending contextOverride to system message', {
+        contextOverrideLength: contextOverride.length,
+      });
+      finalRequest = {
+        ...sanitizedRequest,
+        systemMessage: sanitizedRequest.systemMessage.concat(
+          `\n\n### CURRENT CONTEXT (this turn only — do not save to memory)\n${contextOverride}`
+        ),
+      };
+    } else {
+      logger.debug('[MW][Step 5/6: Context Override] No contextOverride — passing through');
+    }
+
+    // --- Step 6: Call the actual model handler ---
+    logger.debug('[MW][Step 6/6: Handler Dispatch] Calling inner model handler', {
+      finalMessageCount: Array.isArray(finalRequest.messages) ? finalRequest.messages.length : 'n/a',
+    });
+
+    return handler(finalRequest);
   },
 });
 
@@ -255,23 +374,30 @@ class AgentFactory {
           streaming: true,
         });
       case 'openai':
+        // See isOpenAIReasoningModel above: reasoning models + tools break
+        // on Chat Completions, so reasoning is disabled outright for now.
         return new ChatOpenAI({
           apiKey: apiKey,
           openAIApiKey: apiKey,
           modelName: modelName,
           streaming: true,
+          ...(isOpenAIReasoningModel(modelName) ? { reasoning: { effort: 'none' } } : {}),
           configuration: {
             apiKey: apiKey,
           },
         });
       case 'custom':
       default:
-        // Initializing dynamic ChatOpenAI class representing the base model
+        // Initializing dynamic ChatOpenAI class representing the base model.
+        // Same reasoning-off workaround as the 'openai' case above — a
+        // custom OpenAI-compatible baseURL can serve the same gpt-5.x/o-
+        // series model names and hits the identical tools+reasoning error.
         return new ChatOpenAI({
           apiKey: apiKey,
           openAIApiKey: apiKey,
           modelName: modelName,
           streaming: true,
+          ...(isOpenAIReasoningModel(modelName) ? { reasoning: { effort: 'none' } } : {}),
           configuration: {
             baseURL: provider.baseURL,
             apiKey: apiKey,
