@@ -9,6 +9,7 @@ import type { RunDriver } from './runDriver.js';
 import { evictStaleRuns, DEFAULT_RUN_GRACE_MS, DEFAULT_MAX_TRACKED_RUNS } from './runRegistry.js';
 import { healthRoute } from './routes/health.js';
 import { restToolsManifestRoute } from './routes/restToolsManifest.js';
+import { rcpManifestRoute } from './routes/rcpManifest.js';
 import { chatRoute } from './routes/chat.js';
 import { architectRoute } from './routes/architect.js';
 import { createResumeRoute } from './routes/resume.js';
@@ -332,6 +333,16 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
       requiresAuth: false,
     });
   }
+  if (options.rcpManifest) {
+    // Independent of restToolsManifest above — unrelated protocols, both
+    // servable from the same runtime instance.
+    routes.push({
+      method: 'GET',
+      pattern: ['rcp', 'manifest'],
+      handler: rcpManifestRoute,
+      requiresAuth: false,
+    });
+  }
   const mode = resolveMode(options);
   const heartbeatIntervalMs = options.heartbeatIntervalMs ?? 15000;
 
@@ -515,6 +526,7 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
         capabilities,
         logger: routeLogger,
         restToolsManifest: options.restToolsManifest,
+        rcpManifest: options.rcpManifest,
       });
 
       const durationMs = Date.now() - startMs;

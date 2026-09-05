@@ -6,6 +6,7 @@ import {
   type RuntimeHooks,
   type RuntimeCapabilities,
   type RestToolsManifestOptions,
+  type RcpManifestOptions,
 } from '../src/index.js';
 
 export function jsonResponse(body: unknown, status = 200): Response {
@@ -44,6 +45,7 @@ export function makeRuntime(overrides: {
   heartbeatIntervalMs?: number;
   capabilities?: RuntimeCapabilities;
   restToolsManifest?: RestToolsManifestOptions;
+  rcpManifest?: RcpManifestOptions;
 }) {
   return createRuntime({
     baseUrl: 'https://api.example.com',
@@ -56,6 +58,7 @@ export function makeRuntime(overrides: {
     heartbeatIntervalMs: overrides.heartbeatIntervalMs,
     capabilities: overrides.capabilities,
     restToolsManifest: overrides.restToolsManifest,
+    rcpManifest: overrides.rcpManifest,
   });
 }
 

@@ -14,6 +14,9 @@ importers:
       '@personaai/sdk':
         specifier: ^0.7.0
         version: 0.7.0(zod@3.25.76)
+      rcp-sdk:
+        specifier: ^0.1.0
+        version: 0.1.0
     devDependencies:
       '@eslint/js':
         specifier: ^9.19.0
@@ -1109,6 +1112,10 @@ packages:
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
+
+  rcp-sdk@0.1.0:
+    resolution: {integrity: sha512-StZYACLaBGoGw1UhB+2S4BrZCtgneijIeRqacMt9oSamGxtXjBpn2OBVxmrIDoshgUQmpqLuCXSuVE/H23m4Hg==}
+    engines: {node: '>=18'}
 
   readdirp@4.1.2:
     resolution: {integrity: sha512-GDhwkLfywWL2s6vEjyhri+eXmfH6j1L7JE27WhqLeYzoh/A3DBaYGEj2H/HFZCn/kMfim73FXxEJTw06WtxQwg==}
@@ -2244,6 +2251,10 @@ snapshots:
   prettier@3.9.6: {}
 
   punycode@2.3.1: {}
+
+  rcp-sdk@0.1.0:
+    dependencies:
+      zod: 3.25.76
 
   readdirp@4.1.2: {}
 

@@ -2,6 +2,7 @@ import type { RuntimeRequest } from './request.js';
 import type { RuntimeResponse } from './response.js';
 import type { RuntimeHooks } from './hooks.js';
 import type { CreateRestToolInput, Logger, LogLevel } from '@personaai/sdk';
+import type { RcpTool } from 'rcp-sdk';
 
 /**
  * One REST tool definition served by the manifest route — identical to
@@ -73,6 +74,26 @@ export interface RestToolsManifestOptions {
   authToken?: string;
 }
 
+/**
+ * Serves a list of code-defined RCP (REST Connector Protocol, npm `rcp-sdk`)
+ * tools as a conformant `{ rcpVersion, auth, tools }` manifest at
+ * `GET {mountPath}/rcp/manifest` — register that URL as an RCP source and
+ * any RCP client (Persona included) discovers/calls these tools live.
+ * Independent of {@link RestToolsManifestOptions} — unrelated protocols,
+ * both servable from the same runtime instance if you want both.
+ */
+export interface RcpManifestOptions {
+  /** RCP tool definitions to serve — build each with `defineTool` from `rcp-sdk/server`. */
+  tools: RcpTool[];
+  /**
+   * Required `Authorization: Bearer <token>` value the manifest route
+   * checks incoming requests against. Omitting this leaves the route open
+   * (`auth: { type: 'none' }` in the served manifest) — only acceptable
+   * for local/dev testing.
+   */
+  authToken?: string;
+}
+
 export interface CreateRuntimeOptions {
   /** Base URL of the Persona Developer Platform API, e.g. "https://api.persona.hasanraiyan.me". */
   baseUrl: string;
@@ -117,6 +138,8 @@ export interface CreateRuntimeOptions {
   capabilities?: RuntimeCapabilities;
   /** Serves a code-defined REST tool list for a Persona REST Tool Source to discover. See {@link RestToolsManifestOptions}. Unset by default — the route only exists when this is provided. */
   restToolsManifest?: RestToolsManifestOptions;
+  /** Serves a conformant RCP manifest for any RCP client to discover. See {@link RcpManifestOptions}. Unset by default — the route only exists when this is provided. */
+  rcpManifest?: RcpManifestOptions;
   /** Log level for the runtime — off by default. Overrides the global level set via `setLogLevel()` from `@personaai/sdk`. */
   logLevel?: LogLevel;
   /** Custom logger instance — when provided, `logLevel` is ignored. */

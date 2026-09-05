@@ -16,7 +16,9 @@ export type {
   RuntimeCapabilities,
   RestToolsManifestOptions,
   RestToolManifestEntry,
+  RcpManifestOptions,
 } from './types/options.js';
+export type { RcpTool } from 'rcp-sdk';
 export type {
   RunContext,
   RunResult,

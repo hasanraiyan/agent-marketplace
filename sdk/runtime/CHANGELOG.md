@@ -4,6 +4,25 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.9.0
+
+- **New: `rcpManifest` option on `createRuntime()`.** Serves a list of code-defined RCP (REST
+  Connector Protocol — a standalone, open protocol, npm `rcp-sdk`) tools as a conformant
+  `{ rcpVersion, auth, tools }` manifest at `GET {mountPath}/rcp/manifest` — register that URL as
+  an RCP source and any RCP client (Persona included) discovers/calls these tools live. Build each
+  tool with `defineTool()` from `rcp-sdk/server`. Independent of `restToolsManifest` (unrelated
+  protocols) — both are servable from the same runtime instance if you want both. Not gated behind
+  `RuntimeCapabilities`, same reasoning as `restToolsManifest`: host-side static data, never
+  proxied through `PersonaClient`, so the route only exists when `rcpManifest` is actually
+  configured. Optional `authToken` checks the incoming `Authorization: Bearer <token>` header and
+  is reflected in the served manifest's own `auth` field (`{ type: 'header', ... }` vs.
+  `{ type: 'none' }`); omitting it leaves the route open (local/dev only). Every adapter built on
+  this runtime (`@personaai/express`, `@personaai/nestjs`, `@personaai/nextjs`) already passes
+  options through to `createRuntime()` unmodified, so `rcpManifest` works on all three with no
+  adapter changes — `@personaai/nextjs` additionally re-exports the new `RcpManifestOptions` type
+  from `@personaai/nextjs/server`, matching how `RestToolsManifestOptions` is already re-exported
+  there. Adds `rcp-sdk@^0.1.0` as a new dependency (for the `RcpTool` type).
+
 ## 0.8.0
 
 - **New: `restToolsManifest` option on `createRuntime()`.** Serves a code-defined REST tool list
