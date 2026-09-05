@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.8 — 2026-09-05
+
+- Bump `@personaai/react` to `^0.7.3` so the client-side re-export carries the `useVoice()`
+  transcript fix — an agent answer that Gemini emits as several turn-complete finals (e.g. split by a
+  mid-answer tool call) now renders as one transcript line until a user line intervenes (no adapter
+  code change — generic passthrough).
+
 ## 0.1.7 — 2026-09-05
 
 - Bump `@personaai/react` to `^0.7.2` so the client-side re-export carries the `useVoice()`

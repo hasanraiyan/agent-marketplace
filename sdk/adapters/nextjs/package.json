@@ -1,6 +1,6 @@
 {
   "name": "@personaai/nextjs",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Next.js integration for Persona (persona.hasanraiyan.me) — one App Router catch-all route mounts the whole agent runtime; the root entry re-exports @personaai/react for the client.",
   "type": "module",
   "main": "./dist/client.cjs",
@@ -67,7 +67,7 @@
   },
   "dependencies": {
     "@personaai/logger": "^0.1.0",
-    "@personaai/react": "^0.7.2",
+    "@personaai/react": "^0.7.3",
     "@personaai/runtime": "^0.7.1"
   },
   "devDependencies": {
