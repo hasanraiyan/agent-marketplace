@@ -32,6 +32,7 @@ import {
   createRestApiToolSourceSchema,
   updateRestApiToolSourceSchema,
 } from '../restApiToolSources/restApiToolSource.validator.js';
+import { createRcpSourceSchema, updateRcpSourceSchema } from '../rcpSources/rcpSource.validator.js';
 import { createAgentSchema, updateAgentSchema } from '../agents/agent.validator.js';
 import { createStoreSchema, updateStoreSchema } from '../stores/store.validator.js';
 
@@ -772,6 +773,24 @@ adminRouter.post(
   projectController.bulkDeleteRestApiToolSources
 );
 adminRouter.post('/rest-tool-sources/:sourceId/test', projectController.testRestApiToolSource);
+
+adminRouter.get('/rcp-sources', projectController.listRcpSources);
+adminRouter.post(
+  '/rcp-sources',
+  mutateLimiter,
+  validateBody(createRcpSourceSchema),
+  projectController.createRcpSource
+);
+adminRouter.patch(
+  '/rcp-sources/:sourceId',
+  mutateLimiter,
+  validateBody(updateRcpSourceSchema),
+  projectController.updateRcpSource
+);
+adminRouter.delete('/rcp-sources/:sourceId', mutateLimiter, projectController.deleteRcpSource);
+adminRouter.get('/rcp-sources/:sourceId/usage', projectController.getRcpSourceUsage);
+adminRouter.post('/rcp-sources/bulk-delete', mutateLimiter, projectController.bulkDeleteRcpSources);
+adminRouter.post('/rcp-sources/:sourceId/test', projectController.testRcpSource);
 
 /**
  * @openapi

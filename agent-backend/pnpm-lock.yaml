@@ -101,6 +101,9 @@ importers:
       pdf-parse:
         specifier: ^2.4.5
         version: 2.4.5
+      rcp-sdk:
+        specifier: ^0.1.0
+        version: 0.1.0
       resend:
         specifier: ^6.12.0
         version: 6.12.0
@@ -2433,6 +2436,10 @@ packages:
   raw-body@3.0.2:
     resolution: {integrity: sha512-K5zQjDllxWkf7Z5xJdV0/B0WTNqx6vxG70zJE4N0kBs4LovmEYWJzQGxC9bS9RAKu3bgM40lrd5zoLJ12MQ5BA==}
     engines: {node: '>= 0.10'}
+
+  rcp-sdk@0.1.0:
+    resolution: {integrity: sha512-StZYACLaBGoGw1UhB+2S4BrZCtgneijIeRqacMt9oSamGxtXjBpn2OBVxmrIDoshgUQmpqLuCXSuVE/H23m4Hg==}
+    engines: {node: '>=18'}
 
   react-is@18.3.1:
     resolution: {integrity: sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==}
@@ -5459,6 +5466,10 @@ snapshots:
       http-errors: 2.0.1
       iconv-lite: 0.7.2
       unpipe: 1.0.0
+
+  rcp-sdk@0.1.0:
+    dependencies:
+      zod: 3.25.76
 
   react-is@18.3.1: {}
 

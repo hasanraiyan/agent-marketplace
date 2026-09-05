@@ -91,6 +91,19 @@ jest.unstable_mockModule('../src/modules/restApiToolSources/restApiToolSource.se
     toSafeJson: jest.fn((source) => source),
   },
 }));
+// Same boundary-mocking reason — rcpSource.service.js also imports
+// `personaExecutionContext` from the mocked-out agent.service.js.
+jest.unstable_mockModule('../src/modules/rcpSources/rcpSource.service.js', () => ({
+  default: {
+    discoverRcpSources: jest.fn(),
+    createRcpSource: jest.fn(),
+    updateRcpSource: jest.fn(),
+    deleteRcpSource: jest.fn(),
+    getRcpSourceUsage: jest.fn(),
+    testConnection: jest.fn(),
+    toSafeJson: jest.fn((source) => source),
+  },
+}));
 jest.unstable_mockModule('../src/modules/projects/projectSecret.service.js', () => ({
   default: {
     listSecrets: jest.fn(),

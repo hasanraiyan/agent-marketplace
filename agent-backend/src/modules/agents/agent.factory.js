@@ -579,6 +579,7 @@ class AgentFactory {
           'storeMounts',
           'restApiTools',
           'restApiToolSources',
+          'rcpSources',
         ]);
       }
 

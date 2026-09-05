@@ -152,6 +152,15 @@ const agentSchema = new mongoose.Schema(
         ref: 'RestApiToolSource',
       },
     ],
+    // RCP (REST Connector Protocol) Sources — independent of REST Tool
+    // Sources above, discovered live via the `rcp-sdk` package on every
+    // agent run. See rcpSources/rcpSource.tools.js.
+    rcpSources: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'RcpSource',
+      },
+    ],
     knowledgeBases: [
       {
         type: mongoose.Schema.Types.ObjectId,

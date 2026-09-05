@@ -84,6 +84,18 @@ jest.unstable_mockModule('../src/modules/restApiToolSources/restApiToolSource.se
     toSafeJson: jest.fn((source) => ({ ...source, safe: true })),
   },
 }));
+// Same boundary-mocking reason as restApiToolSource.service.js above.
+jest.unstable_mockModule('../src/modules/rcpSources/rcpSource.service.js', () => ({
+  default: {
+    discoverRcpSources: jest.fn(),
+    createRcpSource: jest.fn(),
+    updateRcpSource: jest.fn(),
+    deleteRcpSource: jest.fn(),
+    getRcpSourceUsage: jest.fn(),
+    testConnection: jest.fn(),
+    toSafeJson: jest.fn((source) => ({ ...source, safe: true })),
+  },
+}));
 jest.unstable_mockModule('../src/modules/projects/projectSecret.service.js', () => ({
   default: {
     listSecrets: jest.fn(),

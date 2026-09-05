@@ -30,3 +30,5 @@ export { default as developerRestToolRouter } from './developerRestTool.routes.j
 export { default as developerRestToolController } from './developerRestTool.controller.js';
 export { default as developerRestApiToolSourceRouter } from './developerRestApiToolSource.routes.js';
 export { default as developerRestApiToolSourceController } from './developerRestApiToolSource.controller.js';
+export { default as developerRcpSourceRouter } from './developerRcpSource.routes.js';
+export { default as developerRcpSourceController } from './developerRcpSource.controller.js';

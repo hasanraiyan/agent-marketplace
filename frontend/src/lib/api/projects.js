@@ -235,6 +235,23 @@ export const bulkDeleteProjectRestToolSources = (projectId, ids) =>
 export const testProjectRestToolSource = (projectId, sourceId) =>
   api.post(`/projects/${projectId}/rest-tool-sources/${sourceId}/test`);
 
+// RCP (REST Connector Protocol, npm `rcp-sdk`) Sources — independent of
+// REST Tool Sources above, same registration/Test Connection pattern.
+export const getProjectRcpSources = (projectId) =>
+  api.get(`/projects/${projectId}/rcp-sources`);
+export const createProjectRcpSource = (projectId, data) =>
+  api.post(`/projects/${projectId}/rcp-sources`, data);
+export const updateProjectRcpSource = (projectId, sourceId, data) =>
+  api.patch(`/projects/${projectId}/rcp-sources/${sourceId}`, data);
+export const deleteProjectRcpSource = (projectId, sourceId) =>
+  api.delete(`/projects/${projectId}/rcp-sources/${sourceId}`);
+export const getProjectRcpSourceUsage = (projectId, sourceId) =>
+  api.get(`/projects/${projectId}/rcp-sources/${sourceId}/usage`);
+export const bulkDeleteProjectRcpSources = (projectId, ids) =>
+  api.post(`/projects/${projectId}/rcp-sources/bulk-delete`, { ids });
+export const testProjectRcpSource = (projectId, sourceId) =>
+  api.post(`/projects/${projectId}/rcp-sources/${sourceId}/test`);
+
 // Project secrets (REST API Tool Builder's Auth tab) — the value is never
 // returned by any of these, including create; the caller already has it.
 export const getProjectSecrets = (projectId) =>

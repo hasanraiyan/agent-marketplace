@@ -12,6 +12,7 @@ import mcpService from '../mcp/mcp.service.js';
 import projectSecretService from './projectSecret.service.js';
 import restApiToolService from '../restApiTools/restApiTool.service.js';
 import restApiToolSourceService from '../restApiToolSources/restApiToolSource.service.js';
+import rcpSourceService from '../rcpSources/rcpSource.service.js';
 import providerService from '../providers/provider.service.js';
 import storeService from '../stores/store.service.js';
 import auditLogService from '../audit/auditLog.service.js';
@@ -1229,6 +1230,107 @@ class ProjectController {
   async testRestApiToolSource(req, res, next) {
     try {
       const result = await restApiToolSourceService.testConnection(
+        req.params.sourceId,
+        undefined,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async listRcpSources(req, res, next) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 20;
+      const filters = { search: req.query.search };
+
+      const sources = await rcpSourceService.discoverRcpSources(req.projectAdminContext, filters, {
+        page,
+        limit,
+      });
+
+      res.json({
+        success: true,
+        data: sources.map((source) => rcpSourceService.toSafeJson(source)),
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async createRcpSource(req, res, next) {
+    try {
+      const source = await rcpSourceService.createRcpSource(undefined, req.body, req.projectAdminContext);
+      res.status(201).json({ success: true, data: rcpSourceService.toSafeJson(source) });
+    } catch (error) {
+      if (error.code === 11000) {
+        return res.status(409).json({
+          success: false,
+          message: 'An RCP source with this exact name already exists',
+        });
+      }
+      next(error);
+    }
+  }
+
+  async updateRcpSource(req, res, next) {
+    try {
+      const source = await rcpSourceService.updateRcpSource(
+        req.params.sourceId,
+        undefined,
+        req.body,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: rcpSourceService.toSafeJson(source) });
+    } catch (error) {
+      if (error.code === 11000) {
+        return res.status(409).json({
+          success: false,
+          message: 'Another RCP source with this name already exists',
+        });
+      }
+      next(error);
+    }
+  }
+
+  async deleteRcpSource(req, res, next) {
+    try {
+      await rcpSourceService.deleteRcpSource(req.params.sourceId, undefined, req.projectAdminContext);
+      res.json({ success: true, message: 'RCP source deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getRcpSourceUsage(req, res, next) {
+    try {
+      const usage = await rcpSourceService.getRcpSourceUsage(
+        req.params.sourceId,
+        undefined,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: usage });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async bulkDeleteRcpSources(req, res, next) {
+    try {
+      const result = await bulkDelete(req.body.ids, (id) =>
+        rcpSourceService.deleteRcpSource(id, undefined, req.projectAdminContext)
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async testRcpSource(req, res, next) {
+    try {
+      const result = await rcpSourceService.testConnection(
         req.params.sourceId,
         undefined,
         req.projectAdminContext

@@ -5,6 +5,7 @@ import { askClarificationTool } from './clarification.tool.js';
 import { resolveMcpTools } from '../mcp/mcp.tools.js';
 import { resolveRestApiTools } from '../restApiTools/restApiTool.tools.js';
 import { resolveRestApiToolSourceTools } from '../restApiToolSources/restApiToolSource.tools.js';
+import { resolveRcpSourceTools } from '../rcpSources/rcpSource.tools.js';
 import { resolveKnowledgeBaseTools } from '../knowledge/knowledge.tools.js';
 import { presentFileTool } from './present.tool.js';
 
@@ -92,6 +93,13 @@ export const resolveAgentTools = async (
   if (agentConfig.restApiToolSources && agentConfig.restApiToolSources.length > 0) {
     const sourceTools = await resolveRestApiToolSourceTools(agentConfig, userId, context);
     tools.push(...sourceTools);
+  }
+
+  // 7. RCP Sources — discovered live via rcp-sdk's createRcpClient() on
+  // every turn, independent of REST API Tool Sources above.
+  if (agentConfig.rcpSources && agentConfig.rcpSources.length > 0) {
+    const rcpTools = await resolveRcpSourceTools(agentConfig, userId, context);
+    tools.push(...rcpTools);
   }
 
   return { tools, mcpAppMap };

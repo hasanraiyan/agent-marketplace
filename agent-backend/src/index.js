@@ -27,6 +27,7 @@ import {
   developerSecretRouter,
   developerRestToolRouter,
   developerRestApiToolSourceRouter,
+  developerRcpSourceRouter,
 } from './modules/developer/index.js';
 import { agentRouter } from './modules/agents/index.js';
 import {
@@ -146,6 +147,7 @@ app.use('/api/v1/developer/stores', developerStoreRouter);
 app.use('/api/v1/developer/secrets', developerSecretRouter);
 app.use('/api/v1/developer/rest-tools', developerRestToolRouter);
 app.use('/api/v1/developer/rest-tool-sources', developerRestApiToolSourceRouter);
+app.use('/api/v1/developer/rcp-sources', developerRcpSourceRouter);
 app.use('/api/v1/developer', developerRouter);
 app.use('/api/v1/agents', agentRouter);
 app.use('/api/v1/threads', threadRouter);

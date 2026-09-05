@@ -202,6 +202,22 @@ class AgentRepository {
       { $pull: { restApiToolSources: sourceId } }
     );
   }
+
+  /** RcpSource — mirrors findAgentsUsingRestApiToolSource/removeRestApiToolSourceFromAgents. */
+  async findAgentsUsingRcpSource(sourceId, projection = null, limit = null) {
+    let query = Agent.find({ rcpSources: sourceId });
+    if (projection) {
+      query = query.select(projection);
+    }
+    if (limit) {
+      query = query.limit(limit);
+    }
+    return await query;
+  }
+
+  async removeRcpSourceFromAgents(sourceId) {
+    return await Agent.updateMany({ rcpSources: sourceId }, { $pull: { rcpSources: sourceId } });
+  }
 }
 
 export default new AgentRepository();

@@ -16,6 +16,7 @@ import {
   getProjectMcps,
   getProjectRestTools,
   getProjectRestToolSources,
+  getProjectRcpSources,
   getProjectKnowledge,
   getProjectStores,
 } from "@/lib/api/projects";
@@ -120,6 +121,7 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
   const [mcps, setMcps] = useState([]);
   const [restApiTools, setRestApiTools] = useState([]);
   const [restApiToolSources, setRestApiToolSources] = useState([]);
+  const [rcpSources, setRcpSources] = useState([]);
   const [knowledgeBases, setKnowledgeBases] = useState([]);
   const [stores, setStores] = useState([]);
 
@@ -137,6 +139,7 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
     mcps: [],
     restApiTools: [],
     restApiToolSources: [],
+    rcpSources: [],
     knowledgeBases: [],
     storeMounts: [],
   });
@@ -185,6 +188,7 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
           mcpsRes,
           restToolsRes,
           restToolSourcesRes,
+          rcpSourcesRes,
           knowledgeRes,
           storesRes,
         ] = await Promise.all([
@@ -193,6 +197,7 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
           getProjectMcps(projectId),
           getProjectRestTools(projectId),
           getProjectRestToolSources(projectId),
+          getProjectRcpSources(projectId),
           getProjectKnowledge(projectId),
           getProjectStores(projectId),
         ]);
@@ -201,6 +206,7 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
         setMcps(mcpsRes.data?.data || []);
         setRestApiTools(restToolsRes.data?.data || []);
         setRestApiToolSources(restToolSourcesRes.data?.data || []);
+        setRcpSources(rcpSourcesRes.data?.data || []);
         setKnowledgeBases(knowledgeRes.data?.data || []);
         setStores(storesRes.data?.data || []);
 
@@ -264,6 +270,7 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
       restApiToolSources: (agent.restApiToolSources || []).map(
         (s) => s._id || s,
       ),
+      rcpSources: (agent.rcpSources || []).map((s) => s._id || s),
       knowledgeBases: (agent.knowledgeBases || []).map((k) => k._id || k),
       storeMounts: (agent.storeMounts || []).map((s) => s._id || s),
     });
@@ -624,6 +631,18 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
                     onToggle={(id) =>
                       toggleAttachment("restApiToolSources", id)
                     }
+                    renderBadge={(source) => (
+                      <span className="text-xs text-muted-foreground">
+                        {(source.tools || []).length} tool
+                        {(source.tools || []).length === 1 ? "" : "s"}
+                      </span>
+                    )}
+                  />
+                  <AttachmentPicker
+                    label="RCP Sources"
+                    items={rcpSources}
+                    selected={formData.rcpSources}
+                    onToggle={(id) => toggleAttachment("rcpSources", id)}
                     renderBadge={(source) => (
                       <span className="text-xs text-muted-foreground">
                         {(source.tools || []).length} tool

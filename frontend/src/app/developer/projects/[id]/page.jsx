@@ -31,6 +31,7 @@ import {
   Users,
   Wrench,
   Globe,
+  Waypoints,
   Lock,
   History,
   BookOpen,
@@ -80,6 +81,10 @@ import {
   deleteProjectRestToolSource,
   bulkDeleteProjectRestToolSources,
   getProjectRestToolSourceUsage,
+  getProjectRcpSources,
+  deleteProjectRcpSource,
+  bulkDeleteProjectRcpSources,
+  getProjectRcpSourceUsage,
   getProjectSecrets,
   createProjectSecret,
   deleteProjectSecret,
@@ -215,6 +220,12 @@ const NAV_SECTIONS = [
     id: "rest-tool-sources",
     label: "Tool Sources",
     icon: Globe,
+    group: "Integrations",
+  },
+  {
+    id: "rcp-sources",
+    label: "RCP Sources",
+    icon: Waypoints,
     group: "Integrations",
   },
   { id: "secrets", label: "Secrets", icon: Lock, group: "Integrations" },
@@ -619,6 +630,10 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   const [deleteRestToolSourceTarget, setDeleteRestToolSourceTarget] =
     useState(null);
   const [deletingRestToolSource, setDeletingRestToolSource] = useState(false);
+  const [rcpSources, setRcpSources] = useState([]);
+  const [rcpSourcesLoading, setRcpSourcesLoading] = useState(true);
+  const [deleteRcpSourceTarget, setDeleteRcpSourceTarget] = useState(null);
+  const [deletingRcpSource, setDeletingRcpSource] = useState(false);
   const [secrets, setSecrets] = useState([]);
   const [secretsLoading, setSecretsLoading] = useState(true);
   const [deleteSecretTarget, setDeleteSecretTarget] = useState(null);
@@ -889,6 +904,23 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
         );
       } finally {
         setRestToolSourcesLoading(false);
+      }
+    })();
+  }, [isLoaded, isSignedIn, projectId]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    (async () => {
+      try {
+        setRcpSourcesLoading(true);
+        const res = await getProjectRcpSources(projectId);
+        if (res.data?.success) {
+          setRcpSources(res.data.data);
+        }
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Failed to load RCP sources.");
+      } finally {
+        setRcpSourcesLoading(false);
       }
     })();
   }, [isLoaded, isSignedIn, projectId]);
@@ -1315,6 +1347,22 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
     }
   };
 
+  const handleDeleteRcpSource = async () => {
+    if (!deleteRcpSourceTarget) return;
+    setDeletingRcpSource(true);
+    try {
+      const targetId = deleteRcpSourceTarget._id || deleteRcpSourceTarget.id;
+      await deleteProjectRcpSource(projectId, targetId);
+      setRcpSources((prev) => prev.filter((s) => (s._id || s.id) !== targetId));
+      toast.success("RCP source deleted.");
+      setDeleteRcpSourceTarget(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete source.");
+    } finally {
+      setDeletingRcpSource(false);
+    }
+  };
+
   const handleDeleteSecret = async () => {
     if (!deleteSecretTarget) return;
     setDeletingSecret(true);
@@ -1414,6 +1462,8 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
       setRestToolSources,
       "REST Tool Source",
     );
+  const handleBulkDeleteRcpSources = (ids) =>
+    runBulkDelete(bulkDeleteProjectRcpSources, ids, setRcpSources, "RCP source");
   const handleBulkDeleteSecrets = (ids) =>
     runBulkDelete(bulkDeleteProjectSecrets, ids, setSecrets, "Secret");
   const handleBulkDeleteProviders = (ids) =>
@@ -1446,6 +1496,10 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
     () => filterByQuery(restToolSources, resourceSearch),
     [restToolSources, resourceSearch],
   );
+  const filteredRcpSources = useMemo(
+    () => filterByQuery(rcpSources, resourceSearch),
+    [rcpSources, resourceSearch],
+  );
   const filteredSecrets = useMemo(
     () =>
       filterByQuery(
@@ -1473,6 +1527,7 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
         "connectors",
         "rest-tools",
         "rest-tool-sources",
+        "rcp-sources",
         "secrets",
         "providers",
       ]),
@@ -2555,6 +2610,45 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                     }
                     onDelete={(source) => setDeleteRestToolSourceTarget(source)}
                     onBulkDelete={handleBulkDeleteRestToolSources}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {activeTab === "rcp-sources" && (
+            <div className="mt-6">
+              <Card className="w-full">
+                <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <CardTitle>RCP Sources</CardTitle>
+                    <CardDescription>
+                      Hosted RCP manifest URLs — Persona discovers your
+                      code-defined tools from them live, via the open
+                      rcp-sdk package.
+                    </CardDescription>
+                  </div>
+                  <Link href={developerRoutes.projectRcpSourceNew(projectId)}>
+                    <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
+                      <Plus className="mr-1.5 size-3.5" />
+                      New RCP Source
+                    </Button>
+                  </Link>
+                </CardHeader>
+                <CardContent>
+                  <NameDescriptionTable
+                    items={filteredRcpSources}
+                    loading={rcpSourcesLoading}
+                    emptyLabel={
+                      resourceSearch
+                        ? `No RCP Sources match "${resourceSearch}".`
+                        : "No RCP Sources yet."
+                    }
+                    getEditHref={(id) =>
+                      developerRoutes.projectRcpSourceEdit(projectId, id)
+                    }
+                    onDelete={(source) => setDeleteRcpSourceTarget(source)}
+                    onBulkDelete={handleBulkDeleteRcpSources}
                   />
                 </CardContent>
               </Card>
@@ -3746,6 +3840,47 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deletingRestToolSource ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete RCP Source */}
+      <AlertDialog
+        open={!!deleteRcpSourceTarget}
+        onOpenChange={(open) => !open && setDeleteRcpSourceTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this RCP Source?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteRcpSourceTarget?.name} will be permanently deleted. Any
+              Agents still attaching it will lose access to its tools. This
+              cannot be undone.
+            </AlertDialogDescription>
+            <UsageWarning
+              getUsage={getProjectRcpSourceUsage}
+              projectId={projectId}
+              id={deleteRcpSourceTarget?._id || deleteRcpSourceTarget?.id}
+            />
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingRcpSource}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteRcpSource();
+              }}
+              disabled={deletingRcpSource}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingRcpSource ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 "Delete"
