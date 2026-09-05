@@ -1,17 +1,30 @@
 import { z } from 'zod';
-import { createRestApiToolSchema } from '../restApiTools/restApiTool.validator.js';
+import { restApiToolBaseSchema } from '../restApiTools/restApiTool.validator.js';
 
 /**
  * Validates a fetched manifest body (`GET source.url` → `{ tools: [...] }`).
- * Each entry reuses `createRestApiToolSchema` unmodified — the same shape
- * (and reserved-token / secretRef-required-for-bearerSecret rules) a
- * dashboard-created `RestApiTool` must satisfy applies identically here.
- * Used by both `testConnection` (dashboard summary) and
- * `restApiToolSource.tools.js` (live agent-run execution) — the one place
- * that decides what a valid manifest looks like.
+ * Deliberately reuses `restApiToolBaseSchema` (not `createRestApiToolSchema`)
+ * — a manifest tool's `secretRef` is optional even when `authType:
+ * 'bearerSecret'`, unlike a dashboard-created `RestApiTool`: the caller
+ * never needs to know or declare a Secret id at all, since
+ * `restApiToolSource.tools.js#resolveRestApiToolSourceTools` falls back to
+ * the *source's own* `secretRef` (the one secret picked once on the REST
+ * Tool Source itself) for any tool that says `bearerSecret` without one.
+ * The reserved-token rule still applies identically to a dashboard-created
+ * tool.
  */
 export const restToolManifestSchema = z.object({
-  tools: z.array(createRestApiToolSchema).max(200),
+  tools: z
+    .array(
+      restApiToolBaseSchema.refine(
+        (data) => !data.paramDescriptors.some((p) => p.name === 'externalUserId'),
+        {
+          message: '"externalUserId" is a reserved template token and cannot be declared as a parameter',
+          path: ['paramDescriptors'],
+        }
+      )
+    )
+    .max(200),
 });
 
 export const createRestApiToolSourceSchema = z

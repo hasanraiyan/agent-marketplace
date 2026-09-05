@@ -3,6 +3,17 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.7.1
+
+- **`defineRestTool`'s `auth: { type: 'bearerSecret' }` no longer requires `secretRef`.** Omit it
+  and the tool falls back, at call time, to whichever secret is configured on the REST Tool Source
+  itself — the common case ("this whole source's tools share one key") now needs zero Secret ids
+  anywhere in your code. Pass an explicit `secretRef` only when one specific tool needs a
+  *different* secret from the rest of the source. Requires `agent-backend`'s matching REST Tool
+  Source fallback (shipped alongside this release) — a tool built with an older `@personaai/sdk`
+  that hand-set a fake/placeholder `secretRef` will still fail until that field is removed, since
+  the fallback only triggers when `secretRef` is genuinely absent, not merely invalid.
+
 ## 0.7.0
 
 - **New: `client.restTools`** (`RestToolsResource`) — plain CRUD over

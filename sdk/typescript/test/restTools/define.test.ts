@@ -71,6 +71,30 @@ describe('defineRestTool', () => {
     expect(tool.responseMappings).toEqual([{ field: 'id', path: '@data.id' }]);
   });
 
+  it('auth: { type: "bearerSecret" } with no secretRef leaves secretRef undefined (server falls back to the source secret)', () => {
+    const tool = defineRestTool({
+      name: 'Get profile',
+      method: 'GET',
+      url: 'https://api.coursify.dev/me',
+      auth: { type: 'bearerSecret' },
+    });
+
+    expect(tool.authType).toBe('bearerSecret');
+    expect(tool.secretRef).toBeUndefined();
+  });
+
+  it('auth: { type: "bearerSecret", secretRef } passes the explicit secretRef through', () => {
+    const tool = defineRestTool({
+      name: 'Get profile',
+      method: 'GET',
+      url: 'https://api.coursify.dev/me',
+      auth: { type: 'bearerSecret', secretRef: 'secret_123' },
+    });
+
+    expect(tool.authType).toBe('bearerSecret');
+    expect(tool.secretRef).toBe('secret_123');
+  });
+
   it('defaults bodyMode to none and isEnabled to true when omitted', () => {
     const tool = defineRestTool({
       name: 'Ping',

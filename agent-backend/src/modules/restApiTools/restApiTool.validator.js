@@ -22,8 +22,12 @@ const responseMappingSchema = z.object({
 
 // Unrefined base — kept separate from `createRestApiToolSchema` because zod
 // v4 forbids `.partial()` on a schema with `.refine()`s attached, and
-// `testRestApiToolSchema.draft` below needs a partial version.
-const restApiToolBaseSchema = z.object({
+// `testRestApiToolSchema.draft` below needs a partial version. Also reused
+// directly (without the "secretRef required for bearerSecret" refine) by
+// `restApiToolSource.validator.js`'s manifest schema — a REST Tool Source's
+// individual tools may omit `secretRef` and fall back to the source's own
+// secret at resolution time, so that rule doesn't apply to them.
+export const restApiToolBaseSchema = z.object({
   name: z.string().min(2).max(100),
   description: z.string().max(500).optional(),
   method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']),

@@ -158,6 +158,9 @@ copy-pasted into Persona's database.
 - The SDK itself never calls Persona for this feature — `restToolsManifest` is a plain option on
   `@personaai/runtime`'s `createRuntime` (and every adapter built on it), which just serves your
   tool list as JSON. Persona does the pulling.
+- `auth: { type: 'bearerSecret' }` needs **no `secretRef`** — omit it and the tool uses whichever
+  secret is already configured on the REST Tool Source itself. Pass an explicit `secretRef` (a
+  Persona `ProjectSecret` id) only if one specific tool needs a different secret from the rest.
 
 ## Logging
 

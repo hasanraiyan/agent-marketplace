@@ -26,6 +26,11 @@ function slugifySourceName(name) {
  * Tool names are namespaced `${sourceSlug}__${toolSlug}` to avoid
  * collisions across multiple attached sources — same reasoning as MCP's
  * server-prefixed tool names.
+ *
+ * A tool declaring `authType: 'bearerSecret'` with no `secretRef` of its own
+ * falls back to the source's own `secretRef` (the one secret picked once on
+ * the REST Tool Source itself) — the caller's manifest never has to name a
+ * Secret id at all, just declare that the call needs one.
  */
 export async function resolveRestApiToolSourceTools(agent, userId, context) {
   if (!agent.restApiToolSources || agent.restApiToolSources.length === 0) {
@@ -71,8 +76,22 @@ export async function resolveRestApiToolSourceTools(agent, userId, context) {
       const sourceSlug = slugifySourceName(source.name);
       for (const toolDef of parsed.data.tools) {
         try {
+          let effectiveToolDef = toolDef;
+          if (toolDef.authType === 'bearerSecret' && !toolDef.secretRef) {
+            if (!source.secretRef) {
+              logger.warn(
+                `[RestApiToolSource] "${source.name}" tool "${toolDef.name}" declares bearerSecret ` +
+                  'auth but neither the tool nor the source has a secret configured — skipping.'
+              );
+              continue;
+            }
+            effectiveToolDef = { ...toolDef, secretRef: source.secretRef };
+          }
           tools.push(
-            buildRestApiToolLangchainTool({ ...toolDef, name: `${sourceSlug}__${toolDef.name}` }, context)
+            buildRestApiToolLangchainTool(
+              { ...effectiveToolDef, name: `${sourceSlug}__${toolDef.name}` },
+              context
+            )
           );
         } catch (err) {
           logger.error(

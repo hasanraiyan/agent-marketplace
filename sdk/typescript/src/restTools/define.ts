@@ -57,7 +57,18 @@ export interface DefineRestToolOptions<TArgs extends z.ZodRawShape = Record<stri
   headers?: Record<string, TemplateString<z.infer<z.ZodObject<TArgs>>>>;
   /** A plain object (JSON-stringified as-is) or a callback building one from the typed helpers. Setting this implies `bodyMode: 'json'`. */
   body?: TemplateObject<z.infer<z.ZodObject<TArgs>>>;
-  auth?: { type: 'none' } | { type: 'bearerSecret'; secretRef: string };
+  /**
+   * `{ type: 'none' }` (default) or `{ type: 'bearerSecret' }` — sends
+   * `Authorization: Bearer <value>` on every call to this tool's `url`.
+   * `secretRef` is **optional**: omit it and Persona uses the secret already
+   * configured on the REST Tool Source itself (the one picked once when the
+   * source was registered in the dashboard) — you never need to know or
+   * reference a Secret id in code at all for the common case of "this whole
+   * source's tools share one key". Pass an explicit `secretRef` (a Persona
+   * `ProjectSecret` id) only when one specific tool needs a *different*
+   * secret from the rest of the source.
+   */
+  auth?: { type: 'none' } | { type: 'bearerSecret'; secretRef?: string };
   /**
    * Reshapes the raw JSON response before the agent sees it, e.g.
    * `{ name: '@data.user.name' }`. Omit to pass the raw response through
@@ -168,6 +179,9 @@ function toResponseMappings(
  *   args: z.object({ userId: z.string().describe('Coursify user id') }),
  *   url: (t) => `https://api.coursify.dev/users/${t.arg('userId')}`,
  *   headers: { 'X-Persona-User': (t) => t.externalUserId },
+ *   // No `secretRef` needed — reuses whatever secret is configured on the
+ *   // REST Tool Source itself.
+ *   auth: { type: 'bearerSecret' },
  *   responseMappings: { name: '@data.name', email: '@data.email' },
  * });
  * ```

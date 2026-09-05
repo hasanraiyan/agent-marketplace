@@ -23,6 +23,7 @@ function agentWithSources(sources) {
 
 beforeEach(() => {
   global.fetch = jest.fn();
+  projectSecretService.resolvePlaintext.mockReset();
   projectSecretService.resolvePlaintext.mockResolvedValue('secret123');
 });
 
@@ -74,6 +75,93 @@ describe('resolveRestApiToolSourceTools', () => {
       'https://x.example.com/manifest',
       expect.objectContaining({ headers: { Authorization: 'Bearer secret123' } })
     );
+  });
+
+  it("falls back to the source's own secretRef when a tool declares bearerSecret with none of its own", async () => {
+    global.fetch
+      .mockResolvedValueOnce(
+        manifestOk([
+          { name: 'Get Profile', method: 'GET', url: 'https://api.example.com/me', authType: 'bearerSecret' },
+        ])
+      )
+      .mockResolvedValueOnce({ ok: true, text: async () => '{}' });
+
+    const tools = await resolveRestApiToolSourceTools(
+      agentWithSources([
+        {
+          name: 'Coursify',
+          isEnabled: true,
+          authType: 'apiKey',
+          secretRef: 'source-secret-1',
+          url: 'https://x.example.com/manifest',
+        },
+      ]),
+      'u1',
+      context
+    );
+
+    expect(tools).toHaveLength(1);
+    await tools[0].func({});
+
+    // Once for the manifest fetch itself, once for the tool's own call —
+    // both via the source's secret, since the tool declared none of its own.
+    expect(projectSecretService.resolvePlaintext).toHaveBeenCalledTimes(2);
+    expect(projectSecretService.resolvePlaintext).toHaveBeenNthCalledWith(1, 'source-secret-1');
+    expect(projectSecretService.resolvePlaintext).toHaveBeenNthCalledWith(2, 'source-secret-1');
+    const toolCallInit = global.fetch.mock.calls[1][1];
+    expect(toolCallInit.headers.Authorization).toBe('Bearer secret123');
+  });
+
+  it('skips (never throws for) a tool needing bearerSecret when neither it nor the source has a secret', async () => {
+    global.fetch.mockResolvedValue(
+      manifestOk([
+        { name: 'Get Profile', method: 'GET', url: 'https://api.example.com/me', authType: 'bearerSecret' },
+      ])
+    );
+
+    const tools = await resolveRestApiToolSourceTools(
+      agentWithSources([
+        { name: 'Coursify', isEnabled: true, authType: 'none', url: 'https://x.example.com/manifest' },
+      ]),
+      'u1',
+      context
+    );
+
+    expect(tools).toEqual([]);
+  });
+
+  it("uses a tool's own secretRef instead of the source's when both are set", async () => {
+    global.fetch
+      .mockResolvedValueOnce(
+        manifestOk([
+          {
+            name: 'Get Profile',
+            method: 'GET',
+            url: 'https://api.example.com/me',
+            authType: 'bearerSecret',
+            secretRef: 'tool-secret-1',
+          },
+        ])
+      )
+      .mockResolvedValueOnce({ ok: true, text: async () => '{}' });
+
+    const tools = await resolveRestApiToolSourceTools(
+      agentWithSources([
+        {
+          name: 'Coursify',
+          isEnabled: true,
+          authType: 'apiKey',
+          secretRef: 'source-secret-1',
+          url: 'https://x.example.com/manifest',
+        },
+      ]),
+      'u1',
+      context
+    );
+
+    await tools[0].func({});
+
+    expect(projectSecretService.resolvePlaintext).toHaveBeenNthCalledWith(2, 'tool-secret-1');
   });
 
   it('skips a disabled source without fetching it', async () => {
