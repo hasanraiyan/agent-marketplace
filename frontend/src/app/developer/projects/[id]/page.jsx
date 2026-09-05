@@ -245,30 +245,118 @@ function NameDescriptionTable({
     }
   };
 
-  return (
-    <div className="space-y-2">
-      {selectable && selected.size > 0 && (
-        <div className="flex flex-col gap-2 rounded-md border bg-muted/40 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-          <span className="text-sm text-muted-foreground">
-            {selected.size} selected
-          </span>
+  const bulkBar = selectable && selected.size > 0 && (
+    <div className="flex flex-col gap-2 rounded-md border bg-muted/40 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+      <span className="text-sm text-muted-foreground">
+        {selected.size} selected
+      </span>
+      <Button
+        variant="destructive"
+        size="sm"
+        disabled={bulkDeleting}
+        onClick={handleBulkDelete}
+        className="w-full sm:w-auto"
+      >
+        {bulkDeleting ? (
+          <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+        ) : (
+          <Trash2 className="mr-1.5 size-3.5" />
+        )}
+        Delete {selected.size} selected
+      </Button>
+    </div>
+  );
+
+  const rowActions = (item, id) =>
+    showActions && (
+      <div className="flex flex-wrap justify-end gap-1">
+        {getTestHref && (
+          <Link href={getTestHref(id)}>
+            <Button variant="ghost" size="sm">
+              <MessageSquare className="mr-1.5 size-3.5" />
+              Test
+            </Button>
+          </Link>
+        )}
+        {getEditHref && (
+          <Link href={getEditHref(id)}>
+            <Button variant="ghost" size="sm">
+              Edit
+            </Button>
+          </Link>
+        )}
+        {onDelete && (
           <Button
-            variant="destructive"
+            variant="ghost"
             size="sm"
-            disabled={bulkDeleting}
-            onClick={handleBulkDelete}
-            className="w-full sm:w-auto"
+            className="text-destructive hover:text-destructive"
+            onClick={() => onDelete(item)}
           >
-            {bulkDeleting ? (
-              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-            ) : (
-              <Trash2 className="mr-1.5 size-3.5" />
-            )}
-            Delete {selected.size} selected
+            Delete
           </Button>
-        </div>
-      )}
-      <div className="-mx-6 overflow-x-auto px-6">
+        )}
+      </div>
+    );
+
+  return (
+    <div className="space-y-3">
+      {bulkBar}
+
+      {/* Phones: stacked cards — no sideways scroll, description never
+        truncated. Swaps in for the table below the md breakpoint. */}
+      <div className="space-y-2 md:hidden">
+        {items.map((item) => {
+          const id = item._id || item.id;
+          return (
+            <div
+              key={id}
+              className="rounded-2xl border border-zinc-100 p-4 dark:border-slate-800/60"
+            >
+              <div className="flex items-start gap-3">
+                {selectable && (
+                  <Checkbox
+                    checked={selected.has(id)}
+                    onCheckedChange={() => toggleOne(id)}
+                    aria-label={`Select ${item.name}`}
+                    className="mt-0.5"
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-zinc-900 dark:text-white">
+                    {item.name}
+                  </p>
+                  {item.description && (
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {item.description}
+                    </p>
+                  )}
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <CopyButton
+                      value={id}
+                      label={`${item.name || "Resource"} ID`}
+                      variant="inline"
+                      className="max-w-[160px]"
+                    />
+                    <span>
+                      {item.createdAt
+                        ? new Date(item.createdAt).toLocaleDateString()
+                        : "—"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              {showActions && (
+                <div className="mt-3 border-t border-zinc-100 pt-3 dark:border-slate-800/60">
+                  {rowActions(item, id)}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* md+: dense table — room for every column at once. */}
+      <div className="-mx-6 hidden overflow-x-auto px-6 md:block">
         <Table className="min-w-[640px]">
           <TableHeader>
             <TableRow>
@@ -284,7 +372,7 @@ function NameDescriptionTable({
               <TableHead>Name</TableHead>
               <TableHead className="hidden lg:table-cell">ID</TableHead>
               <TableHead>Description</TableHead>
-              <TableHead className="hidden md:table-cell">Created</TableHead>
+              <TableHead>Created</TableHead>
               {showActions && (
                 <TableHead className="text-right">Actions</TableHead>
               )}
@@ -316,40 +404,14 @@ function NameDescriptionTable({
                   <TableCell className="max-w-md truncate text-muted-foreground">
                     {item.description || "—"}
                   </TableCell>
-                  <TableCell className="hidden text-muted-foreground md:table-cell">
+                  <TableCell className="text-muted-foreground">
                     {item.createdAt
                       ? new Date(item.createdAt).toLocaleDateString()
                       : "—"}
                   </TableCell>
                   {showActions && (
                     <TableCell className="text-right">
-                      <div className="flex flex-wrap justify-end gap-1">
-                        {getTestHref && (
-                          <Link href={getTestHref(id)}>
-                            <Button variant="ghost" size="sm">
-                              <MessageSquare className="mr-1.5 size-3.5" />
-                              Test
-                            </Button>
-                          </Link>
-                        )}
-                        {getEditHref && (
-                          <Link href={getEditHref(id)}>
-                            <Button variant="ghost" size="sm">
-                              Edit
-                            </Button>
-                          </Link>
-                        )}
-                        {onDelete && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => onDelete(item)}
-                          >
-                            Delete
-                          </Button>
-                        )}
-                      </div>
+                      {rowActions(item, id)}
                     </TableCell>
                   )}
                 </TableRow>
@@ -1724,45 +1786,82 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                     <Skeleton className="h-8 w-full" />
                   </div>
                 ) : members.length > 0 ? (
-                  <div className="-mx-6 overflow-x-auto px-6">
-                    <Table className="min-w-[560px]">
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Persona User ID</TableHead>
-                          <TableHead>Role</TableHead>
-                          <TableHead>Joined</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {members.map((m) => (
-                          <TableRow key={m.personaUserId}>
-                            <TableCell className="font-mono text-xs">
+                  <>
+                    <div className="space-y-2 md:hidden">
+                      {members.map((m) => (
+                        <div
+                          key={m.personaUserId}
+                          className="rounded-2xl border border-zinc-100 p-4 dark:border-slate-800/60"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="min-w-0 truncate font-mono text-xs">
                               {m.personaUserId}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{m.role}</Badge>
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
+                            </p>
+                            <Badge variant="outline" className="shrink-0">
+                              {m.role}
+                            </Badge>
+                          </div>
+                          <div className="mt-2 flex items-center justify-between gap-3 border-t border-zinc-100 pt-3 text-xs text-muted-foreground dark:border-slate-800/60">
+                            <span>
+                              Joined{" "}
                               {m.createdAt
                                 ? new Date(m.createdAt).toLocaleDateString()
                                 : "—"}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => setRemoveMemberTarget(m)}
-                              >
-                                Remove
-                              </Button>
-                            </TableCell>
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setRemoveMemberTarget(m)}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="-mx-6 hidden overflow-x-auto px-6 md:block">
+                      <Table className="min-w-[560px]">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Persona User ID</TableHead>
+                            <TableHead>Role</TableHead>
+                            <TableHead>Joined</TableHead>
+                            <TableHead className="text-right">
+                              Actions
+                            </TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                        </TableHeader>
+                        <TableBody>
+                          {members.map((m) => (
+                            <TableRow key={m.personaUserId}>
+                              <TableCell className="font-mono text-xs">
+                                {m.personaUserId}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline">{m.role}</Badge>
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {m.createdAt
+                                  ? new Date(m.createdAt).toLocaleDateString()
+                                  : "—"}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => setRemoveMemberTarget(m)}
+                                >
+                                  Remove
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </>
                 ) : (
                   <p className="text-sm text-muted-foreground">
                     No members yet.
@@ -1791,43 +1890,73 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                     <Skeleton className="h-8 w-full" />
                   </div>
                 ) : pendingInvitations.length > 0 ? (
-                  <div className="-mx-6 overflow-x-auto px-6">
-                    <Table className="min-w-[480px]">
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Email</TableHead>
-                          <TableHead className="hidden md:table-cell">
-                            Invited
-                          </TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {pendingInvitations.map((inv) => (
-                          <TableRow key={inv._id || inv.id}>
-                            <TableCell className="font-medium">
+                  <>
+                    <div className="space-y-2 md:hidden">
+                      {pendingInvitations.map((inv) => (
+                        <div
+                          key={inv._id || inv.id}
+                          className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-100 p-4 dark:border-slate-800/60"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">
                               {inv.email}
-                            </TableCell>
-                            <TableCell className="hidden text-muted-foreground md:table-cell">
+                            </p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              Invited{" "}
                               {inv.createdAt
                                 ? new Date(inv.createdAt).toLocaleDateString()
                                 : "—"}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => setRevokeInvitationTarget(inv)}
-                              >
-                                Revoke
-                              </Button>
-                            </TableCell>
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="shrink-0 text-destructive hover:text-destructive"
+                            onClick={() => setRevokeInvitationTarget(inv)}
+                          >
+                            Revoke
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="-mx-6 hidden overflow-x-auto px-6 md:block">
+                      <Table className="min-w-[480px]">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Invited</TableHead>
+                            <TableHead className="text-right">
+                              Actions
+                            </TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                        </TableHeader>
+                        <TableBody>
+                          {pendingInvitations.map((inv) => (
+                            <TableRow key={inv._id || inv.id}>
+                              <TableCell className="font-medium">
+                                {inv.email}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {inv.createdAt
+                                  ? new Date(inv.createdAt).toLocaleDateString()
+                                  : "—"}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => setRevokeInvitationTarget(inv)}
+                                >
+                                  Revoke
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </>
                 ) : (
                   <p className="text-sm text-muted-foreground">
                     No pending invitations.
@@ -1863,62 +1992,119 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                     <Skeleton className="h-8 w-full" />
                   </div>
                 ) : credentials.length > 0 ? (
-                  <div className="-mx-6 overflow-x-auto px-6">
-                    <Table className="min-w-[640px]">
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Key ID</TableHead>
-                          <TableHead>Label</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Last used</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {credentials.map((c) => (
-                          <TableRow key={c.id}>
-                            <TableCell>
-                              <CopyButton
-                                value={c.keyId}
-                                label="Key ID"
-                                variant="inline"
-                                className="max-w-[180px]"
-                              />
-                            </TableCell>
-                            <TableCell>{c.label || "—"}</TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={
-                                  CREDENTIAL_BADGE_VARIANT[c.status] ||
-                                  "outline"
-                                }
-                                className={CREDENTIAL_BADGE_CLASSNAME[c.status]}
-                              >
-                                {c.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
+                  <>
+                    <div className="space-y-2 md:hidden">
+                      {credentials.map((c) => (
+                        <div
+                          key={c.id}
+                          className="rounded-2xl border border-zinc-100 p-4 dark:border-slate-800/60"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate font-medium">
+                                {c.label || "—"}
+                              </p>
+                              <div className="mt-1">
+                                <CopyButton
+                                  value={c.keyId}
+                                  label="Key ID"
+                                  variant="inline"
+                                  className="max-w-[200px]"
+                                />
+                              </div>
+                            </div>
+                            <Badge
+                              variant={
+                                CREDENTIAL_BADGE_VARIANT[c.status] ||
+                                "outline"
+                              }
+                              className={`shrink-0 ${CREDENTIAL_BADGE_CLASSNAME[c.status] || ""}`}
+                            >
+                              {c.status}
+                            </Badge>
+                          </div>
+                          <div className="mt-2 flex items-center justify-between gap-3 border-t border-zinc-100 pt-3 text-xs text-muted-foreground dark:border-slate-800/60">
+                            <span>
+                              Last used{" "}
                               {c.lastUsedAt
                                 ? new Date(c.lastUsedAt).toLocaleString()
                                 : "Never"}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {c.status === "ACTIVE" && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-destructive hover:text-destructive"
-                                  onClick={() => setRevokeTarget(c)}
-                                >
-                                  Revoke
-                                </Button>
-                              )}
-                            </TableCell>
+                            </span>
+                            {c.status === "ACTIVE" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => setRevokeTarget(c)}
+                              >
+                                Revoke
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="-mx-6 hidden overflow-x-auto px-6 md:block">
+                      <Table className="min-w-[640px]">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Key ID</TableHead>
+                            <TableHead>Label</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Last used</TableHead>
+                            <TableHead className="text-right">
+                              Actions
+                            </TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                        </TableHeader>
+                        <TableBody>
+                          {credentials.map((c) => (
+                            <TableRow key={c.id}>
+                              <TableCell>
+                                <CopyButton
+                                  value={c.keyId}
+                                  label="Key ID"
+                                  variant="inline"
+                                  className="max-w-[180px]"
+                                />
+                              </TableCell>
+                              <TableCell>{c.label || "—"}</TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    CREDENTIAL_BADGE_VARIANT[c.status] ||
+                                    "outline"
+                                  }
+                                  className={
+                                    CREDENTIAL_BADGE_CLASSNAME[c.status]
+                                  }
+                                >
+                                  {c.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {c.lastUsedAt
+                                  ? new Date(c.lastUsedAt).toLocaleString()
+                                  : "Never"}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {c.status === "ACTIVE" && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => setRevokeTarget(c)}
+                                  >
+                                    Revoke
+                                  </Button>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </>
                 ) : (
                   <p className="text-sm text-muted-foreground">
                     No credentials yet.
@@ -2204,7 +2390,7 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                 ) : filteredProviders.length > 0 ? (
                   <div className="space-y-2">
                     {selectedProviderIds.size > 0 && (
-                      <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2">
+                      <div className="flex flex-col gap-2 rounded-md border bg-muted/40 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
                         <span className="text-sm text-muted-foreground">
                           {selectedProviderIds.size} selected
                         </span>
@@ -2213,6 +2399,7 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                           size="sm"
                           disabled={bulkDeletingProviders}
                           onClick={handleBulkDeleteProvidersClick}
+                          className="w-full sm:w-auto"
                         >
                           {bulkDeletingProviders ? (
                             <Loader2 className="mr-1.5 size-3.5 animate-spin" />
@@ -2223,7 +2410,75 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                         </Button>
                       </div>
                     )}
-                    <div className="-mx-6 overflow-x-auto px-6">
+
+                    <div className="space-y-2 md:hidden">
+                      {filteredProviders.map((p) => (
+                        <div
+                          key={p.id}
+                          className="rounded-2xl border border-zinc-100 p-4 dark:border-slate-800/60"
+                        >
+                          <div className="flex items-start gap-3">
+                            <Checkbox
+                              checked={selectedProviderIds.has(p.id)}
+                              onCheckedChange={() => toggleOneProvider(p.id)}
+                              aria-label={`Select ${p.label}`}
+                              className="mt-0.5"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-zinc-900 dark:text-white">
+                                {p.label}
+                              </p>
+                              <p className="mt-1 truncate text-sm text-muted-foreground">
+                                {p.baseURL}
+                              </p>
+                              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                                <span>{p.defaultModel || "No default model"}</span>
+                                <span>
+                                  {p.createdAt
+                                    ? new Date(p.createdAt).toLocaleDateString()
+                                    : "—"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="mt-3 flex flex-wrap justify-end gap-1 border-t border-zinc-100 pt-3 dark:border-slate-800/60">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={testingProviderId === p.id}
+                              onClick={() => handleTestProviderConnection(p)}
+                            >
+                              {testingProviderId === p.id ? (
+                                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                              ) : (
+                                <Zap className="mr-1.5 size-3.5" />
+                              )}
+                              Test
+                            </Button>
+                            <Link
+                              href={developerRoutes.projectProviderEdit(
+                                projectId,
+                                p.id,
+                              )}
+                            >
+                              <Button variant="ghost" size="sm">
+                                Edit
+                              </Button>
+                            </Link>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setDeleteProviderTarget(p)}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="-mx-6 hidden overflow-x-auto px-6 md:block">
                       <Table className="min-w-[720px]">
                         <TableHeader>
                           <TableRow>
@@ -2360,7 +2615,33 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                   </div>
                 ) : auditLogs.length > 0 ? (
                   <>
-                    <div className="-mx-6 overflow-x-auto px-6">
+                    <div className="space-y-2 md:hidden">
+                      {auditLogs.map((log) => (
+                        <div
+                          key={log._id || log.id}
+                          className="rounded-2xl border border-zinc-100 p-4 dark:border-slate-800/60"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <Badge variant="outline">{log.eventType}</Badge>
+                            <span className="shrink-0 text-xs text-muted-foreground">
+                              {log.timestamp
+                                ? new Date(log.timestamp).toLocaleString()
+                                : "—"}
+                            </span>
+                          </div>
+                          <p className="mt-2 truncate font-mono text-xs text-muted-foreground">
+                            {log.actorContextType}
+                            {log.actorIdentity ? ` · ${log.actorIdentity}` : ""}
+                          </p>
+                          {log.targetResourceId && (
+                            <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
+                              target: {log.targetResourceId}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="-mx-6 hidden overflow-x-auto px-6 md:block">
                       <Table className="min-w-[560px]">
                         <TableHeader>
                           <TableRow>
