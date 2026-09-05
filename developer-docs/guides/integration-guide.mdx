@@ -61,6 +61,35 @@ GraphQL subscription — your choice), authenticated however you already authent
 browser never connects to `/api/v1/developer/agui` directly — doing so would require shipping your
 Project credential to that browser, which point 1 above rules out.
 
+## Voice: the one deliberate exception
+
+`POST /api/v1/developer/voice/sessions` (mint a ticket) is a server-to-server call, same as
+everything else in this guide. But the real-time voice call **is not relayed through your
+backend** the way chat is — your frontend opens a WebSocket **directly** to Persona
+(`wss://.../api/v1/developer/voice?ticket=...`) using the ticket your backend just minted for it.
+
+This is a narrow, deliberate exception, not a contradiction of point 1 — here's exactly why it's
+safe and why it exists:
+
+- **The browser never sees your Project credential.** It sees a ticket: opaque, HMAC-signed,
+  **single-use**, and expiring in **60 seconds**. Even if it leaked (e.g. visible in a browser's
+  network tab), it's useless a minute later and was only ever redeemable once, for one specific
+  Agent and one specific end user. Compare that to your actual credential, which is long-lived and
+  unscoped — the two are not equivalent risks.
+- **A relay would defeat the point of "serverless-friendly."** Text chat's SSE relay works through
+  a serverless function because a single request/response, even streamed, is still bounded — the
+  function lives only as long as that one HTTP request. A voice call runs up to 15 minutes and
+  needs a **bidirectional** connection open the whole time. Most serverless deployments (Vercel
+  functions, etc. — see the [Next.js voice guide](/guides/nextjs/voice)) simply cannot hold that
+  open. Relaying voice the way chat relays would silently break for anyone not running a
+  long-lived Node process.
+
+If you specifically want your backend in the audio path — to moderate, log, or kill calls mid-flight
+from your own infrastructure — that's a valid thing to want, but it means running your own
+WebSocket relay on a long-lived server, not something this SDK provides today. For most
+integrations, the direct connection is the right default: it's what `useVoice()`
+(`@personaai/react`) and `@personaai/runtime`'s `POST /voice/sessions` route are built for.
+
 ## 4. Per-resource quick reference
 
 | Resource / routes                                                     | Typical caller                                         | When                                                                                                                                 | Beyond Campus example                                                                                                                                                                       |
@@ -71,6 +100,7 @@ Project credential to that browser, which point 1 above rules out.
 | Threads (`/developer/threads`)                                        | Your backend, runtime-plane only (requires the header) | Whenever an end user starts/resumes/lists their own conversations.                                                                   | Sabik's chat history with Career Launchpad.                                                                                                                                                 |
 | Files (`/developer/files`)                                            | Your backend, runtime-plane only (requires the header) | Whenever an end user uploads/downloads a file as part of a conversation.                                                             | Sabik attaches his resume to a chat message.                                                                                                                                                |
 | AG-UI (`/developer/agui`)                                             | Your backend, runtime-plane only (requires the header) | Every time an end user sends a chat message, relayed onward per §3.                                                                  | Sabik's live chat with Career Launchpad.                                                                                                                                                    |
+| Voice (`/developer/voice/sessions` to mint; `/developer/voice` WS)    | Ticket mint: your backend, runtime-plane only. The call itself: **the browser, directly** — per §3.5. | Whenever an end user starts a real-time voice call with an Agent.                                    | Sabik has a live voice conversation with Career Launchpad instead of typing.                                                                                                                |
 | REST API Tools / Secrets (`/developer/rest-tools`, `/secrets`)        | Not your backend — Persona calls **you**               | Configured once in Studio; Persona's backend calls your endpoint mid-conversation whenever the model uses the tool.                 | Career Launchpad calls Beyond Campus's own `/grade` endpoint to grade a submitted assignment. See the [REST API Tools guide](/guides/rest-tools).                                          |
 
 ## 5. Where the SDK fits

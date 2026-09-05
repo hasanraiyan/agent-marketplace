@@ -38,6 +38,7 @@ five unless you deliberately want a method blocked.
 | `PATCH` | `/threads/:id` | Updates title / archive state |
 | `DELETE` | `/threads/:id` | Deletes a thread (`204`) |
 | `GET` | `/threads/:id/messages` | Full message history + graph state (resume source) |
+| `POST` | `/voice/sessions` | Mints a real-time voice call ticket — `201`. Unlike every other row here, the actual call does not go through this route or this app at all; see the [voice guide](/guides/nextjs/voice). |
 | `GET` | `/agents` | Read-only agent discovery for your users |
 | `GET` | `/agents/:id/mcp-connections` | Per-user MCP connection status for an agent |
 | `GET` | `/files` | Lists the user's files |

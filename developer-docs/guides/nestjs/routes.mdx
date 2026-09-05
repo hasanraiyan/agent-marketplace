@@ -18,6 +18,7 @@ The adapter exposes the runtime's entire route table on whatever `routePrefix` y
 | `PATCH` | `/threads/:id` | Updates title / archive state |
 | `DELETE` | `/threads/:id` | Deletes a thread (`204`) |
 | `GET` | `/threads/:id/messages` | Full message history + graph state (resume source) |
+| `POST` | `/voice/sessions` | Mints a real-time voice call ticket — `201`. Unlike every other row here, the actual call is a WebSocket the browser opens directly to Persona, not through this NestJS app — see the [Voice resource reference](/guides/sdk/resources/voice) and [Integration Guide §3.5](/guides/integration-guide#voice-the-one-deliberate-exception). |
 | `GET` | `/agents` | Read-only agent discovery for your users |
 | `GET` | `/files` | Lists the user's files |
 | `POST` | `/files` | Uploads a file (multipart, `file` part) — `201` |

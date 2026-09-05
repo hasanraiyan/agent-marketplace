@@ -40,6 +40,7 @@ required and validated synchronously.
 | `.files`       | `FilesResource`            | `/api/v1/developer/files`                                              | Requires `externalUserId` — a File always belongs to one end user.    |
 | `.auditLogs`   | `AuditLogsResource`        | `/api/v1/developer/audit-logs`                                         | Control-plane only.                                                   |
 | `.chat`        | `ChatClient`               | `/api/v1/developer/agui` (streaming)                                   | Requires `externalUserId` — a chat run always runs as one end user.   |
+| `.voice`       | `VoiceResource`            | `/api/v1/developer/voice/sessions` (ticket mint only — see [Voice](/guides/sdk/resources/voice)) | Requires `externalUserId` — a voice call always runs as one end user. |
 | `.architect`   | `ArchitectClient`          | `/api/v1/developer/architect/agui` (streaming)                         | Project-level or per-user, depending on `externalUserId` (see [Architect](/guides/sdk/architect)). |
 
 Every resource class is also exported directly from the package root, so you could construct them

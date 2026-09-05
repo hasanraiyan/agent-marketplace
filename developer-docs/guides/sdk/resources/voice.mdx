@@ -1,0 +1,91 @@
+---
+title: Voice
+description: Mint a ticket for a real-time voice call with an Agent, powered by Gemini Live. Requires externalUserId.
+---
+
+`persona.voice` — `/api/v1/developer/voice/sessions`.
+
+Voice is real-time, bidirectional audio conversation with an Agent, powered by the Gemini Live
+API. Every call here **requires** the client to have been constructed with `externalUserId` set —
+a bare Project credential has no Subject to scope a call to, and the server rejects it with `400
+EXTERNAL_USER_REQUIRED` (`PersonaValidationError`).
+
+## This resource only mints a ticket — it is not the call itself
+
+`createSession()` is the entire SDK surface for voice, and it's a fast, one-shot server-to-server
+call. It does **not** open the WebSocket, stream audio, or touch a microphone — none of that is
+possible from a Node.js SDK, and it's not meant to run there. The ticket it returns is what your
+**frontend** uses to open the real-time connection **directly to Persona**, bypassing your backend
+for the call itself.
+
+See the [Integration Guide §3.5](/guides/integration-guide#voice-the-one-deliberate-exception)
+for exactly why voice is architected this way (short version: a multi-minute relay wouldn't
+survive on a serverless deployment the way chat's bounded SSE relay does), and
+[`@personaai/react`'s `useVoice()`](/guides/react/hooks#usevoice) or the
+[Next.js voice guide](/guides/nextjs/voice) for the actual frontend implementation.
+
+## Methods
+
+| Method               | Endpoint                                | Returns              |
+| --------------------- | ---------------------------------------- | --------------------- |
+| `createSession(agentId)` | `POST /api/v1/developer/voice/sessions` | `VoiceSessionTicket` |
+
+## createSession(agentId)
+
+```ts
+const ticket = await userClient.voice.createSession(agent._id);
+```
+
+- `agentId` — the Agent to run in voice mode. The Agent must resolve to a usable Gemini Provider
+  (its own `providerId` if it's a Gemini Provider, else your Domain's default Gemini Provider) —
+  otherwise this throws `PersonaApiError` with `code: 'VOICE_PROVIDER_REQUIRED'` (`422`).
+- If the Agent has any guarded tool enabled (`interruptOn`), this throws `code:
+  'VOICE_INTERRUPT_ON_UNSUPPORTED'` (`422`) — voice sessions have no spoken confirmation flow yet,
+  so a guarded tool is refused outright rather than silently skipping the approval the Agent's own
+  config demands.
+
+Returns a `VoiceSessionTicket`:
+
+```ts
+interface VoiceSessionTicket {
+  ticket: string; // opaque, single-use, HMAC-signed
+  wsUrl: string; // full wss:// URL, ticket already embedded in the query string
+  expiresAt: string; // ISO 8601 — rejected after this instant (60s from mint)
+  session: {
+    model: string; // Gemini Live model this session is running
+    voice: string; // prebuilt voice name, e.g. 'Zephyr'
+    inputSampleRate: number; // PCM16 rate the client must send mic audio at
+    outputSampleRate: number; // PCM16 rate the server sends agent audio at
+    maxDurationMs: number; // server-enforced hard cap for this session
+  };
+}
+```
+
+Hand the whole object (or at minimum `wsUrl`) to your frontend. It should open
+`new WebSocket(ticket.wsUrl)` **promptly** — the ticket is single-use and expires in 60 seconds, so
+minting one and sitting on it doesn't work.
+
+## Complete example
+
+A minimal backend endpoint your frontend calls to start a voice call — this is essentially what
+[`@personaai/runtime`'s `POST /voice/sessions` route](/guides/runtime/routes) does internally, if
+you're not using the runtime and are wiring the SDK up by hand:
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+
+export async function POST(req: Request) {
+  const userId = await resolveYourOwnUser(req); // your own auth, not Persona's
+
+  const userClient = new PersonaClient({
+    baseUrl: process.env.PERSONA_BASE_URL!,
+    credential: process.env.PERSONA_CREDENTIAL!,
+    externalUserId: userId,
+  });
+
+  const { agentId } = await req.json();
+  const ticket = await userClient.voice.createSession(agentId);
+
+  return Response.json(ticket); // your frontend opens new WebSocket(ticket.wsUrl) directly
+}
+```

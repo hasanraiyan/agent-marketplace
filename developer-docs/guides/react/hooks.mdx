@@ -1,6 +1,6 @@
 ---
 title: Hooks Reference
-description: Every hook @personaai/react exports — useChat, useThreads, useFiles, useMemory, useAgents, and useConnection — with full parameters, return values, and real-world usage patterns.
+description: Every hook @personaai/react exports — useChat, useVoice, useThreads, useFiles, useMemory, useAgents, and useConnection — with full parameters, return values, and real-world usage patterns.
 ---
 
 All hooks are client-side React hooks (`'use client'`). Every one must be called inside a
@@ -95,6 +95,109 @@ const handleSend = async () => {
   });
 };
 ```
+
+---
+
+## `useVoice`
+
+Real-time voice calls with an Agent, powered by Gemini Live — mic in, agent audio out, live
+transcript, tool-call trace.
+
+```ts
+import { useVoice } from '@personaai/react';
+```
+
+**Requires your backend to be running `@personaai/runtime@^0.7.0`** (or a framework adapter on top
+of it), so `POST /voice/sessions` exists to mint tickets. See the
+[Integration Guide §3.5](/guides/integration-guide#voice-the-one-deliberate-exception)
+for why the actual call bypasses your backend and connects straight to Persona, unlike `useChat`.
+For a full Next.js walkthrough with everything wired end to end, see the
+[Next.js voice guide](/guides/nextjs/voice).
+
+### Options
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `agentId` | `string` | `undefined` | The Agent to call. Falls back to the provider's `defaultAgentId` if omitted. |
+
+### Return value
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `state` | `'idle' \| 'connecting' \| 'listening' \| 'thinking' \| 'speaking' \| 'error' \| 'ended'` | Driven entirely by server events — never guessed client-side. |
+| `isMuted` | `boolean` | Current mic mute state. |
+| `transcript` | `PersonaVoiceTranscriptLine[]` | Committed lines, oldest first — `{ id, speaker: 'user' \| 'agent', text }`. |
+| `partial` | `PersonaVoiceTranscriptLine \| null` | The current speaker's in-progress (not yet final) line. |
+| `toolCalls` | `PersonaVoiceToolCall[]` | Tool calls the Agent made during the call — `{ id, name?, status: 'running' \| 'done' \| 'error', summary? }`. |
+| `error` | `Error \| null` | Last error, if any. |
+| `endReason` | `'client_closed' \| 'agent_ended' \| 'max_duration' \| 'idle' \| 'upstream_error' \| 'upstream_goaway' \| null` | Set once the call ends — why it ended. |
+| `start` | `() => Promise<void>` | Mints a ticket and opens the call. Resets `transcript`/`toolCalls`/`error`/`endReason`. |
+| `stop` | `() => void` | Ends the call and tears down the mic/speaker audio graph. Safe to call any time, including before `start()`. |
+| `mute` | `(muted: boolean) => void` | Mute/unmute the mic. |
+| `sendText` | `(text: string) => void` | Send a typed message mid-call instead of speaking — the Agent may reply in either voice or text. |
+
+### Usage pattern — a call UI
+
+```tsx
+function VoiceCall() {
+  const {
+    state,
+    isMuted,
+    transcript,
+    partial,
+    toolCalls,
+    error,
+    start,
+    stop,
+    mute,
+  } = useVoice();
+
+  const isActive = state !== 'idle' && state !== 'ended' && state !== 'error';
+
+  return (
+    <div>
+      <p>State: {state}</p>
+      {error && <p style={{ color: 'red' }}>{error.message}</p>}
+
+      {!isActive ? (
+        <button onClick={start}>Start call</button>
+      ) : (
+        <>
+          <button onClick={() => mute(!isMuted)}>{isMuted ? 'Unmute' : 'Mute'}</button>
+          <button onClick={stop}>End call</button>
+        </>
+      )}
+
+      {transcript.map((line) => (
+        <p key={line.id}>
+          <b>{line.speaker}:</b> {line.text}
+        </p>
+      ))}
+      {partial && <p style={{ opacity: 0.6 }}>{partial.text}</p>}
+
+      {toolCalls.map((tc) => (
+        <p key={tc.id}>
+          {tc.name} — {tc.status}
+        </p>
+      ))}
+    </div>
+  );
+}
+```
+
+### Requirements and constraints
+
+- **Browser `AudioWorklet` support** — every current evergreen browser has this. The processor
+  code itself is embedded in the package (loaded via a `Blob` URL), so you don't need to copy any
+  file into your own `public/` directory.
+- **HTTPS in production.** Browsers refuse an insecure `ws://` connection from an `https:` page —
+  `wsUrl` from the server is `wss://` in production automatically, but your own site still needs
+  to be served over HTTPS for the browser to allow opening it.
+- **Microphone permission.** `start()` triggers the browser's standard `getUserMedia` permission
+  prompt the first time it's called (or every time, depending on the browser's own remembered-
+  permission behavior). There's no separate "request permission" step to call ahead of it.
+- **One call at a time per hook instance.** Calling `start()` while already active is not
+  guarded against — call `stop()` first if you need to restart.
 
 ---
 

@@ -212,7 +212,7 @@ For `forRootAsync`, return `logLevel`/`logger` from the factory — same contrac
 
 ## Lifecycle hooks
 
-All eight hooks (`beforeRun`, `afterRun`, `onError`, `beforeToolCall`, `afterToolCall`, `onFileUpload`, `onThreadCreate`, `onMemoryWrite`) pass straight through to the runtime — see the [Runtime Hooks reference](/guides/runtime/hooks). Configure them on `PersonaModule.forRoot()`:
+All nine hooks (`beforeRun`, `afterRun`, `onError`, `beforeToolCall`, `afterToolCall`, `onFileUpload`, `onThreadCreate`, `onMemoryWrite`, `onVoiceSessionCreate`) pass straight through to the runtime — see the [Runtime Hooks reference](/guides/runtime/hooks). Configure them on `PersonaModule.forRoot()`:
 
 ```ts
 PersonaModule.forRoot({
@@ -237,5 +237,9 @@ PersonaModule.forRoot({
 - [Routes](/guides/nestjs/routes) — every route the middleware exposes.
 - [Uploads](/guides/nestjs/uploads) — multipart parsing and multer coexistence.
 - [Streaming & disconnects](/guides/nestjs/streaming) — SSE, backpressure, reconnect, teardown.
+- **Real-time voice** — `POST /voice/sessions` mints a ticket; the call itself is a browser
+  WebSocket straight to Persona, not a relay through this NestJS app. Build the client side with
+  `@personaai/react`'s `useVoice()` — see the [Next.js voice guide](/guides/nextjs/voice) for the
+  end-to-end walkthrough, or the [Voice resource](/guides/sdk/resources/voice) for the raw SDK call.
 - Build a chat UI with the raw SDK's `chat.stream` and the AG-UI events it emits (see the [SDK chat guide](/guides/sdk/chat)), or drop in pre-built components with `@personaai/react` and `@personaai/ui`.
 - Drop to [`@personaai/sdk`](/guides/sdk-quickstart) for any call the adapter doesn't cover.

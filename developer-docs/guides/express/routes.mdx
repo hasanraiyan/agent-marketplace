@@ -21,6 +21,7 @@ every request under `/api/persona/` to `runtime.handle()`. The runtime owns matc
 | `PATCH` | `/threads/:id` | Updates title / archive state |
 | `DELETE` | `/threads/:id` | Deletes a thread (`204`) |
 | `GET` | `/threads/:id/messages` | Full message history + graph state (resume source) |
+| `POST` | `/voice/sessions` | Mints a real-time voice call ticket — `201`. Unlike every other row here, the actual call is a WebSocket the browser opens directly to Persona, not through this Express app — see the [Voice resource reference](/guides/sdk/resources/voice) and [Integration Guide §3.5](/guides/integration-guide#voice-the-one-deliberate-exception). |
 | `GET` | `/agents` | Read-only agent discovery for your users |
 | `GET` | `/files` | Lists the user's files |
 | `POST` | `/files` | Uploads a file (multipart, `file` part) — `201` |

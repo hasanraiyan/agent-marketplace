@@ -270,6 +270,91 @@ on `list()` responses.
 
 ---
 
+## Voice types
+
+Returned by [`useVoice()`](/guides/react/hooks#usevoice).
+
+### `PersonaVoiceState`
+
+```ts
+type PersonaVoiceState =
+  | 'idle'
+  | 'connecting'
+  | 'listening'
+  | 'thinking'
+  | 'speaking'
+  | 'error'
+  | 'ended';
+```
+
+Driven entirely by `voice_activity` events from the server — never guessed client-side. `'idle'`
+before `start()` and again after a clean `stop()`; `'ended'` after the server itself closed the
+session (see `PersonaVoiceEndReason` below).
+
+### `PersonaVoiceTranscriptLine`
+
+```ts
+interface PersonaVoiceTranscriptLine {
+  id: string;
+  speaker: 'user' | 'agent';
+  text: string;
+}
+```
+
+A committed transcript line. `useVoice()`'s `partial` field holds the same shape for the
+in-progress (not yet final) line.
+
+### `PersonaVoiceToolCall`
+
+```ts
+interface PersonaVoiceToolCall {
+  id: string;
+  name?: string;
+  status: 'running' | 'done' | 'error';
+  summary?: string; // tool output (success) or error message
+}
+```
+
+### `PersonaVoiceEndReason`
+
+```ts
+type PersonaVoiceEndReason =
+  | 'client_closed'
+  | 'agent_ended'
+  | 'max_duration'
+  | 'idle'
+  | 'upstream_error'
+  | 'upstream_goaway';
+```
+
+Why a voice session ended — the terminal `voice_session_ended` event's `reason`. `'agent_ended'`
+means the Agent itself hung up (it has an `end_call` tool for exactly this); `'max_duration'` means
+the server's own hard cap (independent of Gemini's own limits) was hit.
+
+### `UseVoiceOptions` / `UseVoiceResult`
+
+```ts
+interface UseVoiceOptions {
+  agentId?: string; // falls back to PersonaProvider's defaultAgentId
+}
+
+interface UseVoiceResult {
+  state: PersonaVoiceState;
+  isMuted: boolean;
+  transcript: PersonaVoiceTranscriptLine[];
+  partial: PersonaVoiceTranscriptLine | null;
+  toolCalls: PersonaVoiceToolCall[];
+  error: Error | null;
+  endReason: PersonaVoiceEndReason | null;
+  start: () => Promise<void>;
+  stop: () => void;
+  mute: (muted: boolean) => void;
+  sendText: (text: string) => void;
+}
+```
+
+---
+
 ## Agent types
 
 ### `PersonaAgentSummary`

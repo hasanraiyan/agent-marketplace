@@ -35,7 +35,8 @@
                   "guides/sdk/resources/memory",
                   "guides/sdk/resources/stores",
                   "guides/sdk/resources/files",
-                  "guides/sdk/resources/audit-logs"
+                  "guides/sdk/resources/audit-logs",
+                  "guides/sdk/resources/voice"
                 ]
               },
               "guides/sdk/chat",
@@ -70,6 +71,7 @@
             "group": "Next.js Adapter",
             "pages": [
               "guides/nextjs/quickstart",
+              "guides/nextjs/voice",
               "guides/nextjs/routes",
               "guides/nextjs/auth",
               "guides/nextjs/uploads",

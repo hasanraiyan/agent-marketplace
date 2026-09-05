@@ -1,12 +1,12 @@
 ---
 title: Lifecycle Hooks
-description: All eight RuntimeHooks — plain async event listeners fired around chat/architect runs, tool calls, file uploads, thread creation, and memory writes.
+description: All nine RuntimeHooks — plain async event listeners fired around chat/architect runs, tool calls, file uploads, thread creation, memory writes, and voice session creation.
 ---
 
 `hooks` are plain async event listeners, not middleware. The runtime proceeds with sensible
 defaults when a hook is omitted, and a hook that wants to reject a run just throws — the throw is
 caught and routed through the same sanitized error response as any other failure (see
-[Errors](/guides/runtime/errors)). **All eight are wired in the current release.**
+[Errors](/guides/runtime/errors)). **All nine are wired in the current release.**
 
 ```ts
 createRuntime({
@@ -20,6 +20,7 @@ createRuntime({
     onFileUpload(ctx) { /* ... */ },
     onThreadCreate(ctx) { /* ... */ },
     onMemoryWrite(ctx) { /* ... */ },
+    onVoiceSessionCreate(ctx) { /* ... */ },
   },
 });
 ```
@@ -90,6 +91,19 @@ onMemoryWrite(ctx: MemoryWriteContext): void | Promise<void>
 ```
 
 `ctx: { userId, agentId?, path }` — fires after `PUT /memory/file` succeeds.
+
+## `onVoiceSessionCreate`
+
+```ts
+onVoiceSessionCreate(ctx: VoiceSessionCreateContext): void | Promise<void>
+```
+
+`ctx: { userId, agentId }` — fires after `POST /voice/sessions` mints a ticket. This only covers
+the mint itself — the actual call happens on a WebSocket directly between the browser and Persona
+that this runtime never sees (see [Voice routes](/guides/runtime/routes)), so there's no
+equivalent hook for call start/end, tool calls made during the call, or transcript events. If you
+need visibility into the live call, that has to come from your own client-side code around
+`useVoice()`, not from this runtime.
 
 ## Design notes
 

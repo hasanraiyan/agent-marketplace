@@ -1,0 +1,191 @@
+---
+title: Voice
+description: Real-time voice calls with an Agent in a Next.js app — useVoice(), the catch-all route you already mounted, and why this is actually simpler to deploy than chat streaming.
+---
+
+Voice is real-time, bidirectional audio conversation with an Agent, powered by Gemini Live. If
+you've already done the [Quickstart](/guides/nextjs/quickstart), there is close to nothing left to
+set up — the same catch-all route already serves `POST /api/persona/voice/sessions`, and the same
+`<PersonaProvider>` already makes `useVoice()` available. This page is the concrete walkthrough:
+what a call like Coursify's would actually wire up, end to end.
+
+<Note>
+  Read the [Integration Guide §3.5](/guides/integration-guide#voice-the-one-deliberate-exception)
+  first if you haven't — voice is architected differently from every other feature in this SDK,
+  and it matters for what follows.
+</Note>
+
+## The shape of it
+
+Unlike `useChat`, which relays its whole SSE stream through your Next.js app, voice only touches
+your backend for one thing: minting a short-lived ticket. The call itself is a WebSocket the
+browser opens **directly to Persona**.
+
+1. Browser calls `useVoice().start()`, which sends `POST /api/persona/voice/sessions` to **your
+   Next.js app**.
+2. Your app's route handler — the same catch-all from the Quickstart — forwards that to Persona
+   using your Project credential, and Persona mints a ticket back.
+3. Your app returns `{ ticket, wsUrl, ... }` to the browser.
+4. The browser opens `new WebSocket(wsUrl)` **directly to Persona** — bypassing your Next.js app
+   entirely. Every audio frame, transcript line, and tool call for the rest of the call flows
+   over that one direct connection.
+
+Step 2 is exactly what you already have running — `createPersonaHandler`'s catch-all route proxies
+`POST /voice/sessions` the same generic way it proxies everything else. Nothing new to mount.
+
+## 1. Nothing to add to your route file
+
+If your `app/api/persona/[...persona]/route.ts` looks like the one from the
+[Quickstart](/guides/nextjs/quickstart#1-mount-the-runtime-one-route-file), voice already works:
+
+```ts app/api/persona/[...persona]/route.ts
+import { createPersonaHandler } from '@personaai/nextjs/server';
+import { auth } from '@clerk/nextjs/server';
+
+export const { GET, POST, PUT, PATCH, DELETE } = createPersonaHandler({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUserFrom: async () => (await auth()).userId,
+});
+
+export const dynamic = 'force-dynamic';
+```
+
+`resolveUserFrom` is what makes `useVoice()` know who's calling — the ticket it mints is scoped to
+that specific user, same as every other hook.
+
+## 2. `<PersonaProvider>` is already in your layout
+
+Also unchanged from the Quickstart:
+
+```tsx app/layout.tsx
+import { PersonaProvider } from '@personaai/nextjs';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <PersonaProvider baseUrl="/api/persona">{children}</PersonaProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+## 3. Build the call UI
+
+```tsx app/voice/page.tsx
+'use client';
+import { useVoice } from '@personaai/nextjs';
+
+export default function VoicePage() {
+  const {
+    state,
+    isMuted,
+    transcript,
+    partial,
+    toolCalls,
+    error,
+    start,
+    stop,
+    mute,
+  } = useVoice({ agentId: process.env.NEXT_PUBLIC_PERSONA_AGENT_ID });
+
+  const isActive = state !== 'idle' && state !== 'ended' && state !== 'error';
+
+  return (
+    <main>
+      <p>State: {state}</p>
+      {error && <p style={{ color: 'red' }}>{error.message}</p>}
+
+      {!isActive ? (
+        <button onClick={start}>Start call</button>
+      ) : (
+        <>
+          <button onClick={() => mute(!isMuted)}>{isMuted ? 'Unmute' : 'Mute'}</button>
+          <button onClick={stop}>End call</button>
+        </>
+      )}
+
+      {transcript.map((line) => (
+        <p key={line.id}>
+          <b>{line.speaker}:</b> {line.text}
+        </p>
+      ))}
+      {partial && <p style={{ opacity: 0.6 }}>{partial.text}</p>}
+
+      {toolCalls.map((tc) => (
+        <p key={tc.id}>
+          {tc.name} — {tc.status}
+        </p>
+      ))}
+    </main>
+  );
+}
+```
+
+That's a complete, working voice call. `start()` mints the ticket (via your route from step 1),
+requests microphone permission, and opens the WebSocket directly to Persona. Everything after that
+— audio, live transcript, tool calls the Agent makes mid-call — flows without your Next.js app
+being involved again until the call ends.
+
+Full hook API: [`useVoice()` reference](/guides/react/hooks#usevoice).
+
+## Deployment: this is the easy case, not the hard one
+
+Chat's streaming guide spends real ink on serverless reconnect problems — a `POST /chat` response
+is a long-lived stream tied to one function invocation, and if that invocation dies (cold start,
+timeout, redeploy), a reconnect often lands on a *different* invocation that never heard of the
+run. **None of that applies to voice**, and it's worth understanding why:
+
+`POST /api/persona/voice/sessions` is a **normal, fast, bounded request** — mint a ticket, return
+it, done. It behaves exactly like `POST /threads`, which already works fine on Vercel functions,
+Edge, or anywhere else this adapter runs. Nothing about it holds a connection open.
+
+The actual voice call — the part that runs for up to 15 minutes — **never touches your Next.js
+deployment at all**. The browser's WebSocket goes straight to Persona. Your serverless function
+timeout, your cold starts, your redeploys: none of it can drop a voice call, because none of it is
+in the call's path. This is the direct benefit of the architecture described in
+[Integration Guide §3.5](/guides/integration-guide#voice-the-one-deliberate-exception) —
+what looks like an exception to "everything goes through your backend" is also what makes voice
+immune to the one deployment problem chat has to work around.
+
+You can mount the ticket-minting route on the Edge runtime with the same
+`export const runtime = 'edge'` used for chat (see [Streaming](/guides/nextjs/streaming#edge-runtime))
+— it's a plain bounded request, no different from any other Edge-compatible route here.
+
+## HTTPS in production
+
+Browsers refuse to open an insecure `ws://` connection from a page served over `https:`. The ticket
+response's `wsUrl` is `wss://` automatically in production, but your own site still needs to be
+served over HTTPS for the browser to allow the connection at all. This is only relevant locally —
+`http://localhost` is exempted by browsers from this restriction, so `next dev` works without extra
+setup.
+
+## Before you call `start()`: the Agent needs a Gemini Provider
+
+Voice runs on Gemini Live specifically — the Agent you pass to `useVoice({ agentId })` needs a
+usable Gemini Provider configured (its own, or your Domain's default). If it doesn't,
+`start()` surfaces an error and `state` becomes `'error'`; the underlying ticket-mint call failed
+with `VOICE_PROVIDER_REQUIRED` (`422`) — see the [Voice resource reference](/guides/sdk/resources/voice)
+for the exact error codes this can throw.
+
+## What's not covered here
+
+- **Ending the call from the Agent's side** — Agents have an `end_call` tool available in every
+  voice session; the Agent can say goodbye and hang up on its own. Nothing for you to wire up.
+- **Server-side visibility into the live call** — your Next.js app mints the ticket and then steps
+  out of the way; there's no hook that fires per-transcript-line or per-tool-call *during* the
+  call the way `beforeToolCall`/`afterToolCall` do for chat. `onVoiceSessionCreate` (see
+  [Runtime Hooks](/guides/runtime/hooks#onvoicesessioncreate)) only fires at the mint, not the call.
+- **Relaying the call through your own server** — not something this SDK provides. See
+  [Integration Guide §3.5](/guides/integration-guide#voice-the-one-deliberate-exception)
+  for why, and what it would take to build that yourself if you specifically need it.
+
+## Next steps
+
+- [`useVoice()` full reference](/guides/react/hooks#usevoice) — every field, every option.
+- [Voice types](/guides/react/types#voice-types) — `PersonaVoiceState`, `PersonaVoiceTranscriptLine`, etc.
+- [Runtime routes](/guides/runtime/routes) — what `POST /voice/sessions` proxies to.
+- [Voice resource (`@personaai/sdk`)](/guides/sdk/resources/voice) — the underlying SDK method, for
+  a manual/non-runtime integration.

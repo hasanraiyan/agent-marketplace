@@ -160,9 +160,9 @@ A resolver returning `null` (or throwing) makes the runtime respond `401`. Every
 
 ## Lifecycle hooks
 
-All eight hooks (`beforeRun`, `afterRun`, `onError`, `beforeToolCall`, `afterToolCall`,
-`onFileUpload`, `onThreadCreate`, `onMemoryWrite`) pass straight through to the runtime — see the
-[Runtime Hooks reference](/guides/runtime/hooks):
+All nine hooks (`beforeRun`, `afterRun`, `onError`, `beforeToolCall`, `afterToolCall`,
+`onFileUpload`, `onThreadCreate`, `onMemoryWrite`, `onVoiceSessionCreate`) pass straight through to
+the runtime — see the [Runtime Hooks reference](/guides/runtime/hooks):
 
 ```ts
 export const { GET, POST, PUT, PATCH, DELETE } = createPersonaHandler({
@@ -177,6 +177,9 @@ export const { GET, POST, PUT, PATCH, DELETE } = createPersonaHandler({
 
 ## What you get for free
 
+- **Real-time voice**, powered by Gemini Live — `useVoice()` from the same import, `POST
+  /api/persona/voice/sessions` from the same catch-all route, nothing extra to mount. See the
+  [voice guide](/guides/nextjs/voice).
 - **SSE streaming** with heartbeats and platform-native backpressure; the chat `x-persona-run-id`
   header and `GET /chat/:runId/resume` power reconnects — see
   [Streaming & disconnects](/guides/nextjs/streaming).
@@ -190,6 +193,7 @@ export const { GET, POST, PUT, PATCH, DELETE } = createPersonaHandler({
 
 ## Next steps
 
+- [Voice](/guides/nextjs/voice) — real-time voice calls with `useVoice()`, end to end.
 - [Auth & user resolution](/guides/nextjs/auth) — resolver patterns, middleware ordering, `401`s.
 - [Routes](/guides/nextjs/routes) — every route the mount exposes, and translation details.
 - [Uploads](/guides/nextjs/uploads) — multipart parsing and body-size limits.
