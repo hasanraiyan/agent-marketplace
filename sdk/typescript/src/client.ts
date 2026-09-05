@@ -5,6 +5,7 @@ import { SkillsResource } from './resources/skills.js';
 import { AgentsResource } from './resources/agents.js';
 import { KnowledgeResource } from './resources/knowledge.js';
 import { McpsResource } from './resources/mcp.js';
+import { RestToolsResource } from './resources/restTools.js';
 import { ThreadsResource } from './resources/threads.js';
 import { MemoryResource } from './resources/memory.js';
 import { StoresResource } from './resources/stores.js';
@@ -32,6 +33,7 @@ export class PersonaClient {
   readonly agents: AgentsResource;
   readonly knowledge: KnowledgeResource;
   readonly mcps: McpsResource;
+  readonly restTools: RestToolsResource;
   readonly threads: ThreadsResource;
   readonly memory: MemoryResource;
   readonly stores: StoresResource;
@@ -85,6 +87,7 @@ export class PersonaClient {
     this.agents = new AgentsResource(this.http);
     this.knowledge = new KnowledgeResource(this.http);
     this.mcps = new McpsResource(this.http);
+    this.restTools = new RestToolsResource(this.http);
     this.threads = new ThreadsResource(this.http);
     this.memory = new MemoryResource(this.http);
     this.stores = new StoresResource(this.http);

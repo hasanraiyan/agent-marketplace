@@ -1,6 +1,6 @@
 {
   "name": "@personaai/sdk",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Node.js/TypeScript SDK for the persona.hasanraiyan.me Developer Platform API. Server-side only — never bundle into a browser app.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -11,6 +11,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./rest-tools": {
+      "types": "./dist/rest-tools.d.ts",
+      "import": "./dist/rest-tools.js",
+      "require": "./dist/rest-tools.cjs"
     }
   },
   "files": [
@@ -54,6 +59,14 @@
     "@ag-ui/core": "^0.0.57",
     "@personaai/logger": "^0.1.0"
   },
+  "peerDependencies": {
+    "zod": "^3.23.0 || ^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "zod": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
     "@types/node": "^22.10.7",
@@ -62,7 +75,8 @@
     "tsup": "^8.3.5",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0",
-    "vitest": "^3.0.4"
+    "vitest": "^3.0.4",
+    "zod": "^3.25.76"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

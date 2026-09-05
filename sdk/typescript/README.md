@@ -91,6 +91,7 @@ if (result.interrupt) {
 | `.skills` | `/api/v1/developer/skills` |
 | `.knowledge` | `/api/v1/developer/knowledge` (incl. document upload/search) |
 | `.mcps` (+ `.mcps.oauth`) | `/api/v1/developer/mcps` (incl. OAuth owner/user connection flows) |
+| `.restTools` | `/api/v1/developer/rest-tools` (plain CRUD — see [Defining REST tools in code](#defining-rest-tools-in-code) for the code-first path) |
 | `.providers` | `/api/v1/developer/providers` |
 | `.threads` | `/api/v1/developer/threads` |
 | `.memory` | `/api/v1/developer/memory` |
@@ -108,6 +109,55 @@ the package root.
 **Out of scope for this SDK**: Project/Members/Credentials management. Those are Clerk-session
 (human admin) operations, a completely different auth model than the machine-credential calls this
 SDK makes — manage them from [Developer Studio](https://persona.hasanraiyan.me/developer) instead.
+
+## Defining REST tools in code
+
+REST API tools (no-code endpoints your Agents can call) don't have to be hand-typed in the
+dashboard form. `defineRestTool` builds a tool definition from a zod schema instead of raw
+`{{token}}` strings; you then host a list of these on your own backend and register that URL
+in the dashboard as a **REST Tool Source** — Persona discovers the tools from it live, the same
+way it discovers an MCP server's tools (register a URL + key, no manual per-tool form-filling).
+
+```ts
+import { defineRestTool } from '@personaai/sdk/rest-tools'; // separate entry point — keeps `zod` optional
+import { createExpressAdapter } from '@personaai/express'; // or the NestJS/Next.js adapter
+import { z } from 'zod';
+
+const getProfile = defineRestTool({
+  name: 'Get learner profile',
+  method: 'GET',
+  args: z.object({ userId: z.string().describe('Coursify user id') }),
+  url: (t) => `https://api.coursify.dev/users/${t.arg('userId')}`,
+  headers: { 'X-Persona-User': (t) => t.externalUserId }, // the reserved {{externalUserId}} token, typed
+  responseMappings: { name: '@data.name', email: '@data.email' },
+});
+
+const persona = createExpressAdapter({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUserFrom: (req) => req.user?.id ?? null,
+  restToolsManifest: { tools: [getProfile], authToken: process.env.PERSONA_TOOLS_SECRET! },
+});
+app.use('/api/persona', persona.router);
+// → tools now reachable at GET https://your-app.com/api/persona/rest-tools/manifest
+```
+
+Then, in the Persona dashboard: **Add REST Tool Source** → URL =
+`https://your-app.com/api/persona/rest-tools/manifest`, Auth = API Key = the same
+`PERSONA_TOOLS_SECRET` → **Test Connection** discovers `getProfile`. Attach the *source* to an
+Agent (like attaching an MCP server) — its tools are fetched live on every Agent turn, never
+copy-pasted into Persona's database.
+
+- `defineRestTool` derives `paramDescriptors` from the zod schema (`.describe()` → the arg's
+  description, `.optional()` → not required) instead of hand-writing descriptor objects, and its
+  `t.arg(name)`/`t.externalUserId` helpers replace hand-typed `"{{token}}"` strings — `t.arg()`
+  throws immediately for a name not declared in `args`, instead of silently producing a template
+  nothing resolves.
+- `zod` is an **optional peer dependency** — only needed if you import from `@personaai/sdk/rest-tools`;
+  the package root never pulls it in. `args` can also be omitted entirely for a tool with no dynamic parts.
+- The SDK itself never calls Persona for this feature — `restToolsManifest` is a plain option on
+  `@personaai/runtime`'s `createRuntime` (and every adapter built on it), which just serves your
+  tool list as JSON. Persona does the pulling.
 
 ## Logging
 

@@ -66,6 +66,23 @@ export type {
   McpReadResourceResult,
   McpUserConnectionStatus,
 } from './types/mcp.js';
+export { RestToolsResource } from './resources/restTools.js';
+export type {
+  RestApiTool,
+  RestToolMethod,
+  RestToolAuthType,
+  RestToolBodyMode,
+  RestToolParamIn,
+  RestToolParamType,
+  RestToolParamRow,
+  RestToolParamDescriptor,
+  RestToolResponseMapping,
+  CreateRestToolInput,
+  UpdateRestToolInput,
+  DiscoverRestToolsParams,
+  RestToolTestResult,
+  TestRestToolInput,
+} from './types/restTool.js';
 export { ThreadsResource } from './resources/threads.js';
 export type {
   Thread,

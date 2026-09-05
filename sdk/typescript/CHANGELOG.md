@@ -3,6 +3,21 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.7.0
+
+- **New: `client.restTools`** (`RestToolsResource`) — plain CRUD over
+  `/api/v1/developer/rest-tools` (`create`/`list`/`get`/`update`/`delete`/`getUsage`/
+  `bulkDelete`/`test`), mirroring `McpsResource`'s shape.
+- **New: `defineRestTool()`**, at a separate `@personaai/sdk/rest-tools` entry point so `zod`
+  stays an **optional peer dependency** (`^3.23.0 || ^4.0.0`) — the package root never pulls it
+  in. Builds a `CreateRestToolInput`-shaped REST tool definition from a zod `args` schema instead
+  of hand-writing `paramDescriptors`, with typed `t.arg(name)`/`t.externalUserId` template
+  helpers so a definition never needs a hand-typed `"{{token}}"` string — `t.arg()` throws
+  immediately for a name not declared in `args`. Meant to be handed to
+  `@personaai/runtime`'s new `restToolsManifest` option (`createRuntime({ restToolsManifest:
+  { tools: [...] } })`) so a REST Tool Source registered in the Persona dashboard can discover
+  it live — see the README's "Defining REST tools in code" section.
+
 ## 0.6.0
 
 - **New: `client.voice.createSession(agentId)`** (`VoiceResource`, `VoiceSessionTicket`,
