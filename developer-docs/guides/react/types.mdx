@@ -420,8 +420,14 @@ interface UseChatOptions {
   onFinish?: (message: PersonaMessage) => void;
   onError?: (error: Error) => void;
   onEvent?: (event: PersonaStreamingEvent) => void;
+  voice?: UseVoiceResult; // merges a useVoice() call's live transcript into `messages` — see below
 }
 ```
+
+`voice` (added in `0.7.4`): pass the object returned by [`useVoice()`](/guides/react/hooks#usevoice)
+(sharing the same `threadId`) and `useChat` merges its live turns into `messages` for you — see
+[Syncing voice into the chat feed](/guides/react/hooks#syncing-voice-into-the-chat-feed) for what
+that gets you and what's still your own responsibility.
 
 ### `SendMessageOverride`
 

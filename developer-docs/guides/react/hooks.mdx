@@ -29,6 +29,7 @@ import { useChat } from '@personaai/react';
 | `onFinish` | `(message: PersonaMessage) => void` | No | — | Called after a complete assistant response is assembled. The message has `isStreaming: false` and full `toolCalls`. |
 | `onError` | `(error: Error) => void` | No | — | Called when a stream error occurs. The error is also stored in the `error` state field. |
 | `onEvent` | `(event: PersonaStreamingEvent) => void` | No | — | Called for every raw AG-UI streaming event. Useful for logging, analytics, or rendering custom UI for events the hook doesn't handle natively (e.g. `mcp_app`). See [Streaming events](/guides/react/streaming). |
+| `voice` | `UseVoiceResult` | No | — | Pass a [`useVoice()`](#usevoice) instance (same `threadId`) to have live voice turns merged into `messages` automatically. Added in `0.7.4` — see [Syncing voice into the chat feed](#syncing-voice-into-the-chat-feed) below. |
 
 ### Return value
 
@@ -95,6 +96,36 @@ const handleSend = async () => {
   });
 };
 ```
+
+### Syncing voice into the chat feed
+
+If your app lets the same conversation happen over voice or text (a mic button next to the
+composer, say), pass the [`useVoice()`](#usevoice) instance straight into `useChat` — same
+`threadId` on both — and every voice turn shows up as a normal chat bubble, live:
+
+```tsx
+const voice = useVoice({ agentId, threadId });
+const { messages, sendMessage } = useChat({ agentId, threadId, voice });
+```
+
+`useChat` owns the whole merge from here:
+
+- One bubble per spoken utterance, even when the transcript arrives as several fragments or the
+  answer is split by a mid-answer tool call.
+- No duplicate bubble for a voice turn that already landed in `messages` from thread history (a
+  reload, or the persisted copy catching up) — voice turns save back into the same thread.
+- The agent's in-progress spoken line updates in place (`isStreaming: true`), same as a streaming
+  text response.
+- Switching `threadId` doesn't replay an old call's transcript into the new thread's feed.
+
+Injected messages get a `voice-`-prefixed `id` if you want to special-case them in your renderer
+(e.g. a small mic icon) — nothing required, though; they render like any other message.
+
+You still own `voice.start()` / `voice.stop()` and anything product-specific around call state
+(e.g. hanging up when the user navigates away) — `voice` only feeds the merge, it doesn't drive
+the call lifecycle. Before `0.7.4`, this sync had to be hand-written per app (a transcript-length
+cursor, a streaming-bubble id ref, and dedup checks against `messages`) — if you're maintaining an
+older integration like that, this option replaces all of it.
 
 ---
 
@@ -185,6 +216,10 @@ function VoiceCall() {
   );
 }
 ```
+
+Rendering voice turns inside an existing text chat feed instead of a standalone transcript list?
+See [Syncing voice into the chat feed](#syncing-voice-into-the-chat-feed) — pass this hook's
+return value into `useChat({ voice })` and the merge is handled for you.
 
 ### Requirements and constraints
 

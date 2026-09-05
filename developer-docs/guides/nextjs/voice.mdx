@@ -140,7 +140,23 @@ const { start } = useVoice({
 });
 ```
 
-Omit `threadId` for a fresh conversation. 
+Omit `threadId` for a fresh conversation.
+
+**Showing voice turns inside your text chat feed.** If Coursify's chat UI lets the same
+conversation happen over voice or text — a mic button next to the composer, rather than a
+separate call screen — pass the `useVoice()` instance straight into `useChat` (same `threadId` on
+both):
+
+```tsx
+const voice = useVoice({ agentId: AGENT_ID, threadId: activeThread?._id });
+const { messages, sendMessage } = useChat({ agentId: AGENT_ID, threadId: activeThread?._id, voice });
+```
+
+Every voice turn now shows up as a normal bubble in `messages`, live — one bubble per utterance,
+deduped against the thread's persisted history, and the agent's in-progress spoken line updates
+in place the same way a streaming text response does. You still call `voice.start()` /
+`voice.stop()` yourself; `useChat` only owns the transcript-to-feed sync. Details on exactly what
+that gets you: [`useChat({ voice })` reference](/guides/react/hooks#syncing-voice-into-the-chat-feed).
 
 Full hook API: [`useVoice()` reference](/guides/react/hooks#usevoice).
 
