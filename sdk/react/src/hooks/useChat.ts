@@ -8,6 +8,7 @@ import type {
   PersonaMessage,
   PersonaPresentedFile,
   PersonaResumeValue,
+  PersonaRole,
   PersonaStreamingEvent,
   PersonaSubagentActivityEntry,
   PersonaTodo,
@@ -193,6 +194,12 @@ export function useChat(options: UseChatOptions = {}) {
   const abortControllerRef = useRef<AbortController | null>(null);
   const loadedThreadIdRef = useRef<string | undefined>(undefined);
 
+  // Voice sync bookkeeping — see the effect below. Kept as refs (not state)
+  // because they're pure injection-cursor plumbing, never rendered.
+  const voiceThreadRef = useRef<string | undefined>(threadId);
+  const voicePrevLenRef = useRef(0);
+  const voiceStreamingIdRef = useRef<string | null>(null);
+
   const stop = useCallback(() => {
     if (abortControllerRef.current) {
       chatLogger.info("stop streaming", {});
@@ -322,6 +329,117 @@ export function useChat(options: UseChatOptions = {}) {
     chatLogger.debug("loadThreadMessages trigger", { threadId });
     void loadThreadMessages(threadId);
   }, [threadId, isStreaming, messages.length, loadThreadMessages, chatLogger]);
+
+  // Merge a `useVoice()` session's live transcript into `messages` — see
+  // `UseChatOptions.voice`. This replaces the hand-rolled sync effects the
+  // README used to tell every consumer to write themselves (dedup against
+  // thread history, merge same-speaker fragments into one bubble, update the
+  // in-progress agent line in place, and not replay a call's old transcript
+  // after a threadId switch under the same `useVoice()` instance).
+  const voice = options.voice;
+  useEffect(() => {
+    if (!voice) return;
+
+    // The passed useVoice() instance now targets a different thread (e.g. the
+    // host app switched conversations without remounting either hook) — its
+    // transcript belongs to a call that's over as far as this feed is
+    // concerned. Stop injecting and don't let anything already spoken bleed
+    // into the new thread's feed once a new call starts.
+    if (voiceThreadRef.current !== threadId) {
+      voiceThreadRef.current = threadId;
+      voicePrevLenRef.current = voice.transcript.length;
+      voiceStreamingIdRef.current = null;
+      return;
+    }
+
+    const isVoiceActive =
+      voice.state !== "idle" && voice.state !== "ended" && voice.state !== "error";
+    const curLen = voice.transcript.length;
+
+    // start() resets transcript to [] for a fresh call — realign the cursor.
+    if (curLen < voicePrevLenRef.current) {
+      voicePrevLenRef.current = 0;
+      voiceStreamingIdRef.current = null;
+    }
+
+    if (!isVoiceActive) {
+      // Not on a call: keep the cursor aligned to whatever's in transcript
+      // (thread-reload growth must not be replayed as a live inject later),
+      // and settle any streaming voice bubble left open from the last call.
+      voicePrevLenRef.current = voice.transcript.length;
+      if (voiceStreamingIdRef.current) {
+        const doneId = voiceStreamingIdRef.current;
+        voiceStreamingIdRef.current = null;
+        setMessages((prev) =>
+          prev.map((m) => (m.id === doneId ? { ...m, isStreaming: false } : m)),
+        );
+      }
+      return;
+    }
+
+    if (curLen > voicePrevLenRef.current) {
+      const newLines = voice.transcript.slice(voicePrevLenRef.current);
+      voicePrevLenRef.current = curLen;
+      for (const line of newLines) {
+        const text = (line.text || "").trim();
+        if (!text) continue;
+        const role: PersonaRole = line.speaker === "user" ? "user" : "assistant";
+        const voiceId = `voice-${line.id}`;
+        setMessages((prev) => {
+          // Already injected this exact line.
+          if (prev.some((m) => m.id === voiceId)) return prev;
+          // Already on the thread as a persisted turn (voice shares the
+          // thread, so a refresh/reload can already hold it).
+          if (
+            prev.some(
+              (m) =>
+                !m.id.startsWith("voice-") &&
+                m.role === role &&
+                m.content.trim() === text,
+            )
+          )
+            return prev;
+          const last = prev[prev.length - 1];
+          // Consecutive agent finals of one spoken answer merge into the
+          // bubble they opened, same as useVoice() does for `transcript`
+          // itself — mirrors how the thread coalesces them on reload.
+          if (last?.id.startsWith("voice-") && last.role === "assistant" && role === "assistant") {
+            const merged = text.startsWith(last.content)
+              ? text
+              : `${last.content} ${text}`.trim();
+            return [...prev.slice(0, -1), { ...last, content: merged, isStreaming: false }];
+          }
+          return [...prev, { id: voiceId, role, content: text, createdAt: new Date() }];
+        });
+      }
+    }
+
+    // Live partial (agent mid-utterance) — update the open streaming bubble
+    // in place, matching the assistant-message streaming UX text chat gets.
+    const partialText = voice.partial?.speaker === "agent" ? voice.partial.text.trim() : "";
+    if (partialText) {
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.id.startsWith("voice-") && last.role === "assistant") {
+          voiceStreamingIdRef.current = last.id;
+          return [...prev.slice(0, -1), { ...last, content: partialText, isStreaming: true }];
+        }
+        const id = voiceStreamingIdRef.current || `voice-partial-${Date.now()}`;
+        voiceStreamingIdRef.current = id;
+        return [...prev, { id, role: "assistant", content: partialText, isStreaming: true, createdAt: new Date() }];
+      });
+    } else if (voice.state !== "speaking" && voiceStreamingIdRef.current) {
+      const doneId = voiceStreamingIdRef.current;
+      voiceStreamingIdRef.current = null;
+      setMessages((prev) =>
+        prev.map((m) => (m.id === doneId ? { ...m, isStreaming: false } : m)),
+      );
+    }
+    // `voice` itself isn't a dep — useVoice() returns a fresh object every
+    // render, so keying off it would re-run this every render regardless of
+    // whether the transcript actually changed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voice?.transcript, voice?.partial, voice?.state, threadId]);
 
   const sendMessage = useCallback(
     async (contentToSend?: string, overrideOptions?: SendMessageOverride) => {

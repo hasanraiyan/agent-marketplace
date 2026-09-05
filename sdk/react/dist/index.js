@@ -392,6 +392,9 @@ function useChat(options = {}) {
   const [presentedFile, setPresentedFile] = useState(null);
   const abortControllerRef = useRef(null);
   const loadedThreadIdRef = useRef(void 0);
+  const voiceThreadRef = useRef(threadId);
+  const voicePrevLenRef = useRef(0);
+  const voiceStreamingIdRef = useRef(null);
   const stop = useCallback(() => {
     if (abortControllerRef.current) {
       chatLogger.info("stop streaming", {});
@@ -497,6 +500,75 @@ function useChat(options = {}) {
     chatLogger.debug("loadThreadMessages trigger", { threadId });
     void loadThreadMessages(threadId);
   }, [threadId, isStreaming, messages.length, loadThreadMessages, chatLogger]);
+  const voice = options.voice;
+  useEffect(() => {
+    if (!voice) return;
+    if (voiceThreadRef.current !== threadId) {
+      voiceThreadRef.current = threadId;
+      voicePrevLenRef.current = voice.transcript.length;
+      voiceStreamingIdRef.current = null;
+      return;
+    }
+    const isVoiceActive = voice.state !== "idle" && voice.state !== "ended" && voice.state !== "error";
+    const curLen = voice.transcript.length;
+    if (curLen < voicePrevLenRef.current) {
+      voicePrevLenRef.current = 0;
+      voiceStreamingIdRef.current = null;
+    }
+    if (!isVoiceActive) {
+      voicePrevLenRef.current = voice.transcript.length;
+      if (voiceStreamingIdRef.current) {
+        const doneId = voiceStreamingIdRef.current;
+        voiceStreamingIdRef.current = null;
+        setMessages(
+          (prev) => prev.map((m) => m.id === doneId ? { ...m, isStreaming: false } : m)
+        );
+      }
+      return;
+    }
+    if (curLen > voicePrevLenRef.current) {
+      const newLines = voice.transcript.slice(voicePrevLenRef.current);
+      voicePrevLenRef.current = curLen;
+      for (const line of newLines) {
+        const text = (line.text || "").trim();
+        if (!text) continue;
+        const role = line.speaker === "user" ? "user" : "assistant";
+        const voiceId = `voice-${line.id}`;
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === voiceId)) return prev;
+          if (prev.some(
+            (m) => !m.id.startsWith("voice-") && m.role === role && m.content.trim() === text
+          ))
+            return prev;
+          const last = prev[prev.length - 1];
+          if (last?.id.startsWith("voice-") && last.role === "assistant" && role === "assistant") {
+            const merged = text.startsWith(last.content) ? text : `${last.content} ${text}`.trim();
+            return [...prev.slice(0, -1), { ...last, content: merged, isStreaming: false }];
+          }
+          return [...prev, { id: voiceId, role, content: text, createdAt: /* @__PURE__ */ new Date() }];
+        });
+      }
+    }
+    const partialText = voice.partial?.speaker === "agent" ? voice.partial.text.trim() : "";
+    if (partialText) {
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.id.startsWith("voice-") && last.role === "assistant") {
+          voiceStreamingIdRef.current = last.id;
+          return [...prev.slice(0, -1), { ...last, content: partialText, isStreaming: true }];
+        }
+        const id = voiceStreamingIdRef.current || `voice-partial-${Date.now()}`;
+        voiceStreamingIdRef.current = id;
+        return [...prev, { id, role: "assistant", content: partialText, isStreaming: true, createdAt: /* @__PURE__ */ new Date() }];
+      });
+    } else if (voice.state !== "speaking" && voiceStreamingIdRef.current) {
+      const doneId = voiceStreamingIdRef.current;
+      voiceStreamingIdRef.current = null;
+      setMessages(
+        (prev) => prev.map((m) => m.id === doneId ? { ...m, isStreaming: false } : m)
+      );
+    }
+  }, [voice?.transcript, voice?.partial, voice?.state, threadId]);
   const sendMessage = useCallback(
     async (contentToSend, overrideOptions) => {
       const prompt = (contentToSend ?? input).trim();

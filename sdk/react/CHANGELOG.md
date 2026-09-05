@@ -3,6 +3,23 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.7.4
+
+- **New: `useChat({ voice })` — automatic voice/text transcript merging.** Pass the object
+  returned by `useVoice({ agentId, threadId })` (same `threadId` as `useChat`) and the hook now
+  merges live voice turns into `messages` for you: one bubble per utterance, deduped against
+  thread history and against a voice turn that already persisted back into the shared thread,
+  consecutive same-speaker fragments folded into the line they opened, and the in-progress agent
+  line updated in place while still being spoken. Injecting stops automatically once the call
+  ends, and switching `threadId` under the same `useVoice()` instance no longer replays the old
+  call's transcript into the new thread's feed.
+  Previously the README told every consumer to hand-write this sync themselves — a bespoke pair
+  of `useEffect`s tracking a transcript-length cursor, a streaming-bubble id, and a dedup check
+  against `messages`, repeated in every app that combined voice with text chat (and the README's
+  own snippet called a non-existent `appendMessage`, since `useChat` only ever exposed
+  `setMessages`). That boilerplate is gone — `useChat` now owns it. No new dependency: `voice` is
+  optional and `useChat`/`useVoice` still work standalone exactly as before.
+
 ## 0.7.3
 
 - **Fix: `useVoice()` transcript stays one line for a whole agent answer, even across finals.** 0.7.2

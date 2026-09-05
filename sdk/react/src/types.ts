@@ -262,6 +262,16 @@ export interface UseChatOptions {
   onError?: (error: Error) => void;
   /** Hook for receiving every low-level AG-UI streaming event (tool calls, steps, subagents) */
   onEvent?: (event: PersonaStreamingEvent) => void;
+  /**
+   * Pass the object returned by `useVoice()` (sharing the same `threadId`) to have `useChat`
+   * merge live voice turns into `messages` automatically — one bubble per utterance, deduped
+   * against thread history and against a voice turn that already persisted back into this
+   * thread, with the in-progress agent line updated in place while it's still being spoken.
+   * No manual sync effects needed in the host app; injected messages get a `voice-` prefixed id.
+   * Only applied while the passed hook's `state` is active (not `idle`/`ended`/`error`); the
+   * host app still owns starting/stopping the call itself (e.g. `voice.start()`/`voice.stop()`).
+   */
+  voice?: UseVoiceResult;
 }
 
 export interface SendMessageOverride {

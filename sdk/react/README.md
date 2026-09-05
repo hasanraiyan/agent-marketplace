@@ -109,35 +109,21 @@ started once a committed user line has intervened.
 
 ### Showing voice turns in a text `useChat` feed
 
-If you drive a `useVoice({ agentId, threadId })` session alongside `useChat({ threadId })` and
-inject live turns into the chat feed yourself, dedupe before injecting. Because the session
-persists to the same thread, `useChat.messages` may already carry a turn once it refreshes or on
-reload — re-injecting the live copy appends it a second time:
+Share the same `threadId` between `useVoice` and `useChat`, and pass the voice hook's return
+value into `useChat`'s `voice` option — that's the whole integration:
 
 ```tsx
-const { transcript, ... } = useVoice({ agentId, threadId });
-const { messages, appendMessage, ... } = useChat({ threadId });
-
-// Turn a committed voice line into a chat message once, and only if the feed
-// does not already hold this content (from an earlier live inject OR a reload
-// that pulled the persisted thread).
-const pushVoiceLine = (line: { id: string; speaker: "user" | "agent"; text: string }) => {
-  if (messages.some((m) => m.id === line.id)) return;           // injected before
-  if (messages.some((m) =>
-    !String(m.id).startsWith("voice-") &&
-    m.role === line.speaker &&
-    String(m.content).trim() === line.text.trim(),
-  )) return;                                                     // already on the thread
-  appendMessage({
-    id: `voice-${line.id}`,
-    role: line.speaker,
-    content: line.text,
-  });
-};
+const voice = useVoice({ agentId, threadId });
+const { messages, ... } = useChat({ threadId, voice });
 ```
 
-Voice turns are intentionally **live-only** in `useVoice` — history is the thread's job, not the
-hook's, so when you share a thread with `useChat` you own the dedup at the injection boundary.
+`useChat` merges live voice turns into `messages` for you: one bubble per utterance, deduped
+against thread history and against a voice turn that already persisted back into the shared
+thread, consecutive same-speaker fragments folded into the line they opened, and the
+in-progress agent line updated in place while it's still being spoken (`isStreaming: true`, same
+as a text response). Injected messages get a `voice-`-prefixed id. You still call `voice.start()`
+/ `voice.stop()` yourself — `useChat` only owns the transcript-to-feed sync, not the call
+lifecycle.
 
 ## Devtools
 
