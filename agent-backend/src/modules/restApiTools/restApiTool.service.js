@@ -11,6 +11,7 @@ import {
 import { scopedFilter } from '../../utils/domainQuery.js';
 import {
   RESERVED_TEMPLATE_TOKENS,
+  collectTemplateTokens,
   renderTool,
   MissingTemplateValueError,
   ReservedTokenUnresolvedError,
@@ -168,8 +169,9 @@ class RestApiToolService {
   async testCall(context, toolDraft, testValues = {}, toolId = null) {
     this._assertValidToolShape(toolDraft);
 
+    const usesExternalUserId = collectTemplateTokens(toolDraft).reservedTokens.includes('externalUserId');
     const effectiveContext =
-      toolDraft.url && toolDraft.url.includes('{{externalUserId}}') && testValues.externalUserId
+      usesExternalUserId && testValues.externalUserId
         ? { ...context, principalType: 'ProjectRuntime', externalUserId: testValues.externalUserId }
         : context;
 
