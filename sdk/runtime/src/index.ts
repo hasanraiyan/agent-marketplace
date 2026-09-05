@@ -14,6 +14,8 @@ export type {
   CreateRuntimeOptions,
   Runtime,
   RuntimeCapabilities,
+  RestToolsManifestOptions,
+  RestToolManifestEntry,
 } from './types/options.js';
 export type {
   RunContext,

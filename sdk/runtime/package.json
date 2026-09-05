@@ -1,6 +1,6 @@
 {
   "name": "@personaai/runtime",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "Framework-agnostic runtime engine for Persona (persona.hasanraiyan.me) — the shared engine every framework adapter (@personaai/express, @personaai/nextjs, ...) wraps. Server-side only.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -51,7 +51,7 @@
   },
   "dependencies": {
     "@ag-ui/core": "^0.0.57",
-    "@personaai/sdk": "^0.6.1"
+    "@personaai/sdk": "^0.7.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",

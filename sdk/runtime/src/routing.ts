@@ -1,7 +1,7 @@
 import type { RuntimeMethod, RuntimeRequest } from './types/request.js';
 import type { RuntimeResponse } from './types/response.js';
 import type { RunDriver } from './runDriver.js';
-import type { RuntimeCapabilities } from './types/options.js';
+import type { RestToolsManifestOptions, RuntimeCapabilities } from './types/options.js';
 
 export interface RouteContext {
   client: import('@personaai/sdk').PersonaClient;
@@ -14,6 +14,8 @@ export interface RouteContext {
   /** The fully-resolved (all keys present) capabilities this runtime instance was created with. */
   capabilities: Required<RuntimeCapabilities>;
   logger: import('@personaai/sdk').Logger;
+  /** Set only when `createRuntime({ restToolsManifest })` was configured — backs the manifest route. */
+  restToolsManifest: RestToolsManifestOptions | undefined;
 }
 
 export type RouteHandler = (request: RuntimeRequest, ctx: RouteContext) => Promise<RuntimeResponse>;

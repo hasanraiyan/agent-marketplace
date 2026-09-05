@@ -1,7 +1,15 @@
 import type { RuntimeRequest } from './request.js';
 import type { RuntimeResponse } from './response.js';
 import type { RuntimeHooks } from './hooks.js';
-import type { Logger, LogLevel } from '@personaai/sdk';
+import type { CreateRestToolInput, Logger, LogLevel } from '@personaai/sdk';
+
+/**
+ * One REST tool definition served by the manifest route — identical to
+ * `CreateRestToolInput` from `@personaai/sdk@^0.7.0` (also `defineRestTool`'s
+ * return type from `@personaai/sdk/rest-tools`), aliased under this name for
+ * clarity at the call site (`createRuntime({ restToolsManifest: { tools } })`).
+ */
+export type RestToolManifestEntry = CreateRestToolInput;
 
 /**
  * The single point of contact between the host's auth world and the
@@ -41,6 +49,28 @@ export interface RuntimeCapabilities {
   auditLogs?: boolean;
   /** The Architect co-pilot — builds/edits Agents on the caller's behalf via tool calls. @default false */
   architect?: boolean;
+}
+
+/**
+ * Serves a list of code-defined REST tools (built with `defineRestTool`
+ * from `@personaai/sdk/rest-tools`) as a JSON manifest at
+ * `GET {mountPath}/rest-tools/manifest` — register that URL in the Persona
+ * dashboard as a REST Tool Source and it discovers/calls these tools live,
+ * the same way it discovers an MCP server's tools. This is host-side
+ * static data the runtime *serves*, not a Persona-proxy capability — it
+ * never calls `PersonaClient` and works even with no `resolveUser`
+ * traffic at all.
+ */
+export interface RestToolsManifestOptions {
+  /** REST tool definitions to serve — build each with `defineRestTool` from `@personaai/sdk/rest-tools`, or pass a plain object of the same shape. */
+  tools: RestToolManifestEntry[];
+  /**
+   * Required `Authorization: Bearer <token>` value the manifest route
+   * checks incoming requests against — must match the API Key configured
+   * on the Persona-side REST Tool Source. Omitting this leaves the route
+   * open (no auth) — only acceptable for local/dev testing.
+   */
+  authToken?: string;
 }
 
 export interface CreateRuntimeOptions {
@@ -85,6 +115,8 @@ export interface CreateRuntimeOptions {
   maxTrackedRuns?: number;
   /** Opt-in switches for Project-level admin surface. See {@link RuntimeCapabilities} — everything defaults to off. */
   capabilities?: RuntimeCapabilities;
+  /** Serves a code-defined REST tool list for a Persona REST Tool Source to discover. See {@link RestToolsManifestOptions}. Unset by default — the route only exists when this is provided. */
+  restToolsManifest?: RestToolsManifestOptions;
   /** Log level for the runtime — off by default. Overrides the global level set via `setLogLevel()` from `@personaai/sdk`. */
   logLevel?: LogLevel;
   /** Custom logger instance — when provided, `logLevel` is ignored. */

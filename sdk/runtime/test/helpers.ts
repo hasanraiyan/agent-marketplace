@@ -5,6 +5,7 @@ import {
   type ResolveUser,
   type RuntimeHooks,
   type RuntimeCapabilities,
+  type RestToolsManifestOptions,
 } from '../src/index.js';
 
 export function jsonResponse(body: unknown, status = 200): Response {
@@ -42,6 +43,7 @@ export function makeRuntime(overrides: {
   mountPath?: string;
   heartbeatIntervalMs?: number;
   capabilities?: RuntimeCapabilities;
+  restToolsManifest?: RestToolsManifestOptions;
 }) {
   return createRuntime({
     baseUrl: 'https://api.example.com',
@@ -53,6 +55,7 @@ export function makeRuntime(overrides: {
     mountPath: overrides.mountPath,
     heartbeatIntervalMs: overrides.heartbeatIntervalMs,
     capabilities: overrides.capabilities,
+    restToolsManifest: overrides.restToolsManifest,
   });
 }
 

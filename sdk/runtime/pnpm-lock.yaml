@@ -12,8 +12,8 @@ importers:
         specifier: ^0.0.57
         version: 0.0.57
       '@personaai/sdk':
-        specifier: ^0.6.1
-        version: 0.6.1
+        specifier: ^0.7.0
+        version: 0.7.0(zod@3.25.76)
     devDependencies:
       '@eslint/js':
         specifier: ^9.19.0
@@ -439,9 +439,14 @@ packages:
     resolution: {integrity: sha512-ra5T+aBNzDmiabJ161y87SJJT9x3MHuFfAL1UCxSY3IO6AOJtF5UcXdsLVcxkugeOIto6Ppsm+adGLLR9s50Kw==}
     engines: {node: '>=18'}
 
-  '@personaai/sdk@0.6.1':
-    resolution: {integrity: sha512-oVnaGL3nfIOf0Ndyv41yHPifrVdAIzNDPur9ZwaFJbDklu3QWg4FjJqj9R57dvD8K3jDZ8UzfcPMQyikk14zBA==}
+  '@personaai/sdk@0.7.0':
+    resolution: {integrity: sha512-icOl8v7+ey5nPgYxYW3wuseQz1rp7ht74k0FMKskfC8Jj/q3ZaJaRR0U3b5QksBJqc91cTRZMooK/FhIoWQmgw==}
     engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.23.0 || ^4.0.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
 
   '@rollup/rollup-android-arm-eabi@4.62.4':
     resolution: {integrity: sha512-RrPokAb7dmbxFoeO3TloqHyOjgye8RkBhSqmp4aJMIex4c9r46ZstPnleDQOq1t46VOVjwIuwNogIqbodV1Vvg==}
@@ -1591,10 +1596,12 @@ snapshots:
 
   '@personaai/logger@0.1.0': {}
 
-  '@personaai/sdk@0.6.1':
+  '@personaai/sdk@0.7.0(zod@3.25.76)':
     dependencies:
       '@ag-ui/core': 0.0.57
       '@personaai/logger': 0.1.0
+    optionalDependencies:
+      zod: 3.25.76
 
   '@rollup/rollup-android-arm-eabi@4.62.4':
     optional: true

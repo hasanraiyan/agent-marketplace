@@ -4,6 +4,22 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.8.0
+
+- **New: `restToolsManifest` option on `createRuntime()`.** Serves a code-defined REST tool list
+  (built with `defineRestTool()` from `@personaai/sdk@^0.7.0`'s new `@personaai/sdk/rest-tools`
+  entry point, or any `CreateRestToolInput`-shaped object) as `GET {mountPath}/rest-tools/manifest`
+  — register that URL in the Persona dashboard as a REST Tool Source and it discovers/calls these
+  tools live, the same way it discovers an MCP server's tools. Not gated behind
+  `RuntimeCapabilities` — this is host-side static data the runtime serves and never proxies
+  through `PersonaClient`, so the route only exists when `restToolsManifest` is actually
+  configured. Optional `authToken` checks the incoming `Authorization: Bearer <token>` header;
+  omitting it leaves the route open (local/dev only). Every adapter built on this runtime
+  (`@personaai/express`, `@personaai/nestjs`, `@personaai/nextjs`) already passes options through
+  to `createRuntime()` unmodified, so `restToolsManifest` works on all three with no adapter
+  changes. Bumps the `@personaai/sdk` dependency to `^0.7.0` (was `^0.6.1`) to pick up
+  `CreateRestToolInput`.
+
 ## 0.7.0
 
 - **New: `POST /voice/sessions`, always on.** Proxies to `@personaai/sdk@^0.6.0`'s new

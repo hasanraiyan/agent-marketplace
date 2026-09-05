@@ -8,6 +8,7 @@ import { createLogger, type Logger } from '@personaai/sdk';
 import type { RunDriver } from './runDriver.js';
 import { evictStaleRuns, DEFAULT_RUN_GRACE_MS, DEFAULT_MAX_TRACKED_RUNS } from './runRegistry.js';
 import { healthRoute } from './routes/health.js';
+import { restToolsManifestRoute } from './routes/restToolsManifest.js';
 import { chatRoute } from './routes/chat.js';
 import { architectRoute } from './routes/architect.js';
 import { createResumeRoute } from './routes/resume.js';
@@ -321,6 +322,16 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
 
   const capabilities = resolveCapabilities(options.capabilities);
   const routes = buildRoutes(capabilities);
+  if (options.restToolsManifest) {
+    // Not capability-gated — this route serves the host's own static data
+    // (never calls PersonaClient) and is only added when configured at all.
+    routes.push({
+      method: 'GET',
+      pattern: ['rest-tools', 'manifest'],
+      handler: restToolsManifestRoute,
+      requiresAuth: false,
+    });
+  }
   const mode = resolveMode(options);
   const heartbeatIntervalMs = options.heartbeatIntervalMs ?? 15000;
 
@@ -503,6 +514,7 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
         runs,
         capabilities,
         logger: routeLogger,
+        restToolsManifest: options.restToolsManifest,
       });
 
       const durationMs = Date.now() - startMs;
