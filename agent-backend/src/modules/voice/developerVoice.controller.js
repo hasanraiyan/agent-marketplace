@@ -5,6 +5,8 @@ import { loggerService } from '../../utils/index.js';
 import agentRepository from '../agents/agent.repository.js';
 import agentService from '../agents/agent.service.js';
 import { ARCHITECT_AGENT_ID } from '../agents/architectConstants.js';
+import threadRepository from '../threads/thread.repository.js';
+import threadService from '../threads/thread.service.js';
 import { mintVoiceTicket } from './voiceTicket.service.js';
 import { resolveVoiceProvider, buildVoiceLiveConfig } from './voice.service.js';
 import {
@@ -92,17 +94,43 @@ class DeveloperVoiceController {
         throw err;
       }
 
-      // No x-thread-id support yet — voice has no thread/checkpoint
-      // persistence until voice-agent-plan.md Phase 4. Once that lands,
-      // this should adopt the exact same 404-on-mismatch contract
-      // developerAgui.controller.js's x-thread-id handling already has.
+      // Phase 4 (voice-agent-plan.md §4.1): thread resolution happens HERE,
+      // at mint, on an authenticated server-to-server call — not on the
+      // WebSocket (a WS handshake can't carry auth headers, so the ticket is
+      // the only thing the browser presents). Mirrors developerAgui's
+      // x-thread-id contract exactly (404-on-mismatch, deterministic scratch
+      // fallback). The validated thread id is frozen into the signed ticket
+      // claims; the gateway reads it back from claims, never from the wire.
+      const threadDbId = req.headers['x-thread-id'] || req.query.threadId;
+      let langGraphThreadId = `agui-${domain}-${agentId}-${externalUserId}`;
+      if (threadDbId) {
+        let thread = null;
+        try {
+          thread = await threadService.getThreadById(threadDbId, undefined, context);
+        } catch {
+          thread = null;
+        }
+        // thread.agentId is populated (thread.repository.js), so compare via
+        // its ._id — the same populated-vs-bare-id trap developerAgui guards.
+        const threadAgentId = thread?.agentId?._id ?? thread?.agentId;
+        if (!thread || String(threadAgentId) !== String(agent._id)) {
+          // Explicit threadId that doesn't resolve to one of this Subject's
+          // own Threads for this Agent — reject rather than silently resume
+          // a different conversation. Message is deliberately generic (same
+          // rationale as developerAgui): never reveal which case applied.
+          throw new NotFoundError('Thread not found');
+        }
+        langGraphThreadId = thread.threadId;
+        await threadRepository.touchLastMessageAt(thread._id);
+      }
+
       const { ticket, expiresAt } = mintVoiceTicket({
         principalType: 'ProjectRuntime',
         domain,
         agentId: String(agent._id),
         subjectId: externalUserId,
         credentialId: context.credentialId,
-        threadId: null,
+        threadId: langGraphThreadId,
       });
 
       // req.protocol only reports 'https' when Express's `trust proxy` is

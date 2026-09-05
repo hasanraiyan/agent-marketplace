@@ -11,6 +11,8 @@ import {
   createProjectRuntimeContext,
 } from '../../auth/projectPrincipalContext.js';
 import { VoiceSession } from './VoiceSession.js';
+import voiceThreadService from '../voiceThread.service.js';
+import VoiceTranscriptSink from '../voiceTranscriptSink.js';
 
 const logger = loggerService.getLogger();
 
@@ -134,6 +136,46 @@ async function handleVoiceUpgrade(req, socket, head, url, wss) {
     context
   );
 
+  // Phase 4 (voice-agent-plan.md §4.1, §4.3): ProjectRuntime voice sessions
+  // resume + persist to the Subject's Thread/checkpoint. The gateway
+  // reconstructs context from ticket claims only, so:
+  //  1. Re-check thread ownership before this session can touch a checkpoint
+  //     (defense-in-depth on top of the mint-time check - throwing here
+  //     rejects the upgrade exactly like the agent re-check above).
+  //  2. Seed the call with the thread's recent history so the agent can
+  //     answer "where were we?" - the excerpt rides inside
+  //     systemInstruction and is bounded (buildSeedSuffix caps it).
+  //  3. A VoiceTranscriptSink serializes committed turns back into the
+  //     checkpoint as the call runs; flush() auto-titles on close.
+  // Studio ProjectAdmin test sessions stay ephemeral (claims.threadId is
+  // null) - and ANY seeding/persistence failure degrades to ephemeral
+  // rather than breaking the audio call.
+  let transcriptSink = null;
+  if (claims.principalType === 'ProjectRuntime' && claims.threadId) {
+    const sinkArgs = {
+      agentId: String(agent._id),
+      userId: claims.subjectId,
+      context,
+      threadId: claims.threadId,
+    };
+    await voiceThreadService.assertThreadOwnedByContext(claims.threadId, context);
+    try {
+      const { excerpt } = await voiceThreadService.buildSeedSuffix(sinkArgs);
+      if (excerpt) {
+        liveConfig.systemInstruction = `${liveConfig.systemInstruction || ''}${excerpt}`;
+      }
+      transcriptSink = new VoiceTranscriptSink(sinkArgs);
+    } catch (err) {
+      // Seed read or sink construction failed - keep the call alive without
+      // persistence (fresh-context voice) rather than dropping the session.
+      logger.warn('[Voice] thread persistence disabled for session (non-fatal)', {
+        agentId: claims.agentId,
+        err: err?.message,
+      });
+      transcriptSink = null;
+    }
+  }
+
   wss.handleUpgrade(req, socket, head, (clientWs) => {
     const session = new VoiceSession({
       clientWs,
@@ -143,7 +185,19 @@ async function handleVoiceUpgrade(req, socket, head, url, wss) {
       voiceName,
       liveConfig,
       toolsByName,
+      onTranscriptCommit: transcriptSink
+        ? (role, text) => transcriptSink.commit(role, text)
+        : null,
     });
+
+    if (transcriptSink) {
+      clientWs.on('close', () => {
+        // Fire-and-forget end-of-call flush: drain the commit queue, then
+        // auto-title the thread from its first user turn. Errors are logged
+        // inside the sink, never thrown into the 'close' handler.
+        transcriptSink.flush().catch(() => {});
+      });
+    }
 
     session.start().catch((err) => {
       logger.error('[Voice] session failed to start', { err: err?.message });

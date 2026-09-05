@@ -38,10 +38,12 @@ function parseProtoDurationMs(value) {
  * config handed to it.
  *
  * Phase 1 scope (voice-agent-plan.md Section 18): audio in, audio out, live
- * transcription, session resumption, barge-in signaling. Deliberately NO
- * tool calls (Phase 3) and NO thread/checkpoint persistence (Phase 4) -
- * buildVoiceLiveConfig never sets `tools`, so `toolCall` should never
- * actually arrive here.
+ * transcription, session resumption, barge-in signaling. Phase 3 added tool
+ * calls (buildVoiceLiveConfig declares `tools`, and inbound `toolCall` parts
+ * run their LangChain tool here). Phase 4 added thread/checkpoint persistence
+ * for machine sessions: the gateway injects an `onTranscriptCommit` sink, and
+ * this session fires it on every FINAL transcript line — but persistence is
+ * strictly fire-and-forget and never gates audio.
  */
 export class VoiceSession {
   /**
@@ -54,7 +56,7 @@ export class VoiceSession {
    * @param {object} params.liveConfig - base LiveConnectConfig from buildVoiceLiveConfig (no sessionResumption.handle yet)
    * @param {Map<string, *>} params.toolsByName - original (unsanitized) executable LangChain tools, keyed by name - the same tools `liveConfig.tools[0].functionDeclarations` declared from a sanitized copy of (voice-agent-plan.md §9)
    */
-  constructor({ clientWs, claims, apiKey, model, voiceName, liveConfig, toolsByName }) {
+  constructor({ clientWs, claims, apiKey, model, voiceName, liveConfig, toolsByName, onTranscriptCommit }) {
     this.clientWs = clientWs;
     this.claims = claims;
     this.apiKey = apiKey;
@@ -62,6 +64,12 @@ export class VoiceSession {
     this.voiceName = voiceName;
     this.liveConfig = liveConfig;
     this.toolsByName = toolsByName || new Map();
+    // Phase 4 (voice-agent-plan.md §4.3): optional sink callback fired on
+    // every FINAL transcript line (user + agent) so the voice conversation
+    // can be persisted to the thread's checkpoint. Injected by the gateway
+    // for ProjectRuntime sessions; undefined keeps Studio test sessions
+    // fully ephemeral. Fire-and-forget — persistence never gates audio.
+    this.onTranscriptCommit = onTranscriptCommit || null;
     /** toolCallId -> {controller: AbortController, cancelled: boolean} */
     this.pendingToolCalls = new Map();
     // No Thread model involvement yet (Phase 4) - this only satisfies the
@@ -297,6 +305,7 @@ export class VoiceSession {
         turnSeq: this.turnSeq,
       });
       this._sendTextChunk('user', content.inputTranscription.text);
+      this._commitTranscript('user', content.inputTranscription.text);
     }
 
     if (content.outputTranscription?.text) {
@@ -307,6 +316,7 @@ export class VoiceSession {
         turnSeq: this.turnSeq,
       });
       this._sendTextChunk('assistant', content.outputTranscription.text);
+      this._commitTranscript('assistant', content.outputTranscription.text);
     }
 
     if (content.interrupted) {
@@ -502,6 +512,16 @@ export class VoiceSession {
       role,
       delta,
     });
+  }
+
+  /** Persist one final transcript line (Phase 4). Never blocks the audio path. */
+  _commitTranscript(role, text) {
+    if (!this.onTranscriptCommit || typeof text !== 'string' || !text.trim()) return;
+    try {
+      Promise.resolve(this.onTranscriptCommit(role, text)).catch(() => {});
+    } catch {
+      // sink already gone — safe to drop
+    }
   }
 
   _sendRaw(event) {
