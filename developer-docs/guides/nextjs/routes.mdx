@@ -88,6 +88,44 @@ export const dynamic = 'force-dynamic';
 
 Your end-user route stays exactly as it was — two runtimes, two mounts, two auth policies.
 
+## Static manifest route (no capability, no end-user auth)
+
+| Method | Path (relative to mount) | What it does |
+| --- | --- | --- |
+| `GET` | `/rest-tools/manifest` | Serves the `restToolsManifest.tools` list you configured, as `{ tools: [...] }`, for a Persona REST Tool Source to discover. |
+
+This route is a third category, distinct from both tables above: it only exists when you pass
+`restToolsManifest` to `createPersonaHandler`/`createRuntime`, it's never gated behind
+`capabilities`, and it never calls `PersonaClient` — it just serves data you configured, so
+`resolveUserFrom` is never invoked for it either. See [REST Tool
+Sources](/guides/rest-tools#code-first-rest-tool-sources) for the end-to-end setup and
+[`defineRestTool`](/guides/sdk/resources/rest-tools).
+
+```ts app/api/persona/[...persona]/route.ts
+import { createPersonaHandler } from '@personaai/nextjs/server';
+import { defineRestTool } from '@personaai/sdk/rest-tools';
+import { z } from 'zod';
+
+const getProfile = defineRestTool({
+  name: 'Get learner profile',
+  method: 'GET',
+  url: (t) => `https://api.yourapp.com/users/${t.arg('userId')}`,
+  args: z.object({ userId: z.string() }),
+});
+
+export const { GET, POST, PUT, PATCH, DELETE } = createPersonaHandler({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUserFrom: async () => (await auth()).userId,
+  restToolsManifest: { tools: [getProfile], authToken: process.env.PERSONA_TOOLS_SECRET! },
+});
+
+export const dynamic = 'force-dynamic';
+```
+
+Register `https://your-app.com/api/persona/rest-tools/manifest` as a REST Tool Source in the
+Persona dashboard, with the same `authToken` value as its API Key.
+
 ## How the adapter translates a request
 
 The adapter maps the Web `Request` a route handler receives to the runtime's framework-neutral

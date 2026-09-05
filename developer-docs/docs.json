@@ -31,6 +31,7 @@
                   "guides/sdk/resources/skills",
                   "guides/sdk/resources/knowledge",
                   "guides/sdk/resources/mcps",
+                  "guides/sdk/resources/rest-tools",
                   "guides/sdk/resources/threads",
                   "guides/sdk/resources/memory",
                   "guides/sdk/resources/stores",

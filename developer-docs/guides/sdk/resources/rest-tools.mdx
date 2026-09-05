@@ -1,0 +1,166 @@
+---
+title: REST Tools
+description: CRUD over manually-created REST API Tools, plus defineRestTool() for building code-first tool definitions for a REST Tool Source.
+---
+
+`persona.restTools` — `/api/v1/developer/rest-tools`. Plain REST API Tool CRUD, mirroring
+`persona.mcps`'s shape but without an equivalent of MCP's `testConnection`/`callTool` (a REST API
+Tool has no live connection to test or tool to call outside of an actual Agent conversation).
+
+Separately, `defineRestTool()` — imported from **`@personaai/sdk/rest-tools`**, a different entry
+point from the package root — builds a tool definition from a zod schema instead of hand-writing
+`paramDescriptors`. It doesn't call this resource, or any endpoint: its output is a plain object
+you hand to `@personaai/runtime`'s `restToolsManifest` option so a [REST Tool
+Source](/guides/rest-tools#code-first-rest-tool-sources) can discover it. See that guide for the
+full code-first workflow — this page is the API reference for both pieces.
+
+## Methods
+
+| Method                            | Endpoint                                    | Returns                |
+| ---------------------------------- | -------------------------------------------- | ----------------------- |
+| `create(input, idempotencyKey?)`   | `POST /api/v1/developer/rest-tools`          | `RestApiTool`           |
+| `list(params?)`                    | `GET /api/v1/developer/rest-tools`           | `PaginatedResult<RestApiTool>` |
+| `get(toolId)`                      | `GET /api/v1/developer/rest-tools/{id}`      | `RestApiTool`           |
+| `update(toolId, input)`            | `PATCH /api/v1/developer/rest-tools/{id}`    | `RestApiTool`           |
+| `delete(toolId)`                   | `DELETE /api/v1/developer/rest-tools/{id}`   | `void`                  |
+| `getUsage(toolId)`                 | `GET /api/v1/developer/rest-tools/{id}/usage`| `ResourceUsage`         |
+| `bulkDelete(ids)`                  | `POST /api/v1/developer/rest-tools/bulk-delete` | `BulkDeleteResult`  |
+| `test(input)`                      | `POST /api/v1/developer/rest-tools/test`     | `RestToolTestResult`    |
+
+## create(input, idempotencyKey?)
+
+`name`, `method`, and `url` are required.
+
+```ts
+const tool = await persona.restTools.create({
+  name: 'Get learner profile',
+  method: 'GET',
+  url: 'https://api.yourapp.com/learners/{{externalUserId}}/plan',
+  responseMappings: [{ field: 'name', path: '@data.name' }],
+});
+```
+
+Optional fields and defaults:
+
+| Field              | Type                          | Default  | Notes                                                        |
+| ------------------ | ----------------------------- | -------- | ------------------------------------------------------------- |
+| `description`      | `string`                      | —        | Shown to the model when it's deciding whether to call this tool. |
+| `queryParams`       | `RestToolParamRow[]`          | `[]`     | `{ key, valueTemplate?, description?, required? }`             |
+| `headers`           | `RestToolParamRow[]`          | `[]`     | Same shape as `queryParams`.                                   |
+| `bodyMode`          | `'none' \| 'json'`            | `'none'` |                                                                |
+| `bodyTemplate`      | `string`                      | —        | A JSON string; `{{token}}` values are substituted before parsing. |
+| `paramDescriptors`  | `RestToolParamDescriptor[]`   | `[]`     | Declares each agent-fillable `{{token}}` — see below.          |
+| `authType`          | `'none' \| 'bearerSecret'`    | `'none'` |                                                                |
+| `secretRef`         | `string`                      | —        | Required when `authType: 'bearerSecret'` — a Project Secret id. |
+| `responseMappings`  | `RestToolResponseMapping[]`   | `[]`     | `{ field, path }` — `path` must look like `"@data.field.path"`. |
+| `isEnabled`         | `boolean`                     | `true`   |                                                                |
+
+`{{externalUserId}}` is reserved — see [The reserved `{{externalUserId}}`
+variable](/guides/rest-tools#the-reserved-externaluserid-variable). It can never appear in
+`paramDescriptors`; `create()`/`update()` reject a payload that tries.
+
+## defineRestTool(options)
+
+```ts
+import { defineRestTool } from '@personaai/sdk/rest-tools';
+import { z } from 'zod';
+
+const getProfile = defineRestTool({
+  name: 'Get learner profile',
+  description: "Fetches a learner's plan by their Persona-asserted user id.",
+  method: 'GET',
+  url: (t) => `https://api.yourapp.com/learners/${t.externalUserId}/plan`,
+  responseMappings: { name: '@data.name' },
+});
+```
+
+Returns a plain object — the same shape `create()`'s `input` takes — meant to go into a
+`restToolsManifest.tools` array, not to be passed to `persona.restTools.create()` directly (though
+its shape is compatible if you did want to create a manual tool from a code template).
+
+| Option              | Type                                                    | Notes                                                                 |
+| -------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `name`               | `string`                                                  | Required.                                                              |
+| `description`        | `string`                                                  |                                                                        |
+| `method`              | `'GET' \| 'POST' \| 'PUT' \| 'PATCH' \| 'DELETE'`          | Required.                                                              |
+| `args`                | `z.ZodObject<...>`                                        | Optional. Declares the agent-fillable arguments — see below.          |
+| `url`                 | `string \| (t) => string`                                 | Required. The callback form gets the typed template helpers.          |
+| `queryParams`         | `Record<string, string \| (t) => string>`                 |                                                                        |
+| `headers`             | `Record<string, string \| (t) => string>`                 |                                                                        |
+| `body`                | `Record<string, unknown> \| (t) => Record<string, unknown>` | Setting this implies `bodyMode: 'json'`; JSON-stringified as-is.     |
+| `auth`                | `{ type: 'none' } \| { type: 'bearerSecret'; secretRef: string }` | `secretRef` is a Project Secret id, same as the manual form's Auth tab. |
+| `responseMappings`    | `Record<string, string>`                                  | `{ fieldName: '@data.path' }` — flatter than the raw API's array form. |
+| `isEnabled`           | `boolean`                                                 | Default `true`.                                                       |
+
+### The `t` template helpers
+
+Passed to the callback form of `url`/`queryParams`/`headers`/`body`, so a definition never needs a
+hand-typed `"{{token}}"` string:
+
+- **`t.arg(name)`** — references one of `args`' own fields, expands to `` `{{${name}}}` ``.
+  Type-checked against `args`' keys; throws immediately (at module load, in practice) for a name
+  not declared in `args`, instead of silently producing a token nothing will ever resolve.
+- **`t.externalUserId`** — the reserved `{{externalUserId}}` token (also exported standalone as
+  `EXTERNAL_USER_ID_TOKEN`). Never put this in `args` — `defineRestTool` throws if you do.
+
+### `args` → `paramDescriptors`
+
+Each field in the zod `args` object becomes one `paramDescriptor`, derived automatically:
+
+| zod                                          | `paramDescriptor`                                              |
+| ---------------------------------------------- | ------------------------------------------------------------- |
+| `z.string()` / `z.number()` / `z.boolean()`     | `type: 'string' \| 'number' \| 'boolean'`                      |
+| `.describe('...')`                              | `description: '...'` — shown to the model as the argument's docstring |
+| `.optional()`                                   | `required: false` (omitted entirely → `required: true`)        |
+
+A type this can't recognize (a wrapped/refined/union field) falls back to `'string'` — the same
+default the server-side renderer uses.
+
+```ts
+const searchCourses = defineRestTool({
+  name: 'Search courses',
+  method: 'GET',
+  args: z.object({
+    query: z.string().describe('Free-text search term'),
+    limit: z.number().optional(),
+  }),
+  url: 'https://api.yourapp.com/courses/search',
+  queryParams: { q: (t) => t.arg('query'), limit: (t) => t.arg('limit') },
+});
+```
+
+<Note>
+  `zod` is an **optional peer dependency** of `@personaai/sdk` — only needed if you import from
+  `@personaai/sdk/rest-tools`. The package root (`@personaai/sdk`) never pulls it in.
+</Note>
+
+## test(input)
+
+Backs Studio's builder "Send" button — test-calls an unsaved draft or a saved tool by id. Never
+reachable from an Agent's own tool-calling path.
+
+```ts
+const result = await persona.restTools.test({
+  toolId: tool._id,
+  testValues: { externalUserId: 'user_123' }, // stand-in for {{externalUserId}}, this call only
+});
+console.log(result.status, result.mapped);
+```
+
+Returns `{ status, ok, body, mapped }` — `body` is the raw response, `mapped` is `body` reshaped by
+`responseMappings` (what an Agent would actually receive).
+
+## getUsage / delete
+
+- `getUsage(toolId)` returns `ResourceUsage` — check before `delete()`; a tool still referenced by
+  an Agent rejects the delete.
+- `delete(toolId)` deletes the tool. Returns `void`.
+
+## Attaching to an Agent
+
+```ts
+await persona.agents.update('agent_123', { restApiTools: [tool._id] });
+```
+
+For code-first tools served from a REST Tool Source instead, an Agent attaches the *source*, not
+individual tools — see [REST Tool Sources](/guides/rest-tools#code-first-rest-tool-sources).

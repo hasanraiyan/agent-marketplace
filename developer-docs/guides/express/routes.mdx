@@ -57,6 +57,38 @@ app.use('/api/persona', toExpressRouter(appRuntime));          // end users
 app.use('/api/admin/persona', toExpressRouter(adminRuntime));  // capabilities: true, stricter resolveUser
 ```
 
+## Static manifest route (no capability, no end-user auth)
+
+| Method | Path (relative to mount) | What it does |
+| --- | --- | --- |
+| `GET` | `/rest-tools/manifest` | Serves the `restToolsManifest.tools` list you configured, as `{ tools: [...] }`, for a Persona REST Tool Source to discover. |
+
+This route is a third category, distinct from both tables above: it only exists when you pass
+`restToolsManifest` to `createExpressAdapter`/`createRuntime`, it's never gated behind
+`capabilities`, and it never calls `PersonaClient` — it just serves data you configured, so
+`resolveUser` is never invoked for it either. See [REST Tool
+Sources](/guides/rest-tools#code-first-rest-tool-sources) for the end-to-end setup and
+[`defineRestTool`](/guides/sdk/resources/rest-tools).
+
+```ts
+import { defineRestTool } from '@personaai/sdk/rest-tools';
+
+const getProfile = defineRestTool({
+  name: 'Get learner profile',
+  method: 'GET',
+  url: (t) => `https://api.yourapp.com/users/${t.arg('userId')}`,
+  args: z.object({ userId: z.string() }),
+});
+
+app.use('/api/persona', toExpressRouter(createRuntime({
+  baseUrl, credential, resolveUser,
+  restToolsManifest: { tools: [getProfile], authToken: process.env.PERSONA_TOOLS_SECRET! },
+})));
+```
+
+Register `https://your-app.com/api/persona/rest-tools/manifest` as a REST Tool Source in the
+Persona dashboard, with the same `authToken` value as its API Key.
+
 ## How the adapter translates a request
 
 `toExpressRouter` maps an Express `Request` to the runtime's framework-neutral contract before

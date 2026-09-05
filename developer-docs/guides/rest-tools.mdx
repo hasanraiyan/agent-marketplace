@@ -1,21 +1,31 @@
 ---
 title: REST API Tools
-description: No-code REST tools your Agents can call, built and managed in Studio — no MCP server required.
+description: No-code REST tools your Agents can call — built by hand in Studio, or defined in your own codebase and discovered live, no MCP server required either way.
 ---
 
 If your Agent just needs to call your own existing backend — grade an assessment, fetch a user's
 plan, update a record — you don't need to stand up an MCP server for it. A **REST API Tool** is a
-plain HTTP call (method, URL, headers, params, body) that you configure once in Studio and attach
-to an Agent, the same way you'd attach an MCP connector. No SDK involved on either side; Studio
-generates the tool, Persona's backend executes the call at runtime.
+plain HTTP call (method, URL, headers, params, body) that Persona's backend executes at runtime.
 
-This is the reverse direction from everything else in the [Integration
-Guide](/guides/integration-guide): those endpoints are calls **your backend makes to Persona**. A
-REST API Tool call goes **from Persona to your backend** — your endpoint is the one being called,
-and needs to know how to verify the caller and trust the identity it asserts. That's what this
-guide covers.
+There are two ways to define one:
 
-## Building a tool
+<CardGroup cols={2}>
+  <Card title="Manual — build it in Studio" icon="pencil" href="#manual-building-a-tool-in-studio">
+    Fill out a form once, attach it to an Agent. No code on either side. Best for a one-off tool a
+    non-engineer maintains.
+  </Card>
+  <Card title="Code-first — a REST Tool Source" icon="code-branch" href="#code-first-rest-tool-sources">
+    Define tools in your own codebase with `defineRestTool()`, host them at a URL, register that
+    URL once. Best when tools change with your code, or you have many of them.
+  </Card>
+</CardGroup>
+
+Both end up calling **your backend from Persona** — the reverse direction from everything else in
+the [Integration Guide](/guides/integration-guide), where your backend calls Persona. Either way,
+your endpoint is the one being called, and needs to know how to verify the caller and trust the
+identity it asserts. That's what this guide covers for both paths.
+
+## Manual: building a tool in Studio
 
 Studio → your Project → **REST Tools** tab → **New REST Tool**.
 
@@ -100,9 +110,106 @@ reachable from an actual agent conversation.
 Same as MCP connectors: open the Agent in Studio's editor and toggle it on under **REST API
 Tools**.
 
+## Code-first: REST Tool Sources
+
+A **REST Tool Source** is the code-first alternative to the manual form above — and it mirrors
+**MCP connectors**, not the manual REST Tool form: you register a URL once, Persona pulls a tool
+list from it, and an Agent attaches the *source* rather than individual tools. The tool
+definitions themselves live in your own codebase, written with a small zod-based builder instead
+of filled into Studio's Path/Params/Headers/Body tabs by hand.
+
+### How it fits together
+
+1. **Define tools in code** with `defineRestTool()` from `@personaai/sdk/rest-tools` — a separate
+   entry point so `zod` (used for the `args` schema) stays an optional peer dependency of the
+   core SDK.
+2. **Host them at a URL** — the easiest way is `restToolsManifest` on `@personaai/runtime`'s
+   `createRuntime()` (or any of the three adapters built on it: Express, NestJS, Next.js), which
+   serves your tool list as `GET {mountPath}/rest-tools/manifest` in one option. You don't have to
+   use our runtime for this, though — any server that returns `{ "tools": [...] }` matching the
+   shape below works.
+3. **Register the URL in Studio** — your Project → **REST Tool Sources** tab → **New REST Tool
+   Source** — same shape as registering an MCP server: Name, Manifest URL, Auth (`none` or
+   `API Key`).
+4. **Test Connection** fetches the manifest right then and shows you what it found — a read-only
+   preview (name/method/url per tool), refreshed only when you click it again.
+5. **Attach the source to an Agent** — same picker as MCP connectors, a new "REST Tool Sources"
+   section next to "REST Tools" on the Agent editor.
+
+<Warning>
+  Nothing about a source's tools is copied into Persona's database beyond that display preview.
+  **Every Agent turn re-fetches the manifest URL live**, the same way an attached MCP server is
+  re-queried live on every turn — there's no "sync" step and no stale-tool-definition problem, but
+  it does mean your manifest endpoint needs to actually be up when Agents using it are running. A
+  temporarily-unreachable source is skipped for that turn (logged, not a hard failure) — the
+  Agent's other tools keep working.
+</Warning>
+
+### Defining a tool
+
+```ts
+import { defineRestTool } from '@personaai/sdk/rest-tools';
+import { z } from 'zod';
+
+const getProfile = defineRestTool({
+  name: 'Get learner profile',
+  description: "Fetches a learner's plan and progress by their Persona-asserted user id.",
+  method: 'GET',
+  // t.externalUserId expands to the reserved "{{externalUserId}}" token — see
+  // "The reserved {{externalUserId}} variable" above, which applies here
+  // identically. No `args` needed since this tool takes no agent-fillable input.
+  url: (t) => `https://api.yourapp.com/learners/${t.externalUserId}/plan`,
+  responseMappings: { name: '@data.name', progress: '@data.progress.completed' },
+});
+
+// A tool that does take agent-fillable input:
+const searchCourses = defineRestTool({
+  name: 'Search courses',
+  method: 'GET',
+  args: z.object({ query: z.string().describe('Free-text search term') }),
+  url: 'https://api.yourapp.com/courses/search',
+  queryParams: { q: (t) => t.arg('query') },
+});
+```
+
+`args`, `queryParams`, `headers`, `body`, `auth` (`{ type: 'bearerSecret', secretRef }`), and
+`responseMappings` all map onto exactly the same fields the manual form's tabs edit — see
+[`defineRestTool`](/guides/sdk/resources/rest-tools) for the full option reference, and the
+sections above ("The reserved `{{externalUserId}}` variable", "Response mapping") for what each
+one means; they apply to a code-first tool exactly as written.
+
+### Hosting the manifest
+
+```ts
+import { createRuntime } from '@personaai/runtime'; // or an adapter's createXAdapter
+import { defineRestTool } from '@personaai/sdk/rest-tools';
+
+const runtime = createRuntime({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser,
+  restToolsManifest: {
+    tools: [getProfile /* , ...more */],
+    // Checked against the incoming request's Authorization header — must
+    // match the API Key you set on the Persona-side REST Tool Source.
+    authToken: process.env.PERSONA_TOOLS_SECRET!,
+  },
+});
+```
+
+This is a plain `createRuntime()` option — see [Static manifest
+route](/guides/runtime/routes#static-manifest-route--a-third-tier-neither-always-on-nor-capability-gated)
+for the exact route it adds, framework-specific wiring in the [Express](/guides/express/routes#static-manifest-route-no-capability-no-end-user-auth),
+[NestJS](/guides/nestjs/routes#static-manifest-route-no-capability-no-end-user-auth), and
+[Next.js](/guides/nextjs/routes#static-manifest-route-no-capability-no-end-user-auth) route
+references, and [Capabilities](/guides/runtime/capabilities#not-a-capability-resttoolsmanifest) for
+why this isn't gated behind `capabilities` the way the Project-admin routes are.
+
 ## What's not covered yet
 
-- **Studio only** — there's no SDK method to create/update/delete REST API Tools or Secrets
-  programmatically yet. If you need CI/IaC-style provisioning instead of configuring tools by hand
-  in Studio, let us know.
-- **One auth scheme** — static Bearer secret only, no per-request signing.
+- **No SDK method to manage REST Tool Sources themselves** (create/update/delete/Test Connection)
+  — that part is Studio-only for now. The tool *definitions* are fully code-first via
+  `defineRestTool()`; registering the *source URL* is a one-time manual step in Studio.
+- **One auth scheme per path** — the manual form's tools support a static Bearer secret; a REST
+  Tool Source's manifest fetch supports `none`/static API Key. Neither supports per-request
+  signing.

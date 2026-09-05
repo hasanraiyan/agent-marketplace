@@ -4,19 +4,21 @@ description: Every type exported from @personaai/sdk, field by field — what ea
 ---
 
 Every public type is exported from the package root: `import type { ... } from '@personaai/sdk'`.
-There's no separate `@personaai/sdk/types` entry point — one import covers the client, every
-resource, and every type. This page documents **all** of them.
+There's one deliberate exception — `defineRestTool()` and its types live at a separate
+**`@personaai/sdk/rest-tools`** entry point instead, so the `zod` dependency it needs stays
+optional and never loads for anyone not using it. See [REST Tools](/guides/sdk/resources/rest-tools)
+for that entry point's exports.
 
 ## Full export index
 
 <Note>
-  This table is generated from the SDK's actual exports (v0.4.1) — nothing here is invented.
+  This table is generated from the SDK's actual exports (v0.7.0) — nothing here is invented.
 </Note>
 
 | Kind    | Export                                                                                             |
 | ------- | -------------------------------------------------------------------------------------------------- |
 | Class   | `PersonaClient`, `HttpClient`, `ChatClient`, `ArchitectClient`                                      |
-| Class   | `ProvidersResource`, `SkillsResource`, `AgentsResource`, `KnowledgeResource`, `McpsResource`, `McpOAuthResource`, `ThreadsResource`, `MemoryResource`, `StoresResource`, `FilesResource`, `AuditLogsResource`, `VoiceResource` |
+| Class   | `ProvidersResource`, `SkillsResource`, `AgentsResource`, `KnowledgeResource`, `McpsResource`, `McpOAuthResource`, `RestToolsResource`, `ThreadsResource`, `MemoryResource`, `StoresResource`, `FilesResource`, `AuditLogsResource`, `VoiceResource` |
 | Class   | `PersonaApiError`, `PersonaAuthError`, `PersonaValidationError`                                     |
 | Enum    | `EventType` (re-exported from `@ag-ui/core`)                                                        |
 | Const   | `AGUI_SCHEMA_VERSION` (`'1.0.0'`)                                                                   |

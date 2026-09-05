@@ -90,3 +90,13 @@ If you need that level of granularity, enforce it in `resolveUser` (reject the r
 reaches the route) or in a [lifecycle hook](/guides/runtime/hooks) (e.g. throw from `beforeRun` for
 a disallowed action), not by asking this runtime for finer-grained capability flags than "on this
 mount, for this resolved identity, is the capability on."
+
+## Not a capability: `restToolsManifest`
+
+`restToolsManifest` (see [Routes](/guides/runtime/routes#static-manifest-route--a-third-tier-neither-always-on-nor-capability-gated))
+looks similar to a capability flag but isn't one — it's not gated behind `capabilities`, doesn't
+default off for security reasons, and doesn't proxy anything through `PersonaClient`. It's a plain
+option that makes `createRuntime()` serve a static list of your own REST tool definitions at
+`GET {mountPath}/rest-tools/manifest`, secured by its own `authToken` bearer check instead of
+`resolveUser`. Enable it any time you want a Persona REST Tool Source to discover tools from this
+host — there's no admin-surface exposure risk to weigh the way there is with `providers: true`.

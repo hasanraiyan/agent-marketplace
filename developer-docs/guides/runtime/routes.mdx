@@ -93,6 +93,51 @@ See [Capabilities](/guides/runtime/capabilities) for the reasoning and how to en
   information about what it would have done.
 </Note>
 
+## Static manifest route — a third tier, neither always-on nor capability-gated
+
+| Method | Path | Auth | Proxies to |
+| --- | --- | --- | --- |
+| `GET` | `/rest-tools/manifest` | Its own `Authorization: Bearer <authToken>` check, `requiresAuth: false` | Nothing — serves `restToolsManifest.tools` verbatim as `{ tools: [...] }` |
+
+This route only exists at all when you pass `restToolsManifest` to `createRuntime()`. It's
+deliberately **not** a `RuntimeCapabilities` flag: every other route in this file is either scoped
+to whichever user `resolveUser` resolves, or proxies a Project-admin action through
+`PersonaClient`. This one does neither — it's pure host-side static data (a list of REST tool
+definitions you built, typically with `defineRestTool()`) that Persona itself pulls from, the
+same way it discovers an MCP server's tools. `resolveUser` is never called for it.
+
+```ts
+import { createRuntime } from '@personaai/runtime';
+import { defineRestTool } from '@personaai/sdk/rest-tools';
+import { z } from 'zod';
+
+const getProfile = defineRestTool({
+  name: 'Get learner profile',
+  method: 'GET',
+  url: (t) => `https://api.yourapp.com/users/${t.arg('userId')}`,
+  args: z.object({ userId: z.string() }),
+});
+
+const runtime = createRuntime({
+  baseUrl, credential, resolveUser,
+  restToolsManifest: {
+    tools: [getProfile],
+    // Checked against the request's `Authorization: Bearer <token>` header.
+    // Must match the API Key you configure on the Persona-side REST Tool
+    // Source. Omit only for local/dev testing — it leaves the route open.
+    authToken: process.env.PERSONA_TOOLS_SECRET!,
+  },
+});
+```
+
+Then, in the Persona dashboard: **Add REST Tool Source** → URL =
+`https://your-app.com{mountPath}/rest-tools/manifest`, Auth = API Key = the same
+`PERSONA_TOOLS_SECRET` → **Test Connection** discovers `getProfile`. Attach the *source* to an
+Agent (the same attachment model as an MCP connector) — Persona re-fetches this route live on
+every Agent turn; nothing about the tool list is cached in Persona's database. See [REST Tool
+Sources](/guides/rest-tools#code-first-rest-tool-sources) for the full walkthrough and
+[`defineRestTool`](/guides/sdk/resources/rest-tools) for the builder's API.
+
 ## Multipart uploads
 
 For `POST /files` and `POST /knowledge/:id/documents`, the runtime itself never touches raw bytes
