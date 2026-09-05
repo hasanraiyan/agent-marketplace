@@ -361,10 +361,23 @@ export class VoiceSession {
     }
 
     if (content.interrupted) {
-      // The agent's utterance was cut off by a barge-in — drop the half-said
-      // transcript (it was never completed) rather than persist it as a turn.
-      this.pendingAgentText = null;
-      this.pendingAgentFragments = 0;
+      // A barge-in cut the agent off mid-utterance. The words it got out
+      // before the cut are still real conversation, so flush them as this
+      // turn's agent message (final caption + AG-UI text chunk + checkpoint
+      // commit) rather than discarding them — previously an interrupted
+      // answer never persisted, and reload showed the user message with no
+      // assistant reply. _flushAgentUtterance() nulls the pending text, so
+      // a later turnComplete for this aborted turn becomes a no-op (no
+      // double commit).
+      this._flushAgentUtterance();
+      // Generation genuinely stopped here - tell the client the agent is no
+      // longer speaking and let the next utterance fire a fresh agent start
+      // (otherwise agentSpeaking would stay true until some later
+      // turnComplete and suppress that start).
+      if (this.agentSpeaking) {
+        this._sendCustom('voice_activity', { speaker: 'agent', state: 'end' });
+        this.agentSpeaking = false;
+      }
       // A new "generation" of agent audio starts fresh after a barge-in -
       // bump turnSeq so the client can drop everything tagged with the old
       // one without ambiguity (voice-agent-plan.md Section 5, Section 11).
