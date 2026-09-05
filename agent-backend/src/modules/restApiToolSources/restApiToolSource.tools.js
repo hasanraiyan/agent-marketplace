@@ -1,6 +1,6 @@
 import { buildRestApiToolLangchainTool } from '../restApiTools/restApiTool.tools.js';
 import { restToolManifestSchema } from './restApiToolSource.validator.js';
-import encryption from '../../utils/encryption.js';
+import projectSecretService from '../projects/projectSecret.service.js';
 import { loggerService } from '../../utils/index.js';
 
 const logger = loggerService.getLogger();
@@ -38,8 +38,9 @@ export async function resolveRestApiToolSourceTools(agent, userId, context) {
 
     try {
       const headers = {};
-      if (source.authType === 'apiKey' && source.apiKeyEncrypted) {
-        headers.Authorization = `Bearer ${encryption.decrypt(source.apiKeyEncrypted)}`;
+      if (source.authType === 'apiKey' && source.secretRef) {
+        const secretValue = await projectSecretService.resolvePlaintext(source.secretRef);
+        headers.Authorization = `Bearer ${secretValue}`;
       }
 
       const res = await fetch(source.url, {

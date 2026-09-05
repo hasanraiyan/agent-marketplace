@@ -3,7 +3,7 @@ import { restToolManifestSchema } from './restApiToolSource.validator.js';
 import agentRepository from '../agents/agent.repository.js';
 import agentFactory from '../agents/agent.factory.js';
 import { personaExecutionContext } from '../agents/agent.service.js';
-import encryption from '../../utils/encryption.js';
+import projectSecretService from '../projects/projectSecret.service.js';
 import {
   isResourceOwner,
   ownerFilterForContext,
@@ -29,14 +29,21 @@ class RestApiToolSourceService {
   toSafeJson(source) {
     if (!source) return null;
     const obj = source.toObject ? source.toObject() : source;
-    const { apiKeyEncrypted, ...rest } = obj;
-    return { ...rest, hasApiKey: Boolean(apiKeyEncrypted) };
+    return { ...obj, hasSecret: Boolean(obj.secretRef) };
+  }
+
+  async _assertSecretInDomain(context, secretRef) {
+    if (!secretRef) return;
+    // Throws NotFoundError if the secret doesn't resolve inside this
+    // context's own Domain — mirrors restApiToolService's identical check.
+    await projectSecretService.getSecretById(context, secretRef);
   }
 
   async createRestApiToolSource(userId, data, context = personaExecutionContext(userId)) {
-    if (data.authType === 'apiKey' && !data.apiKey) {
-      throw new ValidationError('API key is required when auth type is apiKey');
+    if (data.authType === 'apiKey' && !data.secretRef) {
+      throw new ValidationError('A secret is required when auth type is apiKey');
     }
+    await this._assertSecretInDomain(context, data.secretRef);
     const sourceData = {
       ...ownerFieldsForContext(context),
       name: data.name,
@@ -44,7 +51,7 @@ class RestApiToolSourceService {
       url: data.url,
       authType: data.authType || 'none',
       isEnabled: data.isEnabled !== undefined ? data.isEnabled : true,
-      apiKeyEncrypted: data.authType === 'apiKey' ? encryption.encrypt(data.apiKey) : null,
+      secretRef: data.authType === 'apiKey' ? data.secretRef : null,
     };
     return await restApiToolSourceRepository.create(sourceData);
   }
@@ -90,13 +97,13 @@ class RestApiToolSourceService {
     const resolvedAuthType = data.authType || existing.authType;
     const updateData = { ...data };
     if (resolvedAuthType === 'apiKey') {
-      if (!data.apiKey && !existing.apiKeyEncrypted) {
-        throw new ValidationError('API key is required when auth type is apiKey');
+      const resolvedSecretRef = data.secretRef !== undefined ? data.secretRef : existing.secretRef;
+      if (!resolvedSecretRef) {
+        throw new ValidationError('A secret is required when auth type is apiKey');
       }
-      if (data.apiKey) updateData.apiKeyEncrypted = encryption.encrypt(data.apiKey);
-      delete updateData.apiKey;
+      if (data.secretRef !== undefined) await this._assertSecretInDomain(context, data.secretRef);
     } else if (data.authType === 'none') {
-      updateData.apiKeyEncrypted = null;
+      updateData.secretRef = null;
     }
     const source = await restApiToolSourceRepository.update(
       id,
@@ -132,8 +139,9 @@ class RestApiToolSourceService {
     const source = await this.getRestApiToolSourceById(id, userId, context);
 
     const headers = {};
-    if (source.authType === 'apiKey' && source.apiKeyEncrypted) {
-      headers.Authorization = `Bearer ${encryption.decrypt(source.apiKeyEncrypted)}`;
+    if (source.authType === 'apiKey' && source.secretRef) {
+      const secretValue = await projectSecretService.resolvePlaintext(source.secretRef);
+      headers.Authorization = `Bearer ${secretValue}`;
     }
 
     let res;

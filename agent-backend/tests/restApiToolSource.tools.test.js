@@ -1,12 +1,12 @@
 import { jest } from '@jest/globals';
 
-jest.unstable_mockModule('../src/utils/encryption.js', () => ({
+jest.unstable_mockModule('../src/modules/projects/projectSecret.service.js', () => ({
   default: {
-    encrypt: jest.fn((v) => `enc:${v}`),
-    decrypt: jest.fn((v) => String(v).replace(/^enc:/, '')),
+    resolvePlaintext: jest.fn(),
   },
 }));
 
+const projectSecretService = (await import('../src/modules/projects/projectSecret.service.js')).default;
 const { resolveRestApiToolSourceTools } = await import(
   '../src/modules/restApiToolSources/restApiToolSource.tools.js'
 );
@@ -23,6 +23,7 @@ function agentWithSources(sources) {
 
 beforeEach(() => {
   global.fetch = jest.fn();
+  projectSecretService.resolvePlaintext.mockResolvedValue('secret123');
 });
 
 describe('resolveRestApiToolSourceTools', () => {
@@ -51,7 +52,7 @@ describe('resolveRestApiToolSourceTools', () => {
     expect(tools[0].name).toBe('coursify_get_profile');
   });
 
-  it('sends a decrypted bearer token for apiKey auth sources', async () => {
+  it('sends a resolved bearer token for apiKey auth sources', async () => {
     global.fetch.mockResolvedValue(manifestOk([]));
 
     await resolveRestApiToolSourceTools(
@@ -60,7 +61,7 @@ describe('resolveRestApiToolSourceTools', () => {
           name: 'Coursify',
           isEnabled: true,
           authType: 'apiKey',
-          apiKeyEncrypted: 'enc:secret123',
+          secretRef: 'secret-1',
           url: 'https://x.example.com/manifest',
         },
       ]),
@@ -68,6 +69,7 @@ describe('resolveRestApiToolSourceTools', () => {
       context
     );
 
+    expect(projectSecretService.resolvePlaintext).toHaveBeenCalledWith('secret-1');
     expect(global.fetch).toHaveBeenCalledWith(
       'https://x.example.com/manifest',
       expect.objectContaining({ headers: { Authorization: 'Bearer secret123' } })

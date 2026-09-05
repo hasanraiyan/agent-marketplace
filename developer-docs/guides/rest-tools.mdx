@@ -130,7 +130,9 @@ of filled into Studio's Path/Params/Headers/Body tabs by hand.
    shape below works.
 3. **Register the URL in Studio** — your Project → **REST Tool Sources** tab → **New REST Tool
    Source** — same shape as registering an MCP server: Name, Manifest URL, Auth (`none` or
-   `API Key`).
+   `API Key`). Choosing **API Key** picks or creates a secret from the same **Secrets** tab REST
+   API Tools already use — one secret can back both, so you're never pasting the same key into
+   two different fields.
 4. **Test Connection** fetches the manifest right then and shows you what it found — a read-only
    preview (name/method/url per tool), refreshed only when you click it again.
 5. **Attach the source to an Agent** — same picker as MCP connectors, a new "REST Tool Sources"
@@ -191,7 +193,8 @@ const runtime = createRuntime({
   restToolsManifest: {
     tools: [getProfile /* , ...more */],
     // Checked against the incoming request's Authorization header — must
-    // match the API Key you set on the Persona-side REST Tool Source.
+    // match the plaintext value of the Secret you pick on the Persona-side
+    // REST Tool Source's Auth tab.
     authToken: process.env.PERSONA_TOOLS_SECRET!,
   },
 });

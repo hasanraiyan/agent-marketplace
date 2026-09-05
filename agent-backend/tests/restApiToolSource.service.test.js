@@ -25,10 +25,10 @@ jest.unstable_mockModule('../src/modules/agents/agent.factory.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('../src/utils/encryption.js', () => ({
+jest.unstable_mockModule('../src/modules/projects/projectSecret.service.js', () => ({
   default: {
-    encrypt: jest.fn((v) => `enc:${v}`),
-    decrypt: jest.fn((v) => String(v).replace(/^enc:/, '')),
+    getSecretById: jest.fn(),
+    resolvePlaintext: jest.fn(),
   },
 }));
 
@@ -37,7 +37,7 @@ const restApiToolSourceRepository = (
 ).default;
 const agentRepository = (await import('../src/modules/agents/agent.repository.js')).default;
 const agentFactory = (await import('../src/modules/agents/agent.factory.js')).default;
-const encryption = (await import('../src/utils/encryption.js')).default;
+const projectSecretService = (await import('../src/modules/projects/projectSecret.service.js')).default;
 const ValidationError = (await import('../src/utils/errors/ValidationError.js')).default;
 const NotFoundError = (await import('../src/utils/errors/NotFoundError.js')).default;
 const restApiToolSourceService = (
@@ -54,7 +54,7 @@ function ownedSource(overrides = {}) {
     name: 'Coursify',
     url: 'https://coursify.dev/api/persona/rest-tools/manifest',
     authType: 'apiKey',
-    apiKeyEncrypted: 'enc:secret123',
+    secretRef: 'secret-1',
     toObject() {
       return { ...this };
     },
@@ -65,10 +65,11 @@ function ownedSource(overrides = {}) {
 beforeEach(() => {
   jest.clearAllMocks();
   global.fetch = jest.fn();
+  projectSecretService.resolvePlaintext.mockResolvedValue('secret123');
 });
 
 describe('restApiToolSourceService.createRestApiToolSource', () => {
-  it('rejects apiKey auth with no key', async () => {
+  it('rejects apiKey auth with no secret', async () => {
     await expect(
       restApiToolSourceService.createRestApiToolSource(
         undefined,
@@ -79,16 +80,17 @@ describe('restApiToolSourceService.createRestApiToolSource', () => {
     expect(restApiToolSourceRepository.create).not.toHaveBeenCalled();
   });
 
-  it('encrypts the apiKey on create', async () => {
+  it('validates the secret is in-domain and stores its ref on create', async () => {
+    projectSecretService.getSecretById.mockResolvedValue({ _id: 'secret-1' });
     restApiToolSourceRepository.create.mockResolvedValue({ _id: 's1' });
     await restApiToolSourceService.createRestApiToolSource(
       undefined,
-      { name: 'X', url: 'https://x.example.com', authType: 'apiKey', apiKey: 'secret123' },
+      { name: 'X', url: 'https://x.example.com', authType: 'apiKey', secretRef: 'secret-1' },
       context
     );
-    expect(encryption.encrypt).toHaveBeenCalledWith('secret123');
+    expect(projectSecretService.getSecretById).toHaveBeenCalledWith(context, 'secret-1');
     expect(restApiToolSourceRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ apiKeyEncrypted: 'enc:secret123' })
+      expect.objectContaining({ secretRef: 'secret-1' })
     );
   });
 });
@@ -113,6 +115,7 @@ describe('restApiToolSourceService.testConnection', () => {
 
     const result = await restApiToolSourceService.testConnection('src-1', undefined, context);
 
+    expect(projectSecretService.resolvePlaintext).toHaveBeenCalledWith('secret-1');
     expect(global.fetch).toHaveBeenCalledWith(
       'https://coursify.dev/api/persona/rest-tools/manifest',
       expect.objectContaining({ headers: { Authorization: 'Bearer secret123' } })

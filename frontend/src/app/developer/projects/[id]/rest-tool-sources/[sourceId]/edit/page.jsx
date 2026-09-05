@@ -40,6 +40,7 @@ import {
   FieldDescription,
 } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SecretPicker } from "@/components/tools/secret-picker";
 
 export default function ProjectRestToolSourceEditorPage({
   params: paramsPromise,
@@ -55,7 +56,7 @@ export default function ProjectRestToolSourceEditorPage({
     description: "",
     url: "",
     authType: "none",
-    apiKey: "",
+    secretRef: null,
     isEnabled: true,
   });
   const [discoveredTools, setDiscoveredTools] = useState([]);
@@ -92,7 +93,7 @@ export default function ProjectRestToolSourceEditorPage({
             description: source.description || "",
             url: source.url || "",
             authType: source.authType || "none",
-            apiKey: "",
+            secretRef: source.secretRef || null,
             isEnabled: source.isEnabled !== false,
           });
           setDiscoveredTools(source.tools || []);
@@ -118,6 +119,10 @@ export default function ProjectRestToolSourceEditorPage({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (formData.authType === "apiKey" && !formData.secretRef) {
+      toast.error("Select or create a secret for API Key auth");
+      return;
+    }
     setSaving(true);
     try {
       const dataToSubmit = {
@@ -126,10 +131,8 @@ export default function ProjectRestToolSourceEditorPage({
         url: formData.url,
         authType: formData.authType,
         isEnabled: formData.isEnabled,
+        ...(formData.authType === "apiKey" ? { secretRef: formData.secretRef } : {}),
       };
-      if (formData.authType === "apiKey" && formData.apiKey) {
-        dataToSubmit.apiKey = formData.apiKey;
-      }
 
       if (isEditing) {
         await updateProjectRestToolSource(projectId, sourceId, dataToSubmit);
@@ -256,22 +259,19 @@ export default function ProjectRestToolSourceEditorPage({
 
               {formData.authType === "apiKey" && (
                 <Field>
-                  <FieldLabel htmlFor="apiKey">API Key</FieldLabel>
-                  <Input
-                    id="apiKey"
-                    name="apiKey"
-                    type="password"
-                    placeholder={
-                      isEditing ? "••••••••••••••••" : "Enter API key"
+                  <FieldLabel>Secret</FieldLabel>
+                  <SecretPicker
+                    projectId={projectId}
+                    value={formData.secretRef}
+                    onChange={(secretId) =>
+                      setFormData((p) => ({ ...p, secretRef: secretId }))
                     }
-                    value={formData.apiKey}
-                    onChange={handleChange}
-                    required={!isEditing}
                   />
                   <FieldDescription>
-                    {isEditing
-                      ? "Leave blank to keep the existing key."
-                      : "Sent as “Authorization: Bearer <key>” on every manifest fetch — must match the authToken your runtime is configured with."}
+                    Same Secrets tab REST API Tools use. Sent as{" "}
+                    <code>Authorization: Bearer &lt;value&gt;</code> on every
+                    manifest fetch — must match the <code>authToken</code>{" "}
+                    your runtime is configured with.
                   </FieldDescription>
                 </Field>
               )}

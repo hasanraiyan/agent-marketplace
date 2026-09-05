@@ -20,12 +20,13 @@ export const createRestApiToolSourceSchema = z
     description: z.string().max(500).optional(),
     url: z.string().url('Must be a valid URL'),
     authType: z.enum(['none', 'apiKey']).default('none'),
-    apiKey: z.string().min(1).optional(),
+    /** A Project Secret id, picked/created from the same Secrets tab REST API Tools use. */
+    secretRef: z.string().min(1).optional(),
     isEnabled: z.boolean().default(true),
   })
-  .refine((data) => data.authType !== 'apiKey' || Boolean(data.apiKey), {
-    message: 'API key is required when auth type is apiKey',
-    path: ['apiKey'],
+  .refine((data) => data.authType !== 'apiKey' || Boolean(data.secretRef), {
+    message: 'A secret is required when auth type is apiKey',
+    path: ['secretRef'],
   });
 
 export const updateRestApiToolSourceSchema = z.object({
@@ -33,7 +34,7 @@ export const updateRestApiToolSourceSchema = z.object({
   description: z.string().max(500).optional(),
   url: z.string().url('Must be a valid URL').optional(),
   authType: z.enum(['none', 'apiKey']).optional(),
-  /** Replaces the stored key entirely; omit to leave the existing key untouched. */
-  apiKey: z.string().min(1).optional(),
+  /** `null` clears the secret (only meaningful alongside `authType: 'none'`). */
+  secretRef: z.string().min(1).nullable().optional(),
   isEnabled: z.boolean().optional(),
 });

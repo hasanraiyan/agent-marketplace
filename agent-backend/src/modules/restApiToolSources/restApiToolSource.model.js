@@ -3,9 +3,10 @@ import mongoose from 'mongoose';
 /**
  * RestApiToolSource — a hosted manifest URL Persona pulls REST tool
  * definitions from, mirroring `Mcp` exactly (see `mcp.model.js`): `url` +
- * `authType`/`apiKeyEncrypted` + `testConnection` populating a display-only
+ * `authType`/`secretRef` + `testConnection` populating a display-only
  * `tools` summary, simplified to `none`/`apiKey` auth only (no OAuth — a
- * static shared secret, same as `Mcp`'s `authType: 'apiKey'`).
+ * static shared secret drawn from the Project's own Secrets tab, same
+ * `secretRef` pattern `RestApiTool`'s `authType: 'bearerSecret'` uses).
  *
  * `tools` here is a **cache for the dashboard only** — exactly `Mcp.tools`'s
  * role. Agent execution never reads it: an attached source's tools are
@@ -78,10 +79,13 @@ const restApiToolSourceSchema = new mongoose.Schema(
       enum: ['none', 'apiKey'],
       default: 'none',
     },
-    // Static bearer token sent as `Authorization: Bearer <key>` on every
-    // manifest fetch — same shape as `Mcp.apiKeyEncrypted`.
-    apiKeyEncrypted: {
-      type: String,
+    // Reuses the Project's own Secrets tab — same `secretRef` pattern as
+    // RestApiTool's `authType: 'bearerSecret'` (restApiTool.model.js), so an
+    // admin picks/creates a secret once and reuses it across REST Tools and
+    // REST Tool Sources alike, instead of pasting the same key twice.
+    secretRef: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ProjectSecret',
       default: null,
     },
     isEnabled: {
