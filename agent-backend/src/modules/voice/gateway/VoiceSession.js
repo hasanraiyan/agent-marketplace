@@ -30,6 +30,26 @@ function parseProtoDurationMs(value) {
 }
 
 /**
+ * Merges one freshly-received output-transcription fragment into the text
+ * accumulated so far for the model turn. Gemini Live delivers the model's
+ * spoken utterance as several fragments per turn with no reliable shape:
+ * they can be CUMULATIVE full restatements of everything said so far, pure
+ * INCREMENTAL words, or duplicates/restarts — and only turnComplete closes
+ * the turn. This is the exact algorithm the client transcript hooks use
+ * (useVoiceSession.js / useVoice.ts) — the live caption built by it is the
+ * one the user sees as "the complete transcript", so persisting the same
+ * accumulation guarantees the checkpoint matches what was shown on screen.
+ */
+function mergeTranscriptText(prev, next) {
+  if (!prev) return next;
+  if (!next) return prev;
+  if (next === prev || prev.endsWith(next)) return prev; // no-op / dup tail
+  if (next.startsWith(prev)) return next; // cumulative full snapshot
+  const needSpace = !/\s$/.test(prev) && !/^\s/.test(next);
+  return prev + (needSpace ? ' ' : '') + next; // incremental words
+}
+
+/**
  * One live voice session: bridges one client WebSocket connection to one
  * (possibly several, across transparent reconnects) Gemini Live upstream
  * connection. This is the only file in the voice module that interprets
@@ -87,12 +107,15 @@ export class VoiceSession {
     this.runId = null;
     this.agentSpeaking = false;
     // Gemini Live streams an agent utterance's output transcription as several
-    // cumulative serverContent snapshots (which may restart/rephrase mid-way)
-    // and only closes the turn with turnComplete. Accumulate the LATEST
-    // snapshot here and commit ONE transcript line at turnComplete — writing
-    // each fragment as its own line is what stuffed the checkpoint with
-    // overlapping near-duplicate messages.
+    // serverContent fragments of UNRELIABLE shape (cumulative restatements,
+    // incremental words, duplicates) and only closes the turn with
+    // turnComplete. Accumulate them here via mergeTranscriptText — the same
+    // algorithm the client transcript uses — and commit ONE complete line at
+    // turnComplete. Writing each raw fragment as its own line is what stuffed
+    // the checkpoint with overlapping near-duplicate messages; persisting only
+    // the last raw snapshot is what truncated it to the utterance's tail.
     this.pendingAgentText = null;
+    this.pendingAgentFragments = 0;
     this.lastUsage = null;
     // Set once the model calls end_call. Checked at the NEXT turnComplete
     // rather than acted on immediately, so a goodbye the model says after
@@ -316,24 +339,32 @@ export class VoiceSession {
     }
 
     if (content.outputTranscription?.text) {
-      // Each delivery is a cumulative snapshot of the utterance so far (the
-      // model may rephrase/restart mid-utterance, so later snapshots supersede
-      // earlier ones). Surface it as a growing live partial; the SINGLE final
-      // line is emitted and persisted by _flushAgentUtterance() at turnComplete
-      // — never one message per fragment.
-      this.pendingAgentText = content.outputTranscription.text;
-      this._sendCustom('voice_transcript', {
-        speaker: 'agent',
-        text: this.pendingAgentText,
-        isFinal: false,
-        turnSeq: this.turnSeq,
-      });
+      // Each delivery is one fragment of the utterance (cumulative restatement
+      // OR incremental words — never assume a shape). Fold it into the
+      // accumulated text and surface the running result as a growing live
+      // partial; the SINGLE complete line is emitted and persisted by
+      // _flushAgentUtterance() at turnComplete. Writing each raw fragment as
+      // its own line is what stuffed the checkpoint with overlapping
+      // near-duplicate messages.
+      const prev = this.pendingAgentText;
+      const merged = mergeTranscriptText(prev, content.outputTranscription.text);
+      if (merged !== prev) {
+        this.pendingAgentText = merged;
+        this.pendingAgentFragments += 1;
+        this._sendCustom('voice_transcript', {
+          speaker: 'agent',
+          text: this.pendingAgentText,
+          isFinal: false,
+          turnSeq: this.turnSeq,
+        });
+      }
     }
 
     if (content.interrupted) {
       // The agent's utterance was cut off by a barge-in — drop the half-said
       // transcript (it was never completed) rather than persist it as a turn.
       this.pendingAgentText = null;
+      this.pendingAgentFragments = 0;
       // A new "generation" of agent audio starts fresh after a barge-in -
       // bump turnSeq so the client can drop everything tagged with the old
       // one without ambiguity (voice-agent-plan.md Section 5, Section 11).
@@ -532,15 +563,23 @@ export class VoiceSession {
   }
 
   /**
-   * Finalize the accumulated agent utterance (the latest cumulative output
-   * transcription snapshot) into ONE transcript line: emit the final caption,
-   * the AG-UI text chunk, and the checkpoint commit. Called at turnComplete
-   * and, defensively, at session close for an utterance cut off mid-speech.
+   * Finalize the accumulated agent utterance into ONE transcript line: emit
+   * the final caption, the AG-UI text chunk, and the checkpoint commit. The
+   * text is whatever the per-fragment merge (mergeTranscriptText) had folded
+   * together by this point — the same text the client showed live. Called at
+   * turnComplete and, defensively, at session close for an utterance cut off
+   * mid-speech.
    */
   _flushAgentUtterance() {
     const text = this.pendingAgentText;
+    const fragments = this.pendingAgentFragments;
     this.pendingAgentText = null;
+    this.pendingAgentFragments = 0;
     if (!text || !text.trim()) return;
+    logger.debug('[Voice] flushing accumulated agent utterance', {
+      fragments,
+      chars: text.length,
+    });
     this._sendCustom('voice_transcript', {
       speaker: 'agent',
       text,
