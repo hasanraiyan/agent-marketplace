@@ -504,34 +504,44 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
                   ) : (
                     <div className="space-y-3">
                       {form.paramDescriptors.map((d) => (
-                        <div key={d.name} className="flex items-center gap-2 rounded-lg border p-3">
-                          <code className="w-32 shrink-0 text-xs font-semibold">{`{{${d.name}}}`}</code>
-                          <Select
-                            value={d.type}
-                            onValueChange={(v) => updateDescriptor(d.name, { type: v })}
-                          >
-                            <SelectTrigger className="w-28 shrink-0">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="string">string</SelectItem>
-                              <SelectItem value="number">number</SelectItem>
-                              <SelectItem value="boolean">boolean</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Input
-                            placeholder="Description for the agent"
-                            value={d.description}
-                            onChange={(e) => updateDescriptor(d.name, { description: e.target.value })}
-                            className="flex-1 text-xs"
-                          />
-                          <div className="flex items-center gap-1.5 text-xs">
-                            <Switch
-                              checked={d.required !== false}
-                              onCheckedChange={(v) => updateDescriptor(d.name, { required: v })}
+                        <div key={d.name} className="flex flex-col gap-2 rounded-lg border p-3">
+                          <div className="flex items-center gap-2">
+                            <code className="w-32 shrink-0 text-xs font-semibold">{`{{${d.name}}}`}</code>
+                            <Select
+                              value={d.type}
+                              onValueChange={(v) => updateDescriptor(d.name, { type: v })}
+                            >
+                              <SelectTrigger className="w-28 shrink-0">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="string">string</SelectItem>
+                                <SelectItem value="number">number</SelectItem>
+                                <SelectItem value="boolean">boolean</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              placeholder="Description for the agent"
+                              value={d.description}
+                              onChange={(e) => updateDescriptor(d.name, { description: e.target.value })}
+                              className="flex-1 text-xs"
                             />
-                            Required
+                            <div className="flex items-center gap-1.5 text-xs">
+                              <Switch
+                                checked={d.required !== false}
+                                onCheckedChange={(v) => updateDescriptor(d.name, { required: v })}
+                              />
+                              Required
+                            </div>
                           </div>
+                          <Input
+                            placeholder={`Test value for {{${d.name}}} (used by "Send" only)`}
+                            value={testValues[d.name] || ""}
+                            onChange={(e) =>
+                              setTestValues((p) => ({ ...p, [d.name]: e.target.value }))
+                            }
+                            className="ml-[8.5rem] w-auto flex-1 text-xs"
+                          />
                         </div>
                       ))}
                     </div>
