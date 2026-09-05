@@ -88,9 +88,45 @@ its shape is compatible if you did want to create a manual tool from a code temp
 | `queryParams`         | `Record<string, string \| (t) => string>`                 |                                                                        |
 | `headers`             | `Record<string, string \| (t) => string>`                 |                                                                        |
 | `body`                | `Record<string, unknown> \| (t) => Record<string, unknown>` | Setting this implies `bodyMode: 'json'`; JSON-stringified as-is.     |
-| `auth`                | `{ type: 'none' } \| { type: 'bearerSecret'; secretRef: string }` | `secretRef` is a Project Secret id, same as the manual form's Auth tab. |
+| `auth`                | `{ type: 'none' } \| { type: 'bearerSecret'; secretRef?: string }` | See below — `secretRef` is optional. |
 | `responseMappings`    | `Record<string, string>`                                  | `{ fieldName: '@data.path' }` — flatter than the raw API's array form. |
 | `isEnabled`           | `boolean`                                                 | Default `true`.                                                       |
+
+### `auth: { type: 'bearerSecret' }` — you don't have to name a secret
+
+Unlike a manually-created REST API Tool (where `secretRef` is required the moment `authType` is
+`bearerSecret`), a `defineRestTool()` entry can set `auth: { type: 'bearerSecret' }` with **no
+`secretRef` at all**:
+
+```ts
+const getProfile = defineRestTool({
+  name: 'Get learner profile',
+  method: 'GET',
+  url: (t) => `https://api.coursify.dev/users/${t.arg('userId')}`,
+  args: z.object({ userId: z.string() }),
+  auth: { type: 'bearerSecret' }, // no secretRef
+});
+```
+
+At call time, the backend resolves the bearer token in this order:
+
+1. The tool's own `secretRef`, if you set one.
+2. Otherwise, the **REST Tool Source's own secret** — the one Secret picked once when the source
+   itself was registered in the dashboard (its Auth tab, `authType: 'apiKey'`).
+3. If neither is set, that one tool is skipped (logged, not a hard failure for the rest of the
+   source) rather than sent unauthenticated.
+
+This means the common case — "all of this source's tools call my backend, and my backend checks
+one shared key" — needs **zero Secret ids anywhere in your code**. Set the secret once on the REST
+Tool Source, declare `auth: { type: 'bearerSecret' }` on each tool that needs it, done. Only pass
+an explicit `secretRef` when one specific tool genuinely needs a *different* secret from the rest.
+
+<Warning>
+  The fallback only fires when `secretRef` is **absent**. Setting it to any non-empty string —
+  even a placeholder like `"my-tool-name"` — skips the fallback and tries to resolve that exact
+  string as a real Secret id, which fails. If you don't have a specific secret in mind for a tool,
+  omit `secretRef` entirely rather than filling in a label.
+</Warning>
 
 ### The `t` template helpers
 

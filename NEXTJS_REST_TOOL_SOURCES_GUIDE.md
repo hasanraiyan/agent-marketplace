@@ -106,10 +106,28 @@ A few things worth knowing about `defineRestTool()`:
 - **`t.externalUserId`** is the one reserved value the *model* never controls. Use it exactly like
   a verified session's user id claim — Persona refuses to make the call at all if there's no
   actual end-user session behind it, rather than sending an empty or spoofable value.
-- **`auth: { type: 'bearerSecret', secretRef }`** exists if one specific tool needs its own Bearer
-  secret (a Persona-side Project Secret id) beyond whatever you check on the manifest route itself
-  — most integrations won't need this; the manifest-level `authToken` (next step) is usually
-  enough.
+- **`auth: { type: 'bearerSecret' }`** — use this when the tool's own target `url` (not the
+  manifest route) needs a bearer token to accept the call. **You don't need to name a `secretRef`**
+  — omit it and Persona automatically uses whichever secret is configured on the REST Tool Source
+  itself (Step 3's Auth tab). One secret, set once, covers every tool on the source that declares
+  `auth: { type: 'bearerSecret' }` with no `secretRef` of its own:
+  ```ts
+  const getNextAction = defineRestTool({
+    name: 'get_next_action',
+    method: 'POST',
+    url: toolUrl('get-next-action'),
+    auth: { type: 'bearerSecret' }, // no secretRef — uses the source's own secret
+    // ...
+  });
+  ```
+  Only set an explicit `secretRef` (a real Persona `ProjectSecret` id, not a name you make up) if
+  one specific tool genuinely needs a *different* secret from the rest of the source.
+
+  **If your own backend already knows its own API key** (e.g. from an env var), you don't need
+  `auth`/`secretRef` at all — just send the header yourself, directly, in that same tool's
+  `headers`: `headers: { Authorization: () => \`Bearer ${process.env.MY_KEY}\` }`. `auth` exists
+  specifically for the case where you want *Persona* to hold and inject a secret your own code
+  never sees.
 
 ## Step 2 — host them at a URL
 

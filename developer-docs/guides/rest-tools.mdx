@@ -174,11 +174,16 @@ const searchCourses = defineRestTool({
 });
 ```
 
-`args`, `queryParams`, `headers`, `body`, `auth` (`{ type: 'bearerSecret', secretRef }`), and
-`responseMappings` all map onto exactly the same fields the manual form's tabs edit — see
-[`defineRestTool`](/guides/sdk/resources/rest-tools) for the full option reference, and the
-sections above ("The reserved `{{externalUserId}}` variable", "Response mapping") for what each
-one means; they apply to a code-first tool exactly as written.
+`args`, `queryParams`, `headers`, `body`, and `responseMappings` all map onto exactly the same
+fields the manual form's tabs edit — see the sections above ("The reserved `{{externalUserId}}`
+variable", "Response mapping") for what each one means; they apply to a code-first tool exactly as
+written.
+
+`auth: { type: 'bearerSecret' }` is the one field that behaves *differently* here than in the
+manual form: you don't have to name a `secretRef` at all. Omit it and the tool automatically uses
+whichever secret is configured on the REST Tool Source itself — see [`defineRestTool`'s auth
+section](/guides/sdk/resources/rest-tools#auth-type-bearersecret--you-dont-have-to-name-a-secret)
+for exactly how that fallback works and when you'd still set an explicit `secretRef`.
 
 ### Hosting the manifest
 
