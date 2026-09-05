@@ -11,6 +11,7 @@ import knowledgeService from '../knowledge/knowledge.service.js';
 import mcpService from '../mcp/mcp.service.js';
 import projectSecretService from './projectSecret.service.js';
 import restApiToolService from '../restApiTools/restApiTool.service.js';
+import restApiToolSourceService from '../restApiToolSources/restApiToolSource.service.js';
 import providerService from '../providers/provider.service.js';
 import storeService from '../stores/store.service.js';
 import auditLogService from '../audit/auditLog.service.js';
@@ -1121,6 +1122,116 @@ class ProjectController {
         toolDraft,
         req.body.testValues || {},
         toolId
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async listRestApiToolSources(req, res, next) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 20;
+      const filters = { search: req.query.search };
+
+      const sources = await restApiToolSourceService.discoverRestApiToolSources(
+        req.projectAdminContext,
+        filters,
+        { page, limit }
+      );
+
+      res.json({
+        success: true,
+        data: sources.map((source) => restApiToolSourceService.toSafeJson(source)),
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async createRestApiToolSource(req, res, next) {
+    try {
+      const source = await restApiToolSourceService.createRestApiToolSource(
+        undefined,
+        req.body,
+        req.projectAdminContext
+      );
+      res.status(201).json({ success: true, data: restApiToolSourceService.toSafeJson(source) });
+    } catch (error) {
+      if (error.code === 11000) {
+        return res.status(409).json({
+          success: false,
+          message: 'A REST API tool source with this exact name already exists',
+        });
+      }
+      next(error);
+    }
+  }
+
+  async updateRestApiToolSource(req, res, next) {
+    try {
+      const source = await restApiToolSourceService.updateRestApiToolSource(
+        req.params.sourceId,
+        undefined,
+        req.body,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: restApiToolSourceService.toSafeJson(source) });
+    } catch (error) {
+      if (error.code === 11000) {
+        return res.status(409).json({
+          success: false,
+          message: 'Another REST API tool source with this name already exists',
+        });
+      }
+      next(error);
+    }
+  }
+
+  async deleteRestApiToolSource(req, res, next) {
+    try {
+      await restApiToolSourceService.deleteRestApiToolSource(
+        req.params.sourceId,
+        undefined,
+        req.projectAdminContext
+      );
+      res.json({ success: true, message: 'REST API tool source deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getRestApiToolSourceUsage(req, res, next) {
+    try {
+      const usage = await restApiToolSourceService.getRestApiToolSourceUsage(
+        req.params.sourceId,
+        undefined,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: usage });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async bulkDeleteRestApiToolSources(req, res, next) {
+    try {
+      const result = await bulkDelete(req.body.ids, (id) =>
+        restApiToolSourceService.deleteRestApiToolSource(id, undefined, req.projectAdminContext)
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async testRestApiToolSource(req, res, next) {
+    try {
+      const result = await restApiToolSourceService.testConnection(
+        req.params.sourceId,
+        undefined,
+        req.projectAdminContext
       );
       res.json({ success: true, data: result });
     } catch (error) {

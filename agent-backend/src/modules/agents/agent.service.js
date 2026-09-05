@@ -343,6 +343,7 @@ class AgentService {
       await agent.populate('knowledgeBases', 'name description documentCount chunkCount');
       await agent.populate('storeMounts', 'name description scope accessMode');
       await agent.populate('restApiTools', 'name method description isEnabled');
+      await agent.populate('restApiToolSources', 'name description url isEnabled');
     }
 
     return this._formatSafe(agent, userId);
@@ -360,6 +361,7 @@ class AgentService {
       await agent.populate('knowledgeBases', 'name description documentCount chunkCount');
       await agent.populate('storeMounts', 'name description scope accessMode');
       await agent.populate('restApiTools', 'name method description isEnabled');
+      await agent.populate('restApiToolSources', 'name description url isEnabled');
     }
 
     return this._formatSafe(agent, userId);
@@ -484,6 +486,7 @@ class AgentService {
       await agent.populate('knowledgeBases', 'name description documentCount chunkCount');
       await agent.populate('storeMounts', 'name description scope accessMode');
       await agent.populate('restApiTools', 'name method description isEnabled');
+      await agent.populate('restApiToolSources', 'name description url isEnabled');
     }
 
     const obj = agent.toObject ? agent.toObject() : agent;

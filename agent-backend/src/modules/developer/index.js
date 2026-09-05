@@ -28,3 +28,5 @@ export { default as developerSecretRouter } from './developerSecret.routes.js';
 export { default as developerSecretController } from './developerSecret.controller.js';
 export { default as developerRestToolRouter } from './developerRestTool.routes.js';
 export { default as developerRestToolController } from './developerRestTool.controller.js';
+export { default as developerRestApiToolSourceRouter } from './developerRestApiToolSource.routes.js';
+export { default as developerRestApiToolSourceController } from './developerRestApiToolSource.controller.js';

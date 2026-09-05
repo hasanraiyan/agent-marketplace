@@ -77,6 +77,20 @@ jest.unstable_mockModule('../src/modules/restApiTools/restApiTool.service.js', (
     toSafeJson: jest.fn((tool) => tool),
   },
 }));
+// Same boundary-mocking reason as restApiTool.service.js above —
+// restApiToolSource.service.js also imports `personaExecutionContext` from
+// the mocked-out agent.service.js.
+jest.unstable_mockModule('../src/modules/restApiToolSources/restApiToolSource.service.js', () => ({
+  default: {
+    discoverRestApiToolSources: jest.fn(),
+    createRestApiToolSource: jest.fn(),
+    updateRestApiToolSource: jest.fn(),
+    deleteRestApiToolSource: jest.fn(),
+    getRestApiToolSourceUsage: jest.fn(),
+    testConnection: jest.fn(),
+    toSafeJson: jest.fn((source) => source),
+  },
+}));
 jest.unstable_mockModule('../src/modules/projects/projectSecret.service.js', () => ({
   default: {
     listSecrets: jest.fn(),

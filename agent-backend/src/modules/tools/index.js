@@ -4,6 +4,7 @@ import { getProjectBuilderToolbox } from './projectBuilder.tools.js';
 import { askClarificationTool } from './clarification.tool.js';
 import { resolveMcpTools } from '../mcp/mcp.tools.js';
 import { resolveRestApiTools } from '../restApiTools/restApiTool.tools.js';
+import { resolveRestApiToolSourceTools } from '../restApiToolSources/restApiToolSource.tools.js';
 import { resolveKnowledgeBaseTools } from '../knowledge/knowledge.tools.js';
 import { presentFileTool } from './present.tool.js';
 
@@ -84,6 +85,13 @@ export const resolveAgentTools = async (
   if (agentConfig.restApiTools && agentConfig.restApiTools.length > 0) {
     const restTools = await resolveRestApiTools(agentConfig, userId, context);
     tools.push(...restTools);
+  }
+
+  // 6. REST API Tool Sources — fetched live from each attached source's
+  // hosted manifest URL on every call, mirroring step 3 (MCP) exactly.
+  if (agentConfig.restApiToolSources && agentConfig.restApiToolSources.length > 0) {
+    const sourceTools = await resolveRestApiToolSourceTools(agentConfig, userId, context);
+    tools.push(...sourceTools);
   }
 
   return { tools, mcpAppMap };

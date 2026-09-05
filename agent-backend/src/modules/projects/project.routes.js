@@ -28,6 +28,10 @@ import {
   updateRestApiToolSchema,
   testRestApiToolSchema,
 } from '../restApiTools/restApiTool.validator.js';
+import {
+  createRestApiToolSourceSchema,
+  updateRestApiToolSourceSchema,
+} from '../restApiToolSources/restApiToolSource.validator.js';
 import { createAgentSchema, updateAgentSchema } from '../agents/agent.validator.js';
 import { createStoreSchema, updateStoreSchema } from '../stores/store.validator.js';
 
@@ -742,6 +746,32 @@ adminRouter.post(
   projectController.testRestApiTool
 );
 adminRouter.post('/rest-tools/:toolId/test', projectController.testRestApiTool);
+
+adminRouter.get('/rest-tool-sources', projectController.listRestApiToolSources);
+adminRouter.post(
+  '/rest-tool-sources',
+  mutateLimiter,
+  validateBody(createRestApiToolSourceSchema),
+  projectController.createRestApiToolSource
+);
+adminRouter.patch(
+  '/rest-tool-sources/:sourceId',
+  mutateLimiter,
+  validateBody(updateRestApiToolSourceSchema),
+  projectController.updateRestApiToolSource
+);
+adminRouter.delete(
+  '/rest-tool-sources/:sourceId',
+  mutateLimiter,
+  projectController.deleteRestApiToolSource
+);
+adminRouter.get('/rest-tool-sources/:sourceId/usage', projectController.getRestApiToolSourceUsage);
+adminRouter.post(
+  '/rest-tool-sources/bulk-delete',
+  mutateLimiter,
+  projectController.bulkDeleteRestApiToolSources
+);
+adminRouter.post('/rest-tool-sources/:sourceId/test', projectController.testRestApiToolSource);
 
 /**
  * @openapi

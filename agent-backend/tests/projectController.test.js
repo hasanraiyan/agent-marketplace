@@ -72,6 +72,18 @@ jest.unstable_mockModule('../src/modules/restApiTools/restApiTool.service.js', (
     toSafeJson: jest.fn((tool) => ({ ...tool, safe: true })),
   },
 }));
+// Same boundary-mocking reason as restApiTool.service.js above.
+jest.unstable_mockModule('../src/modules/restApiToolSources/restApiToolSource.service.js', () => ({
+  default: {
+    discoverRestApiToolSources: jest.fn(),
+    createRestApiToolSource: jest.fn(),
+    updateRestApiToolSource: jest.fn(),
+    deleteRestApiToolSource: jest.fn(),
+    getRestApiToolSourceUsage: jest.fn(),
+    testConnection: jest.fn(),
+    toSafeJson: jest.fn((source) => ({ ...source, safe: true })),
+  },
+}));
 jest.unstable_mockModule('../src/modules/projects/projectSecret.service.js', () => ({
   default: {
     listSecrets: jest.fn(),

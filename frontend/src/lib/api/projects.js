@@ -209,6 +209,25 @@ export const bulkDeleteProjectRestTools = (projectId, ids) =>
 export const testProjectRestTool = (projectId, { toolId, draft, testValues } = {}) =>
   api.post(`/projects/${projectId}/rest-tools/test`, { toolId, draft, testValues });
 
+// REST API Tool Sources — a hosted manifest URL (mirrors MCP: register a
+// URL + optional API key, Test Connection pulls and stores a display-only
+// tool summary). No single-item GET route, same find-by-id-from-list
+// convention as MCP/REST Tools above.
+export const getProjectRestToolSources = (projectId) =>
+  api.get(`/projects/${projectId}/rest-tool-sources`);
+export const createProjectRestToolSource = (projectId, data) =>
+  api.post(`/projects/${projectId}/rest-tool-sources`, data);
+export const updateProjectRestToolSource = (projectId, sourceId, data) =>
+  api.patch(`/projects/${projectId}/rest-tool-sources/${sourceId}`, data);
+export const deleteProjectRestToolSource = (projectId, sourceId) =>
+  api.delete(`/projects/${projectId}/rest-tool-sources/${sourceId}`);
+export const getProjectRestToolSourceUsage = (projectId, sourceId) =>
+  api.get(`/projects/${projectId}/rest-tool-sources/${sourceId}/usage`);
+export const bulkDeleteProjectRestToolSources = (projectId, ids) =>
+  api.post(`/projects/${projectId}/rest-tool-sources/bulk-delete`, { ids });
+export const testProjectRestToolSource = (projectId, sourceId) =>
+  api.post(`/projects/${projectId}/rest-tool-sources/${sourceId}/test`);
+
 // Project secrets (REST API Tool Builder's Auth tab) — the value is never
 // returned by any of these, including create; the caller already has it.
 export const getProjectSecrets = (projectId) =>

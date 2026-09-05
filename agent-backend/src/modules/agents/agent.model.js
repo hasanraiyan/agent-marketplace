@@ -143,6 +143,15 @@ const agentSchema = new mongoose.Schema(
         ref: 'RestApiTool',
       },
     ],
+    // Attached like `mcps` (the whole source, not individual tools) — its
+    // tools are fetched live at agent-run time, never persisted per-tool.
+    // See restApiToolSources/restApiToolSource.tools.js.
+    restApiToolSources: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'RestApiToolSource',
+      },
+    ],
     knowledgeBases: [
       {
         type: mongoose.Schema.Types.ObjectId,

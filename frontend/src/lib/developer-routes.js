@@ -31,6 +31,9 @@ export const developerRoutes = {
   projectRestToolNew: (id) => `/developer/projects/${id}/rest-tools/new`,
   projectRestToolEdit: (id, toolId) =>
     `/developer/projects/${id}/rest-tools/${toolId}/edit`,
+  projectRestToolSourceNew: (id) => `/developer/projects/${id}/rest-tool-sources/new`,
+  projectRestToolSourceEdit: (id, sourceId) =>
+    `/developer/projects/${id}/rest-tool-sources/${sourceId}/edit`,
   projectAgentNew: (id) => `/developer/projects/${id}/agents/new`,
   projectAgentEdit: (id, agentId) =>
     `/developer/projects/${id}/agents/${agentId}/edit`,

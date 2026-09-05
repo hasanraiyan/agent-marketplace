@@ -572,7 +572,14 @@ class AgentFactory {
         throw new Error('Agent deleted or unavailable');
       }
       if (typeof agent.populate === 'function') {
-        await agent.populate(['skills', 'mcps', 'knowledgeBases', 'storeMounts', 'restApiTools']);
+        await agent.populate([
+          'skills',
+          'mcps',
+          'knowledgeBases',
+          'storeMounts',
+          'restApiTools',
+          'restApiToolSources',
+        ]);
       }
 
       if (!agent.providerId) throw new Error('Agent has no valid provider configured.');

@@ -69,6 +69,10 @@ import {
   deleteProjectRestTool,
   bulkDeleteProjectRestTools,
   getProjectRestToolUsage,
+  getProjectRestToolSources,
+  deleteProjectRestToolSource,
+  bulkDeleteProjectRestToolSources,
+  getProjectRestToolSourceUsage,
   getProjectSecrets,
   createProjectSecret,
   deleteProjectSecret,
@@ -545,6 +549,10 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   const [restToolsLoading, setRestToolsLoading] = useState(true);
   const [deleteRestToolTarget, setDeleteRestToolTarget] = useState(null);
   const [deletingRestTool, setDeletingRestTool] = useState(false);
+  const [restToolSources, setRestToolSources] = useState([]);
+  const [restToolSourcesLoading, setRestToolSourcesLoading] = useState(true);
+  const [deleteRestToolSourceTarget, setDeleteRestToolSourceTarget] = useState(null);
+  const [deletingRestToolSource, setDeletingRestToolSource] = useState(false);
   const [secrets, setSecrets] = useState([]);
   const [secretsLoading, setSecretsLoading] = useState(true);
   const [deleteSecretTarget, setDeleteSecretTarget] = useState(null);
@@ -796,6 +804,25 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
         );
       } finally {
         setRestToolsLoading(false);
+      }
+    })();
+  }, [isLoaded, isSignedIn, projectId]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    (async () => {
+      try {
+        setRestToolSourcesLoading(true);
+        const res = await getProjectRestToolSources(projectId);
+        if (res.data?.success) {
+          setRestToolSources(res.data.data);
+        }
+      } catch (err) {
+        toast.error(
+          err.response?.data?.message || "Failed to load REST Tool Sources.",
+        );
+      } finally {
+        setRestToolSourcesLoading(false);
       }
     })();
   }, [isLoaded, isSignedIn, projectId]);
@@ -1203,6 +1230,22 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
     }
   };
 
+  const handleDeleteRestToolSource = async () => {
+    if (!deleteRestToolSourceTarget) return;
+    setDeletingRestToolSource(true);
+    try {
+      const targetId = deleteRestToolSourceTarget._id || deleteRestToolSourceTarget.id;
+      await deleteProjectRestToolSource(projectId, targetId);
+      setRestToolSources((prev) => prev.filter((s) => (s._id || s.id) !== targetId));
+      toast.success("REST Tool Source deleted.");
+      setDeleteRestToolSourceTarget(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete source.");
+    } finally {
+      setDeletingRestToolSource(false);
+    }
+  };
+
   const handleDeleteSecret = async () => {
     if (!deleteSecretTarget) return;
     setDeletingSecret(true);
@@ -1295,6 +1338,13 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
       setRestTools,
       "REST API tool",
     );
+  const handleBulkDeleteRestToolSources = (ids) =>
+    runBulkDelete(
+      bulkDeleteProjectRestToolSources,
+      ids,
+      setRestToolSources,
+      "REST Tool Source",
+    );
   const handleBulkDeleteSecrets = (ids) =>
     runBulkDelete(bulkDeleteProjectSecrets, ids, setSecrets, "Secret");
   const handleBulkDeleteProviders = (ids) =>
@@ -1322,6 +1372,10 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   const filteredRestTools = useMemo(
     () => filterByQuery(restTools, resourceSearch),
     [restTools, resourceSearch],
+  );
+  const filteredRestToolSources = useMemo(
+    () => filterByQuery(restToolSources, resourceSearch),
+    [restToolSources, resourceSearch],
   );
   const filteredSecrets = useMemo(
     () =>
@@ -1578,6 +1632,7 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
               <TabsTrigger value="knowledge">Knowledge</TabsTrigger>
               <TabsTrigger value="connectors">Connectors</TabsTrigger>
               <TabsTrigger value="rest-tools">REST Tools</TabsTrigger>
+              <TabsTrigger value="rest-tool-sources">REST Tool Sources</TabsTrigger>
               <TabsTrigger value="secrets">Secrets</TabsTrigger>
               <TabsTrigger value="providers">Providers</TabsTrigger>
               <TabsTrigger value="audit-logs">Audit Logs</TabsTrigger>
@@ -2325,6 +2380,42 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                   }
                   onDelete={(tool) => setDeleteRestToolTarget(tool)}
                   onBulkDelete={handleBulkDeleteRestTools}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="rest-tool-sources" className="mt-6">
+            <Card className="w-full">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle>REST Tool Sources</CardTitle>
+                  <CardDescription>
+                    Hosted manifest URLs — Persona discovers your code-defined REST tools from
+                    them, the same way it discovers an MCP server&apos;s tools.
+                  </CardDescription>
+                </div>
+                <Link href={developerRoutes.projectRestToolSourceNew(projectId)}>
+                  <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
+                    <Plus className="mr-1.5 size-3.5" />
+                    New REST Tool Source
+                  </Button>
+                </Link>
+              </CardHeader>
+              <CardContent>
+                <NameDescriptionTable
+                  items={filteredRestToolSources}
+                  loading={restToolSourcesLoading}
+                  emptyLabel={
+                    resourceSearch
+                      ? `No REST Tool Sources match "${resourceSearch}".`
+                      : "No REST Tool Sources yet."
+                  }
+                  getEditHref={(id) =>
+                    developerRoutes.projectRestToolSourceEdit(projectId, id)
+                  }
+                  onDelete={(source) => setDeleteRestToolSourceTarget(source)}
+                  onBulkDelete={handleBulkDeleteRestToolSources}
                 />
               </CardContent>
             </Card>
@@ -3462,6 +3553,47 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
                 {deletingRestTool ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  "Delete"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete REST Tool Source */}
+        <AlertDialog
+          open={!!deleteRestToolSourceTarget}
+          onOpenChange={(open) => !open && setDeleteRestToolSourceTarget(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this REST Tool Source?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteRestToolSourceTarget?.name} will be permanently deleted. Any
+                Agents still attaching it will lose access to its tools. This
+                cannot be undone.
+              </AlertDialogDescription>
+              <UsageWarning
+                getUsage={getProjectRestToolSourceUsage}
+                projectId={projectId}
+                id={deleteRestToolSourceTarget?._id || deleteRestToolSourceTarget?.id}
+              />
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingRestToolSource}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleDeleteRestToolSource();
+                }}
+                disabled={deletingRestToolSource}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deletingRestToolSource ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   "Delete"
