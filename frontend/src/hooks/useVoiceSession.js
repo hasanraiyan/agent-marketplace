@@ -3,6 +3,25 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createProjectAgentVoiceSession } from "@/lib/api/projects";
 
+// Gemini Live delivers an agent utterance's output transcription as SEVERAL
+// incremental fragments (one serverContent message per fragment) inside a
+// single model turn — there is no per-fragment "finished" flag; only
+// turnComplete closes the turn. The gateway forwards each fragment as its own
+// isFinal:true voice_transcript event, so without merging here every fragment
+// would render as its own stacked bubble even though the concatenated text is
+// one sentence. Fragments arrive as EITHER a cumulative full snapshot OR
+// incremental new words (Gemini does both), so handle both:
+//   - cumulative: next already contains prev from the start  -> take next
+//   - incremental: append next, inserting a space only at a clean word seam
+function mergeTranscriptText(prev, next) {
+  if (!prev) return next;
+  if (!next) return prev;
+  if (next === prev || prev.endsWith(next)) return prev; // no-op / dup tail
+  if (next.startsWith(prev)) return next; // cumulative snapshot
+  const needSpace = !/\s$/.test(prev) && !/^\s/.test(next);
+  return prev + (needSpace ? " " : "") + next;
+}
+
 /**
  * Drives the Developer Studio Agent Test playground's Voice tab
  * (voice-agent-plan.md §13.1, §14). Mints a ticket over ordinary HTTP
@@ -37,6 +56,11 @@ export function useVoiceSession({ projectId, agentId }) {
   const playerNodeRef = useRef(null);
   const acceptedTurnSeqRef = useRef(0);
   const mountedRef = useRef(true);
+  // Speaker + turnSeq of the last committed transcript line. Consecutive
+  // finals with the same speaker AND turnSeq are fragments of one utterance
+  // (the server bumps turnSeq only at turnComplete), so they merge into the
+  // line they created instead of spawning a new bubble.
+  const lastFinalTurnRef = useRef(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -145,16 +169,37 @@ export function useVoiceSession({ projectId, agentId }) {
   }, []);
 
   const handleTranscript = useCallback((value) => {
-    const { speaker, text, isFinal } = value;
-    if (isFinal) {
-      setPartial((prev) => (prev?.speaker === speaker ? null : prev));
-      setTranscript((prev) => [
-        ...prev,
-        { id: `${speaker}-${prev.length}`, speaker, text },
-      ]);
-    } else {
+    const { speaker, text, isFinal, turnSeq } = value;
+    if (!isFinal) {
       setPartial({ speaker, text });
+      return;
     }
+
+    // A final may land while a partial of the same speaker is showing (the
+    // last interim is superseded by the final) — clear it only for that case.
+    setPartial((prev) => (prev?.speaker === speaker ? null : prev));
+
+    const last = lastFinalTurnRef.current;
+    const sameUtterance =
+      last &&
+      last.speaker === speaker &&
+      last.turnSeq === turnSeq;
+
+    setTranscript((prev) => {
+      const tail = prev[prev.length - 1];
+      // Same speaker + same turn => fragment of the utterance still streaming
+      // in. Merge into the open line (which already rendered as a bubble)
+      // rather than appending a second bubble for this fragment.
+      if (sameUtterance && tail?.speaker === speaker) {
+        const merged = mergeTranscriptText(tail.text, text);
+        if (merged === tail.text) return prev;
+        return prev.map((l, i) =>
+          i === prev.length - 1 ? { ...l, text: merged } : l,
+        );
+      }
+      return [...prev, { id: `${speaker}-${prev.length}`, speaker, text }];
+    });
+    lastFinalTurnRef.current = { speaker, turnSeq };
   }, []);
 
   const handleCustomEvent = useCallback(
