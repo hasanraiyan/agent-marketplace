@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.10 — 2026-09-05
+
+- Bump `@personaai/runtime` to `^0.8.0` to pick up the new `restToolsManifest` option (serves a
+  code-defined REST tool list at `GET {mountPath}/rest-tools/manifest` for a Persona REST Tool
+  Source to discover — no adapter code change needed for the option itself, since
+  `CreatePersonaHandlerOptions` already extends `CreateRuntimeOptions`). Added
+  `RestToolsManifestOptions`/`RestToolManifestEntry` to `server.ts`'s re-exported type list so a
+  Next.js app still never needs a direct `@personaai/runtime` install to type it.
+- Fixed: `server.ts`'s exported `VERSION` constant was stuck at `'0.1.2'` since 0.1.3 — now tracks
+  the package version again (same class of drift `client.ts`'s `VERSION` had before 0.1.9 fixed
+  it; `server.ts` was missed in that pass).
+
 ## 0.1.9 — 2026-09-05
 
 - Bump `@personaai/react` to `^0.7.4` so the client-side re-export carries `useChat({ voice })` —

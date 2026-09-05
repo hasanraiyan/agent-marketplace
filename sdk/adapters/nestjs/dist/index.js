@@ -1077,7 +1077,7 @@ PersonaModule = __decorateClass([
   Module({}),
   __decorateParam(0, Inject(PERSONA_MODULE_OPTIONS))
 ], PersonaModule);
-var VERSION = "0.1.3";
+var VERSION = "0.1.7";
 
 export { PERSONA_CLIENT, PERSONA_MODULE_OPTIONS, PERSONA_RUNTIME, PersonaMiddleware, PersonaModule, PersonaService, TranslationError, VERSION, toRuntimeRequest, writeRuntimeResponse };
 //# sourceMappingURL=index.js.map

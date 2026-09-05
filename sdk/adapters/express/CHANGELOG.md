@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.7 — 2026-09-05
+
+- Bump `@personaai/runtime` to `^0.8.0` and `@personaai/sdk` to `^0.7.0` to pick up the new `restToolsManifest` option (serves a code-defined REST tool list at `GET {mountPath}/rest-tools/manifest` for a Persona REST Tool Source to discover — no adapter code change, this is a generic passthrough since `CreateExpressAdapterOptions` already extends `CreateRuntimeOptions`).
+- Fixed: the exported `VERSION` constant was stuck at `'0.1.3'` — now tracks the package version again.
+
 ## 0.1.5 — 2026-09-05
 
 - Bump `@personaai/runtime` to `^0.7.0` and `@personaai/sdk` to `^0.6.0` to pick up the new `POST /voice/sessions` route (real-time voice sessions, powered by Gemini Live — no adapter code change, this is a generic passthrough).

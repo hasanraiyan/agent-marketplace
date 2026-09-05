@@ -85,6 +85,6 @@ declare function toRuntimeRequest(req: any, logger?: Logger): Promise<RuntimeReq
 
 declare function writeRuntimeResponse(res: any, response: RuntimeResponse, logger?: Logger): Promise<void>;
 
-declare const VERSION = "0.1.3";
+declare const VERSION = "0.1.7";
 
 export { type NestResolveUser, PERSONA_CLIENT, PERSONA_MODULE_OPTIONS, PERSONA_RUNTIME, PersonaMiddleware, PersonaModule, type PersonaModuleAsyncOptions, type PersonaModuleOptions, type PersonaOptionsFactory, PersonaService, TranslationError, VERSION, toRuntimeRequest, writeRuntimeResponse };

@@ -1078,7 +1078,7 @@ exports.PersonaModule = __decorateClass([
   common.Module({}),
   __decorateParam(0, common.Inject(PERSONA_MODULE_OPTIONS))
 ], exports.PersonaModule);
-var VERSION = "0.1.3";
+var VERSION = "0.1.7";
 
 Object.defineProperty(exports, "createLogger", {
   enumerable: true,
