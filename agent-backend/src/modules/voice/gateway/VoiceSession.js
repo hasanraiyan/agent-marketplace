@@ -86,6 +86,13 @@ export class VoiceSession {
     this.turnActive = false;
     this.runId = null;
     this.agentSpeaking = false;
+    // Gemini Live streams an agent utterance's output transcription as several
+    // cumulative serverContent snapshots (which may restart/rephrase mid-way)
+    // and only closes the turn with turnComplete. Accumulate the LATEST
+    // snapshot here and commit ONE transcript line at turnComplete — writing
+    // each fragment as its own line is what stuffed the checkpoint with
+    // overlapping near-duplicate messages.
+    this.pendingAgentText = null;
     this.lastUsage = null;
     // Set once the model calls end_call. Checked at the NEXT turnComplete
     // rather than acted on immediately, so a goodbye the model says after
@@ -309,17 +316,24 @@ export class VoiceSession {
     }
 
     if (content.outputTranscription?.text) {
+      // Each delivery is a cumulative snapshot of the utterance so far (the
+      // model may rephrase/restart mid-utterance, so later snapshots supersede
+      // earlier ones). Surface it as a growing live partial; the SINGLE final
+      // line is emitted and persisted by _flushAgentUtterance() at turnComplete
+      // — never one message per fragment.
+      this.pendingAgentText = content.outputTranscription.text;
       this._sendCustom('voice_transcript', {
         speaker: 'agent',
-        text: content.outputTranscription.text,
-        isFinal: true,
+        text: this.pendingAgentText,
+        isFinal: false,
         turnSeq: this.turnSeq,
       });
-      this._sendTextChunk('assistant', content.outputTranscription.text);
-      this._commitTranscript('assistant', content.outputTranscription.text);
     }
 
     if (content.interrupted) {
+      // The agent's utterance was cut off by a barge-in — drop the half-said
+      // transcript (it was never completed) rather than persist it as a turn.
+      this.pendingAgentText = null;
       // A new "generation" of agent audio starts fresh after a barge-in -
       // bump turnSeq so the client can drop everything tagged with the old
       // one without ambiguity (voice-agent-plan.md Section 5, Section 11).
@@ -328,6 +342,9 @@ export class VoiceSession {
     }
 
     if (content.turnComplete) {
+      // The model finished its turn — now the accumulated output transcription
+      // is final: emit + persist one clean agent line.
+      this._flushAgentUtterance();
       if (this.agentSpeaking) {
         this._sendCustom('voice_activity', { speaker: 'agent', state: 'end' });
         this.agentSpeaking = false;
@@ -514,6 +531,26 @@ export class VoiceSession {
     });
   }
 
+  /**
+   * Finalize the accumulated agent utterance (the latest cumulative output
+   * transcription snapshot) into ONE transcript line: emit the final caption,
+   * the AG-UI text chunk, and the checkpoint commit. Called at turnComplete
+   * and, defensively, at session close for an utterance cut off mid-speech.
+   */
+  _flushAgentUtterance() {
+    const text = this.pendingAgentText;
+    this.pendingAgentText = null;
+    if (!text || !text.trim()) return;
+    this._sendCustom('voice_transcript', {
+      speaker: 'agent',
+      text,
+      isFinal: true,
+      turnSeq: this.turnSeq,
+    });
+    this._sendTextChunk('assistant', text);
+    this._commitTranscript('assistant', text);
+  }
+
   /** Persist one final transcript line (Phase 4). Never blocks the audio path. */
   _commitTranscript(role, text) {
     if (!this.onTranscriptCommit || typeof text !== 'string' || !text.trim()) return;
@@ -591,6 +628,10 @@ export class VoiceSession {
     clearTimeout(this.maxDurationTimer);
     clearInterval(this.idleInterval);
     clearTimeout(this.goAwayTimer);
+
+    // Commit anything the agent said that never reached a turnComplete (call
+    // ended mid-utterance) so the thread isn't left missing the last line.
+    this._flushAgentUtterance();
 
     if (this.turnActive) this._endTurn();
 
