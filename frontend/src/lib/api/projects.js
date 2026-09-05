@@ -206,8 +206,15 @@ export const bulkDeleteProjectRestTools = (projectId, ids) =>
 // Backs the builder's "Send" button — pass either { toolId } (a saved tool)
 // or { draft } (unsaved form state), plus optional testValues (may include
 // externalUserId as a stand-in for testing a {{externalUserId}} tool).
-export const testProjectRestTool = (projectId, { toolId, draft, testValues } = {}) =>
-  api.post(`/projects/${projectId}/rest-tools/test`, { toolId, draft, testValues });
+export const testProjectRestTool = (
+  projectId,
+  { toolId, draft, testValues } = {},
+) =>
+  api.post(`/projects/${projectId}/rest-tools/test`, {
+    toolId,
+    draft,
+    testValues,
+  });
 
 // REST API Tool Sources — a hosted manifest URL (mirrors MCP: register a
 // URL + optional API key, Test Connection pulls and stores a display-only

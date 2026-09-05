@@ -252,8 +252,7 @@ export default function MyAgentsPage() {
               No agents match
             </h3>
             <p className="text-sm text-zinc-500 mt-2 max-w-sm leading-relaxed">
-              Try a different search term or filter to see more of your
-              agents.
+              Try a different search term or filter to see more of your agents.
             </p>
             <Button
               variant="outline"

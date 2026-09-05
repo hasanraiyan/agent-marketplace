@@ -199,10 +199,10 @@ export default function ProjectProviderEditorPage({ params: paramsPromise }) {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
+      <div className="flex flex-col gap-6 p-4 md:p-6">
         <Skeleton className="h-8 w-48" />
         <Card>
-          <CardContent className="space-y-4 p-6">
+          <CardContent className="flex flex-col gap-4 p-6">
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
@@ -213,7 +213,7 @@ export default function ProjectProviderEditorPage({ params: paramsPromise }) {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
+    <div className="flex flex-col gap-6 p-4 md:p-6">
       <form onSubmit={handleSubmit}>
         <Card className="max-w-2xl">
           <CardHeader>
@@ -390,11 +390,7 @@ export default function ProjectProviderEditorPage({ params: paramsPromise }) {
             <Link href={developerRoutes.project(projectId)}>
               <Button variant="outline">Cancel</Button>
             </Link>
-            <Button
-              type="submit"
-              disabled={saving}
-              className="!bg-[#1E60FF] !text-white shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] hover:!bg-[#154ed0] active:scale-[0.98]"
-            >
+            <Button type="submit" disabled={saving} className="shadow-sm">
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isEditing ? "Update Provider" : "Create Provider"}
             </Button>

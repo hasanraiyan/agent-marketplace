@@ -65,7 +65,11 @@ export function CurlPasteDialog({ onParsed }) {
           className="font-mono text-xs"
         />
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setOpen(false)}
+          >
             Cancel
           </Button>
           <Button type="button" onClick={handleImport}>

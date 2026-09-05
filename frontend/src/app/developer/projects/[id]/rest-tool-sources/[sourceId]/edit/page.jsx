@@ -33,10 +33,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field";
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldDescription,
+} from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function ProjectRestToolSourceEditorPage({ params: paramsPromise }) {
+export default function ProjectRestToolSourceEditorPage({
+  params: paramsPromise,
+}) {
   const params = React.use(paramsPromise);
   const projectId = params.id;
   const sourceId = params.sourceId;
@@ -95,7 +102,9 @@ export default function ProjectRestToolSourceEditorPage({ params: paramsPromise 
           router.push(developerRoutes.project(projectId));
         }
       } catch (err) {
-        toast.error(err.response?.data?.message || "Failed to load REST Tool Source.");
+        toast.error(
+          err.response?.data?.message || "Failed to load REST Tool Source.",
+        );
       } finally {
         setLoading(false);
       }
@@ -131,7 +140,9 @@ export default function ProjectRestToolSourceEditorPage({ params: paramsPromise 
       }
       router.push(developerRoutes.project(projectId));
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to save REST Tool Source.");
+      toast.error(
+        err.response?.data?.message || "Failed to save REST Tool Source.",
+      );
     } finally {
       setSaving(false);
     }
@@ -144,7 +155,9 @@ export default function ProjectRestToolSourceEditorPage({ params: paramsPromise 
       const tools = res.data?.data?.tools || [];
       setDiscoveredTools(tools);
       setLastTestedAt(new Date().toISOString());
-      toast.success(`Connected — discovered ${tools.length} tool${tools.length === 1 ? "" : "s"}.`);
+      toast.success(
+        `Connected — discovered ${tools.length} tool${tools.length === 1 ? "" : "s"}.`,
+      );
     } catch (err) {
       toast.error(err.response?.data?.message || "Test Connection failed.");
     } finally {
@@ -154,10 +167,10 @@ export default function ProjectRestToolSourceEditorPage({ params: paramsPromise 
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
+      <div className="flex flex-col gap-6 p-4 md:p-6">
         <Skeleton className="h-8 w-48" />
         <Card>
-          <CardContent className="space-y-4 p-6">
+          <CardContent className="flex flex-col gap-4 p-6">
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
@@ -168,15 +181,17 @@ export default function ProjectRestToolSourceEditorPage({ params: paramsPromise 
   }
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
+    <div className="flex flex-col gap-6 p-4 md:p-6">
       <form onSubmit={handleSubmit}>
         <Card className="max-w-2xl">
           <CardHeader>
             <CardTitle>REST Tool Source Configuration</CardTitle>
             <CardDescription>
-              A URL your own backend hosts (e.g. via <code>@personaai/runtime</code>&apos;s{" "}
-              <code>restToolsManifest</code> option), describing REST tools your Agents can call —
-              discovered the same way an MCP server&apos;s tools are.
+              A URL your own backend hosts (e.g. via{" "}
+              <code>@personaai/runtime</code>&apos;s{" "}
+              <code>restToolsManifest</code> option), describing REST tools your
+              Agents can call — discovered the same way an MCP server&apos;s
+              tools are.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -246,7 +261,9 @@ export default function ProjectRestToolSourceEditorPage({ params: paramsPromise 
                     id="apiKey"
                     name="apiKey"
                     type="password"
-                    placeholder={isEditing ? "••••••••••••••••" : "Enter API key"}
+                    placeholder={
+                      isEditing ? "••••••••••••••••" : "Enter API key"
+                    }
                     value={formData.apiKey}
                     onChange={handleChange}
                     required={!isEditing}
@@ -286,7 +303,12 @@ export default function ProjectRestToolSourceEditorPage({ params: paramsPromise 
                         : "Run Test Connection to discover this source's tools."}
                     </p>
                   </div>
-                  <Button type="button" variant="outline" onClick={handleTestConnection} disabled={testing}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleTestConnection}
+                    disabled={testing}
+                  >
                     {testing ? (
                       <Loader2 className="mr-1.5 size-4 animate-spin" />
                     ) : (
@@ -296,7 +318,7 @@ export default function ProjectRestToolSourceEditorPage({ params: paramsPromise 
                   </Button>
                 </div>
                 {discoveredTools.length > 0 ? (
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-2">
                     {discoveredTools.map((tool, idx) => (
                       <div
                         key={`${tool.name}-${idx}`}
@@ -315,7 +337,9 @@ export default function ProjectRestToolSourceEditorPage({ params: paramsPromise 
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No tools discovered yet.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No tools discovered yet.
+                  </p>
                 )}
               </div>
             )}
@@ -324,11 +348,7 @@ export default function ProjectRestToolSourceEditorPage({ params: paramsPromise 
             <Link href={developerRoutes.project(projectId)}>
               <Button variant="outline">Cancel</Button>
             </Link>
-            <Button
-              type="submit"
-              disabled={saving}
-              className="!bg-[#1E60FF] !text-white shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] hover:!bg-[#154ed0] active:scale-[0.98]"
-            >
+            <Button type="submit" disabled={saving} className="shadow-sm">
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isEditing ? "Update Source" : "Create Source"}
             </Button>

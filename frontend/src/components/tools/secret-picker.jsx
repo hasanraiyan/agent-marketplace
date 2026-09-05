@@ -107,7 +107,12 @@ export function SecretPicker({ projectId, value, onChange }) {
           >
             Cancel
           </Button>
-          <Button type="button" size="sm" onClick={handleCreate} disabled={saving}>
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleCreate}
+            disabled={saving}
+          >
             {saving && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
             Create secret
           </Button>

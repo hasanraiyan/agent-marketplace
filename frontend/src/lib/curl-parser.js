@@ -63,7 +63,10 @@ function tokenize(input) {
 function splitHeader(value) {
   const idx = value.indexOf(":");
   if (idx === -1) return { key: value.trim(), value: "" };
-  return { key: value.slice(0, idx).trim(), value: value.slice(idx + 1).trim() };
+  return {
+    key: value.slice(0, idx).trim(),
+    value: value.slice(idx + 1).trim(),
+  };
 }
 
 /**
@@ -110,23 +113,35 @@ export function parseCurl(curlString) {
     } else if (token === "-H" || token === "--header") {
       const raw = tokens[++i];
       if (raw) headers.push(splitHeader(raw));
-    } else if (token === "-d" || token === "--data" || token === "--data-raw" || token === "--data-binary") {
+    } else if (
+      token === "-d" ||
+      token === "--data" ||
+      token === "--data-raw" ||
+      token === "--data-binary"
+    ) {
       const raw = tokens[++i];
       if (raw !== undefined) bodyParts.push(raw);
     } else if (token === "--data-urlencode") {
       i++; // skip its value
-      warnings.push("--data-urlencode was not imported — encode the value manually if needed.");
+      warnings.push(
+        "--data-urlencode was not imported — encode the value manually if needed.",
+      );
     } else if (token === "-u" || token === "--user") {
       i++; // skip its value
       warnings.push(
-        "Basic auth (-u) was detected but not imported — this builder's Auth tab only supports a Bearer secret."
+        "Basic auth (-u) was detected but not imported — this builder's Auth tab only supports a Bearer secret.",
       );
     } else if (token.startsWith("-")) {
       // Unrecognized flag — best-effort skip. If it looks like it takes a
       // value (next token doesn't start with '-' and isn't the URL-shaped
       // final token), skip that too, so it isn't misread as the URL.
       const next = tokens[i + 1];
-      if (next && !next.startsWith("-") && !/^https?:\/\//i.test(next) && i + 2 < tokens.length) {
+      if (
+        next &&
+        !next.startsWith("-") &&
+        !/^https?:\/\//i.test(next) &&
+        i + 2 < tokens.length
+      ) {
         i++;
       }
     } else if (!url) {
@@ -135,7 +150,14 @@ export function parseCurl(curlString) {
   }
 
   if (!url) {
-    return { method: "GET", url: "", queryParams: [], headers: [], body: null, warnings: ["No URL found in the pasted command."] };
+    return {
+      method: "GET",
+      url: "",
+      queryParams: [],
+      headers: [],
+      body: null,
+      warnings: ["No URL found in the pasted command."],
+    };
   }
 
   // Split the query string off manually rather than via `new URL()` — a
@@ -149,10 +171,12 @@ export function parseCurl(curlString) {
   if (queryIndex !== -1) {
     baseUrl = url.slice(0, queryIndex);
     const search = url.slice(queryIndex + 1);
-    queryParams = Array.from(new URLSearchParams(search).entries()).map(([key, value]) => ({
-      key,
-      value,
-    }));
+    queryParams = Array.from(new URLSearchParams(search).entries()).map(
+      ([key, value]) => ({
+        key,
+        value,
+      }),
+    );
   }
 
   const body = bodyParts.length > 0 ? bodyParts.join("&") : null;
@@ -164,9 +188,16 @@ export function parseCurl(curlString) {
   // first bare word picked up as "the URL" is actually something else.
   if (!/^(https?:\/\/|\{\{)/.test(baseUrl)) {
     warnings.push(
-      `"${baseUrl}" doesn't look like a URL — make sure only one cURL command was pasted.`
+      `"${baseUrl}" doesn't look like a URL — make sure only one cURL command was pasted.`,
     );
   }
 
-  return { method: resolvedMethod, url: baseUrl, queryParams, headers, body, warnings };
+  return {
+    method: resolvedMethod,
+    url: baseUrl,
+    queryParams,
+    headers,
+    body,
+    warnings,
+  };
 }

@@ -485,19 +485,21 @@ export default function ExplorePage() {
         )}
 
         {/* Empty State when no results found */}
-        {!dbLoading && featuredList.length === 0 && trendingList.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-center select-none">
-            <div className="size-16 rounded-full bg-[#1E60FF]/5 border border-[#1E60FF]/10 flex items-center justify-center mb-4 text-[#1E60FF]">
-              <BotIcon className="size-8" />
+        {!dbLoading &&
+          featuredList.length === 0 &&
+          trendingList.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-20 text-center select-none">
+              <div className="size-16 rounded-full bg-[#1E60FF]/5 border border-[#1E60FF]/10 flex items-center justify-center mb-4 text-[#1E60FF]">
+                <BotIcon className="size-8" />
+              </div>
+              <h3 className="font-display text-lg font-semibold text-zinc-900">
+                No minds found
+              </h3>
+              <p className="text-sm text-zinc-400 mt-1 max-w-xs">
+                Try adjusting your search query or select another category.
+              </p>
             </div>
-            <h3 className="font-display text-lg font-semibold text-zinc-900">
-              No minds found
-            </h3>
-            <p className="text-sm text-zinc-400 mt-1 max-w-xs">
-              Try adjusting your search query or select another category.
-            </p>
-          </div>
-        )}
+          )}
       </div>
 
       {/* Mobile Bottom Tab Bar */}

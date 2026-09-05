@@ -32,7 +32,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field";
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldDescription,
+} from "@/components/ui/field";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   DropdownMenu,
@@ -106,7 +111,13 @@ function VariableInsertMenu({ agentTokens, onInsert }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size="icon" className="shrink-0" title="Insert variable">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="shrink-0"
+          title="Insert variable"
+        >
           <ChevronDown className="size-4" />
         </Button>
       </DropdownMenuTrigger>
@@ -121,9 +132,14 @@ function VariableInsertMenu({ agentTokens, onInsert }) {
         {agentTokens.length > 0 && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs">Agent-fillable</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-xs">
+              Agent-fillable
+            </DropdownMenuLabel>
             {agentTokens.map((name) => (
-              <DropdownMenuItem key={name} onClick={() => onInsert(`{{${name}}}`)}>
+              <DropdownMenuItem
+                key={name}
+                onClick={() => onInsert(`{{${name}}}`)}
+              >
                 <code className="text-xs">{`{{${name}}}`}</code>
               </DropdownMenuItem>
             ))}
@@ -132,7 +148,9 @@ function VariableInsertMenu({ agentTokens, onInsert }) {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => {
-            const name = window.prompt("New variable name (letters, numbers, _)");
+            const name = window.prompt(
+              "New variable name (letters, numbers, _)",
+            );
             if (name && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
               onInsert(`{{${name}}}`);
             } else if (name) {
@@ -155,10 +173,14 @@ function ParamRows({ rows, onChange, agentTokens, placeholder }) {
     onChange(next);
   };
   const remove = (idx) => onChange(rows.filter((_, i) => i !== idx));
-  const add = () => onChange([...rows, { key: "", valueTemplate: "", description: "", required: true }]);
+  const add = () =>
+    onChange([
+      ...rows,
+      { key: "", valueTemplate: "", description: "", required: true },
+    ]);
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       {rows.map((row, idx) => (
         <div key={idx} className="flex items-start gap-2 rounded-lg border p-3">
           <div className="grid flex-1 grid-cols-2 gap-2">
@@ -176,7 +198,11 @@ function ParamRows({ rows, onChange, agentTokens, placeholder }) {
               />
               <VariableInsertMenu
                 agentTokens={agentTokens}
-                onInsert={(token) => update(idx, { valueTemplate: (row.valueTemplate || "") + token })}
+                onInsert={(token) =>
+                  update(idx, {
+                    valueTemplate: (row.valueTemplate || "") + token,
+                  })
+                }
               />
             </div>
             <Input
@@ -186,7 +212,12 @@ function ParamRows({ rows, onChange, agentTokens, placeholder }) {
               className="col-span-2 text-xs"
             />
           </div>
-          <Button type="button" variant="ghost" size="icon" onClick={() => remove(idx)}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => remove(idx)}
+          >
             <Trash2 className="size-4" />
           </Button>
         </div>
@@ -236,7 +267,13 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
         bodyMode: form.bodyMode,
         bodyTemplate: form.bodyTemplate,
       }),
-    [form.url, form.queryParams, form.headers, form.bodyMode, form.bodyTemplate]
+    [
+      form.url,
+      form.queryParams,
+      form.headers,
+      form.bodyMode,
+      form.bodyTemplate,
+    ],
   );
 
   // Auto-derive paramDescriptors from whatever agent-fillable tokens are
@@ -246,7 +283,14 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
     setForm((prev) => {
       const existing = new Map(prev.paramDescriptors.map((d) => [d.name, d]));
       const next = agentTokens.map(
-        (name) => existing.get(name) || { name, in: "body", type: "string", description: "", required: true }
+        (name) =>
+          existing.get(name) || {
+            name,
+            in: "body",
+            type: "string",
+            description: "",
+            required: true,
+          },
       );
       if (
         next.length === prev.paramDescriptors.length &&
@@ -262,7 +306,9 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
   const updateDescriptor = (name, patch) => {
     setForm((prev) => ({
       ...prev,
-      paramDescriptors: prev.paramDescriptors.map((d) => (d.name === name ? { ...d, ...patch } : d)),
+      paramDescriptors: prev.paramDescriptors.map((d) =>
+        d.name === name ? { ...d, ...patch } : d,
+      ),
     }));
   };
 
@@ -338,8 +384,16 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
       ...prev,
       method: parsed.method,
       url: parsed.url,
-      queryParams: parsed.queryParams.map((q) => ({ ...q, description: "", required: true })),
-      headers: parsed.headers.map((h) => ({ ...h, description: "", required: true })),
+      queryParams: parsed.queryParams.map((q) => ({
+        ...q,
+        description: "",
+        required: true,
+      })),
+      headers: parsed.headers.map((h) => ({
+        ...h,
+        description: "",
+        required: true,
+      })),
       bodyMode: parsed.body ? "json" : prev.bodyMode,
       bodyTemplate: parsed.body || prev.bodyTemplate,
     }));
@@ -353,7 +407,9 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
   const updateMapping = (idx, patch) =>
     setForm((prev) => ({
       ...prev,
-      responseMappings: prev.responseMappings.map((m, i) => (i === idx ? { ...m, ...patch } : m)),
+      responseMappings: prev.responseMappings.map((m, i) =>
+        i === idx ? { ...m, ...patch } : m,
+      ),
     }));
   const removeMapping = (idx) =>
     setForm((prev) => ({
@@ -364,7 +420,7 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
   const steps = ["Basics", "Set up the API call", "Response mapping"];
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
+    <div className="flex flex-col gap-6 p-4 md:p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold">
@@ -393,7 +449,7 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
         </TabsList>
 
         <Card className="mt-4">
-          <CardContent className="space-y-6 p-6">
+          <CardContent className="flex flex-col gap-6 p-6">
             <TabsContent value="0">
               <FieldGroup>
                 <Field>
@@ -402,7 +458,9 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
                     id="tool-name"
                     placeholder="e.g. Get learner profile"
                     value={form.name}
-                    onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, name: e.target.value }))
+                    }
                     maxLength={100}
                   />
                 </Field>
@@ -412,7 +470,9 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
                     id="tool-desc"
                     placeholder="What does this tool do? Shown to the agent as the tool's description."
                     value={form.description}
-                    onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, description: e.target.value }))
+                    }
                     rows={3}
                     maxLength={500}
                   />
@@ -426,15 +486,20 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
                   </div>
                   <Switch
                     checked={form.isEnabled}
-                    onCheckedChange={(checked) => setForm((p) => ({ ...p, isEnabled: checked }))}
+                    onCheckedChange={(checked) =>
+                      setForm((p) => ({ ...p, isEnabled: checked }))
+                    }
                   />
                 </div>
               </FieldGroup>
             </TabsContent>
 
-            <TabsContent value="1" className="space-y-4">
+            <TabsContent value="1" className="flex flex-col gap-4">
               <div className="flex gap-2">
-                <Select value={form.method} onValueChange={(v) => setForm((p) => ({ ...p, method: v }))}>
+                <Select
+                  value={form.method}
+                  onValueChange={(v) => setForm((p) => ({ ...p, method: v }))}
+                >
                   <SelectTrigger className="w-32">
                     <SelectValue />
                   </SelectTrigger>
@@ -449,14 +514,23 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
                 <Input
                   placeholder="https://api.example.com/users/{{userId}}"
                   value={form.url}
-                  onChange={(e) => setForm((p) => ({ ...p, url: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, url: e.target.value }))
+                  }
                   className="font-mono text-xs"
                 />
                 <VariableInsertMenu
                   agentTokens={agentTokens}
-                  onInsert={(token) => setForm((p) => ({ ...p, url: (p.url || "") + token }))}
+                  onInsert={(token) =>
+                    setForm((p) => ({ ...p, url: (p.url || "") + token }))
+                  }
                 />
-                <Button type="button" variant="outline" onClick={handleTest} disabled={testing}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleTest}
+                  disabled={testing}
+                >
                   {testing ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (
@@ -470,14 +544,18 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
                 <div className="flex items-center gap-2 rounded-lg border bg-muted/20 p-3">
                   <Badge variant="secondary">{"{{externalUserId}}"}</Badge>
                   <span className="text-xs text-muted-foreground">
-                    Resolved automatically from the calling end-user&apos;s session — never
-                    editable by the agent. To test, supply a stand-in below.
+                    Resolved automatically from the calling end-user&apos;s
+                    session — never editable by the agent. To test, supply a
+                    stand-in below.
                   </span>
                   <Input
                     placeholder="Test externalUserId"
                     value={testValues.externalUserId || ""}
                     onChange={(e) =>
-                      setTestValues((p) => ({ ...p, externalUserId: e.target.value }))
+                      setTestValues((p) => ({
+                        ...p,
+                        externalUserId: e.target.value,
+                      }))
                     }
                     className="ml-auto max-w-48 text-xs"
                   />
@@ -498,18 +576,24 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
                 <TabsContent value="path" className="pt-4">
                   {form.paramDescriptors.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                      No <code>{"{{variables}}"}</code> yet — insert one from the URL, a param,
-                      a header, or the body using the variable menu.
+                      No <code>{"{{variables}}"}</code> yet — insert one from
+                      the URL, a param, a header, or the body using the variable
+                      menu.
                     </p>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="flex flex-col gap-3">
                       {form.paramDescriptors.map((d) => (
-                        <div key={d.name} className="flex flex-col gap-2 rounded-lg border p-3">
+                        <div
+                          key={d.name}
+                          className="flex flex-col gap-2 rounded-lg border p-3"
+                        >
                           <div className="flex items-center gap-2">
                             <code className="w-32 shrink-0 text-xs font-semibold">{`{{${d.name}}}`}</code>
                             <Select
                               value={d.type}
-                              onValueChange={(v) => updateDescriptor(d.name, { type: v })}
+                              onValueChange={(v) =>
+                                updateDescriptor(d.name, { type: v })
+                              }
                             >
                               <SelectTrigger className="w-28 shrink-0">
                                 <SelectValue />
@@ -523,13 +607,19 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
                             <Input
                               placeholder="Description for the agent"
                               value={d.description}
-                              onChange={(e) => updateDescriptor(d.name, { description: e.target.value })}
+                              onChange={(e) =>
+                                updateDescriptor(d.name, {
+                                  description: e.target.value,
+                                })
+                              }
                               className="flex-1 text-xs"
                             />
                             <div className="flex items-center gap-1.5 text-xs">
                               <Switch
                                 checked={d.required !== false}
-                                onCheckedChange={(v) => updateDescriptor(d.name, { required: v })}
+                                onCheckedChange={(v) =>
+                                  updateDescriptor(d.name, { required: v })
+                                }
                               />
                               Required
                             </div>
@@ -538,7 +628,10 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
                             placeholder={`Test value for {{${d.name}}} (used by "Send" only)`}
                             value={testValues[d.name] || ""}
                             onChange={(e) =>
-                              setTestValues((p) => ({ ...p, [d.name]: e.target.value }))
+                              setTestValues((p) => ({
+                                ...p,
+                                [d.name]: e.target.value,
+                              }))
                             }
                             className="ml-[8.5rem] w-auto flex-1 text-xs"
                           />
@@ -551,7 +644,9 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
                 <TabsContent value="params" className="pt-4">
                   <ParamRows
                     rows={form.queryParams}
-                    onChange={(rows) => setForm((p) => ({ ...p, queryParams: rows }))}
+                    onChange={(rows) =>
+                      setForm((p) => ({ ...p, queryParams: rows }))
+                    }
                     agentTokens={agentTokens}
                   />
                 </TabsContent>
@@ -559,46 +654,56 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
                 <TabsContent value="headers" className="pt-4">
                   <ParamRows
                     rows={form.headers}
-                    onChange={(rows) => setForm((p) => ({ ...p, headers: rows }))}
+                    onChange={(rows) =>
+                      setForm((p) => ({ ...p, headers: rows }))
+                    }
                     agentTokens={agentTokens}
                   />
                 </TabsContent>
 
-                <TabsContent value="auth" className="space-y-4 pt-4">
+                <TabsContent value="auth" className="flex flex-col gap-4 pt-4">
                   <Field>
                     <FieldLabel>Auth type</FieldLabel>
                     <Select
                       value={form.authType}
-                      onValueChange={(v) => setForm((p) => ({ ...p, authType: v }))}
+                      onValueChange={(v) =>
+                        setForm((p) => ({ ...p, authType: v }))
+                      }
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">None</SelectItem>
-                        <SelectItem value="bearerSecret">Bearer token (project secret)</SelectItem>
+                        <SelectItem value="bearerSecret">
+                          Bearer token (project secret)
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                     <FieldDescription>
-                      Sent as <code>Authorization: Bearer &lt;secret&gt;</code> so your endpoint
-                      can verify the call came from Persona.
+                      Sent as <code>Authorization: Bearer &lt;secret&gt;</code>{" "}
+                      so your endpoint can verify the call came from Persona.
                     </FieldDescription>
                   </Field>
                   {form.authType === "bearerSecret" && (
                     <SecretPicker
                       projectId={projectId}
                       value={form.secretRef}
-                      onChange={(secretId) => setForm((p) => ({ ...p, secretRef: secretId }))}
+                      onChange={(secretId) =>
+                        setForm((p) => ({ ...p, secretRef: secretId }))
+                      }
                     />
                   )}
                 </TabsContent>
 
-                <TabsContent value="body" className="space-y-3 pt-4">
+                <TabsContent value="body" className="flex flex-col gap-3 pt-4">
                   <Field>
                     <FieldLabel>Body</FieldLabel>
                     <Select
                       value={form.bodyMode}
-                      onValueChange={(v) => setForm((p) => ({ ...p, bodyMode: v }))}
+                      onValueChange={(v) =>
+                        setForm((p) => ({ ...p, bodyMode: v }))
+                      }
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue />
@@ -615,13 +720,21 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
                         rows={8}
                         placeholder={'{\n  "name": "{{name}}"\n}'}
                         value={form.bodyTemplate}
-                        onChange={(e) => setForm((p) => ({ ...p, bodyTemplate: e.target.value }))}
+                        onChange={(e) =>
+                          setForm((p) => ({
+                            ...p,
+                            bodyTemplate: e.target.value,
+                          }))
+                        }
                         className="font-mono text-xs"
                       />
                       <VariableInsertMenu
                         agentTokens={agentTokens}
                         onInsert={(token) =>
-                          setForm((p) => ({ ...p, bodyTemplate: (p.bodyTemplate || "") + token }))
+                          setForm((p) => ({
+                            ...p,
+                            bodyTemplate: (p.bodyTemplate || "") + token,
+                          }))
                         }
                       />
                     </div>
@@ -630,7 +743,7 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
               </Tabs>
             </TabsContent>
 
-            <TabsContent value="2" className="space-y-4">
+            <TabsContent value="2" className="flex flex-col gap-4">
               <div>
                 <FieldLabel>Last test response</FieldLabel>
                 {testResult ? (
@@ -639,37 +752,56 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
                   </pre>
                 ) : (
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Hit &quot;Send&quot; on the previous step to see a live response here.
+                    Hit &quot;Send&quot; on the previous step to see a live
+                    response here.
                   </p>
                 )}
               </div>
 
-              <div className="space-y-3">
+              <div className="flex flex-col gap-3">
                 {form.responseMappings.map((m, idx) => (
-                  <div key={idx} className="flex items-center gap-2 rounded-lg border p-3">
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2 rounded-lg border p-3"
+                  >
                     <Input
                       placeholder="field name"
                       value={m.field}
-                      onChange={(e) => updateMapping(idx, { field: e.target.value })}
+                      onChange={(e) =>
+                        updateMapping(idx, { field: e.target.value })
+                      }
                     />
                     <Input
                       placeholder="@data.user.name"
                       value={m.path}
-                      onChange={(e) => updateMapping(idx, { path: e.target.value })}
+                      onChange={(e) =>
+                        updateMapping(idx, { path: e.target.value })
+                      }
                       className="font-mono text-xs"
                     />
-                    <Button type="button" variant="ghost" size="icon" onClick={() => removeMapping(idx)}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeMapping(idx)}
+                    >
                       <Trash2 className="size-4" />
                     </Button>
                   </div>
                 ))}
-                <Button type="button" variant="outline" size="sm" onClick={addMapping}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addMapping}
+                >
                   <Plus className="mr-1.5 size-3.5" />
                   Add field mapping
                 </Button>
               </div>
               <FieldDescription>
-                Leave empty to return the raw JSON response to the agent unmapped.
+                Leave empty to return the raw JSON response to the agent
+                unmapped.
               </FieldDescription>
             </TabsContent>
           </CardContent>
@@ -677,12 +809,20 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
           <CardFooter className="flex justify-between border-t p-6">
             <div className="flex gap-2">
               {step > 0 && (
-                <Button type="button" variant="outline" onClick={() => setStep(step - 1)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep(step - 1)}
+                >
                   Back
                 </Button>
               )}
               {step < steps.length - 1 && (
-                <Button type="button" variant="outline" onClick={() => setStep(step + 1)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep(step + 1)}
+                >
                   Next
                 </Button>
               )}
@@ -691,7 +831,7 @@ export function RestApiToolEditor({ projectId, tool, mode = "new" }) {
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="!bg-[#1E60FF] !text-white shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] hover:!bg-[#154ed0] active:scale-[0.98]"
+              className="shadow-sm"
             >
               {saving ? (
                 <Loader2 className="mr-2 size-4 animate-spin" />

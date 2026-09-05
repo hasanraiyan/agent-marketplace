@@ -76,7 +76,7 @@ function agentIdFromToolOutput(output) {
 
 function AttachmentPicker({ label, items, selected, onToggle, renderBadge }) {
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       <FieldLabel>{label}</FieldLabel>
       {items.length === 0 ? (
         <p className="text-sm text-muted-foreground">None yet.</p>
@@ -261,7 +261,9 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
       skills: (agent.skills || []).map((s) => s._id || s),
       mcps: (agent.mcps || []).map((m) => m._id || m),
       restApiTools: (agent.restApiTools || []).map((t) => t._id || t),
-      restApiToolSources: (agent.restApiToolSources || []).map((s) => s._id || s),
+      restApiToolSources: (agent.restApiToolSources || []).map(
+        (s) => s._id || s,
+      ),
       knowledgeBases: (agent.knowledgeBases || []).map((k) => k._id || k),
       storeMounts: (agent.storeMounts || []).map((s) => s._id || s),
     });
@@ -361,10 +363,10 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
+      <div className="flex flex-col gap-6 p-4 md:p-6">
         <Skeleton className="h-8 w-48" />
         <Card>
-          <CardContent className="space-y-4 p-6">
+          <CardContent className="flex flex-col gap-4 p-6">
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-32 w-full" />
@@ -377,7 +379,7 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
   const runtimeUrl = `${BASE_URL}/projects/${projectId}/architect/agui`;
 
   return (
-    <div className="flex h-[calc(100vh-var(--header-height))] max-h-[calc(100vh-var(--header-height))] flex-col overflow-hidden p-4 md:p-6 lg:p-8">
+    <div className="flex h-[calc(100vh-var(--header-height))] max-h-[calc(100vh-var(--header-height))] flex-col overflow-hidden p-4 md:p-6">
       <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row">
         <Card className="flex h-[420px] w-full flex-col overflow-hidden lg:h-full lg:w-[380px] lg:shrink-0">
           <CardHeader className="border-b py-3">
@@ -619,7 +621,9 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
                     label="REST Tool Sources"
                     items={restApiToolSources}
                     selected={formData.restApiToolSources}
-                    onToggle={(id) => toggleAttachment("restApiToolSources", id)}
+                    onToggle={(id) =>
+                      toggleAttachment("restApiToolSources", id)
+                    }
                     renderBadge={(source) => (
                       <span className="text-xs text-muted-foreground">
                         {(source.tools || []).length} tool
@@ -652,11 +656,7 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
               <Link href={developerRoutes.project(projectId)}>
                 <Button variant="outline">Cancel</Button>
               </Link>
-              <Button
-                type="submit"
-                disabled={saving}
-                className="!bg-[#1E60FF] !text-white shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] hover:!bg-[#154ed0] active:scale-[0.98]"
-              >
+              <Button type="submit" disabled={saving} className="shadow-sm">
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isEditing ? "Update Agent" : "Create Agent"}
               </Button>

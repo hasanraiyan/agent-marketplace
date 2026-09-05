@@ -1,7 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { CompassIcon, HammerIcon, SparklesIcon, BracesIcon } from "lucide-react";
+import {
+  CompassIcon,
+  HammerIcon,
+  SparklesIcon,
+  BracesIcon,
+} from "lucide-react";
 
 const capabilities = [
   {
@@ -54,8 +59,8 @@ export default function AuthLayout({ children }) {
             An index of minds
           </p>
           <h1 className="font-display mt-4 max-w-sm text-4xl leading-[1.1] font-semibold text-white">
-            Talk to minds who&apos;ve <em className="italic">actually</em>{" "}
-            done it.
+            Talk to minds who&apos;ve <em className="italic">actually</em> done
+            it.
           </h1>
 
           <ul className="mt-10 flex flex-col gap-6">

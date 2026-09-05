@@ -252,10 +252,10 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
+      <div className="flex flex-col gap-6 p-4 md:p-6">
         <Skeleton className="h-8 w-64" />
         <Card>
-          <CardContent className="space-y-4 p-6">
+          <CardContent className="flex flex-col gap-4 p-6">
             <Skeleton className="h-6 w-full" />
             <Skeleton className="h-6 w-full" />
           </CardContent>
@@ -267,7 +267,7 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
   if (!kb) return null;
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
+    <div className="flex flex-col gap-6 p-4 md:p-6">
       <Card className="max-w-2xl">
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>
@@ -295,8 +295,8 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
         </CardHeader>
         <CardContent>
           {editing ? (
-            <form onSubmit={handleSaveEdit} className="space-y-4">
-              <div className="space-y-1.5">
+            <form onSubmit={handleSaveEdit} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium">Name</label>
                 <Input
                   value={editForm.name}
@@ -307,7 +307,7 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
                   maxLength={200}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium">Description</label>
                 <Textarea
                   value={editForm.description}
@@ -330,18 +330,14 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
                 >
                   Cancel
                 </Button>
-                <Button
-                  type="submit"
-                  disabled={saving}
-                  className="!bg-[#1E60FF] !text-white shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] hover:!bg-[#154ed0] active:scale-[0.98]"
-                >
+                <Button type="submit" disabled={saving} className="shadow-sm">
                   {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Save
                 </Button>
               </div>
             </form>
           ) : (
-            <div className="space-y-4 text-sm">
+            <div className="flex flex-col gap-4 text-sm">
               <div>
                 <span className="text-muted-foreground">Description</span>
                 <p className="whitespace-pre-wrap">{kb.description || "—"}</p>
@@ -366,7 +362,7 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
             Base actually returns before wiring it up.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           <form onSubmit={handleSearch} className="flex gap-2">
             <Input
               value={searchQuery}
@@ -390,7 +386,7 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
 
           {searchResults &&
             (searchResults.length > 0 ? (
-              <div className="space-y-3">
+              <div className="flex flex-col gap-3">
                 {searchResults.map((r, i) => (
                   <div key={i} className="rounded-md border p-3 text-sm">
                     <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -425,7 +421,7 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
             Agents to search.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <input
               ref={fileInputRef}
@@ -438,7 +434,7 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
             <Button
               onClick={handleUpload}
               disabled={pendingFiles.length === 0 || uploading}
-              className="!bg-[#1E60FF] !text-white shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] hover:!bg-[#154ed0] active:scale-[0.98]"
+              className="shadow-sm"
             >
               {uploading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -450,7 +446,7 @@ export default function ProjectKnowledgeDetailPage({ params: paramsPromise }) {
           </div>
 
           {documentsLoading ? (
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Skeleton className="h-8 w-full" />
               <Skeleton className="h-8 w-full" />
             </div>

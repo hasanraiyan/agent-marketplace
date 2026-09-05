@@ -126,9 +126,7 @@ export default function InvitationAcceptPage({
                   <Button variant="outline">Sign in</Button>
                 </Link>
                 <Link href={signUpUrl}>
-                  <Button className="!bg-[#1E60FF] !text-white shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] hover:!bg-[#154ed0] active:scale-[0.98]">
-                    Create account
-                  </Button>
+                  <Button className="shadow-sm">Create account</Button>
                 </Link>
               </div>
             </>
@@ -150,7 +148,7 @@ export default function InvitationAcceptPage({
                 {"You're in — Admin access granted!"}
               </p>
               <Link href={developerRoutes.project(projectId)}>
-                <Button className="!bg-[#1E60FF] !text-white shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] hover:!bg-[#154ed0] active:scale-[0.98]">
+                <Button className="shadow-sm">
                   Open the Project
                   <ArrowRight className="ml-2 size-4" />
                 </Button>

@@ -19,7 +19,8 @@ export default function SSOCallbackPage() {
       if (!clerk.loaded || hasRun.current) return;
       hasRun.current = true;
 
-      const goHome = ({ decorateUrl }) => router.push(decorateUrl("/dashboard"));
+      const goHome = ({ decorateUrl }) =>
+        router.push(decorateUrl("/dashboard"));
 
       if (signIn.status === "complete") {
         await signIn.finalize({ navigate: goHome });

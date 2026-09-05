@@ -47,11 +47,17 @@ function UserMenu() {
           </Avatar>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={8} className="w-56 rounded-xl">
+      <DropdownMenuContent
+        align="end"
+        sideOffset={8}
+        className="w-56 rounded-xl"
+      >
         <DropdownMenuLabel className="font-normal">
           <p className="truncate text-sm font-semibold text-zinc-900">{name}</p>
           {email && (
-            <p className="truncate text-xs font-normal text-zinc-500">{email}</p>
+            <p className="truncate text-xs font-normal text-zinc-500">
+              {email}
+            </p>
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -82,7 +88,12 @@ export function DesktopAuthButtons() {
     <>
       {!userId ? (
         <>
-          <Button variant="ghost" className={ghostNavClass} id="sign-in-btn" asChild>
+          <Button
+            variant="ghost"
+            className={ghostNavClass}
+            id="sign-in-btn"
+            asChild
+          >
             <Link href="/sign-in">Sign In</Link>
           </Button>
           <Button className={getStartedClass} id="get-started-btn" asChild>
