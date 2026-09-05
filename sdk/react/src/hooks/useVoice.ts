@@ -226,17 +226,24 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
     setPartial((prev) => (prev?.speaker === speaker ? null : prev));
 
     const last = lastFinalTurnRef.current;
-    const sameUtterance =
+    const sameUserBurst =
+      speaker === "user" &&
       last &&
       last.speaker === speaker &&
       last.turnSeq === turnSeq;
 
     setTranscript((prev) => {
       const tail = prev[prev.length - 1];
-      // Same speaker + same turn => fragment of the utterance still streaming
-      // in. Merge into the open line (which already rendered as a bubble)
-      // rather than appending a second bubble for this fragment.
-      if (sameUtterance && tail?.speaker === speaker) {
+      // An agent "answer" can arrive as several separate finals: per-fragment
+      // finals of one utterance, or distinct spoken segments split by a tool
+      // call mid-answer. Keep them as ONE bubble while no user line has
+      // intervened — this is exactly how the thread reads the same turns back
+      // (checkpoint.service normalizeMessages merges consecutive assistant
+      // messages) and how text chat shows one assistant message per answer.
+      // A committed user line between two agent lines separates answers, so
+      // the merge only applies when the open line is also agent.
+      const agentContinues = speaker === "agent" && tail?.speaker === "agent";
+      if (agentContinues || (sameUserBurst && tail?.speaker === "user")) {
         const merged = mergeTranscriptText(tail.text, text);
         if (merged === tail.text) return prev;
         return prev.map((l, i) =>

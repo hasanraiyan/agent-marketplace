@@ -574,6 +574,6 @@ declare function supportsStreamingFetch(): boolean;
  */
 declare function openSSEStream(opts: OpenSSEOptions): Promise<SSEStream>;
 
-declare const VERSION = "0.7.2";
+declare const VERSION = "0.7.3";
 
 export { type OpenSSEOptions, type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendMessageOverride, type UseChatOptions, type UseMcpConnectionsOptions, type UseVoiceOptions, type UseVoiceResult, VERSION, openSSEStream, supportsStreamingFetch, useAgents, useChat, useConnection, useFiles, useMcpConnections, useMemory, usePersonaContext, useThreads, useVoice };

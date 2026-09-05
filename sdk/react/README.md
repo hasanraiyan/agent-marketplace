@@ -94,6 +94,51 @@ function VoiceCall() {
 Requires a browser with `AudioWorklet` support (every current evergreen browser). Needs an HTTPS
 page in production — browsers refuse an insecure `ws://` connection from an `https:` page.
 
+### How `transcript` is shaped
+
+`transcript` is **live-only**: it starts empty on every `start()` and grows purely from the
+voice session's events. The server never replays the thread's prior history into it — pass
+`threadId` and the session *persists* new turns to that thread (so `useChat`/`useThreads` can read
+them back on reload), but `transcript` itself always reflects just what was spoken in this call.
+
+Gemini Live streams an agent answer as several incremental transcription fragments. The hook merges
+them so one utterance is **one transcript line**, mirroring how the same turns read back from the
+thread (consecutive assistant messages are coalesced on reload). The merge applies across distinct
+spoken segments of one answer too (e.g. split by a mid-answer tool call) — a new agent line is only
+started once a committed user line has intervened.
+
+### Showing voice turns in a text `useChat` feed
+
+If you drive a `useVoice({ agentId, threadId })` session alongside `useChat({ threadId })` and
+inject live turns into the chat feed yourself, dedupe before injecting. Because the session
+persists to the same thread, `useChat.messages` may already carry a turn once it refreshes or on
+reload — re-injecting the live copy appends it a second time:
+
+```tsx
+const { transcript, ... } = useVoice({ agentId, threadId });
+const { messages, appendMessage, ... } = useChat({ threadId });
+
+// Turn a committed voice line into a chat message once, and only if the feed
+// does not already hold this content (from an earlier live inject OR a reload
+// that pulled the persisted thread).
+const pushVoiceLine = (line: { id: string; speaker: "user" | "agent"; text: string }) => {
+  if (messages.some((m) => m.id === line.id)) return;           // injected before
+  if (messages.some((m) =>
+    !String(m.id).startsWith("voice-") &&
+    m.role === line.speaker &&
+    String(m.content).trim() === line.text.trim(),
+  )) return;                                                     // already on the thread
+  appendMessage({
+    id: `voice-${line.id}`,
+    role: line.speaker,
+    content: line.text,
+  });
+};
+```
+
+Voice turns are intentionally **live-only** in `useVoice` — history is the thread's job, not the
+hook's, so when you share a thread with `useChat` you own the dedup at the injection boundary.
+
 ## Devtools
 
 Floating panel for local debugging — inspect hooks, messages and threads with zero runtime changes. Dev-only, not bundled to production unless imported.

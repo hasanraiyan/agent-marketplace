@@ -1482,10 +1482,11 @@ function useVoice(options = {}) {
     }
     setPartial((prev) => prev?.speaker === speaker ? null : prev);
     const last = lastFinalTurnRef.current;
-    const sameUtterance = last && last.speaker === speaker && last.turnSeq === turnSeq;
+    const sameUserBurst = speaker === "user" && last && last.speaker === speaker && last.turnSeq === turnSeq;
     setTranscript((prev) => {
       const tail = prev[prev.length - 1];
-      if (sameUtterance && tail?.speaker === speaker) {
+      const agentContinues = speaker === "agent" && tail?.speaker === "agent";
+      if (agentContinues || sameUserBurst && tail?.speaker === "user") {
         const merged = mergeTranscriptText(tail.text, text);
         if (merged === tail.text) return prev;
         return prev.map(
@@ -1925,7 +1926,7 @@ function useMcpConnections(options = {}) {
 
 // src/index.ts
 var import_logger2 = require("@personaai/logger");
-var VERSION = "0.7.2";
+var VERSION = "0.7.3";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   PersonaProvider,

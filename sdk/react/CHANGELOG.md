@@ -3,6 +3,21 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.7.3
+
+- **Fix: `useVoice()` transcript stays one line for a whole agent answer, even across finals.** 0.7.2
+  merged fragments only when the trailing finals shared a speaker **and** the same `turnSeq`, so an
+  answer Gemini emitted as several turn-complete finals — the common case when a mid-answer tool call
+  splits an agent reply into distinct spoken segments — still rendered as multiple transcript lines
+  (the "second transcript that arrives when the turn finishes" confusion). The hook now keeps an agent
+  answer as **one open line until a user line intervenes**, matching how the same turns read back from
+  the persisted thread (consecutive assistant messages are coalesced on reload). User speech still
+  starts a fresh line per burst.
+- **Docs: `transcript` is live-only.** The README Voice section now states that the hook never replays
+  thread history into `transcript` and shows a canonical `useVoice({threadId})` → `useChat({threadId})`
+  injection snippet with content dedup (voice persists to the shared thread, so `useChat` can already
+  hold a turn once the feed refreshes — re-injecting the live copy is what duplicates it).
+
 ## 0.7.2
 
 - **Fix: `useVoice()` transcript no longer splits one agent utterance into many lines.** Gemini
