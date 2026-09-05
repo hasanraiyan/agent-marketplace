@@ -46,6 +46,7 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
   const { defaultAgentId, fetchWithAuth, logger } = usePersonaContext();
   const voiceLogger = useMemo(() => logger.child("voice"), [logger]);
   const agentId = options.agentId || defaultAgentId;
+  const threadId = options.threadId;
 
   const [state, setState] = useState<PersonaVoiceState>("idle");
   const [isMuted, setIsMuted] = useState(false);
@@ -352,13 +353,16 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
     setToolCalls([]);
     acceptedTurnSeqRef.current = 0;
     setState("connecting");
-    voiceLogger.debug("start() called", { agentId });
+    voiceLogger.debug("start() called", { agentId, threadId });
 
     try {
       const res = await fetchWithAuth("/voice/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agentId }),
+        body: JSON.stringify({
+          agentId,
+          ...(threadId ? { threadId } : {}),
+        }),
       });
       if (!res.ok) {
         throw new Error(`Failed to start voice session: ${res.statusText}`);
@@ -395,7 +399,7 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
       }
       teardownAudio();
     }
-  }, [agentId, fetchWithAuth, handleMessage, teardownAudio, voiceLogger]);
+  }, [agentId, threadId, fetchWithAuth, handleMessage, teardownAudio, voiceLogger]);
 
   const mute = useCallback((muted: boolean) => {
     setIsMuted(muted);

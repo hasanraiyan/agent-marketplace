@@ -28,17 +28,28 @@ survive on a serverless deployment the way chat's bounded SSE relay does), and
 
 | Method               | Endpoint                                | Returns              |
 | --------------------- | ---------------------------------------- | --------------------- |
-| `createSession(agentId)` | `POST /api/v1/developer/voice/sessions` | `VoiceSessionTicket` |
+| `createSession(agentId, {threadId?})` | `POST /api/v1/developer/voice/sessions` | `VoiceSessionTicket` |
 
-## createSession(agentId)
+## createSession(agentId, options?)
 
 ```ts
 const ticket = await userClient.voice.createSession(agent._id);
+
+// Or resume the caller's existing conversation over voice:
+const resumed = await userClient.voice.createSession(agent._id, {
+  threadId: userThreadId, // same thread a text resume would use
+});
 ```
 
 - `agentId` — the Agent to run in voice mode. The Agent must resolve to a usable Gemini Provider
   (its own `providerId` if it's a Gemini Provider, else your Domain's default Gemini Provider) —
   otherwise this throws `PersonaApiError` with `code: 'VOICE_PROVIDER_REQUIRED'` (`422`).
+- `options.threadId` *(optional)* — resume an existing conversation instead of starting fresh.
+  Accepts either the Thread's Mongo id or its stable LangGraph thread id (whatever
+  `client.threads.list()` returned as `id`, or you passed as `threadId` to a text `chat.resume`).
+  The server resolves it and rejects with a generic `404 Thread not found` if it isn't a thread
+  this Subject owns for this Agent. The voice turns are persisted back into that thread's history,
+  so a later text `resume` on the same thread sees them. Omit for a fresh conversation.
 - If the Agent has any guarded tool enabled (`interruptOn`), this throws `code:
   'VOICE_INTERRUPT_ON_UNSUPPORTED'` (`422`) — voice sessions have no spoken confirmation flow yet,
   so a guarded tool is refused outright rather than silently skipping the approval the Agent's own
@@ -83,8 +94,11 @@ export async function POST(req: Request) {
     externalUserId: userId,
   });
 
-  const { agentId } = await req.json();
-  const ticket = await userClient.voice.createSession(agentId);
+  const { agentId, threadId } = await req.json();
+  const ticket = await userClient.voice.createSession(
+    agentId,
+    threadId ? { threadId } : {} // resume that conversation over voice, if the caller has one
+  );
 
   return Response.json(ticket); // your frontend opens new WebSocket(ticket.wsUrl) directly
 }

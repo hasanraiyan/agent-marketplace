@@ -45,6 +45,36 @@ describe('VoiceResource', () => {
     expect((init.headers as Record<string, string>)['x-agent-id']).toBe('agent_1');
   });
 
+  it('createSession() with a threadId sends x-thread-id to resume that conversation', async () => {
+    const ticket = {
+      ticket: 'payload.signature',
+      wsUrl: 'wss://api.example.com/api/v1/developer/voice?ticket=payload.signature',
+      expiresAt: '2026-01-01T00:01:00.000Z',
+      session: {
+        model: 'gemini-3.1-flash-live-preview',
+        voice: 'Zephyr',
+        inputSampleRate: 16000,
+        outputSampleRate: 24000,
+        maxDurationMs: 900000,
+      },
+    };
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ success: true, data: ticket })
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch, 'sabik-42');
+
+    const result = await client.voice.createSession('agent_1', {
+      threadId: 'thread_9',
+    });
+    expect(result).toEqual(ticket);
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.example.com/api/v1/developer/voice/sessions');
+    expect(init.method).toBe('POST');
+    expect((init.headers as Record<string, string>)['x-agent-id']).toBe('agent_1');
+    expect((init.headers as Record<string, string>)['x-thread-id']).toBe('thread_9');
+  });
+
   it('propagates a VOICE_PROVIDER_REQUIRED error as a typed API error', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       jsonResponse(

@@ -129,6 +129,19 @@ requests microphone permission, and opens the WebSocket directly to Persona. Eve
 — audio, live transcript, tool calls the Agent makes mid-call — flows without your Next.js app
 being involved again until the call ends.
 
+**Voice shares the thread with text.** If the caller already has a conversation going (a thread id
+from `useChat`/`useThreads`), pass it to `useVoice` and the call resumes that same conversation —
+the voice turns are persisted into the thread, so a later text message on it sees them:
+
+```tsx
+const { start } = useVoice({
+  agentId: AGENT_ID,
+  threadId: activeThread?._id, // resume this conversation over voice
+});
+```
+
+Omit `threadId` for a fresh conversation. 
+
 Full hook API: [`useVoice()` reference](/guides/react/hooks#usevoice).
 
 ## Deployment: this is the easy case, not the hard one

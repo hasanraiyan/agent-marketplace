@@ -107,7 +107,7 @@ transcript, tool-call trace.
 import { useVoice } from '@personaai/react';
 ```
 
-**Requires your backend to be running `@personaai/runtime@^0.7.0`** (or a framework adapter on top
+**Requires your backend to be running `@personaai/runtime@^0.7.1`** (or a framework adapter on top
 of it), so `POST /voice/sessions` exists to mint tickets. See the
 [Integration Guide §3.5](/guides/integration-guide#voice-the-one-deliberate-exception)
 for why the actual call bypasses your backend and connects straight to Persona, unlike `useChat`.
@@ -119,6 +119,7 @@ For a full Next.js walkthrough with everything wired end to end, see the
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
 | `agentId` | `string` | `undefined` | The Agent to call. Falls back to the provider's `defaultAgentId` if omitted. |
+| `threadId` | `string` | `undefined` | Resume an existing conversation over voice instead of starting fresh. `start()` mints the session with this thread id (same value `useChat`'s `threadId` uses), so voice turns are persisted back into that thread's history — a later text message on the same thread sees them. Omit to start a fresh conversation. |
 
 ### Return value
 

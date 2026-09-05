@@ -59,6 +59,8 @@ export interface MemoryWriteContext {
 export interface VoiceSessionCreateContext {
   userId: string;
   agentId: string;
+  /** Set when the session resumed an existing conversation (optional `threadId` on the request). */
+  threadId?: string;
 }
 
 /**

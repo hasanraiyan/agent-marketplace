@@ -15,11 +15,14 @@ import { json, requireBodyObject, requireStringField } from '../routeHelpers.js'
 export const createVoiceSession: RouteHandler = async (request, ctx) => {
   const body = requireBodyObject(request.body);
   const agentId = requireStringField(body, 'agentId');
-  const ticket = await ctx.client.voice.createSession(agentId);
+  const threadId =
+    typeof body.threadId === 'string' && body.threadId ? body.threadId : undefined;
+  const ticket = await ctx.client.voice.createSession(agentId, threadId ? { threadId } : {});
 
   await ctx.hooks?.onVoiceSessionCreate?.({
     userId: request.userId as string,
     agentId,
+    threadId,
   });
 
   return json(201, ticket);

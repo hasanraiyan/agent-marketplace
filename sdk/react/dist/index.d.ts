@@ -300,6 +300,14 @@ type PersonaVoiceEndReason = "client_closed" | "agent_ended" | "max_duration" | 
 interface UseVoiceOptions {
     /** Falls back to `PersonaProvider`'s `defaultAgentId` if omitted. */
     agentId?: string;
+    /**
+     * Resume an existing conversation over voice instead of starting fresh.
+     * `start()` mints the session with this thread id (same value `useChat`'s
+     * `threadId` uses), so voice turns are persisted back into that thread's
+     * history — a later text message on the same thread sees them. Omit (or
+     * leave undefined) to start a fresh conversation.
+     */
+    threadId?: string;
 }
 interface UseVoiceResult {
     state: PersonaVoiceState;

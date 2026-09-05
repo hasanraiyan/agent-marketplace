@@ -336,6 +336,7 @@ the server's own hard cap (independent of Gemini's own limits) was hit.
 ```ts
 interface UseVoiceOptions {
   agentId?: string; // falls back to PersonaProvider's defaultAgentId
+  threadId?: string; // resume this conversation over voice; voice turns persist back into it
 }
 
 interface UseVoiceResult {

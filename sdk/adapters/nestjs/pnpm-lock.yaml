@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@personaai/runtime':
-        specifier: ^0.7.0
-        version: 0.7.0
+        specifier: ^0.7.1
+        version: 0.7.1
       '@personaai/sdk':
-        specifier: ^0.6.0
-        version: 0.6.0
+        specifier: ^0.6.1
+        version: 0.6.1
     devDependencies:
       '@eslint/js':
         specifier: ^9.19.0
@@ -505,12 +505,12 @@ packages:
     resolution: {integrity: sha512-ra5T+aBNzDmiabJ161y87SJJT9x3MHuFfAL1UCxSY3IO6AOJtF5UcXdsLVcxkugeOIto6Ppsm+adGLLR9s50Kw==}
     engines: {node: '>=18'}
 
-  '@personaai/runtime@0.7.0':
-    resolution: {integrity: sha512-bpi00Y1KR9V28sr+yZeFiHpultW19Qcmw33SAvHHsXUUZ6iwNlo4nmZFuYZCPT4Zot4H503RfRDfXhaNp0SiJg==}
+  '@personaai/runtime@0.7.1':
+    resolution: {integrity: sha512-mGmmHWz1R3e2qzT6jzspfTqcAc34JO3Alqf0L4u1KSrAv3oXNJnkp05yLoeO7l6vL3kgJYdkXBWhzE3bsW2F7g==}
     engines: {node: '>=18'}
 
-  '@personaai/sdk@0.6.0':
-    resolution: {integrity: sha512-n6vV01WCgDecHTJwHEbppQxgK4Y2lXD9gnHgYeXa60oUwQiXYApAjm9EcIUQE8UBu30QDU+vzpIxBZDxr+iNDg==}
+  '@personaai/sdk@0.6.1':
+    resolution: {integrity: sha512-oVnaGL3nfIOf0Ndyv41yHPifrVdAIzNDPur9ZwaFJbDklu3QWg4FjJqj9R57dvD8K3jDZ8UzfcPMQyikk14zBA==}
     engines: {node: '>=18'}
 
   '@rollup/rollup-android-arm-eabi@4.62.4':
@@ -1747,12 +1747,12 @@ snapshots:
 
   '@personaai/logger@0.1.0': {}
 
-  '@personaai/runtime@0.7.0':
+  '@personaai/runtime@0.7.1':
     dependencies:
       '@ag-ui/core': 0.0.57
-      '@personaai/sdk': 0.6.0
+      '@personaai/sdk': 0.6.1
 
-  '@personaai/sdk@0.6.0':
+  '@personaai/sdk@0.6.1':
     dependencies:
       '@ag-ui/core': 0.0.57
       '@personaai/logger': 0.1.0

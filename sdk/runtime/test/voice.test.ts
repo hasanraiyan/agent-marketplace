@@ -40,6 +40,48 @@ describe('voice routes', () => {
     expect((init.headers as Record<string, string>)['x-agent-id']).toBe('a1');
   });
 
+  it('POST /voice/sessions forwards an optional threadId to resume a conversation', async () => {
+    const onVoiceSessionCreate = vi.fn();
+    const ticket = {
+      ticket: 'payload.signature',
+      wsUrl: 'wss://api.example.com/api/v1/developer/voice?ticket=payload.signature',
+      expiresAt: '2026-01-01T00:01:00.000Z',
+      session: {
+        model: 'gemini-3.1-flash-live-preview',
+        voice: 'Zephyr',
+        inputSampleRate: 16000,
+        outputSampleRate: 24000,
+        maxDurationMs: 900000,
+      },
+    };
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse(ticket, 200)
+    );
+    const runtime = makeRuntime({ fetchMock, hooks: { onVoiceSessionCreate } });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/voice/sessions',
+      headers: {},
+      query: {},
+      body: { agentId: 'a1', threadId: 'thread_9' },
+      userId: null,
+    });
+
+    expect(response.status).toBe(201);
+    expect(onVoiceSessionCreate).toHaveBeenCalledWith({
+      userId: 'user-1',
+      agentId: 'a1',
+      threadId: 'thread_9',
+    });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/api/v1/developer/voice/sessions');
+    expect(init.method).toBe('POST');
+    expect((init.headers as Record<string, string>)['x-agent-id']).toBe('a1');
+    expect((init.headers as Record<string, string>)['x-thread-id']).toBe('thread_9');
+  });
+
   it('POST /voice/sessions without agentId returns 400 without calling the API', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse({}));
     const runtime = makeRuntime({ fetchMock });
