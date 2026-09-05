@@ -162,7 +162,10 @@ In Studio, go to your Project → **REST Tool Sources** tab → **New REST Tool 
 | Name | Whatever you want to call it internally, e.g. "Coursify backend" |
 | Manifest URL | `https://your-app.com/api/persona/rest-tools/manifest` |
 | Auth Type | **API Key** |
-| API Key | The exact same value as `PERSONA_TOOLS_SECRET` above |
+| Secret | Pick an existing Project Secret, or click **New** to create one on the spot with the value `PERSONA_TOOLS_SECRET` |
+
+This reuses the same **Secrets** tab your manual REST API Tools already use — one secret can back
+both, so there's no separate "API Key" text field to keep in sync by hand.
 
 Save, then click **Test Connection**. If everything's wired up correctly you'll see
 `getLearnerProfile` and `searchCourses` listed (name, method, URL) — this is a live fetch against
@@ -170,7 +173,7 @@ your manifest URL happening right then, not a cached result.
 
 If Test Connection fails:
 
-- **401 / "Manifest URL responded with status 401"** — the API Key in Studio doesn't match
+- **401 / "Manifest URL responded with status 401"** — the Secret's value in Studio doesn't match
   `PERSONA_TOOLS_SECRET` in your environment, or your route isn't actually checking it (double
   check `restToolsManifest.authToken` is set and matches).
 - **"Could not reach the manifest URL"** — the URL is wrong, not publicly reachable (a `localhost`
@@ -216,7 +219,7 @@ up the new definitions automatically — because it's fetched live every time, n
 - `restToolsManifest.authToken` is the only thing standing between your manifest endpoint and
   anyone who finds the URL. Treat it like any other server-to-server shared secret: generate it
   randomly, never commit it, rotate it if you suspect it leaked (update it in both your env vars
-  and the Studio source's API Key field together).
+  and the Project Secret the source's Auth tab points at, together).
 - The manifest route reveals your tool *definitions* (names, descriptions, URLs, argument shapes)
   to anyone with the token — including any URLs you've hardcoded into them. It does not reveal
   any data those URLs would return; that's still protected by whatever auth those endpoints

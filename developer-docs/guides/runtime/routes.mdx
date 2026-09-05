@@ -123,16 +123,18 @@ const runtime = createRuntime({
   restToolsManifest: {
     tools: [getProfile],
     // Checked against the request's `Authorization: Bearer <token>` header.
-    // Must match the API Key you configure on the Persona-side REST Tool
-    // Source. Omit only for local/dev testing — it leaves the route open.
+    // Must match the plaintext value of the Secret you pick on the
+    // Persona-side REST Tool Source. Omit only for local/dev testing — it
+    // leaves the route open.
     authToken: process.env.PERSONA_TOOLS_SECRET!,
   },
 });
 ```
 
 Then, in the Persona dashboard: **Add REST Tool Source** → URL =
-`https://your-app.com{mountPath}/rest-tools/manifest`, Auth = API Key = the same
-`PERSONA_TOOLS_SECRET` → **Test Connection** discovers `getProfile`. Attach the *source* to an
+`https://your-app.com{mountPath}/rest-tools/manifest`, Auth = API Key → pick or create a Secret
+(the same Secrets tab REST API Tools use) whose value is `PERSONA_TOOLS_SECRET` →
+**Test Connection** discovers `getProfile`. Attach the *source* to an
 Agent (the same attachment model as an MCP connector) — Persona re-fetches this route live on
 every Agent turn; nothing about the tool list is cached in Persona's database. See [REST Tool
 Sources](/guides/rest-tools#code-first-rest-tool-sources) for the full walkthrough and
