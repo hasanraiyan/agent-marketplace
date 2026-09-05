@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.11 — 2026-09-06
+
+- Bump `@personaai/runtime` to `^0.9.0` to pick up the new `rcpManifest` option (serves a
+  conformant RCP — REST Connector Protocol, npm `rcp-sdk` — manifest at `GET {mountPath}/rcp/manifest`
+  for any RCP client to discover; no adapter code change needed for the option itself, same
+  pass-through reasoning as `restToolsManifest`). Added `RcpManifestOptions` to `server.ts`'s
+  re-exported type list, alongside the existing `RestToolsManifestOptions`/`RestToolManifestEntry`.
+
 ## 0.1.10 — 2026-09-05
 
 - Bump `@personaai/runtime` to `^0.8.0` to pick up the new `restToolsManifest` option (serves a

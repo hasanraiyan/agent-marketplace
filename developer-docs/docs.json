@@ -15,6 +15,7 @@
           "introduction",
           "guides/integration-guide",
           "guides/rest-tools",
+          "guides/rcp",
           "guides/sdk-quickstart",
           {
             "group": "Node.js SDK Reference",

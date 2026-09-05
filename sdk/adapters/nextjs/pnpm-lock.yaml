@@ -15,8 +15,8 @@ importers:
         specifier: ^0.7.4
         version: 0.7.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@personaai/runtime':
-        specifier: ^0.8.0
-        version: 0.8.0(zod@3.25.76)
+        specifier: ^0.9.0
+        version: 0.9.0(zod@3.25.76)
     devDependencies:
       '@eslint/js':
         specifier: ^9.19.0
@@ -678,8 +678,8 @@ packages:
       react: '>=18.0.0'
       react-dom: '>=18.0.0'
 
-  '@personaai/runtime@0.8.0':
-    resolution: {integrity: sha512-TDH9QIZ3Pw+j0b6Wfu+eIRfiZ3/mvZgyljwtjd/8cQuDMxop/n6MJ5ev6xEy4iTiCRfnyuE1Q6xzVSHGeca1Vw==}
+  '@personaai/runtime@0.9.0':
+    resolution: {integrity: sha512-Ub36E8YrRBAAspgmCpJTv/IhZpD7kIVgP8Qoa+U0vpwLZxlH9rrqUsRt/nZ1Gsb9AzdPL+ezrIFhsFl1H0AFHg==}
     engines: {node: '>=18'}
 
   '@personaai/sdk@0.7.0':
@@ -1398,6 +1398,10 @@ packages:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
 
+  rcp-sdk@0.1.0:
+    resolution: {integrity: sha512-StZYACLaBGoGw1UhB+2S4BrZCtgneijIeRqacMt9oSamGxtXjBpn2OBVxmrIDoshgUQmpqLuCXSuVE/H23m4Hg==}
+    engines: {node: '>=18'}
+
   react-dom@19.2.8:
     resolution: {integrity: sha512-rVprimfGBG3DR+Tq0IQG2DT5PxKth1WIGDmj5yPmlzr4YBe7uyE+Du4oVqTDXZSHGGGXRtTJEGSSePyQCMBglQ==}
     peerDependencies:
@@ -2065,10 +2069,11 @@ snapshots:
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
 
-  '@personaai/runtime@0.8.0(zod@3.25.76)':
+  '@personaai/runtime@0.9.0(zod@3.25.76)':
     dependencies:
       '@ag-ui/core': 0.0.57
       '@personaai/sdk': 0.7.0(zod@3.25.76)
+      rcp-sdk: 0.1.0
     transitivePeerDependencies:
       - zod
 
@@ -2767,6 +2772,10 @@ snapshots:
   prettier@3.9.6: {}
 
   punycode@2.3.1: {}
+
+  rcp-sdk@0.1.0:
+    dependencies:
+      zod: 3.25.76
 
   react-dom@19.2.8(react@19.2.8):
     dependencies:

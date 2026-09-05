@@ -140,6 +140,49 @@ every Agent turn; nothing about the tool list is cached in Persona's database. S
 Sources](/guides/rest-tools#code-first-rest-tool-sources) for the full walkthrough and
 [`defineRestTool`](/guides/sdk/resources/rest-tools) for the builder's API.
 
+## RCP manifest route — the same third tier, for the open RCP protocol
+
+| Method | Path | Auth | Proxies to |
+| --- | --- | --- | --- |
+| `GET` | `/rcp/manifest` | Its own `Authorization: Bearer <authToken>` check, `requiresAuth: false` | Nothing — serves a conformant `{ rcpVersion, auth, tools }` manifest |
+
+Independent of `restToolsManifest` above — RCP (REST Connector Protocol) is a separate, standalone
+open protocol (npm `rcp-sdk`), not a Persona-specific format. This route only exists when you pass
+`rcpManifest` to `createRuntime()`, same non-capability-gated reasoning as `restToolsManifest`:
+pure host-side static data, never proxied through `PersonaClient`.
+
+```ts
+import { createRuntime } from '@personaai/runtime';
+import { defineTool } from 'rcp-sdk/server';
+import { z } from 'zod';
+
+const getWeather = defineTool({
+  name: 'get_weather',
+  description: 'Get current weather for a city.',
+  method: 'GET',
+  args: z.object({ city: z.string() }),
+  url: 'https://api.yourapp.com/weather',
+  queryParams: { city: (t) => t.arg('city') },
+});
+
+const runtime = createRuntime({
+  baseUrl, credential, resolveUser,
+  rcpManifest: {
+    tools: [getWeather],
+    // Checked against the request's `Authorization: Bearer <token>` header,
+    // and reflected in the served manifest's own `auth` field. Omit only for
+    // local/dev testing — it leaves the route open (`auth: { type: 'none' }`).
+    authToken: process.env.PERSONA_TOOLS_SECRET!,
+  },
+});
+```
+
+Then, in the Persona dashboard: **Add RCP Source** → URL = `https://your-app.com{mountPath}/rcp/manifest`,
+Auth = Header → pick or create a Secret whose value is `PERSONA_TOOLS_SECRET` → **Test Connection**
+discovers `get_weather`. Attach the *source* to an Agent — Persona re-fetches this route live on
+every Agent turn, via `rcp-sdk`'s own client, exactly like it does for an MCP server or a REST Tool
+Source.
+
 ## Multipart uploads
 
 For `POST /files` and `POST /knowledge/:id/documents`, the runtime itself never touches raw bytes
