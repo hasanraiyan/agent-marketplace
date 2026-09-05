@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  ArrowRight,
   Pencil,
   Loader2,
   AlertTriangle,
@@ -19,6 +20,13 @@ import {
   Zap,
   MessageSquare,
   Mail,
+  Search,
+  Bot,
+  Sparkles,
+  Database,
+  Plug,
+  ShieldCheck,
+  Boxes,
 } from "lucide-react";
 import {
   getProject,
@@ -148,6 +156,31 @@ const CREDENTIAL_BADGE_VARIANT = {
 const PRIMARY_CTA_CLASSNAME =
   "!bg-[#1E60FF] !text-white font-bold shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] hover:!bg-[#154ed0] active:scale-[0.98]";
 
+// Time-based greeting for the page title — mirrors the
+// "Good afternoon, <name>" heading in the reference Home design
+// (image.png) and the projects list page.
+function timeGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+// Module-level so the filtered-* useMemos below don't re-fire every render
+// (react-hooks/exhaustive-deps would otherwise demand filterByQuery as a dep,
+// which is re-created per render and defeats the memo).
+function matchesQuery(item, q) {
+  const haystacks = [item.name, item.label, item.description, item.slug]
+    .filter(Boolean)
+    .map((s) => String(s).toLowerCase());
+  return haystacks.some((h) => h.includes(q));
+}
+function filterByQuery(items, query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return items;
+  return items.filter((item) => matchesQuery(item, q));
+}
+
 // Agents/Skills/Knowledge/Connectors all share a name+description+createdAt
 // shape for read-only browsing — one small table renderer instead of
 // repeating the same JSX four times.
@@ -215,7 +248,7 @@ function NameDescriptionTable({
   return (
     <div className="space-y-2">
       {selectable && selected.size > 0 && (
-        <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2">
+        <div className="flex flex-col gap-2 rounded-md border bg-muted/40 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-sm text-muted-foreground">
             {selected.size} selected
           </span>
@@ -224,6 +257,7 @@ function NameDescriptionTable({
             size="sm"
             disabled={bulkDeleting}
             onClick={handleBulkDelete}
+            className="w-full sm:w-auto"
           >
             {bulkDeleting ? (
               <Loader2 className="mr-1.5 size-3.5 animate-spin" />
@@ -234,94 +268,96 @@ function NameDescriptionTable({
           </Button>
         </div>
       )}
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {selectable && (
-              <TableHead className="w-10">
-                <Checkbox
-                  checked={allSelected}
-                  onCheckedChange={toggleAll}
-                  aria-label="Select all"
-                />
-              </TableHead>
-            )}
-            <TableHead>Name</TableHead>
-            <TableHead className="hidden lg:table-cell">ID</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead className="hidden md:table-cell">Created</TableHead>
-            {showActions && (
-              <TableHead className="text-right">Actions</TableHead>
-            )}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((item) => {
-            const id = item._id || item.id;
-            return (
-              <TableRow key={id}>
-                {selectable && (
-                  <TableCell>
-                    <Checkbox
-                      checked={selected.has(id)}
-                      onCheckedChange={() => toggleOne(id)}
-                      aria-label={`Select ${item.name}`}
+      <div className="-mx-6 overflow-x-auto px-6">
+        <Table className="min-w-[640px]">
+          <TableHeader>
+            <TableRow>
+              {selectable && (
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={toggleAll}
+                    aria-label="Select all"
+                  />
+                </TableHead>
+              )}
+              <TableHead>Name</TableHead>
+              <TableHead className="hidden lg:table-cell">ID</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead className="hidden md:table-cell">Created</TableHead>
+              {showActions && (
+                <TableHead className="text-right">Actions</TableHead>
+              )}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((item) => {
+              const id = item._id || item.id;
+              return (
+                <TableRow key={id}>
+                  {selectable && (
+                    <TableCell>
+                      <Checkbox
+                        checked={selected.has(id)}
+                        onCheckedChange={() => toggleOne(id)}
+                        aria-label={`Select ${item.name}`}
+                      />
+                    </TableCell>
+                  )}
+                  <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                    <CopyButton
+                      value={id}
+                      label={`${item.name || "Resource"} ID`}
+                      variant="inline"
+                      className="max-w-[160px]"
                     />
                   </TableCell>
-                )}
-                <TableCell className="font-medium">{item.name}</TableCell>
-                <TableCell className="hidden lg:table-cell">
-                  <CopyButton
-                    value={id}
-                    label={`${item.name || "Resource"} ID`}
-                    variant="inline"
-                    className="max-w-[160px]"
-                  />
-                </TableCell>
-                <TableCell className="max-w-md truncate text-muted-foreground">
-                  {item.description || "—"}
-                </TableCell>
-                <TableCell className="hidden text-muted-foreground md:table-cell">
-                  {item.createdAt
-                    ? new Date(item.createdAt).toLocaleDateString()
-                    : "—"}
-                </TableCell>
-                {showActions && (
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      {getTestHref && (
-                        <Link href={getTestHref(id)}>
-                          <Button variant="ghost" size="sm">
-                            <MessageSquare className="mr-1.5 size-3.5" />
-                            Test
-                          </Button>
-                        </Link>
-                      )}
-                      {getEditHref && (
-                        <Link href={getEditHref(id)}>
-                          <Button variant="ghost" size="sm">
-                            Edit
-                          </Button>
-                        </Link>
-                      )}
-                      {onDelete && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => onDelete(item)}
-                        >
-                          Delete
-                        </Button>
-                      )}
-                    </div>
+                  <TableCell className="max-w-md truncate text-muted-foreground">
+                    {item.description || "—"}
                   </TableCell>
-                )}
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+                  <TableCell className="hidden text-muted-foreground md:table-cell">
+                    {item.createdAt
+                      ? new Date(item.createdAt).toLocaleDateString()
+                      : "—"}
+                  </TableCell>
+                  {showActions && (
+                    <TableCell className="text-right">
+                      <div className="flex flex-wrap justify-end gap-1">
+                        {getTestHref && (
+                          <Link href={getTestHref(id)}>
+                            <Button variant="ghost" size="sm">
+                              <MessageSquare className="mr-1.5 size-3.5" />
+                              Test
+                            </Button>
+                          </Link>
+                        )}
+                        {getEditHref && (
+                          <Link href={getEditHref(id)}>
+                            <Button variant="ghost" size="sm">
+                              Edit
+                            </Button>
+                          </Link>
+                        )}
+                        {onDelete && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => onDelete(item)}
+                          >
+                            Delete
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  )}
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
@@ -375,7 +411,11 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   const params = React.use(paramsPromise);
   const projectId = params.id;
   const { isLoaded, isSignedIn } = useAuth();
+  const { user } = useUser();
   useOnboardingSection("developerProject");
+
+  const [activeTab, setActiveTab] = useState("overview");
+  const [resourceSearch, setResourceSearch] = useState("");
 
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1187,16 +1227,77 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   const handleBulkDeleteMcps = (ids) =>
     runBulkDelete(bulkDeleteProjectMcps, ids, setMcps, "Connector");
   const handleBulkDeleteRestTools = (ids) =>
-    runBulkDelete(bulkDeleteProjectRestTools, ids, setRestTools, "REST API tool");
+    runBulkDelete(
+      bulkDeleteProjectRestTools,
+      ids,
+      setRestTools,
+      "REST API tool",
+    );
   const handleBulkDeleteSecrets = (ids) =>
     runBulkDelete(bulkDeleteProjectSecrets, ids, setSecrets, "Secret");
   const handleBulkDeleteProviders = (ids) =>
     runBulkDelete(bulkDeleteProjectProviders, ids, setProviders, "Provider");
 
+  // Client-side search across the resource tabs — mirrors the "Recents >
+  // Search" pattern from the reference Home design (image.png). Hooks stay
+  // above the early loading/not-found returns.
+  const filteredAgents = useMemo(
+    () => filterByQuery(agents, resourceSearch),
+    [agents, resourceSearch],
+  );
+  const filteredSkills = useMemo(
+    () => filterByQuery(skills, resourceSearch),
+    [skills, resourceSearch],
+  );
+  const filteredKnowledge = useMemo(
+    () => filterByQuery(knowledgeBases, resourceSearch),
+    [knowledgeBases, resourceSearch],
+  );
+  const filteredMcps = useMemo(
+    () => filterByQuery(mcps, resourceSearch),
+    [mcps, resourceSearch],
+  );
+  const filteredRestTools = useMemo(
+    () => filterByQuery(restTools, resourceSearch),
+    [restTools, resourceSearch],
+  );
+  const filteredSecrets = useMemo(
+    () =>
+      filterByQuery(
+        secrets.map((s) => ({ ...s, name: s.label })),
+        resourceSearch,
+      ),
+    [secrets, resourceSearch],
+  );
+  const filteredProviders = useMemo(
+    () => filterByQuery(providers, resourceSearch),
+    [providers, resourceSearch],
+  );
+  const filteredStores = useMemo(
+    () => filterByQuery(stores, resourceSearch),
+    [stores, resourceSearch],
+  );
+
+  const RESOURCE_TABS = useMemo(
+    () =>
+      new Set([
+        "agents",
+        "skills",
+        "stores",
+        "knowledge",
+        "connectors",
+        "rest-tools",
+        "secrets",
+        "providers",
+      ]),
+    [],
+  );
+
   if (loading) {
     return (
-      <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
-        <Skeleton className="h-8 w-64" />
+      <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-4 md:p-6 lg:p-8">
+        <Skeleton className="h-9 w-64 rounded-lg" />
+        <Skeleton className="h-40 w-full rounded-3xl" />
         <Card>
           <CardContent className="p-6">
             <div className="space-y-4">
@@ -1212,7 +1313,7 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
 
   if (!project) {
     return (
-      <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
+      <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-4 md:p-6 lg:p-8">
         <p className="text-muted-foreground">Project not found.</p>
       </div>
     );
@@ -1231,1717 +1332,1984 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
   const pendingInvitations = invitations.filter((i) => i.status === "pending");
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
-      <Tabs defaultValue="overview">
-        <TabsList variant="pill" id="onboarding-developer-project-tabs">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="members">Members</TabsTrigger>
-          <TabsTrigger value="credentials">Credentials</TabsTrigger>
-          <TabsTrigger value="agents">Agents</TabsTrigger>
-          <TabsTrigger value="skills">Skills</TabsTrigger>
-          <TabsTrigger value="stores">Stores</TabsTrigger>
-          <TabsTrigger value="knowledge">Knowledge</TabsTrigger>
-          <TabsTrigger value="connectors">Connectors</TabsTrigger>
-          <TabsTrigger value="rest-tools">REST Tools</TabsTrigger>
-          <TabsTrigger value="secrets">Secrets</TabsTrigger>
-          <TabsTrigger value="providers">Providers</TabsTrigger>
-          <TabsTrigger value="audit-logs">Audit Logs</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="mt-6 flex flex-col gap-6">
-          <Card className="max-w-2xl" id="onboarding-developer-project-details">
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div>
-                <CardTitle>Project Details</CardTitle>
-                <CardDescription>
-                  Metadata visible to this Project&apos;s Admins and Members.
-                </CardDescription>
-              </div>
-              <Button variant="outline" size="sm" onClick={openEdit}>
-                <Pencil className="mr-1.5 size-3.5" />
-                Edit
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">Slug</span>
-                <p>{project.slug || "—"}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Description</span>
-                <p className="whitespace-pre-wrap">
-                  {project.description || "—"}
-                </p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Created</span>
-                <p>
-                  {project.createdAt
-                    ? new Date(project.createdAt).toLocaleString()
-                    : "—"}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card
-            className="max-w-2xl border-destructive/20"
-            id="onboarding-developer-project-lifecycle"
+    <div className="flex flex-1 flex-col overflow-y-auto">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-4 md:gap-8 md:p-6 lg:p-8">
+        {/* Breadcrumb — mirrors the reference Home eyebrow ("Home" above the
+          greeting) so the project always shows where it sits. Wraps on
+          small screens instead of squeezing. */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-2 text-sm">
+          <Link
+            href={developerRoutes.projects}
+            className="inline-flex items-center gap-1.5 font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            <CardHeader>
-              <CardTitle>Lifecycle</CardTitle>
-              <CardDescription>
-                Actions that change this Project&apos;s availability. Suspending
-                or deleting a Project immediately stops its credentials from
-                authenticating.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              {project.status === "ACTIVE" && (
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Suspend Project</p>
-                    <p className="text-sm text-muted-foreground">
-                      Temporarily stop this Project&apos;s credentials from
-                      authenticating. Reversible.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    onClick={() => setSuspendOpen(true)}
-                  >
-                    <PauseCircle className="mr-1.5 size-4" />
-                    Suspend
-                  </Button>
-                </div>
-              )}
+            <ArrowLeft className="size-4" />
+            Projects
+          </Link>
+          <span className="text-muted-foreground/60">/</span>
+          <span className="max-w-[50vw] truncate font-semibold">
+            {project.name}
+          </span>
+          <Badge
+            variant={STATUS_BADGE_VARIANT[project.status] || "outline"}
+            className={`ml-auto shrink-0 sm:ml-2 ${STATUS_BADGE_CLASSNAME[project.status] || ""}`}
+          >
+            {project.status}
+          </Badge>
+        </div>
 
-              {project.status === "SUSPENDED" && (
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Reactivate Project</p>
-                    <p className="text-sm text-muted-foreground">
-                      {canReactivate
-                        ? "Restore this Project to ACTIVE."
-                        : "This Project was suspended by a Platform Admin and can only be restored by one — contact support."}
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    disabled={!canReactivate}
-                    onClick={() => setReactivateOpen(true)}
-                  >
-                    <PlayCircle className="mr-1.5 size-4" />
-                    Reactivate
-                  </Button>
-                </div>
-              )}
+        {/* Greeting — same hierarchy as the reference
+          ("Good afternoon, Raiyan Hasan"). */}
+        <div>
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-zinc-900 md:text-3xl dark:text-white">
+            {timeGreeting()}
+            {user?.firstName ? `, ${user.firstName}` : ""}
+          </h1>
+          <p className="mt-1 max-w-2xl truncate text-sm text-muted-foreground">
+            {project.description ||
+              project.slug ||
+              "Manage this Project's resources."}
+          </p>
+        </div>
 
-              {project.status === "DELETING" && (
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Cancel Deletion</p>
-                    <p className="text-sm text-muted-foreground">
-                      Deletion requested
-                      {project.deletionRequestedAt
-                        ? ` on ${new Date(project.deletionRequestedAt).toLocaleString()}`
-                        : ""}
-                      . You can cancel it while the grace period is still open.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    onClick={() => setCancelDeletionOpen(true)}
-                  >
-                    <Undo2 className="mr-1.5 size-4" />
-                    Cancel Deletion
-                  </Button>
-                </div>
-              )}
-
-              {project.status === "DELETED" && (
-                <p className="text-sm text-muted-foreground">
-                  This Project has been deleted and can no longer be
-                  administered.
-                </p>
-              )}
-
-              {canDelete && (
-                <div className="flex items-center justify-between border-t pt-4">
-                  <div>
-                    <p className="font-medium text-destructive">
-                      Delete Project
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Starts a grace-period deletion. Credentials stop
-                      authenticating immediately; cancellable until the grace
-                      period elapses.
-                    </p>
-                  </div>
-                  <Button
-                    variant="destructive"
-                    onClick={() => setDeleteOpen(true)}
-                  >
-                    <Trash2 className="mr-1.5 size-4" />
-                    Delete
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="members" className="mt-6">
-          <Card className="max-w-2xl">
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div>
-                <CardTitle>Members</CardTitle>
-                <CardDescription>
-                  Admins who can manage this Project via their own Clerk
-                  session. Add by email (search as you type) or paste an
-                  internal Persona User id.
-                </CardDescription>
-              </div>
-              <Button
-                size="sm"
-                className={PRIMARY_CTA_CLASSNAME}
-                onClick={() => setAddMemberOpen(true)}
-              >
-                <UserPlus className="mr-1.5 size-3.5" />
-                Add Admin
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {membersLoading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-8 w-full" />
-                  <Skeleton className="h-8 w-full" />
-                </div>
-              ) : members.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Persona User ID</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Joined</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {members.map((m) => (
-                      <TableRow key={m.personaUserId}>
-                        <TableCell className="font-mono text-xs">
-                          {m.personaUserId}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{m.role}</Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {m.createdAt
-                            ? new Date(m.createdAt).toLocaleDateString()
-                            : "—"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setRemoveMemberTarget(m)}
-                          >
-                            Remove
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-sm text-muted-foreground">No members yet.</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="max-w-2xl">
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Mail className="size-4 text-muted-foreground" />
-                  Pending Invitations
-                </CardTitle>
-                <CardDescription>
-                  People invited by email who haven&apos;t created an account
-                  yet. Clerk emails them an accept link.
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {invitationsLoading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-8 w-full" />
-                  <Skeleton className="h-8 w-full" />
-                </div>
-              ) : pendingInvitations.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Email</TableHead>
-                      <TableHead className="hidden md:table-cell">
-                        Invited
-                      </TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pendingInvitations.map((inv) => (
-                      <TableRow key={inv._id || inv.id}>
-                        <TableCell className="font-medium">
-                          {inv.email}
-                        </TableCell>
-                        <TableCell className="hidden text-muted-foreground md:table-cell">
-                          {inv.createdAt
-                            ? new Date(inv.createdAt).toLocaleDateString()
-                            : "—"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setRevokeInvitationTarget(inv)}
-                          >
-                            Revoke
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No pending invitations.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="credentials" className="mt-6">
-          <Card className="max-w-2xl">
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div>
-                <CardTitle>Credentials</CardTitle>
-                <CardDescription>
-                  API credentials this Project&apos;s SDK uses to authenticate —
-                  separate from your own Clerk session used here in Studio.
-                </CardDescription>
-              </div>
-              <Button
-                size="sm"
-                className={PRIMARY_CTA_CLASSNAME}
-                onClick={() => setMintOpen(true)}
-              >
-                <KeyRound className="mr-1.5 size-3.5" />
-                Mint new
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {credentialsLoading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-8 w-full" />
-                  <Skeleton className="h-8 w-full" />
-                </div>
-              ) : credentials.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Key ID</TableHead>
-                      <TableHead>Label</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Last used</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {credentials.map((c) => (
-                      <TableRow key={c.id}>
-                        <TableCell>
-                          <CopyButton
-                            value={c.keyId}
-                            label="Key ID"
-                            variant="inline"
-                            className="max-w-[180px]"
-                          />
-                        </TableCell>
-                        <TableCell>{c.label || "—"}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              CREDENTIAL_BADGE_VARIANT[c.status] || "outline"
-                            }
-                            className={CREDENTIAL_BADGE_CLASSNAME[c.status]}
-                          >
-                            {c.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {c.lastUsedAt
-                            ? new Date(c.lastUsedAt).toLocaleString()
-                            : "Never"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {c.status === "ACTIVE" && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => setRevokeTarget(c)}
-                            >
-                              Revoke
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No credentials yet.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="agents" className="mt-6">
-          <Card className="max-w-2xl">
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div>
-                <CardTitle>Agents</CardTitle>
-                <CardDescription>Agents this Project owns.</CardDescription>
-              </div>
+        {/* Hero — the reference "Your agent is ready to deploy" banner,
+          adapted: primary action creates an Agent, secondary mints a
+          credential. Stacks on mobile, side-by-side from sm up. */}
+        <div className="relative flex flex-col justify-between gap-6 overflow-hidden rounded-3xl border border-zinc-100 bg-gradient-to-br from-[#1E60FF]/[0.06] via-transparent to-transparent p-6 sm:flex-row sm:items-center sm:p-8 dark:border-slate-800/60">
+          <div className="relative z-10 max-w-lg">
+            <h2 className="font-display text-xl font-semibold text-zinc-900 md:text-2xl dark:text-white">
+              Your project is ready to build
+            </h2>
+            <p className="mt-2 text-sm text-zinc-500 dark:text-slate-400">
+              Add an Agent or mint an API credential to start consuming
+              Persona&apos;s agent infrastructure from your own app.
+            </p>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center">
               <Link href={developerRoutes.projectAgentNew(projectId)}>
-                <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
-                  <Plus className="mr-1.5 size-3.5" />
+                <Button className="w-full rounded-full !bg-zinc-900 px-5 font-bold !text-white shadow-md transition-all duration-300 hover:scale-[1.02] hover:!bg-zinc-800 active:scale-[0.98] sm:w-auto dark:!bg-white dark:!text-zinc-900 dark:hover:!bg-zinc-200">
                   New Agent
+                  <ArrowRight className="ml-1.5 size-4" />
                 </Button>
               </Link>
-            </CardHeader>
-            <CardContent>
-              <NameDescriptionTable
-                items={agents}
-                loading={agentsLoading}
-                emptyLabel="No Agents yet."
-                getEditHref={(id) =>
-                  developerRoutes.projectAgentEdit(projectId, id)
-                }
-                getTestHref={(id) =>
-                  developerRoutes.projectAgentTest(projectId, id)
-                }
-                onDelete={(agent) => setDeleteAgentTarget(agent)}
-                onBulkDelete={handleBulkDeleteAgents}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="skills" className="mt-6">
-          <Card className="max-w-2xl">
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div>
-                <CardTitle>Skills</CardTitle>
-                <CardDescription>Skills this Project owns.</CardDescription>
-              </div>
-              <Link href={developerRoutes.projectSkillNew(projectId)}>
-                <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
-                  <Plus className="mr-1.5 size-3.5" />
-                  New Skill
-                </Button>
-              </Link>
-            </CardHeader>
-            <CardContent>
-              <NameDescriptionTable
-                items={skills}
-                loading={skillsLoading}
-                emptyLabel="No Skills yet."
-                getEditHref={(id) =>
-                  developerRoutes.projectSkillEdit(projectId, id)
-                }
-                onDelete={(skill) => setDeleteSkillTarget(skill)}
-                onBulkDelete={handleBulkDeleteSkills}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="stores" className="mt-6">
-          <Card className="max-w-2xl">
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div>
-                <CardTitle>Stores</CardTitle>
-                <CardDescription>
-                  Named, scoped mount points Agents can be assigned to (see
-                  storeMounts on the Agent edit form).
-                </CardDescription>
-              </div>
-              <Link href={developerRoutes.projectStoreNew(projectId)}>
-                <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
-                  <Plus className="mr-1.5 size-3.5" />
-                  New Store
-                </Button>
-              </Link>
-            </CardHeader>
-            <CardContent>
-              <NameDescriptionTable
-                items={stores.map((s) => ({
-                  ...s,
-                  description: [
-                    s.description,
-                    `scope: ${s.scope}`,
-                    `access: ${s.accessMode}`,
-                  ]
-                    .filter(Boolean)
-                    .join(" · "),
-                }))}
-                loading={storesLoading}
-                emptyLabel="No Stores yet."
-                getEditHref={(id) =>
-                  developerRoutes.projectStoreEdit(projectId, id)
-                }
-                onDelete={(store) => setDeleteStoreTarget(store)}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="knowledge" className="mt-6">
-          <Card className="max-w-2xl">
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div>
-                <CardTitle>Knowledge</CardTitle>
-                <CardDescription>
-                  Knowledge Bases this Project owns.
-                </CardDescription>
-              </div>
-              <Link href={developerRoutes.projectKnowledgeNew(projectId)}>
-                <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
-                  <Plus className="mr-1.5 size-3.5" />
-                  New Knowledge Base
-                </Button>
-              </Link>
-            </CardHeader>
-            <CardContent>
-              <NameDescriptionTable
-                items={knowledgeBases}
-                loading={knowledgeLoading}
-                emptyLabel="No Knowledge Bases yet."
-                getEditHref={(id) =>
-                  developerRoutes.projectKnowledgeDetail(projectId, id)
-                }
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="connectors" className="mt-6">
-          <Card className="max-w-2xl">
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div>
-                <CardTitle>Connectors</CardTitle>
-                <CardDescription>
-                  MCP connectors this Project owns.
-                </CardDescription>
-              </div>
-              <Link href={developerRoutes.projectMcpNew(projectId)}>
-                <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
-                  <Plus className="mr-1.5 size-3.5" />
-                  New Connector
-                </Button>
-              </Link>
-            </CardHeader>
-            <CardContent>
-              <NameDescriptionTable
-                items={mcps}
-                loading={mcpsLoading}
-                emptyLabel="No Connectors yet."
-                getEditHref={(id) =>
-                  developerRoutes.projectMcpEdit(projectId, id)
-                }
-                onDelete={(mcp) => setDeleteMcpTarget(mcp)}
-                onBulkDelete={handleBulkDeleteMcps}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="rest-tools" className="mt-6">
-          <Card className="max-w-2xl">
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div>
-                <CardTitle>REST API Tools</CardTitle>
-                <CardDescription>
-                  No-code REST tools this Project&apos;s Agents can call.
-                </CardDescription>
-              </div>
-              <Link href={developerRoutes.projectRestToolNew(projectId)}>
-                <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
-                  <Plus className="mr-1.5 size-3.5" />
-                  New REST Tool
-                </Button>
-              </Link>
-            </CardHeader>
-            <CardContent>
-              <NameDescriptionTable
-                items={restTools}
-                loading={restToolsLoading}
-                emptyLabel="No REST API tools yet."
-                getEditHref={(id) =>
-                  developerRoutes.projectRestToolEdit(projectId, id)
-                }
-                onDelete={(tool) => setDeleteRestToolTarget(tool)}
-                onBulkDelete={handleBulkDeleteRestTools}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="secrets" className="mt-6">
-          <Card className="max-w-2xl">
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div>
-                <CardTitle>Secrets</CardTitle>
-                <CardDescription>
-                  Reusable Bearer secrets for REST API tools&apos; Auth tab. Values
-                  are never shown again after creation.
-                </CardDescription>
-              </div>
               <Button
-                size="sm"
-                className={PRIMARY_CTA_CLASSNAME}
-                onClick={() => setNewSecretOpen(true)}
+                variant="outline"
+                className="w-full rounded-full px-5 font-semibold sm:w-auto"
+                onClick={() => {
+                  setActiveTab("credentials");
+                  setMintOpen(true);
+                }}
               >
-                <Plus className="mr-1.5 size-3.5" />
-                New Secret
+                <KeyRound className="mr-1.5 size-4" />
+                Mint credential
               </Button>
-            </CardHeader>
-            <CardContent>
-              <NameDescriptionTable
-                items={secrets.map((s) => ({ ...s, name: s.label }))}
-                loading={secretsLoading}
-                emptyLabel="No secrets yet."
-                onDelete={(secret) => setDeleteSecretTarget(secret)}
-                onBulkDelete={handleBulkDeleteSecrets}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </div>
+          </div>
+          <div
+            aria-hidden
+            className="relative hidden size-32 shrink-0 items-center justify-center self-center overflow-hidden rounded-3xl bg-[#FF5C00] sm:flex"
+          >
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage:
+                  "radial-gradient(rgba(255,255,255,0.95) 1.5px, transparent 1.6px)",
+                backgroundSize: "10px 10px",
+                maskImage:
+                  "linear-gradient(to left, black 25%, transparent 85%)",
+                WebkitMaskImage:
+                  "linear-gradient(to left, black 25%, transparent 85%)",
+              }}
+            />
+            <Boxes className="relative size-12 text-white" />
+          </div>
+        </div>
 
-        <TabsContent value="providers" className="mt-6">
-          <Card className="max-w-2xl">
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div>
-                <CardTitle>Providers</CardTitle>
-                <CardDescription>
-                  AI providers this Project owns.
-                </CardDescription>
+        {/* Resource stats — tappable cards jump straight to the tab.
+          2 cols on phones, 3 on sm, 6 on lg. */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {[
+            {
+              tab: "agents",
+              label: "Agents",
+              icon: Bot,
+              count: agentsLoading ? "–" : agents.length,
+            },
+            {
+              tab: "skills",
+              label: "Skills",
+              icon: Sparkles,
+              count: skillsLoading ? "–" : skills.length,
+            },
+            {
+              tab: "knowledge",
+              label: "Knowledge",
+              icon: Database,
+              count: knowledgeLoading ? "–" : knowledgeBases.length,
+            },
+            {
+              tab: "connectors",
+              label: "Connectors",
+              icon: Plug,
+              count: mcpsLoading ? "–" : mcps.length,
+            },
+            {
+              tab: "providers",
+              label: "Providers",
+              icon: Zap,
+              count: providersLoading ? "–" : providers.length,
+            },
+            {
+              tab: "credentials",
+              label: "Credentials",
+              icon: ShieldCheck,
+              count: credentialsLoading ? "–" : credentials.length,
+            },
+          ].map(({ tab, label, icon: Icon, count }) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => {
+                setActiveTab(tab);
+                setResourceSearch("");
+              }}
+              className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition-colors hover:bg-zinc-50/80 dark:hover:bg-slate-900/40 ${
+                activeTab === tab
+                  ? "border-[#1E60FF]/40 bg-[#1E60FF]/[0.04]"
+                  : "border-zinc-100 dark:border-slate-800/60"
+              }`}
+            >
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#1E60FF]/10">
+                <Icon className="size-4 text-[#1E60FF]" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-lg leading-none font-bold text-zinc-900 dark:text-white">
+                  {count}
+                </span>
+                <span className="mt-1 block truncate text-xs text-muted-foreground">
+                  {label}
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => {
+            setActiveTab(v);
+            setResourceSearch("");
+          }}
+        >
+          {/* Sticky, horizontally scrollable tab bar — the old wrapping pill
+            list pushed content far down on phones and never scrolled. */}
+          <div className="sticky top-0 z-10 -mx-4 bg-background/95 px-4 py-2 backdrop-blur md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
+            <TabsList
+              variant="pill"
+              id="onboarding-developer-project-tabs"
+              className="w-full flex-nowrap justify-start overflow-x-auto"
+            >
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="members">Members</TabsTrigger>
+              <TabsTrigger value="credentials">Credentials</TabsTrigger>
+              <TabsTrigger value="agents">Agents</TabsTrigger>
+              <TabsTrigger value="skills">Skills</TabsTrigger>
+              <TabsTrigger value="stores">Stores</TabsTrigger>
+              <TabsTrigger value="knowledge">Knowledge</TabsTrigger>
+              <TabsTrigger value="connectors">Connectors</TabsTrigger>
+              <TabsTrigger value="rest-tools">REST Tools</TabsTrigger>
+              <TabsTrigger value="secrets">Secrets</TabsTrigger>
+              <TabsTrigger value="providers">Providers</TabsTrigger>
+              <TabsTrigger value="audit-logs">Audit Logs</TabsTrigger>
+            </TabsList>
+          </div>
+
+          {/* Recents-style search for the resource tabs. */}
+          {RESOURCE_TABS.has(activeTab) && (
+            <div className="mt-4 flex items-center justify-between gap-4">
+              <h3 className="text-sm font-bold text-zinc-500 capitalize dark:text-slate-400">
+                {activeTab.replace("-", " ")}
+              </h3>
+              <div className="relative w-full max-w-56">
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-zinc-400" />
+                <Input
+                  placeholder={`Search ${activeTab.replace("-", " ")}…`}
+                  value={resourceSearch}
+                  onChange={(e) => setResourceSearch(e.target.value)}
+                  className="h-9 rounded-full pr-8 pl-8 text-xs"
+                />
+                {resourceSearch && (
+                  <button
+                    type="button"
+                    aria-label="Clear search"
+                    onClick={() => setResourceSearch("")}
+                    className="absolute top-1/2 right-2.5 -translate-y-1/2 text-xs font-bold text-muted-foreground hover:text-foreground"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
-              <Link href={developerRoutes.projectProviderNew(projectId)}>
-                <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
-                  <Plus className="mr-1.5 size-3.5" />
-                  New Provider
-                </Button>
-              </Link>
-            </CardHeader>
-            <CardContent>
-              {providersLoading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-8 w-full" />
-                  <Skeleton className="h-8 w-full" />
+            </div>
+          )}
+
+          <TabsContent
+            value="overview"
+            className="mt-6 grid items-start gap-6 lg:grid-cols-2"
+          >
+            <Card className="w-full" id="onboarding-developer-project-details">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle>Project Details</CardTitle>
+                  <CardDescription>
+                    Metadata visible to this Project&apos;s Admins and Members.
+                  </CardDescription>
                 </div>
-              ) : providers.length > 0 ? (
-                <div className="space-y-2">
-                  {selectedProviderIds.size > 0 && (
-                    <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2">
-                      <span className="text-sm text-muted-foreground">
-                        {selectedProviderIds.size} selected
-                      </span>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        disabled={bulkDeletingProviders}
-                        onClick={handleBulkDeleteProvidersClick}
-                      >
-                        {bulkDeletingProviders ? (
-                          <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="mr-1.5 size-3.5" />
-                        )}
-                        Delete {selectedProviderIds.size} selected
-                      </Button>
+                <Button variant="outline" size="sm" onClick={openEdit}>
+                  <Pencil className="mr-1.5 size-3.5" />
+                  Edit
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Slug</span>
+                  <p>{project.slug || "—"}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Description</span>
+                  <p className="whitespace-pre-wrap">
+                    {project.description || "—"}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Created</span>
+                  <p>
+                    {project.createdAt
+                      ? new Date(project.createdAt).toLocaleString()
+                      : "—"}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card
+              className="max-w-2xl border-destructive/20"
+              id="onboarding-developer-project-lifecycle"
+            >
+              <CardHeader>
+                <CardTitle>Lifecycle</CardTitle>
+                <CardDescription>
+                  Actions that change this Project&apos;s availability.
+                  Suspending or deleting a Project immediately stops its
+                  credentials from authenticating.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                {project.status === "ACTIVE" && (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-medium">Suspend Project</p>
+                      <p className="text-sm text-muted-foreground">
+                        Temporarily stop this Project&apos;s credentials from
+                        authenticating. Reversible.
+                      </p>
                     </div>
-                  )}
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-10">
-                          <Checkbox
-                            checked={
-                              selectedProviderIds.size > 0 &&
-                              selectedProviderIds.size === providers.length
-                            }
-                            onCheckedChange={toggleAllProviders}
-                            aria-label="Select all"
-                          />
-                        </TableHead>
-                        <TableHead>Label</TableHead>
-                        <TableHead className="hidden lg:table-cell">
-                          ID
-                        </TableHead>
-                        <TableHead>Base URL</TableHead>
-                        <TableHead className="hidden md:table-cell">
-                          Default Model
-                        </TableHead>
-                        <TableHead className="hidden md:table-cell">
-                          Created
-                        </TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {providers.map((p) => (
-                        <TableRow key={p.id}>
-                          <TableCell>
-                            <Checkbox
-                              checked={selectedProviderIds.has(p.id)}
-                              onCheckedChange={() => toggleOneProvider(p.id)}
-                              aria-label={`Select ${p.label}`}
-                            />
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {p.label}
-                          </TableCell>
-                          <TableCell className="hidden lg:table-cell">
-                            <CopyButton
-                              value={p.id}
-                              label={`${p.label || "Provider"} ID`}
-                              variant="inline"
-                              className="max-w-[160px]"
-                            />
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {p.baseURL}
-                          </TableCell>
-                          <TableCell className="hidden text-muted-foreground md:table-cell">
-                            {p.defaultModel || "—"}
-                          </TableCell>
-                          <TableCell className="hidden text-muted-foreground md:table-cell">
-                            {p.createdAt
-                              ? new Date(p.createdAt).toLocaleDateString()
-                              : "—"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                disabled={testingProviderId === p.id}
-                                onClick={() => handleTestProviderConnection(p)}
-                              >
-                                {testingProviderId === p.id ? (
-                                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                                ) : (
-                                  <Zap className="mr-1.5 size-3.5" />
-                                )}
-                                Test
-                              </Button>
-                              <Link
-                                href={developerRoutes.projectProviderEdit(
-                                  projectId,
-                                  p.id,
-                                )}
-                              >
-                                <Button variant="ghost" size="sm">
-                                  Edit
-                                </Button>
-                              </Link>
+                    <Button
+                      variant="outline"
+                      onClick={() => setSuspendOpen(true)}
+                    >
+                      <PauseCircle className="mr-1.5 size-4" />
+                      Suspend
+                    </Button>
+                  </div>
+                )}
+
+                {project.status === "SUSPENDED" && (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-medium">Reactivate Project</p>
+                      <p className="text-sm text-muted-foreground">
+                        {canReactivate
+                          ? "Restore this Project to ACTIVE."
+                          : "This Project was suspended by a Platform Admin and can only be restored by one — contact support."}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      disabled={!canReactivate}
+                      onClick={() => setReactivateOpen(true)}
+                    >
+                      <PlayCircle className="mr-1.5 size-4" />
+                      Reactivate
+                    </Button>
+                  </div>
+                )}
+
+                {project.status === "DELETING" && (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-medium">Cancel Deletion</p>
+                      <p className="text-sm text-muted-foreground">
+                        Deletion requested
+                        {project.deletionRequestedAt
+                          ? ` on ${new Date(project.deletionRequestedAt).toLocaleString()}`
+                          : ""}
+                        . You can cancel it while the grace period is still
+                        open.
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => setCancelDeletionOpen(true)}
+                    >
+                      <Undo2 className="mr-1.5 size-4" />
+                      Cancel Deletion
+                    </Button>
+                  </div>
+                )}
+
+                {project.status === "DELETED" && (
+                  <p className="text-sm text-muted-foreground">
+                    This Project has been deleted and can no longer be
+                    administered.
+                  </p>
+                )}
+
+                {canDelete && (
+                  <div className="flex items-center justify-between border-t pt-4">
+                    <div>
+                      <p className="font-medium text-destructive">
+                        Delete Project
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Starts a grace-period deletion. Credentials stop
+                        authenticating immediately; cancellable until the grace
+                        period elapses.
+                      </p>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      onClick={() => setDeleteOpen(true)}
+                    >
+                      <Trash2 className="mr-1.5 size-4" />
+                      Delete
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="members" className="mt-6">
+            <Card className="w-full">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle>Members</CardTitle>
+                  <CardDescription>
+                    Admins who can manage this Project via their own Clerk
+                    session. Add by email (search as you type) or paste an
+                    internal Persona User id.
+                  </CardDescription>
+                </div>
+                <Button
+                  size="sm"
+                  className={PRIMARY_CTA_CLASSNAME}
+                  onClick={() => setAddMemberOpen(true)}
+                >
+                  <UserPlus className="mr-1.5 size-3.5" />
+                  Add Admin
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {membersLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                ) : members.length > 0 ? (
+                  <div className="-mx-6 overflow-x-auto px-6">
+                    <Table className="min-w-[560px]">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Persona User ID</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Joined</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {members.map((m) => (
+                          <TableRow key={m.personaUserId}>
+                            <TableCell className="font-mono text-xs">
+                              {m.personaUserId}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{m.role}</Badge>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {m.createdAt
+                                ? new Date(m.createdAt).toLocaleDateString()
+                                : "—"}
+                            </TableCell>
+                            <TableCell className="text-right">
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 className="text-destructive hover:text-destructive"
-                                onClick={() => setDeleteProviderTarget(p)}
+                                onClick={() => setRemoveMemberTarget(m)}
                               >
-                                Delete
+                                Remove
                               </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No members yet.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="w-full">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mail className="size-4 text-muted-foreground" />
+                    Pending Invitations
+                  </CardTitle>
+                  <CardDescription>
+                    People invited by email who haven&apos;t created an account
+                    yet. Clerk emails them an accept link.
+                  </CardDescription>
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No Providers yet.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="audit-logs" className="mt-6">
-          <Card className="max-w-3xl">
-            <CardHeader>
-              <CardTitle>Audit Logs</CardTitle>
-              <CardDescription>
-                This Project&apos;s lifecycle trail — credentials minted/
-                revoked, membership changes, suspend/restore. Resource CRUD
-                (Agents/Skills/Knowledge/Providers/MCPs) isn&apos;t logged here
-                yet.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {auditLogsLoading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-8 w-full" />
-                  <Skeleton className="h-8 w-full" />
-                </div>
-              ) : auditLogs.length > 0 ? (
-                <>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Event</TableHead>
-                        <TableHead>Actor</TableHead>
-                        <TableHead className="hidden md:table-cell">
-                          Target
-                        </TableHead>
-                        <TableHead className="text-right">When</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {auditLogs.map((log) => (
-                        <TableRow key={log._id || log.id}>
-                          <TableCell>
-                            <Badge variant="outline">{log.eventType}</Badge>
-                          </TableCell>
-                          <TableCell className="font-mono text-xs text-muted-foreground">
-                            {log.actorContextType}
-                            {log.actorIdentity ? ` · ${log.actorIdentity}` : ""}
-                          </TableCell>
-                          <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
-                            {log.targetResourceId || "—"}
-                          </TableCell>
-                          <TableCell className="text-right text-muted-foreground">
-                            {log.timestamp
-                              ? new Date(log.timestamp).toLocaleString()
-                              : "—"}
-                          </TableCell>
+              </CardHeader>
+              <CardContent>
+                {invitationsLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                ) : pendingInvitations.length > 0 ? (
+                  <div className="-mx-6 overflow-x-auto px-6">
+                    <Table className="min-w-[480px]">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Email</TableHead>
+                          <TableHead className="hidden md:table-cell">
+                            Invited
+                          </TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                  {auditLogsPages > 1 && (
-                    <div className="mt-4 flex items-center justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={auditLogsPage <= 1}
-                        onClick={() => setAuditLogsPage((p) => p - 1)}
-                      >
-                        Previous
-                      </Button>
-                      <span className="text-xs text-muted-foreground">
-                        Page {auditLogsPage} of {auditLogsPages}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={auditLogsPage >= auditLogsPages}
-                        onClick={() => setAuditLogsPage((p) => p + 1)}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No audit events yet.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                      </TableHeader>
+                      <TableBody>
+                        {pendingInvitations.map((inv) => (
+                          <TableRow key={inv._id || inv.id}>
+                            <TableCell className="font-medium">
+                              {inv.email}
+                            </TableCell>
+                            <TableCell className="hidden text-muted-foreground md:table-cell">
+                              {inv.createdAt
+                                ? new Date(inv.createdAt).toLocaleDateString()
+                                : "—"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => setRevokeInvitationTarget(inv)}
+                              >
+                                Revoke
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No pending invitations.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-      {/* Edit metadata */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
-          <form onSubmit={handleSaveEdit}>
-            <DialogHeader>
-              <DialogTitle>Edit Project</DialogTitle>
-              <DialogDescription>
-                Update this Project&apos;s display metadata.
-              </DialogDescription>
-            </DialogHeader>
-            <FieldGroup className="py-4">
-              <Field>
-                <FieldLabel htmlFor="edit-name">Name</FieldLabel>
-                <Input
-                  id="edit-name"
-                  name="name"
-                  value={editForm.name}
-                  onChange={handleEditChange}
-                  required
-                  maxLength={100}
+          <TabsContent value="credentials" className="mt-6">
+            <Card className="w-full">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle>Credentials</CardTitle>
+                  <CardDescription>
+                    API credentials this Project&apos;s SDK uses to authenticate
+                    — separate from your own Clerk session used here in Studio.
+                  </CardDescription>
+                </div>
+                <Button
+                  size="sm"
+                  className={PRIMARY_CTA_CLASSNAME}
+                  onClick={() => setMintOpen(true)}
+                >
+                  <KeyRound className="mr-1.5 size-3.5" />
+                  Mint new
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {credentialsLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                ) : credentials.length > 0 ? (
+                  <div className="-mx-6 overflow-x-auto px-6">
+                    <Table className="min-w-[640px]">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Key ID</TableHead>
+                          <TableHead>Label</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Last used</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {credentials.map((c) => (
+                          <TableRow key={c.id}>
+                            <TableCell>
+                              <CopyButton
+                                value={c.keyId}
+                                label="Key ID"
+                                variant="inline"
+                                className="max-w-[180px]"
+                              />
+                            </TableCell>
+                            <TableCell>{c.label || "—"}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  CREDENTIAL_BADGE_VARIANT[c.status] ||
+                                  "outline"
+                                }
+                                className={CREDENTIAL_BADGE_CLASSNAME[c.status]}
+                              >
+                                {c.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {c.lastUsedAt
+                                ? new Date(c.lastUsedAt).toLocaleString()
+                                : "Never"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {c.status === "ACTIVE" && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => setRevokeTarget(c)}
+                                >
+                                  Revoke
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No credentials yet.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="agents" className="mt-6">
+            <Card className="w-full">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle>Agents</CardTitle>
+                  <CardDescription>Agents this Project owns.</CardDescription>
+                </div>
+                <Link href={developerRoutes.projectAgentNew(projectId)}>
+                  <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
+                    <Plus className="mr-1.5 size-3.5" />
+                    New Agent
+                  </Button>
+                </Link>
+              </CardHeader>
+              <CardContent>
+                <NameDescriptionTable
+                  items={filteredAgents}
+                  loading={agentsLoading}
+                  emptyLabel={
+                    resourceSearch
+                      ? `No Agents match "${resourceSearch}".`
+                      : "No Agents yet."
+                  }
+                  getEditHref={(id) =>
+                    developerRoutes.projectAgentEdit(projectId, id)
+                  }
+                  getTestHref={(id) =>
+                    developerRoutes.projectAgentTest(projectId, id)
+                  }
+                  onDelete={(agent) => setDeleteAgentTarget(agent)}
+                  onBulkDelete={handleBulkDeleteAgents}
                 />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="edit-slug">Slug</FieldLabel>
-                <Input
-                  id="edit-slug"
-                  name="slug"
-                  value={editForm.slug}
-                  onChange={handleEditChange}
-                  maxLength={100}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="skills" className="mt-6">
+            <Card className="w-full">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle>Skills</CardTitle>
+                  <CardDescription>Skills this Project owns.</CardDescription>
+                </div>
+                <Link href={developerRoutes.projectSkillNew(projectId)}>
+                  <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
+                    <Plus className="mr-1.5 size-3.5" />
+                    New Skill
+                  </Button>
+                </Link>
+              </CardHeader>
+              <CardContent>
+                <NameDescriptionTable
+                  items={filteredSkills}
+                  loading={skillsLoading}
+                  emptyLabel={
+                    resourceSearch
+                      ? `No Skills match "${resourceSearch}".`
+                      : "No Skills yet."
+                  }
+                  getEditHref={(id) =>
+                    developerRoutes.projectSkillEdit(projectId, id)
+                  }
+                  onDelete={(skill) => setDeleteSkillTarget(skill)}
+                  onBulkDelete={handleBulkDeleteSkills}
                 />
-                <FieldDescription>
-                  Optional — display/routing convenience only.
-                </FieldDescription>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="edit-description">Description</FieldLabel>
-                <Textarea
-                  id="edit-description"
-                  name="description"
-                  value={editForm.description}
-                  onChange={handleEditChange}
-                  maxLength={1000}
-                  rows={3}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="stores" className="mt-6">
+            <Card className="w-full">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle>Stores</CardTitle>
+                  <CardDescription>
+                    Named, scoped mount points Agents can be assigned to (see
+                    storeMounts on the Agent edit form).
+                  </CardDescription>
+                </div>
+                <Link href={developerRoutes.projectStoreNew(projectId)}>
+                  <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
+                    <Plus className="mr-1.5 size-3.5" />
+                    New Store
+                  </Button>
+                </Link>
+              </CardHeader>
+              <CardContent>
+                <NameDescriptionTable
+                  items={filteredStores.map((s) => ({
+                    ...s,
+                    description: [
+                      s.description,
+                      `scope: ${s.scope}`,
+                      `access: ${s.accessMode}`,
+                    ]
+                      .filter(Boolean)
+                      .join(" · "),
+                  }))}
+                  loading={storesLoading}
+                  emptyLabel={
+                    resourceSearch
+                      ? `No Stores match "${resourceSearch}".`
+                      : "No Stores yet."
+                  }
+                  getEditHref={(id) =>
+                    developerRoutes.projectStoreEdit(projectId, id)
+                  }
+                  onDelete={(store) => setDeleteStoreTarget(store)}
                 />
-              </Field>
-            </FieldGroup>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setEditOpen(false)}
-                disabled={saving}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={saving}
-                className={PRIMARY_CTA_CLASSNAME}
-              >
-                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-      {/* Suspend */}
-      <AlertDialog open={suspendOpen} onOpenChange={setSuspendOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Suspend this Project?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Its credentials will immediately stop authenticating. You can
-              reactivate it at any time.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={actionBusy}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleSuspend();
-              }}
-              disabled={actionBusy}
-            >
-              {actionBusy ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                "Suspend"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <TabsContent value="knowledge" className="mt-6">
+            <Card className="w-full">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle>Knowledge</CardTitle>
+                  <CardDescription>
+                    Knowledge Bases this Project owns.
+                  </CardDescription>
+                </div>
+                <Link href={developerRoutes.projectKnowledgeNew(projectId)}>
+                  <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
+                    <Plus className="mr-1.5 size-3.5" />
+                    New Knowledge Base
+                  </Button>
+                </Link>
+              </CardHeader>
+              <CardContent>
+                <NameDescriptionTable
+                  items={filteredKnowledge}
+                  loading={knowledgeLoading}
+                  emptyLabel={
+                    resourceSearch
+                      ? `No Knowledge Bases match "${resourceSearch}".`
+                      : "No Knowledge Bases yet."
+                  }
+                  getEditHref={(id) =>
+                    developerRoutes.projectKnowledgeDetail(projectId, id)
+                  }
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-      {/* Reactivate */}
-      <AlertDialog open={reactivateOpen} onOpenChange={setReactivateOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reactivate this Project?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Its credentials will resume authenticating immediately.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={actionBusy}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleReactivate();
-              }}
-              disabled={actionBusy}
-            >
-              {actionBusy ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                "Reactivate"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <TabsContent value="connectors" className="mt-6">
+            <Card className="w-full">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle>Connectors</CardTitle>
+                  <CardDescription>
+                    MCP connectors this Project owns.
+                  </CardDescription>
+                </div>
+                <Link href={developerRoutes.projectMcpNew(projectId)}>
+                  <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
+                    <Plus className="mr-1.5 size-3.5" />
+                    New Connector
+                  </Button>
+                </Link>
+              </CardHeader>
+              <CardContent>
+                <NameDescriptionTable
+                  items={filteredMcps}
+                  loading={mcpsLoading}
+                  emptyLabel={
+                    resourceSearch
+                      ? `No Connectors match "${resourceSearch}".`
+                      : "No Connectors yet."
+                  }
+                  getEditHref={(id) =>
+                    developerRoutes.projectMcpEdit(projectId, id)
+                  }
+                  onDelete={(mcp) => setDeleteMcpTarget(mcp)}
+                  onBulkDelete={handleBulkDeleteMcps}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-      {/* Cancel deletion */}
-      <AlertDialog
-        open={cancelDeletionOpen}
-        onOpenChange={setCancelDeletionOpen}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancel pending deletion?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This Project will return to ACTIVE and its credentials will resume
-              authenticating.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={actionBusy}>
-              Keep pending
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleCancelDeletion();
-              }}
-              disabled={actionBusy}
-            >
-              {actionBusy ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                "Cancel Deletion"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <TabsContent value="rest-tools" className="mt-6">
+            <Card className="w-full">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle>REST API Tools</CardTitle>
+                  <CardDescription>
+                    No-code REST tools this Project&apos;s Agents can call.
+                  </CardDescription>
+                </div>
+                <Link href={developerRoutes.projectRestToolNew(projectId)}>
+                  <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
+                    <Plus className="mr-1.5 size-3.5" />
+                    New REST Tool
+                  </Button>
+                </Link>
+              </CardHeader>
+              <CardContent>
+                <NameDescriptionTable
+                  items={filteredRestTools}
+                  loading={restToolsLoading}
+                  emptyLabel={
+                    resourceSearch
+                      ? `No REST API tools match "${resourceSearch}".`
+                      : "No REST API tools yet."
+                  }
+                  getEditHref={(id) =>
+                    developerRoutes.projectRestToolEdit(projectId, id)
+                  }
+                  onDelete={(tool) => setDeleteRestToolTarget(tool)}
+                  onBulkDelete={handleBulkDeleteRestTools}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-      {/* Delete */}
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-5 w-5" />
-              Delete this Project?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              This starts a grace-period deletion. Its credentials stop
-              authenticating immediately, and all owned resources will
-              eventually be permanently removed. You can cancel while the grace
-              period is open.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="my-4 space-y-2">
-            <p className="text-sm font-medium">
-              Please type <span className="font-bold">DELETE</span> to confirm:
-            </p>
-            <Input
-              value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)}
-              placeholder="DELETE"
-              className="border-destructive focus-visible:ring-destructive"
-              autoFocus
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              disabled={actionBusy}
-              onClick={() => setDeleteConfirmText("")}
-            >
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleDelete();
-              }}
-              disabled={actionBusy || deleteConfirmText !== "DELETE"}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {actionBusy ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                "Delete Project"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <TabsContent value="secrets" className="mt-6">
+            <Card className="w-full">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle>Secrets</CardTitle>
+                  <CardDescription>
+                    Reusable Bearer secrets for REST API tools&apos; Auth tab.
+                    Values are never shown again after creation.
+                  </CardDescription>
+                </div>
+                <Button
+                  size="sm"
+                  className={PRIMARY_CTA_CLASSNAME}
+                  onClick={() => setNewSecretOpen(true)}
+                >
+                  <Plus className="mr-1.5 size-3.5" />
+                  New Secret
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <NameDescriptionTable
+                  items={filteredSecrets}
+                  loading={secretsLoading}
+                  emptyLabel={
+                    resourceSearch
+                      ? `No secrets match "${resourceSearch}".`
+                      : "No secrets yet."
+                  }
+                  onDelete={(secret) => setDeleteSecretTarget(secret)}
+                  onBulkDelete={handleBulkDeleteSecrets}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-      {/* Add Admin */}
-      <Dialog open={addMemberOpen} onOpenChange={setAddMemberOpen}>
-        <DialogContent>
-          <form onSubmit={handleAddMember}>
-            <DialogHeader>
-              <DialogTitle>Add Admin</DialogTitle>
-              <DialogDescription>
-                Grants Admin membership to an existing Persona User. Search by
-                email, or switch to paste an internal User id.
-              </DialogDescription>
-            </DialogHeader>
-            <FieldGroup className="py-4">
-              <Field>
-                <FieldLabel htmlFor="new-member-id">
-                  {memberMode === "email" ? "Email" : "Persona User ID"}
-                </FieldLabel>
-                <div className="relative">
-                  <Input
-                    id="new-member-id"
-                    value={memberQuery}
-                    onChange={(e) => {
-                      setMemberQuery(e.target.value);
-                      setMemberPickedEmail(null);
-                    }}
-                    placeholder={
-                      memberMode === "email"
-                        ? "e.g. sabik@beyond.campus"
-                        : "e.g. 64f1c2..."
-                    }
-                    type={memberMode === "email" ? "email" : "text"}
-                    required
-                  />
-                  {memberMode === "email" &&
-                    !memberSearching &&
-                    memberSuggestions.length === 0 &&
-                    memberQuery.trim().length >= 3 &&
-                    memberQuery.trim().toLowerCase() !== memberPickedEmail && (
-                      <div className="mt-1 flex flex-col gap-2 rounded-md border bg-muted/40 px-3 py-2">
-                        <p className="text-xs text-muted-foreground">
-                          No Persona account found for this email — you can
-                          invite them instead.
-                        </p>
+          <TabsContent value="providers" className="mt-6">
+            <Card className="w-full">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle>Providers</CardTitle>
+                  <CardDescription>
+                    AI providers this Project owns.
+                  </CardDescription>
+                </div>
+                <Link href={developerRoutes.projectProviderNew(projectId)}>
+                  <Button size="sm" className={PRIMARY_CTA_CLASSNAME}>
+                    <Plus className="mr-1.5 size-3.5" />
+                    New Provider
+                  </Button>
+                </Link>
+              </CardHeader>
+              <CardContent>
+                {providersLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                ) : filteredProviders.length > 0 ? (
+                  <div className="space-y-2">
+                    {selectedProviderIds.size > 0 && (
+                      <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2">
+                        <span className="text-sm text-muted-foreground">
+                          {selectedProviderIds.size} selected
+                        </span>
                         <Button
-                          type="button"
+                          variant="destructive"
                           size="sm"
-                          className="self-start !bg-[#1E60FF] !text-white font-bold shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] hover:!bg-[#154ed0] active:scale-[0.98]"
-                          disabled={!!invitingEmail}
-                          onClick={() => handleInviteMember(memberQuery)}
+                          disabled={bulkDeletingProviders}
+                          onClick={handleBulkDeleteProvidersClick}
                         >
-                          {invitingEmail ? (
+                          {bulkDeletingProviders ? (
                             <Loader2 className="mr-1.5 size-3.5 animate-spin" />
                           ) : (
-                            <Mail className="mr-1.5 size-3.5" />
+                            <Trash2 className="mr-1.5 size-3.5" />
                           )}
-                          Invite by email
+                          Delete {selectedProviderIds.size} selected
                         </Button>
                       </div>
                     )}
-                  {memberMode === "email" && memberSuggestions.length > 0 && (
-                    <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
-                      {memberSuggestions.map((u) => {
-                        const alreadyMember = memberPersonaIds.has(u.id);
-                        return (
-                          <button
-                            key={u.id}
-                            type="button"
-                            disabled={alreadyMember}
-                            className={`flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm transition-colors ${
-                              alreadyMember
-                                ? "cursor-not-allowed opacity-50"
-                                : "hover:bg-accent"
-                            }`}
-                            onClick={() => {
-                              if (alreadyMember) return;
-                              setMemberQuery(u.email);
-                              setMemberPickedEmail(u.email.toLowerCase());
-                              setMemberSuggestions([]);
-                            }}
-                          >
-                            <span className="font-medium">{u.name}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {u.email}
-                              {alreadyMember && " · Already a member"}
-                            </span>
-                          </button>
-                        );
-                      })}
+                    <div className="-mx-6 overflow-x-auto px-6">
+                      <Table className="min-w-[720px]">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-10">
+                              <Checkbox
+                                checked={
+                                  selectedProviderIds.size > 0 &&
+                                  selectedProviderIds.size === providers.length
+                                }
+                                onCheckedChange={toggleAllProviders}
+                                aria-label="Select all"
+                              />
+                            </TableHead>
+                            <TableHead>Label</TableHead>
+                            <TableHead className="hidden lg:table-cell">
+                              ID
+                            </TableHead>
+                            <TableHead>Base URL</TableHead>
+                            <TableHead className="hidden md:table-cell">
+                              Default Model
+                            </TableHead>
+                            <TableHead className="hidden md:table-cell">
+                              Created
+                            </TableHead>
+                            <TableHead className="text-right">
+                              Actions
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredProviders.map((p) => (
+                            <TableRow key={p.id}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={selectedProviderIds.has(p.id)}
+                                  onCheckedChange={() =>
+                                    toggleOneProvider(p.id)
+                                  }
+                                  aria-label={`Select ${p.label}`}
+                                />
+                              </TableCell>
+                              <TableCell className="font-medium">
+                                {p.label}
+                              </TableCell>
+                              <TableCell className="hidden lg:table-cell">
+                                <CopyButton
+                                  value={p.id}
+                                  label={`${p.label || "Provider"} ID`}
+                                  variant="inline"
+                                  className="max-w-[160px]"
+                                />
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {p.baseURL}
+                              </TableCell>
+                              <TableCell className="hidden text-muted-foreground md:table-cell">
+                                {p.defaultModel || "—"}
+                              </TableCell>
+                              <TableCell className="hidden text-muted-foreground md:table-cell">
+                                {p.createdAt
+                                  ? new Date(p.createdAt).toLocaleDateString()
+                                  : "—"}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex flex-wrap justify-end gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={testingProviderId === p.id}
+                                    onClick={() =>
+                                      handleTestProviderConnection(p)
+                                    }
+                                  >
+                                    {testingProviderId === p.id ? (
+                                      <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                                    ) : (
+                                      <Zap className="mr-1.5 size-3.5" />
+                                    )}
+                                    Test
+                                  </Button>
+                                  <Link
+                                    href={developerRoutes.projectProviderEdit(
+                                      projectId,
+                                      p.id,
+                                    )}
+                                  >
+                                    <Button variant="ghost" size="sm">
+                                      Edit
+                                    </Button>
+                                  </Link>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => setDeleteProviderTarget(p)}
+                                  >
+                                    Delete
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     </div>
-                  )}
-                  {memberMode === "email" && memberSearching && (
-                    <Loader2 className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
-                  )}
-                </div>
-                <FieldDescription>
-                  {memberMode === "email"
-                    ? "Start typing an email — matching Persona users appear below."
-                    : "Paste the internal Persona User id (shown in the Members table)."}
-                </FieldDescription>
-              </Field>
-              <button
-                type="button"
-                className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-                onClick={() => {
-                  setMemberMode((m) => (m === "email" ? "id" : "email"));
-                  setMemberQuery("");
-                  setMemberSuggestions([]);
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {resourceSearch
+                      ? `No Providers match "${resourceSearch}".`
+                      : "No Providers yet."}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="audit-logs" className="mt-6">
+            <Card className="w-full">
+              <CardHeader>
+                <CardTitle>Audit Logs</CardTitle>
+                <CardDescription>
+                  This Project&apos;s lifecycle trail — credentials minted/
+                  revoked, membership changes, suspend/restore. Resource CRUD
+                  (Agents/Skills/Knowledge/Providers/MCPs) isn&apos;t logged
+                  here yet.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {auditLogsLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                ) : auditLogs.length > 0 ? (
+                  <>
+                    <div className="-mx-6 overflow-x-auto px-6">
+                      <Table className="min-w-[560px]">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Event</TableHead>
+                            <TableHead>Actor</TableHead>
+                            <TableHead className="hidden md:table-cell">
+                              Target
+                            </TableHead>
+                            <TableHead className="text-right">When</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {auditLogs.map((log) => (
+                            <TableRow key={log._id || log.id}>
+                              <TableCell>
+                                <Badge variant="outline">{log.eventType}</Badge>
+                              </TableCell>
+                              <TableCell className="font-mono text-xs text-muted-foreground">
+                                {log.actorContextType}
+                                {log.actorIdentity
+                                  ? ` · ${log.actorIdentity}`
+                                  : ""}
+                              </TableCell>
+                              <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
+                                {log.targetResourceId || "—"}
+                              </TableCell>
+                              <TableCell className="text-right text-muted-foreground">
+                                {log.timestamp
+                                  ? new Date(log.timestamp).toLocaleString()
+                                  : "—"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    {auditLogsPages > 1 && (
+                      <div className="mt-4 flex flex-col items-stretch justify-end gap-2 sm:flex-row sm:items-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={auditLogsPage <= 1}
+                          onClick={() => setAuditLogsPage((p) => p - 1)}
+                        >
+                          Previous
+                        </Button>
+                        <span className="text-xs text-muted-foreground">
+                          Page {auditLogsPage} of {auditLogsPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={auditLogsPage >= auditLogsPages}
+                          onClick={() => setAuditLogsPage((p) => p + 1)}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No audit events yet.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Edit metadata */}
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent>
+            <form onSubmit={handleSaveEdit}>
+              <DialogHeader>
+                <DialogTitle>Edit Project</DialogTitle>
+                <DialogDescription>
+                  Update this Project&apos;s display metadata.
+                </DialogDescription>
+              </DialogHeader>
+              <FieldGroup className="py-4">
+                <Field>
+                  <FieldLabel htmlFor="edit-name">Name</FieldLabel>
+                  <Input
+                    id="edit-name"
+                    name="name"
+                    value={editForm.name}
+                    onChange={handleEditChange}
+                    required
+                    maxLength={100}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="edit-slug">Slug</FieldLabel>
+                  <Input
+                    id="edit-slug"
+                    name="slug"
+                    value={editForm.slug}
+                    onChange={handleEditChange}
+                    maxLength={100}
+                  />
+                  <FieldDescription>
+                    Optional — display/routing convenience only.
+                  </FieldDescription>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="edit-description">
+                    Description
+                  </FieldLabel>
+                  <Textarea
+                    id="edit-description"
+                    name="description"
+                    value={editForm.description}
+                    onChange={handleEditChange}
+                    maxLength={1000}
+                    rows={3}
+                  />
+                </Field>
+              </FieldGroup>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditOpen(false)}
+                  disabled={saving}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={saving}
+                  className={PRIMARY_CTA_CLASSNAME}
+                >
+                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Suspend */}
+        <AlertDialog open={suspendOpen} onOpenChange={setSuspendOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Suspend this Project?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Its credentials will immediately stop authenticating. You can
+                reactivate it at any time.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={actionBusy}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleSuspend();
                 }}
+                disabled={actionBusy}
               >
-                {memberMode === "email"
-                  ? "Add by internal User id instead"
-                  : "Add by email instead"}
-              </button>
-            </FieldGroup>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setAddMemberOpen(false)}
-                disabled={addingMember}
+                {actionBusy ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  "Suspend"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Reactivate */}
+        <AlertDialog open={reactivateOpen} onOpenChange={setReactivateOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reactivate this Project?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Its credentials will resume authenticating immediately.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={actionBusy}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleReactivate();
+                }}
+                disabled={actionBusy}
+              >
+                {actionBusy ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  "Reactivate"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Cancel deletion */}
+        <AlertDialog
+          open={cancelDeletionOpen}
+          onOpenChange={setCancelDeletionOpen}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cancel pending deletion?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This Project will return to ACTIVE and its credentials will
+                resume authenticating.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={actionBusy}>
+                Keep pending
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleCancelDeletion();
+                }}
+                disabled={actionBusy}
+              >
+                {actionBusy ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  "Cancel Deletion"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete */}
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-5 w-5" />
+                Delete this Project?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                This starts a grace-period deletion. Its credentials stop
+                authenticating immediately, and all owned resources will
+                eventually be permanently removed. You can cancel while the
+                grace period is open.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="my-4 space-y-2">
+              <p className="text-sm font-medium">
+                Please type <span className="font-bold">DELETE</span> to
+                confirm:
+              </p>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+                className="border-destructive focus-visible:ring-destructive"
+                autoFocus
+              />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                disabled={actionBusy}
+                onClick={() => setDeleteConfirmText("")}
               >
                 Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={addingMember}
-                className={PRIMARY_CTA_CLASSNAME}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleDelete();
+                }}
+                disabled={actionBusy || deleteConfirmText !== "DELETE"}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {addingMember && (
+                {actionBusy ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  "Delete Project"
                 )}
-                Add
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      {/* Revoke invitation */}
-      <AlertDialog
-        open={!!revokeInvitationTarget}
-        onOpenChange={(open) => !open && setRevokeInvitationTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Revoke this invitation?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {revokeInvitationTarget?.email} will no longer be able to accept —
-              their emailed link stops working immediately. You can invite them
-              again later.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={revokingInvitation}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleRevokeInvitation();
-              }}
-              disabled={revokingInvitation}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {revokingInvitation ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                "Revoke"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {/* Add Admin */}
+        <Dialog open={addMemberOpen} onOpenChange={setAddMemberOpen}>
+          <DialogContent>
+            <form onSubmit={handleAddMember}>
+              <DialogHeader>
+                <DialogTitle>Add Admin</DialogTitle>
+                <DialogDescription>
+                  Grants Admin membership to an existing Persona User. Search by
+                  email, or switch to paste an internal User id.
+                </DialogDescription>
+              </DialogHeader>
+              <FieldGroup className="py-4">
+                <Field>
+                  <FieldLabel htmlFor="new-member-id">
+                    {memberMode === "email" ? "Email" : "Persona User ID"}
+                  </FieldLabel>
+                  <div className="relative">
+                    <Input
+                      id="new-member-id"
+                      value={memberQuery}
+                      onChange={(e) => {
+                        setMemberQuery(e.target.value);
+                        setMemberPickedEmail(null);
+                      }}
+                      placeholder={
+                        memberMode === "email"
+                          ? "e.g. sabik@beyond.campus"
+                          : "e.g. 64f1c2..."
+                      }
+                      type={memberMode === "email" ? "email" : "text"}
+                      required
+                    />
+                    {memberMode === "email" &&
+                      !memberSearching &&
+                      memberSuggestions.length === 0 &&
+                      memberQuery.trim().length >= 3 &&
+                      memberQuery.trim().toLowerCase() !==
+                        memberPickedEmail && (
+                        <div className="mt-1 flex flex-col gap-2 rounded-md border bg-muted/40 px-3 py-2">
+                          <p className="text-xs text-muted-foreground">
+                            No Persona account found for this email — you can
+                            invite them instead.
+                          </p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="self-start !bg-[#1E60FF] !text-white font-bold shadow-md shadow-[#1E60FF]/15 transition-all duration-300 hover:scale-[1.02] hover:!bg-[#154ed0] active:scale-[0.98]"
+                            disabled={!!invitingEmail}
+                            onClick={() => handleInviteMember(memberQuery)}
+                          >
+                            {invitingEmail ? (
+                              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                            ) : (
+                              <Mail className="mr-1.5 size-3.5" />
+                            )}
+                            Invite by email
+                          </Button>
+                        </div>
+                      )}
+                    {memberMode === "email" && memberSuggestions.length > 0 && (
+                      <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
+                        {memberSuggestions.map((u) => {
+                          const alreadyMember = memberPersonaIds.has(u.id);
+                          return (
+                            <button
+                              key={u.id}
+                              type="button"
+                              disabled={alreadyMember}
+                              className={`flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm transition-colors ${
+                                alreadyMember
+                                  ? "cursor-not-allowed opacity-50"
+                                  : "hover:bg-accent"
+                              }`}
+                              onClick={() => {
+                                if (alreadyMember) return;
+                                setMemberQuery(u.email);
+                                setMemberPickedEmail(u.email.toLowerCase());
+                                setMemberSuggestions([]);
+                              }}
+                            >
+                              <span className="font-medium">{u.name}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {u.email}
+                                {alreadyMember && " · Already a member"}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {memberMode === "email" && memberSearching && (
+                      <Loader2 className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+                  <FieldDescription>
+                    {memberMode === "email"
+                      ? "Start typing an email — matching Persona users appear below."
+                      : "Paste the internal Persona User id (shown in the Members table)."}
+                  </FieldDescription>
+                </Field>
+                <button
+                  type="button"
+                  className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                  onClick={() => {
+                    setMemberMode((m) => (m === "email" ? "id" : "email"));
+                    setMemberQuery("");
+                    setMemberSuggestions([]);
+                  }}
+                >
+                  {memberMode === "email"
+                    ? "Add by internal User id instead"
+                    : "Add by email instead"}
+                </button>
+              </FieldGroup>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setAddMemberOpen(false)}
+                  disabled={addingMember}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={addingMember}
+                  className={PRIMARY_CTA_CLASSNAME}
+                >
+                  {addingMember && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Add
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
-      {/* Remove member */}
-      <AlertDialog
-        open={!!removeMemberTarget}
-        onOpenChange={(open) => !open && setRemoveMemberTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove this member?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {removeMemberTarget?.personaUserId} will lose Admin access to this
-              Project. The last remaining Admin cannot be removed.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={removingMember}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleRemoveMember();
-              }}
-              disabled={removingMember}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {removingMember ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                "Remove"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {/* Revoke invitation */}
+        <AlertDialog
+          open={!!revokeInvitationTarget}
+          onOpenChange={(open) => !open && setRevokeInvitationTarget(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Revoke this invitation?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {revokeInvitationTarget?.email} will no longer be able to accept
+                — their emailed link stops working immediately. You can invite
+                them again later.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={revokingInvitation}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleRevokeInvitation();
+                }}
+                disabled={revokingInvitation}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {revokingInvitation ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  "Revoke"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      {/* Mint credential */}
-      <Dialog open={mintOpen} onOpenChange={setMintOpen}>
-        <DialogContent>
-          <form onSubmit={handleMintCredential}>
+        {/* Remove member */}
+        <AlertDialog
+          open={!!removeMemberTarget}
+          onOpenChange={(open) => !open && setRemoveMemberTarget(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove this member?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {removeMemberTarget?.personaUserId} will lose Admin access to
+                this Project. The last remaining Admin cannot be removed.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={removingMember}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleRemoveMember();
+                }}
+                disabled={removingMember}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {removingMember ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  "Remove"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Mint credential */}
+        <Dialog open={mintOpen} onOpenChange={setMintOpen}>
+          <DialogContent>
+            <form onSubmit={handleMintCredential}>
+              <DialogHeader>
+                <DialogTitle>Mint new credential</DialogTitle>
+                <DialogDescription>
+                  The secret is shown exactly once right after this — copy it
+                  immediately, it can never be retrieved again.
+                </DialogDescription>
+              </DialogHeader>
+              <FieldGroup className="py-4">
+                <Field>
+                  <FieldLabel htmlFor="mint-label">Label</FieldLabel>
+                  <Input
+                    id="mint-label"
+                    value={mintLabel}
+                    onChange={(e) => setMintLabel(e.target.value)}
+                    placeholder="e.g. Production backend"
+                    maxLength={100}
+                  />
+                  <FieldDescription>
+                    Optional — helps you identify this credential later.
+                  </FieldDescription>
+                </Field>
+              </FieldGroup>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setMintOpen(false)}
+                  disabled={minting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={minting}
+                  className={PRIMARY_CTA_CLASSNAME}
+                >
+                  {minting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Mint
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* One-time secret reveal */}
+        <Dialog
+          open={!!mintedSecret}
+          onOpenChange={(open) => !open && setMintedSecret(null)}
+        >
+          <DialogContent>
             <DialogHeader>
-              <DialogTitle>Mint new credential</DialogTitle>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-5 w-5" />
+                Save this secret now
+              </DialogTitle>
               <DialogDescription>
-                The secret is shown exactly once right after this — copy it
-                immediately, it can never be retrieved again.
+                This is the only time this secret will ever be shown. Store it
+                somewhere safe.
               </DialogDescription>
             </DialogHeader>
-            <FieldGroup className="py-4">
+            <div className="space-y-3 py-2">
+              <div>
+                <p className="text-xs text-muted-foreground">Key ID</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 break-all rounded-md border bg-muted px-3 py-2 font-mono text-sm">
+                    {mintedSecret?.keyId}
+                  </code>
+                  <CopyButton
+                    value={mintedSecret?.keyId}
+                    label="Key ID"
+                    className="border border-input"
+                  />
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Secret</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 break-all rounded-md border bg-muted px-3 py-2 font-mono text-sm">
+                    {mintedSecret?.secret}
+                  </code>
+                  <CopyButton
+                    value={mintedSecret?.secret}
+                    label="Secret"
+                    className="border border-input"
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setMintedSecret(null)}>Done</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Revoke credential */}
+        <AlertDialog
+          open={!!revokeTarget}
+          onOpenChange={(open) => !open && setRevokeTarget(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Revoke this credential?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {revokeTarget?.label || revokeTarget?.keyId} will immediately
+                stop authenticating. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={revoking}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleRevokeCredential();
+                }}
+                disabled={revoking}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {revoking ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  "Revoke"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete provider */}
+        <AlertDialog
+          open={!!deleteProviderTarget}
+          onOpenChange={(open) => !open && setDeleteProviderTarget(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this Provider?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteProviderTarget?.label} will be permanently deleted. Any
+                Agents still using it will need a new Provider assigned. This
+                cannot be undone.
+              </AlertDialogDescription>
+              <UsageWarning
+                getUsage={getProjectProviderUsage}
+                projectId={projectId}
+                id={deleteProviderTarget?.id}
+              />
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingProvider}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleDeleteProvider();
+                }}
+                disabled={deletingProvider}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deletingProvider ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  "Delete"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete skill */}
+        <AlertDialog
+          open={!!deleteSkillTarget}
+          onOpenChange={(open) => !open && setDeleteSkillTarget(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this Skill?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteSkillTarget?.name} will be permanently deleted. Any
+                Agents still referencing it will lose access to it. This cannot
+                be undone.
+              </AlertDialogDescription>
+              <UsageWarning
+                getUsage={getProjectSkillUsage}
+                projectId={projectId}
+                id={deleteSkillTarget?._id || deleteSkillTarget?.id}
+              />
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingSkill}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleDeleteSkill();
+                }}
+                disabled={deletingSkill}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deletingSkill ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  "Delete"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete store */}
+        <AlertDialog
+          open={!!deleteStoreTarget}
+          onOpenChange={(open) => !open && setDeleteStoreTarget(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this Store?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteStoreTarget?.name} and all of its data will be
+                permanently deleted, and it will be removed from every Agent
+                that mounts it. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingStore}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleDeleteStore();
+                }}
+                disabled={deletingStore}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deletingStore ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  "Delete"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete connector */}
+        <AlertDialog
+          open={!!deleteMcpTarget}
+          onOpenChange={(open) => !open && setDeleteMcpTarget(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this Connector?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteMcpTarget?.name} will be permanently deleted, including
+                any owner OAuth connection. Any Agents still attaching it will
+                lose access to its tools. This cannot be undone.
+              </AlertDialogDescription>
+              <UsageWarning
+                getUsage={getProjectMcpUsage}
+                projectId={projectId}
+                id={deleteMcpTarget?._id || deleteMcpTarget?.id}
+              />
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingMcp}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleDeleteMcp();
+                }}
+                disabled={deletingMcp}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deletingMcp ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  "Delete"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete REST API tool */}
+        <AlertDialog
+          open={!!deleteRestToolTarget}
+          onOpenChange={(open) => !open && setDeleteRestToolTarget(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this REST API tool?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteRestToolTarget?.name} will be permanently deleted. Any
+                Agents still attaching it will lose access to it. This cannot be
+                undone.
+              </AlertDialogDescription>
+              <UsageWarning
+                getUsage={getProjectRestToolUsage}
+                projectId={projectId}
+                id={deleteRestToolTarget?._id || deleteRestToolTarget?.id}
+              />
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingRestTool}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleDeleteRestTool();
+                }}
+                disabled={deletingRestTool}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deletingRestTool ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  "Delete"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete secret */}
+        <AlertDialog
+          open={!!deleteSecretTarget}
+          onOpenChange={(open) => !open && setDeleteSecretTarget(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this secret?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteSecretTarget?.label} will be permanently deleted. This is
+                blocked while any REST API tool still references it. This cannot
+                be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingSecret}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleDeleteSecret();
+                }}
+                disabled={deletingSecret}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deletingSecret ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  "Delete"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* New secret */}
+        <Dialog open={newSecretOpen} onOpenChange={setNewSecretOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>New secret</DialogTitle>
+              <DialogDescription>
+                Reusable across REST API tools&apos; Auth tab. The value is
+                never shown again after this.
+              </DialogDescription>
+            </DialogHeader>
+            <FieldGroup>
               <Field>
-                <FieldLabel htmlFor="mint-label">Label</FieldLabel>
+                <FieldLabel htmlFor="new-secret-label-dialog">Label</FieldLabel>
                 <Input
-                  id="mint-label"
-                  value={mintLabel}
-                  onChange={(e) => setMintLabel(e.target.value)}
-                  placeholder="e.g. Production backend"
-                  maxLength={100}
+                  id="new-secret-label-dialog"
+                  placeholder="e.g. Skilify shared secret"
+                  value={newSecretLabel}
+                  onChange={(e) => setNewSecretLabel(e.target.value)}
                 />
-                <FieldDescription>
-                  Optional — helps you identify this credential later.
-                </FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="new-secret-value-dialog">Value</FieldLabel>
+                <Input
+                  id="new-secret-value-dialog"
+                  type="password"
+                  placeholder="Paste the secret value"
+                  value={newSecretValue}
+                  onChange={(e) => setNewSecretValue(e.target.value)}
+                />
               </Field>
             </FieldGroup>
             <DialogFooter>
               <Button
-                type="button"
                 variant="outline"
-                onClick={() => setMintOpen(false)}
-                disabled={minting}
+                onClick={() => setNewSecretOpen(false)}
+                disabled={creatingSecret}
               >
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={minting}
-                className={PRIMARY_CTA_CLASSNAME}
-              >
-                {minting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Mint
+              <Button onClick={handleCreateSecret} disabled={creatingSecret}>
+                {creatingSecret && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Create
               </Button>
             </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
 
-      {/* One-time secret reveal */}
-      <Dialog
-        open={!!mintedSecret}
-        onOpenChange={(open) => !open && setMintedSecret(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-5 w-5" />
-              Save this secret now
-            </DialogTitle>
-            <DialogDescription>
-              This is the only time this secret will ever be shown. Store it
-              somewhere safe.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div>
-              <p className="text-xs text-muted-foreground">Key ID</p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 break-all rounded-md border bg-muted px-3 py-2 font-mono text-sm">
-                  {mintedSecret?.keyId}
-                </code>
-                <CopyButton
-                  value={mintedSecret?.keyId}
-                  label="Key ID"
-                  className="border border-input"
-                />
-              </div>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Secret</p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 break-all rounded-md border bg-muted px-3 py-2 font-mono text-sm">
-                  {mintedSecret?.secret}
-                </code>
-                <CopyButton
-                  value={mintedSecret?.secret}
-                  label="Secret"
-                  className="border border-input"
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setMintedSecret(null)}>Done</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Revoke credential */}
-      <AlertDialog
-        open={!!revokeTarget}
-        onOpenChange={(open) => !open && setRevokeTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Revoke this credential?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {revokeTarget?.label || revokeTarget?.keyId} will immediately stop
-              authenticating. This cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={revoking}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleRevokeCredential();
-              }}
-              disabled={revoking}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {revoking ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                "Revoke"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete provider */}
-      <AlertDialog
-        open={!!deleteProviderTarget}
-        onOpenChange={(open) => !open && setDeleteProviderTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this Provider?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteProviderTarget?.label} will be permanently deleted. Any
-              Agents still using it will need a new Provider assigned. This
-              cannot be undone.
-            </AlertDialogDescription>
-            <UsageWarning
-              getUsage={getProjectProviderUsage}
-              projectId={projectId}
-              id={deleteProviderTarget?.id}
-            />
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingProvider}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleDeleteProvider();
-              }}
-              disabled={deletingProvider}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deletingProvider ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                "Delete"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete skill */}
-      <AlertDialog
-        open={!!deleteSkillTarget}
-        onOpenChange={(open) => !open && setDeleteSkillTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this Skill?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteSkillTarget?.name} will be permanently deleted. Any Agents
-              still referencing it will lose access to it. This cannot be
-              undone.
-            </AlertDialogDescription>
-            <UsageWarning
-              getUsage={getProjectSkillUsage}
-              projectId={projectId}
-              id={deleteSkillTarget?._id || deleteSkillTarget?.id}
-            />
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingSkill}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleDeleteSkill();
-              }}
-              disabled={deletingSkill}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deletingSkill ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                "Delete"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete store */}
-      <AlertDialog
-        open={!!deleteStoreTarget}
-        onOpenChange={(open) => !open && setDeleteStoreTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this Store?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteStoreTarget?.name} and all of its data will be permanently
-              deleted, and it will be removed from every Agent that mounts it.
-              This cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingStore}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleDeleteStore();
-              }}
-              disabled={deletingStore}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deletingStore ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                "Delete"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete connector */}
-      <AlertDialog
-        open={!!deleteMcpTarget}
-        onOpenChange={(open) => !open && setDeleteMcpTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this Connector?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteMcpTarget?.name} will be permanently deleted, including any
-              owner OAuth connection. Any Agents still attaching it will lose
-              access to its tools. This cannot be undone.
-            </AlertDialogDescription>
-            <UsageWarning
-              getUsage={getProjectMcpUsage}
-              projectId={projectId}
-              id={deleteMcpTarget?._id || deleteMcpTarget?.id}
-            />
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingMcp}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleDeleteMcp();
-              }}
-              disabled={deletingMcp}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deletingMcp ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                "Delete"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete REST API tool */}
-      <AlertDialog
-        open={!!deleteRestToolTarget}
-        onOpenChange={(open) => !open && setDeleteRestToolTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this REST API tool?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteRestToolTarget?.name} will be permanently deleted. Any
-              Agents still attaching it will lose access to it. This cannot be
-              undone.
-            </AlertDialogDescription>
-            <UsageWarning
-              getUsage={getProjectRestToolUsage}
-              projectId={projectId}
-              id={deleteRestToolTarget?._id || deleteRestToolTarget?.id}
-            />
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingRestTool}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleDeleteRestTool();
-              }}
-              disabled={deletingRestTool}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deletingRestTool ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                "Delete"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete secret */}
-      <AlertDialog
-        open={!!deleteSecretTarget}
-        onOpenChange={(open) => !open && setDeleteSecretTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this secret?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteSecretTarget?.label} will be permanently deleted. This is
-              blocked while any REST API tool still references it. This cannot
-              be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingSecret}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleDeleteSecret();
-              }}
-              disabled={deletingSecret}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deletingSecret ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                "Delete"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* New secret */}
-      <Dialog open={newSecretOpen} onOpenChange={setNewSecretOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New secret</DialogTitle>
-            <DialogDescription>
-              Reusable across REST API tools&apos; Auth tab. The value is never
-              shown again after this.
-            </DialogDescription>
-          </DialogHeader>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="new-secret-label-dialog">Label</FieldLabel>
-              <Input
-                id="new-secret-label-dialog"
-                placeholder="e.g. Skilify shared secret"
-                value={newSecretLabel}
-                onChange={(e) => setNewSecretLabel(e.target.value)}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="new-secret-value-dialog">Value</FieldLabel>
-              <Input
-                id="new-secret-value-dialog"
-                type="password"
-                placeholder="Paste the secret value"
-                value={newSecretValue}
-                onChange={(e) => setNewSecretValue(e.target.value)}
-              />
-            </Field>
-          </FieldGroup>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setNewSecretOpen(false)}
-              disabled={creatingSecret}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleCreateSecret} disabled={creatingSecret}>
-              {creatingSecret && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete agent */}
-      <AlertDialog
-        open={!!deleteAgentTarget}
-        onOpenChange={(open) => !open && setDeleteAgentTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this Agent?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteAgentTarget?.name} will be permanently deleted. This cannot
-              be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingAgent}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleDeleteAgent();
-              }}
-              disabled={deletingAgent}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deletingAgent ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                "Delete"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {/* Delete agent */}
+        <AlertDialog
+          open={!!deleteAgentTarget}
+          onOpenChange={(open) => !open && setDeleteAgentTarget(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this Agent?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteAgentTarget?.name} will be permanently deleted. This
+                cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingAgent}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleDeleteAgent();
+                }}
+                disabled={deletingAgent}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deletingAgent ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  "Delete"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </div>
   );
 }
