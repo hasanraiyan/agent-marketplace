@@ -3,6 +3,23 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.7.2
+
+- **Fix: `useVoice()` transcript no longer splits one agent utterance into many lines.** Gemini
+  Live delivers an utterance's `outputTranscription` as several incremental fragments within a
+  single model turn, and the voice gateway forwards each as its own final transcript event — so
+  the hook previously appended a new bubble per fragment ("I'm doing great, thanks! Just here…"
+  rendered stacked). The hook now merges consecutive finals that share a speaker + `turnSeq` into
+  the line they opened, handling both fragment shapes Gemini sends (cumulative full snapshots and
+  incremental words). One utterance = one transcript line. No server/audio/AI change.
+
+## 0.7.1
+
+- **`useVoice({ threadId })`** — resume an existing conversation over voice. When a thread id is
+  passed, the voice turns are persisted back into that thread's history so a later text message on
+  it sees them. `start()` POSTs `{ agentId, threadId }`, which `@personaai/runtime`'s
+  `POST /voice/sessions` (^0.7.1) forwards as the `x-thread-id` mint header.
+
 ## 0.7.0
 
 - **New: `useVoice()`.** Real-time voice calls with an Agent, powered by Gemini Live. Mints a

@@ -1304,6 +1304,14 @@ function playerWorkletUrl() {
 }
 
 // src/hooks/useVoice.ts
+function mergeTranscriptText(prev, next) {
+  if (!prev) return next;
+  if (!next) return prev;
+  if (next === prev || prev.endsWith(next)) return prev;
+  if (next.startsWith(prev)) return next;
+  const needSpace = !/\s$/.test(prev) && !/^\s/.test(next);
+  return prev + (needSpace ? " " : "") + next;
+}
 function useVoice(options = {}) {
   const { defaultAgentId, fetchWithAuth, logger } = usePersonaContext();
   const voiceLogger = useMemo3(() => logger.child("voice"), [logger]);
@@ -1330,6 +1338,9 @@ function useVoice(options = {}) {
   const playerNodeRef = useRef2(null);
   const acceptedTurnSeqRef = useRef2(0);
   const mountedRef = useRef2(true);
+  const lastFinalTurnRef = useRef2(
+    null
+  );
   useEffect4(() => {
     mountedRef.current = true;
     return () => {
@@ -1420,21 +1431,28 @@ function useVoice(options = {}) {
     },
     []
   );
-  const handleTranscript = useCallback4(
-    (value) => {
-      const { speaker, text, isFinal } = value;
-      if (isFinal) {
-        setPartial((prev) => prev?.speaker === speaker ? null : prev);
-        setTranscript((prev) => [
-          ...prev,
-          { id: `${speaker}-${prev.length}`, speaker, text }
-        ]);
-      } else {
-        setPartial({ id: "partial", speaker, text });
+  const handleTranscript = useCallback4((value) => {
+    const { speaker, text, isFinal, turnSeq } = value;
+    if (!isFinal) {
+      setPartial({ id: "partial", speaker, text });
+      return;
+    }
+    setPartial((prev) => prev?.speaker === speaker ? null : prev);
+    const last = lastFinalTurnRef.current;
+    const sameUtterance = last && last.speaker === speaker && last.turnSeq === turnSeq;
+    setTranscript((prev) => {
+      const tail = prev[prev.length - 1];
+      if (sameUtterance && tail?.speaker === speaker) {
+        const merged = mergeTranscriptText(tail.text, text);
+        if (merged === tail.text) return prev;
+        return prev.map(
+          (l, i) => i === prev.length - 1 ? { ...l, text: merged } : l
+        );
       }
-    },
-    []
-  );
+      return [...prev, { id: `${speaker}-${prev.length}`, speaker, text }];
+    });
+    lastFinalTurnRef.current = { speaker, turnSeq };
+  }, []);
   const handleCustomEvent = useCallback4(
     (name, value) => {
       switch (name) {
@@ -1467,9 +1485,7 @@ function useVoice(options = {}) {
           }
           break;
         case "voice_transcript":
-          handleTranscript(
-            value
-          );
+          handleTranscript(value);
           break;
         case "voice_interrupted":
           acceptedTurnSeqRef.current = value.turnSeq;
@@ -1872,7 +1888,7 @@ import {
   getLogLevel,
   isLevelEnabled
 } from "@personaai/logger";
-var VERSION = "0.7.0";
+var VERSION = "0.7.2";
 export {
   PersonaProvider,
   VERSION,

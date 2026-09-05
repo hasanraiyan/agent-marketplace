@@ -25,6 +25,32 @@ interface VoiceSessionTicket {
   };
 }
 
+// Gemini Live delivers an agent utterance's output transcription as SEVERAL
+// incremental fragments (one serverContent message per fragment) inside a
+// single model turn — there is no per-fragment "finished" flag; only
+// turnComplete closes the turn. The gateway forwards each fragment as its own
+// isFinal:true voice_transcript event, so without merging here every fragment
+// would render as its own stacked bubble even though the concatenated text is
+// one sentence. Fragments arrive as EITHER a cumulative full snapshot OR
+// incremental new words (Gemini does both), so handle both:
+//   - cumulative: next already contains prev from the start  -> take next
+//   - incremental: append next, inserting a space only at a clean word seam
+function mergeTranscriptText(prev: string, next: string): string {
+  if (!prev) return next;
+  if (!next) return prev;
+  if (next === prev || prev.endsWith(next)) return prev; // no-op / dup tail
+  if (next.startsWith(prev)) return next; // cumulative snapshot
+  const needSpace = !/\s$/.test(prev) && !/^\s/.test(next);
+  return prev + (needSpace ? " " : "") + next;
+}
+
+interface VoiceTranscriptValue {
+  speaker: "user" | "agent";
+  text: string;
+  isFinal: boolean;
+  turnSeq?: number;
+}
+
 /**
  * Drives a real-time voice call with an Agent (powered by Gemini Live).
  *
@@ -70,6 +96,13 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
   const playerNodeRef = useRef<AudioWorkletNode | null>(null);
   const acceptedTurnSeqRef = useRef(0);
   const mountedRef = useRef(true);
+  // Speaker + turnSeq of the last committed transcript line. Consecutive
+  // finals with the same speaker AND turnSeq are fragments of one utterance
+  // (the server bumps turnSeq only at turnComplete), so they merge into the
+  // line they created instead of spawning a new bubble.
+  const lastFinalTurnRef = useRef<{ speaker: string; turnSeq?: number } | null>(
+    null,
+  );
 
   useEffect(() => {
     mountedRef.current = true;
@@ -181,21 +214,39 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
     [],
   );
 
-  const handleTranscript = useCallback(
-    (value: { speaker: "user" | "agent"; text: string; isFinal: boolean }) => {
-      const { speaker, text, isFinal } = value;
-      if (isFinal) {
-        setPartial((prev) => (prev?.speaker === speaker ? null : prev));
-        setTranscript((prev) => [
-          ...prev,
-          { id: `${speaker}-${prev.length}`, speaker, text },
-        ]);
-      } else {
-        setPartial({ id: "partial", speaker, text });
+  const handleTranscript = useCallback((value: VoiceTranscriptValue) => {
+    const { speaker, text, isFinal, turnSeq } = value;
+    if (!isFinal) {
+      setPartial({ id: "partial", speaker, text });
+      return;
+    }
+
+    // A final may land while a partial of the same speaker is showing (the
+    // last interim is superseded by the final) — clear it only for that case.
+    setPartial((prev) => (prev?.speaker === speaker ? null : prev));
+
+    const last = lastFinalTurnRef.current;
+    const sameUtterance =
+      last &&
+      last.speaker === speaker &&
+      last.turnSeq === turnSeq;
+
+    setTranscript((prev) => {
+      const tail = prev[prev.length - 1];
+      // Same speaker + same turn => fragment of the utterance still streaming
+      // in. Merge into the open line (which already rendered as a bubble)
+      // rather than appending a second bubble for this fragment.
+      if (sameUtterance && tail?.speaker === speaker) {
+        const merged = mergeTranscriptText(tail.text, text);
+        if (merged === tail.text) return prev;
+        return prev.map((l, i) =>
+          i === prev.length - 1 ? { ...l, text: merged } : l,
+        );
       }
-    },
-    [],
-  );
+      return [...prev, { id: `${speaker}-${prev.length}`, speaker, text }];
+    });
+    lastFinalTurnRef.current = { speaker, turnSeq };
+  }, []);
 
   const handleCustomEvent = useCallback(
     (name: string, value: Record<string, unknown>) => {
@@ -231,13 +282,7 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
           }
           break;
         case "voice_transcript":
-          handleTranscript(
-            value as {
-              speaker: "user" | "agent";
-              text: string;
-              isFinal: boolean;
-            },
-          );
+          handleTranscript(value as unknown as VoiceTranscriptValue);
           break;
         case "voice_interrupted":
           acceptedTurnSeqRef.current = value.turnSeq as number;
