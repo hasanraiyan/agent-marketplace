@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.7 — 2026-09-05
+
+- Bump `@personaai/react` to `^0.7.2` so the client-side re-export carries the `useVoice()`
+  transcript fix — an agent utterance streamed by Gemini Live as several output-transcription
+  fragments now renders as one transcript line instead of one bubble per fragment (no adapter
+  code change — generic passthrough).
+
 ## 0.1.4 — 2026-09-05
 
 - Bump `@personaai/runtime` to `^0.7.0` to pick up the new `POST /voice/sessions` route (no adapter code change — this is a generic passthrough).
