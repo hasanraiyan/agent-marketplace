@@ -12,8 +12,8 @@ importers:
         specifier: ^0.1.0
         version: 0.1.0
       '@personaai/react':
-        specifier: ^0.7.3
-        version: 0.7.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^0.7.4
+        version: 0.7.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@personaai/runtime':
         specifier: ^0.7.1
         version: 0.7.1
@@ -671,8 +671,8 @@ packages:
     resolution: {integrity: sha512-ra5T+aBNzDmiabJ161y87SJJT9x3MHuFfAL1UCxSY3IO6AOJtF5UcXdsLVcxkugeOIto6Ppsm+adGLLR9s50Kw==}
     engines: {node: '>=18'}
 
-  '@personaai/react@0.7.3':
-    resolution: {integrity: sha512-DJ3lhZ5nZAwwi1z8/UgZsMjB7lj/Oyaactq6GITtf2Qsu62ZyPlO+ONS+d0uVrv3rh7LXNCyLbmS6ccU6/HdjA==}
+  '@personaai/react@0.7.4':
+    resolution: {integrity: sha512-vaYPiINQCk5ESakOu0cf1fh3glcJkVpOcNHHufW1cFeGImdbIycZtoyh18dTpy9pzHvJ1GISBNquk7PSpsmxtA==}
     engines: {node: '>=18'}
     peerDependencies:
       react: '>=18.0.0'
@@ -2054,7 +2054,7 @@ snapshots:
 
   '@personaai/logger@0.1.0': {}
 
-  '@personaai/react@0.7.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@personaai/react@0.7.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@personaai/logger': 0.1.0
       react: 19.2.8

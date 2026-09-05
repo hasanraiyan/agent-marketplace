@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.9 — 2026-09-05
+
+- Bump `@personaai/react` to `^0.7.4` so the client-side re-export carries `useChat({ voice })` —
+  pass a `useVoice()` instance and `useChat` merges its live transcript into `messages`
+  automatically instead of every app hand-writing the sync itself (no adapter code change —
+  generic passthrough).
+- Fixed: the exported `VERSION` constant was stuck at `'0.1.2'` since that release — every bump
+  since only touched `package.json`, not `client.ts`'s hardcoded string (same class of bug
+  `@personaai/react`'s own `VERSION` had before it was fixed in that package's 0.5.3). Now tracks
+  the package version again.
+
 ## 0.1.8 — 2026-09-05
 
 - Bump `@personaai/react` to `^0.7.3` so the client-side re-export carries the `useVoice()`

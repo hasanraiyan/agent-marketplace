@@ -19,4 +19,4 @@ export * from '@personaai/react';
  * from the `export *` above, so this reports `@personaai/nextjs`'s version
  * rather than `@personaai/react`'s.
  */
-export const VERSION = '0.1.2';
+export const VERSION = '0.1.9';
