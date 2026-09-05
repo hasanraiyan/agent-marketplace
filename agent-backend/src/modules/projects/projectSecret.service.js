@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import projectSecretRepository from './projectSecret.repository.js';
 import restApiToolRepository from '../restApiTools/restApiTool.repository.js';
 import encryption from '../../utils/encryption.js';
@@ -73,6 +74,12 @@ class ProjectSecretService {
   }
 
   async getSecretById(context, id) {
+    // A malformed id (not a 24-hex ObjectId) would otherwise reach Mongoose
+    // as a raw, uncaught CastError — this is the same existence-hiding 404
+    // as a valid-but-nonexistent id gets, not a distinguishable 500.
+    if (!mongoose.isValidObjectId(id)) {
+      throw new NotFoundError('Project secret not found', 'ProjectSecret');
+    }
     const secret = await projectSecretRepository.findByProjectAndId(context.domain, id);
     if (!secret) throw new NotFoundError('Project secret not found', 'ProjectSecret');
     return secret;
@@ -149,6 +156,13 @@ class ProjectSecretService {
    * same `context.domain` before it's ever persisted onto a tool).
    */
   async resolvePlaintext(secretId) {
+    // Same guard as getSecretById — a tool with a malformed `secretRef`
+    // (e.g. a human-typed label instead of a real Secret id) must fail as a
+    // normal, catchable "not found" here, never as an uncaught Mongoose
+    // CastError bubbling out of a live tool call.
+    if (!mongoose.isValidObjectId(secretId)) {
+      throw new NotFoundError('Project secret not found', 'ProjectSecret');
+    }
     const secret = await projectSecretRepository.findById(secretId);
     if (!secret) throw new NotFoundError('Project secret not found', 'ProjectSecret');
     const value = encryption.decrypt(secret.valueEncrypted);
