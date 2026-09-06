@@ -176,6 +176,24 @@ export async function buildVoiceLiveConfig(agent, domain, context) {
   // Agent's real, executable tools.
   const allDeclarations = [...functionDeclarations, END_CALL_TOOL_DECLARATION];
 
+  // Diagnostic: exactly which tools this voice session is actually getting,
+  // and how many params each declares to Gemini — the fastest way to tell
+  // "the RCP tool never made it into this session at all" (check
+  // rcpSource.tools.js's own `[RcpSource] failed to load tools from ...`
+  // warning right above this in the same log stream) apart from "the tool
+  // is here, but Gemini won't call it" (e.g. a fully resolver-mapped RCP
+  // tool declares an EMPTY `parameters` schema once every param is
+  // stripped, which may confuse Gemini Live's function-calling — worth
+  // checking `paramCount` here first).
+  logger.info('[Voice] tools resolved for session', {
+    agentId: String(agent._id),
+    toolCount: functionDeclarations.length,
+    tools: functionDeclarations.map((decl) => ({
+      name: decl.name,
+      paramCount: Object.keys(decl.parameters?.properties || {}).length,
+    })),
+  });
+
   const liveConfig = {
     responseModalities: [Modality.AUDIO],
     systemInstruction,
