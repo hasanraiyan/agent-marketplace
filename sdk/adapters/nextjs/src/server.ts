@@ -32,7 +32,7 @@ export type {
 } from '@personaai/runtime';
 
 /** Version of this package, kept in sync with `package.json`. */
-export const VERSION = '0.1.11';
+export const VERSION = '0.1.12';
 
 /**
  * Receives the raw Web `Request` and returns the resolved external user id,

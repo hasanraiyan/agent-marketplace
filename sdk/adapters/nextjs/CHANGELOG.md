@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.12 — 2026-09-07
+
+- Bump `@personaai/react` to `^0.7.5` to pick up the `useChat` fix: `sendMessage(text, {
+  contextOverride })` now actually forwards `contextOverride` in the SSE POST body (previously
+  silently dropped even though the runtime and `@personaai/sdk` both already supported it — see
+  `@personaai/react`'s 0.7.5 CHANGELOG entry). No adapter code change needed — `@personaai/nextjs`'s
+  client entry is a verbatim re-export of `@personaai/react`.
+
 ## 0.1.11 — 2026-09-06
 
 - Bump `@personaai/runtime` to `^0.9.0` to pick up the new `rcpManifest` option (serves a
