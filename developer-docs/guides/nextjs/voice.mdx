@@ -142,6 +142,24 @@ const { start } = useVoice({
 
 Omit `threadId` for a fresh conversation.
 
+**Giving the Agent live situational context.** Same idea as `useChat`'s `contextOverride`, but
+supplied once, at `start()`, since a call has no discrete per-message request the way text chat
+does:
+
+```tsx
+const { start } = useVoice({
+  agentId: AGENT_ID,
+  threadId: activeThread?._id,
+  contextOverride: 'The learner is on chapter 3, quiz not yet started.',
+});
+```
+
+It's baked into this call's system instruction the moment `start()` connects, and stays fixed for
+the whole call — Gemini Live's system instruction isn't re-sent per turn the way LangGraph's is for
+text chat, so there's no way to update it mid-conversation short of `stop()` followed by a fresh
+`start()` with a new value. Requires `@personaai/nextjs@^0.1.13`+ (bundling
+`@personaai/react@^0.7.6` and `@personaai/runtime@^0.9.1`).
+
 **Showing voice turns inside your text chat feed.** If Coursify's chat UI lets the same
 conversation happen over voice or text — a mic button next to the composer, rather than a
 separate call screen — pass the `useVoice()` instance straight into `useChat` (same `threadId` on

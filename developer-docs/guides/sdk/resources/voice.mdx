@@ -28,7 +28,7 @@ survive on a serverless deployment the way chat's bounded SSE relay does), and
 
 | Method               | Endpoint                                | Returns              |
 | --------------------- | ---------------------------------------- | --------------------- |
-| `createSession(agentId, {threadId?})` | `POST /api/v1/developer/voice/sessions` | `VoiceSessionTicket` |
+| `createSession(agentId, {threadId?, contextOverride?})` | `POST /api/v1/developer/voice/sessions` | `VoiceSessionTicket` |
 
 ## createSession(agentId, options?)
 
@@ -38,6 +38,11 @@ const ticket = await userClient.voice.createSession(agent._id);
 // Or resume the caller's existing conversation over voice:
 const resumed = await userClient.voice.createSession(agent._id, {
   threadId: userThreadId, // same thread a text resume would use
+});
+
+// Or give the Agent live situational context for this call:
+const withContext = await userClient.voice.createSession(agent._id, {
+  contextOverride: 'The learner is currently on chapter 3, quiz not yet started.',
 });
 ```
 
@@ -50,6 +55,12 @@ const resumed = await userClient.voice.createSession(agent._id, {
   The server resolves it and rejects with a generic `404 Thread not found` if it isn't a thread
   this Subject owns for this Agent. The voice turns are persisted back into that thread's history,
   so a later text `resume` on the same thread sees them. Omit for a fresh conversation.
+- `options.contextOverride` *(optional, added in `0.7.2`)* — a plain string, same field/cap/contract
+  as `chat.stream()`'s `contextOverride` (appended to the Agent's system instruction, capped at 4000
+  characters, rejected with a `400` rather than truncated). The one real difference from text chat:
+  this is a **one-time append at connect**, not re-applied per turn — Gemini Live's system
+  instruction is fixed for the whole call, so there's no later point in an ongoing call where this
+  could be refreshed. To change it, end the call and mint a new session with a new value.
 - If the Agent has any guarded tool enabled (`interruptOn`), this throws `code:
   'VOICE_INTERRUPT_ON_UNSUPPORTED'` (`422`) — voice sessions have no spoken confirmation flow yet,
   so a guarded tool is refused outright rather than silently skipping the approval the Agent's own

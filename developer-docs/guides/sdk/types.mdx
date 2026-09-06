@@ -666,12 +666,15 @@ filter.
 
 ## Voice types
 
-`client.voice.createSession(agentId, {threadId?})` mints a single-use ticket for the voice
-WebSocket gateway (real-time audio, powered by Gemini Live). Call it from your own server, then
-hand the returned `wsUrl` to your own frontend, which opens `new WebSocket(wsUrl)` directly — this
-SDK never opens the WebSocket or touches audio itself, so your Project credential never reaches a
-browser. Pass the optional `threadId` to resume an existing conversation over voice (the voice
-turns are persisted back into that thread).
+`client.voice.createSession(agentId, {threadId?, contextOverride?})` mints a single-use ticket for
+the voice WebSocket gateway (real-time audio, powered by Gemini Live). Call it from your own
+server, then hand the returned `wsUrl` to your own frontend, which opens `new WebSocket(wsUrl)`
+directly — this SDK never opens the WebSocket or touches audio itself, so your Project credential
+never reaches a browser. Pass the optional `threadId` to resume an existing conversation over voice
+(the voice turns are persisted back into that thread). Pass the optional `contextOverride` (same
+field/cap as `chat.stream()`'s) to give the Agent live situational context for the call — appended
+to its system instruction once at connect, not re-applied per turn like text chat's version. See
+the [Voice resource reference](/guides/sdk/resources/voice) for the full contract.
 
 ### `VoiceSessionTicket`
 
