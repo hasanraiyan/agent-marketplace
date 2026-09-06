@@ -95,6 +95,27 @@ class DeveloperVoiceController {
         throw new NotFoundError('Agent not found');
       }
 
+      // Was missing entirely — this route never populated any attached
+      // resource before handing `agent` to buildVoiceLiveConfig ->
+      // resolveVoiceTools -> resolveAgentTools, unlike agent.factory.js's
+      // buildAgent() (the text path), which always populates first. Left
+      // every attached MCP/REST API Tool Source/Knowledge Base/RCP Source
+      // as a bare ObjectId for voice — e.g. resolveRcpSourceTools reading
+      // `source.url`/`source.name` off a bare id, silently logging
+      // `[RcpSource] failed to load tools from "undefined"`. Exact same
+      // field list as agent.factory.js's own populate call.
+      if (typeof agent.populate === 'function') {
+        await agent.populate([
+          'skills',
+          'mcps',
+          'knowledgeBases',
+          'storeMounts',
+          'restApiTools',
+          'restApiToolSources',
+          'rcpSources',
+        ]);
+      }
+
       let provider;
       try {
         provider = await resolveVoiceProvider(agent, domain);
