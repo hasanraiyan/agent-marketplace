@@ -75,6 +75,58 @@ describe('VoiceResource', () => {
     expect((init.headers as Record<string, string>)['x-thread-id']).toBe('thread_9');
   });
 
+  it('createSession() with a contextOverride sends it as a JSON body', async () => {
+    const ticket = {
+      ticket: 'payload.signature',
+      wsUrl: 'wss://api.example.com/api/v1/developer/voice?ticket=payload.signature',
+      expiresAt: '2026-01-01T00:01:00.000Z',
+      session: {
+        model: 'gemini-3.1-flash-live-preview',
+        voice: 'Zephyr',
+        inputSampleRate: 16000,
+        outputSampleRate: 24000,
+        maxDurationMs: 900000,
+      },
+    };
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ success: true, data: ticket })
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch, 'sabik-42');
+
+    await client.voice.createSession('agent_1', {
+      contextOverride: 'The learner is on chapter 3.',
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toEqual({
+      contextOverride: 'The learner is on chapter 3.',
+    });
+  });
+
+  it('createSession() with no contextOverride sends no body', async () => {
+    const ticket = {
+      ticket: 'payload.signature',
+      wsUrl: 'wss://api.example.com/api/v1/developer/voice?ticket=payload.signature',
+      expiresAt: '2026-01-01T00:01:00.000Z',
+      session: {
+        model: 'gemini-3.1-flash-live-preview',
+        voice: 'Zephyr',
+        inputSampleRate: 16000,
+        outputSampleRate: 24000,
+        maxDurationMs: 900000,
+      },
+    };
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ success: true, data: ticket })
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch, 'sabik-42');
+
+    await client.voice.createSession('agent_1');
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.body).toBeUndefined();
+  });
+
   it('propagates a VOICE_PROVIDER_REQUIRED error as a typed API error', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       jsonResponse(

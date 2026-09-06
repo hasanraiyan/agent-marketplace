@@ -19,6 +19,16 @@ export interface CreateVoiceSessionOptions {
    * per-Subject scratch thread, exactly like a text run with no threadId).
    */
   threadId?: string;
+  /**
+   * Caller-supplied context appended to the Agent's system instruction for
+   * this call — same field/cap/contract as {@link SendMessageOptions.contextOverride}
+   * on `chat.stream()`. Unlike text chat, this is a **one-time append at
+   * connect**, not re-applied per turn: Gemini Live's system instruction is
+   * fixed for the whole call, so changing it mid-call requires ending this
+   * session and starting a new one. Capped at 4000 characters server-side
+   * (rejected with a 400, not truncated).
+   */
+  contextOverride?: string;
 }
 
 /**
@@ -71,7 +81,10 @@ export class VoiceResource {
     return this.http.request<VoiceSessionTicket>(
       'POST',
       '/api/v1/developer/voice/sessions',
-      { headers }
+      {
+        headers,
+        body: options.contextOverride !== undefined ? { contextOverride: options.contextOverride } : undefined,
+      }
     );
   }
 }

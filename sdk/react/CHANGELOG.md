@@ -3,6 +3,16 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.7.6
+
+- **New: `useVoice({ contextOverride })`.** Same field/cap/contract as `useChat`'s
+  `sendMessage(text, { contextOverride })` — appended to the Agent's system instruction for that
+  call. Unlike text chat, this is a **one-time append at connect**, not re-applied per turn:
+  Gemini Live's system instruction is fixed for the whole call, so changing it means ending the
+  call and starting a new `start()`. Sent as a body field on `POST /voice/sessions` alongside
+  `agentId`/`threadId`. Requires `@personaai/runtime@0.9.1`+ and its `agent-backend` counterpart
+  (both shipped alongside this release) for the field to actually reach the Agent.
+
 ## 0.7.5
 
 - **Fix: `useChat`'s `sendMessage` never forwarded `contextOverride`.** `@personaai/sdk`'s

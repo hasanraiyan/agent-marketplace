@@ -17,7 +17,15 @@ export const createVoiceSession: RouteHandler = async (request, ctx) => {
   const agentId = requireStringField(body, 'agentId');
   const threadId =
     typeof body.threadId === 'string' && body.threadId ? body.threadId : undefined;
-  const ticket = await ctx.client.voice.createSession(agentId, threadId ? { threadId } : {});
+  // Same field/cap/contract as `chat`'s contextOverride — appended to the
+  // Agent's system instruction once at connect (voice has no per-turn
+  // re-application; see @personaai/sdk's VoiceResource doc comment).
+  const contextOverride =
+    typeof body.contextOverride === 'string' && body.contextOverride ? body.contextOverride : undefined;
+  const ticket = await ctx.client.voice.createSession(agentId, {
+    ...(threadId ? { threadId } : {}),
+    ...(contextOverride ? { contextOverride } : {}),
+  });
 
   await ctx.hooks?.onVoiceSessionCreate?.({
     userId: request.userId as string,

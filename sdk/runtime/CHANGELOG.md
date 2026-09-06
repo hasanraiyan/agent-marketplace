@@ -4,6 +4,15 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.9.1
+
+- **New: `contextOverride` accepted on `POST /voice/sessions`.** Forwarded to
+  `client.voice.createSession(agentId, { contextOverride })` — bump `@personaai/sdk` to `^0.7.2`
+  to pick up the field. Same cap/contract as `chat`'s `contextOverride`, but a one-time append at
+  connect rather than a per-turn one: Gemini Live's system instruction is fixed for the whole
+  call. Verified against the real published `@personaai/sdk@0.7.2` — typecheck and all 168 tests
+  (27 files) clean.
+
 ## 0.9.0
 
 - **New: `rcpManifest` option on `createRuntime()`.** Serves a list of code-defined RCP (REST

@@ -1392,6 +1392,7 @@ function useVoice(options = {}) {
   const voiceLogger = useMemo3(() => logger.child("voice"), [logger]);
   const agentId = options.agentId || defaultAgentId;
   const threadId = options.threadId;
+  const contextOverride = options.contextOverride;
   const [state, setState] = useState4("idle");
   const [isMuted, setIsMuted] = useState4(false);
   const [transcript, setTranscript] = useState4(
@@ -1661,14 +1662,19 @@ function useVoice(options = {}) {
     setToolCalls([]);
     acceptedTurnSeqRef.current = 0;
     setState("connecting");
-    voiceLogger.debug("start() called", { agentId, threadId });
+    voiceLogger.debug("start() called", {
+      agentId,
+      threadId,
+      hasContextOverride: !!contextOverride
+    });
     try {
       const res = await fetchWithAuth("/voice/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           agentId,
-          ...threadId ? { threadId } : {}
+          ...threadId ? { threadId } : {},
+          ...contextOverride ? { contextOverride } : {}
         })
       });
       if (!res.ok) {
@@ -1704,7 +1710,7 @@ function useVoice(options = {}) {
       }
       teardownAudio();
     }
-  }, [agentId, threadId, fetchWithAuth, handleMessage, teardownAudio, voiceLogger]);
+  }, [agentId, threadId, contextOverride, fetchWithAuth, handleMessage, teardownAudio, voiceLogger]);
   const mute = useCallback4((muted) => {
     setIsMuted(muted);
     streamRef.current?.getAudioTracks().forEach((track) => {

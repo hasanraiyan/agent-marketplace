@@ -1435,6 +1435,7 @@ function useVoice(options = {}) {
   const voiceLogger = (0, import_react5.useMemo)(() => logger.child("voice"), [logger]);
   const agentId = options.agentId || defaultAgentId;
   const threadId = options.threadId;
+  const contextOverride = options.contextOverride;
   const [state, setState] = (0, import_react5.useState)("idle");
   const [isMuted, setIsMuted] = (0, import_react5.useState)(false);
   const [transcript, setTranscript] = (0, import_react5.useState)(
@@ -1704,14 +1705,19 @@ function useVoice(options = {}) {
     setToolCalls([]);
     acceptedTurnSeqRef.current = 0;
     setState("connecting");
-    voiceLogger.debug("start() called", { agentId, threadId });
+    voiceLogger.debug("start() called", {
+      agentId,
+      threadId,
+      hasContextOverride: !!contextOverride
+    });
     try {
       const res = await fetchWithAuth("/voice/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           agentId,
-          ...threadId ? { threadId } : {}
+          ...threadId ? { threadId } : {},
+          ...contextOverride ? { contextOverride } : {}
         })
       });
       if (!res.ok) {
@@ -1747,7 +1753,7 @@ function useVoice(options = {}) {
       }
       teardownAudio();
     }
-  }, [agentId, threadId, fetchWithAuth, handleMessage, teardownAudio, voiceLogger]);
+  }, [agentId, threadId, contextOverride, fetchWithAuth, handleMessage, teardownAudio, voiceLogger]);
   const mute = (0, import_react5.useCallback)((muted) => {
     setIsMuted(muted);
     streamRef.current?.getAudioTracks().forEach((track) => {

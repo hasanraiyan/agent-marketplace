@@ -82,6 +82,38 @@ describe('voice routes', () => {
     expect((init.headers as Record<string, string>)['x-thread-id']).toBe('thread_9');
   });
 
+  it('POST /voice/sessions forwards an optional contextOverride in the sdk call body', async () => {
+    const ticket = {
+      ticket: 'payload.signature',
+      wsUrl: 'wss://api.example.com/api/v1/developer/voice?ticket=payload.signature',
+      expiresAt: '2026-01-01T00:01:00.000Z',
+      session: {
+        model: 'gemini-3.1-flash-live-preview',
+        voice: 'Zephyr',
+        inputSampleRate: 16000,
+        outputSampleRate: 24000,
+        maxDurationMs: 900000,
+      },
+    };
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse(ticket, 200));
+    const runtime = makeRuntime({ fetchMock });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/voice/sessions',
+      headers: {},
+      query: {},
+      body: { agentId: 'a1', contextOverride: 'The learner is on chapter 3.' },
+      userId: null,
+    });
+
+    expect(response.status).toBe(201);
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toEqual({
+      contextOverride: 'The learner is on chapter 3.',
+    });
+  });
+
   it('POST /voice/sessions without agentId returns 400 without calling the API', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse({}));
     const runtime = makeRuntime({ fetchMock });

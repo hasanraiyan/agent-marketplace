@@ -350,6 +350,16 @@ export interface UseVoiceOptions {
    * leave undefined) to start a fresh conversation.
    */
   threadId?: string;
+  /**
+   * Caller-supplied context appended to the Agent's system instruction for
+   * this call — same field/cap/contract as `useChat`'s `sendMessage(text, {
+   * contextOverride })`. Unlike text chat, this is a **one-time append at
+   * connect**, not re-applied per turn: Gemini Live's system instruction is
+   * fixed for the whole call, so changing it means ending this call and
+   * starting a new `start()`. Capped at 4000 characters server-side
+   * (rejected with a 400, not truncated).
+   */
+  contextOverride?: string;
 }
 
 export interface UseVoiceResult {

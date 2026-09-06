@@ -73,6 +73,7 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
   const voiceLogger = useMemo(() => logger.child("voice"), [logger]);
   const agentId = options.agentId || defaultAgentId;
   const threadId = options.threadId;
+  const contextOverride = options.contextOverride;
 
   const [state, setState] = useState<PersonaVoiceState>("idle");
   const [isMuted, setIsMuted] = useState(false);
@@ -405,7 +406,11 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
     setToolCalls([]);
     acceptedTurnSeqRef.current = 0;
     setState("connecting");
-    voiceLogger.debug("start() called", { agentId, threadId });
+    voiceLogger.debug("start() called", {
+      agentId,
+      threadId,
+      hasContextOverride: !!contextOverride,
+    });
 
     try {
       const res = await fetchWithAuth("/voice/sessions", {
@@ -414,6 +419,7 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
         body: JSON.stringify({
           agentId,
           ...(threadId ? { threadId } : {}),
+          ...(contextOverride ? { contextOverride } : {}),
         }),
       });
       if (!res.ok) {
@@ -451,7 +457,7 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
       }
       teardownAudio();
     }
-  }, [agentId, threadId, fetchWithAuth, handleMessage, teardownAudio, voiceLogger]);
+  }, [agentId, threadId, contextOverride, fetchWithAuth, handleMessage, teardownAudio, voiceLogger]);
 
   const mute = useCallback((muted: boolean) => {
     setIsMuted(muted);

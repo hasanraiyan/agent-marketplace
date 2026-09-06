@@ -12,11 +12,11 @@ importers:
         specifier: ^0.1.0
         version: 0.1.0
       '@personaai/react':
-        specifier: ^0.7.5
-        version: 0.7.5(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^0.7.6
+        version: 0.7.6(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@personaai/runtime':
-        specifier: ^0.9.0
-        version: 0.9.0(zod@3.25.76)
+        specifier: ^0.9.1
+        version: 0.9.1(zod@3.25.76)
     devDependencies:
       '@eslint/js':
         specifier: ^9.19.0
@@ -671,19 +671,19 @@ packages:
     resolution: {integrity: sha512-ra5T+aBNzDmiabJ161y87SJJT9x3MHuFfAL1UCxSY3IO6AOJtF5UcXdsLVcxkugeOIto6Ppsm+adGLLR9s50Kw==}
     engines: {node: '>=18'}
 
-  '@personaai/react@0.7.5':
-    resolution: {integrity: sha512-4XFUD0xdLd0HBXYHvmx2j6dSvJ8OX2iAuK/oxtTSSGcT3AaadwLc1VSEy8va963qnbQ0hC0dJSSEyMwo7ouTxA==}
+  '@personaai/react@0.7.6':
+    resolution: {integrity: sha512-mj3EFuY6cwWZ90k1NabXJLi2OaZwUy02/QuTX9NLAvrxcq2bVQyjRcB/+hCumZcWf6JxbEKKQmkxFWmS4KC+hQ==}
     engines: {node: '>=18'}
     peerDependencies:
       react: '>=18.0.0'
       react-dom: '>=18.0.0'
 
-  '@personaai/runtime@0.9.0':
-    resolution: {integrity: sha512-Ub36E8YrRBAAspgmCpJTv/IhZpD7kIVgP8Qoa+U0vpwLZxlH9rrqUsRt/nZ1Gsb9AzdPL+ezrIFhsFl1H0AFHg==}
+  '@personaai/runtime@0.9.1':
+    resolution: {integrity: sha512-BETumkTzbPsdRzo6riSs3KHVT69SBJP3GjxSe666Rg5SwCOGjp/p7YLDkHuAfc5kZm7snu/O06+obAjXKqkBFA==}
     engines: {node: '>=18'}
 
-  '@personaai/sdk@0.7.0':
-    resolution: {integrity: sha512-icOl8v7+ey5nPgYxYW3wuseQz1rp7ht74k0FMKskfC8Jj/q3ZaJaRR0U3b5QksBJqc91cTRZMooK/FhIoWQmgw==}
+  '@personaai/sdk@0.7.2':
+    resolution: {integrity: sha512-to70UvultbzwHIACuTyslQ+IHNHJTbZ7P3tO6jt4lQu40iw9tWxXgRoYCPlbRA7gk3ZpsnVjm2fOswSZzhyLww==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.23.0 || ^4.0.0
@@ -2063,21 +2063,21 @@ snapshots:
 
   '@personaai/logger@0.1.0': {}
 
-  '@personaai/react@0.7.5(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@personaai/react@0.7.6(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@personaai/logger': 0.1.0
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
 
-  '@personaai/runtime@0.9.0(zod@3.25.76)':
+  '@personaai/runtime@0.9.1(zod@3.25.76)':
     dependencies:
       '@ag-ui/core': 0.0.57
-      '@personaai/sdk': 0.7.0(zod@3.25.76)
+      '@personaai/sdk': 0.7.2(zod@3.25.76)
       rcp-sdk: 0.1.0
     transitivePeerDependencies:
       - zod
 
-  '@personaai/sdk@0.7.0(zod@3.25.76)':
+  '@personaai/sdk@0.7.2(zod@3.25.76)':
     dependencies:
       '@ag-ui/core': 0.0.57
       '@personaai/logger': 0.1.0

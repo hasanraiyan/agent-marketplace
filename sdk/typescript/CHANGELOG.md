@@ -3,6 +3,16 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.7.2
+
+- **New: `voice.createSession(agentId, { contextOverride })`.** Same field/cap/contract as
+  `chat.stream()`'s `contextOverride` — appended to the Agent's system instruction for that call.
+  Unlike text chat, this is a **one-time append at connect**, not re-applied per turn: Gemini
+  Live's system instruction is fixed for the whole call, so changing it mid-call requires ending
+  the session and starting a new one. Sent as a JSON body field (`agentId`/`threadId` stay headers,
+  unchanged) — requires `agent-backend`'s matching voice session support (shipped alongside this
+  release).
+
 ## 0.7.1
 
 - **`defineRestTool`'s `auth: { type: 'bearerSecret' }` no longer requires `secretRef`.** Omit it
