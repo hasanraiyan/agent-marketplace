@@ -39,6 +39,24 @@ router.use(developerMachineAuthMiddleware);
  *         in: header
  *         required: true
  *         schema: { type: string }
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               contextOverride:
+ *                 type: string
+ *                 maxLength: 4000
+ *                 description: >
+ *                   Same field/cap/contract as POST /api/v1/developer/agui's
+ *                   contextOverride — appended to the Agent's system
+ *                   instruction for this call. Unlike text chat, this is a
+ *                   one-time append at connect, not re-applied per turn:
+ *                   Gemini Live's systemInstruction is fixed for the whole
+ *                   call, so a later change requires ending the call and
+ *                   starting a new voice session.
  *     responses:
  *       200:
  *         description: Ticket issued

@@ -17,6 +17,14 @@ import {
 
 const logger = loggerService.getLogger();
 
+// Mirrors developerAgui.controller.js's CONTEXT_OVERRIDE_MAX_LENGTH exactly
+// — same field, same cap, same "reject rather than truncate" contract.
+// Voice has no per-turn re-application (Gemini Live's systemInstruction is
+// set once at connect, not re-sent per model call the way LangGraph's
+// contextOverrideMiddleware runs per turn) — see voiceGateway.js for where
+// it's actually appended.
+const CONTEXT_OVERRIDE_MAX_LENGTH = 4000;
+
 /**
  * Developer Platform machine voice route (voice-agent-plan.md §7 route (a),
  * §18 Phase 2) — mints a voice session ticket for an external app running
@@ -55,6 +63,20 @@ class DeveloperVoiceController {
     try {
       if (!agentId) {
         throw new NotFoundError('Agent ID is required');
+      }
+
+      const { contextOverride } = req.body || {};
+      if (contextOverride !== undefined) {
+        if (typeof contextOverride !== 'string') {
+          throw new BaseError('contextOverride must be a string', 400, 'INVALID_CONTEXT_OVERRIDE');
+        }
+        if (contextOverride.length > CONTEXT_OVERRIDE_MAX_LENGTH) {
+          throw new BaseError(
+            `contextOverride must be ${CONTEXT_OVERRIDE_MAX_LENGTH} characters or fewer`,
+            400,
+            'CONTEXT_OVERRIDE_TOO_LARGE'
+          );
+        }
       }
       if (String(agentId) === ARCHITECT_AGENT_ID) {
         // Existence-hiding (AD-07 §29): same not-found shape as any other
@@ -131,6 +153,7 @@ class DeveloperVoiceController {
         subjectId: externalUserId,
         credentialId: context.credentialId,
         threadId: langGraphThreadId,
+        contextOverride,
       });
 
       // req.protocol only reports 'https' when Express's `trust proxy` is

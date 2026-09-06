@@ -136,6 +136,19 @@ async function handleVoiceUpgrade(req, socket, head, url, wss) {
     context
   );
 
+  // Caller-supplied contextOverride (developerVoice.controller.js), carried
+  // in the signed ticket claims since the WS handshake can't take a request
+  // body of its own — appended here rather than threaded into
+  // buildVoiceLiveConfig() itself, same as the thread-seed excerpt below.
+  // Unlike text chat's contextOverrideMiddleware (re-applied on every model
+  // call within a run), this is a one-time append: Gemini Live's
+  // systemInstruction is fixed at connect and never re-sent per turn, so
+  // there is no later point in the call where this could be refreshed.
+  if (claims.contextOverride) {
+    liveConfig.systemInstruction =
+      `${liveConfig.systemInstruction || ''}\n\n### CURRENT CONTEXT (this call only — do not save to memory)\n${claims.contextOverride}`.trim();
+  }
+
   // Phase 4 (voice-agent-plan.md §4.1, §4.3): ProjectRuntime voice sessions
   // resume + persist to the Subject's Thread/checkpoint. The gateway
   // reconstructs context from ticket claims only, so:

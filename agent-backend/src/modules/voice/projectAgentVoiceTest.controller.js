@@ -13,6 +13,9 @@ import {
 
 const logger = loggerService.getLogger();
 
+// Mirrors developerVoice.controller.js's identical constant exactly.
+const CONTEXT_OVERRIDE_MAX_LENGTH = 4000;
+
 /**
  * Developer Studio "Test" playground's voice counterpart (voice-agent-plan.md
  * §7 route (b), §13.1) — mints a single-use voice ticket for a Project Admin
@@ -27,6 +30,20 @@ class ProjectAgentVoiceTestController {
     const { agentId } = req.params;
 
     try {
+      const { contextOverride } = req.body || {};
+      if (contextOverride !== undefined) {
+        if (typeof contextOverride !== 'string') {
+          throw new BaseError('contextOverride must be a string', 400, 'INVALID_CONTEXT_OVERRIDE');
+        }
+        if (contextOverride.length > CONTEXT_OVERRIDE_MAX_LENGTH) {
+          throw new BaseError(
+            `contextOverride must be ${CONTEXT_OVERRIDE_MAX_LENGTH} characters or fewer`,
+            400,
+            'CONTEXT_OVERRIDE_TOO_LARGE'
+          );
+        }
+      }
+
       let agent;
       try {
         agent = await agentService.getDeveloperAgentById(agentId, context);
@@ -62,6 +79,7 @@ class ProjectAgentVoiceTestController {
         subjectId: String(context.personaUserId),
         membershipRole: context.membershipRole,
         threadId: null,
+        contextOverride,
       });
 
       // req.protocol only reports 'https' when Express's `trust proxy` is
