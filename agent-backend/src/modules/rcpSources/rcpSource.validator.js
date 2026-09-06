@@ -8,6 +8,13 @@ import { z } from 'zod';
  * `createRcpClient().discover()` directly, which validates against the
  * real protocol schema.
  */
+// TURN_CONTEXT_RCP_RESOLVERS_PLAN.md — static param-name -> context-key
+// mapping, shared by every agent this source is attached to. Never a value.
+const paramContextMapEntrySchema = z.object({
+  param: z.string().min(1, 'param is required'),
+  contextKey: z.string().min(1, 'contextKey is required'),
+});
+
 export const createRcpSourceSchema = z
   .object({
     name: z.string().min(2).max(100),
@@ -17,6 +24,7 @@ export const createRcpSourceSchema = z
     /** A Project Secret id, picked/created from the same Secrets tab REST API Tools use. */
     secretRef: z.string().min(1).optional(),
     isEnabled: z.boolean().default(true),
+    paramContextMap: z.array(paramContextMapEntrySchema).optional(),
   })
   .refine((data) => data.authType !== 'header' || Boolean(data.secretRef), {
     message: 'A secret is required when auth type is header',
@@ -31,4 +39,5 @@ export const updateRcpSourceSchema = z.object({
   /** `null` clears the secret (only meaningful alongside `authType: 'none'`). */
   secretRef: z.string().min(1).nullable().optional(),
   isEnabled: z.boolean().optional(),
+  paramContextMap: z.array(paramContextMapEntrySchema).optional(),
 });

@@ -6,7 +6,16 @@ jest.unstable_mockModule('../src/modules/projects/projectSecret.service.js', () 
   },
 }));
 
+// Only `getConfig` is used by rcpSource.tools.js — mocked so tests can
+// simulate "this turn's" LangGraph `configurable.turnContext` without
+// actually running a graph (see TURN_CONTEXT_RCP_RESOLVERS_PLAN.md: a tool's
+// `func` must read this live, at call time, never from a closed-over value).
+jest.unstable_mockModule('@langchain/langgraph', () => ({
+  getConfig: jest.fn(),
+}));
+
 const projectSecretService = (await import('../src/modules/projects/projectSecret.service.js')).default;
+const { getConfig } = await import('@langchain/langgraph');
 const { resolveRcpSourceTools } = await import('../src/modules/rcpSources/rcpSource.tools.js');
 
 const context = { principalType: 'PersonaUser', personaUserId: 'u1' };
@@ -32,6 +41,8 @@ beforeEach(() => {
   global.fetch = jest.fn();
   projectSecretService.resolvePlaintext.mockReset();
   projectSecretService.resolvePlaintext.mockResolvedValue('secret123');
+  getConfig.mockReset();
+  getConfig.mockReturnValue(undefined);
 });
 
 describe('resolveRcpSourceTools', () => {
@@ -168,6 +179,107 @@ describe('resolveRcpSourceTools', () => {
     expect(global.fetch).toHaveBeenCalledTimes(2);
     const toolCallUrl = global.fetch.mock.calls[1][0];
     expect(toolCallUrl).toBe('https://api.example.com/weather?city=Paris');
+  });
+
+  describe('paramContextMap (TURN_CONTEXT_RCP_RESOLVERS_PLAN.md)', () => {
+    function sourceWithMap(paramContextMap) {
+      return {
+        name: 'Weather Co',
+        isEnabled: true,
+        url: 'https://x.example.com/manifest',
+        paramContextMap,
+      };
+    }
+
+    it('hides a mapped param from the model schema, but leaves an unmapped param fillable', async () => {
+      global.fetch.mockResolvedValueOnce(
+        manifestOk([
+          {
+            name: 'get_weather',
+            description: 'Get weather',
+            method: 'GET',
+            url: 'https://api.example.com/weather',
+            queryParams: { city: '{{city}}', key: '{{apiKey}}' },
+            params: [
+              { name: 'city', type: 'string', required: true },
+              { name: 'apiKey', type: 'string', required: true },
+            ],
+          },
+        ])
+      );
+
+      const tools = await resolveRcpSourceTools(
+        agentWithSources([sourceWithMap([{ param: 'apiKey', contextKey: 'secretApiKey' }])]),
+        'u1',
+        context
+      );
+
+      expect(Object.keys(tools[0].schema.shape)).toEqual(['city']);
+    });
+
+    it('resolves a mapped param live from getConfig().configurable.turnContext at call time', async () => {
+      global.fetch
+        .mockResolvedValueOnce(
+          manifestOk([
+            {
+              name: 'get_weather',
+              description: 'Get weather',
+              method: 'GET',
+              url: 'https://api.example.com/weather',
+              queryParams: { city: '{{city}}', key: '{{apiKey}}' },
+              params: [
+                { name: 'city', type: 'string', required: true },
+                { name: 'apiKey', type: 'string', required: true },
+              ],
+            },
+          ])
+        )
+        .mockResolvedValueOnce(jsonResponse({ ok: true }));
+
+      const tools = await resolveRcpSourceTools(
+        agentWithSources([sourceWithMap([{ param: 'apiKey', contextKey: 'secretApiKey' }])]),
+        'u1',
+        context
+      );
+
+      // Simulates "this turn's" live config — never anything closed over
+      // when resolveRcpSourceTools built the tool above.
+      getConfig.mockReturnValue({ configurable: { turnContext: { secretApiKey: 'sk-live-1' } } });
+
+      await tools[0].func({ city: 'Paris' });
+
+      const toolCallUrl = global.fetch.mock.calls[1][0];
+      expect(toolCallUrl).toBe('https://api.example.com/weather?city=Paris&key=sk-live-1');
+    });
+
+    it('fails the call (never falls back to the model) when the mapped context key has no value this turn', async () => {
+      global.fetch.mockResolvedValueOnce(
+        manifestOk([
+          {
+            name: 'get_weather',
+            description: 'Get weather',
+            method: 'GET',
+            url: 'https://api.example.com/weather',
+            queryParams: { key: '{{apiKey}}' },
+            params: [{ name: 'apiKey', type: 'string', required: true }],
+          },
+        ])
+      );
+
+      const tools = await resolveRcpSourceTools(
+        agentWithSources([sourceWithMap([{ param: 'apiKey', contextKey: 'secretApiKey' }])]),
+        'u1',
+        context
+      );
+
+      // No turnContext at all this turn (getConfig() -> undefined by default).
+      const result = await tools[0].func({});
+
+      expect(result).toMatch(/^Error calling get_weather:/);
+      // Only the discover() call happened — the actual tool invocation never
+      // went out, since the resolver had nothing to resolve.
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('skips (never throws for) an unreachable source', async () => {

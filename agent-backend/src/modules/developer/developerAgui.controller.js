@@ -17,6 +17,7 @@ import {
   reconcileSubagentTraceKeys,
 } from '../agui/subagentTrace.js';
 import { readJsonBody, runAgentAsAguiEvents } from '../agui/agui.service.js';
+import { validateTurnContext } from '../agui/turnContext.js';
 import { AGUI_SCHEMA_VERSION, buildAguiSchemaDocument } from '../agui/aguiEventSchemas.js';
 
 const CONTEXT_OVERRIDE_MAX_LENGTH = 4000;
@@ -110,6 +111,7 @@ class DeveloperAguiController {
       }
 
       const input = await readJsonBody(req);
+      const turnContext = validateTurnContext(input.context);
 
       if (input.contextOverride !== undefined) {
         if (typeof input.contextOverride !== 'string') {
@@ -190,6 +192,7 @@ class DeveloperAguiController {
         messages: input.messages || [],
         resume: input.resume,
         contextOverride: input.contextOverride,
+        turnContext,
         signal: controller.signal,
         executionContext: context,
       })) {

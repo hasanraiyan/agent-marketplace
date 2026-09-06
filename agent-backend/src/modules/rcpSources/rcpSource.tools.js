@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { createRcpClient } from 'rcp-sdk/client';
+import { getConfig } from '@langchain/langgraph';
 import projectSecretService from '../projects/projectSecret.service.js';
 import { loggerService } from '../../utils/index.js';
 
@@ -40,8 +41,14 @@ function buildArgsSchema(exposedParams) {
  * for this call — RCP's client-injected-headers mechanism
  * (`rcp-sdk`'s own docs), not the resolver mechanism, per the confirmed
  * design decision.
+ *
+ * `resolvers` (TURN_CONTEXT_RCP_RESOLVERS_PLAN.md) is built purely from this
+ * source's static `paramContextMap` — param names only, no values — so it's
+ * safe to construct here even though this whole function only runs on a
+ * `buildAgent()` cache miss (see rcpSource.tools.js's `resolveRcpSourceTools`
+ * doc comment for why the *values* can never be baked in here).
  */
-async function buildClientFor(source, context) {
+async function buildClientFor(source, context, resolvers) {
   let auth = { type: 'none' };
   if (source.authType === 'header' && source.secretRef) {
     const secret = await projectSecretService.resolvePlaintext(source.secretRef);
@@ -53,7 +60,22 @@ async function buildClientFor(source, context) {
     headers['X-Persona-External-User-Id'] = () => context.externalUserId;
   }
 
-  return createRcpClient({ auth, headers, logger });
+  return createRcpClient({ auth, headers, resolvers, logger });
+}
+
+/**
+ * Builds `{ [param]: (ctx) => ctx?.turn?.[contextKey] }` from one source's
+ * `paramContextMap` (dashboard-configured on the RcpSource itself, shared by
+ * every agent that attaches it). Purely a static key-name mapping — the
+ * actual per-turn value is read live, inside each tool's `func`, never here
+ * (see `resolveRcpSourceTools`).
+ */
+function buildResolversFromParamContextMap(paramContextMap) {
+  const resolvers = {};
+  for (const { param, contextKey } of paramContextMap || []) {
+    resolvers[param] = (ctx) => ctx?.turn?.[contextKey];
+  }
+  return resolvers;
 }
 
 /**
@@ -68,6 +90,14 @@ async function buildClientFor(source, context) {
  * Tool names are namespaced `${sourceSlug}__${toolSlug}` to avoid
  * collisions across multiple attached sources, same convention as REST
  * Tool Sources and MCP.
+ *
+ * **Caching note (TURN_CONTEXT_RCP_RESOLVERS_PLAN.md):** this function only
+ * runs on a `buildAgent()` cache miss — its result (including every
+ * `DynamicStructuredTool` built here) is reused across every later turn from
+ * the same caller. That's fine for the `resolvers` map itself (built from
+ * static `paramContextMap` param names, never a value), but each tool's
+ * `func` must never close over an actual per-turn `context` *value* — it
+ * reads the live turn's data itself, at call time, via `getConfig()`.
  */
 export async function resolveRcpSourceTools(agent, userId, context) {
   if (!agent.rcpSources || agent.rcpSources.length === 0) {
@@ -76,10 +106,11 @@ export async function resolveRcpSourceTools(agent, userId, context) {
 
   const tools = [];
   for (const source of agent.rcpSources) {
-    if (source.isEnabled === false) continue;
+    if (!source || source.isEnabled === false) continue;
 
     try {
-      const client = await buildClientFor(source, context);
+      const resolvers = buildResolversFromParamContextMap(source.paramContextMap);
+      const client = await buildClientFor(source, context, resolvers);
       const { tools: discoveredTools } = await client.discover(source.url, context);
       const sourceSlug = slugify(source.name);
 
@@ -93,7 +124,16 @@ export async function resolveRcpSourceTools(agent, userId, context) {
               schema,
               func: async (agentArgs) => {
                 try {
-                  const result = await client.call(tool, agentArgs, context);
+                  // `getConfig()` reads *this specific run's* per-invocation
+                  // config (LangGraph's `configurable`), never something
+                  // closed over when this tool was built — the tool object
+                  // may be many turns old (cache hit), but this read always
+                  // reflects the turn actually calling it right now. Same
+                  // mechanism `contextOverrideMiddleware` uses for
+                  // `contextOverride` (agent.factory.js).
+                  const turn = getConfig()?.configurable?.turnContext;
+                  const ctx = { execution: context, turn };
+                  const result = await client.call(tool, agentArgs, ctx);
                   if (!result.ok) {
                     return `Request failed with status ${result.status}.`;
                   }

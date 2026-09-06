@@ -1,0 +1,274 @@
+# Turn-context → RCP resolver mapping — plan
+
+**Status: Approved** (2026-09-07) — ready to implement. The four items under "Open questions to
+settle before implementation" still need explicit answers before writing code against them; they
+are not yet resolved by this approval.
+
+## Problem statement
+
+Today an RCP tool's params are either (a) filled by the model from the conversation, or (b)
+resolver-bound to the **static** per-request execution context (`domain`/`externalUserId` off
+`ProjectRuntimeContext` — see `rcpSource.tools.js#buildClientFor`). There's no way to feed a param
+from **per-turn, caller-supplied data** (e.g. "which notebook is open right now", "which course
+page the user is on") without one of two bad options:
+
+1. Put it in the message text and let the model extract/pass it as a normal argument — which means
+   the model is now in the loop deciding a value that should be deterministic, and the conversation
+   text becomes a prompt-injection surface for it ("ignore the current notebook, use notebook X").
+2. Stuff it into the existing `contextOverride` string, which is appended to the **system prompt**
+   — still model-visible, still not usable as a structured tool argument, and capped at 4000 chars
+   of free text.
+
+Neither lets a param stay **structurally invisible to the model** (the whole point of an RCP
+resolver — see `web/app/docs/concepts/resolvers/page.tsx`) while still varying per turn instead of
+being fixed at build-client time.
+
+## Example
+
+Not notebook-specific — any per-turn value an agent's tools need but the model shouldn't decide:
+"which document is open", "current page URL", "selected row id", "active project id". The
+mechanism must stay generic; the dashboard picks the key names, not this plan.
+
+## User story
+
+> As a Project admin configuring an RCP Source, I want to map one of its tool params to a context
+> key my frontend will send with each message, so that whenever my app has that value, every agent
+> using this source gets it directly and the model never sees it as a fillable argument or gets a
+> chance to have it overridden via the conversation — and when my app doesn't have that value for a
+> given turn, the call fails clearly for that turn rather than silently exposing the param to the
+> model as a fallback.
+
+## Design (two additions, orthogonal to today's `contextOverride`)
+
+1. **A new structured per-turn field, `context: Record<string, unknown>`**, sent alongside
+   `messages` — distinct from `contextOverride` (string → system prompt). `context` is **never**
+   shown to the model in any form; it only ever feeds resolver lookups. Capped in size the same way
+   `contextOverride` is (reject oversized, don't truncate).
+2. **`paramContextMap` on the `RcpSource` model itself** (not per-agent — decided 2026-09-07 after
+   weighing both locations, see "Where the mapping lives" below), `{param, contextKey}[]` (plain
+   name-to-name pairs, since `rcp-sdk`'s own `resolvers` map is keyed purely by param name — see
+   `typescript/src/client.ts`'s `CreateRcpClientOptions.resolvers`). Edited on the source's own
+   Create/Edit page against its cached tool/param list; an agent's edit page only displays it
+   read-only, so an admin attaching the source can see what context keys it expects.
+
+### Where the mapping lives: RcpSource, not the Agent attachment
+
+Considered putting `paramContextMap` on `agent.rcpSources[]` instead (a per-attachment subdocument,
+letting two different agents attach the same source with two different mappings). Decided against
+it: the same source is genuinely reused across agents in practice, and the simpler "one mapping,
+shared by every agent attaching this source" model — living where the source's own cached
+tool/param list already lives — was preferred over per-agent flexibility that wasn't needed. The
+tradeoff, stated plainly: every agent attaching a given source is now forced to use that source's
+one mapping; editing it from one agent's context affects every other agent attached to the same
+source too.
+
+**Corrected 2026-09-07 — caching makes "per-turn" trickier than it first looked; see below.**
+`buildAgent()` caches the fully-built agent (tools included) per `(agentId, identityKey)` and
+reuses it "across every turn from that caller" (`agent.factory.js:80-81`) until the Agent document
+itself changes. `resolveRcpSourceTools` — where `createRcpClient({resolvers})` and `client.discover()`
+run — only executes on a **cache miss**. That has two consequences:
+
+1. **Which params are hidden from the model is a static, per-agent decision, not a per-turn one.**
+   `discover()`'s `exposedParams` stripping happens once, at build time. So: if the dashboard maps
+   a param via `paramContextMap`, that param is hidden from the model on **every** turn, full stop
+   — never "only when this turn happens to include it." (This is also just... correct: RCP's own
+   design already treats a resolver-bound param as permanently absent from the schema, never
+   conditionally so — see `web/app/docs/concepts/resolvers/page.tsx`.)
+2. **The resolver *function* can be built once and cached; only the *value* it returns may vary per
+   turn** — and that value must flow in through the same channel `contextOverride` already uses for
+   exactly this reason: LangGraph's per-invocation `configurable`, passed fresh on every
+   `agentInstance.streamEvents(inputArg, { configurable: { thread_id, contextOverride, turnContext } })`
+   call (`agui.service.js`), never baked into the cached graph/tool object itself — confirmed by how
+   `contextOverrideMiddleware` reads `getConfig()?.configurable?.contextOverride` fresh on every
+   model call "even though the graph object itself is cached" (`agent.factory.js:86-87`'s own
+   comment). The RCP tool's `func` must do the same: call `getConfig()` (from `@langchain/langgraph`,
+   same import `agent.factory.js` already uses) **at the moment it executes**, never close over a
+   `turnContext` value captured back when `resolveRcpSourceTools` happened to build it — which could
+   have been many turns ago, from a stale request.
+3. **If a mapped param's `configurable.turnContext` has no value for a given turn, the tool call
+   fails for that turn** (`rcp-sdk`'s own documented resolver behavior: *"a resolver with nothing to
+   resolve from... fails the call before any HTTP request goes out"*) rather than falling back to
+   exposing the param to the model — falling back would silently defeat the entire reason the param
+   was hidden in the first place. This replaces the original "falls through to model-fillable when
+   absent" idea, which turned out to be incompatible with the cache (schema shape can't flip per
+   turn) as well as being the weaker security posture anyway.
+
+Net effect on `resolveRcpSourceTools`: register `resolvers[param] = (ctx) => ctx.turn?.[contextKey]`
+once, from static `paramContextMap` config (this part is cache-safe — it's just param names, no
+values); `client.discover()` keeps using the static execution context, unchanged. Only the `ctx`
+passed to `client.call()` — inside `func`, at actual invocation — must be assembled fresh each time
+by reading `getConfig()?.configurable?.turnContext` live, never assembled once outside `func` and
+closed over.
+
+**Trust note carried over from the earlier discussion:** this bucket is for *convenience/UX*
+params the model shouldn't second-guess, not a security boundary — `context` is caller-supplied
+(the frontend/end-user's own request), so a value here is not protected from the caller the way
+`domain`/`externalUserId` (server-verified) are. Security-sensitive params (tenant id, real user
+id) must keep resolving from the existing static `ProjectRuntimeContext` path, never from this new
+per-turn `context`. Worth restating in the dashboard copy so admins don't reach for this for the
+wrong kind of param.
+
+---
+
+## Plan
+
+### 1. Backend (`agent-backend`) — DONE 2026-09-07
+
+`agent.model.js`/`agent.factory.js`/`agent.validator.js`/`agent.repository.js` were tried with
+`paramContextMap` as a per-attachment subdocument first, then **reverted to their original bare-id
+shape** — the mapping ended up living on `RcpSource` instead (see "Where the mapping lives" above),
+so nothing about how an Agent references its RCP Sources changed at all.
+
+- [x] `rcpSource.model.js` — added `paramContextMap: [{param, contextKey}]` (default `[]`) to the
+      schema, shared by every agent attaching this source. Also added a `params` field to
+      `toolSummarySchema` (`{name, type, description, required}[]`) — the dashboard mapping UI needs
+      every tool's param names, which the display cache didn't carry at all before this.
+- [x] `rcpSource.validator.js` — `paramContextMap` added to both `createRcpSourceSchema` and
+      `updateRcpSourceSchema` (array of `{param, contextKey}`, both required strings).
+- [x] `rcpSource.service.js` — `createRcpSource` explicitly includes `paramContextMap` in the
+      persisted doc (`updateRcpSource`'s `{...data}` spread already carried it through unchanged).
+      `testConnection` now maps `tool.exposedParams` (confirmed always the *full*, unfiltered list
+      here, since `_buildClientFor` registers no resolvers) into the new `params` summary field.
+- [x] `rcpSource.tools.js#resolveRcpSourceTools` — builds `resolvers` once per source from its
+      static `paramContextMap` (param names only): `resolvers[param] = (ctx) => ctx?.turn?.[contextKey]`,
+      passed to `createRcpClient({ auth, headers, resolvers, logger })` (previously no `resolvers`
+      were ever passed). `client.discover(source.url, context)` **stays exactly as before** —
+      confirmed from `rcp-sdk`'s own source that `exposedParams` filtering only checks
+      `!(param.name in resolvers)` (a static key check, never actually calling a resolver), so
+      `discover()` needs no turn data. Only `client.call(tool, agentArgs, ctx)` **inside each tool's
+      `func`** — the one place a resolver is actually invoked — builds its `ctx` fresh *at call
+      time*: `{ execution: context, turn: getConfig()?.configurable?.turnContext }` (`getConfig`
+      imported from `@langchain/langgraph`, same as `agent.factory.js`'s
+      `contextOverrideMiddleware`). `execution: context` stays closure-captured (per-identity,
+      stable for the whole cache lifetime, unchanged from before); `turn` is read live on every
+      call, never captured outside `func`.
+- [x] `agui.service.js#runAgentAsAguiEvents` — accepts a new `turnContext` param, added to the
+      `configurable` object passed to `agentInstance.streamEvents(inputArg, { configurable: {
+      thread_id, contextOverride, turnContext }, ... })`, right alongside `contextOverride` (same
+      per-invocation channel, same reasoning — see the caching correction above).
+- [x] `agui/turnContext.js` (new) — `validateTurnContext(context)`: flat object, string/number/
+      boolean values only, ≤2000 bytes serialized, throws a 400 `BaseError` on any violation.
+      Wired into both `agui.controller.js` and `developerAgui.controller.js` (`input.context` →
+      `turnContext`, passed to `runAgentAsAguiEvents`).
+- [x] `@openapi` JSDoc blocks in both `agui.routes.js` and `developerAgui.routes.js` — documented
+      the new `context` body field distinctly from `contextOverride`.
+- [x] Dashboard admin API: `project.routes.js`'s existing `validateBody(createRcpSourceSchema)` /
+      `validateBody(updateRcpSourceSchema)` middleware + `project.controller.js`'s pass-through of
+      `req.body` to `rcpSourceService` already carries `paramContextMap` end-to-end — no route/
+      controller code changes needed beyond the validator update above.
+- [x] Tests: `rcpSource.tools.test.js` — new `describe('paramContextMap ...')` block covering (a) a
+      mapped param stripped from the tool's zod schema while an unmapped one stays fillable, (b) the
+      mapped value resolved live from a mocked `getConfig()` at call time (not from anything closed
+      over at build time), (c) the call failing (never falling back to the model) when
+      `configurable.turnContext` has no value for the mapped key. `rcpSource.service.test.js`
+      updated for the new `params` field on tool summaries, plus a new case asserting the full
+      param list (name/type/description/required) is captured correctly. All 20 pre-existing +
+      3 new tests pass; 3 unrelated pre-existing failures elsewhere in the suite confirmed via
+      `git stash` to predate this work entirely.
+
+### 2. Frontend (`frontend`) — not started
+
+- [ ] RCP Source's own Create/Edit page (`app/developer/projects/[id]/rcp-sources/new/page.jsx`,
+      `.../[sourceId]/edit/page.jsx`) — after Test Connection populates the tool/param cache, let the
+      admin map each param (across all the source's tools) to a free-text context key, or leave it
+      unmapped (default: model-fillable). This is where `paramContextMap` is actually edited.
+- [ ] Agent editor's RCP source attachment UI
+      (`app/developer/projects/[id]/agents/[agentId]/edit/page.jsx`) — once a source is attached,
+      **read-only** display of that source's `paramContextMap` (which context keys it expects), so
+      an admin attaching it can see what their frontend needs to send. Not editable from here.
+- [ ] `lib/api/projects.js` — whatever function saves an RCP Source's create/update body needs to
+      send `paramContextMap` alongside the existing fields.
+- [ ] Copy/tooltip on the source's edit page stating the trust note above (not for tenant/user id,
+      caller-supplied not server-verified) so admins don't misuse it for security-sensitive params.
+
+### 3. `@personaai/sdk` (`sdk/typescript`)
+
+- [ ] `src/types/chat.ts` — add `context?: Record<string, unknown>` to `SendMessageOptions`,
+      documented distinctly from `contextOverride` (link the doc comments to each other so the
+      difference is obvious at the call site).
+- [ ] `src/chat/chat-client.ts` — include `context` in the POST body alongside
+      `messages`/`threadId`/`resume`/`contextOverride`.
+- [ ] `test/chat/chat-client.test.ts` — add a case asserting `context` is forwarded verbatim.
+- [ ] CHANGELOG + minor version bump (additive, non-breaking).
+
+### 4. `@personaai/runtime` (`sdk/runtime`)
+
+- [ ] `src/routes/chat.ts` — `ChatBody` interface + `parseChatBody` gain `context` (validate: plain
+      object or undefined, reject arrays/primitives, size-cap same as `contextOverride`'s
+      4000-char cap — pick an equivalent limit, e.g. serialized-JSON byte length). Forward it into
+      `ctx.client.chat.stream(body.agentId, { ..., context: body.context })`.
+- [ ] `logger.trace('chatRoute body', {...})` — add `hasContext: !!body.context` alongside the
+      existing `hasContextOverride`.
+- [ ] Bump `@personaai/runtime`'s dependency on `@personaai/sdk` to the new version from step 3.
+- [ ] CHANGELOG + minor version bump.
+
+### 5. `@personaai/react` (`sdk/react`)
+
+- [ ] `src/types.ts` — `SendMessageOverride` (and wherever `UseChatOptions` lives) gains
+      `context?: Record<string, unknown>`.
+- [ ] `src/hooks/useChat.ts#sendMessage` — currently the SSE POST body
+      (`JSON.stringify({ agentId, messages: payloadMessages, threadId, resume })`, around line 560)
+      **doesn't even forward `contextOverride` today** — that's a pre-existing gap, not something
+      this feature introduces, but fixing it is basically free while touching this body-assembly
+      code. Add both `contextOverride` (if missing) and the new `context` here.
+- [ ] `UseChatOptions.context` accepts `Record<string, unknown> | (() => Record<string, unknown>)`.
+      `sendMessage()` resolves it at send-time (calling it if it's a function — always reads current
+      host-app state, no ref/effect needed) and shallow-merges `overrideOptions?.context` on top.
+      See "Decisions" below.
+- [ ] CHANGELOG + minor version bump. Bump its `@personaai/runtime`/`@personaai/sdk` peer ranges if
+      it pins them.
+
+### 6. Adapters (`sdk/adapters/express`, `sdk/adapters/nestjs`, `sdk/adapters/nextjs`)
+
+- [ ] No code changes expected — confirmed each adapter's `translate.ts` passes `request.body`
+      through as untyped JSON (`body: unknown`) straight to the runtime's route table; the new
+      `context` field needs no adapter-side parsing.
+- [ ] Bump each adapter's `@personaai/runtime` dependency to the version from step 4, run their
+      existing test suites to confirm nothing assumed the old chat body shape, and note the bump in
+      each CHANGELOG (patch/minor, not a breaking change for adapters themselves).
+- [ ] `nextjs/src/server.ts` re-exports some runtime types by name (see the `rcpManifest` commit
+      adding `RcpManifestOptions` to that list) — check whether any chat-related type needs adding
+      to that re-export list for this feature too.
+
+---
+
+## Decisions (settled 2026-09-07)
+
+- **Merged resolver `ctx` shape** (backend step 1) — **namespaced, never flattened**:
+  `{ execution: executionContext, turn: turnContext }`. A flat `{...executionContext,
+  ...turnContext}` merge would let caller-supplied `turnContext` silently clobber a same-named
+  `domain`/`externalUserId` key — the exact trust-mixing problem this feature has to avoid. Every
+  resolver states explicitly which bucket it trusts: `(ctx) => ctx.execution.externalUserId` vs.
+  `(ctx) => ctx.turn.courseId`. Free to pick — no resolver exists in the codebase yet, so nothing to
+  migrate.
+- **Context size cap** — its own limit, not `contextOverride`'s 4000-char prose cap: `context` must
+  be a **flat object of string/number/boolean values only** (no nested objects/arrays), ≤2000 bytes
+  serialized, **reject** (not truncate) on violation. It holds identifiers, not prose, and banning
+  nesting closes off using it to smuggle a large payload past the cap.
+- **Default key-matching** — **no auto-match; every mapping must be explicit** in the dashboard,
+  even when a tool param's name happens to match a sent `context` key. Matches RCP's own resolver
+  philosophy verbatim (`web/app/docs/concepts/resolvers/page.tsx`): *"a client that never
+  configures a resolver for a given param just shows it to the model as an ordinary fillable
+  argument — there's no protocol-level signal warning otherwise."* Auto-matching would make that
+  signal silently implicit and could change a tool's behavior the moment a host app's `context`
+  payload evolves, with no dashboard change to explain why.
+- **`useChat` API shape** (react step 5) — **support both, hook-level as the primary path**:
+
+  ```ts
+  useChat({ context: () => ({ courseId: currentCourseId }) }) // getter, or a plain object
+  sendMessage(text, { context: { courseId: "205" } })          // call-level override
+  ```
+
+  At send-time: resolve the hook-level value (call it if it's a function, so it always reads the
+  host app's *current* state without a ref or an effect syncing one), then shallow-merge any
+  call-level `overrideOptions.context` on top (`{ ...resolvedHookContext, ...overrideOptions.context
+  }`). Mirrors the existing `agentId`/`resume`/`threadId` hook-default + call-override pattern in
+  `SendMessageOverride`.
+
+## What stays exactly as-is
+
+- `contextOverride` (string → system prompt) — completely unrelated mechanism, untouched.
+- The existing static-context resolver path (`domain`/`externalUserId` via
+  `ProjectRuntimeContext`) for security-sensitive params — this feature adds a second,
+  caller-supplied bucket, it doesn't replace or weaken the first.
+- REST Tool Sources / REST API Tools — no interaction with this feature.

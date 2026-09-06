@@ -69,6 +69,7 @@ export async function* runAgentAsAguiEvents({
   messages,
   resume,
   contextOverride,
+  turnContext,
   signal,
   executionContext = personaExecutionContext(userId),
 }) {
@@ -171,10 +172,14 @@ export async function* runAgentAsAguiEvents({
   const runScopeTracker = new RunScopeTracker();
 
   const stream = agentInstance.streamEvents(inputArg, {
-    // contextOverride rides here, not inputArg.messages: `configurable` is
-    // per-invocation RunnableConfig, never persisted by the checkpointer as
-    // durable thread state (see contextOverrideMiddleware in agent.factory.js).
-    configurable: { thread_id: langGraphThreadId, contextOverride },
+    // contextOverride/turnContext ride here, not inputArg.messages:
+    // `configurable` is per-invocation RunnableConfig, never persisted by
+    // the checkpointer as durable thread state (see contextOverrideMiddleware
+    // in agent.factory.js). turnContext follows the exact same channel for
+    // the exact same reason (TURN_CONTEXT_RCP_RESOLVERS_PLAN.md) — an RCP
+    // tool built from a cached agent must still read this turn's real data,
+    // never whatever turn happened to be live when the tool was built.
+    configurable: { thread_id: langGraphThreadId, contextOverride, turnContext },
     version: 'v2',
     signal,
     callbacks: [runScopeTracker],

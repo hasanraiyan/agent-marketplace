@@ -15,12 +15,42 @@ import mongoose from 'mongoose';
  * on every agent run (`rcpSources/rcpSource.tools.js`). Agents attach this
  * whole document (`agent.rcpSources: [ObjectId]`), not individual tools.
  */
+const toolParamSummarySchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    type: { type: String, default: 'string' },
+    description: { type: String, default: '' },
+    required: { type: Boolean, default: false },
+  },
+  { _id: false }
+);
+
 const toolSummarySchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     description: { type: String, default: '' },
     method: { type: String, required: true },
     url: { type: String, required: true },
+    // Full param list (never resolver-filtered — `_buildClientFor` in
+    // rcpSource.service.js registers no resolvers, so `discover()`'s
+    // `exposedParams` here is always the complete list) — the dashboard
+    // needs every param name to build `paramContextMap`, not just the ones
+    // currently unmapped. See TURN_CONTEXT_RCP_RESOLVERS_PLAN.md.
+    params: { type: [toolParamSummarySchema], default: [] },
+  },
+  { _id: false }
+);
+
+// TURN_CONTEXT_RCP_RESOLVERS_PLAN.md — maps one of this source's tool param
+// names to a key an agent's caller sends in a message's per-turn `context`
+// object. Static config only (param/contextKey names, never a value): once
+// mapped, that param is hidden from the model on every turn, for every
+// agent this source is attached to (shared, not per-attachment — see the
+// model's own doc comment below for why).
+const paramContextMapEntrySchema = new mongoose.Schema(
+  {
+    param: { type: String, required: true },
+    contextKey: { type: String, required: true },
   },
   { _id: false }
 );
@@ -96,6 +126,16 @@ const rcpSourceSchema = new mongoose.Schema(
     // Populated by testConnection — display-only, see the doc comment above.
     tools: {
       type: [toolSummarySchema],
+      default: [],
+    },
+    // Shared by every agent this source is attached to (a param mapping is
+    // a property of the manifest connection, not of any one agent's
+    // conversation) — see TURN_CONTEXT_RCP_RESOLVERS_PLAN.md. Edited on this
+    // source's own Create/Edit page; an agent's edit page only displays it
+    // read-only, so an admin attaching the source can see what context keys
+    // it expects the caller to send.
+    paramContextMap: {
+      type: [paramContextMapEntrySchema],
       default: [],
     },
   },

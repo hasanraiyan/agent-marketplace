@@ -58,6 +58,7 @@ class RcpSourceService {
       authType: data.authType || 'none',
       isEnabled: data.isEnabled !== undefined ? data.isEnabled : true,
       secretRef: data.authType === 'header' ? data.secretRef : null,
+      paramContextMap: data.paramContextMap || [],
     };
     return await rcpSourceRepository.create(sourceData);
   }
@@ -151,6 +152,14 @@ class RcpSourceService {
       description: tool.description || '',
       method: tool.method,
       url: tool.url,
+      // `_buildClientFor` above registers no resolvers, so `exposedParams`
+      // here is always the tool's complete, unfiltered param list.
+      params: (tool.exposedParams || []).map((param) => ({
+        name: param.name,
+        type: param.type || 'string',
+        description: param.description || '',
+        required: Boolean(param.required),
+      })),
     }));
 
     await rcpSourceRepository.update(id, ownerFilterForContext(context), {

@@ -10,6 +10,7 @@ import checkpointService from '../threads/checkpoint.service.js';
 import { loggerService } from '../../utils/index.js';
 import { foldSubagentEvent, settleTrace, extractTaskToolCallIds, reconcileSubagentTraceKeys } from './subagentTrace.js';
 import { readJsonBody, runAgentAsAguiEvents } from './agui.service.js';
+import { validateTurnContext } from './turnContext.js';
 
 const logger = loggerService.getLogger();
 
@@ -68,6 +69,7 @@ class AguiController {
       const input = await readJsonBody(req);
       const threadId = input.threadId || context.langGraphThreadId || 'default';
       const runId = input.runId || crypto.randomUUID();
+      const turnContext = validateTurnContext(input.context);
 
       res.status(200);
       res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
@@ -93,6 +95,7 @@ class AguiController {
         ...context,
         messages: input.messages || [],
         resume: input.resume,
+        turnContext,
         signal: controller.signal,
       })) {
         if (res.destroyed) break;

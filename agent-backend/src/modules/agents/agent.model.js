@@ -154,7 +154,11 @@ const agentSchema = new mongoose.Schema(
     ],
     // RCP (REST Connector Protocol) Sources — independent of REST Tool
     // Sources above, discovered live via the `rcp-sdk` package on every
-    // agent run. See rcpSources/rcpSource.tools.js.
+    // agent run. See rcpSources/rcpSource.tools.js. `paramContextMap`
+    // (TURN_CONTEXT_RCP_RESOLVERS_PLAN.md — maps a source's tool param to a
+    // per-turn `context` key) lives on RcpSource itself, not here: it's a
+    // property of the source/manifest, shared by every agent that attaches
+    // it, not a per-attachment override.
     rcpSources: [
       {
         type: mongoose.Schema.Types.ObjectId,

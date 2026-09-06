@@ -144,6 +144,19 @@ aguiRouter.use(async (req, res, next) => {
  *                   Resume data for interrupted threads. For HITL decisions,
  *                   pass `{ type: "decision", decision: "continue" }`. For
  *                   tool clarification, pass the answer value.
+ *               context:
+ *                 type: object
+ *                 additionalProperties:
+ *                   type: [string, number, boolean]
+ *                 description: >
+ *                   Distinct from contextOverride — never appended to the
+ *                   prompt and never shown to the model in any form. A flat
+ *                   object of string/number/boolean values only (no
+ *                   nesting), capped at 2000 bytes serialized. Feeds only an
+ *                   Agent's attached RCP Source's `paramContextMap`
+ *                   resolvers: a mapped param is always hidden from the
+ *                   model, and its value is filled live from this object's
+ *                   matching key on every turn it's sent.
  *     responses:
  *       200:
  *         description: SSE event stream of AG-UI protocol events

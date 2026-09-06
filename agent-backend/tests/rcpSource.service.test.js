@@ -135,11 +135,51 @@ describe('rcpSourceService.testConnection', () => {
             description: 'Get current weather',
             method: 'GET',
             url: 'https://x.example.com/weather',
+            params: [],
           },
         ],
       })
     );
     expect(result.tools).toHaveLength(1);
+  });
+
+  it('summarizes each tool\'s full (unfiltered) param list, since testConnection registers no resolvers', async () => {
+    rcpSourceRepository.findById.mockResolvedValue(ownedSource());
+    global.fetch.mockResolvedValue(
+      jsonResponse({
+        rcpVersion: '0.1',
+        tools: [
+          {
+            name: 'get_weather',
+            description: 'Get current weather',
+            method: 'GET',
+            url: 'https://x.example.com/weather',
+            params: [
+              { name: 'city', type: 'string', required: true, description: 'City name' },
+              { name: 'units', type: 'string', required: false },
+            ],
+          },
+        ],
+      })
+    );
+    rcpSourceRepository.update.mockResolvedValue({});
+
+    await rcpSourceService.testConnection('src-1', undefined, context);
+
+    expect(rcpSourceRepository.update).toHaveBeenCalledWith(
+      'src-1',
+      expect.anything(),
+      expect.objectContaining({
+        tools: [
+          expect.objectContaining({
+            params: [
+              { name: 'city', type: 'string', required: true, description: 'City name' },
+              { name: 'units', type: 'string', required: false, description: '' },
+            ],
+          }),
+        ],
+      })
+    );
   });
 
   it('throws ValidationError on a non-2xx response and never writes', async () => {
