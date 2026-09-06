@@ -40,7 +40,7 @@ import { useChat } from '@personaai/react';
 | `setInput` | `(value: string) => void` | Replace the entire input value. |
 | `handleInputChange` | `(e: ChangeEvent) => void` | Direct wire for `<input onChange>` or `<textarea onChange>`. |
 | `handleSubmit` | `(e?: FormEvent) => void` | Direct wire for `<form onSubmit>`. Calls `sendMessage()` with the current input. Prevents default. |
-| `sendMessage` | `(content?, override?) => Promise<void>` | Send a message. `content` defaults to `input`. `override` can set `agentId`, `threadId`, or `resume` for this send only. |
+| `sendMessage` | `(content?, override?) => Promise<void>` | Send a message. `content` defaults to `input`. `override` can set `agentId`, `threadId`, `resume`, or `contextOverride` for this send only. |
 | `isStreaming` | `boolean` | `true` while a response is being received. |
 | `isLoading` | `boolean` | Alias for `isStreaming`. |
 | `isLoadingHistory` | `boolean` | `true` while loading a thread's past messages via `GET /threads/:id/messages`. |
@@ -97,6 +97,24 @@ const handleSend = async () => {
 };
 ```
 
+**Giving the model live situational context (`contextOverride`):**
+
+Added in `0.7.5`. A plain string, appended to the agent's system prompt for **this turn only** —
+never persisted, never visible to later turns, capped at 4000 characters server-side (rejected
+with a 400, not truncated). Use it for anything the model should read and reason about, e.g. a
+live snapshot of the page the user is on or their account state:
+
+```tsx
+await chat.sendMessage(input, {
+  contextOverride: `The user is viewing invoice #4821, currently overdue by 12 days.`,
+});
+```
+
+Because it's model-visible text, don't put anything here you wouldn't want the model repeating
+back or reasoning about out loud — it's read exactly like any other part of the prompt.
+`contextOverride` is for giving the model something to reason about, not for structured values a
+tool needs without the model seeing or being able to influence them.
+
 ### Syncing voice into the chat feed
 
 If your app lets the same conversation happen over voice or text (a mic button next to the
@@ -151,6 +169,7 @@ For a full Next.js walkthrough with everything wired end to end, see the
 | --- | --- | --- | --- |
 | `agentId` | `string` | `undefined` | The Agent to call. Falls back to the provider's `defaultAgentId` if omitted. |
 | `threadId` | `string` | `undefined` | Resume an existing conversation over voice instead of starting fresh. `start()` mints the session with this thread id (same value `useChat`'s `threadId` uses), so voice turns are persisted back into that thread's history — a later text message on the same thread sees them. Omit to start a fresh conversation. |
+| `contextOverride` | `string` | `undefined` | Added in `0.7.6`. Same field/cap/contract as `useChat`'s `sendMessage(text, { contextOverride })` — appended to the Agent's system instruction for this call. Unlike text chat, this is a **one-time append at connect**, not re-applied per turn: Gemini Live's system instruction is fixed for the whole call, so changing it means calling `stop()` and `start()`-ing a new session. Requires `@personaai/runtime@^0.9.1`+. |
 
 ### Return value
 
@@ -216,6 +235,25 @@ function VoiceCall() {
   );
 }
 ```
+
+### Giving the model live situational context (`contextOverride`)
+
+Same idea as `useChat`'s `contextOverride`, but supplied once, at `start()`, since a voice call has
+no discrete per-message request the way text chat does:
+
+```tsx
+const voice = useVoice({
+  agentId,
+  threadId,
+  contextOverride: `The user is on the pricing page, currently on the Pro plan.`,
+});
+
+// Bakes into this call's system instruction the moment start() connects.
+await voice.start();
+```
+
+It's fixed for the life of that call — there's no way to update it mid-conversation short of
+`voice.stop()` followed by a fresh `voice.start()` with a new value.
 
 Rendering voice turns inside an existing text chat feed instead of a standalone transcript list?
 See [Syncing voice into the chat feed](#syncing-voice-into-the-chat-feed) — pass this hook's

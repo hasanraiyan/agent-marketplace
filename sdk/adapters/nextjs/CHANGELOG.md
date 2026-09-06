@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.13 — 2026-09-07
+
+- Bump `@personaai/react` to `^0.7.6` (new `useVoice({ contextOverride })`) and
+  `@personaai/runtime` to `^0.9.1` (new `contextOverride` on `POST /voice/sessions`). No adapter
+  code change needed for either — `client.ts` re-exports `@personaai/react` verbatim, and
+  `server.ts`'s route handling is a generic pass-through of `@personaai/runtime`'s route table.
+  Verified against both real published packages — typecheck, 35 tests, and build all clean.
+
 ## 0.1.12 — 2026-09-07
 
 - Bump `@personaai/react` to `^0.7.5` to pick up the `useChat` fix: `sendMessage(text, {

@@ -337,6 +337,7 @@ the server's own hard cap (independent of Gemini's own limits) was hit.
 interface UseVoiceOptions {
   agentId?: string; // falls back to PersonaProvider's defaultAgentId
   threadId?: string; // resume this conversation over voice; voice turns persist back into it
+  contextOverride?: string; // appended to the system instruction once, at connect (0.7.6+)
 }
 
 interface UseVoiceResult {
@@ -438,6 +439,7 @@ interface SendMessageOverride {
   agentId?: string;
   threadId?: string;
   resume?: PersonaResumeValue;
+  contextOverride?: string; // appended to the system prompt for this turn only (0.7.5+)
 }
 ```
 

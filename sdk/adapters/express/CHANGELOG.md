@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.8 — 2026-09-07
+
+- Bump `@personaai/runtime` to `^0.9.1` and `@personaai/sdk` to `^0.7.2` to pick up the new `contextOverride` field on `POST /voice/sessions` (appends to the Agent's system instruction for that voice call — no adapter code change, generic passthrough). Verified against both real published packages — typecheck, tests, and build all clean.
+
 ## 0.1.7 — 2026-09-05
 
 - Bump `@personaai/runtime` to `^0.8.0` and `@personaai/sdk` to `^0.7.0` to pick up the new `restToolsManifest` option (serves a code-defined REST tool list at `GET {mountPath}/rest-tools/manifest` for a Persona REST Tool Source to discover — no adapter code change, this is a generic passthrough since `CreateExpressAdapterOptions` already extends `CreateRuntimeOptions`).
