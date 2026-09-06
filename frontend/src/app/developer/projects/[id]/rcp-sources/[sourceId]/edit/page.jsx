@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -63,6 +63,7 @@ export default function ProjectRcpSourceEditorPage({ params: paramsPromise }) {
     authType: "none",
     secretRef: null,
     isEnabled: true,
+    paramContextMap: [],
   });
   const [discoveredTools, setDiscoveredTools] = useState([]);
   const [lastTestedAt, setLastTestedAt] = useState(null);
@@ -100,6 +101,7 @@ export default function ProjectRcpSourceEditorPage({ params: paramsPromise }) {
             authType: source.authType || "none",
             secretRef: source.secretRef || null,
             isEnabled: source.isEnabled !== false,
+            paramContextMap: source.paramContextMap || [],
           });
           setDiscoveredTools(source.tools || []);
           setLastTestedAt(source.lastTestedAt || null);
@@ -134,6 +136,7 @@ export default function ProjectRcpSourceEditorPage({ params: paramsPromise }) {
         url: formData.url,
         authType: formData.authType,
         isEnabled: formData.isEnabled,
+        paramContextMap: formData.paramContextMap,
         ...(formData.authType === "header" ? { secretRef: formData.secretRef } : {}),
       };
 
@@ -167,6 +170,33 @@ export default function ProjectRcpSourceEditorPage({ params: paramsPromise }) {
     } finally {
       setTesting(false);
     }
+  };
+
+  // paramContextMap is keyed purely by param NAME (matches rcp-sdk's own
+  // resolvers map), not by (tool, param) — so a name shared by two tools is
+  // one mapping row here, not two. De-dupe across every discovered tool's
+  // param list, first-seen description wins.
+  const uniqueParams = useMemo(() => {
+    const seen = new Map();
+    for (const tool of discoveredTools) {
+      for (const param of tool.params || []) {
+        if (!seen.has(param.name)) seen.set(param.name, param);
+      }
+    }
+    return Array.from(seen.values());
+  }, [discoveredTools]);
+
+  const handleParamContextChange = (paramName, contextKey) => {
+    setFormData((prev) => {
+      const rest = prev.paramContextMap.filter((entry) => entry.param !== paramName);
+      const trimmed = contextKey.trim();
+      return {
+        ...prev,
+        // An emptied field un-maps the param (back to model-fillable) rather
+        // than persisting a mapping to an empty context key.
+        paramContextMap: trimmed ? [...rest, { param: paramName, contextKey: trimmed }] : rest,
+      };
+    });
   };
 
   if (loading) {
@@ -343,6 +373,62 @@ export default function ProjectRcpSourceEditorPage({ params: paramsPromise }) {
                     No tools discovered yet.
                   </p>
                 )}
+              </div>
+            )}
+
+            {isEditing && uniqueParams.length > 0 && (
+              <div className="mt-8 space-y-3 border-t pt-6">
+                <div>
+                  <p className="text-sm font-medium">Context mapping</p>
+                  <p className="text-sm text-muted-foreground">
+                    Map a param to a context key your frontend sends with each
+                    message. A mapped param is hidden from the model on every
+                    turn and resolved live from that key instead of being
+                    left for the model to fill in — leave a param unmapped to
+                    keep it a normal, model-fillable argument.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {uniqueParams.map((param) => {
+                    const mapped = formData.paramContextMap.find(
+                      (entry) => entry.param === param.name,
+                    );
+                    return (
+                      <div
+                        key={param.name}
+                        className="flex items-center gap-3 rounded-lg border p-3"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="shrink-0 font-mono">
+                              {param.type}
+                            </Badge>
+                            <span className="truncate font-mono text-sm font-medium">
+                              {param.name}
+                            </span>
+                          </div>
+                          {param.description && (
+                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                              {param.description}
+                            </p>
+                          )}
+                        </div>
+                        <Input
+                          placeholder="Unmapped — model-fillable"
+                          className="w-56 shrink-0 font-mono text-sm"
+                          value={mapped?.contextKey || ""}
+                          onChange={(e) =>
+                            handleParamContextChange(param.name, e.target.value)
+                          }
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Caller-supplied, not server-verified — don&apos;t map a tenant id or real user id
+                  here; those should keep resolving from the verified execution context instead.
+                </p>
               </div>
             )}
           </CardContent>

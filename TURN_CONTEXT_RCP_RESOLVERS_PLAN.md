@@ -166,20 +166,27 @@ so nothing about how an Agent references its RCP Sources changed at all.
       3 new tests pass; 3 unrelated pre-existing failures elsewhere in the suite confirmed via
       `git stash` to predate this work entirely.
 
-### 2. Frontend (`frontend`) — not started
+### 2. Frontend (`frontend`) — DONE 2026-09-07
 
-- [ ] RCP Source's own Create/Edit page (`app/developer/projects/[id]/rcp-sources/new/page.jsx`,
-      `.../[sourceId]/edit/page.jsx`) — after Test Connection populates the tool/param cache, let the
-      admin map each param (across all the source's tools) to a free-text context key, or leave it
-      unmapped (default: model-fillable). This is where `paramContextMap` is actually edited.
-- [ ] Agent editor's RCP source attachment UI
-      (`app/developer/projects/[id]/agents/[agentId]/edit/page.jsx`) — once a source is attached,
-      **read-only** display of that source's `paramContextMap` (which context keys it expects), so
-      an admin attaching it can see what their frontend needs to send. Not editable from here.
-- [ ] `lib/api/projects.js` — whatever function saves an RCP Source's create/update body needs to
-      send `paramContextMap` alongside the existing fields.
-- [ ] Copy/tooltip on the source's edit page stating the trust note above (not for tenant/user id,
-      caller-supplied not server-verified) so admins don't misuse it for security-sensitive params.
+- [x] RCP Source's own Create/Edit page (`app/developer/projects/[id]/rcp-sources/[sourceId]/edit/page.jsx`,
+      shared by `new/page.jsx`) — a new "Context mapping" section below Discovered tools, shown once
+      any tool has params. De-dupes params by *name* across every discovered tool (matches
+      `rcp-sdk`'s resolver keying — one mapping per param name, not per (tool, param) pair), one row
+      per unique param with a text input for its context key; emptying the input un-maps it back to
+      model-fillable. `paramContextMap` added to `formData`, loaded from the source on edit, and
+      included in the create/update submit body.
+- [x] Agent editor's RCP source attachment UI
+      (`app/developer/projects/[id]/agents/[agentId]/edit/page.jsx`) — a read-only block rendered
+      under the RCP Sources `AttachmentPicker` for each currently-*selected* source that has a
+      non-empty `paramContextMap`, listing every `contextKey -> param` pair and pointing the admin
+      to the source's own page to change it. Not part of the shared `AttachmentPicker` component
+      itself (kept RCP-specific rendering out of a component other attachment types also use).
+- [x] `lib/api/projects.js` — no change needed: `createProjectRcpSource`/`updateProjectRcpSource`
+      already pass `data` through generically (`api.post/patch(url, data)`, no field allowlist), so
+      `paramContextMap` flows through as soon as the caller includes it.
+- [x] Trust-note copy — one line under the mapping section on the source's edit page ("Caller-supplied,
+      not server-verified — don't map a tenant id or real user id here...").
+- Both edited files pass `eslint` clean.
 
 ### 3. `@personaai/sdk` (`sdk/typescript`)
 
