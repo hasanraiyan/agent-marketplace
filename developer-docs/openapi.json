@@ -4319,6 +4319,17 @@
                     "type": "string",
                     "maxLength": 4000,
                     "description": "Caller-supplied context (e.g. a live founder profile snapshot) appended to this turn's system prompt only. Never persisted to any memory file and never visible to later turns.\n"
+                  },
+                  "context": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": [
+                        "string",
+                        "number",
+                        "boolean"
+                      ]
+                    },
+                    "description": "Distinct from contextOverride above — never appended to the prompt and never shown to the model in any form. A flat object of string/number/boolean values only (no nesting), capped at 2000 bytes serialized. Feeds only an Agent's attached RCP Source's `paramContextMap` resolvers: a param mapped there is always hidden from the model, and its value is filled live from this object's matching key on every turn it's sent. See the RCP Sources guide for configuring the mapping.\n"
                   }
                 }
               }
