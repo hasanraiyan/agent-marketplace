@@ -469,12 +469,14 @@ export function useChat(options: UseChatOptions = {}) {
         agentId: targetAgentId,
         threadId: threadId ?? (overrideOptions?.threadId as string | undefined),
         hasResume: !!overrideOptions?.resume,
+        hasContextOverride: !!overrideOptions?.contextOverride,
         messageCount: messages.length,
       });
       chatLogger.trace("sendMessage details", {
         agentId: targetAgentId,
         promptPreview: prompt.slice(0, 200),
         hasResume: !!overrideOptions?.resume,
+        hasContextOverride: !!overrideOptions?.contextOverride,
       });
 
       const userMessage: PersonaMessage = {
@@ -562,6 +564,7 @@ export function useChat(options: UseChatOptions = {}) {
             messages: payloadMessages,
             threadId: resolvedThreadId,
             resume: overrideOptions?.resume,
+            contextOverride: overrideOptions?.contextOverride,
           }),
           signal: controller.signal,
         });

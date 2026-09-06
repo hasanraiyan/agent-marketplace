@@ -595,12 +595,14 @@ function useChat(options = {}) {
         agentId: targetAgentId,
         threadId: threadId ?? overrideOptions?.threadId,
         hasResume: !!overrideOptions?.resume,
+        hasContextOverride: !!overrideOptions?.contextOverride,
         messageCount: messages.length
       });
       chatLogger.trace("sendMessage details", {
         agentId: targetAgentId,
         promptPreview: prompt.slice(0, 200),
-        hasResume: !!overrideOptions?.resume
+        hasResume: !!overrideOptions?.resume,
+        hasContextOverride: !!overrideOptions?.contextOverride
       });
       const userMessage = {
         id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -655,7 +657,8 @@ function useChat(options = {}) {
             agentId: targetAgentId,
             messages: payloadMessages,
             threadId: resolvedThreadId,
-            resume: overrideOptions?.resume
+            resume: overrideOptions?.resume,
+            contextOverride: overrideOptions?.contextOverride
           }),
           signal: controller.signal
         });

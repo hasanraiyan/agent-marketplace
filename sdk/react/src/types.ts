@@ -289,6 +289,13 @@ export interface SendMessageOverride {
   threadId?: string | Promise<string | undefined>;
   /** Answers/approves a paused interrupt from a previous turn instead of starting a fresh one. */
   resume?: PersonaResumeValue;
+  /**
+   * Caller-supplied context (e.g. a live end-user profile snapshot) appended to this turn's
+   * system prompt only — never persisted, never visible to later turns. Capped at 4000
+   * characters server-side (rejected with a 400, not truncated). Mirrors
+   * `@personaai/sdk`'s `SendMessageOptions.contextOverride`.
+   */
+  contextOverride?: string;
 }
 
 // ---- Voice (useVoice) ----------------------------------------------------

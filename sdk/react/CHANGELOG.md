@@ -3,6 +3,14 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.7.5
+
+- **Fix: `useChat`'s `sendMessage` never forwarded `contextOverride`.** `@personaai/sdk`'s
+  `SendMessageOptions.contextOverride` and the runtime's `/chat` route both already supported it,
+  but `useChat` had no matching field on `SendMessageOverride` and its SSE POST body silently
+  omitted it — so no `@personaai/react` (or `@personaai/nextjs`) consumer could ever set it,
+  regardless of what was passed. `sendMessage(text, { contextOverride })` now forwards it.
+
 ## 0.7.4
 
 - **New: `useChat({ voice })` — automatic voice/text transcript merging.** Pass the object
