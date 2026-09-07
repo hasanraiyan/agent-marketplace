@@ -116,7 +116,10 @@ function AppSidebar({ projectId }: { projectId: string }) {
         <SidebarMenu>
           <SidebarMenuItem>
             <div className="flex items-center gap-2 p-2">
-              <UserButton afterSignOutUrl="/sign-in" />
+              {/* Clerk v7 removed the afterSignOutUrl prop from UserButton.
+                  proxy.ts already routes every signed-out request to /sign-in,
+                  so sign-out lands the user there automatically. */}
+              <UserButton />
               <span className="truncate text-xs text-muted-foreground">
                 {user?.email || user?.username || ""}
               </span>
