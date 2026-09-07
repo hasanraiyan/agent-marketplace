@@ -2,6 +2,12 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Streamdown's compiled code-block renderer emits arbitrary-value utility
+   classes (e.g. text-[var(--sdm-c,inherit)]) at runtime for Shiki syntax
+   colors. Tailwind only scans project source by default, so without this
+   the classes never get generated and highlighted code renders colorless. */
+@source "../../node_modules/streamdown/dist/**/*.js";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
