@@ -1,0 +1,183 @@
+/**
+ * Ported from frontend/src/lib/curl-parser.js — the REST API Tool
+ * Builder's / RCP Source editor's "paste it to auto-fill the form"
+ * affordance.
+ *
+ * Deliberately not a full shell parser or a heavy library (curlconverter,
+ * etc.) — this only needs "common flags", and is a well-bounded,
+ * best-effort convenience, not a general shell interpreter.
+ *
+ * Supported: -X/--request, repeated -H/--header, repeated
+ * -d/--data/--data-raw/--data-binary, and the bare URL. -u/--user (Basic
+ * auth) is detected and surfaced as a warning rather than imported, since
+ * the builder's Auth tab only supports a Bearer secret.
+ */
+
+export interface ParsedCurl {
+  method: string;
+  url: string;
+  queryParams: Array<{ key: string; value: string }>;
+  headers: Array<{ key: string; value: string }>;
+  body: string | null;
+  warnings: string[];
+}
+
+/** Tokenizes a command string respecting single/double-quoted arguments. */
+function tokenize(input: string): string[] {
+  const tokens: string[] = [];
+  let current = "";
+  let quote: string | null = null;
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+
+    if (quote) {
+      if (ch === quote) {
+        quote = null;
+      } else if (ch === "\\" && quote === '"' && i + 1 < input.length) {
+        current += input[++i];
+      } else {
+        current += ch;
+      }
+      continue;
+    }
+
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      continue;
+    }
+
+    if (ch === "\\" && input[i + 1] === "\n") {
+      i++; // line-continuation: collapse to nothing (not even a space)
+      continue;
+    }
+
+    if (/\s/.test(ch)) {
+      if (current) {
+        tokens.push(current);
+        current = "";
+      }
+      continue;
+    }
+
+    current += ch;
+  }
+
+  if (current) tokens.push(current);
+  return tokens;
+}
+
+function splitHeader(value: string): { key: string; value: string } {
+  const idx = value.indexOf(":");
+  if (idx === -1) return { key: value.trim(), value: "" };
+  return {
+    key: value.slice(0, idx).trim(),
+    value: value.slice(idx + 1).trim(),
+  };
+}
+
+/**
+ * Strips markdown code-fence lines (```bash / ```) and a leading shell
+ * prompt marker ($) — both are extremely easy to grab by accident when
+ * copying a curl command out of a raw .md file or a terminal transcript,
+ * and left in, the fence line's own text (e.g. "```bash") gets mistaken
+ * for the URL since it's the first non-flag token in the whole string.
+ */
+function stripPasteArtifacts(input: string): string {
+  const withoutFences = input
+    .split("\n")
+    .filter((line) => !/^\s*```\w*\s*$/.test(line))
+    .join("\n");
+  return withoutFences.trim().replace(/^\$\s+/, "");
+}
+
+export function parseCurl(curlString: string): ParsedCurl {
+  const warnings: string[] = [];
+  const cleaned = stripPasteArtifacts(curlString || "");
+  const tokens = tokenize(cleaned).filter((t) => t !== "curl");
+
+  let method: string | null = null;
+  let url: string | null = null;
+  const headers: Array<{ key: string; value: string }> = [];
+  const bodyParts: string[] = [];
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+
+    if (token === "-X" || token === "--request") {
+      method = tokens[++i]?.toUpperCase();
+    } else if (token === "-H" || token === "--header") {
+      const raw = tokens[++i];
+      if (raw) headers.push(splitHeader(raw));
+    } else if (token === "-d" || token === "--data" || token === "--data-raw" || token === "--data-binary") {
+      const raw = tokens[++i];
+      if (raw !== undefined) bodyParts.push(raw);
+    } else if (token === "--data-urlencode") {
+      i++; // skip its value
+      warnings.push("--data-urlencode was not imported — encode the value manually if needed.");
+    } else if (token === "-u" || token === "--user") {
+      i++; // skip its value
+      warnings.push(
+        "Basic auth (-u) was detected but not imported — this builder's Auth tab only supports a Bearer secret."
+      );
+    } else if (token.startsWith("-")) {
+      // Unrecognized flag — best-effort skip. If it looks like it takes a
+      // value (next token doesn't start with '-' and isn't the URL-shaped
+      // final token), skip that too, so it isn't misread as the URL.
+      const next = tokens[i + 1];
+      if (next && !next.startsWith("-") && !/^https?:\/\//i.test(next) && i + 2 < tokens.length) {
+        i++;
+      }
+    } else if (!url) {
+      url = token;
+    }
+  }
+
+  if (!url) {
+    return {
+      method: "GET",
+      url: "",
+      queryParams: [],
+      headers: [],
+      body: null,
+      warnings: ["No URL found in the pasted command."],
+    };
+  }
+
+  // Split the query string off manually rather than via `new URL()` — a
+  // URL containing an unresolved {{token}} in its path (very common here)
+  // gets its braces percent-encoded by the URL parser, corrupting the
+  // template placeholder. Only the already-isolated query string, which
+  // rarely carries {{tokens}} of its own, goes through URLSearchParams.
+  let queryParams: Array<{ key: string; value: string }> = [];
+  let baseUrl = url;
+  const queryIndex = url.indexOf("?");
+  if (queryIndex !== -1) {
+    baseUrl = url.slice(0, queryIndex);
+    const search = url.slice(queryIndex + 1);
+    queryParams = Array.from(new URLSearchParams(search).entries()).map(([key, value]) => ({
+      key,
+      value,
+    }));
+  }
+
+  const body = bodyParts.length > 0 ? bodyParts.join("&") : null;
+  const resolvedMethod = method || (body ? "POST" : "GET");
+
+  // A sanity check, not a hard requirement — {{token}}-only URLs are valid
+  // (the whole host could be a template variable). Catches the other
+  // common mistake: pasting more than one command, or extra prose, so the
+  // first bare word picked up as "the URL" is actually something else.
+  if (!/^(https?:\/\/|\{\{)/.test(baseUrl)) {
+    warnings.push(`"${baseUrl}" doesn't look like a URL — make sure only one cURL command was pasted.`);
+  }
+
+  return {
+    method: resolvedMethod,
+    url: baseUrl,
+    queryParams,
+    headers,
+    body,
+    warnings,
+  };
+}
