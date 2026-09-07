@@ -10,7 +10,8 @@ the repo's history (squashed into the package's founding PR).
   model — only ever read live by an RCP tool's resolver). Validated by the shared
   `validateTurnContext` helper added in `0.9.2` for the voice route (flat object, string/number/
   boolean values only, ≤2000 bytes serialized), forwarded to `client.chat.stream(agentId, {
-  ..., context })`. Requires `@personaai/sdk@^0.7.4`+ once published.
+  ..., context })`. Bumped `@personaai/sdk` to `^0.7.4` — verified against the real published
+  package: typecheck, all 172 tests (27 files), and build all clean.
 
 ## 0.9.2
 

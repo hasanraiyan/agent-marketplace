@@ -200,7 +200,7 @@ so nothing about how an Agent references its RCP Sources changed at all.
 - [x] CHANGELOG + version bump to `0.7.4`. Full suite: 121 passed, 1 skipped (live integration
       test, unrelated), build clean.
 
-### 4. `@personaai/runtime` (`sdk/runtime`) — DONE 2026-09-07 (pending `@personaai/sdk@0.7.4` publish)
+### 4. `@personaai/runtime` (`sdk/runtime`) — DONE 2026-09-07
 
 - [x] `src/routes/chat.ts` — `ChatBody` + `parseChatBody` gain `context`, validated by the shared
       `validateTurnContext` helper (added in the voice extension above — reused here rather than
