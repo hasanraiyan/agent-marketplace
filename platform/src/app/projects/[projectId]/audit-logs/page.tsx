@@ -88,7 +88,7 @@ export default function AuditLogsPage() {
   }, [projectId, page]);
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 overflow-y-auto p-6">
+    <div className="flex w-full flex-col gap-6 overflow-y-auto p-6">
       <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
