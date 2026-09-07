@@ -6,13 +6,18 @@ import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import {
   ChatCircleIcon,
+  ClockCounterClockwiseIcon,
   CpuIcon,
   DatabaseIcon,
+  GlobeSimpleIcon,
+  HammerIcon,
+  KeyIcon,
   LockKeyIcon,
   BookOpenIcon,
   PlugsConnectedIcon,
   RobotIcon,
   SparkleIcon,
+  UsersThreeIcon,
   WrenchIcon,
 } from "@phosphor-icons/react";
 import {
@@ -47,18 +52,36 @@ const NAV_GROUPS = [
   {
     label: "Tools",
     items: [
-      { segment: "rcp-sources", label: "RCP Sources", icon: WrenchIcon },
+      // REST Tools (no-code, built one-off here) and Tool Sources (a hosted
+      // manifest of code-defined tools) are the project's own tool builders;
+      // MCP + RCP Sources are external tool servers it connects to.
+      { segment: "rest-tools", label: "REST Tools", icon: HammerIcon },
+      { segment: "rest-tool-sources", label: "Tool Sources", icon: GlobeSimpleIcon },
       { segment: "mcps", label: "MCP", icon: PlugsConnectedIcon },
+      { segment: "rcp-sources", label: "RCP Sources", icon: WrenchIcon },
     ],
   },
   {
     label: "Resources",
     items: [
-      { segment: "providers", label: "Providers", icon: CpuIcon },
-      { segment: "secrets", label: "Secrets", icon: LockKeyIcon },
+      // The agent-buildable content an Agent actually loads/runs against —
+      // everything connection/access related lives under Manage instead.
       { segment: "knowledge", label: "Knowledge", icon: BookOpenIcon },
       { segment: "stores", label: "Stores", icon: DatabaseIcon },
       { segment: "skills", label: "Skills", icon: SparkleIcon },
+    ],
+  },
+  {
+    label: "Manage",
+    items: [
+      // Project governance — the people who administer it, what it's wired
+      // to (model providers), the machine-access surface (minted credentials
+      // + the secret values they reference), and the lifecycle audit trail.
+      { segment: "members", label: "Members", icon: UsersThreeIcon },
+      { segment: "providers", label: "Providers", icon: CpuIcon },
+      { segment: "credentials", label: "Credentials", icon: KeyIcon },
+      { segment: "secrets", label: "Secrets", icon: LockKeyIcon },
+      { segment: "audit-logs", label: "Audit Logs", icon: ClockCounterClockwiseIcon },
     ],
   },
 ];
