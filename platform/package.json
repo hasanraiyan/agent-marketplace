@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ag-ui/client": "^0.0.52",
     "@base-ui/react": "^1.8.0",
     "@clerk/nextjs": "^7.9.1",
     "@phosphor-icons/react": "^2.1.10",
