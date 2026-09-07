@@ -4,6 +4,25 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.9.3
+
+- **New: `context` accepted on `POST /chat`.** Distinct from `contextOverride` (never shown to the
+  model — only ever read live by an RCP tool's resolver). Validated by the shared
+  `validateTurnContext` helper added in `0.9.2` for the voice route (flat object, string/number/
+  boolean values only, ≤2000 bytes serialized), forwarded to `client.chat.stream(agentId, {
+  ..., context })`. Requires `@personaai/sdk@^0.7.4`+ once published.
+
+## 0.9.2
+
+- **New: `context` accepted on `POST /voice/sessions`.** Same field/cap/contract as `chat`'s
+  `context` (never shown to the model, only ever read live by an RCP tool's resolver) — validated
+  by a new shared `validateTurnContext` helper in `routeHelpers.ts` (flat object, string/number/
+  boolean values only, ≤2000 bytes serialized, uses `TextEncoder` rather than `Buffer` to stay
+  Edge-runtime compatible). This is the **at-connect seed only**; forwarded to
+  `client.voice.createSession(agentId, { context })` — requires `@personaai/sdk@^0.7.3`+ once
+  published. Live mid-call refresh is a direct WebSocket message
+  (`{ type: 'voice.context', context }`) the frontend sends itself, outside this runtime entirely.
+
 ## 0.9.1
 
 - **New: `contextOverride` accepted on `POST /voice/sessions`.** Forwarded to

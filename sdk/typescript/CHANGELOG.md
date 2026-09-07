@@ -3,6 +3,28 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.7.4
+
+- **New: `chat.stream()`/`chat.sendMessage()` accept `context: Record<string, unknown>`.** Distinct
+  from `contextOverride` (a string appended to the system prompt): `context` is **never shown to
+  the model in any form** — it only ever feeds an RCP tool's resolver (see your Project's RCP
+  Sources `paramContextMap` configuration), read live at the moment that tool is actually called. A
+  mapped param is permanently absent from the model's tool schema, not conditionally so. Must be a
+  flat object of string/number/boolean values only (no nesting), capped at 2000 bytes serialized —
+  a violation is rejected with a 400, not truncated or coerced. Resent on every turn you want it to
+  apply to; it is never remembered from an earlier `chat.stream()` call. Requires `agent-backend`'s
+  matching support (shipped alongside this release).
+
+## 0.7.3
+
+- **New: `voice.createSession(agentId, { context })`.** Same field/cap/contract as `chat.stream()`'s
+  `context` — never shown to the model, only ever read live by an RCP tool's resolver. This is the
+  **at-connect seed only**: unlike text chat (fresh `context` on every message), a voice call is
+  one continuous session, so refreshing it mid-call means sending `{ type: 'voice.context', context
+  }` over the already-open WebSocket yourself (this SDK never touches that socket). Requires
+  `agent-backend`'s matching voice session + `VoiceSession` support (shipped alongside this
+  release).
+
 ## 0.7.2
 
 - **New: `voice.createSession(agentId, { contextOverride })`.** Same field/cap/contract as

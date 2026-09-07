@@ -30,8 +30,25 @@ export interface SendMessageOptions {
    * to this turn's system prompt only. Never persisted to any memory file
    * and never visible to later turns. Capped at 4000 characters server-side
    * — a longer value is rejected with a 400, not silently truncated.
+   *
+   * Distinct from {@link SendMessageOptions.context} below: this is
+   * model-visible prose; `context` is never shown to the model at all.
    */
   contextOverride?: string;
+  /**
+   * Caller-supplied context — **never shown to the model in any form**,
+   * unlike {@link SendMessageOptions.contextOverride} above. Only ever read
+   * live by an RCP tool's resolver (see your Project's RCP Sources
+   * `paramContextMap` configuration) at the moment that tool is actually
+   * called — a param mapped there is permanently absent from the model's
+   * tool schema, and its value is filled from this object's matching key.
+   * Must be a flat object of string/number/boolean values only (no nested
+   * objects/arrays); capped at 2000 bytes serialized — a violation is
+   * rejected with a 400, not silently truncated or coerced. Resent on every
+   * turn you want it to apply to; omitting it on a later `chat.stream()`
+   * call does not carry forward a value from an earlier one.
+   */
+  context?: Record<string, unknown>;
   signal?: AbortSignal;
 }
 

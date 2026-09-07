@@ -114,6 +114,53 @@ describe('voice routes', () => {
     });
   });
 
+  it('POST /voice/sessions forwards an optional context object in the sdk call body', async () => {
+    const ticket = {
+      ticket: 'payload.signature',
+      wsUrl: 'wss://api.example.com/api/v1/developer/voice?ticket=payload.signature',
+      expiresAt: '2026-01-01T00:01:00.000Z',
+      session: {
+        model: 'gemini-3.1-flash-live-preview',
+        voice: 'Zephyr',
+        inputSampleRate: 16000,
+        outputSampleRate: 24000,
+        maxDurationMs: 900000,
+      },
+    };
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse(ticket, 200));
+    const runtime = makeRuntime({ fetchMock });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/voice/sessions',
+      headers: {},
+      query: {},
+      body: { agentId: 'a1', context: { courseId: '101' } },
+      userId: null,
+    });
+
+    expect(response.status).toBe(201);
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toEqual({ context: { courseId: '101' } });
+  });
+
+  it('POST /voice/sessions rejects a non-object context without calling the API', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse({}));
+    const runtime = makeRuntime({ fetchMock });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/voice/sessions',
+      headers: {},
+      query: {},
+      body: { agentId: 'a1', context: 'not-an-object' },
+      userId: null,
+    });
+
+    expect(response.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('POST /voice/sessions without agentId returns 400 without calling the API', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse({}));
     const runtime = makeRuntime({ fetchMock });

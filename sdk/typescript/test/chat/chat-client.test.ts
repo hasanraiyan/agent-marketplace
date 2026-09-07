@@ -146,6 +146,22 @@ describe('ChatClient', () => {
     expect(JSON.parse(init.body as string).contextOverride).toBe('stage=seed, sector=fintech');
   });
 
+  it('context is forwarded verbatim in the request body, distinct from contextOverride', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse([]));
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    await client.chat.sendMessage('agent-1', {
+      messages: [{ role: 'user', content: 'hi' }],
+      contextOverride: 'stage=seed, sector=fintech',
+      context: { courseId: '101' },
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string);
+    expect(body.context).toEqual({ courseId: '101' });
+    expect(body.contextOverride).toBe('stage=seed, sector=fintech');
+  });
+
   it('sendMessage() surfaces a RUN_ERROR event as ChatResult.error', async () => {
     const events = [
       { type: EventType.RUN_STARTED, threadId: 't1', runId: 'r1' },

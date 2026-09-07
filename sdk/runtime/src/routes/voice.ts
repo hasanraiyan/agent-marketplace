@@ -1,5 +1,5 @@
 import type { RouteHandler } from '../routing.js';
-import { json, requireBodyObject, requireStringField } from '../routeHelpers.js';
+import { json, requireBodyObject, requireStringField, validateTurnContext } from '../routeHelpers.js';
 
 /**
  * Mints a single-use voice session ticket via `@personaai/sdk`'s
@@ -22,9 +22,16 @@ export const createVoiceSession: RouteHandler = async (request, ctx) => {
   // re-application; see @personaai/sdk's VoiceResource doc comment).
   const contextOverride =
     typeof body.contextOverride === 'string' && body.contextOverride ? body.contextOverride : undefined;
+  // At-connect seed only — a voice call is one continuous session, so
+  // refreshing this mid-call means the frontend sends `{ type:
+  // 'voice.context', context }` directly over the already-open WebSocket,
+  // never back through this route (see @personaai/sdk's VoiceResource doc
+  // comment).
+  const context = validateTurnContext(body.context);
   const ticket = await ctx.client.voice.createSession(agentId, {
     ...(threadId ? { threadId } : {}),
     ...(contextOverride ? { contextOverride } : {}),
+    ...(context ? { context } : {}),
   });
 
   await ctx.hooks?.onVoiceSessionCreate?.({

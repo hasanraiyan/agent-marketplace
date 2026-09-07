@@ -38,6 +38,47 @@ describe('POST /chat', () => {
     ]);
   });
 
+  it('forwards an optional context object to the sdk call body, distinct from contextOverride', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse([]));
+    const runtime = makeRuntime({ fetchMock });
+
+    await runtime.handle({
+      method: 'POST',
+      path: '/chat',
+      headers: {},
+      query: {},
+      body: {
+        agentId: 'agent-1',
+        messages: [{ role: 'user', content: 'hi' }],
+        contextOverride: 'stage=seed',
+        context: { courseId: '101' },
+      },
+      userId: null,
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const sentBody = JSON.parse(init.body as string);
+    expect(sentBody.context).toEqual({ courseId: '101' });
+    expect(sentBody.contextOverride).toBe('stage=seed');
+  });
+
+  it('rejects a non-object context with 400 without calling the API', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse([]));
+    const runtime = makeRuntime({ fetchMock });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/chat',
+      headers: {},
+      query: {},
+      body: { agentId: 'agent-1', messages: [], context: 'not-an-object' },
+      userId: null,
+    });
+
+    expect(response.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('fires beforeRun before the stream is consumed, afterRun once it completes', async () => {
     const order: string[] = [];
     const events = [{ type: EventType.TEXT_MESSAGE_CHUNK, delta: 'hi' }];

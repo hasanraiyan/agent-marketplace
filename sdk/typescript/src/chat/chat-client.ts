@@ -38,6 +38,9 @@ export class ChatClient {
    * @param options.contextOverride - Caller-supplied context appended to
    *   this turn's system prompt only — never persisted, never visible to
    *   later turns.
+   * @param options.context - Caller-supplied context, never shown to the
+   *   model at all (distinct from `contextOverride` above) — only ever read
+   *   live by an RCP tool's resolver at the moment it's actually called.
    * @param options.signal - Aborts the underlying request/stream.
    * @yields Each raw {@link AguiEvent} as it arrives.
    */
@@ -50,6 +53,7 @@ export class ChatClient {
       hasThreadId: !!options.threadId,
       hasResume: !!options.resume,
       hasContextOverride: !!options.contextOverride,
+      hasContext: !!options.context,
       messageCount: options.messages?.length ?? 0,
     });
     this.logger.trace('chat stream request', {
@@ -73,6 +77,7 @@ export class ChatClient {
           messages: options.messages,
           resume: options.resume,
           contextOverride: options.contextOverride,
+          context: options.context,
         },
         signal: options.signal,
       });

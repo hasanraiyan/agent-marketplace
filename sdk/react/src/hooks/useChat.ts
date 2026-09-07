@@ -548,10 +548,20 @@ export function useChat(options: UseChatOptions = {}) {
         // so discovering the missing body afterwards would already have cost
         // us the stream. See src/streaming.ts.
         const token = getAuthToken ? await getAuthToken() : null;
+        // Resolved here, at send-time — a getter always reads the host
+        // app's *current* state (e.g. "which page is open") with no ref or
+        // effect needed to keep it fresh. Call-level override wins on key
+        // collisions. Omitted from the body entirely when empty, rather
+        // than sending `context: {}` on every turn.
+        const resolvedHookContext =
+          typeof options.context === "function" ? options.context() : options.context;
+        const mergedContext = { ...resolvedHookContext, ...overrideOptions?.context };
+        const hasContext = Object.keys(mergedContext).length > 0;
         chatLogger.debug("opening SSE stream", {
           agentId: targetAgentId,
           hasToken: !!token,
           hasThreadId: !!resolvedThreadId,
+          hasContext,
         });
         const stream = await openSSEStream({
           url: `${baseUrl}/chat`,
@@ -565,6 +575,7 @@ export function useChat(options: UseChatOptions = {}) {
             threadId: resolvedThreadId,
             resume: overrideOptions?.resume,
             contextOverride: overrideOptions?.contextOverride,
+            ...(hasContext ? { context: mergedContext } : {}),
           }),
           signal: controller.signal,
         });

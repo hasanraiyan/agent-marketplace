@@ -29,6 +29,19 @@ export interface CreateVoiceSessionOptions {
    * (rejected with a 400, not truncated).
    */
   contextOverride?: string;
+  /**
+   * Caller-supplied context — same field/cap/contract as
+   * {@link SendMessageOptions.contextOverride}'s sibling `context` field:
+   * never shown to the model, only ever read live by an RCP tool's resolver
+   * via `configurable.turnContext`. This is the **at-connect seed only** —
+   * unlike text chat (which resends `context` on every message), a voice
+   * call is one continuous session, so refreshing it mid-call means sending
+   * `{ type: 'voice.context', context: {...} }` over the already-open
+   * WebSocket yourself (merged into, not replacing, the current value) —
+   * this SDK never touches that socket, see {@link VoiceResource}'s class
+   * doc comment for why.
+   */
+  context?: Record<string, unknown>;
 }
 
 /**
@@ -83,7 +96,15 @@ export class VoiceResource {
       '/api/v1/developer/voice/sessions',
       {
         headers,
-        body: options.contextOverride !== undefined ? { contextOverride: options.contextOverride } : undefined,
+        body:
+          options.contextOverride !== undefined || options.context !== undefined
+            ? {
+                ...(options.contextOverride !== undefined
+                  ? { contextOverride: options.contextOverride }
+                  : {}),
+                ...(options.context !== undefined ? { context: options.context } : {}),
+              }
+            : undefined,
       }
     );
   }

@@ -3,6 +3,7 @@ import type { RouteHandler } from '../routing.js';
 import { RuntimeHttpError } from '../errors.js';
 import { RunDriver } from '../runDriver.js';
 import { withHeartbeats } from '../heartbeat.js';
+import { validateTurnContext } from '../routeHelpers.js';
 import type { RunContext } from '../types/hooks.js';
 
 interface ChatBody {
@@ -11,6 +12,7 @@ interface ChatBody {
   threadId?: string;
   resume?: ChatResume;
   contextOverride?: string;
+  context?: Record<string, unknown>;
 }
 
 function parseChatBody(body: unknown): ChatBody {
@@ -40,6 +42,11 @@ function parseChatBody(body: unknown): ChatBody {
     threadId: typeof b.threadId === 'string' ? b.threadId : undefined,
     resume: (b.resume as ChatResume | undefined) ?? undefined,
     contextOverride: typeof b.contextOverride === 'string' ? b.contextOverride : undefined,
+    // Distinct from contextOverride above — never shown to the model, only
+    // ever read live by an RCP tool's resolver. validateTurnContext throws
+    // a 400 on any shape violation (not a flat string/number/boolean
+    // object, or over the byte cap) rather than coercing/dropping it.
+    context: validateTurnContext(b.context),
   };
 }
 
@@ -60,6 +67,7 @@ export const chatRoute: RouteHandler = async (request, ctx) => {
     messageCount: body.messages?.length ?? 0,
     hasResume: !!body.resume,
     hasContextOverride: !!body.contextOverride,
+    hasContext: !!body.context,
   });
   // `requiresAuth: true` guarantees request.userId is resolved by the time a route handler runs.
   const userId = request.userId as string;
@@ -82,6 +90,7 @@ export const chatRoute: RouteHandler = async (request, ctx) => {
     threadId: body.threadId,
     resume: body.resume,
     contextOverride: body.contextOverride,
+    context: body.context,
   });
 
   const runId = crypto.randomUUID();

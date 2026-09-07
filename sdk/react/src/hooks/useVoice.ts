@@ -74,6 +74,7 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
   const agentId = options.agentId || defaultAgentId;
   const threadId = options.threadId;
   const contextOverride = options.contextOverride;
+  const context = options.context;
 
   const [state, setState] = useState<PersonaVoiceState>("idle");
   const [isMuted, setIsMuted] = useState(false);
@@ -410,6 +411,7 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
       agentId,
       threadId,
       hasContextOverride: !!contextOverride,
+      hasContext: !!context,
     });
 
     try {
@@ -420,6 +422,7 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
           agentId,
           ...(threadId ? { threadId } : {}),
           ...(contextOverride ? { contextOverride } : {}),
+          ...(context ? { context } : {}),
         }),
       });
       if (!res.ok) {
@@ -457,7 +460,7 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
       }
       teardownAudio();
     }
-  }, [agentId, threadId, contextOverride, fetchWithAuth, handleMessage, teardownAudio, voiceLogger]);
+  }, [agentId, threadId, contextOverride, context, fetchWithAuth, handleMessage, teardownAudio, voiceLogger]);
 
   const mute = useCallback((muted: boolean) => {
     setIsMuted(muted);
@@ -469,6 +472,16 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
   const sendText = useCallback((text: string) => {
     if (!text?.trim() || wsRef.current?.readyState !== WebSocket.OPEN) return;
     wsRef.current.send(JSON.stringify({ type: "voice.text", text }));
+  }, []);
+
+  // Live refresh for the rest of an already-open call — the backend merges
+  // this into whatever turnContext it already has (the start() seed, or an
+  // earlier updateContext() call), so callers only need to send what
+  // actually changed. A no-op while there's no open socket, same guard
+  // sendText uses — nothing queues for "once connected."
+  const updateContext = useCallback((newContext: Record<string, unknown>) => {
+    if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+    wsRef.current.send(JSON.stringify({ type: "voice.context", context: newContext }));
   }, []);
 
   return {
@@ -483,5 +496,6 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
     stop,
     mute,
     sendText,
+    updateContext,
   };
 }

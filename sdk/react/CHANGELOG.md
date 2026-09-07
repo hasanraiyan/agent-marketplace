@@ -3,6 +3,28 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.7.8
+
+- **New: `useChat({ context })` and `sendMessage(text, { context })`.** Never shown to the model in
+  any form (distinct from `contextOverride`) — only ever read live by an RCP tool's resolver. The
+  hook-level option accepts a plain object or a getter (`() => object`), resolved fresh at
+  send-time so it always reflects the host app's *current* state with no ref or effect needed;
+  shallow-merged with a call-level `sendMessage(text, { context })` override, which wins on key
+  collisions. Omitted from the request entirely when empty. Requires `@personaai/runtime@^0.9.3`+
+  and `@personaai/sdk@^0.7.4`+ (both shipped alongside this release) for the field to actually
+  reach the Agent.
+
+## 0.7.7
+
+- **New: `useVoice({ context })` and its `updateContext()` return value.** `context` is the
+  at-connect seed (sent with `start()`'s ticket-mint call, same field/cap/contract as `useChat`'s
+  `context` — never shown to the model, only ever read live by an RCP tool's resolver).
+  `updateContext(context)` live-refreshes it for the rest of an already-open call by sending `{
+  type: 'voice.context', context }` directly over the open WebSocket — merged into (not replacing)
+  the current value, no reconnect, no interruption to the audio. Requires
+  `@personaai/runtime@^0.9.2`+ and its `agent-backend`/`VoiceSession` counterpart (both shipped
+  alongside this release).
+
 ## 0.7.6
 
 - **New: `useVoice({ contextOverride })`.** Same field/cap/contract as `useChat`'s

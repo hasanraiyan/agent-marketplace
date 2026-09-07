@@ -642,10 +642,14 @@ function useChat(options = {}) {
         const resolvedThreadId = await (overrideOptions?.threadId ?? options.threadId);
         chatLogger.trace("resolved threadId", { threadId: resolvedThreadId });
         const token = getAuthToken ? await getAuthToken() : null;
+        const resolvedHookContext = typeof options.context === "function" ? options.context() : options.context;
+        const mergedContext = { ...resolvedHookContext, ...overrideOptions?.context };
+        const hasContext = Object.keys(mergedContext).length > 0;
         chatLogger.debug("opening SSE stream", {
           agentId: targetAgentId,
           hasToken: !!token,
-          hasThreadId: !!resolvedThreadId
+          hasThreadId: !!resolvedThreadId,
+          hasContext
         });
         const stream = await openSSEStream({
           url: `${baseUrl}/chat`,
@@ -658,7 +662,8 @@ function useChat(options = {}) {
             messages: payloadMessages,
             threadId: resolvedThreadId,
             resume: overrideOptions?.resume,
-            contextOverride: overrideOptions?.contextOverride
+            contextOverride: overrideOptions?.contextOverride,
+            ...hasContext ? { context: mergedContext } : {}
           }),
           signal: controller.signal
         });
@@ -1393,6 +1398,7 @@ function useVoice(options = {}) {
   const agentId = options.agentId || defaultAgentId;
   const threadId = options.threadId;
   const contextOverride = options.contextOverride;
+  const context = options.context;
   const [state, setState] = useState4("idle");
   const [isMuted, setIsMuted] = useState4(false);
   const [transcript, setTranscript] = useState4(
@@ -1665,7 +1671,8 @@ function useVoice(options = {}) {
     voiceLogger.debug("start() called", {
       agentId,
       threadId,
-      hasContextOverride: !!contextOverride
+      hasContextOverride: !!contextOverride,
+      hasContext: !!context
     });
     try {
       const res = await fetchWithAuth("/voice/sessions", {
@@ -1674,7 +1681,8 @@ function useVoice(options = {}) {
         body: JSON.stringify({
           agentId,
           ...threadId ? { threadId } : {},
-          ...contextOverride ? { contextOverride } : {}
+          ...contextOverride ? { contextOverride } : {},
+          ...context ? { context } : {}
         })
       });
       if (!res.ok) {
@@ -1710,7 +1718,7 @@ function useVoice(options = {}) {
       }
       teardownAudio();
     }
-  }, [agentId, threadId, contextOverride, fetchWithAuth, handleMessage, teardownAudio, voiceLogger]);
+  }, [agentId, threadId, contextOverride, context, fetchWithAuth, handleMessage, teardownAudio, voiceLogger]);
   const mute = useCallback4((muted) => {
     setIsMuted(muted);
     streamRef.current?.getAudioTracks().forEach((track) => {
@@ -1720,6 +1728,10 @@ function useVoice(options = {}) {
   const sendText = useCallback4((text) => {
     if (!text?.trim() || wsRef.current?.readyState !== WebSocket.OPEN) return;
     wsRef.current.send(JSON.stringify({ type: "voice.text", text }));
+  }, []);
+  const updateContext = useCallback4((newContext) => {
+    if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+    wsRef.current.send(JSON.stringify({ type: "voice.context", context: newContext }));
   }, []);
   return {
     state,
@@ -1732,7 +1744,8 @@ function useVoice(options = {}) {
     start,
     stop,
     mute,
-    sendText
+    sendText,
+    updateContext
   };
 }
 

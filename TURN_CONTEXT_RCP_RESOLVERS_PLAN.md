@@ -188,54 +188,80 @@ so nothing about how an Agent references its RCP Sources changed at all.
       not server-verified — don't map a tenant id or real user id here...").
 - Both edited files pass `eslint` clean.
 
-### 3. `@personaai/sdk` (`sdk/typescript`)
+### 3. `@personaai/sdk` (`sdk/typescript`) — DONE 2026-09-07
 
-- [ ] `src/types/chat.ts` — add `context?: Record<string, unknown>` to `SendMessageOptions`,
-      documented distinctly from `contextOverride` (link the doc comments to each other so the
-      difference is obvious at the call site).
-- [ ] `src/chat/chat-client.ts` — include `context` in the POST body alongside
-      `messages`/`threadId`/`resume`/`contextOverride`.
-- [ ] `test/chat/chat-client.test.ts` — add a case asserting `context` is forwarded verbatim.
-- [ ] CHANGELOG + minor version bump (additive, non-breaking).
+- [x] `src/types/chat.ts` — `context?: Record<string, unknown>` added to `SendMessageOptions`,
+      doc comment cross-linked with `contextOverride`'s.
+- [x] `src/chat/chat-client.ts` — `context` included in the POST body alongside
+      `messages`/`resume`/`contextOverride`; added to both debug-log calls and the `stream()` doc
+      comment.
+- [x] `test/chat/chat-client.test.ts` — new case asserting `context` is forwarded verbatim and
+      stays distinct from `contextOverride` in the same request.
+- [x] CHANGELOG + version bump to `0.7.4`. Full suite: 121 passed, 1 skipped (live integration
+      test, unrelated), build clean.
 
-### 4. `@personaai/runtime` (`sdk/runtime`)
+### 4. `@personaai/runtime` (`sdk/runtime`) — DONE 2026-09-07 (pending `@personaai/sdk@0.7.4` publish)
 
-- [ ] `src/routes/chat.ts` — `ChatBody` interface + `parseChatBody` gain `context` (validate: plain
-      object or undefined, reject arrays/primitives, size-cap same as `contextOverride`'s
-      4000-char cap — pick an equivalent limit, e.g. serialized-JSON byte length). Forward it into
-      `ctx.client.chat.stream(body.agentId, { ..., context: body.context })`.
-- [ ] `logger.trace('chatRoute body', {...})` — add `hasContext: !!body.context` alongside the
+- [x] `src/routes/chat.ts` — `ChatBody` + `parseChatBody` gain `context`, validated by the shared
+      `validateTurnContext` helper (added in the voice extension above — reused here rather than
+      duplicated), forwarded to `ctx.client.chat.stream(body.agentId, { ..., context: body.context
+      })`.
+- [x] `logger.trace('chatRoute body', {...})` — `hasContext: !!body.context` added alongside the
       existing `hasContextOverride`.
-- [ ] Bump `@personaai/runtime`'s dependency on `@personaai/sdk` to the new version from step 3.
-- [ ] CHANGELOG + minor version bump.
+- [x] `test/chat.test.ts` — new cases: `context` forwarded to the underlying fetch body alongside
+      (and distinct from) `contextOverride`; a non-object `context` rejected with 400, no API call.
+      Verified end to end (typecheck + all 12 chat tests + full 170-test suite) via a temporary
+      local-build overlay of `@personaai/sdk`'s pnpm store entry, since `0.7.4` isn't published yet
+      — restored the real installed `0.7.2` afterward; `npm run build` succeeds regardless (tsup's
+      bundler/DTS step doesn't fail on this particular type gap the way `tsc --noEmit` does).
+- [ ] Bump `@personaai/runtime`'s dependency on `@personaai/sdk` to `^0.7.4` — blocked on that
+      version being published first (same gate every dependency bump in this plan has used).
+- [x] CHANGELOG + version bump to `0.9.3`.
 
-### 5. `@personaai/react` (`sdk/react`)
+### 5. `@personaai/react` (`sdk/react`) — DONE 2026-09-07
 
-- [ ] `src/types.ts` — `SendMessageOverride` (and wherever `UseChatOptions` lives) gains
-      `context?: Record<string, unknown>`.
-- [ ] `src/hooks/useChat.ts#sendMessage` — currently the SSE POST body
-      (`JSON.stringify({ agentId, messages: payloadMessages, threadId, resume })`, around line 560)
-      **doesn't even forward `contextOverride` today** — that's a pre-existing gap, not something
-      this feature introduces, but fixing it is basically free while touching this body-assembly
-      code. Add both `contextOverride` (if missing) and the new `context` here.
-- [ ] `UseChatOptions.context` accepts `Record<string, unknown> | (() => Record<string, unknown>)`.
-      `sendMessage()` resolves it at send-time (calling it if it's a function — always reads current
-      host-app state, no ref/effect needed) and shallow-merges `overrideOptions?.context` on top.
-      See "Decisions" below.
-- [ ] CHANGELOG + minor version bump. Bump its `@personaai/runtime`/`@personaai/sdk` peer ranges if
-      it pins them.
+(The pre-existing `contextOverride`-not-forwarded gap this section originally flagged was already
+fixed earlier as its own small patch, in `0.7.5` — unrelated to this feature, done before it.)
 
-### 6. Adapters (`sdk/adapters/express`, `sdk/adapters/nestjs`, `sdk/adapters/nextjs`)
+- [x] `src/types.ts` — `UseChatOptions.context` (`Record<string, unknown> | (() =>
+      Record<string, unknown>)`) and `SendMessageOverride.context` (`Record<string, unknown>`,
+      call-level only) added, both cross-linked in their doc comments.
+- [x] `src/hooks/useChat.ts#sendMessage` — resolves the hook-level `context` at send-time (calls it
+      if it's a function), shallow-merges `overrideOptions?.context` on top (override wins on key
+      collisions), and omits the `context` body field entirely when the merged result is empty
+      rather than sending `context: {}` every turn.
+- [x] No dedicated test added — this package has no existing `useChat` unit test file at all (only
+      `test/streaming.test.mjs`), same gap already noted for the earlier `contextOverride` fix;
+      `npm run typecheck` is clean.
+- [x] CHANGELOG + version bump to `0.7.8`, build clean. Doesn't pin `@personaai/runtime`/
+      `@personaai/sdk` directly (talks to them over plain HTTP, no package dependency).
 
-- [ ] No code changes expected — confirmed each adapter's `translate.ts` passes `request.body`
-      through as untyped JSON (`body: unknown`) straight to the runtime's route table; the new
-      `context` field needs no adapter-side parsing.
-- [ ] Bump each adapter's `@personaai/runtime` dependency to the version from step 4, run their
-      existing test suites to confirm nothing assumed the old chat body shape, and note the bump in
-      each CHANGELOG (patch/minor, not a breaking change for adapters themselves).
-- [ ] `nextjs/src/server.ts` re-exports some runtime types by name (see the `rcpManifest` commit
-      adding `RcpManifestOptions` to that list) — check whether any chat-related type needs adding
-      to that re-export list for this feature too.
+### 6. Adapters (`sdk/adapters/express`, `sdk/adapters/nestjs`, `sdk/adapters/nextjs`) — blocked on publish
+
+- [x] No code changes needed — confirmed (again) each adapter's `translate.ts` passes
+      `request.body` through as untyped JSON straight to the runtime's route table; `context`
+      needs no adapter-side parsing, same as every other body field bump in this plan.
+- [x] `nextjs/src/server.ts`'s re-exported type list — checked, `context` doesn't need adding:
+      it's a plain field on existing exported option types (`SendMessageOptions`,
+      `CreateVoiceSessionOptions`), not a new type of its own like `RcpManifestOptions` was.
+- [ ] Bump each adapter's `@personaai/sdk` dep to `^0.7.4` and `@personaai/runtime` dep to
+      `^0.9.3`, `pnpm install`, re-run each adapter's test suite + build — **blocked until you
+      publish `@personaai/sdk@0.7.4` and `@personaai/runtime@0.9.3`** (same "verify against the
+      real published package" gate every other bump in this plan used; a temporary local-build
+      overlay already confirmed the underlying code is correct, so this step is pure mechanics
+      once those two are live).
+
+## Publish queue (in this order — later ones depend on earlier ones)
+
+1. `@personaai/sdk@0.7.4` (text `context`) — also carries `0.7.3`'s voice `context` if not
+   already published.
+2. `@personaai/runtime@0.9.3` (needs sdk `0.7.4`) — also carries `0.9.2`'s voice `context` if not
+   already published.
+3. `@personaai/react@0.7.8` (independent of the above two — talks HTTP, not a package dependency;
+   can publish any time, but its CHANGELOG says it "requires" 1-2 for the feature to actually work
+   end to end) — also carries `0.7.7`'s voice `context`/`updateContext` if not already published.
+4. `sdk/adapters/{express,nestjs,nextjs}` — after bumping their deps to the versions from 1-2 and
+   re-verifying (step 6 above).
 
 ---
 
@@ -271,6 +297,49 @@ so nothing about how an Agent references its RCP Sources changed at all.
   call-level `overrideOptions.context` on top (`{ ...resolvedHookContext, ...overrideOptions.context
   }`). Mirrors the existing `agentId`/`resume`/`threadId` hook-default + call-override pattern in
   `SendMessageOverride`.
+
+## Voice extension (added 2026-09-07) — DONE
+
+Not in the original scope: RCP tools are shared verbatim between text and voice
+(`resolveVoiceTools` → `resolveAgentTools` → `resolveRcpSourceTools`, same tool objects), but
+voice's tool invocation (`VoiceSession.js`'s `tool.invoke(fc.args, { signal })`) never went through
+`agentInstance.streamEvents()`, so a mapped param's resolver always had `configurable` empty —
+**any RCP tool with a `paramContextMap` entry hard-failed on every voice call**, unconditionally.
+
+Two options considered for the fix:
+
+- **A — context fixed at `start()`, mirrors `contextOverride`'s voice behavior exactly.** Simple,
+  reuses the exact plumbing just built for `contextOverride`, but the *only* way to refresh it is
+  `stop()` + `start()` a new session — hanging up and redialing, audio cut, new Gemini Live session.
+- **B — same at-connect seed, plus a live `voice.context` WS message to refresh mid-call with no
+  reconnect.** Chosen: a voice call runs up to 15 minutes, long enough for the caller's own context
+  to change, and forcing a hangup just to refresh a value is bad UX for exactly the case ("user
+  navigated") this whole feature exists to handle.
+
+Implementation (Option B):
+
+- [x] `VoiceSession.js` — `this.turnContext` (seeded from constructor's `initialContext`), a new
+      `voice.context` case in `_handleClientMessage` (validates via `agui/turnContext.js`'s shared
+      `validateTurnContext`, merges rather than replaces, logs+ignores on invalid rather than
+      tearing down the session), and `tool.invoke(fc.args ?? {}, { signal, configurable: {
+      turnContext: this.turnContext } })` — read fresh at the moment each tool call actually
+      executes, same live-read contract as text chat's `getConfig()`.
+- [x] `developerVoice.controller.js` / `projectAgentVoiceTest.controller.js` — accept `context` in
+      the request body (same `validateTurnContext` helper), carried in the signed ticket claims
+      alongside `contextOverride`.
+- [x] `voiceGateway.js` — passes `claims.context` as `VoiceSession`'s `initialContext`.
+- [x] `@personaai/sdk` (`0.7.3`) — `CreateVoiceSessionOptions.context`, sent in `createSession()`'s
+      JSON body alongside `contextOverride`.
+- [x] `@personaai/runtime` (`0.9.2`) — new shared `validateTurnContext` in `routeHelpers.ts` (uses
+      `TextEncoder`, not `Buffer` — this package must stay Edge-runtime compatible), wired into the
+      `/voice/sessions` route. Will be reused by the text `chat` route (step 4 below) instead of
+      duplicating the validation logic.
+- [x] `@personaai/react` (`0.7.7`) — `useVoice({ context })` for the seed, plus a new
+      `updateContext(context)` return value that sends `{ type: 'voice.context', context }` over
+      the already-open WebSocket.
+- Adapters — no code changes expected (same generic-passthrough reasoning as `contextOverride`);
+  version bumps pending once `@personaai/sdk@0.7.3` is published (the same "verify against the real
+  published package" gate every other bump in this plan has used).
 
 ## What stays exactly as-is
 

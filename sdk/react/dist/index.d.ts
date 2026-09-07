@@ -268,6 +268,20 @@ interface UseChatOptions {
      * host app still owns starting/stopping the call itself (e.g. `voice.start()`/`voice.stop()`).
      */
     voice?: UseVoiceResult;
+    /**
+     * Caller-supplied context — never shown to the model in any form, unlike
+     * `contextOverride` (see {@link SendMessageOverride.contextOverride}).
+     * Only ever read live by an RCP tool's resolver at the moment it's
+     * actually called. Accepts a plain object, or a getter (`() => object`)
+     * so `sendMessage()` always reads your app's *current* state at send
+     * time — no ref, no effect to keep it in sync as the value changes (e.g.
+     * the user navigates to a different page mid-conversation). Shallow-merged
+     * with any call-level `sendMessage(text, { context })` override, which
+     * wins on key collisions. Must be a flat object of string/number/boolean
+     * values only, capped at 2000 bytes serialized — a violation is rejected
+     * with a 400, not silently truncated or coerced.
+     */
+    context?: Record<string, unknown> | (() => Record<string, unknown>);
 }
 interface SendMessageOverride {
     agentId?: string;
@@ -291,6 +305,13 @@ interface SendMessageOverride {
      * `@personaai/sdk`'s `SendMessageOptions.contextOverride`.
      */
     contextOverride?: string;
+    /**
+     * One-off override for this send only — shallow-merged on top of
+     * `useChat`'s hook-level `context` option (this wins on key collisions).
+     * Same shape/cap/contract as the hook-level option; see
+     * {@link UseChatOptions.context}.
+     */
+    context?: Record<string, unknown>;
 }
 /**
  * `useVoice`'s call state, driven by `voice_activity` events from the
@@ -335,6 +356,16 @@ interface UseVoiceOptions {
      * (rejected with a 400, not truncated).
      */
     contextOverride?: string;
+    /**
+     * Caller-supplied context — never shown to the model, only ever read live
+     * by an RCP tool's resolver. This is the **at-connect seed only**, passed
+     * to `start()`'s ticket-mint call. To refresh it for the rest of an
+     * already-open call (a voice call can run up to 15 minutes — long enough
+     * for the caller's own context to change), use the returned
+     * `updateContext()` instead, which sends it live over the open WebSocket
+     * with no reconnect and no interruption to the audio.
+     */
+    context?: Record<string, unknown>;
 }
 interface UseVoiceResult {
     state: PersonaVoiceState;
@@ -354,6 +385,15 @@ interface UseVoiceResult {
     mute: (muted: boolean) => void;
     /** Sends a typed message mid-call instead of speaking — the agent may reply in either voice or text. */
     sendText: (text: string) => void;
+    /**
+     * Live-refreshes context for the rest of this already-open call — merged
+     * into, not replacing, whatever context is already set (from `start()`'s
+     * `context` option or a previous `updateContext()` call). Sent directly
+     * over the open WebSocket (`{ type: 'voice.context', context }`); a no-op
+     * if the call isn't currently active. No reconnect, no dropped audio —
+     * the next tool call in this session reads the new value.
+     */
+    updateContext: (context: Record<string, unknown>) => void;
 }
 
 interface PersonaContextValue {
