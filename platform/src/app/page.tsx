@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useUser } from "@clerk/nextjs";
 import { BookOpen, Target, Brain } from "@phosphor-icons/react";
 import {
   ChatScroller,
@@ -56,12 +57,24 @@ const MOCK_MESSAGES: ChatMessageData[] = [
 ];
 
 export default function Home() {
+  const { isLoaded, isSignedIn } = useUser();
   const [subagentOpen, setSubagentOpen] = React.useState(false);
   const [workspaceFile, setWorkspaceFile] = React.useState<ChatWorkspaceFile | null>(null);
   const [composerValue, setComposerValue] = React.useState("");
   const [showEmpty, setShowEmpty] = React.useState(false);
   const [showInterruptClarify, setShowInterruptClarify] = React.useState(true);
   const [showInterruptHitl, setShowInterruptHitl] = React.useState(true);
+
+  // proxy.ts already redirects signed-out visits to /sign-in server-side —
+  // this just covers the brief tick before Clerk finishes loading
+  // client-side, so the demo never flashes before auth resolves.
+  if (!isLoaded || !isSignedIn) {
+    return (
+      <div className="flex h-screen items-center justify-center text-xs text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto flex h-screen max-w-4xl flex-col gap-8 overflow-y-auto p-6">
