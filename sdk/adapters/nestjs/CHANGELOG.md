@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.9 — 2026-09-07
+
+- Bump `@personaai/runtime` to `^0.9.3` and `@personaai/sdk` to `^0.7.4` to pick up the new `context` field on both `POST /chat` and `POST /voice/sessions` (never shown to the model, only ever read live by an RCP tool's resolver — no adapter code change, generic passthrough). Verified against both real published packages — typecheck, tests, and build all clean.
+
 ## 0.1.8 — 2026-09-07
 
 - Bump `@personaai/runtime` to `^0.9.1` and `@personaai/sdk` to `^0.7.2` to pick up the new `contextOverride` field on `POST /voice/sessions` (appends to the Agent's system instruction for that voice call — no adapter code change, generic passthrough). Verified against both real published packages — typecheck, tests, and build all clean.

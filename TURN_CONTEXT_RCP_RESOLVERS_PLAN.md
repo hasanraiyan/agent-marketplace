@@ -236,7 +236,7 @@ fixed earlier as its own small patch, in `0.7.5` — unrelated to this feature, 
 - [x] CHANGELOG + version bump to `0.7.8`, build clean. Doesn't pin `@personaai/runtime`/
       `@personaai/sdk` directly (talks to them over plain HTTP, no package dependency).
 
-### 6. Adapters (`sdk/adapters/express`, `sdk/adapters/nestjs`, `sdk/adapters/nextjs`) — blocked on publish
+### 6. Adapters (`sdk/adapters/express`, `sdk/adapters/nestjs`, `sdk/adapters/nextjs`) — DONE 2026-09-07
 
 - [x] No code changes needed — confirmed (again) each adapter's `translate.ts` passes
       `request.body` through as untyped JSON straight to the runtime's route table; `context`
@@ -244,24 +244,23 @@ fixed earlier as its own small patch, in `0.7.5` — unrelated to this feature, 
 - [x] `nextjs/src/server.ts`'s re-exported type list — checked, `context` doesn't need adding:
       it's a plain field on existing exported option types (`SendMessageOptions`,
       `CreateVoiceSessionOptions`), not a new type of its own like `RcpManifestOptions` was.
-- [ ] Bump each adapter's `@personaai/sdk` dep to `^0.7.4` and `@personaai/runtime` dep to
-      `^0.9.3`, `pnpm install`, re-run each adapter's test suite + build — **blocked until you
-      publish `@personaai/sdk@0.7.4` and `@personaai/runtime@0.9.3`** (same "verify against the
-      real published package" gate every other bump in this plan used; a temporary local-build
-      overlay already confirmed the underlying code is correct, so this step is pure mechanics
-      once those two are live).
+- [x] All three published (`@personaai/sdk@0.7.4`, `@personaai/runtime@0.9.3`,
+      `@personaai/react@0.7.8`) — bumped every adapter's dependency ranges, `pnpm install`'d the
+      real packages, and re-verified: `nextjs` (0.1.14) 35 tests, `express` (0.1.9) 26 tests,
+      `nestjs` (0.1.9) 1 test — typecheck + build clean on all three.
 
-## Publish queue (in this order — later ones depend on earlier ones)
+## Publish queue — ALL DONE 2026-09-07
 
-1. `@personaai/sdk@0.7.4` (text `context`) — also carries `0.7.3`'s voice `context` if not
-   already published.
-2. `@personaai/runtime@0.9.3` (needs sdk `0.7.4`) — also carries `0.9.2`'s voice `context` if not
-   already published.
-3. `@personaai/react@0.7.8` (independent of the above two — talks HTTP, not a package dependency;
-   can publish any time, but its CHANGELOG says it "requires" 1-2 for the feature to actually work
-   end to end) — also carries `0.7.7`'s voice `context`/`updateContext` if not already published.
-4. `sdk/adapters/{express,nestjs,nextjs}` — after bumping their deps to the versions from 1-2 and
-   re-verifying (step 6 above).
+1. `@personaai/sdk@0.7.4` — published.
+2. `@personaai/runtime@0.9.3` — published, bumped + verified against the real `0.7.4`.
+3. `@personaai/react@0.7.8` — published.
+4. `sdk/adapters/{express@0.1.9,nestjs@0.1.9,nextjs@0.1.14}` — deps bumped to the above, verified
+   against the real published packages, not yet published (adapters aren't part of this feature's
+   own publish queue in the same way — publish whenever convenient).
+
+Every layer of this plan (backend, frontend, all 4 SDK/runtime packages, all 3 adapters) is now
+implemented, tested, and live except the 3 adapters themselves, which just need `npm publish`
+whenever you're ready.
 
 ---
 
