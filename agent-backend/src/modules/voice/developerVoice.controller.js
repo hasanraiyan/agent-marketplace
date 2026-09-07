@@ -9,6 +9,7 @@ import threadRepository from '../threads/thread.repository.js';
 import threadService from '../threads/thread.service.js';
 import { mintVoiceTicket } from './voiceTicket.service.js';
 import { resolveVoiceProvider, buildVoiceLiveConfig } from './voice.service.js';
+import { validateTurnContext } from '../agui/turnContext.js';
 import {
   INPUT_SAMPLE_RATE,
   OUTPUT_SAMPLE_RATE,
@@ -65,7 +66,7 @@ class DeveloperVoiceController {
         throw new NotFoundError('Agent ID is required');
       }
 
-      const { contextOverride } = req.body || {};
+      const { contextOverride, context: turnContext } = req.body || {};
       if (contextOverride !== undefined) {
         if (typeof contextOverride !== 'string') {
           throw new BaseError('contextOverride must be a string', 400, 'INVALID_CONTEXT_OVERRIDE');
@@ -78,6 +79,10 @@ class DeveloperVoiceController {
           );
         }
       }
+      // Seeds VoiceSession's initial turnContext (TURN_CONTEXT_RCP_RESOLVERS_PLAN.md's voice
+      // extension) — same validation as text chat's `context` field. Live-refreshable for the
+      // rest of the call via a `voice.context` WS message; this is only the at-connect value.
+      const validatedTurnContext = validateTurnContext(turnContext);
       if (String(agentId) === ARCHITECT_AGENT_ID) {
         // Existence-hiding (AD-07 §29): same not-found shape as any other
         // rejected agentId — never reveals that this id is special.
@@ -175,6 +180,7 @@ class DeveloperVoiceController {
         credentialId: context.credentialId,
         threadId: langGraphThreadId,
         contextOverride,
+        context: validatedTurnContext,
       });
 
       // req.protocol only reports 'https' when Express's `trust proxy` is

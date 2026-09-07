@@ -57,6 +57,18 @@ router.use(developerMachineAuthMiddleware);
  *                   Gemini Live's systemInstruction is fixed for the whole
  *                   call, so a later change requires ending the call and
  *                   starting a new voice session.
+ *               context:
+ *                 type: object
+ *                 additionalProperties:
+ *                   type: [string, number, boolean]
+ *                 description: >
+ *                   Same field/cap/contract as POST /api/v1/developer/agui's
+ *                   context — never shown to the model, only ever read live
+ *                   by an RCP tool's resolver. This is the AT-CONNECT seed
+ *                   only; live-refresh it for the rest of the call by
+ *                   sending { type: "voice.context", context: {...} } over
+ *                   the open WebSocket — merged into, not replacing, the
+ *                   current value.
  *     responses:
  *       200:
  *         description: Ticket issued

@@ -5,6 +5,7 @@ import { loggerService } from '../../utils/index.js';
 import { successFormatter } from '../../utils/formatters/index.js';
 import { mintVoiceTicket } from './voiceTicket.service.js';
 import { resolveVoiceProvider, buildVoiceLiveConfig } from './voice.service.js';
+import { validateTurnContext } from '../agui/turnContext.js';
 import {
   INPUT_SAMPLE_RATE,
   OUTPUT_SAMPLE_RATE,
@@ -30,7 +31,7 @@ class ProjectAgentVoiceTestController {
     const { agentId } = req.params;
 
     try {
-      const { contextOverride } = req.body || {};
+      const { contextOverride, context: turnContext } = req.body || {};
       if (contextOverride !== undefined) {
         if (typeof contextOverride !== 'string') {
           throw new BaseError('contextOverride must be a string', 400, 'INVALID_CONTEXT_OVERRIDE');
@@ -43,6 +44,7 @@ class ProjectAgentVoiceTestController {
           );
         }
       }
+      const validatedTurnContext = validateTurnContext(turnContext);
 
       let agent;
       try {
@@ -80,6 +82,7 @@ class ProjectAgentVoiceTestController {
         membershipRole: context.membershipRole,
         threadId: null,
         contextOverride,
+        context: validatedTurnContext,
       });
 
       // req.protocol only reports 'https' when Express's `trust proxy` is

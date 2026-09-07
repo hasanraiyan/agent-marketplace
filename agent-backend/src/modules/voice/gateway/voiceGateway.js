@@ -201,6 +201,10 @@ async function handleVoiceUpgrade(req, socket, head, url, wss) {
       onTranscriptCommit: transcriptSink
         ? (role, text) => transcriptSink.commit(role, text)
         : null,
+      // At-connect seed for TURN_CONTEXT_RCP_RESOLVERS_PLAN.md's voice
+      // extension — VoiceSession keeps this live-refreshable for the rest
+      // of the call via a `voice.context` client message.
+      initialContext: claims.context,
     });
 
     if (transcriptSink) {

@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { EventType } from '@ag-ui/core';
 import { loggerService } from '../../../utils/index.js';
+import { validateTurnContext } from '../../agui/turnContext.js';
 import { connectGeminiLive } from './geminiLiveClient.js';
 import { frameAudioForClient } from './audioFraming.js';
 import {
@@ -76,7 +77,17 @@ export class VoiceSession {
    * @param {object} params.liveConfig - base LiveConnectConfig from buildVoiceLiveConfig (no sessionResumption.handle yet)
    * @param {Map<string, *>} params.toolsByName - original (unsanitized) executable LangChain tools, keyed by name - the same tools `liveConfig.tools[0].functionDeclarations` declared from a sanitized copy of (voice-agent-plan.md §9)
    */
-  constructor({ clientWs, claims, apiKey, model, voiceName, liveConfig, toolsByName, onTranscriptCommit }) {
+  constructor({
+    clientWs,
+    claims,
+    apiKey,
+    model,
+    voiceName,
+    liveConfig,
+    toolsByName,
+    onTranscriptCommit,
+    initialContext,
+  }) {
     this.clientWs = clientWs;
     this.claims = claims;
     this.apiKey = apiKey;
@@ -84,6 +95,16 @@ export class VoiceSession {
     this.voiceName = voiceName;
     this.liveConfig = liveConfig;
     this.toolsByName = toolsByName || new Map();
+    // TURN_CONTEXT_RCP_RESOLVERS_PLAN.md's voice extension — read live by any
+    // RCP tool's resolver via `configurable.turnContext` at actual invocation
+    // time (see _invokeToolCallWithTimeout), never closed over. Seeded once
+    // from the ticket (developerVoice.controller.js's `context` body field —
+    // "at connect" value), then updatable for the rest of this call via a
+    // `voice.context` client message (see _handleClientMessage) — a call can
+    // run up to 15 minutes, long enough for the caller's own context to
+    // change mid-conversation, and unlike a stale-and-restart there's no
+    // reason to hang up just to refresh a value.
+    this.turnContext = initialContext || undefined;
     // Phase 4 (voice-agent-plan.md §4.3): optional sink callback fired on
     // every FINAL transcript line (user + agent) so the voice conversation
     // can be persisted to the thread's checkpoint. Injected by the gateway
@@ -504,8 +525,16 @@ export class VoiceSession {
       // actually stop early on abort/timeout. Every tool's result is
       // dropped either way (see the `cancelled` check above and the
       // timeout branch below), so correctness never depends on this.
+      //
+      // `configurable.turnContext` is read fresh here (not cached in a local
+      // earlier) so a `voice.context` message that arrived after this call
+      // was queued still lands in time — same live-read contract an RCP
+      // tool's resolver relies on for text chat's `configurable`.
       const result = await Promise.race([
-        tool.invoke(fc.args ?? {}, { signal: controller.signal }),
+        tool.invoke(fc.args ?? {}, {
+          signal: controller.signal,
+          configurable: { turnContext: this.turnContext },
+        }),
         timeoutPromise,
       ]);
 
@@ -642,6 +671,21 @@ export class VoiceSession {
         if (typeof msg.text === 'string' && msg.text.trim()) {
           this._beginTurnIfNeeded();
           this.geminiSession?.sendRealtimeInput({ text: msg.text });
+        }
+        break;
+      case 'voice.context':
+        // Live refresh of turnContext (TURN_CONTEXT_RCP_RESOLVERS_PLAN.md's
+        // voice extension) — the client can send this at any point in the
+        // call to update what an RCP resolver reads, with no reconnect and
+        // no interruption to the live audio. Merged (not replaced), so a
+        // caller updating one key doesn't need to resend every key it set
+        // earlier — same merge semantics as `useVoice`'s hook-level context
+        // getter merging with a per-call override.
+        try {
+          const validated = validateTurnContext(msg.context);
+          this.turnContext = { ...this.turnContext, ...validated };
+        } catch (err) {
+          logger.warn('[Voice] rejected voice.context message', { err: err?.message });
         }
         break;
       case 'voice.end_turn':
