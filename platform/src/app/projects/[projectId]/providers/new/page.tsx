@@ -133,8 +133,8 @@ export default function NewProviderPage() {
                   <FieldLabel htmlFor="type">Provider</FieldLabel>
                   <Select
                     value={formData.type}
-                    onValueChange={(value) => {
-                      setFormData((prev) => ({ ...prev, type: value, baseURL: "", defaultModel: "" }));
+                    onValueChange={(value: string | null) => {
+                      setFormData((prev) => ({ ...prev, type: value ?? "", baseURL: "", defaultModel: "" }));
                       setModels([]);
                     }}
                     required
@@ -182,7 +182,7 @@ export default function NewProviderPage() {
                   </div>
                   <Select
                     value={formData.defaultModel}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, defaultModel: value }))}
+                    onValueChange={(value: string | null) => setFormData((prev) => ({ ...prev, defaultModel: value ?? "" }))}
                     required
                   >
                     <SelectTrigger id="defaultModel">

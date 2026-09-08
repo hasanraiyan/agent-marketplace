@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { getProjects } from "@/lib/api/projects";
+import { getCached, setCached, dedupedFetch, cacheKey } from "@/lib/cache";
 
 interface Project {
   _id: string;
@@ -29,9 +30,25 @@ function ProjectSwitcher({ projectId, projectName }: { projectId: string; projec
   const [projects, setProjects] = React.useState<Project[] | null>(null);
 
   const loadProjects = React.useCallback(() => {
+    const key = cacheKey.projects();
+    const cached = getCached<Project[]>(key);
+    if (cached) {
+      if (!projects) setProjects(cached);
+      // Revalidate in background without flashing loading
+      dedupedFetch(key, () => getProjects().then((r) => r.data?.data || []))
+        .then((data) => {
+          setCached(key, data);
+          setProjects(data);
+        })
+        .catch(() => {});
+      return;
+    }
     if (projects) return;
-    getProjects()
-      .then((res) => setProjects(res.data?.data || []))
+    dedupedFetch(key, () => getProjects().then((res) => res.data?.data || []))
+      .then((data) => {
+        setCached(key, data);
+        setProjects(data);
+      })
       .catch(() => setProjects([]));
   }, [projects]);
 

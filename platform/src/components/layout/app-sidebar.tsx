@@ -35,6 +35,7 @@ import {
 import { ProjectSwitcher } from "@/components/layout/project-switcher";
 import { getProject } from "@/lib/api/projects";
 import { useProfile } from "@/hooks/use-profile";
+import { getCached, setCached, dedupedFetch, cacheKey } from "@/lib/cache";
 
 // Flat, one level deep — every Project resource is a direct sidebar link,
 // not a tab buried inside an overview page. This is the actual fix for
@@ -93,12 +94,20 @@ function AppSidebar({ projectId }: { projectId: string }) {
 
   React.useEffect(() => {
     let cancelled = false;
-    getProject(projectId)
-      .then((res) => {
-        if (!cancelled) setProjectName(res.data?.data?.name || "Project");
+    const key = cacheKey.project(projectId);
+    const cached = getCached<{ name?: string }>(key);
+    if (cached?.name) setProjectName(cached.name);
+
+    dedupedFetch(key, () => getProject(projectId).then((res) => res.data?.data))
+      .then((data) => {
+        if (cancelled) return;
+        if (data) {
+          setCached(key, data);
+          setProjectName(data.name || "Project");
+        }
       })
       .catch(() => {
-        if (!cancelled) setProjectName("Project");
+        if (!cancelled && !cached) setProjectName("Project");
       });
     return () => {
       cancelled = true;

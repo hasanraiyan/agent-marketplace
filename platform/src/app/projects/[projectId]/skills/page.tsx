@@ -20,6 +20,7 @@ export default function SkillsPage() {
       description="Reusable instruction/skill files an Agent can load."
       icon={SparkleIcon}
       fetchItems={() => getProjectSkills(projectId)}
+      cacheKey={`GET /projects/${projectId}/skills`}
       newHref={`/projects/${projectId}/skills/new`}
       getRowHref={(skill) => `/projects/${projectId}/skills/${skill._id}/edit`}
       emptyDescription="Create a Skill to package reusable instructions an Agent can load."

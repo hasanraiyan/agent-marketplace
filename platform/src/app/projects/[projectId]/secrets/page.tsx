@@ -25,6 +25,7 @@ export default function SecretsPage() {
       description="Bearer tokens the REST Tool Builder's Auth tab can reference — values are never shown again after creation."
       icon={LockKeyIcon}
       fetchItems={() => getProjectSecrets(projectId)}
+      cacheKey={`GET /projects/${projectId}/secrets`}
       newHref={`/projects/${projectId}/secrets/new`}
       getRowHref={(secret) => `/projects/${projectId}/secrets/${secret.id ?? secret._id}/edit`}
       emptyDescription="Store a secret to authenticate REST tools without exposing the value in a tool's config."

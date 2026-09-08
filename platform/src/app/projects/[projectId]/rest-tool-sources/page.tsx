@@ -31,6 +31,7 @@ export default function RestToolSourcesPage() {
       description="Hosted manifest URLs — Persona discovers your code-defined REST tools from them, the same way it discovers an MCP server&apos;s tools."
       icon={GlobeSimpleIcon}
       fetchItems={() => getProjectRestToolSources(projectId)}
+      cacheKey={`GET /projects/${projectId}/rest-tool-sources`}
       newHref={`/projects/${projectId}/rest-tool-sources/new`}
       getRowHref={(source) =>
         `/projects/${projectId}/rest-tool-sources/${source._id}/edit`

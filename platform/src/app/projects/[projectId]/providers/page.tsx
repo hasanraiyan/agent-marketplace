@@ -27,6 +27,7 @@ export default function ProvidersPage() {
       description="Model providers an Agent can use — OpenAI, Anthropic, Gemini, DeepSeek or any OpenAI-compatible endpoint."
       icon={CpuIcon}
       fetchItems={() => getProjectProviders(projectId)}
+      cacheKey={`GET /projects/${projectId}/providers`}
       newHref={`/projects/${projectId}/providers/new`}
       getRowHref={(provider) => `/projects/${projectId}/providers/${provider.id ?? provider._id}/edit`}
       emptyDescription="Add a provider (OpenAI, Anthropic, etc.) to power your Agents."

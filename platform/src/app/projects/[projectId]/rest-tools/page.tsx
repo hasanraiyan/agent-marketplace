@@ -43,6 +43,7 @@ export default function RestToolsPage() {
       description="No-code REST tools this Project&apos;s Agents can call."
       icon={HammerIcon}
       fetchItems={() => getProjectRestTools(projectId)}
+      cacheKey={`GET /projects/${projectId}/rest-tools`}
       newHref={`/projects/${projectId}/rest-tools/new`}
       getRowHref={(tool) => `/projects/${projectId}/rest-tools/${tool._id}/edit`}
       emptyDescription="Build a no-code REST tool from a URL, auth, and param mapping."

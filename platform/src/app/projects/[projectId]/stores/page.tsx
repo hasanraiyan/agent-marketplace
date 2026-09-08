@@ -20,6 +20,7 @@ export default function StoresPage() {
       description="Named, scoped mount points assignable to Agents."
       icon={DatabaseIcon}
       fetchItems={() => getProjectStores(projectId)}
+      cacheKey={`GET /projects/${projectId}/stores`}
       newHref={`/projects/${projectId}/stores/new`}
       getRowHref={(store) => `/projects/${projectId}/stores/${store._id}/edit`}
       emptyDescription="Create a Store to give Agents a persistent, scoped place to write data."

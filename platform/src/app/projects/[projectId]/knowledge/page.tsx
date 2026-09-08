@@ -20,6 +20,7 @@ export default function KnowledgePage() {
       description="Knowledge Bases an Agent can search."
       icon={BookOpenIcon}
       fetchItems={() => getProjectKnowledge(projectId)}
+      cacheKey={`GET /projects/${projectId}/knowledge`}
       newHref={`/projects/${projectId}/knowledge/new`}
       getRowHref={(kb) => `/projects/${projectId}/knowledge/${kb._id}`}
       emptyDescription="Create a Knowledge Base and upload documents for your Agents to search."

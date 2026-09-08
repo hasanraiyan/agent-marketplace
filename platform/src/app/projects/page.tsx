@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getProjects } from "@/lib/api/projects";
+import { getCached, setCached, dedupedFetch, cacheKey } from "@/lib/cache";
 
 interface Project {
   _id: string;
@@ -23,11 +24,18 @@ export default function ProjectsPage() {
   const [projects, setProjects] = React.useState<Project[] | null>(null);
 
   React.useEffect(() => {
-    getProjects()
-      .then((res) => {
-        const data: Project[] = res.data?.data || [];
-        // User doesn't want to see the projects list — auto-open the first project.
-        // Keep the list only for the zero-project empty state; otherwise redirect.
+    const key = cacheKey.projects();
+    const cached = getCached<Project[]>(key);
+    if (cached && cached.length > 0) {
+      const firstId = (cached[0] as Project)._id || (cached[0] as Project).id;
+      if (firstId) {
+        router.replace(`/projects/${firstId}`);
+        return;
+      }
+    }
+    dedupedFetch(key, () => getProjects().then((res) => (res.data?.data || []) as Project[]))
+      .then((data) => {
+        setCached(key, data);
         if (data.length > 0) {
           const firstId = (data[0] as Project)._id || (data[0] as Project).id;
           if (firstId) {

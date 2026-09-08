@@ -20,6 +20,7 @@ export default function AgentsPage() {
       description="The Agents this Project can run."
       icon={RobotIcon}
       fetchItems={() => getProjectAgents(projectId)}
+      cacheKey={`GET /projects/${projectId}/agents`}
       newHref={`/projects/${projectId}/agents/new`}
       getRowHref={(agent) => `/projects/${projectId}/agents/${agent._id}/edit`}
       emptyDescription="Create an Agent to start testing it in the Playground."

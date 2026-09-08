@@ -21,6 +21,7 @@ export default function RcpSourcesPage() {
       description="REST Connector Protocol sources an Agent can attach as tools."
       icon={WrenchIcon}
       fetchItems={() => getProjectRcpSources(projectId)}
+      cacheKey={`GET /projects/${projectId}/rcp-sources`}
       newHref={`/projects/${projectId}/rcp-sources/new`}
       getRowHref={(source) => `/projects/${projectId}/rcp-sources/${source._id}/edit`}
       emptyDescription="Register a source URL to give Agents new tools."
