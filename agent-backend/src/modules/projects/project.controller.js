@@ -728,7 +728,8 @@ class ProjectController {
       const url = await mcpService.getOwnerAuthorizationUrl(
         req.params.mcpId,
         undefined,
-        req.projectAdminContext
+        req.projectAdminContext,
+        req.query.returnApp
       );
       res.json({ success: true, data: { url } });
     } catch (error) {

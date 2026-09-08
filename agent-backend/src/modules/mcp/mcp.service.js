@@ -497,7 +497,7 @@ class McpService {
    * unauthenticated callback (never trusting a caller-supplied
    * domain/subject on the callback request itself, AD-02 §16).
    */
-  async getOwnerAuthorizationUrl(id, userId, context = personaExecutionContext(userId)) {
+  async getOwnerAuthorizationUrl(id, userId, context = personaExecutionContext(userId), returnApp) {
     const mcp = await this.getMcpById(id, userId, context);
     if (mcp.authType !== 'oauth') throw new ValidationError('This MCP server does not use OAuth');
     const { codeVerifier, codeChallenge } = generatePkcePair();
@@ -508,6 +508,14 @@ class McpService {
       principalType: context.principalType,
       personaUserId: context.personaUserId ? String(context.personaUserId) : undefined,
       externalUserId: context.externalUserId,
+      // Which Studio app to land back on for a ProjectAdmin flow — the
+      // Persona dashboard and the Developer Platform app (`frontend`'s
+      // /developer/... and `platform`) share this exact same authorize/
+      // callback route (identical ProjectAdmin context), so the callback
+      // can't otherwise tell them apart. Only 'platform' is recognized;
+      // anything else (including undefined, from callers that predate
+      // this param) keeps the original frontend `/developer/...` target.
+      returnApp: returnApp === 'platform' ? 'platform' : undefined,
       codeVerifier,
     });
     return buildAuthorizationUrl({
@@ -559,18 +567,37 @@ class McpService {
     });
     await this._invalidateAgentsUsingMcp(id);
     // Phase 11.5 (PR-66): owner-connect can now be initiated from Developer
-    // Platform (ProjectMachine/ProjectAdmin), not just the Persona
-    // dashboard — land back on the right app/domain. PersonaUser behavior
-    // is byte-for-byte unchanged from before this branch existed. The
-    // Platform app is a separate deployment (platformUrl) with its own
-    // route shape (`/projects/:id/mcps/:mcpId/edit`, no `/developer`
-    // prefix) — do not reuse websiteUrl/`/developer/...` here.
-    const isPersonaUser = callbackContext.principalType === 'PersonaUser';
-    const siteUrl = (isPersonaUser ? config.websiteUrl : config.platformUrl).replace(/\/+$/, '');
-    const redirectPath = isPersonaUser
-      ? '/dashboard/connectors/mcps'
-      : `/projects/${callbackContext.domain}/mcps/${id}/edit`;
-    return `${siteUrl}${redirectPath}?mcpId=${id}&connected=owner`;
+    // Platform (ProjectAdmin), not just the Persona dashboard — land back
+    // on the right app/domain. PersonaUser behavior is byte-for-byte
+    // unchanged from before this branch existed.
+    //
+    // The Persona dashboard (frontend, websiteUrl), the legacy Developer
+    // Studio (also frontend, /developer/...) and the new Developer
+    // Platform app (a separate deployment, platformUrl) all share this one
+    // callback — `decoded.returnApp` (set at authorize time, see
+    // `getOwnerAuthorizationUrl`) is the only thing that tells the last two
+    // apart, since both use an identical ProjectAdmin context.
+    return `${this._ownerRedirectBase({ ...callbackContext, mcpId: id, returnApp: decoded.returnApp })}?mcpId=${id}&connected=owner`;
+  }
+
+  /**
+   * Shared owner-callback redirect target for both the success path
+   * (`handleOwnerCallback`) and the error path (`ownerCallbackErrorRedirect`)
+   * — keeps the PersonaUser / legacy-frontend / platform routing in one
+   * place instead of duplicated per-caller.
+   */
+  _ownerRedirectBase({ principalType, domain, mcpId, returnApp }) {
+    if (principalType === 'PersonaUser') {
+      return `${config.websiteUrl.replace(/\/+$/, '')}/dashboard/connectors/mcps`;
+    }
+    if (returnApp === 'platform') {
+      const base = config.platformUrl.replace(/\/+$/, '');
+      return mcpId ? `${base}/projects/${domain}/mcps/${mcpId}/edit` : `${base}/projects`;
+    }
+    const base = config.websiteUrl.replace(/\/+$/, '');
+    return mcpId
+      ? `${base}/developer/projects/${domain}/mcps/${mcpId}/edit`
+      : `${base}/developer/projects`;
   }
 
   /**
@@ -581,16 +608,22 @@ class McpService {
    * recovered.
    */
   ownerCallbackErrorRedirect(state) {
-    let isPersonaUser = true;
+    let redirectBase;
     try {
       const decoded = verifyOAuthState(state);
-      if (decoded.mode === 'owner') isPersonaUser = decoded.principalType === 'PersonaUser';
+      redirectBase =
+        decoded.mode === 'owner'
+          ? this._ownerRedirectBase({
+              principalType: decoded.principalType,
+              domain: decoded.domain,
+              returnApp: decoded.returnApp,
+            })
+          : undefined;
     } catch {
       // fall through to the Persona dashboard default below
     }
-    const siteUrl = (isPersonaUser ? config.websiteUrl : config.platformUrl).replace(/\/+$/, '');
-    const redirectPath = isPersonaUser ? '/dashboard/connectors/mcps' : '/projects';
-    return `${siteUrl}${redirectPath}?error=oauth_failed`;
+    redirectBase ??= this._ownerRedirectBase({ principalType: 'PersonaUser' });
+    return `${redirectBase}?error=oauth_failed`;
   }
 
   /**

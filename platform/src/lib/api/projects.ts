@@ -153,8 +153,14 @@ export const updateProjectMcp = (projectId: string, mcpId: string, data: unknown
   api.patch(`/projects/${projectId}/mcps/${mcpId}`, data);
 export const deleteProjectMcp = (projectId: string, mcpId: string) =>
   api.delete(`/projects/${projectId}/mcps/${mcpId}`);
+// returnApp=platform tells the backend's shared owner-callback (used by
+// both this app and frontend/'s legacy /developer/... Studio) to land the
+// browser back on THIS app's domain/route shape after OAuth completes —
+// see agent-backend mcp.service.js's `_ownerRedirectBase`.
 export const getProjectMcpOwnerAuthorizeUrl = (projectId: string, mcpId: string) =>
-  api.get(`/projects/${projectId}/mcps/${mcpId}/oauth/owner/authorize`);
+  api.get(`/projects/${projectId}/mcps/${mcpId}/oauth/owner/authorize`, {
+    params: { returnApp: "platform" },
+  });
 export const disconnectProjectMcpOwnerConnection = (projectId: string, mcpId: string) =>
   api.delete(`/projects/${projectId}/mcps/${mcpId}/oauth/owner/connection`);
 export const getProjectMcpUsage = (projectId: string, mcpId: string) =>
