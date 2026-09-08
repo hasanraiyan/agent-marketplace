@@ -208,6 +208,32 @@ usage, and delete-with-usage-guard.
       opening an already-DCR'd MCP to edit always showed the checkbox
       unchecked. Fixed to read the real field; removed the incorrect
       top-level `useDynamicRegistration` from the `Mcp` TS interface.
+- [x] Fixed two more real bugs found live-testing (user hit both directly):
+      1. `invalid_client: The requested OAuth 2.0 Client does not exist` —
+         a regression from the SDK migration. `dynamicClientRegistration`
+         hardcoded `tokenEndpointAuthMethod: 'client_secret_basic'`/`'none'`
+         as literals instead of trusting `token_endpoint_auth_method` from
+         the server's own registration response — RFC 7591 lets the server
+         assign a different method than what was requested. The old
+         hand-rolled client never used Basic auth at all (always POST
+         body), so a wrong guess here was harmless before; the new SDK
+         code actually acts on it, so a wrong guess now fails for real.
+         Fixed: `mcp-oauth-client.js`'s `dynamicClientRegistration` now
+         returns `data.token_endpoint_auth_method || <requested>` instead
+         of a hardcoded literal.
+      2. User caught a second issue in the previous `updateMcp` fix
+         directly: reusing `existing.oauth.clientId` on edit is only safe
+         when the authorization server hasn't changed. If the MCP's URL
+         is edited to point at a different server, the old clientId
+         belongs to the *old* server and reusing it fails downstream with
+         the same confusing `invalid_client: does not exist` once Connect
+         is clicked. Fixed: `updateMcp` now compares the freshly
+         discovered `authorization_endpoint` against the stored one;
+         if they differ, the old clientId/secret/authMethod/ownerToken are
+         all treated as gone (server-scoped, not MCP-scoped) — forcing a
+         clear upfront "provide a new Client ID or enable dynamic
+         registration" validation error instead of a late, confusing
+         provider-side failure.
 - [ ] Re-verify end-to-end: add server → Test Connection → attach to an agent
 
 ---

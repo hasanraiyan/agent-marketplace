@@ -276,7 +276,20 @@ class McpService {
       const discovered = needsDiscovery
         ? await discoverOAuthEndpoints(data.url || existing.url)
         : null;
-      const hasClientId = Boolean(data.oauth?.clientId || existing.oauth?.clientId);
+      // An existing clientId is only valid against the authorization server
+      // it was registered with. If the MCP's URL changed (discovery just ran)
+      // and the resulting authorization_endpoint differs from what's stored,
+      // the old clientId belongs to a different server entirely — reusing it
+      // doesn't fail loudly here, it fails downstream at the OAuth provider
+      // with a confusing "invalid_client: does not exist" once someone clicks
+      // Connect. Treat it as gone so this validates up front instead.
+      const authServerChanged = Boolean(
+        discovered &&
+          existing.oauth?.authorizationEndpoint &&
+          discovered.authorizationEndpoint !== existing.oauth.authorizationEndpoint
+      );
+      const reusableClientId = authServerChanged ? null : existing.oauth?.clientId;
+      const hasClientId = Boolean(data.oauth?.clientId || reusableClientId);
       if (data.useDynamicRegistration && !hasClientId) {
         // createMcp's DCR branch, mirrored here: `updateMcp` previously had
         // no path for this at all, so switching an MCP to OAuth + "Use
@@ -312,13 +325,23 @@ class McpService {
           ownerToken: existing.oauth?.ownerToken || {},
         };
       } else {
-        const clientId = data.oauth?.clientId || existing.oauth?.clientId;
-        if (!clientId) throw new ValidationError('Client ID is required when auth type is oauth');
+        const clientId = data.oauth?.clientId || reusableClientId;
+        if (!clientId) {
+          throw new ValidationError(
+            authServerChanged
+              ? 'This server URL points at a different authorization server — provide a new Client ID (and Secret) for it, or enable dynamic client registration'
+              : 'Client ID is required when auth type is oauth'
+          );
+        }
         // clientSecret is optional -- a public (PKCE-only) client has none to
-        // require, same relaxation as createMcp's manual branch above.
+        // require, same relaxation as createMcp's manual branch above. Never
+        // carry the old secret/auth-method over once the authorization
+        // server has changed — they belonged to the old server's client.
         const clientSecretEncrypted = data.oauth?.clientSecret
           ? encryption.encrypt(data.oauth.clientSecret)
-          : existing.oauth?.clientSecretEncrypted;
+          : authServerChanged
+            ? null
+            : existing.oauth?.clientSecretEncrypted;
         updateData.oauth = {
           clientId,
           clientSecretEncrypted,
@@ -326,11 +349,16 @@ class McpService {
             discovered?.authorizationEndpoint || existing.oauth?.authorizationEndpoint,
           tokenEndpoint: discovered?.tokenEndpoint || existing.oauth?.tokenEndpoint,
           scopes: data.oauth?.scopes?.length ? data.oauth.scopes : existing.oauth?.scopes || [],
-          dynamicallyRegistered: existing.oauth?.dynamicallyRegistered || false,
-          tokenEndpointAuthMethod:
-            existing.oauth?.tokenEndpointAuthMethod ||
-            (clientSecretEncrypted ? 'client_secret_basic' : 'none'),
-          ownerToken: existing.oauth?.ownerToken || {},
+          dynamicallyRegistered: authServerChanged
+            ? false
+            : existing.oauth?.dynamicallyRegistered || false,
+          tokenEndpointAuthMethod: authServerChanged
+            ? clientSecretEncrypted
+              ? 'client_secret_basic'
+              : 'none'
+            : existing.oauth?.tokenEndpointAuthMethod ||
+              (clientSecretEncrypted ? 'client_secret_basic' : 'none'),
+          ownerToken: authServerChanged ? {} : existing.oauth?.ownerToken || {},
         };
       }
     } else if (resolvedAuthType === 'apiKey') {

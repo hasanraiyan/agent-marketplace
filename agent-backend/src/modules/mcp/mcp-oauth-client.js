@@ -58,7 +58,13 @@ export async function dynamicClientRegistration({
       clientId: data.client_id,
       clientSecret: data.client_secret,
       clientSecretExpiresAt: data.client_secret_expires_at || 0,
-      tokenEndpointAuthMethod: 'client_secret_basic',
+      // Trust what the server actually assigned, not what we requested —
+      // RFC 7591 lets the server override the requested
+      // token_endpoint_auth_method, and the old hand-rolled client masked
+      // any mismatch by never using Basic auth at all (always POST body).
+      // The SDK's token exchange DOES act on this field now, so a stale
+      // hardcoded guess here causes real invalid_client failures.
+      tokenEndpointAuthMethod: data.token_endpoint_auth_method || 'client_secret_basic',
     };
   }
 
@@ -70,7 +76,7 @@ export async function dynamicClientRegistration({
     clientId: publicData.client_id,
     clientSecret: null,
     clientSecretExpiresAt: 0,
-    tokenEndpointAuthMethod: 'none',
+    tokenEndpointAuthMethod: publicData.token_endpoint_auth_method || 'none',
   };
 }
 
