@@ -16,10 +16,13 @@ import {
   XIcon,
   MagnifyingGlassIcon,
   GlobeIcon,
+  PencilSimpleIcon,
+  EyeIcon,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { MessageMarkdown } from "@/components/chat/message-markdown";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -67,6 +70,27 @@ function FileIcon({ path, className }: { path: string; className?: string }) {
   return <FileCodeIcon className={className} />;
 }
 
+// Same extension -> fence language mapping used by the chat workspace file
+// panel, so a skill's SKILL.md and bundled files get the same Shiki-backed
+// preview/highlighting instead of a separate renderer.
+const EXTENSION_LANGUAGE_MAP: Record<string, string> = {
+  js: "javascript",
+  jsx: "jsx",
+  ts: "typescript",
+  tsx: "tsx",
+  mjs: "javascript",
+  cjs: "javascript",
+  py: "python",
+  rb: "ruby",
+  sh: "bash",
+  yml: "yaml",
+  md: "markdown",
+};
+
+function fence(content: string, language: string): string {
+  return "```" + language + "\n" + content + "\n```";
+}
+
 // react-resizable-panels' <Panel> silently drops the className prop, so its
 // "hidden sm:flex" visibility can't be CSS-only — this mirrors Tailwind's sm breakpoint in JS.
 function useIsSmUp() {
@@ -98,11 +122,14 @@ export default function SkillsPage() {
   const [showAddFileDialog, setShowAddFileDialog] = React.useState(false);
   const [newFilePath, setNewFilePath] = React.useState("");
   const [mobileExplorerOpen, setMobileExplorerOpen] = React.useState(false);
+  const [viewMode, setViewMode] = React.useState<"edit" | "preview">("edit");
   const isSmUp = useIsSmUp();
 
   const selectedSkill = skills?.find((s) => (s.id ?? s._id) === selectedSkillId) || null;
   const activePath = activeFile ?? "SKILL.md";
   const isSkillMd = activeFile === null;
+  const isMarkdownFile = isSkillMd || /\.(md|markdown)$/i.test(activePath);
+  const fenceLanguage = EXTENSION_LANGUAGE_MAP[activePath.split(".").pop()?.toLowerCase() ?? ""] ?? activePath.split(".").pop()?.toLowerCase() ?? "text";
 
   const fetchSkills = React.useCallback(async () => {
     const key = cacheKey.resource(projectId, "skills");
@@ -514,6 +541,24 @@ export default function SkillsPage() {
                   </div>
                 )}
                 <div className="flex-1" />
+                <div className="flex shrink-0 items-center gap-0.5 border-l px-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("edit")}
+                    className={`flex items-center gap-1 rounded-none px-2 py-1 text-[11px] ${viewMode === "edit" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/60"}`}
+                  >
+                    <PencilSimpleIcon className="size-3" />
+                    <span className="hidden sm:inline">Edit</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("preview")}
+                    className={`flex items-center gap-1 rounded-none px-2 py-1 text-[11px] ${viewMode === "preview" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/60"}`}
+                  >
+                    <EyeIcon className="size-3" />
+                    <span className="hidden sm:inline">Preview</span>
+                  </button>
+                </div>
                 <div className="hidden items-center gap-1 pr-2 sm:flex">
                   <Badge variant="outline" className="text-[10px]">
                     {selectedSkill.isPublic ? "Public" : "Private"}
@@ -534,14 +579,20 @@ export default function SkillsPage() {
               {/* Editor */}
               <div className="flex flex-1 flex-col overflow-hidden">
                 <div className="flex flex-1 overflow-hidden">
-                  <Textarea
-                    value={editorContent}
-                    onChange={(e) => handleEditorChange(e.target.value)}
-                    placeholder={isSkillMd ? "# Skill Title\n\n## Overview\n\nWrite the full instructions an Agent should follow…" : ""}
-                    className="h-full min-h-0 w-full flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words rounded-none border-0 bg-transparent p-4 font-mono text-sm leading-relaxed focus-visible:ring-0 focus-visible:ring-offset-0"
-                    style={{ fieldSizing: "fixed" } as React.CSSProperties}
-                    spellCheck={false}
-                  />
+                  {viewMode === "preview" ? (
+                    <div className="h-full min-h-0 w-full flex-1 overflow-y-auto p-4">
+                      <MessageMarkdown content={isMarkdownFile ? editorContent : fence(editorContent, fenceLanguage)} />
+                    </div>
+                  ) : (
+                    <Textarea
+                      value={editorContent}
+                      onChange={(e) => handleEditorChange(e.target.value)}
+                      placeholder={isSkillMd ? "# Skill Title\n\n## Overview\n\nWrite the full instructions an Agent should follow…" : ""}
+                      className="h-full min-h-0 w-full flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words rounded-none border-0 bg-transparent p-4 font-mono text-sm leading-relaxed focus-visible:ring-0 focus-visible:ring-offset-0"
+                      style={{ fieldSizing: "fixed" } as React.CSSProperties}
+                      spellCheck={false}
+                    />
+                  )}
 
                   {/* Right preview - hidden on small, visible on xl */}
                   <div className="hidden w-[320px] shrink-0 border-l bg-muted/5 xl:flex xl:flex-col">
