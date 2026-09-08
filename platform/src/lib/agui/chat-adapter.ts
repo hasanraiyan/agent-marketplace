@@ -115,6 +115,7 @@ function mapToolCall(tool: HookToolCall): ChatToolCall {
     result: tool.resultText || undefined,
     status: tool.status === "running" ? ("running" as const) : ("done" as const),
     subagentMessages: subagentMessagesFor(tool),
+    mcpApp: tool.mcpApp,
   };
 }
 

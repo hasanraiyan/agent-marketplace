@@ -13,3 +13,4 @@ export { ChatComposer, VoiceModeIcon } from "./chat-composer";
 export { VoiceIndicator } from "./voice-indicator";
 export { CopyButton } from "./copy-button";
 export { ChatEmptyState, type ChatStarterPrompt } from "./chat-empty-state";
+export { McpAppRenderer, type McpAppRendererProps } from "./mcp-app-renderer";

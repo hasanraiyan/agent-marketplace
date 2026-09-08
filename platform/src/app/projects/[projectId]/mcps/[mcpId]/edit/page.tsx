@@ -11,6 +11,7 @@ import {
   ClockIcon,
   CopyIcon,
   DatabaseIcon,
+  EyeIcon,
   FingerprintIcon,
   LinkIcon,
   LinkBreakIcon,
@@ -23,6 +24,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { McpAppRenderer } from "@/components/chat/mcp-app-renderer";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -76,6 +85,7 @@ interface McpResourceTemplate {
   name?: string;
   description?: string;
   mimeType?: string;
+  toolName?: string;
 }
 
 interface Mcp {
@@ -113,6 +123,7 @@ export default function EditMcpPage() {
   const [mcp, setMcp] = React.useState<Mcp | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
+  const [previewTemplate, setPreviewTemplate] = React.useState<McpResourceTemplate | null>(null);
 
   const [formData, setFormData] = React.useState({
     name: "",
@@ -708,10 +719,22 @@ export default function EditMcpPage() {
             <CardContent className="flex flex-col divide-y divide-border text-xs">
               {mcp.resourceTemplates && mcp.resourceTemplates.length > 0 ? (
                 mcp.resourceTemplates.map((t) => (
-                  <div key={t.uriTemplate} className="flex flex-col gap-0.5 py-2">
-                    <span className="font-mono font-medium">{t.name || t.uriTemplate}</span>
-                    {t.description && <span className="text-muted-foreground">{t.description}</span>}
-                    <span className="truncate font-mono text-[10px] text-muted-foreground">{t.uriTemplate}</span>
+                  <div key={t.uriTemplate} className="flex items-start justify-between gap-2 py-2">
+                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                      <span className="font-mono font-medium">{t.name || t.uriTemplate}</span>
+                      {t.description && <span className="text-muted-foreground">{t.description}</span>}
+                      <span className="truncate font-mono text-[10px] text-muted-foreground">{t.uriTemplate}</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      className="shrink-0 gap-1 text-[11px]"
+                      onClick={() => setPreviewTemplate(t)}
+                    >
+                      <EyeIcon className="size-3" />
+                      Preview
+                    </Button>
                   </div>
                 ))
               ) : (
@@ -792,6 +815,35 @@ export default function EditMcpPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!previewTemplate} onOpenChange={(open) => !open && setPreviewTemplate(null)}>
+        <DialogContent className="sm:max-w-4xl w-full max-h-[92vh] overflow-hidden flex flex-col p-4">
+          {previewTemplate && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 font-mono text-sm">
+                  <AppWindowIcon className="size-4 text-primary" />
+                  {previewTemplate.name || "Widget Preview"}
+                </DialogTitle>
+                <DialogDescription className="font-mono text-xs text-muted-foreground truncate">
+                  {previewTemplate.uriTemplate}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="w-full flex-1 min-h-[480px] mt-2 overflow-hidden">
+                <McpAppRenderer
+                  projectId={projectId}
+                  mcpId={mcpId}
+                  resourceUri={previewTemplate.uriTemplate}
+                  toolName={previewTemplate.name || previewTemplate.toolName}
+                  height={500}
+                  expanded={false}
+                />
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

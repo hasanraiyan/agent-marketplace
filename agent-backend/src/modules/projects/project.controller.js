@@ -778,6 +778,49 @@ class ProjectController {
     }
   }
 
+  async readMcpResource(req, res, next) {
+    try {
+      const { uri } = req.query;
+      if (!uri) {
+        return res.status(400).json({ success: false, message: 'Resource URI is required' });
+      }
+      const content = await mcpService.readResource(
+        req.params.mcpId,
+        undefined,
+        uri,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: content });
+    } catch (error) {
+      if (error.message === 'MCP server not found') {
+        return res.status(404).json({ success: false, message: 'MCP server not found' });
+      }
+      next(error);
+    }
+  }
+
+  async callMcpTool(req, res, next) {
+    try {
+      const { name, arguments: toolArgs } = req.body;
+      if (!name) {
+        return res.status(400).json({ success: false, message: 'Tool name is required' });
+      }
+      const result = await mcpService.callTool(
+        req.params.mcpId,
+        undefined,
+        name,
+        toolArgs,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      if (error.message === 'MCP server not found') {
+        return res.status(404).json({ success: false, message: 'MCP server not found' });
+      }
+      next(error);
+    }
+  }
+
   /**
    * Developer Platform (Phase 11.5, PR-61): full create/edit/delete for a
    * Project's own Agents from Developer Studio. Same reasoning as PR-60 —

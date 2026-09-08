@@ -3,6 +3,7 @@
 import * as React from "react";
 import { ItemGroup } from "@/components/ui/item";
 import { ToolCallCard } from "./tool-call-card";
+import { McpAppRenderer } from "./mcp-app-renderer";
 import type { ChatToolCall, ChatTodo } from "./types";
 
 function parsePresentedFilePath(result: string | undefined): string | null {
@@ -21,11 +22,13 @@ function parsePresentedFilePath(result: string | undefined): string | null {
 function ToolCallTrace({
   toolCalls,
   todos,
+  projectId,
   onOpenSubagent,
   onOpenWorkspaceFile,
 }: {
   toolCalls: ChatToolCall[];
   todos?: ChatTodo[];
+  projectId?: string;
   onOpenSubagent?: (toolCallId: string) => void;
   onOpenWorkspaceFile?: (path: string) => void;
 }) {
@@ -47,18 +50,52 @@ function ToolCallTrace({
 
   if (!toolCalls.length) return null;
 
-  return (
-    <ItemGroup className="mb-2 gap-1.5!">
-      {toolCalls.map((tc) => (
-        <ToolCallCard
-          key={tc.id}
-          toolCall={tc}
-          todos={todos}
-          onOpenSubagent={onOpenSubagent}
-        />
-      ))}
-    </ItemGroup>
-  );
+  // Group consecutive regular tool calls together in ItemGroup,
+  // and render MCP App tool calls as prominent standalone blocks.
+  const elements: React.ReactNode[] = [];
+  let currentGroup: ChatToolCall[] = [];
+
+  const flushGroup = () => {
+    if (currentGroup.length > 0) {
+      const groupKey = currentGroup[0].id;
+      elements.push(
+        <ItemGroup key={`group-${groupKey}`} className="gap-1.5!">
+          {currentGroup.map((tc) => (
+            <ToolCallCard
+              key={tc.id}
+              toolCall={tc}
+              todos={todos}
+              onOpenSubagent={onOpenSubagent}
+            />
+          ))}
+        </ItemGroup>
+      );
+      currentGroup = [];
+    }
+  };
+
+  for (const tc of toolCalls) {
+    if (tc.mcpApp?.resourceUri && tc.mcpApp?.mcpId) {
+      flushGroup();
+      elements.push(
+        <div key={`mcp-app-${tc.id}`} className="w-full my-1.5">
+          <McpAppRenderer
+            projectId={projectId || ""}
+            mcpId={tc.mcpApp.mcpId}
+            resourceUri={tc.mcpApp.resourceUri}
+            toolName={tc.name}
+            tool={tc}
+          />
+        </div>
+      );
+    } else {
+      currentGroup.push(tc);
+    }
+  }
+  flushGroup();
+
+  return <div className="flex flex-col gap-1.5 mb-2">{elements}</div>;
 }
 
 export { ToolCallTrace };
+

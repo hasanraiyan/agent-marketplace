@@ -168,6 +168,15 @@ export const disconnectProjectMcpOwnerConnection = (projectId: string, mcpId: st
 // Project-admin equivalent of the Persona dashboard's "Test Connection" button.
 export const testProjectMcpConnection = (projectId: string, mcpId: string) =>
   api.post(`/projects/${projectId}/mcps/${mcpId}/test`);
+export const readProjectMcpResource = (projectId: string, mcpId: string, uri: string) =>
+  api.get(`/projects/${projectId}/mcps/${mcpId}/resource`, { params: { uri } });
+export const callProjectMcpTool = (
+  projectId: string,
+  mcpId: string,
+  name: string,
+  args?: Record<string, unknown>
+) =>
+  api.post(`/projects/${projectId}/mcps/${mcpId}/call-tool`, { name, arguments: args });
 export const getProjectMcpUsage = (projectId: string, mcpId: string) =>
   api.get(`/projects/${projectId}/mcps/${mcpId}/usage`);
 export const bulkDeleteProjectMcps = (projectId: string, ids: string[]) =>

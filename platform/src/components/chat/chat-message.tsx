@@ -18,11 +18,13 @@ import type { ChatMessageData, ChatTodo } from "./types";
 function ChatMessage({
   message,
   todos,
+  projectId,
   onOpenSubagent,
   onOpenWorkspaceFile,
 }: {
   message: ChatMessageData;
   todos?: ChatTodo[];
+  projectId?: string;
   onOpenSubagent?: (toolCallId: string) => void;
   onOpenWorkspaceFile?: (path: string) => void;
 }) {
@@ -49,6 +51,7 @@ function ChatMessage({
           <ToolCallTrace
             toolCalls={message.toolCalls!}
             todos={todos}
+            projectId={projectId}
             onOpenSubagent={onOpenSubagent}
             onOpenWorkspaceFile={onOpenWorkspaceFile}
           />

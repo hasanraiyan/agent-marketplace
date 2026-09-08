@@ -208,6 +208,7 @@ function AgentChat({
                     <ChatMessage
                       message={a}
                       todos={turn.todos.length ? turn.todos : undefined}
+                      projectId={projectId}
                       onOpenSubagent={setOpenToolId}
                       onOpenWorkspaceFile={handleOpenWorkspaceFile}
                     />

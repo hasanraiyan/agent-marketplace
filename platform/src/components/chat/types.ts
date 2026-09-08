@@ -18,6 +18,8 @@ export interface ChatToolCall {
   status: "running" | "done" | "error";
   /** Present only for the `task` (subagent) tool — its own nested timeline. */
   subagentMessages?: ChatMessageData[];
+  /** Present when this tool is backed by an interactive MCP Ext App. */
+  mcpApp?: { resourceUri: string; mcpId: string };
 }
 
 export interface ChatTodo {

@@ -12,6 +12,7 @@
     "@ag-ui/client": "^0.0.52",
     "@base-ui/react": "^1.8.0",
     "@clerk/nextjs": "^7.9.1",
+    "@modelcontextprotocol/ext-apps": "^2.0.0",
     "@phosphor-icons/react": "^2.1.10",
     "@shadcn/react": "^0.3.1",
     "@streamdown/code": "^1.1.1",

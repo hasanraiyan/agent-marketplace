@@ -705,6 +705,66 @@ adminRouter.delete(
 );
 adminRouter.post('/mcps/:mcpId/test', mutateLimiter, projectController.testMcpConnection);
 
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/mcps/{mcpId}/resource:
+ *   get:
+ *     tags: [Projects]
+ *     summary: Read an MCP resource for a Project-owned connector
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: mcpId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: uri
+ *         in: query
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Resource content }
+ *       400: { description: Missing uri }
+ *       404: { description: MCP server not found or unauthorized }
+ */
+adminRouter.get('/mcps/:mcpId/resource', projectController.readMcpResource);
+
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/mcps/{mcpId}/call-tool:
+ *   post:
+ *     tags: [Projects]
+ *     summary: Call an MCP tool for a Project-owned connector
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: mcpId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name]
+ *             properties:
+ *               name: { type: string }
+ *               arguments: { type: object }
+ *     responses:
+ *       200: { description: Tool result }
+ *       400: { description: Missing tool name }
+ *       404: { description: MCP server not found or unauthorized }
+ */
+adminRouter.post('/mcps/:mcpId/call-tool', mutateLimiter, projectController.callMcpTool);
+
 adminRouter.post(
   '/secrets',
   mutateLimiter,
