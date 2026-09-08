@@ -18,11 +18,18 @@ import {
   GlobeIcon,
   PencilSimpleIcon,
   EyeIcon,
+  DotsThreeVerticalIcon,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CodeEditor } from "@/components/ui/code-editor";
 import { MessageMarkdown } from "@/components/chat/message-markdown";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -62,6 +69,22 @@ interface Skill {
   files?: SkillFile[];
   createdAt?: string;
   updatedAt?: string;
+}
+
+// An open editor tab. Content lives here, independent of any other tab, so
+// switching between skills/files never touches an unsaved buffer — same
+// model as VS Code: a file only leaves memory when its tab is closed
+// (prompting first if dirty) or explicitly saved.
+interface OpenTab {
+  key: string; // `${skillId}::${path ?? ""}`
+  skillId: string;
+  path: string | null; // null = SKILL.md
+  content: string;
+  isDirty: boolean;
+}
+
+function tabKey(skillId: string, path: string | null) {
+  return `${skillId}::${path ?? ""}`;
 }
 
 function FileIcon({ path, className }: { path: string; className?: string }) {
@@ -163,24 +186,29 @@ export default function SkillsPage() {
   const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
-  const [selectedSkillId, setSelectedSkillId] = React.useState<string | null>(null);
-  const [activeFile, setActiveFile] = React.useState<string | null>(null); // null = SKILL.md
-  const [editorContent, setEditorContent] = React.useState("");
-  const [isDirty, setIsDirty] = React.useState(false);
+  const [openTabs, setOpenTabs] = React.useState<OpenTab[]>([]);
+  const [activeTabKey, setActiveTabKey] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [showNewDialog, setShowNewDialog] = React.useState(false);
   const [newSkillName, setNewSkillName] = React.useState("");
   const [showAddFileDialog, setShowAddFileDialog] = React.useState(false);
   const [newFilePath, setNewFilePath] = React.useState("");
+  const [addFileSkillId, setAddFileSkillId] = React.useState<string | null>(null);
   const [mobileExplorerOpen, setMobileExplorerOpen] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<"edit" | "preview">("edit");
   const isSmUp = useIsSmUp();
+  const didAutoOpenRef = React.useRef(false);
 
-  const selectedSkill = skills?.find((s) => (s.id ?? s._id) === selectedSkillId) || null;
-  const activePath = activeFile ?? "SKILL.md";
-  const isSkillMd = activeFile === null;
+  const activeTab = openTabs.find((t) => t.key === activeTabKey) ?? null;
+  const activeSkill = activeTab ? (skills?.find((s) => (s.id ?? s._id) === activeTab.skillId) ?? null) : null;
+  const isSkillMd = activeTab ? activeTab.path === null : false;
+  const activePath = activeTab ? (activeTab.path ?? "SKILL.md") : "";
   const isMarkdownFile = isSkillMd || /\.(md|markdown)$/i.test(activePath);
   const fenceLanguage = EXTENSION_LANGUAGE_MAP[activePath.split(".").pop()?.toLowerCase() ?? ""] ?? activePath.split(".").pop()?.toLowerCase() ?? "text";
+  const editorContent = activeTab?.content ?? "";
+  const isDirty = activeTab?.isDirty ?? false;
+  const openSkillIds = new Set(openTabs.map((t) => t.skillId));
+  const showSkillLabelInTabs = openSkillIds.size > 1;
 
   const fetchSkills = React.useCallback(async () => {
     const key = cacheKey.resource(projectId, "skills");
@@ -209,27 +237,19 @@ export default function SkillsPage() {
     fetchSkills();
   }, [fetchSkills]);
 
+  // Auto-open the first skill's SKILL.md once, the first time skills load —
+  // doesn't fight the user if they later close every tab.
   React.useEffect(() => {
-    if (skills && skills.length > 0 && !selectedSkillId) {
+    if (!didAutoOpenRef.current && skills && skills.length > 0) {
+      didAutoOpenRef.current = true;
       const first = skills[0];
       const id = first.id ?? first._id!;
-      setSelectedSkillId(id);
       setExpanded((prev) => new Set(prev).add(id));
-      setActiveFile(null);
-      setEditorContent(first.instructions || "");
-      setIsDirty(false);
+      const key = tabKey(id, null);
+      setOpenTabs((prev) => (prev.length === 0 ? [{ key, skillId: id, path: null, content: first.instructions || "", isDirty: false }] : prev));
+      setActiveTabKey((prev) => prev ?? key);
     }
-  }, [skills, selectedSkillId]);
-
-  React.useEffect(() => {
-    if (!selectedSkill) return;
-    if (isSkillMd) setEditorContent(selectedSkill.instructions || "");
-    else {
-      const f = selectedSkill.files?.find((fi) => fi.path === activeFile);
-      setEditorContent(f?.content || "");
-    }
-    setIsDirty(false);
-  }, [selectedSkillId, activeFile, selectedSkill, isSkillMd]);
+  }, [skills]);
 
   const filtered = React.useMemo(() => {
     if (!skills) return [];
@@ -247,40 +267,53 @@ export default function SkillsPage() {
     });
   };
 
-  const handleSelectSkill = (skill: Skill) => {
-    const id = skill.id ?? skill._id!;
-    setSelectedSkillId(id);
-    setExpanded((prev) => new Set(prev).add(id));
-    setActiveFile(null);
+  // Opens a file/SKILL.md in its own tab (reusing one already open for the
+  // same skill+path instead of duplicating it) and focuses it.
+  const openFile = (skill: Skill, path: string | null) => {
+    const skillId = skill.id ?? skill._id!;
+    const key = tabKey(skillId, path);
+    setExpanded((prev) => new Set(prev).add(skillId));
     setMobileExplorerOpen(false);
+    setOpenTabs((prev) => {
+      if (prev.some((t) => t.key === key)) return prev;
+      const content = path === null ? (skill.instructions || "") : (skill.files?.find((f) => f.path === path)?.content ?? "");
+      return [...prev, { key, skillId, path, content, isDirty: false }];
+    });
+    setActiveTabKey(key);
   };
 
-  const handleSelectFile = (skill: Skill, path: string | null) => {
-    const id = skill.id ?? skill._id!;
-    setSelectedSkillId(id);
-    setExpanded((prev) => new Set(prev).add(id));
-    setActiveFile(path);
-    setMobileExplorerOpen(false);
+  const closeTab = (key: string) => {
+    const tab = openTabs.find((t) => t.key === key);
+    if (tab?.isDirty && !confirm(`Discard unsaved changes to ${tab.path ?? "SKILL.md"}?`)) return;
+    const idx = openTabs.findIndex((t) => t.key === key);
+    const next = openTabs.filter((t) => t.key !== key);
+    setOpenTabs(next);
+    if (activeTabKey === key) {
+      const fallback = next[idx] ?? next[idx - 1] ?? null;
+      setActiveTabKey(fallback ? fallback.key : null);
+    }
   };
 
   const handleEditorChange = (value: string) => {
-    setEditorContent(value);
-    setIsDirty(true);
+    if (!activeTabKey) return;
+    setOpenTabs((prev) => prev.map((t) => (t.key === activeTabKey ? { ...t, content: value, isDirty: true } : t)));
   };
 
   const handleSave = async () => {
-    if (!selectedSkill) return;
+    if (!activeTab || !activeSkill) return;
     setSaving(true);
     try {
-      const payload: Record<string, unknown> = isSkillMd
-        ? { instructions: editorContent }
-        : { files: selectedSkill.files?.map((f) => (f.path === activeFile ? { ...f, content: editorContent } : f)) };
-      const id = selectedSkill.id ?? selectedSkill._id!;
-      const res = await updateProjectSkill(projectId, id, payload);
+      const isMd = activeTab.path === null;
+      const payload: Record<string, unknown> = isMd
+        ? { instructions: activeTab.content }
+        : { files: activeSkill.files?.map((f) => (f.path === activeTab.path ? { ...f, content: activeTab.content } : f)) };
+      const skillId = activeTab.skillId;
+      const res = await updateProjectSkill(projectId, skillId, payload);
       const updated = res.data?.data as Skill;
-      setSkills((prev) => (prev ?? []).map((s) => ((s.id ?? s._id) === id ? { ...s, ...payload, ...updated } : s)));
+      setSkills((prev) => (prev ?? []).map((s) => ((s.id ?? s._id) === skillId ? { ...s, ...payload, ...updated } : s)));
       deleteCachedByPrefix(cacheKey.resource(projectId, "skills"));
-      setIsDirty(false);
+      const savedKey = activeTab.key;
+      setOpenTabs((prev) => prev.map((t) => (t.key === savedKey ? { ...t, isDirty: false } : t)));
     } catch (e) {
       console.error(e);
     } finally {
@@ -304,8 +337,7 @@ export default function SkillsPage() {
       const created = res.data?.data as Skill;
       deleteCachedByPrefix(cacheKey.resource(projectId, "skills"));
       setSkills((prev) => [created, ...(prev ?? [])]);
-      setSelectedSkillId(created.id ?? created._id!);
-      setExpanded((prev) => new Set(prev).add(created.id ?? created._id!));
+      openFile(created, null);
       setShowNewDialog(false);
       setNewSkillName("");
     } catch (e) {
@@ -320,9 +352,10 @@ export default function SkillsPage() {
       await deleteProjectSkill(projectId, id);
       deleteCachedByPrefix(cacheKey.resource(projectId, "skills"));
       setSkills((prev) => (prev ?? []).filter((s) => (s.id ?? s._id) !== id));
-      if (selectedSkillId === id) {
-        setSelectedSkillId(skills?.[0] ? (skills[0].id ?? skills[0]._id!) : null);
-        setActiveFile(null);
+      const remaining = openTabs.filter((t) => t.skillId !== id);
+      setOpenTabs(remaining);
+      if (activeTab?.skillId === id) {
+        setActiveTabKey(remaining[0]?.key ?? null);
       }
     } catch (e) {
       console.error(e);
@@ -331,19 +364,45 @@ export default function SkillsPage() {
 
   const handleCreateFile = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedSkill) return;
+    const skill = skills?.find((s) => (s.id ?? s._id) === addFileSkillId);
+    if (!skill) return;
     const trimmed = newFilePath.trim().replace(/\\/g, "/").replace(/^\.\//, "");
     if (!trimmed || trimmed.toUpperCase() === "SKILL.MD") return;
-    const id = selectedSkill.id ?? selectedSkill._id!;
-    const newFiles = [...(selectedSkill.files ?? []), { path: trimmed, content: "" }];
+    const id = skill.id ?? skill._id!;
+    const newFiles = [...(skill.files ?? []), { path: trimmed, content: "" }];
     setSkills((prev) => (prev ?? []).map((s) => ((s.id ?? s._id) === id ? { ...s, files: newFiles } : s)));
-    setActiveFile(trimmed);
-    setIsDirty(true);
+    openFile({ ...skill, files: newFiles }, trimmed);
     setShowAddFileDialog(false);
     setNewFilePath("");
+    setAddFileSkillId(null);
   };
 
-  const renderFileNodes = (nodes: FileTreeNode[], skill: Skill, isSkillSelected: boolean, depth: number): React.ReactNode =>
+  // No dedicated per-file DELETE route exists on the backend — but PATCH
+  // /skills/:id does a true $set replace of the whole `files` array
+  // server-side (confirmed against skill.repository.js), so resending the
+  // array without this entry is a correct, atomic delete, same mechanism
+  // "Add file" already uses.
+  const handleDeleteFile = async (skill: Skill, path: string) => {
+    if (!confirm(`Delete file "${path}"?`)) return;
+    const id = skill.id ?? skill._id!;
+    const newFiles = (skill.files ?? []).filter((f) => f.path !== path);
+    try {
+      const res = await updateProjectSkill(projectId, id, { files: newFiles });
+      const updated = res.data?.data as Skill;
+      setSkills((prev) => (prev ?? []).map((s) => ((s.id ?? s._id) === id ? { ...s, files: newFiles, ...updated } : s)));
+      deleteCachedByPrefix(cacheKey.resource(projectId, "skills"));
+      const key = tabKey(id, path);
+      const remaining = openTabs.filter((t) => t.key !== key);
+      setOpenTabs(remaining);
+      if (activeTabKey === key) {
+        setActiveTabKey(remaining[0]?.key ?? null);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const renderFileNodes = (nodes: FileTreeNode[], skill: Skill, skillId: string, depth: number): React.ReactNode =>
     nodes.map((node) => {
       const indent = { paddingLeft: `${8 + depth * 12}px` };
       if (!node.file) {
@@ -353,22 +412,41 @@ export default function SkillsPage() {
               <FolderIcon className="size-3.5 shrink-0" />
               <span className="truncate">{node.name}</span>
             </div>
-            {node.children && renderFileNodes(node.children, skill, isSkillSelected, depth + 1)}
+            {node.children && renderFileNodes(node.children, skill, skillId, depth + 1)}
           </div>
         );
       }
-      const isActive = isSkillSelected && activeFile === node.path;
+      const isActive = activeTabKey === tabKey(skillId, node.path);
       return (
-        <button
-          key={node.path}
-          type="button"
-          style={indent}
-          onClick={() => handleSelectFile(skill, node.path)}
-          className={`flex items-center gap-1.5 truncate rounded-none py-1 pr-2 text-left text-xs ${isActive ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"}`}
-        >
-          <FileIcon path={node.path} className="size-3.5 shrink-0" />
-          <span className="truncate">{node.name}</span>
-        </button>
+        <div key={node.path} className="group flex items-center gap-0.5">
+          <button
+            type="button"
+            style={indent}
+            onClick={() => openFile(skill, node.path!)}
+            className={`flex flex-1 items-center gap-1.5 truncate rounded-none py-1 pr-1 text-left text-xs ${isActive ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"}`}
+          >
+            <FileIcon path={node.path} className="size-3.5 shrink-0" />
+            <span className="truncate">{node.name}</span>
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  type="button"
+                  className="mr-1 flex size-5 shrink-0 items-center justify-center rounded-none text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100 data-popup-open:opacity-100"
+                >
+                  <DotsThreeVerticalIcon className="size-3.5" />
+                </button>
+              }
+            />
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem variant="destructive" onClick={() => handleDeleteFile(skill, node.file!.path)}>
+                <TrashIcon className="size-3.5" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       );
     });
 
@@ -378,8 +456,8 @@ export default function SkillsPage() {
     ) : (
       filtered.map((skill) => {
         const id = skill.id ?? skill._id!;
-        const isSelected = selectedSkillId === id;
         const isExpanded = expanded.has(id);
+        const isSkillMdActive = activeTabKey === tabKey(id, null);
         return (
           <div key={id} className="flex flex-col">
             <div className="group flex items-center gap-1">
@@ -392,7 +470,7 @@ export default function SkillsPage() {
               </button>
               <button
                 type="button"
-                onClick={() => handleSelectSkill(skill)}
+                onClick={() => openFile(skill, null)}
                 className="flex flex-1 items-center gap-1.5 truncate rounded-none px-1 py-1 text-left text-xs hover:bg-muted/60"
               >
                 {isExpanded ? <FolderOpenIcon className="size-3.5 shrink-0" /> : <FolderIcon className="size-3.5 shrink-0" />}
@@ -411,17 +489,17 @@ export default function SkillsPage() {
               <div className="ml-4 flex flex-col border-l pl-2">
                 <button
                   type="button"
-                  onClick={() => handleSelectFile(skill, null)}
-                  className={`flex items-center gap-1.5 truncate rounded-none px-2 py-1 text-left text-xs ${isSelected && activeFile === null ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"}`}
+                  onClick={() => openFile(skill, null)}
+                  className={`flex items-center gap-1.5 truncate rounded-none px-2 py-1 text-left text-xs ${isSkillMdActive ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"}`}
                 >
                   <FileTextIcon className="size-3.5 shrink-0" />
                   <span className="truncate">SKILL.md</span>
                 </button>
-                {renderFileNodes(buildFileTree(skill.files ?? []), skill, isSelected, 0)}
+                {renderFileNodes(buildFileTree(skill.files ?? []), skill, id, 0)}
                 <button
                   type="button"
                   onClick={() => {
-                    handleSelectSkill(skill);
+                    setAddFileSkillId(id);
                     setShowAddFileDialog(true);
                   }}
                   className="flex items-center gap-1.5 px-2 py-1 text-left text-xs text-muted-foreground hover:text-foreground"
@@ -550,14 +628,14 @@ export default function SkillsPage() {
               <FolderIcon />
             </Button>
           </div>
-          {!selectedSkill ? (
+          {!activeTab || !activeSkill ? (
             <div className="flex flex-1 items-center justify-center p-8 text-center">
               <div className="flex max-w-sm flex-col items-center gap-3">
                 <div className="flex size-12 items-center justify-center rounded-none bg-muted">
                   <SparkleIcon className="size-6 text-muted-foreground" />
                 </div>
-                <h3 className="text-sm font-medium">No skill selected</h3>
-                <p className="text-xs text-muted-foreground">Select a skill from the Explorer or create a new one. Skills bundle reusable instructions (SKILL.md) plus supporting files like references, scripts, and assets.</p>
+                <h3 className="text-sm font-medium">No file open</h3>
+                <p className="text-xs text-muted-foreground">Select a skill or file from the Explorer, or create a new skill. Skills bundle reusable instructions (SKILL.md) plus supporting files like references, scripts, and assets.</p>
                 <Button size="sm" onClick={() => setShowNewDialog(true)}>
                   <PlusIcon data-icon="inline-start" />
                   New Skill
@@ -566,32 +644,39 @@ export default function SkillsPage() {
             </div>
           ) : (
             <>
-              {/* Tabs bar - VS Code style */}
+              {/* Tabs bar - VS Code style, one tab per open file across any skill */}
               <div className="flex h-9 shrink-0 items-center gap-0 overflow-x-auto border-b bg-muted/20">
-                <div
-                  role="tab"
-                  aria-selected={isSkillMd}
-                  onClick={() => setActiveFile(null)}
-                  className={`flex h-full shrink-0 cursor-pointer items-center gap-1.5 border-r px-3 text-xs ${isSkillMd ? "bg-background text-foreground" : "bg-muted/10 text-muted-foreground hover:bg-muted/30"}`}
-                >
-                  <FileTextIcon className="size-3.5" />
-                  <span className="max-w-[140px] truncate">SKILL.md</span>
-                  {isDirty && isSkillMd && <span className="size-1.5 rounded-full bg-primary" />}
-                </div>
-                {!isSkillMd && activeFile && (
-                  <div
-                    role="tab"
-                    aria-selected
-                    className="flex h-full shrink-0 items-center gap-1.5 border-r bg-background px-3 text-xs text-foreground"
-                  >
-                    <FileIcon path={activeFile} className="size-3.5" />
-                    <span className="max-w-[160px] truncate">{activeFile}</span>
-                    {isDirty && <span className="size-1.5 rounded-full bg-primary" />}
-                    <button type="button" onClick={() => setActiveFile(null)} className="ml-1 rounded-sm p-0.5 hover:bg-muted">
-                      <XIcon className="size-3" />
-                    </button>
-                  </div>
-                )}
+                {openTabs.map((tab) => {
+                  const tabSkill = skills?.find((s) => (s.id ?? s._id) === tab.skillId);
+                  const label = tab.path ?? "SKILL.md";
+                  const isActive = tab.key === activeTabKey;
+                  return (
+                    <div
+                      key={tab.key}
+                      role="tab"
+                      aria-selected={isActive}
+                      onClick={() => setActiveTabKey(tab.key)}
+                      className={`flex h-full shrink-0 cursor-pointer items-center gap-1.5 border-r px-3 text-xs ${isActive ? "bg-background text-foreground" : "bg-muted/10 text-muted-foreground hover:bg-muted/30"}`}
+                    >
+                      {tab.path === null ? <FileTextIcon className="size-3.5 shrink-0" /> : <FileIcon path={tab.path} className="size-3.5 shrink-0" />}
+                      <span className="flex min-w-0 flex-col leading-tight">
+                        {showSkillLabelInTabs && <span className="max-w-[140px] truncate text-[9px] text-muted-foreground/70">{tabSkill?.name}</span>}
+                        <span className="max-w-[140px] truncate">{label}</span>
+                      </span>
+                      {tab.isDirty && <span className="size-1.5 shrink-0 rounded-full bg-primary" />}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          closeTab(tab.key);
+                        }}
+                        className="ml-1 shrink-0 rounded-sm p-0.5 hover:bg-muted"
+                      >
+                        <XIcon className="size-3" />
+                      </button>
+                    </div>
+                  );
+                })}
                 <div className="flex-1" />
                 {isMarkdownFile && (
                   <button
@@ -605,17 +690,17 @@ export default function SkillsPage() {
                 )}
                 <div className="hidden items-center gap-1 pr-2 sm:flex">
                   <Badge variant="outline" className="text-[10px]">
-                    {selectedSkill.isPublic ? "Public" : "Private"}
+                    {activeSkill.isPublic ? "Public" : "Private"}
                   </Badge>
                   <span className="hidden text-[11px] text-muted-foreground lg:inline">
-                    {selectedSkill.files ? `${selectedSkill.files.length} files` : "0 files"}
+                    {activeSkill.files ? `${activeSkill.files.length} files` : "0 files"}
                   </span>
                 </div>
               </div>
 
               {/* Breadcrumb */}
               <div className="flex h-6 shrink-0 items-center gap-1 border-b bg-muted/10 px-3 text-[11px] text-muted-foreground">
-                <span className="truncate">{selectedSkill.name}</span>
+                <span className="truncate">{activeSkill.name}</span>
                 <span>›</span>
                 <span className="truncate font-mono">{activePath}</span>
               </div>
@@ -645,27 +730,27 @@ export default function SkillsPage() {
                       <div className="flex flex-col gap-3 p-3 text-xs">
                         <div>
                           <div className="text-[11px] font-medium">Description</div>
-                          <p className="mt-1 line-clamp-3 text-muted-foreground">{selectedSkill.description || "—"}</p>
+                          <p className="mt-1 line-clamp-3 text-muted-foreground">{activeSkill.description || "—"}</p>
                         </div>
                         <Separator />
                         <div className="flex flex-col gap-1.5">
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Name</span>
-                            <span className="font-mono">{selectedSkill.name}</span>
+                            <span className="font-mono">{activeSkill.name}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Visibility</span>
-                            <Badge variant={selectedSkill.isPublic ? "default" : "outline"} className="h-5 text-[10px]">
-                              {selectedSkill.isPublic ? "Public" : "Private"}
+                            <Badge variant={activeSkill.isPublic ? "default" : "outline"} className="h-5 text-[10px]">
+                              {activeSkill.isPublic ? "Public" : "Private"}
                             </Badge>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Files</span>
-                            <span>{(selectedSkill.files?.length ?? 0) + 1}</span>
+                            <span>{(activeSkill.files?.length ?? 0) + 1}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Created</span>
-                            <span className="font-mono text-[11px]">{selectedSkill.createdAt ? new Date(selectedSkill.createdAt).toLocaleDateString() : "—"}</span>
+                            <span className="font-mono text-[11px]">{activeSkill.createdAt ? new Date(activeSkill.createdAt).toLocaleDateString() : "—"}</span>
                           </div>
                         </div>
                         <Separator />
@@ -677,9 +762,9 @@ export default function SkillsPage() {
                             <span className="text-[11px] text-muted-foreground">Visible to other Projects</span>
                             <Switch
                               id="isPublic"
-                              checked={!!selectedSkill.isPublic}
+                              checked={!!activeSkill.isPublic}
                               onCheckedChange={async (checked) => {
-                                const id = selectedSkill.id ?? selectedSkill._id!;
+                                const id = activeSkill.id ?? activeSkill._id!;
                                 try {
                                   const res = await updateProjectSkill(projectId, id, { isPublic: checked });
                                   const updated = res.data?.data as Skill;
@@ -759,7 +844,13 @@ export default function SkillsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showAddFileDialog} onOpenChange={setShowAddFileDialog}>
+      <Dialog
+        open={showAddFileDialog}
+        onOpenChange={(open) => {
+          setShowAddFileDialog(open);
+          if (!open) setAddFileSkillId(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add file</DialogTitle>
@@ -784,7 +875,14 @@ export default function SkillsPage() {
               <FieldDescription>Relative path within the skill folder. Cannot be SKILL.md.</FieldDescription>
             </Field>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowAddFileDialog(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowAddFileDialog(false);
+                  setAddFileSkillId(null);
+                }}
+              >
                 Cancel
               </Button>
               <Button type="submit">Add file</Button>
