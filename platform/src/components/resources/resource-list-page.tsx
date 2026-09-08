@@ -75,15 +75,19 @@ function ResourceListPage<T extends { _id?: string; id?: string }>({
   }, []);
 
   return (
-    <div className="flex w-full flex-col gap-4 overflow-y-auto p-6">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-0.5">
-          <h1 className="text-lg font-semibold">{title}</h1>
-          {description && <p className="text-xs text-muted-foreground">{description}</p>}
+    <div className="flex w-full flex-col gap-4 overflow-y-auto p-4 sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h1 className="truncate text-base font-semibold sm:text-lg">{title}</h1>
+          {description && (
+            <p className="line-clamp-3 max-w-xl text-[11px] leading-snug text-muted-foreground sm:line-clamp-none sm:text-xs">
+              {description}
+            </p>
+          )}
         </div>
         {newHref && (
-          <Button size="sm" render={<a href={newHref} />}>
-            <PlusIcon />
+          <Button size="sm" className="w-fit shrink-0" render={<a href={newHref} />}>
+            <PlusIcon data-icon="inline-start" />
             New
           </Button>
         )}
@@ -116,34 +120,63 @@ function ResourceListPage<T extends { _id?: string; id?: string }>({
           )}
         </Empty>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {columns.map((col) => (
-                <TableHead key={col.header}>{col.header}</TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+        <>
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {columns.map((col) => (
+                    <TableHead key={col.header} className={col.className}>
+                      {col.header}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.map((item) => {
+                  const href = getRowHref?.(item);
+                  const itemId = getItemId(item as { _id?: string; id?: string });
+                  return (
+                    <TableRow
+                      key={itemId || JSON.stringify(item)}
+                      className={href ? "cursor-pointer" : undefined}
+                      onClick={href ? () => (window.location.href = href) : undefined}
+                    >
+                      {columns.map((col) => (
+                        <TableCell key={col.header} className={col.className}>
+                          <div className="truncate">{col.cell(item)}</div>
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          {/* Mobile: stacked cards — only first column (label/name) + tap to edit */}
+          <div className="flex flex-col gap-2 sm:hidden">
             {items.map((item) => {
               const href = getRowHref?.(item);
               const itemId = getItemId(item as { _id?: string; id?: string });
+              const primary = columns[0] ? columns[0].cell(item) : null;
+              const secondary = columns[1] ? columns[1].cell(item) : null;
               return (
-                <TableRow
+                <button
                   key={itemId || JSON.stringify(item)}
-                  className={href ? "cursor-pointer" : undefined}
+                  type="button"
                   onClick={href ? () => (window.location.href = href) : undefined}
+                  className="flex w-full items-center justify-between gap-3 rounded-none border border-border bg-card px-3 py-2.5 text-left active:bg-muted/50"
                 >
-                  {columns.map((col) => (
-                    <TableCell key={col.header} className={col.className}>
-                      {col.cell(item)}
-                    </TableCell>
-                  ))}
-                </TableRow>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{primary}</span>
+                  {secondary && (
+                    <span className="shrink-0 truncate text-xs text-muted-foreground">{secondary}</span>
+                  )}
+                </button>
               );
             })}
-          </TableBody>
-        </Table>
+          </div>
+        </>
       )}
     </div>
   );

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FoldersIcon, PlusIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,19 +12,33 @@ import { getProjects } from "@/lib/api/projects";
 
 interface Project {
   _id: string;
+  id?: string;
   name: string;
   slug?: string;
   status?: string;
 }
 
 export default function ProjectsPage() {
+  const router = useRouter();
   const [projects, setProjects] = React.useState<Project[] | null>(null);
 
   React.useEffect(() => {
     getProjects()
-      .then((res) => setProjects(res.data?.data || []))
+      .then((res) => {
+        const data: Project[] = res.data?.data || [];
+        // User doesn't want to see the projects list — auto-open the first project.
+        // Keep the list only for the zero-project empty state; otherwise redirect.
+        if (data.length > 0) {
+          const firstId = (data[0] as Project)._id || (data[0] as Project).id;
+          if (firstId) {
+            router.replace(`/projects/${firstId}`);
+            return;
+          }
+        }
+        setProjects(data);
+      })
       .catch(() => setProjects([]));
-  }, []);
+  }, [router]);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">

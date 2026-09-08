@@ -29,14 +29,24 @@ export default function SecretsPage() {
       getRowHref={(secret) => `/projects/${projectId}/secrets/${secret.id ?? secret._id}/edit`}
       emptyDescription="Store a secret to authenticate REST tools without exposing the value in a tool's config."
       columns={[
-        { header: "Label", cell: (secret) => secret.label },
+        { header: "Label", cell: (secret) => <span className="truncate font-medium">{secret.label}</span> },
         {
           header: "Created",
-          cell: (secret) => (secret.createdAt ? new Date(secret.createdAt).toLocaleDateString() : "—"),
+          className: "hidden md:table-cell",
+          cell: (secret) => (
+            <span className="whitespace-nowrap text-xs text-muted-foreground">
+              {secret.createdAt ? new Date(secret.createdAt).toLocaleDateString() : "—"}
+            </span>
+          ),
         },
         {
           header: "Last used",
-          cell: (secret) => (secret.lastUsedAt ? new Date(secret.lastUsedAt).toLocaleString() : "—"),
+          className: "hidden lg:table-cell",
+          cell: (secret) => (
+            <span className="whitespace-nowrap text-xs text-muted-foreground">
+              {secret.lastUsedAt ? new Date(secret.lastUsedAt).toLocaleDateString() : "—"}
+            </span>
+          ),
         },
       ]}
     />

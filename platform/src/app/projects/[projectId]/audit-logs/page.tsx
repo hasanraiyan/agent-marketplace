@@ -88,18 +88,16 @@ export default function AuditLogsPage() {
   }, [projectId, page]);
 
   return (
-    <div className="flex w-full flex-col gap-6 overflow-y-auto p-6">
+    <div className="flex w-full flex-col gap-6 overflow-y-auto p-4 sm:p-6">
       <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <ClockCounterClockwiseIcon className="size-4 text-muted-foreground" />
-              Audit Logs
+          <div className="flex min-w-0 flex-col gap-1">
+            <CardTitle className="flex items-center gap-2 truncate text-base sm:text-sm">
+              <ClockCounterClockwiseIcon className="size-4 shrink-0 text-muted-foreground" />
+              <span className="truncate">Audit Logs</span>
             </CardTitle>
-            <CardDescription>
-              This Project&apos;s lifecycle trail — credentials minted/revoked,
-              membership changes, suspend/restore. Resource CRUD
-              (Agents/Skills/Knowledge/Providers/MCPs) isn&apos;t logged here.
+            <CardDescription className="line-clamp-3 max-w-xl text-[11px] leading-snug sm:line-clamp-none sm:text-xs">
+              Project lifecycle — credentials, membership, suspend/restore. Resource CRUD isn&apos;t logged here.
             </CardDescription>
           </div>
         </CardHeader>
@@ -113,13 +111,14 @@ export default function AuditLogsPage() {
             <p className="text-xs text-destructive">{error}</p>
           ) : logs && logs.length > 0 ? (
             <>
-              <div className="overflow-x-auto">
-                <Table className="min-w-[560px]">
+              {/* Desktop table */}
+              <div className="hidden overflow-x-auto sm:block">
+                <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Event</TableHead>
                       <TableHead>Actor</TableHead>
-                      <TableHead>Target</TableHead>
+                      <TableHead className="hidden md:table-cell">Target</TableHead>
                       <TableHead className="text-right">When</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -127,24 +126,46 @@ export default function AuditLogsPage() {
                     {logs.map((log) => (
                       <TableRow key={log._id || log.id || log.timestamp}>
                         <TableCell>
-                          <Badge variant="outline">{log.eventType}</Badge>
+                          <Badge variant="outline" className="max-w-[140px] truncate">
+                            {log.eventType}
+                          </Badge>
                         </TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground">
+                        <TableCell className="max-w-[180px] truncate font-mono text-xs text-muted-foreground">
                           {log.actorContextType}
                           {log.actorIdentity ? ` · ${log.actorIdentity}` : ""}
                         </TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground">
+                        <TableCell className="hidden max-w-[140px] truncate font-mono text-xs text-muted-foreground md:table-cell">
                           {log.targetResourceId || "—"}
                         </TableCell>
-                        <TableCell className="text-right text-muted-foreground">
-                          {log.timestamp
-                            ? new Date(log.timestamp).toLocaleString()
-                            : "—"}
+                        <TableCell className="whitespace-nowrap text-right text-xs text-muted-foreground">
+                          {log.timestamp ? new Date(log.timestamp).toLocaleDateString() : "—"}
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+              {/* Mobile stacked cards */}
+              <div className="flex flex-col gap-2 sm:hidden">
+                {logs.map((log) => (
+                  <div
+                    key={log._id || log.id || log.timestamp}
+                    className="flex flex-col gap-1.5 rounded-none border border-border bg-card px-3 py-2.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <Badge variant="outline" className="max-w-[160px] truncate text-[11px]">
+                        {log.eventType}
+                      </Badge>
+                      <span className="shrink-0 whitespace-nowrap text-[11px] text-muted-foreground">
+                        {log.timestamp ? new Date(log.timestamp).toLocaleDateString() : "—"}
+                      </span>
+                    </div>
+                    <span className="truncate font-mono text-[11px] text-muted-foreground">
+                      {log.actorContextType}
+                      {log.actorIdentity ? ` · ${log.actorIdentity}` : ""}
+                    </span>
+                  </div>
+                ))}
               </div>
               {pages > 1 && (
                 <div className="mt-4 flex items-center justify-end gap-3">
