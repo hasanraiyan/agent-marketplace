@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "registry:build": "node scripts/build-registry.mjs",
+    "build": "node scripts/build-registry.mjs && next build",
     "start": "next start",
     "lint": "eslint"
   },

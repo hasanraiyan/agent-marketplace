@@ -1,0 +1,333 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "persona",
+  "homepage": "https://platform.persona.hasanraiyan.me",
+  "items": [
+    {
+      "name": "chat",
+      "type": "registry:ui",
+      "title": "Persona Agent Chat",
+      "description": "Full-featured AI agent chat timeline with AG-UI streaming, tool execution cards, MCP Ext Apps, thinking indicator, and subagent inspection.",
+      "dependencies": [
+        "@personaai/react",
+        "@modelcontextprotocol/ext-apps",
+        "@streamdown/code",
+        "@phosphor-icons/react",
+        "katex",
+        "date-fns"
+      ],
+      "registryDependencies": [
+        "button",
+        "card",
+        "sheet",
+        "tabs",
+        "tooltip",
+        "collapsible",
+        "message",
+        "bubble",
+        "message-scroller",
+        "input-group",
+        "item",
+        "empty",
+        "spinner",
+        "questionnaire",
+        "code-editor"
+      ],
+      "files": [
+        {
+          "path": "src/components/chat/chat-message.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/chat-message.tsx"
+        },
+        {
+          "path": "src/components/chat/chat-scroller.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/chat-scroller.tsx"
+        },
+        {
+          "path": "src/components/chat/chat-composer.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/chat-composer.tsx"
+        },
+        {
+          "path": "src/components/chat/chat-empty-state.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/chat-empty-state.tsx"
+        },
+        {
+          "path": "src/components/chat/message-markdown.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/message-markdown.tsx"
+        },
+        {
+          "path": "src/components/chat/thinking-indicator.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/thinking-indicator.tsx"
+        },
+        {
+          "path": "src/components/chat/tool-call-trace.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/tool-call-trace.tsx"
+        },
+        {
+          "path": "src/components/chat/tool-call-card.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/tool-call-card.tsx"
+        },
+        {
+          "path": "src/components/chat/todo-checklist.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/todo-checklist.tsx"
+        },
+        {
+          "path": "src/components/chat/mcp-app-renderer.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/mcp-app-renderer.tsx"
+        },
+        {
+          "path": "src/components/chat/subagent-sheet.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/subagent-sheet.tsx"
+        },
+        {
+          "path": "src/components/chat/workspace-file-panel.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/workspace-file-panel.tsx"
+        },
+        {
+          "path": "src/components/chat/interrupt-panel.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/interrupt-panel.tsx"
+        },
+        {
+          "path": "src/components/chat/copy-button.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/copy-button.tsx"
+        },
+        {
+          "path": "src/components/chat/voice-indicator.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/voice-indicator.tsx"
+        },
+        {
+          "path": "src/components/chat/types.ts",
+          "type": "registry:ui",
+          "target": "components/persona/chat/types.ts"
+        },
+        {
+          "path": "src/components/chat/index.ts",
+          "type": "registry:ui",
+          "target": "components/persona/chat/index.ts"
+        }
+      ]
+    },
+    {
+      "name": "mcp-app",
+      "type": "registry:ui",
+      "title": "Persona MCP App Renderer",
+      "description": "Sandboxed iframe renderer with AppBridge for interactive MCP Ext Apps and prompt dispatch.",
+      "dependencies": [
+        "@modelcontextprotocol/ext-apps",
+        "@phosphor-icons/react"
+      ],
+      "registryDependencies": [
+        "spinner"
+      ],
+      "files": [
+        {
+          "path": "src/components/chat/mcp-app-renderer.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/mcp-app-renderer.tsx"
+        }
+      ]
+    },
+    {
+      "name": "file-explorer",
+      "type": "registry:ui",
+      "title": "Persona Workspace File Explorer",
+      "description": "Hierarchical file explorer and code editor with tab management, markdown preview, and save/discard actions.",
+      "dependencies": [
+        "@phosphor-icons/react",
+        "date-fns"
+      ],
+      "registryDependencies": [
+        "button",
+        "card",
+        "input",
+        "tabs",
+        "dialog",
+        "dropdown-menu",
+        "code-editor"
+      ],
+      "files": [
+        {
+          "path": "src/components/file-explorer/file-explorer-editor.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/file-explorer-editor.tsx"
+        }
+      ]
+    },
+    {
+      "name": "voice-indicator",
+      "type": "registry:ui",
+      "title": "Persona Voice Indicator",
+      "description": "Voice audio visualizer and status indicator.",
+      "dependencies": [],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "src/components/chat/voice-indicator.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/voice-indicator.tsx"
+        }
+      ]
+    },
+    {
+      "name": "message",
+      "type": "registry:ui",
+      "title": "Message",
+      "description": "Chat message turn container.",
+      "dependencies": [],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "src/components/ui/message.tsx",
+          "type": "registry:ui",
+          "target": "components/ui/message.tsx"
+        }
+      ]
+    },
+    {
+      "name": "bubble",
+      "type": "registry:ui",
+      "title": "Bubble",
+      "description": "Chat speech bubble.",
+      "dependencies": [],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "src/components/ui/bubble.tsx",
+          "type": "registry:ui",
+          "target": "components/ui/bubble.tsx"
+        }
+      ]
+    },
+    {
+      "name": "message-scroller",
+      "type": "registry:ui",
+      "title": "Message Scroller",
+      "description": "Virtualizing autoscroll container for streaming conversations.",
+      "dependencies": [
+        "@phosphor-icons/react"
+      ],
+      "registryDependencies": [
+        "button"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/message-scroller.tsx",
+          "type": "registry:ui",
+          "target": "components/ui/message-scroller.tsx"
+        }
+      ]
+    },
+    {
+      "name": "input-group",
+      "type": "registry:ui",
+      "title": "Input Group",
+      "description": "Composite input and textarea container.",
+      "dependencies": [],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "src/components/ui/input-group.tsx",
+          "type": "registry:ui",
+          "target": "components/ui/input-group.tsx"
+        }
+      ]
+    },
+    {
+      "name": "item",
+      "type": "registry:ui",
+      "title": "Item",
+      "description": "Card-like row item and item group container.",
+      "dependencies": [],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "src/components/ui/item.tsx",
+          "type": "registry:ui",
+          "target": "components/ui/item.tsx"
+        }
+      ]
+    },
+    {
+      "name": "questionnaire",
+      "type": "registry:ui",
+      "title": "Questionnaire",
+      "description": "Interactive question and choice cards for human-in-the-loop agent clarification.",
+      "dependencies": [
+        "@phosphor-icons/react"
+      ],
+      "registryDependencies": [
+        "button",
+        "card",
+        "item"
+      ],
+      "files": [
+        {
+          "path": "src/components/ui/questionnaire.tsx",
+          "type": "registry:ui",
+          "target": "components/ui/questionnaire.tsx"
+        }
+      ]
+    },
+    {
+      "name": "code-editor",
+      "type": "registry:ui",
+      "title": "Code Editor",
+      "description": "Shiki-powered code editor with syntax highlighting.",
+      "dependencies": [
+        "shiki"
+      ],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "src/components/ui/code-editor.tsx",
+          "type": "registry:ui",
+          "target": "components/ui/code-editor.tsx"
+        }
+      ]
+    },
+    {
+      "name": "empty",
+      "type": "registry:ui",
+      "title": "Empty",
+      "description": "Empty state container.",
+      "dependencies": [],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "src/components/ui/empty.tsx",
+          "type": "registry:ui",
+          "target": "components/ui/empty.tsx"
+        }
+      ]
+    },
+    {
+      "name": "spinner",
+      "type": "registry:ui",
+      "title": "Spinner",
+      "description": "Loading spinner component.",
+      "dependencies": [],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "src/components/ui/spinner.tsx",
+          "type": "registry:ui",
+          "target": "components/ui/spinner.tsx"
+        }
+      ]
+    }
+  ]
+}
