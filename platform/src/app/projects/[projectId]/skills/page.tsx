@@ -87,10 +87,6 @@ const EXTENSION_LANGUAGE_MAP: Record<string, string> = {
   md: "markdown",
 };
 
-function fence(content: string, language: string): string {
-  return "```" + language + "\n" + content + "\n```";
-}
-
 // react-resizable-panels' <Panel> silently drops the className prop, so its
 // "hidden sm:flex" visibility can't be CSS-only — this mirrors Tailwind's sm breakpoint in JS.
 function useIsSmUp() {
@@ -523,24 +519,16 @@ export default function SkillsPage() {
                   </div>
                 )}
                 <div className="flex-1" />
-                <div className="flex shrink-0 items-center gap-0.5 border-l px-1.5">
+                {isMarkdownFile && (
                   <button
                     type="button"
-                    onClick={() => setViewMode("edit")}
-                    className={`flex items-center gap-1 rounded-none px-2 py-1 text-[11px] ${viewMode === "edit" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/60"}`}
+                    onClick={() => setViewMode((m) => (m === "preview" ? "edit" : "preview"))}
+                    className="flex shrink-0 items-center gap-1 border-l px-2.5 py-1 text-[11px] text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                   >
-                    <PencilSimpleIcon className="size-3" />
-                    <span className="hidden sm:inline">Edit</span>
+                    {viewMode === "preview" ? <PencilSimpleIcon className="size-3" /> : <EyeIcon className="size-3" />}
+                    <span className="hidden sm:inline">{viewMode === "preview" ? "Edit" : "Preview"}</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode("preview")}
-                    className={`flex items-center gap-1 rounded-none px-2 py-1 text-[11px] ${viewMode === "preview" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/60"}`}
-                  >
-                    <EyeIcon className="size-3" />
-                    <span className="hidden sm:inline">Preview</span>
-                  </button>
-                </div>
+                )}
                 <div className="hidden items-center gap-1 pr-2 sm:flex">
                   <Badge variant="outline" className="text-[10px]">
                     {selectedSkill.isPublic ? "Public" : "Private"}
@@ -561,9 +549,9 @@ export default function SkillsPage() {
               {/* Editor */}
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <div className="flex min-h-0 flex-1 overflow-hidden">
-                  {viewMode === "preview" ? (
+                  {viewMode === "preview" && isMarkdownFile ? (
                     <div className="h-full min-h-0 w-full flex-1 overflow-y-auto p-4">
-                      <MessageMarkdown content={isMarkdownFile ? editorContent : fence(editorContent, fenceLanguage)} />
+                      <MessageMarkdown content={editorContent} />
                     </div>
                   ) : (
                     <CodeEditor

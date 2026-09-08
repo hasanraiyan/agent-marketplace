@@ -91,7 +91,7 @@ function CodeEditor({ value, onChange, language, placeholder, className, spellCh
         aria-hidden
         className={cn(
           "pointer-events-none absolute inset-0 overflow-hidden p-4 font-mono text-sm leading-relaxed",
-          "[&_pre]:!m-0 [&_pre]:!bg-transparent [&_pre]:!p-0 [&_pre]:whitespace-pre-wrap [&_pre]:break-words",
+          "[&_pre]:!m-0 [&_pre]:!bg-transparent [&_pre]:!p-0 [&_pre]:!overflow-visible [&_pre]:whitespace-pre-wrap [&_pre]:break-words",
           "[&_code]:whitespace-pre-wrap [&_code]:break-words"
         )}
         style={{ tabSize: 2 }}
@@ -104,7 +104,7 @@ function CodeEditor({ value, onChange, language, placeholder, className, spellCh
         onScroll={syncScroll}
         placeholder={placeholder}
         spellCheck={spellCheck}
-        className="relative h-full w-full resize-none whitespace-pre-wrap break-words bg-transparent p-4 font-mono text-sm leading-relaxed text-transparent caret-foreground outline-none placeholder:text-muted-foreground"
+        className="relative h-full w-full resize-none whitespace-pre-wrap break-words border-0 bg-transparent p-4 font-mono text-sm leading-relaxed text-transparent caret-foreground outline-none placeholder:text-muted-foreground"
         style={{ fieldSizing: "fixed", tabSize: 2 } as React.CSSProperties}
       />
     </div>
