@@ -81,7 +81,7 @@ export default function SkillsPage() {
   const [isDirty, setIsDirty] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [showNewDialog, setShowNewDialog] = React.useState(false);
-  const [newSkill, setNewSkill] = React.useState({ name: "", description: "", instructions: "" });
+  const [newSkillName, setNewSkillName] = React.useState("");
   const [mobileExplorerOpen, setMobileExplorerOpen] = React.useState(false);
 
   const selectedSkill = skills?.find((s) => (s.id ?? s._id) === selectedSkillId) || null;
@@ -196,13 +196,13 @@ export default function SkillsPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const name = newSkill.name.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+    const name = newSkillName.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
     if (!name || name.length < 2) return;
     try {
       const res = await createProjectSkill(projectId, {
         name,
-        description: newSkill.description || "—",
-        instructions: newSkill.instructions || "# " + name + "\n\nInstructions…",
+        description: `Instructions for ${name}.`,
+        instructions: `# ${name}\n\n## Overview\n\nDescribe when and how an Agent should use this skill.\n`,
         isPublic: false,
         files: [],
       });
@@ -212,7 +212,7 @@ export default function SkillsPage() {
       setSelectedSkillId(created.id ?? created._id!);
       setExpanded((prev) => new Set(prev).add(created.id ?? created._id!));
       setShowNewDialog(false);
-      setNewSkill({ name: "", description: "", instructions: "" });
+      setNewSkillName("");
     } catch (e) {
       console.error(e);
     }
@@ -615,7 +615,7 @@ export default function SkillsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>New Skill</DialogTitle>
-            <DialogDescription>Skills bundle reusable instructions (SKILL.md) plus supporting files. Name is lowercase with hyphens.</DialogDescription>
+            <DialogDescription>Creates a folder with a starter SKILL.md. Name is lowercase with hyphens — you can edit everything after.</DialogDescription>
           </DialogHeader>
           <form
             onSubmit={handleCreate}
@@ -625,37 +625,15 @@ export default function SkillsPage() {
               <FieldLabel htmlFor="new-name">Name</FieldLabel>
               <Input
                 id="new-name"
-                value={newSkill.name}
-                onChange={(e) => setNewSkill((p) => ({ ...p, name: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-") }))}
+                value={newSkillName}
+                onChange={(e) => setNewSkillName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
                 placeholder="e.g. data-analysis"
                 required
+                autoFocus
                 maxLength={64}
                 className="font-mono text-sm"
               />
-              <FieldDescription>2–64, lowercase, a-z 0-9 and hyphens only. Will be saved as /{newSkill.name || "..."}/SKILL.md</FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="new-description">Description</FieldLabel>
-              <Textarea
-                id="new-description"
-                value={newSkill.description}
-                onChange={(e) => setNewSkill((p) => ({ ...p, description: e.target.value }))}
-                placeholder="What does this Skill teach an Agent to do?"
-                required
-                maxLength={1024}
-                rows={2}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="new-instructions">Instructions (SKILL.md)</FieldLabel>
-              <Textarea
-                id="new-instructions"
-                value={newSkill.instructions}
-                onChange={(e) => setNewSkill((p) => ({ ...p, instructions: e.target.value }))}
-                placeholder="# Skill Title&#10;&#10;## Overview"
-                rows={6}
-                className="font-mono text-sm"
-              />
+              <FieldDescription>2–64, lowercase, a-z 0-9 and hyphens only. Will be saved as /{newSkillName || "..."}/SKILL.md</FieldDescription>
             </Field>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowNewDialog(false)}>
