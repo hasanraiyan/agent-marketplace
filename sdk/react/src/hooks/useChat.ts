@@ -828,9 +828,21 @@ export function useChat(options: UseChatOptions = {}) {
                     ];
                     patchAssistant({});
                   }
+                } else if (event.name === "mcp_app") {
+                  const val = event.value as
+                    | { toolCallId?: string; resourceUri?: string; mcpId?: string }
+                    | undefined;
+                  if (val?.toolCallId && val?.resourceUri && val?.mcpId) {
+                    const existing = toolCallsMap.get(val.toolCallId);
+                    if (existing) {
+                      existing.mcpApp = {
+                        resourceUri: val.resourceUri,
+                        mcpId: val.mcpId,
+                      };
+                      patchAssistant({});
+                    }
+                  }
                 }
-                // 'mcp_app' custom events carry no chat-transcript UI here —
-                // consumers that render MCP widgets read them via onEvent.
               } else if (event.type === "RUN_ERROR") {
                 chatLogger.warn("run error", {
                   message: event.message,

@@ -34,6 +34,8 @@ export interface PersonaToolCall {
   seq?: number;
   /** Nested activity timeline — only present on `task` (subagent) tool calls. */
   subagentActivity?: PersonaSubagentActivityEntry[];
+  /** Present when this tool is backed by an interactive MCP Ext App. */
+  mcpApp?: { resourceUri: string; mcpId: string };
 }
 
 export interface PersonaMessage {
