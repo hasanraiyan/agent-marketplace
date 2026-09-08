@@ -49,6 +49,14 @@ function CodeEditor({ value, onChange, language, placeholder, className, spellCh
   const [dark, setDark] = React.useState(isDarkMode);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const overlayRef = React.useRef<HTMLDivElement>(null);
+  // A visible scrollbar reserves width on the textarea but not on the
+  // overlay div (which never shows one), so their text would wrap at
+  // different columns once content is tall enough to scroll — the two
+  // layers drift further apart the deeper into the content you go. Hiding
+  // the textarea's native scrollbar (scroll still fully works) keeps both
+  // layers' usable width identical always. scrollbar-width covers modern
+  // Chrome/Firefox; the id-scoped rule below covers older WebKit.
+  const scrollbarHideId = React.useId().replace(/[:]/g, "");
 
   React.useEffect(() => {
     const root = document.documentElement;
@@ -86,6 +94,7 @@ function CodeEditor({ value, onChange, language, placeholder, className, spellCh
 
   return (
     <div className={cn("relative overflow-hidden", className)}>
+      <style>{`.${scrollbarHideId}::-webkit-scrollbar { display: none; }`}</style>
       <div
         ref={overlayRef}
         aria-hidden
@@ -104,8 +113,11 @@ function CodeEditor({ value, onChange, language, placeholder, className, spellCh
         onScroll={syncScroll}
         placeholder={placeholder}
         spellCheck={spellCheck}
-        className="relative h-full w-full resize-none whitespace-pre-wrap break-words border-0 bg-transparent p-4 font-mono text-sm leading-relaxed text-transparent caret-foreground outline-none placeholder:text-muted-foreground"
-        style={{ fieldSizing: "fixed", tabSize: 2 } as React.CSSProperties}
+        className={cn(
+          "relative h-full w-full resize-none whitespace-pre-wrap break-words border-0 bg-transparent p-4 font-mono text-sm leading-relaxed text-transparent caret-foreground outline-none placeholder:text-muted-foreground",
+          scrollbarHideId
+        )}
+        style={{ fieldSizing: "fixed", tabSize: 2, scrollbarWidth: "none" } as React.CSSProperties}
       />
     </div>
   );
