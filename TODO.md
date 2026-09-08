@@ -77,15 +77,44 @@ says it all: not yet connected to a real agent.
 
 ---
 
-## 5. MCP UI — ⚠️ BUILT, has an issue
+## 5. MCP UI — ✅ FIXED (OAuth owner-connect redirect)
 
 **Current state:** list + new + edit pages built
 (`mcps/page.tsx`, `mcps/new/page.tsx`, `mcps/[mcpId]/edit/page.tsx`). The edit
 page covers transport, auth (api-key / OAuth owner+user), dynamic registration,
 usage, and delete-with-usage-guard.
 
-- [ ] Investigate + fix the reported issue
-      whicht do concnet to teh cmcp it redie to old platform inst of this platform.persona* it redi to teh persona.  we need to find first how the cmp conn work and we need to built that 
+- [x] Fixed: owner-connect OAuth redirected back to the old
+      persona.hasanraiyan.me dashboard instead of
+      platform.persona.hasanraiyan.me after connecting.
+      Root cause: `agent-backend/src/modules/mcp/mcp.service.js`'s
+      `handleOwnerCallback` always built the return URL from
+      `config.websiteUrl` + a stale `/developer/projects/.../mcps/.../edit`
+      path — the frontend/'s legacy route, not platform/'s
+      (`/projects/.../mcps/.../edit`, no `/developer` prefix). Both apps hit
+      the identical `ProjectAdmin`-context backend route, so the backend
+      couldn't tell which app initiated the flow.
+      Fix: added `config.platformUrl` (env `PLATFORM_URL`) and a
+      `returnApp=platform` param that `platform/src/lib/api/projects.ts`'s
+      `getProjectMcpOwnerAuthorizeUrl` now sends, signed into the OAuth
+      `state` token and read back in `_ownerRedirectBase()` to pick the
+      right app/domain. frontend/'s legacy `/developer/...` flow is
+      untouched (still defaults to the old path when `returnApp` is absent).
+- [x] Found separately (by user): a *different* MCP OAuth failure —
+      `invalid_scope: ... not allowed to request scope 'public_metadata'`
+      from Clerk (clerk.pyqdeck.in) — hit when creating an MCP with Dynamic
+      Client Registration and no explicit Scopes. Root cause:
+      `mcp.service.js`'s `createMcp` DCR branch (~line 131) unconditionally
+      sets `oauth.scopes = discovered.scopesSupported` (every scope the
+      target server's discovery doc advertises), unlike the manual-clientId
+      branch which respects a user-supplied scope list. Clerk advertises
+      `public_metadata`/`private_metadata` in discovery but doesn't grant
+      them to a freshly dynamically-registered client by default.
+      Workaround used: edit the MCP's Scopes field to an explicit,
+      narrower list and retry Connect.
+      Not yet fixed in code — `createMcp`'s DCR branch should respect a
+      user-supplied `data.oauth.scopes` the same way the manual branch does
+      (`platform`'s New MCP form already has a Scopes input for this).
 - [ ] Re-verify end-to-end: add server → Test Connection → attach to an agent
 
 ---

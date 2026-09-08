@@ -128,7 +128,13 @@ class McpService {
             : null,
           authorizationEndpoint: discovered.authorizationEndpoint,
           tokenEndpoint: discovered.tokenEndpoint,
-          scopes: discovered.scopesSupported,
+          // Mirrors the manual-clientId branch below: `discovered.scopesSupported`
+          // is every scope the server's discovery doc *advertises*, not what a
+          // freshly-DCR-registered client is actually *granted* — e.g. Clerk
+          // lists public_metadata/private_metadata there but rejects them for
+          // a just-registered client with invalid_scope. Respect an explicit
+          // caller-supplied scope list instead of blindly requesting all of them.
+          scopes: data.oauth?.scopes?.length ? data.oauth.scopes : discovered.scopesSupported,
           dynamicallyRegistered: true,
           tokenEndpointAuthMethod: registered.tokenEndpointAuthMethod,
         };
