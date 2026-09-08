@@ -264,6 +264,80 @@ export default function SkillsPage() {
     setNewFilePath("");
   };
 
+  const renderSkillTree = () =>
+    filtered.length === 0 ? (
+      <div className="px-3 py-6 text-center text-xs text-muted-foreground">No skills found.</div>
+    ) : (
+      filtered.map((skill) => {
+        const id = skill.id ?? skill._id!;
+        const isSelected = selectedSkillId === id;
+        const isExpanded = expanded.has(id);
+        return (
+          <div key={id} className="flex flex-col">
+            <div className="group flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => toggleExpand(id)}
+                className="flex size-5 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground"
+              >
+                {isExpanded ? <CaretDownIcon className="size-3" /> : <CaretRightIcon className="size-3" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectSkill(skill)}
+                className="flex flex-1 items-center gap-1.5 truncate rounded-none px-1 py-1 text-left text-xs hover:bg-muted/60"
+              >
+                {isExpanded ? <FolderOpenIcon className="size-3.5 shrink-0" /> : <FolderIcon className="size-3.5 shrink-0" />}
+                <span className="truncate font-medium">{skill.name}</span>
+              </button>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="size-5 shrink-0 opacity-0 group-hover:opacity-100"
+                onClick={() => handleDeleteSkill(skill)}
+              >
+                <TrashIcon className="size-3" />
+              </Button>
+            </div>
+            {isExpanded && (
+              <div className="ml-4 flex flex-col border-l pl-2">
+                <button
+                  type="button"
+                  onClick={() => handleSelectFile(skill, null)}
+                  className={`flex items-center gap-1.5 truncate rounded-none px-2 py-1 text-left text-xs ${isSelected && activeFile === null ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"}`}
+                >
+                  <FileTextIcon className="size-3.5 shrink-0" />
+                  <span className="truncate">SKILL.md</span>
+                </button>
+                {(skill.files ?? []).map((f) => (
+                  <button
+                    key={f.path}
+                    type="button"
+                    onClick={() => handleSelectFile(skill, f.path)}
+                    className={`flex items-center gap-1.5 truncate rounded-none px-2 py-1 text-left text-xs ${isSelected && activeFile === f.path ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"}`}
+                  >
+                    <FileIcon path={f.path} className="size-3.5 shrink-0" />
+                    <span className="truncate">{f.path}</span>
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleSelectSkill(skill);
+                    setShowAddFileDialog(true);
+                  }}
+                  className="flex items-center gap-1.5 px-2 py-1 text-left text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <PlusIcon className="size-3" />
+                  <span>Add file</span>
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })
+    );
+
   if (loading) {
     return (
       <div className="flex h-full w-full">
@@ -343,78 +417,7 @@ export default function SkillsPage() {
             <ScrollArea className="flex-1">
               <div className="flex flex-col gap-0.5 px-1 pb-4">
                 <div className="px-2 py-1 text-[11px] font-medium text-muted-foreground">PROJECT SKILLS</div>
-                {filtered.length === 0 ? (
-                  <div className="px-3 py-6 text-center text-xs text-muted-foreground">No skills found.</div>
-                ) : (
-                  filtered.map((skill) => {
-                    const id = skill.id ?? skill._id!;
-                    const isSelected = selectedSkillId === id;
-                    const isExpanded = expanded.has(id);
-                    return (
-                      <div key={id} className="flex flex-col">
-                        <div className="group flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => toggleExpand(id)}
-                            className="flex size-5 shrink-0 items-center justify-center text-muted-foreground hover:text-foreground"
-                          >
-                            {isExpanded ? <CaretDownIcon className="size-3" /> : <CaretRightIcon className="size-3" />}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleSelectSkill(skill)}
-                            className="flex flex-1 items-center gap-1.5 truncate rounded-none px-1 py-1 text-left text-xs hover:bg-muted/60"
-                          >
-                            {isExpanded ? <FolderOpenIcon className="size-3.5 shrink-0" /> : <FolderIcon className="size-3.5 shrink-0" />}
-                            <span className="truncate font-medium">{skill.name}</span>
-                          </button>
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            className="size-5 shrink-0 opacity-0 group-hover:opacity-100"
-                            onClick={() => handleDeleteSkill(skill)}
-                          >
-                            <TrashIcon className="size-3" />
-                          </Button>
-                        </div>
-                        {isExpanded && (
-                          <div className="ml-4 flex flex-col border-l pl-2">
-                            <button
-                              type="button"
-                              onClick={() => handleSelectFile(skill, null)}
-                              className={`flex items-center gap-1.5 truncate rounded-none px-2 py-1 text-left text-xs ${isSelected && activeFile === null ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"}`}
-                            >
-                              <FileTextIcon className="size-3.5 shrink-0" />
-                              <span className="truncate">SKILL.md</span>
-                            </button>
-                            {(skill.files ?? []).map((f) => (
-                              <button
-                                key={f.path}
-                                type="button"
-                                onClick={() => handleSelectFile(skill, f.path)}
-                                className={`flex items-center gap-1.5 truncate rounded-none px-2 py-1 text-left text-xs ${isSelected && activeFile === f.path ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"}`}
-                              >
-                                <FileIcon path={f.path} className="size-3.5 shrink-0" />
-                                <span className="truncate">{f.path}</span>
-                              </button>
-                            ))}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                handleSelectSkill(skill);
-                                setShowAddFileDialog(true);
-                              }}
-                              className="flex items-center gap-1.5 px-2 py-1 text-left text-xs text-muted-foreground hover:text-foreground"
-                            >
-                              <PlusIcon className="size-3" />
-                              <span>Add file</span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
+                {renderSkillTree()}
               </div>
               <ScrollBar orientation="vertical" />
             </ScrollArea>
@@ -428,38 +431,35 @@ export default function SkillsPage() {
         </ResizablePanel>
         )}
 
-        {/* Mobile explorer drawer */}
+        {/* Mobile explorer drawer - same folder/file tree as the desktop Explorer */}
         {mobileExplorerOpen && (
           <div className="absolute inset-0 z-20 flex sm:hidden">
             <div className="flex w-[280px] flex-col border-r bg-background">
-              <div className="flex h-9 items-center justify-between border-b px-3">
+              <div className="flex h-9 shrink-0 items-center justify-between border-b px-3">
                 <span className="text-xs font-semibold uppercase tracking-wider">Explorer</span>
-                <Button variant="ghost" size="icon-xs" onClick={() => setMobileExplorerOpen(false)}>
-                  <XIcon />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon-xs" className="size-6" onClick={() => setShowNewDialog(true)}>
+                    <PlusIcon className="size-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon-xs" className="size-6" onClick={() => setMobileExplorerOpen(false)}>
+                    <XIcon className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+              <div className="px-2 pb-2 pt-2">
+                <div className="relative">
+                  <MagnifyingGlassIcon className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input placeholder="Search skills…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-7 pl-7 text-xs" />
+                </div>
               </div>
               <ScrollArea className="flex-1">
-                <div className="p-2">
-                  <Input placeholder="Search skills…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-7 text-xs" />
+                <div className="flex flex-col gap-0.5 px-1 pb-4">
+                  <div className="px-2 py-1 text-[11px] font-medium text-muted-foreground">PROJECT SKILLS</div>
+                  {renderSkillTree()}
                 </div>
-                <div className="flex flex-col gap-1 px-1">
-                  {filtered.map((skill) => {
-                    const id = skill.id ?? skill._id!;
-                    const isSelected = selectedSkillId === id;
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => handleSelectSkill(skill)}
-                        className={`flex items-center gap-2 rounded-none px-2 py-2 text-left text-sm ${isSelected ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                      >
-                        <SparkleIcon className="size-4" />
-                        <span className="truncate">{skill.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+                <ScrollBar orientation="vertical" />
               </ScrollArea>
+              <div className="border-t px-3 py-2 text-[10px] text-muted-foreground">{skills?.length ?? 0} skills</div>
             </div>
             <button type="button" className="flex-1 bg-black/20" onClick={() => setMobileExplorerOpen(false)} />
           </div>
