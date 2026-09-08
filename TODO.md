@@ -183,6 +183,31 @@ usage, and delete-with-usage-guard.
       actually needs), save, then Connect again. `updateMcp` reuses the
       existing `clientId`, so this doesn't re-run Dynamic Client
       Registration.
+- [x] Fixed a real bug reported directly: editing an MCP (not creating one)
+      and checking "Use dynamic client registration" always failed with
+      "Client ID is required when auth type is oauth", 100% of the time.
+      Root cause: `agent-backend/src/modules/mcp/mcp.service.js`'s
+      `updateMcp` had **no Dynamic Client Registration branch at all**
+      (unlike `createMcp`, which does) — it unconditionally required a
+      `clientId`, either from the payload or the existing record, with no
+      code path that ever ran registration. So switching an MCP to OAuth +
+      DCR from the edit page could never work. Fixed by mirroring
+      `createMcp`'s DCR branch in `updateMcp`, gated on
+      `data.useDynamicRegistration && !hasClientId` so an MCP that already
+      has a client (DCR'd earlier or manually entered) keeps reusing it on
+      further edits instead of re-registering and orphaning connected
+      tokens. Also fixed a related latent crash in the same code region:
+      `existing.oauth.clientSecretEncrypted` (no optional chaining) would
+      throw if an MCP was being switched from `none`/`apiKey` to `oauth`
+      for the first time, since `existing.oauth` is `undefined` in that
+      case — now `existing.oauth?.clientSecretEncrypted`.
+      Also fixed the matching frontend bug: `platform`'s MCP edit page
+      pre-filled the "Use dynamic client registration" checkbox from
+      `found.useDynamicRegistration`, a field the API response never
+      actually has (it's `found.oauth.dynamicallyRegistered`, nested) — so
+      opening an already-DCR'd MCP to edit always showed the checkbox
+      unchecked. Fixed to read the real field; removed the incorrect
+      top-level `useDynamicRegistration` from the `Mcp` TS interface.
 - [ ] Re-verify end-to-end: add server → Test Connection → attach to an agent
 
 ---

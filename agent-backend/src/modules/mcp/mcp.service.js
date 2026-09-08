@@ -276,26 +276,63 @@ class McpService {
       const discovered = needsDiscovery
         ? await discoverOAuthEndpoints(data.url || existing.url)
         : null;
-      const clientId = data.oauth?.clientId || existing.oauth?.clientId;
-      if (!clientId) throw new ValidationError('Client ID is required when auth type is oauth');
-      // clientSecret is optional -- a public (PKCE-only) client has none to
-      // require, same relaxation as createMcp's manual branch above.
-      const clientSecretEncrypted = data.oauth?.clientSecret
-        ? encryption.encrypt(data.oauth.clientSecret)
-        : existing.oauth.clientSecretEncrypted;
-      updateData.oauth = {
-        clientId,
-        clientSecretEncrypted,
-        authorizationEndpoint:
-          discovered?.authorizationEndpoint || existing.oauth.authorizationEndpoint,
-        tokenEndpoint: discovered?.tokenEndpoint || existing.oauth.tokenEndpoint,
-        scopes: data.oauth?.scopes || existing.oauth?.scopes || [],
-        dynamicallyRegistered: existing.oauth?.dynamicallyRegistered || false,
-        tokenEndpointAuthMethod:
-          existing.oauth?.tokenEndpointAuthMethod ||
-          (clientSecretEncrypted ? 'client_secret_basic' : 'none'),
-        ownerToken: existing.oauth?.ownerToken || {},
-      };
+      const hasClientId = Boolean(data.oauth?.clientId || existing.oauth?.clientId);
+      if (data.useDynamicRegistration && !hasClientId) {
+        // createMcp's DCR branch, mirrored here: `updateMcp` previously had
+        // no path for this at all, so switching an MCP to OAuth + "Use
+        // dynamic client registration" from the edit page always failed
+        // with "Client ID is required" — there was never a clientId to
+        // fall back to and nothing ran registration. Only takes this path
+        // when there's no clientId to reuse yet; an MCP that already has
+        // one (DCR'd earlier, or manually entered) keeps reusing it below
+        // instead of re-registering and orphaning any connected tokens.
+        if (!discovered?.registrationEndpoint) {
+          throw new ValidationError(
+            'This MCP server does not support Dynamic Client Registration. Please provide a Client ID and Client Secret manually.'
+          );
+        }
+        const scopes = data.oauth?.scopes?.length ? data.oauth.scopes : [];
+        const registered = await dynamicClientRegistration({
+          registrationEndpoint: discovered.registrationEndpoint,
+          redirectUris: [redirectUriFor('owner'), redirectUriFor('user')],
+          clientName: data.name || existing.name,
+          clientUri: config.websiteUrl,
+          scopes,
+        });
+        updateData.oauth = {
+          clientId: registered.clientId,
+          clientSecretEncrypted: registered.clientSecret
+            ? encryption.encrypt(registered.clientSecret)
+            : null,
+          authorizationEndpoint: discovered.authorizationEndpoint,
+          tokenEndpoint: discovered.tokenEndpoint,
+          scopes,
+          dynamicallyRegistered: true,
+          tokenEndpointAuthMethod: registered.tokenEndpointAuthMethod,
+          ownerToken: existing.oauth?.ownerToken || {},
+        };
+      } else {
+        const clientId = data.oauth?.clientId || existing.oauth?.clientId;
+        if (!clientId) throw new ValidationError('Client ID is required when auth type is oauth');
+        // clientSecret is optional -- a public (PKCE-only) client has none to
+        // require, same relaxation as createMcp's manual branch above.
+        const clientSecretEncrypted = data.oauth?.clientSecret
+          ? encryption.encrypt(data.oauth.clientSecret)
+          : existing.oauth?.clientSecretEncrypted;
+        updateData.oauth = {
+          clientId,
+          clientSecretEncrypted,
+          authorizationEndpoint:
+            discovered?.authorizationEndpoint || existing.oauth?.authorizationEndpoint,
+          tokenEndpoint: discovered?.tokenEndpoint || existing.oauth?.tokenEndpoint,
+          scopes: data.oauth?.scopes?.length ? data.oauth.scopes : existing.oauth?.scopes || [],
+          dynamicallyRegistered: existing.oauth?.dynamicallyRegistered || false,
+          tokenEndpointAuthMethod:
+            existing.oauth?.tokenEndpointAuthMethod ||
+            (clientSecretEncrypted ? 'client_secret_basic' : 'none'),
+          ownerToken: existing.oauth?.ownerToken || {},
+        };
+      }
     } else if (resolvedAuthType === 'apiKey') {
       if (!data.apiKey && !existing.apiKeyEncrypted) {
         throw new ValidationError('API key is required when auth type is apiKey');

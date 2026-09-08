@@ -67,8 +67,7 @@ interface Mcp {
   url: string;
   authType?: string;
   authMode?: string;
-  useDynamicRegistration?: boolean;
-  oauth?: { clientId?: string; scopes?: string[] };
+  oauth?: { clientId?: string; scopes?: string[]; dynamicallyRegistered?: boolean };
   isEnabled?: boolean;
   tools?: McpTool[];
   resources?: { uri: string; name?: string }[];
@@ -137,7 +136,7 @@ export default function EditMcpPage() {
             clientId: found.oauth?.clientId || "",
             clientSecret: "",
             scopes: (found.oauth?.scopes || []).join(" "),
-            useDynamicRegistration: !!found.useDynamicRegistration,
+            useDynamicRegistration: !!found.oauth?.dynamicallyRegistered,
             isEnabled: found.isEnabled !== false,
           });
           getProjectMcpUsage(projectId, found.id ?? (found._id as string))
