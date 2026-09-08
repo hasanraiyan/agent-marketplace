@@ -37,7 +37,7 @@ jest.unstable_mockModule('../src/modules/projects/projectMembership.repository.j
 }));
 
 jest.unstable_mockModule('../src/modules/users/user.repository.js', () => ({
-  default: { findByEmail: jest.fn() },
+  default: { findByEmail: jest.fn(), findByIds: jest.fn() },
 }));
 
 jest.unstable_mockModule('../src/modules/audit/auditLog.service.js', () => ({
@@ -172,13 +172,23 @@ describe('ProjectInvitation Service', () => {
   });
 
   describe('listInvitations', () => {
-    test('delegates to the repository', async () => {
+    test('delegates to the repository and enriches with the inviting Admin', async () => {
       projectInvitationRepository.findByProject.mockResolvedValue([pendingInvitation]);
+      userRepository.findByIds.mockResolvedValue([
+        { _id: inviterId, name: 'Raiyan Hasan', email: 'raiyan@beyond.campus' },
+      ]);
 
       const result = await projectInvitationService.listInvitations(projectId);
 
       expect(projectInvitationRepository.findByProject).toHaveBeenCalledWith(projectId);
-      expect(result).toEqual([pendingInvitation]);
+      expect(userRepository.findByIds).toHaveBeenCalledWith([inviterId]);
+      expect(result).toEqual([
+        {
+          ...pendingInvitation,
+          invitedByName: 'Raiyan Hasan',
+          invitedByEmail: 'raiyan@beyond.campus',
+        },
+      ]);
     });
 
     test('lazily expires past-due pending invitations before listing', async () => {
@@ -187,6 +197,19 @@ describe('ProjectInvitation Service', () => {
       await projectInvitationService.listInvitations(projectId);
 
       expect(projectInvitationRepository.markPendingExpiredBefore).toHaveBeenCalled();
+    });
+
+    test('nulls inviter fields for backfilled invitations without an invitedBy', async () => {
+      projectInvitationRepository.findByProject.mockResolvedValue([
+        { ...pendingInvitation, invitedBy: undefined },
+      ]);
+
+      const result = await projectInvitationService.listInvitations(projectId);
+
+      expect(userRepository.findByIds).not.toHaveBeenCalled();
+      expect(result).toEqual([
+        { ...pendingInvitation, invitedBy: undefined, invitedByName: null, invitedByEmail: null },
+      ]);
     });
   });
 

@@ -46,6 +46,7 @@ import {
   deleteProjectSecret,
   getProjectSecretUsage,
 } from "@/lib/api/projects";
+import { cacheKey, deleteCachedByPrefix } from "@/lib/cache";
 
 interface Secret {
   _id?: string;
@@ -143,6 +144,7 @@ export default function EditSecretPage() {
     try {
       const targetId = secret.id ?? secret._id ?? secretId;
       await updateProjectSecret(projectId, targetId, payload);
+      deleteCachedByPrefix(cacheKey.resource(projectId, "secrets"));
       router.push(`/projects/${projectId}/secrets`);
     } catch (err) {
       setSaveError(errorMessage(err, "Failed to update secret. Label may already exist."));
@@ -157,6 +159,7 @@ export default function EditSecretPage() {
     try {
       const targetId = secret.id ?? secret._id ?? secretId;
       await deleteProjectSecret(projectId, targetId);
+      deleteCachedByPrefix(cacheKey.resource(projectId, "secrets"));
       router.push(`/projects/${projectId}/secrets`);
     } catch (err) {
       setDeleteError(errorMessage(err, "Failed to delete secret. It may still be used by REST tools."));

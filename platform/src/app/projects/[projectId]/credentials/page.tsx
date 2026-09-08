@@ -60,6 +60,7 @@ import {
   mintProjectCredential,
   revokeProjectCredential,
 } from "@/lib/api/projects";
+import { cacheKey, deleteCachedByPrefix, getCached, setCached, dedupedFetch } from "@/lib/cache";
 
 interface Credential {
   _id?: string;
@@ -123,15 +124,24 @@ export default function CredentialsPage() {
 
   React.useEffect(() => {
     let cancelled = false;
-    getProjectCredentials(projectId)
-      .then((res) => {
+    const key = cacheKey.resource(projectId, "credentials");
+    const cached = getCached<Credential[]>(key);
+    if (cached) setCredentials(cached);
+    dedupedFetch<Credential[]>(
+      key,
+      () =>
+        getProjectCredentials(projectId).then((res) => {
+          const raw = res.data?.data;
+          return (Array.isArray(raw) ? raw : (raw?.items ?? raw ?? [])) as Credential[];
+        })
+    )
+      .then((normalized) => {
         if (cancelled) return;
-        const raw = res.data?.data;
-        const normalized: Credential[] = Array.isArray(raw) ? raw : (raw?.items ?? raw ?? []);
+        setCached(key, normalized);
         setCredentials(normalized);
       })
       .catch((err) => {
-        if (!cancelled) {
+        if (!cancelled && !cached) {
           setLoadError(errorMessage(err, "Failed to load Credentials."));
           setCredentials([]);
         }
@@ -159,7 +169,13 @@ export default function CredentialsPage() {
       // The plaintext secret must not linger in list state — it only exists
       // in the one-time reveal dialog.
       const { secret: _secret, ...credential } = created ?? {};
-      setCredentials((prev) => [credential, ...(prev ?? [])]);
+      deleteCachedByPrefix(cacheKey.resource(projectId, "credentials"));
+      // Optimistically update local + cache
+      setCredentials((prev) => {
+        const next = [credential, ...(prev ?? [])] as Credential[];
+        setCached(cacheKey.resource(projectId, "credentials"), next);
+        return next;
+      });
       closeMintDialog();
     } catch (err) {
       setMintError(errorMessage(err, "Failed to mint credential."));
@@ -179,11 +195,12 @@ export default function CredentialsPage() {
       if (!credentialId) return;
       const res = await revokeProjectCredential(projectId, credentialId);
       // The service returns the updated (now REVOKED) row.
-      setCredentials((prev) =>
-        (prev ?? []).map((c) =>
-          (c._id || c.id) === credentialId ? res.data?.data ?? c : c
-        )
-      );
+      deleteCachedByPrefix(cacheKey.resource(projectId, "credentials"));
+      setCredentials((prev) => {
+        const next = (prev ?? []).map((c) => ((c._id || c.id) === credentialId ? res.data?.data ?? c : c)) as Credential[];
+        setCached(cacheKey.resource(projectId, "credentials"), next);
+        return next;
+      });
       setRevokeTarget(null);
     } catch (err) {
       setRevokeError(errorMessage(err, "Failed to revoke credential."));

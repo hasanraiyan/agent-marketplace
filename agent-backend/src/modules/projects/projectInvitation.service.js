@@ -109,7 +109,37 @@ class ProjectInvitationService {
     // Clerk fires no webhook when an invitation expires, so flip any
     // past-due pending rows to 'expired' before listing (AD-08 §11).
     await projectInvitationRepository.markPendingExpiredBefore();
-    return await projectInvitationRepository.findByProject(projectId);
+    const invitations = await projectInvitationRepository.findByProject(projectId);
+    if (invitations.length === 0) return invitations;
+
+    // Additive enrichment: attach the inviting Admin's display profile
+    // (invitedByName/invitedByEmail) so Studio's Invitations UI can show
+    // who sent each invite. Original fields are preserved; rows without a
+    // recorded inviter (webhook backfilled) get nulls.
+    const inviterIds = [
+      ...new Set(
+        invitations
+          .map((i) => i.invitedBy)
+          .filter(Boolean)
+          .map(String)
+      ),
+    ];
+    const users =
+      (inviterIds.length ? await userRepository.findByIds(inviterIds) : []) ?? [];
+    const byId = new Map(users.map((u) => [String(u._id), u]));
+
+    return invitations.map((invitation) => {
+      const plain =
+        typeof invitation.toObject === 'function'
+          ? invitation.toObject()
+          : { ...invitation };
+      const inviter = byId.get(String(invitation.invitedBy));
+      return {
+        ...plain,
+        invitedByName: inviter?.name ?? null,
+        invitedByEmail: inviter?.email ?? null,
+      };
+    });
   }
 
   /**

@@ -19,11 +19,16 @@ jest.unstable_mockModule('../src/modules/audit/auditLog.service.js', () => ({
   default: { record: jest.fn() },
 }));
 
+jest.unstable_mockModule('../src/modules/users/user.repository.js', () => ({
+  default: { findByIds: jest.fn() },
+}));
+
 const projectMembershipRepository = (
   await import('../src/modules/projects/projectMembership.repository.js')
 ).default;
 const projectRepository = (await import('../src/modules/projects/project.repository.js')).default;
 const auditLogService = (await import('../src/modules/audit/auditLog.service.js')).default;
+const userRepository = (await import('../src/modules/users/user.repository.js')).default;
 const projectMembershipService = (
   await import('../src/modules/projects/projectMembership.service.js')
 ).default;
@@ -174,14 +179,58 @@ describe('ProjectMembership Service', () => {
   });
 
   describe('listMembers', () => {
-    test('delegates to the repository', async () => {
-      const members = [{ personaUserId: raiyanId, role: 'Admin' }];
+    test('delegates to the repository and enriches each member with name/email', async () => {
+      const members = [
+        { personaUserId: raiyanId, role: 'Admin', createdAt: new Date('2026-05-01') },
+        { personaUserId: sabikId, role: 'Admin', createdAt: new Date('2026-06-01') },
+      ];
       projectMembershipRepository.findByProject.mockResolvedValue(members);
+      userRepository.findByIds.mockResolvedValue([
+        { _id: raiyanId, name: 'Raiyan Hasan', email: 'raiyan@beyond.campus' },
+        { _id: sabikId, name: 'Sabik', email: 'sabik@beyond.campus' },
+      ]);
 
       const result = await projectMembershipService.listMembers(projectId);
 
       expect(projectMembershipRepository.findByProject).toHaveBeenCalledWith(projectId);
-      expect(result).toEqual(members);
+      expect(userRepository.findByIds).toHaveBeenCalledWith([raiyanId, sabikId]);
+      expect(result).toEqual([
+        {
+          personaUserId: raiyanId,
+          role: 'Admin',
+          createdAt: new Date('2026-05-01'),
+          name: 'Raiyan Hasan',
+          email: 'raiyan@beyond.campus',
+        },
+        {
+          personaUserId: sabikId,
+          role: 'Admin',
+          createdAt: new Date('2026-06-01'),
+          name: 'Sabik',
+          email: 'sabik@beyond.campus',
+        },
+      ]);
+    });
+
+    test('nulls profile fields for memberships whose user no longer exists', async () => {
+      const members = [{ personaUserId: 'deleted-user-id', role: 'Admin' }];
+      projectMembershipRepository.findByProject.mockResolvedValue(members);
+      userRepository.findByIds.mockResolvedValue([]);
+
+      const result = await projectMembershipService.listMembers(projectId);
+
+      expect(result).toEqual([
+        { personaUserId: 'deleted-user-id', role: 'Admin', name: null, email: null },
+      ]);
+    });
+
+    test('returns [] without a user lookup when there are no memberships', async () => {
+      projectMembershipRepository.findByProject.mockResolvedValue([]);
+
+      const result = await projectMembershipService.listMembers(projectId);
+
+      expect(result).toEqual([]);
+      expect(userRepository.findByIds).not.toHaveBeenCalled();
     });
   });
 

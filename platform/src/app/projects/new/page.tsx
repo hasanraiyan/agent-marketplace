@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { createProject } from "@/lib/api/projects";
+import { cacheKey, deleteCachedByPrefix } from "@/lib/cache";
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -21,6 +22,7 @@ export default function NewProjectPage() {
     try {
       const res = await createProject({ name: name.trim() });
       const project = res.data?.data;
+      deleteCachedByPrefix(cacheKey.projects());
       router.push(`/projects/${project._id}`);
     } catch (err) {
       const message =

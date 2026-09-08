@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { createProjectSecret } from "@/lib/api/projects";
+import { cacheKey, deleteCachedByPrefix } from "@/lib/cache";
 
 function errorMessage(err: unknown, fallback: string) {
   return (
@@ -51,6 +52,7 @@ export default function NewSecretPage() {
     setError(null);
     try {
       await createProjectSecret(projectId, { label: trimmedLabel, value });
+      deleteCachedByPrefix(cacheKey.resource(projectId, "secrets"));
       router.push(`/projects/${projectId}/secrets`);
     } catch (err) {
       setError(errorMessage(err, "Failed to create secret. Label may already exist."));

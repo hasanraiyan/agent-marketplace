@@ -21,6 +21,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { createProjectProvider, testProviderCredentials } from "@/lib/api/projects";
+import { cacheKey, deleteCachedByPrefix } from "@/lib/cache";
 
 const PROVIDER_TYPES = [
   { value: "openai", label: "OpenAI" },
@@ -87,6 +88,7 @@ export default function NewProviderPage() {
       const data: Record<string, unknown> = { ...formData };
       if (data.type !== "custom") delete data.baseURL;
       await createProjectProvider(projectId, data);
+      deleteCachedByPrefix(cacheKey.resource(projectId, "providers"));
       router.push(`/projects/${projectId}/providers`);
     } catch (err) {
       setError(errorMessage(err, "Failed to save provider."));

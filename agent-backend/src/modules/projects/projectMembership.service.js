@@ -5,6 +5,7 @@ import { PROJECT_STATUS } from './project.model.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
 import ValidationError from '../../utils/errors/ValidationError.js';
 import auditLogService from '../audit/auditLog.service.js';
+import userRepository from '../users/user.repository.js';
 
 class ProjectMembershipService {
   /**
@@ -115,7 +116,30 @@ class ProjectMembershipService {
   }
 
   async listMembers(projectId) {
-    return await projectMembershipRepository.findByProject(projectId);
+    const memberships = await projectMembershipRepository.findByProject(projectId);
+    if (memberships.length === 0) return [];
+
+    // Additive enrichment (AD-08 §8): attach display profile fields
+    // (name/email) so Studio's Members UI renders real identities instead
+    // of raw Persona User ids. All original membership fields are
+    // preserved; a dangling membership for a deleted user simply gets
+    // nulls for the profile fields.
+    const users =
+      (await userRepository.findByIds(memberships.map((m) => m.personaUserId))) ?? [];
+    const byId = new Map(users.map((u) => [String(u._id), u]));
+
+    return memberships.map((membership) => {
+      const plain =
+        typeof membership.toObject === 'function'
+          ? membership.toObject()
+          : { ...membership };
+      const user = byId.get(String(membership.personaUserId));
+      return {
+        ...plain,
+        name: user?.name ?? null,
+        email: user?.email ?? null,
+      };
+    });
   }
 
   /**

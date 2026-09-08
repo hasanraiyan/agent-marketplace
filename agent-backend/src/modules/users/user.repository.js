@@ -223,6 +223,21 @@ class UserRepository {
   }
 
   /**
+   * Batch-fetch users by id, used to enrich Project membership/invitation
+   * lists with display profile data. Returns only name + email — the
+   * fields Studio's Members UI needs — never clerkId or role. Unknown ids
+   * are skipped (a dangling membership row for a deleted user still lists,
+   * just without profile fields).
+   * @param {string[]} ids - User ids to fetch
+   * @returns {Promise<Array>} Matching users
+   */
+  async findByIds(ids) {
+    const clean = [...new Set((ids || []).map(String).filter(Boolean))];
+    if (clean.length === 0) return [];
+    return await User.find({ _id: { $in: clean } }).select('name email');
+  }
+
+  /**
    * Search active users by email prefix (case-insensitive) for the
    * Developer Studio "Add Admin" autocomplete. Returns only the fields
    * needed to display and pick a user (name + email) — never clerkId or

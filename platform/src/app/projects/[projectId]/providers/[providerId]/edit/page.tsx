@@ -52,6 +52,7 @@ import {
   testProjectProviderConnection,
   testProviderCredentials,
 } from "@/lib/api/projects";
+import { cacheKey, deleteCachedByPrefix } from "@/lib/cache";
 
 const PROVIDER_TYPES = [
   { value: "openai", label: "OpenAI" },
@@ -215,6 +216,7 @@ export default function EditProviderPage() {
       if (!data.apiKey) delete data.apiKey;
       const targetId = provider.id ?? provider._id ?? providerId;
       await updateProjectProvider(projectId, targetId, data);
+      deleteCachedByPrefix(cacheKey.resource(projectId, "providers"));
       router.push(`/projects/${projectId}/providers`);
     } catch (err) {
       setSaveError(errorMessage(err, "Failed to save provider."));
@@ -229,6 +231,7 @@ export default function EditProviderPage() {
     try {
       const targetId = provider.id ?? provider._id ?? providerId;
       await deleteProjectProvider(projectId, targetId);
+      deleteCachedByPrefix(cacheKey.resource(projectId, "providers"));
       router.push(`/projects/${projectId}/providers`);
     } catch (err) {
       setDeleteError(errorMessage(err, "Failed to delete provider. It may still be used by agents."));
