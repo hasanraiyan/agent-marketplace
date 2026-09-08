@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { CaretUpDownIcon, CheckIcon, FoldersIcon, PlusIcon } from "@phosphor-icons/react";
+import { AppIcon } from "@/components/layout/app-icon";
 import { cn } from "cn";
 import {
   DropdownMenu,
@@ -65,7 +66,7 @@ function ProjectSwitcher({ projectId, projectName }: { projectId: string; projec
                 size="lg"
                 className="border border-transparent hover:border-border data-popup-open:border-border data-popup-open:bg-sidebar-accent group-data-[collapsible=icon]:justify-center!"
               >
-                <FoldersIcon weight="fill" className="size-4 shrink-0 text-primary" />
+                <AppIcon className="size-4 shrink-0" />
                 <span className="flex-1 truncate text-left font-medium group-data-[collapsible=icon]:hidden">
                   {projectName}
                 </span>
