@@ -158,8 +158,15 @@ export default function NewKnowledgePage() {
                     </Alert>
                   ) : (
                     <Select value={formData.providerId} onValueChange={(v: string | null) => setFormData((p) => ({ ...p, providerId: v ?? "" }))} required>
-                      <SelectTrigger id="providerId">
-                        <SelectValue placeholder="Select a provider" />
+                      <SelectTrigger id="providerId" className="w-full">
+                        {formData.providerId ? (
+                          <span className="flex-1 truncate text-left">
+                            {providers.find((p) => (p.id ?? p._id) === formData.providerId)?.label ?? formData.providerId}
+                            {providers.find((p) => (p.id ?? p._id) === formData.providerId)?.isDefault ? " — Default" : ""}
+                          </span>
+                        ) : (
+                          <SelectValue placeholder="Select a provider" />
+                        )}
                       </SelectTrigger>
                       <SelectContent>
                         {providers.map((p) => (
