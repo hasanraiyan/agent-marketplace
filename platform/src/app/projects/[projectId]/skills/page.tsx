@@ -532,7 +532,7 @@ export default function SkillsPage() {
   }
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-background">
+    <div className="flex h-[calc(100dvh-3rem)] w-full flex-col overflow-hidden bg-background">
       <ResizablePanelGroup orientation="horizontal" className="relative flex-1">
         {/* Activity Bar - VS Code style far left */}
         <div className="hidden w-12 shrink-0 flex-col items-center gap-2 border-r bg-muted/10 py-2 sm:flex">
