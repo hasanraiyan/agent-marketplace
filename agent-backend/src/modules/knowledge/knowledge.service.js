@@ -98,6 +98,14 @@ class KnowledgeService {
           apiKey,
         });
       })();
+      // Constructing the client above never actually connects (it's just
+      // config), so this only rejects on a config error (missing API key).
+      // Still: don't leave a permanently-rejected promise cached — every
+      // later call would replay the same failure forever, requiring a
+      // process restart to recover even after the config/env is fixed.
+      this._qdrantClientPromise.catch(() => {
+        this._qdrantClientPromise = null;
+      });
     }
     return this._qdrantClientPromise;
   }
@@ -142,7 +150,20 @@ class KnowledgeService {
   async _createQdrantCollection(collectionName, embeddingModel = 'text-embedding-3-small') {
     const client = await this._getQdrantClient();
 
-    const collections = await client.getCollections();
+    let collections;
+    try {
+      collections = await client.getCollections();
+    } catch (err) {
+      // The qdrant-js client wraps a raw connection failure (wrong host,
+      // server down, network/firewall block) as a bare "fetch failed" with
+      // no further detail — which is what actually reaches the API
+      // response and the logs, and is nearly undiagnosable on its own.
+      // Name the configured target explicitly so this is actionable.
+      throw new Error(
+        `Cannot reach the vector database (Qdrant) at ${config.knowledge.qdrantUrl}. ` +
+          `Check QDRANT_URL/QDRANT_API_KEY and that the server is reachable. Original error: ${err.message}`
+      );
+    }
     const exists = collections.collections?.some((c) => c.name === collectionName);
     if (exists) return; // Already exists — safe to reuse
 
@@ -286,8 +307,16 @@ class KnowledgeService {
     // 2. Generate a deterministic collection name from the real _id
     const collectionName = this._generateCollectionName(kb._id);
 
-    // 3. Create the Qdrant collection
-    await this._createQdrantCollection(collectionName, kb.embeddingModel);
+    // 3. Create the Qdrant collection. On failure, remove the placeholder
+    // record instead of leaving an orphaned kb_temp_* row behind — it was
+    // never a real, usable Knowledge Base and would otherwise show up in
+    // list/count queries forever.
+    try {
+      await this._createQdrantCollection(collectionName, kb.embeddingModel);
+    } catch (err) {
+      await knowledgeRepository.deleteKb(kb._id).catch(() => {});
+      throw err;
+    }
 
     // 4. Update the KB record with the real collection name
     const updatedKb = await knowledgeRepository.updateKb(kb._id, {
