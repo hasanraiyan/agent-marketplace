@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { RobotIcon, SparkleIcon } from "@phosphor-icons/react";
 import {
   Select,
@@ -57,13 +57,15 @@ function errorMessage(err: unknown, fallback: string): string {
  * while an Agent is selected, so switching back preserves the spec
  * conversation in-session.
  */
-export default function PlaygroundPage() {
+function PlaygroundContent() {
   const { projectId } = useParams<{ projectId: string }>();
+  const searchParams = useSearchParams();
+  const queryAgentId = searchParams.get("agentId") || searchParams.get("agent");
 
   const [agents, setAgents] = React.useState<AgentRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-  const [selectedId, setSelectedId] = React.useState<string | null>(ARCHITECT);
+  const [selectedId, setSelectedId] = React.useState<string | null>(queryAgentId || ARCHITECT);
   const [tab, setTab] = React.useState<TabId>("chat");
 
   React.useEffect(() => {
@@ -76,6 +78,9 @@ export default function PlaygroundPage() {
         const rows = normalizeAgents(res.data?.data);
         setAgents(rows);
         setSelectedId((prev) => {
+          if (queryAgentId && rows.some((agent) => agent.id === queryAgentId)) {
+            return queryAgentId;
+          }
           if (prev === ARCHITECT) return ARCHITECT;
           return prev && rows.some((agent) => agent.id === prev) ? prev : ARCHITECT;
         });
@@ -89,7 +94,13 @@ export default function PlaygroundPage() {
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [projectId, queryAgentId]);
+
+  React.useEffect(() => {
+    if (queryAgentId && agents.some((agent) => agent.id === queryAgentId)) {
+      setSelectedId(queryAgentId);
+    }
+  }, [queryAgentId, agents]);
 
   // Best-effort refresh after the Architect upserts an Agent: drop the agents
   // list page's cached payload, then re-fetch so the new/updated Agent appears
@@ -223,5 +234,19 @@ export default function PlaygroundPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PlaygroundPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="flex h-full min-h-0 flex-col overflow-hidden p-6">
+          <Skeleton className="h-10 w-48" />
+        </div>
+      }
+    >
+      <PlaygroundContent />
+    </React.Suspense>
   );
 }

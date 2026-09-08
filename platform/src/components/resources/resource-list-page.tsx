@@ -177,9 +177,13 @@ function ResourceListPage<T extends { _id?: string; id?: string }>({
                       className={href ? "cursor-pointer hover:bg-muted/50" : undefined}
                       onClick={href ? () => router.push(href) : undefined}
                     >
-                      {columns.map((col) => (
-                        <TableCell key={col.header} className={col.className}>
-                          <div className="truncate">{col.cell(item)}</div>
+                      {columns.map((col, idx) => (
+                        <TableCell key={col.header || idx} className={col.className}>
+                          {col.className?.includes("text-right") || col.className?.includes("shrink-0") ? (
+                            col.cell(item)
+                          ) : (
+                            <div className="truncate">{col.cell(item)}</div>
+                          )}
                         </TableCell>
                       ))}
                     </TableRow>
@@ -188,25 +192,31 @@ function ResourceListPage<T extends { _id?: string; id?: string }>({
               </TableBody>
             </Table>
           </div>
-          {/* Mobile: stacked cards — only first column (label/name) + tap to edit */}
+          {/* Mobile: stacked cards */}
           <div className="flex flex-col gap-2 sm:hidden">
             {items.map((item) => {
               const href = getRowHref?.(item);
               const itemId = getItemId(item as { _id?: string; id?: string });
               const primary = columns[0] ? columns[0].cell(item) : null;
               const secondary = columns[1] ? columns[1].cell(item) : null;
+              const action = columns.length > 2 ? columns[columns.length - 1].cell(item) : null;
               return (
-                <button
+                <div
                   key={itemId || JSON.stringify(item)}
-                  type="button"
-                  onClick={href ? () => router.push(href) : undefined}
-                  className="flex w-full items-center justify-between gap-3 rounded-none border border-border bg-card px-3 py-2.5 text-left active:bg-muted/50"
+                  className="flex w-full items-center justify-between gap-3 rounded-none border border-border bg-card px-3 py-2.5"
                 >
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{primary}</span>
-                  {secondary && (
-                    <span className="shrink-0 truncate text-xs text-muted-foreground">{secondary}</span>
-                  )}
-                </button>
+                  <button
+                    type="button"
+                    onClick={href ? () => router.push(href) : undefined}
+                    className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left active:bg-muted/50"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">{primary}</span>
+                    {secondary && (
+                      <span className="shrink-0 truncate text-xs text-muted-foreground">{secondary}</span>
+                    )}
+                  </button>
+                  {action && <div className="shrink-0">{action}</div>}
+                </div>
               );
             })}
           </div>

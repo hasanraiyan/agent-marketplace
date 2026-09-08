@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeftIcon,
   InfoIcon,
+  PlayIcon,
   RobotIcon,
   ShieldCheckIcon,
   WarningCircleIcon,
@@ -490,16 +491,30 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="flex flex-col gap-1">
-        <h1 className="flex items-center gap-2 text-lg font-semibold tracking-tight sm:text-xl">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-none bg-primary text-primary-foreground">
-            <RobotIcon />
-          </span>
-          {isEdit ? "Edit agent" : "New agent"}
-        </h1>
-        <p className="max-w-2xl text-xs leading-snug text-muted-foreground sm:text-sm">
-          An Agent pairs a model provider with instructions and the Project resources it can use at run time.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <h1 className="flex items-center gap-2 text-lg font-semibold tracking-tight sm:text-xl">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-none bg-primary text-primary-foreground">
+              <RobotIcon />
+            </span>
+            {isEdit ? "Edit agent" : "New agent"}
+          </h1>
+          <p className="max-w-2xl text-xs leading-snug text-muted-foreground sm:text-sm">
+            An Agent pairs a model provider with instructions and the Project resources it can use at run time.
+          </p>
+        </div>
+        {isEdit && agentId && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-fit shrink-0 gap-1.5 hover:border-primary/40 hover:bg-primary/5"
+            render={<Link href={`/projects/${pid}/playground?agentId=${agentId}`} />}
+          >
+            <PlayIcon className="size-3.5 text-primary" weight="fill" />
+            Test in Playground
+          </Button>
+        )}
       </div>
 
       <Separator />
@@ -843,7 +858,10 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
             <AlertTitle>Tip</AlertTitle>
             <AlertDescription>
               Start with a provider and one skill or knowledge base — then test the agent in the{" "}
-              <Link className="underline underline-offset-4" href={`${resourceBase}/playground`}>
+              <Link
+                className="underline underline-offset-4"
+                href={isEdit && agentId ? `${resourceBase}/playground?agentId=${agentId}` : `${resourceBase}/playground`}
+              >
                 Playground
               </Link>
               .

@@ -1,7 +1,9 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { RobotIcon } from "@phosphor-icons/react";
+import Link from "next/link";
+import { PlayIcon, RobotIcon } from "@phosphor-icons/react";
+import { Button } from "@/components/ui/button";
 import { ResourceListPage } from "@/components/resources/resource-list-page";
 import { getProjectAgents } from "@/lib/api/projects";
 
@@ -27,6 +29,27 @@ export default function AgentsPage() {
       columns={[
         { header: "Name", cell: (agent) => agent.name },
         { header: "Description", cell: (agent) => agent.description || "—" },
+        {
+          header: "",
+          className: "w-32 text-right shrink-0",
+          cell: (agent) => (
+            <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1.5 px-2.5 text-xs hover:border-primary/40 hover:bg-primary/5"
+                render={
+                  <Link
+                    href={`/projects/${projectId}/playground?agentId=${agent._id}`}
+                  />
+                }
+              >
+                <PlayIcon className="size-3 text-primary" weight="fill" />
+                <span>Test Agent</span>
+              </Button>
+            </div>
+          ),
+        },
       ]}
     />
   );
