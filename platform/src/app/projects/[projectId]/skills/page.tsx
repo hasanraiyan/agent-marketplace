@@ -305,7 +305,7 @@ export default function SkillsPage() {
         </div>
 
         {/* Explorer Sidebar - min width when 0 skills */}
-        <ResizablePanel defaultSize={22} minSize={18} maxSize={32} className="hidden sm:flex" style={{ minWidth: 220 }}>
+        <ResizablePanel defaultSize="22" minSize="18" maxSize="32" className="hidden sm:flex" style={{ minWidth: 220 }}>
           <div className="flex h-full w-full min-w-[220px] flex-col border-r bg-muted/5">
             <div className="flex h-7 shrink-0 items-center justify-between px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Explorer
@@ -445,7 +445,7 @@ export default function SkillsPage() {
         <ResizableHandle withHandle className="hidden sm:flex" />
 
         {/* Editor Area */}
-        <ResizablePanel defaultSize={78} className="flex min-w-0 flex-col bg-background">
+        <ResizablePanel defaultSize="78" className="flex min-w-0 flex-col bg-background">
           {!selectedSkill ? (
             <div className="flex flex-1 items-center justify-center p-8 text-center">
               <div className="flex max-w-sm flex-col items-center gap-3">
