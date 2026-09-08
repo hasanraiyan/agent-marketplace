@@ -16,14 +16,11 @@ import {
   XIcon,
   MagnifyingGlassIcon,
   GlobeIcon,
-  PencilSimpleIcon,
-  EyeIcon,
   DotsThreeVerticalIcon,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CodeEditor } from "@/components/ui/code-editor";
-import { MessageMarkdown } from "@/components/chat/message-markdown";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -205,7 +202,6 @@ export default function SkillsPage() {
   const [newFilePath, setNewFilePath] = React.useState("");
   const [addFileSkillId, setAddFileSkillId] = React.useState<string | null>(null);
   const [mobileExplorerOpen, setMobileExplorerOpen] = React.useState(false);
-  const [viewMode, setViewMode] = React.useState<"edit" | "preview">("edit");
   const [confirmAction, setConfirmAction] = React.useState<{
     title: string;
     description: string;
@@ -722,16 +718,6 @@ export default function SkillsPage() {
                   );
                 })}
                 <div className="flex-1" />
-                {isMarkdownFile && (
-                  <button
-                    type="button"
-                    onClick={() => setViewMode((m) => (m === "preview" ? "edit" : "preview"))}
-                    className="flex shrink-0 items-center gap-1 border-l px-2.5 py-1 text-[11px] text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                  >
-                    {viewMode === "preview" ? <PencilSimpleIcon className="size-3" /> : <EyeIcon className="size-3" />}
-                    <span className="hidden sm:inline">{viewMode === "preview" ? "Edit" : "Preview"}</span>
-                  </button>
-                )}
                 <div className="hidden items-center gap-1 pr-2 sm:flex">
                   <Badge variant="outline" className="text-[10px]">
                     {activeSkill.isPublic ? "Public" : "Private"}
@@ -752,20 +738,14 @@ export default function SkillsPage() {
               {/* Editor */}
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <div className="flex min-h-0 flex-1 overflow-hidden">
-                  {viewMode === "preview" && isMarkdownFile ? (
-                    <div className="h-full min-h-0 w-full flex-1 overflow-y-auto p-4">
-                      <MessageMarkdown content={editorContent} />
-                    </div>
-                  ) : (
-                    <CodeEditor
-                      value={editorContent}
-                      onChange={handleEditorChange}
-                      language={isMarkdownFile ? "markdown" : fenceLanguage}
-                      placeholder={isSkillMd ? "# Skill Title\n\n## Overview\n\nWrite the full instructions an Agent should follow…" : ""}
-                      className="h-full min-h-0 w-full flex-1"
-                      spellCheck={false}
-                    />
-                  )}
+                  <CodeEditor
+                    value={editorContent}
+                    onChange={handleEditorChange}
+                    language={isMarkdownFile ? "markdown" : fenceLanguage}
+                    placeholder={isSkillMd ? "# Skill Title\n\n## Overview\n\nWrite the full instructions an Agent should follow…" : ""}
+                    className="h-full min-h-0 w-full flex-1"
+                    spellCheck={false}
+                  />
 
                   {/* Right preview - hidden on small, visible on xl */}
                   <div className="hidden w-[320px] shrink-0 border-l bg-muted/5 xl:flex xl:flex-col">
