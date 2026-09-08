@@ -340,7 +340,7 @@ export function FileExplorerEditor<T extends ExplorerItem>({
   };
 
   const handleSave = async () => {
-    if (!activeTab || !activeItem) return;
+    if (!activeTab || !activeItem || !activeTab.isDirty) return;
     setSaving(true);
     try {
       if (activeTab.path === null) {
@@ -356,6 +356,27 @@ export function FileExplorerEditor<T extends ExplorerItem>({
       setSaving(false);
     }
   };
+
+  // Keep a ref to the latest handleSave so the window-level keydown
+  // listener (bound once) always saves from the current render's state.
+  const handleSaveRef = React.useRef(handleSave);
+  React.useEffect(() => {
+    handleSaveRef.current = handleSave;
+  });
+
+  // VS Code-style save: Ctrl+S on Windows/Linux, Cmd+S on macOS. Always
+  // preventDefault so the browser's "Save Page" dialog never appears while
+  // editing a file here. handleSave no-ops when nothing is dirty.
+  React.useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        handleSaveRef.current();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const deleteItemNow = async (item: T) => {
     try {
@@ -768,6 +789,7 @@ export function FileExplorerEditor<T extends ExplorerItem>({
                       className="h-5 bg-white text-primary hover:bg-white/90 text-[11px]"
                       onClick={handleSave}
                       disabled={!isDirty || saving}
+                      title="Save (Ctrl+S)"
                     >
                       <FloppyDiskIcon data-icon="inline-start" className="size-3" />
                       {saving ? "Saving…" : "Save"}
