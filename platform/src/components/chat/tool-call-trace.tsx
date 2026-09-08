@@ -25,12 +25,14 @@ function ToolCallTrace({
   projectId,
   onOpenSubagent,
   onOpenWorkspaceFile,
+  onSendMessage,
 }: {
   toolCalls: ChatToolCall[];
   todos?: ChatTodo[];
   projectId?: string;
   onOpenSubagent?: (toolCallId: string) => void;
   onOpenWorkspaceFile?: (path: string) => void;
+  onSendMessage?: (text: string) => void;
 }) {
   // Fires onOpenWorkspaceFile once per completed present_file call, not on
   // every render — a plain call inside the render/map below would re-fire
@@ -85,6 +87,7 @@ function ToolCallTrace({
             resourceUri={tc.mcpApp.resourceUri}
             toolName={tc.name}
             tool={tc}
+            onSendMessage={onSendMessage}
           />
         </div>
       );

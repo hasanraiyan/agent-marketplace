@@ -60,6 +60,7 @@ export interface McpAppRendererProps {
   className?: string;
   height?: number;
   expanded?: boolean;
+  onSendMessage?: (text: string) => void;
 }
 
 /**
@@ -75,10 +76,13 @@ export function McpAppRenderer({
   className,
   height = 450,
   expanded: initialExpanded = true,
+  onSendMessage,
 }: McpAppRendererProps) {
   const iframeRef = React.useRef<HTMLIFrameElement | null>(null);
   const bridgeRef = React.useRef<AppBridge | null>(null);
   const resultSentRef = React.useRef(false);
+  const onSendMessageRef = React.useRef(onSendMessage);
+  onSendMessageRef.current = onSendMessage;
   const [html, setHtml] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -132,6 +136,7 @@ export function McpAppRenderer({
       null,
       { name: "persona-platform", version: "1.0.0" },
       {
+        message: { text: {} },
         openLinks: {},
         serverTools: {},
         serverResources: {},
@@ -176,7 +181,22 @@ export function McpAppRenderer({
       return {};
     };
 
-    bridge.onmessage = async () => ({});
+    bridge.onmessage = async ({ content }) => {
+      if (Array.isArray(content)) {
+        const text = content
+          .filter(
+            (b): b is { type: "text"; text: string } =>
+              b?.type === "text" && typeof (b as { text?: unknown }).text === "string"
+          )
+          .map((b) => b.text)
+          .join("\n")
+          .trim();
+        if (text) {
+          onSendMessageRef.current?.(text);
+        }
+      }
+      return {};
+    };
     bridge.onupdatemodelcontext = async () => ({});
 
     bridge.oninitialized = () => {

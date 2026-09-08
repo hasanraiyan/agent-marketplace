@@ -86,6 +86,17 @@ function AgentChat({
     }
   }, [input, send]);
 
+  const handleWidgetSendMessage = React.useCallback(
+    async (text: string) => {
+      try {
+        await send(text);
+      } catch {
+        // errors surface through chat.error
+      }
+    },
+    [send]
+  );
+
   // ── Interrupts (HITL approval + clarification) ──────────────────────────
   const interrupt = React.useMemo<ChatInterruptData | null>(() => {
     if (chat.pendingApproval) return hitlInterruptFrom(chat.pendingApproval);
@@ -211,6 +222,7 @@ function AgentChat({
                       projectId={projectId}
                       onOpenSubagent={setOpenToolId}
                       onOpenWorkspaceFile={handleOpenWorkspaceFile}
+                      onSendMessage={handleWidgetSendMessage}
                     />
                   </ChatScrollerItem>
                 );

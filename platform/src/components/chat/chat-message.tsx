@@ -21,12 +21,14 @@ function ChatMessage({
   projectId,
   onOpenSubagent,
   onOpenWorkspaceFile,
+  onSendMessage,
 }: {
   message: ChatMessageData;
   todos?: ChatTodo[];
   projectId?: string;
   onOpenSubagent?: (toolCallId: string) => void;
   onOpenWorkspaceFile?: (path: string) => void;
+  onSendMessage?: (text: string) => void;
 }) {
   if (message.role === "user") {
     return (
@@ -54,6 +56,7 @@ function ChatMessage({
             projectId={projectId}
             onOpenSubagent={onOpenSubagent}
             onOpenWorkspaceFile={onOpenWorkspaceFile}
+            onSendMessage={onSendMessage}
           />
         )}
 
