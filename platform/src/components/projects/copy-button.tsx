@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
  */
 function CopyButton({
   value,
-  label = "Copy",
+  label,
   className,
   variant = "ghost",
   size = "sm",
@@ -20,7 +20,7 @@ function CopyButton({
   label?: string;
   className?: string;
   variant?: "ghost" | "outline" | "secondary" | "default" | "destructive" | "link";
-  size?: "xs" | "sm" | "default" | "lg";
+  size?: "xs" | "sm" | "default" | "lg" | "icon" | "icon-xs" | "icon-sm" | "icon-lg";
 }) {
   const [copied, setCopied] = React.useState(false);
 
@@ -40,8 +40,8 @@ function CopyButton({
       variant={variant}
       size={size}
       onClick={handleCopy}
-      aria-label={`${label}: copy to clipboard`}
-      title={`Copy ${label}`}
+      aria-label={label ? `${label}: copy to clipboard` : "Copy to clipboard"}
+      title={label ? `Copy ${label}` : "Copy"}
       className={cn("gap-1", copied && "text-primary", className)}
     >
       {copied ? (

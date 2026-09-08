@@ -84,6 +84,12 @@ function errorMessage(err: unknown, fallback: string) {
   );
 }
 
+function maskKeyId(keyId: string) {
+  // Only the start of the key is shown — the full value is still copied
+  // from the row's copy button.
+  return keyId.length > 12 ? `${keyId.slice(0, 12)}…` : keyId;
+}
+
 function credentialBadgeClass(c: Credential) {
   // ACTIVE gets the same emerald treatment as the old Studio; everything
   // else (REVOKED is the only other status) falls back to the "secondary"
@@ -231,11 +237,16 @@ export default function CredentialsPage() {
                     {credentials.map((c) => (
                       <TableRow key={c._id || c.id || c.keyId}>
                         <TableCell>
-                          <CopyButton
-                            value={c.keyId}
-                            label="Key ID"
-                            className="max-w-[180px] truncate font-mono text-xs"
-                          />
+                          <div className="flex items-center gap-1">
+                            <span className="font-mono text-xs">
+                              {maskKeyId(c.keyId)}
+                            </span>
+                            <CopyButton
+                              value={c.keyId}
+                              size="icon-xs"
+                              className="size-6"
+                            />
+                          </div>
                         </TableCell>
                         <TableCell className="max-w-[160px] truncate">{c.label || "—"}</TableCell>
                         <TableCell>
@@ -277,7 +288,14 @@ export default function CredentialsPage() {
                     className="flex flex-col gap-2 rounded-none border border-border bg-card px-3 py-2.5"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="min-w-0 flex-1 truncate font-mono text-xs">{c.keyId}</span>
+                      <span className="min-w-0 flex-1 truncate font-mono text-xs">
+                        {maskKeyId(c.keyId)}
+                      </span>
+                      <CopyButton
+                        value={c.keyId}
+                        size="icon-xs"
+                        className="size-6"
+                      />
                       <Badge
                         variant={c.status === "ACTIVE" ? "outline" : "secondary"}
                         className={credentialBadgeClass(c)}
