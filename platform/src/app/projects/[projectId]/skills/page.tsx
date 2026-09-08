@@ -391,21 +391,7 @@ export default function SkillsPage() {
           <Button variant="ghost" size="icon-xs" className="sm:hidden" onClick={() => setMobileExplorerOpen((v) => !v)}>
             <FolderIcon />
           </Button>
-          <span className="hidden items-center gap-1.5 text-xs font-medium sm:flex">
-            <SparkleIcon className="size-3.5" />
-            Skills
-          </span>
-          <Badge variant="outline" className="hidden text-[10px] sm:inline-flex">
-            {skills?.length ?? 0} skills
-          </Badge>
           {isDirty && <span className="hidden text-[10px] font-medium text-amber-500 sm:inline">• Unsaved</span>}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Button size="xs" onClick={() => setShowNewDialog(true)}>
-            <PlusIcon data-icon="inline-start" />
-            <span className="hidden sm:inline">New Skill</span>
-            <span className="sm:hidden">New</span>
-          </Button>
         </div>
       </div>
 
@@ -577,8 +563,8 @@ export default function SkillsPage() {
               </div>
 
               {/* Editor */}
-              <div className="flex flex-1 flex-col overflow-hidden">
-                <div className="flex flex-1 overflow-hidden">
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className="flex min-h-0 flex-1 overflow-hidden">
                   {viewMode === "preview" ? (
                     <div className="h-full min-h-0 w-full flex-1 overflow-y-auto p-4">
                       <MessageMarkdown content={isMarkdownFile ? editorContent : fence(editorContent, fenceLanguage)} />
