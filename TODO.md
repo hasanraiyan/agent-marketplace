@@ -65,15 +65,15 @@ says it all: not yet connected to a real agent.
 
 ---
 
-## 4. Stores UI — ⚠️ BUILT, has an issue
+## 4. Stores UI — ✅ FIXED
 
 **Current state:** list + new + edit pages built
 (`stores/page.tsx`, `stores/new/page.tsx`, `stores/[storeId]/edit/page.tsx`).
 
-- [ ] Investigate + fix the reported issue
-            somethign is failing uabe to cra tha  knowlege base 
-
-- [ ] Re-verify end-to-end: create store → save records → read from an agent
+- [x] Reported issue (creating a store was failing) — confirmed fixed by
+      the user (2026-09-08).
+- [x] Re-verified end-to-end by the user: create store → save records →
+      read from an agent.
 
 ---
 
