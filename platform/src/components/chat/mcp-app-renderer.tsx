@@ -48,9 +48,10 @@ function buildToolResultPayload(tool?: { result?: string }) {
 }
 
 export interface McpAppRendererProps {
-  projectId: string;
-  mcpId: string;
-  resourceUri: string;
+  projectId?: string;
+  mcpId?: string;
+  resourceUri?: string;
+  initialHtml?: string;
   toolName?: string;
   tool?: {
     args?: string;
@@ -71,6 +72,7 @@ export function McpAppRenderer({
   projectId,
   mcpId,
   resourceUri,
+  initialHtml,
   toolName,
   tool,
   className,
@@ -83,14 +85,21 @@ export function McpAppRenderer({
   const resultSentRef = React.useRef(false);
   const onSendMessageRef = React.useRef(onSendMessage);
   onSendMessageRef.current = onSendMessage;
-  const [html, setHtml] = React.useState<string | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [html, setHtml] = React.useState<string | null>(initialHtml || null);
+  const [loading, setLoading] = React.useState(!initialHtml);
   const [error, setError] = React.useState<string | null>(null);
   const [expanded, setExpanded] = React.useState(initialExpanded);
   const [contentHeight, setContentHeight] = React.useState<number | null>(null);
 
-  // 1. Fetch the widget HTML from the MCP server
+  // 1. Fetch the widget HTML from the MCP server (or use initialHtml directly)
   React.useEffect(() => {
+    if (initialHtml) {
+      setHtml(initialHtml);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     if (!projectId || !mcpId || !resourceUri) {
       setError("Missing project ID, MCP ID, or resource URI");
       setLoading(false);

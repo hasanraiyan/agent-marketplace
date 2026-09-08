@@ -77,14 +77,15 @@ function ToolCallTrace({
   };
 
   for (const tc of toolCalls) {
-    if (tc.mcpApp?.resourceUri && tc.mcpApp?.mcpId) {
+    if (tc.mcpApp?.resourceUri || tc.mcpApp?.initialHtml) {
       flushGroup();
       elements.push(
         <div key={`mcp-app-${tc.id}`} className="w-full my-1.5">
           <McpAppRenderer
             projectId={projectId || ""}
-            mcpId={tc.mcpApp.mcpId}
-            resourceUri={tc.mcpApp.resourceUri}
+            mcpId={tc.mcpApp.mcpId || ""}
+            resourceUri={tc.mcpApp.resourceUri || ""}
+            initialHtml={tc.mcpApp.initialHtml}
             toolName={tc.name}
             tool={tc}
             onSendMessage={onSendMessage}

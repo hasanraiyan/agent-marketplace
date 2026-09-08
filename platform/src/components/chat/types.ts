@@ -19,7 +19,7 @@ export interface ChatToolCall {
   /** Present only for the `task` (subagent) tool — its own nested timeline. */
   subagentMessages?: ChatMessageData[];
   /** Present when this tool is backed by an interactive MCP Ext App. */
-  mcpApp?: { resourceUri: string; mcpId: string };
+  mcpApp?: { resourceUri?: string; mcpId?: string; initialHtml?: string };
 }
 
 export interface ChatTodo {
