@@ -11,6 +11,9 @@ import { InputGroup, InputGroupTextarea, InputGroupAddon, InputGroupButton } fro
 // Same "start voice mode" glyph NotebookChat.js's ComposerForm uses (a
 // waveform, not a generic microphone) — inlined to match it exactly rather
 // than substituting a similar-but-different icon from phosphor's set.
+// VoiceTab's "Start voice call" button renders this; the composer itself no
+// longer shows a voice-mode toggle (nothing in the Playground wires it, so
+// it was a dead button), so VoiceModeIcon lives here only as a shared glyph.
 function VoiceModeIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
@@ -34,11 +37,25 @@ function VoiceModeIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 /**
- * Auto-resizing composer with the same 4-state trailing action button
- * NotebookChat.js's ComposerForm has: stop generating / send-to-voice while
- * a call is live / stop the call / send / start voice mode. Which state
- * applies is computed by the caller (isStreaming/isVoiceActive), not here —
- * this component only renders whatever state it's told.
+ * Auto-resizing composer. The trailing action row is ALWAYS present, so the
+ * composer keeps one steady height whether it is idle, streaming text, or
+ * mid-voice-call — dropping the row when a surface has no voice button used
+ * to shrink the idle composer into a short stub, so it is never conditionally
+ * unmounted. Which action the row shows is computed by the caller:
+ *
+ *   streaming   → stop generating
+ *   voice live  → stop the call, or send the typed text into the call
+ *   default     → send message (dimmed until there is text to send)
+ *
+ * Deliberately no voice-mode toggle on the composer itself: the surfaces in
+ * this app that support voice run it in their own tab (VoiceTab), so an idle
+ * "start voice" waveform would be a dead button. VoiceTab drives the live
+ * states via isVoiceActive instead.
+ *
+ * The empty-state send is dimmed with `pointer-events-none` + reduced opacity
+ * rather than a native `disabled` attribute — InputGroup greys out its WHOLE
+ * contents via `has-disabled` when any child is disabled, which would wash
+ * out the text field too.
  *
  * Deliberately no custom rounding/background overrides here — `InputGroup`/
  * `InputGroupButton` already carry this app's actual look (sharp
@@ -51,28 +68,23 @@ function ChatComposer({
   onChange,
   onSend,
   onStop,
-  onStartVoice,
   onStopVoice,
   onSendToVoice,
   isStreaming = false,
   isVoiceActive = false,
   disabled = false,
   placeholder,
-  allowVoiceMode = true,
 }: {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
   onStop?: () => void;
-  onStartVoice?: () => void;
   onStopVoice?: () => void;
   onSendToVoice?: (text: string) => void;
   isStreaming?: boolean;
   isVoiceActive?: boolean;
   disabled?: boolean;
   placeholder?: string;
-  /** Chat-only surfaces (no voice mode) pass false to drop the idle waveform button. */
-  allowVoiceMode?: boolean;
 }) {
   const trimmed = value.trim();
 
@@ -108,55 +120,47 @@ function ChatComposer({
           className="max-h-40"
         />
 
-        {/* The trailing action row is only mounted when it has something to
-            show — surfaces without voice mode (allowVoiceMode={false}) get a
-            plain composer until there is text to send, so no empty slot
-            lingers in place of the waveform button. */}
-        {(isStreaming || isVoiceActive || trimmed || allowVoiceMode) && (
-          <InputGroupAddon align="block-end" className="justify-end">
-            {isStreaming ? (
-              <InputGroupButton
-                type="button"
-                variant="secondary"
-                size="icon-sm"
-                aria-label="Stop generating"
-                onClick={onStop}
-              >
-                <SquareIcon weight="fill" />
-              </InputGroupButton>
-            ) : isVoiceActive ? (
-              trimmed ? (
-                <InputGroupButton type="submit" variant="default" size="icon-sm" aria-label="Send to voice">
-                  <ArrowUpIcon />
-                </InputGroupButton>
-              ) : (
-                <InputGroupButton
-                  type="button"
-                  variant="destructive"
-                  size="icon-sm"
-                  aria-label="Stop voice"
-                  onClick={onStopVoice}
-                >
-                  <PhoneXIcon />
-                </InputGroupButton>
-              )
-            ) : trimmed ? (
-              <InputGroupButton type="submit" variant="default" size="icon-sm" aria-label="Send message">
+        <InputGroupAddon align="block-end" className="justify-end">
+          {isStreaming ? (
+            <InputGroupButton
+              type="button"
+              variant="secondary"
+              size="icon-sm"
+              aria-label="Stop generating"
+              onClick={onStop}
+            >
+              <SquareIcon weight="fill" />
+            </InputGroupButton>
+          ) : isVoiceActive ? (
+            trimmed ? (
+              <InputGroupButton type="submit" variant="default" size="icon-sm" aria-label="Send to voice">
                 <ArrowUpIcon />
               </InputGroupButton>
             ) : (
               <InputGroupButton
                 type="button"
-                variant="default"
+                variant="destructive"
                 size="icon-sm"
-                aria-label="Use voice mode"
-                onClick={onStartVoice}
+                aria-label="Stop voice"
+                onClick={onStopVoice}
               >
-                <VoiceModeIcon />
+                <PhoneXIcon />
               </InputGroupButton>
-            )}
-          </InputGroupAddon>
-        )}
+            )
+          ) : (
+            <InputGroupButton
+              type="submit"
+              variant="default"
+              size="icon-sm"
+              aria-label="Send message"
+              // Dim but not natively disabled (see note above): pointer-events
+              // off so an empty click no-ops and focuses the field instead.
+              className={trimmed ? undefined : "pointer-events-none opacity-40"}
+            >
+              <ArrowUpIcon />
+            </InputGroupButton>
+          )}
+        </InputGroupAddon>
       </InputGroup>
     </form>
   );

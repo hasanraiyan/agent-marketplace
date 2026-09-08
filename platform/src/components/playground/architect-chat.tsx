@@ -256,7 +256,6 @@ function ArchitectChat({
           onSend={handleSend}
           onStop={stop}
           isStreaming={chat.isRunning}
-          allowVoiceMode={false}
           placeholder="Describe an agent…"
         />
       </div>
