@@ -3,10 +3,13 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { CaretUpDownIcon, CheckIcon, FoldersIcon, PlusIcon } from "@phosphor-icons/react";
+import { cn } from "cn";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -58,7 +61,10 @@ function ProjectSwitcher({ projectId, projectName }: { projectId: string; projec
         <DropdownMenu onOpenChange={(open) => open && loadProjects()}>
           <DropdownMenuTrigger
             render={
-              <SidebarMenuButton size="lg" className="data-popup-open:bg-sidebar-accent">
+              <SidebarMenuButton
+                size="lg"
+                className="border border-transparent hover:border-border data-popup-open:border-border data-popup-open:bg-sidebar-accent"
+              >
                 <div className="flex size-6 shrink-0 items-center justify-center rounded-none bg-primary text-primary-foreground">
                   <FoldersIcon className="size-3.5" />
                 </div>
@@ -67,31 +73,52 @@ function ProjectSwitcher({ projectId, projectName }: { projectId: string; projec
               </SidebarMenuButton>
             }
           />
-          <DropdownMenuContent align="start" className="w-64">
-            {projects === null ? (
-              <DropdownMenuItem disabled>Loading projects…</DropdownMenuItem>
-            ) : projects.length === 0 ? (
-              <DropdownMenuItem disabled>No other projects</DropdownMenuItem>
-            ) : (
-              projects.map((project) => (
-                <DropdownMenuItem
-                  key={project._id}
-                  onClick={() => router.push(`/projects/${project._id}`)}
-                >
-                  {project._id === projectId && <CheckIcon className="size-3.5" />}
-                  <span className="truncate">{project.name}</span>
-                </DropdownMenuItem>
-              ))
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push("/projects")}>
-              <FoldersIcon className="size-3.5" />
-              All projects
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push("/projects/new")}>
-              <PlusIcon className="size-3.5" />
-              New project
-            </DropdownMenuItem>
+          <DropdownMenuContent align="start" className="w-64 p-1">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider">
+                Projects
+              </DropdownMenuLabel>
+              {projects === null ? (
+                <DropdownMenuItem disabled>Loading projects…</DropdownMenuItem>
+              ) : projects.length === 0 ? (
+                <DropdownMenuItem disabled>No other projects</DropdownMenuItem>
+              ) : (
+                projects.map((project) => {
+                  const isCurrent = project._id === projectId;
+                  return (
+                    <DropdownMenuItem
+                      key={project._id}
+                      onClick={() => router.push(`/projects/${project._id}`)}
+                      className={cn("gap-2.5", isCurrent && "bg-accent/40 focus:bg-accent")}
+                    >
+                      <FoldersIcon
+                        className={cn(
+                          "size-3.5 shrink-0",
+                          isCurrent ? "text-primary" : "text-muted-foreground"
+                        )}
+                      />
+                      <span className={cn("flex-1 truncate", isCurrent && "font-medium")}>
+                        {project.name}
+                      </span>
+                      {isCurrent && (
+                        <CheckIcon className="size-3.5 shrink-0 text-primary" weight="bold" />
+                      )}
+                    </DropdownMenuItem>
+                  );
+                })
+              )}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator className="my-1" />
+            <DropdownMenuGroup>
+              <DropdownMenuItem onClick={() => router.push("/projects")} className="gap-2.5">
+                <FoldersIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                All projects
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push("/projects/new")} className="gap-2.5">
+                <PlusIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                New project
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
