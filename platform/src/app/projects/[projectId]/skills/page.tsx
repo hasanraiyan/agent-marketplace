@@ -45,6 +45,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import {
   getProjectSkills,
@@ -196,6 +206,12 @@ export default function SkillsPage() {
   const [addFileSkillId, setAddFileSkillId] = React.useState<string | null>(null);
   const [mobileExplorerOpen, setMobileExplorerOpen] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<"edit" | "preview">("edit");
+  const [confirmAction, setConfirmAction] = React.useState<{
+    title: string;
+    description: string;
+    confirmLabel: string;
+    onConfirm: () => void;
+  } | null>(null);
   const isSmUp = useIsSmUp();
   const didAutoOpenRef = React.useRef(false);
 
@@ -282,9 +298,7 @@ export default function SkillsPage() {
     setActiveTabKey(key);
   };
 
-  const closeTab = (key: string) => {
-    const tab = openTabs.find((t) => t.key === key);
-    if (tab?.isDirty && !confirm(`Discard unsaved changes to ${tab.path ?? "SKILL.md"}?`)) return;
+  const closeTabNow = (key: string) => {
     const idx = openTabs.findIndex((t) => t.key === key);
     const next = openTabs.filter((t) => t.key !== key);
     setOpenTabs(next);
@@ -292,6 +306,20 @@ export default function SkillsPage() {
       const fallback = next[idx] ?? next[idx - 1] ?? null;
       setActiveTabKey(fallback ? fallback.key : null);
     }
+  };
+
+  const closeTab = (key: string) => {
+    const tab = openTabs.find((t) => t.key === key);
+    if (tab?.isDirty) {
+      setConfirmAction({
+        title: "Discard unsaved changes?",
+        description: `"${tab.path ?? "SKILL.md"}" has unsaved changes. Closing this tab will discard them.`,
+        confirmLabel: "Discard",
+        onConfirm: () => closeTabNow(key),
+      });
+      return;
+    }
+    closeTabNow(key);
   };
 
   const handleEditorChange = (value: string) => {
@@ -345,8 +373,7 @@ export default function SkillsPage() {
     }
   };
 
-  const handleDeleteSkill = async (skill: Skill) => {
-    if (!confirm(`Delete skill "${skill.name}"?`)) return;
+  const deleteSkillNow = async (skill: Skill) => {
     const id = skill.id ?? skill._id!;
     try {
       await deleteProjectSkill(projectId, id);
@@ -360,6 +387,15 @@ export default function SkillsPage() {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleDeleteSkill = (skill: Skill) => {
+    setConfirmAction({
+      title: `Delete skill "${skill.name}"?`,
+      description: "This removes the skill and all its bundled files. This cannot be undone.",
+      confirmLabel: "Delete",
+      onConfirm: () => deleteSkillNow(skill),
+    });
   };
 
   const handleCreateFile = (e: React.FormEvent) => {
@@ -382,8 +418,7 @@ export default function SkillsPage() {
   // server-side (confirmed against skill.repository.js), so resending the
   // array without this entry is a correct, atomic delete, same mechanism
   // "Add file" already uses.
-  const handleDeleteFile = async (skill: Skill, path: string) => {
-    if (!confirm(`Delete file "${path}"?`)) return;
+  const deleteFileNow = async (skill: Skill, path: string) => {
     const id = skill.id ?? skill._id!;
     const newFiles = (skill.files ?? []).filter((f) => f.path !== path);
     try {
@@ -400,6 +435,15 @@ export default function SkillsPage() {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleDeleteFile = (skill: Skill, path: string) => {
+    setConfirmAction({
+      title: `Delete file "${path}"?`,
+      description: "This cannot be undone.",
+      confirmLabel: "Delete",
+      onConfirm: () => deleteFileNow(skill, path),
+    });
   };
 
   const renderFileNodes = (nodes: FileTreeNode[], skill: Skill, skillId: string, depth: number): React.ReactNode =>
@@ -890,6 +934,27 @@ export default function SkillsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmAction?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmAction?.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                confirmAction?.onConfirm();
+                setConfirmAction(null);
+              }}
+              className="bg-destructive text-destructive-foreground"
+            >
+              {confirmAction?.confirmLabel ?? "Confirm"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
