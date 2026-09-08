@@ -21,7 +21,7 @@ import {
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { CodeEditor } from "@/components/ui/code-editor";
 import { MessageMarkdown } from "@/components/chat/message-markdown";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -570,12 +570,12 @@ export default function SkillsPage() {
                       <MessageMarkdown content={isMarkdownFile ? editorContent : fence(editorContent, fenceLanguage)} />
                     </div>
                   ) : (
-                    <Textarea
+                    <CodeEditor
                       value={editorContent}
-                      onChange={(e) => handleEditorChange(e.target.value)}
+                      onChange={handleEditorChange}
+                      language={isMarkdownFile ? "markdown" : fenceLanguage}
                       placeholder={isSkillMd ? "# Skill Title\n\n## Overview\n\nWrite the full instructions an Agent should follow…" : ""}
-                      className="h-full min-h-0 w-full flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words rounded-none border-0 bg-transparent p-4 font-mono text-sm leading-relaxed focus-visible:ring-0 focus-visible:ring-offset-0"
-                      style={{ fieldSizing: "fixed" } as React.CSSProperties}
+                      className="h-full min-h-0 w-full flex-1"
                       spellCheck={false}
                     />
                   )}
