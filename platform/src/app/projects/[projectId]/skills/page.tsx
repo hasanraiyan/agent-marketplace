@@ -304,9 +304,9 @@ export default function SkillsPage() {
           </Button>
         </div>
 
-        {/* Explorer Sidebar */}
-        <ResizablePanel defaultSize={22} minSize={18} maxSize={32} className="hidden sm:flex">
-          <div className="flex h-full w-full flex-col border-r bg-muted/5">
+        {/* Explorer Sidebar - min width when 0 skills */}
+        <ResizablePanel defaultSize={22} minSize={18} maxSize={32} className="hidden sm:flex" style={{ minWidth: 220 }}>
+          <div className="flex h-full w-full min-w-[220px] flex-col border-r bg-muted/5">
             <div className="flex h-7 shrink-0 items-center justify-between px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Explorer
               <Button variant="ghost" size="icon-xs" className="size-5" onClick={() => setShowNewDialog(true)}>
