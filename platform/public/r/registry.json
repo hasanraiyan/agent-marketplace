@@ -22,16 +22,7 @@
         "sheet",
         "tabs",
         "tooltip",
-        "collapsible",
-        "message",
-        "bubble",
-        "message-scroller",
-        "input-group",
-        "item",
-        "empty",
-        "spinner",
-        "questionnaire",
-        "code-editor"
+        "collapsible"
       ],
       "files": [
         {
@@ -118,6 +109,46 @@
           "path": "src/components/chat/index.ts",
           "type": "registry:ui",
           "target": "components/persona/chat/index.ts"
+        },
+        {
+          "path": "src/components/ui/message.tsx",
+          "type": "registry:ui",
+          "target": "components/ui/message.tsx"
+        },
+        {
+          "path": "src/components/ui/bubble.tsx",
+          "type": "registry:ui",
+          "target": "components/ui/bubble.tsx"
+        },
+        {
+          "path": "src/components/ui/message-scroller.tsx",
+          "type": "registry:ui",
+          "target": "components/ui/message-scroller.tsx"
+        },
+        {
+          "path": "src/components/ui/input-group.tsx",
+          "type": "registry:ui",
+          "target": "components/ui/input-group.tsx"
+        },
+        {
+          "path": "src/components/ui/item.tsx",
+          "type": "registry:ui",
+          "target": "components/ui/item.tsx"
+        },
+        {
+          "path": "src/components/ui/empty.tsx",
+          "type": "registry:ui",
+          "target": "components/ui/empty.tsx"
+        },
+        {
+          "path": "src/components/ui/spinner.tsx",
+          "type": "registry:ui",
+          "target": "components/ui/spinner.tsx"
+        },
+        {
+          "path": "src/components/ui/questionnaire.tsx",
+          "type": "registry:ui",
+          "target": "components/ui/questionnaire.tsx"
         }
       ]
     },
@@ -138,6 +169,11 @@
           "path": "src/components/chat/mcp-app-renderer.tsx",
           "type": "registry:ui",
           "target": "components/persona/mcp-app-renderer.tsx"
+        },
+        {
+          "path": "src/components/ui/spinner.tsx",
+          "type": "registry:ui",
+          "target": "components/ui/spinner.tsx"
         }
       ]
     },
@@ -148,22 +184,30 @@
       "description": "Hierarchical file explorer and code editor with tab management, markdown preview, and save/discard actions.",
       "dependencies": [
         "@phosphor-icons/react",
-        "date-fns"
+        "date-fns",
+        "shiki"
       ],
       "registryDependencies": [
         "button",
-        "card",
         "input",
         "tabs",
         "dialog",
         "dropdown-menu",
-        "code-editor"
+        "skeleton",
+        "scroll-area",
+        "resizable",
+        "alert-dialog"
       ],
       "files": [
         {
           "path": "src/components/file-explorer/file-explorer-editor.tsx",
           "type": "registry:ui",
           "target": "components/persona/file-explorer-editor.tsx"
+        },
+        {
+          "path": "src/components/ui/code-editor.tsx",
+          "type": "registry:ui",
+          "target": "components/ui/code-editor.tsx"
         }
       ]
     },
