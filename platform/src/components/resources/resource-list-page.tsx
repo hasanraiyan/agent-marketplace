@@ -23,7 +23,11 @@ interface ResourceColumn<T> {
  * hand-rolled pages, and is the concrete fix for the old UX (these lived
  * as tabs buried inside a project overview page with no shared pattern).
  */
-function ResourceListPage<T extends { _id: string }>({
+function getItemId(item: { _id?: string; id?: string }) {
+  return (item as { _id?: string; id?: string }).id ?? (item as { _id?: string; id?: string })._id ?? "";
+}
+
+function ResourceListPage<T extends { _id?: string; id?: string }>({
   title,
   description,
   icon: Icon,
@@ -49,7 +53,12 @@ function ResourceListPage<T extends { _id: string }>({
     let cancelled = false;
     fetchItems()
       .then((res) => {
-        if (!cancelled) setItems(res.data?.data || []);
+        const raw = res.data?.data;
+        // Backend is adapting case-by-case: audit-logs wraps with paginationEnvelope {items, pagination},
+        // most resources return a bare array today, secrets returns {id,label} without _id.
+        // Normalize once here so every resource page doesn't re-implement it.
+        const normalized = Array.isArray(raw) ? raw : (raw?.items ?? raw ?? []);
+        if (!cancelled) setItems(normalized);
       })
       .catch(() => {
         if (!cancelled) {
@@ -118,9 +127,10 @@ function ResourceListPage<T extends { _id: string }>({
           <TableBody>
             {items.map((item) => {
               const href = getRowHref?.(item);
+              const itemId = getItemId(item as { _id?: string; id?: string });
               return (
                 <TableRow
-                  key={item._id}
+                  key={itemId || JSON.stringify(item)}
                   className={href ? "cursor-pointer" : undefined}
                   onClick={href ? () => (window.location.href = href) : undefined}
                 >

@@ -12,6 +12,45 @@ export const api = axios.create({
   },
 });
 
+// --- Prod-safe API logger: logs every request/response even in production ---
+// User asked: "whatever data comes is logged in prod even so we can test"
+// So this is intentionally NOT gated by NODE_ENV. To avoid leaking secrets/tokens,
+// we truncate long values and never log Authorization header.
+const LOG_PREFIX = "[API]";
+function safeJson(data: unknown): string {
+  try {
+    const str = JSON.stringify(data);
+    if (!str) return String(data);
+    // Truncate huge payloads (e.g. file uploads) to keep console readable
+    return str.length > 4000 ? str.slice(0, 4000) + `… (+${str.length - 4000} chars)` : str;
+  } catch {
+    return String(data);
+  }
+}
+function logApiRequest(config: import("axios").InternalAxiosRequestConfig) {
+  const method = (config.method || "GET").toUpperCase();
+  const url = `${config.baseURL ?? ""}${config.url ?? ""}`;
+  const params = config.params ? ` params=${safeJson(config.params)}` : "";
+  const data = config.data ? ` data=${safeJson(config.data)}` : "";
+  // Intentionally use console.log (not debug) so it shows in prod browser console
+  console.log(`${LOG_PREFIX} ➡️ ${method} ${url}${params}${data}`);
+}
+function logApiResponse(response: import("axios").AxiosResponse) {
+  const method = (response.config.method || "GET").toUpperCase();
+  const url = `${response.config.baseURL ?? ""}${response.config.url ?? ""}`;
+  console.log(
+    `${LOG_PREFIX} ⬅️ ${method} ${url} → ${response.status} data=${safeJson(response.data)}`
+  );
+}
+function logApiError(error: unknown) {
+  const err = error as { config?: { method?: string; baseURL?: string; url?: string }; response?: { status?: number; data?: unknown }; message?: string };
+  const method = (err.config?.method || "?").toUpperCase();
+  const url = `${err.config?.baseURL ?? ""}${err.config?.url ?? ""}`;
+  const status = err.response?.status ?? "NO_RESPONSE";
+  const data = err.response?.data ? ` data=${safeJson(err.response.data)}` : ` msg=${err.message ?? ""}`;
+  console.error(`${LOG_PREFIX} ❌ ${method} ${url} → ${status}${data}`);
+}
+
 type TokenFetcher = () => Promise<string | null>;
 
 let tokenFetcher: TokenFetcher | null = null;
@@ -45,14 +84,23 @@ api.interceptors.request.use(
     } catch (err) {
       console.error("[Axios Interceptor] Failed to fetch token:", err);
     }
+    // Log every outgoing request even in prod (see top comment)
+    logApiRequest(config);
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    logApiError(error);
+    return Promise.reject(error);
+  }
 );
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    logApiResponse(response);
+    return response;
+  },
   (error) => {
+    logApiError(error);
     if (error.response?.status === 401) {
       if (typeof window !== "undefined" && window.location.pathname !== "/sign-in") {
         window.location.href = "/sign-in";
