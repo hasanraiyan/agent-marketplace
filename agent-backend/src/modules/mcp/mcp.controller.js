@@ -117,9 +117,7 @@ class McpController {
       const redirectTo = await mcpService.handleOwnerCallback(code, state);
       res.redirect(redirectTo);
     } catch (error) {
-      res.redirect(
-        `${config.websiteUrl.replace(/\/+$/, '')}/dashboard/connectors/mcps?error=oauth_failed`
-      );
+      res.redirect(mcpService.ownerCallbackErrorRedirect(req.query.state));
     }
   }
 

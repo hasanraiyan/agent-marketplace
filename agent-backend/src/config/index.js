@@ -44,6 +44,10 @@ const config = {
     mailFrom: process.env.MAIL_FROM || 'persona.hasanraiyan.me <noreply@persona.hasanraiyan.me>',
   },
   websiteUrl: process.env.WEBSITE_URL || 'https://persona.hasanraiyan.me/',
+  // Developer Platform app (Studio) — a separate deployment/domain from the
+  // Persona dashboard (websiteUrl above). Used to land Project Admin flows
+  // (e.g. MCP owner-connect OAuth) back on the right app.
+  platformUrl: process.env.PLATFORM_URL || 'https://platform.persona.hasanraiyan.me/',
   backendUrl: process.env.BACKEND_URL || 'https://api.persona.hasanraiyan.me',
   cron: {
     deleteInactiveUsers: process.env.CRON_DELETE_INACTIVE_USERS || '0 3 * * *',

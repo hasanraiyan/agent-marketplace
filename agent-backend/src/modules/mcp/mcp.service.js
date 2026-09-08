@@ -558,16 +558,39 @@ class McpService {
       },
     });
     await this._invalidateAgentsUsingMcp(id);
-    const siteUrl = config.websiteUrl.replace(/\/+$/, '');
     // Phase 11.5 (PR-66): owner-connect can now be initiated from Developer
-    // Studio (ProjectMachine/ProjectAdmin), not just the Persona dashboard —
-    // land back on the right one. PersonaUser behavior is byte-for-byte
-    // unchanged from before this branch existed.
-    const redirectPath =
-      callbackContext.principalType === 'PersonaUser'
-        ? '/dashboard/connectors/mcps'
-        : `/developer/projects/${callbackContext.domain}/mcps/${id}/edit`;
+    // Platform (ProjectMachine/ProjectAdmin), not just the Persona
+    // dashboard — land back on the right app/domain. PersonaUser behavior
+    // is byte-for-byte unchanged from before this branch existed. The
+    // Platform app is a separate deployment (platformUrl) with its own
+    // route shape (`/projects/:id/mcps/:mcpId/edit`, no `/developer`
+    // prefix) — do not reuse websiteUrl/`/developer/...` here.
+    const isPersonaUser = callbackContext.principalType === 'PersonaUser';
+    const siteUrl = (isPersonaUser ? config.websiteUrl : config.platformUrl).replace(/\/+$/, '');
+    const redirectPath = isPersonaUser
+      ? '/dashboard/connectors/mcps'
+      : `/projects/${callbackContext.domain}/mcps/${id}/edit`;
     return `${siteUrl}${redirectPath}?mcpId=${id}&connected=owner`;
+  }
+
+  /**
+   * Best-effort error redirect for `handleOwnerCallback` failures (invalid
+   * state, ownership mismatch, token exchange failure, etc). The state
+   * token may itself be the thing that's broken, so this never throws —
+   * falls back to the Persona dashboard when the mode/principal can't be
+   * recovered.
+   */
+  ownerCallbackErrorRedirect(state) {
+    let isPersonaUser = true;
+    try {
+      const decoded = verifyOAuthState(state);
+      if (decoded.mode === 'owner') isPersonaUser = decoded.principalType === 'PersonaUser';
+    } catch {
+      // fall through to the Persona dashboard default below
+    }
+    const siteUrl = (isPersonaUser ? config.websiteUrl : config.platformUrl).replace(/\/+$/, '');
+    const redirectPath = isPersonaUser ? '/dashboard/connectors/mcps' : '/projects';
+    return `${siteUrl}${redirectPath}?error=oauth_failed`;
   }
 
   /**
