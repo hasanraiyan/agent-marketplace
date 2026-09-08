@@ -67,6 +67,12 @@ function FileIcon({ path, className }: { path: string; className?: string }) {
   return <FileCodeIcon className={className} />;
 }
 
+function truncateWords(text: string, maxWords: number) {
+  const words = text.trim().split(/\s+/);
+  if (words.length <= maxWords) return text;
+  return words.slice(0, maxWords).join(" ") + "…";
+}
+
 // react-resizable-panels' <Panel> silently drops the className prop, so its
 // "hidden sm:flex" visibility can't be CSS-only — this mirrors Tailwind's sm breakpoint in JS.
 function useIsSmUp() {
@@ -528,27 +534,22 @@ export default function SkillsPage() {
                 <span className="truncate">{selectedSkill.name}</span>
                 <span>›</span>
                 <span className="truncate font-mono">{activePath}</span>
-                <span className="ml-auto hidden items-center gap-1 sm:flex">
-                  <span className="truncate">{selectedSkill.description || "—"}</span>
+                <span className="ml-auto hidden items-center gap-1 truncate sm:flex">
+                  <span className="truncate">{truncateWords(selectedSkill.description || "—", 10)}</span>
                 </span>
               </div>
 
               {/* Editor */}
               <div className="flex flex-1 flex-col overflow-hidden">
                 <div className="flex flex-1 overflow-hidden">
-                  <ScrollArea className="flex-1">
-                    <div className="min-h-full">
-                      <Textarea
-                        value={editorContent}
-                        onChange={(e) => handleEditorChange(e.target.value)}
-                        placeholder={isSkillMd ? "# Skill Title\n\n## Overview\n\nWrite the full instructions an Agent should follow…" : ""}
-                        className="min-h-[400px] w-full resize-none rounded-none border-0 bg-transparent p-4 font-mono text-sm leading-relaxed focus-visible:ring-0 focus-visible:ring-offset-0"
-                        style={{ minHeight: "calc(100vh - 220px)" }}
-                        spellCheck={false}
-                      />
-                    </div>
-                    <ScrollBar orientation="vertical" />
-                  </ScrollArea>
+                  <Textarea
+                    value={editorContent}
+                    onChange={(e) => handleEditorChange(e.target.value)}
+                    placeholder={isSkillMd ? "# Skill Title\n\n## Overview\n\nWrite the full instructions an Agent should follow…" : ""}
+                    className="h-full min-h-0 w-full flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words rounded-none border-0 bg-transparent p-4 font-mono text-sm leading-relaxed focus-visible:ring-0 focus-visible:ring-offset-0"
+                    style={{ fieldSizing: "fixed" } as React.CSSProperties}
+                    spellCheck={false}
+                  />
 
                   {/* Right preview - hidden on small, visible on xl */}
                   <div className="hidden w-[320px] shrink-0 border-l bg-muted/5 xl:flex xl:flex-col">
