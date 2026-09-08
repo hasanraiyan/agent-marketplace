@@ -18,7 +18,7 @@ function toOrbState(state: VoiceCallState): OrbState {
 function VoiceIndicator({
   state,
   volume = 0,
-  size = 140,
+  size = 28,
   className,
 }: {
   state: VoiceCallState;
@@ -30,14 +30,13 @@ function VoiceIndicator({
   return (
     <div
       className={cn(
-        "flex animate-in fade-in zoom-in-95 justify-center duration-300",
+        "flex animate-in fade-in zoom-in-95 items-center justify-center overflow-hidden duration-300",
         className
       )}
     >
-      <div className={cn(isPulsing && "animate-pulse")}>
+      <div className={cn("flex items-center justify-center", isPulsing && "animate-pulse")}>
         <Orb
           state={toOrbState(state)}
-          volume={volume}
           theme="cloud"
           size={size}
           interactive={false}
