@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
-import { RobotIcon } from "@phosphor-icons/react";
+import { RobotIcon, SparkleIcon } from "@phosphor-icons/react";
 import {
   Select,
   SelectTrigger,
@@ -12,12 +11,13 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { getProjectAgents } from "@/lib/api/projects";
+import { cacheKey, deleteCachedByPrefix } from "@/lib/cache";
 import { AgentChat } from "@/components/playground/agent-chat";
 import { VoiceTab } from "@/components/playground/voice-tab";
+import { ArchitectChat } from "@/components/playground/architect-chat";
 
 type TabId = "chat" | "voice";
 
@@ -25,6 +25,11 @@ interface AgentRow {
   id: string;
   name: string;
 }
+
+// Pseudo-option in the agent picker that selects the "Agent Architect" spec
+// bot instead of a real project Agent. Distinct from any Agent id (which are
+// Mongo/ObjectIds), so it can never collide with a list row.
+const ARCHITECT = "__architect__";
 
 // Same list normalization used across the resource pages: the backend returns
 // an array of full docs (or { items }) inside res.data.data.
@@ -45,11 +50,12 @@ function errorMessage(err: unknown, fallback: string): string {
 }
 
 /**
- * Live per-agent test surface. Replaces the old static mock gallery: pick an
- * Agent, then talk to it over AG-UI text chat or voice. Only the active tab is
- * mounted — switching tabs tears the other session down (useVoiceSession stops
- * its WebSocket on unmount), and switching agents remounts a fresh chat via
- * key.
+ * Per-agent test surface + the Agent Architect. The picker always leads with
+ * "Agent Architect" (selected by default) — a chat-only spec bot that creates
+ * and edits the project's Agents by conversation. Choosing a real Agent shows
+ * the Chat | Voice test tabs. The Architect surface stays mounted (hidden)
+ * while an Agent is selected, so switching back preserves the spec
+ * conversation in-session.
  */
 export default function PlaygroundPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -57,7 +63,7 @@ export default function PlaygroundPage() {
   const [agents, setAgents] = React.useState<AgentRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-  const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [selectedId, setSelectedId] = React.useState<string | null>(ARCHITECT);
   const [tab, setTab] = React.useState<TabId>("chat");
 
   React.useEffect(() => {
@@ -69,9 +75,10 @@ export default function PlaygroundPage() {
         if (cancelled) return;
         const rows = normalizeAgents(res.data?.data);
         setAgents(rows);
-        setSelectedId((prev) =>
-          prev && rows.some((agent) => agent.id === prev) ? prev : (rows[0]?.id ?? null)
-        );
+        setSelectedId((prev) => {
+          if (prev === ARCHITECT) return ARCHITECT;
+          return prev && rows.some((agent) => agent.id === prev) ? prev : ARCHITECT;
+        });
       })
       .catch((err) => {
         if (!cancelled) setError(errorMessage(err, "Failed to load the project's agents."));
@@ -84,11 +91,29 @@ export default function PlaygroundPage() {
     };
   }, [projectId]);
 
-  const selected = agents.find((agent) => agent.id === selectedId) ?? null;
+  // Best-effort refresh after the Architect upserts an Agent: drop the agents
+  // list page's cached payload, then re-fetch so the new/updated Agent appears
+  // in the picker. Selection is preserved (we stay on the Architect).
+  const refreshAgents = React.useCallback(() => {
+    deleteCachedByPrefix(cacheKey.resource(projectId, "agents"));
+    getProjectAgents(projectId)
+      .then((res) => setAgents(normalizeAgents(res.data?.data)))
+      .catch(() => {
+        // list refresh is secondary; the Architect run already succeeded
+      });
+  }, [projectId]);
+
+  const selectedAgent =
+    selectedId && selectedId !== ARCHITECT
+      ? (agents.find((agent) => agent.id === selectedId) ?? null)
+      : null;
+  const showingArchitect = !selectedAgent;
+  const selectValue = selectedAgent ? selectedAgent.id : ARCHITECT;
 
   const handleSelectAgent = (value: string | null) => {
-    setSelectedId(value);
-    setTab("chat");
+    const next = value === ARCHITECT ? ARCHITECT : value ?? ARCHITECT;
+    setSelectedId(next);
+    if (next !== ARCHITECT) setTab("chat");
   };
 
   return (
@@ -101,26 +126,34 @@ export default function PlaygroundPage() {
           <div className="flex min-w-0 flex-col">
             <h1 className="text-sm font-semibold tracking-tight">Playground</h1>
             <p className="truncate text-xs text-muted-foreground">
-              Talk to a project agent live — same tools and knowledge it runs with.
+              Test an agent live — or ask the Agent Architect to build one from a description.
             </p>
           </div>
         </div>
 
-        {!loading && agents.length > 0 && (
+        {!loading && (
           <Select
-            value={selectedId ?? ""}
+            value={selectValue}
             onValueChange={handleSelectAgent}
-            // SelectValue can only show the selected agent's *name* when the
-            // root can turn the stored id back into a label — without this it
+            // SelectValue can only show the selected entry's *label* when the
+            // root can turn the stored value back into one — without this it
             // falls back to rendering the raw id in the trigger.
             itemToStringLabel={(value) =>
-              agents.find((agent) => agent.id === value)?.name ?? String(value ?? "")
+              value === ARCHITECT
+                ? "Agent Architect"
+                : (agents.find((agent) => agent.id === value)?.name ?? String(value ?? ""))
             }
           >
             <SelectTrigger className="w-fit max-w-60">
               <SelectValue placeholder="Select an agent…" />
             </SelectTrigger>
             <SelectContent align="end">
+              <SelectItem value={ARCHITECT}>
+                <span className="inline-flex items-center gap-1.5">
+                  <SparkleIcon className="size-3.5 text-primary" />
+                  Agent Architect
+                </span>
+              </SelectItem>
               {agents.map((agent) => (
                 <SelectItem key={agent.id} value={agent.id}>
                   {agent.name}
@@ -141,52 +174,52 @@ export default function PlaygroundPage() {
               <Skeleton className="mt-6 h-20 w-full" />
             </div>
           </div>
-        ) : error ? (
-          <Alert variant="destructive" className="my-auto w-full">
-            <AlertTitle>Couldn't load agents</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : agents.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-            <span className="flex size-10 items-center justify-center rounded-none bg-muted text-muted-foreground">
-              <RobotIcon className="size-5" />
-            </span>
-            <div className="flex flex-col gap-1">
-              <h2 className="text-sm font-semibold">No agents yet</h2>
-              <p className="max-w-sm text-xs text-muted-foreground">
-                Create an Agent for this project and it will show up here, ready to test over
-                chat or voice.
-              </p>
-            </div>
-            <Button size="sm" render={<Link href={`/projects/${projectId}/agents/new`} />}>
-              Create an agent
-            </Button>
-          </div>
         ) : (
-          <Tabs
-            value={tab}
-            onValueChange={(value) => setTab(value === "voice" ? "voice" : "chat")}
-            className="flex min-h-0 flex-1 flex-col gap-3"
-          >
-            <TabsList className="w-fit">
-              <TabsTrigger value="chat">Chat</TabsTrigger>
-              <TabsTrigger value="voice">Voice</TabsTrigger>
-            </TabsList>
-
-            {tab === "chat" ? (
-              <TabsContent value="chat" className="min-h-0 flex-1">
-                {selected ? (
-                  <AgentChat key={selected.id} projectId={projectId} agentId={selected.id} />
-                ) : null}
-              </TabsContent>
-            ) : (
-              <TabsContent value="voice" className="min-h-0 flex-1">
-                {selected ? (
-                  <VoiceTab key={selected.id} projectId={projectId} agentId={selected.id} />
-                ) : null}
-              </TabsContent>
+          <div className="flex min-h-0 flex-1 flex-col gap-3">
+            {error && (
+              <Alert variant="destructive">
+                <AlertTitle>Couldn&apos;t load agents</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
-          </Tabs>
+
+            {/* Architect chat is chat-only; kept mounted while an Agent is
+                selected so returning to it preserves the spec conversation. */}
+            <div className={showingArchitect ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
+              <ArchitectChat projectId={projectId} onAgentsRefreshed={refreshAgents} />
+            </div>
+
+            {!showingArchitect && selectedAgent && (
+              <Tabs
+                value={tab}
+                onValueChange={(value) => setTab(value === "voice" ? "voice" : "chat")}
+                className="flex min-h-0 flex-1 flex-col gap-3"
+              >
+                <TabsList className="w-fit">
+                  <TabsTrigger value="chat">Chat</TabsTrigger>
+                  <TabsTrigger value="voice">Voice</TabsTrigger>
+                </TabsList>
+
+                {tab === "chat" ? (
+                  <TabsContent value="chat" className="min-h-0 flex-1">
+                    <AgentChat
+                      key={selectedAgent.id}
+                      projectId={projectId}
+                      agentId={selectedAgent.id}
+                    />
+                  </TabsContent>
+                ) : (
+                  <TabsContent value="voice" className="min-h-0 flex-1">
+                    <VoiceTab
+                      key={selectedAgent.id}
+                      projectId={projectId}
+                      agentId={selectedAgent.id}
+                    />
+                  </TabsContent>
+                )}
+              </Tabs>
+            )}
+          </div>
         )}
       </div>
     </div>

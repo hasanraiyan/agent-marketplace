@@ -58,6 +58,7 @@ function ChatComposer({
   isVoiceActive = false,
   disabled = false,
   placeholder,
+  allowVoiceMode = true,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -70,6 +71,8 @@ function ChatComposer({
   isVoiceActive?: boolean;
   disabled?: boolean;
   placeholder?: string;
+  /** Chat-only surfaces (no voice mode) pass false to drop the idle waveform button. */
+  allowVoiceMode?: boolean;
 }) {
   const trimmed = value.trim();
 
@@ -104,49 +107,56 @@ function ChatComposer({
           disabled={disabled}
           className="max-h-40"
         />
-        <InputGroupAddon align="block-end" className="justify-end">
-          {isStreaming ? (
-            <InputGroupButton
-              type="button"
-              variant="secondary"
-              size="icon-sm"
-              aria-label="Stop generating"
-              onClick={onStop}
-            >
-              <SquareIcon weight="fill" />
-            </InputGroupButton>
-          ) : isVoiceActive ? (
-            trimmed ? (
-              <InputGroupButton type="submit" variant="default" size="icon-sm" aria-label="Send to voice">
+
+        {/* The trailing action row is only mounted when it has something to
+            show — surfaces without voice mode (allowVoiceMode={false}) get a
+            plain composer until there is text to send, so no empty slot
+            lingers in place of the waveform button. */}
+        {(isStreaming || isVoiceActive || trimmed || allowVoiceMode) && (
+          <InputGroupAddon align="block-end" className="justify-end">
+            {isStreaming ? (
+              <InputGroupButton
+                type="button"
+                variant="secondary"
+                size="icon-sm"
+                aria-label="Stop generating"
+                onClick={onStop}
+              >
+                <SquareIcon weight="fill" />
+              </InputGroupButton>
+            ) : isVoiceActive ? (
+              trimmed ? (
+                <InputGroupButton type="submit" variant="default" size="icon-sm" aria-label="Send to voice">
+                  <ArrowUpIcon />
+                </InputGroupButton>
+              ) : (
+                <InputGroupButton
+                  type="button"
+                  variant="destructive"
+                  size="icon-sm"
+                  aria-label="Stop voice"
+                  onClick={onStopVoice}
+                >
+                  <PhoneXIcon />
+                </InputGroupButton>
+              )
+            ) : trimmed ? (
+              <InputGroupButton type="submit" variant="default" size="icon-sm" aria-label="Send message">
                 <ArrowUpIcon />
               </InputGroupButton>
             ) : (
               <InputGroupButton
                 type="button"
-                variant="destructive"
+                variant="default"
                 size="icon-sm"
-                aria-label="Stop voice"
-                onClick={onStopVoice}
+                aria-label="Use voice mode"
+                onClick={onStartVoice}
               >
-                <PhoneXIcon />
+                <VoiceModeIcon />
               </InputGroupButton>
-            )
-          ) : trimmed ? (
-            <InputGroupButton type="submit" variant="default" size="icon-sm" aria-label="Send message">
-              <ArrowUpIcon />
-            </InputGroupButton>
-          ) : (
-            <InputGroupButton
-              type="button"
-              variant="default"
-              size="icon-sm"
-              aria-label="Use voice mode"
-              onClick={onStartVoice}
-            >
-              <VoiceModeIcon />
-            </InputGroupButton>
-          )}
-        </InputGroupAddon>
+            )}
+          </InputGroupAddon>
+        )}
       </InputGroup>
     </form>
   );
