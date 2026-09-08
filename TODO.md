@@ -156,15 +156,33 @@ usage, and delete-with-usage-guard.
       right method instead of guessing. Verified: app boots clean, module
       imports resolve, pure functions (`generatePkcePair`,
       `buildAuthorizationUrl`) produce identical output to before.
-- [ ] Manual step still needed for the MCP created *before* this fix
-      (project `6a97f0fc25f0ae6efb32b390`, mcp `6a9fd8d09a67f0dc7c5e7f21`):
-      its bad scopes are already stored in the DB, so the code fix doesn't
-      retroactively touch it. Open its Platform edit page, replace Scopes
-      with an explicit list that excludes `public_metadata`/
-      `private_metadata` (pyqdeck's MCP only needs a signed-in Clerk
-      account — no metadata access), save, then Connect again.
-      `updateMcp` reuses the existing `clientId`, so this doesn't re-run
-      Dynamic Client Registration against Clerk.
+- [x] Fixed the actual root cause behind the `public_metadata`/`openid`
+      `invalid_scope` failures (retested against Context7's
+      `clerk.context7.com` — same failure class, this time on the plain
+      `openid` scope). The earlier "respect caller-supplied scopes" fix
+      only helped when scopes WERE supplied — the fallback when they
+      weren't was still `discovered.scopesSupported` (every scope the
+      discovery doc advertises). Two independent Clerk instances now
+      confirm a DCR-registered client is granted none of the advertised
+      scopes by default, so that fallback was never safe. Changed
+      `createMcp`'s DCR and manual branches to default to `[]` (no `scope`
+      param sent at all — the server applies its own default grant)
+      instead of `discovered.scopesSupported`. Also threads the resolved
+      scope list into `dynamicClientRegistration`'s registration request
+      itself (was previously never sent at registration time at all),
+      matching the SDK's documented Scope Selection Strategy (SEP-835).
+- [ ] Manual step still needed for MCPs created *before* this fix — their
+      bad scopes are already stored in the DB, so the code fix doesn't
+      retroactively touch them:
+      - project `6a97f0fc25f0ae6efb32b390`, mcp `6a9fd8d09a67f0dc7c5e7f21`
+        (pyqdeck, rejected `public_metadata`/`private_metadata`)
+      - project `6a97f0fc25f0ae6efb32b390`, mcp `6a9ffbf8a87879ba06afab6c`
+        (Context7, rejected `openid`)
+      For each: open its Platform edit page, clear the Scopes field to
+      empty (or an explicit minimal list if the server documents one it
+      actually needs), save, then Connect again. `updateMcp` reuses the
+      existing `clientId`, so this doesn't re-run Dynamic Client
+      Registration.
 - [ ] Re-verify end-to-end: add server → Test Connection → attach to an agent
 
 ---
