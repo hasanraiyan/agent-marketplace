@@ -383,7 +383,12 @@ export default function EditSecretPage() {
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
               {deleteError && <FieldError>{deleteError}</FieldError>}
-              <Button variant="destructive" size="sm" className="w-fit" onClick={() => setDeleteOpen(true)}>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="w-fit bg-destructive text-white hover:bg-destructive/90 hover:text-white"
+                onClick={() => setDeleteOpen(true)}
+              >
                 <TrashIcon data-icon="inline-start" />
                 Delete secret
               </Button>

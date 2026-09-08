@@ -63,10 +63,12 @@ import {
 
 interface Credential {
   _id?: string;
-  id?: string;
+  id: string;
   keyId: string;
   label?: string;
-  status: string;
+  status: "ACTIVE" | "REVOKED" | string;
+  createdAt?: string;
+  revokedAt?: string | null;
   lastUsedAt?: string | null;
 }
 
@@ -117,7 +119,10 @@ export default function CredentialsPage() {
     let cancelled = false;
     getProjectCredentials(projectId)
       .then((res) => {
-        if (!cancelled) setCredentials(res.data?.data || []);
+        if (cancelled) return;
+        const raw = res.data?.data;
+        const normalized: Credential[] = Array.isArray(raw) ? raw : (raw?.items ?? raw ?? []);
+        setCredentials(normalized);
       })
       .catch((err) => {
         if (!cancelled) {
@@ -182,21 +187,20 @@ export default function CredentialsPage() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 overflow-y-auto p-6">
+    <div className="flex w-full flex-col gap-6 overflow-y-auto p-4 sm:p-6">
       <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <KeyIcon className="size-4 text-muted-foreground" />
-              Credentials
+          <div className="flex min-w-0 flex-col gap-1">
+            <CardTitle className="flex items-center gap-2 truncate text-base sm:text-sm">
+              <KeyIcon className="size-4 shrink-0 text-muted-foreground" />
+              <span className="truncate">Credentials</span>
             </CardTitle>
-            <CardDescription>
-              API credentials this Project&apos;s SDK uses to authenticate —
-              separate from your own Clerk session used here in Studio.
+            <CardDescription className="line-clamp-3 max-w-xl text-[11px] leading-snug sm:line-clamp-none sm:text-xs">
+              API credentials this Project&apos;s SDK uses — separate from your Clerk session in Studio. Secret is shown once on mint.
             </CardDescription>
           </div>
-          <Button size="sm" onClick={() => setMintOpen(true)}>
-            <KeyIcon />
+          <Button size="sm" className="w-fit shrink-0" onClick={() => setMintOpen(true)}>
+            <KeyIcon data-icon="inline-start" />
             Mint new
           </Button>
         </CardHeader>
@@ -209,58 +213,103 @@ export default function CredentialsPage() {
           ) : loadError ? (
             <p className="text-xs text-destructive">{loadError}</p>
           ) : credentials.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table className="min-w-[640px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Key ID</TableHead>
-                    <TableHead>Label</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Last used</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {credentials.map((c) => (
-                    <TableRow key={c._id || c.id || c.keyId}>
-                      <TableCell>
-                        <CopyButton
-                          value={c.keyId}
-                          label="Key ID"
-                          className="font-mono"
-                        />
-                      </TableCell>
-                      <TableCell>{c.label || "—"}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={c.status === "ACTIVE" ? "outline" : "secondary"}
-                          className={credentialBadgeClass(c)}
-                        >
-                          {c.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {c.lastUsedAt
-                          ? new Date(c.lastUsedAt).toLocaleString()
-                          : "Never"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {c.status === "ACTIVE" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setRevokeTarget(c)}
-                          >
-                            Revoke
-                          </Button>
-                        )}
-                      </TableCell>
+            <>
+              {/* Desktop table */}
+              <div className="hidden overflow-x-auto sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Key ID</TableHead>
+                      <TableHead>Label</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="hidden md:table-cell">Created</TableHead>
+                      <TableHead>Last used</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {credentials.map((c) => (
+                      <TableRow key={c._id || c.id || c.keyId}>
+                        <TableCell>
+                          <CopyButton
+                            value={c.keyId}
+                            label="Key ID"
+                            className="max-w-[180px] truncate font-mono text-xs"
+                          />
+                        </TableCell>
+                        <TableCell className="max-w-[160px] truncate">{c.label || "—"}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={c.status === "ACTIVE" ? "outline" : "secondary"}
+                            className={credentialBadgeClass(c)}
+                          >
+                            {c.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="hidden whitespace-nowrap text-xs text-muted-foreground md:table-cell">
+                          {c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "—"}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                          {c.lastUsedAt ? new Date(c.lastUsedAt).toLocaleDateString() : "Never"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {c.status === "ACTIVE" && (
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="bg-destructive text-white hover:bg-destructive/90 hover:text-white"
+                              onClick={() => setRevokeTarget(c)}
+                            >
+                              Revoke
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {/* Mobile stacked cards */}
+              <div className="flex flex-col gap-2 sm:hidden">
+                {credentials.map((c) => (
+                  <div
+                    key={c._id || c.id || c.keyId}
+                    className="flex flex-col gap-2 rounded-none border border-border bg-card px-3 py-2.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="min-w-0 flex-1 truncate font-mono text-xs">{c.keyId}</span>
+                      <Badge
+                        variant={c.status === "ACTIVE" ? "outline" : "secondary"}
+                        className={credentialBadgeClass(c)}
+                      >
+                        {c.status}
+                      </Badge>
+                    </div>
+                    {c.label && <span className="truncate text-xs text-muted-foreground">{c.label}</span>}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-muted-foreground">
+                        {c.lastUsedAt ? `Used ${new Date(c.lastUsedAt).toLocaleDateString()}` : "Never used"}
+                        {c.createdAt ? ` · ${new Date(c.createdAt).toLocaleDateString()}` : ""}
+                      </span>
+                      {c.status === "ACTIVE" ? (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-6 bg-destructive px-2 text-xs text-white hover:bg-destructive/90 hover:text-white"
+                          onClick={() => setRevokeTarget(c)}
+                        >
+                          Revoke
+                        </Button>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">
+                          {c.revokedAt ? new Date(c.revokedAt).toLocaleDateString() : ""}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           ) : (
             <Empty className="border border-dashed border-border py-8">
               <EmptyHeader>
