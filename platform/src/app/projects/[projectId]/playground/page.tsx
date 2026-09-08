@@ -107,7 +107,16 @@ export default function PlaygroundPage() {
         </div>
 
         {!loading && agents.length > 0 && (
-          <Select value={selectedId ?? ""} onValueChange={handleSelectAgent}>
+          <Select
+            value={selectedId ?? ""}
+            onValueChange={handleSelectAgent}
+            // SelectValue can only show the selected agent's *name* when the
+            // root can turn the stored id back into a label — without this it
+            // falls back to rendering the raw id in the trigger.
+            itemToStringLabel={(value) =>
+              agents.find((agent) => agent.id === value)?.name ?? String(value ?? "")
+            }
+          >
             <SelectTrigger className="w-fit max-w-60">
               <SelectValue placeholder="Select an agent…" />
             </SelectTrigger>
