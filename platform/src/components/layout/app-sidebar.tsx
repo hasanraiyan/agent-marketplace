@@ -54,10 +54,10 @@ const NAV_GROUPS = [
     label: "Tools",
     items: [
       // REST Tools (no-code, built one-off here) is the project's own tool
-      // builder; MCP + RCP Sources are external tool servers it connects to.
+      // builder; MCP + RCP are external tool servers it connects to.
       { segment: "rest-tools", label: "REST Tools", icon: HammerIcon },
       { segment: "mcps", label: "MCP", icon: PlugsConnectedIcon },
-      { segment: "rcp-sources", label: "RCP Sources", icon: WrenchIcon },
+      { segment: "rcp-sources", label: "RCP", icon: WrenchIcon },
     ],
   },
   {

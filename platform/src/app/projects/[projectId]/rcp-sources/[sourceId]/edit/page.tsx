@@ -236,7 +236,7 @@ export default function EditRcpSourcePage() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink render={<Link href={`/projects/${projectId}/rcp-sources`} />}>RCP Sources</BreadcrumbLink>
+              <BreadcrumbLink render={<Link href={`/projects/${projectId}/rcp-sources`} />}>RCP</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
@@ -268,7 +268,7 @@ export default function EditRcpSourcePage() {
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink render={<Link href={`/projects/${projectId}/rcp-sources`} />}>RCP Sources</BreadcrumbLink>
+            <BreadcrumbLink render={<Link href={`/projects/${projectId}/rcp-sources`} />}>RCP</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>

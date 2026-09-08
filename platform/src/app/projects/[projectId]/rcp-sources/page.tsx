@@ -17,7 +17,7 @@ export default function RcpSourcesPage() {
 
   return (
     <ResourceListPage<RcpSource>
-      title="RCP Sources"
+      title="RCP"
       description="REST Connector Protocol sources an Agent can attach as tools."
       icon={WrenchIcon}
       fetchItems={() => getProjectRcpSources(projectId)}

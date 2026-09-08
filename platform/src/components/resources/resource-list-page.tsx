@@ -19,7 +19,7 @@ interface ResourceColumn<T> {
 }
 
 /**
- * Every Project resource type (Agents, RCP Sources, MCP, Providers,
+ * Every Project resource type (Agents, RCP, MCP, Providers,
  * Secrets, Knowledge, Stores, Skills) is a flat "fetch, list, click a row"
  * page — same shape, different fetcher/columns. One component for all of
  * them keeps that shape consistent instead of eight near-identical
