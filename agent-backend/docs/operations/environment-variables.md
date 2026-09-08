@@ -12,6 +12,7 @@ All environment variables are loaded in `src/config/index.js` using `dotenv`. Va
 | `NODE_ENV`     | No       | `development`                        | Environment (`development`, `test`, `production`) |
 | `BACKEND_URL`  | No       | `https://api.persona.hasanraiyan.me` | Public URL (used for MCP OAuth redirect URIs)     |
 | `WEBSITE_URL`  | No       | `https://persona.hasanraiyan.me/`    | Frontend URL (used in email links)                |
+| `PLATFORM_URL` | No       | `https://platform.persona.hasanraiyan.me/` | Developer Platform (Studio) URL (used for Project Admin OAuth redirects) |
 | `DISABLE_CRON` | No       | `false`                              | Set to `true` to disable all scheduled jobs       |
 
 ## Database
@@ -114,6 +115,7 @@ All environment variables are loaded in `src/config/index.js` using `dotenv`. Va
 
 - `BACKEND_URL` (must be actual domain, not localhost)
 - `WEBSITE_URL` (must be actual domain)
+- `PLATFORM_URL` (must be actual domain)
 - Strong encryption keys
 - `QDRANT_URL` and `QDRANT_API_KEY`
 - `RESEND_API_KEY`
