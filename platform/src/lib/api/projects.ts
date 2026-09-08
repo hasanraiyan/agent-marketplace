@@ -199,26 +199,8 @@ export const testProjectRestTool = (
   { toolId, draft, testValues }: { toolId?: string; draft?: unknown; testValues?: unknown } = {}
 ) => api.post(`/projects/${projectId}/rest-tools/test`, { toolId, draft, testValues });
 
-// REST API Tool Sources — a hosted manifest URL (mirrors MCP: register a
-// URL + optional API key, Test Connection pulls and stores a display-only
-// tool summary). No single-item GET route.
-export const getProjectRestToolSources = (projectId: string) =>
-  api.get(`/projects/${projectId}/rest-tool-sources`);
-export const createProjectRestToolSource = (projectId: string, data: unknown) =>
-  api.post(`/projects/${projectId}/rest-tool-sources`, data);
-export const updateProjectRestToolSource = (projectId: string, sourceId: string, data: unknown) =>
-  api.patch(`/projects/${projectId}/rest-tool-sources/${sourceId}`, data);
-export const deleteProjectRestToolSource = (projectId: string, sourceId: string) =>
-  api.delete(`/projects/${projectId}/rest-tool-sources/${sourceId}`);
-export const getProjectRestToolSourceUsage = (projectId: string, sourceId: string) =>
-  api.get(`/projects/${projectId}/rest-tool-sources/${sourceId}/usage`);
-export const bulkDeleteProjectRestToolSources = (projectId: string, ids: string[]) =>
-  api.post(`/projects/${projectId}/rest-tool-sources/bulk-delete`, { ids });
-export const testProjectRestToolSource = (projectId: string, sourceId: string) =>
-  api.post(`/projects/${projectId}/rest-tool-sources/${sourceId}/test`);
-
-// RCP (REST Connector Protocol, npm `rcp-sdk`) Sources — independent of
-// REST Tool Sources above, same registration/Test Connection pattern.
+// RCP (REST Connector Protocol, npm `rcp-sdk`) Sources — same
+// registration/Test Connection pattern.
 export const getProjectRcpSources = (projectId: string) =>
   api.get(`/projects/${projectId}/rcp-sources`);
 export const createProjectRcpSource = (projectId: string, data: unknown) =>

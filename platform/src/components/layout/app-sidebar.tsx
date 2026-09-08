@@ -10,7 +10,6 @@ import {
   CpuIcon,
   DatabaseIcon,
   GearIcon,
-  GlobeSimpleIcon,
   HammerIcon,
   KeyIcon,
   LockKeyIcon,
@@ -54,11 +53,9 @@ const NAV_GROUPS = [
   {
     label: "Tools",
     items: [
-      // REST Tools (no-code, built one-off here) and Tool Sources (a hosted
-      // manifest of code-defined tools) are the project's own tool builders;
-      // MCP + RCP Sources are external tool servers it connects to.
+      // REST Tools (no-code, built one-off here) is the project's own tool
+      // builder; MCP + RCP Sources are external tool servers it connects to.
       { segment: "rest-tools", label: "REST Tools", icon: HammerIcon },
-      { segment: "rest-tool-sources", label: "Tool Sources", icon: GlobeSimpleIcon },
       { segment: "mcps", label: "MCP", icon: PlugsConnectedIcon },
       { segment: "rcp-sources", label: "RCP Sources", icon: WrenchIcon },
     ],
