@@ -557,6 +557,7 @@ class McpService {
       redirectUri: redirectUriFor('owner'),
       codeVerifier: decoded.codeVerifier,
       resource: mcp.url,
+      tokenEndpointAuthMethod: mcp.oauth.tokenEndpointAuthMethod,
     });
     const expiresAt = tokenResponse.expires_in
       ? new Date(Date.now() + tokenResponse.expires_in * 1000)
@@ -693,6 +694,7 @@ class McpService {
       redirectUri: redirectUriFor('user'),
       codeVerifier: decoded.codeVerifier,
       resource: mcp.url,
+      tokenEndpointAuthMethod: mcp.oauth.tokenEndpointAuthMethod,
     });
     const expiresAt = tokenResponse.expires_in
       ? new Date(Date.now() + tokenResponse.expires_in * 1000)

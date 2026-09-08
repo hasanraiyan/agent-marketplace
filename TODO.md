@@ -136,6 +136,26 @@ usage, and delete-with-usage-guard.
       likely the real root cause behind broader OAuth interop failures,
       not just the pyqdeck/Clerk case — worth retesting Context7 and any
       other previously-failing MCP server after this deploys.
+- [x] Migrated `agent-backend/src/modules/mcp/mcp-oauth-client.js` off the
+      hand-rolled OAuth implementation onto the official
+      `@modelcontextprotocol/sdk`'s `client/auth.js` module (already a
+      dependency, v1.29.0) — user asked to check for a library that
+      handles this instead of hand-rolling it, and this SDK does. Kept the
+      same exported function names/shapes so `mcp.service.js`/
+      `mcp-token.service.js` needed almost no call-site changes. Gains over
+      the old code: OIDC-fallback discovery, structured OAuth error
+      parsing, and — the real correctness fix — proper client-auth-method
+      selection at the token endpoint (`selectClientAuthMethod`: HTTP
+      Basic / POST-body / public, based on how the client was actually
+      registered). The old code never used HTTP Basic auth at all, always
+      putting `client_secret` in the POST body regardless of what the
+      server expected — a second, independent interop bug beyond the
+      missing `resource` param. `tokenEndpointAuthMethod` (already stored
+      per-MCP from registration) is now threaded through
+      `exchangeCodeForToken`/`refreshAccessToken` so the SDK picks the
+      right method instead of guessing. Verified: app boots clean, module
+      imports resolve, pure functions (`generatePkcePair`,
+      `buildAuthorizationUrl`) produce identical output to before.
 - [ ] Manual step still needed for the MCP created *before* this fix
       (project `6a97f0fc25f0ae6efb32b390`, mcp `6a9fd8d09a67f0dc7c5e7f21`):
       its bad scopes are already stored in the DB, so the code fix doesn't

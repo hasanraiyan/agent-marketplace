@@ -1,66 +1,59 @@
 import crypto from 'crypto';
+import {
+  discoverOAuthServerInfo,
+  registerClient,
+  exchangeAuthorization,
+  refreshAuthorization,
+} from '@modelcontextprotocol/sdk/client/auth.js';
 
 function toBase64Url(buffer) {
   return buffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/u, '');
 }
 
-async function fetchJson(url) {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`Request to ${url} failed with status ${res.status}`);
-  }
-  return res.json();
-}
+// Thin wrappers around the official MCP SDK's client OAuth module
+// (@modelcontextprotocol/sdk/client/auth.js) instead of a hand-rolled
+// implementation. That module already handles what our old version got
+// wrong or missed entirely: RFC 8707 `resource` binding, correct
+// client-auth-method selection at the token endpoint (HTTP Basic vs POST
+// body vs public, per RFC 8414's token_endpoint_auth_methods_supported —
+// our old code always sent the secret in the POST body, never Basic auth),
+// OIDC-fallback discovery, and structured OAuth error parsing. Exported
+// function names/shapes are kept identical to the old module so
+// mcp.service.js/mcp-token.service.js barely change.
 
 /**
- * Dynamic Client Registration (RFC 7591).
- * Posts client metadata to the authorization server's registration endpoint
- * and returns the issued client_id and (optionally) client_secret.
- *
- * Tries confidential-client registration first (client_secret_basic). If the
- * server doesn't return a secret, re-registers as a public client (none) so
- * the token exchange skips client_secret.
+ * Dynamic Client Registration (RFC 7591), delegated to the SDK's
+ * `registerClient`. Tries confidential-client registration first
+ * (client_secret_basic). If the server doesn't return a secret, re-registers
+ * as a public client (none) so the token exchange skips client_secret.
  */
 export async function dynamicClientRegistration({
   registrationEndpoint,
   redirectUris,
   clientName,
   clientUri,
+  scopes,
 }) {
-  async function tryRegister(authMethod) {
-    const body = {
-      redirect_uris: redirectUris,
-      client_name: clientName,
-      client_uri: clientUri,
-      grant_types: ['authorization_code'],
-      response_types: ['code'],
-      token_endpoint_auth_method: authMethod,
-    };
+  const metadata = { registration_endpoint: registrationEndpoint };
+  const scope = scopes?.length ? scopes.join(' ') : undefined;
 
-    const res = await fetch(registrationEndpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+  const tryRegister = (tokenEndpointAuthMethod) =>
+    registerClient(registrationEndpoint, {
+      metadata,
+      clientMetadata: {
+        redirect_uris: redirectUris,
+        client_name: clientName,
+        client_uri: clientUri,
+        grant_types: ['authorization_code'],
+        response_types: ['code'],
+        token_endpoint_auth_method: tokenEndpointAuthMethod,
+      },
+      scope,
     });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(
-        data.error_description ||
-          data.error ||
-          `Dynamic client registration failed with status ${res.status}`
-      );
-    }
-
-    return data;
-  }
 
   // Try confidential client first
   const data = await tryRegister('client_secret_basic');
-  const hasSecret = Boolean(data.client_secret);
-
-  if (hasSecret) {
+  if (data.client_secret) {
     return {
       clientId: data.client_id,
       clientSecret: data.client_secret,
@@ -83,40 +76,22 @@ export async function dynamicClientRegistration({
 
 /**
  * Discovers the OAuth authorization/token endpoints for a remote MCP server,
- * following RFC 9728 (protected resource metadata) then RFC 8414
- * (authorization server metadata).
+ * delegated to the SDK's `discoverOAuthServerInfo` (RFC 9728 protected
+ * resource metadata, then RFC 8414 authorization server metadata with an
+ * OpenID Connect Discovery fallback our old hand-rolled version didn't have).
  */
 export async function discoverOAuthEndpoints(mcpServerUrl) {
-  const parsed = new URL(mcpServerUrl);
-  const origin = parsed.origin;
-  const resourcePath = parsed.pathname.replace(/^\/+/, '');
+  const { authorizationServerMetadata: metadata } = await discoverOAuthServerInfo(mcpServerUrl);
 
-  let authorizationServers = [];
-  try {
-    const resourceMetadata = await fetchJson(
-      `${origin}/.well-known/oauth-protected-resource/${resourcePath}`
-    );
-    authorizationServers = resourceMetadata.authorization_servers || [];
-  } catch {
-    // Some servers don't publish per-path resource metadata; fall back to
-    // the origin's authorization-server metadata directly below.
-  }
-
-  const asUrl = authorizationServers[0]
-    ? `${authorizationServers[0].replace(/\/+$/, '')}/.well-known/oauth-authorization-server`
-    : `${origin}/.well-known/oauth-authorization-server`;
-
-  const asMetadata = await fetchJson(asUrl);
-
-  if (!asMetadata.authorization_endpoint || !asMetadata.token_endpoint) {
+  if (!metadata?.authorization_endpoint || !metadata?.token_endpoint) {
     throw new Error('Authorization server metadata is missing required endpoints');
   }
 
   return {
-    authorizationEndpoint: asMetadata.authorization_endpoint,
-    tokenEndpoint: asMetadata.token_endpoint,
-    registrationEndpoint: asMetadata.registration_endpoint || null,
-    scopesSupported: asMetadata.scopes_supported || [],
+    authorizationEndpoint: metadata.authorization_endpoint,
+    tokenEndpoint: metadata.token_endpoint,
+    registrationEndpoint: metadata.registration_endpoint || null,
+    scopesSupported: metadata.scopes_supported || [],
   };
 }
 
@@ -148,31 +123,26 @@ export function buildAuthorizationUrl({
   // RFC 8707 Resource Indicators, required by the MCP Authorization spec
   // (2025-06-18): binds the issued token to this specific MCP server so a
   // multi-tenant authorization server (Clerk, Context7, etc.) can audience-
-  // scope it correctly. Reference MCP clients (Claude) send this; without
-  // it, some authorization servers reject or mis-scope the request — this
-  // was previously omitted entirely.
+  // scope it correctly. Reference MCP clients (Claude) send this.
   if (resource) {
     url.searchParams.set('resource', resource);
   }
   return url.toString();
 }
 
-async function postForm(tokenEndpoint, params) {
-  const res = await fetch(tokenEndpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(params).toString(),
-  });
-
-  const body = await res.json().catch(() => ({}));
-
-  if (!res.ok) {
-    throw new Error(
-      body.error_description || body.error || `Token request failed with status ${res.status}`
-    );
-  }
-
-  return body;
+// clientInformation shape the SDK's token functions expect. `client_secret`
+// must be `undefined` (not `null`) when absent — the SDK's auth-method
+// selection checks `client_secret !== undefined`, and our DB-decrypted
+// "no secret" value is `null`. `token_endpoint_auth_method`, when it matches
+// one we captured at registration time, makes the SDK pick that method
+// directly instead of guessing from `token_endpoint_auth_methods_supported`
+// (which we don't persist).
+function toClientInformation({ clientId, clientSecret, tokenEndpointAuthMethod }) {
+  return {
+    client_id: clientId,
+    client_secret: clientSecret || undefined,
+    ...(tokenEndpointAuthMethod ? { token_endpoint_auth_method: tokenEndpointAuthMethod } : {}),
+  };
 }
 
 export async function exchangeCodeForToken({
@@ -183,26 +153,17 @@ export async function exchangeCodeForToken({
   redirectUri,
   codeVerifier,
   resource,
+  tokenEndpointAuthMethod,
 }) {
-  const params = {
-    grant_type: 'authorization_code',
-    code,
-    redirect_uri: redirectUri,
-    client_id: clientId,
-    code_verifier: codeVerifier,
-  };
-
-  // Only include client_secret for confidential clients
-  if (clientSecret) {
-    params.client_secret = clientSecret;
-  }
-  // Must match the `resource` sent at the authorize step (RFC 8707) — some
-  // authorization servers require it again here to bind the issued token.
-  if (resource) {
-    params.resource = resource;
-  }
-
-  return postForm(tokenEndpoint, params);
+  return exchangeAuthorization(tokenEndpoint, {
+    metadata: { token_endpoint: tokenEndpoint },
+    clientInformation: toClientInformation({ clientId, clientSecret, tokenEndpointAuthMethod }),
+    authorizationCode: code,
+    codeVerifier,
+    redirectUri,
+    // Must match the `resource` sent at the authorize step.
+    resource: resource ? new URL(resource) : undefined,
+  });
 }
 
 export async function refreshAccessToken({
@@ -211,20 +172,12 @@ export async function refreshAccessToken({
   clientSecret,
   refreshToken,
   resource,
+  tokenEndpointAuthMethod,
 }) {
-  const params = {
-    grant_type: 'refresh_token',
-    refresh_token: refreshToken,
-    client_id: clientId,
-  };
-
-  // Only include client_secret for confidential clients
-  if (clientSecret) {
-    params.client_secret = clientSecret;
-  }
-  if (resource) {
-    params.resource = resource;
-  }
-
-  return postForm(tokenEndpoint, params);
+  return refreshAuthorization(tokenEndpoint, {
+    metadata: { token_endpoint: tokenEndpoint },
+    clientInformation: toClientInformation({ clientId, clientSecret, tokenEndpointAuthMethod }),
+    refreshToken,
+    resource: resource ? new URL(resource) : undefined,
+  });
 }
