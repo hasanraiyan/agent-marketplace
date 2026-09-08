@@ -165,11 +165,17 @@ export function McpAppRenderer({
     );
 
     bridge.oncalltool = async (params: { name: string; arguments?: Record<string, unknown> }) => {
+      if (!projectId || !mcpId) {
+        throw new Error("Cannot call MCP tool: projectId or mcpId not configured");
+      }
       const res = await callProjectMcpTool(projectId, mcpId, params.name, params.arguments || {});
       return res.data?.data;
     };
 
     bridge.onreadresource = async (params: { uri: string }) => {
+      if (!projectId || !mcpId) {
+        throw new Error("Cannot read MCP resource: projectId or mcpId not configured");
+      }
       const res = await readProjectMcpResource(projectId, mcpId, params.uri);
       const data = res.data?.data;
       return {
