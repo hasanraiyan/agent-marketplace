@@ -115,11 +115,23 @@ class McpService {
             'This MCP server does not support Dynamic Client Registration. Please provide a Client ID and Client Secret manually.'
           );
         }
+        // `discovered.scopesSupported` is every scope the server's discovery
+        // doc *advertises*, not what a freshly-DCR-registered client is
+        // actually *granted* — confirmed against two independent Clerk
+        // instances (clerk.pyqdeck.in rejected public_metadata/
+        // private_metadata; clerk.context7.com rejected even plain
+        // `openid`) that a DCR'd client gets none of the advertised scopes
+        // by default. Defaulting to "request everything discovery lists" is
+        // therefore unsafe in general, not just for one provider's quirk —
+        // default to no scope param at all (the server applies its own
+        // default grant) unless the caller explicitly asked for scopes.
+        const scopes = data.oauth?.scopes?.length ? data.oauth.scopes : [];
         const registered = await dynamicClientRegistration({
           registrationEndpoint: discovered.registrationEndpoint,
           redirectUris: [redirectUriFor('owner'), redirectUriFor('user')],
           clientName: data.name,
           clientUri: config.websiteUrl,
+          scopes,
         });
         mcpData.oauth = {
           clientId: registered.clientId,
@@ -128,13 +140,7 @@ class McpService {
             : null,
           authorizationEndpoint: discovered.authorizationEndpoint,
           tokenEndpoint: discovered.tokenEndpoint,
-          // Mirrors the manual-clientId branch below: `discovered.scopesSupported`
-          // is every scope the server's discovery doc *advertises*, not what a
-          // freshly-DCR-registered client is actually *granted* — e.g. Clerk
-          // lists public_metadata/private_metadata there but rejects them for
-          // a just-registered client with invalid_scope. Respect an explicit
-          // caller-supplied scope list instead of blindly requesting all of them.
-          scopes: data.oauth?.scopes?.length ? data.oauth.scopes : discovered.scopesSupported,
+          scopes,
           dynamicallyRegistered: true,
           tokenEndpointAuthMethod: registered.tokenEndpointAuthMethod,
         };
@@ -153,7 +159,9 @@ class McpService {
             : null,
           authorizationEndpoint: discovered.authorizationEndpoint,
           tokenEndpoint: discovered.tokenEndpoint,
-          scopes: data.oauth.scopes?.length ? data.oauth.scopes : discovered.scopesSupported,
+          // Same reasoning as the DCR branch above — don't default to every
+          // discovery-advertised scope; only request what the caller asked for.
+          scopes: data.oauth.scopes?.length ? data.oauth.scopes : [],
           dynamicallyRegistered: false,
           tokenEndpointAuthMethod: data.oauth.clientSecret ? 'client_secret_basic' : 'none',
         };
