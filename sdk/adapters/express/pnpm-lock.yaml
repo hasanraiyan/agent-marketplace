@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@personaai/runtime':
-        specifier: ^0.9.3
-        version: 0.9.3(zod@3.25.76)
+        specifier: ^0.9.4
+        version: 0.9.4(zod@3.25.76)
       '@personaai/sdk':
         specifier: ^0.7.4
         version: 0.7.4(zod@3.25.76)
@@ -458,8 +458,8 @@ packages:
     resolution: {integrity: sha512-ra5T+aBNzDmiabJ161y87SJJT9x3MHuFfAL1UCxSY3IO6AOJtF5UcXdsLVcxkugeOIto6Ppsm+adGLLR9s50Kw==}
     engines: {node: '>=18'}
 
-  '@personaai/runtime@0.9.3':
-    resolution: {integrity: sha512-8dOHztkKcJd/fyGj7k8riPeBbJSfu1JHU1H/OLSEO8iaV7BAuEDxpmVBT1O6NJERDVO9OqnY8ghn8Y0ll/b+0w==}
+  '@personaai/runtime@0.9.4':
+    resolution: {integrity: sha512-KVqwBNPeYL6YoawgAj388EnftC/6H7J8D19msgi7mN8/G717bOCbj0cmkdyRl82yBO70BZjYfvwX+fkTQNIxaQ==}
     engines: {node: '>=18'}
 
   '@personaai/sdk@0.7.4':
@@ -1981,7 +1981,7 @@ snapshots:
 
   '@personaai/logger@0.1.0': {}
 
-  '@personaai/runtime@0.9.3(zod@3.25.76)':
+  '@personaai/runtime@0.9.4(zod@3.25.76)':
     dependencies:
       '@ag-ui/core': 0.0.57
       '@personaai/sdk': 0.7.4(zod@3.25.76)

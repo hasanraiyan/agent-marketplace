@@ -33,6 +33,11 @@ interface PersonaToolCall {
     seq?: number;
     /** Nested activity timeline — only present on `task` (subagent) tool calls. */
     subagentActivity?: PersonaSubagentActivityEntry[];
+    /** Present when this tool is backed by an interactive MCP Ext App. */
+    mcpApp?: {
+        resourceUri: string;
+        mcpId: string;
+    };
 }
 interface PersonaMessage {
     id: string;
@@ -585,6 +590,19 @@ declare function useMcpConnections(options?: UseMcpConnectionsOptions): {
     refetch: () => Promise<PersonaMcpConnection[]>;
 };
 
+interface UseMcpOptions {
+    /** Default MCP server ID for resource reads and tool calls */
+    mcpId?: string;
+}
+/**
+ * Hook for interacting with MCP servers connected via the Persona runtime.
+ * Provides helper functions for reading UI/data resources and calling server tools.
+ */
+declare function useMcp(options?: UseMcpOptions): {
+    readResource: (uri: string, mcpId?: string) => Promise<any>;
+    callTool: (name: string, args?: Record<string, unknown>, mcpId?: string) => Promise<any>;
+};
+
 /**
  * SSE transport for chat streams, with a React Native fallback.
  *
@@ -641,6 +659,6 @@ declare function supportsStreamingFetch(): boolean;
  */
 declare function openSSEStream(opts: OpenSSEOptions): Promise<SSEStream>;
 
-declare const VERSION = "0.7.3";
+declare const VERSION = "0.7.9";
 
-export { type OpenSSEOptions, type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendMessageOverride, type UseChatOptions, type UseMcpConnectionsOptions, type UseVoiceOptions, type UseVoiceResult, VERSION, openSSEStream, supportsStreamingFetch, useAgents, useChat, useConnection, useFiles, useMcpConnections, useMemory, usePersonaContext, useThreads, useVoice };
+export { type OpenSSEOptions, type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendMessageOverride, type UseChatOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseVoiceOptions, type UseVoiceResult, VERSION, openSSEStream, supportsStreamingFetch, useAgents, useChat, useConnection, useFiles, useMcp, useMcpConnections, useMemory, usePersonaContext, useThreads, useVoice };

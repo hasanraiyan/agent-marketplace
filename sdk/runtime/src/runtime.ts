@@ -191,6 +191,17 @@ function buildRoutes(capabilities: Required<RuntimeCapabilities>): Route[] {
       pattern: ['agents', ':id', 'mcp-connections'],
       handler: getAgentMcpConnections,
     },
+    // MCP App resources and widget tool calls — always on for conversational widgets.
+    {
+      method: 'GET',
+      pattern: ['mcps', ':id', 'resource'],
+      handler: readMcpResource,
+    },
+    {
+      method: 'POST',
+      pattern: ['mcps', ':id', 'call-tool'],
+      handler: callMcpTool,
+    },
   ];
 
   if (capabilities.agentsWrite) {
@@ -212,9 +223,7 @@ function buildRoutes(capabilities: Required<RuntimeCapabilities>): Route[] {
       { method: 'PATCH', pattern: ['mcps', ':id'], handler: updateMcp },
       { method: 'DELETE', pattern: ['mcps', ':id'], handler: deleteMcp },
       { method: 'GET', pattern: ['mcps', ':id', 'usage'], handler: getMcpUsage },
-      { method: 'POST', pattern: ['mcps', ':id', 'test'], handler: testMcpConnection },
-      { method: 'GET', pattern: ['mcps', ':id', 'resource'], handler: readMcpResource },
-      { method: 'POST', pattern: ['mcps', ':id', 'call-tool'], handler: callMcpTool }
+      { method: 'POST', pattern: ['mcps', ':id', 'test'], handler: testMcpConnection }
     );
   }
 

@@ -8,6 +8,7 @@ export * from "./hooks/useFiles.js";
 export * from "./hooks/useAgents.js";
 export * from "./hooks/useConnection.js";
 export * from "./hooks/useMcpConnections.js";
+export * from "./hooks/useMcp.js";
 export * from "./streaming.js";
 export {
   createLogger,
@@ -23,4 +24,4 @@ export type {
   CreateLoggerOptions,
 } from "@personaai/logger";
 
-export const VERSION = "0.7.3";
+export const VERSION = "0.7.9";

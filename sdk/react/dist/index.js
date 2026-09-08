@@ -865,6 +865,18 @@ function useChat(options = {}) {
                     ];
                     patchAssistant({});
                   }
+                } else if (event.name === "mcp_app") {
+                  const val = event.value;
+                  if (val?.toolCallId && val?.resourceUri && val?.mcpId) {
+                    const existing = toolCallsMap.get(val.toolCallId);
+                    if (existing) {
+                      existing.mcpApp = {
+                        resourceUri: val.resourceUri,
+                        mcpId: val.mcpId
+                      };
+                      patchAssistant({});
+                    }
+                  }
                 }
               } else if (event.type === "RUN_ERROR") {
                 chatLogger.warn("run error", {
@@ -1975,6 +1987,47 @@ function useMcpConnections(options = {}) {
   };
 }
 
+// src/hooks/useMcp.ts
+import { useCallback as useCallback9 } from "react";
+function useMcp(options = {}) {
+  const { fetchWithAuth } = usePersonaContext();
+  const defaultMcpId = options.mcpId;
+  const readResource = useCallback9(
+    async (uri, mcpId) => {
+      const id = mcpId ?? defaultMcpId;
+      if (!id) throw new Error("MCP server ID is required to read resource");
+      const res = await fetchWithAuth(
+        `/mcps/${id}/resource?uri=${encodeURIComponent(uri)}`
+      );
+      if (!res.ok) {
+        throw new Error(`Failed to read MCP resource: ${res.statusText}`);
+      }
+      return await res.json();
+    },
+    [fetchWithAuth, defaultMcpId]
+  );
+  const callTool = useCallback9(
+    async (name, args, mcpId) => {
+      const id = mcpId ?? defaultMcpId;
+      if (!id) throw new Error("MCP server ID is required to call tool");
+      const res = await fetchWithAuth(`/mcps/${id}/call-tool`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, arguments: args })
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to call MCP tool: ${res.statusText}`);
+      }
+      return await res.json();
+    },
+    [fetchWithAuth, defaultMcpId]
+  );
+  return {
+    readResource,
+    callTool
+  };
+}
+
 // src/index.ts
 import {
   createLogger as createLogger2,
@@ -1983,7 +2036,7 @@ import {
   getLogLevel,
   isLevelEnabled
 } from "@personaai/logger";
-var VERSION = "0.7.3";
+var VERSION = "0.7.9";
 export {
   PersonaProvider,
   VERSION,
@@ -1998,6 +2051,7 @@ export {
   useChat,
   useConnection,
   useFiles,
+  useMcp,
   useMcpConnections,
   useMemory,
   usePersonaContext,
