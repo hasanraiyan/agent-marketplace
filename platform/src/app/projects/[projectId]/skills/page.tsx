@@ -70,6 +70,61 @@ function FileIcon({ path, className }: { path: string; className?: string }) {
   return <FileCodeIcon className={className} />;
 }
 
+interface FileTreeNode {
+  name: string;
+  path: string;
+  file?: SkillFile;
+  children?: FileTreeNode[];
+}
+
+// Bundled files carry a slash-separated relative path (e.g. "app/sexy.md")
+// but the API returns them as a flat list — this groups them into a real
+// nested folder tree, VS Code style, instead of showing the raw path string
+// as one flat leaf item.
+function buildFileTree(files: SkillFile[]): FileTreeNode[] {
+  interface MutableNode {
+    name: string;
+    path: string;
+    file?: SkillFile;
+    children: Map<string, MutableNode>;
+  }
+  const root = new Map<string, MutableNode>();
+
+  for (const f of files) {
+    const parts = f.path.split("/").filter(Boolean);
+    let level = root;
+    let currentPath = "";
+    parts.forEach((part, i) => {
+      currentPath = currentPath ? `${currentPath}/${part}` : part;
+      let node = level.get(part);
+      if (!node) {
+        node = { name: part, path: currentPath, children: new Map() };
+        level.set(part, node);
+      }
+      if (i === parts.length - 1) node.file = f;
+      level = node.children;
+    });
+  }
+
+  function finalize(map: Map<string, MutableNode>): FileTreeNode[] {
+    return Array.from(map.values())
+      .sort((a, b) => {
+        const aFolder = !a.file;
+        const bFolder = !b.file;
+        if (aFolder !== bFolder) return aFolder ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      })
+      .map((n) => ({
+        name: n.name,
+        path: n.path,
+        file: n.file,
+        children: n.children.size ? finalize(n.children) : undefined,
+      }));
+  }
+
+  return finalize(root);
+}
+
 // Same extension -> fence language mapping used by the chat workspace file
 // panel, so a skill's SKILL.md and bundled files get the same Shiki-backed
 // preview/highlighting instead of a separate renderer.
@@ -288,6 +343,35 @@ export default function SkillsPage() {
     setNewFilePath("");
   };
 
+  const renderFileNodes = (nodes: FileTreeNode[], skill: Skill, isSkillSelected: boolean, depth: number): React.ReactNode =>
+    nodes.map((node) => {
+      const indent = { paddingLeft: `${8 + depth * 12}px` };
+      if (!node.file) {
+        return (
+          <div key={node.path} className="flex flex-col">
+            <div style={indent} className="flex items-center gap-1.5 truncate py-1 pr-2 text-xs text-muted-foreground">
+              <FolderIcon className="size-3.5 shrink-0" />
+              <span className="truncate">{node.name}</span>
+            </div>
+            {node.children && renderFileNodes(node.children, skill, isSkillSelected, depth + 1)}
+          </div>
+        );
+      }
+      const isActive = isSkillSelected && activeFile === node.path;
+      return (
+        <button
+          key={node.path}
+          type="button"
+          style={indent}
+          onClick={() => handleSelectFile(skill, node.path)}
+          className={`flex items-center gap-1.5 truncate rounded-none py-1 pr-2 text-left text-xs ${isActive ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"}`}
+        >
+          <FileIcon path={node.path} className="size-3.5 shrink-0" />
+          <span className="truncate">{node.name}</span>
+        </button>
+      );
+    });
+
   const renderSkillTree = () =>
     filtered.length === 0 ? (
       <div className="px-3 py-6 text-center text-xs text-muted-foreground">No skills found.</div>
@@ -333,17 +417,7 @@ export default function SkillsPage() {
                   <FileTextIcon className="size-3.5 shrink-0" />
                   <span className="truncate">SKILL.md</span>
                 </button>
-                {(skill.files ?? []).map((f) => (
-                  <button
-                    key={f.path}
-                    type="button"
-                    onClick={() => handleSelectFile(skill, f.path)}
-                    className={`flex items-center gap-1.5 truncate rounded-none px-2 py-1 text-left text-xs ${isSelected && activeFile === f.path ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"}`}
-                  >
-                    <FileIcon path={f.path} className="size-3.5 shrink-0" />
-                    <span className="truncate">{f.path}</span>
-                  </button>
-                ))}
+                {renderFileNodes(buildFileTree(skill.files ?? []), skill, isSelected, 0)}
                 <button
                   type="button"
                   onClick={() => {
