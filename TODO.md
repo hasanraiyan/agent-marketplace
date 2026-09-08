@@ -272,15 +272,6 @@ usage, and delete-with-usage-guard.
 
 ---
 
-## Done recently (for context)
-
-- ✅ REST Tools fully built in the platform (list was there; editor, new/edit
-  pages, secret picker, cURL paste, test-call ported from the legacy frontend)
-- ✅ Tool Sources removed from the platform UI (feature no longer needed)
-- ✅ Delete-confirmation buttons fixed (missing `--destructive-foreground` theme
-  var made text black on red)
-- ✅ Skills editor: Ctrl+S / Cmd+S save shortcut; project switcher redesigned +
-  app icon added
 
 ---
 
