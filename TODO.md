@@ -77,7 +77,7 @@ says it all: not yet connected to a real agent.
 
 ---
 
-## 5. MCP UI — ✅ FIXED (OAuth owner-connect redirect)
+## 5. MCP UI — ✅ FIXED (OAuth owner-connect end-to-end)
 
 **Current state:** list + new + edit pages built
 (`mcps/page.tsx`, `mcps/new/page.tsx`, `mcps/[mcpId]/edit/page.tsx`). The edit
@@ -234,7 +234,11 @@ usage, and delete-with-usage-guard.
          clear upfront "provide a new Client ID or enable dynamic
          registration" validation error instead of a late, confusing
          provider-side failure.
-- [ ] Re-verify end-to-end: add server → Test Connection → attach to an agent
+- [x] Re-verified end-to-end by the user: owner-connect OAuth now
+      completes successfully (2026-09-08). MCP OAuth connect flow is
+      considered fixed — remaining scope is just the Platform UI TODO
+      items below and the manual re-save step for any MCP records still
+      carrying pre-fix stale data (see above).
 
 ---
 
