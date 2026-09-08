@@ -237,6 +237,7 @@ export function FileExplorerEditor<T extends ExplorerItem>({
     onConfirm: () => void;
   } | null>(null);
   const isSmUp = useIsSmUp();
+  const [showExplorer, setShowExplorer] = React.useState(true);
   const didAutoOpenRef = React.useRef(false);
   const searchInputId = React.useId();
 
@@ -559,10 +560,25 @@ export function FileExplorerEditor<T extends ExplorerItem>({
       <ResizablePanelGroup orientation="horizontal" className="relative flex-1">
         {/* Activity Bar - VS Code style far left */}
         <div className="hidden w-12 shrink-0 flex-col items-center gap-2 border-r bg-muted/10 py-2 sm:flex">
-          <Button variant="ghost" size="icon-sm" className="bg-primary/10 text-primary" aria-label="Explorer">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className={showExplorer ? "bg-primary/10 text-primary" : "text-muted-foreground"}
+            aria-label="Toggle Explorer"
+            onClick={() => setShowExplorer((v) => !v)}
+          >
             <FolderOpenIcon />
           </Button>
-          <Button variant="ghost" size="icon-sm" className="text-muted-foreground" aria-label="Search" onClick={() => document.getElementById(searchInputId)?.focus()}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-muted-foreground"
+            aria-label="Search"
+            onClick={() => {
+              setShowExplorer(true);
+              requestAnimationFrame(() => document.getElementById(searchInputId)?.focus());
+            }}
+          >
             <MagnifyingGlassIcon />
           </Button>
           <div className="flex-1" />
@@ -575,8 +591,9 @@ export function FileExplorerEditor<T extends ExplorerItem>({
 
         {/* Explorer Sidebar - conditionally rendered (not CSS-hidden) because
             react-resizable-panels' <Panel> silently drops className, so
-            "hidden sm:flex" can't hide it on mobile */}
-        {isSmUp && (
+            "hidden sm:flex" can't hide it on mobile, and toggling display
+            via className wouldn't work for the same reason */}
+        {isSmUp && showExplorer && (
         <ResizablePanel defaultSize="22" minSize="18" maxSize="32">
           <div className="flex h-full w-full min-w-[220px] flex-col border-r bg-muted/5">
             <div className="flex h-7 shrink-0 items-center justify-between px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -642,7 +659,7 @@ export function FileExplorerEditor<T extends ExplorerItem>({
           </div>
         )}
 
-        {isSmUp && <ResizableHandle withHandle />}
+        {isSmUp && showExplorer && <ResizableHandle withHandle />}
 
         {/* Editor Area */}
         <ResizablePanel defaultSize="78">
