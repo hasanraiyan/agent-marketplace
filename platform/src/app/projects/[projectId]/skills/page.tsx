@@ -385,16 +385,6 @@ export default function SkillsPage() {
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-background">
-      {/* Top bar */}
-      <div className="flex h-9 shrink-0 items-center justify-between border-b bg-muted/20 px-2 sm:px-3">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon-xs" className="sm:hidden" onClick={() => setMobileExplorerOpen((v) => !v)}>
-            <FolderIcon />
-          </Button>
-          {isDirty && <span className="hidden text-[10px] font-medium text-amber-500 sm:inline">• Unsaved</span>}
-        </div>
-      </div>
-
       <ResizablePanelGroup orientation="horizontal" className="relative flex-1">
         {/* Activity Bar - VS Code style far left */}
         <div className="hidden w-12 shrink-0 flex-col items-center gap-2 border-r bg-muted/10 py-2 sm:flex">
@@ -484,6 +474,12 @@ export default function SkillsPage() {
         {/* Editor Area */}
         <ResizablePanel defaultSize="78">
         <div className="flex h-full w-full min-w-0 flex-col bg-background">
+          {/* Mobile-only Explorer toggle - desktop has the persistent Activity Bar instead */}
+          <div className="flex h-8 shrink-0 items-center gap-1.5 border-b bg-muted/20 px-2 sm:hidden">
+            <Button variant="ghost" size="icon-xs" onClick={() => setMobileExplorerOpen((v) => !v)}>
+              <FolderIcon />
+            </Button>
+          </div>
           {!selectedSkill ? (
             <div className="flex flex-1 items-center justify-center p-8 text-center">
               <div className="flex max-w-sm flex-col items-center gap-3">
