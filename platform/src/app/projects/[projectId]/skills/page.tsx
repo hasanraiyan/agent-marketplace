@@ -67,6 +67,20 @@ function FileIcon({ path, className }: { path: string; className?: string }) {
   return <FileCodeIcon className={className} />;
 }
 
+// react-resizable-panels' <Panel> silently drops the className prop, so its
+// "hidden sm:flex" visibility can't be CSS-only — this mirrors Tailwind's sm breakpoint in JS.
+function useIsSmUp() {
+  const [isSmUp, setIsSmUp] = React.useState<boolean | undefined>(undefined);
+  React.useEffect(() => {
+    const mql = window.matchMedia("(min-width: 640px)");
+    const onChange = () => setIsSmUp(mql.matches);
+    mql.addEventListener("change", onChange);
+    onChange();
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+  return isSmUp;
+}
+
 export default function SkillsPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const router = useRouter();
@@ -84,6 +98,7 @@ export default function SkillsPage() {
   const [showAddFileDialog, setShowAddFileDialog] = React.useState(false);
   const [newFilePath, setNewFilePath] = React.useState("");
   const [mobileExplorerOpen, setMobileExplorerOpen] = React.useState(false);
+  const isSmUp = useIsSmUp();
 
   const selectedSkill = skills?.find((s) => (s.id ?? s._id) === selectedSkillId) || null;
   const activePath = activeFile ?? "SKILL.md";
@@ -292,7 +307,7 @@ export default function SkillsPage() {
         </div>
       </div>
 
-      <ResizablePanelGroup orientation="horizontal" className="flex-1">
+      <ResizablePanelGroup orientation="horizontal" className="relative flex-1">
         {/* Activity Bar - VS Code style far left */}
         <div className="hidden w-12 shrink-0 flex-col items-center gap-2 border-r bg-muted/10 py-2 sm:flex">
           <Button variant="ghost" size="icon-sm" className="bg-primary/10 text-primary" aria-label="Explorer">
@@ -307,8 +322,11 @@ export default function SkillsPage() {
           </Button>
         </div>
 
-        {/* Explorer Sidebar - min width when 0 skills */}
-        <ResizablePanel defaultSize="22" minSize="18" maxSize="32" className="hidden sm:flex" style={{ minWidth: 220 }}>
+        {/* Explorer Sidebar - conditionally rendered (not CSS-hidden) because
+            react-resizable-panels' <Panel> silently drops className, so
+            "hidden sm:flex" can't hide it on mobile */}
+        {isSmUp && (
+        <ResizablePanel defaultSize="22" minSize="18" maxSize="32">
           <div className="flex h-full w-full min-w-[220px] flex-col border-r bg-muted/5">
             <div className="flex h-7 shrink-0 items-center justify-between px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Explorer
@@ -408,6 +426,7 @@ export default function SkillsPage() {
             </div>
           </div>
         </ResizablePanel>
+        )}
 
         {/* Mobile explorer drawer */}
         {mobileExplorerOpen && (
@@ -446,10 +465,11 @@ export default function SkillsPage() {
           </div>
         )}
 
-        <ResizableHandle withHandle className="hidden sm:flex" />
+        {isSmUp && <ResizableHandle withHandle />}
 
         {/* Editor Area */}
-        <ResizablePanel defaultSize="78" className="flex min-w-0 flex-col bg-background">
+        <ResizablePanel defaultSize="78">
+        <div className="flex h-full w-full min-w-0 flex-col bg-background">
           {!selectedSkill ? (
             <div className="flex flex-1 items-center justify-center p-8 text-center">
               <div className="flex max-w-sm flex-col items-center gap-3">
@@ -613,6 +633,7 @@ export default function SkillsPage() {
               </div>
             </>
           )}
+        </div>
         </ResizablePanel>
       </ResizablePanelGroup>
 
