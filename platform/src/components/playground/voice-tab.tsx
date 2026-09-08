@@ -10,6 +10,7 @@ import {
   ChatComposer,
   ChatEmptyState,
   VoiceIndicator,
+  VoiceModeIcon,
   type ChatMessageData,
 } from "@/components/chat";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -51,12 +52,6 @@ function VoiceTab({
 
   const live = isLive(state);
   const [text, setText] = React.useState("");
-
-  // A live session resets on every new call (start() clears the transcript),
-  // so local input does not outlive it either.
-  React.useEffect(() => {
-    if (state === "idle" || state === "connecting") setText("");
-  }, [state]);
 
   const handleSendToVoice = React.useCallback(
     (value: string) => {
@@ -167,17 +162,35 @@ function VoiceTab({
           </Alert>
         )}
 
-        <ChatComposer
-          value={text}
-          onChange={setText}
-          onSend={() => {}}
-          isVoiceActive={live}
-          onStartVoice={() => void voice.start()}
-          onStopVoice={voice.stop}
-          onSendToVoice={handleSendToVoice}
-          disabled={!live}
-          placeholder={live ? "Type to voice…" : "Start a call to speak…"}
-        />
+        {live ? (
+          <ChatComposer
+            value={text}
+            onChange={setText}
+            onSend={() => {}}
+            isVoiceActive
+            onStopVoice={voice.stop}
+            onSendToVoice={handleSendToVoice}
+            // Text sent before the socket is open is dropped (sendText
+            // no-ops), so hold the field until the session is actually live.
+            disabled={state === "connecting"}
+            placeholder="Type to voice…"
+          />
+        ) : (
+          <Button
+            type="button"
+            variant="default"
+            onClick={() => {
+              // start() clears the transcript; drop any text left over from a
+              // previous call so it doesn't surface once the field re-enables.
+              setText("");
+              void voice.start();
+            }}
+            className="w-full"
+          >
+            <VoiceModeIcon />
+            Start voice call
+          </Button>
+        )}
       </div>
     </div>
   );
