@@ -152,4 +152,4 @@ function ChatComposer({
   );
 }
 
-export { ChatComposer };
+export { ChatComposer, VoiceModeIcon };

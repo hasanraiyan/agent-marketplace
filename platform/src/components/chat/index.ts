@@ -9,7 +9,7 @@ export { SubagentSheet } from "./subagent-sheet";
 export { WorkspaceFilePanel } from "./workspace-file-panel";
 export { InterruptPanel } from "./interrupt-panel";
 export { ThinkingIndicator } from "./thinking-indicator";
-export { ChatComposer } from "./chat-composer";
+export { ChatComposer, VoiceModeIcon } from "./chat-composer";
 export { VoiceIndicator } from "./voice-indicator";
 export { CopyButton } from "./copy-button";
 export { ChatEmptyState, type ChatStarterPrompt } from "./chat-empty-state";
