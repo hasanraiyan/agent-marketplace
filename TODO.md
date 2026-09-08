@@ -103,18 +103,48 @@ usage, and delete-with-usage-guard.
 - [x] Found separately (by user): a *different* MCP OAuth failure —
       `invalid_scope: ... not allowed to request scope 'public_metadata'`
       from Clerk (clerk.pyqdeck.in) — hit when creating an MCP with Dynamic
-      Client Registration and no explicit Scopes. Root cause:
-      `mcp.service.js`'s `createMcp` DCR branch (~line 131) unconditionally
-      sets `oauth.scopes = discovered.scopesSupported` (every scope the
-      target server's discovery doc advertises), unlike the manual-clientId
-      branch which respects a user-supplied scope list. Clerk advertises
-      `public_metadata`/`private_metadata` in discovery but doesn't grant
-      them to a freshly dynamically-registered client by default.
-      Workaround used: edit the MCP's Scopes field to an explicit,
-      narrower list and retry Connect.
-      Not yet fixed in code — `createMcp`'s DCR branch should respect a
-      user-supplied `data.oauth.scopes` the same way the manual branch does
-      (`platform`'s New MCP form already has a Scopes input for this).
+      Client Registration and no explicit Scopes. Confirmed the
+      `scopes_supported` list (which includes `public_metadata`/
+      `private_metadata`) is generated entirely by Clerk itself as the
+      identity provider — checked `D:\projects\PYQDECK\server` (the MCP
+      server being connected to) and its `mcp/adminAuth.js`/
+      `publicMcpAuth.js` just verify bearer tokens against Clerk, they don't
+      define any discovery/scopes document — so there was nothing to fix on
+      that side.
+- [x] Fixed in code: `agent-backend/src/modules/mcp/mcp.service.js`'s
+      `createMcp` DCR branch now uses
+      `data.oauth?.scopes?.length ? data.oauth.scopes : discovered.scopesSupported`
+      (same pattern the manual-clientId branch already used), instead of
+      unconditionally forcing `oauth.scopes = discovered.scopesSupported`.
+      `platform`'s New MCP form already sends `data.oauth.scopes` when the
+      Scopes field is filled in, dynamic-registration or not — it was just
+      being silently ignored by the backend for the DCR path. Fixes this
+      for every newly-created MCP going forward.
+- [x] Fixed a bigger, protocol-level bug (user noticed our MCP OAuth client
+      also fails against unrelated third-party servers — e.g. Context7's
+      `https://mcp.context7.com/mcp` — while Claude connects to the same
+      servers fine): `agent-backend/src/modules/mcp/mcp-oauth-client.js`
+      never sent the `resource` parameter (RFC 8707 Resource Indicators)
+      on the authorize request, token exchange, or token refresh. The MCP
+      Authorization spec (2025-06-18) requires clients to send `resource`
+      (the MCP server's canonical URL) so a multi-tenant authorization
+      server can audience-bind the issued token to that specific resource —
+      reference clients like Claude send it; ours never did. Fixed:
+      `buildAuthorizationUrl`/`exchangeCodeForToken`/`refreshAccessToken`
+      now all accept and send `resource`, wired from `mcp.url` at every
+      call site in `mcp.service.js` and `mcp-token.service.js`. This is
+      likely the real root cause behind broader OAuth interop failures,
+      not just the pyqdeck/Clerk case — worth retesting Context7 and any
+      other previously-failing MCP server after this deploys.
+- [ ] Manual step still needed for the MCP created *before* this fix
+      (project `6a97f0fc25f0ae6efb32b390`, mcp `6a9fd8d09a67f0dc7c5e7f21`):
+      its bad scopes are already stored in the DB, so the code fix doesn't
+      retroactively touch it. Open its Platform edit page, replace Scopes
+      with an explicit list that excludes `public_metadata`/
+      `private_metadata` (pyqdeck's MCP only needs a signed-in Clerk
+      account — no metadata access), save, then Connect again.
+      `updateMcp` reuses the existing `clientId`, so this doesn't re-run
+      Dynamic Client Registration against Clerk.
 - [ ] Re-verify end-to-end: add server → Test Connection → attach to an agent
 
 ---
