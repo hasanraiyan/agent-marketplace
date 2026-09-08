@@ -342,7 +342,7 @@ export default function SkillsPage() {
                           <button
                             type="button"
                             onClick={() => handleSelectSkill(skill)}
-                            className={`flex flex-1 items-center gap-1.5 truncate rounded-none px-1 py-1 text-left text-xs ${isSelected && activeFile === null ? "bg-primary/10 text-primary" : "hover:bg-muted/60"}`}
+                            className="flex flex-1 items-center gap-1.5 truncate rounded-none px-1 py-1 text-left text-xs hover:bg-muted/60"
                           >
                             {isExpanded ? <FolderOpenIcon className="size-3.5 shrink-0" /> : <FolderIcon className="size-3.5 shrink-0" />}
                             <span className="truncate font-medium">{skill.name}</span>
@@ -366,7 +366,6 @@ export default function SkillsPage() {
                             >
                               <FileTextIcon className="size-3.5 shrink-0" />
                               <span className="truncate">SKILL.md</span>
-                              <span className="ml-auto text-[9px] uppercase">main</span>
                             </button>
                             {(skill.files ?? []).map((f) => (
                               <button
@@ -514,10 +513,6 @@ export default function SkillsPage() {
                 <div className="flex flex-1 overflow-hidden">
                   <ScrollArea className="flex-1">
                     <div className="min-h-full">
-                      <div className="sticky top-0 z-10 flex h-7 items-center justify-between border-b bg-background/95 px-3 text-[11px] backdrop-blur">
-                        <span className="font-mono text-muted-foreground">{activePath}</span>
-                        <span className="text-muted-foreground">{editorContent.length.toLocaleString()} chars</span>
-                      </div>
                       <Textarea
                         value={editorContent}
                         onChange={(e) => handleEditorChange(e.target.value)}
