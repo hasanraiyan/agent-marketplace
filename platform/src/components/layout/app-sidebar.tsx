@@ -9,6 +9,7 @@ import {
   ClockCounterClockwiseIcon,
   CpuIcon,
   DatabaseIcon,
+  GearIcon,
   GlobeSimpleIcon,
   HammerIcon,
   KeyIcon,
@@ -83,6 +84,7 @@ const NAV_GROUPS = [
       { segment: "credentials", label: "Credentials", icon: KeyIcon },
       { segment: "secrets", label: "Secrets", icon: LockKeyIcon },
       { segment: "audit-logs", label: "Audit Logs", icon: ClockCounterClockwiseIcon },
+      { segment: "settings", label: "Settings", icon: GearIcon },
     ],
   },
 ];

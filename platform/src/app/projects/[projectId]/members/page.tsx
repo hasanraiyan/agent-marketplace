@@ -110,9 +110,6 @@ interface SuggestionUser {
   email: string;
 }
 
-const EMPTY_ERROR_MESSAGE =
-  "An unknown error occurred. Try again, or check that your session is still valid.";
-
 function errorMessage(err: unknown, fallback: string) {
   return (
     (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
@@ -538,7 +535,7 @@ export default function MembersPage() {
                 </Table>
               </div>
               {/* Mobile accordion */}
-              <Accordion type="multiple" className="sm:hidden">
+              <Accordion multiple className="sm:hidden">
                 {filteredMembers.map(renderMemberAccordionItem)}
               </Accordion>
             </>

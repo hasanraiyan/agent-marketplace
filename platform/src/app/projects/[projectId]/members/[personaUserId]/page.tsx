@@ -299,7 +299,7 @@ export default function MemberDetailPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Accordion type="multiple">
+            <Accordion multiple>
               <AccordionItem value="admin-access">
                 <AccordionTrigger>What an Admin can do</AccordionTrigger>
                 <AccordionContent>

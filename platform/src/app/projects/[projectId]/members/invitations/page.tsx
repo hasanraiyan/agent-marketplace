@@ -93,13 +93,6 @@ function errorMessage(err: unknown, fallback: string) {
   );
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: "Pending",
-  accepted: "Accepted",
-  revoked: "Revoked",
-  expired: "Expired",
-};
-
 function StatusBadge({ status }: { status: string }) {
   if (status === "pending") {
     return (
@@ -420,7 +413,7 @@ export default function InvitationsPage() {
                 </Table>
               </div>
               {/* Mobile accordion */}
-              <Accordion type="multiple" className="sm:hidden">
+              <Accordion multiple className="sm:hidden">
                 {filteredInvitations.map(renderAccordionItem)}
               </Accordion>
             </>
