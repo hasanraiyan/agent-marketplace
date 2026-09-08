@@ -11,7 +11,7 @@ import {
   AppBridge,
   PostMessageTransport,
 } from "@modelcontextprotocol/ext-apps/app-bridge";
-import { readProjectMcpResource, callProjectMcpTool } from "@/lib/api/projects";
+
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
@@ -47,11 +47,24 @@ function buildToolResultPayload(tool?: { result?: string }) {
     : { content };
 }
 
+export interface McpAppResource {
+  text?: string;
+  mimeType?: string;
+}
+
 export interface McpAppRendererProps {
-  projectId?: string;
-  mcpId?: string;
-  resourceUri?: string;
+  /** Inline HTML content to load directly into the widget iframe. */
   initialHtml?: string;
+  /** Resource URI to fetch HTML content from (e.g. "ui://dashboard" or an HTTP/API URL). */
+  resourceUri?: string;
+  /** Custom handler to resolve an MCP resource URI into HTML text. */
+  onReadResource?: (uri: string) => Promise<McpAppResource>;
+  /** Custom handler to invoke an MCP tool triggered from within the widget. */
+  onCallTool?: (name: string, args?: Record<string, unknown>) => Promise<unknown>;
+  /** Optional project ID for Platform usage. */
+  projectId?: string;
+  /** Optional MCP connector ID for Platform usage. */
+  mcpId?: string;
   toolName?: string;
   tool?: {
     args?: string;
@@ -73,6 +86,8 @@ export function McpAppRenderer({
   mcpId,
   resourceUri,
   initialHtml,
+  onReadResource,
+  onCallTool,
   toolName,
   tool,
   className,
@@ -91,7 +106,7 @@ export function McpAppRenderer({
   const [expanded, setExpanded] = React.useState(initialExpanded);
   const [contentHeight, setContentHeight] = React.useState<number | null>(null);
 
-  // 1. Fetch the widget HTML from the MCP server (or use initialHtml directly)
+  // 1. Resolve widget HTML content
   React.useEffect(() => {
     if (initialHtml) {
       setHtml(initialHtml);
@@ -100,8 +115,8 @@ export function McpAppRenderer({
       return;
     }
 
-    if (!projectId || !mcpId || !resourceUri) {
-      setError("Missing project ID, MCP ID, or resource URI");
+    if (!resourceUri) {
+      setError("No HTML content or resource URI provided for MCP App");
       setLoading(false);
       return;
     }
@@ -112,19 +127,44 @@ export function McpAppRenderer({
     setHtml(null);
     setContentHeight(null);
 
-    readProjectMcpResource(projectId, mcpId, resourceUri)
-      .then((res) => {
+    const resolveHtml = async (): Promise<string> => {
+      // 1. If custom onReadResource handler is provided by caller
+      if (onReadResource) {
+        const res = await onReadResource(resourceUri);
+        if (!res?.text) throw new Error("Empty resource response from MCP server");
+        return res.text;
+      }
+
+      // 2. If resourceUri is an HTTP URL, fetch it directly
+      if (resourceUri.startsWith("http://") || resourceUri.startsWith("https://") || resourceUri.startsWith("/")) {
+        const res = await fetch(resourceUri);
+        if (!res.ok) throw new Error(`Failed to fetch MCP resource (${res.status})`);
+        return res.text();
+      }
+
+      // 3. If running inside Persona Platform with projectId + mcpId
+      if (projectId && mcpId) {
+        const res = await fetch(`/api/v1/projects/${projectId}/mcps/${mcpId}/resource?uri=${encodeURIComponent(resourceUri)}`);
+        if (!res.ok) throw new Error(`Failed to fetch MCP resource (${res.status})`);
+        const json = await res.json();
+        const text = json?.data?.text || json?.text;
+        if (!text) throw new Error("Empty resource response from MCP server");
+        return text;
+      }
+
+      throw new Error(`Cannot resolve MCP resource "${resourceUri}". Provide initialHtml, onReadResource, or a valid URL.`);
+    };
+
+    resolveHtml()
+      .then((text) => {
         if (cancelled) return;
-        const data = res.data?.data;
-        if (!data?.text) {
-          throw new Error("Empty resource response from MCP server");
-        }
-        setHtml(data.text);
+        setHtml(text);
         setLoading(false);
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         if (cancelled) return;
-        const msg = err?.response?.data?.message || err.message || "Failed to load MCP App";
+        const e = err as { response?: { data?: { message?: string } }; message?: string };
+        const msg = e?.response?.data?.message || e.message || "Failed to load MCP App";
         setError(msg);
         setLoading(false);
       });
@@ -132,7 +172,7 @@ export function McpAppRenderer({
     return () => {
       cancelled = true;
     };
-  }, [projectId, mcpId, resourceUri]);
+  }, [initialHtml, resourceUri, onReadResource, projectId, mcpId]);
 
   // 2. Wire up AppBridge and load HTML into sandboxed iframe
   React.useEffect(() => {
@@ -165,28 +205,49 @@ export function McpAppRenderer({
     );
 
     bridge.oncalltool = async (params: { name: string; arguments?: Record<string, unknown> }) => {
-      if (!projectId || !mcpId) {
-        throw new Error("Cannot call MCP tool: projectId or mcpId not configured");
+      if (onCallTool) {
+        return onCallTool(params.name, params.arguments);
       }
-      const res = await callProjectMcpTool(projectId, mcpId, params.name, params.arguments || {});
-      return res.data?.data;
+      if (projectId && mcpId) {
+        const res = await fetch(`/api/v1/projects/${projectId}/mcps/${mcpId}/call-tool`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: params.name, arguments: params.arguments || {} }),
+        });
+        const json = await res.json();
+        return json?.data ?? json;
+      }
+      return null;
     };
 
     bridge.onreadresource = async (params: { uri: string }) => {
-      if (!projectId || !mcpId) {
-        throw new Error("Cannot read MCP resource: projectId or mcpId not configured");
+      if (onReadResource) {
+        const res = await onReadResource(params.uri);
+        return {
+          contents: [
+            {
+              uri: params.uri,
+              mimeType: res.mimeType || "text/html",
+              text: res.text || "",
+            },
+          ],
+        };
       }
-      const res = await readProjectMcpResource(projectId, mcpId, params.uri);
-      const data = res.data?.data;
-      return {
-        contents: [
-          {
-            uri: params.uri,
-            mimeType: data?.mimeType || "text/html",
-            text: data?.text || "",
-          },
-        ],
-      };
+      if (projectId && mcpId) {
+        const res = await fetch(`/api/v1/projects/${projectId}/mcps/${mcpId}/resource?uri=${encodeURIComponent(params.uri)}`);
+        const json = await res.json();
+        const data = json?.data;
+        return {
+          contents: [
+            {
+              uri: params.uri,
+              mimeType: data?.mimeType || "text/html",
+              text: data?.text || "",
+            },
+          ],
+        };
+      }
+      return { contents: [] };
     };
 
     bridge.onopenlink = async ({ url }: { url: string }) => {
