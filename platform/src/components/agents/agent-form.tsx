@@ -598,6 +598,17 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
                             // A model only makes sense for the provider that owns it.
                             update("modelName", "");
                           }}
+                          // Without this the trigger falls back to rendering the
+                          // provider id once one is selected (SelectValue can only
+                          // show a name when the root maps the id back to a label).
+                          itemToStringLabel={(value) => {
+                            const provider = providers.find(
+                              (p) => (p.id ?? p._id) === value
+                            );
+                            return provider
+                              ? provider.label || provider.id
+                              : String(value ?? "");
+                          }}
                         >
                           <SelectTrigger id="providerId" className="w-full">
                             <SelectValue placeholder="Select a provider" />
