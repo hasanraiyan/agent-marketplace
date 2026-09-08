@@ -292,8 +292,8 @@ export default function EditStorePage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="domain">Domain — one shared copy for the whole Project</SelectItem>
-                        <SelectItem value="externalUser">External user — one private copy per founder</SelectItem>
+                        <SelectItem value="domain">Domain</SelectItem>
+                        <SelectItem value="externalUser">Per user (separated)</SelectItem>
                       </SelectContent>
                     </Select>
                     <FieldDescription>Cannot be changed after creation.</FieldDescription>

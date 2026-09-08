@@ -163,12 +163,13 @@ export default function NewStorePage() {
                         <SelectValue placeholder="Select a scope" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="domain">Domain — one shared copy for the whole Project</SelectItem>
-                        <SelectItem value="externalUser">External user — one private copy per founder</SelectItem>
+                        <SelectItem value="domain">Domain</SelectItem>
+                        <SelectItem value="externalUser">Per user (separated)</SelectItem>
                       </SelectContent>
                     </Select>
                     <FieldDescription>
-                      Choose carefully — this cannot be changed after creation.
+                      Domain shares one copy across the whole Project; per-user gives every
+                      external user a private copy. This cannot be changed after creation.
                     </FieldDescription>
                   </Field>
 
