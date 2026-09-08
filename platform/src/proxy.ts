@@ -1,8 +1,11 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-// Everything in Studio requires a signed-in session except the auth pages
-// themselves and Clerk's SSO redirect target — same split frontend/ uses.
+// Everything in Studio requires a signed-in session except the public
+// landing page (so the product can be seen before signing up), the auth
+// pages themselves, and Clerk's SSO redirect target — same split
+// frontend/ uses, plus the "/" marketing page.
 const isPublicRoute = createRouteMatcher([
+  "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/sso-callback(.*)",
