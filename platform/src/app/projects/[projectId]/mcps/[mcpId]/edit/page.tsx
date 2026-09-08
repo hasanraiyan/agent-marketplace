@@ -1,18 +1,23 @@
 "use client";
 
 import * as React from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeftIcon,
+  ArrowsClockwiseIcon,
+  AppWindowIcon,
+  CheckCircleIcon,
   ClockIcon,
   CopyIcon,
+  DatabaseIcon,
   FingerprintIcon,
   LinkIcon,
   LinkBreakIcon,
   PlugsConnectedIcon,
   TrashIcon,
   WarningCircleIcon,
+  XCircleIcon,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,12 +55,27 @@ import {
   getProjectMcpUsage,
   getProjectMcpOwnerAuthorizeUrl,
   disconnectProjectMcpOwnerConnection,
+  testProjectMcpConnection,
 } from "@/lib/api/projects";
 import { cacheKey, deleteCachedByPrefix } from "@/lib/cache";
 
 interface McpTool {
   name: string;
   description?: string;
+}
+
+interface McpResource {
+  uri: string;
+  name?: string;
+  description?: string;
+  mimeType?: string;
+}
+
+interface McpResourceTemplate {
+  uriTemplate: string;
+  name?: string;
+  description?: string;
+  mimeType?: string;
 }
 
 interface Mcp {
@@ -67,10 +87,16 @@ interface Mcp {
   url: string;
   authType?: string;
   authMode?: string;
-  oauth?: { clientId?: string; scopes?: string[]; dynamicallyRegistered?: boolean };
+  oauth?: {
+    clientId?: string;
+    scopes?: string[];
+    dynamicallyRegistered?: boolean;
+    ownerConnected?: boolean;
+  };
   isEnabled?: boolean;
   tools?: McpTool[];
-  resources?: { uri: string; name?: string }[];
+  resources?: McpResource[];
+  resourceTemplates?: McpResourceTemplate[];
   lastTestedAt?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -83,6 +109,7 @@ function errorMessage(err: unknown, fallback: string) {
 export default function EditMcpPage() {
   const { projectId, mcpId } = useParams<{ projectId: string; mcpId: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [mcp, setMcp] = React.useState<Mcp | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string | null>(null);
@@ -112,6 +139,20 @@ export default function EditMcpPage() {
   const [connecting, setConnecting] = React.useState(false);
   const [disconnecting, setDisconnecting] = React.useState(false);
   const [connectMessage, setConnectMessage] = React.useState<string | null>(null);
+  const [ownerConnected, setOwnerConnected] = React.useState(false);
+  const [testing, setTesting] = React.useState(false);
+
+  // Lands here after the OAuth redirect (?mcpId=...&connected=owner, or
+  // ?error=oauth_failed) — same query params the backend's owner-callback
+  // has always sent, just never acknowledged on this page before.
+  React.useEffect(() => {
+    if (searchParams.get("connected") === "owner") {
+      setOwnerConnected(true);
+      setConnectMessage("Owner account connected.");
+    } else if (searchParams.get("error") === "oauth_failed") {
+      setConnectMessage("OAuth connection failed. Try again.");
+    }
+  }, [searchParams]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -139,6 +180,11 @@ export default function EditMcpPage() {
             useDynamicRegistration: !!found.oauth?.dynamicallyRegistered,
             isEnabled: found.isEnabled !== false,
           });
+          // OR with the current value rather than overwriting — the
+          // ?connected=owner query-param effect above may have already set
+          // this to true from the OAuth redirect itself, slightly ahead of
+          // this fetch reflecting it.
+          setOwnerConnected((prev) => prev || !!found.oauth?.ownerConnected);
           getProjectMcpUsage(projectId, found.id ?? (found._id as string))
             .then((r) => {
               if (!cancelled) setUsage(r.data?.data ?? null);
@@ -243,11 +289,35 @@ export default function EditMcpPage() {
     try {
       const targetId = mcp.id ?? mcp._id ?? mcpId;
       await disconnectProjectMcpOwnerConnection(projectId, targetId);
+      setOwnerConnected(false);
       setConnectMessage("Disconnected.");
     } catch (err) {
       setConnectMessage(errorMessage(err, "Failed to disconnect."));
     } finally {
       setDisconnecting(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    if (!mcp) return;
+    setTesting(true);
+    setConnectMessage(null);
+    try {
+      const targetId = mcp.id ?? mcp._id ?? mcpId;
+      const res = await testProjectMcpConnection(projectId, targetId);
+      const result = res.data?.data || {};
+      const tools: McpTool[] = result.tools || [];
+      const resources: McpResource[] = result.resources || [];
+      const resourceTemplates: McpResourceTemplate[] = result.resourceTemplates || [];
+      setMcp((prev) => (prev ? { ...prev, tools, resources, resourceTemplates, lastTestedAt: new Date().toISOString() } : prev));
+      deleteCachedByPrefix(cacheKey.resource(projectId, "mcps"));
+      const parts = [`${tools.length} tool(s)`, `${resources.length} resource(s)`];
+      if (resourceTemplates.length) parts.push(`${resourceTemplates.length} template(s)`);
+      setConnectMessage(`Connection successful — ${parts.join(", ")} found.`);
+    } catch (err) {
+      setConnectMessage(errorMessage(err, "Connection test failed."));
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -486,20 +556,54 @@ export default function EditMcpPage() {
                 <CardDescription>Authorize once for the whole Project to use this server.</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
+                <div className="flex items-center gap-1.5 text-sm">
+                  {ownerConnected ? (
+                    <>
+                      <CheckCircleIcon className="size-4 text-emerald-500" />
+                      <span>Connected</span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircleIcon className="size-4 text-amber-500" />
+                      <span className="text-muted-foreground">Not connected</span>
+                    </>
+                  )}
+                </div>
                 <div className="flex gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={handleConnect} disabled={connecting}>
+                  <Button type="button" variant={ownerConnected ? "outline" : "default"} size="sm" onClick={handleConnect} disabled={connecting}>
                     <LinkIcon data-icon="inline-start" />
-                    {connecting ? "Redirecting…" : "Connect"}
+                    {connecting ? "Redirecting…" : ownerConnected ? "Reconnect" : "Connect"}
                   </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={handleDisconnect} disabled={disconnecting}>
-                    <LinkBreakIcon data-icon="inline-start" />
-                    {disconnecting ? "Disconnecting…" : "Disconnect"}
-                  </Button>
+                  {ownerConnected && (
+                    <Button type="button" variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={handleDisconnect} disabled={disconnecting}>
+                      <LinkBreakIcon data-icon="inline-start" />
+                      {disconnecting ? "Disconnecting…" : "Disconnect"}
+                    </Button>
+                  )}
                 </div>
                 {connectMessage && <p className="text-xs text-muted-foreground">{connectMessage}</p>}
               </CardContent>
             </Card>
           )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <ArrowsClockwiseIcon className="size-4 text-muted-foreground" />
+                Test connection
+              </CardTitle>
+              <CardDescription>Connects live and lists this server&apos;s tools, resources, and templates.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-2">
+              <Button type="button" variant="outline" size="sm" className="w-fit" onClick={handleTestConnection} disabled={testing}>
+                <ArrowsClockwiseIcon data-icon="inline-start" className={testing ? "animate-spin" : undefined} />
+                {testing ? "Testing…" : "Test connection"}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Last tested: {mcp.lastTestedAt ? new Date(mcp.lastTestedAt).toLocaleString() : "Never"}
+              </p>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
@@ -548,24 +652,73 @@ export default function EditMcpPage() {
             </CardContent>
           </Card>
 
-          {mcp.tools && mcp.tools.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-sm">
-                  <PlugsConnectedIcon className="size-4 text-muted-foreground" />
-                  Tools ({mcp.tools.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col divide-y divide-border text-xs">
-                {mcp.tools.map((t) => (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <PlugsConnectedIcon className="size-4 text-muted-foreground" />
+                Tools ({mcp.tools?.length || 0})
+              </CardTitle>
+              <CardDescription>Tools this server exposes to Agents.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col divide-y divide-border text-xs">
+              {mcp.tools && mcp.tools.length > 0 ? (
+                mcp.tools.map((t) => (
                   <div key={t.name} className="flex flex-col gap-0.5 py-2">
                     <span className="font-mono font-medium">{t.name}</span>
                     {t.description && <span className="text-muted-foreground">{t.description}</span>}
                   </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
+                ))
+              ) : (
+                <p className="py-2 text-muted-foreground">No tools discovered yet. Run Test connection to fetch them.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <DatabaseIcon className="size-4 text-muted-foreground" />
+                Resources ({mcp.resources?.length || 0})
+              </CardTitle>
+              <CardDescription>Data resources this server makes available to Agents.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col divide-y divide-border text-xs">
+              {mcp.resources && mcp.resources.length > 0 ? (
+                mcp.resources.map((r) => (
+                  <div key={r.uri} className="flex flex-col gap-0.5 py-2">
+                    <span className="font-mono font-medium">{r.name || r.uri}</span>
+                    {r.description && <span className="text-muted-foreground">{r.description}</span>}
+                    <span className="truncate font-mono text-[10px] text-muted-foreground">{r.uri}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="py-2 text-muted-foreground">No resources discovered yet. Run Test connection to fetch them.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <AppWindowIcon className="size-4 text-muted-foreground" />
+                UI templates ({mcp.resourceTemplates?.length || 0})
+              </CardTitle>
+              <CardDescription>Interactive UI templates this server exposes.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col divide-y divide-border text-xs">
+              {mcp.resourceTemplates && mcp.resourceTemplates.length > 0 ? (
+                mcp.resourceTemplates.map((t) => (
+                  <div key={t.uriTemplate} className="flex flex-col gap-0.5 py-2">
+                    <span className="font-mono font-medium">{t.name || t.uriTemplate}</span>
+                    {t.description && <span className="text-muted-foreground">{t.description}</span>}
+                    <span className="truncate font-mono text-[10px] text-muted-foreground">{t.uriTemplate}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="py-2 text-muted-foreground">No UI templates discovered yet. Run Test connection to fetch them.</p>
+              )}
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>

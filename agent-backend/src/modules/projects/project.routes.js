@@ -703,6 +703,7 @@ adminRouter.delete(
   mutateLimiter,
   projectController.disconnectMcpOwnerConnection
 );
+adminRouter.post('/mcps/:mcpId/test', mutateLimiter, projectController.testMcpConnection);
 
 adminRouter.post(
   '/secrets',

@@ -239,6 +239,36 @@ usage, and delete-with-usage-guard.
       considered fixed — remaining scope is just the Platform UI TODO
       items below and the manual re-save step for any MCP records still
       carrying pre-fix stale data (see above).
+- [x] Feature parity gap closed: user compared the old FRONTEND (Persona
+      Studio's separate MCP *detail* page — `frontend/.../studio/
+      (resources)/connectors/[id]/page.jsx` + `mcp-detail.jsx`, not the
+      Developer Studio `/developer/...` pages this whole section was
+      otherwise about) against Platform's edit page and found it missing:
+      a live Connected/Not-connected status (Platform always showed both
+      Connect and Disconnect buttons with no status awareness at all), and
+      a "Test Connection" action + Tools/Resources/UI-templates display
+      (Platform's Tools card existed in the JSX but nothing ever populated
+      it — no Test Connection call existed for Project-scoped MCPs at all).
+      Root cause: the Project-admin admin API (`project.routes.js`, shared
+      by Platform and the legacy `/developer/...` pages) never had a
+      `POST /mcps/:mcpId/test` route — only the Persona-only `mcp.routes.js`
+      had one. `mcpService.testConnection` already generalizes via
+      `context` like every other MCP service method, so it needed no
+      changes — added `projectController.testMcpConnection` +
+      `adminRouter.post('/mcps/:mcpId/test', ...)` as a thin pass-through,
+      and `testProjectMcpConnection` in `platform/src/lib/api/projects.ts`.
+      Platform's edit page now: tracks `ownerConnected` from
+      `mcp.oauth.ownerConnected` (already returned by `toSafeJson`, just
+      never read), shows a single Connect/Reconnect button + a Disconnect
+      button only when connected (matching the old page's UX), reads the
+      `?connected=owner`/`?error=oauth_failed` query params the OAuth
+      redirect has always sent but this page never acknowledged, and has a
+      "Test connection" button that populates always-visible Tools/
+      Resources/UI-templates cards with proper empty states (was
+      previously silently blank since `mcp.tools` never got populated for
+      any Project MCP). Verified: full `next build` succeeds (TypeScript
+      clean, no Suspense-boundary issues from the added `useSearchParams`),
+      backend boots clean.
 
 ---
 

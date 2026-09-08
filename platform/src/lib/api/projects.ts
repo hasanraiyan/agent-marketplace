@@ -163,6 +163,11 @@ export const getProjectMcpOwnerAuthorizeUrl = (projectId: string, mcpId: string)
   });
 export const disconnectProjectMcpOwnerConnection = (projectId: string, mcpId: string) =>
   api.delete(`/projects/${projectId}/mcps/${mcpId}/oauth/owner/connection`);
+// Live-connects to the MCP server and lists its tools/resources/resourceTemplates,
+// persisting them onto the record (so the next GET reflects them too) — the
+// Project-admin equivalent of the Persona dashboard's "Test Connection" button.
+export const testProjectMcpConnection = (projectId: string, mcpId: string) =>
+  api.post(`/projects/${projectId}/mcps/${mcpId}/test`);
 export const getProjectMcpUsage = (projectId: string, mcpId: string) =>
   api.get(`/projects/${projectId}/mcps/${mcpId}/usage`);
 export const bulkDeleteProjectMcps = (projectId: string, ids: string[]) =>

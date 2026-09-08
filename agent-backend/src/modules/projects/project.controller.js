@@ -756,6 +756,28 @@ class ProjectController {
     }
   }
 
+  // Project-admin equivalent of the Persona-only `POST /mcps/:id/test` route
+  // (mcp.controller.js's testConnection) — `mcpService.testConnection`
+  // already generalizes via `context`, so this is a thin pass-through, same
+  // shape as every other MCP admin method above. Lets Studio/Platform show
+  // live tools/resources/resourceTemplates the way the Persona dashboard's
+  // MCP detail page already does.
+  async testMcpConnection(req, res, next) {
+    try {
+      const result = await mcpService.testConnection(
+        req.params.mcpId,
+        undefined,
+        req.projectAdminContext
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      if (error.message === 'MCP server not found') {
+        return res.status(404).json({ success: false, message: 'MCP server not found' });
+      }
+      next(error);
+    }
+  }
+
   /**
    * Developer Platform (Phase 11.5, PR-61): full create/edit/delete for a
    * Project's own Agents from Developer Studio. Same reasoning as PR-60 —
