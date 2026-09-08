@@ -133,6 +133,7 @@ export function buildAuthorizationUrl({
   codeChallenge,
   state,
   scopes = [],
+  resource,
 }) {
   const url = new URL(authorizationEndpoint);
   url.searchParams.set('response_type', 'code');
@@ -143,6 +144,15 @@ export function buildAuthorizationUrl({
   url.searchParams.set('state', state);
   if (scopes.length > 0) {
     url.searchParams.set('scope', scopes.join(' '));
+  }
+  // RFC 8707 Resource Indicators, required by the MCP Authorization spec
+  // (2025-06-18): binds the issued token to this specific MCP server so a
+  // multi-tenant authorization server (Clerk, Context7, etc.) can audience-
+  // scope it correctly. Reference MCP clients (Claude) send this; without
+  // it, some authorization servers reject or mis-scope the request — this
+  // was previously omitted entirely.
+  if (resource) {
+    url.searchParams.set('resource', resource);
   }
   return url.toString();
 }
@@ -172,6 +182,7 @@ export async function exchangeCodeForToken({
   code,
   redirectUri,
   codeVerifier,
+  resource,
 }) {
   const params = {
     grant_type: 'authorization_code',
@@ -185,11 +196,22 @@ export async function exchangeCodeForToken({
   if (clientSecret) {
     params.client_secret = clientSecret;
   }
+  // Must match the `resource` sent at the authorize step (RFC 8707) — some
+  // authorization servers require it again here to bind the issued token.
+  if (resource) {
+    params.resource = resource;
+  }
 
   return postForm(tokenEndpoint, params);
 }
 
-export async function refreshAccessToken({ tokenEndpoint, clientId, clientSecret, refreshToken }) {
+export async function refreshAccessToken({
+  tokenEndpoint,
+  clientId,
+  clientSecret,
+  refreshToken,
+  resource,
+}) {
   const params = {
     grant_type: 'refresh_token',
     refresh_token: refreshToken,
@@ -199,6 +221,9 @@ export async function refreshAccessToken({ tokenEndpoint, clientId, clientSecret
   // Only include client_secret for confidential clients
   if (clientSecret) {
     params.client_secret = clientSecret;
+  }
+  if (resource) {
+    params.resource = resource;
   }
 
   return postForm(tokenEndpoint, params);

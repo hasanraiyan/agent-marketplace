@@ -41,6 +41,7 @@ class McpTokenService {
       clientId: mcp.oauth.clientId,
       clientSecret,
       refreshToken: encryption.decrypt(ownerToken.refreshTokenEncrypted),
+      resource: mcp.url,
     });
 
     const newExpiresAt = refreshed.expires_in
@@ -108,6 +109,7 @@ class McpTokenService {
       clientId: mcp.oauth.clientId,
       clientSecret,
       refreshToken: encryption.decrypt(connection.refreshTokenEncrypted),
+      resource: mcp.url,
     });
 
     const newExpiresAt = refreshed.expires_in
