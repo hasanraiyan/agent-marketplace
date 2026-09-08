@@ -1,23 +1,25 @@
 /**
- * Ported from frontend/src/lib/curl-parser.js — the REST API Tool
- * Builder's / RCP Source editor's "paste it to auto-fill the form"
- * affordance.
+ * Minimal hand-written cURL parser for the REST API Tool Builder's
+ * "Paste it to auto-fill the form" affordance.
  *
  * Deliberately not a full shell parser or a heavy library (curlconverter,
- * etc.) — this only needs "common flags", and is a well-bounded,
- * best-effort convenience, not a general shell interpreter.
- *
- * Supported: -X/--request, repeated -H/--header, repeated
- * -d/--data/--data-raw/--data-binary, and the bare URL. -u/--user (Basic
- * auth) is detected and surfaced as a warning rather than imported, since
- * the builder's Auth tab only supports a Bearer secret.
+ * etc.) — the spec only needs "common flags". Supported: -X/--request,
+ * repeated -H/--header, repeated -d/--data/--data-raw/--data-binary, and
+ * the bare URL. -u/--user (Basic auth) is detected and surfaced as a
+ * warning rather than imported, since the builder's Auth tab only supports
+ * a Bearer secret.
  */
 
-export interface ParsedCurl {
+export interface CurlParamRow {
+  key: string;
+  value: string;
+}
+
+export interface CurlParseResult {
   method: string;
   url: string;
-  queryParams: Array<{ key: string; value: string }>;
-  headers: Array<{ key: string; value: string }>;
+  queryParams: CurlParamRow[];
+  headers: CurlParamRow[];
   body: string | null;
   warnings: string[];
 }
@@ -67,7 +69,7 @@ function tokenize(input: string): string[] {
   return tokens;
 }
 
-function splitHeader(value: string): { key: string; value: string } {
+function splitHeader(value: string): CurlParamRow {
   const idx = value.indexOf(":");
   if (idx === -1) return { key: value.trim(), value: "" };
   return {
@@ -79,9 +81,7 @@ function splitHeader(value: string): { key: string; value: string } {
 /**
  * Strips markdown code-fence lines (```bash / ```) and a leading shell
  * prompt marker ($) — both are extremely easy to grab by accident when
- * copying a curl command out of a raw .md file or a terminal transcript,
- * and left in, the fence line's own text (e.g. "```bash") gets mistaken
- * for the URL since it's the first non-flag token in the whole string.
+ * copying a curl command out of a raw .md file or a terminal transcript.
  */
 function stripPasteArtifacts(input: string): string {
   const withoutFences = input
@@ -91,30 +91,37 @@ function stripPasteArtifacts(input: string): string {
   return withoutFences.trim().replace(/^\$\s+/, "");
 }
 
-export function parseCurl(curlString: string): ParsedCurl {
+export function parseCurl(curlString: string): CurlParseResult {
   const warnings: string[] = [];
   const cleaned = stripPasteArtifacts(curlString || "");
   const tokens = tokenize(cleaned).filter((t) => t !== "curl");
 
   let method: string | null = null;
   let url: string | null = null;
-  const headers: Array<{ key: string; value: string }> = [];
+  const headers: CurlParamRow[] = [];
   const bodyParts: string[] = [];
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
 
     if (token === "-X" || token === "--request") {
-      method = tokens[++i]?.toUpperCase();
+      method = tokens[++i]?.toUpperCase() ?? null;
     } else if (token === "-H" || token === "--header") {
       const raw = tokens[++i];
       if (raw) headers.push(splitHeader(raw));
-    } else if (token === "-d" || token === "--data" || token === "--data-raw" || token === "--data-binary") {
+    } else if (
+      token === "-d" ||
+      token === "--data" ||
+      token === "--data-raw" ||
+      token === "--data-binary"
+    ) {
       const raw = tokens[++i];
       if (raw !== undefined) bodyParts.push(raw);
     } else if (token === "--data-urlencode") {
       i++; // skip its value
-      warnings.push("--data-urlencode was not imported — encode the value manually if needed.");
+      warnings.push(
+        "--data-urlencode was not imported — encode the value manually if needed."
+      );
     } else if (token === "-u" || token === "--user") {
       i++; // skip its value
       warnings.push(
@@ -125,7 +132,12 @@ export function parseCurl(curlString: string): ParsedCurl {
       // value (next token doesn't start with '-' and isn't the URL-shaped
       // final token), skip that too, so it isn't misread as the URL.
       const next = tokens[i + 1];
-      if (next && !next.startsWith("-") && !/^https?:\/\//i.test(next) && i + 2 < tokens.length) {
+      if (
+        next &&
+        !next.startsWith("-") &&
+        !/^https?:\/\//i.test(next) &&
+        i + 2 < tokens.length
+      ) {
         i++;
       }
     } else if (!url) {
@@ -149,16 +161,15 @@ export function parseCurl(curlString: string): ParsedCurl {
   // gets its braces percent-encoded by the URL parser, corrupting the
   // template placeholder. Only the already-isolated query string, which
   // rarely carries {{tokens}} of its own, goes through URLSearchParams.
-  let queryParams: Array<{ key: string; value: string }> = [];
+  let queryParams: CurlParamRow[] = [];
   let baseUrl = url;
   const queryIndex = url.indexOf("?");
   if (queryIndex !== -1) {
     baseUrl = url.slice(0, queryIndex);
     const search = url.slice(queryIndex + 1);
-    queryParams = Array.from(new URLSearchParams(search).entries()).map(([key, value]) => ({
-      key,
-      value,
-    }));
+    queryParams = Array.from(new URLSearchParams(search).entries()).map(
+      ([key, value]) => ({ key, value })
+    );
   }
 
   const body = bodyParts.length > 0 ? bodyParts.join("&") : null;
@@ -166,10 +177,11 @@ export function parseCurl(curlString: string): ParsedCurl {
 
   // A sanity check, not a hard requirement — {{token}}-only URLs are valid
   // (the whole host could be a template variable). Catches the other
-  // common mistake: pasting more than one command, or extra prose, so the
-  // first bare word picked up as "the URL" is actually something else.
+  // common mistake: pasting more than one command, or extra prose.
   if (!/^(https?:\/\/|\{\{)/.test(baseUrl)) {
-    warnings.push(`"${baseUrl}" doesn't look like a URL — make sure only one cURL command was pasted.`);
+    warnings.push(
+      `"${baseUrl}" doesn't look like a URL — make sure only one cURL command was pasted.`
+    );
   }
 
   return {

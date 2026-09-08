@@ -1,5 +1,5 @@
 // Persona brand mark — a blue squircle tile with a white "P" monogram,
-// matching the Persona.ai identity (brand blue #1E60FF) used across the
+// matching the Persona.ai identity  used across the
 // consumer app. Drawn as a pure inline SVG so it renders identically
 // everywhere (no font dependency) and stays crisp at any size.
 export function AppIcon({ className }: { className?: string }) {
