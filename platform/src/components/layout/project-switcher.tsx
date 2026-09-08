@@ -63,13 +63,15 @@ function ProjectSwitcher({ projectId, projectName }: { projectId: string; projec
             render={
               <SidebarMenuButton
                 size="lg"
-                className="border border-transparent hover:border-border data-popup-open:border-border data-popup-open:bg-sidebar-accent"
+                className="border border-transparent hover:border-border data-popup-open:border-border data-popup-open:bg-sidebar-accent group-data-[collapsible=icon]:justify-center!"
               >
-                <div className="flex size-6 shrink-0 items-center justify-center rounded-none bg-primary text-primary-foreground">
+                <div className="flex size-6 shrink-0 items-center justify-center rounded-none bg-primary text-primary-foreground group-data-[collapsible=icon]:size-4">
                   <FoldersIcon className="size-3.5" />
                 </div>
-                <span className="flex-1 truncate text-left font-medium">{projectName}</span>
-                <CaretUpDownIcon className="ml-auto size-3.5 text-muted-foreground" />
+                <span className="flex-1 truncate text-left font-medium group-data-[collapsible=icon]:hidden">
+                  {projectName}
+                </span>
+                <CaretUpDownIcon className="ml-auto size-3.5 text-muted-foreground group-data-[collapsible=icon]:hidden" />
               </SidebarMenuButton>
             }
           />
