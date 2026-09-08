@@ -16,7 +16,6 @@ import {
   XIcon,
   MagnifyingGlassIcon,
   GlobeIcon,
-  LockIcon,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,6 +81,8 @@ export default function SkillsPage() {
   const [saving, setSaving] = React.useState(false);
   const [showNewDialog, setShowNewDialog] = React.useState(false);
   const [newSkillName, setNewSkillName] = React.useState("");
+  const [showAddFileDialog, setShowAddFileDialog] = React.useState(false);
+  const [newFilePath, setNewFilePath] = React.useState("");
   const [mobileExplorerOpen, setMobileExplorerOpen] = React.useState(false);
 
   const selectedSkill = skills?.find((s) => (s.id ?? s._id) === selectedSkillId) || null;
@@ -234,16 +235,18 @@ export default function SkillsPage() {
     }
   };
 
-  const handleAddFile = () => {
-    const path = prompt("File path (e.g. references/guide.md):");
-    if (!path || !selectedSkill) return;
-    const trimmed = path.trim().replace(/\\/g, "/").replace(/^\.\//, "");
+  const handleCreateFile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSkill) return;
+    const trimmed = newFilePath.trim().replace(/\\/g, "/").replace(/^\.\//, "");
     if (!trimmed || trimmed.toUpperCase() === "SKILL.MD") return;
     const id = selectedSkill.id ?? selectedSkill._id!;
     const newFiles = [...(selectedSkill.files ?? []), { path: trimmed, content: "" }];
     setSkills((prev) => (prev ?? []).map((s) => ((s.id ?? s._id) === id ? { ...s, files: newFiles } : s)));
     setActiveFile(trimmed);
     setIsDirty(true);
+    setShowAddFileDialog(false);
+    setNewFilePath("");
   };
 
   if (loading) {
@@ -346,7 +349,6 @@ export default function SkillsPage() {
                           >
                             {isExpanded ? <FolderOpenIcon className="size-3.5 shrink-0" /> : <FolderIcon className="size-3.5 shrink-0" />}
                             <span className="truncate font-medium">{skill.name}</span>
-                            {skill.isPublic ? <GlobeIcon className="size-3 shrink-0 text-primary" /> : <LockIcon className="size-3 shrink-0 text-muted-foreground" />}
                           </button>
                           <Button
                             variant="ghost"
@@ -380,7 +382,10 @@ export default function SkillsPage() {
                             ))}
                             <button
                               type="button"
-                              onClick={handleAddFile}
+                              onClick={() => {
+                                handleSelectSkill(skill);
+                                setShowAddFileDialog(true);
+                              }}
                               className="flex items-center gap-1.5 px-2 py-1 text-left text-xs text-muted-foreground hover:text-foreground"
                             >
                               <PlusIcon className="size-3" />
@@ -640,6 +645,40 @@ export default function SkillsPage() {
                 Cancel
               </Button>
               <Button type="submit">Create Skill</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAddFileDialog} onOpenChange={setShowAddFileDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add file</DialogTitle>
+            <DialogDescription>Bundle a supporting file alongside SKILL.md, e.g. references/guide.md.</DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={handleCreateFile}
+            className="flex flex-col gap-4 py-2"
+          >
+            <Field>
+              <FieldLabel htmlFor="new-file-path">File path</FieldLabel>
+              <Input
+                id="new-file-path"
+                value={newFilePath}
+                onChange={(e) => setNewFilePath(e.target.value)}
+                placeholder="e.g. references/guide.md"
+                required
+                autoFocus
+                maxLength={256}
+                className="font-mono text-sm"
+              />
+              <FieldDescription>Relative path within the skill folder. Cannot be SKILL.md.</FieldDescription>
+            </Field>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowAddFileDialog(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Add file</Button>
             </DialogFooter>
           </form>
         </DialogContent>
