@@ -620,6 +620,59 @@ return (
 
 ---
 
+## `useMcp`
+
+Access MCP resources and trigger MCP server tools directly from client components (added in `0.7.9`). Powers interactive MCP Ext Apps (SEP-1865) and custom UI widgets embedded in chat tool calls.
+
+```ts
+import { useMcp } from '@personaai/react';
+```
+
+### Options
+
+| Parameter | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `mcpId` | `string` | No | `undefined` | Default MCP connector ID for calls made through this hook instance. Can be overridden per-call. |
+
+### Return value
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `readResource` | `(uri: string, overrideMcpId?: string) => Promise<PersonaMcpReadResourceResult>` | Reads an MCP resource (such as a `ui://` HTML widget template or data URI). |
+| `callTool` | `(toolName: string, args?: Record<string, unknown>, overrideMcpId?: string) => Promise<PersonaMcpCallToolResult>` | Calls a tool directly on the MCP server without invoking an LLM generation. |
+| `isLoading` | `boolean` | `true` while a resource read or tool call is in flight. |
+| `error` | `Error \| null` | The last error encountered, or `null`. |
+
+### Usage pattern — Rendering an MCP Ext App
+
+```tsx
+import { useMcp } from '@personaai/react';
+import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps';
+
+function McpWidget({ mcpId, resourceUri }: { mcpId: string; resourceUri: string }) {
+  const { readResource, callTool } = useMcp({ mcpId });
+  const [html, setHtml] = useState<string | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    readResource(resourceUri).then((res) => {
+      setHtml(res.data?.text || '');
+    });
+  }, [resourceUri]);
+
+  return (
+    <iframe
+      ref={iframeRef}
+      srcDoc={html || ''}
+      sandbox="allow-scripts allow-forms"
+      className="w-full h-96 border rounded-lg"
+    />
+  );
+}
+```
+
+---
+
 ## `PersonaProvider`
 
 The context provider that all hooks depend on. Not a hook itself, but the setup is critical.

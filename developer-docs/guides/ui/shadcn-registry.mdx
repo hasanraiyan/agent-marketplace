@@ -1,0 +1,179 @@
+---
+title: Shadcn Component Registry
+description: Install modern Persona chat, code editor, and MCP Ext App components directly into your codebase with zero CSS clashes using the shadcn CLI.
+---
+
+The **Persona Shadcn Registry** is the recommended way to integrate Persona's user interface into your React and Next.js applications.
+
+Instead of installing an opaque npm bundle that risks CSS preflight clashes with your existing styles, components are added directly into your `@/components/` folder as raw source code. They compile through your app's own Tailwind CSS pipeline and use your own theme tokens and utilities.
+
+<Tip>
+  **Zero CSS Clash:** By installing via the shadcn CLI, components inherit your app's existing Tailwind colors, fonts, and dark mode configuration seamlessly.
+</Tip>
+
+---
+
+## Registry Catalog
+
+Persona hosts components at `https://platform.persona.hasanraiyan.me/r/`:
+
+| Component | Installation Command | Description |
+| :--- | :--- | :--- |
+| **`chat`** | `npx shadcn@latest add https://platform.persona.hasanraiyan.me/r/chat.json` | Full-featured conversational agent interface with AG-UI streaming, tool execution cards, MCP Ext Apps, thinking indicator, and subagent drawer. |
+| **`mcp-app`** | `npx shadcn@latest add https://platform.persona.hasanraiyan.me/r/mcp-app.json` | Sandboxed iframe runner with AppBridge for interactive MCP Ext Apps and prompt dispatch. |
+| **`file-explorer`** | `npx shadcn@latest add https://platform.persona.hasanraiyan.me/r/file-explorer.json` | Workspace code explorer and editor with tab management, markdown preview, and save/discard actions. |
+| **`voice-indicator`** | `npx shadcn@latest add https://platform.persona.hasanraiyan.me/r/voice-indicator.json` | Animated voice orb visualizer for realtime speech turns. |
+
+---
+
+## Installing Agent Chat
+
+Run the following command in the root of your Next.js / Vite project:
+
+```bash
+npx shadcn@latest add https://platform.persona.hasanraiyan.me/r/chat.json
+```
+
+Or with `pnpm`:
+
+```bash
+pnpm dlx shadcn@latest add https://platform.persona.hasanraiyan.me/r/chat.json
+```
+
+### What gets installed
+
+This copies the following files into your project:
+- `components/persona/chat/chat-message.tsx`
+- `components/persona/chat/chat-composer.tsx`
+- `components/persona/chat/chat-scroller.tsx`
+- `components/persona/chat/message-markdown.tsx`
+- `components/persona/chat/thinking-indicator.tsx`
+- `components/persona/chat/tool-call-trace.tsx`
+- `components/persona/chat/tool-call-card.tsx`
+- `components/persona/chat/mcp-app-renderer.tsx`
+- `components/persona/chat/subagent-sheet.tsx`
+- `components/persona/chat/workspace-file-panel.tsx`
+- `components/persona/chat/types.ts`
+- `components/persona/chat/index.ts`
+
+Any missing shadcn primitives (e.g. `button`, `card`, `sheet`, `tabs`, `item`, `input-group`, `message-scroller`) are automatically installed or referenced.
+
+---
+
+## Usage Example
+
+Combine the registry components with `@personaai/react`'s `useChat` hook for a complete AI streaming interface:
+
+```tsx
+'use client';
+
+import * as React from 'react';
+import { useChat } from '@personaai/react';
+import {
+  ChatScroller,
+  ChatScrollerItem,
+  ChatMessage,
+  ChatComposer,
+  ChatEmptyState,
+} from '@/components/persona/chat';
+
+export function AgentChatView({ agentId }: { agentId: string }) {
+  const { messages, input, setInput, sendMessage, isStreaming, stop } = useChat({
+    agentId,
+  });
+
+  const handleSend = () => {
+    if (!input.trim()) return;
+    sendMessage(input.trim());
+    setInput('');
+  };
+
+  return (
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
+      <div className="flex min-h-0 flex-1 flex-col">
+        {messages.length === 0 ? (
+          <ChatEmptyState
+            title="Chat with Agent"
+            description="Ask questions, run tasks, or view interactive widgets."
+          />
+        ) : (
+          <ChatScroller>
+            {messages.map((message) => (
+              <ChatScrollerItem key={message.id}>
+                <ChatMessage
+                  message={{
+                    id: message.id,
+                    role: message.role,
+                    content: message.content,
+                    isStreaming: message.isStreaming,
+                    toolCalls: message.toolCalls?.map((tc) => ({
+                      id: tc.toolCallId,
+                      name: tc.toolName,
+                      args: tc.args,
+                      result: tc.result,
+                      status: tc.isError ? 'error' : tc.result ? 'done' : 'running',
+                      mcpApp: tc.mcpApp,
+                    })),
+                  }}
+                  onSendMessage={(prompt) => sendMessage(prompt)}
+                />
+              </ChatScrollerItem>
+            ))}
+          </ChatScroller>
+        )}
+      </div>
+
+      <div className="mx-auto w-full max-w-3xl p-4">
+        <ChatComposer
+          value={input}
+          onChange={setInput}
+          onSend={handleSend}
+          onStop={stop}
+          isStreaming={isStreaming}
+          placeholder="Ask your agent anything..."
+        />
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+## Interactive MCP Ext Apps (`mcp-app`)
+
+When an agent executes an MCP tool backed by a UI template (SEP-1865), the `mcp-app-renderer.tsx` component embeds the interactive widget inside a secure, sandboxed iframe.
+
+### Two-way Interaction:
+1. **Prompt Dispatch:** When a user clicks a button inside the widget calling `app.sendMessage({ role: 'user', content: [...] })`, `McpAppRenderer` captures the event via `AppBridge` and dispatches it directly into your chat via `onSendMessage(text)`.
+2. **Direct Tool Calls:** The widget can also execute MCP backend tools directly via `app.callServerTool()`, which proxies to your backend without polluting the chat feed.
+
+---
+
+## Standalone File Explorer & Editor
+
+To embed a workspace file explorer and code editor in your app:
+
+```bash
+npx shadcn@latest add https://platform.persona.hasanraiyan.me/r/file-explorer.json
+```
+
+```tsx
+import { FileExplorerEditor } from '@/components/persona/file-explorer-editor';
+
+export function ProjectFiles() {
+  return (
+    <div className="h-[600px] border rounded-lg overflow-hidden">
+      <FileExplorerEditor
+        files={[
+          { path: '/README.md', name: 'README.md', isDirectory: false, content: '# Hello World' },
+          { path: '/src/index.ts', name: 'index.ts', isDirectory: false, content: 'console.log("hi");' }
+        ]}
+        onSaveFile={async (path, content) => {
+          await saveToServer(path, content);
+        }}
+      />
+    </div>
+  );
+}
+```

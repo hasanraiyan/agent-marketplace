@@ -176,3 +176,36 @@ console.log(result);
 // Attach to an Agent so it can use these tools.
 await persona.agents.update('agent_123', { mcps: [mcp._id] });
 ```
+
+---
+
+## MCP Ext Apps (Interactive UI Widgets)
+
+MCP servers can pair tools with interactive HTML UI templates according to the [MCP Ext Apps specification (SEP-1865)](https://github.com/modelcontextprotocol/ext-apps).
+
+Tools that support Ext Apps expose UI metadata on their definition:
+```json
+{
+  "name": "book_flight",
+  "description": "Book a flight",
+  "_meta": {
+    "ui": {
+      "resourceUri": "ui://travel/flight-picker.html"
+    }
+  }
+}
+```
+
+### 1. Reading the UI Template
+Fetch the raw HTML resource from the MCP server:
+```ts
+const resource = await persona.mcps.readResource(mcp._id, 'ui://travel/flight-picker.html');
+console.log('Widget HTML:', resource.text);
+```
+
+### 2. Client-Side Rendering with AppBridge
+In React, use `@personaai/react`'s `useMcp()` hook and `@modelcontextprotocol/ext-apps` to embed the widget in a sandboxed iframe:
+- **Two-way Communication:** The widget communicates with the host via `postMessage`.
+- **UI-Driven Prompts:** When a user clicks an action in the widget, it calls `app.sendMessage({ role: 'user', content: [...] })`, dispatching a prompt straight into your chat stream.
+- **Direct Tools:** The widget can call `app.callServerTool()`, executing tools on the MCP server without invoking LLM tokens.
+

@@ -63,6 +63,7 @@
           {
             "group": "UI Components Reference",
             "pages": [
+              "guides/ui/shadcn-registry",
               "guides/ui/quickstart",
               "guides/ui/components",
               "guides/ui/theming",

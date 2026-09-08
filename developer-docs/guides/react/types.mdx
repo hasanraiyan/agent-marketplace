@@ -57,6 +57,7 @@ interface PersonaToolCall {
   result?: string;                            // JSON string of result (or error envelope)
   isError?: boolean;                          // true if result is {status:'error',...}
   subagentActivity?: PersonaSubagentActivityEntry[]; // live updates for task/subagent tools
+  mcpApp?: { resourceUri: string; mcpId: string };   // interactive MCP Ext App metadata (SEP-1865)
 }
 ```
 
