@@ -67,12 +67,6 @@ function FileIcon({ path, className }: { path: string; className?: string }) {
   return <FileCodeIcon className={className} />;
 }
 
-function truncateWords(text: string, maxWords: number) {
-  const words = text.trim().split(/\s+/);
-  if (words.length <= maxWords) return text;
-  return words.slice(0, maxWords).join(" ") + "…";
-}
-
 // react-resizable-panels' <Panel> silently drops the className prop, so its
 // "hidden sm:flex" visibility can't be CSS-only — this mirrors Tailwind's sm breakpoint in JS.
 function useIsSmUp() {
@@ -221,10 +215,11 @@ export default function SkillsPage() {
     const name = newSkillName.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
     if (!name || name.length < 2) return;
     try {
+      const description = `Describe what ${name} does. Use when asked to …`;
       const res = await createProjectSkill(projectId, {
         name,
-        description: `Instructions for ${name}.`,
-        instructions: `# ${name}\n\n## Overview\n\nDescribe when and how an Agent should use this skill.\n`,
+        description,
+        instructions: `---\nname: ${name}\ndescription: ${description}\n---\n\nDescribe step by step how the Agent should perform this skill.\n`,
         isPublic: false,
         files: [],
       });
@@ -534,9 +529,6 @@ export default function SkillsPage() {
                 <span className="truncate">{selectedSkill.name}</span>
                 <span>›</span>
                 <span className="truncate font-mono">{activePath}</span>
-                <span className="ml-auto hidden items-center gap-1 truncate sm:flex">
-                  <span className="truncate">{truncateWords(selectedSkill.description || "—", 10)}</span>
-                </span>
               </div>
 
               {/* Editor */}
