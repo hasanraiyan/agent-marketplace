@@ -59,6 +59,15 @@ jest.unstable_mockModule('../src/modules/skills/skill.service.js', () => ({
 jest.unstable_mockModule('../src/modules/knowledge/knowledge.service.js', () => ({
   default: { discoverKnowledgeBases: jest.fn() },
 }));
+jest.unstable_mockModule('../src/modules/memory/memory.service.js', () => ({
+  default: {
+    getAllMemory: jest.fn(),
+    writeMemoryFile: jest.fn(),
+    deleteMemoryFile: jest.fn(),
+    clearAllMemory: jest.fn(),
+    deleteAgentMemory: jest.fn(),
+  },
+}));
 jest.unstable_mockModule('../src/modules/mcp/mcp.service.js', () => ({
   default: { discoverMcps: jest.fn(), toSafeJson: jest.fn((mcp) => mcp) },
 }));

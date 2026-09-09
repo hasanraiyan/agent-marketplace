@@ -942,6 +942,122 @@ adminRouter.get('/mcps', projectController.listMcps);
  */
 adminRouter.get('/providers', projectController.listProviders);
 
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/memory:
+ *   get:
+ *     tags: [Projects]
+ *     summary: List memory files for this Project (Admin only)
+ *     description: Returns all persistent memory files (project-wide shared files + per-agent files) for this Project.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: List of memory files (userFiles and agentMemories)
+ *       401:
+ *         description: Unauthorized
+ */
+adminRouter.get('/memory', projectController.listMemory);
+
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/memory/file:
+ *   put:
+ *     tags: [Projects]
+ *     summary: Write a memory file for this Project (Admin only)
+ *     description: Creates or overwrites a memory file for this Project. Supports scope="user" (shared) and scope="agent" (per-agent).
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [path, content]
+ *             properties:
+ *               scope:
+ *                 type: string
+ *                 enum: [user, agent]
+ *                 default: user
+ *               agentId:
+ *                 type: string
+ *               path:
+ *                 type: string
+ *               content:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Memory file written
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *   delete:
+ *     tags: [Projects]
+ *     summary: Delete a memory file for this Project (Admin only)
+ *     description: Removes a specific memory file by path and scope.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: path
+ *         in: query
+ *         required: true
+ *         schema: { type: string }
+ *       - name: scope
+ *         in: query
+ *         schema: { type: string, enum: [user, agent] }
+ *       - name: agentId
+ *         in: query
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Memory file deleted
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Memory file not found
+ */
+adminRouter.put('/memory/file', mutateLimiter, projectController.writeMemoryFile);
+adminRouter.delete('/memory/file', mutateLimiter, projectController.deleteMemoryFile);
+
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/memory/all:
+ *   delete:
+ *     tags: [Projects]
+ *     summary: Clear memory for this Project or Agent (Admin only)
+ *     description: Clears all memory files for the Project, or for a specific agent if agentId is provided.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: agentId
+ *         in: query
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Memory cleared
+ *       401:
+ *         description: Unauthorized
+ */
+adminRouter.delete('/memory/all', mutateLimiter, projectController.clearMemory);
+
 router.use('/:projectId', adminRouter);
 
 export default router;

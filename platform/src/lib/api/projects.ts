@@ -250,3 +250,22 @@ export const getProjectSecretUsage = (projectId: string, secretId: string) =>
   api.get(`/projects/${projectId}/secrets/${secretId}/usage`);
 export const bulkDeleteProjectSecrets = (projectId: string, ids: string[]) =>
   api.post(`/projects/${projectId}/secrets/bulk-delete`, { ids });
+
+// Project Memory CRUD (Clerk + ProjectAdminContext) — manages persistent
+// memory files (/memories/user/ and /memories/agent/) for this Project.
+export const getProjectMemory = (projectId: string) =>
+  api.get(`/projects/${projectId}/memory`);
+
+export const writeProjectMemoryFile = (
+  projectId: string,
+  payload: { scope: "user" | "agent"; agentId?: string; path: string; content: string }
+) => api.put(`/projects/${projectId}/memory/file`, payload);
+
+export const deleteProjectMemoryFile = (
+  projectId: string,
+  params: { scope: "user" | "agent"; agentId?: string; path: string }
+) => api.delete(`/projects/${projectId}/memory/file`, { params });
+
+export const clearProjectMemory = (projectId: string, agentId?: string) =>
+  api.delete(`/projects/${projectId}/memory/all`, { params: agentId ? { agentId } : {} });
+

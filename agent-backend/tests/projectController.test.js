@@ -54,6 +54,15 @@ jest.unstable_mockModule('../src/modules/skills/skill.service.js', () => ({
 jest.unstable_mockModule('../src/modules/knowledge/knowledge.service.js', () => ({
   default: { discoverKnowledgeBases: jest.fn() },
 }));
+jest.unstable_mockModule('../src/modules/memory/memory.service.js', () => ({
+  default: {
+    getAllMemory: jest.fn(),
+    writeMemoryFile: jest.fn(),
+    deleteMemoryFile: jest.fn(),
+    clearAllMemory: jest.fn(),
+    deleteAgentMemory: jest.fn(),
+  },
+}));
 jest.unstable_mockModule('../src/modules/mcp/mcp.service.js', () => ({
   default: { discoverMcps: jest.fn(), toSafeJson: jest.fn((mcp) => ({ ...mcp, safe: true })) },
 }));
@@ -135,6 +144,7 @@ const knowledgeService = (await import('../src/modules/knowledge/knowledge.servi
 const mcpService = (await import('../src/modules/mcp/mcp.service.js')).default;
 const providerService = (await import('../src/modules/providers/provider.service.js')).default;
 const storeService = (await import('../src/modules/stores/store.service.js')).default;
+const memoryService = (await import('../src/modules/memory/memory.service.js')).default;
 const projectController = (await import('../src/modules/projects/project.controller.js')).default;
 
 describe('Project Controller', () => {
@@ -672,6 +682,107 @@ describe('Project Controller', () => {
       await projectController.deleteStore(mockReq, mockRes, next);
 
       expect(mockRes.status).toHaveBeenCalledWith(404);
+    });
+  });
+
+  describe('Project Memory', () => {
+    test('listMemory calls memoryService.getAllMemory with domain', async () => {
+      memoryService.getAllMemory.mockResolvedValue({
+        userFiles: [{ path: '/index.md', content: 'test' }],
+        agentMemories: [],
+      });
+
+      await projectController.listMemory(mockReq, mockRes, next);
+
+      expect(memoryService.getAllMemory).toHaveBeenCalledWith(projectId);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          userFiles: [{ path: '/index.md', content: 'test' }],
+          agentMemories: [],
+        },
+      });
+    });
+
+    test('writeMemoryFile validates path and content', async () => {
+      mockReq.body = { scope: 'user' };
+      await projectController.writeMemoryFile(mockReq, mockRes, next);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: false, message: 'path and content are required' })
+      );
+    });
+
+    test('writeMemoryFile requires agentId when scope is agent', async () => {
+      mockReq.body = { scope: 'agent', path: '/notes.md', content: 'hello' };
+      await projectController.writeMemoryFile(mockReq, mockRes, next);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          message: 'agentId is required when scope is "agent"',
+        })
+      );
+    });
+
+    test('writeMemoryFile writes successfully', async () => {
+      mockReq.body = { scope: 'user', path: '/index.md', content: '# Hello' };
+      memoryService.writeMemoryFile.mockResolvedValue({
+        scope: 'user',
+        path: '/index.md',
+        content: '# Hello',
+      });
+
+      await projectController.writeMemoryFile(mockReq, mockRes, next);
+
+      expect(memoryService.writeMemoryFile).toHaveBeenCalledWith(projectId, {
+        scope: 'user',
+        agentId: undefined,
+        path: '/index.md',
+        content: '# Hello',
+      });
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+    });
+
+    test('deleteMemoryFile deletes file successfully', async () => {
+      mockReq.query = { scope: 'agent', agentId: 'agent_1', path: '/learnings.md' };
+      memoryService.deleteMemoryFile.mockResolvedValue();
+
+      await projectController.deleteMemoryFile(mockReq, mockRes, next);
+
+      expect(memoryService.deleteMemoryFile).toHaveBeenCalledWith(projectId, {
+        scope: 'agent',
+        agentId: 'agent_1',
+        path: '/learnings.md',
+      });
+      expect(mockRes.json).toHaveBeenCalledWith({ success: true, message: 'Memory file deleted' });
+    });
+
+    test('clearMemory clears agent memory when agentId is present', async () => {
+      mockReq.query = { agentId: 'agent_1' };
+      memoryService.deleteAgentMemory.mockResolvedValue({ deletedCount: 2, cleared: true });
+
+      await projectController.clearMemory(mockReq, mockRes, next);
+
+      expect(memoryService.deleteAgentMemory).toHaveBeenCalledWith(projectId, 'agent_1');
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: true, message: 'Agent memory cleared successfully' })
+      );
+    });
+
+    test('clearMemory clears all memory when agentId is omitted', async () => {
+      mockReq.query = {};
+      memoryService.clearAllMemory.mockResolvedValue({ cleared: true });
+
+      await projectController.clearMemory(mockReq, mockRes, next);
+
+      expect(memoryService.clearAllMemory).toHaveBeenCalledWith(projectId);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        message: 'All project memory cleared successfully',
+      });
     });
   });
 });
