@@ -61,9 +61,12 @@ persona-agent/
 │   ├── runtime/            # @personaai/runtime — framework-agnostic engine
 │   ├── react/              # @personaai/react — React hooks
 │   ├── devtools/           # @personaai/devtools — devtools (core/react/nextjs, dev-only, no runtime change)
-│   ├── adapters/nextjs/    # @personaai/nextjs — Next.js adapter (re-exports react)
-│   ├── adapters/express/   # @personaai/express — Express adapter
-│   └── adapters/nestjs/    # @personaai/nestjs — NestJS adapter
+│   ├── adapters/           # @personaai/adapters — unified adapter (express/nextjs/nestjs via subpaths)
+│   │   ├── src/shared/     # shared core (errors, headers, multipart, write, translate)
+│   │   ├── src/express/    # @personaai/adapters/express (thin wrapper)
+│   │   ├── src/nestjs/     # @personaai/adapters/nestjs (thin wrapper)
+│   │   └── src/nextjs/     # @personaai/adapters/nextjs (+/server) (thin wrapper)
+│   │   # legacy shims: adapters/express, adapters/nestjs, adapters/nextjs re-export from unified
 ├── deep-agent/             # Standalone LangGraph Deep Agent package
 ├── persona/                # Flutter mobile app (partial)
 ├── architecture/           # Architecture documentation & ADRs
