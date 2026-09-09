@@ -15,6 +15,7 @@ import { VersionedStateBackend } from '../../utils/versionedStateBackend.js';
 import { AgentSkillsStore } from '../skills/agentSkillsStore.js';
 import { readonlyBackend } from '../../utils/readonlyBackend.js';
 import { gracefulBackend } from '../../utils/gracefulBackend.js';
+import { getSandboxBackend } from '../sandbox/sandbox.service.js';
 import {
   memoryFilesStore,
   userMemoryNamespace,
@@ -210,7 +211,17 @@ export const agentSkillsStore = new AgentSkillsStore({
 
 // LRU Cache for compiled Agent instances to avoid expensive graph compilation on every message.
 // Small cap since each instance holds an LLM client and internal graph state.
-const agentCache = new LRUCache({ max: 50 });
+// `dispose` fires on every removal — explicit invalidate() AND plain LRU
+// overflow past `max` — so a cached CodeSandboxBackend's SDK session gets a
+// best-effort disconnect however the entry goes away. This is not the
+// primary sandbox cleanup mechanism (CodeSandbox's own idle/hibernate TTL
+// is) — just freeing this process's connection to it promptly.
+const agentCache = new LRUCache({
+  max: 50,
+  dispose: (value) => {
+    value?.sandboxBackend?.close?.().catch(() => {});
+  },
+});
 
 const ARCHITECT_SYSTEM_PROMPT = `
 You are the **Agent Architect**, a senior software engineer and AI specialized in building highly effective agents.
@@ -796,7 +807,16 @@ class AgentFactory {
       );
     }
 
-    const backend = new CompositeBackend(new VersionedStateBackend(), backendRoutes);
+    // Real code execution (agent.sandboxEnabled) swaps the root backend for
+    // a CodeSandbox-backed one — see sandbox.service.js. Everything mounted
+    // in backendRoutes above (/skills/, /memories/, /stores/,
+    // /skill-library/) is untouched either way: only the agent's top-level
+    // workspace becomes a real VM instead of the virtual, MongoDB-backed
+    // VersionedStateBackend.
+    const sandboxBackend = agent.sandboxEnabled
+      ? await getSandboxBackend({ agentId: agentIdStr, userId, domain: executionContext.domain })
+      : null;
+    const backend = new CompositeBackend(sandboxBackend || new VersionedStateBackend(), backendRoutes);
 
     const agentInstance = await createDeepAgent({
       model: llm,
@@ -806,7 +826,6 @@ class AgentFactory {
       tools: dynamicTools,
       interruptOn: interruptOnConfig,
       middleware: [contextOverrideMiddleware],
-      // sandbox backend if real code execution is ever required.
       backend,
       // Skills are served live from the DB via the /skills/ route above.
       skills: ['/skills/'],
@@ -842,6 +861,7 @@ class AgentFactory {
 
     const result = {
       agentInstance,
+      sandboxBackend,
       agentConfig: agent,
       updatedAt: agent.updatedAt,
       llm,

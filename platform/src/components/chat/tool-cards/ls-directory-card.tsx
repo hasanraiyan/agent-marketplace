@@ -11,7 +11,7 @@ import {
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { parseToolArgs, parseLsResults, buildLsTree, type LsTreeNode } from "./utils";
 import type { ChatToolCall } from "../types";
@@ -43,10 +43,10 @@ function TreeRow({ node, depth, collapsed, onToggle }: {
     return (
       <div
         style={indent}
-        className="flex items-center gap-1.5 py-1 pr-2 text-xs text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+        className="flex min-w-0 items-center gap-1.5 py-1 pr-2 text-xs text-muted-foreground hover:bg-muted/40 hover:text-foreground"
       >
         {fileIcon(node.name)}
-        <span className="truncate font-mono">{node.name}</span>
+        <span className="whitespace-nowrap font-mono">{node.name}</span>
       </div>
     );
   }
@@ -62,11 +62,11 @@ function TreeRow({ node, depth, collapsed, onToggle }: {
         variant="ghost"
         style={indent}
         onClick={() => onToggle(node.path)}
-        className="h-auto w-full justify-start gap-1 rounded-none py-1 pr-2 text-left text-xs font-normal text-muted-foreground"
+        className="h-auto w-full min-w-0 justify-start gap-1 rounded-none py-1 pr-2 text-left text-xs font-normal text-muted-foreground"
       >
         {isOpen ? <CaretDownIcon className="size-3 shrink-0" /> : <CaretRightIcon className="size-3 shrink-0" />}
         {isOpen ? <FolderOpenIcon className="size-3.5 shrink-0" /> : <FolderIcon className="size-3.5 shrink-0" />}
-        <span className="truncate font-mono">{node.name}</span>
+        <span className="whitespace-nowrap font-mono">{node.name}</span>
       </Button>
       {isOpen &&
         node.children?.map((child) => (
@@ -103,16 +103,16 @@ export function LsDirectoryCard({ toolCall }: { toolCall: ChatToolCall }) {
   };
 
   return (
-    <div className="flex flex-col border border-border">
+    <div className="flex min-w-0 flex-col overflow-hidden border border-border">
       <Button
         type="button"
         variant="ghost"
         onClick={() => setOpen((v) => !v)}
-        className="h-auto w-full justify-start gap-1.5 rounded-none bg-muted/10 px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+        className="h-auto w-full min-w-0 justify-start gap-1.5 rounded-none bg-muted/10 px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
       >
         {open ? <CaretDownIcon className="size-3 shrink-0" /> : <CaretRightIcon className="size-3 shrink-0" />}
         {open ? <FolderOpenIcon className="size-3.5 shrink-0" /> : <FolderIcon className="size-3.5 shrink-0" />}
-        <span className="truncate font-mono normal-case">{path}</span>
+        <span className="min-w-0 truncate font-mono normal-case">{path}</span>
       </Button>
       {open &&
         (!done ? (
@@ -122,13 +122,20 @@ export function LsDirectoryCard({ toolCall }: { toolCall: ChatToolCall }) {
             <Skeleton className="h-5 w-2/3" />
           </div>
         ) : tree.length > 0 ? (
-          <ScrollArea className="max-h-56">
-            <div className="flex flex-col py-1">
+          // A folder tree can run both long (many siblings) and wide (deep
+          // nesting pushes indentation out, long names) — rows use
+          // whitespace-nowrap rather than truncating, so nothing is ever
+          // silently clipped; min-w-0 (threaded down through every row) is
+          // what stops that width from forcing this card wider than its
+          // container instead of just scrolling within it.
+          // orientation="both" gets a real horizontal scrollbar for the
+          // wide case, alongside the existing vertical one for the long case.
+          <ScrollArea orientation="both" className="max-h-56 min-w-0">
+            <div className="flex min-w-0 flex-col py-1">
               {tree.map((node) => (
                 <TreeRow key={node.path} node={node} depth={0} collapsed={collapsedPaths} onToggle={toggleNode} />
               ))}
             </div>
-            <ScrollBar orientation="vertical" />
           </ScrollArea>
         ) : (
           <Empty className="p-4">

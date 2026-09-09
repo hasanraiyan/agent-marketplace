@@ -7,14 +7,19 @@ import { z } from 'zod';
  * Wraps TavilySearch with a null-tolerant schema so LLMs that emit null for
  * optional fields (includeDomains, excludeDomains, timeRange) don't trigger
  * Zod validation errors inside TavilySearch.call().
+ *
+ * `apiKey` is resolved by the caller (tools/index.js): a Project's own
+ * `TAVILY_API_KEY` ProjectSecret if it has one, else the platform-wide
+ * `TAVILY_API_KEY` env var. This function no longer reads `process.env`
+ * itself, so it stays correct for both sourcing paths.
  */
-export const getSearchTool = () => {
-  if (!process.env.TAVILY_API_KEY) {
+export const getSearchTool = (apiKey) => {
+  if (!apiKey) {
     console.warn('[ToolRegistry] TAVILY_API_KEY is missing. search_web tool disabled.');
     return null;
   }
 
-  const inner = new TavilySearch({ maxResults: 5, searchDepth: 'advanced' });
+  const inner = new TavilySearch({ maxResults: 5, searchDepth: 'advanced', tavilyApiKey: apiKey });
 
   // TavilySearch validates these as strict enums. Schemas below stay loose (plain
   // strings) so a malformed value from the LLM does NOT crash this wrapper's own

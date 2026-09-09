@@ -125,6 +125,15 @@ const agentSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Real code execution in an isolated CodeSandbox VM instead of the
+    // default virtual (MongoDB-backed) workspace filesystem. Requires a
+    // `CSB_API_KEY` ProjectSecret on this agent's Project — enforced at
+    // enable time in agent.service.js, re-checked at build time in
+    // sandbox.service.js.
+    sandboxEnabled: {
+      type: Boolean,
+      default: false,
+    },
     skills: [
       {
         type: mongoose.Schema.Types.ObjectId,

@@ -21,6 +21,7 @@ import {
   type ChatMessageData,
   type ChatWorkspaceFile,
   type ChatInterruptData,
+  type ChatToolCall,
 } from "@/components/chat";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
@@ -35,9 +36,12 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 function AgentChat({
   projectId,
   agentId,
+  onToolCallsChange,
 }: {
   projectId: string;
   agentId: string;
+  /** Bubbles the live, deduped tool-call list up for the Terminal panel — fires on every change. */
+  onToolCallsChange?: (toolCalls: ChatToolCall[]) => void;
 }) {
   const url = React.useMemo(
     () =>
@@ -72,6 +76,10 @@ function AgentChat({
       }),
     [chat.messages, chat.toolCalls, chat.conversation, chat.isRunning]
   );
+
+  React.useEffect(() => {
+    onToolCallsChange?.(Array.from(view.toolCallsById.values()));
+  }, [view.toolCallsById, onToolCallsChange]);
 
   // ── Composer ────────────────────────────────────────────────────────────
   const [input, setInput] = React.useState("");

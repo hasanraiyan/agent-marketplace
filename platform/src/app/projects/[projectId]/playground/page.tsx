@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { RobotIcon, SparkleIcon, FolderOpenIcon } from "@phosphor-icons/react";
+import { RobotIcon, SparkleIcon, FolderOpenIcon, TerminalIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -20,12 +20,15 @@ import { AgentChat } from "@/components/playground/agent-chat";
 import { VoiceTab } from "@/components/playground/voice-tab";
 import { ArchitectChat } from "@/components/playground/architect-chat";
 import { MemoryWorkspaceDialog } from "@/components/playground/memory-workspace-dialog";
+import { SandboxTerminalDialog } from "@/components/playground/sandbox-terminal-dialog";
+import type { ChatToolCall } from "@/components/chat";
 
 type TabId = "chat" | "voice";
 
 interface AgentRow {
   id: string;
   name: string;
+  sandboxEnabled: boolean;
 }
 
 // Pseudo-option in the agent picker that selects the "Agent Architect" spec
@@ -39,9 +42,16 @@ function normalizeAgents(raw: unknown): AgentRow[] {
   if (!Array.isArray(raw)) return [];
   return raw
     .map((a) => {
-      const row = (a ?? {}) as { _id?: string; id?: string; name?: string };
+      const row = (a ?? {}) as {
+        _id?: string;
+        id?: string;
+        name?: string;
+        sandboxEnabled?: boolean;
+      };
       const id = row._id ?? row.id;
-      return id ? { id, name: String(row.name ?? "") } : null;
+      return id
+        ? { id, name: String(row.name ?? ""), sandboxEnabled: Boolean(row.sandboxEnabled) }
+        : null;
     })
     .filter((a): a is AgentRow => a !== null);
 }
@@ -70,6 +80,8 @@ function PlaygroundContent() {
   const [selectedId, setSelectedId] = React.useState<string | null>(queryAgentId || ARCHITECT);
   const [tab, setTab] = React.useState<TabId>("chat");
   const [memoryOpen, setMemoryOpen] = React.useState(false);
+  const [terminalOpen, setTerminalOpen] = React.useState(false);
+  const [toolCalls, setToolCalls] = React.useState<ChatToolCall[]>([]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -157,6 +169,18 @@ function PlaygroundContent() {
               Files
             </Button>
 
+            {selectedAgent?.sandboxEnabled && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setTerminalOpen(true)}
+                className="h-8 gap-1.5 text-xs font-medium"
+              >
+                <TerminalIcon className="size-3.5 text-primary" />
+                Terminal
+              </Button>
+            )}
+
             <Select
               value={selectValue}
               onValueChange={handleSelectAgent}
@@ -237,6 +261,7 @@ function PlaygroundContent() {
                       key={selectedAgent.id}
                       projectId={projectId}
                       agentId={selectedAgent.id}
+                      onToolCallsChange={selectedAgent.sandboxEnabled ? setToolCalls : undefined}
                     />
                   </TabsContent>
                 ) : (
@@ -260,6 +285,12 @@ function PlaygroundContent() {
         projectId={projectId}
         activeAgentId={selectedAgent?.id}
         agents={agents}
+      />
+
+      <SandboxTerminalDialog
+        open={terminalOpen}
+        onOpenChange={setTerminalOpen}
+        toolCalls={toolCalls}
       />
     </div>
   );

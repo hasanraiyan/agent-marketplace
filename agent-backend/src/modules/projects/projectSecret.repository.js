@@ -19,6 +19,10 @@ class ProjectSecretRepository {
     return await ProjectSecret.find({ project: projectId }).sort({ createdAt: 1 });
   }
 
+  async findByProjectAndLabel(projectId, label) {
+    return await ProjectSecret.findOne({ project: projectId, label });
+  }
+
   async update(id, projectId, updateData) {
     const secret = await ProjectSecret.findOneAndUpdate(
       { _id: id, project: projectId },

@@ -8,6 +8,8 @@ import { resolveRestApiToolSourceTools } from '../restApiToolSources/restApiTool
 import { resolveRcpSourceTools } from '../rcpSources/rcpSource.tools.js';
 import { resolveKnowledgeBaseTools } from '../knowledge/knowledge.tools.js';
 import { presentFileTool } from './present.tool.js';
+import projectSecretService from '../projects/projectSecret.service.js';
+import { PERSONA_DOMAIN } from '../auth/personaPrincipalContext.js';
 
 // Defined in a leaf constants module so consumers that sit inside import
 // cycles with this module (e.g. agentFactory) can import it safely.
@@ -17,6 +19,24 @@ import {
   DEVELOPER_ARCHITECT_AGENT_ID,
 } from '../agents/architectConstants.js';
 export { ARCHITECT_AGENT_ID, PROJECT_ARCHITECT_AGENT_ID, DEVELOPER_ARCHITECT_AGENT_ID };
+
+/**
+ * A Project-owned agent's web search prefers its own Project's
+ * `TAVILY_API_KEY` secret (same per-Project secret pattern as the sandbox's
+ * `CSB_API_KEY`); falls back to the platform-wide env var when the Project
+ * hasn't added one, or for a Persona (non-Project) agent, which has no
+ * Project to hold a secret in at all.
+ */
+async function resolveTavilyApiKey(context) {
+  if (context?.domain && context.domain !== PERSONA_DOMAIN) {
+    const projectKey = await projectSecretService.resolveSecretByLabel(
+      context.domain,
+      'TAVILY_API_KEY'
+    );
+    if (projectKey) return projectKey;
+  }
+  return process.env.TAVILY_API_KEY || null;
+}
 
 /**
  * @param {Object} agentConfig - The Mongoose Agent document or System Agent object
@@ -65,7 +85,8 @@ export const resolveAgentTools = async (
 
   // 2. Core Engine Web Search parsing
   if (agentConfig.webSearchEnabled) {
-    const searchTool = getSearchTool();
+    const tavilyApiKey = await resolveTavilyApiKey(context);
+    const searchTool = getSearchTool(tavilyApiKey);
     if (searchTool) tools.push(searchTool);
   }
 
@@ -109,7 +130,9 @@ export const resolveAgentTools = async (
 export const getAvailableTools = () => {
   const tools = [askClarificationTool(), presentFileTool()];
 
-  const searchTool = getSearchTool();
+  // No agent/context here (backend scripts outside the Chat loop) — the
+  // platform-wide env var is the only key available.
+  const searchTool = getSearchTool(process.env.TAVILY_API_KEY || null);
   if (searchTool) tools.push(searchTool);
 
   return tools;

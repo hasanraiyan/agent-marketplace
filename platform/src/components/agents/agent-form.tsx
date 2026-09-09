@@ -81,6 +81,7 @@ interface AgentDoc {
   providerId?: string | { _id?: string; id?: string };
   modelName?: string;
   webSearchEnabled?: boolean;
+  sandboxEnabled?: boolean;
   visibility?: Visibility;
   category?: Category;
   isActive?: boolean;
@@ -101,6 +102,7 @@ interface AgentFormState {
   providerId: string;
   modelName: string;
   webSearchEnabled: boolean;
+  sandboxEnabled: boolean;
   visibility: Visibility;
   category: Category;
   isActive: boolean;
@@ -119,6 +121,7 @@ const EMPTY_FORM: AgentFormState = {
   providerId: "",
   modelName: "",
   webSearchEnabled: false,
+  sandboxEnabled: false,
   visibility: "private",
   category: "other",
   isActive: true,
@@ -248,6 +251,7 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
           providerId,
           modelName: str(found, "modelName"),
           webSearchEnabled: !!found.webSearchEnabled,
+          sandboxEnabled: !!found.sandboxEnabled,
           visibility: (found.visibility as Visibility) || "private",
           category: (found.category as Category) || "other",
           isActive: found.isActive !== false,
@@ -407,6 +411,7 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
       systemPrompt,
       providerId: form.providerId,
       webSearchEnabled: form.webSearchEnabled,
+      sandboxEnabled: form.sandboxEnabled,
       visibility: form.visibility,
       category: form.category,
       isActive: form.isActive,
@@ -705,12 +710,39 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
                       <Label htmlFor="webSearchEnabled" className="text-sm font-medium">
                         Web search
                       </Label>
-                      <span className="text-xs text-muted-foreground">Allow the agent to search the web</span>
+                      <span className="text-xs text-muted-foreground">
+                        Allow the agent to search the web. Uses the platform&apos;s search key by
+                        default — add a <code className="font-mono">TAVILY_API_KEY</code>{" "}
+                        <Link href={`/projects/${pid}/secrets`} className="underline underline-offset-2">
+                          Project Secret
+                        </Link>{" "}
+                        to use this Project&apos;s own key instead.
+                      </span>
                     </div>
                     <Switch
                       id="webSearchEnabled"
                       checked={form.webSearchEnabled}
                       onCheckedChange={(c) => update("webSearchEnabled", !!c)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-none border border-dashed bg-muted/10 px-3 py-2.5">
+                    <div className="flex flex-col gap-0.5">
+                      <Label htmlFor="sandboxEnabled" className="text-sm font-medium">
+                        Sandbox
+                      </Label>
+                      <span className="text-xs text-muted-foreground">
+                        Let the agent run real shell commands in an isolated CodeSandbox VM.
+                        Requires a <code className="font-mono">CSB_API_KEY</code>{" "}
+                        <Link href={`/projects/${pid}/secrets`} className="underline underline-offset-2">
+                          Project Secret
+                        </Link>
+                        .
+                      </span>
+                    </div>
+                    <Switch
+                      id="sandboxEnabled"
+                      checked={form.sandboxEnabled}
+                      onCheckedChange={(c) => update("sandboxEnabled", !!c)}
                     />
                   </div>
                   <div className="flex items-center justify-between rounded-none border border-dashed bg-muted/10 px-3 py-2.5">

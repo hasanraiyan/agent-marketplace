@@ -4,6 +4,7 @@ import User from '../users/user.model.js';
 import crypto from 'crypto';
 import { PERSONA_DOMAIN } from '../auth/personaPrincipalContext.js';
 import { scopedFilter } from '../../utils/domainQuery.js';
+import projectSecretService from '../projects/projectSecret.service.js';
 
 /**
  * Developer Platform (AD-06 §23, §12; blueprint Phase 9, PR-25): validates
@@ -37,6 +38,32 @@ async function assertOwnsProvider(context, providerId) {
 
   if (provider.ownerId.toString() !== String(context?.personaUserId)) {
     throw new Error('Invalid provider');
+  }
+}
+
+/**
+ * Blocks turning `sandboxEnabled` on until the agent's Project has added a
+ * `CSB_API_KEY` ProjectSecret — surfaces the "add it first" message at the
+ * point the user actually flips the toggle, rather than only discovering it
+ * later as a silent fallback to the virtual filesystem when they try to
+ * chat. Skips entirely when `sandboxEnabled` isn't being changed to `true`.
+ *
+ * Sandbox access only exists for Project-owned agents (a ProjectSecret is
+ * scoped to a Project, and Persona's own `domain` is always the constant
+ * `PERSONA_DOMAIN`, not a real Project) — so a Persona-context agent is
+ * rejected outright rather than with the (inapplicable) "add a secret"
+ * message.
+ */
+async function assertSandboxSecretAvailable(context, sandboxEnabled) {
+  if (!sandboxEnabled) return;
+
+  if (!context?.domain || context.domain === PERSONA_DOMAIN) {
+    throw new Error('Sandbox execution is only available for Project-owned agents.');
+  }
+
+  const apiKey = await projectSecretService.resolveSecretByLabel(context.domain, 'CSB_API_KEY');
+  if (!apiKey) {
+    throw new Error('Add a Project Secret named CSB_API_KEY before enabling the sandbox.');
   }
 }
 
@@ -232,6 +259,7 @@ class AgentService {
     if (!user) throw new Error('User not found');
 
     await assertOwnsProvider(personaExecutionContext(userId), data.providerId);
+    await assertSandboxSecretAvailable(personaExecutionContext(userId), data.sandboxEnabled);
 
     const mainAgent = await agentRepository.findOne({
       ownerId: userId,
@@ -397,6 +425,7 @@ class AgentService {
     }
 
     await assertOwnsProvider(context, updateData.providerId);
+    await assertSandboxSecretAvailable(context, updateData.sandboxEnabled);
 
     // Never allow updating ownerId, externalOwnerId, ownerType, domain, or
     // slug directly via this route.
@@ -460,6 +489,7 @@ class AgentService {
     }
 
     await assertOwnsProvider(context, data.providerId);
+    await assertSandboxSecretAvailable(context, data.sandboxEnabled);
 
     const agentData = {
       ...data,

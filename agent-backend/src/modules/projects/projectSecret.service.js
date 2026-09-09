@@ -147,6 +147,25 @@ class ProjectSecretService {
   }
 
   /**
+   * Internal-only — never exposed via any controller. Resolves a well-known
+   * ProjectSecret by label rather than by id — unlike `resolvePlaintext`,
+   * callers here (the sandbox enable-time guard in agent.service.js,
+   * sandbox.service.js and tools/index.js at agent-build time) don't have a
+   * stored `secretRef`, just the convention that a given integration's key
+   * lives under an exact label (e.g. `CSB_API_KEY`, `TAVILY_API_KEY`).
+   * Returns `null` (never throws) when the Project hasn't added one yet —
+   * every caller treats "no key" as an expected, user-actionable state, not
+   * an error.
+   */
+  async resolveSecretByLabel(domain, label) {
+    const secret = await projectSecretRepository.findByProjectAndLabel(domain, label);
+    if (!secret) return null;
+    const value = encryption.decrypt(secret.valueEncrypted);
+    projectSecretRepository.touchLastUsedAt(secret._id).catch(() => {});
+    return value;
+  }
+
+  /**
    * Internal-only — never exposed via any controller. The one function the
    * RestApiTool executor calls to get a presentable plaintext secret value.
    * Deliberately takes just `secretId` (no context): the executor only
