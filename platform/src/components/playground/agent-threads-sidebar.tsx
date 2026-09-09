@@ -3,7 +3,7 @@
 import * as React from "react";
 import {
   ChatCircleDotsIcon,
-  PlusIcon,
+  NotePencilIcon,
   DotsThreeVerticalIcon,
   PencilSimpleIcon,
   TrashIcon,
@@ -198,9 +198,9 @@ export function AgentThreadsSidebar({
           className="h-7 gap-1 px-2 text-xs font-medium"
         >
           {creating ? (
-            <SpinnerIcon className="size-3 animate-spin" />
+            <SpinnerIcon className="size-3.5 animate-spin" />
           ) : (
-            <PlusIcon className="size-3" />
+            <NotePencilIcon className="size-3.5" />
           )}
           <span>New</span>
         </Button>
