@@ -28,6 +28,7 @@ describe('AgentsResource', () => {
       systemPrompt: 'You help students.',
       providerId: 'p1',
       webSearchEnabled: false,
+      sandboxEnabled: false,
       visibility: 'private',
       category: 'other',
       isActive: true,

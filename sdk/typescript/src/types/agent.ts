@@ -43,6 +43,8 @@ export interface Agent {
   /** Overrides the referenced Provider's `defaultModel` when set. */
   modelName?: string;
   webSearchEnabled: boolean;
+  /** Real shell execution in an isolated CodeSandbox VM. Requires a `CSB_API_KEY` Project Secret to exist first (there is no `secrets` SDK resource yet — create one via the platform UI or `POST /api/v1/developer/secrets`). */
+  sandboxEnabled: boolean;
   visibility: AgentVisibility;
   category: AgentCategory;
   /** Bare id strings on `create`/`update`/`list`; populated objects on `get()`. */
@@ -79,6 +81,8 @@ export interface CreateAgentInput {
   modelName?: string;
   /** @default false */
   webSearchEnabled?: boolean;
+  /** @default false */
+  sandboxEnabled?: boolean;
   /** @default 'private' */
   visibility?: AgentVisibility;
   /** @default 'other' */
@@ -111,6 +115,7 @@ export interface UpdateAgentInput {
   providerId?: string;
   modelName?: string;
   webSearchEnabled?: boolean;
+  sandboxEnabled?: boolean;
   /** Replaces the entire array — this is not a merge/append. */
   skills?: string[];
   /** Replaces the entire array — this is not a merge/append. */

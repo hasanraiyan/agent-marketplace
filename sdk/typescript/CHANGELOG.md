@@ -3,6 +3,16 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.7.5
+
+- **New: `Agent.sandboxEnabled` / `CreateAgentInput.sandboxEnabled` / `UpdateAgentInput.sandboxEnabled`.**
+  When `true`, the Agent gets real shell execution in an isolated CodeSandbox VM instead of the
+  default virtual (MongoDB-backed) workspace filesystem. Requires a `CSB_API_KEY` Project Secret to
+  exist first — there is no `secrets` SDK resource yet, so create one via the platform UI or
+  `POST /api/v1/developer/secrets` directly. Setting it to `true` without that secret present is
+  rejected with a 400. `@default false`. Requires `agent-backend`'s matching support (shipped
+  alongside this release).
+
 ## 0.7.4
 
 - **New: `chat.stream()`/`chat.sendMessage()` accept `context: Record<string, unknown>`.** Distinct
