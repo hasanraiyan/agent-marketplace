@@ -95,7 +95,7 @@ class ProjectAgentTestController {
       send({ type: EventType.RUN_STARTED, threadId: langGraphThreadId, runId });
       for await (const event of runAgentAsAguiEvents({
         agentId,
-        userId: context.personaUserId || context.domain,
+        userId: context.domain,
         langGraphThreadId,
         threadDbId: resolvedThread?._id,
         messages: input.messages || [],

@@ -190,6 +190,17 @@ function AgentChatInner({
     onToolCallsChange?.(Array.from(view.toolCallsById.values()));
   }, [view.toolCallsById, onToolCallsChange]);
 
+  React.useEffect(() => {
+    if (onWorkspaceFilesChange && chat.agentState?.files) {
+      onWorkspaceFilesChange(
+        chat.agentState.files as Record<
+          string,
+          { content: string; size: number; createdAt: string | null; modifiedAt: string | null }
+        >
+      );
+    }
+  }, [chat.agentState?.files, onWorkspaceFilesChange]);
+
   // ── Composer ────────────────────────────────────────────────────────────
   const [input, setInput] = React.useState("");
   const handleSend = React.useCallback(async () => {

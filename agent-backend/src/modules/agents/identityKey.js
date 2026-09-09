@@ -15,7 +15,11 @@
  * different namespace than the one a live agent run actually uses.
  */
 export function buildIdentityKey(executionContext, userId) {
-  return executionContext?.principalType === 'ProjectRuntime'
-    ? `${executionContext.domain}:${executionContext.externalUserId}`
-    : String(userId);
+  if (executionContext?.principalType === 'ProjectRuntime') {
+    return `${executionContext.domain}:${executionContext.externalUserId}`;
+  }
+  if (executionContext?.principalType === 'ProjectAdmin') {
+    return String(executionContext.domain);
+  }
+  return String(userId);
 }

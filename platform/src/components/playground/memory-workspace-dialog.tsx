@@ -136,8 +136,9 @@ export function MemoryWorkspaceDialog({
 
     const currentData = memoryData ?? { userFiles: [], agentMemories: [], agentWorkspaces: [] };
 
-    const activeAgent = activeAgentId
-      ? agents.find((a) => String(a.id) === String(activeAgentId))
+    const currentAgentId = activeAgentId ? String(activeAgentId) : null;
+    const activeAgent = currentAgentId
+      ? agents.find((a) => String(a.id) === currentAgentId || String((a as unknown as { _id?: string })._id) === currentAgentId)
       : null;
 
     // 1. Build files under "memories":
@@ -148,8 +149,8 @@ export function MemoryWorkspaceDialog({
       content: f.content || "",
     }));
 
-    const agentGroup = activeAgent
-      ? (currentData.agentMemories || []).find((g) => String(g.agentId) === String(activeAgent.id))
+    const agentGroup = currentAgentId
+      ? (currentData.agentMemories || []).find((g) => String(g.agentId) === currentAgentId)
       : null;
     const agentFiles = agentGroup?.files || [];
     const agentExplorerFiles: ExplorerFile[] = agentFiles.map((f) => ({
@@ -161,38 +162,36 @@ export function MemoryWorkspaceDialog({
       id: "memories",
       name: "memories",
       type: "memories",
-      agentId: activeAgent?.id,
+      agentId: activeAgent?.id || currentAgentId || undefined,
       agentName: activeAgent?.name,
       files: [...agentExplorerFiles, ...userExplorerFiles],
     };
 
     // 2. Build files under "workspace":
-    // Live agent state (chat.agentState.files, bubbled up from AgentChat)
-    // wins when present — the Mongo-backed agentWorkspaces group below is a
-    // separate, human-edited-only store nothing ever syncs from a live run
-    // into, so it can't be trusted to reflect what the agent actually wrote.
-    let wsExplorerFiles: ExplorerFile[];
-    if (liveWorkspaceFiles) {
-      wsExplorerFiles = Object.entries(liveWorkspaceFiles).map(([path, f]) => ({
-        path: stripWorkspacePrefix(path),
-        content: f.content || "",
-      }));
-    } else {
-      const wsGroup = activeAgent
-        ? (currentData.agentWorkspaces || []).find((g) => String(g.agentId) === String(activeAgent.id))
-        : null;
-      const wsFiles = wsGroup?.files || [];
-      wsExplorerFiles = wsFiles.map((f) => ({
-        path: stripLeadingSlash(f.path),
-        content: f.content || "",
-      }));
+    // Merge persistent MongoDB-backed workspace files with any live in-memory files.
+    const wsGroup = currentAgentId
+      ? (currentData.agentWorkspaces || []).find((g) => String(g.agentId) === currentAgentId)
+      : null;
+    const wsFiles = wsGroup?.files || [];
+    const wsFilesMap = new Map<string, string>();
+    for (const f of wsFiles) {
+      wsFilesMap.set(stripLeadingSlash(f.path), f.content || "");
     }
+    if (liveWorkspaceFiles && Object.keys(liveWorkspaceFiles).length > 0) {
+      for (const [path, f] of Object.entries(liveWorkspaceFiles)) {
+        wsFilesMap.set(stripWorkspacePrefix(path), f.content || "");
+      }
+    }
+    const wsExplorerFiles: ExplorerFile[] = Array.from(wsFilesMap.entries()).map(([path, content]) => ({
+      path,
+      content,
+    }));
 
     const workspaceItem: MemoryItem = {
       id: "workspace",
       name: "workspace",
       type: "workspace",
-      agentId: activeAgent?.id,
+      agentId: activeAgent?.id || currentAgentId || undefined,
       agentName: activeAgent?.name,
       files: wsExplorerFiles,
     };
