@@ -1,4 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+
+const PLATFORM_URL = process.env.NEXT_PUBLIC_PLATFORM_URL || "https://platform.persona.hasanraiyan.me";
 
 const isPublicRoute = createRouteMatcher([
   "/",
@@ -11,6 +14,26 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, request) => {
+  const { pathname, search } = request.nextUrl;
+
+  if (pathname === "/developer" || pathname === "/developer/") {
+    return NextResponse.redirect(new URL(`/projects${search}`, PLATFORM_URL));
+  }
+  if (pathname.startsWith("/developer/projects")) {
+    const subpath = pathname.replace(/^\/developer\/projects/, "/projects");
+    return NextResponse.redirect(new URL(`${subpath}${search}`, PLATFORM_URL));
+  }
+  if (pathname.startsWith("/developer/")) {
+    const subpath = pathname.replace(/^\/developer/, "");
+    return NextResponse.redirect(new URL(`${subpath}${search}`, PLATFORM_URL));
+  }
+  if (pathname === "/projects" || pathname === "/projects/") {
+    return NextResponse.redirect(new URL(`/projects${search}`, PLATFORM_URL));
+  }
+  if (pathname.startsWith("/projects/")) {
+    return NextResponse.redirect(new URL(`${pathname}${search}`, PLATFORM_URL));
+  }
+
   if (!isPublicRoute(request)) {
     await auth.protect();
   }

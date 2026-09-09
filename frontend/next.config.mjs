@@ -11,13 +11,33 @@ const nextConfig = {
   async redirects() {
     return [
       {
+        source: '/developer/projects',
+        destination: 'https://platform.persona.hasanraiyan.me/projects',
+        permanent: false,
+      },
+      {
+        source: '/developer/projects/:path*',
+        destination: 'https://platform.persona.hasanraiyan.me/projects/:path*',
+        permanent: false,
+      },
+      {
+        source: '/developer',
+        destination: 'https://platform.persona.hasanraiyan.me/projects',
+        permanent: false,
+      },
+      {
+        source: '/developer/:path*',
+        destination: 'https://platform.persona.hasanraiyan.me/:path*',
+        permanent: false,
+      },
+      {
         source: '/projects',
-        destination: '/developer/projects',
+        destination: 'https://platform.persona.hasanraiyan.me/projects',
         permanent: false,
       },
       {
         source: '/projects/:path*',
-        destination: '/developer/projects/:path*',
+        destination: 'https://platform.persona.hasanraiyan.me/projects/:path*',
         permanent: false,
       },
     ]
