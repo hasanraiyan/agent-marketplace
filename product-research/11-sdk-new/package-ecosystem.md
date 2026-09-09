@@ -164,18 +164,18 @@ graph TD
 
 ---
 
-### 7. `@personaai/nestjs` — NestJS Adapter
+### 7. `@personaai/nestjs` — NestJS Adapter (now part of `@personaai/adapters`)
 
-> **Shipped** (v0.1.0). Adapter using NestJS idioms.
+> ✅ **Shipped** as part of `@personaai/adapters` v0.1.0 — `import { PersonaModule } from '@personaai/adapters/nestjs'`. The standalone `@personaai/nestjs` package is now a deprecated shim re-exporting from `@personaai/adapters`.
 
 | | |
 |---|---|
 | **Audience** | NestJS developers (enterprise, teams) |
 | **Environment** | Server-side only |
-| **Depends on** | `@personaai/runtime` |
-| **Used by** | Developers directly |
-| **What it does** | Exposes the runtime as a NestJS Dynamic Module. User resolver provided via a decorator or injectable service. Feels native to the NestJS dependency injection system. |
-| **Why it's different** | NestJS has strong opinions about modules, decorators, and dependency injection. A simple router mount would feel foreign. This adapter speaks NestJS's language. |
+| **Depends on** | `@personaai/adapters` → `@personaai/runtime` |
+| **Used by** | Developers directly via `@personaai/adapters/nestjs` |
+| **What it does** | Exposes the runtime as a NestJS Dynamic Module. User resolver provided via `resolveUser` / `resolveUserFrom`. Feels native to NestJS DI. Shares `src/shared/` core with Express/Next.js — no drift. |
+| **Why it's different** | NestJS has strong opinions about modules, decorators, and DI. A simple router mount would feel foreign. This adapter speaks NestJS's language, now via the unified package. |
 
 ---
 
@@ -275,16 +275,15 @@ graph TD
 Developer installs          Pulls in automatically
 ──────────────────          ──────────────────────
 
-@personaai/nextjs     →     @personaai/runtime → @personaai/sdk
-                      →     @personaai/react   → @personaai/sdk
-
-@personaai/express    →     @personaai/runtime → @personaai/sdk
+@personaai/adapters   →     @personaai/runtime → @personaai/sdk
+  ├─ /express               @personaai/react   → @personaai/sdk (nextjs client)
+  ├─ /nextjs
+  ├─ /nextjs/server
+  └─ /nestjs
 
 @personaai/fastify    →     @personaai/runtime → @personaai/sdk
 
 @personaai/hono       →     @personaai/runtime → @personaai/sdk
-
-@personaai/nestjs     →     @personaai/runtime → @personaai/sdk
 
 @personaai/node       →     @personaai/runtime → @personaai/sdk
 
@@ -294,6 +293,9 @@ Developer installs          Pulls in automatically
                       →     @personaai/themes
 
 @personaai/themes     →     (nothing)
+
+Legacy shims (@personaai/nextjs, @personaai/express, @personaai/nestjs)
+  → re-export from @personaai/adapters (deprecated, will be removed in 1.0)
 ```
 
 ---
@@ -304,10 +306,11 @@ Most developers install **one or two packages**. Never more.
 
 | Scenario | Installs | Total packages |
 |---|---|---|
-| **Next.js full-stack (most common)** | `@personaai/nextjs` | **1** |
-| **Next.js + pre-built UI** | `@personaai/nextjs` + `@personaai/ui` | **2** |
-| **Express + React frontend** | `@personaai/express` + `@personaai/react` | **2** |
-| **Express + pre-built UI** | `@personaai/express` + `@personaai/ui` | **2** |
+| **Next.js full-stack (most common)** | `@personaai/adapters` | **1** |
+| **Next.js + pre-built UI** | `@personaai/adapters` + `@personaai/ui` | **2** |
+| **Express + React frontend** | `@personaai/adapters` + `@personaai/react` | **2** |
+| **Express + pre-built UI** | `@personaai/adapters` + `@personaai/ui` | **2** |
+| **NestJS + React frontend** | `@personaai/adapters` + `@personaai/react` | **2** |
 | **Hono API + no frontend** | `@personaai/hono` | **1** |
 | **Raw SDK (power users)** | `@personaai/sdk` | **1** |
 | **Custom framework** | `@personaai/node` + `@personaai/react` | **2** |
@@ -336,18 +339,17 @@ These two packages define the runtime contract and the frontend contract. Everyt
 
 After Wave 2, a Next.js developer can go from install to streaming conversation. The core promise is deliverable.
 
-### Wave 3 — Framework Expansion
+### Wave 3 — Framework Expansion (Unified)
 
 | Package | Why third |
 |---|---|
-| `@personaai/express` | Second largest audience. Many existing backends. |
+| `@personaai/adapters` (`express`/`nextjs`/`nestjs`) | Single dep, shared `src/shared/` core — fixes drift, one publish, one version. Covers second-largest audience (Express) + hero (Next.js) + enterprise (NestJS) together. |
 | `@personaai/hono` | Rising fast. Edge runtime support. |
 | `@personaai/fastify` | Strong ecosystem. Performance-focused teams. |
 
 These are thin adapters over `@personaai/runtime`. If the runtime is solid from Wave 1, these should be fast to build.
 
-✅ **`@personaai/express` is shipped** (v0.1.0 published);
-✅ **`@personaai/nestjs` is shipped** (v0.1.0 published);
+✅ **`@personaai/adapters` is shipped** (v0.1.0 published — `express`/`nextjs`/`nestjs` via subpaths, legacy names deprecated shims);
 `@personaai/hono` and `@personaai/fastify` remain.
 
 ### Wave 4 — The Experience Layer
@@ -356,7 +358,6 @@ These are thin adapters over `@personaai/runtime`. If the runtime is solid from 
 |---|---|
 | `@personaai/ui` | ✅ **Shipped** (v0.7.3). |
 | `@personaai/themes` | Not yet started — genuinely still future work. |
-| `@personaai/nestjs` | ✅ **Shipped** (v0.1.0). |
 
 `@personaai/ui` shipped with its own inline theming system (`PersonaCustomTheme` + CSS custom properties) rather than a separate `@personaai/themes` package — the themes package may still be useful for sharing presets across projects, but is not required for UI components to work.
 
@@ -397,26 +398,27 @@ The Python SDK (`personaai`) already exists as the Level 1 equivalent. The Pytho
 | Category | Packages | Names |
 |---|---|---|
 | **Foundation** | 2 | `sdk`, `runtime` |
-| **Framework adapters** | 5 | `nextjs`, `express`, `fastify`, `hono`, `nestjs` |
+| **Framework adapters (unified)** | 1 (+2 legacy shims) | `adapters` (`express`/`nextjs`/`nestjs` via subpaths) + `fastify`, `hono` |
 | **Escape hatch** | 1 | `node` |
 | **Frontend** | 2 | `react`, `ui` |
 | **Theming** | 1 | `themes` |
-| **Total** | **11** | |
+| **Total** | **9 (11 with legacy shims)** | |
 
 Plus 1 existing Python SDK.
 
-**11 JavaScript packages. That's the ecosystem.**
+**9 JavaScript packages (11 with legacy shims). That's the ecosystem.**
 
 ```
 @personaai/sdk          ← Shipped (v0.4.2)
-@personaai/runtime      ← Shipped (v0.5.1)
+@personaai/runtime      ← Shipped (v0.9.5)
 @personaai/react        ← Shipped (v0.3.2)
-@personaai/nextjs       ← New (Wave 2)
+@personaai/adapters     ← Shipped (v0.1.0) — express/nextjs/nestjs unified
 @personaai/node         ← New (Wave 2)
-@personaai/express      ← Shipped (v0.1.0)
 @personaai/hono         ← New (Wave 3)
 @personaai/fastify      ← New (Wave 3)
 @personaai/ui           ← Shipped (v0.7.3)
 @personaai/themes       ← New (future)
-@personaai/nestjs       ← Shipped (v0.1.0)
+@personaai/nextjs       ← Deprecated shim → @personaai/adapters/nextjs
+@personaai/express      ← Deprecated shim → @personaai/adapters/express
+@personaai/nestjs       ← Deprecated shim → @personaai/adapters/nestjs
 ```
