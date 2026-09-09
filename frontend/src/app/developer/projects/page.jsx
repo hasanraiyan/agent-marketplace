@@ -21,7 +21,17 @@ import {
   EmptyDescription,
   EmptyMedia,
 } from "@/components/ui/empty";
-import { Plus, Search, FolderKanban, ArrowRight } from "lucide-react";
+import {
+  Plus,
+  Search,
+  FolderKanban,
+  ArrowRight,
+  BookOpen,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
+import { DeveloperOnboardingHub } from "@/components/developer/developer-onboarding-hub";
 
 // Badge has no real "success" variant (only default/secondary/destructive/
 // outline/ghost/link) — mirrors the existing workaround in
@@ -82,6 +92,7 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [showGuide, setShowGuide] = useState(false);
 
   useDashboardHeader(
     {
@@ -144,48 +155,79 @@ export default function ProjectsPage() {
     );
   }
 
+  // First-time developer onboarding state: When the user has zero projects,
+  // show the rich Developer Onboarding Hub with interactive steps, code tabs,
+  // blueprints, and instant project launch.
+  if (projects.length === 0) {
+    return (
+      <div className="flex flex-1 flex-col gap-8 overflow-y-auto p-4 md:p-8">
+        <DeveloperOnboardingHub
+          onProjectCreated={(newProj) => {
+            setProjects((prev) => [newProj, ...prev]);
+          }}
+        />
+      </div>
+    );
+  }
+
+  // Active developer state: When user has projects
   return (
     <div className="flex flex-1 flex-col gap-8 overflow-y-auto p-4 md:p-6">
-      <h1 className="font-display text-2xl font-semibold tracking-tight md:text-3xl">
-        {timeGreeting()}
-        {user?.firstName ? `, ${user.firstName}` : ""}
-      </h1>
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div>
+          <h1 className="font-display text-2xl font-semibold tracking-tight md:text-3xl">
+            {timeGreeting()}
+            {user?.firstName ? `, ${user.firstName}` : ""}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage your external application workspaces, credentials, and agent runtimes.
+          </p>
+        </div>
 
-      <Card className="overflow-hidden bg-gradient-to-br from-primary/[0.06] via-transparent to-transparent">
-        <CardContent className="flex flex-col justify-between gap-6 p-6 sm:flex-row sm:items-center sm:p-8">
-          <div className="max-w-lg">
-            <h2 className="font-display text-xl font-semibold md:text-2xl">
-              {projects.length === 0
-                ? "Ship your first Project"
-                : "Build your next integration"}
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              A Project is how an external app consumes Persona&apos;s agent
-              infrastructure — its own credentials, Agents, and REST tools.
-            </p>
-            <Link
-              href={developerRoutes.projectNew}
-              className="mt-5 inline-block"
-            >
-              <Button className="rounded-full px-5 font-bold shadow-sm">
-                New Project
-                <ArrowRight data-icon="inline-end" />
-              </Button>
-            </Link>
-          </div>
-          <div
-            aria-hidden
-            className="flex size-28 shrink-0 items-center justify-center self-center rounded-2xl bg-primary/10 sm:size-32"
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowGuide((prev) => !prev)}
+            className="gap-1.5 rounded-full text-xs font-semibold"
           >
-            <FolderKanban className="size-12 text-primary sm:size-14" />
-          </div>
-        </CardContent>
-      </Card>
+            <BookOpen className="size-3.5" />
+            {showGuide ? "Hide Quickstart" : "Developer Quickstart"}
+            {showGuide ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+          </Button>
 
+          <Link href={developerRoutes.projectNew}>
+            <Button size="sm" className="rounded-full bg-[#1E60FF] px-4 font-bold text-white shadow-sm hover:bg-[#154ed0]">
+              <Plus className="mr-1 size-3.5" />
+              New Project
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {/* Collapsible Onboarding Hub & SDK Guide */}
+      {showGuide && (
+        <div className="rounded-3xl border border-primary/20 bg-muted/20 p-6">
+          <DeveloperOnboardingHub
+            onProjectCreated={(newProj) => {
+              setProjects((prev) => [newProj, ...prev]);
+              setShowGuide(false);
+            }}
+          />
+        </div>
+      )}
+
+      {/* Projects List Section */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-4">
-          <h3 className="text-sm font-bold text-muted-foreground">Recents</h3>
-          <div className="relative w-full max-w-56">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold text-foreground">Your Projects</h2>
+            <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-xs">
+              {projects.length}
+            </Badge>
+          </div>
+
+          <div className="relative w-full max-w-64">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search projects…"
@@ -197,7 +239,7 @@ export default function ProjectsPage() {
         </div>
 
         {filteredProjects.length > 0 ? (
-          <div className="overflow-hidden rounded-xl border">
+          <div className="overflow-hidden rounded-2xl border bg-card shadow-xs">
             {filteredProjects.map((project) => (
               <Link
                 key={project._id}
@@ -212,11 +254,11 @@ export default function ProjectsPage() {
                   </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">
+                  <p className="truncate text-sm font-semibold text-foreground">
                     {project.name}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {project.slug || "—"}
+                    {project.slug || project._id}
                   </p>
                 </div>
                 <Badge
@@ -230,6 +272,7 @@ export default function ProjectsPage() {
                     ? new Date(project.createdAt).toLocaleDateString()
                     : "—"}
                 </span>
+                <ArrowRight className="size-4 text-muted-foreground" />
               </Link>
             ))}
           </div>
@@ -239,15 +282,9 @@ export default function ProjectsPage() {
               <FolderKanban />
             </EmptyMedia>
             <EmptyHeader>
-              <EmptyTitle>
-                {projects.length === 0
-                  ? "No Projects yet"
-                  : "No Projects match your search"}
-              </EmptyTitle>
+              <EmptyTitle>No Projects match your search</EmptyTitle>
               <EmptyDescription>
-                {projects.length === 0
-                  ? "Create a Project to start consuming Persona's agent infrastructure from your own app."
-                  : "Try a different name or slug."}
+                Try searching with a different project name or slug.
               </EmptyDescription>
             </EmptyHeader>
           </Empty>

@@ -8,6 +8,20 @@ const nextConfig = {
       },
     ]
   },
+  async redirects() {
+    return [
+      {
+        source: '/projects',
+        destination: '/developer/projects',
+        permanent: false,
+      },
+      {
+        source: '/projects/:path*',
+        destination: '/developer/projects/:path*',
+        permanent: false,
+      },
+    ]
+  },
 };
 
 export default nextConfig;
