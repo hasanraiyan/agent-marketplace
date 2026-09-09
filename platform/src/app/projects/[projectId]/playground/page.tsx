@@ -2,8 +2,9 @@
 
 import * as React from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { RobotIcon, SparkleIcon, FolderOpenIcon, TerminalIcon, ListIcon } from "@phosphor-icons/react";
+import { SparkleIcon, FolderOpenIcon, TerminalIcon, ListIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
+import { HeaderSlot } from "@/components/layout/project-header";
 import {
   Select,
   SelectTrigger,
@@ -187,43 +188,9 @@ function PlaygroundContent() {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-none bg-primary text-primary-foreground">
-            <RobotIcon className="size-4" />
-          </span>
-          <div className="flex min-w-0 flex-col">
-            <h1 className="text-sm font-semibold tracking-tight">Playground</h1>
-            <p className="truncate text-xs text-muted-foreground">
-              Test an agent live — or ask the Agent Architect to build one from a description.
-            </p>
-          </div>
-        </div>
-
-        {!loading && (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setMemoryOpen(true)}
-              className="h-8 gap-1.5 text-xs font-medium"
-            >
-              <FolderOpenIcon className="size-3.5 text-primary" />
-              Files
-            </Button>
-
-            {selectedAgent?.sandboxEnabled && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setTerminalOpen(true)}
-                className="h-8 gap-1.5 text-xs font-medium"
-              >
-                <TerminalIcon className="size-3.5 text-primary" />
-                Terminal
-              </Button>
-            )}
-
+      {!loading && (
+        <>
+          <HeaderSlot side="left">
             <Select
               value={selectValue}
               onValueChange={handleSelectAgent}
@@ -239,7 +206,7 @@ function PlaygroundContent() {
               <SelectTrigger className="w-fit max-w-60">
                 <SelectValue placeholder="Select an agent…" />
               </SelectTrigger>
-              <SelectContent align="end">
+              <SelectContent align="start">
                 <SelectItem value={ARCHITECT}>
                   <span className="inline-flex items-center gap-1.5">
                     <SparkleIcon className="size-3.5 text-primary" />
@@ -253,9 +220,33 @@ function PlaygroundContent() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-        )}
-      </header>
+          </HeaderSlot>
+
+          <HeaderSlot side="right">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMemoryOpen(true)}
+              className="h-8 gap-1.5 px-2 text-xs font-medium md:px-3"
+            >
+              <FolderOpenIcon className="size-3.5 text-primary" />
+              <span className="hidden md:inline">Files</span>
+            </Button>
+
+            {selectedAgent?.sandboxEnabled && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setTerminalOpen(true)}
+                className="h-8 gap-1.5 px-2 text-xs font-medium md:px-3"
+              >
+                <TerminalIcon className="size-3.5 text-primary" />
+                <span className="hidden md:inline">Terminal</span>
+              </Button>
+            )}
+          </HeaderSlot>
+        </>
+      )}
 
       {/* No horizontal padding on mobile — AgentChat/ArchitectChat/VoiceTab
           each add their own padding around the messages + composer, so this
