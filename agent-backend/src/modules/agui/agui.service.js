@@ -88,14 +88,15 @@ export async function* runAgentAsAguiEvents({
     contentLength: content.length,
   });
 
-  // Fetch thread if threadDbId exists to check if auto-titling is required
+  // Fetch thread if threadDbId or langGraphThreadId exists to check if auto-titling is required
   let thread = null;
-  if (threadDbId) {
+  const lookupThreadId = threadDbId || langGraphThreadId;
+  if (lookupThreadId) {
     try {
-      thread = await threadRepository.findById(threadDbId);
+      thread = await threadRepository.findById(lookupThreadId);
     } catch (err) {
       logger.warn('[AG-UI] failed to fetch thread for auto-titling', {
-        threadDbId,
+        threadDbId: lookupThreadId,
         err: err.message,
       });
     }
@@ -157,8 +158,11 @@ export async function* runAgentAsAguiEvents({
   const isResuming = Boolean(pendingInterrupt);
 
   // Trigger concurrent auto-titling if this is a fresh conversation with default title
+  const DEFAULT_TITLES = ['New Conversation', 'New Chat', 'Main Chat', 'Untitled', 'Default Thread'];
+  const isDefaultTitle =
+    thread && DEFAULT_TITLES.includes(thread.title?.trim());
   let titlePromise = null;
-  if (thread && thread.title === 'New Conversation' && !isResuming && content) {
+  if (isDefaultTitle && !isResuming && content) {
     titlePromise = checkpointService._autoTitleThread(thread, content, llm);
   }
 

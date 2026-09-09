@@ -89,6 +89,23 @@ function PlaygroundContent() {
   >({});
   const [threadsOpen, setThreadsOpen] = React.useState(true);
   const [activeThread, setActiveThread] = React.useState<ProjectAgentThread | null>(null);
+  const [latestTitleUpdate, setLatestTitleUpdate] = React.useState<{
+    threadId: string;
+    title: string;
+  } | null>(null);
+
+  const activeThreadRef = React.useRef(activeThread);
+  React.useEffect(() => {
+    activeThreadRef.current = activeThread;
+  }, [activeThread]);
+
+  const handleTitleGenerated = React.useCallback((newTitle: string) => {
+    setActiveThread((prev) => (prev ? { ...prev, title: newTitle } : null));
+    const currentId = activeThreadRef.current?._id || activeThreadRef.current?.threadId;
+    if (currentId) {
+      setLatestTitleUpdate({ threadId: currentId, title: newTitle });
+    }
+  }, []);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -147,6 +164,7 @@ function PlaygroundContent() {
     const next = value === ARCHITECT ? ARCHITECT : value ?? ARCHITECT;
     setSelectedId(next);
     setActiveThread(null);
+    setLatestTitleUpdate(null);
     setLiveWorkspaceFiles({});
     if (next !== ARCHITECT) setTab("chat");
   };
@@ -297,6 +315,7 @@ function PlaygroundContent() {
                               setActiveThread(null);
                             }
                           }}
+                          updatedTitle={latestTitleUpdate}
                         />
                       )}
                       <div className="flex-1 min-w-0 h-full">
@@ -308,6 +327,7 @@ function PlaygroundContent() {
                           onToolCallsChange={selectedAgent.sandboxEnabled ? setToolCalls : undefined}
                           onOpenFile={handleOpenFile}
                           onWorkspaceFilesChange={setLiveWorkspaceFiles}
+                          onTitleGenerated={handleTitleGenerated}
                         />
                       </div>
                     </div>

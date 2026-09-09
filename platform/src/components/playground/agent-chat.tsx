@@ -130,6 +130,7 @@ function AgentChatInner({
   onToolCallsChange,
   onOpenFile,
   onWorkspaceFilesChange,
+  onTitleGenerated,
 }: {
   projectId: string;
   agentId: string;
@@ -148,6 +149,8 @@ function AgentChatInner({
   onWorkspaceFilesChange?: (
     files: Record<string, { content: string; size: number; createdAt: string | null; modifiedAt: string | null }>
   ) => void;
+  /** Fires when AG-UI emits an auto-generated thread title. */
+  onTitleGenerated?: (title: string) => void;
 }) {
   const url = React.useMemo(
     () =>
@@ -161,6 +164,7 @@ function AgentChatInner({
     threadId,
     initialMessages,
     initialAgentState,
+    onTitleGenerated,
     getToken: React.useCallback(
       () =>
         typeof window !== "undefined"
@@ -430,6 +434,7 @@ function AgentChat({
   onToolCallsChange,
   onOpenFile,
   onWorkspaceFilesChange,
+  onTitleGenerated,
 }: {
   projectId: string;
   agentId: string;
@@ -439,6 +444,8 @@ function AgentChat({
   onWorkspaceFilesChange?: (
     files: Record<string, { content: string; size: number; createdAt: string | null; modifiedAt: string | null }>
   ) => void;
+  /** Fires when AG-UI emits an auto-generated thread title. */
+  onTitleGenerated?: (title: string) => void;
 }) {
   const [initialData, setInitialData] = React.useState<{
     messages: HookChatMessage[];
@@ -494,6 +501,7 @@ function AgentChat({
       onToolCallsChange={onToolCallsChange}
       onOpenFile={onOpenFile}
       onWorkspaceFilesChange={onWorkspaceFilesChange}
+      onTitleGenerated={onTitleGenerated}
     />
   );
 }

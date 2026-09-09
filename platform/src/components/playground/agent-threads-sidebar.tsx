@@ -56,6 +56,7 @@ interface AgentThreadsSidebarProps {
   activeThreadId: string | null;
   onSelectThread: (thread: ProjectAgentThread) => void;
   onThreadDeleted?: (threadId: string) => void;
+  updatedTitle?: { threadId: string; title: string } | null;
   className?: string;
 }
 
@@ -65,6 +66,7 @@ export function AgentThreadsSidebar({
   activeThreadId,
   onSelectThread,
   onThreadDeleted,
+  updatedTitle,
   className,
 }: AgentThreadsSidebarProps) {
   const [threads, setThreads] = React.useState<ProjectAgentThread[]>([]);
@@ -102,6 +104,18 @@ export function AgentThreadsSidebar({
     fetchThreads(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, agentId]);
+
+  React.useEffect(() => {
+    if (updatedTitle?.threadId && updatedTitle?.title) {
+      setThreads((prev) =>
+        prev.map((t) =>
+          t._id === updatedTitle.threadId || t.threadId === updatedTitle.threadId
+            ? { ...t, title: updatedTitle.title }
+            : t
+        )
+      );
+    }
+  }, [updatedTitle]);
 
   React.useEffect(() => {
     if (editingId && editInputRef.current) {
