@@ -1,9 +1,17 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import {
+  CheckCircleIcon,
+  WarningCircleIcon,
+  RobotIcon,
+  GlobeIcon,
+  PlugsIcon,
+  TagIcon,
+  SparkleIcon,
+  FileTextIcon,
+} from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
-import { Spinner } from "@/components/ui/spinner";
 import { MessageMarkdown } from "./message-markdown";
 import type { ChatToolCall } from "./types";
 
@@ -131,9 +139,12 @@ export function summarizeUpsert(toolCall: ChatToolCall): AgentUpsertSummary {
   const title = isError
     ? "Agent not saved"
     : isPending
-      ? isUpdate
-        ? "Updating agent"
-        : "Creating agent"
+      // Once the args have streamed in a name, show it directly (e.g. "Paper
+      // Craft Pro") rather than the generic "Creating agent" — the human
+      // reviewing this HITL card wants to know *which* agent, not just that
+      // one is being written. Falls back to the generic phrasing only while
+      // the name itself hasn't arrived yet.
+      ? name || (isUpdate ? "Updating agent" : "Creating agent")
       : succeeded
         ? isUpdate
           ? "Agent updated"
@@ -145,9 +156,9 @@ export function summarizeUpsert(toolCall: ChatToolCall): AgentUpsertSummary {
   const subtitle = isError
     ? message || "The agent tool reported an error."
     : isPending
-      ? name
-        ? `Applying configuration for ${name}…`
-        : "Applying configuration…"
+      // Same idea for the subtitle: the agent's own description reads as
+      // useful context for approve/reject; "Applying configuration…" doesn't.
+      ? description || (name ? `Applying configuration for ${name}…` : "Applying configuration…")
       : succeeded
         ? `${name || "Agent"} · ${resultAgentId ? shortId(resultAgentId) : "saved"}`
         : name || undefined;
@@ -174,12 +185,14 @@ export function summarizeUpsert(toolCall: ChatToolCall): AgentUpsertSummary {
   };
 }
 
-function LabelRow({ label, children }: { label: string; children: React.ReactNode }) {
+// One inline "chip": icon + text, used for the model/web-search/provider meta
+// strip — reads at a glance instead of a label/value form grid.
+function MetaChip({ icon, children, title }: { icon: React.ReactNode; children: React.ReactNode; title?: string }) {
   return (
-    <div className="grid grid-cols-[7rem_1fr] items-baseline gap-2">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 text-foreground [&_*]:text-foreground">{children}</dd>
-    </div>
+    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground" title={title}>
+      {icon}
+      {children}
+    </span>
   );
 }
 
@@ -205,15 +218,13 @@ function AgentUpsertBody({ summary }: { summary: AgentUpsertSummary }) {
 
   return (
     <>
+      {/* No separate pending banner here — the header (spinner icon, name,
+          "…") already says this is in progress; a second "Writing agent
+          configuration…" line under it was the same information twice. */}
       {isError ? (
         <div className="flex items-start gap-2 rounded-none border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
           <WarningCircleIcon className="mt-0.5 size-3.5 shrink-0" />
           <span>{message || "Failed to save the agent configuration."}</span>
-        </div>
-      ) : isPending ? (
-        <div className="flex items-center gap-2 px-0.5 text-xs text-muted-foreground">
-          <Spinner className="size-3.5 text-primary" />
-          <span>Writing agent configuration…</span>
         </div>
       ) : succeeded ? (
         <div className="flex items-center gap-2 rounded-none border border-emerald-500/20 bg-emerald-500/15 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-400">
@@ -223,7 +234,7 @@ function AgentUpsertBody({ summary }: { summary: AgentUpsertSummary }) {
       ) : null}
 
       {name ? (
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1.5">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-sm font-semibold text-foreground">{name}</span>
             {visibility ? <Badge variant="outline">{humanize(visibility)}</Badge> : null}
@@ -232,36 +243,59 @@ function AgentUpsertBody({ summary }: { summary: AgentUpsertSummary }) {
           {description ? (
             <p className="text-xs leading-relaxed text-muted-foreground">{description}</p>
           ) : null}
+
+          {/* Model / web search / provider as a scannable icon+text strip
+              instead of a label/value form grid — this is metadata to skim,
+              not a form to read line by line. */}
+          {(modelName || showWebSearch || providerId) && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5">
+              {modelName ? <MetaChip icon={<RobotIcon className="size-3.5" />}>{modelName}</MetaChip> : null}
+              {showWebSearch ? (
+                <MetaChip icon={<GlobeIcon className="size-3.5" />}>
+                  Web search {webSearch ? "on" : "off"}
+                </MetaChip>
+              ) : null}
+              {providerId ? (
+                <MetaChip icon={<PlugsIcon className="size-3.5" />} title={providerId}>
+                  {shortId(providerId, 20)}
+                </MetaChip>
+              ) : null}
+            </div>
+          )}
+
+          {(tags.length > 0 || skills.length > 0) && (
+            <div className="flex flex-col gap-1 pt-0.5">
+              {tags.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <TagIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                  {tags.map((t) => (
+                    <Badge key={t} variant="secondary">
+                      {t}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
+              {skills.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <SparkleIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                  {skills.map((s) => (
+                    <Badge key={s} variant="outline">
+                      {s}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          )}
         </div>
       ) : null}
-
-      {(modelName || providerId || showWebSearch) && (
-        <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
-          {modelName ? <LabelRow label="Model">{modelName}</LabelRow> : null}
-          {providerId ? (
-            <LabelRow label="Provider">
-              <span title={providerId}>{shortId(providerId, 20)}</span>
-            </LabelRow>
-          ) : null}
-          {showWebSearch ? <LabelRow label="Web search">{webSearch ? "On" : "Off"}</LabelRow> : null}
-        </dl>
-      )}
-
-      {tags.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {tags.map((t) => (
-            <Badge key={t} variant="secondary">
-              {t}
-            </Badge>
-          ))}
-        </div>
-      ) : null}
-
-      {skills.length > 0 ? <LabelRow label="Skills">{skills.join(", ")}</LabelRow> : null}
 
       {systemPrompt ? (
-        <div>
-          <div className="mb-1 text-xs font-semibold text-muted-foreground">Instructions</div>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+            <FileTextIcon className="size-3.5" />
+            Instructions
+          </div>
           <div className="max-h-40 overflow-y-auto rounded-none border border-border bg-muted/50 px-3 py-2">
             <MessageMarkdown muted content={systemPrompt} />
           </div>

@@ -175,7 +175,12 @@ function PlaygroundContent() {
         )}
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col px-6 py-3">
+      {/* No horizontal padding on mobile — AgentChat/ArchitectChat/VoiceTab
+          each add their own padding around the messages + composer, so this
+          wrapper's padding only stacks with theirs. Left at px-6 that's extra
+          dead margin on each side on a phone-width screen on top of what the
+          composer itself already adds; sm:px-6 keeps the desktop look. */}
+      <div className="flex min-h-0 flex-1 flex-col px-0 py-3 sm:px-6">
         {loading ? (
           <div className="flex flex-1 flex-col gap-3">
             <Skeleton className="h-8 w-28" />

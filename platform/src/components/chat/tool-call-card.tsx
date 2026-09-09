@@ -19,6 +19,12 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { TodoChecklist } from "./todo-checklist";
 import { AgentUpsertBody, summarizeUpsert, type AgentUpsertSummary } from "./agent-upsert-card";
+import { LsDirectoryCard } from "./tool-cards/ls-directory-card";
+import { ReadFileCard } from "./tool-cards/read-file-card";
+import { GrepResultsView } from "./tool-cards/grep-results-view";
+import { FileDiffCard, computeFileDiffStats } from "./tool-cards/diff-view";
+import { RequestResponsePanel } from "./tool-cards/request-response-panel";
+import { isLsTool, isReadFileTool, isFileWriteTool, isFileEditTool, isGrepTool } from "./tool-cards/utils";
 import type { ChatToolCall, ChatTodo } from "./types";
 
 const TOOL_LABELS: Record<string, string> = {
@@ -37,19 +43,7 @@ function humanizeToolName(name: string): string {
   return TOOL_LABELS[name] ?? name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function formatJson(raw: string | undefined): string {
-  if (!raw) return "";
-  try {
-    return JSON.stringify(JSON.parse(raw), null, 2);
-  } catch {
-    return raw;
-  }
-}
 
-// write_todos's own args always carry the todos it was called with — read
-// them directly instead of depending on the caller to thread a `todos` prop
-// down. Some ChatMessage call sites (subagent-sheet, voice-tab,
-// architect-chat) don't pass one at all, which left the card empty.
 function parseTodosFromArgs(args: string | undefined): ChatTodo[] | undefined {
   if (!args) return undefined;
   try {
@@ -85,6 +79,9 @@ function ToolCallCard({
   const isTask = toolCall.name === "task";
   const isTodos = toolCall.name === "write_todos";
   const isUpsert = toolCall.name === "upsert_agent";
+  const isLs = isLsTool(toolCall.name);
+  const isReadFile = isReadFileTool(toolCall.name);
+  const isGrep = isGrepTool(toolCall.name);
   const isPending = toolCall.status === "running";
   const upsert: AgentUpsertSummary | null = isUpsert ? summarizeUpsert(toolCall) : null;
   // A failed tool run or an envelope that reports status:"error" both count as
@@ -92,6 +89,11 @@ function ToolCallCard({
   const isError = upsert ? upsert.isError : toolCall.status === "error";
   const upsertSucceeded = !!upsert?.succeeded;
   const label = upsert ? upsert.title : humanizeToolName(toolCall.name);
+  // write_file/edit_file get a diffstat badge and a DiffView body instead of
+  // raw args/result JSON — but only once the args have actually parsed into
+  // a real diff, otherwise fall through to the generic Input/Result panel.
+  const isFileDiff = (isFileWriteTool(toolCall.name) || isFileEditTool(toolCall.name)) && !isError;
+  const diffStats = isFileDiff ? computeFileDiffStats(toolCall) : null;
   // This call's own args win — they reflect the plan as of this specific
   // write_todos call; the externally-passed `todos` (the turn's latest
   // snapshot) is only a fallback for a call still streaming partial args.
@@ -179,6 +181,12 @@ function ToolCallCard({
             </ItemTitle>
             {upsert?.subtitle ? <ItemDescription>{upsert.subtitle}</ItemDescription> : null}
           </ItemContent>
+          {diffStats ? (
+            <span className="shrink-0 bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums">
+              <span className="text-emerald-600 dark:text-emerald-400">+{diffStats.added}</span>{" "}
+              <span className="text-red-500 dark:text-red-400">-{diffStats.removed}</span>
+            </span>
+          ) : null}
           <CaretDownIcon
             className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")}
           />
@@ -186,32 +194,26 @@ function ToolCallCard({
 
         <CollapsibleContent>
           <div className="mt-2.5 flex flex-col gap-2.5 border-t border-border pt-2.5">
-            {/* An upsert gets its form-shaped summary first, but still falls
-                through to the same raw Input/Result every other tool shows —
-                one card, not a second one, per the module comment above. */}
+            {/* An upsert gets its form-shaped summary instead of the raw
+                Input/Result every other tool shows below — AgentUpsertBody
+                already surfaces every field (name, tags, model, systemPrompt
+                as rendered markdown, ...), so the raw JSON would just repeat
+                the same systemPrompt/description text a second time as an
+                escaped string. */}
             {isUpsert && upsert ? <AgentUpsertBody summary={upsert} /> : null}
-            {toolCall.args && (
-              <div>
-                <div className="mb-1 text-xs font-semibold text-muted-foreground">Input</div>
-                <pre className="max-h-32 overflow-auto rounded-none border border-border bg-muted p-2 text-xs leading-relaxed wrap-break-word whitespace-pre-wrap">
-                  {formatJson(toolCall.args)}
-                </pre>
-              </div>
-            )}
-            {toolCall.result && (
-              <div>
-                <div className="mb-1 text-xs font-semibold text-muted-foreground">Result</div>
-                <pre
-                  className={cn(
-                    "max-h-40 overflow-auto rounded-none border p-2 text-xs leading-relaxed wrap-break-word whitespace-pre-wrap",
-                    isError
-                      ? "border-destructive/30 bg-destructive/10 text-destructive"
-                      : "border-border bg-muted"
-                  )}
-                >
-                  {formatJson(toolCall.result)}
-                </pre>
-              </div>
+            {isLs ? (
+              <LsDirectoryCard toolCall={toolCall} />
+            ) : isReadFile ? (
+              <ReadFileCard toolCall={toolCall} />
+            ) : diffStats ? (
+              <FileDiffCard toolCall={toolCall} />
+            ) : isGrep ? (
+              <GrepResultsView toolCall={toolCall} />
+            ) : isUpsert && upsert ? null : (
+              <>
+                <RequestResponsePanel label="Input" text={toolCall.args} />
+                <RequestResponsePanel label="Result" text={toolCall.result} isError={isError} />
+              </>
             )}
             {isTask && onOpenSubagent && (
               <Button

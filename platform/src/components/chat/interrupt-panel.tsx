@@ -45,18 +45,29 @@ function InterruptPanel({
         </div>
         {interrupt.actionRequests.map((action) => (
           <div key={action.id} className="flex flex-col gap-2">
-            {/* Same ToolCallCard every completed call renders through — forced
-                open so the args are visible without an extra click, since
-                they're exactly what a human needs to decide approve/reject. */}
-            <ToolCallCard
-              toolCall={{
-                id: action.id,
-                name: action.toolName,
-                args: action.args,
-                status: "running",
-              }}
-              defaultOpen
-            />
+            {/* Same ToolCallCard every completed call renders through —
+                starts collapsed like any other tool card. The header alone
+                (title + subtitle, e.g. "Creating agent" / "Exam Master")
+                already tells a human enough to decide approve/reject; forcing
+                it open by default made a large upsert_agent payload (a long
+                system prompt, etc.) grow tall enough to push the
+                Approve/Reject buttons off-screen. Still capped + scrollable
+                for whenever it IS expanded. */}
+            <div className="max-h-[50vh] overflow-y-auto">
+              <ToolCallCard
+                toolCall={{
+                  id: action.id,
+                  name: action.toolName,
+                  args: action.args,
+                  status: "running",
+                }}
+                // Explicit `false`, not omitted — ToolCallCard's own default
+                // for an upsert defaults to open while pending (status here
+                // is always "running"), which is exactly the forced-open
+                // behavior this panel doesn't want.
+                defaultOpen={false}
+              />
+            </div>
             <div className="flex items-center justify-end gap-2">
               <Button
                 type="button"
