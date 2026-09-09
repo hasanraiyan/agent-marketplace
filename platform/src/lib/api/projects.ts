@@ -258,12 +258,12 @@ export const getProjectMemory = (projectId: string) =>
 
 export const writeProjectMemoryFile = (
   projectId: string,
-  payload: { scope: "user" | "agent"; agentId?: string; path: string; content: string }
+  payload: { scope: "user" | "agent" | "workspace"; agentId?: string; path: string; content: string }
 ) => api.put(`/projects/${projectId}/memory/file`, payload);
 
 export const deleteProjectMemoryFile = (
   projectId: string,
-  params: { scope: "user" | "agent"; agentId?: string; path: string }
+  params: { scope: "user" | "agent" | "workspace"; agentId?: string; path: string }
 ) => api.delete(`/projects/${projectId}/memory/file`, { params });
 
 export const clearProjectMemory = (projectId: string, agentId?: string) =>

@@ -6,6 +6,7 @@ import {
   normalizeMemoryKey,
   userMemoryNamespace,
   agentMemoryNamespace,
+  agentWorkspaceNamespace,
 } from './memory-files-store.js';
 import { loggerService } from '../../utils/index.js';
 
@@ -22,10 +23,11 @@ const logger = loggerService.getLogger();
  */
 class MemoryService {
   _toFileDto(doc) {
+    const isWorkspaceScope = doc.namespace.length === 5 && doc.namespace[4] === 'workspace';
     const isAgentScope = doc.namespace.length === 4;
     return {
-      scope: isAgentScope ? 'agent' : 'user',
-      agentId: isAgentScope ? doc.namespace[3] : undefined,
+      scope: isWorkspaceScope ? 'workspace' : isAgentScope ? 'agent' : 'user',
+      agentId: isWorkspaceScope || isAgentScope ? doc.namespace[3] : undefined,
       path: doc.key,
       content: doc.content,
       mimeType: doc.mimeType,
@@ -35,6 +37,10 @@ class MemoryService {
   }
 
   _namespaceFor(userId, scope, agentId) {
+    if (scope === 'workspace') {
+      if (!agentId) throw new Error('agentId is required for workspace-scoped files');
+      return agentWorkspaceNamespace(userId, agentId);
+    }
     if (scope === 'agent') {
       if (!agentId) throw new Error('agentId is required for agent-scoped memory');
       return agentMemoryNamespace(userId, agentId);
@@ -54,11 +60,17 @@ class MemoryService {
 
     const userFiles = [];
     const agentGroups = new Map();
+    const workspaceGroups = new Map();
 
     for (const doc of docs) {
       const dto = this._toFileDto(doc);
       if (dto.scope === 'user') {
         userFiles.push(dto);
+      } else if (dto.scope === 'workspace') {
+        if (!workspaceGroups.has(dto.agentId)) {
+          workspaceGroups.set(dto.agentId, { agentId: dto.agentId, agentName: null, files: [] });
+        }
+        workspaceGroups.get(dto.agentId).files.push(dto);
       } else {
         if (!agentGroups.has(dto.agentId)) {
           agentGroups.set(dto.agentId, { agentId: dto.agentId, agentName: null, files: [] });
@@ -67,17 +79,26 @@ class MemoryService {
       }
     }
 
-    if (agentGroups.size > 0) {
-      const agents = await Agent.find({ _id: { $in: Array.from(agentGroups.keys()) } }, '_id name');
+    const allAgentIds = new Set([
+      ...Array.from(agentGroups.keys()),
+      ...Array.from(workspaceGroups.keys()),
+    ]);
+
+    if (allAgentIds.size > 0) {
+      const agents = await Agent.find({ _id: { $in: Array.from(allAgentIds) } }, '_id name');
       for (const agent of agents) {
-        const group = agentGroups.get(String(agent._id));
-        if (group) group.agentName = agent.name;
+        const idStr = String(agent._id);
+        const memGroup = agentGroups.get(idStr);
+        if (memGroup) memGroup.agentName = agent.name;
+        const wsGroup = workspaceGroups.get(idStr);
+        if (wsGroup) wsGroup.agentName = agent.name;
       }
     }
 
     return {
       userFiles,
       agentMemories: Array.from(agentGroups.values()),
+      agentWorkspaces: Array.from(workspaceGroups.values()),
     };
   }
 

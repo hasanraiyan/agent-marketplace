@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { BrainIcon, SparkleIcon, RobotIcon, InfoIcon } from "@phosphor-icons/react";
+import { SparkleIcon, RobotIcon, InfoIcon, FolderOpenIcon } from "@phosphor-icons/react";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,7 @@ import {
 } from "@/lib/api/projects";
 
 interface MemoryFileDto {
-  scope: "user" | "agent";
+  scope: "user" | "agent" | "workspace";
   agentId?: string;
   path: string;
   content: string;
@@ -39,10 +39,15 @@ interface MemoryDataResponse {
     agentName: string | null;
     files: MemoryFileDto[];
   }>;
+  agentWorkspaces?: Array<{
+    agentId: string;
+    agentName: string | null;
+    files: MemoryFileDto[];
+  }>;
 }
 
 interface MemoryItem extends ExplorerItem {
-  scope: "user" | "agent";
+  type: "memories" | "workspace";
   agentId?: string;
   agentName?: string;
 }
@@ -54,9 +59,6 @@ interface MemoryWorkspaceDialogProps {
   activeAgentId?: string | null;
   agents: Array<{ id: string; name: string }>;
 }
-
-const SHARED_ITEM_ID = "__shared_project_memory__";
-const ROOT_FILE_NAME = "index.md";
 
 function normalizePath(raw: string): string {
   const clean = raw.trim().replace(/\\/g, "/").replace(/^\/+/, "");
@@ -85,9 +87,9 @@ export function MemoryWorkspaceDialog({
     try {
       const res = await getProjectMemory(projectId);
       const data = res.data?.data as MemoryDataResponse;
-      setMemoryData(data || { userFiles: [], agentMemories: [] });
+      setMemoryData(data || { userFiles: [], agentMemories: [], agentWorkspaces: [] });
     } catch {
-      setMemoryData({ userFiles: [], agentMemories: [] });
+      setMemoryData({ userFiles: [], agentMemories: [], agentWorkspaces: [] });
     } finally {
       setLoading(false);
     }
@@ -99,281 +101,353 @@ export function MemoryWorkspaceDialog({
     }
   }, [open, fetchMemory]);
 
-  // Set initial open tab ONLY ONCE when the dialog opens
-  const prevOpenRef = React.useRef(false);
-  React.useEffect(() => {
-    if (open && !prevOpenRef.current) {
-      prevOpenRef.current = true;
-      const targetItemId =
-        activeAgentId && agents.some((a) => String(a.id) === String(activeAgentId))
-          ? activeAgentId
-          : SHARED_ITEM_ID;
-
-      setOpenRequest({ itemId: targetItemId, path: null });
-    } else if (!open) {
-      prevOpenRef.current = false;
-    }
-  }, [open, activeAgentId, agents]);
-
-  // Transform memoryData + agents into ExplorerItems
+  // Transform memoryData + agents into 2 top-level ExplorerItems: memories and workspace
   const items = React.useMemo<MemoryItem[] | null>(() => {
     if (loading && !memoryData) return null;
 
-    const currentData = memoryData ?? { userFiles: [], agentMemories: [] };
+    const currentData = memoryData ?? { userFiles: [], agentMemories: [], agentWorkspaces: [] };
 
-    // 1. Shared Project Memory item
+    const activeAgent = activeAgentId
+      ? agents.find((a) => String(a.id) === String(activeAgentId))
+      : null;
+
+    // 1. Build files under "memories":
+    // Contains "agent/" subfolder (active agent) + "user/" subfolder (shared project memory)
     const userFiles = currentData.userFiles || [];
-    const sharedRootDoc = userFiles.find(
-      (f) => normalizePath(f.path) === "/index.md"
-    );
-    const sharedOtherFiles: ExplorerFile[] = userFiles
-      .filter((f) => normalizePath(f.path) !== "/index.md")
-      .map((f) => ({
-        path: stripLeadingSlash(f.path),
-        content: f.content || "",
-      }));
+    const userExplorerFiles: ExplorerFile[] = userFiles.map((f) => ({
+      path: `user/${stripLeadingSlash(f.path)}`,
+      content: f.content || "",
+    }));
 
-    const sharedItem: MemoryItem = {
-      id: SHARED_ITEM_ID,
-      name: "Shared Project Memory",
-      rootContent:
-        sharedRootDoc?.content ??
-        "# Project Memory Index\n\n- Facts, preferences, and guidelines shared across all agents in this project.\n",
-      files: sharedOtherFiles,
-      scope: "user",
+    const agentGroup = activeAgent
+      ? (currentData.agentMemories || []).find((g) => String(g.agentId) === String(activeAgent.id))
+      : null;
+    const agentFiles = agentGroup?.files || [];
+    const agentExplorerFiles: ExplorerFile[] = agentFiles.map((f) => ({
+      path: `agent/${stripLeadingSlash(f.path)}`,
+      content: f.content || "",
+    }));
+
+    const memoriesItem: MemoryItem = {
+      id: "memories",
+      name: "memories",
+      type: "memories",
+      agentId: activeAgent?.id,
+      agentName: activeAgent?.name,
+      files: [...agentExplorerFiles, ...userExplorerFiles],
     };
 
-    // 2. Agent Memory items (all project agents)
-    const agentItems: MemoryItem[] = agents.map((agent) => {
-      const group = (currentData.agentMemories || []).find(
-        (g) => String(g.agentId) === String(agent.id)
-      );
-      const files = group?.files || [];
-      const rootDoc = files.find((f) => normalizePath(f.path) === "/index.md");
-      const otherFiles: ExplorerFile[] = files
-        .filter((f) => normalizePath(f.path) !== "/index.md")
-        .map((f) => ({
-          path: stripLeadingSlash(f.path),
-          content: f.content || "",
-        }));
+    // 2. Build files under "workspace":
+    // Contains workspace files for the active agent (/workspace/)
+    const wsGroup = activeAgent
+      ? (currentData.agentWorkspaces || []).find((g) => String(g.agentId) === String(activeAgent.id))
+      : null;
+    const wsFiles = wsGroup?.files || [];
+    const wsExplorerFiles: ExplorerFile[] = wsFiles.map((f) => ({
+      path: stripLeadingSlash(f.path),
+      content: f.content || "",
+    }));
 
-      return {
-        id: agent.id,
-        name: agent.name,
-        rootContent:
-          rootDoc?.content ??
-          `# Agent Memory Index (${agent.name})\n\n- Specific patterns, learnings, and configs for ${agent.name}.\n`,
-        files: otherFiles,
-        scope: "agent",
-        agentId: agent.id,
-        agentName: agent.name,
-      };
-    });
+    const workspaceItem: MemoryItem = {
+      id: "workspace",
+      name: "workspace",
+      type: "workspace",
+      agentId: activeAgent?.id,
+      agentName: activeAgent?.name,
+      files: wsExplorerFiles,
+    };
 
-    return [sharedItem, ...agentItems];
-  }, [loading, memoryData, agents]);
+    return [memoriesItem, workspaceItem];
+  }, [loading, memoryData, agents, activeAgentId]);
+
+  // Set initial open tab ONLY ONCE when the dialog opens
+  const prevOpenRef = React.useRef(false);
+  React.useEffect(() => {
+    if (open && !prevOpenRef.current && items) {
+      prevOpenRef.current = true;
+      const memories = items.find((i) => i.id === "memories");
+      const agentFile =
+        memories?.files.find((f) => f.path === "agent/index.md") ||
+        memories?.files.find((f) => f.path.startsWith("agent/"));
+      const userFile =
+        memories?.files.find((f) => f.path === "user/index.md") ||
+        memories?.files[0];
+      const targetFile = agentFile || userFile;
+      if (targetFile) {
+        setOpenRequest({ itemId: "memories", path: targetFile.path });
+      }
+    } else if (!open) {
+      prevOpenRef.current = false;
+    }
+  }, [open, items]);
 
   // CRUD Handlers
-  const handleSaveRoot = async (item: MemoryItem, content: string) => {
-    const isShared = item.id === SHARED_ITEM_ID;
-    await writeProjectMemoryFile(projectId, {
-      scope: isShared ? "user" : "agent",
-      agentId: isShared ? undefined : item.id,
-      path: "/index.md",
-      content,
-    });
-
-    setMemoryData((prev) => {
-      if (!prev) return prev;
-      if (isShared) {
-        const otherFiles = (prev.userFiles || []).filter(
-          (f) => normalizePath(f.path) !== "/index.md"
-        );
-        return {
-          ...prev,
-          userFiles: [
-            ...otherFiles,
-            { scope: "user", path: "/index.md", content, updatedAt: new Date().toISOString() },
-          ],
-        };
-      } else {
-        const groups = [...(prev.agentMemories || [])];
-        const idx = groups.findIndex((g) => String(g.agentId) === String(item.id));
-        const rootObj = {
-          scope: "agent" as const,
-          agentId: item.id,
-          path: "/index.md",
-          content,
-          updatedAt: new Date().toISOString(),
-        };
-        if (idx >= 0) {
-          const otherFiles = (groups[idx].files || []).filter(
-            (f) => normalizePath(f.path) !== "/index.md"
-          );
-          groups[idx] = {
-            ...groups[idx],
-            files: [...otherFiles, rootObj],
-          };
-        } else {
-          groups.push({
-            agentId: item.id,
-            agentName: item.name,
-            files: [rootObj],
-          });
-        }
-        return { ...prev, agentMemories: groups };
-      }
-    });
+  const handleSaveRoot = async () => {
+    // Files reside in `files`
   };
 
   const handleSaveFile = async (item: MemoryItem, rawPath: string, content: string) => {
-    const isShared = item.id === SHARED_ITEM_ID;
-    const path = normalizePath(rawPath);
+    const clean = stripLeadingSlash(rawPath);
+    if (item.id === "memories") {
+      let scope: "agent" | "user" = "agent";
+      let subPath = clean;
+      if (clean.startsWith("user/")) {
+        scope = "user";
+        subPath = clean.slice("user/".length);
+      } else if (clean.startsWith("agent/")) {
+        scope = "agent";
+        subPath = clean.slice("agent/".length);
+      }
+      const path = normalizePath(subPath);
+      const agentId = scope === "agent" ? item.agentId || activeAgentId || undefined : undefined;
 
-    await writeProjectMemoryFile(projectId, {
-      scope: isShared ? "user" : "agent",
-      agentId: isShared ? undefined : item.id,
-      path,
-      content,
-    });
+      await writeProjectMemoryFile(projectId, {
+        scope,
+        agentId,
+        path,
+        content,
+      });
 
-    setMemoryData((prev) => {
-      if (!prev) return prev;
-      if (isShared) {
-        const otherFiles = (prev.userFiles || []).filter((f) => normalizePath(f.path) !== path);
-        return {
-          ...prev,
-          userFiles: [
-            ...otherFiles,
-            { scope: "user", path, content, updatedAt: new Date().toISOString() },
-          ],
-        };
-      } else {
-        const groups = [...(prev.agentMemories || [])];
-        const idx = groups.findIndex((g) => String(g.agentId) === String(item.id));
+      setMemoryData((prev) => {
+        if (!prev) return prev;
+        if (scope === "user") {
+          const otherFiles = (prev.userFiles || []).filter((f) => normalizePath(f.path) !== path);
+          return {
+            ...prev,
+            userFiles: [
+              ...otherFiles,
+              { scope: "user", path, content, updatedAt: new Date().toISOString() },
+            ],
+          };
+        } else {
+          const groups = [...(prev.agentMemories || [])];
+          const idx = groups.findIndex((g) => String(g.agentId) === String(agentId));
+          const fileObj: MemoryFileDto = {
+            scope: "agent",
+            agentId,
+            path,
+            content,
+            updatedAt: new Date().toISOString(),
+          };
+          if (idx >= 0) {
+            const otherFiles = (groups[idx].files || []).filter((f) => normalizePath(f.path) !== path);
+            groups[idx] = { ...groups[idx], files: [...otherFiles, fileObj] };
+          } else if (agentId) {
+            groups.push({ agentId, agentName: item.agentName || null, files: [fileObj] });
+          }
+          return { ...prev, agentMemories: groups };
+        }
+      });
+    } else if (item.id === "workspace") {
+      const scope = "workspace" as const;
+      const path = normalizePath(clean);
+      const agentId = item.agentId || activeAgentId || undefined;
+
+      await writeProjectMemoryFile(projectId, {
+        scope,
+        agentId,
+        path,
+        content,
+      });
+
+      setMemoryData((prev) => {
+        if (!prev) return prev;
+        const groups = [...(prev.agentWorkspaces || [])];
+        const idx = groups.findIndex((g) => String(g.agentId) === String(agentId));
         const fileObj: MemoryFileDto = {
-          scope: "agent" as const,
-          agentId: item.id,
+          scope: "workspace",
+          agentId,
           path,
           content,
           updatedAt: new Date().toISOString(),
         };
         if (idx >= 0) {
           const otherFiles = (groups[idx].files || []).filter((f) => normalizePath(f.path) !== path);
-          groups[idx] = {
-            ...groups[idx],
-            files: [...otherFiles, fileObj],
-          };
-        } else {
-          groups.push({
-            agentId: item.id,
-            agentName: item.name,
-            files: [fileObj],
-          });
+          groups[idx] = { ...groups[idx], files: [...otherFiles, fileObj] };
+        } else if (agentId) {
+          groups.push({ agentId, agentName: item.agentName || null, files: [fileObj] });
         }
-        return { ...prev, agentMemories: groups };
-      }
-    });
+        return { ...prev, agentWorkspaces: groups };
+      });
+    }
   };
 
   const handleAddFile = async (item: MemoryItem, rawPath: string) => {
-    const isShared = item.id === SHARED_ITEM_ID;
-    const path = normalizePath(rawPath);
-    const cleanPath = stripLeadingSlash(path);
-    const initialContent = `# ${cleanPath.split("/").pop() || "Topic"}\n\n`;
-
-    await writeProjectMemoryFile(projectId, {
-      scope: isShared ? "user" : "agent",
-      agentId: isShared ? undefined : item.id,
-      path,
-      content: initialContent,
-    });
-
-    setMemoryData((prev) => {
-      if (!prev) return prev;
-      if (isShared) {
-        const otherFiles = (prev.userFiles || []).filter((f) => normalizePath(f.path) !== path);
-        return {
-          ...prev,
-          userFiles: [
-            ...otherFiles,
-            { scope: "user", path, content: initialContent, updatedAt: new Date().toISOString() },
-          ],
-        };
+    let clean = stripLeadingSlash(rawPath.trim().replace(/\\/g, "/"));
+    if (item.id === "memories") {
+      let scope: "agent" | "user" = "agent";
+      let subPath = clean;
+      if (clean.startsWith("user/")) {
+        scope = "user";
+        subPath = clean.slice("user/".length);
+      } else if (clean.startsWith("agent/")) {
+        scope = "agent";
+        subPath = clean.slice("agent/".length);
       } else {
-        const groups = [...(prev.agentMemories || [])];
-        const idx = groups.findIndex((g) => String(g.agentId) === String(item.id));
+        // Default to agent folder if no prefix specified
+        scope = "agent";
+        clean = `agent/${clean}`;
+      }
+      const path = normalizePath(subPath);
+      const agentId = scope === "agent" ? item.agentId || activeAgentId || undefined : undefined;
+      const initialContent = `# ${clean.split("/").pop() || "Topic"}\n\n`;
+
+      await writeProjectMemoryFile(projectId, {
+        scope,
+        agentId,
+        path,
+        content: initialContent,
+      });
+
+      setMemoryData((prev) => {
+        if (!prev) return prev;
+        if (scope === "user") {
+          const otherFiles = (prev.userFiles || []).filter((f) => normalizePath(f.path) !== path);
+          return {
+            ...prev,
+            userFiles: [
+              ...otherFiles,
+              { scope: "user", path, content: initialContent, updatedAt: new Date().toISOString() },
+            ],
+          };
+        } else {
+          const groups = [...(prev.agentMemories || [])];
+          const idx = groups.findIndex((g) => String(g.agentId) === String(agentId));
+          const newFile: MemoryFileDto = {
+            scope: "agent",
+            agentId,
+            path,
+            content: initialContent,
+            updatedAt: new Date().toISOString(),
+          };
+          if (idx >= 0) {
+            const otherFiles = (groups[idx].files || []).filter((f) => normalizePath(f.path) !== path);
+            groups[idx] = { ...groups[idx], files: [...otherFiles, newFile] };
+          } else if (agentId) {
+            groups.push({ agentId, agentName: item.agentName || null, files: [newFile] });
+          }
+          return { ...prev, agentMemories: groups };
+        }
+      });
+
+      setOpenRequest({ itemId: "memories", path: clean });
+    } else if (item.id === "workspace") {
+      const scope = "workspace" as const;
+      const path = normalizePath(clean);
+      const agentId = item.agentId || activeAgentId || undefined;
+      const initialContent = `# ${clean.split("/").pop() || "File"}\n\n`;
+
+      await writeProjectMemoryFile(projectId, {
+        scope,
+        agentId,
+        path,
+        content: initialContent,
+      });
+
+      setMemoryData((prev) => {
+        if (!prev) return prev;
+        const groups = [...(prev.agentWorkspaces || [])];
+        const idx = groups.findIndex((g) => String(g.agentId) === String(agentId));
         const newFile: MemoryFileDto = {
-          scope: "agent",
-          agentId: item.id,
+          scope: "workspace",
+          agentId,
           path,
           content: initialContent,
           updatedAt: new Date().toISOString(),
         };
         if (idx >= 0) {
           const otherFiles = (groups[idx].files || []).filter((f) => normalizePath(f.path) !== path);
-          groups[idx] = {
-            ...groups[idx],
-            files: [...otherFiles, newFile],
-          };
-        } else {
-          groups.push({
-            agentId: item.id,
-            agentName: item.name,
-            files: [newFile],
-          });
+          groups[idx] = { ...groups[idx], files: [...otherFiles, newFile] };
+        } else if (agentId) {
+          groups.push({ agentId, agentName: item.agentName || null, files: [newFile] });
         }
-        return { ...prev, agentMemories: groups };
-      }
-    });
+        return { ...prev, agentWorkspaces: groups };
+      });
 
-    // Explicitly focus and open the newly added file tab
-    setOpenRequest({ itemId: item.id, path: cleanPath });
+      setOpenRequest({ itemId: "workspace", path: clean });
+    }
   };
 
   const handleDeleteFile = async (item: MemoryItem, rawPath: string) => {
-    const isShared = item.id === SHARED_ITEM_ID;
-    const path = normalizePath(rawPath);
+    const clean = stripLeadingSlash(rawPath);
+    if (item.id === "memories") {
+      let scope: "agent" | "user" = "agent";
+      let subPath = clean;
+      if (clean.startsWith("user/")) {
+        scope = "user";
+        subPath = clean.slice("user/".length);
+      } else if (clean.startsWith("agent/")) {
+        scope = "agent";
+        subPath = clean.slice("agent/".length);
+      }
+      const path = normalizePath(subPath);
+      const agentId = scope === "agent" ? item.agentId || activeAgentId || undefined : undefined;
 
-    await deleteProjectMemoryFile(projectId, {
-      scope: isShared ? "user" : "agent",
-      agentId: isShared ? undefined : item.id,
-      path,
-    });
+      await deleteProjectMemoryFile(projectId, { scope, agentId, path });
 
-    setMemoryData((prev) => {
-      if (!prev) return prev;
-      if (isShared) {
-        return {
-          ...prev,
-          userFiles: (prev.userFiles || []).filter((f) => normalizePath(f.path) !== path),
-        };
-      } else {
-        const groups = (prev.agentMemories || []).map((g) => {
-          if (String(g.agentId) !== String(item.id)) return g;
+      setMemoryData((prev) => {
+        if (!prev) return prev;
+        if (scope === "user") {
+          return {
+            ...prev,
+            userFiles: (prev.userFiles || []).filter((f) => normalizePath(f.path) !== path),
+          };
+        } else {
+          const groups = (prev.agentMemories || []).map((g) => {
+            if (String(g.agentId) !== String(agentId)) return g;
+            return {
+              ...g,
+              files: (g.files || []).filter((f) => normalizePath(f.path) !== path),
+            };
+          });
+          return { ...prev, agentMemories: groups };
+        }
+      });
+    } else if (item.id === "workspace") {
+      const scope = "workspace" as const;
+      const path = normalizePath(clean);
+      const agentId = item.agentId || activeAgentId || undefined;
+
+      await deleteProjectMemoryFile(projectId, { scope, agentId, path });
+
+      setMemoryData((prev) => {
+        if (!prev) return prev;
+        const groups = (prev.agentWorkspaces || []).map((g) => {
+          if (String(g.agentId) !== String(agentId)) return g;
           return {
             ...g,
             files: (g.files || []).filter((f) => normalizePath(f.path) !== path),
           };
         });
-        return { ...prev, agentMemories: groups };
-      }
-    });
+        return { ...prev, agentWorkspaces: groups };
+      });
+    }
   };
 
   const handleDeleteItem = async (item: MemoryItem) => {
-    const isShared = item.id === SHARED_ITEM_ID;
-    if (isShared) {
-      // Clear all project memory files
-      await clearProjectMemory(projectId);
-      setMemoryData({ userFiles: [], agentMemories: [] });
-    } else {
-      await clearProjectMemory(projectId, item.id);
+    if (item.id === "memories") {
+      const agentId = item.agentId || activeAgentId || undefined;
+      if (agentId) {
+        await clearProjectMemory(projectId, agentId);
+      }
       setMemoryData((prev) => {
         if (!prev) return prev;
         return {
           ...prev,
-          agentMemories: (prev.agentMemories || []).filter((g) => g.agentId !== item.id),
+          agentMemories: (prev.agentMemories || []).filter((g) => String(g.agentId) !== String(agentId)),
+        };
+      });
+    } else if (item.id === "workspace") {
+      const agentId = item.agentId || activeAgentId || undefined;
+      const wsGroup = (memoryData?.agentWorkspaces || []).find((g) => String(g.agentId) === String(agentId));
+      for (const f of wsGroup?.files || []) {
+        await deleteProjectMemoryFile(projectId, { scope: "workspace", agentId, path: f.path }).catch(() => {});
+      }
+      setMemoryData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          agentWorkspaces: (prev.agentWorkspaces || []).filter((g) => String(g.agentId) !== String(agentId)),
         };
       });
     }
@@ -386,12 +460,12 @@ export function MemoryWorkspaceDialog({
           <div className="flex flex-col gap-0.5">
             <DialogTitle className="flex items-center gap-2 text-sm font-semibold tracking-tight">
               <span className="flex size-6 items-center justify-center rounded-none bg-primary text-primary-foreground">
-                <BrainIcon className="size-3.5" />
+                <FolderOpenIcon className="size-3.5" />
               </span>
-              Project Memory Workspace
+              Agent Workspace Files
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Manage persistent memory files (/memories/user/ and /memories/agent/) loaded during agent runs.
+              Inspect and edit files and persistent memories for this agent and project.
             </DialogDescription>
           </div>
         </DialogHeader>
@@ -399,11 +473,9 @@ export function MemoryWorkspaceDialog({
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           <FileExplorerEditor<MemoryItem>
             items={items}
-            itemLabelPlural="memory scopes"
-            rootFileName={ROOT_FILE_NAME}
+            itemLabelPlural="directories"
             onCreateItem={() => {
-              // Focus shared project memory
-              setOpenRequest({ itemId: SHARED_ITEM_ID, path: null });
+              setOpenRequest({ itemId: "memories", path: "agent/index.md" });
             }}
             onSaveRoot={handleSaveRoot}
             onSaveFile={handleSaveFile}
@@ -411,69 +483,112 @@ export function MemoryWorkspaceDialog({
             onDeleteFile={handleDeleteFile}
             onDeleteItem={handleDeleteItem}
             openRequest={openRequest}
-            emptyStateTitle="No memory file open"
-            emptyStateDescription="Select a memory file from the explorer tree or open index.md to inspect persistent memories."
-            renderTabExtras={(item) => (
-              <Badge
-                variant="outline"
-                className="text-[10px] uppercase font-mono tracking-wide px-1.5 py-0 rounded-none bg-muted/50"
-              >
-                {item.scope === "user" ? (
-                  <span className="inline-flex items-center gap-1">
-                    <SparkleIcon className="size-2.5 text-primary" />
-                    Shared
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1">
-                    <RobotIcon className="size-2.5 text-primary" />
-                    Agent
-                  </span>
-                )}
-              </Badge>
-            )}
-            renderSidePanel={(item) => (
-              <div className="p-4 space-y-4 text-xs">
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
-                    Memory Scope
-                  </span>
-                  <p className="font-medium text-foreground">
-                    {item.scope === "user" ? "Project-wide (Shared)" : item.name}
-                  </p>
-                </div>
+            emptyStateTitle="No file open"
+            emptyStateDescription="Select a file from the explorer tree or click '+' to create one."
+            addFilePlaceholder={(item) =>
+              item?.id === "memories"
+                ? "e.g. agent/notes.md or user/guidelines.md"
+                : "e.g. outputs/report.md or notes.txt"
+            }
+            renderTabExtras={(item, activePath) => {
+              if (item.id === "workspace") {
+                return (
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] uppercase font-mono tracking-wide px-1.5 py-0 rounded-none bg-muted/50"
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      <FolderOpenIcon className="size-2.5 text-primary" />
+                      Workspace
+                    </span>
+                  </Badge>
+                );
+              }
+              const isShared = activePath?.startsWith("user/") || false;
+              return (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] uppercase font-mono tracking-wide px-1.5 py-0 rounded-none bg-muted/50"
+                >
+                  {isShared ? (
+                    <span className="inline-flex items-center gap-1">
+                      <SparkleIcon className="size-2.5 text-primary" />
+                      Shared
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1">
+                      <RobotIcon className="size-2.5 text-primary" />
+                      Agent {item.agentName ? `(${item.agentName})` : ""}
+                    </span>
+                  )}
+                </Badge>
+              );
+            }}
+            renderSidePanel={(item, activePath) => {
+              const isWorkspace = item.id === "workspace";
+              const isShared = !isWorkspace && (activePath?.startsWith("user/") ?? false);
+              const route = isWorkspace
+                ? `/workspace/${activePath || ""}`
+                : `/memories/${activePath || (isShared ? "user/" : "agent/")}`;
 
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
-                    Filesystem Route
-                  </span>
-                  <code className="block rounded bg-muted/60 p-2 font-mono text-[11px] text-foreground break-all">
-                    {item.scope === "user"
-                      ? "/memories/user/"
-                      : `/memories/agent/`}
-                  </code>
-                </div>
-
-                <div className="rounded border border-border/80 bg-card p-3 space-y-2 text-muted-foreground">
-                  <div className="flex items-center gap-1.5 text-foreground font-semibold text-[11px]">
-                    <InfoIcon className="size-3.5 text-primary shrink-0" />
-                    Auto-load Rules
+              return (
+                <div className="p-4 space-y-4 text-xs">
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
+                      {isWorkspace ? "Workspace Directory" : "Memory Scope"}
+                    </span>
+                    <p className="font-medium text-foreground">
+                      {isWorkspace
+                        ? `Agent Scratchpad (${item.agentName || "Agent"})`
+                        : isShared
+                          ? "Project-wide (Shared Memory)"
+                          : `Agent Memory (${item.agentName || "Agent"})`}
+                    </p>
                   </div>
-                  <p className="text-[11px] leading-relaxed">
-                    <strong className="text-foreground">index.md</strong> is automatically injected into every conversation turn.
-                    Agents can read additional topic files when relevant.
-                  </p>
-                </div>
 
-                <div className="space-y-1 pt-2 border-t border-border/60">
-                  <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
-                    Files in Scope
-                  </span>
-                  <p className="text-xs font-mono text-muted-foreground">
-                    {1 + (item.files?.length || 0)} file(s)
-                  </p>
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
+                      Filesystem Route
+                    </span>
+                    <code className="block rounded bg-muted/60 p-2 font-mono text-[11px] text-foreground break-all">
+                      {route}
+                    </code>
+                  </div>
+
+                  <div className="rounded border border-border/80 bg-card p-3 space-y-2 text-muted-foreground">
+                    <div className="flex items-center gap-1.5 text-foreground font-semibold text-[11px]">
+                      <InfoIcon className="size-3.5 text-primary shrink-0" />
+                      {isWorkspace ? "Workspace Usage" : isShared ? "Project Facts" : "Agent Learning"}
+                    </div>
+                    <p className="text-[11px] leading-relaxed">
+                      {isWorkspace ? (
+                        <>
+                          Sub-agents and tools write deliverable files into{" "}
+                          <strong className="text-foreground">/workspace/outputs/</strong>. Files persist across turns for this agent.
+                        </>
+                      ) : isShared ? (
+                        <>
+                          <strong className="text-foreground">/memories/user/index.md</strong> is automatically injected into every conversation turn for all agents in this project.
+                        </>
+                      ) : (
+                        <>
+                          <strong className="text-foreground">/memories/agent/index.md</strong> is automatically injected into every conversation turn for this agent.
+                        </>
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="space-y-1 pt-2 border-t border-border/60">
+                    <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
+                      Files in Scope
+                    </span>
+                    <p className="text-xs font-mono text-muted-foreground">
+                      {item.files?.length || 0} file(s)
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            }}
           />
         </div>
       </DialogContent>

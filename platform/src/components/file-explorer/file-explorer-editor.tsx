@@ -60,7 +60,8 @@ export interface ExplorerFile {
 export interface ExplorerItem {
   id: string;
   name: string;
-  rootContent: string;
+  rootContent?: string;
+  rootFileName?: string;
   files: ExplorerFile[];
 }
 
@@ -178,7 +179,7 @@ export interface FileExplorerEditorProps<T extends ExplorerItem> {
   /** e.g. "skills" — used in counts, section header, search placeholder. */
   itemLabelPlural: string;
   /** e.g. "SKILL.md" — the pinned, non-deletable, always-first file. */
-  rootFileName: string;
+  rootFileName?: string;
   /** "+ New" clicked — the consumer owns the actual create dialog/flow. */
   onCreateItem: () => void;
   onSaveRoot: (item: T, content: string) => Promise<void>;
@@ -189,12 +190,13 @@ export interface FileExplorerEditorProps<T extends ExplorerItem> {
   /** Defaults to a case-insensitive match on `name`. */
   searchFilter?: (item: T, query: string) => boolean;
   /** Optional right-hand "Details" panel content for the active item. */
-  renderSidePanel?: (item: T) => React.ReactNode;
+  renderSidePanel?: (item: T, activePath?: string | null) => React.ReactNode;
   /** Optional small badges/labels shown at the right edge of the tab bar. */
-  renderTabExtras?: (item: T) => React.ReactNode;
+  renderTabExtras?: (item: T, activePath?: string | null) => React.ReactNode;
   emptyStateTitle?: string;
   emptyStateDescription?: string;
   emptyStateActionLabel?: string;
+  addFilePlaceholder?: (item?: T) => string;
   /** Set to a fresh object (e.g. after creating an item elsewhere) to make
    * the editor open/focus that item's root file — the object reference
    * changing is what triggers it, so always pass a new literal. */
@@ -205,7 +207,7 @@ export interface FileExplorerEditorProps<T extends ExplorerItem> {
 export function FileExplorerEditor<T extends ExplorerItem>({
   items,
   itemLabelPlural,
-  rootFileName,
+  rootFileName = "index.md",
   onCreateItem,
   onSaveRoot,
   onSaveFile,
@@ -218,11 +220,13 @@ export function FileExplorerEditor<T extends ExplorerItem>({
   emptyStateTitle = "No file open",
   emptyStateDescription,
   emptyStateActionLabel = "New",
+  addFilePlaceholder,
   openRequest,
   onSettingsClick,
 }: FileExplorerEditorProps<T>) {
   const [search, setSearch] = React.useState("");
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
+  const [collapsedFolders, setCollapsedFolders] = React.useState<Set<string>>(new Set());
   const [openTabs, setOpenTabs] = React.useState<OpenTab[]>([]);
   const [activeTabKey, setActiveTabKey] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
@@ -244,7 +248,7 @@ export function FileExplorerEditor<T extends ExplorerItem>({
   const activeTab = openTabs.find((t) => t.key === activeTabKey) ?? null;
   const activeItem = activeTab ? (items?.find((i) => i.id === activeTab.itemId) ?? null) : null;
   const isRootFile = activeTab ? activeTab.path === null : false;
-  const activePath = activeTab ? (activeTab.path ?? rootFileName) : "";
+  const activePath = activeTab ? (activeTab.path ?? (activeItem?.rootFileName || rootFileName)) : "";
   const isMarkdownFile = isRootFile || /\.(md|markdown)$/i.test(activePath);
   const fenceLanguage = EXTENSION_LANGUAGE_MAP[activePath.split(".").pop()?.toLowerCase() ?? ""] ?? activePath.split(".").pop()?.toLowerCase() ?? "text";
   const editorContent = activeTab?.content ?? "";
@@ -252,16 +256,24 @@ export function FileExplorerEditor<T extends ExplorerItem>({
   const openItemIds = new Set(openTabs.map((t) => t.itemId));
   const showItemLabelInTabs = openItemIds.size > 1;
 
-  // Auto-open the first item's root file once, the first time items load —
-  // doesn't fight the user if they later close every tab.
+  // Auto-open the first item's root file or first file once, the first time items load
   React.useEffect(() => {
     if (!didAutoOpenRef.current && items && items.length > 0) {
       didAutoOpenRef.current = true;
       const first = items[0];
       setExpanded((prev) => new Set(prev).add(first.id));
-      const key = tabKey(first.id, null);
-      setOpenTabs((prev) => (prev.length === 0 ? [{ key, itemId: first.id, path: null, content: first.rootContent || "", isDirty: false }] : prev));
-      setActiveTabKey((prev) => prev ?? key);
+      const hasRoot = first.rootContent !== undefined;
+      const initialPath = hasRoot ? null : (first.files?.[0]?.path ?? null);
+      const initialContent = hasRoot ? (first.rootContent || "") : (first.files?.[0]?.content || "");
+      if (hasRoot || first.files?.[0]) {
+        const key = tabKey(first.id, initialPath);
+        setOpenTabs((prev) =>
+          prev.length === 0
+            ? [{ key, itemId: first.id, path: initialPath, content: initialContent, isDirty: false }]
+            : prev
+        );
+        setActiveTabKey((prev) => prev ?? key);
+      }
     }
   }, [items]);
 
@@ -452,13 +464,50 @@ export function FileExplorerEditor<T extends ExplorerItem>({
     nodes.map((node) => {
       const indent = { paddingLeft: `${8 + depth * 12}px` };
       if (!node.file) {
+        const folderKey = `${item.id}:${node.path}`;
+        const isCollapsed = collapsedFolders.has(folderKey);
         return (
           <div key={node.path} className="flex flex-col">
-            <div style={indent} className="flex items-center gap-1.5 truncate py-1 pr-2 text-xs text-muted-foreground">
-              <FolderIcon className="size-3.5 shrink-0" />
-              <span className="truncate">{node.name}</span>
+            <div className="group flex items-center justify-between pr-1">
+              <button
+                type="button"
+                style={indent}
+                onClick={() => {
+                  setCollapsedFolders((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(folderKey)) next.delete(folderKey);
+                    else next.add(folderKey);
+                    return next;
+                  });
+                }}
+                className="flex flex-1 items-center gap-1.5 truncate py-1 pr-2 text-xs text-muted-foreground hover:text-foreground text-left"
+              >
+                {isCollapsed ? (
+                  <CaretRightIcon className="size-3 shrink-0" />
+                ) : (
+                  <CaretDownIcon className="size-3 shrink-0" />
+                )}
+                {isCollapsed ? (
+                  <FolderIcon className="size-3.5 shrink-0" />
+                ) : (
+                  <FolderOpenIcon className="size-3.5 shrink-0" />
+                )}
+                <span className="truncate font-medium">{node.name}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAddFileItemId(item.id);
+                  setNewFilePath(`${node.path}/`);
+                  setShowAddFileDialog(true);
+                }}
+                className="size-5 flex items-center justify-center text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100"
+                title={`Add file inside ${node.name}`}
+              >
+                <PlusIcon className="size-3" />
+              </button>
             </div>
-            {node.children && renderFileNodes(node.children, item, depth + 1)}
+            {!isCollapsed && node.children && renderFileNodes(node.children, item, depth + 1)}
           </div>
         );
       }
@@ -517,7 +566,9 @@ export function FileExplorerEditor<T extends ExplorerItem>({
                 type="button"
                 onClick={() => {
                   toggleExpand(item.id);
-                  openFileTab(item, null);
+                  if (item.rootContent !== undefined) {
+                    openFileTab(item, null);
+                  }
                 }}
                 className="flex flex-1 items-center gap-1.5 truncate rounded-none px-1 py-1 text-left text-xs hover:bg-muted/60"
               >
@@ -535,19 +586,22 @@ export function FileExplorerEditor<T extends ExplorerItem>({
             </div>
             {isExpanded && (
               <div className="ml-4 flex flex-col border-l pl-2">
-                <button
-                  type="button"
-                  onClick={() => openFileTab(item, null)}
-                  className={`flex items-center gap-1.5 truncate rounded-none px-2 py-1 text-left text-xs ${isRootActive ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"}`}
-                >
-                  <FileTextIcon className="size-3.5 shrink-0" />
-                  <span className="truncate">{rootFileName}</span>
-                </button>
+                {item.rootContent !== undefined && (
+                  <button
+                    type="button"
+                    onClick={() => openFileTab(item, null)}
+                    className={`flex items-center gap-1.5 truncate rounded-none px-2 py-1 text-left text-xs ${isRootActive ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"}`}
+                  >
+                    <FileTextIcon className="size-3.5 shrink-0" />
+                    <span className="truncate">{item.rootFileName || rootFileName}</span>
+                  </button>
+                )}
                 {renderFileNodes(buildFileTree(item.files ?? []), item, 0)}
                 <button
                   type="button"
                   onClick={() => {
                     setAddFileItemId(item.id);
+                    setNewFilePath("");
                     setShowAddFileDialog(true);
                   }}
                   className="flex items-center gap-1.5 px-2 py-1 text-left text-xs text-muted-foreground hover:text-foreground"
@@ -745,7 +799,7 @@ export function FileExplorerEditor<T extends ExplorerItem>({
                 })}
                 <div className="flex-1" />
                 {renderTabExtras && (
-                  <div className="hidden items-center gap-1 pr-2 sm:flex">{renderTabExtras(activeItem)}</div>
+                  <div className="hidden items-center gap-1 pr-2 sm:flex">{renderTabExtras(activeItem, activeTab?.path)}</div>
                 )}
               </div>
 
@@ -771,7 +825,7 @@ export function FileExplorerEditor<T extends ExplorerItem>({
                   {/* Right side panel - hidden on small, visible on xl */}
                   {renderSidePanel && (
                     <div className="hidden w-[320px] shrink-0 border-l bg-muted/5 xl:flex xl:flex-col">
-                      {renderSidePanel(activeItem)}
+                      {renderSidePanel(activeItem, activeTab?.path)}
                     </div>
                   )}
                 </div>
@@ -816,7 +870,11 @@ export function FileExplorerEditor<T extends ExplorerItem>({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add file</DialogTitle>
-            <DialogDescription>Bundle a supporting file alongside {rootFileName}, e.g. references/guide.md.</DialogDescription>
+            <DialogDescription>
+              {items?.find((i) => i.id === addFileItemId)?.rootContent !== undefined
+                ? `Bundle a supporting file alongside ${items?.find((i) => i.id === addFileItemId)?.rootFileName || rootFileName}, e.g. references/guide.md.`
+                : "Create a new file or nested path within this directory."}
+            </DialogDescription>
           </DialogHeader>
           <form
             onSubmit={handleCreateFile}
@@ -828,13 +886,21 @@ export function FileExplorerEditor<T extends ExplorerItem>({
                 id="new-file-path"
                 value={newFilePath}
                 onChange={(e) => setNewFilePath(e.target.value)}
-                placeholder="e.g. references/guide.md"
+                placeholder={
+                  addFilePlaceholder
+                    ? addFilePlaceholder(items?.find((i) => i.id === addFileItemId))
+                    : "e.g. references/guide.md"
+                }
                 required
                 autoFocus
                 maxLength={256}
                 className="font-mono text-sm"
               />
-              <FieldDescription>Relative path within the folder. Cannot be {rootFileName}.</FieldDescription>
+              <FieldDescription>
+                {items?.find((i) => i.id === addFileItemId)?.rootContent !== undefined
+                  ? `Relative path within the folder. Cannot be ${items?.find((i) => i.id === addFileItemId)?.rootFileName || rootFileName}.`
+                  : "Relative path within the directory, e.g. agent/notes.md or notes.txt."}
+              </FieldDescription>
             </Field>
             <DialogFooter>
               <Button

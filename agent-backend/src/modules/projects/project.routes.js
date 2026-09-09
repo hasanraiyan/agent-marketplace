@@ -986,7 +986,7 @@ adminRouter.get('/memory', projectController.listMemory);
  *             properties:
  *               scope:
  *                 type: string
- *                 enum: [user, agent]
+ *                 enum: [user, agent, workspace]
  *                 default: user
  *               agentId:
  *                 type: string
@@ -1017,7 +1017,7 @@ adminRouter.get('/memory', projectController.listMemory);
  *         schema: { type: string }
  *       - name: scope
  *         in: query
- *         schema: { type: string, enum: [user, agent] }
+ *         schema: { type: string, enum: [user, agent, workspace] }
  *       - name: agentId
  *         in: query
  *         schema: { type: string }

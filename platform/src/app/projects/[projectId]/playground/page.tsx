@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { RobotIcon, SparkleIcon, BrainIcon } from "@phosphor-icons/react";
+import { RobotIcon, SparkleIcon, FolderOpenIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -153,8 +153,8 @@ function PlaygroundContent() {
               onClick={() => setMemoryOpen(true)}
               className="h-8 gap-1.5 text-xs font-medium"
             >
-              <BrainIcon className="size-3.5 text-primary" />
-              Memory
+              <FolderOpenIcon className="size-3.5 text-primary" />
+              Files
             </Button>
 
             <Select

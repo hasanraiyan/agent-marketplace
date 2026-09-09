@@ -19,6 +19,7 @@ import {
   memoryFilesStore,
   userMemoryNamespace,
   agentMemoryNamespace,
+  agentWorkspaceNamespace,
 } from '../memory/memory-files-store.js';
 import { skillLibraryStore, skillLibraryNamespace } from '../skills/skillLibraryStore.js';
 import {
@@ -724,6 +725,12 @@ class AgentFactory {
         new StoreBackend({
           store: memoryFilesStore,
           namespace: agentMemoryNamespace(identityKey, agentIdStr),
+        })
+      ),
+      '/workspace/': gracefulBackend(
+        new StoreBackend({
+          store: memoryFilesStore,
+          namespace: agentWorkspaceNamespace(identityKey, agentIdStr),
         })
       ),
     };

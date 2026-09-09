@@ -1463,6 +1463,12 @@ class ProjectController {
           message: 'agentId is required when scope is "agent"',
         });
       }
+      if (scope === 'workspace' && !agentId) {
+        return res.status(400).json({
+          success: false,
+          message: 'agentId is required when scope is "workspace"',
+        });
+      }
       const file = await memoryService.writeMemoryFile(req.projectAdminContext.domain, {
         scope,
         agentId,

@@ -163,3 +163,7 @@ export function userMemoryNamespace(userId) {
 export function agentMemoryNamespace(userId, agentId) {
   return ['users', String(userId), 'agents', String(agentId)];
 }
+
+export function agentWorkspaceNamespace(userId, agentId) {
+  return ['users', String(userId), 'agents', String(agentId), 'workspace'];
+}
