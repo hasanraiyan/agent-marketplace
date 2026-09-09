@@ -4,6 +4,12 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.9.5
+
+- **`createAgent` now forwards `sandboxEnabled` from the request body**, same treatment as
+  `webSearchEnabled`. Bumped `@personaai/sdk` to `^0.7.5` — verified against the real published
+  package: typecheck, all 172 tests (27 files), and build all clean.
+
 ## 0.9.3
 
 - **New: `context` accepted on `POST /chat`.** Distinct from `contextOverride` (never shown to the

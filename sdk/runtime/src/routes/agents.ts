@@ -55,6 +55,8 @@ export const createAgent: RouteHandler = async (request, ctx) => {
     modelName: typeof body.modelName === 'string' ? body.modelName : undefined,
     webSearchEnabled:
       typeof body.webSearchEnabled === 'boolean' ? body.webSearchEnabled : undefined,
+    sandboxEnabled:
+      typeof body.sandboxEnabled === 'boolean' ? body.sandboxEnabled : undefined,
     visibility: body.visibility as CreateAgentInput['visibility'],
     category: body.category as AgentCategory | undefined,
     skills: Array.isArray(body.skills) ? (body.skills as string[]) : undefined,
