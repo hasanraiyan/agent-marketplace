@@ -1,8 +1,14 @@
-# @personaai/nestjs
+# @personaai/nestjs — Deprecated
+
+> **Deprecated:** Use [`@personaai/adapters/nestjs`](../README.md) instead. This package is a frozen shim that re-exports from `@personaai/adapters` and will be removed in `1.0`. New code should `npm install @personaai/adapters` and `import { PersonaModule } from '@personaai/adapters/nestjs'`.
+
+---
+
+# @personaai/nestjs (legacy)
 
 NestJS adapter for [Persona](https://persona.hasanraiyan.me) — a dynamic module, injectable service, and middleware for mounting the Persona runtime in a NestJS application.
 
-> **v0.1.0.** Requires NestJS 10 or 11. Server-side only — never bundles the credential.
+> **v0.1.11.** Requires NestJS 10 or 11. Server-side only — never bundles the credential.
 
 ## Install
 

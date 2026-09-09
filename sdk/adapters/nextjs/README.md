@@ -1,6 +1,10 @@
-# @personaai/nextjs
+# @personaai/nextjs — Deprecated
 
-Next.js integration for [Persona](https://persona.hasanraiyan.me) — **the one package a Next.js app installs.** One App Router catch-all route mounts the whole agent runtime (streaming chat, threads, files, memory, MCP OAuth); the root entry re-exports the React hooks and `<PersonaProvider>`.
+> **Deprecated:** Use [`@personaai/adapters/nextjs`](../README.md) instead. This package is a frozen shim that re-exports from `@personaai/adapters` and will be removed in `1.0`. New code should `npm install @personaai/adapters` and `import { createPersonaHandler } from '@personaai/adapters/nextjs/server'`.
+
+---
+
+# @personaai/nextjs (legacy)
 
 > **v0.1.0.** Requires Next.js >= 14 (App Router). Runs on both the Node.js and Edge runtimes.
 

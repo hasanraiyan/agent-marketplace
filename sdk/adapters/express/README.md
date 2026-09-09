@@ -1,8 +1,14 @@
-# @personaai/express
+# @personaai/express — Deprecated
+
+> **Deprecated:** Use [`@personaai/adapters/express`](../README.md) instead. This package is a frozen shim that re-exports from `@personaai/adapters` and will be removed in `1.0`. New code should `npm install @personaai/adapters` and `import { toExpressRouter } from '@personaai/adapters/express'`.
+
+---
+
+# @personaai/express (legacy)
 
 Express adapter for [Persona](https://persona.hasanraiyan.me) — mount the Persona runtime as an Express Router with streaming chat, threads, files, and memory in a few lines.
 
-> **v0.1.0.** Requires Express >= 4. Server-side only — never bundles the credential.
+> **v0.1.11.** Requires Express >= 4. Server-side only — never bundles the credential.
 
 ## Install
 
