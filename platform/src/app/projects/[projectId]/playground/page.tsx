@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { RobotIcon, SparkleIcon } from "@phosphor-icons/react";
+import { RobotIcon, SparkleIcon, BrainIcon } from "@phosphor-icons/react";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectTrigger,
@@ -18,6 +19,7 @@ import { cacheKey, deleteCachedByPrefix } from "@/lib/cache";
 import { AgentChat } from "@/components/playground/agent-chat";
 import { VoiceTab } from "@/components/playground/voice-tab";
 import { ArchitectChat } from "@/components/playground/architect-chat";
+import { MemoryWorkspaceDialog } from "@/components/playground/memory-workspace-dialog";
 
 type TabId = "chat" | "voice";
 
@@ -67,6 +69,7 @@ function PlaygroundContent() {
   const [error, setError] = React.useState<string | null>(null);
   const [selectedId, setSelectedId] = React.useState<string | null>(queryAgentId || ARCHITECT);
   const [tab, setTab] = React.useState<TabId>("chat");
+  const [memoryOpen, setMemoryOpen] = React.useState(false);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -143,39 +146,56 @@ function PlaygroundContent() {
         </div>
 
         {!loading && (
-          <Select
-            value={selectValue}
-            onValueChange={handleSelectAgent}
-            // SelectValue can only show the selected entry's *label* when the
-            // root can turn the stored value back into one — without this it
-            // falls back to rendering the raw id in the trigger.
-            itemToStringLabel={(value) =>
-              value === ARCHITECT
-                ? "Agent Architect"
-                : (agents.find((agent) => agent.id === value)?.name ?? String(value ?? ""))
-            }
-          >
-            <SelectTrigger className="w-fit max-w-60">
-              <SelectValue placeholder="Select an agent…" />
-            </SelectTrigger>
-            <SelectContent align="end">
-              <SelectItem value={ARCHITECT}>
-                <span className="inline-flex items-center gap-1.5">
-                  <SparkleIcon className="size-3.5 text-primary" />
-                  Agent Architect
-                </span>
-              </SelectItem>
-              {agents.map((agent) => (
-                <SelectItem key={agent.id} value={agent.id}>
-                  {agent.name}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMemoryOpen(true)}
+              className="h-8 gap-1.5 text-xs font-medium"
+            >
+              <BrainIcon className="size-3.5 text-primary" />
+              Memory
+            </Button>
+
+            <Select
+              value={selectValue}
+              onValueChange={handleSelectAgent}
+              // SelectValue can only show the selected entry's *label* when the
+              // root can turn the stored value back into one — without this it
+              // falls back to rendering the raw id in the trigger.
+              itemToStringLabel={(value) =>
+                value === ARCHITECT
+                  ? "Agent Architect"
+                  : (agents.find((agent) => agent.id === value)?.name ?? String(value ?? ""))
+              }
+            >
+              <SelectTrigger className="w-fit max-w-60">
+                <SelectValue placeholder="Select an agent…" />
+              </SelectTrigger>
+              <SelectContent align="end">
+                <SelectItem value={ARCHITECT}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <SparkleIcon className="size-3.5 text-primary" />
+                    Agent Architect
+                  </span>
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                {agents.map((agent) => (
+                  <SelectItem key={agent.id} value={agent.id}>
+                    {agent.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         )}
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col px-6 py-3">
+      {/* No horizontal padding on mobile — AgentChat/ArchitectChat/VoiceTab
+          each add their own padding around the messages + composer, so this
+          wrapper's padding only stacks with theirs. Left at px-6 that's extra
+          dead margin on each side on a phone-width screen on top of what the
+          composer itself already adds; sm:px-6 keeps the desktop look. */}
+      <div className="flex min-h-0 flex-1 flex-col px-0 py-3 sm:px-6">
         {loading ? (
           <div className="flex flex-1 flex-col gap-3">
             <Skeleton className="h-8 w-28" />
@@ -206,7 +226,7 @@ function PlaygroundContent() {
                 onValueChange={(value) => setTab(value === "voice" ? "voice" : "chat")}
                 className="flex min-h-0 flex-1 flex-col gap-3"
               >
-                <TabsList className="w-fit">
+                <TabsList className="w-fit ml-3 sm:ml-0">
                   <TabsTrigger value="chat">Chat</TabsTrigger>
                   <TabsTrigger value="voice">Voice</TabsTrigger>
                 </TabsList>
@@ -233,6 +253,14 @@ function PlaygroundContent() {
           </div>
         )}
       </div>
+
+      <MemoryWorkspaceDialog
+        open={memoryOpen}
+        onOpenChange={setMemoryOpen}
+        projectId={projectId}
+        activeAgentId={selectedAgent?.id}
+        agents={agents}
+      />
     </div>
   );
 }

@@ -16,6 +16,7 @@ import rcpSourceService from '../rcpSources/rcpSource.service.js';
 import providerService from '../providers/provider.service.js';
 import storeService from '../stores/store.service.js';
 import auditLogService from '../audit/auditLog.service.js';
+import memoryService from '../memory/memory.service.js';
 import { bulkDelete } from '../../utils/bulkDelete.js';
 import { paginationEnvelope } from '../../utils/pagination.js';
 
@@ -1425,6 +1426,101 @@ class ProjectController {
       ]);
 
       res.json({ success: true, data: paginationEnvelope(logs, total, page, limit) });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Developer Platform Project Memory — lists all memory files (user-global project files
+   * plus per-agent files) for this Project's domain namespace.
+   */
+  async listMemory(req, res, next) {
+    try {
+      const data = await memoryService.getAllMemory(req.projectAdminContext.domain);
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Writes (creates or overwrites) one memory file for this Project.
+   * Supports scope="user" (shared project memory) and scope="agent" (agent-specific).
+   */
+  async writeMemoryFile(req, res, next) {
+    try {
+      const { scope = 'user', agentId, path, content } = req.body;
+      if (!path || content === undefined) {
+        return res.status(400).json({
+          success: false,
+          message: 'path and content are required',
+        });
+      }
+      if (scope === 'agent' && !agentId) {
+        return res.status(400).json({
+          success: false,
+          message: 'agentId is required when scope is "agent"',
+        });
+      }
+      const file = await memoryService.writeMemoryFile(req.projectAdminContext.domain, {
+        scope,
+        agentId,
+        path,
+        content,
+      });
+      res.status(201).json({ success: true, data: file });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Deletes a single memory file by path (and optional agentId for agent scope).
+   */
+  async deleteMemoryFile(req, res, next) {
+    try {
+      const { scope = 'user', agentId, path } = req.query;
+      if (!path) {
+        return res.status(400).json({
+          success: false,
+          message: 'path query parameter is required',
+        });
+      }
+      await memoryService.deleteMemoryFile(req.projectAdminContext.domain, {
+        scope,
+        agentId,
+        path,
+      });
+      res.json({ success: true, message: 'Memory file deleted' });
+    } catch (error) {
+      if (error.message === 'Memory file not found') {
+        return res.status(404).json({ success: false, message: 'Memory file not found' });
+      }
+      next(error);
+    }
+  }
+
+  /**
+   * Clears memory files for this Project: either for a specific agent (if agentId query provided)
+   * or all project memories.
+   */
+  async clearMemory(req, res, next) {
+    try {
+      const { agentId } = req.query;
+      if (agentId) {
+        const result = await memoryService.deleteAgentMemory(
+          req.projectAdminContext.domain,
+          agentId
+        );
+        return res.json({
+          success: true,
+          message: 'Agent memory cleared successfully',
+          data: result,
+        });
+      }
+      await memoryService.clearAllMemory(req.projectAdminContext.domain);
+      res.json({ success: true, message: 'All project memory cleared successfully' });
     } catch (error) {
       next(error);
     }

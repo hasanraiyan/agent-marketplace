@@ -16,9 +16,9 @@ import {
   QuestionnaireNext,
   QuestionnaireSubmit,
 } from "@/components/ui/questionnaire";
-import { Item, ItemContent, ItemTitle, ItemDescription, ItemActions } from "@/components/ui/item";
 import { Button } from "@/components/ui/button";
 import { CheckIcon, XIcon } from "@phosphor-icons/react";
+import { ToolCallCard } from "./tool-call-card";
 import type { ChatInterruptData } from "./types";
 
 /**
@@ -40,19 +40,40 @@ function InterruptPanel({
   if (interrupt.kind === "hitl") {
     return (
       <div className="flex flex-col gap-2 rounded-none border border-border bg-card p-3">
+        <div className="text-xs font-semibold text-muted-foreground">
+          Waiting for your approval to continue
+        </div>
         {interrupt.actionRequests.map((action) => (
-          <Item key={action.id} variant="muted">
-            <ItemContent>
-              <ItemTitle>{action.label}</ItemTitle>
-              {action.description && (
-                <ItemDescription>{action.description}</ItemDescription>
-              )}
-            </ItemContent>
-            <ItemActions>
+          <div key={action.id} className="flex flex-col gap-2">
+            {/* Same ToolCallCard every completed call renders through —
+                starts collapsed like any other tool card. The header alone
+                (title + subtitle, e.g. "Creating agent" / "Exam Master")
+                already tells a human enough to decide approve/reject; forcing
+                it open by default made a large upsert_agent payload (a long
+                system prompt, etc.) grow tall enough to push the
+                Approve/Reject buttons off-screen. Still capped + scrollable
+                for whenever it IS expanded. */}
+            <div className="max-h-[50vh] overflow-y-auto">
+              <ToolCallCard
+                toolCall={{
+                  id: action.id,
+                  name: action.toolName,
+                  args: action.args,
+                  status: "running",
+                }}
+                // Explicit `false`, not omitted — ToolCallCard's own default
+                // for an upsert defaults to open while pending (status here
+                // is always "running"), which is exactly the forced-open
+                // behavior this panel doesn't want.
+                defaultOpen={false}
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
+                aria-label={`Reject ${action.label}`}
                 onClick={() => onDecideHitl?.(action.id, "reject")}
               >
                 <XIcon /> Reject
@@ -60,12 +81,13 @@ function InterruptPanel({
               <Button
                 type="button"
                 size="sm"
+                aria-label={`Approve ${action.label}`}
                 onClick={() => onDecideHitl?.(action.id, "approve")}
               >
                 <CheckIcon /> Approve
               </Button>
-            </ItemActions>
-          </Item>
+            </div>
+          </div>
         ))}
       </div>
     );

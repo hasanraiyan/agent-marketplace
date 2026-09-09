@@ -154,6 +154,18 @@ class MemoryService {
 
     return { cleared: true };
   }
+
+  /**
+   * Clears memory files for one specific agent under the given user/project namespace.
+   */
+  async deleteAgentMemory(userId, agentId) {
+    const namespace = agentMemoryNamespace(userId, agentId);
+    const result = await MemoryFile.deleteMany({ namespace });
+    logger.info(
+      `[MemoryService] Cleared ${result.deletedCount} agent memory files for user ${userId}, agent ${agentId}`
+    );
+    return { deletedCount: result.deletedCount, cleared: true };
+  }
 }
 
 export default new MemoryService();

@@ -115,10 +115,13 @@ describe('HITL interrupt translation', () => {
     );
   });
 
-  test('buildInterruptNotice renders pending actions for HITL interrupts', () => {
+  test('buildInterruptNotice no longer renders HITL actions (structured card only)', () => {
+    // A HITL approval is fully represented by the hitl_request CUSTOM event's
+    // actionRequests (tool name + args) — buildInterruptNotice only ever
+    // covers clarification now, so a HITL payload falls through to the
+    // generic fallback instead of duplicating the tool name in prose.
     const notice = buildInterruptNotice([{ value: hitlValue }]);
-    expect(notice).toContain('upsert_agent');
-    expect(notice.toLowerCase()).toContain('approv');
+    expect(notice).not.toContain('upsert_agent');
   });
 
   test('stream emits CUSTOM hitl_request event and reports kind to onInterrupt', async () => {
@@ -142,9 +145,9 @@ describe('HITL interrupt translation', () => {
     expect(custom.value.actionRequests).toEqual(hitlValue.actionRequests);
     expect(custom.value.reviewConfigs).toEqual(hitlValue.reviewConfigs);
 
-    // A readable text notice still follows for the transcript.
-    const text = events.find((e) => e.type === EventType.TEXT_MESSAGE_CHUNK);
-    expect(text.delta).toContain('upsert_agent');
+    // No redundant text notice — the structured hitl_request event above is
+    // the only representation of a pending HITL approval.
+    expect(events.find((e) => e.type === EventType.TEXT_MESSAGE_CHUNK)).toBeUndefined();
   });
 
   test('clarification interrupts emit a structured CUSTOM event', async () => {

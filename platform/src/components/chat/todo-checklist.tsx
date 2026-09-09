@@ -1,44 +1,62 @@
 "use client";
 
 import * as React from "react";
-import { CheckIcon, CircleIcon, CircleDashedIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, ClockIcon, CircleIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import type { ChatTodo } from "./types";
 
+function TodoStatusIcon({ status }: { status: ChatTodo["status"] }) {
+  if (status === "completed") {
+    return (
+      <CheckCircleIcon weight="fill" className="size-[15px] shrink-0 text-primary" />
+    );
+  }
+  if (status === "in_progress") {
+    return <ClockIcon className="size-[15px] shrink-0 text-primary" />;
+  }
+  return <CircleIcon className="size-[15px] shrink-0 text-muted-foreground/40" />;
+}
+
+// Dostify-style plan list: bare, tightly-spaced rows — no bordered cards, no
+// progress bar. Completed steps strike through and fade; the in-progress step
+// is semibold; pending steps stay quiet.
 function TodoChecklist({
   todos,
-  compact = false,
+  className,
 }: {
   todos: ChatTodo[];
-  compact?: boolean;
+  className?: string;
 }) {
   if (!todos?.length) return null;
 
   return (
-    <ul className={cn("flex flex-col gap-1", compact ? "gap-0.5" : "gap-1")}>
-      {todos.map((todo, i) => (
-        <li
-          key={i}
-          className={cn(
-            "flex items-start gap-2 text-xs",
-            todo.status === "completed" && "text-muted-foreground line-through",
-            todo.status === "in_progress" && "text-foreground font-medium"
-          )}
-        >
-          <span className="mt-0.5 flex size-3.5 shrink-0 items-center justify-center">
-            {todo.status === "completed" ? (
-              <CheckIcon className="size-3.5 text-primary" />
-            ) : todo.status === "in_progress" ? (
-              <CircleDashedIcon className="size-3.5 animate-spin text-primary" />
-            ) : (
-              <CircleIcon className="size-3.5 text-muted-foreground" />
-            )}
-          </span>
-          <span className="min-w-0 flex-1 wrap-break-word">{todo.content}</span>
-        </li>
-      ))}
+    <ul className={cn("flex flex-col", className)}>
+      {todos.map((todo, i) => {
+        const isCompleted = todo.status === "completed";
+        const isInProgress = todo.status === "in_progress";
+
+        return (
+          <li key={i} className="flex items-start gap-2 py-[3px]">
+            <span className="mt-px shrink-0">
+              <TodoStatusIcon status={todo.status} />
+            </span>
+            <span
+              className={cn(
+                "min-w-0 flex-1 wrap-break-word text-[12.5px] leading-5",
+                isCompleted
+                  ? "text-muted-foreground/70 line-through"
+                  : isInProgress
+                    ? "font-semibold text-foreground"
+                    : "text-muted-foreground"
+              )}
+            >
+              {todo.content}
+            </span>
+          </li>
+        );
+      })}
     </ul>
   );
 }
 
-export { TodoChecklist };
+export { TodoChecklist, TodoStatusIcon };

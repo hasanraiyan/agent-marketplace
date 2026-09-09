@@ -251,20 +251,14 @@ export function buildResumeValue(pendingInterrupt, resume, content) {
   };
 }
 
-// Build the user-facing prompt shown when the graph pauses at an interrupt. If the
-// interrupt carried structured questions/options, render them as a numbered list.
+// Build the user-facing prompt shown when the graph pauses at an interrupt
+// that ISN'T a HITL tool-approval (those render entirely through the
+// `hitl_request` CUSTOM event's structured actionRequests/args — see
+// hitlInterruptFrom on the client — so no text notice is emitted for them,
+// only for clarification). If the interrupt carried structured
+// questions/options, render them as a numbered list.
 export function buildInterruptNotice(graphInterrupts, err) {
   const interruptValue = (graphInterrupts ?? err?.interrupts)?.[0]?.value;
-  const actionRequests = interruptValue?.actionRequests;
-  if (Array.isArray(actionRequests) && actionRequests.length > 0) {
-    const lines = actionRequests.map((action, i) => `**${i + 1}. ${action?.name || 'tool'}**`);
-    return (
-      `I'd like to run the following ${actionRequests.length > 1 ? 'actions' : 'action'} and need your approval:\n\n` +
-      `${lines.join('\n')}\n\n` +
-      `Approve to continue, or reply with feedback and I'll adjust.`
-    );
-  }
-
   const questions = interruptValue?.questions;
 
   if (Array.isArray(questions) && questions.length > 0) {
@@ -295,6 +289,20 @@ export function buildInterruptNotice(graphInterrupts, err) {
 export function extractToolOutputContent(output) {
   if (output == null) return '';
   if (typeof output === 'string') return output;
+  // A tool that also updates graph state (e.g. deepagents' write_todos)
+  // returns a `Command({ update: { todos, messages: [new ToolMessage(...)] } })`
+  // instead of a plain value, so event.data.output is the Command instance
+  // itself, not a ToolMessage. Without unwrapping this, the code below falls
+  // through to JSON.stringify(output) and leaks the whole Command envelope
+  // (lg_name/update/goto, including the full state update) to the client
+  // instead of the actual tool result text.
+  if (output.lg_name === 'Command' && Array.isArray(output.update?.messages)) {
+    const messages = output.update.messages;
+    const toolMessage =
+      messages.find((m) => typeof m?._getType === 'function' && m._getType() === 'tool') ??
+      messages[messages.length - 1];
+    if (toolMessage != null) return extractToolOutputContent(toolMessage);
+  }
   // ToolMessage / BaseMessage: the payload lives on `.content`.
   if (typeof output.content === 'string') return output.content;
   if (Array.isArray(output.content)) {
@@ -1024,14 +1032,18 @@ export async function* translateLangGraphStream(stream, opts = {}) {
         if (customEvent) yield customEvent;
       }
 
-      // Always yield a readable text notice for the transcript, even if a custom card is shown.
-      // This ensures tests pass and provide a fallback if the custom card isn't rendered.
-      yield {
-        type: EventType.TEXT_MESSAGE_CHUNK,
-        messageId: randomUUID(),
-        role: 'assistant',
-        delta: buildInterruptNotice(streamInterrupts),
-      };
+      // A HITL approval already renders fully through the `hitl_request`
+      // CUSTOM event (tool name + args) — a text notice here would just
+      // duplicate it as an ugly, argument-less assistant message. Only
+      // clarification still needs one (it has no structured card).
+      if (interruptInfo.kind !== 'hitl') {
+        yield {
+          type: EventType.TEXT_MESSAGE_CHUNK,
+          messageId: randomUUID(),
+          role: 'assistant',
+          delta: buildInterruptNotice(streamInterrupts),
+        };
+      }
       yield* emitStateSnapshot('interrupt');
       return;
     }
@@ -1089,12 +1101,16 @@ export async function* translateLangGraphStream(stream, opts = {}) {
         if (customEvent) yield customEvent;
       }
 
-      yield {
-        type: EventType.TEXT_MESSAGE_CHUNK,
-        messageId: randomUUID(),
-        role: 'assistant',
-        delta: buildInterruptNotice(graphInterrupts, err),
-      };
+      // Same reasoning as the streamInterrupts branch above: a HITL approval
+      // already has its own structured card, so skip the redundant text notice.
+      if (interruptInfo.kind !== 'hitl') {
+        yield {
+          type: EventType.TEXT_MESSAGE_CHUNK,
+          messageId: randomUUID(),
+          role: 'assistant',
+          delta: buildInterruptNotice(graphInterrupts, err),
+        };
+      }
 
       // The agent may already have written files/todos before pausing (e.g.
       // wrote a draft, then asked for clarification) — surface them now.

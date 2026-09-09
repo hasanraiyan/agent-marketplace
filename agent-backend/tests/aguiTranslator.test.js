@@ -321,10 +321,9 @@ describe('translateLangGraphStream', () => {
     expect(custom).toBeDefined();
     expect(custom.name).toBe('hitl_request');
     expect(custom.value.actionRequests[0].name).toBe('write_file');
-    // A readable text notice still follows for the transcript.
-    const text = out.find((e) => e.type === 'TEXT_MESSAGE_CHUNK');
-    expect(text).toBeDefined();
-    expect(text.delta).toContain('write_file');
+    // A HITL approval renders entirely through the structured `hitl_request`
+    // event (tool name + args) — no redundant text notice for the transcript.
+    expect(out.find((e) => e.type === 'TEXT_MESSAGE_CHUNK')).toBeUndefined();
   });
 
   test('on genuine failure: flattens AggregateError, logs leaves, surfaces real cause', async () => {
@@ -1033,6 +1032,20 @@ describe('extractToolOutputContent', () => {
       name: 't',
     });
     expect(extractToolOutputContent(tm)).toBe('{"hostname":"box"}');
+  });
+
+  test('unwraps a Command envelope to its ToolMessage content (write_todos)', () => {
+    // deepagents' write_todos returns Command({ update: { todos, messages: [...] } })
+    // instead of a plain value, so on_tool_end's output is the Command itself.
+    const tm = new ToolMessage({ content: 'Updated todo list', tool_call_id: 'x', name: 'write_todos' });
+    const command = {
+      lg_name: 'Command',
+      update: {
+        todos: [{ content: 'step 1', status: 'pending' }],
+        messages: [tm],
+      },
+    };
+    expect(extractToolOutputContent(command)).toBe('Updated todo list');
   });
 });
 

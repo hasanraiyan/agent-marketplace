@@ -27,12 +27,29 @@ export interface ChatTodo {
   status: "pending" | "in_progress" | "completed";
 }
 
+/**
+ * A model "thinking" segment attached to an assistant message. Mirrors the
+ * hook's `role:"reasoning"` messages: content streamed in via REASONING_*
+ * events, `startedAt` the wall-clock open time, and `durationMs` stamped once
+ * the backend closes the block (REASONING_END) — undefined while still live.
+ */
+export interface ChatReasoning {
+  id: string;
+  content: string;
+  /** True while the block is the open tail of a live run (no end yet). */
+  isStreaming?: boolean;
+  startedAt?: number;
+  durationMs?: number;
+}
+
 export interface ChatMessageData {
   id: string;
   role: ChatRole;
   content: string;
   isStreaming?: boolean;
   toolCalls?: ChatToolCall[];
+  /** Thinking/reasoning tokens that preceded this reply (may still stream). */
+  reasoning?: ChatReasoning[];
 }
 
 export interface ChatClarificationQuestion {
@@ -45,8 +62,15 @@ export interface ChatClarificationQuestion {
 
 export interface ChatHitlAction {
   id: string;
+  /** Humanized tool name, used only for the Approve/Reject buttons' aria-label. */
   label: string;
-  description?: string;
+  /** Raw tool name (e.g. "upsert_agent") — lets the panel render this pending
+   * call through the same ToolCallCard used for a completed one. */
+  toolName: string;
+  /** Raw JSON string of the tool call's arguments — the same shape
+   * ToolCallCard renders as "Input" for a completed call, so an approval
+   * request reads like the tool card the human is being asked to approve. */
+  args?: string;
 }
 
 export type ChatInterruptData =

@@ -17,14 +17,22 @@ import { cn } from "@/lib/utils";
 function MessageMarkdown({
   className,
   content,
+  muted = false,
 }: {
   className?: string;
   content: string;
+  /** Render in muted tones (used for reasoning/thinking blocks). */
+  muted?: boolean;
 }) {
   return (
     <Streamdown
       className={cn(
-        "max-w-none text-xs/relaxed text-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+        // Exactly one root color: streamdown text (and fenced code that inherits
+        // rather than self-coloring) reads either foreground or muted. Appending
+        // both would leave the winner to CSS source order, so muted swaps rather
+        // than stacks. Links/inline chips below stay colorful in either state.
+        "max-w-none text-xs/relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+        muted ? "text-muted-foreground" : "text-foreground",
         "[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4",
         // Only inline code gets our chip styling — fenced code blocks are
         // fully owned by Streamdown's own code-block renderer (header bar +

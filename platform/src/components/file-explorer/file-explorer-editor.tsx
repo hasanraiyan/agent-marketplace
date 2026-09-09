@@ -515,7 +515,10 @@ export function FileExplorerEditor<T extends ExplorerItem>({
               </button>
               <button
                 type="button"
-                onClick={() => openFileTab(item, null)}
+                onClick={() => {
+                  toggleExpand(item.id);
+                  openFileTab(item, null);
+                }}
                 className="flex flex-1 items-center gap-1.5 truncate rounded-none px-1 py-1 text-left text-xs hover:bg-muted/60"
               >
                 {isExpanded ? <FolderOpenIcon className="size-3.5 shrink-0" /> : <FolderIcon className="size-3.5 shrink-0" />}
