@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+import mongoose from 'mongoose';
 import projectService from './project.service.js';
 import projectMembershipService from './projectMembership.service.js';
 import projectInvitationService from './projectInvitation.service.js';
@@ -17,6 +19,8 @@ import providerService from '../providers/provider.service.js';
 import storeService from '../stores/store.service.js';
 import auditLogService from '../audit/auditLog.service.js';
 import memoryService from '../memory/memory.service.js';
+import Conversation from '../threads/thread.model.js';
+import checkpointService from '../threads/checkpoint.service.js';
 import { bulkDelete } from '../../utils/bulkDelete.js';
 import { paginationEnvelope } from '../../utils/pagination.js';
 
@@ -1531,6 +1535,190 @@ class ProjectController {
       next(error);
     }
   }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Project Agent Threads (Playground / Testing)
+  // ────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Lists conversation threads for this agent in this project for the current admin.
+   * Auto-provisions a default 'Main Chat' thread if none exist yet.
+   */
+  async listAgentThreads(req, res, next) {
+    try {
+      const { agentId } = req.params;
+      const { domain, personaUserId } = req.projectAdminContext;
+
+      await agentService.getDeveloperAgentById(agentId, req.projectAdminContext);
+
+      let threads = await Conversation.find({
+        domain,
+        agentId,
+        userId: personaUserId,
+        isArchived: false,
+      }).sort({ lastMessageAt: -1, createdAt: -1 });
+
+      if (threads.length === 0) {
+        const defaultThreadId = `agent-test-${domain}-${agentId}`;
+        const defaultThread = await Conversation.findOneAndUpdate(
+          { threadId: defaultThreadId },
+          {
+            $setOnInsert: {
+              domain,
+              agentId,
+              userId: personaUserId,
+              subjectType: 'PersonaUser',
+              threadId: defaultThreadId,
+              title: 'Main Chat',
+              lastMessageAt: new Date(),
+            },
+          },
+          { upsert: true, new: true }
+        );
+        threads = [defaultThread];
+      }
+
+      res.json({ success: true, data: threads });
+    } catch (error) {
+      if (error.message === 'Agent not found') {
+        return res.status(404).json({ success: false, message: 'Agent not found' });
+      }
+      next(error);
+    }
+  }
+
+  /**
+   * Creates a new conversation thread for this agent in this project.
+   */
+  async createAgentThread(req, res, next) {
+    try {
+      const { agentId } = req.params;
+      const { domain, personaUserId } = req.projectAdminContext;
+      const { title } = req.body || {};
+
+      await agentService.getDeveloperAgentById(agentId, req.projectAdminContext);
+
+      const uniqueSuffix = crypto.randomUUID();
+      const threadId = `agent-test-${domain}-${agentId}-${uniqueSuffix}`;
+
+      const thread = await Conversation.create({
+        domain,
+        agentId,
+        userId: personaUserId,
+        subjectType: 'PersonaUser',
+        threadId,
+        title: title?.trim() || 'New Conversation',
+        lastMessageAt: new Date(),
+      });
+
+      res.status(201).json({ success: true, data: thread });
+    } catch (error) {
+      if (error.message === 'Agent not found') {
+        return res.status(404).json({ success: false, message: 'Agent not found' });
+      }
+      next(error);
+    }
+  }
+
+  /**
+   * Retrieves message history for a specific thread from LangGraph checkpointer.
+   */
+  async getAgentThreadMessages(req, res, next) {
+    try {
+      const { agentId, threadId } = req.params;
+      const { domain, personaUserId } = req.projectAdminContext;
+
+      await agentService.getDeveloperAgentById(agentId, req.projectAdminContext);
+
+      const query = mongoose.isValidObjectId(threadId)
+        ? { _id: threadId, domain, agentId, userId: personaUserId }
+        : { threadId, domain, agentId, userId: personaUserId };
+
+      const thread = await Conversation.findOne(query);
+      if (!thread) {
+        return res.status(404).json({ success: false, message: 'Thread not found' });
+      }
+
+      const result = await checkpointService.getMessages(
+        thread._id,
+        personaUserId,
+        req.projectAdminContext
+      );
+
+      res.json({ success: true, data: result });
+    } catch (error) {
+      if (error.message === 'Agent not found' || error.message === 'Thread not found' || error.message === 'Unauthorized') {
+        return res.status(404).json({ success: false, message: 'Thread not found' });
+      }
+      next(error);
+    }
+  }
+
+  /**
+   * Updates a thread (e.g. title, isArchived).
+   */
+  async updateAgentThread(req, res, next) {
+    try {
+      const { agentId, threadId } = req.params;
+      const { domain, personaUserId } = req.projectAdminContext;
+      const { title, isArchived } = req.body || {};
+
+      await agentService.getDeveloperAgentById(agentId, req.projectAdminContext);
+
+      const query = mongoose.isValidObjectId(threadId)
+        ? { _id: threadId, domain, agentId, userId: personaUserId }
+        : { threadId, domain, agentId, userId: personaUserId };
+
+      const updates = {};
+      if (title !== undefined) updates.title = title.trim();
+      if (isArchived !== undefined) updates.isArchived = isArchived;
+
+      const updated = await Conversation.findOneAndUpdate(query, updates, { new: true });
+      if (!updated) {
+        return res.status(404).json({ success: false, message: 'Thread not found' });
+      }
+
+      res.json({ success: true, data: updated });
+    } catch (error) {
+      if (error.message === 'Agent not found') {
+        return res.status(404).json({ success: false, message: 'Agent not found' });
+      }
+      next(error);
+    }
+  }
+
+  /**
+   * Deletes a thread and purges its LangGraph checkpoints.
+   */
+  async deleteAgentThread(req, res, next) {
+    try {
+      const { agentId, threadId } = req.params;
+      const { domain, personaUserId } = req.projectAdminContext;
+
+      await agentService.getDeveloperAgentById(agentId, req.projectAdminContext);
+
+      const query = mongoose.isValidObjectId(threadId)
+        ? { _id: threadId, domain, agentId, userId: personaUserId }
+        : { threadId, domain, agentId, userId: personaUserId };
+
+      const thread = await Conversation.findOneAndDelete(query);
+      if (!thread) {
+        return res.status(404).json({ success: false, message: 'Thread not found' });
+      }
+
+      if (thread.threadId) {
+        checkpointService.cleanupThreads(thread.threadId).catch(() => {});
+      }
+
+      res.json({ success: true, message: 'Thread deleted successfully' });
+    } catch (error) {
+      if (error.message === 'Agent not found') {
+        return res.status(404).json({ success: false, message: 'Agent not found' });
+      }
+      next(error);
+    }
+  }
 }
 
 export default new ProjectController();
+

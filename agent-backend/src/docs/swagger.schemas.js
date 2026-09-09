@@ -116,6 +116,9 @@
  *           type: string
  *         webSearchEnabled:
  *           type: boolean
+ *         sandboxEnabled:
+ *           type: boolean
+ *           description: Real shell execution in an isolated CodeSandbox VM. Requires a CSB_API_KEY Project Secret.
  *         visibility:
  *           type: string
  *           enum: [private, unlisted, public]

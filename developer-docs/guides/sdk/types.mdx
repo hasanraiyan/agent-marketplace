@@ -244,6 +244,7 @@ Raw Mongo shape — `_id`, not `id`.
 | `providerId`         | `string` (optional)                         | **Stripped when the calling identity doesn't own this Agent.**                               |
 | `modelName`          | `string` (optional)                         | Overrides the referenced Provider's `defaultModel`.                                          |
 | `webSearchEnabled`   | `boolean`                                   | Whether web search is enabled.                                                               |
+| `sandboxEnabled`     | `boolean`                                   | Real shell execution in an isolated CodeSandbox VM. Requires a `CSB_API_KEY` Project Secret.  |
 | `visibility`         | `AgentVisibility`                           | `'private' \| 'unlisted' \| 'public'`.                                                       |
 | `category`           | `AgentCategory`                             | See `AgentCategory`.                                                                         |
 | `skills`             | `unknown[]` (optional)                      | Bare id strings on create/update/list; populated objects on `get()`.                         |
@@ -280,7 +281,8 @@ public discovery listings.
 
 Required: `name`, `systemPrompt`, `providerId`. Optional (with defaults where noted):
 `description?`, `avatar?`, `tags?`, `tagline?`, `bio?`, `personalityTraits?`, `socialLinks?`,
-`modelName?`, `webSearchEnabled?` (default `false`), `visibility?` (default `'private'`),
+`modelName?`, `webSearchEnabled?` (default `false`), `sandboxEnabled?` (default `false`),
+`visibility?` (default `'private'`),
 `category?` (default `'other'`), `skills?: string[]`, `mcps?: string[]`, `knowledgeBases?:
 string[]`, `storeMounts?: string[]`, `interruptOn?: Record<string, boolean>`, `isActive?` (default
 `true`). See [Agents](/guides/sdk/resources/agents).

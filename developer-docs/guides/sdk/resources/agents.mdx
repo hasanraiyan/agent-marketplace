@@ -63,6 +63,7 @@ Optional fields and defaults:
 | `socialLinks`         | `AgentSocialLinks`                     | —           | `{ website?, twitter?, github?, linkedin? }`.                           |
 | `modelName`           | `string`                               | —           | Overrides the referenced Provider's `defaultModel`.                     |
 | `webSearchEnabled`    | `boolean`                              | `false`     | Whether the Agent can perform web searches.                             |
+| `sandboxEnabled`      | `boolean`                              | `false`     | Real shell execution in an isolated CodeSandbox VM. Requires a `CSB_API_KEY` Project Secret to exist first — create one via the platform UI or `POST /api/v1/developer/secrets` (no `secrets` SDK resource yet). |
 | `visibility`          | `'private' \| 'unlisted' \| 'public'`  | `'private'` | `unlisted` is linkable but excluded from public discovery.              |
 | `category`            | `'productivity' \| 'coding' \| 'creative' \| 'research' \| 'roleplay' \| 'other'` | `'other'` | |
 | `skills`              | `string[]`                             | —           | Skill ids.                                                              |

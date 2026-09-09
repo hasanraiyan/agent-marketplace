@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.16 — 2026-09-09
+
+- Bump `@personaai/react` to `^0.7.10` (new `useChat()` return value `sandboxCommands:
+  PersonaSandboxCommand[]` — one entry per `execute` tool call against an Agent's sandbox, with
+  `command`/`output`/`exitCode`/`status` already parsed out) and `@personaai/runtime` to `^0.9.5`
+  (forwards the new `sandboxEnabled` field on `createAgent`). No adapter code change needed for
+  either — `client.ts` re-exports `@personaai/react` verbatim, and `server.ts`'s route handling is
+  a generic pass-through of `@personaai/runtime`'s route table. Verified against both real
+  published packages — typecheck, 35 tests, and build all clean.
+
 ## 0.1.14 — 2026-09-07
 
 - Bump `@personaai/react` to `^0.7.8` (new `useChat({ context })` / `sendMessage(text, {

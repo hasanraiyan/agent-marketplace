@@ -116,6 +116,7 @@ export interface UseAguiChatOptions {
       };
   initialToolCalls?: ToolCall[];
   initialConversation?: ConversationEntry[];
+  initialAgentState?: Record<string, unknown>;
   headers?: Record<string, string>;
   /** Async function that returns an auth token. Used by Clerk-based projects. */
   getToken?: () => Promise<string | null>;
@@ -454,6 +455,7 @@ export function useAguiChat(
     initialMessages: rawInitialMessages,
     initialToolCalls: rawInitialToolCalls,
     initialConversation: rawInitialConversation,
+    initialAgentState,
     headers,
     getToken,
     onToolResult,
@@ -491,7 +493,9 @@ export function useAguiChat(
           refId: m.id,
         })),
   );
-  const [agentState, setAgentState] = useState<Record<string, unknown>>({});
+  const [agentState, setAgentState] = useState<Record<string, unknown>>(
+    initialAgentState ?? {},
+  );
   const [isRunning, setIsRunning] = useState(false);
   const [isReasoning, setIsReasoning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -533,14 +537,14 @@ export function useAguiChat(
             refId: m.id,
           })),
     );
-    setAgentState({});
+    setAgentState(initialAgentState ?? {});
     setError(null);
     setThreadId(externalThreadId);
     setPendingApproval(null);
     setPendingClarification(null);
     uiBlockToolCallIdsRef.current.clear();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [externalThreadId]);
+  }, [externalThreadId, initialAgentState]);
 
   const headerEntries = useMemo(
     () =>

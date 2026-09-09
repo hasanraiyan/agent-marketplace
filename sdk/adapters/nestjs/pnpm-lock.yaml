@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@personaai/runtime':
-        specifier: ^0.9.3
-        version: 0.9.3(zod@3.25.76)
+        specifier: ^0.9.5
+        version: 0.9.5(zod@3.25.76)
       '@personaai/sdk':
-        specifier: ^0.7.4
-        version: 0.7.4(zod@3.25.76)
+        specifier: ^0.7.5
+        version: 0.7.5(zod@3.25.76)
     devDependencies:
       '@eslint/js':
         specifier: ^9.19.0
@@ -505,12 +505,12 @@ packages:
     resolution: {integrity: sha512-ra5T+aBNzDmiabJ161y87SJJT9x3MHuFfAL1UCxSY3IO6AOJtF5UcXdsLVcxkugeOIto6Ppsm+adGLLR9s50Kw==}
     engines: {node: '>=18'}
 
-  '@personaai/runtime@0.9.3':
-    resolution: {integrity: sha512-8dOHztkKcJd/fyGj7k8riPeBbJSfu1JHU1H/OLSEO8iaV7BAuEDxpmVBT1O6NJERDVO9OqnY8ghn8Y0ll/b+0w==}
+  '@personaai/runtime@0.9.5':
+    resolution: {integrity: sha512-VcwPbANXlOwmBQPiZVlHR5XpuIMX+TrBmytkNfpVat70lX6fDBVwBXAuLKdUZT3/BRkrLDkg9TP37iUUYbj38w==}
     engines: {node: '>=18'}
 
-  '@personaai/sdk@0.7.4':
-    resolution: {integrity: sha512-pD6IyZUazOEf0bbxeS0+qwXBDUc1XaFItQextMk6G6uYB8cSDffkdFfgdX9oZdEZsOn3Vw8nMjY0wJ+MjKkRYQ==}
+  '@personaai/sdk@0.7.5':
+    resolution: {integrity: sha512-VP7Vg0phZ1FJ13VDS6Q9ct9sWX8N5Z8GCH+0+0Vu39r3FoKoDHC4EANNp/AyRhesEsL8jdcxND4WioIJSn+3Zg==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.23.0 || ^4.0.0
@@ -1756,15 +1756,15 @@ snapshots:
 
   '@personaai/logger@0.1.0': {}
 
-  '@personaai/runtime@0.9.3(zod@3.25.76)':
+  '@personaai/runtime@0.9.5(zod@3.25.76)':
     dependencies:
       '@ag-ui/core': 0.0.57
-      '@personaai/sdk': 0.7.4(zod@3.25.76)
+      '@personaai/sdk': 0.7.5(zod@3.25.76)
       rcp-sdk: 0.1.1
     transitivePeerDependencies:
       - zod
 
-  '@personaai/sdk@0.7.4(zod@3.25.76)':
+  '@personaai/sdk@0.7.5(zod@3.25.76)':
     dependencies:
       '@ag-ui/core': 0.0.57
       '@personaai/logger': 0.1.0

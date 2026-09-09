@@ -11,6 +11,8 @@ import {
   addMemberSchema,
   createCredentialSchema,
   createInvitationSchema,
+  createProjectThreadSchema,
+  updateProjectThreadSchema,
 } from './project.validator.js';
 import { createProviderSchema, updateProviderSchema } from '../providers/provider.validator.js';
 import { createSkillSchema, updateSkillSchema } from '../skills/skill.validator.js';
@@ -1058,6 +1060,173 @@ adminRouter.delete('/memory/file', mutateLimiter, projectController.deleteMemory
  */
 adminRouter.delete('/memory/all', mutateLimiter, projectController.clearMemory);
 
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/agents/{agentId}/threads:
+ *   get:
+ *     tags: [Projects]
+ *     summary: List conversation threads for an Agent in this Project (Admin only)
+ *     description: Returns conversation threads for the agent and caller in this project.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: agentId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: List of threads
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Agent not found
+ *   post:
+ *     tags: [Projects]
+ *     summary: Create a conversation thread for an Agent in this Project (Admin only)
+ *     description: Creates a new conversation thread for testing this agent.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: agentId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title: { type: string }
+ *     responses:
+ *       201:
+ *         description: Thread created
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Agent not found
+ */
+adminRouter.get('/agents/:agentId/threads', projectController.listAgentThreads);
+adminRouter.post(
+  '/agents/:agentId/threads',
+  mutateLimiter,
+  validateBody(createProjectThreadSchema),
+  projectController.createAgentThread
+);
+
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/agents/{agentId}/threads/{threadId}/messages:
+ *   get:
+ *     tags: [Projects]
+ *     summary: Get message history for an Agent conversation thread (Admin only)
+ *     description: Returns reconstructed messages, state, and subagent traces from the checkpointer.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: agentId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: threadId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Thread messages and checkpoint state
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Thread not found
+ */
+adminRouter.get('/agents/:agentId/threads/:threadId/messages', projectController.getAgentThreadMessages);
+
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/agents/{agentId}/threads/{threadId}:
+ *   patch:
+ *     tags: [Projects]
+ *     summary: Update an Agent conversation thread (Admin only)
+ *     description: Renames or archives a conversation thread.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: agentId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: threadId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title: { type: string }
+ *               isArchived: { type: boolean }
+ *     responses:
+ *       200:
+ *         description: Thread updated
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Thread not found
+ *   delete:
+ *     tags: [Projects]
+ *     summary: Delete an Agent conversation thread (Admin only)
+ *     description: Deletes a conversation thread and cleans up its checkpoints.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: agentId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: threadId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Thread deleted
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Thread not found
+ */
+adminRouter.patch(
+  '/agents/:agentId/threads/:threadId',
+  mutateLimiter,
+  validateBody(updateProjectThreadSchema),
+  projectController.updateAgentThread
+);
+adminRouter.delete(
+  '/agents/:agentId/threads/:threadId',
+  mutateLimiter,
+  projectController.deleteAgentThread
+);
+
 router.use('/:projectId', adminRouter);
 
 export default router;
+

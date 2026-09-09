@@ -46,7 +46,14 @@ jest.unstable_mockModule('../src/modules/users/user.repository.js', () => ({
 }));
 
 jest.unstable_mockModule('../src/modules/agents/agent.service.js', () => ({
-  default: { discoverAgents: jest.fn() },
+  default: { discoverAgents: jest.fn(), getDeveloperAgentById: jest.fn() },
+  personaExecutionContext: jest.fn(),
+}));
+jest.unstable_mockModule('../src/modules/threads/checkpoint.service.js', () => ({
+  default: {
+    getMessages: jest.fn(),
+    cleanupThreads: jest.fn(),
+  },
 }));
 jest.unstable_mockModule('../src/modules/skills/skill.service.js', () => ({
   default: { discoverSkills: jest.fn() },

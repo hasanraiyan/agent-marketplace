@@ -60,6 +60,30 @@ import { clerkMiddleware } from '@clerk/express';
 // Initialize logger (Dependency Inversion - can swap implementation)
 const logger = loggerService.getLogger();
 
+// @codesandbox/sdk (agent sandbox execution — src/modules/sandbox/) has a
+// known internal bug: when a sandbox VM's background WebSocket connection
+// winds down on its own (idle timeout, hibernate, a failed auto-reconnect —
+// never something our own request-handling code triggers), its cleanup path
+// throws synchronously from inside its own event emitter, with none of this
+// codebase's code anywhere on the call stack. No try/catch in
+// sandbox.service.js/codesandbox.backend.js can reach it — this is the only
+// place capable of stopping it from taking down the whole process over one
+// stray sandbox connection. Scoped tightly to that exact error message;
+// anything else still crashes the process, per Node's own guidance that
+// continuing after a genuinely unknown uncaught exception is unsafe.
+process.on('uncaughtException', (err) => {
+  if (err instanceof Error && /Pitcher message .* has been disposed/.test(err.message)) {
+    logger.error('[CodeSandbox SDK] swallowed known sandbox-disposal race', {
+      error: err.message,
+    });
+    return;
+  }
+  logger.error('[uncaughtException] unhandled, exiting', {
+    error: err?.stack || String(err),
+  });
+  process.exit(1);
+});
+
 const app = express();
 
 // This app runs behind a TLS-terminating reverse proxy/CDN in production

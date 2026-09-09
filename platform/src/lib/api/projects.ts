@@ -269,3 +269,45 @@ export const deleteProjectMemoryFile = (
 export const clearProjectMemory = (projectId: string, agentId?: string) =>
   api.delete(`/projects/${projectId}/memory/all`, { params: agentId ? { agentId } : {} });
 
+// Project Agent Threads (Playground / Testing)
+export interface ProjectAgentThread {
+  _id: string;
+  domain: string;
+  agentId: string;
+  userId: string;
+  threadId: string;
+  title: string;
+  lastMessageAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const getProjectAgentThreads = (projectId: string, agentId: string) =>
+  api.get(`/projects/${projectId}/agents/${agentId}/threads`);
+
+export const createProjectAgentThread = (
+  projectId: string,
+  agentId: string,
+  data?: { title?: string }
+) => api.post(`/projects/${projectId}/agents/${agentId}/threads`, data ?? {});
+
+export const getProjectAgentThreadMessages = (
+  projectId: string,
+  agentId: string,
+  threadId: string
+) => api.get(`/projects/${projectId}/agents/${agentId}/threads/${threadId}/messages`);
+
+export const updateProjectAgentThread = (
+  projectId: string,
+  agentId: string,
+  threadId: string,
+  data: { title?: string; isArchived?: boolean }
+) => api.patch(`/projects/${projectId}/agents/${agentId}/threads/${threadId}`, data);
+
+export const deleteProjectAgentThread = (
+  projectId: string,
+  agentId: string,
+  threadId: string
+) => api.delete(`/projects/${projectId}/agents/${agentId}/threads/${threadId}`);
+
+

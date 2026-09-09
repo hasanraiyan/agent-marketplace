@@ -46,3 +46,13 @@ export const createCredentialSchema = z.object({
 export const createInvitationSchema = z.object({
   email: z.string().email('A valid email is required'),
 });
+
+export const createProjectThreadSchema = z.object({
+  title: z.string().max(200).optional(),
+});
+
+export const updateProjectThreadSchema = z.object({
+  title: z.string().min(1, 'Title cannot be empty').max(200).optional(),
+  isArchived: z.boolean().optional(),
+});
+

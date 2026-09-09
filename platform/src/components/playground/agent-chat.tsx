@@ -1,8 +1,14 @@
 "use client";
 
 import * as React from "react";
+import { SpinnerIcon } from "@phosphor-icons/react";
 import { api } from "@/lib/api/core";
-import { useAguiChat } from "@/lib/agui/use-agui-chat";
+import {
+  useAguiChat,
+  type ChatMessage as HookChatMessage,
+  type ToolCall as HookToolCall,
+  type ConversationEntry as HookConversationEntry,
+} from "@/lib/agui/use-agui-chat";
 import {
   toChatView,
   hitlInterruptFrom,
@@ -24,22 +30,116 @@ import {
   type ChatToolCall,
 } from "@/components/chat";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { getProjectAgentThreadMessages } from "@/lib/api/projects";
+
+function normalizeCheckpointData(data: unknown): {
+  messages: HookChatMessage[];
+  toolCalls: HookToolCall[];
+  conversation: HookConversationEntry[];
+  agentState: Record<string, unknown>;
+} {
+  const messages: HookChatMessage[] = [];
+  const toolCalls: HookToolCall[] = [];
+  const conversation: HookConversationEntry[] = [];
+
+  if (!data || typeof data !== "object") {
+    return { messages, toolCalls, conversation, agentState: {} };
+  }
+
+  const raw = data as {
+    messages?: Array<{
+      id?: string;
+      role?: string;
+      content?: string;
+      toolCalls?: Array<{
+        toolCallId?: string;
+        toolName?: string;
+        args?: string;
+        result?: string;
+      }>;
+    }>;
+    state?: Record<string, unknown>;
+    subagentTraces?: Record<string, unknown[]>;
+  };
+
+  const rawMessages = Array.isArray(raw.messages) ? raw.messages : [];
+  const subagentTraces = raw.subagentTraces || {};
+  const agentState = typeof raw.state === "object" && raw.state !== null ? raw.state : {};
+
+  rawMessages.forEach((msg, idx) => {
+    if (!msg) return;
+    const role = msg.role === "user" ? "user" : "assistant";
+    const content = typeof msg.content === "string" ? msg.content : "";
+    const msgId = msg.id || `${role}-${idx}-${Date.now()}`;
+
+    if (role === "user") {
+      messages.push({
+        id: msgId,
+        role: "user",
+        content,
+        timestamp: Date.now(),
+      });
+      conversation.push({ id: `entry-${msgId}`, type: "message", refId: msgId });
+    } else {
+      if (Array.isArray(msg.toolCalls)) {
+        msg.toolCalls.forEach((tc) => {
+          if (!tc) return;
+          const tcId = tc.toolCallId || `tool-${Math.random().toString(16).slice(2)}`;
+          const tcName = tc.toolName || "tool";
+          const argsText = typeof tc.args === "string" ? tc.args : JSON.stringify(tc.args || {});
+          const resultText = typeof tc.result === "string" ? tc.result : "";
+
+          toolCalls.push({
+            id: tcId,
+            name: tcName,
+            argumentsText: argsText,
+            resultText,
+            status: "completed",
+            subEvents: Array.isArray(subagentTraces[tcId])
+              ? (subagentTraces[tcId] as HookToolCall["subEvents"])
+              : undefined,
+          });
+          conversation.push({ id: `entry-${tcId}`, type: "tool", refId: tcId });
+        });
+      }
+
+      if (content || !msg.toolCalls?.length) {
+        messages.push({
+          id: msgId,
+          role: "assistant",
+          content,
+          timestamp: Date.now(),
+        });
+        conversation.push({ id: `entry-${msgId}`, type: "message", refId: msgId });
+      }
+    }
+  });
+
+  return { messages, toolCalls, conversation, agentState };
+}
 
 /**
  * Live text-chat for one Agent — runs `useAguiChat` against the backend's
  * `test/agui` SSE endpoint and folds its AG-UI state into the render shapes
  * the chat component library consumes (see lib/agui/chat-adapter.ts).
- *
- * The parent remounts this via `key={agentId}`, so switching agents starts a
- * fresh local conversation (the component holds no history of its own).
  */
-function AgentChat({
+function AgentChatInner({
   projectId,
   agentId,
+  threadId,
+  initialMessages,
+  initialAgentState,
   onToolCallsChange,
 }: {
   projectId: string;
   agentId: string;
+  threadId?: string;
+  initialMessages?: {
+    messages: HookChatMessage[];
+    toolCalls: HookToolCall[];
+    conversation: HookConversationEntry[];
+  };
+  initialAgentState?: Record<string, unknown>;
   /** Bubbles the live, deduped tool-call list up for the Terminal panel — fires on every change. */
   onToolCallsChange?: (toolCalls: ChatToolCall[]) => void;
 }) {
@@ -52,6 +152,9 @@ function AgentChat({
   const chat = useAguiChat({
     url,
     agentId,
+    threadId,
+    initialMessages,
+    initialAgentState,
     getToken: React.useCallback(
       () =>
         typeof window !== "undefined"
@@ -296,4 +399,77 @@ function AgentChat({
   );
 }
 
+/**
+ * Top-level AgentChat component with conversation thread history support.
+ * When `threadId` is supplied, fetches past messages and checkpoint state before
+ * mounting the streaming chat interface.
+ */
+function AgentChat({
+  projectId,
+  agentId,
+  threadId,
+  onToolCallsChange,
+}: {
+  projectId: string;
+  agentId: string;
+  threadId?: string;
+  onToolCallsChange?: (toolCalls: ChatToolCall[]) => void;
+}) {
+  const [initialData, setInitialData] = React.useState<{
+    messages: HookChatMessage[];
+    toolCalls: HookToolCall[];
+    conversation: HookConversationEntry[];
+    agentState: Record<string, unknown>;
+  } | null>(null);
+  const [loadingHistory, setLoadingHistory] = React.useState(Boolean(threadId));
+
+  React.useEffect(() => {
+    if (!threadId) {
+      setInitialData(null);
+      setLoadingHistory(false);
+      return;
+    }
+    let cancelled = false;
+    setLoadingHistory(true);
+    getProjectAgentThreadMessages(projectId, agentId, threadId)
+      .then((res) => {
+        if (cancelled) return;
+        const data = res.data?.data;
+        setInitialData(normalizeCheckpointData(data));
+      })
+      .catch((err) => {
+        console.error("Failed to load thread messages:", err);
+        if (!cancelled) setInitialData(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingHistory(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, agentId, threadId]);
+
+  if (loadingHistory) {
+    return (
+      <div className="flex h-full min-h-[350px] flex-col items-center justify-center p-8 text-muted-foreground gap-2.5">
+        <SpinnerIcon className="size-6 animate-spin text-primary" />
+        <span className="text-xs font-medium">Loading conversation history…</span>
+      </div>
+    );
+  }
+
+  return (
+    <AgentChatInner
+      key={`${agentId}-${threadId ?? "default"}`}
+      projectId={projectId}
+      agentId={agentId}
+      threadId={threadId}
+      initialMessages={initialData ?? undefined}
+      initialAgentState={initialData?.agentState}
+      onToolCallsChange={onToolCallsChange}
+    />
+  );
+}
+
 export { AgentChat };
+

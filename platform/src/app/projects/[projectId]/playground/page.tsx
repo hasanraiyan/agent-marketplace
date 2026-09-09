@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { RobotIcon, SparkleIcon, FolderOpenIcon, TerminalIcon } from "@phosphor-icons/react";
+import { RobotIcon, SparkleIcon, FolderOpenIcon, TerminalIcon, ListIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -14,13 +14,14 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { getProjectAgents } from "@/lib/api/projects";
+import { getProjectAgents, type ProjectAgentThread } from "@/lib/api/projects";
 import { cacheKey, deleteCachedByPrefix } from "@/lib/cache";
 import { AgentChat } from "@/components/playground/agent-chat";
 import { VoiceTab } from "@/components/playground/voice-tab";
 import { ArchitectChat } from "@/components/playground/architect-chat";
 import { MemoryWorkspaceDialog } from "@/components/playground/memory-workspace-dialog";
 import { SandboxTerminalDialog } from "@/components/playground/sandbox-terminal-dialog";
+import { AgentThreadsSidebar } from "@/components/playground/agent-threads-sidebar";
 import type { ChatToolCall } from "@/components/chat";
 
 type TabId = "chat" | "voice";
@@ -82,6 +83,8 @@ function PlaygroundContent() {
   const [memoryOpen, setMemoryOpen] = React.useState(false);
   const [terminalOpen, setTerminalOpen] = React.useState(false);
   const [toolCalls, setToolCalls] = React.useState<ChatToolCall[]>([]);
+  const [threadsOpen, setThreadsOpen] = React.useState(true);
+  const [activeThread, setActiveThread] = React.useState<ProjectAgentThread | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -139,6 +142,7 @@ function PlaygroundContent() {
   const handleSelectAgent = (value: string | null) => {
     const next = value === ARCHITECT ? ARCHITECT : value ?? ARCHITECT;
     setSelectedId(next);
+    setActiveThread(null);
     if (next !== ARCHITECT) setTab("chat");
   };
 
@@ -250,19 +254,50 @@ function PlaygroundContent() {
                 onValueChange={(value) => setTab(value === "voice" ? "voice" : "chat")}
                 className="flex min-h-0 flex-1 flex-col gap-3"
               >
-                <TabsList className="w-fit ml-3 sm:ml-0">
-                  <TabsTrigger value="chat">Chat</TabsTrigger>
-                  <TabsTrigger value="voice">Voice</TabsTrigger>
-                </TabsList>
+                <div className="flex items-center gap-2 ml-3 sm:ml-0">
+                  {tab === "chat" && (
+                    <Button
+                      variant={threadsOpen ? "secondary" : "outline"}
+                      size="sm"
+                      onClick={() => setThreadsOpen((prev) => !prev)}
+                      className="h-8 w-8 p-0"
+                      title={threadsOpen ? "Collapse threads" : "Show threads"}
+                    >
+                      <ListIcon className="size-4" />
+                    </Button>
+                  )}
+                  <TabsList className="w-fit">
+                    <TabsTrigger value="chat">Chat</TabsTrigger>
+                    <TabsTrigger value="voice">Voice</TabsTrigger>
+                  </TabsList>
+                </div>
 
                 {tab === "chat" ? (
                   <TabsContent value="chat" className="min-h-0 flex-1">
-                    <AgentChat
-                      key={selectedAgent.id}
-                      projectId={projectId}
-                      agentId={selectedAgent.id}
-                      onToolCallsChange={selectedAgent.sandboxEnabled ? setToolCalls : undefined}
-                    />
+                    <div className="flex h-full min-h-0 w-full gap-3 overflow-hidden rounded-md border border-border/40 bg-background">
+                      {threadsOpen && (
+                        <AgentThreadsSidebar
+                          projectId={projectId}
+                          agentId={selectedAgent.id}
+                          activeThreadId={activeThread?._id || activeThread?.threadId || null}
+                          onSelectThread={(thread) => setActiveThread(thread)}
+                          onThreadDeleted={(deletedId) => {
+                            if (activeThread?._id === deletedId) {
+                              setActiveThread(null);
+                            }
+                          }}
+                        />
+                      )}
+                      <div className="flex-1 min-w-0 h-full">
+                        <AgentChat
+                          key={`${selectedAgent.id}-${activeThread?._id || activeThread?.threadId || "default"}`}
+                          projectId={projectId}
+                          agentId={selectedAgent.id}
+                          threadId={activeThread?.threadId || activeThread?._id}
+                          onToolCallsChange={selectedAgent.sandboxEnabled ? setToolCalls : undefined}
+                        />
+                      </div>
+                    </div>
                   </TabsContent>
                 ) : (
                   <TabsContent value="voice" className="min-h-0 flex-1">

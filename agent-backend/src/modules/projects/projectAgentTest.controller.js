@@ -1,9 +1,18 @@
 import crypto from 'crypto';
+import mongoose from 'mongoose';
 import { EventType } from '@ag-ui/core';
 import rateLimiterService from '../rateLimiter/rateLimiter.service.js';
 import RateLimitError from '../../utils/errors/RateLimitError.js';
 import agentService from '../agents/agent.service.js';
 import { readJsonBody, runAgentAsAguiEvents } from '../agui/agui.service.js';
+import Conversation from '../threads/thread.model.js';
+import checkpointService from '../threads/checkpoint.service.js';
+import {
+  foldSubagentEvent,
+  reconcileSubagentTraceKeys,
+  extractTaskToolCallIds,
+  settleTrace,
+} from '../agui/subagentTrace.js';
 
 /**
  * Developer Studio "Test" playground — lets a Project Admin chat with one
@@ -42,7 +51,29 @@ class ProjectAgentTestController {
 
     try {
       const input = await readJsonBody(req);
-      const langGraphThreadId = `agent-test-${context.domain}-${agentId}`;
+      const requestedThreadId = req.headers['x-thread-id'] || input.threadId;
+
+      let resolvedThread = null;
+      let langGraphThreadId = `agent-test-${context.domain}-${agentId}`;
+
+      if (requestedThreadId && requestedThreadId !== 'default' && requestedThreadId !== 'new') {
+        const query = mongoose.isValidObjectId(requestedThreadId)
+          ? { _id: requestedThreadId, domain: context.domain, agentId }
+          : { threadId: requestedThreadId, domain: context.domain, agentId };
+        resolvedThread = await Conversation.findOne(query);
+        if (resolvedThread) {
+          langGraphThreadId = resolvedThread.threadId;
+        }
+      }
+
+      if (!resolvedThread) {
+        resolvedThread = await Conversation.findOne({
+          domain: context.domain,
+          agentId,
+          threadId: langGraphThreadId,
+        });
+      }
+
       const runId = input.runId || crypto.randomUUID();
 
       res.status(200);
@@ -59,21 +90,54 @@ class ProjectAgentTestController {
         res.write(`data: ${JSON.stringify(event)}\n\n`);
       };
 
+      const subagentTraces = {};
+
       send({ type: EventType.RUN_STARTED, threadId: langGraphThreadId, runId });
       for await (const event of runAgentAsAguiEvents({
         agentId,
-        userId: context.domain,
+        userId: context.personaUserId || context.domain,
         langGraphThreadId,
+        threadDbId: resolvedThread?._id,
         messages: input.messages || [],
         resume: input.resume,
         signal: controller.signal,
         executionContext: context,
       })) {
         if (res.destroyed) break;
+        if (event?.type === EventType.CUSTOM && event.name === 'subagent_activity') {
+          const callId = event.value?.toolCallId;
+          if (callId) {
+            foldSubagentEvent((subagentTraces[callId] ??= []), event.value);
+          }
+        }
         send(event);
       }
       send({ type: EventType.RUN_FINISHED, threadId: langGraphThreadId, runId });
       res.end();
+
+      if (resolvedThread) {
+        await Conversation.findByIdAndUpdate(resolvedThread._id, { lastMessageAt: new Date() }).catch(() => {});
+        if (Object.keys(subagentTraces).length > 0) {
+          let reconciled = subagentTraces;
+          try {
+            const snapshot = await checkpointService.checkpointer?.getTuple({
+              configurable: { thread_id: langGraphThreadId },
+            });
+            const rawMessages = snapshot?.checkpoint?.channel_values?.messages;
+            if (rawMessages) {
+              reconciled = reconcileSubagentTraceKeys(subagentTraces, extractTaskToolCallIds(rawMessages));
+            }
+          } catch {
+            // Persist provisional keys if reconciliation fails
+          }
+
+          const setOps = {};
+          for (const [callId, items] of Object.entries(reconciled)) {
+            setOps[`subagentTraces.${callId}`] = settleTrace(items);
+          }
+          await Conversation.findByIdAndUpdate(resolvedThread._id, { $set: setOps }).catch(() => {});
+        }
+      }
     } catch (err) {
       next(err);
     } finally {
@@ -83,3 +147,4 @@ class ProjectAgentTestController {
 }
 
 export default new ProjectAgentTestController();
+

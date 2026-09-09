@@ -244,6 +244,10 @@ router.delete('/:id/memory/:key', agentController.deleteMemory);
  *                 type: boolean
  *                 default: false
  *                 description: Enable web search capability (uses Tavily)
+ *               sandboxEnabled:
+ *                 type: boolean
+ *                 default: false
+ *                 description: Real shell execution in an isolated CodeSandbox VM. Requires a CSB_API_KEY Project Secret.
  *               visibility:
  *                 type: string
  *                 enum: [private, unlisted, public]
@@ -291,6 +295,8 @@ router.post('/', mutateLimiter, validateBody(createAgentSchema), agentController
  *               modelName:
  *                 type: string
  *               webSearchEnabled:
+ *                 type: boolean
+ *               sandboxEnabled:
  *                 type: boolean
  *               visibility:
  *                 type: string
