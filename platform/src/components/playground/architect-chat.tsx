@@ -234,7 +234,13 @@ function ArchitectChat({
         )}
       </div>
 
-      <div className="mx-auto w-full max-w-3xl px-4 pb-4">
+      {/* px-4 matches ChatScroller's own message padding above, so the
+          composer lines up with the message bubbles now that the page
+          wrapper no longer adds its own horizontal padding on mobile. Bottom
+          padding is capped to the safe-area inset (not a flat pb-4) so it
+          doesn't carry extra dead space on top of that on a phone screen,
+          while still clearing the home-indicator area. */}
+      <div className="mx-auto w-full max-w-3xl px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4">
         {interrupt && (
           <div className="mb-2">
             <InterruptPanel
