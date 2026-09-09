@@ -9,6 +9,7 @@ import type {
   PersonaPresentedFile,
   PersonaResumeValue,
   PersonaRole,
+  PersonaSandboxCommand,
   PersonaStreamingEvent,
   PersonaSubagentActivityEntry,
   PersonaTodo,
@@ -96,6 +97,49 @@ function parsePresentedFile(content: string): PersonaPresentedFile | null {
   } catch {
     return null;
   }
+}
+
+// execute's args are `{ command }` and result `{ output, exitCode }` (see
+// CodeSandboxBackend.execute, agent-backend/src/modules/sandbox) — both
+// arrive here as opaque JSON strings, so this stays defensive rather than
+// assuming either parses cleanly (args in particular is still-accumulating
+// JSON while the call streams in).
+function parseSandboxCommand(tc: PersonaToolCall): PersonaSandboxCommand {
+  let command = tc.args ?? "";
+  try {
+    const parsedArgs = JSON.parse(tc.args || "{}");
+    if (typeof parsedArgs.command === "string") command = parsedArgs.command;
+  } catch {
+    // incomplete/still-streaming args — show the raw partial string
+  }
+
+  let output: string | undefined;
+  let exitCode: number | null | undefined;
+  if (tc.result) {
+    try {
+      const parsedResult = JSON.parse(tc.result);
+      if (typeof parsedResult.output === "string") {
+        output = parsedResult.output;
+        exitCode =
+          typeof parsedResult.exitCode === "number"
+            ? parsedResult.exitCode
+            : null;
+      } else {
+        output = tc.result;
+      }
+    } catch {
+      output = tc.result;
+    }
+  }
+
+  return {
+    toolCallId: tc.toolCallId,
+    command,
+    output,
+    exitCode,
+    status: tc.isError ? "error" : tc.result ? "done" : "running",
+    seq: tc.seq,
+  };
 }
 
 // buildFilesTodosSnapshot (aguiTranslator.js) emits snake_case
@@ -190,6 +234,21 @@ export function useChat(options: UseChatOptions = {}) {
   const [todos, setTodos] = useState<PersonaTodo[]>([]);
   const [presentedFile, setPresentedFile] =
     useState<PersonaPresentedFile | null>(null);
+
+  // Derived (not separately tracked) from `messages` — every `execute` tool
+  // call already lives there, both live-streamed and loaded from history, so
+  // this stays correct for free instead of needing its own reset/restore
+  // logic the way `presentedFile` (a single most-recent value, not a list)
+  // does.
+  const sandboxCommands = useMemo<PersonaSandboxCommand[]>(() => {
+    const commands: PersonaSandboxCommand[] = [];
+    for (const message of messages) {
+      for (const tc of message.toolCalls ?? []) {
+        if (tc.toolName === "execute") commands.push(parseSandboxCommand(tc));
+      }
+    }
+    return commands;
+  }, [messages]);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const loadedThreadIdRef = useRef<string | undefined>(undefined);
@@ -1060,6 +1119,7 @@ export function useChat(options: UseChatOptions = {}) {
     presentedFile,
     dismissPresentedFile,
     openWorkspaceFile,
+    sandboxCommands,
     stop,
     reload,
     clear,

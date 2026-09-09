@@ -3,6 +3,18 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.7.10
+
+- **New: `useChat()` returns `sandboxCommands: PersonaSandboxCommand[]`.** One entry per `execute`
+  tool call against an Agent's sandbox (real shell execution in an isolated CodeSandbox VM —
+  requires the Agent's `sandboxEnabled` and a `CSB_API_KEY` Project Secret), each with `command`,
+  `output`, `exitCode`, and `status`, parsed out of the call's raw `args`/`result` JSON so a
+  terminal-style view doesn't have to do that parsing itself. Derived from `messages` (not a
+  separately tracked state), so it's populated correctly for both a live stream and thread history
+  loaded via `loadThreadMessages`, with no extra wiring. No new dependency requirement — every
+  `execute` call already arrived as a normal `PersonaToolCall`; this just recognizes it, the same
+  way `presentedFile` already recognizes `present_file`.
+
 ## 0.7.8
 
 - **New: `useChat({ context })` and `sendMessage(text, { context })`.** Never shown to the model in

@@ -112,6 +112,26 @@ export interface PersonaPresentedFile {
   description: string;
 }
 
+/**
+ * One `execute` tool call against an Agent's sandbox (real shell execution
+ * in an isolated CodeSandbox VM — requires the Agent's `sandboxEnabled` and
+ * a `CSB_API_KEY` Project Secret; see the Agent's `sandboxEnabled` field).
+ * Derived from `PersonaToolCall`s named `execute` across every message in
+ * the conversation, in stream order — not a separate live/history-tracked
+ * state, so it's always consistent with `messages`.
+ */
+export interface PersonaSandboxCommand {
+  toolCallId: string;
+  /** The shell command, parsed from the tool call's `args`. Falls back to the raw args string while still streaming/incomplete. */
+  command: string;
+  /** stdout/stderr, once the call finishes. */
+  output?: string;
+  /** `null` when the result parsed but didn't carry an exit code; `undefined` while still running. */
+  exitCode?: number | null;
+  status: "running" | "done" | "error";
+  seq?: number;
+}
+
 export interface PersonaProviderProps {
   /** Base URL where the Persona runtime / adapter is mounted, e.g. "http://localhost:4000/api/persona" */
   baseUrl: string;

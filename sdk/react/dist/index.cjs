@@ -374,6 +374,37 @@ function parsePresentedFile(content) {
     return null;
   }
 }
+function parseSandboxCommand(tc) {
+  let command = tc.args ?? "";
+  try {
+    const parsedArgs = JSON.parse(tc.args || "{}");
+    if (typeof parsedArgs.command === "string") command = parsedArgs.command;
+  } catch {
+  }
+  let output;
+  let exitCode;
+  if (tc.result) {
+    try {
+      const parsedResult = JSON.parse(tc.result);
+      if (typeof parsedResult.output === "string") {
+        output = parsedResult.output;
+        exitCode = typeof parsedResult.exitCode === "number" ? parsedResult.exitCode : null;
+      } else {
+        output = tc.result;
+      }
+    } catch {
+      output = tc.result;
+    }
+  }
+  return {
+    toolCallId: tc.toolCallId,
+    command,
+    output,
+    exitCode,
+    status: tc.isError ? "error" : tc.result ? "done" : "running",
+    seq: tc.seq
+  };
+}
 function normalizeWorkspaceFiles(raw) {
   const normalized = {};
   for (const [path, file] of Object.entries(raw || {})) {
@@ -434,6 +465,15 @@ function useChat(options = {}) {
   const [files, setFiles] = (0, import_react2.useState)({});
   const [todos, setTodos] = (0, import_react2.useState)([]);
   const [presentedFile, setPresentedFile] = (0, import_react2.useState)(null);
+  const sandboxCommands = (0, import_react2.useMemo)(() => {
+    const commands = [];
+    for (const message of messages) {
+      for (const tc of message.toolCalls ?? []) {
+        if (tc.toolName === "execute") commands.push(parseSandboxCommand(tc));
+      }
+    }
+    return commands;
+  }, [messages]);
   const abortControllerRef = (0, import_react2.useRef)(null);
   const loadedThreadIdRef = (0, import_react2.useRef)(void 0);
   const voiceThreadRef = (0, import_react2.useRef)(threadId);
@@ -1109,6 +1149,7 @@ function useChat(options = {}) {
     presentedFile,
     dismissPresentedFile,
     openWorkspaceFile,
+    sandboxCommands,
     stop,
     reload,
     clear,
@@ -2074,7 +2115,7 @@ function useMcp(options = {}) {
 
 // src/index.ts
 var import_logger2 = require("@personaai/logger");
-var VERSION = "0.7.9";
+var VERSION = "0.7.10";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   PersonaProvider,

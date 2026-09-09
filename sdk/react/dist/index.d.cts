@@ -112,6 +112,25 @@ interface PersonaPresentedFile {
     title: string;
     description: string;
 }
+/**
+ * One `execute` tool call against an Agent's sandbox (real shell execution
+ * in an isolated CodeSandbox VM — requires the Agent's `sandboxEnabled` and
+ * a `CSB_API_KEY` Project Secret; see the Agent's `sandboxEnabled` field).
+ * Derived from `PersonaToolCall`s named `execute` across every message in
+ * the conversation, in stream order — not a separate live/history-tracked
+ * state, so it's always consistent with `messages`.
+ */
+interface PersonaSandboxCommand {
+    toolCallId: string;
+    /** The shell command, parsed from the tool call's `args`. Falls back to the raw args string while still streaming/incomplete. */
+    command: string;
+    /** stdout/stderr, once the call finishes. */
+    output?: string;
+    /** `null` when the result parsed but didn't carry an exit code; `undefined` while still running. */
+    exitCode?: number | null;
+    status: "running" | "done" | "error";
+    seq?: number;
+}
 interface PersonaProviderProps {
     /** Base URL where the Persona runtime / adapter is mounted, e.g. "http://localhost:4000/api/persona" */
     baseUrl: string;
@@ -429,6 +448,7 @@ declare function useChat(options?: UseChatOptions): {
     presentedFile: PersonaPresentedFile | null;
     dismissPresentedFile: () => void;
     openWorkspaceFile: (path: string) => void;
+    sandboxCommands: PersonaSandboxCommand[];
     stop: () => void;
     reload: () => void;
     clear: () => void;
@@ -659,6 +679,6 @@ declare function supportsStreamingFetch(): boolean;
  */
 declare function openSSEStream(opts: OpenSSEOptions): Promise<SSEStream>;
 
-declare const VERSION = "0.7.9";
+declare const VERSION = "0.7.10";
 
-export { type OpenSSEOptions, type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendMessageOverride, type UseChatOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseVoiceOptions, type UseVoiceResult, VERSION, openSSEStream, supportsStreamingFetch, useAgents, useChat, useConnection, useFiles, useMcp, useMcpConnections, useMemory, usePersonaContext, useThreads, useVoice };
+export { type OpenSSEOptions, type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaSandboxCommand, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendMessageOverride, type UseChatOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseVoiceOptions, type UseVoiceResult, VERSION, openSSEStream, supportsStreamingFetch, useAgents, useChat, useConnection, useFiles, useMcp, useMcpConnections, useMemory, usePersonaContext, useThreads, useVoice };
