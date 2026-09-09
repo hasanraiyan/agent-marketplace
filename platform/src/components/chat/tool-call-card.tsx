@@ -46,13 +46,28 @@ function formatJson(raw: string | undefined): string {
   }
 }
 
+// write_todos's own args always carry the todos it was called with — read
+// them directly instead of depending on the caller to thread a `todos` prop
+// down. Some ChatMessage call sites (subagent-sheet, voice-tab,
+// architect-chat) don't pass one at all, which left the card empty.
+function parseTodosFromArgs(args: string | undefined): ChatTodo[] | undefined {
+  if (!args) return undefined;
+  try {
+    const parsed = JSON.parse(args);
+    return Array.isArray(parsed?.todos) ? parsed.todos : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * One collapsible card for a single tool call — icon/label/status header,
  * expandable body. Every tool call renders through this same chrome; a tool
- * only prepends to what's *inside* it (write_todos → TodoChecklist above the
- * body, task → RobotIcon + "View subagent" button, upsert_agent →
- * AgentUpsertBody summary above the raw Input/Result), never a second card —
- * the raw Input/Result JSON that every other tool shows always renders too.
+ * only changes what's *inside* it: write_todos replaces the raw Input/Result
+ * entirely with a TodoChecklist (the plan itself is the only thing worth
+ * showing — the raw JSON is noise), task adds a RobotIcon + "View subagent"
+ * button, upsert_agent prepends an AgentUpsertBody summary above the raw
+ * Input/Result every other tool shows. Never a second card.
  */
 function ToolCallCard({
   toolCall,
@@ -77,8 +92,51 @@ function ToolCallCard({
   const isError = upsert ? upsert.isError : toolCall.status === "error";
   const upsertSucceeded = !!upsert?.succeeded;
   const label = upsert ? upsert.title : humanizeToolName(toolCall.name);
+  // This call's own args win — they reflect the plan as of this specific
+  // write_todos call; the externally-passed `todos` (the turn's latest
+  // snapshot) is only a fallback for a call still streaming partial args.
+  const displayTodos = isTodos ? (parseTodosFromArgs(toolCall.args) ?? todos) : undefined;
   // An upsert starts expanded while it runs so the "Writing…" state is visible.
   const [open, setOpen] = React.useState(defaultOpen ?? (isUpsert ? isPending : false));
+
+  // write_todos stays collapsible like every other tool card, but the
+  // checklist only renders once — inside CollapsibleContent — instead of
+  // once as a "collapsed preview" and again as "expanded content" (that
+  // duplication is what looked like a bug: same list either way).
+  if (isTodos) {
+    return (
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <Item variant="outline" size="sm" className="flex-col items-stretch">
+          <CollapsibleTrigger
+            render={
+              <button type="button" className="flex w-full items-center gap-2.5 text-left" />
+            }
+          >
+            <ItemMedia variant="icon">
+              {isPending ? <Spinner className="text-primary" /> : <WrenchIcon />}
+            </ItemMedia>
+            <ItemContent>
+              <ItemTitle>
+                {label}
+                {isPending ? "…" : ""}
+              </ItemTitle>
+            </ItemContent>
+            <CaretDownIcon
+              className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")}
+            />
+          </CollapsibleTrigger>
+
+          <CollapsibleContent>
+            {displayTodos?.length ? (
+              <div className="mt-2 pl-8">
+                <TodoChecklist todos={displayTodos} />
+              </div>
+            ) : null}
+          </CollapsibleContent>
+        </Item>
+      </Collapsible>
+    );
+  }
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -125,12 +183,6 @@ function ToolCallCard({
             className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")}
           />
         </CollapsibleTrigger>
-
-        {!open && isTodos && todos?.length ? (
-          <div className="mt-2 pl-8">
-            <TodoChecklist todos={todos} compact />
-          </div>
-        ) : null}
 
         <CollapsibleContent>
           <div className="mt-2.5 flex flex-col gap-2.5 border-t border-border pt-2.5">

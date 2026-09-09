@@ -289,6 +289,20 @@ export function buildInterruptNotice(graphInterrupts, err) {
 export function extractToolOutputContent(output) {
   if (output == null) return '';
   if (typeof output === 'string') return output;
+  // A tool that also updates graph state (e.g. deepagents' write_todos)
+  // returns a `Command({ update: { todos, messages: [new ToolMessage(...)] } })`
+  // instead of a plain value, so event.data.output is the Command instance
+  // itself, not a ToolMessage. Without unwrapping this, the code below falls
+  // through to JSON.stringify(output) and leaks the whole Command envelope
+  // (lg_name/update/goto, including the full state update) to the client
+  // instead of the actual tool result text.
+  if (output.lg_name === 'Command' && Array.isArray(output.update?.messages)) {
+    const messages = output.update.messages;
+    const toolMessage =
+      messages.find((m) => typeof m?._getType === 'function' && m._getType() === 'tool') ??
+      messages[messages.length - 1];
+    if (toolMessage != null) return extractToolOutputContent(toolMessage);
+  }
   // ToolMessage / BaseMessage: the payload lives on `.content`.
   if (typeof output.content === 'string') return output.content;
   if (Array.isArray(output.content)) {
