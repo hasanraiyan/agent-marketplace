@@ -1,14 +1,14 @@
 # @personaai/runtime
 
 Framework-agnostic runtime engine for [Persona](https://persona.hasanraiyan.me). This is the
-shared engine every framework adapter (`@personaai/express`, `@personaai/nextjs`, ...) is meant
+shared engine every framework adapter (`@personaai/adapters/express`, `@personaai/adapters/nextjs/server`, ...) is meant
 to be a thin translation layer over — see
 [the SDK Ecosystem plan](https://github.com/hasanraiyan/agent-marketplace/blob/feat/ai/product-research/11-sdk-new/package-ecosystem.md).
 
-**v0.5.1.** The first framework adapter has shipped: [`@personaai/express` v0.1.0](https://persona.hasanraiyan.me/guides/express/quickstart)
+**v0.9.5.** The unified adapter has shipped: [`@personaai/adapters` v0.1.0](https://persona.hasanraiyan.me/guides/express/quickstart)
 (Wave 3 of the
 [SDK Ecosystem plan](https://github.com/hasanraiyan/agent-marketplace/blob/feat/ai/product-research/11-sdk-new/package-ecosystem.md))
-is published and mounts this runtime as an Express Router. For non-Express hosts, see
+is published as a single package with `express`/`nextjs`/`nestjs` subpaths and mounts this runtime as an Express Router / Next.js Route Handler / NestJS Module. Legacy names `@personaai/express`/`@personaai/nextjs`/`@personaai/nestjs` are deprecated shims re-exporting from `@personaai/adapters`. For non-covered hosts, see
 [Quickstart](#quickstart) for how to run it directly against raw Node `http`, and
 [Not yet implemented](#not-yet-implemented) for what's missing before it's a complete Level 2
 runtime.
@@ -46,7 +46,7 @@ world — see `RunContext`/the design notes below for why this boundary is absol
 
 ## Quickstart (raw Node `http`)
 
-Using Express? Skip this section and use the published [`@personaai/express` adapter](https://persona.hasanraiyan.me/guides/express/quickstart).
+Using Express, Next.js, or NestJS? Skip this section and use the published [`@personaai/adapters` adapters](https://persona.hasanraiyan.me/guides/express/quickstart) — `import { toExpressRouter } from '@personaai/adapters/express'`, `import { createPersonaHandler } from '@personaai/adapters/nextjs/server'`, or `import { PersonaModule } from '@personaai/adapters/nestjs'`.
 For every other host there's no `@personaai/node` adapter package yet, so this release ships a
 small, tested bridge at [`examples/node-handler.ts`](./examples/node-handler.ts) in this repo
 for running the runtime directly against Node's `http` module, just enough to demo/smoke-test
@@ -415,9 +415,8 @@ genuine unclosed gap or an intentional package boundary, not an oversight:
   design**, not a gap: see [Capabilities](#capabilities--admin-surface). A capability is on or off
   per mount; anything finer belongs in `resolveUser` or a hook, not the runtime.
 - Framework adapters beyond the shipped ones (`@personaai/node`, `@personaai/fastify`,
-  `@personaai/hono`) — **by design**, not a gap: this package is the foundation they're meant to
-  wrap, not a replacement for them. `@personaai/nextjs` (Wave 2), `@personaai/express` and
-  `@personaai/nestjs` (Wave 3) have shipped.
+   `@personaai/hono`) — **by design**, not a gap: this package is the foundation they're meant to
+   wrap, not a replacement for them. `@personaai/adapters` (unified `express`/`nextjs`/`nestjs` via subpaths, Wave 3) has shipped — legacy names `@personaai/nextjs`/`@personaai/express`/`@personaai/nestjs` are deprecated shims.
 
 ## Roadmap
 

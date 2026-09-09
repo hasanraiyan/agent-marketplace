@@ -1,6 +1,6 @@
 ---
 title: Auth & User Resolution
-description: How @personaai/express connects your own authentication to Persona — the runtime-level resolver and the Express middleware pattern, and the 401 behavior.
+description: How @personaai/adapters/express connects your own authentication to Persona — the runtime-level resolver and the Express middleware pattern, and the 401 behavior.
 ---
 
 Persona never authenticates end users. There is no login, no session, no token of its own — the
@@ -19,7 +19,7 @@ etc. Use this when your auth already works off raw headers (session cookies, JWT
 
 ```ts
 import { createRuntime } from '@personaai/runtime';
-import { toExpressRouter } from '@personaai/express';
+import { toExpressRouter } from '@personaai/adapters/express';
 
 const runtime = createRuntime({
   baseUrl: process.env.PERSONA_BASE_URL!,
@@ -43,7 +43,7 @@ and attaches the identity to `req`, you can resolve from the raw Express `Reques
 adapter runs your resolver **after** translation, before handing the request to the runtime:
 
 ```ts
-import { createExpressAdapter } from '@personaai/express';
+import { createExpressAdapter } from '@personaai/adapters/express';
 
 const persona = createExpressAdapter({
   baseUrl: process.env.PERSONA_BASE_URL!,

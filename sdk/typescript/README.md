@@ -120,7 +120,7 @@ way it discovers an MCP server's tools (register a URL + key, no manual per-tool
 
 ```ts
 import { defineRestTool } from '@personaai/sdk/rest-tools'; // separate entry point — keeps `zod` optional
-import { createExpressAdapter } from '@personaai/express'; // or the NestJS/Next.js adapter
+import { createExpressAdapter } from '@personaai/adapters/express'; // or @personaai/adapters/nestjs / nextjs/server
 import { z } from 'zod';
 
 const getProfile = defineRestTool({
@@ -200,16 +200,16 @@ For the **whole runtime surface** — streaming chat, threads, files, memory, MC
 mount the official adapter instead of writing this plumbing by hand:
 
 ```bash
-npm install @personaai/express
+npm install @personaai/adapters
 ```
 
 ```ts
-import { toExpressRouter } from '@personaai/express';
+import { toExpressRouter } from '@personaai/adapters/express';
 
 app.use('/api/persona', toExpressRouter(runtime)); // runtime from @personaai/runtime
 ```
 
-`@personaai/express` handles AG-UI streaming, thread/file/memory routes, multipart uploads, and
+`@personaai/adapters/express` (and `.../nestjs`, `.../nextjs/server`) handles AG-UI streaming, thread/file/memory routes, multipart uploads, and
 user resolution for you. Drop down to this SDK whenever you need a raw call the adapter doesn't
 cover — e.g. a single endpoint in your own route handler:
 
@@ -256,7 +256,7 @@ export class PersonaService {
 
 ### Next.js — read this one carefully
 
-> **Most Next.js apps should reach for [`@personaai/nextjs`](https://www.npmjs.com/package/@personaai/nextjs)
+> **Most Next.js apps should reach for [`@personaai/adapters/nextjs`](https://www.npmjs.com/package/@personaai/adapters)
 > instead.** It mounts the whole runtime (streaming chat, threads, files, memory) from one
 > catch-all route file and re-exports the React hooks, so none of the plumbing below is yours to
 > write — and the credential can't reach the client by construction. Use this SDK directly when

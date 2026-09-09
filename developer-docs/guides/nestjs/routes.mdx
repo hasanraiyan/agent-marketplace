@@ -1,6 +1,6 @@
 ---
 title: Routes
-description: Every route the @personaai/nestjs middleware exposes, how it translates NestJS requests, and which SDK call each route proxies to.
+description: Every route the @personaai/adapters/nestjs middleware exposes, how it translates NestJS requests, and which SDK call each route proxies to.
 ---
 
 The adapter exposes the runtime's entire route table on whatever `routePrefix` you configure (default: `/api/persona`). The middleware is a single catch-all: `PersonaMiddleware` handles every request under the prefix and forwards it to `runtime.handle()`. The runtime owns matching, params, and 404/405 — the adapter adds no routes of its own.

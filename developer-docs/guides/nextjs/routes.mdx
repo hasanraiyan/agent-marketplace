@@ -1,6 +1,6 @@
 ---
 title: Routes
-description: Every route a @personaai/nextjs mount exposes, how the adapter translates a Next.js Request, and which SDK call each route proxies to.
+description: Every route a @personaai/adapters/nextjs mount exposes, how the adapter translates a Next.js Request, and which SDK call each route proxies to.
 ---
 
 The adapter exposes the runtime's entire route table under whatever catch-all route you create.
@@ -73,7 +73,7 @@ auth. `toNextRouteHandlers` is the primitive for that — it mounts an existing 
 creating one:
 
 ```ts app/api/admin/persona/[...persona]/route.ts
-import { createRuntime, toNextRouteHandlers } from '@personaai/nextjs/server';
+import { createRuntime, toNextRouteHandlers } from '@personaai/adapters/nextjs/server';
 
 const adminRuntime = createRuntime({
   baseUrl: process.env.PERSONA_BASE_URL!,
@@ -102,7 +102,7 @@ Sources](/guides/rest-tools#code-first-rest-tool-sources) for the end-to-end set
 [`defineRestTool`](/guides/sdk/resources/rest-tools).
 
 ```ts app/api/persona/[...persona]/route.ts
-import { createPersonaHandler } from '@personaai/nextjs/server';
+import { createPersonaHandler } from '@personaai/adapters/nextjs/server';
 import { defineRestTool } from '@personaai/sdk/rest-tools';
 import { z } from 'zod';
 

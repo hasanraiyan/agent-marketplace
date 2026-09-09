@@ -1,9 +1,13 @@
 ---
 title: Quickstart
-description: Mount the Persona runtime as an Express Router with @personaai/express — streaming chat, threads, files, and memory in a few lines, behind your own auth.
+description: Mount the Persona runtime as an Express Router with @personaai/adapters/express — streaming chat, threads, files, and memory in a few lines, behind your own auth.
 ---
 
-`@personaai/express` exposes the [Persona runtime](/guides/runtime/quickstart) as an Express
+<Note>
+  **Package has moved:** `npm install @personaai/adapters` then `import from '@personaai/adapters/express'`. The old `@personaai/express` still works as a deprecated shim re-exporting from the unified package and will be removed in 1.0.
+</Note>
+
+`@personaai/adapters/express` exposes the [Persona runtime](/guides/runtime/quickstart) as an Express
 Router. Mount it, give it a user resolver, and your Express app has the entire runtime surface —
 AG-UI streaming chat, threads, files, memory, MCP OAuth callbacks, health — without writing any
 stream forwarding, protocol parsing, or thread-CRUD plumbing.
@@ -26,7 +30,7 @@ doesn't cover, drop down to [`@personaai/sdk`](/guides/sdk-quickstart) alongside
 ## Install
 
 ```bash
-npm install @personaai/express
+npm install @personaai/adapters
 ```
 
 The package ships ESM, CommonJS, and TypeScript declarations. It depends on
@@ -37,7 +41,7 @@ The package ships ESM, CommonJS, and TypeScript declarations. It depends on
 ```ts
 import express from 'express';
 import { createRuntime } from '@personaai/runtime';
-import { toExpressRouter } from '@personaai/express';
+import { toExpressRouter } from '@personaai/adapters/express';
 
 const runtime = createRuntime({
   baseUrl: process.env.PERSONA_BASE_URL!,
@@ -78,7 +82,7 @@ however your app already does (shown above).
 the identity to `req`. Use the `createExpressAdapter` factory and a `resolveUserFrom` resolver:
 
 ```ts
-import { createExpressAdapter } from '@personaai/express';
+import { createExpressAdapter } from '@personaai/adapters/express';
 
 const persona = createExpressAdapter({
   baseUrl: process.env.PERSONA_BASE_URL!,
@@ -113,7 +117,7 @@ globally via `setLogLevel` from `@personaai/sdk` (the same logger `runtime` uses
 covers both).
 
 ```ts
-import { createExpressAdapter } from '@personaai/express';
+import { createExpressAdapter } from '@personaai/adapters/express';
 import { setLogLevel, createLogger } from '@personaai/sdk';
 
 // Global — affects all SDK/runtime/adapter loggers created without an explicit level

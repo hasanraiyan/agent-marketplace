@@ -39,7 +39,7 @@ If your `app/api/persona/[...persona]/route.ts` looks like the one from the
 [Quickstart](/guides/nextjs/quickstart#1-mount-the-runtime-one-route-file), voice already works:
 
 ```ts app/api/persona/[...persona]/route.ts
-import { createPersonaHandler } from '@personaai/nextjs/server';
+import { createPersonaHandler } from '@personaai/adapters/nextjs/server';
 import { auth } from '@clerk/nextjs/server';
 
 export const { GET, POST, PUT, PATCH, DELETE } = createPersonaHandler({
@@ -59,7 +59,7 @@ that specific user, same as every other hook.
 Also unchanged from the Quickstart:
 
 ```tsx app/layout.tsx
-import { PersonaProvider } from '@personaai/nextjs';
+import { PersonaProvider } from '@personaai/adapters/nextjs';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -76,7 +76,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
 ```tsx app/voice/page.tsx
 'use client';
-import { useVoice } from '@personaai/nextjs';
+import { useVoice } from '@personaai/adapters/nextjs';
 
 export default function VoicePage() {
   const {
@@ -157,7 +157,7 @@ const { start } = useVoice({
 It's baked into this call's system instruction the moment `start()` connects, and stays fixed for
 the whole call — Gemini Live's system instruction isn't re-sent per turn the way LangGraph's is for
 text chat, so there's no way to update it mid-conversation short of `stop()` followed by a fresh
-`start()` with a new value. Requires `@personaai/nextjs@^0.1.13`+ (bundling
+`start()` with a new value. Requires `@personaai/adapters/nextjs@^0.1.13`+ (bundling
 `@personaai/react@^0.7.6` and `@personaai/runtime@^0.9.1`).
 
 **Showing voice turns inside your text chat feed.** If Coursify's chat UI lets the same

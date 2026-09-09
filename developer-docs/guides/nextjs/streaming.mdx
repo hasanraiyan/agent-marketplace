@@ -1,6 +1,6 @@
 ---
 title: Streaming, Disconnects & Edge
-description: How @personaai/nextjs streams AG-UI chat as SSE from a route handler, honors backpressure, tears down on disconnect, runs on the Edge runtime, and what reconnect means on serverless.
+description: How @personaai/adapters/nextjs streams AG-UI chat as SSE from a route handler, honors backpressure, tears down on disconnect, runs on the Edge runtime, and what reconnect means on serverless.
 ---
 
 `POST /chat` streams the agent's response as Server-Sent Events (AG-UI protocol frames). The
@@ -84,7 +84,7 @@ The server entry is Web-standard only — `Request`, `Response`, `ReadableStream
 Edge runtime:
 
 ```ts app/api/persona/[...persona]/route.ts
-import { createPersonaHandler } from '@personaai/nextjs/server';
+import { createPersonaHandler } from '@personaai/adapters/nextjs/server';
 
 const persona = createPersonaHandler({
   baseUrl: process.env.PERSONA_BASE_URL!,

@@ -1,6 +1,6 @@
 ---
 title: Auth & User Resolution
-description: How @personaai/nestjs connects your own authentication to Persona — the runtime-level resolver and the NestJS request-level resolver, and the 401 behavior.
+description: How @personaai/adapters/nestjs connects your own authentication to Persona — the runtime-level resolver and the NestJS request-level resolver, and the 401 behavior.
 ---
 
 Persona never authenticates end users. There is no login, no session, no token of its own — the runtime receives a translated request and asks *your code* who it's from. The adapter gives you two ways to answer, and the two can be combined.
@@ -70,7 +70,7 @@ The adapter never passes through raw identity from the browser. `resolveUserFrom
 
 ```ts
 // persona.config.ts
-import { PersonaModule } from '@personaai/nestjs';
+import { PersonaModule } from '@personaai/adapters/nestjs';
 
 export const personaConfig = PersonaModule.forRoot({
   baseUrl: process.env.PERSONA_BASE_URL!,

@@ -1,6 +1,6 @@
 ---
 title: Auth & User Resolution
-description: How @personaai/nextjs connects your own authentication to Persona — the Request-level resolver, the runtime-level resolver, Clerk/NextAuth recipes, and the 401 behavior.
+description: How @personaai/adapters/nextjs connects your own authentication to Persona — the Request-level resolver, the runtime-level resolver, Clerk/NextAuth recipes, and the 401 behavior.
 ---
 
 Persona never authenticates end users. There is no login, no session, no token of its own — the
@@ -18,7 +18,7 @@ libraries read the session from async context rather than from the request objec
 usually ignores its argument:
 
 ```ts app/api/persona/[...persona]/route.ts
-import { createPersonaHandler } from '@personaai/nextjs/server';
+import { createPersonaHandler } from '@personaai/adapters/nextjs/server';
 import { auth } from '@clerk/nextjs/server';
 
 export const { GET, POST, PUT, PATCH, DELETE } = createPersonaHandler({

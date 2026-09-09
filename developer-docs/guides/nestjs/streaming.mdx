@@ -1,6 +1,6 @@
 ---
 title: Streaming & Disconnects
-description: How @personaai/nestjs streams AG-UI chat as SSE with heartbeats and backpressure, powers reconnect/resume, and tears down cleanly when a client disconnects.
+description: How @personaai/adapters/nestjs streams AG-UI chat as SSE with heartbeats and backpressure, powers reconnect/resume, and tears down cleanly when a client disconnects.
 ---
 
 `POST /chat` streams the agent's response as Server-Sent Events (AG-UI protocol frames). The adapter is responsible only for the wire mechanics — headers first, frames verbatim, backpressure honored, teardown on disconnect. The event semantics live in the [AG-UI chat reference](/guides/sdk/chat).

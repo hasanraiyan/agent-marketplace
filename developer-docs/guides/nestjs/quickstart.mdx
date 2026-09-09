@@ -1,9 +1,13 @@
 ---
 title: Quickstart
-description: Install @personaai/nestjs, register PersonaModule in your NestJS app, and get streaming chat, threads, files, and memory behind your own auth in a few lines.
+description: Install @personaai/adapters/nestjs, register PersonaModule in your NestJS app, and get streaming chat, threads, files, and memory behind your own auth in a few lines.
 ---
 
-`@personaai/nestjs` is a NestJS adapter for the [Persona runtime](/guides/runtime/quickstart) — a dynamic module, an injectable service, and middleware that let you mount the entire runtime surface (AG-UI streaming chat, threads, files, memory, MCP OAuth, health) in a NestJS application without writing any SSE forwarding, protocol parsing, or thread-CRUD plumbing.
+<Note>
+  **Package has moved:** `npm install @personaai/adapters` then `import from '@personaai/adapters/nestjs'`. The old `@personaai/nestjs` still works as a deprecated shim re-exporting from the unified package and will be removed in 1.0.
+</Note>
+
+`@personaai/adapters/nestjs` is a NestJS adapter for the [Persona runtime](/guides/runtime/quickstart) — a dynamic module, an injectable service, and middleware that let you mount the entire runtime surface (AG-UI streaming chat, threads, files, memory, MCP OAuth, health) in a NestJS application without writing any SSE forwarding, protocol parsing, or thread-CRUD plumbing.
 
 It's a thin translation layer: all logic lives in the runtime. If you need a raw call the adapter doesn't cover, drop down to [`@personaai/sdk`](/guides/sdk-quickstart) via `PersonaService.client`.
 
@@ -20,11 +24,11 @@ It's a thin translation layer: all logic lives in the runtime. If you need a raw
 ## Install
 
 ```bash
-npm install @personaai/nestjs
+npm install @personaai/adapters
 ```
 
 ```bash
-pnpm add @personaai/nestjs
+pnpm add @personaai/adapters
 ```
 
 The package ships ESM and CommonJS. Dependencies: `@personaai/runtime` and `@personaai/sdk` (installed automatically). Peer dependencies: `@nestjs/common`, `@nestjs/core`, and optionally `reflect-metadata` and `rxjs`.
@@ -36,7 +40,7 @@ Add `PersonaModule.forRoot()` to your root module:
 ```ts
 // app.module.ts
 import { Module } from '@nestjs/common';
-import { PersonaModule } from '@personaai/nestjs';
+import { PersonaModule } from '@personaai/adapters/nestjs';
 
 @Module({
   imports: [
@@ -74,7 +78,7 @@ Inject `PersonaService` in any controller or service to interact with the Person
 ```ts
 // chat.controller.ts
 import { Controller, Post, Body, Req } from '@nestjs/common';
-import { PersonaService } from '@personaai/nestjs';
+import { PersonaService } from '@personaai/adapters/nestjs';
 
 @Controller('chat')
 export class ChatController {
@@ -119,7 +123,7 @@ For dependency injection of config services (e.g. `ConfigService`), use `forRoot
 ```ts
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { PersonaModule } from '@personaai/nestjs';
+import { PersonaModule } from '@personaai/adapters/nestjs';
 
 @Module({
   imports: [

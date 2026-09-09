@@ -1,9 +1,13 @@
 ---
 title: Quickstart
-description: Add AI to your Next.js app with @personaai/nextjs — one catch-all route mounts the runtime, one provider wires the hooks, behind your own auth.
+description: Add AI to your Next.js app with @personaai/adapters/nextjs — one catch-all route mounts the runtime, one provider wires the hooks, behind your own auth.
 ---
 
-`@personaai/nextjs` is **the one package a Next.js app installs**. One App Router catch-all route
+<Note>
+  **Package has moved:** `npm install @personaai/adapters` then `import from '@personaai/adapters/nextjs'` / `'@personaai/adapters/nextjs/server'`. The old `@personaai/nextjs` still works as a deprecated shim re-exporting from the unified package and will be removed in 1.0.
+</Note>
+
+`@personaai/adapters/nextjs` is **the one package a Next.js app installs**. One App Router catch-all route
 file is the entire backend integration — AG-UI streaming chat, threads, files, memory, MCP OAuth
 callbacks, health — and the same package's root entry gives you `<PersonaProvider>` and every
 React hook on the client.
@@ -13,7 +17,7 @@ you need a raw call the adapter doesn't cover, drop down to
 [`@personaai/sdk`](/guides/sdk-quickstart) in a server action or route handler alongside it.
 
 <Warning>
-  **The credential is server-side only.** It lives behind `@personaai/nextjs/server`, which the
+  **The credential is server-side only.** It lives behind `@personaai/adapters/nextjs/server`, which the
   root entry never re-exports — so it cannot reach a client bundle through this package. Keep it
   in `PERSONA_CREDENTIAL` (no `NEXT_PUBLIC_` prefix).
 </Warning>
@@ -28,7 +32,7 @@ you need a raw call the adapter doesn't cover, drop down to
 ## Install
 
 ```bash
-npm install @personaai/nextjs
+npm install @personaai/adapters
 ```
 
 One install covers both halves. The package ships ESM, CommonJS, and TypeScript declarations, and
@@ -37,7 +41,7 @@ pulls in `@personaai/runtime` (the engine) and `@personaai/react` (the hooks) fo
 ## 1. Mount the runtime — one route file
 
 ```ts app/api/persona/[...persona]/route.ts
-import { createPersonaHandler } from '@personaai/nextjs/server';
+import { createPersonaHandler } from '@personaai/adapters/nextjs/server';
 import { auth } from '@clerk/nextjs/server';
 
 export const { GET, POST, PUT, PATCH, DELETE } = createPersonaHandler({
@@ -78,7 +82,7 @@ underlying SDK calls each route proxies to are in the
 layout — no wrapper file of your own:
 
 ```tsx app/layout.tsx
-import { PersonaProvider } from '@personaai/nextjs';
+import { PersonaProvider } from '@personaai/adapters/nextjs';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -98,7 +102,7 @@ session cookie authenticates every call — the resolver in step 1 reads it serv
 
 ```tsx app/chat/page.tsx
 'use client';
-import { useChat } from '@personaai/nextjs';
+import { useChat } from '@personaai/adapters/nextjs';
 
 export default function ChatPage() {
   const { messages, input, handleInputChange, handleSubmit, isStreaming } = useChat({
@@ -122,15 +126,15 @@ export default function ChatPage() {
 ```
 
 Every hook — `useChat`, `useThreads`, `useFiles`, `useMemory`, `useAgents`, `useMcpConnections` —
-imports from `@personaai/nextjs`. They are the [React SDK](/guides/react/quickstart)'s hooks
+imports from `@personaai/adapters/nextjs`. They are the [React SDK](/guides/react/quickstart)'s hooks
 re-exported verbatim; that reference is the one to read for their full APIs.
 
 ## The two entry points
 
 | Import | Contents | Where it runs |
 | --- | --- | --- |
-| `@personaai/nextjs` | Everything from `@personaai/react` — `PersonaProvider` and every hook | Client (`'use client'` boundary) |
-| `@personaai/nextjs/server` | `createPersonaHandler`, `toNextRouteHandlers`, `createRuntime`, and the runtime types | Server only |
+| `@personaai/adapters/nextjs` | Everything from `@personaai/react` — `PersonaProvider` and every hook | Client (`'use client'` boundary) |
+| `@personaai/adapters/nextjs/server` | `createPersonaHandler`, `toNextRouteHandlers`, `createRuntime`, and the runtime types | Server only |
 
 The split is a safety boundary as much as an ergonomic one: nothing server-side is re-exported
 from the root, so your credential can't reach the browser through it.
