@@ -57,6 +57,7 @@ interface AgentThreadsSidebarProps {
   onSelectThread: (thread: ProjectAgentThread) => void;
   onThreadDeleted?: (threadId: string) => void;
   updatedTitle?: { threadId: string; title: string } | null;
+  onClose?: () => void;
   className?: string;
 }
 
@@ -67,6 +68,7 @@ export function AgentThreadsSidebar({
   onSelectThread,
   onThreadDeleted,
   updatedTitle,
+  onClose,
   className,
 }: AgentThreadsSidebarProps) {
   const [threads, setThreads] = React.useState<ProjectAgentThread[]>([]);
@@ -204,20 +206,33 @@ export function AgentThreadsSidebar({
             Threads
           </span>
         </div>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleCreate}
-          disabled={creating}
-          className="h-7 gap-1 px-2 text-xs font-medium"
-        >
-          {creating ? (
-            <SpinnerIcon className="size-3.5 animate-spin" />
-          ) : (
-            <NotePencilIcon className="size-3.5" />
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleCreate}
+            disabled={creating}
+            className="h-7 gap-1 px-2 text-xs font-medium"
+          >
+            {creating ? (
+              <SpinnerIcon className="size-3.5 animate-spin" />
+            ) : (
+              <NotePencilIcon className="size-3.5" />
+            )}
+            <span>New</span>
+          </Button>
+          {onClose && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onClose}
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+              title="Close threads"
+            >
+              <XIcon className="size-3.5" />
+            </Button>
           )}
-          <span>New</span>
-        </Button>
+        </div>
       </div>
 
       {/* Filter / Search if more than 3 threads */}

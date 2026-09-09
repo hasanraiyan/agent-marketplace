@@ -23,6 +23,8 @@ import { MemoryWorkspaceDialog } from "@/components/playground/memory-workspace-
 import { SandboxTerminalDialog } from "@/components/playground/sandbox-terminal-dialog";
 import { AgentThreadsSidebar } from "@/components/playground/agent-threads-sidebar";
 import type { ChatToolCall } from "@/components/chat";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 type TabId = "chat" | "voice";
 
@@ -87,12 +89,20 @@ function PlaygroundContent() {
   const [liveWorkspaceFiles, setLiveWorkspaceFiles] = React.useState<
     Record<string, { content: string; size: number; createdAt: string | null; modifiedAt: string | null }>
   >({});
+  const isMobile = useIsMobile();
   const [threadsOpen, setThreadsOpen] = React.useState(true);
   const [activeThread, setActiveThread] = React.useState<ProjectAgentThread | null>(null);
   const [latestTitleUpdate, setLatestTitleUpdate] = React.useState<{
     threadId: string;
     title: string;
   } | null>(null);
+
+  // Default threads drawer to closed on mobile screens
+  React.useEffect(() => {
+    if (isMobile) {
+      setThreadsOpen(false);
+    }
+  }, [isMobile]);
 
   const activeThreadRef = React.useRef(activeThread);
   React.useEffect(() => {
@@ -303,8 +313,9 @@ function PlaygroundContent() {
 
                 {tab === "chat" ? (
                   <TabsContent value="chat" className="min-h-0 flex-1">
-                    <div className="flex h-full min-h-0 w-full gap-3 overflow-hidden rounded-md border border-border/40 bg-background">
-                      {threadsOpen && (
+                    <div className="relative flex h-full min-h-0 w-full gap-3 overflow-hidden rounded-md border border-border/40 bg-background">
+                      {/* Desktop threads sidebar: standard side-by-side flex layout */}
+                      {!isMobile && threadsOpen && (
                         <AgentThreadsSidebar
                           projectId={projectId}
                           agentId={selectedAgent.id}
@@ -318,6 +329,48 @@ function PlaygroundContent() {
                           updatedTitle={latestTitleUpdate}
                         />
                       )}
+
+                      {/* Mobile threads drawer: off-canvas sliding drawer with backdrop */}
+                      {isMobile && (
+                        <>
+                          {/* Backdrop */}
+                          <div
+                            className={cn(
+                              "fixed inset-0 z-40 bg-black/50 backdrop-blur-xs transition-opacity duration-300",
+                              threadsOpen
+                                ? "opacity-100 pointer-events-auto"
+                                : "opacity-0 pointer-events-none"
+                            )}
+                            onClick={() => setThreadsOpen(false)}
+                          />
+                          {/* Sliding Drawer */}
+                          <div
+                            className={cn(
+                              "fixed inset-y-0 left-0 z-50 w-[280px] max-w-[85vw] bg-card shadow-2xl border-r border-border transition-transform duration-300 ease-in-out flex flex-col",
+                              threadsOpen ? "translate-x-0" : "-translate-x-full"
+                            )}
+                          >
+                            <AgentThreadsSidebar
+                              projectId={projectId}
+                              agentId={selectedAgent.id}
+                              activeThreadId={activeThread?._id || activeThread?.threadId || null}
+                              onSelectThread={(thread) => {
+                                setActiveThread(thread);
+                                setThreadsOpen(false);
+                              }}
+                              onThreadDeleted={(deletedId) => {
+                                if (activeThread?._id === deletedId) {
+                                  setActiveThread(null);
+                                }
+                              }}
+                              updatedTitle={latestTitleUpdate}
+                              onClose={() => setThreadsOpen(false)}
+                              className="w-full border-r-0"
+                            />
+                          </div>
+                        </>
+                      )}
+
                       <div className="flex-1 min-w-0 h-full">
                         <AgentChat
                           key={`${selectedAgent.id}-${activeThread?._id || activeThread?.threadId || "default"}`}
