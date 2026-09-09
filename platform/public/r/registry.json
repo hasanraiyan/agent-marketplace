@@ -81,9 +81,49 @@
           "target": "components/persona/chat/subagent-sheet.tsx"
         },
         {
-          "path": "src/components/chat/workspace-file-panel.tsx",
+          "path": "src/components/chat/reasoning-block.tsx",
           "type": "registry:ui",
-          "target": "components/persona/chat/workspace-file-panel.tsx"
+          "target": "components/persona/chat/reasoning-block.tsx"
+        },
+        {
+          "path": "src/components/chat/agent-upsert-card.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/agent-upsert-card.tsx"
+        },
+        {
+          "path": "src/components/chat/tool-cards/diff-view.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/tool-cards/diff-view.tsx"
+        },
+        {
+          "path": "src/components/chat/tool-cards/grep-results-view.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/tool-cards/grep-results-view.tsx"
+        },
+        {
+          "path": "src/components/chat/tool-cards/json-tree-view.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/tool-cards/json-tree-view.tsx"
+        },
+        {
+          "path": "src/components/chat/tool-cards/ls-directory-card.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/tool-cards/ls-directory-card.tsx"
+        },
+        {
+          "path": "src/components/chat/tool-cards/read-file-card.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/tool-cards/read-file-card.tsx"
+        },
+        {
+          "path": "src/components/chat/tool-cards/request-response-panel.tsx",
+          "type": "registry:ui",
+          "target": "components/persona/chat/tool-cards/request-response-panel.tsx"
+        },
+        {
+          "path": "src/components/chat/tool-cards/utils.ts",
+          "type": "registry:ui",
+          "target": "components/persona/chat/tool-cards/utils.ts"
         },
         {
           "path": "src/components/chat/interrupt-panel.tsx",
