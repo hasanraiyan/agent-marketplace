@@ -1,0 +1,138 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --background: #f9f8f6;
+  --foreground: #18181b;
+  --card: #ffffff;
+  --card-foreground: #18181b;
+  --popover: #ffffff;
+  --popover-foreground: #18181b;
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f2ee;
+  --secondary-foreground: #18181b;
+  --muted: #eceae4;
+  --muted-foreground: #64625b;
+  --accent: #fef08a;
+  --accent-foreground: #18181b;
+  --destructive: #ef4444;
+  --border: #18181b;
+  --input: #18181b;
+  --ring: #4f46e5;
+  --radius: 0.75rem;
+  --shadow-tactile: 3px 3px 0px 0px #18181b;
+  --shadow-tactile-sm: 2px 2px 0px 0px #18181b;
+  --shadow-tactile-lg: 5px 5px 0px 0px #18181b;
+}
+
+.dark {
+  --background: #111215;
+  --foreground: #f4f4f5;
+  --card: #18191e;
+  --card-foreground: #f4f4f5;
+  --popover: #18191e;
+  --popover-foreground: #f4f4f5;
+  --primary: #6366f1;
+  --primary-foreground: #ffffff;
+  --secondary: #22242b;
+  --secondary-foreground: #f4f4f5;
+  --muted: #22242b;
+  --muted-foreground: #a1a1aa;
+  --accent: #fef08a;
+  --accent-foreground: #18181b;
+  --destructive: #f87171;
+  --border: #383b45;
+  --input: #383b45;
+  --ring: #6366f1;
+  --shadow-tactile: 3px 3px 0px 0px #000000;
+  --shadow-tactile-sm: 2px 2px 0px 0px #000000;
+  --shadow-tactile-lg: 5px 5px 0px 0px #000000;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-accent selection:text-accent-foreground;
+  }
+}
+
+/* Soft Tactile Neobrutalism utility classes */
+.tactile-card {
+  border: 2px solid var(--border);
+  box-shadow: var(--shadow-tactile);
+  border-radius: var(--radius);
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tactile-card:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-tactile-lg);
+}
+
+.tactile-btn {
+  border: 2px solid var(--border);
+  box-shadow: var(--shadow-tactile-sm);
+  border-radius: calc(var(--radius) * 0.8);
+  font-weight: 600;
+  transition: all 0.1s ease;
+}
+
+.tactile-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-tactile);
+}
+
+.tactile-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 0px 0px 0px 0px var(--border);
+}
