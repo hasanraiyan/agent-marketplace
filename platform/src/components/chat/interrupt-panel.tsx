@@ -16,9 +16,9 @@ import {
   QuestionnaireNext,
   QuestionnaireSubmit,
 } from "@/components/ui/questionnaire";
-import { Item, ItemContent, ItemTitle, ItemDescription, ItemActions } from "@/components/ui/item";
 import { Button } from "@/components/ui/button";
 import { CheckIcon, XIcon } from "@phosphor-icons/react";
+import { ToolCallCard } from "./tool-call-card";
 import type { ChatInterruptData } from "./types";
 
 /**
@@ -40,19 +40,29 @@ function InterruptPanel({
   if (interrupt.kind === "hitl") {
     return (
       <div className="flex flex-col gap-2 rounded-none border border-border bg-card p-3">
+        <div className="text-xs font-semibold text-muted-foreground">
+          Waiting for your approval to continue
+        </div>
         {interrupt.actionRequests.map((action) => (
-          <Item key={action.id} variant="muted">
-            <ItemContent>
-              <ItemTitle>{action.label}</ItemTitle>
-              {action.description && (
-                <ItemDescription>{action.description}</ItemDescription>
-              )}
-            </ItemContent>
-            <ItemActions>
+          <div key={action.id} className="flex flex-col gap-2">
+            {/* Same ToolCallCard every completed call renders through — forced
+                open so the args are visible without an extra click, since
+                they're exactly what a human needs to decide approve/reject. */}
+            <ToolCallCard
+              toolCall={{
+                id: action.id,
+                name: action.toolName,
+                args: action.args,
+                status: "running",
+              }}
+              defaultOpen
+            />
+            <div className="flex items-center justify-end gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
+                aria-label={`Reject ${action.label}`}
                 onClick={() => onDecideHitl?.(action.id, "reject")}
               >
                 <XIcon /> Reject
@@ -60,12 +70,13 @@ function InterruptPanel({
               <Button
                 type="button"
                 size="sm"
+                aria-label={`Approve ${action.label}`}
                 onClick={() => onDecideHitl?.(action.id, "approve")}
               >
                 <CheckIcon /> Approve
               </Button>
-            </ItemActions>
-          </Item>
+            </div>
+          </div>
         ))}
       </div>
     );

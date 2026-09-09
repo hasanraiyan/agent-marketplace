@@ -5,6 +5,7 @@ import { Message, MessageContent } from "@/components/ui/message";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { MessageMarkdown } from "./message-markdown";
 import { ToolCallTrace } from "./tool-call-trace";
+import { ReasoningBlock } from "./reasoning-block";
 import { ThinkingIndicator } from "./thinking-indicator";
 import { CopyButton } from "./copy-button";
 import type { ChatMessageData, ChatTodo } from "./types";
@@ -43,12 +44,25 @@ function ChatMessage({
   }
 
   const hasToolCalls = (message.toolCalls?.length ?? 0) > 0;
+  const reasoning = message.reasoning ?? [];
+  // A live reasoning block auto-opens with its own animated header, so the
+  // standalone "Thinking" gap indicator below would read as a duplicate —
+  // show it only when nothing reasoning-related is already indicating.
+  const hasLiveReasoning = reasoning.some((r) => r.isStreaming);
   const isEmptyStreaming =
     !!message.isStreaming && !message.content?.trim() && !hasToolCalls;
 
   return (
     <Message align="start" className="group/chat-message">
       <MessageContent>
+        {reasoning.length > 0 && (
+          <div className="mb-1 flex flex-col gap-2">
+            {reasoning.map((r) => (
+              <ReasoningBlock key={r.id} reasoning={r} />
+            ))}
+          </div>
+        )}
+
         {hasToolCalls && (
           <ToolCallTrace
             toolCalls={message.toolCalls!}
@@ -60,11 +74,11 @@ function ChatMessage({
           />
         )}
 
-        {isEmptyStreaming ? (
+        {isEmptyStreaming && !hasLiveReasoning ? (
           <ThinkingIndicator />
-        ) : (
+        ) : message.content?.trim() ? (
           <MessageMarkdown content={message.content || ""} />
-        )}
+        ) : null}
 
         {!message.isStreaming && message.content && (
           <div className="opacity-0 transition-opacity group-hover/chat-message:opacity-100">

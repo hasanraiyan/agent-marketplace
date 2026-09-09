@@ -69,9 +69,12 @@ export interface ConversationEntry {
 }
 
 export interface ApprovalRequest {
+  // Shape sent by langchain's HumanInTheLoopMiddleware (createActionAndConfig
+  // in humanInTheLoop.js): { name, args, description } — not {type, label}.
   actionRequests: Array<{
-    type: string;
-    label: string;
+    name: string;
+    args?: Record<string, unknown>;
+    description?: string;
     [key: string]: unknown;
   }>;
   reviewConfigs: Array<Record<string, unknown>>;

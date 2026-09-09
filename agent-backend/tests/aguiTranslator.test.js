@@ -321,10 +321,9 @@ describe('translateLangGraphStream', () => {
     expect(custom).toBeDefined();
     expect(custom.name).toBe('hitl_request');
     expect(custom.value.actionRequests[0].name).toBe('write_file');
-    // A readable text notice still follows for the transcript.
-    const text = out.find((e) => e.type === 'TEXT_MESSAGE_CHUNK');
-    expect(text).toBeDefined();
-    expect(text.delta).toContain('write_file');
+    // A HITL approval renders entirely through the structured `hitl_request`
+    // event (tool name + args) — no redundant text notice for the transcript.
+    expect(out.find((e) => e.type === 'TEXT_MESSAGE_CHUNK')).toBeUndefined();
   });
 
   test('on genuine failure: flattens AggregateError, logs leaves, surfaces real cause', async () => {

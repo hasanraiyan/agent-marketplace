@@ -217,7 +217,10 @@ function ArchitectChat({
               }
               const a = turn.assistantMessage;
               const hasVisual =
-                !!a.content?.trim() || !!a.isStreaming || (a.toolCalls?.length ?? 0) > 0;
+                !!a.content?.trim() ||
+                !!a.isStreaming ||
+                (a.reasoning?.length ?? 0) > 0 ||
+                (a.toolCalls?.length ?? 0) > 0;
               if (hasVisual) {
                 rows.push(
                   <ChatScrollerItem key={`${turn.key}-assistant`}>

@@ -2,6 +2,7 @@ export * from "./types";
 export { ChatScroller, ChatScrollerItem } from "./chat-scroller";
 export { ChatMessage } from "./chat-message";
 export { MessageMarkdown } from "./message-markdown";
+export { ReasoningBlock } from "./reasoning-block";
 export { ToolCallTrace } from "./tool-call-trace";
 export { ToolCallCard } from "./tool-call-card";
 export { TodoChecklist } from "./todo-checklist";
