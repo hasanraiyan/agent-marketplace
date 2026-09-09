@@ -669,8 +669,17 @@ export class VoiceSession {
         break;
       case 'voice.text':
         if (typeof msg.text === 'string' && msg.text.trim()) {
+          const text = msg.text.trim();
           this._beginTurnIfNeeded();
-          this.geminiSession?.sendRealtimeInput({ text: msg.text });
+          this.geminiSession?.sendRealtimeInput({ text });
+          this._sendCustom('voice_transcript', {
+            speaker: 'user',
+            text,
+            isFinal: true,
+            turnSeq: this.turnSeq,
+          });
+          this._sendTextChunk('user', text);
+          this._commitTranscript('user', text);
         }
         break;
       case 'voice.context':

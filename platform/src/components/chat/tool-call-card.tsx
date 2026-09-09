@@ -7,6 +7,7 @@ import {
   WarningCircleIcon,
   CheckCircleIcon,
   CaretDownIcon,
+  FileTextIcon,
 } from "@phosphor-icons/react";
 import {
   Collapsible,
@@ -24,7 +25,14 @@ import { ReadFileCard } from "./tool-cards/read-file-card";
 import { GrepResultsView } from "./tool-cards/grep-results-view";
 import { FileDiffCard, computeFileDiffStats } from "./tool-cards/diff-view";
 import { RequestResponsePanel } from "./tool-cards/request-response-panel";
-import { isLsTool, isReadFileTool, isFileWriteTool, isFileEditTool, isGrepTool } from "./tool-cards/utils";
+import {
+  isLsTool,
+  isReadFileTool,
+  isFileWriteTool,
+  isFileEditTool,
+  isGrepTool,
+  parseToolArgs,
+} from "./tool-cards/utils";
 import type { ChatToolCall, ChatTodo } from "./types";
 
 const TOOL_LABELS: Record<string, string> = {

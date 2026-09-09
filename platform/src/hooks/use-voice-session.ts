@@ -68,6 +68,7 @@ function mergeTranscriptText(prev: string, next: string): string {
 
 export function useVoiceSession({ projectId, agentId }: UseVoiceSessionOptions) {
   const [state, setState] = useState<VoiceSessionState>("idle");
+  const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [transcript, setTranscript] = useState<VoiceTranscriptLine[]>([]);
   const [partial, setPartial] = useState<VoicePartialTranscript | null>(null);
@@ -83,11 +84,32 @@ export function useVoiceSession({ projectId, agentId }: UseVoiceSessionOptions) 
   const playerNodeRef = useRef<AudioWorkletNode | null>(null);
   const acceptedTurnSeqRef = useRef(0);
   const mountedRef = useRef(true);
+  const callStartedAtRef = useRef<number | null>(null);
   // Speaker + turnSeq of the last committed transcript line. Consecutive
   // finals with the same speaker AND turnSeq are fragments of one utterance
   // (the server bumps turnSeq only at turnComplete), so they merge into the
   // line they created instead of spawning a new bubble.
   const lastFinalTurnRef = useRef<{ speaker: string; turnSeq: number } | null>(null);
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | null = null;
+    if (state === "listening" || state === "thinking" || state === "speaking") {
+      if (!callStartedAtRef.current) {
+        callStartedAtRef.current = Date.now();
+      }
+      interval = setInterval(() => {
+        if (callStartedAtRef.current) {
+          setDuration(Math.floor((Date.now() - callStartedAtRef.current) / 1000));
+        }
+      }, 1000);
+    } else if (state === "idle") {
+      callStartedAtRef.current = null;
+      setDuration(0);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [state]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -158,6 +180,9 @@ export function useVoiceSession({ projectId, agentId }: UseVoiceSessionOptions) 
     streamRef.current = stream;
 
     const inputCtx = new AudioContext({ sampleRate: inputSampleRate });
+    if (inputCtx.state === "suspended") {
+      await inputCtx.resume();
+    }
     inputCtxRef.current = inputCtx;
     await inputCtx.audioWorklet.addModule("/voice/pcm-recorder-worklet.js");
 
@@ -170,10 +195,18 @@ export function useVoiceSession({ projectId, agentId }: UseVoiceSessionOptions) 
     };
     recorderNodeRef.current = recorderNode;
     source.connect(recorderNode);
+    // Connect to a zero-gain destination to prevent browser audio graph pruning
+    const silence = inputCtx.createGain();
+    silence.gain.value = 0;
+    recorderNode.connect(silence);
+    silence.connect(inputCtx.destination);
   }, []);
 
   const setupPlayback = useCallback(async (outputSampleRate: number) => {
     const outputCtx = new AudioContext({ sampleRate: outputSampleRate });
+    if (outputCtx.state === "suspended") {
+      await outputCtx.resume();
+    }
     outputCtxRef.current = outputCtx;
     await outputCtx.audioWorklet.addModule("/voice/pcm-player-worklet.js");
 
@@ -210,6 +243,9 @@ export function useVoiceSession({ projectId, agentId }: UseVoiceSessionOptions) 
 
       setTranscript((prev) => {
         const tail = prev[prev.length - 1];
+        if (speaker === "user" && tail?.speaker === "user" && tail.text === text) {
+          return prev;
+        }
         // An agent "answer" can arrive as several separate finals: per-fragment
         // finals of one utterance, or distinct spoken segments split by a tool
         // call mid-answer. Keep them as ONE line while no user line has
@@ -276,6 +312,9 @@ export function useVoiceSession({ projectId, agentId }: UseVoiceSessionOptions) 
         case "voice_session_ended":
           setState("ended");
           setEndReason((value?.reason as string) || null);
+          if (value?.usage && typeof (value.usage as Record<string, unknown>).durationMs === "number") {
+            setDuration(Math.round(((value.usage as Record<string, unknown>).durationMs as number) / 1000));
+          }
           teardownAudio();
           try {
             wsRef.current?.close();
@@ -361,6 +400,8 @@ export function useVoiceSession({ projectId, agentId }: UseVoiceSessionOptions) 
     setTranscript([]);
     setPartial(null);
     setToolCalls([]);
+    setDuration(0);
+    callStartedAtRef.current = null;
     acceptedTurnSeqRef.current = 0;
     setState("connecting");
 
@@ -402,12 +443,18 @@ export function useVoiceSession({ projectId, agentId }: UseVoiceSessionOptions) 
   }, []);
 
   const sendText = useCallback((text: string) => {
-    if (!text?.trim() || wsRef.current?.readyState !== WebSocket.OPEN) return;
-    wsRef.current.send(JSON.stringify({ type: "voice.text", text }));
+    const trimmed = text?.trim();
+    if (!trimmed || wsRef.current?.readyState !== WebSocket.OPEN) return;
+    wsRef.current.send(JSON.stringify({ type: "voice.text", text: trimmed }));
+    setTranscript((prev) => [
+      ...prev,
+      { id: `user-text-${Date.now()}`, speaker: "user", text: trimmed },
+    ]);
   }, []);
 
   return {
     state,
+    duration,
     isMuted,
     transcript,
     partial,

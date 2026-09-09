@@ -132,11 +132,12 @@ function ChatComposer({
               <SquareIcon weight="fill" />
             </InputGroupButton>
           ) : isVoiceActive ? (
-            trimmed ? (
-              <InputGroupButton type="submit" variant="default" size="icon-sm" aria-label="Send to voice">
-                <ArrowUpIcon />
-              </InputGroupButton>
-            ) : (
+            <div className="flex items-center gap-1.5">
+              {trimmed ? (
+                <InputGroupButton type="submit" variant="default" size="icon-sm" aria-label="Send to voice">
+                  <ArrowUpIcon />
+                </InputGroupButton>
+              ) : null}
               <InputGroupButton
                 type="button"
                 variant="destructive"
@@ -146,7 +147,7 @@ function ChatComposer({
               >
                 <PhoneXIcon />
               </InputGroupButton>
-            )
+            </div>
           ) : (
             <InputGroupButton
               type="submit"
