@@ -85,10 +85,3 @@ export type VoiceCallState =
   | "speaking"
   | "error"
   | "ended";
-
-export interface ChatWorkspaceFile {
-  path: string;
-  title: string;
-  description?: string;
-  content?: string;
-}

@@ -23,9 +23,7 @@ import {
   ChatEmptyState,
   InterruptPanel,
   SubagentSheet,
-  WorkspaceFilePanel,
   type ChatMessageData,
-  type ChatWorkspaceFile,
   type ChatInterruptData,
   type ChatToolCall,
 } from "@/components/chat";
@@ -130,6 +128,8 @@ function AgentChatInner({
   initialMessages,
   initialAgentState,
   onToolCallsChange,
+  onOpenFile,
+  onWorkspaceFilesChange,
 }: {
   projectId: string;
   agentId: string;
@@ -142,6 +142,12 @@ function AgentChatInner({
   initialAgentState?: Record<string, unknown>;
   /** Bubbles the live, deduped tool-call list up for the Terminal panel — fires on every change. */
   onToolCallsChange?: (toolCalls: ChatToolCall[]) => void;
+  /** present_file's card Open button — bubbles the path up instead of showing it in a local Sheet. */
+  onOpenFile?: (path: string) => void;
+  /** Bubbles the live agent filesystem up (for the Files sidebar to show real, current content) — fires on every change. */
+  onWorkspaceFilesChange?: (
+    files: Record<string, { content: string; size: number; createdAt: string | null; modifiedAt: string | null }>
+  ) => void;
 }) {
   const url = React.useMemo(
     () =>
@@ -275,25 +281,33 @@ function AgentChatInner({
     ? "hitl"
     : `clar-${chat.pendingClarification?.currentIndex ?? 0}`;
 
-  // ── Subagent sheet + workspace file panel ───────────────────────────────
+  // ── Subagent sheet + workspace files (Files sidebar, not a local Sheet) ──
   const [openToolId, setOpenToolId] = React.useState<string | null>(null);
-  const [workspaceFile, setWorkspaceFile] = React.useState<ChatWorkspaceFile | null>(null);
 
   const agentFiles = React.useMemo(() => {
     const files = chat.agentState?.files;
-    return (files ?? {}) as Record<string, { content?: string }>;
+    return (files ?? {}) as Record<
+      string,
+      { content?: string; size?: number; created_at?: string | null; modified_at?: string | null }
+    >;
   }, [chat.agentState]);
 
-  const handleOpenWorkspaceFile = React.useCallback(
-    (path: string) => {
-      setWorkspaceFile({
-        path,
-        title: path.split("/").pop() || path,
-        content: agentFiles[path]?.content,
-      });
-    },
-    [agentFiles]
-  );
+  React.useEffect(() => {
+    if (!onWorkspaceFilesChange) return;
+    const normalized: Record<
+      string,
+      { content: string; size: number; createdAt: string | null; modifiedAt: string | null }
+    > = {};
+    for (const [path, file] of Object.entries(agentFiles)) {
+      normalized[path] = {
+        content: file.content ?? "",
+        size: file.size ?? 0,
+        createdAt: file.created_at ?? null,
+        modifiedAt: file.modified_at ?? null,
+      };
+    }
+    onWorkspaceFilesChange(normalized);
+  }, [agentFiles, onWorkspaceFilesChange]);
 
   const subagentMessages: ChatMessageData[] = React.useMemo(() => {
     if (!openToolId) return [];
@@ -335,7 +349,7 @@ function AgentChatInner({
                       todos={turn.todos.length ? turn.todos : undefined}
                       projectId={projectId}
                       onOpenSubagent={setOpenToolId}
-                      onOpenWorkspaceFile={handleOpenWorkspaceFile}
+                      onOpenWorkspaceFile={onOpenFile}
                       onSendMessage={handleWidgetSendMessage}
                     />
                   </ChatScrollerItem>
@@ -389,12 +403,6 @@ function AgentChatInner({
         }}
         messages={subagentMessages}
       />
-      <WorkspaceFilePanel
-        file={workspaceFile}
-        onOpenChange={(open) => {
-          if (!open) setWorkspaceFile(null);
-        }}
-      />
     </div>
   );
 }
@@ -409,11 +417,17 @@ function AgentChat({
   agentId,
   threadId,
   onToolCallsChange,
+  onOpenFile,
+  onWorkspaceFilesChange,
 }: {
   projectId: string;
   agentId: string;
   threadId?: string;
   onToolCallsChange?: (toolCalls: ChatToolCall[]) => void;
+  onOpenFile?: (path: string) => void;
+  onWorkspaceFilesChange?: (
+    files: Record<string, { content: string; size: number; createdAt: string | null; modifiedAt: string | null }>
+  ) => void;
 }) {
   const [initialData, setInitialData] = React.useState<{
     messages: HookChatMessage[];
@@ -467,6 +481,8 @@ function AgentChat({
       initialMessages={initialData ?? undefined}
       initialAgentState={initialData?.agentState}
       onToolCallsChange={onToolCallsChange}
+      onOpenFile={onOpenFile}
+      onWorkspaceFilesChange={onWorkspaceFilesChange}
     />
   );
 }

@@ -58,6 +58,16 @@ interface MemoryWorkspaceDialogProps {
   projectId: string;
   activeAgentId?: string | null;
   agents: Array<{ id: string; name: string }>;
+  /** Opens straight to this file in the workspace tab once the dialog is showing (e.g. a present_file Open click). Real absolute path, "/workspace/..." prefix included. */
+  initialOpenPath?: string | null;
+  /**
+   * The active agent's live, in-conversation filesystem (from `chat.agentState.files`
+   * via `AgentChat`'s `onWorkspaceFilesChange`) — takes over the workspace tab's
+   * content when present, since the Mongo-backed `agentWorkspaces` data below is a
+   * separate, human-edited-only store that's never synced from a live run and would
+   * otherwise show stale or missing content for a file the agent just wrote.
+   */
+  liveWorkspaceFiles?: Record<string, LiveWorkspaceFile> | null;
 }
 
 function normalizePath(raw: string): string {
@@ -69,12 +79,31 @@ function stripLeadingSlash(path: string): string {
   return path.replace(/^\/+/, "");
 }
 
+// present_file (and the live agent filesystem generally) uses real absolute
+// paths like "/workspace/outputs/report.md" — the workspace tab's own files
+// are keyed without that "workspace/" segment (it's already implied by which
+// tab they're in), so opening a live path here needs the same prefix
+// stripped, not just the leading slash.
+function stripWorkspacePrefix(path: string): string {
+  const clean = stripLeadingSlash(path);
+  return clean.startsWith("workspace/") ? clean.slice("workspace/".length) : clean;
+}
+
+interface LiveWorkspaceFile {
+  content: string;
+  size: number;
+  createdAt: string | null;
+  modifiedAt: string | null;
+}
+
 export function MemoryWorkspaceDialog({
   open,
   onOpenChange,
   projectId,
   activeAgentId,
   agents,
+  initialOpenPath,
+  liveWorkspaceFiles,
 }: MemoryWorkspaceDialogProps) {
   const [memoryData, setMemoryData] = React.useState<MemoryDataResponse | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -138,15 +167,26 @@ export function MemoryWorkspaceDialog({
     };
 
     // 2. Build files under "workspace":
-    // Contains workspace files for the active agent (/workspace/)
-    const wsGroup = activeAgent
-      ? (currentData.agentWorkspaces || []).find((g) => String(g.agentId) === String(activeAgent.id))
-      : null;
-    const wsFiles = wsGroup?.files || [];
-    const wsExplorerFiles: ExplorerFile[] = wsFiles.map((f) => ({
-      path: stripLeadingSlash(f.path),
-      content: f.content || "",
-    }));
+    // Live agent state (chat.agentState.files, bubbled up from AgentChat)
+    // wins when present — the Mongo-backed agentWorkspaces group below is a
+    // separate, human-edited-only store nothing ever syncs from a live run
+    // into, so it can't be trusted to reflect what the agent actually wrote.
+    let wsExplorerFiles: ExplorerFile[];
+    if (liveWorkspaceFiles) {
+      wsExplorerFiles = Object.entries(liveWorkspaceFiles).map(([path, f]) => ({
+        path: stripWorkspacePrefix(path),
+        content: f.content || "",
+      }));
+    } else {
+      const wsGroup = activeAgent
+        ? (currentData.agentWorkspaces || []).find((g) => String(g.agentId) === String(activeAgent.id))
+        : null;
+      const wsFiles = wsGroup?.files || [];
+      wsExplorerFiles = wsFiles.map((f) => ({
+        path: stripLeadingSlash(f.path),
+        content: f.content || "",
+      }));
+    }
 
     const workspaceItem: MemoryItem = {
       id: "workspace",
@@ -158,13 +198,15 @@ export function MemoryWorkspaceDialog({
     };
 
     return [memoriesItem, workspaceItem];
-  }, [loading, memoryData, agents, activeAgentId]);
+  }, [loading, memoryData, agents, activeAgentId, liveWorkspaceFiles]);
 
-  // Set initial open tab ONLY ONCE when the dialog opens
+  // Set initial open tab ONLY ONCE when the dialog opens, absent an explicit
+  // initialOpenPath — lands on the agent's memory index by default.
   const prevOpenRef = React.useRef(false);
   React.useEffect(() => {
     if (open && !prevOpenRef.current && items) {
       prevOpenRef.current = true;
+      if (initialOpenPath) return;
       const memories = items.find((i) => i.id === "memories");
       const agentFile =
         memories?.files.find((f) => f.path === "agent/index.md") ||
@@ -179,7 +221,17 @@ export function MemoryWorkspaceDialog({
     } else if (!open) {
       prevOpenRef.current = false;
     }
-  }, [open, items]);
+  }, [open, items, initialOpenPath]);
+
+  // A present_file Open click always jumps straight to that file — unlike
+  // the effect above, this isn't "once per open": if the dialog is already
+  // showing and the user clicks a different file's Open button,
+  // initialOpenPath changes again and this re-fires to follow it.
+  React.useEffect(() => {
+    if (open && initialOpenPath) {
+      setOpenRequest({ itemId: "workspace", path: stripWorkspacePrefix(initialOpenPath) });
+    }
+  }, [open, initialOpenPath]);
 
   // CRUD Handlers
   const handleSaveRoot = async () => {

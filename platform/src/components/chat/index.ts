@@ -7,7 +7,6 @@ export { ToolCallTrace } from "./tool-call-trace";
 export { ToolCallCard } from "./tool-call-card";
 export { TodoChecklist } from "./todo-checklist";
 export { SubagentSheet } from "./subagent-sheet";
-export { WorkspaceFilePanel } from "./workspace-file-panel";
 export { InterruptPanel } from "./interrupt-panel";
 export { ThinkingIndicator } from "./thinking-indicator";
 export { ChatComposer, VoiceModeIcon } from "./chat-composer";

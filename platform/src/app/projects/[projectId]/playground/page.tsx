@@ -83,6 +83,10 @@ function PlaygroundContent() {
   const [memoryOpen, setMemoryOpen] = React.useState(false);
   const [terminalOpen, setTerminalOpen] = React.useState(false);
   const [toolCalls, setToolCalls] = React.useState<ChatToolCall[]>([]);
+  const [openFilePath, setOpenFilePath] = React.useState<string | null>(null);
+  const [liveWorkspaceFiles, setLiveWorkspaceFiles] = React.useState<
+    Record<string, { content: string; size: number; createdAt: string | null; modifiedAt: string | null }>
+  >({});
   const [threadsOpen, setThreadsOpen] = React.useState(true);
   const [activeThread, setActiveThread] = React.useState<ProjectAgentThread | null>(null);
 
@@ -143,8 +147,15 @@ function PlaygroundContent() {
     const next = value === ARCHITECT ? ARCHITECT : value ?? ARCHITECT;
     setSelectedId(next);
     setActiveThread(null);
+    setLiveWorkspaceFiles({});
     if (next !== ARCHITECT) setTab("chat");
   };
+
+  // present_file's Open button — jump the Files dialog straight to that path.
+  const handleOpenFile = React.useCallback((path: string) => {
+    setOpenFilePath(path);
+    setMemoryOpen(true);
+  }, []);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -295,6 +306,8 @@ function PlaygroundContent() {
                           agentId={selectedAgent.id}
                           threadId={activeThread?.threadId || activeThread?._id}
                           onToolCallsChange={selectedAgent.sandboxEnabled ? setToolCalls : undefined}
+                          onOpenFile={handleOpenFile}
+                          onWorkspaceFilesChange={setLiveWorkspaceFiles}
                         />
                       </div>
                     </div>
@@ -316,10 +329,15 @@ function PlaygroundContent() {
 
       <MemoryWorkspaceDialog
         open={memoryOpen}
-        onOpenChange={setMemoryOpen}
+        onOpenChange={(next) => {
+          setMemoryOpen(next);
+          if (!next) setOpenFilePath(null);
+        }}
         projectId={projectId}
         activeAgentId={selectedAgent?.id}
         agents={agents}
+        initialOpenPath={openFilePath}
+        liveWorkspaceFiles={liveWorkspaceFiles}
       />
 
       <SandboxTerminalDialog

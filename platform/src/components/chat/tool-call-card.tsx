@@ -75,11 +75,14 @@ function ToolCallCard({
   toolCall,
   todos,
   onOpenSubagent,
+  onOpenFile,
   defaultOpen,
 }: {
   toolCall: ChatToolCall;
   todos?: ChatTodo[];
   onOpenSubagent?: (toolCallId: string) => void;
+  /** present_file's Open button — no card for any other tool uses this. */
+  onOpenFile?: (path: string) => void;
   /** Overrides the initial expanded state (e.g. InterruptPanel forces this
    * open so the pending call's args are visible without an extra click). */
   defaultOpen?: boolean;
@@ -145,6 +148,45 @@ function ToolCallCard({
           </CollapsibleContent>
         </Item>
       </Collapsible>
+    );
+  }
+
+  // present_file is a pointer to a workspace file, not something to inspect
+  // as raw Input/Result JSON — a flat row (name + description/path) with an
+  // explicit Open button that hands the path to the caller. Never
+  // auto-opens: the whole point of the button is that opening is the user's
+  // choice, not a side effect of the agent finishing the call.
+  if (toolCall.name === "present_file") {
+    const presentArgs = parseToolArgs(toolCall.args) as
+      | { filePath?: string; title?: string; description?: string }
+      | null;
+    const filePath = presentArgs?.filePath || "";
+    const fileName = filePath.split("/").pop() || filePath || "file";
+    return (
+      <Item variant="outline" size="sm" className="flex-row items-center gap-2.5">
+        <ItemMedia variant="icon">
+          <FileTextIcon />
+        </ItemMedia>
+        <ItemContent>
+          <ItemTitle className="truncate">{fileName}</ItemTitle>
+          {presentArgs?.description ? (
+            <ItemDescription className="truncate">{presentArgs.description}</ItemDescription>
+          ) : filePath ? (
+            <ItemDescription className="truncate font-mono">{filePath}</ItemDescription>
+          ) : null}
+        </ItemContent>
+        {onOpenFile && filePath && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={() => onOpenFile(filePath)}
+          >
+            Open
+          </Button>
+        )}
+      </Item>
     );
   }
 
