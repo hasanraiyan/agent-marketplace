@@ -99,15 +99,20 @@ export function MemoryWorkspaceDialog({
     }
   }, [open, fetchMemory]);
 
-  // Set initial open tab whenever the dialog opens or activeAgentId is selected
+  // Set initial open tab ONLY ONCE when the dialog opens
+  const prevOpenRef = React.useRef(false);
   React.useEffect(() => {
-    if (!open) return;
-    const targetItemId =
-      activeAgentId && agents.some((a) => a.id === activeAgentId)
-        ? activeAgentId
-        : SHARED_ITEM_ID;
+    if (open && !prevOpenRef.current) {
+      prevOpenRef.current = true;
+      const targetItemId =
+        activeAgentId && agents.some((a) => String(a.id) === String(activeAgentId))
+          ? activeAgentId
+          : SHARED_ITEM_ID;
 
-    setOpenRequest({ itemId: targetItemId, path: null });
+      setOpenRequest({ itemId: targetItemId, path: null });
+    } else if (!open) {
+      prevOpenRef.current = false;
+    }
   }, [open, activeAgentId, agents]);
 
   // Transform memoryData + agents into ExplorerItems
@@ -119,10 +124,10 @@ export function MemoryWorkspaceDialog({
     // 1. Shared Project Memory item
     const userFiles = currentData.userFiles || [];
     const sharedRootDoc = userFiles.find(
-      (f) => f.path === "/index.md" || f.path === "index.md"
+      (f) => normalizePath(f.path) === "/index.md"
     );
     const sharedOtherFiles: ExplorerFile[] = userFiles
-      .filter((f) => f.path !== "/index.md" && f.path !== "index.md")
+      .filter((f) => normalizePath(f.path) !== "/index.md")
       .map((f) => ({
         path: stripLeadingSlash(f.path),
         content: f.content || "",
@@ -140,11 +145,13 @@ export function MemoryWorkspaceDialog({
 
     // 2. Agent Memory items (all project agents)
     const agentItems: MemoryItem[] = agents.map((agent) => {
-      const group = (currentData.agentMemories || []).find((g) => g.agentId === agent.id);
+      const group = (currentData.agentMemories || []).find(
+        (g) => String(g.agentId) === String(agent.id)
+      );
       const files = group?.files || [];
-      const rootDoc = files.find((f) => f.path === "/index.md" || f.path === "index.md");
+      const rootDoc = files.find((f) => normalizePath(f.path) === "/index.md");
       const otherFiles: ExplorerFile[] = files
-        .filter((f) => f.path !== "/index.md" && f.path !== "index.md")
+        .filter((f) => normalizePath(f.path) !== "/index.md")
         .map((f) => ({
           path: stripLeadingSlash(f.path),
           content: f.content || "",
@@ -180,7 +187,7 @@ export function MemoryWorkspaceDialog({
       if (!prev) return prev;
       if (isShared) {
         const otherFiles = (prev.userFiles || []).filter(
-          (f) => f.path !== "/index.md" && f.path !== "index.md"
+          (f) => normalizePath(f.path) !== "/index.md"
         );
         return {
           ...prev,
@@ -190,38 +197,28 @@ export function MemoryWorkspaceDialog({
           ],
         };
       } else {
-        const groups = (prev.agentMemories || []).map((g) => {
-          if (g.agentId !== item.id) return g;
-          const otherFiles = (g.files || []).filter(
-            (f) => f.path !== "/index.md" && f.path !== "index.md"
+        const groups = [...(prev.agentMemories || [])];
+        const idx = groups.findIndex((g) => String(g.agentId) === String(item.id));
+        const rootObj = {
+          scope: "agent" as const,
+          agentId: item.id,
+          path: "/index.md",
+          content,
+          updatedAt: new Date().toISOString(),
+        };
+        if (idx >= 0) {
+          const otherFiles = (groups[idx].files || []).filter(
+            (f) => normalizePath(f.path) !== "/index.md"
           );
-          return {
-            ...g,
-            files: [
-              ...otherFiles,
-              {
-                scope: "agent" as const,
-                agentId: item.id,
-                path: "/index.md",
-                content,
-                updatedAt: new Date().toISOString(),
-              },
-            ],
+          groups[idx] = {
+            ...groups[idx],
+            files: [...otherFiles, rootObj],
           };
-        });
-        if (!groups.some((g) => g.agentId === item.id)) {
+        } else {
           groups.push({
             agentId: item.id,
             agentName: item.name,
-            files: [
-              {
-                scope: "agent",
-                agentId: item.id,
-                path: "/index.md",
-                content,
-                updatedAt: new Date().toISOString(),
-              },
-            ],
+            files: [rootObj],
           });
         }
         return { ...prev, agentMemories: groups };
@@ -252,23 +249,28 @@ export function MemoryWorkspaceDialog({
           ],
         };
       } else {
-        const groups = (prev.agentMemories || []).map((g) => {
-          if (g.agentId !== item.id) return g;
-          const otherFiles = (g.files || []).filter((f) => normalizePath(f.path) !== path);
-          return {
-            ...g,
-            files: [
-              ...otherFiles,
-              {
-                scope: "agent" as const,
-                agentId: item.id,
-                path,
-                content,
-                updatedAt: new Date().toISOString(),
-              },
-            ],
+        const groups = [...(prev.agentMemories || [])];
+        const idx = groups.findIndex((g) => String(g.agentId) === String(item.id));
+        const fileObj: MemoryFileDto = {
+          scope: "agent" as const,
+          agentId: item.id,
+          path,
+          content,
+          updatedAt: new Date().toISOString(),
+        };
+        if (idx >= 0) {
+          const otherFiles = (groups[idx].files || []).filter((f) => normalizePath(f.path) !== path);
+          groups[idx] = {
+            ...groups[idx],
+            files: [...otherFiles, fileObj],
           };
-        });
+        } else {
+          groups.push({
+            agentId: item.id,
+            agentName: item.name,
+            files: [fileObj],
+          });
+        }
         return { ...prev, agentMemories: groups };
       }
     });
@@ -277,7 +279,8 @@ export function MemoryWorkspaceDialog({
   const handleAddFile = async (item: MemoryItem, rawPath: string) => {
     const isShared = item.id === SHARED_ITEM_ID;
     const path = normalizePath(rawPath);
-    const initialContent = `# ${rawPath.split("/").pop() || "Topic"}\n\n`;
+    const cleanPath = stripLeadingSlash(path);
+    const initialContent = `# ${cleanPath.split("/").pop() || "Topic"}\n\n`;
 
     await writeProjectMemoryFile(projectId, {
       scope: isShared ? "user" : "agent",
@@ -289,16 +292,17 @@ export function MemoryWorkspaceDialog({
     setMemoryData((prev) => {
       if (!prev) return prev;
       if (isShared) {
+        const otherFiles = (prev.userFiles || []).filter((f) => normalizePath(f.path) !== path);
         return {
           ...prev,
           userFiles: [
-            ...(prev.userFiles || []),
+            ...otherFiles,
             { scope: "user", path, content: initialContent, updatedAt: new Date().toISOString() },
           ],
         };
       } else {
         const groups = [...(prev.agentMemories || [])];
-        const idx = groups.findIndex((g) => g.agentId === item.id);
+        const idx = groups.findIndex((g) => String(g.agentId) === String(item.id));
         const newFile: MemoryFileDto = {
           scope: "agent",
           agentId: item.id,
@@ -307,9 +311,10 @@ export function MemoryWorkspaceDialog({
           updatedAt: new Date().toISOString(),
         };
         if (idx >= 0) {
+          const otherFiles = (groups[idx].files || []).filter((f) => normalizePath(f.path) !== path);
           groups[idx] = {
             ...groups[idx],
-            files: [...groups[idx].files, newFile],
+            files: [...otherFiles, newFile],
           };
         } else {
           groups.push({
@@ -321,6 +326,9 @@ export function MemoryWorkspaceDialog({
         return { ...prev, agentMemories: groups };
       }
     });
+
+    // Explicitly focus and open the newly added file tab
+    setOpenRequest({ itemId: item.id, path: cleanPath });
   };
 
   const handleDeleteFile = async (item: MemoryItem, rawPath: string) => {
@@ -342,7 +350,7 @@ export function MemoryWorkspaceDialog({
         };
       } else {
         const groups = (prev.agentMemories || []).map((g) => {
-          if (g.agentId !== item.id) return g;
+          if (String(g.agentId) !== String(item.id)) return g;
           return {
             ...g,
             files: (g.files || []).filter((f) => normalizePath(f.path) !== path),
