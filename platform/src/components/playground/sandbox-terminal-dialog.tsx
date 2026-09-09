@@ -3,6 +3,8 @@
 import * as React from "react";
 import { TerminalIcon } from "@phosphor-icons/react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Spinner } from "@/components/ui/spinner";
 import type { ChatToolCall } from "@/components/chat";
 
@@ -62,6 +64,8 @@ export function SandboxTerminalDialog({
   onOpenChange,
   toolCalls,
 }: SandboxTerminalDialogProps) {
+  const isMobile = useIsMobile();
+
   const entries = React.useMemo(
     () => toolCalls.filter((tc) => tc.name === "execute"),
     [toolCalls]
@@ -73,6 +77,68 @@ export function SandboxTerminalDialog({
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [open, entries]);
+
+  const transcript = (
+    <div
+      ref={scrollRef}
+      className="min-h-0 flex-1 overflow-y-auto bg-black px-4 py-3 font-mono text-xs text-zinc-100"
+    >
+      {entries.length === 0 ? (
+        <p className="text-zinc-500">
+          No commands have run yet — they&apos;ll appear here as the agent uses the sandbox.
+        </p>
+      ) : (
+        entries.map((tc) => {
+          const command = parseCommand(tc.args);
+          const { output, exitCode } = parseResult(tc.result);
+          return (
+            <div key={tc.id} className="mb-3 whitespace-pre-wrap break-words">
+              <div className="text-emerald-400">
+                <span className="text-zinc-500">$ </span>
+                {command}
+              </div>
+              {tc.status === "running" && !output ? (
+                <div className="mt-1 inline-flex items-center gap-1.5 rounded-sm border border-zinc-700 bg-zinc-900 px-2 py-1 text-zinc-400">
+                  <Spinner className="size-3 text-zinc-400" />
+                  running
+                </div>
+              ) : output ? (
+                <div className="text-zinc-300">{stripAnsi(output)}</div>
+              ) : null}
+              {tc.status === "error" && (
+                <div className="text-red-400">command failed</div>
+              )}
+              {exitCode !== null && exitCode !== 0 && (
+                <div className="text-red-400">[exit {exitCode}]</div>
+              )}
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent
+          side="bottom"
+          className="w-full rounded-t-lg p-0 flex flex-col gap-0 overflow-hidden outline-none data-[side=bottom]:h-[96vh] data-[side=bottom]:min-h-[96vh] data-[side=bottom]:max-h-[96vh]"
+        >
+          <SheetHeader className="flex flex-row items-center justify-between border-b border-border px-4 py-3 bg-muted/20 shrink-0">
+            <div>
+              <SheetTitle className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+                <TerminalIcon className="size-4 text-primary" />
+                Sandbox Terminal
+              </SheetTitle>
+            </div>
+          </SheetHeader>
+
+          {transcript}
+        </SheetContent>
+      </Sheet>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -86,43 +152,7 @@ export function SandboxTerminalDialog({
           </div>
         </DialogHeader>
 
-        <div
-          ref={scrollRef}
-          className="min-h-0 flex-1 overflow-y-auto bg-black px-4 py-3 font-mono text-xs text-zinc-100"
-        >
-          {entries.length === 0 ? (
-            <p className="text-zinc-500">
-              No commands have run yet — they&apos;ll appear here as the agent uses the sandbox.
-            </p>
-          ) : (
-            entries.map((tc) => {
-              const command = parseCommand(tc.args);
-              const { output, exitCode } = parseResult(tc.result);
-              return (
-                <div key={tc.id} className="mb-3 whitespace-pre-wrap break-words">
-                  <div className="text-emerald-400">
-                    <span className="text-zinc-500">$ </span>
-                    {command}
-                  </div>
-                  {tc.status === "running" && !output ? (
-                    <div className="mt-1 inline-flex items-center gap-1.5 rounded-sm border border-zinc-700 bg-zinc-900 px-2 py-1 text-zinc-400">
-                      <Spinner className="size-3 text-zinc-400" />
-                      running
-                    </div>
-                  ) : output ? (
-                    <div className="text-zinc-300">{stripAnsi(output)}</div>
-                  ) : null}
-                  {tc.status === "error" && (
-                    <div className="text-red-400">command failed</div>
-                  )}
-                  {exitCode !== null && exitCode !== 0 && (
-                    <div className="text-red-400">[exit {exitCode}]</div>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
+        {transcript}
       </DialogContent>
     </Dialog>
   );

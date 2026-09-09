@@ -9,6 +9,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
 import {
   FileExplorerEditor,
@@ -105,6 +107,7 @@ export function MemoryWorkspaceDialog({
   initialOpenPath,
   liveWorkspaceFiles,
 }: MemoryWorkspaceDialogProps) {
+  const isMobile = useIsMobile();
   const [memoryData, setMemoryData] = React.useState<MemoryDataResponse | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [openRequest, setOpenRequest] = React.useState<{ itemId: string; path: string | null } | null>(
@@ -504,6 +507,157 @@ export function MemoryWorkspaceDialog({
     }
   };
 
+  const explorer = (
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+      <FileExplorerEditor<MemoryItem>
+        items={items}
+        itemLabelPlural="directories"
+        onCreateItem={() => {
+          setOpenRequest({ itemId: "memories", path: "agent/index.md" });
+        }}
+        onSaveRoot={handleSaveRoot}
+        onSaveFile={handleSaveFile}
+        onAddFile={handleAddFile}
+        onDeleteFile={handleDeleteFile}
+        onDeleteItem={handleDeleteItem}
+        openRequest={openRequest}
+        emptyStateTitle="No file open"
+        emptyStateDescription="Select a file from the explorer tree or click '+' to create one."
+        addFilePlaceholder={(item) =>
+          item?.id === "memories"
+            ? "e.g. agent/notes.md or user/guidelines.md"
+            : "e.g. outputs/report.md or notes.txt"
+        }
+        renderTabExtras={(item, activePath) => {
+          if (item.id === "workspace") {
+            return (
+              <Badge
+                variant="outline"
+                className="text-[10px] uppercase font-mono tracking-wide px-1.5 py-0 rounded-none bg-muted/50"
+              >
+                <span className="inline-flex items-center gap-1">
+                  <FolderOpenIcon className="size-2.5 text-primary" />
+                  Workspace
+                </span>
+              </Badge>
+            );
+          }
+          const isShared = activePath?.startsWith("user/") || false;
+          return (
+            <Badge
+              variant="outline"
+              className="text-[10px] uppercase font-mono tracking-wide px-1.5 py-0 rounded-none bg-muted/50"
+            >
+              {isShared ? (
+                <span className="inline-flex items-center gap-1">
+                  <SparkleIcon className="size-2.5 text-primary" />
+                  Shared
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1">
+                  <RobotIcon className="size-2.5 text-primary" />
+                  Agent {item.agentName ? `(${item.agentName})` : ""}
+                </span>
+              )}
+            </Badge>
+          );
+        }}
+        renderSidePanel={(item, activePath) => {
+          const isWorkspace = item.id === "workspace";
+          const isShared = !isWorkspace && (activePath?.startsWith("user/") ?? false);
+          const route = isWorkspace
+            ? `/workspace/${activePath || ""}`
+            : `/memories/${activePath || (isShared ? "user/" : "agent/")}`;
+
+          return (
+            <div className="p-4 space-y-4 text-xs">
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
+                  {isWorkspace ? "Workspace Directory" : "Memory Scope"}
+                </span>
+                <p className="font-medium text-foreground">
+                  {isWorkspace
+                    ? `Agent Scratchpad (${item.agentName || "Agent"})`
+                    : isShared
+                      ? "Project-wide (Shared Memory)"
+                      : `Agent Memory (${item.agentName || "Agent"})`}
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
+                  Filesystem Route
+                </span>
+                <code className="block rounded bg-muted/60 p-2 font-mono text-[11px] text-foreground break-all">
+                  {route}
+                </code>
+              </div>
+
+              <div className="rounded border border-border/80 bg-card p-3 space-y-2 text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-foreground font-semibold text-[11px]">
+                  <InfoIcon className="size-3.5 text-primary shrink-0" />
+                  {isWorkspace ? "Workspace Usage" : isShared ? "Project Facts" : "Agent Learning"}
+                </div>
+                <p className="text-[11px] leading-relaxed">
+                  {isWorkspace ? (
+                    <>
+                      Sub-agents and tools write deliverable files into{" "}
+                      <strong className="text-foreground">/workspace/outputs/</strong>. Files persist across turns for this agent.
+                    </>
+                  ) : isShared ? (
+                    <>
+                      <strong className="text-foreground">/memories/user/index.md</strong> is automatically injected into every conversation turn for all agents in this project.
+                    </>
+                  ) : (
+                    <>
+                      <strong className="text-foreground">/memories/agent/index.md</strong> is automatically injected into every conversation turn for this agent.
+                    </>
+                  )}
+                </p>
+              </div>
+
+              <div className="space-y-1 pt-2 border-t border-border/60">
+                <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
+                  Files in Scope
+                </span>
+                <p className="text-xs font-mono text-muted-foreground">
+                  {item.files?.length || 0} file(s)
+                </p>
+              </div>
+            </div>
+          );
+        }}
+      />
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent
+          side="bottom"
+          className="w-full rounded-t-lg p-0 flex flex-col gap-0 overflow-hidden outline-none data-[side=bottom]:h-[96vh] data-[side=bottom]:min-h-[96vh] data-[side=bottom]:max-h-[96vh]"
+        >
+          <SheetHeader className="flex flex-row items-center justify-between border-b border-border px-4 py-3 bg-muted/20 shrink-0">
+            <div className="flex flex-col gap-0.5">
+              <SheetTitle className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+                <span className="flex size-6 items-center justify-center rounded-none bg-primary text-primary-foreground">
+                  <FolderOpenIcon className="size-3.5" />
+                </span>
+                Agent Workspace Files
+              </SheetTitle>
+              <SheetDescription className="text-xs text-muted-foreground">
+                Inspect and edit files and persistent memories for this agent and project.
+              </SheetDescription>
+            </div>
+          </SheetHeader>
+
+          {explorer}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-7xl w-[95vw] h-[86vh] p-0 flex flex-col gap-0 overflow-hidden outline-none">
@@ -521,127 +675,7 @@ export function MemoryWorkspaceDialog({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-          <FileExplorerEditor<MemoryItem>
-            items={items}
-            itemLabelPlural="directories"
-            onCreateItem={() => {
-              setOpenRequest({ itemId: "memories", path: "agent/index.md" });
-            }}
-            onSaveRoot={handleSaveRoot}
-            onSaveFile={handleSaveFile}
-            onAddFile={handleAddFile}
-            onDeleteFile={handleDeleteFile}
-            onDeleteItem={handleDeleteItem}
-            openRequest={openRequest}
-            emptyStateTitle="No file open"
-            emptyStateDescription="Select a file from the explorer tree or click '+' to create one."
-            addFilePlaceholder={(item) =>
-              item?.id === "memories"
-                ? "e.g. agent/notes.md or user/guidelines.md"
-                : "e.g. outputs/report.md or notes.txt"
-            }
-            renderTabExtras={(item, activePath) => {
-              if (item.id === "workspace") {
-                return (
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] uppercase font-mono tracking-wide px-1.5 py-0 rounded-none bg-muted/50"
-                  >
-                    <span className="inline-flex items-center gap-1">
-                      <FolderOpenIcon className="size-2.5 text-primary" />
-                      Workspace
-                    </span>
-                  </Badge>
-                );
-              }
-              const isShared = activePath?.startsWith("user/") || false;
-              return (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] uppercase font-mono tracking-wide px-1.5 py-0 rounded-none bg-muted/50"
-                >
-                  {isShared ? (
-                    <span className="inline-flex items-center gap-1">
-                      <SparkleIcon className="size-2.5 text-primary" />
-                      Shared
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1">
-                      <RobotIcon className="size-2.5 text-primary" />
-                      Agent {item.agentName ? `(${item.agentName})` : ""}
-                    </span>
-                  )}
-                </Badge>
-              );
-            }}
-            renderSidePanel={(item, activePath) => {
-              const isWorkspace = item.id === "workspace";
-              const isShared = !isWorkspace && (activePath?.startsWith("user/") ?? false);
-              const route = isWorkspace
-                ? `/workspace/${activePath || ""}`
-                : `/memories/${activePath || (isShared ? "user/" : "agent/")}`;
-
-              return (
-                <div className="p-4 space-y-4 text-xs">
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
-                      {isWorkspace ? "Workspace Directory" : "Memory Scope"}
-                    </span>
-                    <p className="font-medium text-foreground">
-                      {isWorkspace
-                        ? `Agent Scratchpad (${item.agentName || "Agent"})`
-                        : isShared
-                          ? "Project-wide (Shared Memory)"
-                          : `Agent Memory (${item.agentName || "Agent"})`}
-                    </p>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
-                      Filesystem Route
-                    </span>
-                    <code className="block rounded bg-muted/60 p-2 font-mono text-[11px] text-foreground break-all">
-                      {route}
-                    </code>
-                  </div>
-
-                  <div className="rounded border border-border/80 bg-card p-3 space-y-2 text-muted-foreground">
-                    <div className="flex items-center gap-1.5 text-foreground font-semibold text-[11px]">
-                      <InfoIcon className="size-3.5 text-primary shrink-0" />
-                      {isWorkspace ? "Workspace Usage" : isShared ? "Project Facts" : "Agent Learning"}
-                    </div>
-                    <p className="text-[11px] leading-relaxed">
-                      {isWorkspace ? (
-                        <>
-                          Sub-agents and tools write deliverable files into{" "}
-                          <strong className="text-foreground">/workspace/outputs/</strong>. Files persist across turns for this agent.
-                        </>
-                      ) : isShared ? (
-                        <>
-                          <strong className="text-foreground">/memories/user/index.md</strong> is automatically injected into every conversation turn for all agents in this project.
-                        </>
-                      ) : (
-                        <>
-                          <strong className="text-foreground">/memories/agent/index.md</strong> is automatically injected into every conversation turn for this agent.
-                        </>
-                      )}
-                    </p>
-                  </div>
-
-                  <div className="space-y-1 pt-2 border-t border-border/60">
-                    <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
-                      Files in Scope
-                    </span>
-                    <p className="text-xs font-mono text-muted-foreground">
-                      {item.files?.length || 0} file(s)
-                    </p>
-                  </div>
-                </div>
-              );
-            }}
-          />
-        </div>
+        {explorer}
       </DialogContent>
     </Dialog>
   );
