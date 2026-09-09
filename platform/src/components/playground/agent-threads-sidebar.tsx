@@ -194,7 +194,7 @@ export function AgentThreadsSidebar({
   return (
     <div
       className={cn(
-        "flex w-64 shrink-0 flex-col border-r border-border bg-card/60 transition-all sm:w-64",
+        "flex h-full w-64 shrink-0 flex-col border-r border-border bg-card/90",
         className
       )}
     >

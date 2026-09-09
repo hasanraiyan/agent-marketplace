@@ -313,43 +313,47 @@ function PlaygroundContent() {
 
                 {tab === "chat" ? (
                   <TabsContent value="chat" className="min-h-0 flex-1">
-                    <div className="relative flex h-full min-h-0 w-full gap-3 overflow-hidden rounded-md border border-border/40 bg-background">
-                      {/* Desktop threads sidebar: standard side-by-side flex layout */}
-                      {!isMobile && threadsOpen && (
-                        <AgentThreadsSidebar
-                          projectId={projectId}
-                          agentId={selectedAgent.id}
-                          activeThreadId={activeThread?._id || activeThread?.threadId || null}
-                          onSelectThread={(thread) => setActiveThread(thread)}
-                          onThreadDeleted={(deletedId) => {
-                            if (activeThread?._id === deletedId) {
-                              setActiveThread(null);
-                            }
-                          }}
-                          updatedTitle={latestTitleUpdate}
-                        />
-                      )}
-
-                      {/* Mobile threads drawer: off-canvas sliding drawer with backdrop */}
-                      {isMobile && (
-                        <>
-                          {/* Backdrop */}
-                          <div
-                            className={cn(
-                              "fixed inset-0 z-40 bg-black/50 backdrop-blur-xs transition-opacity duration-300",
-                              threadsOpen
-                                ? "opacity-100 pointer-events-auto"
-                                : "opacity-0 pointer-events-none"
-                            )}
-                            onClick={() => setThreadsOpen(false)}
+                    {!isMobile ? (
+                      /* Desktop: standard untouched side-by-side flex layout */
+                      <div className="flex h-full min-h-0 w-full gap-3 overflow-hidden rounded-md border border-border/40 bg-background">
+                        {threadsOpen && (
+                          <AgentThreadsSidebar
+                            projectId={projectId}
+                            agentId={selectedAgent.id}
+                            activeThreadId={activeThread?._id || activeThread?.threadId || null}
+                            onSelectThread={(thread) => setActiveThread(thread)}
+                            onThreadDeleted={(deletedId) => {
+                              if (activeThread?._id === deletedId) {
+                                setActiveThread(null);
+                              }
+                            }}
+                            updatedTitle={latestTitleUpdate}
                           />
-                          {/* Sliding Drawer */}
-                          <div
-                            className={cn(
-                              "fixed inset-y-0 left-0 z-50 w-[280px] max-w-[85vw] bg-card shadow-2xl border-r border-border transition-transform duration-300 ease-in-out flex flex-col",
-                              threadsOpen ? "translate-x-0" : "-translate-x-full"
-                            )}
-                          >
+                        )}
+                        <div className="flex-1 min-w-0 h-full">
+                          <AgentChat
+                            key={`${selectedAgent.id}-${activeThread?._id || activeThread?.threadId || "default"}`}
+                            projectId={projectId}
+                            agentId={selectedAgent.id}
+                            threadId={activeThread?.threadId || activeThread?._id}
+                            onToolCallsChange={selectedAgent.sandboxEnabled ? setToolCalls : undefined}
+                            onOpenFile={handleOpenFile}
+                            onWorkspaceFilesChange={setLiveWorkspaceFiles}
+                            onTitleGenerated={handleTitleGenerated}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      /* Mobile: Push slider layout where chat maintains 100% full width and never squeezes */
+                      <div className="relative flex h-full min-h-0 w-full overflow-hidden rounded-md border border-border/40 bg-background">
+                        <div
+                          className={cn(
+                            "flex h-full w-full transition-transform duration-300 ease-in-out",
+                            threadsOpen ? "translate-x-0" : "-translate-x-[260px]"
+                          )}
+                        >
+                          {/* Sidebar */}
+                          <div className="w-[260px] shrink-0 h-full">
                             <AgentThreadsSidebar
                               projectId={projectId}
                               agentId={selectedAgent.id}
@@ -365,25 +369,33 @@ function PlaygroundContent() {
                               }}
                               updatedTitle={latestTitleUpdate}
                               onClose={() => setThreadsOpen(false)}
-                              className="w-full border-r-0"
+                              className="w-full h-full"
                             />
                           </div>
-                        </>
-                      )}
 
-                      <div className="flex-1 min-w-0 h-full">
-                        <AgentChat
-                          key={`${selectedAgent.id}-${activeThread?._id || activeThread?.threadId || "default"}`}
-                          projectId={projectId}
-                          agentId={selectedAgent.id}
-                          threadId={activeThread?.threadId || activeThread?._id}
-                          onToolCallsChange={selectedAgent.sandboxEnabled ? setToolCalls : undefined}
-                          onOpenFile={handleOpenFile}
-                          onWorkspaceFilesChange={setLiveWorkspaceFiles}
-                          onTitleGenerated={handleTitleGenerated}
-                        />
+                          {/* Chat: 100% min-width of the mobile container so it NEVER squeezes */}
+                          <div className="relative w-full min-w-full shrink-0 h-full">
+                            {threadsOpen && (
+                              <div
+                                onClick={() => setThreadsOpen(false)}
+                                className="absolute inset-0 z-20 cursor-pointer bg-background/20 backdrop-blur-[1px]"
+                                title="Tap to close threads"
+                              />
+                            )}
+                            <AgentChat
+                              key={`${selectedAgent.id}-${activeThread?._id || activeThread?.threadId || "default"}`}
+                              projectId={projectId}
+                              agentId={selectedAgent.id}
+                              threadId={activeThread?.threadId || activeThread?._id}
+                              onToolCallsChange={selectedAgent.sandboxEnabled ? setToolCalls : undefined}
+                              onOpenFile={handleOpenFile}
+                              onWorkspaceFilesChange={setLiveWorkspaceFiles}
+                              onTitleGenerated={handleTitleGenerated}
+                            />
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </TabsContent>
                 ) : (
                   <TabsContent value="voice" className="min-h-0 flex-1">
