@@ -242,6 +242,9 @@ type PersonaStreamingEvent = {
     retryable?: boolean;
     providerName?: string;
 } | {
+    type: "title";
+    title: string;
+} | {
     type: "CUSTOM";
     name: "hitl_request";
     value: {
@@ -284,6 +287,8 @@ interface UseChatOptions {
     onEvent?: (event: PersonaStreamingEvent) => void;
     /** Called when a fake/ephemeral chat mints a real thread on first send. Use to sync sidebar state (e.g. setThreadId(id)). */
     onThreadCreated?: (threadId: string) => void;
+    /** Called when the backend auto-generates a thread title (3-4 word LLM summary of first user message). */
+    onTitle?: (title: string) => void;
     /**
      * Pass the object returned by `useVoice()` (sharing the same `threadId`) to have `useChat`
      * merge live voice turns into `messages` automatically — one bubble per utterance, deduped
@@ -684,6 +689,6 @@ declare function supportsStreamingFetch(): boolean;
  */
 declare function openSSEStream(opts: OpenSSEOptions): Promise<SSEStream>;
 
-declare const VERSION = "0.8.0";
+declare const VERSION = "0.8.1";
 
 export { type OpenSSEOptions, type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaSandboxCommand, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendMessageOverride, type UseChatOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseVoiceOptions, type UseVoiceResult, VERSION, openSSEStream, supportsStreamingFetch, useAgents, useChat, useConnection, useFiles, useMcp, useMcpConnections, useMemory, usePersonaContext, useThreads, useVoice };

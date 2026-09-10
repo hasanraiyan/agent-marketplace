@@ -930,6 +930,12 @@ function useChat(options = {}) {
                     }
                   }
                 }
+              } else if (event.type === "title") {
+                const title = event.title;
+                if (typeof title === "string" && title.trim()) {
+                  chatLogger.info("auto title", { title });
+                  options.onTitle?.(title);
+                }
               } else if (event.type === "RUN_ERROR") {
                 chatLogger.warn("run error", { message: event.message, code: event.code });
                 chatLogger.error("stream run error", { code: event.code, message: event.message });
@@ -2061,7 +2067,7 @@ import {
   getLogLevel,
   isLevelEnabled
 } from "@personaai/logger";
-var VERSION = "0.8.0";
+var VERSION = "0.8.1";
 export {
   PersonaProvider,
   VERSION,

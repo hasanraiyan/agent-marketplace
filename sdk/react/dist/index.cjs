@@ -974,6 +974,12 @@ function useChat(options = {}) {
                     }
                   }
                 }
+              } else if (event.type === "title") {
+                const title = event.title;
+                if (typeof title === "string" && title.trim()) {
+                  chatLogger.info("auto title", { title });
+                  options.onTitle?.(title);
+                }
               } else if (event.type === "RUN_ERROR") {
                 chatLogger.warn("run error", { message: event.message, code: event.code });
                 chatLogger.error("stream run error", { code: event.code, message: event.message });
@@ -2099,7 +2105,7 @@ function useMcp(options = {}) {
 
 // src/index.ts
 var import_logger2 = require("@personaai/logger");
-var VERSION = "0.8.0";
+var VERSION = "0.8.1";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   PersonaProvider,
