@@ -284,6 +284,8 @@ export interface UseChatOptions {
   onError?: (error: Error) => void;
   /** Hook for receiving every low-level AG-UI streaming event (tool calls, steps, subagents) */
   onEvent?: (event: PersonaStreamingEvent) => void;
+  /** Called when a fake/ephemeral chat mints a real thread on first send. Use to sync sidebar state (e.g. setThreadId(id)). */
+  onThreadCreated?: (threadId: string) => void;
   /**
    * Pass the object returned by `useVoice()` (sharing the same `threadId`) to have `useChat`
    * merge live voice turns into `messages` automatically — one bubble per utterance, deduped

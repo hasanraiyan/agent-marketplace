@@ -3,6 +3,14 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.8.0
+
+- **New: fake/ephemeral new chat — no empty thread until first send.** `useChat()` now supports `threadId: undefined` as a true "new chat" state. `chat.startNewChat()` instantly clears `messages/files/todos/interrupt` and enters ephemeral mode (no `POST /threads`, no history fetch). The first `sendMessage()` auto-mints a real thread via `POST /threads {agentId}` and continues the same SSE stream. Exposes `chat.currentThreadId`, `chat.isEphemeral`, and `useChat({ onThreadCreated })` so the host can sync its `threadId` state / sidebar (`setThreadId(id)` / `refetchThreads()`). This removes the need for `swasthsaathi-01`'s eager `createThread` on New Chat and its `ensureThreadId: Promise` wrapper — `handleNewChat` becomes `chat.startNewChat(); setThreadId(null)` and `handleSend` becomes `void chat.sendMessage(text)`. `effectiveThreadId` drives auto-load and voice transcript merging, so switching threads while ephemeral is safe.
+- **Fix: `reload()` no longer duplicates the user message and leaves the stale reply (B1).** Extracted `doSend(prompt, baseMessages)` so reload supplies `truncated = messages.slice(0,lastUserIndex)` explicitly. Both `sendMessage` and `reload` now return `Promise<boolean>` (`true` sent, `false` skipped) instead of silently `void` — callers can detect the `isStreaming` drop (A5).
+- **Fix: voice→chat merge no longer loses the final user utterance (A1) and now renders user `partial` (A2).** Inactive voice state flushes `voice.transcript.slice(prevLen)` before advancing the cursor (was `prevLen = transcript.length` drop). Added `voiceUserPartialIdRef` so `partial.speaker==="user"` creates/updates a streaming `role:"user"` bubble, with proper settle on both speakers and thread-switch resets.
+- **Fix: `STATE_SNAPSHOT` with omitted fields no longer wipes state (B2).** `setFiles(normalizeWorkspaceFiles(snapshot.files ?? {}))` and `setTodos(snapshot.todos ?? [])` (was unguarded `undefined` → `todos: PersonaTodo[]` non-optional crash).
+- **Fix: silent no-ops now observable and retriable (A5+B4).** `sendMessage` warns when dropped while `isStreaming` and returns `false`; `loadThreadMessages` only marks `loadedThreadIdRef` on success and clears it on error/`clear()`, so a failed history load is retried on next select instead of forever showing "How can I help?".
+
 ## 0.7.10
 
 - **New: `useChat()` returns `sandboxCommands: PersonaSandboxCommand[]`.** One entry per `execute`

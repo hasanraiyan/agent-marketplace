@@ -282,6 +282,8 @@ interface UseChatOptions {
     onError?: (error: Error) => void;
     /** Hook for receiving every low-level AG-UI streaming event (tool calls, steps, subagents) */
     onEvent?: (event: PersonaStreamingEvent) => void;
+    /** Called when a fake/ephemeral chat mints a real thread on first send. Use to sync sidebar state (e.g. setThreadId(id)). */
+    onThreadCreated?: (threadId: string) => void;
     /**
      * Pass the object returned by `useVoice()` (sharing the same `threadId`) to have `useChat`
      * merge live voice turns into `messages` automatically — one bubble per utterance, deduped
@@ -436,13 +438,13 @@ declare function useChat(options?: UseChatOptions): {
     setInput: react.Dispatch<react.SetStateAction<string>>;
     handleInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
     handleSubmit: (e?: React.FormEvent) => void;
-    sendMessage: (contentToSend?: string, overrideOptions?: SendMessageOverride) => Promise<void>;
+    sendMessage: (contentToSend?: string, overrideOptions?: SendMessageOverride) => Promise<boolean>;
     isStreaming: boolean;
     isLoading: boolean;
     isLoadingHistory: boolean;
     error: Error | null;
     interrupt: PersonaInterrupt | null;
-    resumeInterrupt: (resume: PersonaResumeValue, displayContent: string) => Promise<void>;
+    resumeInterrupt: (resume: PersonaResumeValue, displayContent: string) => Promise<boolean>;
     files: Record<string, PersonaWorkspaceFile>;
     todos: PersonaTodo[];
     presentedFile: PersonaPresentedFile | null;
@@ -450,8 +452,11 @@ declare function useChat(options?: UseChatOptions): {
     openWorkspaceFile: (path: string) => void;
     sandboxCommands: PersonaSandboxCommand[];
     stop: () => void;
-    reload: () => void;
+    reload: () => Promise<boolean>;
     clear: () => void;
+    startNewChat: () => void;
+    currentThreadId: string | undefined;
+    isEphemeral: boolean;
     setMessages: react.Dispatch<react.SetStateAction<PersonaMessage[]>>;
     loadThreadMessages: (id: string) => Promise<PersonaMessage[]>;
 };
@@ -679,6 +684,6 @@ declare function supportsStreamingFetch(): boolean;
  */
 declare function openSSEStream(opts: OpenSSEOptions): Promise<SSEStream>;
 
-declare const VERSION = "0.7.10";
+declare const VERSION = "0.8.0";
 
 export { type OpenSSEOptions, type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaSandboxCommand, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendMessageOverride, type UseChatOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseVoiceOptions, type UseVoiceResult, VERSION, openSSEStream, supportsStreamingFetch, useAgents, useChat, useConnection, useFiles, useMcp, useMcpConnections, useMemory, usePersonaContext, useThreads, useVoice };

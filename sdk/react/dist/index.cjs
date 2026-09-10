@@ -440,6 +440,11 @@ function useChat(options = {}) {
   const chatLogger = (0, import_react2.useMemo)(() => logger.child("chat"), [logger]);
   const agentId = options.agentId || defaultAgentId;
   const threadId = options.threadId;
+  const [internalThreadId, setInternalThreadId] = (0, import_react2.useState)(void 0);
+  const effectiveThreadId = threadId ?? internalThreadId;
+  (0, import_react2.useEffect)(() => {
+    if (threadId !== void 0) setInternalThreadId(threadId);
+  }, [threadId]);
   const didLogInitRef = (0, import_react2.useRef)(false);
   if (!didLogInitRef.current) {
     didLogInitRef.current = true;
@@ -476,9 +481,10 @@ function useChat(options = {}) {
   }, [messages]);
   const abortControllerRef = (0, import_react2.useRef)(null);
   const loadedThreadIdRef = (0, import_react2.useRef)(void 0);
-  const voiceThreadRef = (0, import_react2.useRef)(threadId);
+  const voiceThreadRef = (0, import_react2.useRef)(effectiveThreadId);
   const voicePrevLenRef = (0, import_react2.useRef)(0);
   const voiceStreamingIdRef = (0, import_react2.useRef)(null);
+  const voiceUserPartialIdRef = (0, import_react2.useRef)(null);
   const stop = (0, import_react2.useCallback)(() => {
     if (abortControllerRef.current) {
       chatLogger.info("stop streaming", {});
@@ -503,7 +509,25 @@ function useChat(options = {}) {
     setFiles({});
     setTodos([]);
     setPresentedFile(null);
+    loadedThreadIdRef.current = void 0;
   }, [stop, chatLogger, messages.length]);
+  const startNewChat = (0, import_react2.useCallback)(() => {
+    chatLogger.info("startNewChat \u2014 entering ephemeral mode");
+    stop();
+    setMessages([]);
+    setError(null);
+    setInterrupt(null);
+    setFiles({});
+    setTodos([]);
+    setPresentedFile(null);
+    setInput("");
+    loadedThreadIdRef.current = void 0;
+    voiceThreadRef.current = void 0;
+    voicePrevLenRef.current = 0;
+    voiceStreamingIdRef.current = null;
+    voiceUserPartialIdRef.current = null;
+    setInternalThreadId(void 0);
+  }, [stop, chatLogger]);
   const loadThreadMessages = (0, import_react2.useCallback)(
     async (id) => {
       chatLogger.debug("loadThreadMessages start", { threadId: id });
@@ -535,6 +559,7 @@ function useChat(options = {}) {
         setInterrupt(normalizePendingInterrupt(data?.pendingInterrupt));
         setFiles(normalizeWorkspaceFiles(data?.state?.files ?? {}));
         setTodos(data?.state?.todos ?? []);
+        loadedThreadIdRef.current = id;
         chatLogger.info("loadThreadMessages succeeded", {
           threadId: id,
           messageCount: loaded.length
@@ -555,6 +580,7 @@ function useChat(options = {}) {
           error: errorObj.message
         });
         setError(errorObj);
+        if (loadedThreadIdRef.current === id) loadedThreadIdRef.current = void 0;
         return [];
       } finally {
         setIsLoadingHistory(false);
@@ -564,33 +590,33 @@ function useChat(options = {}) {
     [fetchWithAuth, chatLogger]
   );
   (0, import_react2.useEffect)(() => {
-    if (!threadId || isStreaming) {
-      chatLogger.trace("auto-load skipped", { threadId, isStreaming });
+    if (!effectiveThreadId || isStreaming) {
+      chatLogger.trace("auto-load skipped", { threadId: effectiveThreadId, isStreaming });
       return;
     }
-    if (loadedThreadIdRef.current === threadId) {
-      chatLogger.trace("auto-load already loaded", { threadId });
+    if (loadedThreadIdRef.current === effectiveThreadId) {
+      chatLogger.trace("auto-load already loaded", { threadId: effectiveThreadId });
       return;
     }
     if (messages.length > 0) {
       chatLogger.trace("auto-load has messages", {
-        threadId,
+        threadId: effectiveThreadId,
         count: messages.length
       });
       return;
     }
-    loadedThreadIdRef.current = threadId;
-    chatLogger.info("auto-load thread history", { threadId });
-    chatLogger.debug("loadThreadMessages trigger", { threadId });
-    void loadThreadMessages(threadId);
-  }, [threadId, isStreaming, messages.length, loadThreadMessages, chatLogger]);
+    chatLogger.info("auto-load thread history", { threadId: effectiveThreadId });
+    chatLogger.debug("loadThreadMessages trigger", { threadId: effectiveThreadId });
+    void loadThreadMessages(effectiveThreadId);
+  }, [effectiveThreadId, isStreaming, messages.length, loadThreadMessages, chatLogger]);
   const voice = options.voice;
   (0, import_react2.useEffect)(() => {
     if (!voice) return;
-    if (voiceThreadRef.current !== threadId) {
-      voiceThreadRef.current = threadId;
+    if (voiceThreadRef.current !== effectiveThreadId) {
+      voiceThreadRef.current = effectiveThreadId;
       voicePrevLenRef.current = voice.transcript.length;
       voiceStreamingIdRef.current = null;
+      voiceUserPartialIdRef.current = null;
       return;
     }
     const isVoiceActive = voice.state !== "idle" && voice.state !== "ended" && voice.state !== "error";
@@ -598,15 +624,40 @@ function useChat(options = {}) {
     if (curLen < voicePrevLenRef.current) {
       voicePrevLenRef.current = 0;
       voiceStreamingIdRef.current = null;
+      voiceUserPartialIdRef.current = null;
     }
     if (!isVoiceActive) {
-      voicePrevLenRef.current = voice.transcript.length;
+      if (curLen > voicePrevLenRef.current) {
+        const pendingLines = voice.transcript.slice(voicePrevLenRef.current);
+        voicePrevLenRef.current = curLen;
+        for (const line of pendingLines) {
+          const text = (line.text || "").trim();
+          if (!text) continue;
+          const role = line.speaker === "user" ? "user" : "assistant";
+          const voiceId = `voice-${line.id}`;
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === voiceId)) return prev;
+            if (prev.some((m) => !m.id.startsWith("voice-") && m.role === role && m.content.trim() === text)) return prev;
+            const last = prev[prev.length - 1];
+            if (last?.id.startsWith("voice-") && last.role === "assistant" && role === "assistant") {
+              const merged = text.startsWith(last.content) ? text : `${last.content} ${text}`.trim();
+              return [...prev.slice(0, -1), { ...last, content: merged, isStreaming: false }];
+            }
+            return [...prev, { id: voiceId, role, content: text, createdAt: /* @__PURE__ */ new Date() }];
+          });
+        }
+      } else {
+        voicePrevLenRef.current = voice.transcript.length;
+      }
       if (voiceStreamingIdRef.current) {
         const doneId = voiceStreamingIdRef.current;
         voiceStreamingIdRef.current = null;
-        setMessages(
-          (prev) => prev.map((m) => m.id === doneId ? { ...m, isStreaming: false } : m)
-        );
+        setMessages((prev) => prev.map((m) => m.id === doneId ? { ...m, isStreaming: false } : m));
+      }
+      if (voiceUserPartialIdRef.current) {
+        const doneId = voiceUserPartialIdRef.current;
+        voiceUserPartialIdRef.current = null;
+        setMessages((prev) => prev.map((m) => m.id === doneId ? { ...m, isStreaming: false } : m));
       }
       return;
     }
@@ -633,54 +684,71 @@ function useChat(options = {}) {
         });
       }
     }
-    const partialText = voice.partial?.speaker === "agent" ? voice.partial.text.trim() : "";
-    if (partialText) {
+    const agentPartialText = voice.partial?.speaker === "agent" ? voice.partial.text.trim() : "";
+    const userPartialText = voice.partial?.speaker === "user" ? voice.partial.text.trim() : "";
+    if (agentPartialText) {
+      if (voiceUserPartialIdRef.current) {
+        const doneId = voiceUserPartialIdRef.current;
+        voiceUserPartialIdRef.current = null;
+        setMessages((prev) => prev.map((m) => m.id === doneId ? { ...m, isStreaming: false } : m));
+      }
       setMessages((prev) => {
         const last = prev[prev.length - 1];
         if (last?.id.startsWith("voice-") && last.role === "assistant") {
           voiceStreamingIdRef.current = last.id;
-          return [...prev.slice(0, -1), { ...last, content: partialText, isStreaming: true }];
+          return [...prev.slice(0, -1), { ...last, content: agentPartialText, isStreaming: true }];
         }
         const id = voiceStreamingIdRef.current || `voice-partial-${Date.now()}`;
         voiceStreamingIdRef.current = id;
-        return [...prev, { id, role: "assistant", content: partialText, isStreaming: true, createdAt: /* @__PURE__ */ new Date() }];
+        return [...prev, { id, role: "assistant", content: agentPartialText, isStreaming: true, createdAt: /* @__PURE__ */ new Date() }];
       });
-    } else if (voice.state !== "speaking" && voiceStreamingIdRef.current) {
-      const doneId = voiceStreamingIdRef.current;
-      voiceStreamingIdRef.current = null;
-      setMessages(
-        (prev) => prev.map((m) => m.id === doneId ? { ...m, isStreaming: false } : m)
-      );
-    }
-  }, [voice?.transcript, voice?.partial, voice?.state, threadId]);
-  const sendMessage = (0, import_react2.useCallback)(
-    async (contentToSend, overrideOptions) => {
-      const prompt = (contentToSend ?? input).trim();
-      if (!prompt || isStreaming) {
-        chatLogger.trace("sendMessage skipped", {
-          hasPrompt: !!prompt,
-          isStreaming
-        });
-        return;
+    } else if (userPartialText) {
+      if (voiceStreamingIdRef.current) {
+        const doneId = voiceStreamingIdRef.current;
+        voiceStreamingIdRef.current = null;
+        setMessages((prev) => prev.map((m) => m.id === doneId ? { ...m, isStreaming: false } : m));
       }
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.id.startsWith("voice-") && last.role === "user" && last.isStreaming) {
+          voiceUserPartialIdRef.current = last.id;
+          return [...prev.slice(0, -1), { ...last, content: userPartialText, isStreaming: true }];
+        }
+        const id = voiceUserPartialIdRef.current || `voice-partial-user-${Date.now()}`;
+        voiceUserPartialIdRef.current = id;
+        return [...prev, { id, role: "user", content: userPartialText, isStreaming: true, createdAt: /* @__PURE__ */ new Date() }];
+      });
+    } else {
+      if (voiceStreamingIdRef.current && voice.state !== "speaking") {
+        const doneId = voiceStreamingIdRef.current;
+        voiceStreamingIdRef.current = null;
+        setMessages((prev) => prev.map((m) => m.id === doneId ? { ...m, isStreaming: false } : m));
+      }
+      if (voiceUserPartialIdRef.current) {
+        const doneId = voiceUserPartialIdRef.current;
+        voiceUserPartialIdRef.current = null;
+        setMessages((prev) => prev.map((m) => m.id === doneId ? { ...m, isStreaming: false } : m));
+      }
+    }
+  }, [voice?.transcript, voice?.partial, voice?.state, effectiveThreadId]);
+  const doSend = (0, import_react2.useCallback)(
+    async (prompt, baseMessages, overrideOptions) => {
       const targetAgentId = overrideOptions?.agentId || agentId;
       if (!targetAgentId) {
         const err = new Error("No Agent ID specified for useChat.");
         chatLogger.warn("sendMessage no agentId", {});
-        chatLogger.error("sendMessage failed \u2014 no agent", {
-          error: err.message
-        });
+        chatLogger.error("sendMessage failed \u2014 no agent", { error: err.message });
         setError(err);
         options.onError?.(err);
-        return;
+        return false;
       }
       chatLogger.debug("sendMessage start", {
         promptPreview: prompt.slice(0, 100),
         agentId: targetAgentId,
-        threadId: threadId ?? overrideOptions?.threadId,
+        threadId: effectiveThreadId ?? overrideOptions?.threadId,
         hasResume: !!overrideOptions?.resume,
         hasContextOverride: !!overrideOptions?.contextOverride,
-        messageCount: messages.length
+        messageCount: baseMessages.length
       });
       chatLogger.trace("sendMessage details", {
         agentId: targetAgentId,
@@ -703,7 +771,7 @@ function useChat(options = {}) {
         isStreaming: true,
         toolCalls: []
       };
-      const nextMessages = [...messages, userMessage];
+      const nextMessages = [...baseMessages, userMessage];
       setMessages([...nextMessages, placeholderAssistant]);
       setInput("");
       setIsStreaming(true);
@@ -713,9 +781,7 @@ function useChat(options = {}) {
       abortControllerRef.current = controller;
       const finalizeReasoning = () => {
         setMessages(
-          (prev) => prev.map(
-            (m) => m.role === "reasoning" && m.isStreaming ? { ...m, isStreaming: false } : m
-          )
+          (prev) => prev.map((m) => m.role === "reasoning" && m.isStreaming ? { ...m, isStreaming: false } : m)
         );
       };
       try {
@@ -723,7 +789,24 @@ function useChat(options = {}) {
           role: m.role === "assistant" ? "assistant" : "user",
           content: m.content
         }));
-        const resolvedThreadId = await (overrideOptions?.threadId ?? options.threadId);
+        let resolvedThreadId = await overrideOptions?.threadId ?? effectiveThreadId;
+        if (!resolvedThreadId) {
+          chatLogger.info("minting real thread for ephemeral chat", { agentId: targetAgentId });
+          const createRes = await fetchWithAuth("/threads", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ agentId: targetAgentId })
+          });
+          if (!createRes.ok) throw new Error(`Failed to create thread: ${createRes.statusText}`);
+          const createBody = await createRes.json();
+          const created = createBody?.data ?? createBody;
+          resolvedThreadId = created._id ?? created.id;
+          if (!resolvedThreadId) throw new Error("Thread creation returned no id");
+          setInternalThreadId(resolvedThreadId);
+          loadedThreadIdRef.current = resolvedThreadId;
+          options.onThreadCreated?.(resolvedThreadId);
+          chatLogger.info("ephemeral chat minted", { threadId: resolvedThreadId });
+        }
         chatLogger.trace("resolved threadId", { threadId: resolvedThreadId });
         const token = getAuthToken ? await getAuthToken() : null;
         const resolvedHookContext = typeof options.context === "function" ? options.context() : options.context;
@@ -752,27 +835,12 @@ function useChat(options = {}) {
           signal: controller.signal
         });
         if (!stream.ok) {
-          chatLogger.warn("SSE stream not ok", {
-            status: stream.status,
-            errorText: stream.errorText
-          });
-          chatLogger.error("chat stream failed", {
-            agentId: targetAgentId,
-            status: stream.status,
-            error: stream.errorText
-          });
-          throw new Error(
-            `Chat error (${stream.status}): ${stream.errorText ?? "Stream failed"}`
-          );
+          chatLogger.warn("SSE stream not ok", { status: stream.status, errorText: stream.errorText });
+          chatLogger.error("chat stream failed", { agentId: targetAgentId, status: stream.status, error: stream.errorText });
+          throw new Error(`Chat error (${stream.status}): ${stream.errorText ?? "Stream failed"}`);
         }
-        chatLogger.debug("SSE stream opened", {
-          agentId: targetAgentId,
-          status: stream.status
-        });
-        chatLogger.info("chat stream started", {
-          agentId: targetAgentId,
-          threadId: resolvedThreadId
-        });
+        chatLogger.debug("SSE stream opened", { agentId: targetAgentId, status: stream.status });
+        chatLogger.info("chat stream started", { agentId: targetAgentId, threadId: resolvedThreadId });
         const reader = stream.reader;
         let buffer = "";
         let accumulatedText = "";
@@ -783,23 +851,12 @@ function useChat(options = {}) {
         const patchAssistant = (patch) => {
           setMessages(
             (prev) => prev.map(
-              (msg) => msg.id === assistantMessageId ? {
-                ...msg,
-                toolCalls: Array.from(toolCallsMap.values()),
-                ...patch
-              } : msg
+              (msg) => msg.id === assistantMessageId ? { ...msg, toolCalls: Array.from(toolCallsMap.values()), ...patch } : msg
             )
           );
         };
         const insertReasoningMessage = (id, seq) => {
-          const msg = {
-            id,
-            role: "reasoning",
-            content: "",
-            createdAt: /* @__PURE__ */ new Date(),
-            isStreaming: true,
-            seq
-          };
+          const msg = { id, role: "reasoning", content: "", createdAt: /* @__PURE__ */ new Date(), isStreaming: true, seq };
           setMessages((prev) => {
             const idx = prev.findIndex((m) => m.id === assistantMessageId);
             if (idx === -1) return [...prev, msg];
@@ -824,16 +881,11 @@ function useChat(options = {}) {
               chatLogger.trace("stream event", { type: event.type, event });
               options.onEvent?.(event);
               if (event.type === "TEXT_MESSAGE_CHUNK" && event.delta) {
-                chatLogger.debug("text chunk", {
-                  deltaLength: event.delta.length
-                });
+                chatLogger.debug("text chunk", { deltaLength: event.delta.length });
                 accumulatedText += event.delta;
                 patchAssistant({ content: accumulatedText, isStreaming: true });
               } else if (event.type === "TOOL_CALL_CHUNK" && event.toolCallId) {
-                chatLogger.debug("tool call chunk", {
-                  toolCallId: event.toolCallId,
-                  toolCallName: event.toolCallName
-                });
+                chatLogger.debug("tool call chunk", { toolCallId: event.toolCallId, toolCallName: event.toolCallName });
                 const existing = toolCallsMap.get(event.toolCallId);
                 if (existing) {
                   existing.args = (existing.args || "") + (event.delta || "");
@@ -847,17 +899,12 @@ function useChat(options = {}) {
                 }
                 patchAssistant({});
               } else if (event.type === "TOOL_CALL_RESULT") {
-                chatLogger.debug("tool call result", {
-                  toolCallId: event.toolCallId
-                });
+                chatLogger.debug("tool call result", { toolCallId: event.toolCallId });
                 const existing = toolCallsMap.get(event.toolCallId);
                 if (existing) {
                   existing.result = event.content;
                   existing.isError = isErrorToolContent(event.content);
-                  if (existing.isError)
-                    chatLogger.warn("tool call error", {
-                      toolCallId: event.toolCallId
-                    });
+                  if (existing.isError) chatLogger.warn("tool call error", { toolCallId: event.toolCallId });
                   if (existing.toolName === "present_file" && !existing.isError) {
                     const presented = parsePresentedFile(event.content);
                     if (presented) {
@@ -872,12 +919,10 @@ function useChat(options = {}) {
                   fileCount: Object.keys(event.snapshot.files ?? {}).length,
                   todoCount: event.snapshot.todos?.length ?? 0
                 });
-                setFiles(normalizeWorkspaceFiles(event.snapshot.files));
-                setTodos(event.snapshot.todos);
+                setFiles(normalizeWorkspaceFiles(event.snapshot.files ?? {}));
+                setTodos(event.snapshot.todos ?? []);
               } else if (event.type === "REASONING_MESSAGE_START" && event.messageId) {
-                chatLogger.debug("reasoning start", {
-                  messageId: event.messageId
-                });
+                chatLogger.debug("reasoning start", { messageId: event.messageId });
                 activeReasoningId = event.messageId;
                 reasoningById.set(event.messageId, { content: "" });
                 insertReasoningMessage(event.messageId, streamSeq++);
@@ -892,61 +937,31 @@ function useChat(options = {}) {
                 }
                 const entry = reasoningById.get(rid);
                 entry.content += event.delta;
-                chatLogger.trace("reasoning content", {
-                  messageId: rid,
-                  deltaLength: event.delta?.length ?? 0
-                });
-                setMessages(
-                  (prev) => prev.map(
-                    (m) => m.id === rid ? { ...m, content: entry.content, isStreaming: true } : m
-                  )
-                );
+                chatLogger.trace("reasoning content", { messageId: rid, deltaLength: event.delta?.length ?? 0 });
+                setMessages((prev) => prev.map((m) => m.id === rid ? { ...m, content: entry.content, isStreaming: true } : m));
               } else if (event.type === "REASONING_END") {
-                chatLogger.debug("reasoning end", {
-                  messageId: activeReasoningId
-                });
+                chatLogger.debug("reasoning end", { messageId: activeReasoningId });
                 const rid = activeReasoningId;
                 activeReasoningId = null;
                 if (rid) {
-                  setMessages(
-                    (prev) => prev.map(
-                      (m) => m.id === rid ? { ...m, isStreaming: false } : m
-                    )
-                  );
+                  setMessages((prev) => prev.map((m) => m.id === rid ? { ...m, isStreaming: false } : m));
                 }
               } else if (event.type === "CUSTOM") {
                 chatLogger.debug("custom event", { name: event.name });
                 if (event.name === "hitl_request") {
                   const value2 = event.value;
-                  chatLogger.info("hitl interrupt", {
-                    actionCount: value2.actionRequests?.length ?? 0
-                  });
-                  setInterrupt({
-                    kind: "hitl",
-                    actionRequests: value2.actionRequests,
-                    reviewConfigs: value2.reviewConfigs
-                  });
+                  chatLogger.info("hitl interrupt", { actionCount: value2.actionRequests?.length ?? 0 });
+                  setInterrupt({ kind: "hitl", actionRequests: value2.actionRequests, reviewConfigs: value2.reviewConfigs });
                 } else if (event.name === "clarification_request") {
                   const value2 = event.value;
-                  chatLogger.info("clarification interrupt", {
-                    questionCount: value2.questions?.length ?? 0
-                  });
-                  setInterrupt({
-                    kind: "clarification",
-                    questions: value2.questions
-                  });
+                  chatLogger.info("clarification interrupt", { questionCount: value2.questions?.length ?? 0 });
+                  setInterrupt({ kind: "clarification", questions: value2.questions });
                 } else if (event.name === "subagent_activity") {
                   const { toolCallId, ...entry } = event.value;
-                  chatLogger.trace("subagent activity", {
-                    toolCallId,
-                    kind: entry.kind
-                  });
+                  chatLogger.trace("subagent activity", { toolCallId, kind: entry.kind });
                   const existing = toolCallsMap.get(toolCallId);
                   if (existing) {
-                    existing.subagentActivity = [
-                      ...existing.subagentActivity || [],
-                      entry
-                    ];
+                    existing.subagentActivity = [...existing.subagentActivity || [], entry];
                     patchAssistant({});
                   }
                 } else if (event.name === "mcp_app") {
@@ -954,35 +969,21 @@ function useChat(options = {}) {
                   if (val?.toolCallId && val?.resourceUri && val?.mcpId) {
                     const existing = toolCallsMap.get(val.toolCallId);
                     if (existing) {
-                      existing.mcpApp = {
-                        resourceUri: val.resourceUri,
-                        mcpId: val.mcpId
-                      };
+                      existing.mcpApp = { resourceUri: val.resourceUri, mcpId: val.mcpId };
                       patchAssistant({});
                     }
                   }
                 }
               } else if (event.type === "RUN_ERROR") {
-                chatLogger.warn("run error", {
-                  message: event.message,
-                  code: event.code
-                });
-                chatLogger.error("stream run error", {
-                  code: event.code,
-                  message: event.message
-                });
+                chatLogger.warn("run error", { message: event.message, code: event.code });
+                chatLogger.error("stream run error", { code: event.code, message: event.message });
                 throw new Error(event.message || "Stream error from agent");
               } else {
                 chatLogger.trace("unhandled event", { type: event.type });
               }
             } catch (e) {
-              if (e instanceof Error && e.message.startsWith("Stream error")) {
-                throw e;
-              }
-              chatLogger.warn("event parse error", {
-                raw: raw.slice(0, 200),
-                error: e instanceof Error ? e.message : String(e)
-              });
+              if (e instanceof Error && e.message.startsWith("Stream error")) throw e;
+              chatLogger.warn("event parse error", { raw: raw.slice(0, 200), error: e instanceof Error ? e.message : String(e) });
             }
           }
         }
@@ -994,75 +995,55 @@ function useChat(options = {}) {
           isStreaming: false,
           toolCalls: Array.from(toolCallsMap.values())
         };
-        setMessages(
-          (prev) => prev.map(
-            (msg) => msg.id === assistantMessageId ? finalMessage : msg
-          )
-        );
-        chatLogger.info("sendMessage succeeded", {
-          agentId: targetAgentId,
-          textLength: accumulatedText.length,
-          toolCallCount: toolCallsMap.size
-        });
-        chatLogger.debug("sendMessage completed", {
-          agentId: targetAgentId,
-          textLength: accumulatedText.length,
-          eventCount: toolCallsMap.size + 1
-        });
+        setMessages((prev) => prev.map((msg) => msg.id === assistantMessageId ? finalMessage : msg));
+        chatLogger.info("sendMessage succeeded", { agentId: targetAgentId, textLength: accumulatedText.length, toolCallCount: toolCallsMap.size });
+        chatLogger.debug("sendMessage completed", { agentId: targetAgentId, textLength: accumulatedText.length, eventCount: toolCallsMap.size + 1 });
         options.onFinish?.(finalMessage);
+        return true;
       } catch (err) {
         if (controller.signal.aborted) {
           chatLogger.info("sendMessage aborted", { agentId: targetAgentId });
           chatLogger.debug("stream aborted", { agentId: targetAgentId });
-          setMessages(
-            (prev) => prev.map(
-              (msg) => msg.id === assistantMessageId ? { ...msg, isStreaming: false } : msg
-            )
-          );
-          return;
+          setMessages((prev) => prev.map((msg) => msg.id === assistantMessageId ? { ...msg, isStreaming: false } : msg));
+          return false;
         }
         const errorObj = err instanceof Error ? err : new Error(String(err));
-        chatLogger.warn("sendMessage failed", {
-          agentId: targetAgentId,
-          error: errorObj.message
-        });
-        chatLogger.error("sendMessage error", {
-          agentId: targetAgentId,
-          error: errorObj.message
-        });
+        chatLogger.warn("sendMessage failed", { agentId: targetAgentId, error: errorObj.message });
+        chatLogger.error("sendMessage error", { agentId: targetAgentId, error: errorObj.message });
         setError(errorObj);
         options.onError?.(errorObj);
         setMessages(
           (prev) => prev.map(
-            (msg) => msg.id === assistantMessageId ? {
-              ...msg,
-              content: msg.content || `\u26A0\uFE0F Error: ${errorObj.message || "Failed to get response."}`,
-              isStreaming: false
-            } : msg
+            (msg) => msg.id === assistantMessageId ? { ...msg, content: msg.content || `\u26A0\uFE0F Error: ${errorObj.message || "Failed to get response."}`, isStreaming: false } : msg
           )
         );
+        return false;
       } finally {
         setIsStreaming(false);
         abortControllerRef.current = null;
         finalizeReasoning();
-        chatLogger.debug("sendMessage finally", {
-          agentId: targetAgentId,
-          isStreaming: false
-        });
+        chatLogger.debug("sendMessage finally", { agentId: targetAgentId, isStreaming: false });
         chatLogger.trace("sendMessage end", { agentId: targetAgentId });
       }
     },
-    [
-      agentId,
-      baseUrl,
-      getAuthToken,
-      input,
-      isStreaming,
-      messages,
-      options,
-      chatLogger,
-      threadId
-    ]
+    [agentId, baseUrl, getAuthToken, fetchWithAuth, options, chatLogger, effectiveThreadId]
+  );
+  const sendMessage = (0, import_react2.useCallback)(
+    async (contentToSend, overrideOptions) => {
+      const prompt = (contentToSend ?? input).trim();
+      if (!prompt || isStreaming) {
+        chatLogger.trace("sendMessage skipped", {
+          hasPrompt: !!prompt,
+          isStreaming
+        });
+        if (isStreaming) {
+          chatLogger.warn("sendMessage dropped while streaming \u2014 caller should queue or disable send", {});
+        }
+        return false;
+      }
+      return doSend(prompt, messages, overrideOptions);
+    },
+    [input, isStreaming, messages, doSend, chatLogger]
   );
   const handleInputChange = (0, import_react2.useCallback)(
     (e) => {
@@ -1079,13 +1060,13 @@ function useChat(options = {}) {
     },
     [sendMessage, chatLogger]
   );
-  const reload = (0, import_react2.useCallback)(() => {
+  const reload = (0, import_react2.useCallback)(async () => {
     if (messages.length === 0 || isStreaming) {
       chatLogger.trace("reload skipped", {
         messageCount: messages.length,
         isStreaming
       });
-      return;
+      return false;
     }
     let lastUserIndex = -1;
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -1096,16 +1077,16 @@ function useChat(options = {}) {
     }
     if (lastUserIndex === -1) {
       chatLogger.warn("reload no user message", {});
-      return;
+      return false;
     }
     const lastUserMessage = messages[lastUserIndex];
+    const truncated = messages.slice(0, lastUserIndex);
     chatLogger.info("reload", { messageId: lastUserMessage.id });
     chatLogger.debug("reload last user", {
       preview: lastUserMessage.content.slice(0, 100)
     });
-    setMessages(messages.slice(0, lastUserIndex));
-    void sendMessage(lastUserMessage.content);
-  }, [isStreaming, messages, sendMessage, chatLogger]);
+    return doSend(lastUserMessage.content, truncated);
+  }, [isStreaming, messages, doSend, chatLogger]);
   const resumeInterrupt = (0, import_react2.useCallback)(
     (resume, displayContent) => {
       chatLogger.info("resumeInterrupt", {
@@ -1153,6 +1134,9 @@ function useChat(options = {}) {
     stop,
     reload,
     clear,
+    startNewChat,
+    currentThreadId: effectiveThreadId,
+    isEphemeral: !effectiveThreadId,
     setMessages,
     loadThreadMessages
   };
@@ -2115,7 +2099,7 @@ function useMcp(options = {}) {
 
 // src/index.ts
 var import_logger2 = require("@personaai/logger");
-var VERSION = "0.7.10";
+var VERSION = "0.8.0";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   PersonaProvider,
