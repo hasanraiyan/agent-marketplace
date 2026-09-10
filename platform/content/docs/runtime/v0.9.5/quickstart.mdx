@@ -1,0 +1,276 @@
+---
+title: "Quickstart"
+description: "Get up and running with @personaai/runtime in a Node.js application."
+sdk: "runtime"
+version: "0.9.5"
+---
+
+# Quickstart
+
+This guide shows how to initialize `@personaai/runtime` and mount it directly into a standard Node.js HTTP server.
+
+> **Using Express, Next.js, or NestJS?**  
+> We recommend using the unified [`@personaai/adapters`](/docs/adapters/v0.1.0) package instead of mounting raw `http` directly. The adapter packages wrap this runtime with native framework bindings:
+> - `import { toExpressRouter } from '@personaai/adapters/express'`
+> - `import { createPersonaHandler } from '@personaai/adapters/nextjs/server'`
+> - `import { PersonaModule } from '@personaai/adapters/nestjs'`
+
+---
+
+## 1. Installation
+
+Install `@personaai/runtime`:
+
+```bash
+npm install @personaai/runtime
+# or
+pnpm add @personaai/runtime
+# or
+yarn add @personaai/runtime
+```
+
+---
+
+## 2. Server Setup (Raw Node `http`)
+
+Create a server script `server.ts`. In this example, we use the lightweight reference bridge pattern to handle streaming SSE, JSON bodies, and multipart file uploads using Node's native `fetch` / `FormData`:
+
+```ts
+import { createServer, IncomingMessage, ServerResponse } from 'node:http';
+import { Readable } from 'node:stream';
+import {
+  createRuntime,
+  Runtime,
+  RuntimeMethod,
+  RuntimeRequest,
+  RuntimeUploadedFile,
+} from '@personaai/runtime';
+
+// 1. Initialize the Runtime
+const runtime = createRuntime({
+  baseUrl: process.env.PERSONA_BASE_URL || 'https://api.persona.hasanraiyan.me',
+  credential: process.env.PERSONA_CREDENTIAL!, // "<keyId>.<secret>"
+  mountPath: '/api/persona',
+
+  // 2. Define the User Resolver
+  resolveUser: async (request: RuntimeRequest) => {
+    // In production, verify auth headers, cookies, or JWTs
+    const authHeader = request.headers['authorization'];
+    if (!authHeader) return null; // Returns 401
+    
+    // Example: return external user ID from session
+    return request.headers['x-user-id'] ?? 'user_dev_123';
+  },
+
+  // 3. Optional lifecycle hooks
+  hooks: {
+    beforeRun: (ctx) => {
+      console.log(`[Run Started] User: ${ctx.userId}, Agent: ${ctx.agentId}`);
+    },
+    afterRun: (ctx, result) => {
+      console.log(`[Run Finished] Event count: ${result.eventCount}`);
+    },
+    onError: (ctx, error) => {
+      console.error(`[Run Error] Phase: ${ctx.phase}`, error);
+    },
+  },
+});
+
+// 4. Request Transformer Bridge
+async function toRuntimeRequest(req: IncomingMessage): Promise<RuntimeRequest> {
+  const method = (req.method ?? 'GET').toUpperCase() as RuntimeMethod;
+  const url = new URL(req.url ?? '/', 'http://localhost');
+  
+  const query: Record<string, string | undefined> = {};
+  for (const [k, v] of url.searchParams) query[k] = v;
+
+  const headers: Record<string, string | undefined> = {};
+  for (const [k, v] of Object.entries(req.headers)) {
+    headers[k] = Array.isArray(v) ? v.join(', ') : v;
+  }
+
+  const contentType = headers['content-type'] ?? '';
+  let body: unknown;
+  let file: RuntimeUploadedFile | undefined;
+
+  if (contentType.includes('multipart/form-data')) {
+    // Convert Node incoming message to Web Request for native FormData parsing
+    const webReq = new Request('http://internal/', {
+      method: 'POST',
+      headers: { 'content-type': contentType },
+      body: Readable.toWeb(req) as ReadableStream<Uint8Array>,
+      duplex: 'half',
+    } as RequestInit);
+
+    const formData = await webReq.formData();
+    const fields: Record<string, unknown> = {};
+
+    for (const [k, v] of formData.entries()) {
+      if (v instanceof File && k === 'file') {
+        file = {
+          filename: v.name,
+          content: new Uint8Array(await v.arrayBuffer()),
+          contentType: v.type || undefined,
+        };
+      } else {
+        fields[k] = v;
+      }
+    }
+    body = fields;
+  } else if (method !== 'GET' && method !== 'DELETE') {
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) chunks.push(chunk as Buffer);
+    const raw = Buffer.concat(chunks).toString('utf8');
+    body = raw ? JSON.parse(raw) : undefined;
+  }
+
+  return {
+    method,
+    path: url.pathname,
+    headers,
+    query,
+    body,
+    file,
+    userId: null,
+  };
+}
+
+// 5. Create HTTP Server
+const server = createServer(async (req, res) => {
+  try {
+    const runtimeReq = await toRuntimeRequest(req);
+    const runtimeRes = await runtime.handle(runtimeReq);
+
+    res.writeHead(runtimeRes.status, runtimeRes.headers);
+
+    if (runtimeRes.kind === 'buffered') {
+      res.end(runtimeRes.body);
+      return;
+    }
+
+    // Stream SSE or binary data with transport backpressure
+    for await (const chunk of runtimeRes.body) {
+      const canContinue = res.write(chunk);
+      if (!canContinue) {
+        await new Promise<void>((resolve) => res.once('drain', resolve));
+      }
+    }
+    res.end();
+  } catch (err) {
+    console.error('Unhandled server error:', err);
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: { code: 'INTERNAL_ERROR', message: 'Internal error' } }));
+  }
+});
+
+server.listen(3210, () => {
+  console.log('Persona Runtime server listening on http://localhost:3210/api/persona');
+});
+
+// Clean shutdown
+process.on('SIGTERM', () => {
+  runtime.close();
+  server.close();
+});
+```
+
+---
+
+## 3. Testing Your Runtime
+
+### Check Health & Capabilities
+The `/health` endpoint is open and does not require authentication:
+
+```bash
+curl http://localhost:3210/api/persona/health
+```
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "version": "0.9.5",
+  "capabilities": {
+    "agentsWrite": false,
+    "mcps": false,
+    "providers": false,
+    "skills": false,
+    "knowledge": false,
+    "stores": false,
+    "auditLogs": false,
+    "architect": false
+  }
+}
+```
+
+---
+
+### Stream a Chat Turn
+Send a prompt to an agent over SSE:
+
+```bash
+curl -N -X POST http://localhost:3210/api/persona/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer dev-token" \
+  -H "x-user-id: usr_test_1" \
+  -d '{
+    "agentId": "68f12a3b4c5d6e7f8a9b0c1d",
+    "messages": [
+      { "role": "user", "content": "Tell me a short joke." }
+    ]
+  }'
+```
+
+**Response Headers:**
+```http
+HTTP/1.1 200 OK
+Content-Type: text/event-stream
+Cache-Control: no-cache
+Connection: keep-alive
+x-persona-run-id: run_8f3d1c9e2a4b
+```
+
+**Streamed Event Output (AG-UI):**
+```sse
+data: {"type":"RUN_STARTED","threadId":"thr_123","runId":"run_8f3d1c9e2a4b"}
+
+data: {"type":"TEXT_MESSAGE_CHUNK","delta":"Why don't scientists"}
+
+data: {"type":"TEXT_MESSAGE_CHUNK","delta":" trust atoms? Because they"}
+
+data: {"type":"TEXT_MESSAGE_CHUNK","delta":" make up everything!"}
+
+data: {"type":"RUN_FINISHED"}
+```
+
+---
+
+### Create a Thread Explicitly
+
+```bash
+curl -X POST http://localhost:3210/api/persona/threads \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer dev-token" \
+  -H "x-user-id: usr_test_1" \
+  -d '{
+    "agentId": "68f12a3b4c5d6e7f8a9b0c1d"
+  }'
+```
+
+**Response:**
+```json
+{
+  "_id": "thr_90a1b2c3d4",
+  "agentId": "68f12a3b4c5d6e7f8a9b0c1d",
+  "externalUserId": "usr_test_1",
+  "title": "New Conversation",
+  "createdAt": "2026-09-10T14:30:00.000Z"
+}
+```
+
+---
+
+## Next Steps
+- Learn how the [User Resolver Contract](/docs/runtime/v0.9.5/guides/resolve-user) handles production authentication.
+- Explore [Core Always-On Routes](/docs/runtime/v0.9.5/routes/core) for threads, voice, memory, and files.
+- Understand [Streaming, Heartbeats & Resumability](/docs/runtime/v0.9.5/guides/streaming-and-resume) to handle client drops smoothly.

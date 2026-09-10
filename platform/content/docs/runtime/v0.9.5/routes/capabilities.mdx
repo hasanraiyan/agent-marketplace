@@ -1,0 +1,160 @@
+---
+title: "Capabilities & Admin Surface"
+description: "Managing project configuration, AI providers, knowledge bases, and the Architect co-pilot."
+sdk: "runtime"
+version: "0.9.5"
+---
+
+# Capabilities & Admin Surface
+
+By default, `@personaai/runtime` restricts HTTP access exclusively to end-user actions. Project-level resources — LLM API keys, skill definitions, vector search indexes, file stores, and security audit logs — are protected behind an opt-in capability gate.
+
+Every capability flag in `RuntimeCapabilities` defaults to `false`. When a capability is disabled, its routes are not registered in the runtime route table; requests to those endpoints return `404 Not Found` (or `405 Method Not Allowed` if sharing a path with an always-on route) without leaking that the feature exists.
+
+---
+
+## Capabilities Reference
+
+```ts
+export interface RuntimeCapabilities {
+  /** Full Agent CRUD (create, update, delete) beyond read-only GET /agents. @default false */
+  agentsWrite?: boolean;
+  /** Full MCP server CRUD + live tool calls and resource reads. @default false */
+  mcps?: boolean;
+  /** LLM provider configuration — holds sensitive API keys. @default false */
+  providers?: boolean;
+  /** Custom skill creation and editing. @default false */
+  skills?: boolean;
+  /** Knowledge base CRUD, document upload, and vector search. @default false */
+  knowledge?: boolean;
+  /** Project-level file store CRUD and file manipulation. @default false */
+  stores?: boolean;
+  /** Security and compliance audit log read access. @default false */
+  auditLogs?: boolean;
+  /** The Architect co-pilot — streams agent-building instructions. @default false */
+  architect?: boolean;
+}
+```
+
+---
+
+## Gated Routes Table
+
+When a capability is set to `true`, the runtime exposes the corresponding routes:
+
+| Capability | Method | Path | Description |
+| :--- | :--- | :--- | :--- |
+| **`agentsWrite`** | `POST` | `/agents` | Create a new agent configuration |
+| | `GET` | `/agents/:id` | Get full agent definition (prompts, tools) |
+| | `PATCH` | `/agents/:id` | Update agent instructions, model, or skills |
+| | `DELETE` | `/agents/:id` | Delete an agent |
+| | `POST` | `/agents/bulk-delete` | Delete multiple agents |
+| **`mcps`** | `GET`/`POST` | `/mcps` | List or register MCP server connectors |
+| | `GET`/`PATCH`/`DELETE` | `/mcps/:id` | Get, update, or remove an MCP server |
+| | `POST` | `/mcps/:id/test` | Test live MCP connection |
+| | `GET` | `/mcps/:id/resource` | Read an MCP resource by URI |
+| | `POST` | `/mcps/:id/call-tool` | Manually invoke an MCP tool |
+| **`providers`** | `GET`/`POST` | `/providers` | List or store LLM API keys (OpenAI, Anthropic, etc.) |
+| | `GET`/`PATCH`/`DELETE` | `/providers/:id` | Manage provider credentials |
+| | `POST` | `/providers/:id/test` | Validate provider credentials against upstream |
+| | `GET` | `/providers/:id/models` | List available models from the provider |
+| **`skills`** | `GET`/`POST` | `/skills` | List or create reusable agent skills |
+| | `GET`/`PATCH`/`DELETE` | `/skills/:id` | Read, edit, or delete skill code |
+| **`knowledge`** | `GET`/`POST` | `/knowledge` | List or create RAG knowledge bases |
+| | `GET`/`PATCH`/`DELETE` | `/knowledge/:id` | Manage knowledge base settings |
+| | `POST` | `/knowledge/:id/documents` | Multipart document upload for chunking & indexing |
+| | `GET` | `/knowledge/:id/documents` | List indexed documents |
+| | `DELETE` | `/knowledge/:id/documents/:name` | Remove document from index |
+| | `POST` | `/knowledge/:id/search` | Semantic vector search query (`topK`) |
+| **`stores`** | `GET`/`POST` | `/stores` | List or create persistent file stores |
+| | `GET`/`PATCH`/`DELETE` | `/stores/:id` | Manage store properties |
+| | `GET` | `/stores/:id/files` | List files within a store |
+| | `GET`/`PUT`/`DELETE` | `/stores/:id/file` | Read, write, or delete files in a store |
+| **`auditLogs`** | `GET` | `/audit-logs` | Query security and tool audit events |
+| **`architect`** | `POST` | `/architect` | Stream interactive agent creation co-pilot |
+| | `GET` | `/architect/:runId/resume` | Reconnect to an in-progress Architect run |
+
+---
+
+## Recommended Architecture: The Dual-Mount Pattern
+
+In production applications, **do not enable capabilities on the public end-user mount**. If you need an administrative interface (e.g. building an internal developer portal or admin dashboard), instantiate **two separate runtimes**:
+
+1. **Public Consumer Runtime** (`/api/persona`): All capabilities `false`. Authenticated against standard app users.
+2. **Admin Runtime** (`/api/admin/persona`): Capabilities enabled. Authenticated against team members or staff roles.
+
+### Production Example
+
+```ts
+import { createServer } from 'node:http';
+import { createRuntime } from '@personaai/runtime';
+import { toNodeHandler } from './node-handler.js';
+
+const baseUrl = process.env.PERSONA_BASE_URL!;
+const credential = process.env.PERSONA_CREDENTIAL!;
+
+// 1. End-User Runtime (Safe, zero admin capabilities)
+const userRuntime = createRuntime({
+  baseUrl,
+  credential,
+  mountPath: '/api/persona',
+  resolveUser: async (req) => {
+    // Normal user session auth
+    const token = req.headers['authorization'];
+    return verifyUserToken(token); // e.g. "usr_12345"
+  },
+  capabilities: {
+    // Everything defaults to false
+  },
+});
+
+// 2. Admin Runtime (Privileged team surface)
+const adminRuntime = createRuntime({
+  baseUrl,
+  credential,
+  mountPath: '/api/admin/persona',
+  resolveUser: async (req) => {
+    // Strict role check: must be staff/admin
+    const token = req.headers['authorization'];
+    const user = await verifyAdminToken(token);
+    if (!user || user.role !== 'platform_admin') {
+      return null; // Triggers 401
+    }
+    return user.id;
+  },
+  capabilities: {
+    agentsWrite: true,
+    skills: true,
+    knowledge: true,
+    stores: true,
+    auditLogs: true,
+    architect: true,
+    // mcps: true,
+    // providers: true, // Only enable if allowing key management via HTTP
+  },
+});
+
+// 3. Dispatch based on request path
+const userHandler = toNodeHandler(userRuntime);
+const adminHandler = toNodeHandler(adminRuntime);
+
+const server = createServer(async (req, res) => {
+  if (req.url?.startsWith('/api/admin/persona')) {
+    await adminHandler(req, res);
+  } else if (req.url?.startsWith('/api/persona')) {
+    await userHandler(req, res);
+  } else {
+    res.writeHead(404).end();
+  }
+});
+
+server.listen(3210);
+```
+
+---
+
+## Security Best Practices
+
+1. **Protect `providers`:** The `providers` capability allows reading and updating LLM provider credentials and API keys. We recommend managing providers programmatically using [`@personaai/sdk`](/docs/sdk/v0.7.5/resources/providers) directly in backend worker scripts rather than exposing HTTP endpoints.
+2. **Coarse-Grained Authorization:** Capability flags are binary per mount. If you need fine-grained permissions (such as allowing team members to update knowledge bases but not delete them), perform authorization inside `resolveUser` or use a custom framework middleware ahead of the runtime.
+3. **Auditing:** Combine `auditLogs: true` with [Lifecycle Hooks](/docs/runtime/v0.9.5/guides/hooks) (`beforeToolCall`, `afterToolCall`) to maintain complete compliance trails.

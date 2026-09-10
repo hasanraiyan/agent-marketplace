@@ -1,0 +1,128 @@
+---
+title: "Streaming, Heartbeats & Resumability"
+description: "How @personaai/runtime manages AG-UI event streaming, proxy keep-alive heartbeats, and mid-stream client reconnection."
+sdk: "runtime"
+version: "0.9.5"
+---
+
+# Streaming, Heartbeats & Resumability
+
+Real-time streaming in LLM applications is prone to network volatility: mobile devices switch cell towers, browser tabs sleep, and intermediate proxies terminate idle connections during long tool executions.
+
+`@personaai/runtime` solves this with an internal **`RunDriver` architecture** that decouples the upstream agent execution from the client's HTTP connection.
+
+---
+
+## 1. The RunDriver Architecture
+
+When a client calls `POST /chat`:
+1. The runtime assigns a unique `runId` (returned in the `x-persona-run-id` HTTP response header).
+2. It instantiates an internal `RunDriver` pump.
+3. The pump starts pulling events from Persona’s AG-UI stream immediately, sequence-numbering (`seq: 1, 2, 3...`) and storing them in an in-memory buffer.
+4. Active HTTP responses subscribe to this driver and receive SSE chunks formatted as:
+   ```sse
+   id: 14
+   data: {"type":"TEXT_MESSAGE_CHUNK","delta":"..."}
+   ```
+5. If the client disconnects, **the driver continues running upstream**. It executes tool calls, updates memory, and finishes the turn regardless of whether any client is listening.
+
+---
+
+## 2. Reconnection & Replay
+
+If a client drops connection mid-turn, it reconnects using `GET /chat/:runId/resume`:
+
+```bash
+curl -N "https://api.your-app.com/api/persona/chat/run_8f3d1c9e2a4b/resume?since=14"
+```
+
+### Reconnection Flow
+
+```
+Client                      Host (Runtime)               Persona Platform
+  │                               │                             │
+  │── POST /chat ────────────────▶│                             │
+  │◀── 200 (x-persona-run-id) ───│── Start chat.stream() ──────▶│
+  │◀── seq: 1..14 ───────────────│◀── Events stream ────────────│
+  │                               │                             │
+  X [Client Disconnects]          │                             │
+                                  │◀── Events seq: 15..28 ──────│ (Continues buffering)
+  │── GET /resume?since=14 ──────▶│                             │
+  │◀── seq: 15..28 (Replayed) ───│                             │
+  │◀── seq: 29..32 (Live) ───────│◀── Events seq: 29..32 ───────│
+  │◀── RUN_FINISHED ──────────────│◀── Stream closes ───────────│
+```
+
+1. The runtime verifies that the reconnecting user matches the user who initiated the run.
+2. It looks up the run in the active registry.
+3. It immediately flushes all buffered events with `seq > since`.
+4. It attaches the connection to the live subscriber pool for any remaining events.
+5. Lifecycle hooks (`afterRun`, `onError`) fire **exactly once per run**, regardless of how many times a client reconnected.
+
+---
+
+## 3. SSE Heartbeats & Proxy Keep-Alive
+
+Many cloud environments (AWS ALB, Google Cloud Run, Cloudflare, Nginx) terminate connections that remain idle for 30–60 seconds. When an agent invokes a long-running tool (e.g. database query, web scraping, multi-document synthesis), no tokens are generated.
+
+The runtime injects an SSE comment heartbeat every 15 seconds:
+
+```sse
+: heartbeat
+
+```
+
+- **Standards-Compliant:** Under the SSE specification, lines starting with a colon (`:`) are comments and are ignored by standard parsers (including `@personaai/react` and EventSource).
+- **Zero Token Overhead:** Heartbeats keep TCP connections active through NATs and firewalls without polluting the client application state.
+- **Configurable:**
+  ```ts
+  createRuntime({
+    // Send heartbeat every 10 seconds instead of default 15s
+    heartbeatIntervalMs: 10000,
+  });
+  ```
+
+---
+
+## 4. Eviction & Memory Management
+
+Because the runtime buffers events to support reconnection, it bounds memory usage using two safety valves:
+
+```ts
+createRuntime({
+  // How long a completed run remains resumable in memory
+  runGraceMs: 5 * 60 * 1000, // 5 minutes (default)
+
+  // Maximum number of concurrent runs tracked in the registry
+  maxTrackedRuns: 1000, // default
+});
+```
+
+- **Grace Period:** A background sweep periodically evicts completed runs that exceed `runGraceMs`.
+- **Registry Cap:** If the number of tracked runs exceeds `maxTrackedRuns`, the oldest finished runs are purged early. In-flight (active) runs are never evicted by this cap.
+- **Cleanup:** Call `runtime.close()` during graceful server shutdown to terminate the background eviction timer:
+  ```ts
+  process.on('SIGTERM', () => {
+    runtime.close();
+  });
+  ```
+
+---
+
+## 5. Multi-Instance Deployment Caveats
+
+The built-in `RunDriver` registry is **in-memory and single-process**. 
+
+If you run multiple instances of your host server behind a round-robin load balancer:
+- A reconnect request (`GET /resume`) that lands on a *different* pod/container will receive a `404 RUN_NOT_FOUND` because the run driver lives in the memory of the original pod.
+
+### Recommended Mitigation
+Configure **Session Affinity (Sticky Sessions)** on your load balancer or reverse proxy:
+- Route requests with the same session cookie or user ID to the same backend instance.
+- This ensures resume requests land on the instance holding the active `RunDriver`.
+
+---
+
+## Next Steps
+- Implement auditing and metrics using [Lifecycle Hooks](/docs/runtime/v0.9.5/guides/hooks).
+- Connect code-defined tools with [Tool Manifests](/docs/runtime/v0.9.5/guides/manifests).

@@ -1,0 +1,285 @@
+---
+title: "Core Always-On Routes"
+description: "Complete reference for all always-on, end-user-scoped routes in @personaai/runtime."
+sdk: "runtime"
+version: "0.9.5"
+---
+
+# Core Always-On Routes
+
+Always-on routes represent operations that an authenticated end user executes during their own conversational sessions. They are enabled unconditionally (no capability flags required) and are strictly scoped to the `userId` resolved by your [`resolveUser`](/docs/runtime/v0.9.5/guides/resolve-user) handler.
+
+Every route except `GET /health` requires authentication; if `resolveUser` returns `null` or throws, the runtime responds with `401 Unauthorized`.
+
+---
+
+## Route Summary
+
+| Method | Path | Description | Upstream SDK Equivalent |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/chat` | Streams an AG-UI run over SSE | `client.chat.stream()` |
+| `GET` | `/chat/:runId/resume` | Reconnects to an in-progress or finished run | Internal `RunDriver` replay |
+| `GET` | `/threads` | Lists threads for the resolved user | `client.threads.list()` |
+| `POST` | `/threads` | Creates a new conversation thread | `client.threads.create()` |
+| `GET` | `/threads/:id` | Retrieves thread metadata | `client.threads.get()` |
+| `PATCH` | `/threads/:id` | Updates title or archive status | `client.threads.update()` |
+| `DELETE` | `/threads/:id` | Deletes a thread | `client.threads.delete()` |
+| `POST` | `/threads/bulk-delete`| Deletes multiple threads | `client.threads.bulkDelete()` |
+| `GET` | `/threads/:id/messages`| Returns full message history & state | `client.threads.getMessages()` |
+| `POST` | `/threads/:id/reset` | Clears messages/state in place | `client.threads.reset()` |
+| `POST` | `/voice/sessions` | Mints a Gemini Live audio ticket | `client.voice.createSession()` |
+| `GET` | `/agents` | Read-only discovery list of agents | `client.agents.list()` |
+| `GET` | `/files` | Lists files uploaded by user | `client.files.list()` |
+| `POST` | `/files` | Multipart upload for chat attachments | `client.files.upload()` |
+| `GET` | `/files/:id` | Streams raw file binary bytes | `client.files.download()` |
+| `DELETE` | `/files/:id` | Deletes an uploaded file | `client.files.delete()` |
+| `POST` | `/files/bulk-delete` | Deletes multiple files | `client.files.bulkDelete()` |
+| `GET` | `/memory` | Lists memory files | `client.memory.list()` |
+| `GET` | `/memory/file` | Reads a memory markdown file | `client.memory.getFile()` |
+| `PUT` | `/memory/file` | Creates or writes a memory file | `client.memory.writeFile()` |
+| `DELETE` | `/memory/file` | Deletes a memory file | `client.memory.deleteFile()` |
+| `GET` | `/mcps/:id/oauth/*` | End-user OAuth connection flows | `client.mcps.oauth.*` |
+| `GET` | `/health` | Unauthenticated liveness & capabilities | `client.whoami()` |
+
+---
+
+## 1. Chat & Streaming
+
+### `POST /chat`
+Executes a turn of conversation with an Agent, streaming AG-UI protocol events over Server-Sent Events (SSE).
+
+- **Headers Returned:**
+  - `Content-Type: text/event-stream`
+  - `x-persona-run-id`: Unique run identifier used for reconnection.
+- **Request Body:**
+  ```json
+  {
+    "agentId": "68f12a3b4c5d6e7f8a9b0c1d",
+    "threadId": "thr_01928374",
+    "messages": [
+      { "role": "user", "content": "How do I renew my license?" }
+    ],
+    "resume": null,
+    "contextOverride": {}
+  }
+  ```
+- **SSE Events:** Streams `RUN_STARTED`, `TEXT_MESSAGE_CHUNK`, `TOOL_CALL_START`, `TOOL_CALL_RESULT`, `RUN_FINISHED`, or `RUN_ERROR`.
+
+---
+
+### `GET /chat/:runId/resume`
+Reattaches a dropped connection to an ongoing or recently finished run.
+
+- **Query Parameters:**
+  - `since` *(optional, number)*: The last sequence number received by the client. The runtime replays all events with `seq > since` before continuing live stream output.
+- **Example:**
+  ```bash
+  curl -N "http://localhost:3210/api/persona/chat/run_8f3d1c9e2a4b/resume?since=14"
+  ```
+- For deep architectural details, see [Streaming, Heartbeats & Resumability](/docs/runtime/v0.9.5/guides/streaming-and-resume).
+
+---
+
+## 2. Conversation Threads
+
+### `GET /threads`
+Lists conversation threads belonging to the authenticated user.
+
+- **Query Parameters:** `page` (default 1), `limit` (default 20), `agentId` (optional filter).
+- **Response:**
+  ```json
+  {
+    "items": [
+      {
+        "_id": "thr_abc123",
+        "agentId": "68f12a3b4c5d6e7f8a9b0c1d",
+        "title": "License Renewal Questions",
+        "createdAt": "2026-09-08T10:00:00.000Z",
+        "updatedAt": "2026-09-08T10:05:00.000Z"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "limit": 20
+  }
+  ```
+
+---
+
+### `POST /threads`
+Explicitly mints a new Thread for an agent before sending the first message.
+
+- **Request Body:**
+  ```json
+  {
+    "agentId": "68f12a3b4c5d6e7f8a9b0c1d",
+    "title": "Tax Filing 2026"
+  }
+  ```
+
+---
+
+### `GET /threads/:id/messages`
+Retrieves the complete message history and internal graph state for a thread. Ideal for hydrating chat components when a user reopens a past conversation.
+
+- **Response:**
+  ```json
+  {
+    "threadId": "thr_abc123",
+    "messages": [
+      { "role": "user", "content": "Hello", "createdAt": "..." },
+      { "role": "assistant", "content": "Hi there! How can I help?", "createdAt": "..." }
+    ],
+    "state": {
+      "todos": [],
+      "files": []
+    }
+  }
+  ```
+
+---
+
+### `POST /threads/:id/reset`
+Clears message history, uploaded file attachments, and internal agent state in-place, keeping the same Thread ID and title.
+
+- **Response:** `200 OK` with updated thread object.
+
+---
+
+## 3. Real-Time Voice Sessions
+
+### `POST /voice/sessions`
+Mints an ephemeral ticket for a Gemini Live real-time audio conversation.
+
+- **Request Body:**
+  ```json
+  {
+    "agentId": "68f12a3b4c5d6e7f8a9b0c1d",
+    "threadId": "thr_abc123"
+  }
+  ```
+- **Response (`201 Created`):**
+  ```json
+  {
+    "ticket": "vct_live_89a0b1c2...",
+    "wsUrl": "wss://api.persona.hasanraiyan.me/v1/voice/live?ticket=vct_live_89a0b1c2...",
+    "expiresAt": "2026-09-10T14:35:00.000Z",
+    "session": {
+      "id": "vcs_123",
+      "agentId": "68f12a3b4c5d6e7f8a9b0c1d",
+      "threadId": "thr_abc123"
+    }
+  }
+  ```
+- **Architecture Note:** The runtime only mints the ticket. Your frontend establishes the WebSocket directly with the Persona audio gateway using `wsUrl`. Audio bytes never route through your host server.
+
+---
+
+## 4. User Files
+
+### `POST /files`
+Uploads a file attachment for multi-modal agent inspection or RAG.
+
+- **Content-Type:** `multipart/form-data`
+- **Fields:**
+  - `file`: The binary file content (single file).
+  - `agentId` *(optional)*: Associate file with an agent.
+  - `threadId` *(optional)*: Associate file with a thread.
+- **Response (`201 Created`):**
+  ```json
+  {
+    "_id": "fil_987654",
+    "filename": "quarterly-report.pdf",
+    "size": 1048576,
+    "contentType": "application/pdf",
+    "createdAt": "2026-09-10T14:40:00.000Z"
+  }
+  ```
+
+---
+
+### `GET /files/:id`
+Streams the raw binary bytes of a previously uploaded file.
+
+- **Response Kind:** `binary` (streamed chunk-by-chunk with correct `Content-Type` and `Content-Disposition`).
+
+---
+
+## 5. Long-Term Memory
+
+Persona agents can read and write persistent markdown files in either user-level or agent-level storage.
+
+### `GET /memory`
+Lists memory files available to the resolved user.
+
+- **Query Parameters:**
+  - `scope`: `'user'` (shared across all agents) or `'agent'` (specific to user + agent pair).
+  - `agentId`: Required if `scope=agent`.
+
+---
+
+### `GET /memory/file`
+Reads the content of a memory file.
+
+- **Query Parameters:**
+  - `path`: Required string (e.g. `/profile.md` or `/preferences/editor.md`).
+  - `scope`: `'user'` | `'agent'`.
+  - `agentId`: Required if `scope=agent`.
+
+---
+
+### `PUT /memory/file`
+Creates or updates a memory file.
+
+- **Request Body:**
+  ```json
+  {
+    "path": "/preferences/learning-style.md",
+    "content": "Prefers concise, code-first explanations with TypeScript examples.",
+    "scope": "user"
+  }
+  ```
+
+---
+
+## 6. End-User MCP OAuth
+
+### `GET /mcps/:id/oauth/user/authorize`
+Returns a authorization URL to connect an end user’s external account (e.g. GitHub, Slack, Notion) via MCP.
+
+- **Query Parameters:** `returnTo` (redirect destination after authorization).
+- **Response:** `{ "url": "https://auth.provider.com/oauth/authorize?..." }`
+
+### `GET /mcps/:id/oauth/user/status`
+Checks if the resolved user has an active connection to the specified MCP server.
+
+- **Response:** `{ "connected": true, "account": "octocat@github.com" }`
+
+### `DELETE /mcps/:id/oauth/user/connection`
+Disconnects the end user's account from the MCP connector (`204 No Content`).
+
+---
+
+## 7. Health & Capabilities Probe
+
+### `GET /health`
+Liveness check that returns the current runtime version and active capability flags.
+
+- **Authentication:** None (open route).
+- **Response:**
+  ```json
+  {
+    "status": "ok",
+    "version": "0.9.5",
+    "capabilities": {
+      "agentsWrite": false,
+      "mcps": false,
+      "providers": false,
+      "skills": false,
+      "knowledge": false,
+      "stores": false,
+      "auditLogs": false,
+      "architect": false
+    }
+  }
+  ```
