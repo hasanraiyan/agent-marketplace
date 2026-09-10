@@ -18,7 +18,7 @@ import type {
 ### `PersonaRole`
 
 ```ts
-type PersonaRole = 'user' | 'assistant' | 'system';
+type PersonaRole = 'user' | 'assistant' | 'system' | 'reasoning';
 ```
 
 ### `PersonaMessage`
@@ -29,19 +29,19 @@ array and as the argument to `onFinish`.
 ```ts
 interface PersonaMessage {
   id: string;
-  role: PersonaRole;
+  role: PersonaRole;            // 'reasoning' = one thinking phase (0.5.0+)
   content: string;
   createdAt: Date;
   isStreaming?: boolean;        // true while this message is being received
-  toolCalls?: PersonaToolCall[]; // tool invocations in this turn
-  reasoning?: string;           // model reasoning/thinking text (streamed ahead of the answer)
-  isReasoning?: boolean;        // true while reasoning is actively streaming
+  toolCalls?: PersonaToolCall[];
+  seq?: number;                 // monotonic stream order (reasoning + tool calls share counter, 0.5.1+)
+  // deprecated (0.5.0): assistant reasoning now streams as separate role:'reasoning' messages
+  reasoning?: string;
+  isReasoning?: boolean;
 }
 ```
 
-**When `isReasoning` is true**, `reasoning` contains the partial thinking text and `content`
-is still empty — the model hasn't started generating the final answer yet. When `REASONING_END`
-fires, `isReasoning` goes false and `content` starts filling.
+`role: 'reasoning'` messages are one per thinking phase — inserted above the assistant message and interleaved with tool calls via `seq`. An assistant turn is `reasoning → tool → reasoning → answer`; `content` on the assistant message is the final answer only.
 
 **When `toolCalls` is non-empty**, each entry is a `PersonaToolCall` representing one tool
 invocation. A single assistant turn can have multiple tool calls, and each one goes through
@@ -417,11 +417,13 @@ interface PersonaProviderProps {
 ```ts
 interface UseChatOptions {
   agentId?: string;
-  threadId?: string;
+  threadId?: string; // undefined = ephemeral new chat (0.8.0)
   initialMessages?: PersonaMessage[];
   onFinish?: (message: PersonaMessage) => void;
   onError?: (error: Error) => void;
   onEvent?: (event: PersonaStreamingEvent) => void;
+  onThreadCreated?: (threadId: string) => void; // 0.8.0: ephemeral → real mint
+  context?: Record<string, unknown> | (() => Record<string, unknown>); // 0.7.8
   voice?: UseVoiceResult; // merges a useVoice() call's live transcript into `messages` — see below
 }
 ```
@@ -431,6 +433,10 @@ interface UseChatOptions {
 [Syncing voice into the chat feed](/guides/react/hooks#syncing-voice-into-the-chat-feed) for what
 that gets you and what's still your own responsibility.
 
+`onThreadCreated` (0.8.0): fired when an ephemeral chat auto-mints a real thread on first `sendMessage`. Host should `setThreadId(id)` / `refetch()`.
+
+`context` (0.7.8): never shown to the model, only read live by an RCP tool. Object or getter, shallow-merged with per-send `context`.
+
 ### `SendMessageOverride`
 
 Per-send overrides for `sendMessage`:
@@ -438,8 +444,9 @@ Per-send overrides for `sendMessage`:
 ```ts
 interface SendMessageOverride {
   agentId?: string;
-  threadId?: string;
+  threadId?: string | Promise<string | undefined>; // 0.3.4+: awaited right before POST
   resume?: PersonaResumeValue;
+  context?: Record<string, unknown>; // 0.7.8+: per-send RCP context
   contextOverride?: string; // appended to the system prompt for this turn only (0.7.5+)
 }
 ```
@@ -475,7 +482,7 @@ type PersonaStreamingEvent =
 ### `VERSION`
 
 ```ts
-export const VERSION = '0.3.2';
+export const VERSION = '0.8.0';
 ```
 
 The current package version. Useful for runtime compatibility checks.

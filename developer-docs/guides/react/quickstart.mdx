@@ -8,7 +8,7 @@ set of hooks and a context provider that let you build a full-featured chat UI a
 Persona backend (Express, NestJS, or raw runtime) without writing fetch calls, SSE parsers, or
 state management by hand.
 
-**v0.3.2, current release.** Requires React 18+.
+**v0.8.0, current release.** Requires React 18+.
 
 ## Install
 
@@ -188,12 +188,12 @@ Wrap your chat in a sidebar that lists past conversations:
 import { useChat, useThreads } from '@personaai/react';
 
 export function ChatWithThreads() {
+  const [activeThreadId, setActiveThreadId] = useState<string | undefined>();
+
   const {
     threads,
-    createThread,
-    deleteThread,
-    renameThread,
     isLoading: threadsLoading,
+    refetch,
   } = useThreads();
 
   const {
@@ -208,12 +208,20 @@ export function ChatWithThreads() {
     reload,
     interrupt,
     resumeInterrupt,
-  } = useChat({ threadId: undefined }); // threadId managed below
-
-  // Thread selection with lazy creation
-  const [activeThreadId, setActiveThreadId] = useState<string | undefined>();
+    startNewChat,
+    currentThreadId,
+    isEphemeral,
+  } = useChat({
+    agentId, // from useAgents or PersonaProvider defaultAgentId
+    threadId: activeThreadId,
+    onThreadCreated: (id) => {
+      setActiveThreadId(id);
+      refetch();
+    },
+  });
 
   const handleNewChat = () => {
+    startNewChat(); // instant, no POST until first send
     setActiveThreadId(undefined);
   };
 
@@ -281,9 +289,7 @@ sendMessage('Approved', {
 });
 ```
 
-When `threadId` is not set and this is the first message, `useChat` will fail unless your
-backend supports implicit thread creation. Use `useThreads().createThread()` first if you need
-explicit thread management.
+When `threadId` is `undefined` (ephemeral new chat, 0.8.0+) the first `sendMessage` auto-mints a real thread via `POST /threads {agentId}` before streaming — no need to call `createThread()` yourself. `onThreadCreated` fires with the new id so you can sync `activeThreadId` and refetch the sidebar.
 
 ## Handling interrupts (HITL & clarifications)
 
@@ -344,21 +350,24 @@ const {
   setInput,           // (value: string) => void — update input
   handleInputChange,  // (e: ChangeEvent) => void — wired to <input> onChange
   handleSubmit,       // (e?: FormEvent) => void — wired to <form> onSubmit
-  sendMessage,        // (content?: string, override?: SendMessageOverride) => Promise
+  sendMessage,        // (content?: string, override?: SendMessageOverride) => Promise<boolean>
   isStreaming,         // boolean — true while a response is being received
   isLoading,          // boolean — alias for isStreaming
   isLoadingHistory,   // boolean — true while loading a thread's past messages
   error,              // Error | null — last error, cleared on next send
   interrupt,          // PersonaInterrupt | null — HITL or clarification pause
-  resumeInterrupt,    // (resume: PersonaResumeValue, displayContent: string) => void
+  resumeInterrupt,    // (resume: PersonaResumeValue, displayContent: string) => Promise<boolean>
   files,              // Record<string, PersonaWorkspaceFile> — agent's virtual workspace
   todos,              // PersonaTodo[] — agent's current plan items
   presentedFile,      // PersonaPresentedFile | null — file the agent wants to highlight
   dismissPresentedFile, // () => void
   openWorkspaceFile,  // (path: string) => void — manually open a workspace file
   stop,               // () => void — abort the current stream
-  reload,             // () => void — resend the last user message
-  clear,              // () => void — reset all state (messages, files, errors, etc.)
+  reload,             // () => Promise<boolean> — resend the last user message (0.8.0 fixed dup)
+  clear,              // () => void — reset all state
+  startNewChat,       // () => void — 0.8.0 ephemeral: clear and enter new-chat mode
+  currentThreadId,    // string | undefined — effective thread id (prop ?? minted)
+  isEphemeral,        // boolean — true when no real thread yet
   setMessages,        // (msgs: PersonaMessage[]) => void — replace all messages
   loadThreadMessages, // (threadId: string) => Promise<PersonaMessage[]>
 } = useChat(options);

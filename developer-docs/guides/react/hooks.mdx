@@ -24,11 +24,13 @@ import { useChat } from '@personaai/react';
 | Parameter | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
 | `agentId` | `string` | No | from provider's `defaultAgentId` | Which agent to chat with. Can be overridden per-send via `sendMessage(content, { agentId })`. |
-| `threadId` | `string` | No | `undefined` | The active thread. When set, messages are loaded from this thread's history on mount. Pass `undefined` to start a new conversation (or let `useThreads` manage it). |
+| `threadId` | `string` | No | `undefined` | The active thread. When set, messages are loaded from this thread's history on mount. Pass `undefined` for a fake/ephemeral new chat — no `POST /threads` until the first `sendMessage` (0.8.0+). See [Ephemeral new chat](#ephemeral-new-chat). |
 | `initialMessages` | `PersonaMessage[]` | No | `[]` | Pre-populated messages — useful for rendering a conversation that was loaded from another source. |
 | `onFinish` | `(message: PersonaMessage) => void` | No | — | Called after a complete assistant response is assembled. The message has `isStreaming: false` and full `toolCalls`. |
 | `onError` | `(error: Error) => void` | No | — | Called when a stream error occurs. The error is also stored in the `error` state field. |
 | `onEvent` | `(event: PersonaStreamingEvent) => void` | No | — | Called for every raw AG-UI streaming event. Useful for logging, analytics, or rendering custom UI for events the hook doesn't handle natively (e.g. `mcp_app`). See [Streaming events](/guides/react/streaming). |
+| `onThreadCreated` | `(threadId: string) => void` | No | — | Added in `0.8.0`. Called when an ephemeral new chat mints a real thread on first send. Use to sync host state (`setThreadId(id)`) / refetch `useThreads`. |
+| `context` | `Record<string, unknown> \| (() => Record<string, unknown>)` | No | — | Added in `0.7.8`. Never shown to the model — only read live by an RCP tool. Object or getter, shallow-merged with per-send `context`. |
 | `voice` | `UseVoiceResult` | No | — | Pass a [`useVoice()`](#usevoice) instance (same `threadId`) to have live voice turns merged into `messages` automatically. Added in `0.7.4` — see [Syncing voice into the chat feed](#syncing-voice-into-the-chat-feed) below. |
 
 ### Return value
@@ -40,21 +42,24 @@ import { useChat } from '@personaai/react';
 | `setInput` | `(value: string) => void` | Replace the entire input value. |
 | `handleInputChange` | `(e: ChangeEvent) => void` | Direct wire for `<input onChange>` or `<textarea onChange>`. |
 | `handleSubmit` | `(e?: FormEvent) => void` | Direct wire for `<form onSubmit>`. Calls `sendMessage()` with the current input. Prevents default. |
-| `sendMessage` | `(content?, override?) => Promise<void>` | Send a message. `content` defaults to `input`. `override` can set `agentId`, `threadId`, `resume`, or `contextOverride` for this send only. |
+| `sendMessage` | `(content?, override?) => Promise<boolean>` | Added in `0.8.0` returns `true` if sent, `false` if dropped while `isStreaming` (warn in console). `content` defaults to `input`. `override` can set `agentId`, `threadId` (`string \| Promise<string>`), `resume`, `context`, or `contextOverride` for this send only. Auto-mints a real thread if `threadId` is ephemeral. |
 | `isStreaming` | `boolean` | `true` while a response is being received. |
 | `isLoading` | `boolean` | Alias for `isStreaming`. |
 | `isLoadingHistory` | `boolean` | `true` while loading a thread's past messages via `GET /threads/:id/messages`. |
-| `error` | `Error \| null` | The last error. Cleared automatically on the next `sendMessage`. |
+| `error` | `Error \| null` | The last error. Cleared automatically on the next `sendMessage`. Includes history load errors (retriable — `loadThreadMessages` not marked loaded on failure, 0.8.0). |
 | `interrupt` | `PersonaInterrupt \| null` | Set when the agent pauses for HITL approval or a clarification question. See [Handling interrupts](#handling-interrupts-hitl--clarifications) below. |
-| `resumeInterrupt` | `(resume, displayContent) => void` | Resume a paused interrupt. `resume` is the answer/approval payload. `displayContent` is the text shown in the user's chat bubble (e.g. "Approved" or the typed answer). |
-| `files` | `Record<string, PersonaWorkspaceFile>` | The agent's virtual workspace files — populated from `STATE_SNAPSHOT` events. Keys are file paths. |
+| `resumeInterrupt` | `(resume, displayContent) => Promise<boolean>` | Resume a paused interrupt. `resume` is the answer/approval payload. `displayContent` is the text shown in the user's chat bubble (e.g. "Approved" or the typed answer). |
+| `files` | `Record<string, PersonaWorkspaceFile>` | The agent's virtual workspace files — populated from `STATE_SNAPSHOT` events. Keys are file paths. Guarded: missing `files`/`todos` no longer wipes state (0.8.0 B2). |
 | `todos` | `PersonaTodo[]` | The agent's current plan/todo items, updated with each `STATE_SNAPSHOT`. Each has `content` and `status`. |
 | `presentedFile` | `PersonaPresentedFile \| null` | Set when the agent calls `present_file` — contains `path`, `title`, and `description`. |
 | `dismissPresentedFile` | `() => void` | Clears `presentedFile` back to `null`. |
 | `openWorkspaceFile` | `(path: string) => void` | Manually opens a workspace file in `presentedFile`. |
 | `stop` | `() => void` | Aborts the current stream. The assistant message stays at whatever content was received so far. |
-| `reload` | `() => void` | Resends the last user message (replays the turn). Useful when the response errored or was interrupted. |
-| `clear` | `() => void` | Resets all state — messages, files, todos, errors, interrupts, presented file. Does not delete anything server-side. |
+| `reload` | `() => Promise<boolean>` | Resends the last user message (replays the turn). Fixed in `0.8.0` (B1) — truncated history no longer duplicates the user turn. Returns `boolean`. |
+| `clear` | `() => void` | Resets all state — messages, files, todos, errors, interrupts, presented file. Does not delete anything server-side. Resets `loadedThreadIdRef` so next select refetches. |
+| `startNewChat` | `() => void` | Added in `0.8.0`. Enters ephemeral new-chat mode: clears messages/files/todos/interrupt, resets voice cursor, sets `isEphemeral=true`. No network. Next `sendMessage` auto-mints. |
+| `currentThreadId` | `string \| undefined` | Added in `0.8.0`. Effective thread id (`threadId` prop ?? internally minted). |
+| `isEphemeral` | `boolean` | Added in `0.8.0`. `true` when no real thread exists yet (`!currentThreadId`). |
 | `setMessages` | `(msgs: PersonaMessage[]) => void` | Replace the entire message array. |
 | `loadThreadMessages` | `(id: string) => Promise<PersonaMessage[]>` | Manually load a thread's message history. Returns the loaded messages and updates `messages` state. |
 
@@ -114,6 +119,39 @@ Because it's model-visible text, don't put anything here you wouldn't want the m
 back or reasoning about out loud — it's read exactly like any other part of the prompt.
 `contextOverride` is for giving the model something to reason about, not for structured values a
 tool needs without the model seeing or being able to influence them.
+
+### Ephemeral new chat
+
+Added in `0.8.0`. `threadId: undefined` is now a real "new chat" state — no `POST /threads` happens until the first `sendMessage`. This eliminates empty threads left behind by eager `createThread` on New Chat.
+
+```tsx
+const [threadId, setThreadId] = useState<string | undefined>()
+const { threads, refetch } = useThreads()
+const chat = useChat({
+  agentId,
+  threadId, // undefined = ephemeral
+  onThreadCreated: (newId) => {
+    setThreadId(newId)
+    refetch() // sidebar needs the new thread; createThread would have done this, auto-mint doesn't
+  },
+  onFinish, onError,
+})
+
+const handleNewChat = () => {
+  chat.startNewChat() // instant clear, no network, isEphemeral=true
+  setThreadId(undefined)
+}
+
+const handleSend = (text?: string) => {
+  if (chat.isLoadingHistory) return // still loading prior thread
+  void chat.sendMessage(text) // auto POST /threads if ephemeral, then SSE
+}
+
+// UI can reflect ephemeral state
+{chat.isEphemeral ? <span>New chat</span> : <span>{threads.find(t=>t._id===chat.currentThreadId)?.title}</span>}
+```
+
+`chat.startNewChat()` clears `messages/files/todos/interrupt/partial` and resets the voice cursor — same as `clear()` plus input reset and `isEphemeral=true`. `chat.currentThreadId` is the effective id (`threadId` prop ?? minted), `chat.isEphemeral` is `!currentThreadId`. `sendMessage`/`reload` now return `Promise<boolean>` (`false` if dropped while `isStreaming`). The mint is idempotent — callers can still pass `sendMessage(text, { threadId: promise })` for the old `ensureThreadId` pattern, but no longer need to.
 
 ### Syncing voice into the chat feed
 

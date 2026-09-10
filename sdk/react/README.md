@@ -2,7 +2,7 @@
 
 React SDK for [Persona](https://persona.hasanraiyan.me) — hooks and a context provider for building chat UIs against any Persona backend.
 
-> **v0.3.2.** Requires React 18+. Client-side only — never holds a credential.
+> **v0.8.0.** Requires React 18+. Client-side only — never holds a credential.
 
 ## Install
 
@@ -46,15 +46,15 @@ function Chat() {
 
 ## Hooks
 
-| Hook            | Purpose                                                                    |
-| --------------- | -------------------------------------------------------------------------- |
-| `useChat`       | Streaming chat — messages, send, stop, reload, interrupts, workspace files |
-| `useVoice`      | Real-time voice calls (Gemini Live) — start/stop/mute, live transcript, tool calls |
-| `useThreads`    | Thread CRUD — list, create, delete, rename, reset, archive                 |
-| `useFiles`      | Upload management — list, upload, delete                                   |
-| `useMemory`     | Persistent memory — read, write, delete                                    |
-| `useAgents`     | Agent discovery — list available agents                                    |
-| `useConnection` | Health check — backend connectivity status                                 |
+| Hook            | Purpose                                                                                         |
+| --------------- | ----------------------------------------------------------------------------------------------- |
+| `useChat`       | Streaming chat — messages, send, stop, reload, interrupts, workspace files, ephemeral new chat  |
+| `useVoice`      | Real-time voice calls (Gemini Live) — start/stop/mute, live transcript, tool calls             |
+| `useThreads`    | Thread CRUD — list, create, delete, rename, reset, archive                                     |
+| `useFiles`      | Upload management — list, upload, delete                                                        |
+| `useMemory`     | Persistent memory — read, write, delete                                                         |
+| `useAgents`     | Agent discovery — list available agents                                                         |
+| `useConnection` | Health check — backend connectivity status                                                      |
 
 ## Voice
 
@@ -124,6 +124,30 @@ in-progress agent line updated in place while it's still being spoken (`isStream
 as a text response). Injected messages get a `voice-`-prefixed id. You still call `voice.start()`
 / `voice.stop()` yourself — `useChat` only owns the transcript-to-feed sync, not the call
 lifecycle.
+
+## Ephemeral new chat (0.8.0+)
+
+Create a new chat instantly without minting an empty thread. The real `threadId` is created lazily on the first `sendMessage`.
+
+```tsx
+const [threadId, setThreadId] = useState<string | undefined>()
+const chat = useChat({
+  agentId,
+  threadId,
+  onThreadCreated: (id) => setThreadId(id), // sync sidebar after mint
+})
+
+const handleNewChat = () => {
+  chat.startNewChat() // clears messages/files/todos, enters ephemeral mode
+  setThreadId(undefined)
+}
+
+// isEphemeral is true until first send mints
+// chat.currentThreadId reflects the effective id (prop ?? minted)
+await chat.sendMessage("Hello") // auto POST /threads if threadId is undefined
+```
+
+`sendMessage` and `reload` now return `Promise<boolean>` (`true` sent, `false` dropped while streaming). `startNewChat()`, `currentThreadId` and `isEphemeral` are new returns on `useChat`.
 
 ## Devtools
 
