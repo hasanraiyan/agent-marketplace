@@ -34,6 +34,7 @@ import {
   type ChatWorkspaceFile,
   type VoiceCallState,
 } from "@/components/persona/chat";
+import { useChat, type PersonaMessage, type PersonaInterrupt } from "@personaai/adapters/nextjs";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -212,6 +213,33 @@ const SAMPLE_MCP_APP_HTML = `<!DOCTYPE html>
 </html>`;
 
 export default function AgentChatPage() {
+  // Mode toggle: "simulator" exercises all UI components offline, "live" talks to /api/persona/chat
+  const [chatMode, setChatMode] = React.useState<"simulator" | "live">("simulator");
+  const [liveAgentId, setLiveAgentId] = React.useState<string>(
+    process.env.NEXT_PUBLIC_PERSONA_AGENT_ID || "demo_agent"
+  );
+
+  // Live Persona SDK chat hook via Next.js adapter
+  const {
+    messages: liveMessages,
+    input: liveInput,
+    setInput: setLiveInput,
+    sendMessage: sendLiveMessage,
+    isStreaming: isLiveStreaming,
+    stop: stopLiveStream,
+    interrupt: liveInterrupt,
+    resumeInterrupt: resumeLiveInterrupt,
+    todos: liveTodos,
+    files: liveFiles,
+    presentedFile: livePresentedFile,
+    dismissPresentedFile: dismissLivePresentedFile,
+    openWorkspaceFile: openLiveWorkspaceFile,
+    clear: clearLiveChat,
+  } = useChat({
+    agentId: liveAgentId,
+  });
+
+  // Simulator / Demo state
   const [messages, setMessages] = React.useState<ChatMessageData[]>([]);
   const [todos, setTodos] = React.useState<ChatTodo[]>([]);
   const [activeInterrupt, setActiveInterrupt] = React.useState<ChatInterruptData | null>(null);
@@ -556,8 +584,74 @@ This report analyzes high-concurrency throughput bottlenecks in the AG-UI stream
     [activeScenario]
   );
 
+  // Map PersonaMessage from @personaai/adapters/nextjs into ChatMessageData for rendering
+  const mappedLiveMessages = React.useMemo<ChatMessageData[]>(() => {
+    return liveMessages
+      .filter((m) => m.role !== "reasoning")
+      .map((m) => ({
+        id: m.id,
+        role: (m.role === "user" ? "user" : m.role === "system" ? "system" : "assistant") as "user" | "assistant" | "system",
+        content: m.content,
+        isStreaming: m.isStreaming,
+        toolCalls: m.toolCalls?.map((tc) => ({
+          id: tc.toolCallId,
+          name: tc.toolName,
+          args: tc.args,
+          result: tc.result,
+          status: tc.isError ? "error" : tc.result ? "done" : "running",
+          mcpApp: tc.mcpApp ? { resourceUri: tc.mcpApp.resourceUri, mcpId: tc.mcpApp.mcpId } : undefined,
+        })),
+      }));
+  }, [liveMessages]);
+
+  // Map live interrupt if present
+  const mappedLiveInterrupt = React.useMemo<ChatInterruptData | null>(() => {
+    if (!liveInterrupt) return null;
+    if (liveInterrupt.kind === "hitl") {
+      return {
+        kind: "hitl",
+        actionRequests: liveInterrupt.actionRequests.map((a, i) => ({
+          id: `live-action-${i}`,
+          label: a.name,
+          description: typeof a.args === "object" ? JSON.stringify(a.args) : String(a.args || ""),
+        })),
+      };
+    }
+    if (liveInterrupt.kind === "clarification") {
+      return {
+        kind: "clarification",
+        questions: liveInterrupt.questions.map((q) => ({
+          id: q.id,
+          question: q.text,
+          options: q.options?.map((opt) => ({ value: opt, label: opt })),
+          allowCustom: q.allowCustom,
+          required: q.required,
+        })),
+      };
+    }
+    return null;
+  }, [liveInterrupt]);
+
+  // Active display messages and state depending on mode
+  const currentMessages = chatMode === "live" ? mappedLiveMessages : messages;
+  const currentTodos = chatMode === "live" ? liveTodos.map((t) => ({ content: t.content, status: t.status as "pending" | "in_progress" | "completed" })) : todos;
+  const currentInterrupt = chatMode === "live" ? mappedLiveInterrupt : activeInterrupt;
+  const currentStreaming = chatMode === "live" ? isLiveStreaming : isStreaming;
+  const currentInput = chatMode === "live" ? liveInput : input;
+  const setCurrentInput = chatMode === "live" ? setLiveInput : setInput;
+
   const handleDecideHitl = React.useCallback(
     (actionId: string, decision: "approve" | "reject") => {
+      if (chatMode === "live") {
+        resumeLiveInterrupt(
+          {
+            decisions: [{ type: decision, message: `User chose ${decision}` }],
+          },
+          decision === "approve" ? "Approved action" : "Rejected action"
+        );
+        return;
+      }
+
       setActiveInterrupt(null);
       setTodos((t) => t.map((item) => ({ ...item, status: "completed" })));
 
@@ -584,23 +678,31 @@ All 16 nodes are reporting healthy heartbeats.`
       ]);
       setIsStreaming(false);
     },
-    []
+    [chatMode, resumeLiveInterrupt]
   );
 
   const handleSendMessage = React.useCallback(
     (text: string) => {
-      simulateAiResponse(text);
+      if (chatMode === "live") {
+        sendLiveMessage(text);
+      } else {
+        simulateAiResponse(text);
+      }
     },
-    [simulateAiResponse]
+    [chatMode, sendLiveMessage, simulateAiResponse]
   );
 
   const handleReset = () => {
-    setMessages([]);
-    setTodos([]);
-    setActiveInterrupt(null);
-    setSelectedSubagentId(null);
-    setViewedFile(null);
-    setIsStreaming(false);
+    if (chatMode === "live") {
+      clearLiveChat();
+    } else {
+      setMessages([]);
+      setTodos([]);
+      setActiveInterrupt(null);
+      setSelectedSubagentId(null);
+      setViewedFile(null);
+      setIsStreaming(false);
+    }
   };
 
   return (
@@ -663,159 +765,207 @@ All 16 nodes are reporting healthy heartbeats.`
           </div>
         </header>
 
-        {/* Tactile Scenario Bar */}
-        <div className="flex items-center justify-between border-b-2 border-border bg-muted/40 px-4 sm:px-6 py-2.5">
+        {/* Tactile Scenario Bar & Mode Switcher */}
+        <div className="flex flex-wrap items-center justify-between border-b-2 border-border bg-muted/40 px-4 sm:px-6 py-2.5 gap-2">
           <div className="flex items-center gap-2 overflow-x-auto text-xs font-bold">
-            <span className="text-muted-foreground mr-1 hidden sm:inline uppercase tracking-wider text-[11px]">
-              Preset Mode:
+            <span className="text-muted-foreground mr-1 uppercase tracking-wider text-[11px]">
+              Mode:
             </span>
             <button
               type="button"
-              onClick={() => setActiveScenario("all")}
+              onClick={() => setChatMode("simulator")}
               className={`tactile-btn inline-flex items-center gap-1.5 px-3 py-1.5 ${
-                activeScenario === "all" ? "bg-accent text-accent-foreground" : "bg-card text-foreground"
+                chatMode === "simulator" ? "bg-primary text-primary-foreground" : "bg-card text-foreground"
+              }`}
+            >
+              <SparkleIcon size={16} weight="bold" />
+              Component Showcase
+            </button>
+            <button
+              type="button"
+              onClick={() => setChatMode("live")}
+              className={`tactile-btn inline-flex items-center gap-1.5 px-3 py-1.5 ${
+                chatMode === "live" ? "bg-primary text-primary-foreground" : "bg-card text-foreground"
               }`}
             >
               <LightningIcon size={16} weight="bold" />
-              Trigger ALL Components
+              Live SDK Stream (/api/persona)
             </button>
-            <button
-              type="button"
-              onClick={() => setActiveScenario("mcp")}
-              className={`tactile-btn inline-flex items-center gap-1.5 px-3 py-1.5 ${
-                activeScenario === "mcp" ? "bg-accent text-accent-foreground" : "bg-card text-foreground"
-              }`}
-            >
-              <ChartBarIcon size={16} weight="bold" />
-              MCP Ext App
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveScenario("hitl")}
-              className={`tactile-btn inline-flex items-center gap-1.5 px-3 py-1.5 ${
-                activeScenario === "hitl" ? "bg-accent text-accent-foreground" : "bg-card text-foreground"
-              }`}
-            >
-              <ShieldCheckIcon size={16} weight="bold" />
-              HITL Approval
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveScenario("subagent")}
-              className={`tactile-btn inline-flex items-center gap-1.5 px-3 py-1.5 ${
-                activeScenario === "subagent" ? "bg-accent text-accent-foreground" : "bg-card text-foreground"
-              }`}
-            >
-              <TreeStructureIcon size={16} weight="bold" />
-              Subagent & Files
-            </button>
+
+            {chatMode === "simulator" && (
+              <>
+                <span className="text-muted-foreground mx-1 hidden md:inline">•</span>
+                <button
+                  type="button"
+                  onClick={() => setActiveScenario("all")}
+                  className={`tactile-btn inline-flex items-center gap-1 px-2.5 py-1 ${
+                    activeScenario === "all" ? "bg-accent text-accent-foreground" : "bg-card text-foreground"
+                  }`}
+                >
+                  <LightningIcon size={14} weight="bold" />
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveScenario("mcp")}
+                  className={`tactile-btn inline-flex items-center gap-1 px-2.5 py-1 ${
+                    activeScenario === "mcp" ? "bg-accent text-accent-foreground" : "bg-card text-foreground"
+                  }`}
+                >
+                  <ChartBarIcon size={14} weight="bold" />
+                  MCP
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveScenario("hitl")}
+                  className={`tactile-btn inline-flex items-center gap-1 px-2.5 py-1 ${
+                    activeScenario === "hitl" ? "bg-accent text-accent-foreground" : "bg-card text-foreground"
+                  }`}
+                >
+                  <ShieldCheckIcon size={14} weight="bold" />
+                  HITL
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveScenario("subagent")}
+                  className={`tactile-btn inline-flex items-center gap-1 px-2.5 py-1 ${
+                    activeScenario === "subagent" ? "bg-accent text-accent-foreground" : "bg-card text-foreground"
+                  }`}
+                >
+                  <TreeStructureIcon size={14} weight="bold" />
+                  Subagent
+                </button>
+              </>
+            )}
           </div>
 
           <div className="text-xs font-bold text-muted-foreground hidden lg:flex items-center gap-2">
-            <span>Model: <code className="bg-secondary px-2 py-0.5 rounded border border-border text-[11px]">claude-3-7-sonnet</code></span>
+            <span>Adapter: <code className="bg-secondary px-2 py-0.5 rounded border border-border text-[11px]">@personaai/adapters/nextjs</code></span>
             <span>•</span>
-            <span>Registry: <code className="bg-secondary px-2 py-0.5 rounded border border-border text-[11px]">persona/chat</code></span>
+            <span>Runtime: <code className="bg-secondary px-2 py-0.5 rounded border border-border text-[11px]">/api/persona/*</code></span>
           </div>
         </div>
 
         {/* Main Chat Viewport */}
         <div className="relative flex-1 min-h-0 flex flex-col">
           <ChatScroller className="flex-1">
-            {messages.length === 0 ? (
+            {currentMessages.length === 0 ? (
               <div className="py-6 sm:py-8">
                 <div className="tactile-card bg-card p-6 sm:p-8 text-center max-w-2xl mx-auto">
                   <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-accent border-2 border-border shadow-[2px_2px_0px_0px_var(--border)] mb-4">
                     <SparkleIcon size={28} weight="bold" />
                   </div>
                   <h2 className="text-2xl font-extrabold tracking-tight mb-2">
-                    Soft Tactile Neobrutalism Chatbot
+                    {chatMode === "live" ? "Live Persona SDK Agent Chat" : "Soft Tactile Neobrutalism Chatbot"}
                   </h2>
                   <p className="text-sm font-medium text-muted-foreground mb-6 max-w-md mx-auto">
-                    Click any test prompt below to simulate a live AI agent turn that exercises every single component in our registry.
+                    {chatMode === "live"
+                      ? "Connected to Next.js catch-all adapter (/api/persona/chat). Type any message below to stream a real response from your agent."
+                      : "Click any test prompt below to simulate a live AI agent turn that exercises every single component in our registry."}
                   </p>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-                    <button
-                      type="button"
-                      onClick={() => simulateAiResponse("Execute full system audit with MCP app, subagent analysis, and deployment approval.")}
-                      className="tactile-card bg-secondary/70 p-4 text-left hover:bg-secondary"
-                    >
-                      <div className="flex items-center gap-2 font-bold text-sm mb-1 text-primary">
-                        <LightningIcon size={16} weight="bold" />
-                        <span>Trigger ALL Components</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground font-medium">
-                        Fires Thinking, Todos, Tools, MCP Ext App, Subagent Drawer, and HITL Interrupt!
-                      </p>
-                    </button>
+                  {chatMode === "simulator" ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                      <button
+                        type="button"
+                        onClick={() => simulateAiResponse("Execute full system audit with MCP app, subagent analysis, and deployment approval.")}
+                        className="tactile-card bg-secondary/70 p-4 text-left hover:bg-secondary"
+                      >
+                        <div className="flex items-center gap-2 font-bold text-sm mb-1 text-primary">
+                          <LightningIcon size={16} weight="bold" />
+                          <span>Trigger ALL Components</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground font-medium">
+                          Fires Thinking, Todos, Tools, MCP Ext App, Subagent Drawer, and HITL Interrupt!
+                        </p>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveScenario("mcp");
-                        simulateAiResponse("Query cluster metrics and mount the interactive MCP Ext App.");
-                      }}
-                      className="tactile-card bg-secondary/70 p-4 text-left hover:bg-secondary"
-                    >
-                      <div className="flex items-center gap-2 font-bold text-sm mb-1 text-primary">
-                        <ChartBarIcon size={16} weight="bold" />
-                        <span>Interactive MCP Ext App</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground font-medium">
-                        Renders a live sandboxed widget that dispatches prompts back to the chat on click.
-                      </p>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveScenario("mcp");
+                          simulateAiResponse("Query cluster metrics and mount the interactive MCP Ext App.");
+                        }}
+                        className="tactile-card bg-secondary/70 p-4 text-left hover:bg-secondary"
+                      >
+                        <div className="flex items-center gap-2 font-bold text-sm mb-1 text-primary">
+                          <ChartBarIcon size={16} weight="bold" />
+                          <span>Interactive MCP Ext App</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground font-medium">
+                          Renders a live sandboxed widget that dispatches prompts back to the chat on click.
+                        </p>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveScenario("hitl");
-                        simulateAiResponse("Prepare production deployment configuration with approval gateway.");
-                      }}
-                      className="tactile-card bg-secondary/70 p-4 text-left hover:bg-secondary"
-                    >
-                      <div className="flex items-center gap-2 font-bold text-sm mb-1 text-primary">
-                        <ShieldCheckIcon size={16} weight="bold" />
-                        <span>Human-in-the-Loop Gateway</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground font-medium">
-                        Pauses agent execution and waits for your Approve / Reject decision.
-                      </p>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveScenario("hitl");
+                          simulateAiResponse("Prepare production deployment configuration with approval gateway.");
+                        }}
+                        className="tactile-card bg-secondary/70 p-4 text-left hover:bg-secondary"
+                      >
+                        <div className="flex items-center gap-2 font-bold text-sm mb-1 text-primary">
+                          <ShieldCheckIcon size={16} weight="bold" />
+                          <span>Human-in-the-Loop Gateway</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground font-medium">
+                          Pauses agent execution and waits for your Approve / Reject decision.
+                        </p>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveScenario("subagent");
-                        simulateAiResponse("Spawn a Codebase Researcher subagent to audit node 07.");
-                      }}
-                      className="tactile-card bg-secondary/70 p-4 text-left hover:bg-secondary"
-                    >
-                      <div className="flex items-center gap-2 font-bold text-sm mb-1 text-primary">
-                        <TreeStructureIcon size={16} weight="bold" />
-                        <span>Subagent & File Drawer</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveScenario("subagent");
+                          simulateAiResponse("Spawn a Codebase Researcher subagent to audit node 07.");
+                        }}
+                        className="tactile-card bg-secondary/70 p-4 text-left hover:bg-secondary"
+                      >
+                        <div className="flex items-center gap-2 font-bold text-sm mb-1 text-primary">
+                          <TreeStructureIcon size={16} weight="bold" />
+                          <span>Subagent & File Drawer</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground font-medium">
+                          Inspect nested subagent reasoning and view generated workspace markdown files.
+                        </p>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3 max-w-md mx-auto text-left">
+                      <div className="p-3 bg-secondary rounded-lg border border-border text-xs font-mono space-y-1">
+                        <div><strong className="text-foreground">Route:</strong> <code>/api/persona/chat</code></div>
+                        <div><strong className="text-foreground">Agent ID:</strong> <code>{liveAgentId}</code></div>
+                        <div><strong className="text-foreground">Hook:</strong> <code>useChat() from @personaai/adapters/nextjs</code></div>
                       </div>
-                      <p className="text-xs text-muted-foreground font-medium">
-                        Inspect nested subagent reasoning and view generated workspace markdown files.
-                      </p>
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        onClick={() => handleSendMessage("Hello! What capabilities and tools do you have?")}
+                        className="tactile-card bg-primary/10 border-2 border-border p-3 text-center font-bold text-xs hover:bg-primary/20 text-primary"
+                      >
+                        💬 Send sample prompt: &quot;Hello! What capabilities and tools do you have?&quot;
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
               <>
-                {messages.map((msg) => (
+                {currentMessages.map((msg) => (
                   <ChatScrollerItem key={msg.id} className="w-full">
                     <ChatMessage
                       message={msg}
-                      todos={todos}
+                      todos={currentTodos}
                       onOpenSubagent={() => setSelectedSubagentId("subagent-1")}
                       onOpenWorkspaceFile={(path) => {
-                        const f = workspaceFiles[path] || {
-                          path,
-                          title: path.split("/").pop() || path,
-                          content: "# File Content\n\nPreviewing generated workspace artifact.",
-                        };
+                        const liveF = liveFiles[path];
+                        const f = liveF
+                          ? { path, title: path.split("/").pop() || path, content: liveF.content }
+                          : workspaceFiles[path] || {
+                              path,
+                              title: path.split("/").pop() || path,
+                              content: "# File Content\n\nPreviewing generated workspace artifact.",
+                            };
                         setViewedFile(f);
                       }}
                       onSendMessage={handleSendMessage}
@@ -823,33 +973,35 @@ All 16 nodes are reporting healthy heartbeats.`
                   </ChatScrollerItem>
                 ))}
 
-                  {/* HITL Interrupt Panel styled for Neobrutalism */}
-                  {activeInterrupt && (
-                    <ChatScrollerItem>
-                      <div className="tactile-card bg-accent/20 border-2 border-border p-4 my-2">
-                        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-2">
-                          <ShieldCheckIcon size={18} weight="bold" />
-                          Human Authorization Required
-                        </div>
-                        <InterruptPanel
-                          interrupt={activeInterrupt}
-                          onDecideHitl={handleDecideHitl}
-                        />
+                {/* HITL / Clarification Interrupt Panel */}
+                {currentInterrupt && (
+                  <ChatScrollerItem>
+                    <div className="tactile-card bg-accent/20 border-2 border-border p-4 my-2">
+                      <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-2">
+                        <ShieldCheckIcon size={18} weight="bold" />
+                        Human Authorization Required
                       </div>
-                    </ChatScrollerItem>
-                  )}
-                </>
-              )}
+                      <InterruptPanel
+                        interrupt={currentInterrupt}
+                        onDecideHitl={handleDecideHitl}
+                      />
+                    </div>
+                  </ChatScrollerItem>
+                )}
+              </>
+            )}
           </ChatScroller>
 
           {/* Floating Tactile Composer Dock */}
           <div className="border-t-2 border-border bg-card p-4 shadow-[0px_-2px_0px_0px_var(--border)]">
             <div className="mx-auto max-w-3xl">
               <ChatComposer
-                value={input}
-                onChange={setInput}
+                value={currentInput}
+                onChange={setCurrentInput}
                 placeholder={
-                  activeScenario === "all"
+                  chatMode === "live"
+                    ? "Ask your agent anything (streams live from /api/persona)..."
+                    : activeScenario === "all"
                     ? "Type any prompt to run the complete multi-step agent simulation..."
                     : activeScenario === "mcp"
                     ? "Ask about cluster metrics or click widget actions..."
@@ -857,13 +1009,19 @@ All 16 nodes are reporting healthy heartbeats.`
                     ? "Type a deployment instruction..."
                     : "Ask the agent to delegate subtasks or inspect files..."
                 }
-                isStreaming={isStreaming}
+                isStreaming={currentStreaming}
                 onSend={() => {
-                  if (!input.trim()) return;
-                  simulateAiResponse(input);
-                  setInput("");
+                  if (!currentInput.trim()) return;
+                  handleSendMessage(currentInput);
+                  setCurrentInput("");
                 }}
-                onStop={() => setIsStreaming(false)}
+                onStop={() => {
+                  if (chatMode === "live") {
+                    stopLiveStream();
+                  } else {
+                    setIsStreaming(false);
+                  }
+                }}
               />
             </div>
           </div>

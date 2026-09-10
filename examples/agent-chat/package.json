@@ -11,7 +11,8 @@
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@modelcontextprotocol/ext-apps": "^2.0.0",
-    "@personaai/react": "^0.7.9",
+    "@personaai/adapters": "^0.1.0",
+    "@personaai/react": "^0.7.10",
     "@phosphor-icons/react": "^2.1.10",
     "@shadcn/react": "^0.3.1",
     "@streamdown/code": "^1.1.1",

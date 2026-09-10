@@ -14,9 +14,12 @@ importers:
       '@modelcontextprotocol/ext-apps':
         specifier: ^2.0.0
         version: 2.0.0(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/core@2.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.5.4)
+      '@personaai/adapters':
+        specifier: ^0.1.0
+        version: 0.1.0(express@5.2.1)(next@16.3.4(@babel/core@7.29.7)(@types/node@20.19.43)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.5.4)
       '@personaai/react':
-        specifier: ^0.7.9
-        version: 0.7.9(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^0.7.10
+        version: 0.7.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@phosphor-icons/react':
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -113,6 +116,9 @@ importers:
         version: 5.9.3
 
 packages:
+
+  '@ag-ui/core@0.0.57':
+    resolution: {integrity: sha512-gho1OWjNE6E3Rl7ZEZ1wr2CEpUHjLFU0FqzCZZk439TicLu+BfLCMkMokB07bMGlRmbJ60hM6LW60iOVauCx+Q==}
 
   '@alloc/quick-lru@5.3.0':
     resolution: {integrity: sha512-U4+70Pc5ZS9osnCBCE5Jha/ciHM+Yp+CNMNC/7HvYbNRk1Ldd+f7qO65W5qfhu/TCv+/ozljlXXe9Nj8419DMA==}
@@ -680,16 +686,56 @@ packages:
     resolution: {integrity: sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA==}
     engines: {node: '>=12.4.0'}
 
+  '@personaai/adapters@0.1.0':
+    resolution: {integrity: sha512-EB5zXeXtdhlb22D4HbL7nhEiaxglGLsBT4sNciTBRK9JyPobEBLhlU2k5bNK/nx0fA5GGVc6DBX/1ea+f+FgJA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@nestjs/common': ^10.0.0 || ^11.0.0
+      '@nestjs/core': ^10.0.0 || ^11.0.0
+      express: '>=4'
+      next: '>=14'
+      react: '>=18.0.0'
+      reflect-metadata: ^0.1.13 || ^0.2.0
+      rxjs: ^7.0.0
+    peerDependenciesMeta:
+      '@nestjs/common':
+        optional: true
+      '@nestjs/core':
+        optional: true
+      express:
+        optional: true
+      next:
+        optional: true
+      react:
+        optional: true
+      reflect-metadata:
+        optional: true
+      rxjs:
+        optional: true
+
   '@personaai/logger@0.1.0':
     resolution: {integrity: sha512-ra5T+aBNzDmiabJ161y87SJJT9x3MHuFfAL1UCxSY3IO6AOJtF5UcXdsLVcxkugeOIto6Ppsm+adGLLR9s50Kw==}
     engines: {node: '>=18'}
 
-  '@personaai/react@0.7.9':
-    resolution: {integrity: sha512-j05xXlYOGmlVWwrB8OHUewgmow+vdOA2LbbORVK/KLZbzowgN2qG25SZNcb+kyYe7sSzLbHRPCE1P06AJdrDZg==}
+  '@personaai/react@0.7.10':
+    resolution: {integrity: sha512-RW2ZGL/0cNaEQiib4dq16CPUjwMbF4YMRWAsJm+KppgjVVj+DqdExkIRNfK3WupNH59/5bB/Tx4DPhnrMiiEZw==}
     engines: {node: '>=18'}
     peerDependencies:
       react: '>=18.0.0'
       react-dom: '>=18.0.0'
+
+  '@personaai/runtime@0.9.5':
+    resolution: {integrity: sha512-VcwPbANXlOwmBQPiZVlHR5XpuIMX+TrBmytkNfpVat70lX6fDBVwBXAuLKdUZT3/BRkrLDkg9TP37iUUYbj38w==}
+    engines: {node: '>=18'}
+
+  '@personaai/sdk@0.7.5':
+    resolution: {integrity: sha512-VP7Vg0phZ1FJ13VDS6Q9ct9sWX8N5Z8GCH+0+0Vu39r3FoKoDHC4EANNp/AyRhesEsL8jdcxND4WioIJSn+3Zg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.23.0 || ^4.0.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
 
   '@phosphor-icons/react@2.1.10':
     resolution: {integrity: sha512-vt8Tvq8GLjheAZZYa+YG/pW7HDbov8El/MANW8pOAz4eGxrwhnbfrQZq0Cp4q8zBEu8NIhHdnr+r8thnfRSNYA==}
@@ -3235,6 +3281,10 @@ packages:
     resolution: {integrity: sha512-K5zQjDllxWkf7Z5xJdV0/B0WTNqx6vxG70zJE4N0kBs4LovmEYWJzQGxC9bS9RAKu3bgM40lrd5zoLJ12MQ5BA==}
     engines: {node: '>= 0.10'}
 
+  rcp-sdk@0.1.1:
+    resolution: {integrity: sha512-656fAOyv2HnDwULGi3A19nsi/wR+3AvSgUnfhjc31PJzb2zS4EOficPFoqXb3wTx7ynIGs7+DB4xteXKeKbAwA==}
+    engines: {node: '>=18'}
+
   react-day-picker@10.0.1:
     resolution: {integrity: sha512-eNh6BlwcYInWaJtRv18mXQ06Ys/H6rdTZAnTaSdOYJuTpwP1JMCHNd1FDRadA+gbeinq+psdULN5Xnowy9mV8w==}
     engines: {node: '>=18'}
@@ -3910,6 +3960,10 @@ packages:
 
 snapshots:
 
+  '@ag-ui/core@0.0.57':
+    dependencies:
+      zod: 3.25.76
+
   '@alloc/quick-lru@5.3.0': {}
 
   '@babel/code-frame@7.29.7':
@@ -4483,13 +4537,42 @@ snapshots:
 
   '@nolyfill/is-core-module@1.0.39': {}
 
+  '@personaai/adapters@0.1.0(express@5.2.1)(next@16.3.4(@babel/core@7.29.7)(@types/node@20.19.43)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.5.4)':
+    dependencies:
+      '@personaai/logger': 0.1.0
+      '@personaai/react': 0.7.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@personaai/runtime': 0.9.5(zod@4.5.4)
+      '@personaai/sdk': 0.7.5(zod@4.5.4)
+    optionalDependencies:
+      express: 5.2.1
+      next: 16.3.4(@babel/core@7.29.7)(@types/node@20.19.43)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      react: 19.2.8
+    transitivePeerDependencies:
+      - react-dom
+      - zod
+
   '@personaai/logger@0.1.0': {}
 
-  '@personaai/react@0.7.9(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@personaai/react@0.7.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@personaai/logger': 0.1.0
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
+
+  '@personaai/runtime@0.9.5(zod@4.5.4)':
+    dependencies:
+      '@ag-ui/core': 0.0.57
+      '@personaai/sdk': 0.7.5(zod@4.5.4)
+      rcp-sdk: 0.1.1
+    transitivePeerDependencies:
+      - zod
+
+  '@personaai/sdk@0.7.5(zod@4.5.4)':
+    dependencies:
+      '@ag-ui/core': 0.0.57
+      '@personaai/logger': 0.1.0
+    optionalDependencies:
+      zod: 4.5.4
 
   '@phosphor-icons/react@2.1.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
@@ -7332,6 +7415,10 @@ snapshots:
       http-errors: 2.0.1
       iconv-lite: 0.7.3
       unpipe: 1.0.0
+
+  rcp-sdk@0.1.1:
+    dependencies:
+      zod: 3.25.76
 
   react-day-picker@10.0.1(@types/react@19.2.18)(react@19.2.8):
     dependencies:
