@@ -1,0 +1,51 @@
+---
+title: "Agents — create, list, get, update, delete, bulkDelete, MCP connections"
+description: "AgentsResource at /api/v1/developer/agents — Agent entity, visibility, skills/mcps/knowledge/storeMounts, interruptOn, mcpConnections"
+sdk: "sdk"
+version: "0.7.5"
+prev: "/docs/sdk/v0.7.5/guides/auth"
+next: "/docs/sdk/v0.7.5/resources/skills"
+related: ["/docs/sdk/v0.7.5/resources/providers", "/docs/sdk/v0.7.5/resources/skills", "/docs/sdk/v0.7.5/resources/mcp", "/docs/runtime/v0.9.5"]
+---
+
+# Agents
+
+`client.agents` → `POST/GET/PATCH/DELETE /api/v1/developer/agents`
+
+## Types
+
+`Agent { _id, name, systemPrompt, providerId, modelName, skills: string[]|Skill[], mcps: string[]|Mcp[], knowledgeBases: string[]|KnowledgeBase[], storeMounts, visibility: 'public'|'unlisted'|'private', interruptOn, category, socialLinks }`
+
+`CreateAgentInput { name, systemPrompt, providerId, visibility?, skills?, mcps?, knowledgeBases? }` — `name/systemPrompt/providerId` required. `skills`/`mcps`/`knowledgeBases` are bare id arrays on create/list, populated objects on `get`.
+
+## Methods
+
+### create(input, idempotencyKey?) → Agent
+```ts
+const agent = await persona.agents.create({
+  name: 'Career Launchpad',
+  systemPrompt: 'You help students',
+  providerId: 'prov_123',
+  visibility: 'unlisted',
+  skills: [skill._id],
+}, 'idem-key-1'); // Idempotency-Key header
+```
+
+### list(params?) → PaginatedResult<Agent>
+```ts
+const { items, pagination } = await persona.agents.list({ page:1, limit:20, search:'career', scope:'mine' });
+```
+`DiscoverAgentsParams { page?, limit?, search?, category?, scope?:'mine' }`
+
+### get(agentId) → Agent
+Populated `skills`/`mcps`/`knowledgeBases` as objects.
+
+### update(agentId, input) → Agent
+Partial — arrays **replace** (not merge).
+
+### delete(agentId) → void / bulkDelete(ids) → BulkDeleteResult `{deleted: string[], failed: {id,reason}[]}` up to 100.
+
+### getMcpConnections(agentId, returnTo?) → McpConnection[]
+Per-user OAuth status for `authType:oauth authMode:user` MCPs — **requires `externalUserId`** client (see [Auth](/docs/sdk/v0.7.5/guides/auth)).
+
+Related: [Skills](/docs/sdk/v0.7.5/resources/skills) • [MCP](/docs/sdk/v0.7.5/resources/mcp) • [Providers](/docs/sdk/v0.7.5/resources/providers) • [Threads](/docs/sdk/v0.7.5/resources/threads)

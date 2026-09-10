@@ -1,0 +1,22 @@
+---
+title: "Providers — OpenAI-compatible baseUrl + apiKey, test, models"
+description: "ProvidersResource: create, list (bare array), get, update, delete, testConnection, getModels, getUsage"
+sdk: "sdk"
+version: "0.7.5"
+prev: "/docs/sdk/v0.7.5/resources/mcp"
+next: "/docs/sdk/v0.7.5/resources/rest-tools"
+related: ["/docs/sdk/v0.7.5/resources/agents"]
+---
+
+# Providers
+
+`client.providers` → `/api/v1/developer/providers` — control-plane only (no `externalUserId`). `Provider { id (not _id), name, baseUrl, modelName, apiKey: never returned }`
+
+```ts
+const p = await persona.providers.create({ name: 'OpenAI', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-...', modelName: 'gpt-4o' });
+const list: Provider[] = await persona.providers.list(); // bare array
+await persona.providers.testConnection(p.id);
+const models: ProviderModel[] = await persona.providers.getModels(p.id);
+```
+
+Related: [Agents need providerId](/docs/sdk/v0.7.5/resources/agents)

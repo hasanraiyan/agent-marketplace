@@ -1,0 +1,22 @@
+---
+title: "Files — upload, list, download, bulkDelete"
+description: "FilesResource requires externalUserId: upload via FormData, list, download Response, delete"
+sdk: "sdk"
+version: "0.7.5"
+prev: "/docs/sdk/v0.7.5/resources/stores"
+next: "/docs/sdk/v0.7.5/resources/voice"
+related: ["/docs/sdk/v0.7.5/resources/threads", "/docs/sdk/v0.7.5/resources/chat"]
+---
+
+# Files
+
+`client.files` → `/api/v1/developer/files` — distinct from `useChat files` (workspace).
+
+```ts
+const file = await userClient.files.upload({ file: formDataFile, agentId: agent._id });
+const { items } = await userClient.files.list({ page:1, limit:20 });
+const res: Response = await userClient.files.download(file.id);
+await userClient.files.bulkDelete([file.id]);
+```
+
+Related: [Threads files via threadId context](/docs/sdk/v0.7.5/resources/threads)

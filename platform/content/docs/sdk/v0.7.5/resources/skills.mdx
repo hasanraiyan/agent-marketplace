@@ -1,0 +1,25 @@
+---
+title: "Skills — reusable instruction bundles"
+description: "SkillsResource: create, list, get, update, delete, getUsage, bulkDelete"
+sdk: "sdk"
+version: "0.7.5"
+prev: "/docs/sdk/v0.7.5/resources/voice"
+next: "/docs/sdk/v0.7.5/resources/knowledge"
+related: ["/docs/sdk/v0.7.5/resources/agents"]
+---
+
+# Skills
+
+`client.skills` → `/api/v1/developer/skills`
+
+`Skill { _id, name, description, instructions, files: SkillFile[] }` — `instructions` is the reusable prompt chunk agents `skillIds` mount.
+
+```ts
+const skill = await persona.skills.create({ name: 'Refund policy', description: '...', instructions: 'Always ...' });
+const { items } = await persona.skills.list({ search: 'refund' });
+await persona.skills.update(skill._id, { instructions: 'Updated ...' });
+const usage: ResourceUsage = await persona.skills.getUsage(skill._id); // {agentCount, agents: [{_id,name}] 20 cap}
+await persona.skills.bulkDelete([skill._id]);
+```
+
+Related: [Agents attach skills](/docs/sdk/v0.7.5/resources/agents) • [Audit logs](/docs/sdk/v0.7.5/resources/audit-logs)
