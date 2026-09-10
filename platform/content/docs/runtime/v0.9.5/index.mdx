@@ -1,0 +1,14 @@
+---
+title: "@personaai/runtime 0.9.5"
+description: "Framework-agnostic runtime engine"
+---
+
+# @personaai/runtime 0.9.5
+
+Engine every adapter wraps. Handles `POST /chat` SSE, `POST /threads`, `POST /voice/sessions`, checkpoint, auto-title.
+
+```ts
+import { createRuntime } from "@personaai/runtime"
+```
+
+Interlinked: [React ephemeral](/docs/react/v0.8.1/guides/ephemeral) uses `POST /threads` mint + `onTitle` event from `checkpointService._autoTitleThread`.

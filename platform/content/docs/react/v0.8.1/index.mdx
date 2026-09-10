@@ -1,0 +1,29 @@
+---
+title: "@personaai/react 0.8.1"
+description: "React SDK for Persona — hooks, provider, streaming, ephemeral chat"
+---
+
+# @personaai/react 0.8.1
+
+React SDK for [Persona](https://persona.hasanraiyan.me) — `PersonaProvider` + hooks for chat, voice, threads, files, memory.
+
+> **0.8.1** Latest. Requires React 18+. Client-side only.
+
+## What's new in 0.8.1
+
+- **Live title** — `PersonaStreamingEvent` now includes `{type:'title', title}` and `useChat({ onTitle })` fires when `_autoTitleThread` generates the 3-4 word title. `swasthsaathi` now refetches threads without reload.
+- **Ephemeral new chat (0.8.0)** — `threadId: undefined` is a real new-chat state. `startNewChat()` clears locally, first `sendMessage` auto-mints via `POST /threads`.
+- **Fixes 0.8.0** `reload()` dup, voice final-line loss, `STATE_SNAPSHOT` guard, `sendMessage` `Promise<boolean>`.
+
+## Quick links
+
+- [Quickstart](/docs/react/v0.8.1/quickstart)
+- [Hooks — useChat](/docs/react/v0.8.1/hooks/useChat)
+- [Hooks — useVoice](/docs/react/v0.8.1/hooks/useVoice)
+- [Hooks — useThreads](/docs/react/v0.8.1/hooks/useThreads)
+- [Ephemeral guide](/docs/react/v0.8.1/guides/ephemeral)
+- [Types](/docs/react/v0.8.1/types)
+
+```bash
+npm install @personaai/react@0.8.1
+```

@@ -1,0 +1,32 @@
+{
+  "sdks": [
+    {
+      "id": "react",
+      "title": "@personaai/react",
+      "description": "React hooks for Persona chat, voice, threads, files, memory",
+      "latest": "0.8.1",
+      "versions": ["0.8.1", "0.8.0", "0.7.10"]
+    },
+    {
+      "id": "adapters",
+      "title": "@personaai/adapters",
+      "description": "Unified adapters — Express, Next.js, NestJS",
+      "latest": "0.1.0",
+      "versions": ["0.1.0"]
+    },
+    {
+      "id": "runtime",
+      "title": "@personaai/runtime",
+      "description": "Framework-agnostic runtime engine",
+      "latest": "0.9.5",
+      "versions": ["0.9.5"]
+    },
+    {
+      "id": "sdk",
+      "title": "@personaai/sdk",
+      "description": "TypeScript SDK for the Developer Platform API",
+      "latest": "0.7.5",
+      "versions": ["0.7.5"]
+    }
+  ]
+}

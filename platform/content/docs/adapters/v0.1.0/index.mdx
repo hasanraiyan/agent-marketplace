@@ -1,0 +1,19 @@
+---
+title: "@personaai/adapters 0.1.0"
+description: "Unified Express / Next.js / NestJS adapters"
+---
+
+# @personaai/adapters 0.1.0
+
+One package, multi-entry: `express`, `nestjs`, `nextjs/server`, `nextjs/client` sharing `src/shared`.
+
+```ts
+import { PersonaModule } from "@personaai/adapters/nestjs"
+PersonaModule.forRootAsync({ baseUrl, credential, resolveUserFrom })
+```
+
+See [Runtime](/docs/runtime/v0.9.5) for engine.
+
+```bash
+npm install @personaai/adapters@0.1.0
+```
