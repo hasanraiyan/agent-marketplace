@@ -845,6 +845,12 @@ export function useChat(options: UseChatOptions = {}) {
                     }
                   }
                 }
+              } else if ((event as { type: string; title?: string }).type === "title") {
+                const title = (event as { title?: string }).title;
+                if (typeof title === "string" && title.trim()) {
+                  chatLogger.info("auto title", { title });
+                  (options as { onTitle?: (t: string) => void }).onTitle?.(title);
+                }
               } else if (event.type === "RUN_ERROR") {
                 chatLogger.warn("run error", { message: event.message, code: event.code });
                 chatLogger.error("stream run error", { code: event.code, message: event.message });

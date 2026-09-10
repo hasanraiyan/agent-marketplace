@@ -3,6 +3,11 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.8.1
+
+- **Fix: auto thread titles now update live without reload (swasthsaathi bug).** Backend `agui.service.js:224` yields `{type:'title', title}` via `_autoTitleThread()` 3-4 word LLM summary; `PersonaStreamingEvent` now includes `{type:'title', title}` and `useChat` handles it via new `onTitle(title)` + forwards through `onEvent`. `swasthsaathi-01`'s `chat-app.tsx` now does `onEvent: if(e.type==='title') refetchThreads()` — sidebar no longer stuck on "New chat" until reload. Type `PersonaRole` correctly `+ 'reasoning'` already in 0.8.0.
+- **Docs:** `types.mdx`/`hooks.mdx` add `title` event and `onTitle` to `UseChatOptions`.
+
 ## 0.8.0
 
 - **New: fake/ephemeral new chat — no empty thread until first send.** `useChat()` now supports `threadId: undefined` as a true "new chat" state. `chat.startNewChat()` instantly clears `messages/files/todos/interrupt` and enters ephemeral mode (no `POST /threads`, no history fetch). The first `sendMessage()` auto-mints a real thread via `POST /threads {agentId}` and continues the same SSE stream. Exposes `chat.currentThreadId`, `chat.isEphemeral`, and `useChat({ onThreadCreated })` so the host can sync its `threadId` state / sidebar (`setThreadId(id)` / `refetchThreads()`). This removes the need for `swasthsaathi-01`'s eager `createThread` on New Chat and its `ensureThreadId: Promise` wrapper — `handleNewChat` becomes `chat.startNewChat(); setThreadId(null)` and `handleSend` becomes `void chat.sendMessage(text)`. `effectiveThreadId` drives auto-load and voice transcript merging, so switching threads while ephemeral is safe.

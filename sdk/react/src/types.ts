@@ -248,6 +248,7 @@ export type PersonaStreamingEvent =
       retryable?: boolean;
       providerName?: string;
     }
+  | { type: "title"; title: string }
   | {
       type: "CUSTOM";
       name: "hitl_request";
@@ -286,6 +287,8 @@ export interface UseChatOptions {
   onEvent?: (event: PersonaStreamingEvent) => void;
   /** Called when a fake/ephemeral chat mints a real thread on first send. Use to sync sidebar state (e.g. setThreadId(id)). */
   onThreadCreated?: (threadId: string) => void;
+  /** Called when the backend auto-generates a thread title (3-4 word LLM summary of first user message). */
+  onTitle?: (title: string) => void;
   /**
    * Pass the object returned by `useVoice()` (sharing the same `threadId`) to have `useChat`
    * merge live voice turns into `messages` automatically — one bubble per utterance, deduped
