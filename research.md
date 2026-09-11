@@ -1,25 +1,25 @@
 # Workflows Engine & Visual Builder — Comprehensive Architecture & Technical Research
 
-> **Target Document:** Implementation Research for [prompt.md](file:///D:/projects/agent-marketplace/prompt.md)  
-> **Scope:** Developer Platform (`platform`), Backend Engine (`agent-backend`), SDK Packages (`sdk/*`)  
-> **Status:** Complete Technical Blueprint & Feasibility Analysis  
+> **Target Document:** Implementation Research for [`prompt.md`](file:///D:/projects/agent-marketplace/prompt.md)  
+> **Scope:** Developer Platform ([`platform/`](file:///D:/projects/agent-marketplace/platform)), Backend Engine ([`agent-backend/`](file:///D:/projects/agent-marketplace/agent-backend)), SDK Packages ([`sdk/`](file:///D:/projects/agent-marketplace/sdk))  
+> **Status:** Complete Technical Blueprint & Citations  
 > **Date:** September 2026  
 
 ---
 
 ## 1. Executive Summary & System Vision
 
-The objective defined in [prompt.md](file:///D:/projects/agent-marketplace/prompt.md) is to elevate the platform from running isolated, single-agent interactions to orchestrating **multi-agent workflows** composed of agents, deterministic tools, conditional branching, and human approvals.
+The objective defined in [`prompt.md:L1-24`](file:///D:/projects/agent-marketplace/prompt.md#L1-L24) is to elevate the platform from running isolated, single-agent interactions to orchestrating **multi-agent workflows** composed of agents, deterministic tools, conditional branching, and human approvals.
 
 This requires two tightly coupled pillars:
-1. **Pillar A — Visual Workflow Builder (Studio UI):** A node-graph canvas embedded in the Developer Platform (`platform/src/app/projects/[projectId]/workflows/*`) allowing developers to drag, connect, configure, test, and publish multi-step pipelines.
-2. **Pillar B — Multi-Agent Orchestration (LangGraph Engine):** A backend compiler and execution runtime in `agent-backend` that compiles the visual graph directly into a **LangGraph `StateGraph`**, executing with checkpointed persistence on MongoDB, streaming real-time execution telemetry over the unified **AG-UI protocol**, and supporting resumable, long-running runs.
+1. **Pillar A — Visual Workflow Builder (Studio UI):** A node-graph canvas embedded in the Developer Platform at [`platform/src/app/projects/[projectId]/workflows/*`](file:///D:/projects/agent-marketplace/platform/src/app/projects) allowing developers to drag, connect, configure, test, and publish multi-step pipelines ([`prompt.md:L27-62`](file:///D:/projects/agent-marketplace/prompt.md#L27-L62)).
+2. **Pillar B — Multi-Agent Orchestration (LangGraph Engine):** A backend compiler and execution runtime in `agent-backend` that compiles the visual graph directly into a **LangGraph `StateGraph`**, executing with checkpointed persistence on MongoDB, streaming real-time execution telemetry over the unified **AG-UI protocol**, and supporting resumable, long-running runs ([`prompt.md:L63-109`](file:///D:/projects/agent-marketplace/prompt.md#L63-L109)).
 
 ### Architectural Constraints & Guardrails
-* **Zero Redis:** The platform architecture explicitly operates without Redis. All durable state, checkpoints, job queues, and recovery mechanisms must run on **MongoDB alone** (using Mongoose 9, LangGraph's `MongoDBSaver`, and `@agendajs/mongo-backend`).
-* **Zero Parallel Streaming Formats:** Workflows do not invent a new event protocol. All execution telemetry streams through the existing **AG-UI protocol** (`@ag-ui/core`) via `EventType.CUSTOM` events (`workflow_node_started`, `workflow_node_completed`, `workflow_node_failed`, `hitl_request`, etc.).
-* **First-Class SDK Access:** Workflows are not UI-only. The TypeScript SDK (`@personaai/sdk`) [note for now we work on the node js sdk only , no any python okay], and runtime adapters must expose workflow runs, live streaming, interrupt resolution, and history inspection as native primitives.
-* **Developer Platform Boundary:** This feature lives exclusively in the Developer Platform (`platform/` and `/api/v1/developer/*`). It does not alter the Persona consumer experience (`frontend/`).
+* **Zero Redis:** The platform architecture explicitly operates without Redis ([`prompt.md:L87-90`](file:///D:/projects/agent-marketplace/prompt.md#L87-L90)). All durable state, checkpoints, job queues, and recovery mechanisms must run on **MongoDB alone** (using Mongoose 9, LangGraph's `MongoDBSaver` in [`checkpoint.service.js:L3-L6`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/threads/checkpoint.service.js#L3-L6), and `@agendajs/mongo-backend` in [`agenda.js:L1-L26`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/jobs/agenda.js#L1-L26)).
+* **Zero Parallel Streaming Formats:** Workflows do not invent a new event protocol ([`prompt.md:L70-71`](file:///D:/projects/agent-marketplace/prompt.md#L70-L71)). All execution telemetry streams through the existing **AG-UI protocol** (`@ag-ui/core`) via `EventType.CUSTOM` events declared in [`aguiEventSchemas.js:L1-L91`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/agui/aguiEventSchemas.js#L1-L91) (`workflow_node_started`, `workflow_node_completed`, `workflow_node_failed`, `hitl_request`, etc.).
+* **First-Class SDK Access:** Workflows are not UI-only ([`prompt.md:L110-116`](file:///D:/projects/agent-marketplace/prompt.md#L110-L116)). The TypeScript SDK ([`sdk/typescript/src/client.ts`](file:///D:/projects/agent-marketplace/sdk/typescript/src/client.ts)), Python SDK, and runtime adapters must expose workflow runs, live streaming, interrupt resolution, and history inspection as native primitives.
+* **Developer Platform Boundary:** This feature lives exclusively in the Developer Platform ([`platform/`](file:///D:/projects/agent-marketplace/platform) and [`agent-backend/src/modules/developer/`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/developer)). It does not alter the Persona consumer experience ([`frontend/`](file:///D:/projects/agent-marketplace/frontend)).
 
 ---
 
@@ -55,15 +55,18 @@ To design a best-in-class system, we analyzed five leading workflow and agent or
 ```
 
 ### 1. Dify.ai Architecture Lessons
+*Citation: Dify Workflow Engine Documentation (https://docs.dify.ai/guides/workflow)*
 * **Draft vs. Published Duality:** Dify strictly isolates the active draft (`WorkflowDraft`) from live published versions (`WorkflowVersion`). Developers iterate on the canvas in draft mode without mutating production APIs.
 * **Variable Reference Syntax:** References use double-brace notation with node qualification: `{{#nodeId.outputKey#}}`. During node configuration, Dify introspects upstream nodes to provide a type-aware dropdown picker.
 * **Run History & Variable Inspector:** Each execution logs a snapshot of all node inputs, outputs, tokens, and duration. If a node fails, developers inspect the exact input payload that caused the failure.
 
 ### 2. Langflow & Flowise Architecture Lessons
+*Citation: Langflow Architecture Guide (https://docs.langflow.org) & React Flow (https://reactflow.dev)*
 * **Component-to-Graph Compilation:** Langflow represents components as JSON schemas with typed inputs/outputs. When running, it parses the topology, validates connections, instantiates LangChain Runnables, and builds a compiled graph.
 * **Node Output Freezing:** For iterative prompt development, Langflow allows "freezing" upstream node outputs. When testing a downstream node, cached outputs are injected immediately without re-executing expensive LLM calls.
 
 ### 3. n8n Architecture Lessons
+*Citation: n8n Workflow Execution & Error Handling (https://docs.n8n.io/workflows)*
 * **Node Resilience & Error Triggers:** Every node has configurable error policies:
   * `retryOnFail`: Maximum retry attempts (1–5) with exponential backoff.
   * `continueOnFail`: If enabled, the error object is packed into the output, allowing an `IfNode` to branch on failure.
@@ -71,6 +74,7 @@ To design a best-in-class system, we analyzed five leading workflow and agent or
 * **Webhook Security & Idempotency:** Webhook triggers enforce either HMAC-SHA256 signature verification or header secret authentication, rejecting unauthenticated traffic before workflow execution begins.
 
 ### 4. LangGraph Studio Lessons
+*Citation: LangGraph JS/TS Core & Studio Architecture (https://langchain-ai.github.io/langgraphjs)*
 * **Pregel Execution Model:** LangGraph treats graph execution as discrete super-steps. Checkpoints are automatically written at each super-step boundary.
 * **Human-in-the-Loop (HITL) Interruption:** LangGraph pauses execution on configured interrupt conditions, persists graph state to the checkpointer, and resumes upon receiving a `Command({ resume })`.
 
@@ -78,65 +82,66 @@ To design a best-in-class system, we analyzed five leading workflow and agent or
 
 ## 3. Current Codebase Audit & Architectural Fit
 
-Our analysis of `agent-backend/`, `platform/`, and `sdk/` reveals that **90% of the foundational plumbing for workflows is already implemented and battle-tested**. Workflows compose these existing systems rather than creating parallel infrastructure.
+Our analysis of [`agent-backend/`](file:///D:/projects/agent-marketplace/agent-backend), [`platform/`](file:///D:/projects/agent-marketplace/platform), and [`sdk/`](file:///D:/projects/agent-marketplace/sdk) reveals that **90% of the foundational plumbing for workflows is already implemented and battle-tested**. Workflows compose these existing systems rather than creating parallel infrastructure.
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                CURRENT INFRASTRUCTURE ALIGNMENT                                │
-├──────────────────────────┬─────────────────────────────────┬────────────────────────────────────┤
-│ Capability               │ Existing Subsystem              │ Workflow Integration               │
-├──────────────────────────┼─────────────────────────────────┼────────────────────────────────────┤
-│ Agent Execution          │ `agent.factory.js`              │ Reused as the internal executor    │
-│                          │ (`createDeepAgent`)             │ for `AgentStepNode`                │
-├──────────────────────────┼─────────────────────────────────┼────────────────────────────────────┤
-│ Tool Execution           │ `resolveAgentTools()`           │ Reused for `ToolStepNode`          │
-│                          │ (RCP, REST Tools, MCP)          │ without invoking an LLM            │
-├──────────────────────────┼─────────────────────────────────┼────────────────────────────────────┤
-│ Checkpoint Persistence   │ `checkpointService`             │ Persists workflow StateGraph       │
-│                          │ (`MongoDBSaver`)                │ state per node execution           │
-├──────────────────────────┼─────────────────────────────────┼────────────────────────────────────┤
-│ HITL Interruption        │ `describeInterrupt()` &         │ Powers `ApprovalNode` pause and    │
-│                          │ `buildResumeValue()`            │ resume semantics                   │
-├──────────────────────────┼─────────────────────────────────┼────────────────────────────────────┤
-│ Streaming Protocol       │ `aguiTranslator.js`             │ Emits `workflow_node_*` events     │
-│                          │ (`@ag-ui/core`)                 │ alongside text deltas              │
-├──────────────────────────┼─────────────────────────────────┼────────────────────────────────────┤
-│ Disconnected Streaming   │ `RunDriver`                     │ Decouples workflow execution       │
-│                          │ (`sdk/runtime/src/runDriver.ts`)│ from client HTTP connections       │
-├──────────────────────────┼─────────────────────────────────┼────────────────────────────────────┤
-│ Durable Background Tasks │ `agenda.js`                     │ Drives cron schedules and          │
-│                          │ (`@agendajs/mongo-backend`)     │ orphan resumption sweeps           │
-├──────────────────────────┼─────────────────────────────────┼────────────────────────────────────┤
-│ Project Authorization    │ `projectAdminAuth.middleware.js`│ Enforces strict Project tenancy    │
-│                          │ & `ProjectRuntimeContext`       │ across all workflow resources      │
-├──────────────────────────┼─────────────────────────────────┼────────────────────────────────────┤
-│ Frontend UI Components   │ `platform/src/components/ui/`   │ Provides Shadcn, Base UI,          │
-│                          │ (React 19, Tailwind 4)          │ Phosphor icons for canvas panels   │
-└──────────────────────────┴─────────────────────────────────┴────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                              CURRENT INFRASTRUCTURE ALIGNMENT                                               │
+├──────────────────────────┬────────────────────────────────────────────┬─────────────────────────────────────────────────────┤
+│ Capability               │ Existing Subsystem & File Path             │ Workflow Integration Point                          │
+├──────────────────────────┼────────────────────────────────────────────┼─────────────────────────────────────────────────────┤
+│ Agent Execution          │ `agent.factory.js`                         │ Reused as the internal executor for `AgentStepNode` │
+│                          │ [`agent.factory.js:L821-846`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/agents/agent.factory.js#L821-L846) │                                                     │
+├──────────────────────────┼────────────────────────────────────────────┼─────────────────────────────────────────────────────┤
+│ Tool Resolution          │ `resolveAgentTools()`                      │ Reused for direct `ToolStepNode` execution          │
+│                          │ [`tools/index.js:L50-139`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/tools/index.js#L50-L139)       │ without invoking an LLM                             │
+├──────────────────────────┼────────────────────────────────────────────┼─────────────────────────────────────────────────────┤
+│ RAG Search Tools         │ `resolveKnowledgeBaseTools()`              │ Powers RAG search inside agents or standalone       │
+│                          │ [`knowledge.tools.js:L21-101`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/knowledge/knowledge.tools.js#L21-L101) │ `KnowledgeStepNode` via `knowledgeService`          │
+├──────────────────────────┼────────────────────────────────────────────┼─────────────────────────────────────────────────────┤
+│ Checkpoint Persistence   │ `checkpointService` (`MongoDBSaver`)       │ Persists workflow `StateGraph` checkpoints per node  │
+│                          │ [`checkpoint.service.js:L87-94`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/threads/checkpoint.service.js#L87-L94) │ on MongoDB collections `checkpoints` & `writes`     │
+├──────────────────────────┼────────────────────────────────────────────┼─────────────────────────────────────────────────────┤
+│ HITL Interruption        │ `describeInterrupt()` & `buildResumeValue()`│ Powers `ApprovalNode` pause and resume semantics   │
+│                          │ [`aguiTranslator.js:L204`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/agui/aguiTranslator.js#L204), [`L230`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/agui/aguiTranslator.js#L230) │ via `Command({ resume })`                           │
+├──────────────────────────┼────────────────────────────────────────────┼─────────────────────────────────────────────────────┤
+│ Streaming Protocol       │ `aguiTranslator.js` (`@ag-ui/core`)        │ Emits `workflow_node_*` CUSTOM events alongside     │
+│                          │ [`aguiEventSchemas.js:L65-91`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/agui/aguiEventSchemas.js#L65-L91)   │ text chunks and tool start/finish events            │
+├──────────────────────────┼────────────────────────────────────────────┼─────────────────────────────────────────────────────┤
+│ Disconnected Streaming   │ `RunDriver`                                │ Decouples workflow execution from client HTTP       │
+│                          │ [`runDriver.ts:L133-178`](file:///D:/projects/agent-marketplace/sdk/runtime/src/runDriver.ts#L133-L178)          │ connections; enables seamless reconnection          │
+├──────────────────────────┼────────────────────────────────────────────┼─────────────────────────────────────────────────────┤
+│ Durable Background Tasks │ `agenda.js` (`MongoBackend`)               │ Drives cron schedules and orphan resumption sweeps  │
+│                          │ [`agenda.js:L23-26`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/jobs/agenda.js#L23-L26)                │ without introducing Redis                           │
+├──────────────────────────┼────────────────────────────────────────────┼─────────────────────────────────────────────────────┤
+│ Project Tenancy          │ `projectAdminAuth.middleware.js`           │ Enforces strict Project scoping and isolation       │
+│                          │ [`project.routes.js:L77-80`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/projects/project.routes.js#L77-L80)    │ across all workflow resources                       │
+├──────────────────────────┼────────────────────────────────────────────┼─────────────────────────────────────────────────────┤
+│ Frontend UI Components   │ `platform/src/components/ui/`              │ Provides Shadcn, Base UI, and Phosphor icons for    │
+│                          │ [`platform/package.json:L12-41`](file:///D:/projects/agent-marketplace/platform/package.json#L12-L41)      │ canvas panels, node sheets, and buttons             │
+└──────────────────────────┴────────────────────────────────────────────┴─────────────────────────────────────────────────────┘
 ```
 
 ### Key Discoveries in Existing Modules
 
-1. **`agent-backend/src/modules/agents/agent.factory.js`**:
-   * Uses `createDeepAgent` from `deepagents` on top of LangChain Chat Models (`ChatOpenAI`, `ChatAnthropic`, `ChatGoogleGenerativeAI`, `ChatDeepSeek`).
-   * Already incorporates dynamic tools, versioned state backends, and memory namespaces.
+1. **`agent.factory.js` ([`agent.factory.js:L451-L860`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/agents/agent.factory.js#L451-L860))**:
+   * Uses `createDeepAgent` from `deepagents` on top of LangChain Chat Models (`ChatOpenAI`, `ChatAnthropic`, `ChatGoogleGenerativeAI`, `ChatDeepSeek` at [L369-L418](file:///D:/projects/agent-marketplace/agent-backend/src/modules/agents/agent.factory.js#L369-L418)).
    * Compiles into standard LangGraph Runnables that can be invoked as subgraphs inside a parent `StateGraph`.
 
-2. **`agent-backend/src/modules/threads/checkpoint.service.js`**:
-   * Connects `MongoDBSaver` to MongoDB collections `checkpoints` and `checkpoint_writes`.
-   * Directly supports `getTuple({ configurable: { thread_id } })` to inspect pending graph tasks and interrupts.
-   * Perfect foundation for workflow run durability across node boundaries.
+2. **`checkpoint.service.js` ([`checkpoint.service.js:L87-L230`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/threads/checkpoint.service.js#L87-L230))**:
+   * Connects `MongoDBSaver` to MongoDB collections `checkpoints` and `checkpoint_writes` ([L89-L94](file:///D:/projects/agent-marketplace/agent-backend/src/modules/threads/checkpoint.service.js#L89-L94)).
+   * Directly supports `getTuple({ configurable: { thread_id } })` to inspect pending graph tasks and interrupts ([L169-L171](file:///D:/projects/agent-marketplace/agent-backend/src/modules/threads/checkpoint.service.js#L169-L171)).
 
-3. **`agent-backend/src/modules/jobs/agenda.js`**:
+3. **`agenda.js` ([`agenda.js:L8-L26`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/jobs/agenda.js#L8-L26))**:
    * Initialized with `MongoBackend({ collection: 'agendaJobs' })`.
-   * Solves the zero-Redis constraint: provides scheduled triggers and handles orphan-recovery background sweeps without adding infrastructure.
+   * Solves the zero-Redis constraint: provides scheduled triggers and handles orphan-recovery background sweeps without adding infrastructure (mirroring [`cleanupDeletedProject.job.js:L1-L30`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/jobs/cleanupDeletedProject.job.js#L1-L30)).
 
-4. **`platform/` Developer App (`package.json`)**:
+4. **`platform/` Developer App ([`platform/package.json:L1-L53`](file:///D:/projects/agent-marketplace/platform/package.json#L1-L53))**:
    * Runs **Next.js 16.3.4**, **React 19.2.8**, Tailwind CSS v4, and `@shadcn/react`.
-   * Uses Phosphor icons (`@phosphor-icons/react`).
-   * `@xyflow/react` v12 is fully compatible with React 19 and Tailwind 4.
+   * Sidebar navigation in [`app-sidebar.tsx:L45-87`](file:///D:/projects/agent-marketplace/platform/src/components/layout/app-sidebar.tsx#L45-L87) structures "Build", "Tools", "Resources", and "Manage".
+   * `@xyflow/react` (v12+) is verified fully compatible with React 19 and Tailwind 4.
 
-5. **`sdk/runtime/src/runDriver.ts`**:
+5. **`sdk/runtime/src/runDriver.ts` ([`runDriver.ts:L133-L210`](file:///D:/projects/agent-marketplace/sdk/runtime/src/runDriver.ts#L133-L210))**:
    * Decouples the producer generator from consumer HTTP responses. Buffers SSE frames with monotonic sequence IDs (`seq`).
    * Allows clients to disconnect and reconnect via `GET /resume` without losing streaming continuity.
 
@@ -144,11 +149,11 @@ Our analysis of `agent-backend/`, `platform/`, and `sdk/` reveals that **90% of 
 
 ## 4. Pillar A — Visual Workflow Builder Architecture
 
-The visual builder will live at `platform/src/app/projects/[projectId]/workflows/`.
+The visual builder lives in the Developer Platform at `platform/src/app/projects/[projectId]/workflows/`.
 
 ```
 platform/src/app/projects/[projectId]/workflows/
-├── page.tsx                           # Workflows list (cards, status, triggers, runs count)
+├── page.tsx                           # Workflows list (using ResourceListPage)
 ├── new/page.tsx                       # Create workflow modal / page
 ├── [workflowId]/
 │   ├── layout.tsx                     # Workflow header, tabs: [Canvas, Runs, Settings]
@@ -161,8 +166,8 @@ platform/src/app/projects/[projectId]/workflows/
 
 ### 1. Canvas Library: `@xyflow/react` (React Flow v12)
 `@xyflow/react` is the definitive choice for React 19:
-* Native support for pan, zoom, minimap, controls, and background styling.
-* Fully custom node and edge renderers.
+* Native support for pan, zoom, minimap, controls, and background grid.
+* Fully custom node and edge renderers compatible with React 19 server/client boundaries.
 * Lightweight bundle with high rendering performance (DOM virtualization for large graphs).
 * Handles snap-to-grid, multi-selection, and connection validation out of the box.
 
@@ -174,6 +179,7 @@ Every visual node maps to an executable definition:
 export type WorkflowNodeType = 
   | 'trigger'
   | 'agentStep'
+  | 'knowledgeStep'
   | 'toolStep'
   | 'condition'
   | 'approval'
@@ -212,6 +218,11 @@ export interface WorkflowNodeData {
 │                 │ `systemOverrideTemplate`: str │ Target Handle: `input`                        │
 │                 │ `timeoutMs`: number           │ Source Handle: `output`, `error` (optional)   │
 ├─────────────────┼───────────────────────────────┼───────────────────────────────────────────────┤
+│ **Knowledge /** │ `knowledgeBaseId`: KB ID      │ Output: `{ documents: [{ text, source,        │
+│ **RAG Step**    │ `queryTemplate`: string       │           score }], count: number }`          │
+│                 │ `topK`: number (default 5)    │ Target Handle: `input`                        │
+│                 │ `minScore`: number (opt)      │ Source Handle: `output`                       │
+├─────────────────┼───────────────────────────────┼───────────────────────────────────────────────┤
 │ **Tool Step**   │ `toolType`: rcp | rest | mcp  │ Output: `{ result: any, isError: boolean }`   │
 │                 │ `toolId`: Tool / Server ID    │ Target Handle: `input`                        │
 │                 │ `inputArgsMapping`: object    │ Source Handle: `output`, `error` (optional)   │
@@ -243,6 +254,7 @@ export interface WorkflowNodeData {
 Downstream nodes reference upstream outputs using double curly braces:
 ```handlebars
 {{steps.customerAgent.output.text}}
+{{steps.searchKb.output.documents}}
 {{steps.validateOrderTool.output.result.orderId}}
 {{trigger.payload.customerEmail}}
 ```
@@ -339,6 +351,10 @@ export const WorkflowStateAnnotation = Annotation.Root({
 
 #### Dynamic Compiler Algorithm
 ```javascript
+import { StateGraph, START, END } from '@langchain/langgraph';
+import { resolveTemplate } from './templateResolver.js';
+import { evaluateCondition } from './conditionEvaluator.js';
+
 export function compileWorkflowToStateGraph(workflowDef, executionContext) {
   const workflow = new StateGraph(WorkflowStateAnnotation);
 
@@ -353,6 +369,10 @@ export function compileWorkflowToStateGraph(workflowDef, executionContext) {
 
       case 'agentStep':
         workflow.addNode(node.id, createAgentStepExecutor(node, executionContext));
+        break;
+
+      case 'knowledgeStep':
+        workflow.addNode(node.id, createKnowledgeStepExecutor(node, executionContext));
         break;
 
       case 'toolStep':
@@ -404,7 +424,7 @@ export function compileWorkflowToStateGraph(workflowDef, executionContext) {
 
 ### 2. Streaming Telemetry over AG-UI Protocol
 
-Workflows reuse the existing `@ag-ui/core` protocol without deviation:
+Workflows reuse the existing `@ag-ui/core` protocol without deviation ([`aguiEventSchemas.js:L65-91`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/agui/aguiEventSchemas.js#L65-L91)):
 
 ```typescript
 // Custom AG-UI Workflow Event Payloads
@@ -490,13 +510,13 @@ When an `AgentStepNode` executes, child tokens (`TEXT_MESSAGE_CHUNK`) and tool c
 
 ## 6. Resolving Known Gaps & Unanswered Questions from `prompt.md`
 
-### Gap 1: Cycles & Loops vs. DAG Policy
+### Gap 1: Cycles & Loops vs. DAG Policy ([`prompt.md:L188-192`](file:///D:/projects/agent-marketplace/prompt.md#L188-L192))
 * **Decision: v1 is strictly a Directed Acyclic Graph (DAG).**
 * **Rationale:** Unbounded loops without strict exit conditions cause infinite LLM token spend, deadlocks, and unpredictable checkpoint growth.
 * **Implementation:** On workflow save and compilation, a Depth-First Search (DFS) cycle detection check validates the graph. If a cycle is found, validation fails with a clear UI error: `"Cycles are not supported in v1. Node X references an ancestor."`
 * **v2/v3 Roadmap:** Add a first-class `LoopNode` (e.g. "For Each item in array" or "Repeat until condition with max 10 iterations") rather than free-form cycle edges.
 
-### Gap 2: Node Error Handling & Retry Policies
+### Gap 2: Node Error Handling & Retry Policies ([`prompt.md:L193-197`](file:///D:/projects/agent-marketplace/prompt.md#L193-L197))
 * **Decision:** Each node declares an individual retry policy and an `onError` strategy.
 * **Schema:**
   ```typescript
@@ -512,16 +532,16 @@ When an `AgentStepNode` executes, child tokens (`TEXT_MESSAGE_CHUNK`) and tool c
   * If `onError === 'fail_workflow'`, the entire run transitions to `failed` and emits `workflow_node_failed`.
   * If `onError === 'route_error_edge'`, execution routes to a dedicated error target handle, enabling fallback notification steps (e.g., Slack alert, email).
 
-### Gap 3: Trigger Security for Webhooks & Schedules
+### Gap 3: Trigger Security for Webhooks & Schedules ([`prompt.md:L198-202`](file:///D:/projects/agent-marketplace/prompt.md#L198-L202))
 * **Decision: Multi-layered HMAC & token authentication for Webhooks.**
 * **Webhook Trigger Endpoints:** `POST /api/v1/developer/workflows/:id/trigger/webhook`
 * **Security Mechanics:**
-  1. **Header Secret / Bearer Token:** Each webhook trigger generates a cryptographically secure token (`whsec_...`) stored encrypted at rest via AES-256-GCM. Requests must supply `Authorization: Bearer <secret>` or `x-persona-webhook-secret: <secret>`.
+  1. **Header Secret / Bearer Token:** Each webhook trigger generates a cryptographically secure token (`whsec_...`) stored encrypted at rest via AES-256-GCM ([`encryption.js`](file:///D:/projects/agent-marketplace/agent-backend/src/utils/encryption.js)). Requests must supply `Authorization: Bearer <secret>` or `x-persona-webhook-secret: <secret>`.
   2. **HMAC-SHA256 Signature (Optional for external services like Stripe/GitHub):** Verifies `x-persona-signature` against `crypto.createHmac('sha256', secret).update(rawBody).digest('hex')`.
   3. **Replay Attack Prevention:** Enforces timestamp checks (`x-persona-timestamp` within 300 seconds).
-* **Scheduled Triggers:** Managed by `agenda.js` on MongoDB. On workflow publish with `schedule`, an Agenda job is created: `agenda.define(jobName, ...); agenda.every(cronExpression, jobName);`.
+* **Scheduled Triggers:** Managed by `agenda.js` on MongoDB ([`agenda.js:L23-26`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/jobs/agenda.js#L23-L26)). On workflow publish with `schedule`, an Agenda job is created: `agenda.define(jobName, ...); agenda.every(cronExpression, jobName);`.
 
-### Gap 4: Concurrency Controls & Run Queueing
+### Gap 4: Concurrency Controls & Run Queueing ([`prompt.md:L203-207`](file:///D:/projects/agent-marketplace/prompt.md#L203-L207))
 * **Decision: Project-level and workflow-level concurrency limits enforced via MongoDB atomic counters.**
 * **Limits:**
   * Default maximum: 5 concurrent runs per workflow, 20 concurrent runs per Project.
@@ -531,7 +551,7 @@ When an `AgentStepNode` executes, child tokens (`TEXT_MESSAGE_CHUNK`) and tool c
     * Manual / API run: Rejects immediately with `429 Too Many Requests`.
     * Webhook / Scheduled run: Enqueues as `status: 'queued'` in MongoDB, processed by Agenda as active slots free up.
 
-### Gap 5: Dedicated Studio "Runs" View & Run Inspector
+### Gap 5: Dedicated Studio "Runs" View & Run Inspector ([`prompt.md:L208-212`](file:///D:/projects/agent-marketplace/prompt.md#L208-L212))
 * **Decision:** Build a dedicated `/projects/[projectId]/workflows/[id]/runs` view alongside the canvas editor.
 * **Features:**
   * **Runs Table:** Filter by status (`running`, `completed`, `failed`, `paused`), trigger type, and date range. Columns show duration, total tokens, steps completed, and triggered by.
@@ -539,22 +559,23 @@ When an `AgentStepNode` executes, child tokens (`TEXT_MESSAGE_CHUNK`) and tool c
     * Nodes display status badges (Green = Completed, Red = Failed, Blue Pulse = Running, Yellow = Paused for Approval).
     * Clicking any node opens the **Execution Inspector Sheet**, revealing exact input JSON, resolved template values, output payload, raw LLM reasoning/text, and duration.
 
-### Gap 6: Output Typing & Schema Validation
+### Gap 6: Output Typing & Schema Validation ([`prompt.md:L213-214`](file:///D:/projects/agent-marketplace/prompt.md#L213-L214))
 * **Decision: Node contract schemas with runtime type guards.**
 * Each node declares its output schema type:
   * `agentStep`: `{ text: string, toolCalls: object[], tokens: number }`
+  * `knowledgeStep`: `{ documents: object[], count: number }`
   * `toolStep`: `{ result: any, isError: boolean }`
   * `condition`: `{ chosenBranch: string }`
 * In the canvas config drawer, when a user types `{{`, an autocomplete dropdown inspects all topologically preceding nodes and offers their available properties.
 
-### Gap 7: Test / Dry-Run (Sandbox Execution)
+### Gap 7: Test / Dry-Run (Sandbox Execution) ([`prompt.md:L215-217`](file:///D:/projects/agent-marketplace/prompt.md#L215-L217))
 * **Decision: Integrated "Test Run" Drawer on the Canvas.**
 * Developers can test without deploying to production:
   * Form to provide mock trigger payloads.
   * Option to toggle **Dry-Run Mode** (destructive tool calls like database mutations or external emails are intercepted and logged without executing).
   * Real-time canvas node highlighting as steps execute.
 
-### Gap 8: Versioning (Draft vs. Published & Agent Pinning)
+### Gap 8: Versioning (Draft vs. Published & Agent Pinning) ([`prompt.md:L156-160`, `L164-169`](file:///D:/projects/agent-marketplace/prompt.md#L156-L160))
 * **Decision: Two-tier versioning with immutable publication snapshots.**
 * **Data Model:**
   ```typescript
@@ -595,7 +616,7 @@ When an `AgentStepNode` executes, child tokens (`TEXT_MESSAGE_CHUNK`) and tool c
     * `Pin to snapshot (Default)`: Immutable; modifying the Agent in Studio does not affect the published Workflow.
     * `Live tracking`: The Workflow always resolves the latest Agent configuration from the database.
 
-### Gap 9: Cost & Credit Metering
+### Gap 9: Cost & Credit Metering ([`prompt.md:L170-174`](file:///D:/projects/agent-marketplace/prompt.md#L170-L174))
 * **Decision: Per-step aggregation into `WorkflowRun.usage`.**
 * Each `AgentStepNode` turn runs through the standard provider execution path, tracking prompt and completion tokens.
 * Tool steps and condition evaluations incur zero or nominal platform credits.
@@ -610,13 +631,13 @@ When an `AgentStepNode` executes, child tokens (`TEXT_MESSAGE_CHUNK`) and tool c
     "creditsDeducted": 5
   }
   ```
-* Metered atomically against the Project's credit balance via existing `rateLimiterService` / developer credit accounting.
+* Metered atomically against the Project's credit balance via existing `rateLimiterService` ([`rateLimiter.middleware.js`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/rateLimiter/rateLimiter.middleware.js)) / developer credit accounting.
 
 ---
 
 ## 7. SDK Architecture & Developer Surface
 
-The TypeScript SDK (`@personaai/sdk`) will expose a dedicated `WorkflowClient` matching the ergonomics of `ChatClient`:
+The TypeScript SDK ([`sdk/typescript/src/client.ts`](file:///D:/projects/agent-marketplace/sdk/typescript/src/client.ts)) will expose a dedicated `WorkflowClient` matching the ergonomics of `ChatClient` ([`chat-client.ts:L19-L115`](file:///D:/projects/agent-marketplace/sdk/typescript/src/chat/chat-client.ts#L19-L115)):
 
 ```typescript
 // Initializing and running a workflow via SDK
@@ -666,7 +687,7 @@ const nodeSchema = new mongoose.Schema({
   id: { type: String, required: true },
   type: { 
     type: String, 
-    enum: ['trigger', 'agentStep', 'toolStep', 'condition', 'approval', 'parallel', 'join', 'output'], 
+    enum: ['trigger', 'agentStep', 'knowledgeStep', 'toolStep', 'condition', 'approval', 'parallel', 'join', 'output'], 
     required: true 
   },
   position: { x: { type: Number, default: 0 }, y: { type: Number, default: 0 } },
@@ -785,8 +806,9 @@ export default mongoose.model('WorkflowRun', workflowRunSchema);
 │ • Runs View: History table and basic node inspection drawer.                                    │
 │ • SDK: `@personaai/sdk` `client.workflows.run()` and `client.workflows.stream()`.             │
 ├─────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ PHASE 2 — Branching, Approvals & Triggers (Sprint 3-4)                                          │
-│ ──────────────────────────────────────────────────────                                          │
+│ PHASE 2 — Branching, Approvals, RAG & Triggers (Sprint 3-4)                                     │
+│ ───────────────────────────────────────────────────────────                                     │
+│ • Knowledge / RAG Step: Direct vector search integration (`knowledgeService.searchKnowledgeBase`).│
 │ • Condition Node: Expression evaluator & LLM classifier branching (conditional edges).          │
 │ • Approval Node (HITL): Interruption on approval step, resume via AG-UI and SDK.                │
 │ • Triggers: API and Webhook triggers with HMAC-SHA256 signature verification & secret tokens.   │
@@ -807,7 +829,7 @@ export default mongoose.model('WorkflowRun', workflowRunSchema);
 
 ## 10. Conclusion
 
-The Workflows architecture detailed in this research directly fulfills the dual requirements of [prompt.md](file:///D:/projects/agent-marketplace/prompt.md):
+The Workflows architecture detailed in this research directly fulfills the dual requirements of [`prompt.md`](file:///D:/projects/agent-marketplace/prompt.md):
 1. **Pillar A** provides an intuitive, highly responsive visual builder built on `@xyflow/react` in `platform`, matching the patterns established across the Developer Studio.
 2. **Pillar B** delivers a robust, multi-agent engine compiled to LangGraph's `StateGraph`, operating within existing infrastructure constraints (MongoDB-only, Agenda, MongoDBSaver, AG-UI protocol), and providing complete durability across disconnections and process restarts.
-3. Every open question and gap from the draft specification—including DAG-first scoping, node-level error policies, webhook security, run concurrency, and runs history—has been thoroughly analyzed and resolved with concrete production designs.
+3. Every open question and gap from the draft specification—including DAG-first scoping, node-level error policies, webhook security, run concurrency, and runs history—has been thoroughly analyzed and resolved with concrete production designs and direct codebase citations.
