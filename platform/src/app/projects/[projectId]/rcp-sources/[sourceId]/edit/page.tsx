@@ -59,11 +59,24 @@ interface Secret {
   label: string;
 }
 
+interface RcpToolParam {
+  name: string;
+  type?: string;
+  description?: string;
+  required?: boolean;
+}
+
 interface RcpTool {
   name: string;
   description?: string;
   method?: string;
   url?: string;
+  params?: RcpToolParam[];
+}
+
+interface ParamContextMapEntry {
+  param: string;
+  contextKey: string;
 }
 
 interface RcpSource {
@@ -76,6 +89,7 @@ interface RcpSource {
   secretRef?: string | null;
   isEnabled?: boolean;
   tools?: RcpTool[];
+  paramContextMap?: ParamContextMapEntry[];
   lastTestedAt?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -103,6 +117,10 @@ export default function EditRcpSourcePage() {
   const [secrets, setSecrets] = React.useState<Secret[] | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
+  // param name -> contextKey the caller's per-turn `context` object should
+  // supply it from; blank means "not mapped" (param stays exposed to the
+  // model as a normal tool argument). TURN_CONTEXT_RCP_RESOLVERS_PLAN.md.
+  const [contextKeys, setContextKeys] = React.useState<Record<string, string>>({});
 
   const [usage, setUsage] = React.useState<{ agentCount: number; agents: { _id: string; name: string }[] } | null>(null);
   const [testing, setTesting] = React.useState(false);
@@ -138,6 +156,9 @@ export default function EditRcpSourcePage() {
             secretRef: found.secretRef || "",
             isEnabled: found.isEnabled !== false,
           });
+          const initialKeys: Record<string, string> = {};
+          for (const entry of found.paramContextMap || []) initialKeys[entry.param] = entry.contextKey;
+          setContextKeys(initialKeys);
           getProjectRcpSourceUsage(projectId, found.id ?? (found._id as string))
             .then((r) => {
               if (!cancelled) setUsage(r.data?.data ?? null);
@@ -159,6 +180,24 @@ export default function EditRcpSourcePage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Every distinct param name across all discovered tools (Test Connection
+  // stores the complete, unfiltered param list per tool — see
+  // rcpSource.service.js#testConnection) — this is what can be mapped to a
+  // turnContext key so it's resolved live instead of asked of the model.
+  const allParams = React.useMemo(() => {
+    const byName = new Map<string, RcpToolParam>();
+    for (const tool of source?.tools || []) {
+      for (const param of tool.params || []) {
+        if (!byName.has(param.name)) byName.set(param.name, param);
+      }
+    }
+    return Array.from(byName.values());
+  }, [source?.tools]);
+
+  const handleContextKeyChange = (param: string, value: string) => {
+    setContextKeys((prev) => ({ ...prev, [param]: value }));
   };
 
   const handleTest = async () => {
@@ -192,6 +231,9 @@ export default function EditRcpSourcePage() {
         setSaving(false);
         return;
       }
+      data.paramContextMap = allParams
+        .map((p) => ({ param: p.name, contextKey: (contextKeys[p.name] || "").trim() }))
+        .filter((entry) => entry.contextKey.length > 0);
       const targetId = source.id ?? source._id ?? sourceId;
       await updateProjectRcpSource(projectId, targetId, data);
       deleteCachedByPrefix(cacheKey.resource(projectId, "rcp-sources"));
@@ -467,6 +509,38 @@ export default function EditRcpSourcePage() {
                     <span className="font-mono font-medium">{t.name}</span>
                     {t.description && <span className="text-muted-foreground">{t.description}</span>}
                   </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {allParams.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <FingerprintIcon className="size-4 text-muted-foreground" />
+                  Context parameters
+                </CardTitle>
+                <CardDescription>
+                  Map a param to a key the caller sends in a turn&apos;s hidden <code>context</code> — it&apos;s
+                  resolved live from that instead of asked of the model, and hidden from it entirely. Leave blank to
+                  keep asking the model for it.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                {allParams.map((p) => (
+                  <Field key={p.name}>
+                    <FieldLabel htmlFor={`ctx-${p.name}`} className="font-mono">
+                      {p.name}
+                    </FieldLabel>
+                    <Input
+                      id={`ctx-${p.name}`}
+                      placeholder="Not mapped — asked of the model"
+                      value={contextKeys[p.name] || ""}
+                      onChange={(e) => handleContextKeyChange(p.name, e.target.value)}
+                    />
+                    {p.description && <FieldDescription>{p.description}</FieldDescription>}
+                  </Field>
                 ))}
               </CardContent>
             </Card>
