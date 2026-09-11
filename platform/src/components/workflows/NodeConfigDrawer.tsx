@@ -70,9 +70,17 @@ export function NodeConfigDrawer({
     }
   }, [node]);
 
-  if (!node) return null;
+  // Find upstream nodes for dynamic variable suggestions - ALWAYS called at top level
+  const upstreamNodes = React.useMemo(() => {
+    if (!node) return [];
+    const directPredecessors = new Set(
+      edges.filter((e) => e.target === node.id).map((e) => e.source)
+    );
+    return nodes.filter((n) => directPredecessors.has(n.id) || n.type === "trigger");
+  }, [node?.id, nodes, edges]);
 
   const handleSave = () => {
+    if (!node) return;
     onUpdateNode(node.id, {
       ...node.data,
       label,
@@ -84,14 +92,6 @@ export function NodeConfigDrawer({
     onOpenChange(false);
   };
 
-  // Find upstream nodes for dynamic variable suggestions
-  const upstreamNodes = React.useMemo(() => {
-    const directPredecessors = new Set(
-      edges.filter((e) => e.target === node.id).map((e) => e.source)
-    );
-    return nodes.filter((n) => directPredecessors.has(n.id) || n.type === "trigger");
-  }, [node.id, nodes, edges]);
-
   const insertVariable = (varPath: string, targetField: string) => {
     const currentVal = config[targetField] || "";
     setConfig({
@@ -101,19 +101,21 @@ export function NodeConfigDrawer({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open && Boolean(node)} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md overflow-y-auto p-6 space-y-6">
-        <SheetHeader className="space-y-1">
-          <div className="flex items-center justify-between">
-            <Badge variant="outline" className="text-[10px] font-mono uppercase">
-              {node.type}
-            </Badge>
-          </div>
-          <SheetTitle className="text-lg font-semibold">Configure {node.data?.label || node.id}</SheetTitle>
-          <SheetDescription className="text-xs text-muted-foreground">
-            Edit parameters, upstream variable bindings, and node resilience policies.
-          </SheetDescription>
-        </SheetHeader>
+        {node && (
+          <>
+            <SheetHeader className="space-y-1">
+              <div className="flex items-center justify-between">
+                <Badge variant="outline" className="text-[10px] font-mono uppercase">
+                  {node.type}
+                </Badge>
+              </div>
+              <SheetTitle className="text-lg font-semibold">Configure {node.data?.label || node.id}</SheetTitle>
+              <SheetDescription className="text-xs text-muted-foreground">
+                Edit parameters, upstream variable bindings, and node resilience policies.
+              </SheetDescription>
+            </SheetHeader>
 
         <div className="space-y-5">
           {/* General info */}
@@ -374,14 +376,16 @@ export function NodeConfigDrawer({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 pt-4 border-t border-border/50">
-          <Button size="sm" onClick={handleSave} className="flex-1">
-            Apply Changes
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-        </div>
+          <div className="flex items-center gap-2 pt-4 border-t border-border/50">
+            <Button size="sm" onClick={handleSave} className="flex-1">
+              Apply Changes
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+          </div>
+        </>
+      )}
       </SheetContent>
     </Sheet>
   );

@@ -188,7 +188,7 @@ export default function NewWorkflowPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4">
+    <div className="w-full px-6 lg:px-8 py-8">
       <div className="mb-6">
         <Button
           variant="ghost"
@@ -266,7 +266,7 @@ export default function NewWorkflowPage() {
               placeholder="e.g. usr_1042 (Assigns ownership to external customer)"
               value={externalUserId}
               onChange={(e) => setExternalUserId(e.target.value)}
-              className="max-w-md font-mono text-xs"
+              className="font-mono text-xs"
             />
             <p className="text-[11px] text-muted-foreground">
               If specified, this workflow will be scoped and owned by this external user within this Project.
