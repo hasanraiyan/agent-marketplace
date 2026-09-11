@@ -371,6 +371,10 @@ export const listMySkillsTool = (userId) =>
  * test_persona - run ONE real turn of the creator's persona on a scratch thread
  * and return what it says. This is the voice test; never fake it.
  */
+const TEST_PERSONA_MAX_PER_WINDOW = 3;
+const TEST_PERSONA_WINDOW_MS = 10 * 60 * 1000;
+const testPersonaCalls = new Map(); // userId -> [timestamps]
+
 export const testPersonaTool = (userId) =>
   new DynamicStructuredTool({
     name: 'test_persona',
@@ -382,6 +386,18 @@ export const testPersonaTool = (userId) =>
     }),
     func: async ({ message, skillName }) => {
       try {
+        // Each test runs the persona for real (30–90s). Cap it so the creator
+        // is shown results and asked, instead of waiting through a dozen runs.
+        const now = Date.now();
+        const recent = (testPersonaCalls.get(String(userId)) || []).filter((t) => now - t < TEST_PERSONA_WINDOW_MS);
+        if (recent.length >= TEST_PERSONA_MAX_PER_WINDOW) {
+          return JSON.stringify({
+            status: 'error',
+            message: `Test limit reached (${TEST_PERSONA_MAX_PER_WINDOW} tests per 10 minutes). Show the creator the replies you already have and ask for their read before testing again.`,
+          });
+        }
+        recent.push(now);
+        testPersonaCalls.set(String(userId), recent);
         const persona = await agentRepository.findOne({ ownerId: userId, isMainAgent: true, isActive: true });
         if (!persona) return JSON.stringify({ status: 'error', message: 'No persona yet. Create it with upsert_agent first.' });
         const { runAgentAsAguiEvents } = await import('../agui/agui.service.js');

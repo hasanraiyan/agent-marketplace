@@ -77,6 +77,7 @@ export async function runTurn({ agentId, userId, thread, content, resume, contex
   const tools = [];
   let interrupt = null;
   let error = null;
+  let files = {};
   const started = Date.now();
   for await (const ev of runAgentAsAguiEvents({
     agentId,
@@ -97,13 +98,26 @@ export async function runTurn({ agentId, userId, thread, content, resume, contex
     } else if (ev.type === 'TOOL_CALL_RESULT') {
       const t = tools.find((x) => x.id === ev.toolCallId);
       if (t) t.result = String(ev.content ?? '').slice(0, 400);
+    } else if (ev.type === 'STATE_SNAPSHOT') {
+      const f = ev.snapshot?.files || {};
+      for (const [p, v] of Object.entries(f)) files[p] = typeof v === 'string' ? v : (v?.content ?? (Array.isArray(v?.content) ? v.content.join('\n') : ''));
     } else if (ev.type === 'CUSTOM' && (ev.name === 'hitl_request' || ev.name === 'clarification_request')) {
       interrupt = { kind: ev.name === 'hitl_request' ? 'hitl' : 'clarification', value: ev.value };
     } else if (ev.type === 'RUN_ERROR') error = ev.message;
   }
   const seconds = ((Date.now() - started) / 1000).toFixed(1);
   if (log) log(`   (${seconds}s · tools: ${tools.map((t) => t.name).join(', ') || 'none'}${interrupt ? ' · paused: ' + interrupt.kind : ''}${error ? ' · ERROR ' + error : ''})`);
-  return { text, tools, interrupt, error, seconds };
+  // Files the persona presented this turn (present_file), with content from the state snapshot.
+  const presented = [];
+  for (const t of tools) {
+    if (t.name !== 'present_file') continue;
+    let p = null;
+    try { p = JSON.parse(t.args || '{}').filePath; } catch { const m = String(t.args || '').match(/"filePath"\s*:\s*"([^"]+)"/); p = m?.[1]; }
+    if (!p) continue;
+    const key = Object.keys(files).find((k) => k === p || k === p.replace(/^\//, '') || '/' + k === p);
+    presented.push({ path: p, content: key ? String(files[key]).slice(0, 3500) : '(file not found in state)' });
+  }
+  return { text, tools, interrupt, error, seconds, presented };
 }
 
 /** Auto-approve a HITL interrupt (the creator clicks Approve). */

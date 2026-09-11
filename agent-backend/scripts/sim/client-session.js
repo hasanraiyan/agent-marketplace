@@ -70,12 +70,13 @@ Reply in 1–5 sentences, answering what the persona asked and pushing toward wh
     const r = await runTurn({ agentId: String(persona._id), userId: client._id, thread, content, resume, contextOverride, log });
     resume = undefined;
     const qs = r.interrupt?.kind === 'clarification' ? clarificationQuestionsText(r.interrupt) : '';
-    turns.push({ who: persona.name, text: r.text, tools: r.tools, paused: r.interrupt?.kind, detail: qs, seconds: r.seconds });
+    const filesText = (r.presented || []).map((f) => `\n\n[file presented: ${f.path}]\n${f.content}`).join('');
+    turns.push({ who: persona.name, text: r.text + filesText, tools: r.tools, paused: r.interrupt?.kind, detail: qs, seconds: r.seconds });
     log(`[${t}] PERSONA: ${r.text.slice(0, 400)}${r.text.length > 400 ? '…' : ''}`);
     if (qs) log(`   asks: ${qs.slice(0, 300)}`);
     if (r.error) { log('run error'); break; }
     if (t === maxTurns) break;
-    const out = parseSimJson(await sim.reply(r.text + (qs ? `\n\n[${persona.name} asks:]\n${qs}` : '')));
+    const out = parseSimJson(await sim.reply(r.text + filesText + (qs ? `\n\n[${persona.name} asks:]\n${qs}` : '')));
     content = out.reply || 'Okay.';
     if (r.interrupt?.kind === 'clarification') resume = clarificationResume(r.interrupt, content);
     if (out.done) { turns.push({ who: `Client (${c.name})`, text: content + '  _(leaves satisfied)_' }); log(`CLIENT (done): ${content}`); break; }
