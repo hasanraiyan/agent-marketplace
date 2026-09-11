@@ -1,0 +1,50 @@
+{
+  "client": "tanvi",
+  "scores": {
+    "voice": 3,
+    "intake": 3,
+    "rules": 3,
+    "specificity": 3,
+    "boundaries": 3,
+    "usefulness": 3,
+    "pacing": 3
+  },
+  "notes": {
+    "voice": "Dry, blunt, first‑person, no fluff: opens with “Show me the numbers,” gives a one‑line verdict (“You’re close.”), and uses phrases like “not my lane” and “numbers before boxes.”",
+    "intake": "He refuses to proceed without estimates and asks the two must‑do/out‑of‑scope questions up front: “Paste your numbers… Then one line: what are the 2–3 things this system must do, and what is it explicitly not doing?”",
+    "rules": "Applies “numbers before boxes,” does one deep dive (idempotency/dedup/retries), names trade‑offs (DynamoDB vs sharded Postgres), includes failure/ops (provider throttling, split‑brain, cache stampede), and rewrites the weakest section.",
+    "specificity": "Concrete quotas and flows: “200–400 partitions,” “Redis SETNX TTL=10–20m,” Twilio short codes 12×100 TPS + TFN 50×25 TPS, SES 8k/5k split, exact backoff schedule, provider‑ack SLOs.",
+    "boundaries": "Career comp/level questions get “That’s not my lane — talk to your recruiter… Levels.fyi,” repeated consistently when asked again.",
+    "usefulness": "Client gets a scored review, a crisp verdict, the single highest‑leverage fix, two traced flows with SLOs/quotas, corrected storage math, and concrete next steps.",
+    "pacing": "Asks one structured intake block, then keeps chat replies short with files attached (“file presented…”), matching the stated ‘chat stays short’ style."
+  },
+  "biggest_weakness": "He didn’t explicitly force the client to articulate rejected alternatives; he supplied depth himself but didn’t practice the “what did you reject, and why?” narrative for the interview.",
+  "client_quote": "I got a concrete score, the exact fix to rehearse, and two traced flows with SLOs and quotas I can copy into my doc.",
+  "would_return": "yes",
+  "total": 21
+}
+{
+  "client": "rohit",
+  "scores": {
+    "voice": 3,
+    "intake": 2,
+    "rules": 3,
+    "specificity": 3,
+    "boundaries": 3,
+    "usefulness": 3,
+    "pacing": 3
+  },
+  "notes": {
+    "voice": "Dry, blunt, first‑person, no exclamation marks; e.g., \"Numbers before boxes.\" and \"I won’t sign off — involve Security/QSA.\"",
+    "intake": "Asked the standard numbers/SLAs before advising, but re‑asked the same intake after the client had already provided it, causing avoidable friction.",
+    "rules": "Applied the rules: numbers first, one deep component (commit/publish) with trade‑offs, named rejections (drop Postgres index for Iceberg/Delta/Hudi), and covered failures/ops.",
+    "specificity": "Highly concrete: DynamoDB ~$6.5k/mo math, RocksDB ~16 MB RAM per 1M keys, DLP FP/FN targets, Athena $/TB and scan sizes, explicit CAS flow and failure paths.",
+    "boundaries": "Handled PCI correctly: \"I won’t sign off — involve Security/QSA,\" added QSA signoff language; no scope creep into unrelated areas.",
+    "usefulness": "Delivered a defendable migration plan, checklist, CAS protocol, dedup sizing/costs, DLP rules, and a one‑slide—immediately usable for Thursday.",
+    "pacing": "Kept chat concise and pushed detail to files; initial intake template is expected for this persona; only hiccup was the duplicate intake prompt."
+  },
+  "biggest_weakness": "Re-asking the full intake card after the client had already supplied the numbers, which felt robotic and wasted a turn.",
+  "client_quote": "I have a defensible Iceberg migration plan with concrete costs and SLAs across ingest, dedup, DLP, and Athena—I’m ready for Thursday.",
+  "would_return": "yes",
+  "total": 20
+}

@@ -121,6 +121,7 @@ You have three skills mounted under /skills/. Read the one that matches before a
 - **Behavior rules, not format straitjackets.** Do not write "exactly N lines / nothing else / no other sentences" into a prompt or playbook; the persona over-applies it and drops intake, hand-offs, and judgment. Describe the behavior and give one example instead.
 - **Regression test after every revision.** Re-run test_persona on (a) the worked example's opening and (b) one boundary probe, and confirm both still behave before saying you're done. If something got worse, restore_persona_prompt and tell the creator.
 - Keep the creator's time short: aim for a persona in about 6 exchanges and a skill in about 8.
+- Never set or change the persona's modelName unless the creator explicitly asks for a specific model. The provider's default is the creator's choice.
 - You cannot view or manage API keys.
 `;
 
