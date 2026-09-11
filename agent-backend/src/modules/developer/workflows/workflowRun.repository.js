@@ -1,9 +1,14 @@
 import WorkflowRun from './workflowRun.model.js';
+import { loggerService } from '../../../utils/index.js';
+
+const logger = loggerService.getLogger();
 
 class WorkflowRunRepository {
   async create(data) {
     const run = new WorkflowRun(data);
-    return await run.save();
+    const saved = await run.save();
+    logger.debug('[WorkflowRunRepository] created', { runId: saved._id, workflowId: saved.workflowId, threadId: saved.threadId });
+    return saved;
   }
 
   async findById(id) {
@@ -60,6 +65,7 @@ class WorkflowRunRepository {
    * Records or starts a nodeRun execution entry.
    */
   async recordNodeRunStart(runId, { nodeId, nodeType, input }) {
+    logger.debug('[WorkflowRunRepository] node run started', { runId, nodeId, nodeType });
     return await WorkflowRun.findByIdAndUpdate(
       runId,
       {
@@ -85,6 +91,11 @@ class WorkflowRunRepository {
     nodeId,
     { status = 'completed', output, error, retriesTaken = 0, durationMs = 0, tokens = 0 }
   ) {
+    if (status === 'failed') {
+      logger.warn('[WorkflowRunRepository] node run failed', { runId, nodeId, error, retriesTaken });
+    } else {
+      logger.debug('[WorkflowRunRepository] node run completed', { runId, nodeId, status, durationMs, tokens, retriesTaken });
+    }
     return await WorkflowRun.findOneAndUpdate(
       { _id: runId, 'nodeRuns.nodeId': nodeId },
       {
@@ -110,6 +121,7 @@ class WorkflowRunRepository {
     if (['completed', 'failed', 'cancelled'].includes(status) && !update.endedAt) {
       update.endedAt = new Date();
     }
+    logger.debug('[WorkflowRunRepository] status updated', { runId, status });
     return await WorkflowRun.findByIdAndUpdate(runId, { $set: update }, { new: true });
   }
 
@@ -117,7 +129,7 @@ class WorkflowRunRepository {
    * Atomically cancels an in-flight or queued workflow run.
    */
   async cancelRun(runId) {
-    return await WorkflowRun.findOneAndUpdate(
+    const cancelled = await WorkflowRun.findOneAndUpdate(
       {
         _id: runId,
         status: { $in: ['queued', 'running', 'paused'] },
@@ -130,6 +142,8 @@ class WorkflowRunRepository {
       },
       { new: true }
     );
+    logger.debug('[WorkflowRunRepository] cancelRun', { runId, cancelled: Boolean(cancelled) });
+    return cancelled;
   }
 
   /**
@@ -138,10 +152,14 @@ class WorkflowRunRepository {
    */
   async findOrphanRunningRuns(staleThresholdMs = 60000) {
     const cutoff = new Date(Date.now() - staleThresholdMs);
-    return await WorkflowRun.find({
+    const orphans = await WorkflowRun.find({
       status: 'running',
       updatedAt: { $lt: cutoff },
     });
+    if (orphans.length > 0) {
+      logger.debug('[WorkflowRunRepository] orphan runs found', { count: orphans.length, staleThresholdMs });
+    }
+    return orphans;
   }
 }
 

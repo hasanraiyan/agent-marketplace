@@ -1,9 +1,14 @@
 import WorkflowVersion from './workflowVersion.model.js';
+import { loggerService } from '../../../utils/index.js';
+
+const logger = loggerService.getLogger();
 
 class WorkflowVersionRepository {
   async create(data) {
     const version = new WorkflowVersion(data);
-    return await version.save();
+    const saved = await version.save();
+    logger.info('[WorkflowVersionRepository] version created', { workflowId: saved.workflowId, version: saved.version });
+    return saved;
   }
 
   async findByWorkflowAndVersion(workflowId, version) {

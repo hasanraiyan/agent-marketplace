@@ -1,6 +1,9 @@
 import Project, { PROJECT_STATUS } from '../../projects/project.model.js';
 import workflowRunRepository from './workflowRun.repository.js';
 import BaseError from '../../../utils/errors/BaseError.js';
+import { loggerService } from '../../../utils/index.js';
+
+const logger = loggerService.getLogger();
 
 class WorkflowUsageService {
   /**
@@ -9,24 +12,29 @@ class WorkflowUsageService {
    */
   async checkPreflightBalance(projectId, isDryRun = false) {
     if (isDryRun) {
+      logger.debug('[WorkflowUsageService] checkPreflightBalance bypassed for dry run', { projectId });
       return { allowed: true, isDryRun: true };
     }
 
     const project = await Project.findById(projectId);
     if (!project) {
+      logger.warn('[WorkflowUsageService] checkPreflightBalance: project not found', { projectId });
       throw new BaseError('Project not found', 404, 'NOT_FOUND');
     }
 
     if (project.status === PROJECT_STATUS.SUSPENDED) {
+      logger.warn('[WorkflowUsageService] checkPreflightBalance rejected: project suspended', { projectId });
       throw new BaseError('Project is suspended', 403, 'PROJECT_SUSPENDED');
     }
 
     if (project.status === PROJECT_STATUS.DELETING || project.status === PROJECT_STATUS.DELETED) {
+      logger.warn('[WorkflowUsageService] checkPreflightBalance rejected: project inactive', { projectId, status: project.status });
       throw new BaseError('Project is not active', 400, 'PROJECT_INACTIVE');
     }
 
     // If the project has credit tracking or limits, verify balance >= 1
     if (typeof project.credits === 'number' && project.credits <= 0) {
+      logger.warn('[WorkflowUsageService] checkPreflightBalance rejected: insufficient credits', { projectId, credits: project.credits });
       throw new BaseError(
         'Insufficient credits to initiate workflow run. Please top up your project balance.',
         402,
@@ -34,6 +42,7 @@ class WorkflowUsageService {
       );
     }
 
+    logger.debug('[WorkflowUsageService] checkPreflightBalance passed', { projectId, credits: project.credits });
     return { allowed: true, isDryRun: false };
   }
 
@@ -59,6 +68,8 @@ class WorkflowUsageService {
     // Nominal credit estimation: 1 credit base + 1 credit per agent turn + token factor
     const creditsDeducted = Math.max(1, agentTurns + Math.ceil(totalTokens / 2000));
 
+    logger.debug('[WorkflowUsageService] usage calculated', { totalTokens, agentTurns, toolCalls, creditsDeducted });
+
     return {
       totalTokens,
       agentTurns,
@@ -77,6 +88,7 @@ class WorkflowUsageService {
     if (isDryRun) {
       usage.creditsDeducted = 0;
       await workflowRunRepository.updateStatus(runId, 'completed', { usage });
+      logger.debug('[WorkflowUsageService] dry run usage recorded, no credits deducted', { projectId, runId });
       return usage;
     }
 
@@ -86,6 +98,7 @@ class WorkflowUsageService {
         { _id: projectId, credits: { $exists: true } },
         { $inc: { credits: -usage.creditsDeducted } }
       );
+      logger.info('[WorkflowUsageService] credits deducted', { projectId, runId, creditsDeducted: usage.creditsDeducted });
     }
 
     await workflowRunRepository.updateStatus(runId, 'completed', { usage });

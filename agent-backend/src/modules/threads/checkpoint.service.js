@@ -90,6 +90,21 @@ class CheckpointService {
       this.mongoClient = new MongoClient(process.env.MONGODB_URI);
       this.mongoClient.connect().catch(console.error);
       this.checkpointer = new MongoDBSaver({ client: this.mongoClient });
+
+      // @langchain/langgraph-checkpoint-mongodb@1.2.0's putWrites() calls
+      // bulkWrite(operations) unconditionally, even when `writes` is empty
+      // (a normal occurrence on a resume tick). An empty `operations` array
+      // makes the MongoDB driver throw `MongoInvalidArgumentError: Invalid
+      // BulkOperation, Batch cannot be empty` as an unhandled rejection,
+      // which crashes the entire process, not just the run that triggered
+      // it. Guard here rather than patching node_modules directly.
+      const originalPutWrites = this.checkpointer.putWrites.bind(this.checkpointer);
+      this.checkpointer.putWrites = async (config, writes, taskId) => {
+        if (!writes || writes.length === 0) {
+          return;
+        }
+        return originalPutWrites(config, writes, taskId);
+      };
     }
   }
 

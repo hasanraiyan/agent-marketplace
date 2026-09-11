@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { loggerService } from '../../../utils/index.js';
+
+const logger = loggerService.getLogger();
 
 /**
  * DFS Cycle Detection for Workflow DAG validation (Gap 1 in research.md).
@@ -30,6 +33,7 @@ export function detectCycle(nodes = [], edges = []) {
     const neighbors = adj.get(nodeId) || [];
     for (const neighbor of neighbors) {
       if (state.get(neighbor) === 1) {
+        logger.debug('[workflow.validator] cycle detected', { nodeId, neighbor });
         return { hasCycle: true, cycleNode: neighbor };
       }
       if (state.get(neighbor) === 0) {
@@ -114,6 +118,7 @@ export function validateWorkflowStructure(nodes = [], edges = []) {
 
   const triggers = nodes.filter((n) => n.type === 'trigger');
   if (triggers.length !== 1) {
+    logger.debug('[workflow.validator] structural validation failed: trigger count', { count: triggers.length });
     return {
       isValid: false,
       error: `Workflow must have exactly 1 trigger node (found ${triggers.length})`,
@@ -122,6 +127,7 @@ export function validateWorkflowStructure(nodes = [], edges = []) {
 
   const outputs = nodes.filter((n) => n.type === 'output');
   if (outputs.length === 0) {
+    logger.debug('[workflow.validator] structural validation failed: no output node');
     return {
       isValid: false,
       error: 'Workflow must have at least 1 output node',
@@ -157,6 +163,7 @@ export function validateWorkflowStructure(nodes = [], edges = []) {
 
   const unreachable = nodes.filter((n) => !reachable.has(n.id));
   if (unreachable.length > 0) {
+    logger.debug('[workflow.validator] structural validation failed: unreachable nodes', { unreachableNodes: unreachable.map((n) => n.id) });
     return {
       isValid: false,
       error: `Unreachable disconnected node(s): ${unreachable.map((n) => n.id).join(', ')}`,
@@ -184,6 +191,9 @@ export function validateNodeConfigsForRun(nodes = []) {
     } else if (node.type === 'knowledgeStep' && !node.data?.config?.knowledgeBaseId) {
       errors.push(`Knowledge Step "${label}" has no Knowledge Base selected.`);
     }
+  }
+  if (errors.length > 0) {
+    logger.debug('[workflow.validator] node config validation failed', { errors });
   }
   return { isValid: errors.length === 0, errors };
 }

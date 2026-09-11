@@ -1,9 +1,14 @@
 import Workflow from './workflow.model.js';
+import { loggerService } from '../../../utils/index.js';
+
+const logger = loggerService.getLogger();
 
 class WorkflowRepository {
   async create(data) {
     const workflow = new Workflow(data);
-    return await workflow.save();
+    const saved = await workflow.save();
+    logger.debug('[WorkflowRepository] created', { workflowId: saved._id, projectId: saved.projectId });
+    return saved;
   }
 
   async findById(id) {
@@ -54,34 +59,44 @@ class WorkflowRepository {
   }
 
   async update(id, updateData) {
-    return await Workflow.findByIdAndUpdate(id, updateData, {
+    const updated = await Workflow.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
     });
+    logger.debug('[WorkflowRepository] updated', { workflowId: id });
+    return updated;
   }
 
   async updateDraft(id, draft) {
-    return await Workflow.findByIdAndUpdate(
+    const updated = await Workflow.findByIdAndUpdate(
       id,
       { $set: { draft } },
       { new: true, runValidators: true }
     );
+    logger.debug('[WorkflowRepository] draft updated', { workflowId: id });
+    return updated;
   }
 
   async incrementPublishedVersion(id) {
-    return await Workflow.findByIdAndUpdate(
+    const updated = await Workflow.findByIdAndUpdate(
       id,
       { $inc: { publishedVersion: 1 } },
       { new: true }
     );
+    logger.debug('[WorkflowRepository] published version incremented', { workflowId: id, publishedVersion: updated?.publishedVersion });
+    return updated;
   }
 
   async delete(id) {
-    return await Workflow.findByIdAndDelete(id);
+    const deleted = await Workflow.findByIdAndDelete(id);
+    logger.debug('[WorkflowRepository] deleted', { workflowId: id });
+    return deleted;
   }
 
   async deleteByProjectAndId(projectId, id) {
-    return await Workflow.findOneAndDelete({ _id: id, projectId });
+    const deleted = await Workflow.findOneAndDelete({ _id: id, projectId });
+    logger.debug('[WorkflowRepository] deleted by project+id', { projectId, workflowId: id, found: Boolean(deleted) });
+    return deleted;
   }
 
   /**
@@ -89,22 +104,30 @@ class WorkflowRepository {
    * (Gap 4 in research.md: index-friendly range filter, no $expr needed)
    */
   async checkAndIncrementActiveRuns(workflowId, maxConcurrent = 5) {
-    return await Workflow.findOneAndUpdate(
+    const updated = await Workflow.findOneAndUpdate(
       { _id: workflowId, activeRuns: { $lt: maxConcurrent } },
       { $inc: { activeRuns: 1 } },
       { new: true }
     );
+    if (!updated) {
+      logger.warn('[WorkflowRepository] concurrency slot reservation failed (limit reached)', { workflowId, maxConcurrent });
+    } else {
+      logger.debug('[WorkflowRepository] concurrency slot reserved', { workflowId, activeRuns: updated.activeRuns });
+    }
+    return updated;
   }
 
   /**
    * Decrements active runs counter safely (floored at 0)
    */
   async decrementActiveRuns(workflowId) {
-    return await Workflow.findOneAndUpdate(
+    const updated = await Workflow.findOneAndUpdate(
       { _id: workflowId, activeRuns: { $gt: 0 } },
       { $inc: { activeRuns: -1 } },
       { new: true }
     );
+    logger.debug('[WorkflowRepository] concurrency slot released', { workflowId, activeRuns: updated?.activeRuns });
+    return updated;
   }
 }
 

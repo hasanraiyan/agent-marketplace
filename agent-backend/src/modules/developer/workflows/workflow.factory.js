@@ -121,6 +121,8 @@ function wrapNodeExecution(node, executorFn, executionContext) {
     const nodeLabel = node.data?.label || node.id;
     const resolvedInput = resolveTemplate(node.data?.config || {}, state);
 
+    logger.debug(`[WorkflowEngine] node "${node.id}" (${node.type}) starting`, { runId, nodeLabel });
+
     // 1. Emit node started
     if (driver) {
       driver.pushEvent({
@@ -148,6 +150,12 @@ function wrapNodeExecution(node, executorFn, executionContext) {
       const execResult = await executeWithRetry(node, () =>
         executorFn(state, resolvedInput, executionContext)
       );
+
+      logger.debug(`[WorkflowEngine] node "${node.id}" (${node.type}) completed`, {
+        runId,
+        durationMs: execResult.durationMs,
+        retriesTaken: execResult.retriesTaken,
+      });
 
       // 2. Emit node completed
       if (driver) {
@@ -187,6 +195,8 @@ function wrapNodeExecution(node, executorFn, executionContext) {
         },
       };
     } catch (err) {
+      logger.warn(`[WorkflowEngine] node "${node.id}" (${node.type}) failed: ${err.message}`, { runId });
+
       if (driver) {
         driver.pushEvent({
           type: EventType.CUSTOM,
@@ -234,6 +244,7 @@ function createAgentStepExecutor(node, executionContext) {
     }
 
     if (!agentDoc) {
+      logger.warn(`[WorkflowEngine] agentStep "${node.id}" references missing agent`, { agentId });
       throw new BaseError(`Agent with ID "${agentId}" not found`, 404, 'NOT_FOUND');
     }
 
@@ -241,6 +252,7 @@ function createAgentStepExecutor(node, executionContext) {
     // does not perform external live side-effects (Finding #3 in review.md).
     let effectiveAgentDoc = agentDoc;
     if (isDryRun) {
+      logger.debug(`[WorkflowEngine] agentStep "${node.id}" running in dry-run mode, stripping external tools`, { agentId });
       effectiveAgentDoc = {
         ...(typeof agentDoc.toObject === 'function' ? agentDoc.toObject() : agentDoc),
         // Strip all external mutating/destructive tool configs including MCPs
@@ -326,6 +338,12 @@ function createAgentStepExecutor(node, executionContext) {
     // Estimate tokens
     tokens = Math.ceil((userPromptText.length + collectedText.length) / 4);
 
+    logger.debug(`[WorkflowEngine] agentStep "${node.id}" agent run complete`, {
+      agentId,
+      toolCallCount: toolCalls.length,
+      estimatedTokens: tokens,
+    });
+
     return {
       output: {
         text: collectedText,
@@ -351,6 +369,7 @@ function createToolStepExecutor(node, executionContext) {
     const toolName = config.toolName || 'tool';
 
     if (isDryRun) {
+      logger.debug(`[WorkflowEngine] toolStep "${node.id}" simulated (dry run)`, { toolName });
       return {
         output: {
           isError: false,
@@ -368,9 +387,11 @@ function createToolStepExecutor(node, executionContext) {
     try {
       let resultData;
       if (typeof config.handler === 'function') {
+        logger.debug(`[WorkflowEngine] toolStep "${node.id}" invoking handler function`, { toolName });
         resultData = await config.handler(resolvedInput, { signal: driver?.signal });
       } else if (config.url) {
         // Direct HTTP / Webhook tool step
+        logger.debug(`[WorkflowEngine] toolStep "${node.id}" calling webhook`, { toolName, url: config.url });
         const method = (config.method || 'POST').toUpperCase();
         const headers = {
           'Content-Type': 'application/json',
@@ -410,8 +431,10 @@ function createToolStepExecutor(node, executionContext) {
         const targetId = config.toolId || config.restApiToolId;
         const restTool = await restApiToolRepository.findById(targetId);
         if (!restTool) {
+          logger.warn(`[WorkflowEngine] toolStep "${node.id}" references missing REST API tool`, { targetId });
           throw new BaseError(`Rest API Tool ${targetId} not found`, 404, 'NOT_FOUND');
         }
+        logger.debug(`[WorkflowEngine] toolStep "${node.id}" calling registered REST API tool`, { targetId });
         resultData = await restApiToolService.testCall(
           executionContext,
           restTool,
@@ -439,6 +462,7 @@ function createToolStepExecutor(node, executionContext) {
       if (err.name === 'AbortError' || driver?.signal?.aborted) {
         throw new BaseError('Workflow run cancelled', 499, 'CANCELLED');
       }
+      logger.warn(`[WorkflowEngine] toolStep "${node.id}" execution error: ${err.message}`, { toolName });
       return {
         output: {
           isError: true,
@@ -466,10 +490,13 @@ function createKnowledgeStepExecutor(node, executionContext) {
     const topK = config.topK || 5;
 
     if (!kbId) {
+      logger.warn(`[WorkflowEngine] knowledgeStep "${node.id}" missing knowledgeBaseId`);
       throw new BaseError(`Knowledge step "${node.id}" missing knowledgeBaseId`, 400, 'BAD_REQUEST');
     }
 
+    logger.debug(`[WorkflowEngine] knowledgeStep "${node.id}" searching knowledge base`, { kbId, topK });
     const results = await knowledgeService.searchKnowledgeBase(kbId, String(query), topK);
+    logger.debug(`[WorkflowEngine] knowledgeStep "${node.id}" search complete`, { kbId, resultCount: results?.length || 0 });
     return {
       output: {
         documents: results || [],
@@ -486,6 +513,8 @@ function createKnowledgeStepExecutor(node, executionContext) {
 export function compileWorkflowToStateGraph(workflowDef, executionContext) {
   const nodes = workflowDef?.draft?.nodes || workflowDef?.definition?.nodes || workflowDef?.nodes || [];
   const edges = workflowDef?.draft?.edges || workflowDef?.definition?.edges || workflowDef?.edges || [];
+
+  logger.debug('[WorkflowEngine] compiling workflow graph', { nodeCount: nodes.length, edgeCount: edges.length });
 
   const graph = new StateGraph(WorkflowStateAnnotation);
 
@@ -670,6 +699,11 @@ export function compileWorkflowToStateGraph(workflowDef, executionContext) {
   } else if (nodes.length > 0) {
     graph.addEdge(nodes[nodes.length - 1].id, END);
   }
+
+  logger.debug('[WorkflowEngine] workflow graph compiled', {
+    conditionNodeCount: conditionNodeIds.size,
+    standardEdgeCount: standardEdges.length,
+  });
 
   return graph;
 }
