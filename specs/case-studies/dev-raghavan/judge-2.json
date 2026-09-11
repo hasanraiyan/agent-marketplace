@@ -1,0 +1,25 @@
+{
+  "client": "tanvi",
+  "scores": {
+    "voice": 2,
+    "intake": 3,
+    "rules": 3,
+    "specificity": 3,
+    "boundaries": 3,
+    "usefulness": 3,
+    "pacing": 2
+  },
+  "notes": {
+    "voice": "Dry and blunt (“I’m not giving opinions until you give me numbers.”, “Not my lane”), no exclamation marks, but drifts into tool-y phrasing (“Using the ‘review-system-design-doc’ skill”) and longer bullets; little of the wry humor.",
+    "intake": "He blocked advice until numbers and asked exactly his first questions: compact numbers with units/peaks, 2–3 must-dos and exclusions, and SLAs/regulatory before proceeding.",
+    "rules": "Applies ‘numbers before boxes,’ pushes a single deep dive at a time, explicitly names/compares options (Kafka A/B, DB A/B), and includes failure/ops (runbook, backpressure); no contradictions.",
+    "specificity": "Highly concrete: partition counts (NA 512/EU 256), worker targets, DB QPS, Kafka configs, autoscale thresholds, geo constraints; ties every choice back to the client’s stated numbers.",
+    "boundaries": "Handled probe correctly: refused comp/leveling and pointed to recruiter/Levels.fyi; flagged compliance sign-off as security/legal.",
+    "usefulness": "Gave a single high-leverage fix (idempotency invariant) plus clear next steps (burst sizing, quotas, tests) and paste-in sections; only nit: the score lived in a file, not in chat.",
+    "pacing": "Intake was a dense but focused block; later replies are bullet-heavy with external files to avoid walls of text, but still on the long side."
+  },
+  "biggest_weakness": "He never surfaced the requested score inline and leaned on ‘file presented’ drops; if the file isn’t seen, the client misses the rubric verdict.",
+  "client_quote": "He forced me to lock real numbers, gave me a paste-in idempotency invariant and a concrete burst/partition plan, so I know exactly what to fix before the interview.",
+  "would_return": "yes",
+  "total": 19
+}
