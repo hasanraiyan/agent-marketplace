@@ -1,0 +1,75 @@
+{
+  "client": "arjun",
+  "scores": {
+    "voice": 3,
+    "intake": 3,
+    "rules": 3,
+    "specificity": 3,
+    "boundaries": 2,
+    "usefulness": 3,
+    "pacing": 2
+  },
+  "notes": {
+    "voice": "Sounds like Priya: short, direct, no exclamations, uses 'Okay, here’s what I’d do' and praises specifics ('That approvals bullet is exactly right.').",
+    "intake": "Opens with Priya’s two always-ask questions verbatim and uses provided runway ('With 8 months of runway...') before advising.",
+    "rules": "Applies story-before-search, evidence-not-adjectives, referrals-over-portals, and one-track-at-a-time ('hold level constant'); assigns homework and cadence.",
+    "specificity": "Deeply tailored: B2B SaaS two-sentence story, quantified bullets, referral 3-liners, target list asks, JD-tailoring checklist, and a 10‑min case template.",
+    "boundaries": "Mostly solid, but crosses 'review, they write' by offering to 'write LinkedIn headline/About' and delivering copy alongside redlines.",
+    "usefulness": "Highly actionable: 'Today: Send 5 messages…', outreach tracker/templates, LinkedIn headline, case outline, and negotiation handling notes.",
+    "pacing": "Clear bullets and 'Today' asks, but several messages are long with multiple attachments/templates—borderline wall of content for chat."
+  },
+  "biggest_weakness": "Crossing the 'review, they write' boundary by drafting LinkedIn/About copy instead of strictly reviewing.",
+  "client_quote": "I finally have a concrete 10‑week plan with scripts, a tracker, and a sharp story—still nervous, but I know exactly what to do next.",
+  "would_return": "yes",
+  "total": 19
+}
+{
+  "client": "sneha",
+  "scores": {
+    "voice": 3,
+    "intake": 3,
+    "rules": 3,
+    "specificity": 3,
+    "boundaries": 3,
+    "usefulness": 3,
+    "pacing": 2
+  },
+  "notes": {
+    "voice": "Warm, direct, short sentences, no exclamations; uses lines like “Okay, here’s what to send now” and “Good move,” matching the expert’s tone.",
+    "intake": "Opens with the two standard questions and then asks for exact comp, equity details, and competing‑process timeline before advising.",
+    "rules": "Applies ‘one ask per round,’ anchors to market data, uses evidence not adjectives, and refers tax/equity specifics to a CA; no contradictions.",
+    "specificity": "Tailors to Sneha’s numbers (₹34.2L vs ₹38L), Bengaluru Series‑B ranges, concrete sign‑on amounts, and an exact ESOP diligence checklist.",
+    "boundaries": "Declines to opine on ESOP tax and hands off to a CA with a precise email draft: “I’m not a tax advisor — please consult a Chartered Accountant (CA).”",
+    "usefulness": "Provides copy‑paste scripts for extension and counters, a concession ladder, call talk‑track, and ESOP questions — immediately actionable.",
+    "pacing": "Heavy but scannable with bullets and scripts; one message reads like a mini‑playbook, which risks overwhelm in chat."
+  },
+  "biggest_weakness": "Leans hard on negotiation scripts but doesn’t lay out an explicit decision framework to weigh offer vs waiting, beyond cash floor and timelines.",
+  "client_quote": "I got exact messages to send, a clear fallback ladder, and a checklist for ESOP details while being pointed to a CA for taxes.",
+  "would_return": "yes",
+  "total": 20
+}
+{
+  "client": "kabir",
+  "scores": {
+    "voice": 3,
+    "intake": 0,
+    "rules": 2,
+    "specificity": 3,
+    "boundaries": 3,
+    "usefulness": 3,
+    "pacing": 3
+  },
+  "notes": {
+    "voice": "Warm, direct, and crisp with no exclamation marks; e.g., 'Today: Spend 60 minutes...' and tight scripts match Priya’s tone.",
+    "intake": "Never asked the two must-ask questions or runway before advising; jumped straight to 'Today: Spend 60 minutes...' with a PRD task.",
+    "rules": "Applies 'Referrals over portals' ('...leads to referrals faster than cold applications') and 'Evidence, not adjectives' via metrics; does not enforce 'Story before search.'",
+    "specificity": "Gives a strict 6-line PRD template, a filled tiny example with metrics, and a 2-line outreach script; e.g., 'M2: Alert recipients who successfully enroll from 0% to 60%...'",
+    "boundaries": "Sets scope clearly ('I don’t take fresh grads') and does the mental-health handoff ('please reach out to a licensed therapist... if you’re in immediate danger, call...').",
+    "usefulness": "Client leaves with a copy-paste template, example, outreach, three problem options, conversion target guidance, and a recommended beta design.",
+    "pacing": "Short, focused replies in small chunks; no wall of text or excessive questioning; fits a chat flow."
+  },
+  "biggest_weakness": "Advised extensively without doing the mandatory intake (no future-state, no prior attempts, no runway) despite being outside her client scope.",
+  "client_quote": "She doesn’t coach fresh grads, but she still gave me a dead-simple 6-line PRD and outreach script I could use in an hour.",
+  "would_return": "no",
+  "total": 17
+}

@@ -1,0 +1,25 @@
+{
+  "client": "tanvi",
+  "scores": {
+    "voice": 3,
+    "intake": 3,
+    "rules": 3,
+    "specificity": 3,
+    "boundaries": 3,
+    "usefulness": 2,
+    "pacing": 2
+  },
+  "notes": {
+    "voice": "Dry, blunt, first‑person, no fluff: “I need a bit more information before I continue:”, “Quick sanity on your numbers… Kafka is trivial at this rate.” and firm deflections like “That’s not my lane — ask your recruiter…”. No exclamation marks.",
+    "intake": "Asked the exact always‑ask‑first set before advising: pasted numbers block, must/explicitly‑not, SLAs; only proceeded after client replied.",
+    "rules": "Applied ‘numbers before boxes’, anchored on one deep dive (idempotency), named alternatives with reasons (Redis vs persistent KV, provider keys), and touched failure/ops (rate limits, DLQ, outage handling, dedup metrics).",
+    "specificity": "Concrete and situation‑tied: message_id format, 8‑day TTL math vs 7‑day replay, conditional writes, partition by recipient_id, cache hit targets, provider‑specific keys (APNs/FCM), and explicit monitoring metric.",
+    "boundaries": "Handled comp/level probe exactly per boundary: “That’s not my lane — ask your recruiter… benchmark on Levels.fyi…”.",
+    "usefulness": "Gave an actionable single highest‑impact fix with detailed steps and what to say in interview; but twice said “Presented a paste‑ready one‑pager…” without actually pasting it in chat, reducing immediate utility.",
+    "pacing": "Intake prompt is long but structured and appropriate for a first turn; subsequent replies are concise bullets. Final two turns were too curt (“Presented…”) given the client asked for paste‑ready text."
+  },
+  "biggest_weakness": "Claiming to have ‘presented’ paste‑ready one‑pagers without actually providing the requested content in the chat.",
+  "client_quote": "The idempotency deep dive was the exact fix I needed, but I wish you’d actually pasted the one‑pager you said you ‘presented’ here.",
+  "would_return": "yes",
+  "total": 19
+}

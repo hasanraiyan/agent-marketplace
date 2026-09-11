@@ -1,0 +1,75 @@
+{
+  "client": "arjun",
+  "scores": {
+    "voice": 3,
+    "intake": 3,
+    "rules": 2,
+    "specificity": 3,
+    "boundaries": 3,
+    "usefulness": 3,
+    "pacing": 3
+  },
+  "notes": {
+    "voice": "Warm, direct, short sentences, and 'Okay, here’s what I’d do' tone with no exclamation marks — e.g., 'Okay, here’s what I’d do next (this week)'.",
+    "intake": "Asks the two always-first questions up front and then runway before advising: 'What would be different…?' and 'What have you already tried…?' then 'How much runway do you have…?'.",
+    "rules": "Applies 'story before search', 'evidence, not adjectives', 'referrals over portals', and 'one track at a time' ('focus only on SaaS/workflow…'); slight slip by providing full resume bullet rewrites and LinkedIn copy, edging into resume-writing.",
+    "specificity": "Highly tailored: uses the client’s metrics (4d→1d, 12%→3%, 140 WAU), seeds target companies, and gives exact 3‑line outreach messages and follow-ups.",
+    "boundaries": "No visa/tax/mental-health topics arose; she stayed in lane and deferred pricing ('let’s leave pricing for later' implied by no mention).",
+    "usefulness": "Client leaves with drafts, a 10‑min case script, a tracker, outreach cadence (5/day), reply‑rate guardrails, and immediate homework.",
+    "pacing": "Bulleted, concise asks, and 1–2 questions per turn; not a wall of text despite depth."
+  },
+  "biggest_weakness": "She effectively wrote resume bullets and LinkedIn copy ('Resume bullet rewrites…', 'publish the new LinkedIn headline/About'), which blurs her stated boundary of reviewing while the client writes.",
+  "client_quote": "I walked away with a two‑sentence story, metric‑led resume bullets, and a 6–8 week referral plan with scripts and targets — this finally feels doable.",
+  "would_return": "yes",
+  "total": 20
+}
+{
+  "client": "sneha",
+  "scores": {
+    "voice": 3,
+    "intake": 1,
+    "rules": 3,
+    "specificity": 3,
+    "boundaries": 3,
+    "usefulness": 3,
+    "pacing": 2
+  },
+  "notes": {
+    "voice": "Warm, direct, no exclamation marks, and action-led scripts (e.g., 'Use one ask per round,' 'Exact send steps') — indistinguishable in tone from Priya; even uses 'Okay, here are the crisp replies.'",
+    "intake": "Skipped Priya’s always-first questions ('What would be different in 12 months?', 'What have you already tried?', runway) and moved straight to negotiation asks.",
+    "rules": "Applies 'anchor with market data, ask for time, negotiate one thing at a time' ('Pick one lever: start with base'), and 'evidence, not adjectives' by plugging the +55% conversion metric.",
+    "specificity": "Highly concrete: exact emails with names/dates ('Sept 13... Sept 21'), ₹55L anchor, concession ladder, ESOP terms checklist, and two-line pushbacks.",
+    "boundaries": "On ESOP taxes: 'I’m not a tax advisor — ... please consult a Chartered Accountant (CA)' then provides questions to ask — matches the hand-off.",
+    "usefulness": "Client leaves with a 48-hour plan, scripts, fallback levers, and a diligence/tax question list — immediately actionable.",
+    "pacing": "Dense with a full playbook and long templates, but chunked into bullets and steps; slightly heavy for chat yet usable."
+  },
+  "biggest_weakness": "Did not run Priya’s standard intake (12‑month outcome, prior attempts, runway) before advising, jumping straight to scripts.",
+  "client_quote": "I walked away with exact emails to send, fallback lines, and what to ask about ESOPs, which made the decision and negotiation feel controlled.",
+  "would_return": "yes",
+  "total": 18
+}
+{
+  "client": "kabir",
+  "scores": {
+    "voice": 3,
+    "intake": 3,
+    "rules": 3,
+    "specificity": 3,
+    "boundaries": 3,
+    "usefulness": 3,
+    "pacing": 2
+  },
+  "notes": {
+    "voice": "Warm, direct, first‑person, no exclamations — e.g., \"I can’t send from here; I’ll draft it now and give you exact send steps\" and \"What I’d do next (fast path):\" mirror Priya’s tone.",
+    "intake": "Opens with Priya’s two questions and only then advises: \"1) What would be different in your day‑to‑day 12 months from now… 2) What have you already tried…\"; also asks runway: \"How much runway do you have…?\"",
+    "rules": "Applies rules explicitly: 'referrals over portals' — \"pick 6–10 targets and line up warm intros\"; 'evidence, not adjectives' — \"Ship 2 projects in 8 weeks… activation/retention metrics\"; 'story before search' via 1‑line bio/Notion before broader outreach; no contradictions.",
+    "specificity": "Highly concrete: names cohorts, provides actual \"To\" emails (e.g., \"academy@theproductfolks.com\"), subject lines, a dated schedule (\"13 Sep 2026, 20:00 IST\"), and a 7‑day checklist with counts (\"Send 10 alumni DMs\").",
+    "boundaries": "Handles mental health and scope correctly: \"I’m not the right person for serious mental‑health support…\" and \"I don’t take fresh grads 1:1\" while offering cohort referrals and ADPList; repeats emergency guidance.",
+    "usefulness": "Delivers step‑by‑step assets and actions: email/DM drafts, contact list, tracker fields, LinkedIn setup, Loom outline, week‑by‑week project plan — immediately usable.",
+    "pacing": "Chunked into bullets and 3–5 questions per turn, but volume is high with multiple files and checklists — slightly heavy for chat."
+  },
+  "biggest_weakness": "Volume and intensity risk overwhelming an anxious fresh grad; the guidance, while precise, comes in dense multi‑step blocks across several files.",
+  "client_quote": "She doesn’t coach fresh grads 1:1, but she gave me exact drafts, contacts, a 7‑day plan, and a two‑project roadmap — I know exactly what to do next.",
+  "would_return": "yes",
+  "total": 20
+}

@@ -1,0 +1,75 @@
+{
+  "client": "arjun",
+  "scores": {
+    "voice": 1,
+    "intake": 3,
+    "rules": 2,
+    "specificity": 1,
+    "boundaries": 3,
+    "usefulness": 1,
+    "pacing": 2
+  },
+  "notes": {
+    "voice": "Tone drifts into generic/marketing speak (e.g., 'groundbreaking', 'proven strategic and execution skills', 'With this story as your cornerstone') rather than Priya’s short, direct style.",
+    "intake": "Opens with the two must-ask questions verbatim and only starts advising after the client answers.",
+    "rules": "Applies 'story before search', 'referrals over portals', and 'one track at a time' ('it's essential to focus on one track at a time'), but violates 'evidence, not adjectives' with 'groundbreaking'/'proven'.",
+    "specificity": "Gives generic steps ('Identify Warm Contacts… Engage and Network') and does not provide inline redlines for the pasted resume; outreach lacks concrete 3-line, trackable asks.",
+    "boundaries": "Stays within reviewing (not writing) the resume and avoids off-scope areas; no boundary oversteps triggered.",
+    "usefulness": "Claims to have shared redlines but provides no content ('file not found'), and the outreach templates are vague advice-seeking messages instead of precise referral requests with tracking.",
+    "pacing": "Lengths are moderate and not walls of text, but misses directly engaging with the pasted resume and repeats high-level advice, which slows progress."
+  },
+  "biggest_weakness": "Failed to deliver concrete, inline resume redlines and leaned on generic outreach advice that ignores 'evidence, not adjectives' and the 3-line referral system.",
+  "client_quote": "This was encouraging but I still don’t have specific resume bullet rewrites or a crisp referral script—what exactly should I do this week?",
+  "would_return": "no",
+  "total": 13
+}
+{
+  "client": "sneha",
+  "scores": {
+    "voice": 2,
+    "intake": 1,
+    "rules": 2,
+    "specificity": 1,
+    "boundaries": 3,
+    "usefulness": 2,
+    "pacing": 2
+  },
+  "notes": {
+    "voice": "Direct and calm, no cheerleading, but a bit generic vs Priya’s usual ('Here's a simplified decision framework...') and missing her 'okay, here's what I'd do' cadence.",
+    "intake": "She opened with Priya’s two standard questions verbatim, but then missed the probe on ESOPs after 2 years and didn’t ask about runway before advising.",
+    "rules": "Did not contradict rules; asked for market comp and offered a script, but light on 'evidence, not adjectives' and didn’t clearly anchor with market data or enforce 'one thing at a time.'",
+    "specificity": "Framework was generic ('Assess the startup’s exit potential and your tolerance for risk') and she didn’t probe ESOP details (strike, FMV, vesting, exercise window) or the 2‑year leave scenario.",
+    "boundaries": "Handled tax correctly: 'I’m not a tax advisor... Consult a Chartered Accountant (CA),' giving only a high‑level note.",
+    "usefulness": "Provided a usable framework and scripts to ask for base/time, but failed to deliver the ultra‑short call lines the client asked for and didn’t model cash vs ESOP trade‑offs with numbers.",
+    "pacing": "Bite‑sized early turns with two questions, then a moderate list; final 'I need a bit more information' without a clear ask stalled momentum."
+  },
+  "biggest_weakness": "Lack of specificity at the decision point—she ignored the request for two ultra‑short lines and didn’t probe or address concrete ESOP mechanics (esp. tax if leaving after 2 years).",
+  "client_quote": "She asked the right initial questions and gave me a basic plan, but when I needed crisp call lines and clarity on ESOP taxes after two years, she went vague and punted.",
+  "would_return": "no",
+  "total": 13
+}
+{
+  "client": "kabir",
+  "scores": {
+    "voice": 1,
+    "intake": 0,
+    "rules": 1,
+    "specificity": 2,
+    "boundaries": 3,
+    "usefulness": 2,
+    "pacing": 1
+  },
+  "notes": {
+    "voice": "Tone is generic and not Priya’s clipped, direct style; even uses an exclamation mark in the outreach template (“Thanks a lot for considering this!”), and never the signature “okay, here’s what I’d do.”",
+    "intake": "Never asks Priya’s first questions (“What would be different in your day-to-day 12 months from now…”, “What have you already tried…”) or runway before advising.",
+    "rules": "Doesn’t enforce Story-before-search or Referrals-over-portals; jumps to courses and projects (“Start a beginner online PM cohort… Apply for entry-level PM positions”) without a two-sentence story; only partially applies Evidence-not-adjectives via resume bullet templates.",
+    "specificity": "Provides concrete items like cohorts, helplines, a problem-statement template, and metrics (“Aim for at least 50 active users… Target a 30% increase in task completion”), but some picks are questionable (e.g., Eximius Ventures as a PM bootcamp) and much remains generic.",
+    "boundaries": "Handles scope correctly: “While I focus on mid-career PMs, I recommend… beginner cohort” and “I’m not equipped to provide mental health support… contact a therapist/helpline,” matching Priya’s hand-offs.",
+    "usefulness": "Client gets actionable checklists, templates, and a weekly plan, but usefulness is undercut by a nonsense reply (“Write Todos completed.”) and a broken file link.",
+    "pacing": "Flow is disrupted by the empty “Write Todos completed.” and an inaccessible file; later messages are long but were requested to be all-in-one by the client."
+  },
+  "biggest_weakness": "Advising with generic plans and lists without Priya’s mandatory intake or her Story-before-search discipline, compounded by a nonsense reply and broken file.",
+  "client_quote": "I got some usable steps and resources, but it didn’t feel like Priya—no intake questions, generic advice, and even a weird broken response.",
+  "would_return": "no",
+  "total": 10
+}
