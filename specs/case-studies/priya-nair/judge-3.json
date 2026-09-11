@@ -1,0 +1,75 @@
+{
+  "client": "arjun",
+  "scores": {
+    "voice": 1,
+    "intake": 3,
+    "rules": 2,
+    "specificity": 1,
+    "boundaries": 3,
+    "usefulness": 2,
+    "pacing": 1
+  },
+  "notes": {
+    "voice": "Reads like generic consultant-speak with headings (“Given your situation and the goal you've set, we'll focus...”), not Priya’s short, direct ‘okay, here’s what I’d do’ cadence.",
+    "intake": "Opened with the two signature questions and then asked runway exactly as Priya does: “What would be different…?” and “How much runway…?”.",
+    "rules": "Implements story-before-search (Phase 1 before outreach), referrals over portals, evidence-not-adjectives, and one-track-at-a-time on fintech; but doesn’t state reasons and drifts into generic ‘5 contacts per day’ vs Priya’s 5 conv/week.",
+    "specificity": "Promises scripts and redlines but delivers none (“Develop concise outreach messages”), offers STAR advice and headings instead of concrete bullets or a 3-line referral message; only the two-sentence story is specific.",
+    "boundaries": "Stays within ‘I review, you edit’ (“Resume Redlines… Could you share a summary…”); no overreach into resume-writing or off-limits topics.",
+    "usefulness": "Provides a phased plan and a usable two-sentence story, but no actual outreach scripts or resume bullet rewrites the client asked for; no real reassurance via proof (e.g., a Rahul-style example).",
+    "pacing": "Large wall-of-text plans with multiple sections feel like a deck, not a chat; few crisp check-ins and no iterative, bite-sized actions."
+  },
+  "biggest_weakness": "Generic, templated plan without the concrete artifacts (actual referral scripts and resume bullet rewrites) the client explicitly requested.",
+  "client_quote": "I have a plan and a tight two-sentence story, but I still don’t have the actual outreach lines or resume bullets I can use tomorrow.",
+  "would_return": "no",
+  "total": 13
+}
+{
+  "client": "sneha",
+  "scores": {
+    "voice": 1,
+    "intake": 0,
+    "rules": 1,
+    "specificity": 2,
+    "boundaries": 0,
+    "usefulness": 1,
+    "pacing": 2
+  },
+  "notes": {
+    "voice": "Tone drifts into generic corporate (e.g., 'I hope this message finds you well' and an exclamation 'let me know!') rather than Priya’s terse, direct style.",
+    "intake": "Never asks Priya’s always-first questions ('12 months from now...?', 'What have you tried?') or runway before advising under a 2‑day clock.",
+    "rules": "Suggests 'Simultaneously' asking multiple things and bundling asks (base, ESOPs, role scope/title), which breaks Priya’s 'negotiate one thing at a time' rule and gives no reasons.",
+    "specificity": "Provides concrete one-liners with exact numbers (INR 55 LPA, 5L bonus, +50% ESOP) and specific ESOP questions (FMV, vesting, PTE window, acceleration, liquidity/buyback).",
+    "boundaries": "Gives detailed ESOP tax advice and rate confirmations instead of a firm hand-off to a CA, contrary to Priya’s boundary.",
+    "usefulness": "Actionable scripts and ordering are helpful, but no decision framework was provided despite the explicit ask, and earlier tax guidance was inconsistent.",
+    "pacing": "Early file-dump is heavy for chat, but later crisp one-liners fit; overall not a wall of text."
+  },
+  "biggest_weakness": "Ignored Priya’s boundary on equity/tax by giving tax advice (and initially incorrect/unlisted LTCG guidance) instead of a clear hand‑off to a CA.",
+  "client_quote": "The scripts were handy, but I still don’t have a decision framework and she veered into tax advice instead of guiding me through Priya’s usual process.",
+  "would_return": "no",
+  "total": 7
+}
+{
+  "client": "kabir",
+  "scores": {
+    "voice": 1,
+    "intake": 0,
+    "rules": 0,
+    "specificity": 1,
+    "boundaries": 1,
+    "usefulness": 1,
+    "pacing": 1
+  },
+  "notes": {
+    "voice": "Reads like generic coach-speak (“Here’s a structured plan…”) and never uses Priya’s hallmark phrasing (“okay, here’s what I’d do”) or her terse, direct tone.",
+    "intake": "She never asked the two signature questions (“What would be different in 12 months…”, “What have you already tried?”) before advising, and jumped into steps after minimal fact-gathering.",
+    "rules": "Breaks multiple rules: no ‘story before search’, invented metrics (“achieving a 70% user engagement rate… 1000 sessions”), pushes portals over referrals, and writes resume bullets (she reviews, they write).",
+    "specificity": "Mostly generic lists (“Udemy or edX… attend PM webinars”), a boilerplate template, and a vague ‘usability script’ of headings without concrete tasks or questions.",
+    "boundaries": "Starts correctly (“I work with mid‑career… you’re outside of who I help”) and gives a mental‑health handoff, but then proceeds to coach extensively and do resume writing; also doesn’t refer to the known friend’s cohort.",
+    "usefulness": "Some actionable bits (course prioritization, sleep routine), but key deliverables were fabricated or missing (“file not found in state”) and earlier bullets used made‑up numbers.",
+    "pacing": "Long list-dumps with minimal check-ins; asks three questions at once, then posts multiple heavy sections and references files repeatedly without delivering them."
+  },
+  "biggest_weakness": "She ignores her own boundaries and rules—coaching a fresh grad, writing their resume, and even fabricating metrics—rather than referring out and sticking to ‘story before search’ and ‘evidence, not adjectives.’",
+  "client_quote": "Helpful in parts, but felt generic, some promised files didn’t arrive, and it didn’t seem like her specialty for fresh grads.",
+  "would_return": "no",
+  "total": 5
+}

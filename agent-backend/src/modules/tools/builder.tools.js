@@ -451,7 +451,40 @@ export const testPersonaTool = (userId) =>
     },
   });
 
+/**
+ * restore_persona_prompt - undo a persona revision (roll back N versions).
+ */
+export const restorePersonaPromptTool = (userId) =>
+  new DynamicStructuredTool({
+    name: 'restore_persona_prompt',
+    description:
+      "Rolls the creator's persona system prompt back to a previous version (the last 10 are kept). Use when a revision made the persona worse (a test shows a broken boundary, lost intake, or generic replies). stepsBack=1 restores the version before the latest change.",
+    schema: z.object({
+      stepsBack: z.number().int().min(1).max(10).default(1),
+    }),
+    func: async ({ stepsBack }) => {
+      try {
+        const persona = await agentRepository.findOne({ ownerId: userId, isMainAgent: true, isActive: true });
+        if (!persona) return JSON.stringify({ status: 'error', message: 'No persona yet.' });
+        const history = persona.promptHistory || [];
+        if (history.length < stepsBack) {
+          return JSON.stringify({ status: 'error', message: `Only ${history.length} previous version(s) available.` });
+        }
+        const target = history[history.length - stepsBack];
+        const updated = await agentService.updateAgent(String(persona._id), userId, { systemPrompt: target.systemPrompt });
+        return JSON.stringify({
+          status: 'success',
+          message: `Restored the persona prompt from ${new Date(target.replacedAt).toISOString()}. The replaced version was kept in history.`,
+          preview: updated.systemPrompt.slice(0, 600),
+        });
+      } catch (err) {
+        return JSON.stringify({ status: 'error', message: err.message });
+      }
+    },
+  });
+
 export const getBuilderToolbox = (userId) => [
+  restorePersonaPromptTool(userId),
   listMySkillsTool(userId),
   testPersonaTool(userId),
   listProvidersTool(userId),

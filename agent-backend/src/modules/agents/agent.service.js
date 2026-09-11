@@ -375,6 +375,14 @@ class AgentService {
    * ExternalUser context can now manage its own Agent too.
    */
   async updateAgent(id, userId, updateData, context = personaExecutionContext(userId)) {
+    // Keep the last 10 system prompts so a revision can be rolled back.
+    if (typeof updateData.systemPrompt === 'string') {
+      const current = await agentRepository.findById(id);
+      if (current && current.systemPrompt && current.systemPrompt !== updateData.systemPrompt) {
+        const history = [...(current.promptHistory || []), { systemPrompt: current.systemPrompt, replacedAt: new Date() }].slice(-10);
+        updateData.promptHistory = history;
+      }
+    }
     const existing = await agentRepository.findById(id);
 
     if (!existing) throw new Error('Agent not found');
