@@ -93,6 +93,17 @@ export const upsertAgentTool = (userId) =>
       try {
         // Clean up empty strings for optional fields
         const sanitized = { ...input };
+        // Format straitjackets are the top cause of persona regressions
+        // ("first reply must be exactly two lines, nothing else" wiped a
+        // hand-off). Refuse them; describe the behavior with an example instead.
+        const rigid = /exactly\s+(one|two|three|four|five|\d+)\s+(lines?|sentences?|questions?)|nothing\s+(before|after|else|between)|no\s+other\s+(text|sentences?|questions?)|must be exactly|overrides all other/i;
+        if (typeof sanitized.systemPrompt === 'string' && rigid.test(sanitized.systemPrompt)) {
+          const m = sanitized.systemPrompt.match(rigid);
+          return JSON.stringify({
+            status: 'error',
+            message: `Rejected: the prompt contains a rigid format rule ("${m[0]}"). These make the persona drop intake, hand-offs, and judgment. Rewrite it as a behavior with one example (e.g. "Even with a deadline, I open with my two questions in one short line each, then move to the offer.") and tell the creator why.`,
+          });
+        }
         if (sanitized.description === '') delete sanitized.description;
         if (sanitized.avatar === '') delete sanitized.avatar;
         if (sanitized.modelName === '') delete sanitized.modelName;
