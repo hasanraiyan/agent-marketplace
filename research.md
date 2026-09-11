@@ -17,7 +17,7 @@ This requires two tightly coupled pillars:
 
 ### Architectural Constraints & Guardrails
 * **Zero Redis:** The platform architecture explicitly operates without Redis ([`prompt.md:L87-90`](file:///D:/projects/agent-marketplace/prompt.md#L87-L90)). All durable state, checkpoints, job queues, and recovery mechanisms must run on **MongoDB alone** (using Mongoose 9, LangGraph's `MongoDBSaver` in [`checkpoint.service.js:L3-L6`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/threads/checkpoint.service.js#L3-L6), and `@agendajs/mongo-backend` in [`agenda.js:L1-L26`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/jobs/agenda.js#L1-L26)).
-* **Zero Parallel Streaming Formats:** Workflows do not invent a new event protocol ([`prompt.md:L70-71`](file:///D:/projects/agent-marketplace/prompt.md#L70-L71)). All execution telemetry streams through the existing **AG-UI protocol** (`@ag-ui/core`) via `EventType.CUSTOM` events declared in [`aguiEventSchemas.js:L1-L91`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/agui/aguiEventSchemas.js#L1-L91) (`workflow_node_started`, `workflow_node_completed`, `workflow_node_failed`, `hitl_request`, etc.).
+* **Zero Parallel Streaming Formats:** Workflows do not invent a new event protocol ([`prompt.md:L70-71`](file:///D:/projects/agent-marketplace/prompt.md#L70-L71)). All execution telemetry streams through the existing **AG-UI protocol** (`@ag-ui/core`) via `EventType.CUSTOM` events, extending the documented, versioned catalog already established in [`aguiEventSchemas.js:L1-L91`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/agui/aguiEventSchemas.js#L1-L91) — that file currently declares four events (`clarification_request`, `hitl_request`, `mcp_app`, `subagent_activity`); `workflow_node_started`, `workflow_node_completed`, and `workflow_node_failed` are **new** entries this feature adds there, each bumping `AGUI_SCHEMA_VERSION` per that file's own doc comment, not something already present.
 * **First-Class SDK Access:** Workflows are not UI-only ([`prompt.md:L110-116`](file:///D:/projects/agent-marketplace/prompt.md#L110-L116)). The TypeScript SDK ([`sdk/typescript/src/client.ts`](file:///D:/projects/agent-marketplace/sdk/typescript/src/client.ts)), Python SDK, and runtime adapters must expose workflow runs, live streaming, interrupt resolution, and history inspection as native primitives.
 * **Developer Platform Boundary:** This feature lives exclusively in the Developer Platform ([`platform/`](file:///D:/projects/agent-marketplace/platform) and [`agent-backend/src/modules/developer/`](file:///D:/projects/agent-marketplace/agent-backend/src/modules/developer)). It does not alter the Persona consumer experience ([`frontend/`](file:///D:/projects/agent-marketplace/frontend)).
 
@@ -260,7 +260,10 @@ Downstream nodes reference upstream outputs using double curly braces:
 ```
 
 #### Resolution Engine (`templateResolver.js`)
-* Evaluates template strings using safe dot-notation resolution (via `lodash.get` or a sandbox AST evaluator).
+* Evaluates template strings using safe dot-notation resolution — a small custom safe-get
+  (`agent-backend` has no `lodash` dependency to reach for; a dot-path walker over optional
+  chaining is a handful of lines) or a sandbox AST evaluator if expression support grows beyond
+  plain property access.
 * Static Validation / Linting: During canvas editing, an AST validator verifies that all referenced `steps.<stepId>` exist upstream in the graph topological sort. If a node references an unreachable step, the canvas highlights the field with a warning badge.
 
 ---
@@ -546,7 +549,11 @@ When an `AgentStepNode` executes, child tokens (`TEXT_MESSAGE_CHUNK`) and tool c
 * **Limits:**
   * Default maximum: 5 concurrent runs per workflow, 20 concurrent runs per Project.
 * **Mechanism:**
-  * When a run arrives, `workflowRunRepository.checkAndIncrementActiveRuns(workflowId, maxConcurrent)` runs an atomic `$inc` with `$expr: { $lt: ['$activeRuns', maxConcurrent] }`.
+  * When a run arrives, `workflowRunRepository.checkAndIncrementActiveRuns(workflowId, maxConcurrent)`
+    runs one atomic `findOneAndUpdate({ _id: workflowId, activeRuns: { $lt: maxConcurrent } }, { $inc:
+    { activeRuns: 1 } })` — a plain range filter, not `$expr` (that operator's for comparing two
+    fields of the *same* document; here it's one field against an external constant, so a normal
+    query condition already does the job and stays index-friendly).
   * If limit is reached:
     * Manual / API run: Rejects immediately with `429 Too Many Requests`.
     * Webhook / Scheduled run: Enqueues as `status: 'queued'` in MongoDB, processed by Agenda as active slots free up.
@@ -683,7 +690,9 @@ await client.workflows.respondToApproval(runId, {
 ```javascript
 import mongoose from 'mongoose';
 
-const nodeSchema = new mongoose.Schema({
+// Exported (not just module-local) — workflowVersion.model.js below reuses
+// both as-is rather than redeclaring the same shape twice.
+export const nodeSchema = new mongoose.Schema({
   id: { type: String, required: true },
   type: { 
     type: String, 
@@ -703,7 +712,7 @@ const nodeSchema = new mongoose.Schema({
   },
 }, { _id: false });
 
-const edgeSchema = new mongoose.Schema({
+export const edgeSchema = new mongoose.Schema({
   id: { type: String, required: true },
   source: { type: String, required: true },
   target: { type: String, required: true },
@@ -734,7 +743,54 @@ workflowSchema.index({ projectId: 1, name: 1 });
 export default mongoose.model('Workflow', workflowSchema);
 ```
 
-### 2. `workflowRun.model.js`
+### 2. `workflowVersion.model.js`
+
+Gap 8 (§6) names this collection as central to versioning — the immutable snapshot a
+`WorkflowRun` pins to via `workflowVersion: Number` — but it was never actually specified
+alongside `workflow.model.js`/`workflowRun.model.js` below. Added here to close that gap:
+
+```javascript
+import mongoose from 'mongoose';
+import { nodeSchema, edgeSchema } from './workflow.model.js'; // exported from workflow.model.js, reused as-is
+
+const agentSnapshotSchema = new mongoose.Schema({
+  modelName: { type: String, required: true },
+  systemPrompt: { type: String, required: true },
+  tools: [{ type: String }],
+}, { _id: false });
+
+const workflowVersionSchema = new mongoose.Schema({
+  workflowId: { type: mongoose.Schema.Types.ObjectId, ref: 'Workflow', required: true, index: true },
+  projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true, index: true },
+  version: { type: Number, required: true },
+  definition: {
+    nodes: [nodeSchema],
+    edges: [edgeSchema],
+    trigger: {
+      type: { type: String, enum: ['manual', 'api', 'webhook', 'schedule', 'chat'], default: 'manual' },
+      config: { type: mongoose.Schema.Types.Mixed, default: {} },
+    },
+  },
+  // Keyed by agentStep nodeId, not agentId — the SAME Agent referenced by two
+  // different steps could (in principle) be configured differently per step
+  // in a later version of this feature, and nodeId is what a WorkflowRun's
+  // nodeRuns already key by, so lookups at execution time stay one shape.
+  agentSnapshots: {
+    type: Map,
+    of: agentSnapshotSchema,
+    default: {},
+  },
+  publishedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  publishedAt: { type: Date, default: Date.now },
+}, { timestamps: true });
+
+// One immutable document per (workflow, version) — never updated after insert.
+workflowVersionSchema.index({ workflowId: 1, version: 1 }, { unique: true });
+
+export default mongoose.model('WorkflowVersion', workflowVersionSchema);
+```
+
+### 3. `workflowRun.model.js`
 ```javascript
 import mongoose from 'mongoose';
 
