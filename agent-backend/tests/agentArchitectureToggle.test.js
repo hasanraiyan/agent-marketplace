@@ -138,42 +138,32 @@ describe('Agent Architecture Toggle (DeepAgent vs ReAct Agent)', () => {
   });
 
   describe('Cross-Mode Thread Continuity & Checkpoint Channel Compatibility', () => {
-    test('createAgent (react mode) successfully loads and executes from a checkpoint containing extra deepagent channels (files, todos)', async () => {
+    test('createAgent (react mode) successfully resumes a conversation previously initiated under deepagents', async () => {
+      const { createDeepAgent } = await import('deepagents');
       const checkpointer = new MemorySaver();
       const threadId = 'cross-mode-thread-1';
       const config = { configurable: { thread_id: threadId } };
 
-      // 1. Simulate existing thread state previously recorded by deepagents
-      // Deepagents stores channel values including messages, files, and todos
-      const priorMessages = [
-        new HumanMessage('What files do I have?'),
-        new AIMessage('You have index.md in memory.'),
-      ];
+      // 1. Run first turn under deepagents
+      const deepAgent = await createDeepAgent({
+        model: new DummyChatModel(),
+        systemPrompt: 'You are a deep agent.',
+        checkpointer,
+        tools: [],
+      });
 
-      // Put a checkpoint that mimics deepagents state schema
-      await checkpointer.put(
-        config,
-        {
-          v: 1,
-          id: 'checkpoint-1',
-          ts: '2026-09-12T00:00:00.000Z',
-          channel_values: {
-            messages: priorMessages,
-            files: { '/memories/user/index.md': '# Memory\n- user prefers python' },
-            todos: [{ id: '1', task: 'Summarize sales', status: 'done' }],
-          },
-          channel_versions: {
-            messages: 2,
-            files: 1,
-            todos: 1,
-          },
-          versions_seen: {},
-        },
-        {},
-        {}
+      const firstResponse = await deepAgent.invoke(
+        { messages: [new HumanMessage('Hello from deepagent turn')] },
+        config
       );
+      expect(firstResponse).toBeDefined();
+      expect(firstResponse.messages.length).toBeGreaterThanOrEqual(2);
 
-      // 2. Instantiate a ReAct agent graph via createAgent
+      // Verify deepagent checkpoint includes its extra channels
+      const deepState = await deepAgent.getState(config);
+      expect(deepState.values.files).toBeDefined();
+
+      // 2. Now user toggles agent to react mode — instantiate via createAgent on the same checkpointer
       const reactAgent = await createAgent({
         model: new DummyChatModel(),
         systemPrompt: 'You are a lightweight react agent.',
@@ -181,24 +171,51 @@ describe('Agent Architecture Toggle (DeepAgent vs ReAct Agent)', () => {
         tools: [],
       });
 
-      // 3. Verify state can be read from checkpoint without errors
-      const state = await reactAgent.getState(config);
-      expect(state).toBeDefined();
-      expect(state.values).toBeDefined();
-      expect(state.values.messages).toHaveLength(2);
+      // 3. Verify state can be read by createAgent without crashing on extra channels
+      const reactInitialState = await reactAgent.getState(config);
+      expect(reactInitialState).toBeDefined();
+      expect(reactInitialState.values.messages).toHaveLength(deepState.values.messages.length);
 
-      // 4. Send a new turn on the same thread
-      const response = await reactAgent.invoke(
-        { messages: [new HumanMessage('Continue the conversation')] },
+      // 4. Send a second turn on the same thread in react mode
+      const secondResponse = await reactAgent.invoke(
+        { messages: [new HumanMessage('Hello from react turn')] },
         config
       );
+      expect(secondResponse).toBeDefined();
+      expect(secondResponse.messages.length).toBeGreaterThan(firstResponse.messages.length);
 
-      expect(response).toBeDefined();
-      expect(response.messages.length).toBeGreaterThanOrEqual(3);
+      // 5. Verify resumed state in checkpointer
+      const reactUpdatedState = await reactAgent.getState(config);
+      expect(reactUpdatedState.values.messages.length).toBe(secondResponse.messages.length);
+    });
+  });
 
-      // 5. Verify resumed state has latest messages
-      const updatedState = await reactAgent.getState(config);
-      expect(updatedState.values.messages.length).toBeGreaterThanOrEqual(3);
+  describe('Workflow Snapshot-Pinning integration', () => {
+    test('agentSnapshotSchema accepts agentType and defaults to deepagent', async () => {
+      const { default: WorkflowVersion } = await import(
+        '../src/modules/developer/workflows/workflowVersion.model.js'
+      );
+      const doc = new WorkflowVersion({
+        workflowId: '64a000000000000000000001',
+        projectId: '64a000000000000000000002',
+        version: 1,
+        agentSnapshots: {
+          step1: {
+            modelName: 'gpt-4o',
+            systemPrompt: 'Do things',
+            tools: ['t1'],
+            agentType: 'react',
+          },
+          step2: {
+            modelName: 'gpt-4o',
+            systemPrompt: 'Do other things',
+            tools: [],
+          },
+        },
+      });
+
+      expect(doc.agentSnapshots.get('step1').agentType).toBe('react');
+      expect(doc.agentSnapshots.get('step2').agentType).toBe('deepagent');
     });
   });
 });
