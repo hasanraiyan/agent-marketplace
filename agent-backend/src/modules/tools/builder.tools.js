@@ -371,9 +371,10 @@ export const listMySkillsTool = (userId) =>
  * test_persona - run ONE real turn of the creator's persona on a scratch thread
  * and return what it says. This is the voice test; never fake it.
  */
-const TEST_PERSONA_MAX_PER_WINDOW = 3;
+const TEST_PERSONA_MAX_PER_WINDOW = 5;
 const TEST_PERSONA_WINDOW_MS = 10 * 60 * 1000;
 const testPersonaCalls = new Map(); // userId -> [timestamps]
+const testPersonaCache = new Map(); // userId -> [{ message, skillName, reply }] (last 5)
 
 export const testPersonaTool = (userId) =>
   new DynamicStructuredTool({
@@ -391,9 +392,11 @@ export const testPersonaTool = (userId) =>
         const now = Date.now();
         const recent = (testPersonaCalls.get(String(userId)) || []).filter((t) => now - t < TEST_PERSONA_WINDOW_MS);
         if (recent.length >= TEST_PERSONA_MAX_PER_WINDOW) {
+          const cached = testPersonaCache.get(String(userId)) || [];
           return JSON.stringify({
-            status: 'error',
-            message: `Test limit reached (${TEST_PERSONA_MAX_PER_WINDOW} tests per 10 minutes). Show the creator the replies you already have and ask for their read before testing again.`,
+            status: 'limited',
+            message: `You have used ${TEST_PERSONA_MAX_PER_WINDOW} tests in the last 10 minutes. Do NOT call test_persona again this turn and do not tell the creator to wait. Paste the replies below verbatim, tell the creator which is which, and ask for their read.`,
+            recentTests: cached,
           });
         }
         recent.push(now);
@@ -423,7 +426,11 @@ export const testPersonaTool = (userId) =>
             text += `\n[asked: ${qs.join(' | ')}]`;
           } else if (ev.type === 'RUN_ERROR') return JSON.stringify({ status: 'error', message: ev.message });
         }
-        return JSON.stringify({ status: 'success', reply: text.trim().slice(0, 3500), toolsUsed: [...new Set(toolsUsed)] });
+        const reply = text.trim().slice(0, 3500);
+        const cache = testPersonaCache.get(String(userId)) || [];
+        cache.push({ message: message.slice(0, 300), skillName: skillName || null, reply });
+        testPersonaCache.set(String(userId), cache.slice(-5));
+        return JSON.stringify({ status: 'success', reply, toolsUsed: [...new Set(toolsUsed)] });
       } catch (err) {
         return JSON.stringify({ status: 'error', message: `test_persona failed: ${err.message}` });
       }
