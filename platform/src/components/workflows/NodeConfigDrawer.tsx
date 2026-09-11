@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { getProjectAgents } from "@/lib/api/projects";
 
@@ -153,20 +154,21 @@ export function NodeConfigDrawer({
                   const varPath =
                     un.type === "trigger" ? "trigger.payload" : `steps.${un.id}.output.text`;
                   return (
-                    <button
+                    <Button
                       key={un.id}
-                      type="button"
+                      size="xs"
+                      variant="outline"
                       onClick={() =>
                         insertVariable(
                           varPath,
                           node.type === "output" ? "outputMapping" : "inputTemplate"
                         )
                       }
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded bg-background border border-border text-[10px] font-mono text-foreground hover:border-primary hover:text-primary transition-colors cursor-pointer"
+                      className="font-mono hover:border-primary hover:text-primary"
                       title={`Click to insert {{${varPath}}}`}
                     >
-                      <span>+{un.data?.label || un.id}</span>
-                    </button>
+                      +{un.data?.label || un.id}
+                    </Button>
                   );
                 })}
               </div>
@@ -178,25 +180,28 @@ export function NodeConfigDrawer({
             <div className="space-y-4 pt-2 border-t border-border/50">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Select Agent</Label>
-                <select
+                <Select
                   value={config.agentId || ""}
-                  onChange={(e) => {
-                    const selected = agents.find((a) => a._id === e.target.value);
+                  onValueChange={(value) => {
+                    const selected = agents.find((a) => a._id === value);
                     setConfig({
                       ...config,
-                      agentId: e.target.value,
+                      agentId: value ?? "",
                       modelName: selected?.modelName || "default",
                     });
                   }}
-                  className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
-                  <option value="">-- Choose an Agent --</option>
-                  {agents.map((a) => (
-                    <option key={a._id} value={a._id}>
-                      {a.name} ({a.modelName || "default"})
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder={loadingAgents ? "Loading agents…" : "Choose an Agent"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {agents.map((a) => (
+                      <SelectItem key={a._id} value={a._id}>
+                        {a.name} ({a.modelName || "default"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-1.5">
@@ -279,14 +284,18 @@ export function NodeConfigDrawer({
             <div className="space-y-4 pt-2 border-t border-border/50">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Output Format</Label>
-                <select
+                <Select
                   value={config.outputType || "text"}
-                  onChange={(e) => setConfig({ ...config, outputType: e.target.value })}
-                  className="w-full h-8 rounded-md border border-input bg-background px-2 text-xs"
+                  onValueChange={(value) => setConfig({ ...config, outputType: value ?? "text" })}
                 >
-                  <option value="text">Plain Text / Resolved String</option>
-                  <option value="json">Structured JSON (Parsed Object)</option>
-                </select>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="text">Plain Text / Resolved String</SelectItem>
+                    <SelectItem value="json">Structured JSON (Parsed Object)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-1.5">
@@ -363,15 +372,16 @@ export function NodeConfigDrawer({
 
             <div className="space-y-1 pt-1">
               <Label className="text-[11px] text-muted-foreground">On Failure Strategy</Label>
-              <select
-                value={onError}
-                onChange={(e) => setOnError(e.target.value)}
-                className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="fail">Fail Workflow (Halt immediately)</option>
-                <option value="continue">Continue (Set output null and proceed)</option>
-                <option value="routeError">Route to Error Edge</option>
-              </select>
+              <Select value={onError} onValueChange={(value) => setOnError(value ?? "fail")}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fail">Fail Workflow (Halt immediately)</SelectItem>
+                  <SelectItem value="continue">Continue (Set output null and proceed)</SelectItem>
+                  <SelectItem value="routeError">Route to Error Edge</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>

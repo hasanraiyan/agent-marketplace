@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { createProjectWorkflow } from "@/lib/api/projects";
 
 const TEMPLATES = [
@@ -231,16 +232,19 @@ export default function NewWorkflowPage() {
               <Label htmlFor="workflow-visibility" className="text-sm font-medium">
                 Visibility
               </Label>
-              <select
-                id="workflow-visibility"
+              <Select
                 value={visibility}
-                onChange={(e) => setVisibility(e.target.value as any)}
-                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                onValueChange={(value) => setVisibility((value as typeof visibility) ?? "private")}
               >
-                <option value="private">Private (Project Admins only)</option>
-                <option value="unlisted">Unlisted (Accessible by ID)</option>
-                <option value="public">Public (Catalog Discoverable)</option>
-              </select>
+                <SelectTrigger id="workflow-visibility">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="private">Private (Project Admins only)</SelectItem>
+                  <SelectItem value="unlisted">Unlisted (Accessible by ID)</SelectItem>
+                  <SelectItem value="public">Public (Catalog Discoverable)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

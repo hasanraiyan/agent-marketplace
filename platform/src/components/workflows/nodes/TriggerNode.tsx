@@ -4,8 +4,9 @@ import * as React from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { LightningIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
+import { NodeActionsToolbar } from "./NodeActionsToolbar";
 
-export function TriggerNode({ data, selected }: NodeProps) {
+export function TriggerNode({ id, data, selected }: NodeProps) {
   const nodeData = (data || {}) as {
     label?: string;
     description?: string;
@@ -29,6 +30,7 @@ export function TriggerNode({ data, selected }: NodeProps) {
           : ""
       }`}
     >
+      <NodeActionsToolbar nodeId={id} selected={selected} allowDuplicate={false} />
       <div className="flex items-center gap-2.5">
         <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
           <LightningIcon className="size-4" weight="fill" />

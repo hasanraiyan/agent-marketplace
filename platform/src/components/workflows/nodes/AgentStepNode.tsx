@@ -4,8 +4,9 @@ import * as React from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { RobotIcon, ArrowsClockwiseIcon, SparkleIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
+import { NodeActionsToolbar } from "./NodeActionsToolbar";
 
-export function AgentStepNode({ data, selected }: NodeProps) {
+export function AgentStepNode({ id, data, selected }: NodeProps) {
   const nodeData = (data || {}) as {
     label?: string;
     description?: string;
@@ -37,6 +38,7 @@ export function AgentStepNode({ data, selected }: NodeProps) {
           : ""
       }`}
     >
+      <NodeActionsToolbar nodeId={id} selected={selected} />
       <Handle
         type="target"
         position={Position.Left}

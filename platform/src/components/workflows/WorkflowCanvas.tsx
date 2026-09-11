@@ -33,12 +33,22 @@ import {
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Kbd } from "@/components/ui/kbd";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { TriggerNode } from "./nodes/TriggerNode";
 import { AgentStepNode } from "./nodes/AgentStepNode";
 import { ToolStepNode } from "./nodes/ToolStepNode";
 import { KnowledgeStepNode } from "./nodes/KnowledgeStepNode";
 import { ConditionNode } from "./nodes/ConditionNode";
 import { OutputNode } from "./nodes/OutputNode";
+import { DeletableEdge } from "./edges/DeletableEdge";
 import { NodeConfigDrawer } from "./NodeConfigDrawer";
 import { TestRunDrawer } from "./TestRunDrawer";
 import { MermaidExportDialog } from "./MermaidExportDialog";
@@ -55,6 +65,13 @@ const nodeTypes = {
   knowledgeStep: KnowledgeStepNode,
   condition: ConditionNode,
   output: OutputNode,
+};
+
+// Every edge from the backend/draft carries no explicit `type`, so
+// registering this as `default` routes all of them through DeletableEdge
+// without needing to stamp a type onto each one.
+const edgeTypes = {
+  default: DeletableEdge,
 };
 
 interface WorkflowCanvasProps {
@@ -83,6 +100,10 @@ export function WorkflowCanvas({ projectId, workflow, onRefresh }: WorkflowCanva
   const [testDrawerOpen, setTestDrawerOpen] = React.useState(false);
   const [mermaidDialogOpen, setMermaidDialogOpen] = React.useState(false);
   const [mermaidText, setMermaidText] = React.useState("");
+  const [isMac, setIsMac] = React.useState(false);
+  React.useEffect(() => {
+    setIsMac(typeof navigator !== "undefined" && navigator.platform?.includes("Mac"));
+  }, []);
 
   const onConnect = React.useCallback(
     (params: Connection) => {
@@ -103,10 +124,71 @@ export function WorkflowCanvas({ projectId, workflow, onRefresh }: WorkflowCanva
     setIsDirty(true);
   };
 
+  const onReconnect = React.useCallback(
+    (oldEdge: Edge, newConnection: Connection) => {
+      setEdges((els) =>
+        els.map((edge) =>
+          edge.id === oldEdge.id
+            ? { ...edge, source: newConnection.source, target: newConnection.target, sourceHandle: newConnection.sourceHandle, targetHandle: newConnection.targetHandle }
+            : edge
+        )
+      );
+      setIsDirty(true);
+    },
+    [setEdges]
+  );
+
   const onNodeClick = (_: React.MouseEvent, node: Node) => {
     setSelectedNode(node);
     setConfigDrawerOpen(true);
   };
+
+  const handleDuplicateSelected = React.useCallback(() => {
+    setNodes((nds) => {
+      const target = nds.find((n) => n.selected);
+      if (!target || target.type === "trigger") return nds;
+      const newId = `${target.type}_${Date.now()}`;
+      return [
+        ...nds.map((n) => ({ ...n, selected: false })),
+        {
+          ...target,
+          id: newId,
+          position: { x: target.position.x + 48, y: target.position.y + 48 },
+          selected: true,
+          data: {
+            ...(target.data as Record<string, unknown>),
+            label: `${((target.data as { label?: string })?.label) || "Node"} (copy)`,
+          },
+        },
+      ];
+    });
+    setIsDirty(true);
+  }, [setNodes]);
+
+  // Canvas-wide keyboard shortcuts. Skipped while typing in a form field
+  // (config drawer, palette search, etc.) so Escape/Ctrl+D don't fight with
+  // normal text editing — deleteKeyCode above already gets this guard for
+  // free from React Flow itself, but these two are hand-rolled.
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isTyping =
+        target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
+
+      if (e.key === "Escape") {
+        if (configDrawerOpen) setConfigDrawerOpen(false);
+        return;
+      }
+
+      if (!isTyping && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        handleDuplicateSelected();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [configDrawerOpen, handleDuplicateSelected]);
 
   const handleUpdateNode = (nodeId: string, updatedData: any) => {
     setNodes((nds) =>
@@ -335,8 +417,11 @@ export function WorkflowCanvas({ projectId, workflow, onRefresh }: WorkflowCanva
           onNodesChange={handleNodesChange}
           onEdgesChange={handleEdgesChange}
           onConnect={onConnect}
+          onReconnect={onReconnect}
+          deleteKeyCode={["Backspace", "Delete"]}
           onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           fitView
           className="bg-muted/10"
         >
@@ -350,55 +435,73 @@ export function WorkflowCanvas({ projectId, workflow, onRefresh }: WorkflowCanva
 
           {/* Node Addition Palette Panel */}
           <Panel position="top-left" className="m-4">
-            <div className="flex items-center gap-1.5 p-1.5 rounded-xl border border-border bg-card/90 backdrop-blur shadow-sm">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase px-2">
-                Add Step
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button size="sm" className="h-8 gap-1.5 rounded-xl px-3 text-xs shadow-sm">
+                    <PlusIcon className="size-3.5" weight="bold" />
+                    <span>Add Step</span>
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="start" className="min-w-52 rounded-xl p-1">
+                <DropdownMenuLabel className="text-[10px]">Steps</DropdownMenuLabel>
+                <DropdownMenuItem
+                  className="gap-2 rounded-lg"
+                  onClick={() => handleAddNode("agentStep", "New Agent Step")}
+                >
+                  <RobotIcon className="size-4 text-primary" weight="fill" />
+                  <span>Agent Step</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="gap-2 rounded-lg"
+                  onClick={() => handleAddNode("toolStep", "New Tool Step")}
+                >
+                  <WrenchIcon className="size-4 text-violet-500" weight="fill" />
+                  <span>Tool Step</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="gap-2 rounded-lg"
+                  onClick={() => handleAddNode("knowledgeStep", "New Knowledge Step")}
+                >
+                  <BookOpenIcon className="size-4 text-cyan-500" weight="fill" />
+                  <span>Knowledge Step</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-[10px]">Flow control</DropdownMenuLabel>
+                <DropdownMenuItem
+                  className="gap-2 rounded-lg"
+                  onClick={() => handleAddNode("condition", "Condition Branch")}
+                >
+                  <GitBranchIcon className="size-4 text-orange-500" weight="fill" />
+                  <span>Condition</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="gap-2 rounded-lg"
+                  onClick={() => handleAddNode("output", "Output Result")}
+                >
+                  <CheckCircleIcon className="size-4 text-emerald-500" weight="fill" />
+                  <span>Output</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </Panel>
+
+          {/* Shortcuts hint — select a node/edge first, these act on the selection */}
+          <Panel position="bottom-left" className="m-4">
+            <div className="flex items-center gap-3 rounded-lg border border-border bg-card/90 px-2.5 py-1.5 text-[10px] text-muted-foreground backdrop-blur">
+              <span className="flex items-center gap-1.5">
+                <Kbd>Del</Kbd>
+                delete
               </span>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 gap-1 px-2 text-xs"
-                onClick={() => handleAddNode("agentStep", "New Agent Step")}
-              >
-                <RobotIcon className="size-3.5 text-primary" />
-                <span>Agent</span>
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 gap-1 px-2 text-xs"
-                onClick={() => handleAddNode("toolStep", "New Tool Step")}
-              >
-                <WrenchIcon className="size-3.5 text-violet-500" />
-                <span>Tool</span>
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 gap-1 px-2 text-xs"
-                onClick={() => handleAddNode("knowledgeStep", "New Knowledge Step")}
-              >
-                <BookOpenIcon className="size-3.5 text-cyan-500" />
-                <span>Knowledge</span>
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 gap-1 px-2 text-xs"
-                onClick={() => handleAddNode("condition", "Condition Branch")}
-              >
-                <GitBranchIcon className="size-3.5 text-orange-500" />
-                <span>Condition</span>
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 gap-1 px-2 text-xs"
-                onClick={() => handleAddNode("output", "Output Result")}
-              >
-                <CheckCircleIcon className="size-3.5 text-emerald-500" />
-                <span>Output</span>
-              </Button>
+              <span className="flex items-center gap-1.5">
+                <Kbd>{isMac ? "⌘" : "Ctrl"}+D</Kbd>
+                duplicate
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Kbd>Esc</Kbd>
+                close panel
+              </span>
             </div>
           </Panel>
         </ReactFlow>

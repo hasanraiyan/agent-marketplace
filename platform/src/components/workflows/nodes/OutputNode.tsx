@@ -3,8 +3,9 @@
 import * as React from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { CheckCircleIcon } from "@phosphor-icons/react";
+import { NodeActionsToolbar } from "./NodeActionsToolbar";
 
-export function OutputNode({ data, selected }: NodeProps) {
+export function OutputNode({ id, data, selected }: NodeProps) {
   const nodeData = (data || {}) as {
     label?: string;
     description?: string;
@@ -28,6 +29,7 @@ export function OutputNode({ data, selected }: NodeProps) {
           : ""
       }`}
     >
+      <NodeActionsToolbar nodeId={id} selected={selected} />
       <Handle
         type="target"
         position={Position.Left}
