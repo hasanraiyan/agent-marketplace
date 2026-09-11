@@ -1,4 +1,4 @@
-﻿# Workflows Engine & Visual Builder — Master Implementation Plan
+# Workflows Engine & Visual Builder — Master Implementation Plan
 
 > **Target:** Workflows Engine (LangGraph Multi-Agent Orchestration) + Visual Builder (React Flow in Studio)  
 > **Directives:** [prompt.md](file:///D:/projects/agent-marketplace/prompt.md) and [research.md](file:///D:/projects/agent-marketplace/research.md)  
@@ -24,95 +24,95 @@ Status Legend: 🔲 Not Started · 🚧 In Progress · ✅ Completed
 ## Master Checklist
 
 ### Phase 1: Backend Foundation & Data Architecture (`agent-backend`)
-- [ ] **1.1. Mongoose Models (`src/modules/developer/workflows/`)**
-  - [ ] Create `workflow.model.js` (Project scoping, name, description, draft nodes with `retryPolicy`/`onError`, edges, publishedVersion).
-  - [ ] Create `workflowVersion.model.js` (Immutable version snapshot, `agentSnapshots` map, publishedBy).
-  - [ ] Create `workflowRun.model.js` (Run status including `'cancelled'`, trigger metadata, `nodeRuns` step traces with `retriesTaken`, `isDryRun` flag, pendingApproval, usage tokens).
-- [ ] **1.2. Database Repositories**
-  - [ ] Create `workflow.repository.js` (CRUD, project-scoped queries, draft save).
-  - [ ] Create `workflowVersion.repository.js` (Snapshot creation, version queries).
-  - [ ] Create `workflowRun.repository.js` (Run creation, step updates, atomic concurrency check & increment using `findOneAndUpdate`, atomic status update to `cancelled`).
-- [ ] **1.3. Zod Validators & Cycle Detection**
-  - [ ] Create `workflow.validator.js` (Validate node schemas, edge schemas, retry configs, DFS cycle detection check).
-- [ ] **1.4. Routes & Controllers**
-  - [ ] Create `workflow.controller.js` (Draft CRUD, publish action, single run-trigger action supporting a `dryRun` flag — not two separate endpoints, mirroring the SDK's `run(workflowId, input, { dryRun? })` shape — cancel run action, Mermaid export, run history inspection).
-  - [ ] Create `workflow.routes.js` with complete `@openapi` JSDoc annotations and explicit `projectAdminAuth` middleware chaining on every endpoint:
-    - [ ] `POST /workflows/runs/:runId/cancel` endpoint to abort a running workflow.
-  - [ ] Register routes under `/api/v1/developer/projects/:projectId/workflows` in `agent-backend/src/index.js` or `project.routes.js`.
+- [x] **1.1. Mongoose Models (`src/modules/developer/workflows/`)**
+  - [x] Create `workflow.model.js` (Project scoping, name, description, draft nodes with `retryPolicy`/`onError`, edges, publishedVersion).
+  - [x] Create `workflowVersion.model.js` (Immutable version snapshot, `agentSnapshots` map, publishedBy).
+  - [x] Create `workflowRun.model.js` (Run status including `'cancelled'`, trigger metadata, `nodeRuns` step traces with `retriesTaken`, `isDryRun` flag, pendingApproval, usage tokens).
+- [x] **1.2. Database Repositories**
+  - [x] Create `workflow.repository.js` (CRUD, project-scoped queries, draft save).
+  - [x] Create `workflowVersion.repository.js` (Snapshot creation, version queries).
+  - [x] Create `workflowRun.repository.js` (Run creation, step updates, atomic concurrency check & increment using `findOneAndUpdate`, atomic status update to `cancelled`).
+- [x] **1.3. Zod Validators & Cycle Detection**
+  - [x] Create `workflow.validator.js` (Validate node schemas, edge schemas, retry configs, DFS cycle detection check).
+- [x] **1.4. Routes & Controllers**
+  - [x] Create `workflow.controller.js` (Draft CRUD, publish action, single run-trigger action supporting a `dryRun` flag — not two separate endpoints, mirroring the SDK's `run(workflowId, input, { dryRun? })` shape — cancel run action, Mermaid export, run history inspection).
+  - [x] Create `workflow.routes.js` with complete `@openapi` JSDoc annotations and explicit `projectAdminAuth` middleware chaining on every endpoint:
+    - [x] `POST /workflows/runs/:runId/cancel` endpoint to abort a running workflow.
+  - [x] Register routes under `/api/v1/developer/projects/:projectId/workflows` in `agent-backend/src/index.js` or `project.routes.js`.
 
 ### Phase 2: LangGraph Workflow Compiler & Execution Engine (`agent-backend`)
-- [ ] **2.1. Dynamic Compiler & Node Runner Wrappers (`workflow.factory.js`)**
-  - [ ] Implement node runner execution wrapper:
-    - [ ] Wrap node runners with retry policy (transient error retry loop with exponential backoff).
-    - [ ] Implement `onError` strategy dispatch (`fail_workflow` aborts run, `continue_with_null` sets step output null and proceeds, `route_error_edge` routes to error target handle).
-  - [ ] Implement `compileWorkflowToStateGraph(workflowDef, executionContext)`:
-    - [ ] `trigger` node runner.
-    - [ ] `agentStep` runner (executing `createDeepAgent` / `runAgentAsAguiEvents` with context injection; support snapshot pinning vs. live tracking; **thread the run's own `AbortSignal` into `streamEvents()`'s `signal` option** so a mid-flight cancellation actually interrupts an in-progress LLM/tool call inside this step, not just the next node transition).
-    - [ ] `toolStep` runner (direct execution of RCP, REST, or MCP tools without LLM turn; intercept destructive tools if `isDryRun: true`).
-    - [ ] `knowledgeStep` runner (direct vector search via `knowledgeService`).
-    - [ ] `output` node runner (resolves output template mapping).
-    - [ ] Wire LangGraph `START` and `END` with topological edges.
-- [ ] **2.2. Template Resolver (`templateResolver.js`)**
-  - [ ] Safe dot-path resolver supporting `{{steps.<nodeId>.output.<prop>}}` and `{{trigger.payload.<prop>}}`.
-- [ ] **2.3. AG-UI Telemetry Extension (`aguiEventSchemas.js`)**
-  - [ ] Declare new custom events: `workflow_node_started`, `workflow_node_completed` (with retriesTaken & durationMs), `workflow_node_failed`.
-  - [ ] Bump `AGUI_SCHEMA_VERSION`.
-- [ ] **2.4. Credit & Usage Metering Service (`workflowUsage.service.js`)**
-  - [ ] Aggregate tokens, agent turns, and tool calls from node execution results into `WorkflowRun.usage`.
-  - [ ] Deduct computed credits atomically against Project balance upon run completion via `rateLimiterService`.
-  - [ ] Pre-flight balance check: reject run initiation if Project credit balance is insufficient (**explicitly bypassed when `isDryRun: true`**).
-- [ ] **2.5. Mermaid Flowchart Exporter (`workflowMermaid.js`)**
-  - [ ] Serialize `WorkflowDefinition` nodes and edges to standard Mermaid flowchart text (`graph TD` / `flowchart LR`).
+- [x] **2.1. Dynamic Compiler & Node Runner Wrappers (`workflow.factory.js`)**
+  - [x] Implement node runner execution wrapper:
+    - [x] Wrap node runners with retry policy (transient error retry loop with exponential backoff).
+    - [x] Implement `onError` strategy dispatch (`fail_workflow` aborts run, `continue_with_null` sets step output null and proceeds, `route_error_edge` routes to error target handle).
+  - [x] Implement `compileWorkflowToStateGraph(workflowDef, executionContext)`:
+    - [x] `trigger` node runner.
+    - [x] `agentStep` runner (executing `createDeepAgent` / `runAgentAsAguiEvents` with context injection; support snapshot pinning vs. live tracking; **thread the run's own `AbortSignal` into `streamEvents()`'s `signal` option** so a mid-flight cancellation actually interrupts an in-progress LLM/tool call inside this step, not just the next node transition).
+    - [x] `toolStep` runner (direct execution of RCP, REST, or MCP tools without LLM turn; intercept destructive tools if `isDryRun: true`).
+    - [x] `knowledgeStep` runner (direct vector search via `knowledgeService`).
+    - [x] `output` node runner (resolves output template mapping).
+    - [x] Wire LangGraph `START` and `END` with topological edges.
+- [x] **2.2. Template Resolver (`templateResolver.js`)**
+  - [x] Safe dot-path resolver supporting `{{steps.<nodeId>.output.<prop>}}` and `{{trigger.payload.<prop>}}`.
+- [x] **2.3. AG-UI Telemetry Extension (`aguiEventSchemas.js`)**
+  - [x] Declare new custom events: `workflow_node_started`, `workflow_node_completed` (with retriesTaken & durationMs), `workflow_node_failed`.
+  - [x] Bump `AGUI_SCHEMA_VERSION`.
+- [x] **2.4. Credit & Usage Metering Service (`workflowUsage.service.js`)**
+  - [x] Aggregate tokens, agent turns, and tool calls from node execution results into `WorkflowRun.usage`.
+  - [x] Deduct computed credits atomically against Project balance upon run completion via `rateLimiterService`.
+  - [x] Pre-flight balance check: reject run initiation if Project credit balance is insufficient (**explicitly bypassed when `isDryRun: true`**).
+- [x] **2.5. Mermaid Flowchart Exporter (`workflowMermaid.js`)**
+  - [x] Serialize `WorkflowDefinition` nodes and edges to standard Mermaid flowchart text (`graph TD` / `flowchart LR`).
 
 ### Phase 3: Resumable Execution & Background Recovery (`agent-backend`)
-- [ ] **3.1. Workflow Run Driver (`WorkflowRunDriver`)**
-  - [ ] Implement in-memory SSE frame buffering with monotonic sequence IDs (`seq`).
-  - [ ] Decouple execution lifetime from client HTTP connection.
-  - [ ] Implement `subscribe(sinceSeq)` for replay of missed frames and live tail streaming.
-  - [ ] Implement `abort()` method: trigger AbortController signal, push in-band cancellation frame, mark driver finished, and transition `WorkflowRun` status to `cancelled` in Mongo.
-- [ ] **3.2. Checkpoint Integration**
-  - [ ] Wire `MongoDBSaver` thread persistence per node superstep.
-- [ ] **3.3. Reconnect & Resume Route**
-  - [ ] Expose `GET /workflows/runs/:runId/resume` supporting stream re-attachment or fallback to Mongo `nodeRuns` state snapshot.
-- [ ] **3.4. Agenda Orphan Recovery Job (`recoverOrphanWorkflowRuns.job.js`)**
-  - [ ] Register background Agenda job to detect orphaned `running` runs after server crash/restart and resume from checkpoint.
+- [x] **3.1. Workflow Run Driver (`WorkflowRunDriver`)**
+  - [x] Implement in-memory SSE frame buffering with monotonic sequence IDs (`seq`).
+  - [x] Decouple execution lifetime from client HTTP connection.
+  - [x] Implement `subscribe(sinceSeq)` for replay of missed frames and live tail streaming.
+  - [x] Implement `abort()` method: trigger AbortController signal, push in-band cancellation frame, mark driver finished, and transition `WorkflowRun` status to `cancelled` in Mongo.
+- [x] **3.2. Checkpoint Integration**
+  - [x] Wire `MongoDBSaver` thread persistence per node superstep.
+- [x] **3.3. Reconnect & Resume Route**
+  - [x] Expose `GET /workflows/runs/:runId/resume` supporting stream re-attachment or fallback to Mongo `nodeRuns` state snapshot.
+- [x] **3.4. Agenda Orphan Recovery Job (`recoverOrphanWorkflowRuns.job.js`)**
+  - [x] Register background Agenda job to detect orphaned `running` runs after server crash/restart and resume from checkpoint.
 
 ### Phase 4: Developer Platform Visual Canvas UI (`platform/`)
-- [ ] **4.1. Core Setup & Navigation**
-  - [ ] Add `@xyflow/react` to `platform/package.json`.
-  - [ ] Add "Workflows" item to project sidebar (`platform/src/components/layout/app-sidebar.tsx`).
-  - [ ] Setup route structure: `platform/src/app/projects/[projectId]/workflows/`.
-- [ ] **4.2. Workflows List & Header Page**
-  - [ ] Create `workflows/page.tsx` (Table of workflows, status, version badge, create button).
-  - [ ] Create `workflows/new/page.tsx` (Create workflow dialog/form).
-- [ ] **4.3. React Flow Canvas Editor (`[workflowId]/page.tsx`)**
-  - [ ] Canvas viewport with background grid, minimap, zoom/pan controls.
-  - [ ] Node palette toolbar (Trigger, Agent Step, Tool Step, Knowledge Step, Output).
-  - [ ] Drag-and-drop / click-to-place node additions.
-- [ ] **4.4. Custom Node Components (`components/workflows/nodes/`)**
-  - [ ] `TriggerNode`, `AgentStepNode`, `ToolStepNode`, `KnowledgeStepNode`, `OutputNode`.
-  - [ ] Visual indicators for handles, retry policies, validation warnings, and active execution states.
-- [ ] **4.5. Node Configuration Sheet / Panel**
-  - [ ] Slide-out config drawer for editing node details (model, agent selector, tool selector, prompt template).
-  - [ ] **Agent Step Pinning Toggle (Gap 8)**: Add switch for "Pin to Published Snapshot" vs "Live Tracking" in Agent step config.
-  - [ ] Node Resilience config section: retry attempts (0-5), backoff ms, and `onError` dropdown (`fail`, `continue`, `routeError`).
-  - [ ] Dynamic variable picker for `{{steps.<nodeId>.output}}`.
-- [ ] **4.6. Canvas Actions, Validation & Mermaid Export**
-  - [ ] "Save Draft", "Publish Version", and "Export Mermaid" dialog/copy button in canvas header.
-  - [ ] Pre-flight graph validation (cycles, disconnected nodes, missing required inputs).
+- [x] **4.1. Core Setup & Navigation**
+  - [x] Add `@xyflow/react` to `platform/package.json`.
+  - [x] Add "Workflows" item to project sidebar (`platform/src/components/layout/app-sidebar.tsx`).
+  - [x] Setup route structure: `platform/src/app/projects/[projectId]/workflows/`.
+- [x] **4.2. Workflows List & Header Page**
+  - [x] Create `workflows/page.tsx` (Table of workflows, status, version badge, create button).
+  - [x] Create `workflows/new/page.tsx` (Create workflow dialog/form).
+- [x] **4.3. React Flow Canvas Editor (`[workflowId]/page.tsx`)**
+  - [x] Canvas viewport with background grid, minimap, zoom/pan controls.
+  - [x] Node palette toolbar (Trigger, Agent Step, Tool Step, Knowledge Step, Output).
+  - [x] Drag-and-drop / click-to-place node additions.
+- [x] **4.4. Custom Node Components (`components/workflows/nodes/`)**
+  - [x] `TriggerNode`, `AgentStepNode`, `ToolStepNode`, `KnowledgeStepNode`, `OutputNode`.
+  - [x] Visual indicators for handles, retry policies, validation warnings, and active execution states.
+- [x] **4.5. Node Configuration Sheet / Panel**
+  - [x] Slide-out config drawer for editing node details (model, agent selector, tool selector, prompt template).
+  - [x] **Agent Step Pinning Toggle (Gap 8)**: Add switch for "Pin to Published Snapshot" vs "Live Tracking" in Agent step config.
+  - [x] Node Resilience config section: retry attempts (0-5), backoff ms, and `onError` dropdown (`fail`, `continue`, `routeError`).
+  - [x] Dynamic variable picker for `{{steps.<nodeId>.output}}`.
+- [x] **4.6. Canvas Actions, Validation & Mermaid Export**
+  - [x] "Save Draft", "Publish Version", and "Export Mermaid" dialog/copy button in canvas header.
+  - [x] Pre-flight graph validation (cycles, disconnected nodes, missing required inputs).
 
 ### Phase 5: Workflow Runs & Live Playback Inspector (`platform/`)
-- [ ] **5.1. Runs History View (`[workflowId]/runs/page.tsx`)**
-  - [ ] Filterable table of past runs (Status, Triggered By, Started At, Duration, Tokens, Credits Deducted, Version).
-  - [ ] **Dry-Run Distinction**: Include badge for "Dry Run" vs "Live Production", with quick filter toggle to view/hide dry runs.
-- [ ] **5.2. Live Run Inspector & Canvas Playback (`[workflowId]/runs/[runId]/page.tsx`)**
-  - [ ] Read-only canvas highlighting active and executed node paths.
-  - [ ] Node detail inspector sheet: input JSON, output JSON, retries taken, error message, duration, and token usage.
-  - [ ] Live AG-UI stream integration showing tokens typing live inside the active agent node.
-  - [ ] **Stop / Cancel Run Button**: Prominent action to abort in-flight workflow runs.
-- [ ] **5.3. Safe Sandbox / Test Run Drawer (`[workflowId]/page.tsx`)**
-  - [ ] Drawer on canvas to configure mock trigger payload.
-  - [ ] **Dry-Run Mode Toggle (Gap 7)**:
+- [x] **5.1. Runs History View (`[workflowId]/runs/page.tsx`)**
+  - [x] Filterable table of past runs (Status, Triggered By, Started At, Duration, Tokens, Credits Deducted, Version).
+  - [x] **Dry-Run Distinction**: Include badge for "Dry Run" vs "Live Production", with quick filter toggle to view/hide dry runs.
+- [x] **5.2. Live Run Inspector & Canvas Playback (`[workflowId]/runs/[runId]/page.tsx`)**
+  - [x] Read-only canvas highlighting active and executed node paths.
+  - [x] Node detail inspector sheet: input JSON, output JSON, retries taken, error message, duration, and token usage.
+  - [x] Live AG-UI stream integration showing tokens typing live inside the active agent node.
+  - [x] **Stop / Cancel Run Button**: Prominent action to abort in-flight workflow runs.
+- [x] **5.3. Safe Sandbox / Test Run Drawer (`[workflowId]/page.tsx`)**
+  - [x] Drawer on canvas to configure mock trigger payload.
+  - [x] **Dry-Run Mode Toggle (Gap 7)**:
     - Pass `isDryRun: true` in run request.
     - Zero balance pre-flight exemption (allows testing even if credit balance is zero).
     - Intercept destructive tool calls (database writes, emails, external webhooks) and stub with mock success, preventing real external side effects and skipping billing deduction.

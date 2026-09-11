@@ -319,5 +319,74 @@ export function deleteProjectAgentThread(
   return api.delete(`/projects/${projectId}/agents/${agentId}/threads/${threadId}`);
 }
 
+// Workflows (Pillars A & B)
+export function getProjectWorkflows(
+  projectId: string,
+  params?: { page?: number; limit?: number; search?: string; isEnabled?: boolean }
+) {
+  return api.get(`/projects/${projectId}/workflows`, { params });
+}
+
+export function createProjectWorkflow(projectId: string, data: unknown) {
+  return api.post(`/projects/${projectId}/workflows`, data);
+}
+
+export function getProjectWorkflow(projectId: string, workflowId: string) {
+  return api.get(`/projects/${projectId}/workflows/${workflowId}`);
+}
+
+export function updateProjectWorkflow(projectId: string, workflowId: string, data: unknown) {
+  return api.patch(`/projects/${projectId}/workflows/${workflowId}`, data);
+}
+
+export function saveProjectWorkflowDraft(projectId: string, workflowId: string, draft: unknown) {
+  return api.put(`/projects/${projectId}/workflows/${workflowId}/draft`, { draft });
+}
+
+export function deleteProjectWorkflow(projectId: string, workflowId: string) {
+  return api.delete(`/projects/${projectId}/workflows/${workflowId}`);
+}
+
+export function publishProjectWorkflow(projectId: string, workflowId: string) {
+  return api.post(`/projects/${projectId}/workflows/${workflowId}/publish`);
+}
+
+export function getProjectWorkflowVersions(projectId: string, workflowId: string, params?: { page?: number; limit?: number }) {
+  return api.get(`/projects/${projectId}/workflows/${workflowId}/versions`, { params });
+}
+
+export function getProjectWorkflowVersion(projectId: string, workflowId: string, version: number) {
+  return api.get(`/projects/${projectId}/workflows/${workflowId}/versions/${version}`);
+}
+
+export function getProjectWorkflowMermaid(projectId: string, workflowId: string) {
+  return api.get(`/projects/${projectId}/workflows/${workflowId}/mermaid`);
+}
+
+export function runProjectWorkflow(
+  projectId: string,
+  workflowId: string,
+  data?: { input?: unknown; dryRun?: boolean; isDryRun?: boolean; version?: number }
+) {
+  return api.post(`/projects/${projectId}/workflows/${workflowId}/run`, data ?? {});
+}
+
+export function getProjectWorkflowRuns(
+  projectId: string,
+  workflowId: string,
+  params?: { page?: number; limit?: number; status?: string; isDryRun?: boolean }
+) {
+  return api.get(`/projects/${projectId}/workflows/${workflowId}/runs`, { params });
+}
+
+export function getProjectWorkflowRun(projectId: string, runId: string) {
+  return api.get(`/projects/${projectId}/workflows/runs/${runId}`);
+}
+
+export function cancelProjectWorkflowRun(projectId: string, runId: string) {
+  return api.post(`/projects/${projectId}/workflows/runs/${runId}/cancel`);
+}
+
+
 
 

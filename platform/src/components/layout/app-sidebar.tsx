@@ -17,6 +17,7 @@ import {
   PlugsConnectedIcon,
   RobotIcon,
   SparkleIcon,
+  TreeStructureIcon,
   UsersThreeIcon,
   WrenchIcon,
 } from "@phosphor-icons/react";
@@ -48,6 +49,7 @@ const NAV_GROUPS = [
     items: [
       { segment: "playground", label: "Playground", icon: ChatCircleIcon },
       { segment: "agents", label: "Agents", icon: RobotIcon },
+      { segment: "workflows", label: "Workflows", icon: TreeStructureIcon },
     ],
   },
   {

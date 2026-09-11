@@ -28,6 +28,7 @@ import {
   developerRestToolRouter,
   developerRestApiToolSourceRouter,
   developerRcpSourceRouter,
+  workflowRouter,
 } from './modules/developer/index.js';
 import { agentRouter } from './modules/agents/index.js';
 import {
@@ -54,6 +55,7 @@ import { startAgenda, stopAgenda } from './modules/jobs/agenda.js';
 // Imported for its side effect: registers the cleanup-deleted-project job
 // definition on the shared Agenda instance before agenda.start() runs.
 import './modules/jobs/cleanupDeletedProject.job.js';
+import './modules/jobs/recoverOrphanWorkflowRuns.job.js';
 
 import { clerkMiddleware } from '@clerk/express';
 
@@ -172,6 +174,8 @@ app.use('/api/v1/developer/secrets', developerSecretRouter);
 app.use('/api/v1/developer/rest-tools', developerRestToolRouter);
 app.use('/api/v1/developer/rest-tool-sources', developerRestApiToolSourceRouter);
 app.use('/api/v1/developer/rcp-sources', developerRcpSourceRouter);
+app.use('/api/v1/projects/:projectId/workflows', workflowRouter);
+app.use('/api/v1/developer/projects/:projectId/workflows', workflowRouter);
 app.use('/api/v1/developer', developerRouter);
 app.use('/api/v1/agents', agentRouter);
 app.use('/api/v1/threads', threadRouter);

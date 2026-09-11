@@ -62,7 +62,32 @@ export const subagentActivitySchema = z.union([
   subagentActivityToolResultSchema,
 ]);
 
-export const AGUI_SCHEMA_VERSION = '1.0.0';
+export const workflowNodeStartedSchema = z.object({
+  nodeId: z.string(),
+  nodeType: z.string(),
+  nodeLabel: z.string(),
+  input: z.unknown().optional(),
+  timestamp: z.string().optional(),
+});
+
+export const workflowNodeCompletedSchema = z.object({
+  nodeId: z.string(),
+  output: z.unknown().optional(),
+  retriesTaken: z.number().int().optional(),
+  durationMs: z.number().optional(),
+  tokens: z.number().optional(),
+  timestamp: z.string().optional(),
+});
+
+export const workflowNodeFailedSchema = z.object({
+  nodeId: z.string(),
+  error: z.string(),
+  retriesTaken: z.number().int().optional(),
+  durationMs: z.number().optional(),
+  timestamp: z.string().optional(),
+});
+
+export const AGUI_SCHEMA_VERSION = '1.1.0';
 
 const AGUI_CUSTOM_EVENTS = [
   {
@@ -87,6 +112,21 @@ const AGUI_CUSTOM_EVENTS = [
     description:
       "Streams a nested subagent (deepagents 'task' tool) invocation's text/tool activity, discriminated by kind.",
     schema: subagentActivitySchema,
+  },
+  {
+    type: 'workflow_node_started',
+    description: 'Signals that a workflow node execution step has started.',
+    schema: workflowNodeStartedSchema,
+  },
+  {
+    type: 'workflow_node_completed',
+    description: 'Signals that a workflow node execution step has completed successfully.',
+    schema: workflowNodeCompletedSchema,
+  },
+  {
+    type: 'workflow_node_failed',
+    description: 'Signals that a workflow node execution step failed.',
+    schema: workflowNodeFailedSchema,
   },
 ];
 
