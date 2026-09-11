@@ -8,7 +8,7 @@ Incorporates all requirements from `prompt.md` and review feedback from `review.
 
 ## 1. Backend: Data Model & Validation
 
-- [ ] **1.1 Agent Mongoose Schema**
+- [x] **1.1 Agent Mongoose Schema**
   - **File:** `agent-backend/src/modules/agents/agent.model.js`
   - Add `agentType` property next to `sandboxEnabled`:
     ```js
@@ -19,7 +19,7 @@ Incorporates all requirements from `prompt.md` and review feedback from `review.
     },
     ```
 
-- [ ] **1.2 Agent Validation Schemas**
+- [x] **1.2 Agent Validation Schemas**
   - **File:** `agent-backend/src/modules/agents/agent.validator.js`
   - In `createAgentSchema`, add:
     ```js
@@ -34,18 +34,18 @@ Incorporates all requirements from `prompt.md` and review feedback from `review.
 
 ## 2. Backend: Agent Factory (`agent.factory.js`)
 
-- [ ] **2.1 Imports & Dependencies**
+- [x] **2.1 Imports & Dependencies**
   - **File:** `agent-backend/src/modules/agents/agent.factory.js`
   - Update `langchain` import to include `createAgent`:
     ```js
     import { createMiddleware, createAgent } from 'langchain';
     ```
 
-- [ ] **2.2 Agent Type Resolution**
+- [x] **2.2 Agent Type Resolution**
   - Compute `const agentType = agent.agentType === 'react' ? 'react' : 'deepagent';` right after resolving `agent`.
   - Ensure synthetic architect agents (`ARCHITECT_AGENT_ID`, `PROJECT_ARCHITECT_AGENT_ID`, `DEVELOPER_ARCHITECT_AGENT_ID`) continue to default to `'deepagent'`.
 
-- [ ] **2.3 System Prompt Customization**
+- [x] **2.3 System Prompt Customization**
   - Define prompt sections:
     - Base prompt: `${agent.systemPrompt}`
     - **`PRESENT_FILE_RULES`**:
@@ -59,7 +59,7 @@ Incorporates all requirements from `prompt.md` and review feedback from `review.
   - For `deepagent`: append `PRESENT_FILE_RULES` + `MEMORY_RULES` + `SUBAGENT_RULES`.
   - For `react`: append only `PRESENT_FILE_RULES` (omit memory and subagent sections to avoid hallucinated tool expectations).
 
-- [ ] **2.4 Gated DeepAgent Subsystems**
+- [x] **2.4 Gated DeepAgent Subsystems**
   - Gate deepagent-only subsystems under `if (agentType === 'deepagent')`:
     - `backendRoutes` setup (virtual filesystem mounts: `/skills/`, `/memories/user/`, `/memories/agent/`, `/workspace/`)
     - `storeMounts` iteration
@@ -67,7 +67,7 @@ Incorporates all requirements from `prompt.md` and review feedback from `review.
     - `sandboxBackend` resolution (`sandboxBackend` remains `null` for `react` mode)
     - `interruptOnConfig` computation
 
-- [ ] **2.5 Agent Construction Branching**
+- [x] **2.5 Agent Construction Branching**
   - Instantiate via `createAgent` for `react` mode and `createDeepAgent` for `deepagent`:
     ```js
     const agentInstance = agentType === 'react'
@@ -94,7 +94,7 @@ Incorporates all requirements from `prompt.md` and review feedback from `review.
         });
     ```
 
-- [ ] **2.6 Factory Logging**
+- [x] **2.6 Factory Logging**
   - Add `agentType` to `'[AgentFactory] building agent'` log call.
   - Add `agentType` to `'[AgentFactory] agent built'` log call.
 
@@ -102,7 +102,7 @@ Incorporates all requirements from `prompt.md` and review feedback from `review.
 
 ## 3. Workflow Snapshot-Pinning Gap Fix
 
-- [ ] **3.1 Workflow Version Schema**
+- [x] **3.1 Workflow Version Schema**
   - **File:** `agent-backend/src/modules/developer/workflows/workflowVersion.model.js`
   - Add `agentType` to `agentSnapshotSchema`:
     ```js
@@ -113,11 +113,11 @@ Incorporates all requirements from `prompt.md` and review feedback from `review.
     },
     ```
 
-- [ ] **3.2 Workflow Publishing Snapshot Capture**
+- [x] **3.2 Workflow Publishing Snapshot Capture**
   - **File:** `agent-backend/src/modules/developer/workflows/workflow.service.js`
   - In `publishWorkflow`, include `agentType: agentDoc.agentType || 'deepagent'` in the snapshot dictionary mapped per `node.id`.
 
-- [ ] **3.3 Workflow Step Executor Instantiation**
+- [x] **3.3 Workflow Step Executor Instantiation**
   - **File:** `agent-backend/src/modules/developer/workflows/workflow.factory.js`
   - In `createAgentStepExecutor`, include `agentType: snapshot.agentType || 'deepagent'` in the synthetic `agentDoc` when `config.pinSnapshot` is true.
 
@@ -125,7 +125,7 @@ Incorporates all requirements from `prompt.md` and review feedback from `review.
 
 ## 4. Frontend: Agent Form (`platform/src/components/agents/agent-form.tsx`)
 
-- [ ] **4.1 TypeScript Types & State**
+- [x] **4.1 TypeScript Types & State**
   - **File:** `platform/src/components/agents/agent-form.tsx`
   - Update `AgentDoc`: add `agentType?: "deepagent" | "react";`.
   - Update `AgentFormState`: add `agentType: "deepagent" | "react";`.
@@ -133,14 +133,14 @@ Incorporates all requirements from `prompt.md` and review feedback from `review.
   - In `useEffect` (agent data fetch): populate `agentType: (found.agentType as "deepagent" | "react") || "deepagent"`.
   - In `handleSubmit`: include `agentType: form.agentType` in `payload`.
 
-- [ ] **4.2 Architecture Selector UI**
+- [x] **4.2 Architecture Selector UI**
   - In the Configuration card (placed after Category/Visibility row), render a `Select` component for Architecture:
     - Options:
       - **Deep Agent (full features):** Includes virtual filesystem, memory, skills, and subagent delegation.
       - **ReAct Agent (lightweight):** Direct model + tools execution for lower latency and token usage.
     - Helper description explaining what is omitted in ReAct mode (filesystem, skills, memory, subagents, approval gates).
 
-- [ ] **4.3 Conditional Field Gating**
+- [x] **4.3 Conditional Field Gating**
   - Wrap Sandbox `Switch` block in `{form.agentType === "deepagent" && (...)}`.
   - Wrap Skills `AttachPicker` in `{form.agentType === "deepagent" && (...)}`.
   - Ensure Knowledge, MCP, REST Tools, RCP Sources, and Stores pickers remain visible for both modes.
@@ -149,20 +149,19 @@ Incorporates all requirements from `prompt.md` and review feedback from `review.
 
 ## 5. Architectural Gap & Thread Compatibility Verification (from review.md)
 
-- [ ] **5.1 Existing Thread Checkpoint Channel Compatibility Check**
+- [x] **5.1 Existing Thread Checkpoint Channel Compatibility Check**
   - **Context:** `deepagents`' graph declares channels like `files` and `todos`, while `createAgent` does not.
   - **Action:** Test resuming an existing thread that was initiated under `deepagent` after toggling the agent to `react`.
-  - **Verification:** Verify that LangGraph loads `messages` and ignores the extra `files`/`todos` channels without deserialization or runtime errors. If an issue is found, add a channel sanitizer or compatibility handler to `safeCheckpointer`.
+  - **Verification:** Verified in `agentArchitectureToggle.test.js`: LangGraph's `createAgent` loads `messages` and safely ignores the extra `files`/`todos` channels without deserialization or runtime errors, allowing subsequent turns to resume seamlessly on the existing thread.
 
 ---
 
 ## 6. Automated & Manual Verification
 
-- [ ] **6.1 Automated Unit Tests**
-  - Add/update tests in `agent-backend/tests/`:
-    - `agent.validator.test.js`: verify valid `agentType` enum values and default `'deepagent'`.
-    - `agent.factory.test.js`: verify build parameters when `agentType` is `'react'` vs `'deepagent'`.
-    - `workflow.service.test.js`: verify `agentType` persistence in workflow version snapshots.
+- [x] **6.1 Automated Unit Tests**
+  - Added/updated tests in `agent-backend/tests/`:
+    - `agentValidator.test.js`: verifies valid `agentType` enum values ('deepagent' and 'react') and default `'deepagent'`.
+    - `agentArchitectureToggle.test.js`: verifies build parameters when `agentType` is `'react'` vs `'deepagent'` vs undefined, system prompt composition, sandbox gating, cross-mode thread continuity, and workflow version snapshot schema persistence.
 
 - [ ] **6.2 Manual Verification Scenarios**
   - **Scenario 1: Regression (deepagent, unchanged agents)**
