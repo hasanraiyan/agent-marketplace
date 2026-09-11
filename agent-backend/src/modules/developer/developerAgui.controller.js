@@ -111,7 +111,9 @@ class DeveloperAguiController {
       }
 
       const input = await readJsonBody(req);
+      console.log('[developerAgui] raw input.context:', JSON.stringify(input.context));
       const turnContext = validateTurnContext(input.context);
+      console.log('[developerAgui] validated turnContext:', JSON.stringify(turnContext));
 
       if (input.contextOverride !== undefined) {
         if (typeof input.contextOverride !== 'string') {

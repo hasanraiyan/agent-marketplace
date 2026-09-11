@@ -133,6 +133,12 @@ export async function resolveRcpSourceTools(agent, userId, context) {
                   // `contextOverride` (agent.factory.js).
                   const turn = getConfig()?.configurable?.turnContext;
                   const ctx = { execution: context, turn };
+                  console.log(
+                    `[RcpSource] "${source.name}" calling "${tool.name}" — paramContextMap:`,
+                    JSON.stringify(source.paramContextMap),
+                    'turn:',
+                    JSON.stringify(turn),
+                  );
                   const result = await client.call(tool, agentArgs, ctx);
                   if (!result.ok) {
                     return `Request failed with status ${result.status}.`;
