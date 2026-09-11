@@ -6,6 +6,8 @@ import agentFactory from '../../agents/agent.factory.js';
 import agentRepository from '../../agents/agent.repository.js';
 import knowledgeService from '../../knowledge/knowledge.service.js';
 import workflowRunRepository from './workflowRun.repository.js';
+import restApiToolService from '../../restApiTools/restApiTool.service.js';
+import restApiToolRepository from '../../restApiTools/restApiTool.repository.js';
 import { translateLangGraphStream } from '../../agui/aguiTranslator.js';
 import { RunScopeTracker } from '../../agui/RunScopeTracker.js';
 import { loggerService } from '../../../utils/index.js';
@@ -241,7 +243,8 @@ function createAgentStepExecutor(node, executionContext) {
     if (isDryRun) {
       effectiveAgentDoc = {
         ...(typeof agentDoc.toObject === 'function' ? agentDoc.toObject() : agentDoc),
-        // Keep read-only/knowledge tools if present, but remove arbitrary external write/mutating tool configs
+        // Strip all external mutating/destructive tool configs including MCPs
+        mcps: [],
         restApiTools: [],
         restApiToolSources: [],
         rcpSources: [],
@@ -269,9 +272,10 @@ function createAgentStepExecutor(node, executionContext) {
     }
 
     const { agentInstance, providerConfig, mcpAppMap, guardedToolNames } =
-      await agentFactory.buildAgent(effectiveAgentDoc, userId, {
+      await agentFactory.buildAgent(effectiveAgentDoc, userId, null, {
         domain,
         principalType: 'ProjectMachine',
+        isDryRun: Boolean(isDryRun),
         systemPromptOverride: config.systemOverrideTemplate
           ? resolveTemplate(config.systemOverrideTemplate, state)
           : undefined,
@@ -365,6 +369,55 @@ function createToolStepExecutor(node, executionContext) {
       let resultData;
       if (typeof config.handler === 'function') {
         resultData = await config.handler(resolvedInput, { signal: driver?.signal });
+      } else if (config.url) {
+        // Direct HTTP / Webhook tool step
+        const method = (config.method || 'POST').toUpperCase();
+        const headers = {
+          'Content-Type': 'application/json',
+          ...(config.headers || {}),
+        };
+        const body =
+          method !== 'GET' && method !== 'HEAD'
+            ? typeof resolvedInput === 'string'
+              ? resolvedInput
+              : JSON.stringify(resolvedInput)
+            : undefined;
+
+        const res = await fetch(config.url, {
+          method,
+          headers,
+          body,
+          signal: driver?.signal,
+        });
+
+        const text = await res.text();
+        let parsed;
+        try {
+          parsed = text ? JSON.parse(text) : null;
+        } catch {
+          parsed = text;
+        }
+
+        resultData = {
+          executed: true,
+          status: res.status,
+          ok: res.ok,
+          data: parsed,
+          tool: toolName,
+        };
+      } else if (config.toolId || config.restApiToolId) {
+        // Registered REST API Tool execution by ID
+        const targetId = config.toolId || config.restApiToolId;
+        const restTool = await restApiToolRepository.findById(targetId);
+        if (!restTool) {
+          throw new BaseError(`Rest API Tool ${targetId} not found`, 404, 'NOT_FOUND');
+        }
+        resultData = await restApiToolService.testCall(
+          targetId,
+          restTool,
+          typeof resolvedInput === 'object' ? resolvedInput : { query: resolvedInput },
+          executionContext
+        );
       } else {
         // Structured tool execution payload
         resultData = {
@@ -383,6 +436,9 @@ function createToolStepExecutor(node, executionContext) {
         tokens: 0,
       };
     } catch (err) {
+      if (err.name === 'AbortError' || driver?.signal?.aborted) {
+        throw new BaseError('Workflow run cancelled', 499, 'CANCELLED');
+      }
       return {
         output: {
           isError: true,

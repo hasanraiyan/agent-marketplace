@@ -20,12 +20,20 @@ class WorkflowService {
    * Evaluates if a given principal context can execute or view a workflow.
    * Parity with isAgentOwner (AD-02 §11.1).
    */
+  /**
+   * Evaluates if a given principal context can execute or view a workflow.
+   * Parity with isAgentOwner (AD-02 §11.1).
+   */
   canAccessWorkflow(workflow, context = {}) {
     if (!workflow) return false;
     const { principalType, externalUserId, isProjectAdmin } = context;
 
     // Project Admin has full access to all workflows in the project
-    if (isProjectAdmin || principalType === 'ProjectAdmin' || principalType === 'ProjectMachine') {
+    if (
+      isProjectAdmin ||
+      principalType === 'ProjectAdmin' ||
+      (principalType === 'ProjectMachine' && !externalUserId)
+    ) {
       return true;
     }
 
@@ -37,6 +45,49 @@ class WorkflowService {
     // If private, only owner can access
     if (workflow.ownerType === 'ExternalUser' && externalUserId) {
       return String(workflow.externalOwnerId) === String(externalUserId);
+    }
+
+    if (workflow.ownerType === 'Project') {
+      return !externalUserId;
+    }
+
+    return false;
+  }
+
+  /**
+   * Evaluates if a given principal context can mutate (edit, save draft, publish, delete) a workflow.
+   * Enforces strict ownership boundaries preventing cross-user mutation attacks.
+   */
+  canMutateWorkflow(workflow, context = {}) {
+    if (!workflow) return false;
+    const { principalType, externalUserId, isProjectAdmin } = context;
+
+    // Project Admin (dashboard admin with Clerk session) has full mutation rights
+    if (isProjectAdmin || principalType === 'ProjectAdmin') {
+      return true;
+    }
+
+    // Machine credential without externalUserId represents project backend developer/service
+    if (principalType === 'ProjectMachine' && !externalUserId) {
+      return true;
+    }
+
+    // If workflow is owned by an ExternalUser:
+    if (workflow.ownerType === 'ExternalUser') {
+      return (
+        Boolean(externalUserId) &&
+        Boolean(workflow.externalOwnerId) &&
+        String(workflow.externalOwnerId) === String(externalUserId)
+      );
+    }
+
+    // If workflow is owned by Project:
+    if (workflow.ownerType === 'Project') {
+      // External users cannot mutate project-level workflows
+      if (principalType === 'ProjectRuntime' || externalUserId) {
+        return false;
+      }
+      return true;
     }
 
     return false;
@@ -128,6 +179,9 @@ class WorkflowService {
 
   async updateWorkflow(projectId, id, data, context = {}) {
     const workflow = await this.getWorkflow(projectId, id, context);
+    if (context && Object.keys(context).length > 0 && !this.canMutateWorkflow(workflow, context)) {
+      throw new BaseError('Not authorized to modify this workflow', 403, 'FORBIDDEN');
+    }
 
     if (data.draft) {
       const { hasCycle, cycleNode } = detectCycle(data.draft.nodes, data.draft.edges);
@@ -143,8 +197,11 @@ class WorkflowService {
     return await workflowRepository.update(id, data);
   }
 
-  async saveDraft(projectId, id, draft) {
-    await this.getWorkflow(projectId, id);
+  async saveDraft(projectId, id, draft, context = {}) {
+    const workflow = await this.getWorkflow(projectId, id, context);
+    if (context && Object.keys(context).length > 0 && !this.canMutateWorkflow(workflow, context)) {
+      throw new BaseError('Not authorized to modify this workflow', 403, 'FORBIDDEN');
+    }
 
     const { hasCycle, cycleNode } = detectCycle(draft.nodes, draft.edges);
     if (hasCycle) {
@@ -158,16 +215,22 @@ class WorkflowService {
     return await workflowRepository.updateDraft(id, draft);
   }
 
-  async deleteWorkflow(projectId, id) {
-    await this.getWorkflow(projectId, id);
+  async deleteWorkflow(projectId, id, context = {}) {
+    const workflow = await this.getWorkflow(projectId, id, context);
+    if (context && Object.keys(context).length > 0 && !this.canMutateWorkflow(workflow, context)) {
+      throw new BaseError('Not authorized to delete this workflow', 403, 'FORBIDDEN');
+    }
     return await workflowRepository.deleteByProjectAndId(projectId, id);
   }
 
   /**
    * Publishes an immutable WorkflowVersion snapshot and snapshots all referenced agents.
    */
-  async publishWorkflow(projectId, id, userId) {
-    const workflow = await this.getWorkflow(projectId, id);
+  async publishWorkflow(projectId, id, userId, context = {}) {
+    const workflow = await this.getWorkflow(projectId, id, context);
+    if (context && Object.keys(context).length > 0 && !this.canMutateWorkflow(workflow, context)) {
+      throw new BaseError('Not authorized to publish this workflow', 403, 'FORBIDDEN');
+    }
     const draft = workflow.draft;
 
     if (!draft || !draft.nodes || draft.nodes.length === 0) {
@@ -218,8 +281,8 @@ class WorkflowService {
     return versionDoc;
   }
 
-  async listVersions(projectId, workflowId, options = {}) {
-    await this.getWorkflow(projectId, workflowId);
+  async listVersions(projectId, workflowId, options = {}, context = {}) {
+    await this.getWorkflow(projectId, workflowId, context);
     const [versions, total] = await Promise.all([
       workflowVersionRepository.listByWorkflow(workflowId, options),
       workflowVersionRepository.countByWorkflow(workflowId),
@@ -227,8 +290,8 @@ class WorkflowService {
     return { versions, total };
   }
 
-  async getVersion(projectId, workflowId, version) {
-    await this.getWorkflow(projectId, workflowId);
+  async getVersion(projectId, workflowId, version, context = {}) {
+    await this.getWorkflow(projectId, workflowId, context);
     const versionDoc = await workflowVersionRepository.findByWorkflowAndVersion(
       workflowId,
       Number(version)
@@ -510,8 +573,8 @@ class WorkflowService {
   /**
    * Mid-flight run cancellation (Gap 6 / TODO.md 1.4).
    */
-  async cancelRun(projectId, runId) {
-    await this.getRun(projectId, runId);
+  async cancelRun(projectId, runId, context = {}) {
+    await this.getRun(projectId, runId, context);
 
     const activeDriver = WorkflowRunDriver.get(runId);
     if (activeDriver) {
@@ -529,8 +592,8 @@ class WorkflowService {
   /**
    * Generates a Mermaid flowchart string for this workflow.
    */
-  async getMermaid(projectId, workflowId) {
-    const workflow = await this.getWorkflow(projectId, workflowId);
+  async getMermaid(projectId, workflowId, context = {}) {
+    const workflow = await this.getWorkflow(projectId, workflowId, context);
     return generateWorkflowMermaid(workflow);
   }
 }

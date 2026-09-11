@@ -456,6 +456,17 @@ class AgentFactory {
   ) {
     if (!agentId) throw new Error('Agent ID is required to build an agent');
 
+    // Allow calling buildAgent(agentId, userId, executionContext) without checkpointer
+    if (
+      checkpointer &&
+      (checkpointer.principalType || checkpointer.domain || checkpointer.isDryRun) &&
+      !checkpointer.getTuple &&
+      !checkpointer.put
+    ) {
+      executionContext = checkpointer;
+      checkpointer = null;
+    }
+
     const agentIdStr = agentId._id ? agentId._id.toString() : agentId.toString();
 
     // Developer Platform (blueprint Phase 8, PR-23a): the identity key used
@@ -605,7 +616,8 @@ class AgentFactory {
       usesPerUserMcp = (agent.mcps || []).some((mcp) => mcp.authMode === 'user');
     }
 
-    const effectiveCacheKey = `${cacheKey}:${identityKey}`;
+    const dryRunSuffix = executionContext?.isDryRun ? ':dryrun' : '';
+    const effectiveCacheKey = `${cacheKey}:${identityKey}${dryRunSuffix}`;
 
     // 2. Cache Validation
     const cached = agentCache.get(effectiveCacheKey);
@@ -623,6 +635,7 @@ class AgentFactory {
       provider: provider.label,
       skillCount: agent.skills?.length || 0,
       mcpCount: agent.mcps?.length || 0,
+      isDryRun: Boolean(executionContext?.isDryRun),
       mcps: (agent.mcps || []).map((mcp) => ({
         id: String(mcp._id || mcp.id),
         name: mcp.name,
@@ -634,8 +647,19 @@ class AgentFactory {
     const llm = await this._buildLLM(agent, provider);
 
     // Completely abstracted Tool Registry injection
+    // If running in dry-run mode, strip external destructive tool attachments (Finding #3 in review.md)
+    const effectiveAgent = executionContext?.isDryRun
+      ? {
+          ...(typeof agent.toObject === 'function' ? agent.toObject() : agent),
+          mcps: [],
+          restApiTools: [],
+          restApiToolSources: [],
+          rcpSources: [],
+        }
+      : agent;
+
     const { tools: resolvedTools, mcpAppMap } = await resolveAgentTools(
-      agent,
+      effectiveAgent,
       userId,
       executionContext
     );

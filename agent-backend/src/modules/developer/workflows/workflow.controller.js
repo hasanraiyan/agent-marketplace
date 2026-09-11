@@ -110,10 +110,12 @@ class WorkflowController {
   async saveDraft(req, res, next) {
     try {
       const projectId = getProjectId(req);
+      const context = getContext(req);
       const workflow = await workflowService.saveDraft(
         projectId,
         req.params.workflowId,
-        req.body.draft
+        req.body.draft,
+        context
       );
       res.json({ success: true, data: workflow });
     } catch (error) {
@@ -124,7 +126,8 @@ class WorkflowController {
   async remove(req, res, next) {
     try {
       const projectId = getProjectId(req);
-      await workflowService.deleteWorkflow(projectId, req.params.workflowId);
+      const context = getContext(req);
+      await workflowService.deleteWorkflow(projectId, req.params.workflowId, context);
       res.json({ success: true, message: 'Workflow deleted successfully' });
     } catch (error) {
       next(error);
@@ -134,11 +137,13 @@ class WorkflowController {
   async publish(req, res, next) {
     try {
       const projectId = getProjectId(req);
+      const context = getContext(req);
       const userId = getUserId(req);
       const versionDoc = await workflowService.publishWorkflow(
         projectId,
         req.params.workflowId,
-        userId
+        userId,
+        context
       );
       res.status(201).json({ success: true, data: versionDoc });
     } catch (error) {
@@ -149,12 +154,14 @@ class WorkflowController {
   async listVersions(req, res, next) {
     try {
       const projectId = getProjectId(req);
+      const context = getContext(req);
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
       const { versions, total } = await workflowService.listVersions(
         projectId,
         req.params.workflowId,
-        { page, limit }
+        { page, limit },
+        context
       );
       res.json({
         success: true,
@@ -168,10 +175,12 @@ class WorkflowController {
   async getVersion(req, res, next) {
     try {
       const projectId = getProjectId(req);
+      const context = getContext(req);
       const versionDoc = await workflowService.getVersion(
         projectId,
         req.params.workflowId,
-        req.params.version
+        req.params.version,
+        context
       );
       res.json({ success: true, data: versionDoc });
     } catch (error) {
@@ -241,7 +250,12 @@ class WorkflowController {
   async cancel(req, res, next) {
     try {
       const projectId = getProjectId(req);
-      const cancelledRun = await workflowService.cancelRun(projectId, req.params.runId);
+      const context = getContext(req);
+      const cancelledRun = await workflowService.cancelRun(
+        projectId,
+        req.params.runId,
+        context
+      );
       res.json({
         success: true,
         message: 'Workflow run cancelled successfully',
@@ -299,7 +313,12 @@ class WorkflowController {
   async getMermaid(req, res, next) {
     try {
       const projectId = getProjectId(req);
-      const mermaid = await workflowService.getMermaid(projectId, req.params.workflowId);
+      const context = getContext(req);
+      const mermaid = await workflowService.getMermaid(
+        projectId,
+        req.params.workflowId,
+        context
+      );
       res.json({ success: true, data: { mermaid } });
     } catch (error) {
       next(error);

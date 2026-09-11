@@ -11,6 +11,7 @@ import {
 import { generateWorkflowMermaid } from '../src/modules/developer/workflows/workflowMermaid.js';
 import { WorkflowRunDriver } from '../src/modules/developer/workflows/workflowRunDriver.js';
 import workflowUsageService from '../src/modules/developer/workflows/workflowUsage.service.js';
+import workflowService from '../src/modules/developer/workflows/workflow.service.js';
 import { EventType } from '@ag-ui/core';
 
 describe('Workflow Engine & Visual Builder Tests', () => {
@@ -308,5 +309,48 @@ describe('Workflow Engine & Visual Builder Tests', () => {
       expect(parsed.error.issues[0].message).toContain('Unreachable disconnected node(s): orphan_agent');
     });
   });
+
+  describe('Workflow Ownership & Write Authorization Enforcement (Round 2)', () => {
+    const projectWorkflow = {
+      _id: 'wf_proj',
+      ownerType: 'Project',
+      externalOwnerId: null,
+      visibility: 'private',
+    };
+
+    const userAWorkflow = {
+      _id: 'wf_user_a',
+      ownerType: 'ExternalUser',
+      externalOwnerId: 'usr_A',
+      visibility: 'public', // Even public workflows cannot be mutated by other users
+    };
+
+    test('Project Admin context can mutate any workflow in the project', () => {
+      const adminCtx = { principalType: 'ProjectAdmin', isProjectAdmin: true };
+      expect(workflowService.canMutateWorkflow(projectWorkflow, adminCtx)).toBe(true);
+      expect(workflowService.canMutateWorkflow(userAWorkflow, adminCtx)).toBe(true);
+    });
+
+    test('Project Machine context without externalUserId can mutate project-level workflow', () => {
+      const machineCtx = { principalType: 'ProjectMachine' };
+      expect(workflowService.canMutateWorkflow(projectWorkflow, machineCtx)).toBe(true);
+    });
+
+    test('External user can mutate their own workflow', () => {
+      const userACtx = { principalType: 'ProjectRuntime', externalUserId: 'usr_A' };
+      expect(workflowService.canMutateWorkflow(userAWorkflow, userACtx)).toBe(true);
+    });
+
+    test('External user CANNOT mutate another external user workflow even if public', () => {
+      const userBCtx = { principalType: 'ProjectRuntime', externalUserId: 'usr_B' };
+      expect(workflowService.canMutateWorkflow(userAWorkflow, userBCtx)).toBe(false);
+    });
+
+    test('External user CANNOT mutate project-level workflow', () => {
+      const userACtx = { principalType: 'ProjectRuntime', externalUserId: 'usr_A' };
+      expect(workflowService.canMutateWorkflow(projectWorkflow, userACtx)).toBe(false);
+    });
+  });
 });
+
 
