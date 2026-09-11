@@ -35,7 +35,7 @@ Status Legend: 🔲 Not Started · 🚧 In Progress · ✅ Completed
 - [ ] **1.3. Zod Validators & Cycle Detection**
   - [ ] Create `workflow.validator.js` (Validate node schemas, edge schemas, retry configs, DFS cycle detection check).
 - [ ] **1.4. Routes & Controllers**
-  - [ ] Create `workflow.controller.js` (Draft CRUD, publish action, manual run trigger, dry-run trigger, cancel run action, Mermaid export, run history inspection).
+  - [ ] Create `workflow.controller.js` (Draft CRUD, publish action, single run-trigger action supporting a `dryRun` flag — not two separate endpoints, mirroring the SDK's `run(workflowId, input, { dryRun? })` shape — cancel run action, Mermaid export, run history inspection).
   - [ ] Create `workflow.routes.js` with complete `@openapi` JSDoc annotations and explicit `projectAdminAuth` middleware chaining on every endpoint:
     - [ ] `POST /workflows/runs/:runId/cancel` endpoint to abort a running workflow.
   - [ ] Register routes under `/api/v1/developer/projects/:projectId/workflows` in `agent-backend/src/index.js` or `project.routes.js`.
@@ -47,7 +47,7 @@ Status Legend: 🔲 Not Started · 🚧 In Progress · ✅ Completed
     - [ ] Implement `onError` strategy dispatch (`fail_workflow` aborts run, `continue_with_null` sets step output null and proceeds, `route_error_edge` routes to error target handle).
   - [ ] Implement `compileWorkflowToStateGraph(workflowDef, executionContext)`:
     - [ ] `trigger` node runner.
-    - [ ] `agentStep` runner (executing `createDeepAgent` / `runAgentAsAguiEvents` with context injection; support snapshot pinning vs. live tracking).
+    - [ ] `agentStep` runner (executing `createDeepAgent` / `runAgentAsAguiEvents` with context injection; support snapshot pinning vs. live tracking; **thread the run's own `AbortSignal` into `streamEvents()`'s `signal` option** so a mid-flight cancellation actually interrupts an in-progress LLM/tool call inside this step, not just the next node transition).
     - [ ] `toolStep` runner (direct execution of RCP, REST, or MCP tools without LLM turn; intercept destructive tools if `isDryRun: true`).
     - [ ] `knowledgeStep` runner (direct vector search via `knowledgeService`).
     - [ ] `output` node runner (resolves output template mapping).
