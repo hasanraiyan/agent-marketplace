@@ -413,10 +413,10 @@ function createToolStepExecutor(node, executionContext) {
           throw new BaseError(`Rest API Tool ${targetId} not found`, 404, 'NOT_FOUND');
         }
         resultData = await restApiToolService.testCall(
-          targetId,
+          executionContext,
           restTool,
           typeof resolvedInput === 'object' ? resolvedInput : { query: resolvedInput },
-          executionContext
+          targetId
         );
       } else {
         // Structured tool execution payload

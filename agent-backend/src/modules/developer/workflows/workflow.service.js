@@ -426,6 +426,7 @@ class WorkflowService {
     isDryRun,
     userId,
     driver,
+    resumeFromCheckpoint = false,
   }) {
     driver.pushEvent({
       type: EventType.RUN_STARTED,
@@ -451,12 +452,14 @@ class WorkflowService {
       const checkpointer = checkpointService.checkpointer;
       const app = stateGraph.compile({ checkpointer });
 
-      const initialState = {
-        runId: runId.toString(),
-        workflowId: workflowId.toString(),
-        projectId: projectId.toString(),
-        trigger: { payload: input },
-      };
+      const initialState = resumeFromCheckpoint
+        ? null
+        : {
+            runId: runId.toString(),
+            workflowId: workflowId.toString(),
+            projectId: projectId.toString(),
+            trigger: { payload: input },
+          };
 
       const finalState = await app.invoke(initialState, {
         configurable: { thread_id: threadId },
@@ -568,6 +571,94 @@ class WorkflowService {
 
     res.write(`data: ${JSON.stringify(snapshotEvent)}\n\n`);
     res.end();
+  }
+
+  /**
+   * Resumes an orphaned running workflow run from its latest MongoDB checkpoint (Pillar B / TODO.md 3.4).
+   */
+  async resumeOrphanRun(runId) {
+    const run = await workflowRunRepository.findById(runId);
+    if (!run || run.status !== 'running') return null;
+
+    const workflow = await workflowRepository.findById(run.workflowId);
+    if (!workflow) {
+      await workflowRunRepository.updateStatus(runId, 'failed', {
+        output: { reason: 'Associated workflow not found for orphan recovery' },
+      });
+      await workflowRepository.decrementActiveRuns(run.workflowId);
+      return null;
+    }
+
+    // Check if MongoDB checkpointer has a saved tuple/state for this threadId
+    const checkpointer = checkpointService.checkpointer;
+    let checkpointTuple = null;
+    if (checkpointer && typeof checkpointer.getTuple === 'function') {
+      try {
+        checkpointTuple = await checkpointer.getTuple({
+          configurable: { thread_id: run.threadId },
+        });
+      } catch (err) {
+        logger.warn(`[WorkflowRecovery] Could not read checkpoint for run ${runId}:`, err.message);
+      }
+    }
+
+    // Resolve definition
+    let executableDef;
+    let agentSnapshots = null;
+    if (run.workflowVersion > 0) {
+      const versionDoc = await workflowVersionRepository.findByWorkflowAndVersion(
+        run.workflowId,
+        run.workflowVersion
+      );
+      if (versionDoc) {
+        executableDef = versionDoc.definition;
+        agentSnapshots = versionDoc.agentSnapshots;
+      } else {
+        executableDef = workflow.draft;
+      }
+    } else {
+      executableDef = workflow.draft;
+    }
+
+    // If checkpoint exists, re-allocate RunDriver and resume LangGraph execution from checkpoint
+    if (checkpointTuple) {
+      logger.info(`[WorkflowRecovery] Resuming run ${runId} from MongoDB checkpoint tuple`);
+      const driver = new WorkflowRunDriver({
+        runId: run._id,
+        workflowId: run.workflowId,
+        projectId: run.projectId,
+        threadId: run.threadId,
+      });
+
+      // Resume execution in background
+      this._executeWorkflowGraph({
+        runId: run._id,
+        workflowId: run.workflowId,
+        projectId: run.projectId,
+        threadId: run.threadId,
+        executableDef,
+        agentSnapshots,
+        input: run.trigger?.payload || {},
+        isDryRun: run.isDryRun,
+        userId: run.triggeredBy?.userId,
+        driver,
+        resumeFromCheckpoint: true,
+      }).catch((err) => {
+        logger.error(`[WorkflowRecovery] Failed to complete resumed orphan run ${runId}:`, err);
+      });
+
+      return { run, resumed: true };
+    }
+
+    // If no checkpoint tuple was found, fail gracefully with clear explanation
+    await workflowRunRepository.updateStatus(runId, 'failed', {
+      output: {
+        recoveredAt: new Date(),
+        reason: 'Execution halted due to server process restart. No checkpoint found to resume from.',
+      },
+    });
+    await workflowRepository.decrementActiveRuns(run.workflowId);
+    return { run, resumed: false };
   }
 
   /**
