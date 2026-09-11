@@ -833,7 +833,14 @@ export async function* translateLangGraphStream(stream, opts = {}) {
               },
             };
           } else {
-            logger?.debug('[AG-UI] dropping nested tool with no host task', { name: toolName });
+            logger?.debug('[AG-UI] dropping nested tool with no host task', {
+              name: toolName,
+              runId: event.run_id,
+              ns: event.metadata?.langgraph_checkpoint_ns ?? event.metadata?.checkpoint_ns,
+              node: event.metadata?.langgraph_node,
+              hasRunScopeTracker: Boolean(runScopeTracker),
+              taskToolStackSize: taskToolStack.length,
+            });
           }
           continue;
         }

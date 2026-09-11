@@ -183,7 +183,7 @@ function wrapNodeExecution(node, executorFn, executionContext) {
         });
       }
 
-      return {
+      const stateUpdate = {
         steps: {
           [node.id]: {
             status: 'completed',
@@ -194,6 +194,16 @@ function wrapNodeExecution(node, executorFn, executionContext) {
           },
         },
       };
+
+      // The Output node's result is the workflow's overall result — surface it
+      // on the graph's top-level `output` channel too, not just `steps`, since
+      // that's what runWorkflow's finalState.output (and therefore the
+      // RUN_FINISHED SSE event / persisted run doc) actually reads.
+      if (node.type === 'output') {
+        stateUpdate.output = execResult.output;
+      }
+
+      return stateUpdate;
     } catch (err) {
       logger.warn(`[WorkflowEngine] node "${node.id}" (${node.type}) failed: ${err.message}`, { runId });
 
@@ -225,7 +235,7 @@ function wrapNodeExecution(node, executorFn, executionContext) {
  * Creates the executor for an agentStep node.
  */
 function createAgentStepExecutor(node, executionContext) {
-  return async (state, resolvedInput, { driver, isDryRun, agentSnapshots, userId, domain }) => {
+  return async (state, resolvedInput, { driver, isDryRun, agentSnapshots, userId, domain, runId }) => {
     const config = node.data?.config || {};
     const agentId = config.agentId;
 
@@ -297,6 +307,24 @@ function createAgentStepExecutor(node, executionContext) {
     const stream = agentInstance.streamEvents(
       { messages: [new HumanMessage(userPromptText)] },
       {
+        // This executor runs *inside* a Pregel task of the outer workflow
+        // StateGraph (compileWorkflowToStateGraph). LangGraph's checkpoint_ns
+        // computation (`configurable.checkpoint_ns ?? ''`, see
+        // @langchain/langgraph/dist/pregel/algo.js) reads that ambient config
+        // — which RunnableConfig auto-propagates to any nested Runnable
+        // invoked in the same async context, even without a manual config
+        // threaded through here. Left alone, the inner deepagents graph's own
+        // checkpoint_ns gets prefixed with the OUTER graph's current node
+        // namespace (e.g. "agentStep_xyz:<taskId>|tools:<taskId>"), which the
+        // AG-UI translator's isNestedNamespace() reads as "one segment deeper
+        // than root" and misclassifies as a genuine subagent (deepagents
+        // `task` tool) call with no registered host — silently dropping it,
+        // including the model's actual final answer (nestedChunks, not
+        // textChunks). Explicitly resetting checkpoint_ns to '' makes this
+        // invocation root-relative again, matching the normal chat path
+        // (agui.service.js), where streamEvents is called at the true top
+        // level and never inherits an outer graph's namespace.
+        configurable: { thread_id: `${runId}:${node.id}`, checkpoint_ns: '' },
         version: 'v2',
         signal: driver?.signal, // Threads run driver AbortSignal (Finding #8 in review.md)
         callbacks: [runScopeTracker],
