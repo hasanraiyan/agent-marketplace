@@ -40,9 +40,9 @@ How to behave:
 - If the Architect asks questions with options, pick the option that matches you (say it in words).
 - If the Architect asks something you already answered, say so briefly and move on.
 - Never write the playbook or prompt yourself; that is the Architect's job. You give raw material and reactions.
-- When the Architect says the persona and the skill are created and attached, and asks nothing else, say you're done.
+- You are NOT done until the Architect has actually made the changes (created/updated things, run a test and shown you the persona's real reply) and explicitly says the work is complete. Answering questions is never "done". If the Architect asks you something, answer it with done=false.
 
-Reply ONLY as JSON: {"reply": "<what you say>", "done": <true only when the work is finished and you have nothing more to ask>}`,
+Reply ONLY as JSON: {"reply": "<what you say>", "done": <true ONLY after the Architect has confirmed everything is built/updated and tested; otherwise false>}`,
 });
 
 const thread = await newThread({ agentId: ARCHITECT_AGENT_ID, userId: user._id, title: `sim creator run ${run}` });
@@ -51,12 +51,15 @@ let content = brief.opening;
 let resume;
 let pending = null;
 let turn = 0;
+let mutated = false;
+const MUTATORS = new Set(['upsert_agent', 'manage_skill', 'write_file', 'edit_file', 'delete_agent']);
 while (turn < max) {
   turn += 1;
   turns.push({ who: `Creator (${brief.account.name})`, text: content });
   log(`\n[${turn}] CREATOR: ${content.slice(0, 160)}${content.length > 160 ? '…' : ''}`);
   const r = await runTurn({ agentId: ARCHITECT_AGENT_ID, userId: user._id, thread, content, resume, log });
   resume = undefined;
+  if (r.tools.some((t) => MUTATORS.has(t.name))) mutated = true;
   let shown = r.text;
   let detail = '';
   if (r.interrupt?.kind === 'clarification') detail = clarificationQuestionsText(r.interrupt);
@@ -74,6 +77,7 @@ while (turn < max) {
     turn += 1;
     const r2 = await runTurn({ agentId: ARCHITECT_AGENT_ID, userId: user._id, thread, content, resume, log });
     resume = undefined;
+    if (r2.tools.some((t) => MUTATORS.has(t.name))) mutated = true;
     turns.push({ who: 'Architect', text: r2.text, tools: r2.tools, paused: r2.interrupt?.kind, detail: r2.interrupt?.kind === 'clarification' ? clarificationQuestionsText(r2.interrupt) : (r2.interrupt?.value?.actionRequests || []).map((a) => a.name).join(', '), seconds: r2.seconds });
     log(`[${turn}] ARCHITECT: ${r2.text.slice(0, 300)}${r2.text.length > 300 ? '…' : ''}`);
     if (r2.error) { log('run error, stopping'); break; }
@@ -87,7 +91,9 @@ while (turn < max) {
   const simOut = parseSimJson(await sim.reply(shown || '(the Architect did not say anything)'));
   content = simOut.reply || 'Go on.';
   if (pending?.kind === 'clarification') resume = clarificationResume(pending, content);
-  if (simOut.done) {
+  const architectAsked = Boolean(pending) || /\?\s*$/.test((shown || '').trim().split('\n').pop() || '');
+  if (simOut.done && (!mutated || architectAsked)) log('   (sim said done too early — ignored)');
+  if (simOut.done && mutated && !architectAsked) {
     turns.push({ who: `Creator (${brief.account.name})`, text: content + '  _(done)_' });
     log(`\nCREATOR (done): ${content}`);
     break;

@@ -52,6 +52,9 @@ The skill is not attached yet, so pass `skillName` to pin it for the test.
 
 ## Rules that apply to every playbook
 
+- Intake questions are generic to the verb+object (they must work for any client bringing this kind of request). Specifics from the worked example (its system, its numbers, its names) belong in section 7 only; never let them leak into intake, process, or output.
+- Intake stays conversational: two to four questions, asked one or two at a time. If a client must supply a block of data, ask for it as one clearly labelled request, not a form with ten mandatory fields.
+
 - The persona can only talk and write. A phase that says "I send the intro" or "I book the call" must instead say what the persona drafts and what the client does with it.
 - If the skill touches money, tax, equity, visas, health, or legal terms, section 6 names the hand-off and the exact sentence, even if the persona prompt already has it.
 - Rules from the persona (e.g. "one thing at a time") apply inside the skill; a process step must not contradict them.

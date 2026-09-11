@@ -242,9 +242,11 @@ class AgentService {
     const agentData = { ...data };
 
     if (!mainAgent) {
-      // First active agent becomes the user's Main Agent (Clone), locked to their username.
+      // First active agent becomes the user's Main Agent (their persona).
+      // Its slug is locked to the username; its display name is the person's
+      // name (or whatever the creator chose), never the username slug.
       agentData.isMainAgent = true;
-      agentData.name = user.username || user.name || 'My Clone';
+      agentData.name = data.name || user.name || user.username || 'My Persona';
       agentData.slug = await this._generateMainSlug(user.username || user.name);
     } else {
       agentData.isMainAgent = false;
