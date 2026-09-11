@@ -1,5 +1,5 @@
 import { BaseStore } from '@langchain/langgraph';
-import Skill from './skill.model.js';
+import Skill, { SKILL_CATEGORIES } from './skill.model.js';
 import { buildSkillFiles, slugifySkillName } from './skillMarkdown.js';
 import { SKILL_LIMITS, normalizeSkillFilePath, mimeTypeForSkillPath } from './skillValidation.js';
 
@@ -66,7 +66,8 @@ export function parseSkillMdContent(content) {
         value = value.slice(1, -1);
       }
     }
-    if (key === 'name' || key === 'description') metadata[key] = value;
+    if (['name', 'description', 'title', 'hook', 'category'].includes(key)) metadata[key] = value;
+    if (key === 'tags') metadata.tags = value.replace(/^\[|\]$/g, '').split(',').map((t) => t.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
   }
   return { metadata, body: text.slice(match[0].length).replace(/^\r?\n/, '') };
 }
@@ -261,9 +262,15 @@ export class SkillLibraryStore extends BaseStore {
       throw new Error('Skill description must be 1024 characters or fewer.');
     }
 
+    const meta = {};
+    if (metadata?.title) meta.title = String(metadata.title).slice(0, 120);
+    if (metadata?.hook) meta.hook = String(metadata.hook).slice(0, 200);
+    if (metadata?.category && SKILL_CATEGORIES.includes(metadata.category)) meta.category = metadata.category;
+    if (Array.isArray(metadata?.tags)) meta.tags = metadata.tags.slice(0, 12);
     if (skill) {
       skill.description = description;
       skill.instructions = instructions;
+      Object.assign(skill, meta);
       await skill.save();
     } else {
       await Skill.create({
@@ -272,6 +279,7 @@ export class SkillLibraryStore extends BaseStore {
         description,
         instructions,
         isPublic: false,
+        ...meta,
       });
     }
   }

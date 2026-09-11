@@ -270,9 +270,11 @@ class AgentService {
     const agentData = { ...data };
 
     if (!mainAgent) {
-      // First active agent becomes the user's Main Agent (Clone), locked to their username.
+      // First active agent becomes the user's Main Agent (their persona).
+      // Its slug is locked to the username; its display name is the person's
+      // name (or whatever the creator chose), never the username slug.
       agentData.isMainAgent = true;
-      agentData.name = user.username || user.name || 'My Clone';
+      agentData.name = data.name || user.name || user.username || 'My Persona';
       agentData.slug = await this._generateMainSlug(user.username || user.name);
     } else {
       agentData.isMainAgent = false;
@@ -417,6 +419,14 @@ class AgentService {
    * ExternalUser context can now manage its own Agent too.
    */
   async updateAgent(id, userId, updateData, context = personaExecutionContext(userId)) {
+    // Keep the last 10 system prompts so a revision can be rolled back.
+    if (typeof updateData.systemPrompt === 'string') {
+      const current = await agentRepository.findById(id);
+      if (current && current.systemPrompt && current.systemPrompt !== updateData.systemPrompt) {
+        const history = [...(current.promptHistory || []), { systemPrompt: current.systemPrompt, replacedAt: new Date() }].slice(-10);
+        updateData.promptHistory = history;
+      }
+    }
     const existing = await agentRepository.findById(id);
 
     if (!existing) throw new Error('Agent not found');

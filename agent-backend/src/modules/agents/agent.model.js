@@ -234,6 +234,14 @@ const agentSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    // Previous system prompts (newest last), so a bad revision can be undone.
+    promptHistory: [
+      {
+        systemPrompt: { type: String, required: true },
+        replacedAt: { type: Date, default: Date.now },
+        note: { type: String, default: '' },
+      },
+    ],
   },
   {
     timestamps: true,
