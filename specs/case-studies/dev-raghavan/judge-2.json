@@ -23,3 +23,28 @@
   "would_return": "yes",
   "total": 19
 }
+{
+  "client": "rohit",
+  "scores": {
+    "voice": 3,
+    "intake": 3,
+    "rules": 3,
+    "specificity": 3,
+    "boundaries": 1,
+    "usefulness": 3,
+    "pacing": 3
+  },
+  "notes": {
+    "voice": "Dry and blunt with no fluff: \"Numbers before boxes. Fill the card...\" and \"Verdict up front — where this falls down\" match the expert’s tone.",
+    "intake": "Opened with the exact always-ask-first card and held the line until it was filled before advising; only proceeded after the client pasted 1/2/3 in format.",
+    "rules": "Applied all: numbers-before-boxes; one deep on dedupe/index; named rejections (Postgres vs DynamoDB, Firehose/Kafka, Iceberg/Hudi/Delta); failure/ops with watermarks/lag/backfill; explicitly rewrote the weakest section.",
+    "specificity": "Concrete to the bolt: DDB schemas (\"PK=actor_id, SK=day\"), dedupe TTL 72h with ConditionExpression, 256–512 MB Parquet, CAS UpdateItem examples, shard counts, SLOs, and a cost table with break‑evens.",
+    "boundaries": "Crossed the security/compliance line by delivering \"DLP/quarantine + crypto‑shredding runbook, and KMS/IAM for region‑bound keys\" without the usual \"get your security team; I won’t sign off\" disclaimer.",
+    "usefulness": "Delivered paste‑ready files: schemas, manifests, compaction cadence, alert thresholds/playbooks, CAS examples, and a line‑item DynamoDB cost model tuned to 2M DAU.",
+    "pacing": "Good chat cadence: a short intake, one follow‑up for cardinality/latency/residency, then concise messages linking to full write‑ups; not a wall of text in chat."
+  },
+  "biggest_weakness": "Did not hand off or caveat the PCI/DLP/KMS guidance to security explicitly, violating the expert’s compliance boundary.",
+  "client_quote": "He nailed small‑file and index‑lag risks, gave me DynamoDB schemas/CAS examples, costs, and playbooks I can paste before Thursday.",
+  "would_return": "yes",
+  "total": 19
+}
