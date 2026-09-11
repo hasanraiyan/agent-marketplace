@@ -39,7 +39,7 @@ Simulated clients talked to the personas and a strict judge graded each conversa
 | Creator | Round 1 | After one revision |
 |---|---|---|
 | Priya Nair (coach) | 19 / 16 / 17 | 20 / 18 / 20 |
-| Dev Raghavan (review) | 19 / 19 | (in progress) |
+| Dev Raghavan (review) | 19 / 19 | 21 / 20 |
 
 What clients said afterwards: "I finally have a tight story, an outcome-first resume, and a concrete 5-DMs-a-day plan to start tomorrow." "The idempotency deep dive was the exact fix I needed."
 
@@ -50,6 +50,11 @@ What clients said afterwards: "I finally have a tight story, an outcome-first re
 - The persona gave a plan before asking the always-first questions. Now intake finishes before any prescribing.
 - A stressed student got a seven-day plan across three files. Now volume matches the person: one next step for someone anxious or new.
 - The intake section absorbed the worked example's details and became a ten-field form. Now intake stays generic to the skill and conversational.
+
+## Two ways a revision can break your persona (and what now stops them)
+
+- **Dictating an exact format.** Priya asked for a first reply that "must be exactly two lines, nothing else". The persona obeyed so literally that it dropped her hand-offs and started giving tax advice; scores fell from 20 / 18 / 20 to 13 / 7 / 5. The Architect now refuses rigid format rules, tells you why, and proposes the behavior instead ("even with a deadline, I open with my two questions, one line each, then the offer intake"). Every persona also keeps its last ten prompt versions, and the Architect can roll back.
+- **A quiet model switch.** The same revision moved her persona from the provider's default model to a smaller one. Replies got fast and generic. The Architect no longer changes a persona's model unless you name one.
 
 ## Your part after launch
 
