@@ -5,6 +5,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { BookOpenIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { NodeActionsToolbar } from "./NodeActionsToolbar";
+import { nodeShellClass, NodeHeader } from "./nodeStyles";
 
 export function KnowledgeStepNode({ id, data, selected }: NodeProps) {
   const nodeData = (data || {}) as {
@@ -20,19 +21,7 @@ export function KnowledgeStepNode({ id, data, selected }: NodeProps) {
   const status = nodeData.executionStatus;
 
   return (
-    <div
-      className={`relative min-w-[200px] max-w-[260px] rounded-xl border bg-card p-3 shadow-sm transition-all ${
-        selected ? "border-primary ring-2 ring-primary/20 shadow-md" : "border-border hover:border-foreground/30"
-      } ${
-        status === "running"
-          ? "border-blue-500 ring-2 ring-blue-500/30 animate-pulse"
-          : status === "completed"
-          ? "border-emerald-500"
-          : status === "failed"
-          ? "border-destructive"
-          : ""
-      }`}
-    >
+    <div className={`${nodeShellClass(selected, status)} min-w-[220px] max-w-[280px]`}>
       <NodeActionsToolbar nodeId={id} selected={selected} />
       <Handle
         type="target"
@@ -40,22 +29,21 @@ export function KnowledgeStepNode({ id, data, selected }: NodeProps) {
         className="!size-3 !border-2 !border-background !bg-cyan-500 hover:!scale-125 transition-transform"
       />
 
-      <div className="flex items-start gap-2.5">
-        <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-500 mt-0.5">
-          <BookOpenIcon className="size-4" weight="fill" />
-        </div>
-        <div className="flex flex-col flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-1">
-            <span className="text-xs font-semibold text-foreground truncate">
-              {nodeData.label || "Knowledge"}
-            </span>
-            <Badge variant="outline" className="text-[9px] h-4 px-1 font-mono">
-              Top {nodeData.config?.topK || 5}
-            </Badge>
-          </div>
-          <span className="text-[11px] text-muted-foreground truncate">
+      <NodeHeader
+        icon={<BookOpenIcon className="size-4" weight="fill" />}
+        iconClassName="bg-cyan-500/10 text-cyan-500"
+        label={nodeData.label || "Knowledge"}
+        status={status}
+      />
+
+      <div className="flex flex-col gap-2 px-3.5 py-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <p className="truncate text-[11px] text-muted-foreground">
             {nodeData.description || "Vector Search / RAG"}
-          </span>
+          </p>
+          <Badge variant="outline" className="h-4 shrink-0 px-1 font-mono text-[9px]">
+            Top {nodeData.config?.topK || 5}
+          </Badge>
         </div>
       </div>
 

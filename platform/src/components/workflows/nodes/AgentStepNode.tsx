@@ -5,6 +5,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { RobotIcon, ArrowsClockwiseIcon, SparkleIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { NodeActionsToolbar } from "./NodeActionsToolbar";
+import { nodeShellClass, NodeHeader } from "./nodeStyles";
 
 export function AgentStepNode({ id, data, selected }: NodeProps) {
   const nodeData = (data || {}) as {
@@ -23,21 +24,10 @@ export function AgentStepNode({ id, data, selected }: NodeProps) {
 
   const status = nodeData.executionStatus;
   const maxRetries = nodeData.retryPolicy?.maxRetries || 0;
+  const hasMeta = Boolean(nodeData.config?.pinSnapshot || maxRetries > 0 || nodeData.config?.modelName);
 
   return (
-    <div
-      className={`relative min-w-[220px] max-w-[280px] rounded-xl border bg-card p-3 shadow-sm transition-all ${
-        selected ? "border-primary ring-2 ring-primary/20 shadow-md" : "border-border hover:border-foreground/30"
-      } ${
-        status === "running"
-          ? "border-blue-500 ring-2 ring-blue-500/30 animate-pulse"
-          : status === "completed"
-          ? "border-emerald-500"
-          : status === "failed"
-          ? "border-destructive"
-          : ""
-      }`}
-    >
+    <div className={`${nodeShellClass(selected, status)} min-w-[240px] max-w-[300px]`}>
       <NodeActionsToolbar nodeId={id} selected={selected} />
       <Handle
         type="target"
@@ -45,49 +35,46 @@ export function AgentStepNode({ id, data, selected }: NodeProps) {
         className="!size-3 !border-2 !border-background !bg-primary hover:!scale-125 transition-transform"
       />
 
-      <div className="flex items-start gap-2.5">
-        <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary mt-0.5">
-          <RobotIcon className="size-4" weight="fill" />
-        </div>
-        <div className="flex flex-col flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-1">
-            <span className="text-xs font-semibold text-foreground truncate">
-              {nodeData.label || "Agent Step"}
-            </span>
+      <NodeHeader
+        icon={<RobotIcon className="size-4" weight="fill" />}
+        iconClassName="bg-primary/10 text-primary"
+        label={nodeData.label || "Agent Step"}
+        status={status}
+      />
+
+      <div className="flex flex-col gap-2 px-3.5 py-2.5">
+        <p className="truncate text-[11px] text-muted-foreground">
+          {nodeData.description || "LLM Reasoning Step"}
+        </p>
+
+        {hasMeta && (
+          <div className="flex flex-wrap items-center gap-1.5">
             {nodeData.config?.pinSnapshot && (
-              <Badge variant="secondary" className="text-[9px] h-4 px-1 gap-0.5 font-mono">
+              <Badge variant="secondary" className="h-4 gap-0.5 px-1 font-mono text-[9px]">
                 <SparkleIcon className="size-2.5 text-amber-500" />
                 <span>Pinned</span>
               </Badge>
             )}
-          </div>
-          <span className="text-[11px] text-muted-foreground truncate">
-            {nodeData.description || "LLM Reasoning Step"}
-          </span>
-
-          <div className="flex items-center gap-1.5 mt-2">
             {maxRetries > 0 && (
-              <Badge variant="outline" className="text-[9px] h-4 px-1 gap-1 text-muted-foreground font-mono">
+              <Badge variant="outline" className="h-4 gap-1 px-1 font-mono text-[9px] text-muted-foreground">
                 <ArrowsClockwiseIcon className="size-2.5" />
                 <span>{maxRetries}x</span>
               </Badge>
             )}
             {nodeData.config?.modelName && (
-              <span className="text-[10px] text-muted-foreground font-mono truncate">
+              <span className="truncate font-mono text-[10px] text-muted-foreground">
                 {nodeData.config.modelName}
               </span>
             )}
           </div>
-        </div>
-      </div>
+        )}
 
-      {nodeData.liveTokenPreview && (
-        <div className="mt-2 pt-2 border-t border-border/50">
-          <p className="text-[10px] font-mono text-muted-foreground line-clamp-2 italic bg-muted/40 p-1.5 rounded">
+        {nodeData.liveTokenPreview && (
+          <p className="line-clamp-2 rounded bg-muted/50 p-1.5 font-mono text-[10px] text-muted-foreground italic">
             {nodeData.liveTokenPreview}
           </p>
-        </div>
-      )}
+        )}
+      </div>
 
       <Handle
         type="source"

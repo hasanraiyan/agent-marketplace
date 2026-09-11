@@ -5,6 +5,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { LightningIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { NodeActionsToolbar } from "./NodeActionsToolbar";
+import { nodeShellClass, NodeHeader } from "./nodeStyles";
 
 export function TriggerNode({ id, data, selected }: NodeProps) {
   const nodeData = (data || {}) as {
@@ -17,36 +18,24 @@ export function TriggerNode({ id, data, selected }: NodeProps) {
   const status = nodeData.executionStatus;
 
   return (
-    <div
-      className={`relative min-w-[200px] rounded-xl border bg-card p-3 shadow-sm transition-all ${
-        selected ? "border-primary ring-2 ring-primary/20 shadow-md" : "border-border hover:border-foreground/30"
-      } ${
-        status === "running"
-          ? "border-blue-500 ring-2 ring-blue-500/30 animate-pulse"
-          : status === "completed"
-          ? "border-emerald-500"
-          : status === "failed"
-          ? "border-destructive"
-          : ""
-      }`}
-    >
+    <div className={`${nodeShellClass(selected, status)} min-w-[200px] max-w-[260px]`}>
       <NodeActionsToolbar nodeId={id} selected={selected} allowDuplicate={false} preventDeleteIfOnly />
-      <div className="flex items-center gap-2.5">
-        <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
-          <LightningIcon className="size-4" weight="fill" />
-        </div>
-        <div className="flex flex-col flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-1">
-            <span className="text-xs font-semibold text-foreground truncate">
-              {nodeData.label || "Trigger"}
-            </span>
-            <Badge variant="outline" className="text-[9px] h-4 px-1 font-mono uppercase">
-              {nodeData.config?.type || "manual"}
-            </Badge>
-          </div>
-          <span className="text-[11px] text-muted-foreground truncate">
+
+      <NodeHeader
+        icon={<LightningIcon className="size-4" weight="fill" />}
+        iconClassName="bg-amber-500/10 text-amber-500"
+        label={nodeData.label || "Trigger"}
+        status={status}
+      />
+
+      <div className="flex flex-col gap-2 px-3.5 py-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <p className="truncate text-[11px] text-muted-foreground">
             {nodeData.description || "Entry point"}
-          </span>
+          </p>
+          <Badge variant="outline" className="h-4 shrink-0 px-1 font-mono text-[9px] uppercase">
+            {nodeData.config?.type || "manual"}
+          </Badge>
         </div>
       </div>
 
