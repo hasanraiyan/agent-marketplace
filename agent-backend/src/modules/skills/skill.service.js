@@ -1,4 +1,9 @@
 import skillRepository from './skill.repository.js';
+import NotFoundError from '../../utils/errors/NotFoundError.js';
+import BaseError from '../../utils/errors/BaseError.js';
+
+const wantsPublish = (d) =>
+  d?.visibility === 'public' || d?.visibility === 'unlisted' || d?.isPublic === true;
 import agentRepository from '../agents/agent.repository.js';
 import agentFactory from '../agents/agent.factory.js';
 import { personaExecutionContext } from '../agents/agent.service.js';
@@ -21,6 +26,7 @@ class SkillService {
    * rather than needing a separate `createDeveloperSkill`.
    */
   async createSkill(userId, skillData, context = personaExecutionContext(userId)) {
+    if (wantsPublish(skillData)) await this.assertCanPublish(userId);
     const skill = await skillRepository.create({
       ...skillData,
       ...ownerFieldsForContext(context),
@@ -43,7 +49,8 @@ class SkillService {
     }
 
     const skillObj = skill.toObject ? skill.toObject() : skill;
-    return { ...skillObj, isOwner };
+    const personas = await this.resolvePersonas([skill.ownerId]);
+    return { ...skillObj, isOwner, persona: personas[String(skill.ownerId)] || null };
   }
 
   /**
@@ -71,6 +78,47 @@ class SkillService {
   /**
    * Searches the public skills marketplace
    */
+  /**
+   * The persona that "plays" a creator's skills: their public main agent.
+   * Null when the creator has no public persona (skills are then not playable
+   * and never listed on Explore).
+   */
+  async resolvePersonas(ownerIds) {
+    const ids = [...new Set(ownerIds.map(String))];
+    if (!ids.length) return {};
+    // Invariant: one persona per creator — their main agent — and a skill
+    // only plays through it. No fallback to other agents.
+    const agents = await agentRepository.search(
+      {
+        ownerId: { $in: ids },
+        isMainAgent: true,
+        isActive: true,
+        visibility: 'public',
+        deletedAt: null,
+      },
+      { page: 1, limit: 500, sortBy: 'newest' }
+    );
+    const byOwner = {};
+    for (const a of agents) byOwner[String(a.ownerId)] = a;
+    const out = {};
+    for (const [k, a] of Object.entries(byOwner)) {
+      out[k] = { _id: a._id, name: a.name, slug: a.slug, avatarUrl: a.avatarUrl || a.avatar, tagline: a.tagline, isMainAgent: a.isMainAgent };
+    }
+    return out;
+  }
+
+  /** Publishing (public or unlisted) requires a public persona to play through. */
+  async assertCanPublish(ownerId) {
+    const personas = await this.resolvePersonas([ownerId]);
+    if (!personas[String(ownerId)]) {
+      throw new BaseError(
+        'Publish your persona first: your main agent must be public before a skill can be published.',
+        400,
+        'PERSONA_REQUIRED'
+      );
+    }
+  }
+
   async searchPublicSkills(filters, page = 1, limit = 20) {
     const skip = (page - 1) * limit;
     return await skillRepository.findPublicSkills(filters, skip, limit);
@@ -92,6 +140,7 @@ class SkillService {
    * as before).
    */
   async updateSkill(id, userId, updateData, context = personaExecutionContext(userId)) {
+    if (wantsPublish(updateData)) await this.assertCanPublish(userId);
     delete updateData.ownerId;
     delete updateData.externalOwnerId;
     delete updateData.ownerType;
