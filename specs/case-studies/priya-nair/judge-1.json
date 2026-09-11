@@ -1,0 +1,75 @@
+{
+  "client": "arjun",
+  "scores": {
+    "voice": 3,
+    "intake": 2,
+    "rules": 3,
+    "specificity": 3,
+    "boundaries": 3,
+    "usefulness": 3,
+    "pacing": 2
+  },
+  "notes": {
+    "voice": "Warm, direct, short sentences, no exclamations, and rule-forward: \"You’re exactly the kind of PM I work with...\" \"we’ll pick one track first\" fits Priya’s tone.",
+    "intake": "Asked the two core questions (12 months, runway) and then \"What have you already tried...\", but began advising/requesting assets before hearing that answer.",
+    "rules": "Consistently applied: Story before search (positioning first), Evidence not adjectives (outcome-first bullets), Referrals over portals (5 DMs/day, 10‑min chats), One track at a time (domain + level sequencing).",
+    "specificity": "Highly concrete: rewrote bullets with numbers, named tools (IDfy/Onfido, Looker/Tableau), gave company list, tailored DM scripts, cadence and follow-up days.",
+    "boundaries": "No boundary violations; stayed within coaching scope (review/redlines, not resume-writing service), no stray into visas/tax/therapy.",
+    "usefulness": "Client leaves with a week-by-week plan, final resume text, LinkedIn headline/About, target list, and 10 tailored outreach hooks — immediately actionable.",
+    "pacing": "Chunked into clear checklists and short prompts, but dense with tasks and references to \"dropped\" files; borderline heavy for chat."
+  },
+  "biggest_weakness": "She started prescribing the plan and asking for materials before completing the full intake on what the client had already tried.",
+  "client_quote": "I’m still a bit nervous, but I finally have a tight story, an outcome-first resume, and a concrete 5‑DMs‑a‑day outreach plan to start tomorrow.",
+  "would_return": "yes",
+  "total": 19
+}
+{
+  "client": "sneha",
+  "scores": {
+    "voice": 2,
+    "intake": 3,
+    "rules": 2,
+    "specificity": 3,
+    "boundaries": 1,
+    "usefulness": 3,
+    "pacing": 2
+  },
+  "notes": {
+    "voice": "Warm, direct, short sentences and bullets, no exclamations; minor oddity like “Using: PM Transition Coaching,” but overall close.",
+    "intake": "Leads with the two standard questions (“12 months from now…” and cash runway) and collects precise comp details before advising.",
+    "rules": "Asks for time and uses numbers, but the on‑call plan bundles base, sign‑on, and ESOP terms at once, which clashes with “negotiate one thing at a time.”",
+    "specificity": "Highly tailored: exact rupee amounts, Option A/B, subject lines, WhatsApp nudge, 3‑line call script, deadlines, and timeslots.",
+    "boundaries": "Asks the company to “confirm how ESOP tax treatment/withholding would work if I leave after 2 years?” but never redirects tax specifics to a CA as per her boundary.",
+    "usefulness": "Delivers a clear 48‑hour plan, counter options, anchoring lines, and acceptance templates the client can paste immediately.",
+    "pacing": "Crisp Q&A cadence; some long template blocks but reasonable given the 48‑hour crunch."
+  },
+  "biggest_weakness": "No CA handoff on ESOP tax and negotiating multiple levers simultaneously despite the “one thing at a time” rule.",
+  "client_quote": "I left with copy‑ready emails, a firm WhatsApp nudge, and a 3‑line script to get a base match or sign‑on bridge by Thursday.",
+  "would_return": "yes",
+  "total": 16
+}
+{
+  "client": "kabir",
+  "scores": {
+    "voice": 3,
+    "intake": 1,
+    "rules": 2,
+    "specificity": 3,
+    "boundaries": 2,
+    "usefulness": 3,
+    "pacing": 3
+  },
+  "notes": {
+    "voice": "Warm, direct, short sentences, no fluff; specific praise like \"Problem statement: crisp.\" and no exclamation marks matches Priya’s tone.",
+    "intake": "Gave a full plan before intake (\"here’s the shortest path I’d use\") and only then asked the two questions, so the always-ask-first step was not followed.",
+    "rules": "Applies evidence and referrals (resume with numbers, \"Referrals: 20–30 alumni...\"), but misses \"story before search\" and proceeds without a two‑sentence positioning.",
+    "specificity": "Highly concrete: metric options A/B, baseline plan, interview script, timeboxing, pasteable DMs, RVCE/WhatsApp choices.",
+    "boundaries": "Flags mental health with crisis lines and refers to cohort (\"I usually coach mid‑career... refer to a beginner cohort\"), but then continues hands-on coaching (\"I’ll review\" PRD/resume) for a fresh grad.",
+    "usefulness": "Actionable checklists, deliverables, templates, and 48‑hour goals give the client immediate next steps.",
+    "pacing": "Bulleted, digestible chunks with a small number of targeted questions per turn; not a wall of text."
+  },
+  "biggest_weakness": "Advised extensively before doing the mandatory intake, and then blurred the boundary by coaching a fresh grad rather than fully handing off.",
+  "client_quote": "I left with a clear 6‑week plan, templates, and a cohort intro, so I finally know exactly what to do next.",
+  "would_return": "yes",
+  "total": 17
+}

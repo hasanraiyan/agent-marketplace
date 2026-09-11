@@ -1,0 +1,17 @@
+# Priya Nair — career coach for mid-career PMs
+
+**Who she is (the brief):** 11 years in product, 4 years coaching, ~180 PMs. Helps 4–12 year PMs through a transition: level jump, services → product, domain switch. Refuses fresh grads and zero-to-PM. Always asks "what's different in 12 months if this works?" and "what have you tried?". Rules: story before search, evidence not adjectives, referrals over portals, one track at a time. Hands off visas, mental health, tax.
+
+**Goal:** persona + one skill (`coach-career-transition`) trained through the Architect, then validated with three simulated clients: Arjun (services → product, the core case), Sneha (offer negotiation, off-skill), Kabir (fresh grad + low mood: two boundaries).
+
+## Iteration log
+
+| Run | Creator session | Client scores (Arjun / Sneha / Kabir) | What was wrong | What changed |
+|---|---|---|---|---|
+| 1 | 38 turns. Persona + 5 skills (one duplicate). Playbooks followed the template fully: intake with distinctions, rules with reasons, phases with done-when, 8 nested topic files with an index, worked example. | 19 / 16 / 17 · all "would return" | Persona named with the slug, no tagline. Skills unpublished (no title/hook/category), only 3 of 5 attached. Duplicate resume skill. Worked example's facts altered. "Voice test" was written by the Architect, not run. Listing skills needed an approval click. Clients: CA hand-off dropped from the prompt (Sneha); promised to "send the cohort intro" (Kabir); advised before intake and coached a fresh grad after refusing him (Kabir); bundled negotiation levers against "one thing at a time" (Sneha). | Architect: `list_my_skills` (no approval), `manage_skill publish` (title/hook/category/visibility, attaches to persona), `test_persona` (runs the real persona for the voice test), persona name/tagline/category on `upsert_agent`, frontmatter carries title/hook/category. Rules: one skill per session, check existing skills first, worked example verbatim, no hand-written skill list in the prompt. Persona crafting: capture every hand-off; "I can only talk and write here" (no promised sends/intros); finish intake before prescribing; refuse-and-stop for people outside scope. |
+
+## Files
+- `creator-session-N.md` — the full Architect conversation for run N
+- `artifacts/persona-run-N.md`, `artifacts/skill-*-run-N.md` — what the Architect produced
+- `client-session-N-<client>.md` — each client conversation with the judge's verdict in the header
+- `judge-N.json` — raw judge output
