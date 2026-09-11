@@ -65,8 +65,13 @@ export function readDoc(
     path.join(base, ...slug, "index.mdx"),
   ];
   for (const p of tryPaths) {
-    if (fs.existsSync(p)) {
-      const raw = fs.readFileSync(p, "utf8");
+    // The `...slug` spread above makes this path unbounded-depth, which
+    // defeats Turbopack's static file-tracing analysis and makes it
+    // conservatively trace the whole project. `next.config.ts`'s
+    // `outputFileTracingIncludes` already guarantees `content/docs/**` ships
+    // with the server output, so it's safe to opt this call out of tracing.
+    if (fs.existsSync(/*turbopackIgnore: true*/ p)) {
+      const raw = fs.readFileSync(/*turbopackIgnore: true*/ p, "utf8");
       const { data, content } = matter(raw);
       return {
         meta: {

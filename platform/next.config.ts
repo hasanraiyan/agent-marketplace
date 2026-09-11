@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // `readDoc()` (src/lib/docs/mdx.ts) reads `content/docs/**` via a
+  // dynamic, unbounded-depth path (turbopackIgnore'd there since it defeats
+  // file-trace analysis) — declare it explicitly so it still ships in the
+  // deployed server output instead of relying on that analysis to find it.
+  outputFileTracingIncludes: {
+    "/docs/**": ["./content/docs/**/*"],
+  },
   async rewrites() {
     return [
       {
