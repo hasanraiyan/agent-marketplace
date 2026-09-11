@@ -61,8 +61,22 @@ const VISIBILITY = [
   { value: "public", label: "Public", description: "Listed on the marketplace / Explore." },
 ] as const;
 
+const AGENT_TYPES = [
+  {
+    value: "deepagent",
+    label: "Deep Agent (full features)",
+    description: "Includes virtual filesystem, memory, skills, and subagent delegation.",
+  },
+  {
+    value: "react",
+    label: "ReAct Agent (lightweight)",
+    description: "Direct model + tools execution for lower latency and token usage.",
+  },
+] as const;
+
 type Category = (typeof CATEGORIES)[number]["value"];
 type Visibility = (typeof VISIBILITY)[number]["value"];
+type AgentType = (typeof AGENT_TYPES)[number]["value"];
 
 interface Provider {
   _id?: string;
@@ -82,6 +96,7 @@ interface AgentDoc {
   modelName?: string;
   webSearchEnabled?: boolean;
   sandboxEnabled?: boolean;
+  agentType?: AgentType;
   visibility?: Visibility;
   category?: Category;
   isActive?: boolean;
@@ -103,6 +118,7 @@ interface AgentFormState {
   modelName: string;
   webSearchEnabled: boolean;
   sandboxEnabled: boolean;
+  agentType: AgentType;
   visibility: Visibility;
   category: Category;
   isActive: boolean;
@@ -122,6 +138,7 @@ const EMPTY_FORM: AgentFormState = {
   modelName: "",
   webSearchEnabled: false,
   sandboxEnabled: false,
+  agentType: "deepagent",
   visibility: "private",
   category: "other",
   isActive: true,
@@ -252,6 +269,7 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
           modelName: str(found, "modelName"),
           webSearchEnabled: !!found.webSearchEnabled,
           sandboxEnabled: !!found.sandboxEnabled,
+          agentType: (found.agentType as AgentType) || "deepagent",
           visibility: (found.visibility as Visibility) || "private",
           category: (found.category as Category) || "other",
           isActive: found.isActive !== false,
@@ -412,6 +430,7 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
       providerId: form.providerId,
       webSearchEnabled: form.webSearchEnabled,
       sandboxEnabled: form.sandboxEnabled,
+      agentType: form.agentType,
       visibility: form.visibility,
       category: form.category,
       isActive: form.isActive,
@@ -592,6 +611,30 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
                   </Field>
                 </div>
 
+                <Field>
+                  <FieldLabel htmlFor="agentType">Architecture</FieldLabel>
+                  <Select
+                    value={form.agentType}
+                    onValueChange={(value) => update("agentType", (value ?? "deepagent") as AgentType)}
+                  >
+                    <SelectTrigger id="agentType" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AGENT_TYPES.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldDescription>
+                    {form.agentType === "deepagent"
+                      ? "Includes virtual filesystem, memory, skills, and subagent delegation."
+                      : "Direct model + tools execution for lower latency and token usage. Filesystem, skills, memory, subagents, and approval gates are omitted in ReAct mode (file presentation rarely fires without file tools)."}
+                  </FieldDescription>
+                </Field>
+
                 {noProviders ? (
                   <Alert>
                     <WarningCircleIcon />
@@ -725,26 +768,28 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
                       onCheckedChange={(c) => update("webSearchEnabled", !!c)}
                     />
                   </div>
-                  <div className="flex items-center justify-between rounded-none border border-dashed bg-muted/10 px-3 py-2.5">
-                    <div className="flex flex-col gap-0.5">
-                      <Label htmlFor="sandboxEnabled" className="text-sm font-medium">
-                        Sandbox
-                      </Label>
-                      <span className="text-xs text-muted-foreground">
-                        Let the agent run real shell commands in an isolated CodeSandbox VM.
-                        Requires a <code className="font-mono">CSB_API_KEY</code>{" "}
-                        <Link href={`/projects/${pid}/secrets`} className="underline underline-offset-2">
-                          Project Secret
-                        </Link>
-                        .
-                      </span>
+                  {form.agentType === "deepagent" && (
+                    <div className="flex items-center justify-between rounded-none border border-dashed bg-muted/10 px-3 py-2.5">
+                      <div className="flex flex-col gap-0.5">
+                        <Label htmlFor="sandboxEnabled" className="text-sm font-medium">
+                          Sandbox
+                        </Label>
+                        <span className="text-xs text-muted-foreground">
+                          Let the agent run real shell commands in an isolated CodeSandbox VM.
+                          Requires a <code className="font-mono">CSB_API_KEY</code>{" "}
+                          <Link href={`/projects/${pid}/secrets`} className="underline underline-offset-2">
+                            Project Secret
+                          </Link>
+                          .
+                        </span>
+                      </div>
+                      <Switch
+                        id="sandboxEnabled"
+                        checked={form.sandboxEnabled}
+                        onCheckedChange={(c) => update("sandboxEnabled", !!c)}
+                      />
                     </div>
-                    <Switch
-                      id="sandboxEnabled"
-                      checked={form.sandboxEnabled}
-                      onCheckedChange={(c) => update("sandboxEnabled", !!c)}
-                    />
-                  </div>
+                  )}
                   <div className="flex items-center justify-between rounded-none border border-dashed bg-muted/10 px-3 py-2.5">
                     <div className="flex flex-col gap-0.5">
                       <Label htmlFor="isActive" className="text-sm font-medium">
@@ -772,17 +817,19 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
             </CardHeader>
             <CardContent>
               <div className="grid gap-3 sm:grid-cols-2">
-                <AttachPicker
-                  field="skills"
-                  title="Skills"
-                  hint="skills — reusable instructions"
-                  items={skills}
-                  loading={loadingAttaches}
-                  selected={form.skills}
-                  onToggle={toggle("skills")}
-                  createHref={`${resourceBase}/skills/new`}
-                  emptyNoun="a skill"
-                />
+                {form.agentType === "deepagent" && (
+                  <AttachPicker
+                    field="skills"
+                    title="Skills"
+                    hint="skills — reusable instructions"
+                    items={skills}
+                    loading={loadingAttaches}
+                    selected={form.skills}
+                    onToggle={toggle("skills")}
+                    createHref={`${resourceBase}/skills/new`}
+                    emptyNoun="a skill"
+                  />
+                )}
                 <AttachPicker
                   field="knowledgeBases"
                   title="Knowledge"

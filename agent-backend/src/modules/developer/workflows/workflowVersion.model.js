@@ -6,6 +6,11 @@ const agentSnapshotSchema = new mongoose.Schema(
     modelName: { type: String, required: true },
     systemPrompt: { type: String, required: true },
     tools: [{ type: String }],
+    agentType: {
+      type: String,
+      enum: ['deepagent', 'react'],
+      default: 'deepagent',
+    },
   },
   { _id: false }
 );

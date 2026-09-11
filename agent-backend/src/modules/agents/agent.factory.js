@@ -2,7 +2,7 @@ import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatDeepSeek } from '@langchain/deepseek';
-import { createMiddleware } from 'langchain';
+import { createMiddleware, createAgent } from 'langchain';
 import { getConfig } from '@langchain/langgraph';
 import {
   createDeepAgent,
@@ -616,6 +616,8 @@ class AgentFactory {
       usesPerUserMcp = (agent.mcps || []).some((mcp) => mcp.authMode === 'user');
     }
 
+    const agentType = agent.agentType === 'react' ? 'react' : 'deepagent';
+
     const dryRunSuffix = executionContext?.isDryRun ? ':dryrun' : '';
     const effectiveCacheKey = `${cacheKey}:${identityKey}${dryRunSuffix}`;
 
@@ -631,6 +633,7 @@ class AgentFactory {
 
     logger.info('[AgentFactory] building agent', {
       agentId: agentIdStr,
+      agentType,
       model: agent.modelName,
       provider: provider.label,
       skillCount: agent.skills?.length || 0,
@@ -708,21 +711,12 @@ class AgentFactory {
         })
       : checkpointer;
 
-    // Build interruptOn from the agent's stored config. These are the built-in
-    // human-in-the-loop pauses used for guarded tool execution.
-    const interruptOnConfig =
-      agent.interruptOn instanceof Map
-        ? Object.fromEntries(agent.interruptOn)
-        : agent.interruptOn || {};
-
-    const personalizedPrompt = `${agent.systemPrompt}
-
-### PRESENT FILE RULES
+    const PRESENT_FILE_RULES = `### PRESENT FILE RULES
 - When you want to showcase or highlight a file to the user, call the \`present_file\` tool.
 - The frontend will automatically display a clean inline card with an "Open" button on the user's screen.
-- Therefore, do NOT repeat the file path, location, or description in your text response. Keep your text response minimal to avoid duplicating the information on the user's screen.
+- Therefore, do NOT repeat the file path, location, or description in your text response. Keep your text response minimal to avoid duplicating the information on the user's screen.`;
 
-### PERSISTENT MEMORY RULES (file-based)
+    const MEMORY_RULES = `### PERSISTENT MEMORY RULES (file-based)
 - Your filesystem has two persistent memory directories that survive across all conversations:
   - \`/memories/user/\` — facts and preferences about the user, shared across all of their agents.
   - \`/memories/agent/\` — learnings, patterns, and configurations specific to you (private to this user).
@@ -732,145 +726,172 @@ class AgentFactory {
 - Proactively persist new durable facts with \`write_file\`/\`edit_file\` — update the topic file, then keep the index in sync. Do not ask permission; save and continue.
 - Do NOT re-save facts already present in the auto-loaded indexes. If the user asks what you remember about them, answer from the loaded context directly.
 - Never store API keys, passwords, tokens, or other secrets in memory files.
-- \`/skills/\` is read-only reference material — never attempt to write there.
+- \`/skills/\` is read-only reference material — never attempt to write there.`;
 
-### SUB-AGENT WORKSPACE RULES
+    const SUBAGENT_RULES = `### SUB-AGENT WORKSPACE RULES
 - Whenever you delegate a task to a sub-agent (using the \`task\` tool), you MUST explicitly instruct that sub-agent to write all of its files, outputs, and responses inside the \`/workspace/outputs/\` directory.
 - This ensures all sub-agent deliverables are systematically gathered in one folder under the workspace.`;
 
-    // Virtual filesystem: ephemeral thread-scoped scratch by default, with
-    // persistent DB-backed routes for skills (read-only, live from the Skill
-    // collection) and memories (per user / per user+agent). The compiled
-    // instance is cached per agentId:userId, so static namespaces are safe.
-    const backendRoutes = {
-      '/skills/': readonlyBackend(
-        new StoreBackend({
-          store: agentSkillsStore,
-          namespace: ['agents', agentIdStr, 'enabled'],
-        }),
-        '/skills/'
-      ),
-      '/memories/user/': gracefulBackend(
-        new StoreBackend({
-          store: memoryFilesStore,
-          namespace: userMemoryNamespace(identityKey),
-        })
-      ),
-      '/memories/agent/': gracefulBackend(
-        new StoreBackend({
-          store: memoryFilesStore,
-          namespace: agentMemoryNamespace(identityKey, agentIdStr),
-        })
-      ),
-      '/workspace/': gracefulBackend(
-        new StoreBackend({
-          store: memoryFilesStore,
-          namespace: agentWorkspaceNamespace(identityKey, agentIdStr),
-        })
-      ),
-    };
+    const personalizedPrompt =
+      agentType === 'react'
+        ? `${agent.systemPrompt}\n\n${PRESENT_FILE_RULES}`
+        : `${agent.systemPrompt}\n\n${PRESENT_FILE_RULES}\n\n${MEMORY_RULES}\n\n${SUBAGENT_RULES}`;
 
-    // Named Stores this agent mounts (stores/store.model.js) — one more
-    // entry per store, exactly like the static routes above. `domain`
-    // scope gets one shared namespace for the whole Project; `externalUser`
-    // scope gets one namespace per caller, resolved here from
-    // executionContext (the compiled instance is already cache-keyed by
-    // identityKey, so a different external user is already a fresh build
-    // with their own executionContext.externalUserId in scope — no
-    // separate dynamic-resolution mechanism needed). A stale/deleted store
-    // ref, or an externalUser-scoped store with no external user in
-    // context (e.g. a bare ProjectMachine-built agent — shouldn't happen
-    // in practice, but must not crash the whole build), is skipped.
-    for (const store of agent.storeMounts || []) {
-      if (!store?.name) continue;
-      if (store.scope === 'externalUser' && !executionContext?.externalUserId) {
-        logger.warn(
-          '[AgentFactory] skipping externalUser-scoped store, no external user in context',
-          {
-            storeId: store._id,
-            agentId: agentIdStr,
-          }
+    let agentInstance;
+    let sandboxBackend = null;
+
+    if (agentType === 'react') {
+      agentInstance = await createAgent({
+        model: llm,
+        systemPrompt: personalizedPrompt,
+        checkpointer: safeCheckpointer,
+        store: getGlobalStore(),
+        tools: dynamicTools,
+        middleware: [contextOverrideMiddleware],
+      });
+    } else {
+      // Build interruptOn from the agent's stored config. These are the built-in
+      // human-in-the-loop pauses used for guarded tool execution.
+      const interruptOnConfig =
+        agent.interruptOn instanceof Map
+          ? Object.fromEntries(agent.interruptOn)
+          : agent.interruptOn || {};
+
+      // Virtual filesystem: ephemeral thread-scoped scratch by default, with
+      // persistent DB-backed routes for skills (read-only, live from the Skill
+      // collection) and memories (per user / per user+agent). The compiled
+      // instance is cached per agentId:userId, so static namespaces are safe.
+      const backendRoutes = {
+        '/skills/': readonlyBackend(
+          new StoreBackend({
+            store: agentSkillsStore,
+            namespace: ['agents', agentIdStr, 'enabled'],
+          }),
+          '/skills/'
+        ),
+        '/memories/user/': gracefulBackend(
+          new StoreBackend({
+            store: memoryFilesStore,
+            namespace: userMemoryNamespace(identityKey),
+          })
+        ),
+        '/memories/agent/': gracefulBackend(
+          new StoreBackend({
+            store: memoryFilesStore,
+            namespace: agentMemoryNamespace(identityKey, agentIdStr),
+          })
+        ),
+        '/workspace/': gracefulBackend(
+          new StoreBackend({
+            store: memoryFilesStore,
+            namespace: agentWorkspaceNamespace(identityKey, agentIdStr),
+          })
+        ),
+      };
+
+      // Named Stores this agent mounts (stores/store.model.js) — one more
+      // entry per store, exactly like the static routes above. `domain`
+      // scope gets one shared namespace for the whole Project; `externalUser`
+      // scope gets one namespace per caller, resolved here from
+      // executionContext (the compiled instance is already cache-keyed by
+      // identityKey, so a different external user is already a fresh build
+      // with their own executionContext.externalUserId in scope — no
+      // separate dynamic-resolution mechanism needed). A stale/deleted store
+      // ref, or an externalUser-scoped store with no external user in
+      // context (e.g. a bare ProjectMachine-built agent — shouldn't happen
+      // in practice, but must not crash the whole build), is skipped.
+      for (const store of agent.storeMounts || []) {
+        if (!store?.name) continue;
+        if (store.scope === 'externalUser' && !executionContext?.externalUserId) {
+          logger.warn(
+            '[AgentFactory] skipping externalUser-scoped store, no external user in context',
+            {
+              storeId: store._id,
+              agentId: agentIdStr,
+            }
+          );
+          continue;
+        }
+        const storeNamespace =
+          store.scope === 'externalUser'
+            ? externalUserStoreNamespace(store.domain, executionContext.externalUserId, store.name)
+            : domainStoreNamespace(store.domain, store.name);
+        const wrapBackend = store.accessMode === 'readonly' ? readonlyBackend : gracefulBackend;
+        backendRoutes[`/stores/${store.name}/`] = wrapBackend(
+          new StoreBackend({ store: memoryFilesStore, namespace: storeNamespace }),
+          `/stores/${store.name}/`
         );
-        continue;
       }
-      const storeNamespace =
-        store.scope === 'externalUser'
-          ? externalUserStoreNamespace(store.domain, executionContext.externalUserId, store.name)
-          : domainStoreNamespace(store.domain, store.name);
-      const wrapBackend = store.accessMode === 'readonly' ? readonlyBackend : gracefulBackend;
-      backendRoutes[`/stores/${store.name}/`] = wrapBackend(
-        new StoreBackend({ store: memoryFilesStore, namespace: storeNamespace }),
-        `/stores/${store.name}/`
-      );
-    }
 
-    // The Architect authors skills by writing files (dostify pattern): the
-    // user's whole skill library is mounted read-write at /skill-library/,
-    // backed by the Skill collection. Writes validate paths/limits and parse
-    // SKILL.md frontmatter into name/description/instructions.
-    // gracefulBackend: store validation errors (SKILL.md missing, bad path,
-    // size limits) must reach the model as tool errors, not crash the run.
-    if (agentIdStr === ARCHITECT_AGENT_ID) {
-      backendRoutes['/skill-library/'] = gracefulBackend(
-        new StoreBackend({
-          store: skillLibraryStore,
-          namespace: skillLibraryNamespace(userId),
-        })
-      );
-    }
+      // The Architect authors skills by writing files (dostify pattern): the
+      // user's whole skill library is mounted read-write at /skill-library/,
+      // backed by the Skill collection. Writes validate paths/limits and parse
+      // SKILL.md frontmatter into name/description/instructions.
+      // gracefulBackend: store validation errors (SKILL.md missing, bad path,
+      // size limits) must reach the model as tool errors, not crash the run.
+      if (agentIdStr === ARCHITECT_AGENT_ID) {
+        backendRoutes['/skill-library/'] = gracefulBackend(
+          new StoreBackend({
+            store: skillLibraryStore,
+            namespace: skillLibraryNamespace(userId),
+          })
+        );
+      }
 
-    // Project Agent Architect's own /skill-library/ (skill-authoring parity
-    // follow-up) — same pattern as the Persona branch above, backed by this
-    // Project's own Skills instead of a Persona User's.
-    if (agentIdStr === PROJECT_ARCHITECT_AGENT_ID) {
-      backendRoutes['/skill-library/'] = gracefulBackend(
-        new StoreBackend({
-          store: projectSkillLibraryStore,
-          namespace: projectSkillLibraryNamespace(executionContext.domain),
-        })
-      );
-    }
+      // Project Agent Architect's own /skill-library/ (skill-authoring parity
+      // follow-up) — same pattern as the Persona branch above, backed by this
+      // Project's own Skills instead of a Persona User's.
+      if (agentIdStr === PROJECT_ARCHITECT_AGENT_ID) {
+        backendRoutes['/skill-library/'] = gracefulBackend(
+          new StoreBackend({
+            store: projectSkillLibraryStore,
+            namespace: projectSkillLibraryNamespace(executionContext.domain),
+          })
+        );
+      }
 
-    // Real code execution (agent.sandboxEnabled) swaps the root backend for
-    // a CodeSandbox-backed one — see sandbox.service.js. Everything mounted
-    // in backendRoutes above (/skills/, /memories/, /stores/,
-    // /skill-library/) is untouched either way: only the agent's top-level
-    // workspace becomes a real VM instead of the virtual, MongoDB-backed
-    // VersionedStateBackend.
-    const sandboxBackend = agent.sandboxEnabled
-      ? await getSandboxBackend({ agentId: agentIdStr, userId, domain: executionContext.domain })
-      : null;
-    const backend = new CompositeBackend(sandboxBackend || new VersionedStateBackend(), backendRoutes);
+      // Real code execution (agent.sandboxEnabled) swaps the root backend for
+      // a CodeSandbox-backed one — see sandbox.service.js. Everything mounted
+      // in backendRoutes above (/skills/, /memories/, /stores/,
+      // /skill-library/) is untouched either way: only the agent's top-level
+      // workspace becomes a real VM instead of the virtual, MongoDB-backed
+      // VersionedStateBackend.
+      sandboxBackend = agent.sandboxEnabled
+        ? await getSandboxBackend({ agentId: agentIdStr, userId, domain: executionContext.domain })
+        : null;
+      const backend = new CompositeBackend(sandboxBackend || new VersionedStateBackend(), backendRoutes);
 
-    const agentInstance = await createDeepAgent({
-      model: llm,
-      systemPrompt: personalizedPrompt,
-      checkpointer: safeCheckpointer,
-      store: getGlobalStore(),
-      tools: dynamicTools,
-      interruptOn: interruptOnConfig,
-      middleware: [contextOverrideMiddleware],
-      backend,
-      // Skills are served live from the DB via the /skills/ route above.
-      skills: ['/skills/'],
-      // Memory indexes are auto-loaded into the system prompt each run;
-      // missing files are skipped gracefully by the memory middleware.
-      memory: ['/memories/user/index.md', '/memories/agent/index.md'],
-      subagents: [
-        {
-          name: 'general-purpose',
-          description: DEFAULT_GENERAL_PURPOSE_DESCRIPTION,
-          systemPrompt: `In order to complete the objective that the user asks of you, you have access to a number of standard tools.
+      agentInstance = await createDeepAgent({
+        model: llm,
+        systemPrompt: personalizedPrompt,
+        checkpointer: safeCheckpointer,
+        store: getGlobalStore(),
+        tools: dynamicTools,
+        interruptOn: interruptOnConfig,
+        middleware: [contextOverrideMiddleware],
+        backend,
+        // Skills are served live from the DB via the /skills/ route above.
+        skills: ['/skills/'],
+        // Memory indexes are auto-loaded into the system prompt each run;
+        // missing files are skipped gracefully by the memory middleware.
+        memory: ['/memories/user/index.md', '/memories/agent/index.md'],
+        subagents: [
+          {
+            name: 'general-purpose',
+            description: DEFAULT_GENERAL_PURPOSE_DESCRIPTION,
+            systemPrompt: `In order to complete the objective that the user asks of you, you have access to a number of standard tools.
 
 ### WORKSPACE OUTPUT ROUTING RULES
 - All outputs, responses, files, and deliverables generated by you MUST be written to a file inside the \`/workspace/outputs/\` directory.
 - Never write files to the root directory or other directories unless explicitly requested by the user.`,
-        },
-      ],
-    });
+          },
+        ],
+      });
+    }
 
     logger.info('[AgentFactory] agent built', {
       agentId: agentIdStr,
+      agentType,
       toolCount: dynamicTools.length,
       tools: dynamicTools.map((t) => t.name),
       skillCount: agent.skills?.length || 0,

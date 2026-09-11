@@ -248,6 +248,7 @@ function createAgentStepExecutor(node, executionContext) {
         modelName: snapshot.modelName,
         systemPrompt: snapshot.systemPrompt,
         tools: snapshot.tools || [],
+        agentType: snapshot.agentType || 'deepagent',
       };
     } else {
       agentDoc = await agentRepository.findById(agentId);

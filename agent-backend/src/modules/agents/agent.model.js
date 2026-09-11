@@ -134,6 +134,11 @@ const agentSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    agentType: {
+      type: String,
+      enum: ['deepagent', 'react'],
+      default: 'deepagent',
+    },
     skills: [
       {
         type: mongoose.Schema.Types.ObjectId,

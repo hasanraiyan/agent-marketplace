@@ -279,6 +279,7 @@ class WorkflowService {
             modelName: agentDoc.modelName || 'default',
             systemPrompt: agentDoc.systemPrompt || '',
             tools: (agentDoc.tools || []).map((t) => (typeof t === 'string' ? t : t.name)),
+            agentType: agentDoc.agentType || 'deepagent',
           });
         } else {
           logger.warn('[WorkflowService] publishWorkflow: agentStep references missing agent', {
