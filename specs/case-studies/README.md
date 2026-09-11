@@ -4,7 +4,7 @@ Each folder is one simulated creator taken through the real product: the Archite
 
 | Creator | Verb / skill | Status |
 |---|---|---|
-| [Priya Nair](priya-nair/) — career coach for mid-career PMs | coach (career transition; + resume review, interview stories, offer negotiation) | round 2: 20 / 18 / 20 · round 3 polish in progress |
+| [Priya Nair](priya-nair/) — career coach for mid-career PMs | coach (career transition; + resume review, interview stories, offer negotiation) | final: 20 / 20 / 15 (in-scope clients at the bar; out-of-scope handling is a creator call) |
 | [Dev Raghavan](dev-raghavan/) — staff engineer, design reviews | review (system design doc) | round 1: 19 / 19 → after revision: 21 / 20 · **at the bar** |
 
 Start with [CREATOR-GUIDE.md](CREATOR-GUIDE.md) for the creator-facing summary of what to bring, what happens, and what came out.

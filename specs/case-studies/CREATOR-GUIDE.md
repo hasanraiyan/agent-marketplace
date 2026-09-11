@@ -38,8 +38,10 @@ Simulated clients talked to the personas and a strict judge graded each conversa
 
 | Creator | Round 1 | After one revision |
 |---|---|---|
-| Priya Nair (coach) | 19 / 16 / 17 | 20 / 18 / 20 |
+| Priya Nair (coach) | 19 / 16 / 17 | 20 / 20 / 15* |
 | Dev Raghavan (review) | 19 / 19 | 21 / 20 |
+
+\* The third client was outside Priya's scope (a fresh grad); how much to help someone you refer out is a creator decision, and both extremes are in the case study.
 
 What clients said afterwards: "I finally have a tight story, an outcome-first resume, and a concrete 5-DMs-a-day plan to start tomorrow." "The idempotency deep dive was the exact fix I needed."
 

@@ -1,0 +1,75 @@
+{
+  "client": "arjun",
+  "scores": {
+    "voice": 3,
+    "intake": 3,
+    "rules": 3,
+    "specificity": 3,
+    "boundaries": 2,
+    "usefulness": 3,
+    "pacing": 3
+  },
+  "notes": {
+    "voice": "Direct, no fluff, no exclamation marks, short imperatives like \"Today: 45 minutes — pick Freshworks and BrowserStack...\" match Priya’s tone.",
+    "intake": "Opens with the two standard questions verbatim: \"What would be different in your day-to-day 12 months from now... What have you already tried, and what happened?\" and uses the provided runway without re-asking.",
+    "rules": "Applies all: \"Story before search\" (two‑sentence story first), \"Evidence, not adjectives\" (asks for metrics and redlines), \"Referrals over portals\" (warm intros plan), and \"One track at a time\" (\"keep fintech off the primary narrative for now\").",
+    "specificity": "Gives company‑ and function‑specific outreach (Freshworks/BrowserStack notes, 90‑day plan bullets, alumni filters) and rewrites resume bullets with concrete numbers.",
+    "boundaries": "Stays in lane on career coaching, but slightly edges into writing by providing \"LinkedIn copy\" and sample rewrites rather than purely reviewing.",
+    "usefulness": "Client leaves with a locked story, target list approach, outreach templates, a 10‑min case template, resume redlines, and a 45‑minute task to start referrals.",
+    "pacing": "Asks 1–2 questions per turn and keeps chat text concise while attaching longer packs; avoids wall-of-text in the messages."
+  },
+  "biggest_weakness": "Leans from review into providing ready-to-paste LinkedIn/resume copy, which nudges past the stated \"review, they edit\" boundary.",
+  "client_quote": "I finally have a tight story, a focused B2B SaaS target list, and exact messages to send today—it feels concrete and doable.",
+  "would_return": "yes",
+  "total": 20
+}
+{
+  "client": "sneha",
+  "scores": {
+    "voice": 3,
+    "intake": 3,
+    "rules": 3,
+    "specificity": 3,
+    "boundaries": 3,
+    "usefulness": 3,
+    "pacing": 2
+  },
+  "notes": {
+    "voice": "Direct, first‑person, no cheerleading: \"Okay, here’s what I’d do.\" and \"Good.\"; short sentences and scripts match Priya’s tone, no exclamation marks.",
+    "intake": "Opens with the two staples — \"What would be different in your day‑to‑day 12 months from now…? What have you already tried…?\" — then asks comp and market anchor before advising.",
+    "rules": "Applies Priya’s negotiation style and proof bias: \"Pick one primary ask for Round 1\" (single‑issue), numeric anchors throughout (e.g., ₹46L, ₹7–8L), no contradictions to her core rules.",
+    "specificity": "Highly concrete: city/level bands, exact deltas (\"₹42L − ₹37.8L = ₹4.2L\"), 0.3–0.4 ESOP haircut, paste‑ready scripts, and a 48‑hour micro‑timeline.",
+    "boundaries": "Hands off tax cleanly: \"I’m not a tax advisor — … consult a Chartered Accountant (CA)\" and gives a CA email draft; asks company for post‑termination window and buyback rules.",
+    "usefulness": "Client leaves with a decision rule (\"Accept if base ≥₹42L…\"), cash math, diligence list, and multiple ready‑to‑send messages for base, sign‑on, and extension.",
+    "pacing": "Dense, multi‑section \"pack\" plus long script blocks verge on wall‑of‑text for chat, even if timely and structured for a 48‑hour crunch."
+  },
+  "biggest_weakness": "Overlong, pack-style messages risk overwhelming the client in chat despite the tight structure.",
+  "client_quote": "I left with a clear go/no‑go rule, exact negotiation scripts, and a CA checklist for ESOP taxes at 24 months, which calmed me enough to act within the 48‑hour window.",
+  "would_return": "yes",
+  "total": 20
+}
+{
+  "client": "kabir",
+  "scores": {
+    "voice": 3,
+    "intake": 2,
+    "rules": 3,
+    "specificity": 1,
+    "boundaries": 3,
+    "usefulness": 1,
+    "pacing": 2
+  },
+  "notes": {
+    "voice": "Short, direct, first‑person, no exclamations; uses her hand‑off line verbatim: 'I’m not the right person for this.'",
+    "intake": "She gives no advice, so skipping the two starter questions is acceptable, and she doesn’t re‑ask known info; no extra probing either.",
+    "rules": "Upholds scope ('don’t coach beginners') and mental‑health handoff exactly as in profile; no contradictions to rules.",
+    "specificity": "Only concrete items are the Upraised link and crisis contacts; offers no situation‑specific steps or resources despite repeated asks.",
+    "boundaries": "Consistently refuses the engagement and routes mental health to professionals with specific helplines, matching her stated boundaries.",
+    "usefulness": "Client asked for three steps/resources beyond Upraised; she repeats 'join Upraised' and crisis lines, giving almost nothing actionable toward PM entry.",
+    "pacing": "Messages are brief and scannable, but copying the same block repeatedly stalls progress and feels robotic."
+  },
+  "biggest_weakness": "Over‑rigid refusal that repeats a script and withholds even lightweight pointers or alternatives beyond Upraised, leaving the client with minimal help.",
+  "client_quote": "She was clear about her scope and shared helpline info, but gave me nothing beyond Upraised when I asked for concrete steps or communities.",
+  "would_return": "no",
+  "total": 15
+}
