@@ -60,6 +60,15 @@ shadcn, same as the RCP Source edit page). Edges carry data — the builder need
 `{{stepId.output}}` in downstream node config, echoing how `contextOverride`/turn `context`
 templating already works in the chat layer).
 
+**Mermaid export, alongside the interactive canvas.** React Flow is the *editable* representation
+(drag, wire, live-highlight the running node) — separately worth having is a *read-only* Mermaid
+flowchart export of a `WorkflowDefinition`, the same idea as LangGraph's own `draw_mermaid()` on a
+compiled graph. Since every workflow already compiles to a LangGraph `StateGraph` (Pillar B), this
+is close to free — same underlying graph, just serialized differently. Useful anywhere the full
+React Flow editor isn't wanted or available: embedded in a PR description, a doc page, a Slack
+message, or returned directly from the SDK (`client.workflows.getMermaid(workflowId)`) for a
+consumer that just wants to see the shape without loading a graph-editing library.
+
 ### Pillar B — Multi-agent orchestration, on LangGraph (Resolved: engine choice)
 
 **Resolved:** the visual graph compiles directly to a **LangGraph `StateGraph`** — nodes become
