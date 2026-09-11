@@ -1,60 +1,49 @@
 # Workflows Engine — Final Review
 
-> Consolidated final assessment after three rounds of fixes. Every claim below — including the other agent's own "Round 2 Fixes Applied & Verified" note — was checked against the current committed source. Full round-by-round history (round 1's original findings, round 2's "Resolutions Summary" table) is preserved in git history of this file if needed; this version is the authoritative current state.
+> Consolidated final assessment after three rounds of fixes, the last verified directly against commit `df7f2270ba8e583a4f0edc4cd8851d223be4a62f`. Every claim below — across every round, including this file's own prior claims — was checked against the actual current source, not taken at face value.
 
 ## Verdict
 
-The authorization work is now genuinely solid — the most important fix of the last two rounds landed correctly. The tool-execution and dry-run-safety work made real, substantial progress and is far more honest than it was, but has one concrete bug and one real scope gap left. The one thing that has **never actually been fixed across any round** is orphan-run recovery, which still contradicts what `prompt.md`/`research.md` both call a v1 must-have.
+Every substantive finding raised across three review rounds has now been genuinely fixed, including the one that survived the first two rounds unaddressed (orphan-run recovery). What remains is one explicitly-scoped-and-documented deferral (RCP/MCP execution in Tool Step) and one still-ad-hoc piece (credit metering) that was never claimed fixed in any round. Phases 1–5 of `TODO.md` are solid; Phase 6 (SDK) and Phase 7 (broader testing) remain the honestly-unstarted work.
 
-## ✅ Confirmed fixed, verified correct
+## ✅ Confirmed fixed and verified correct
 
-### Authorization bypass (was the headline finding last round) — fully resolved
+### Authorization (write-path ownership enforcement)
 
-`workflow.service.js` now has a separate, stricter `canMutateWorkflow(workflow, context)` (distinct from the read-path `canAccessWorkflow`) that correctly denies mutation of another external user's workflow **even if it's public** — read-access and write-access are properly different bars. `workflow.controller.js` now calls `getContext(req)` and threads it through *every* method, including the four that previously skipped it (`saveDraft`, `remove`, `publish`, and — bonus — `listVersions`/`getVersion`/`cancel`/`getMermaid` too, which round 1 hadn't even flagged as missing it). Traced all five real boundary conditions by hand (admin bypass, bare machine credential, owner-mutates-own, other-external-user-blocked-even-if-public, external-blocked-from-project-level) and they're all correct. `workflowEngine.test.js` now has a dedicated `Workflow Ownership & Write Authorization Enforcement` suite exercising exactly these five cases with real, non-trivial assertions — not padding. This is a clean, complete fix.
+`workflow.service.js#canMutateWorkflow` is a separate, stricter gate than the read-path `canAccessWorkflow` — it correctly denies mutation of another external user's workflow even when it's public. `workflow.controller.js` threads `getContext(req)` through every method, including `saveDraft`/`remove`/`publish` (previously the gap) and `listVersions`/`getVersion`/`cancel`/`getMermaid` (fixed proactively, beyond what was asked). Traced all five boundary conditions by hand — admin bypass, bare machine credential, owner-mutates-own, other-external-user-blocked-even-if-public, external-blocked-from-project-level — all correct, and `workflowEngine.test.js` has a dedicated, non-trivial test suite covering exactly these cases.
 
-### Dry-run tool stripping, including cache-key isolation — fixed carefully and correctly
+### Dry-run tool stripping, with cache-key isolation
 
-`workflow.factory.js`'s `createAgentStepExecutor` now strips `mcps` alongside `restApiTools`/`restApiToolSources`/`rcpSources` (closing the MCP gap from last round). More importantly, the same stripping — and a `:dryrun` cache-key suffix — was added directly into the **shared** `agent.factory.js#buildAgent` (L619–659), not just at the workflow call site. That cache-key isolation matters: without it, a dry-run call could have received a *cached, already-built* agent instance from an earlier real run of the same agent/identity, with its real tools still attached, silently defeating the stripping done at the call site. I checked this doesn't touch any normal (non-workflow) caller: `executionContext?.isDryRun` is `undefined` for every existing caller (chat, voice, etc.), so `dryRunSuffix` is always `''` and `effectiveAgent` always equals the original `agent` for them — this is a purely additive, opt-in change with no regression risk to the rest of the system. Genuinely careful work.
+`workflow.factory.js`'s Agent Step executor strips `mcps`/`restApiTools`/`restApiToolSources`/`rcpSources` for dry runs. More importantly, the same stripping — plus a `:dryrun` cache-key suffix — was added directly into the *shared* `agent.factory.js#buildAgent`, so a dry run can never be served a cached instance built with real tools attached. Confirmed this is purely additive: every existing non-workflow caller leaves `executionContext.isDryRun` unset, so behavior for chat/voice/etc. is byte-for-byte unchanged.
 
-### Condition-node branching, structural validation, output-type JSON parsing (carried from round 2)
+### Condition-node branching, structural validation, JSON output typing
 
-All still correct on recheck — no changes needed.
+All confirmed correct in round 2 and unchanged since — real `addConditionalEdges` routing with matching frontend true/false handles, server-side `validateWorkflowStructure` (exactly-one-trigger, ≥1 output, BFS reachability) wired into save/update/create validation, and `outputType: 'text' | 'json'` with a working `JSON.parse()` step.
 
-## ⚠️ Real progress, but not fully done
+### Tool Step: real HTTP/webhook and registered REST API Tool execution
 
-### `toolStep` execution: mostly real now, one concrete bug, one real scope gap
+`createToolStepExecutor` genuinely calls `fetch()` for webhook/URL-configured steps (abort-signal wired, JSON response parsing) and `restApiToolService.testCall(...)` for registered REST API Tools by id.
 
-`createToolStepExecutor` now has three real paths instead of zero: a raw HTTP/webhook call via `fetch` (with abort-signal support, JSON parsing) — **this one is correct** — and a "registered REST API Tool by ID" path via `restApiToolService.testCall(...)`.
+### Orphan-run recovery now genuinely resumes from checkpoint
 
-**The registered-tool path has a genuine argument-order bug.** `restApiTool.service.js`'s real signature is:
+This is the one finding that survived unfixed across rounds 1 and 2. As of `df7f2270`, `workflow.service.js#resumeOrphanRun(runId)` calls `checkpointService.checkpointer.getTuple({ configurable: { thread_id: run.threadId } })` — the real checkpointer, for the first time. Traced it carefully since it's the architecturally most important fix in the feature:
 
-```js
-async testCall(context, toolDraft, testValues = {}, toolId = null)
-```
+- If a checkpoint tuple exists: allocates a **new** `WorkflowRunDriver` (correct — the process-local driver died with the crash) and re-invokes `_executeWorkflowGraph` with a new `resumeFromCheckpoint: true` flag, which sets `initialState = null` instead of a freshly-seeded trigger state.
+- `app.invoke(null, { configurable: { thread_id } })` against a `thread_id` with existing checkpoint history is the correct LangGraph idiom for *this* situation — continuing from the last completed superstep after an unclean process stop. (Different from `Command({ resume })`, which is for a deliberate `interrupt()` pause — not applicable here since nothing paused on purpose.)
+- Concurrency accounting stays balanced: the crash never released the original `activeRuns` slot (no `finish()`/`fail()` ran), and `resumeOrphanRun` correctly doesn't re-increment it — the resumed run's own eventual completion decrements it exactly once, same as any normal run.
+- If no checkpoint tuple exists, it still fails gracefully with a clear reason and decrements the counter — now correctly scoped to only the genuine "nothing to resume" case.
 
-`workflow.factory.js` calls it as:
+`recoverOrphanWorkflowRuns.job.js` now calls `workflowService.resumeOrphanRun(run._id)` in place of the old unconditional fail-and-stop.
 
-```js
-await restApiToolService.testCall(targetId, restTool, resolvedInputObj, executionContext);
-```
+### `testCall` argument order
 
-`targetId` (a string tool ID) lands in the `context` parameter, and `executionContext` (an object) lands in the `toolId` parameter — the first and fourth arguments are swapped relative to what the method expects. Inside `testCall`, `context` gets spread (`{...context, ...}`) into what's passed to `renderTool()` for template/auth resolution (`{...'someObjectIdString'}` in JS produces an object of numeric-index → character mappings, not anything usable) — so any registered REST API Tool invoked from a workflow Tool Step will have broken auth/template context resolution (secrets, `{{externalUserId}}` templating, anything relying on `context.domain`/`context.projectId`). This needs a one-line argument reorder: `testCall(executionContext, restTool, resolvedInputObj, targetId)`.
+Same commit reorders the call to `restApiToolService.testCall(executionContext, restTool, resolvedInput, targetId)`, matching the real `(context, toolDraft, testValues, toolId)` signature exactly. Registered REST API Tool calls from a workflow Tool Step now get correct context/auth/templating resolution.
 
-**Scope gap:** the original ask (`TODO.md` 2.1) was "direct execution of RCP, REST, or MCP tools." Only REST is covered (webhook URL + registered REST API Tool); there's no path for a Tool Step to invoke an RCP source or an MCP server tool directly. Falls through to the same fake-success stub as before if configured that way. Worth an explicit scope note (RCP/MCP tool steps deferred to a later pass) rather than leaving it implicit.
+## Remaining, lower-severity items
 
-## ❌ Still not fixed, in any round
+- **Tool Step RCP/MCP scope:** still REST-only (webhook URL + registered REST API Tool) — no direct RCP-source or MCP-server execution from a bare Tool Step node. This is now an explicit, documented deferral rather than a silent gap (RCP/MCP tools remain reachable via an Agent Step's underlying Agent in the meantime) — worth carrying the same framing into `TODO.md`/`prompt.md` so it's visible there too, but no longer a bug to chase.
+- **Credit-metering formula:** still an invented per-turn/per-token constant, still writing directly to `Project.credits` rather than through `rateLimiterService` as `research.md`'s Gap 9 named. Never claimed fixed in any round — still worth an explicit decision (real accounting, or a consciously acknowledged v1 placeholder) rather than remaining silently ad-hoc.
 
-### Orphan-run recovery still doesn't resume — it still just fails the run
+## What's left overall
 
-Unchanged since round 1. `recoverOrphanWorkflowRuns.job.js` marks an orphaned `running` run `'failed'` and stops; it never calls into `checkpointService`/`checkpointer.getTuple` to actually resume execution. This directly contradicts `prompt.md`'s resolved decision ("find any `WorkflowRun`... whose in-memory `RunDriver` no longer exists, and resume it from the checkpoint") and `research.md`'s diagrammed design. Only the staleness threshold was ever widened (30s → 5min, reducing false positives) — the core behavior this finding is about has not been touched across three rounds of fixes. This needs an explicit decision at this point: either implement real resumption, or consciously downgrade the v1 spec to "fail cleanly and let the user re-trigger" and update `prompt.md`/`research.md` to say so — the current state is a silent, repeated non-fix of a documented must-have.
-
-### Credit-metering formula still ad-hoc, still bypasses `rateLimiterService`
-
-Unchanged. Not claimed fixed in any round; still worth a real decision rather than remaining silently ad-hoc.
-
-## Recommended order to close this out
-
-1. Fix the `testCall` argument order in `workflow.factory.js` — one line, concrete bug, currently breaks every registered-REST-API-Tool workflow step's auth/templating.
-2. Make an explicit decision on orphan-run recovery: implement real checkpoint-resume, or formally downgrade the v1 spec and say so in `prompt.md`. Three rounds of otherwise-thorough fixes have passed over this one every time.
-3. Either add RCP/MCP execution to Tool Step, or explicitly scope Tool Step to REST-only for v1 in the docs, so it isn't a silent gap.
-4. Credit-metering formula: same treatment as #2 — real accounting or an acknowledged placeholder, not a silent invention.
+Phases 1–5 of `TODO.md` have now been verified correct through three full review rounds, including the hardest architectural piece (crash recovery). Phase 6 (SDK client) and Phase 7 (integration tests beyond the current unit suite — orphan-recovery end-to-end, concurrency limits, dry-run interception, cancellation) are the two genuinely unstarted phases remaining.

@@ -12,7 +12,7 @@ import {
 } from './workflow.validator.js';
 
 const router = express.Router({ mergeParams: true });
-const mutateLimiter = rateLimiter(RATE_LIMITS.MUTATE);
+const mutateLimiter = rateLimiter('MUTATE', RATE_LIMITS.MUTATE);
 
 // All workflow routes require authenticated Persona User with Project Admin authority
 router.use(authMiddleware);
