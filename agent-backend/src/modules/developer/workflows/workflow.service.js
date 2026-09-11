@@ -7,7 +7,7 @@ import workflowUsageService from './workflowUsage.service.js';
 import { compileWorkflowToStateGraph } from './workflow.factory.js';
 import { WorkflowRunDriver } from './workflowRunDriver.js';
 import { generateWorkflowMermaid } from './workflowMermaid.js';
-import { detectCycle } from './workflow.validator.js';
+import { detectCycle, validateNodeConfigsForRun } from './workflow.validator.js';
 import agentRepository from '../../agents/agent.repository.js';
 import checkpointService from '../../threads/checkpoint.service.js';
 import BaseError from '../../../utils/errors/BaseError.js';
@@ -365,6 +365,14 @@ class WorkflowService {
     } else {
       executableDef = workflow.draft;
       effectiveVersion = 0;
+    }
+
+    // 3b. Config-completeness check — fail clearly before starting rather
+    // than crashing mid-graph (e.g. an Agent Step with no Agent selected).
+    const configCheck = validateNodeConfigsForRun(executableDef?.nodes || []);
+    if (!configCheck.isValid) {
+      await workflowRepository.decrementActiveRuns(workflowId);
+      throw new BaseError(configCheck.errors.join(' '), 400, 'INCOMPLETE_NODE_CONFIG');
     }
 
     const threadId = crypto.randomUUID();

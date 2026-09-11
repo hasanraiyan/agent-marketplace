@@ -51,6 +51,29 @@ function logApiError(error: unknown) {
   console.error(`${LOG_PREFIX} ❌ ${method} ${url} → ${status}${data}`);
 }
 
+/**
+ * Best available user-facing message from a failed API call. The backend's
+ * validation-error shape (`ValidationError`/`VALIDATION_ERROR`) puts the
+ * actually useful text in `details.errors[].message` — the top-level
+ * `message` is just a generic "Request validation failed" — so surfacing
+ * only `data.message` (as several call sites used to) shows the user
+ * nothing about what's actually wrong. Prefers, in order: joined
+ * field-level validation messages, then the top-level API message, then the
+ * request error's own message, then `fallback`.
+ */
+export function getApiErrorMessage(err: unknown, fallback: string): string {
+  const e = err as {
+    response?: { data?: { message?: string; details?: { errors?: { field?: string; message?: string }[] } } };
+    message?: string;
+  };
+  const fieldErrors = e.response?.data?.details?.errors;
+  if (Array.isArray(fieldErrors) && fieldErrors.length > 0) {
+    const joined = fieldErrors.map((fe) => fe.message).filter(Boolean).join(" ");
+    if (joined) return joined;
+  }
+  return e.response?.data?.message || e.message || fallback;
+}
+
 type TokenFetcher = () => Promise<string | null>;
 
 let tokenFetcher: TokenFetcher | null = null;

@@ -38,6 +38,7 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -57,6 +58,7 @@ import {
   publishProjectWorkflow,
   getProjectWorkflowMermaid,
 } from "@/lib/api/projects";
+import { getApiErrorMessage } from "@/lib/api/core";
 
 const nodeTypes = {
   trigger: TriggerNode,
@@ -142,6 +144,28 @@ export function WorkflowCanvas({ projectId, workflow, onRefresh }: WorkflowCanva
     setSelectedNode(node);
     setConfigDrawerOpen(true);
   };
+
+  // Blocks deleting the last Trigger node — via the toolbar button (which
+  // NodeActionsToolbar also disables directly) AND the Del/Backspace
+  // keyboard shortcut, which the button can't intercept on its own. Runs
+  // for every deletion path since React Flow calls this before actually
+  // removing anything, whether triggered by deleteKeyCode or deleteElements().
+  const onBeforeDelete = React.useCallback(
+    async ({ nodes: toDelete, edges: edgesToDelete }: { nodes: Node[]; edges: Edge[] }) => {
+      const triggerCount = nodes.filter((n) => n.type === "trigger").length;
+      const deletingTrigger = toDelete.some((n) => n.type === "trigger");
+      if (deletingTrigger && triggerCount <= 1) {
+        setMessage({
+          text: "Every workflow needs exactly one Trigger — add a new one before removing this.",
+          type: "error",
+        });
+        setTimeout(() => setMessage(null), 4000);
+        return { nodes: toDelete.filter((n) => n.type !== "trigger"), edges: edgesToDelete };
+      }
+      return true;
+    },
+    [nodes]
+  );
 
   const handleDuplicateSelected = React.useCallback(() => {
     setNodes((nds) => {
@@ -234,7 +258,7 @@ export function WorkflowCanvas({ projectId, workflow, onRefresh }: WorkflowCanva
       setTimeout(() => setMessage(null), 3000);
     } catch (err: any) {
       setMessage({
-        text: err?.response?.data?.message || err?.message || "Failed to save draft",
+        text: getApiErrorMessage(err, "Failed to save draft"),
         type: "error",
       });
     } finally {
@@ -262,7 +286,7 @@ export function WorkflowCanvas({ projectId, workflow, onRefresh }: WorkflowCanva
       setTimeout(() => setMessage(null), 3000);
     } catch (err: any) {
       setMessage({
-        text: err?.response?.data?.message || err?.message || "Failed to publish workflow",
+        text: getApiErrorMessage(err, "Failed to publish workflow"),
         type: "error",
       });
     } finally {
@@ -419,6 +443,7 @@ export function WorkflowCanvas({ projectId, workflow, onRefresh }: WorkflowCanva
           onConnect={onConnect}
           onReconnect={onReconnect}
           deleteKeyCode={["Backspace", "Delete"]}
+          onBeforeDelete={onBeforeDelete}
           onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
@@ -445,44 +470,63 @@ export function WorkflowCanvas({ projectId, workflow, onRefresh }: WorkflowCanva
                 }
               />
               <DropdownMenuContent align="start" className="min-w-52 rounded-xl p-1">
-                <DropdownMenuLabel className="text-[10px]">Steps</DropdownMenuLabel>
-                <DropdownMenuItem
-                  className="gap-2 rounded-lg"
-                  onClick={() => handleAddNode("agentStep", "New Agent Step")}
-                >
-                  <RobotIcon className="size-4 text-primary" weight="fill" />
-                  <span>Agent Step</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="gap-2 rounded-lg"
-                  onClick={() => handleAddNode("toolStep", "New Tool Step")}
-                >
-                  <WrenchIcon className="size-4 text-violet-500" weight="fill" />
-                  <span>Tool Step</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="gap-2 rounded-lg"
-                  onClick={() => handleAddNode("knowledgeStep", "New Knowledge Step")}
-                >
-                  <BookOpenIcon className="size-4 text-cyan-500" weight="fill" />
-                  <span>Knowledge Step</span>
-                </DropdownMenuItem>
+                {!nodes.some((n) => n.type === "trigger") && (
+                  <>
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel className="text-[10px]">Entry point</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        className="gap-2 rounded-lg"
+                        onClick={() => handleAddNode("trigger", "Manual Trigger")}
+                      >
+                        <LightningIcon className="size-4 text-amber-500" weight="fill" />
+                        <span>Trigger</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="text-[10px]">Steps</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    className="gap-2 rounded-lg"
+                    onClick={() => handleAddNode("agentStep", "New Agent Step")}
+                  >
+                    <RobotIcon className="size-4 text-primary" weight="fill" />
+                    <span>Agent Step</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="gap-2 rounded-lg"
+                    onClick={() => handleAddNode("toolStep", "New Tool Step")}
+                  >
+                    <WrenchIcon className="size-4 text-violet-500" weight="fill" />
+                    <span>Tool Step</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="gap-2 rounded-lg"
+                    onClick={() => handleAddNode("knowledgeStep", "New Knowledge Step")}
+                  >
+                    <BookOpenIcon className="size-4 text-cyan-500" weight="fill" />
+                    <span>Knowledge Step</span>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-[10px]">Flow control</DropdownMenuLabel>
-                <DropdownMenuItem
-                  className="gap-2 rounded-lg"
-                  onClick={() => handleAddNode("condition", "Condition Branch")}
-                >
-                  <GitBranchIcon className="size-4 text-orange-500" weight="fill" />
-                  <span>Condition</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="gap-2 rounded-lg"
-                  onClick={() => handleAddNode("output", "Output Result")}
-                >
-                  <CheckCircleIcon className="size-4 text-emerald-500" weight="fill" />
-                  <span>Output</span>
-                </DropdownMenuItem>
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="text-[10px]">Flow control</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    className="gap-2 rounded-lg"
+                    onClick={() => handleAddNode("condition", "Condition Branch")}
+                  >
+                    <GitBranchIcon className="size-4 text-orange-500" weight="fill" />
+                    <span>Condition</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="gap-2 rounded-lg"
+                    onClick={() => handleAddNode("output", "Output Result")}
+                  >
+                    <CheckCircleIcon className="size-4 text-emerald-500" weight="fill" />
+                    <span>Output</span>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
           </Panel>

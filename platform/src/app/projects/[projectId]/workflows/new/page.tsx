@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { createProjectWorkflow } from "@/lib/api/projects";
+import { getApiErrorMessage } from "@/lib/api/core";
 
 const TEMPLATES = [
   {
@@ -183,7 +184,7 @@ export default function NewWorkflowPage() {
         router.push(`/projects/${projectId}/workflows`);
       }
     } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || "Failed to create workflow");
+      setError(getApiErrorMessage(err, "Failed to create workflow"));
       setIsSubmitting(false);
     }
   };

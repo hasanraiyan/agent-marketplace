@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { runProjectWorkflow, cancelProjectWorkflowRun } from "@/lib/api/projects";
+import { getApiErrorMessage } from "@/lib/api/core";
 
 interface TestRunDrawerProps {
   projectId: string;
@@ -152,7 +153,7 @@ export function TestRunDrawer({
       }
     } catch (err: any) {
       if (err?.name !== "AbortError") {
-        setError(err?.response?.data?.message || err?.message || "Execution error");
+        setError(getApiErrorMessage(err, "Execution error"));
       }
     } finally {
       setIsRunning(false);

@@ -30,7 +30,7 @@ export function TriggerNode({ id, data, selected }: NodeProps) {
           : ""
       }`}
     >
-      <NodeActionsToolbar nodeId={id} selected={selected} allowDuplicate={false} />
+      <NodeActionsToolbar nodeId={id} selected={selected} allowDuplicate={false} preventDeleteIfOnly />
       <div className="flex items-center gap-2.5">
         <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
           <LightningIcon className="size-4" weight="fill" />

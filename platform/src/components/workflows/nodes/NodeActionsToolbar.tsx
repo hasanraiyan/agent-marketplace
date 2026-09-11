@@ -10,6 +10,16 @@ interface NodeActionsToolbarProps {
   selected?: boolean;
   /** Hide the duplicate action — e.g. Trigger, since a workflow may only have one. */
   allowDuplicate?: boolean;
+  /**
+   * Disable delete while this is the last node of its type — e.g. Trigger,
+   * since every workflow needs exactly one and the palette can't reliably
+   * recreate the same id/config it had. The canvas-level onBeforeDelete
+   * guard (WorkflowCanvas.tsx) is what actually enforces this — including
+   * against the Del/Backspace keyboard shortcut, which this button can't
+   * intercept — this prop just gives the same feedback before the user
+   * even tries.
+   */
+  preventDeleteIfOnly?: boolean;
 }
 
 // Shared floating action bar for every workflow node type — appears above a
@@ -18,8 +28,20 @@ interface NodeActionsToolbarProps {
 // bubble into onNodeClick). One definition, reused by every node component,
 // so delete/duplicate behave identically everywhere instead of drifting
 // per node type.
-export function NodeActionsToolbar({ nodeId, selected, allowDuplicate = true }: NodeActionsToolbarProps) {
-  const { deleteElements, getNode, setNodes } = useReactFlow();
+export function NodeActionsToolbar({
+  nodeId,
+  selected,
+  allowDuplicate = true,
+  preventDeleteIfOnly = false,
+}: NodeActionsToolbarProps) {
+  const { deleteElements, getNode, getNodes, setNodes } = useReactFlow();
+
+  const isLastOfType = React.useMemo(() => {
+    if (!preventDeleteIfOnly) return false;
+    const node = getNode(nodeId) as Node | undefined;
+    if (!node) return false;
+    return getNodes().filter((n) => n.type === node.type).length <= 1;
+  }, [preventDeleteIfOnly, getNode, getNodes, nodeId, selected]);
 
   const handleDuplicate = React.useCallback(
     (e: React.MouseEvent) => {
@@ -75,7 +97,8 @@ export function NodeActionsToolbar({ nodeId, selected, allowDuplicate = true }: 
         size="icon-xs"
         variant="ghost"
         onClick={handleDelete}
-        title="Delete (Del)"
+        disabled={isLastOfType}
+        title={isLastOfType ? "Every workflow needs exactly one Trigger" : "Delete (Del)"}
         aria-label="Delete node"
         className="rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
       >

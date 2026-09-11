@@ -4,6 +4,7 @@ import * as React from "react";
 import { useParams } from "next/navigation";
 import { WorkflowCanvas } from "@/components/workflows/WorkflowCanvas";
 import { getProjectWorkflow } from "@/lib/api/projects";
+import { getApiErrorMessage } from "@/lib/api/core";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -26,7 +27,7 @@ export default function WorkflowEditorPage() {
       const res = await getProjectWorkflow(projectId, workflowId);
       setWorkflow(res.data?.data || null);
     } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || "Failed to load workflow");
+      setError(getApiErrorMessage(err, "Failed to load workflow"));
     } finally {
       setLoading(false);
     }

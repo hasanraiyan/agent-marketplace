@@ -100,7 +100,7 @@ export default function WorkflowRunsPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto py-8 px-6 space-y-6">
+    <div className="flex w-full flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <div className="flex items-center justify-between">
         <div>
           <Button

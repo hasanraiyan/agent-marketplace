@@ -167,6 +167,27 @@ export function validateWorkflowStructure(nodes = [], edges = []) {
   return { isValid: true };
 }
 
+/**
+ * Config-completeness check, run only at execution time (not at save/draft
+ * time — an incomplete draft is a normal, valid in-progress state). Catches
+ * a node missing a field its executor hard-requires — e.g. an Agent Step
+ * with no `agentId` — before compiling the graph, instead of surfacing as
+ * `Agent with ID "undefined" not found` deep inside a LangGraph Pregel task
+ * after the run has already started.
+ */
+export function validateNodeConfigsForRun(nodes = []) {
+  const errors = [];
+  for (const node of nodes) {
+    const label = node.data?.label || node.id;
+    if (node.type === 'agentStep' && !node.data?.config?.agentId) {
+      errors.push(`Agent Step "${label}" has no Agent selected.`);
+    } else if (node.type === 'knowledgeStep' && !node.data?.config?.knowledgeBaseId) {
+      errors.push(`Knowledge Step "${label}" has no Knowledge Base selected.`);
+    }
+  }
+  return { isValid: errors.length === 0, errors };
+}
+
 export const workflowDraftSchema = z
   .object({
     nodes: z.array(workflowNodeSchema).default([]),
