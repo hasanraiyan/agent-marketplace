@@ -39,6 +39,11 @@ Status Legend: 🔲 Not Started · 🚧 In Progress · ✅ Completed
   - [x] Create `workflow.routes.js` with complete `@openapi` JSDoc annotations and explicit `projectAdminAuth` middleware chaining on every endpoint:
     - [x] `POST /workflows/runs/:runId/cancel` endpoint to abort a running workflow.
   - [x] Register routes under `/api/v1/developer/projects/:projectId/workflows` in `agent-backend/src/index.js` or `project.routes.js`.
+- [x] **1.5. External User Scoping & Visibility (`workflow.model.js`, `developerWorkflow.routes.js`)**
+  - [x] Add `visibility: 'private' | 'unlisted' | 'public'` enum and index.
+  - [x] Add `ownerType: 'Project' | 'ExternalUser'` and `externalOwnerId` matching `agent.model.js`.
+  - [x] Mount runtime machine API routes at `/api/v1/developer/workflows` with `developerMachineAuthMiddleware` supporting `x-persona-external-user-id`.
+  - [x] Enforce access control in `workflow.service.js`: external users only read/run their own or public workflows within a project.
 
 ### Phase 2: LangGraph Workflow Compiler & Execution Engine (`agent-backend`)
 - [x] **2.1. Dynamic Compiler & Node Runner Wrappers (`workflow.factory.js`)**

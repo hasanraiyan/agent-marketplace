@@ -149,6 +149,8 @@ export default function NewWorkflowPage() {
 
   const [name, setName] = React.useState("");
   const [description, setDescription] = React.useState("");
+  const [visibility, setVisibility] = React.useState<"private" | "unlisted" | "public">("private");
+  const [externalUserId, setExternalUserId] = React.useState("");
   const [selectedTemplate, setSelectedTemplate] = React.useState("blank");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -168,6 +170,8 @@ export default function NewWorkflowPage() {
       const res = await createProjectWorkflow(projectId, {
         name: name.trim(),
         description: description.trim(),
+        visibility,
+        externalUserId: externalUserId.trim() || undefined,
         draft: template.draft,
       });
 
@@ -184,8 +188,8 @@ export default function NewWorkflowPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-6 space-y-8">
-      <div>
+    <div className="max-w-4xl mx-auto py-8 px-4">
+      <div className="mb-6">
         <Button
           variant="ghost"
           size="sm"
@@ -209,18 +213,35 @@ export default function NewWorkflowPage() {
         )}
 
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="workflow-name" className="text-sm font-medium">
-              Workflow Name <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="workflow-name"
-              placeholder="e.g. Sales Qualification Pipeline"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="max-w-md"
-              required
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="workflow-name" className="text-sm font-medium">
+                Workflow Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="workflow-name"
+                placeholder="e.g. Sales Qualification Pipeline"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="workflow-visibility" className="text-sm font-medium">
+                Visibility
+              </Label>
+              <select
+                id="workflow-visibility"
+                value={visibility}
+                onChange={(e) => setVisibility(e.target.value as any)}
+                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="private">Private (Project Admins only)</option>
+                <option value="unlisted">Unlisted (Accessible by ID)</option>
+                <option value="public">Public (Catalog Discoverable)</option>
+              </select>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -233,8 +254,23 @@ export default function NewWorkflowPage() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
-              className="max-w-lg"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="workflow-external-user" className="text-sm font-medium">
+              External User ID Scope <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
+            </Label>
+            <Input
+              id="workflow-external-user"
+              placeholder="e.g. usr_1042 (Assigns ownership to external customer)"
+              value={externalUserId}
+              onChange={(e) => setExternalUserId(e.target.value)}
+              className="max-w-md font-mono text-xs"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              If specified, this workflow will be scoped and owned by this external user within this Project.
+            </p>
           </div>
         </div>
 

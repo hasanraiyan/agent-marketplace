@@ -1,5 +1,5 @@
 import workflowService from './workflow.service.js';
-import { paginationEnvelope } from '../../utils/pagination.js';
+import { paginationEnvelope } from '../../../utils/pagination.js';
 
 function getProjectId(req) {
   return req.projectAdminContext?.domain || req.projectContext?.domain || req.params.projectId;
@@ -9,22 +9,55 @@ function getUserId(req) {
   return req.projectAdminContext?.personaUserId || req.user?._id || req.user?.id;
 }
 
+function getContext(req) {
+  if (req.projectAdminContext) {
+    return {
+      principalType: 'ProjectAdmin',
+      domain: req.projectAdminContext.domain,
+      personaUserId: req.projectAdminContext.personaUserId,
+      isProjectAdmin: true,
+    };
+  }
+  if (req.projectContext) {
+    return {
+      ...req.projectContext,
+      isProjectAdmin: req.projectContext.principalType === 'ProjectMachine',
+    };
+  }
+  return {
+    principalType: 'PersonaUser',
+    personaUserId: getUserId(req),
+    isProjectAdmin: true,
+  };
+}
+
 class WorkflowController {
   async list(req, res, next) {
     try {
       const projectId = getProjectId(req);
+      const context = getContext(req);
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
       const search = req.query.search;
+      const scope = req.query.scope;
+      const visibility = req.query.visibility;
+      const externalUserId = req.query.externalUserId || context.externalUserId;
       const isEnabled =
         req.query.isEnabled !== undefined ? req.query.isEnabled === 'true' : undefined;
 
-      const { workflows, total } = await workflowService.listWorkflows(projectId, {
-        page,
-        limit,
-        search,
-        isEnabled,
-      });
+      const { workflows, total } = await workflowService.listWorkflows(
+        projectId,
+        {
+          page,
+          limit,
+          search,
+          scope,
+          visibility,
+          externalUserId,
+          isEnabled,
+        },
+        context
+      );
 
       res.json({
         success: true,
@@ -39,7 +72,8 @@ class WorkflowController {
     try {
       const projectId = getProjectId(req);
       const userId = getUserId(req);
-      const workflow = await workflowService.createWorkflow(projectId, req.body, userId);
+      const context = getContext(req);
+      const workflow = await workflowService.createWorkflow(projectId, req.body, userId, context);
       res.status(201).json({ success: true, data: workflow });
     } catch (error) {
       next(error);
@@ -49,7 +83,8 @@ class WorkflowController {
   async getOne(req, res, next) {
     try {
       const projectId = getProjectId(req);
-      const workflow = await workflowService.getWorkflow(projectId, req.params.workflowId);
+      const context = getContext(req);
+      const workflow = await workflowService.getWorkflow(projectId, req.params.workflowId, context);
       res.json({ success: true, data: workflow });
     } catch (error) {
       next(error);
@@ -59,10 +94,12 @@ class WorkflowController {
   async update(req, res, next) {
     try {
       const projectId = getProjectId(req);
+      const context = getContext(req);
       const workflow = await workflowService.updateWorkflow(
         projectId,
         req.params.workflowId,
-        req.body
+        req.body,
+        context
       );
       res.json({ success: true, data: workflow });
     } catch (error) {
@@ -98,12 +135,12 @@ class WorkflowController {
     try {
       const projectId = getProjectId(req);
       const userId = getUserId(req);
-      const version = await workflowService.publishWorkflow(
+      const versionDoc = await workflowService.publishWorkflow(
         projectId,
         req.params.workflowId,
         userId
       );
-      res.status(201).json({ success: true, data: version });
+      res.status(201).json({ success: true, data: versionDoc });
     } catch (error) {
       next(error);
     }
@@ -131,29 +168,30 @@ class WorkflowController {
   async getVersion(req, res, next) {
     try {
       const projectId = getProjectId(req);
-      const version = await workflowService.getVersion(
+      const versionDoc = await workflowService.getVersion(
         projectId,
         req.params.workflowId,
         req.params.version
       );
-      res.json({ success: true, data: version });
+      res.json({ success: true, data: versionDoc });
     } catch (error) {
       next(error);
     }
   }
 
   /**
-   * Single run-trigger action supporting both live production and dryRun execution
-   * (TODO.md Phase 1.4: single endpoint mirroring client.workflows.run(id, input, { dryRun? })).
-   * Supports streaming SSE or JSON response.
+   * Single run-trigger action supporting both live production and dryRun execution.
+   * Scoped to externalUserId if asserted or provided.
    */
   async run(req, res, next) {
     try {
       const projectId = getProjectId(req);
       const userId = getUserId(req);
+      const context = getContext(req);
       const isDryRun = Boolean(req.body.dryRun || req.body.isDryRun || req.query.dryRun === 'true');
       const input = req.body.input || req.body;
       const version = req.body.version ? Number(req.body.version) : undefined;
+      const externalUserId = req.body.externalUserId || req.query.externalUserId || context.externalUserId;
 
       const { run, driver } = await workflowService.runWorkflow({
         workflowId: req.params.workflowId,
@@ -161,7 +199,9 @@ class WorkflowController {
         input,
         isDryRun,
         userId,
+        externalUserId,
         version,
+        context,
       });
 
       const wantsStream =
@@ -178,6 +218,7 @@ class WorkflowController {
             runId: run._id,
             status: run.status,
             isDryRun: run.isDryRun,
+            externalUserId: run.externalUserId,
             threadId: run.threadId,
           },
         });
@@ -214,7 +255,8 @@ class WorkflowController {
   async getRun(req, res, next) {
     try {
       const projectId = getProjectId(req);
-      const run = await workflowService.getRun(projectId, req.params.runId);
+      const context = getContext(req);
+      const run = await workflowService.getRun(projectId, req.params.runId, context);
       res.json({ success: true, data: run });
     } catch (error) {
       next(error);
@@ -224,18 +266,26 @@ class WorkflowController {
   async listRuns(req, res, next) {
     try {
       const projectId = getProjectId(req);
+      const context = getContext(req);
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
       const status = req.query.status;
+      const externalUserId = req.query.externalUserId || context.externalUserId;
       const isDryRun =
         req.query.isDryRun !== undefined ? req.query.isDryRun === 'true' : undefined;
 
-      const { runs, total } = await workflowService.listRuns(projectId, req.params.workflowId, {
-        page,
-        limit,
-        status,
-        isDryRun,
-      });
+      const { runs, total } = await workflowService.listRuns(
+        projectId,
+        req.params.workflowId,
+        {
+          page,
+          limit,
+          status,
+          isDryRun,
+          externalUserId,
+        },
+        context
+      );
 
       res.json({
         success: true,

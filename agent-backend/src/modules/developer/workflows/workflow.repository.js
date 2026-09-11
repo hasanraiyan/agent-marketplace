@@ -14,10 +14,16 @@ class WorkflowRepository {
     return await Workflow.findOne({ _id: id, projectId });
   }
 
-  async listByProject(projectId, { page = 1, limit = 20, search, isEnabled } = {}) {
-    const filter = { projectId };
+  async listByProject(projectId, { page = 1, limit = 20, search, isEnabled, visibility, externalOwnerId, customFilter } = {}) {
+    const filter = { projectId, ...(customFilter || {}) };
     if (typeof isEnabled === 'boolean') {
       filter.isEnabled = isEnabled;
+    }
+    if (visibility) {
+      filter.visibility = visibility;
+    }
+    if (externalOwnerId) {
+      filter.externalOwnerId = externalOwnerId;
     }
     if (search) {
       filter.name = { $regex: search, $options: 'i' };
@@ -30,10 +36,16 @@ class WorkflowRepository {
       .limit(limit);
   }
 
-  async countByProject(projectId, { search, isEnabled } = {}) {
-    const filter = { projectId };
+  async countByProject(projectId, { search, isEnabled, visibility, externalOwnerId, customFilter } = {}) {
+    const filter = { projectId, ...(customFilter || {}) };
     if (typeof isEnabled === 'boolean') {
       filter.isEnabled = isEnabled;
+    }
+    if (visibility) {
+      filter.visibility = visibility;
+    }
+    if (externalOwnerId) {
+      filter.externalOwnerId = externalOwnerId;
     }
     if (search) {
       filter.name = { $regex: search, $options: 'i' };

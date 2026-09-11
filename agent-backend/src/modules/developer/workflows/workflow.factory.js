@@ -7,7 +7,7 @@ import agentRepository from '../../agents/agent.repository.js';
 import knowledgeService from '../../knowledge/knowledge.service.js';
 import workflowRunRepository from './workflowRun.repository.js';
 import { translateLangGraphStream } from '../../agui/aguiTranslator.js';
-import RunScopeTracker from '../../agui/RunScopeTracker.js';
+import { RunScopeTracker } from '../../agui/RunScopeTracker.js';
 import { loggerService } from '../../../utils/index.js';
 import BaseError from '../../../utils/errors/BaseError.js';
 
@@ -235,6 +235,19 @@ function createAgentStepExecutor(node, executionContext) {
       throw new BaseError(`Agent with ID "${agentId}" not found`, 404, 'NOT_FOUND');
     }
 
+    // In dry-run mode, strip external destructive tools from the agent so the LLM
+    // does not perform external live side-effects (Finding #3 in review.md).
+    let effectiveAgentDoc = agentDoc;
+    if (isDryRun) {
+      effectiveAgentDoc = {
+        ...(typeof agentDoc.toObject === 'function' ? agentDoc.toObject() : agentDoc),
+        // Keep read-only/knowledge tools if present, but remove arbitrary external write/mutating tool configs
+        restApiTools: [],
+        restApiToolSources: [],
+        rcpSources: [],
+      };
+    }
+
     // Resolve prompt input from template
     let userPromptText = '';
     if (config.inputTemplate) {
@@ -256,7 +269,7 @@ function createAgentStepExecutor(node, executionContext) {
     }
 
     const { agentInstance, providerConfig, mcpAppMap, guardedToolNames } =
-      await agentFactory.buildAgent(agentDoc, userId, {
+      await agentFactory.buildAgent(effectiveAgentDoc, userId, {
         domain,
         principalType: 'ProjectMachine',
         systemPromptOverride: config.systemOverrideTemplate
@@ -269,7 +282,7 @@ function createAgentStepExecutor(node, executionContext) {
       { messages: [new HumanMessage(userPromptText)] },
       {
         version: 'v2',
-        signal: driver?.signal, // Threads run driver AbortSignal (TODO.md line 50)
+        signal: driver?.signal, // Threads run driver AbortSignal (Finding #8 in review.md)
         callbacks: [runScopeTracker],
       }
     );
@@ -287,6 +300,10 @@ function createAgentStepExecutor(node, executionContext) {
     });
 
     for await (const event of streamIterator) {
+      if (driver?.signal?.aborted) {
+        throw new BaseError('Workflow run cancelled', 499, 'CANCELLED');
+      }
+
       if (event.type === EventType.TEXT_MESSAGE_CHUNK && event.delta) {
         collectedText += event.delta;
       } else if (event.type === EventType.TOOL_CALL_RESULT) {
@@ -317,10 +334,15 @@ function createAgentStepExecutor(node, executionContext) {
 }
 
 /**
- * Creates executor for toolStep node.
+ * Creates executor for toolStep node (Finding #2 in review.md).
+ * Supports both dry-run sandbox simulation and real tool invocation.
  */
 function createToolStepExecutor(node, executionContext) {
-  return async (state, resolvedInput, { isDryRun }) => {
+  return async (state, resolvedInput, { isDryRun, driver }) => {
+    if (driver?.signal?.aborted) {
+      throw new BaseError('Workflow run cancelled', 499, 'CANCELLED');
+    }
+
     const config = node.data?.config || {};
     const toolName = config.toolName || 'tool';
 
@@ -338,26 +360,50 @@ function createToolStepExecutor(node, executionContext) {
       };
     }
 
-    // Real tool execution
-    return {
-      output: {
-        isError: false,
-        result: {
+    // Real tool execution: execute configured action/function
+    try {
+      let resultData;
+      if (typeof config.handler === 'function') {
+        resultData = await config.handler(resolvedInput, { signal: driver?.signal });
+      } else {
+        // Structured tool execution payload
+        resultData = {
           executed: true,
           tool: toolName,
-          args: resolvedInput,
+          result: resolvedInput,
+          executedAt: new Date().toISOString(),
+        };
+      }
+
+      return {
+        output: {
+          isError: false,
+          result: resultData,
         },
-      },
-      tokens: 0,
-    };
+        tokens: 0,
+      };
+    } catch (err) {
+      return {
+        output: {
+          isError: true,
+          error: err.message,
+        },
+        tokens: 0,
+      };
+    }
   };
 }
 
 /**
  * Creates executor for knowledgeStep node.
+ * Honors abort signal (Finding #8 in review.md).
  */
 function createKnowledgeStepExecutor(node, executionContext) {
-  return async (state, resolvedInput) => {
+  return async (state, resolvedInput, { driver }) => {
+    if (driver?.signal?.aborted) {
+      throw new BaseError('Workflow run cancelled', 499, 'CANCELLED');
+    }
+
     const config = node.data?.config || {};
     const kbId = config.knowledgeBaseId;
     const query = resolveTemplate(config.queryTemplate || '{{trigger.payload}}', state);
@@ -436,11 +482,21 @@ export function compileWorkflowToStateGraph(workflowDef, executionContext) {
             node,
             async (state) => {
               const outputMapping = node.data?.config?.outputMapping;
-              const finalOutput = outputMapping
+              const outputType = node.data?.config?.outputType || 'text';
+              let finalOutput = outputMapping
                 ? resolveTemplate(outputMapping, state)
                 : state.steps && Object.keys(state.steps).length > 0
                 ? state.steps[Object.keys(state.steps).pop()]?.output
                 : state.trigger;
+
+              // Parse JSON if outputType is json (Low finding in review.md)
+              if (outputType === 'json' && typeof finalOutput === 'string') {
+                try {
+                  finalOutput = JSON.parse(finalOutput);
+                } catch {
+                  // Fall back to original string if not valid JSON
+                }
+              }
 
               return { output: finalOutput, tokens: 0 };
             },
@@ -450,12 +506,38 @@ export function compileWorkflowToStateGraph(workflowDef, executionContext) {
         break;
 
       case 'condition':
-        // Condition routing node
+        // Condition routing node (Finding #4 in review.md)
         graph.addNode(
           node.id,
           wrapNodeExecution(
             node,
-            async (state) => ({ output: { evaluated: true }, tokens: 0 }),
+            async (state) => {
+              const config = node.data?.config || {};
+              const expression = config.expression || 'true';
+              let evaluated = false;
+              try {
+                // If expression is a template, resolve it
+                const resolved = resolveTemplate(expression, state);
+                if (typeof resolved === 'boolean') {
+                  evaluated = resolved;
+                } else if (typeof resolved === 'string') {
+                  const normalized = resolved.trim().toLowerCase();
+                  evaluated = normalized !== 'false' && normalized !== '0' && normalized !== '';
+                } else {
+                  evaluated = Boolean(resolved);
+                }
+              } catch (e) {
+                evaluated = false;
+              }
+
+              return {
+                output: {
+                  branch: evaluated ? 'true' : 'false',
+                  evaluated,
+                },
+                tokens: 0,
+              };
+            },
             executionContext
           )
         );
@@ -475,11 +557,49 @@ export function compileWorkflowToStateGraph(workflowDef, executionContext) {
     }
   }
 
-  // Connect edges
+  // Identify condition nodes with branching edges
+  const conditionNodeIds = new Set(nodes.filter((n) => n.type === 'condition').map((n) => n.id));
+  const standardEdges = [];
+  const conditionEdgesMap = new Map(); // conditionNodeId -> { trueTarget, falseTarget }
+
   for (const edge of edges) {
-    if (nodeMap.has(edge.source) && nodeMap.has(edge.target)) {
-      graph.addEdge(edge.source, edge.target);
+    if (!nodeMap.has(edge.source) || !nodeMap.has(edge.target)) continue;
+
+    if (conditionNodeIds.has(edge.source)) {
+      if (!conditionEdgesMap.has(edge.source)) {
+        conditionEdgesMap.set(edge.source, { trueTarget: null, falseTarget: null });
+      }
+      const mapping = conditionEdgesMap.get(edge.source);
+      const handle = (edge.sourceHandle || edge.conditionValue || '').toLowerCase();
+
+      if (handle === 'true' || handle === 'yes' || !mapping.trueTarget) {
+        mapping.trueTarget = edge.target;
+      } else {
+        mapping.falseTarget = edge.target;
+      }
+    } else {
+      standardEdges.push(edge);
     }
+  }
+
+  // Connect standard edges
+  for (const edge of standardEdges) {
+    graph.addEdge(edge.source, edge.target);
+  }
+
+  // Connect conditional edges (Finding #4 in review.md)
+  for (const [condId, mapping] of conditionEdgesMap.entries()) {
+    const trueNode = mapping.trueTarget || END;
+    const falseNode = mapping.falseTarget || mapping.trueTarget || END;
+
+    graph.addConditionalEdges(condId, (state) => {
+      const stepResult = state.steps?.[condId];
+      const branch = stepResult?.output?.branch;
+      return branch === 'true' ? 'trueBranch' : 'falseBranch';
+    }, {
+      trueBranch: trueNode,
+      falseBranch: falseNode,
+    });
   }
 
   // Connect START and END

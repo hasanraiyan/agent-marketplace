@@ -15,7 +15,8 @@ export const RECOVER_ORPHAN_WORKFLOW_RUNS_JOB = 'recover-orphan-workflow-runs';
  */
 agenda.define(RECOVER_ORPHAN_WORKFLOW_RUNS_JOB, async (job) => {
   try {
-    const staleRuns = await workflowRunRepository.findOrphanRunningRuns(30000); // 30s stale threshold
+    // 5-minute stale threshold to prevent premature recovery of live multi-step workflows (Finding #6 in review.md)
+    const staleRuns = await workflowRunRepository.findOrphanRunningRuns(300000);
 
     for (const run of staleRuns) {
       const activeDriver = WorkflowRunDriver.get(run._id.toString());

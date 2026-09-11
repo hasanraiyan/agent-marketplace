@@ -32,5 +32,6 @@ export { default as developerRestApiToolSourceRouter } from './developerRestApiT
 export { default as developerRestApiToolSourceController } from './developerRestApiToolSource.controller.js';
 export { default as developerRcpSourceRouter } from './developerRcpSource.routes.js';
 export { default as developerRcpSourceController } from './developerRcpSource.controller.js';
+export { default as developerWorkflowRouter } from './developerWorkflow.routes.js';
 export { workflowRouter, workflowController } from './workflows/index.js';
 

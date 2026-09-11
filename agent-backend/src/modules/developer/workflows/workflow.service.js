@@ -16,7 +16,33 @@ import { loggerService } from '../../../utils/index.js';
 const logger = loggerService.getLogger();
 
 class WorkflowService {
-  async createWorkflow(projectId, data, userId) {
+  /**
+   * Evaluates if a given principal context can execute or view a workflow.
+   * Parity with isAgentOwner (AD-02 §11.1).
+   */
+  canAccessWorkflow(workflow, context = {}) {
+    if (!workflow) return false;
+    const { principalType, externalUserId, isProjectAdmin } = context;
+
+    // Project Admin has full access to all workflows in the project
+    if (isProjectAdmin || principalType === 'ProjectAdmin' || principalType === 'ProjectMachine') {
+      return true;
+    }
+
+    // Public and unlisted workflows can be accessed
+    if (workflow.visibility === 'public' || workflow.visibility === 'unlisted') {
+      return true;
+    }
+
+    // If private, only owner can access
+    if (workflow.ownerType === 'ExternalUser' && externalUserId) {
+      return String(workflow.externalOwnerId) === String(externalUserId);
+    }
+
+    return false;
+  }
+
+  async createWorkflow(projectId, data, userId, context = {}) {
     const draft = data.draft || {
       nodes: [
         {
@@ -45,33 +71,63 @@ class WorkflowService {
       );
     }
 
+    const externalOwnerId = data.externalUserId || context.externalUserId || null;
+    const ownerType = externalOwnerId ? 'ExternalUser' : 'Project';
+    const visibility = data.visibility || 'private';
+
     return await workflowRepository.create({
       projectId,
       name: data.name,
       description: data.description,
       isEnabled: data.isEnabled !== false,
       draft,
+      ownerType,
+      externalOwnerId,
+      visibility,
     });
   }
 
-  async getWorkflow(projectId, id) {
+  async getWorkflow(projectId, id, context = {}) {
     const workflow = await workflowRepository.findByProjectAndId(projectId, id);
     if (!workflow) {
       throw new BaseError('Workflow not found', 404, 'NOT_FOUND');
     }
+
+    if (context && Object.keys(context).length > 0 && !this.canAccessWorkflow(workflow, context)) {
+      throw new BaseError('Workflow not found', 404, 'NOT_FOUND');
+    }
+
     return workflow;
   }
 
-  async listWorkflows(projectId, options = {}) {
+  async listWorkflows(projectId, options = {}, context = {}) {
+    const opts = { ...options };
+    const { externalUserId, scope } = opts;
+
+    if (context.principalType === 'ProjectRuntime' || externalUserId) {
+      const targetUserId = context.externalUserId || externalUserId;
+      if (scope === 'mine') {
+        opts.externalOwnerId = targetUserId;
+      } else {
+        // External user sees their own workflows + public ones
+        opts.customFilter = {
+          $or: [
+            { externalOwnerId: targetUserId },
+            { visibility: 'public' },
+          ],
+        };
+      }
+    }
+
     const [workflows, total] = await Promise.all([
-      workflowRepository.listByProject(projectId, options),
-      workflowRepository.countByProject(projectId, options),
+      workflowRepository.listByProject(projectId, opts),
+      workflowRepository.countByProject(projectId, opts),
     ]);
     return { workflows, total };
   }
 
-  async updateWorkflow(projectId, id, data) {
-    await this.getWorkflow(projectId, id);
+  async updateWorkflow(projectId, id, data, context = {}) {
+    const workflow = await this.getWorkflow(projectId, id, context);
 
     if (data.draft) {
       const { hasCycle, cycleNode } = detectCycle(data.draft.nodes, data.draft.edges);
@@ -194,9 +250,11 @@ class WorkflowService {
     input = {},
     isDryRun = false,
     userId,
+    externalUserId,
     version,
+    context = {},
   }) {
-    const workflow = await this.getWorkflow(projectId, workflowId);
+    const workflow = await this.getWorkflow(projectId, workflowId, context);
 
     // 1. Pre-flight balance check (bypassed if isDryRun is true)
     await workflowUsageService.checkPreflightBalance(projectId, isDryRun);
@@ -247,6 +305,7 @@ class WorkflowService {
     }
 
     const threadId = crypto.randomUUID();
+    const effectiveExternalUserId = externalUserId || context.externalUserId || null;
 
     // 4. Create WorkflowRun in MongoDB
     const run = await workflowRunRepository.create({
@@ -254,9 +313,10 @@ class WorkflowService {
       workflowVersion: effectiveVersion,
       projectId,
       triggeredBy: {
-        type: 'manual',
+        type: effectiveExternalUserId ? 'external_user' : 'manual',
         userId: userId ? String(userId) : undefined,
       },
+      externalUserId: effectiveExternalUserId,
       status: 'running',
       isDryRun: Boolean(isDryRun),
       threadId,
@@ -365,9 +425,12 @@ class WorkflowService {
         timestamp: new Date().toISOString(),
       });
 
-      driver.finish();
+      driver.finish(finalState?.output);
     } catch (error) {
-      if (driver.signal.aborted) return;
+      if (driver.signal.aborted) {
+        logger.info(`[WorkflowEngine] Run ${runId} was aborted by user cancellation`);
+        return;
+      }
 
       logger.error(`[WorkflowEngine] Run ${runId} failed:`, error);
       await workflowRunRepository.updateStatus(runId, 'failed', {
@@ -378,19 +441,32 @@ class WorkflowService {
     }
   }
 
-  async getRun(projectId, runId) {
+  async getRun(projectId, runId, context = {}) {
     const run = await workflowRunRepository.findByProjectAndId(projectId, runId);
     if (!run) {
       throw new BaseError('Workflow run not found', 404, 'NOT_FOUND');
     }
+
+    if (context.principalType === 'ProjectRuntime' && context.externalUserId) {
+      if (run.externalUserId && String(run.externalUserId) !== String(context.externalUserId)) {
+        throw new BaseError('Workflow run not found', 404, 'NOT_FOUND');
+      }
+    }
+
     return run;
   }
 
-  async listRuns(projectId, workflowId, options = {}) {
-    await this.getWorkflow(projectId, workflowId);
+  async listRuns(projectId, workflowId, options = {}, context = {}) {
+    await this.getWorkflow(projectId, workflowId, context);
+    const opts = { ...options };
+
+    if (context.principalType === 'ProjectRuntime' && context.externalUserId) {
+      opts.externalUserId = context.externalUserId;
+    }
+
     const [runs, total] = await Promise.all([
-      workflowRunRepository.listByWorkflow(workflowId, options),
-      workflowRunRepository.countByWorkflow(workflowId, options),
+      workflowRunRepository.listByWorkflow(workflowId, opts),
+      workflowRunRepository.countByWorkflow(workflowId, opts),
     ]);
     return { runs, total };
   }

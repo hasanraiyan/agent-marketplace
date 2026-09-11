@@ -14,10 +14,11 @@ class WorkflowRunRepository {
     return await WorkflowRun.findOne({ _id: id, projectId });
   }
 
-  async listByWorkflow(workflowId, { page = 1, limit = 20, status, isDryRun } = {}) {
+  async listByWorkflow(workflowId, { page = 1, limit = 20, status, isDryRun, externalUserId } = {}) {
     const filter = { workflowId };
     if (status) filter.status = status;
     if (typeof isDryRun === 'boolean') filter.isDryRun = isDryRun;
+    if (externalUserId) filter.externalUserId = externalUserId;
 
     const skip = (page - 1) * limit;
     return await WorkflowRun.find(filter)
@@ -26,17 +27,19 @@ class WorkflowRunRepository {
       .limit(limit);
   }
 
-  async countByWorkflow(workflowId, { status, isDryRun } = {}) {
+  async countByWorkflow(workflowId, { status, isDryRun, externalUserId } = {}) {
     const filter = { workflowId };
     if (status) filter.status = status;
     if (typeof isDryRun === 'boolean') filter.isDryRun = isDryRun;
+    if (externalUserId) filter.externalUserId = externalUserId;
     return await WorkflowRun.countDocuments(filter);
   }
 
-  async listByProject(projectId, { page = 1, limit = 20, status, isDryRun } = {}) {
+  async listByProject(projectId, { page = 1, limit = 20, status, isDryRun, externalUserId } = {}) {
     const filter = { projectId };
     if (status) filter.status = status;
     if (typeof isDryRun === 'boolean') filter.isDryRun = isDryRun;
+    if (externalUserId) filter.externalUserId = externalUserId;
 
     const skip = (page - 1) * limit;
     return await WorkflowRun.find(filter)
@@ -45,10 +48,11 @@ class WorkflowRunRepository {
       .limit(limit);
   }
 
-  async countByProject(projectId, { status, isDryRun } = {}) {
+  async countByProject(projectId, { status, isDryRun, externalUserId } = {}) {
     const filter = { projectId };
     if (status) filter.status = status;
     if (typeof isDryRun === 'boolean') filter.isDryRun = isDryRun;
+    if (externalUserId) filter.externalUserId = externalUserId;
     return await WorkflowRun.countDocuments(filter);
   }
 

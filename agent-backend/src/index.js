@@ -28,6 +28,7 @@ import {
   developerRestToolRouter,
   developerRestApiToolSourceRouter,
   developerRcpSourceRouter,
+  developerWorkflowRouter,
   workflowRouter,
 } from './modules/developer/index.js';
 import { agentRouter } from './modules/agents/index.js';
@@ -174,6 +175,7 @@ app.use('/api/v1/developer/secrets', developerSecretRouter);
 app.use('/api/v1/developer/rest-tools', developerRestToolRouter);
 app.use('/api/v1/developer/rest-tool-sources', developerRestApiToolSourceRouter);
 app.use('/api/v1/developer/rcp-sources', developerRcpSourceRouter);
+app.use('/api/v1/developer/workflows', developerWorkflowRouter);
 app.use('/api/v1/projects/:projectId/workflows', workflowRouter);
 app.use('/api/v1/developer/projects/:projectId/workflows', workflowRouter);
 app.use('/api/v1/developer', developerRouter);

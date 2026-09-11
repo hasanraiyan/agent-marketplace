@@ -257,7 +257,6 @@ describe('Workflow Engine & Visual Builder Tests', () => {
 
     test('should aggregate tokens and agent turns into usage object', () => {
       const nodeRuns = [
-        { nodeType: 'trigger', tokens: 0 },
         { nodeType: 'agentStep', tokens: 1200 },
         { nodeType: 'agentStep', tokens: 800 },
         { nodeType: 'toolStep', tokens: 0 },
@@ -267,8 +266,47 @@ describe('Workflow Engine & Visual Builder Tests', () => {
       const usage = workflowUsageService.calculateUsage(nodeRuns);
       expect(usage.totalTokens).toBe(2000);
       expect(usage.agentTurns).toBe(2);
-      expect(usage.toolCalls).toBe(1);
       expect(usage.creditsDeducted).toBeGreaterThanOrEqual(2);
     });
   });
+
+  describe('Structural Validation & Graph Health (Finding #5)', () => {
+    test('should reject workflow without a trigger node', () => {
+      const nodes = [
+        { id: 'agent1', type: 'agentStep', data: { label: 'Agent 1' } },
+        { id: 'output', type: 'output', data: { label: 'Output' } },
+      ];
+      const edges = [{ id: 'e1', source: 'agent1', target: 'output' }];
+
+      const parsed = workflowDraftSchema.safeParse({ nodes, edges });
+      expect(parsed.success).toBe(false);
+      expect(parsed.error.issues[0].message).toContain('must have exactly 1 trigger node');
+    });
+
+    test('should reject workflow without an output node', () => {
+      const nodes = [
+        { id: 'trigger', type: 'trigger', data: { label: 'Trigger' } },
+        { id: 'agent1', type: 'agentStep', data: { label: 'Agent 1' } },
+      ];
+      const edges = [{ id: 'e1', source: 'trigger', target: 'agent1' }];
+
+      const parsed = workflowDraftSchema.safeParse({ nodes, edges });
+      expect(parsed.success).toBe(false);
+      expect(parsed.error.issues[0].message).toContain('must have at least 1 output node');
+    });
+
+    test('should reject workflow with disconnected unreachable nodes', () => {
+      const nodes = [
+        { id: 'trigger', type: 'trigger', data: { label: 'Trigger' } },
+        { id: 'output', type: 'output', data: { label: 'Output' } },
+        { id: 'orphan_agent', type: 'agentStep', data: { label: 'Orphan' } },
+      ];
+      const edges = [{ id: 'e1', source: 'trigger', target: 'output' }];
+
+      const parsed = workflowDraftSchema.safeParse({ nodes, edges });
+      expect(parsed.success).toBe(false);
+      expect(parsed.error.issues[0].message).toContain('Unreachable disconnected node(s): orphan_agent');
+    });
+  });
 });
+

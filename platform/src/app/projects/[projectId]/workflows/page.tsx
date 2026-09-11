@@ -14,6 +14,8 @@ interface Workflow {
   description?: string;
   isEnabled: boolean;
   publishedVersion: number;
+  visibility?: 'private' | 'unlisted' | 'public';
+  externalOwnerId?: string;
   draft?: {
     nodes?: Array<{ id: string; type: string }>;
     edges?: Array<{ id: string }>;
@@ -47,6 +49,23 @@ export default function WorkflowsPage() {
               ) : (
                 <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-mono text-muted-foreground">
                   Draft
+                </Badge>
+              )}
+              <Badge
+                variant="outline"
+                className={`text-[9px] uppercase font-mono h-4.5 px-1.5 ${
+                  wf.visibility === "public"
+                    ? "border-emerald-500/30 text-emerald-500 bg-emerald-500/5"
+                    : wf.visibility === "unlisted"
+                    ? "border-purple-500/30 text-purple-500 bg-purple-500/5"
+                    : "border-border text-muted-foreground"
+                }`}
+              >
+                {wf.visibility || "private"}
+              </Badge>
+              {wf.externalOwnerId && (
+                <Badge variant="outline" className="text-[9px] font-mono h-4.5 px-1.5 text-blue-500 border-blue-500/30 bg-blue-500/5">
+                  User: {wf.externalOwnerId}
                 </Badge>
               )}
             </div>

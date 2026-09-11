@@ -227,7 +227,7 @@ export function WorkflowCanvas({ projectId, workflow, onRefresh }: WorkflowCanva
     <div className="flex flex-col h-[calc(100vh-65px)] w-full relative bg-background overflow-hidden">
       {/* Canvas Top Bar */}
       <header className="h-14 border-b border-border px-4 flex items-center justify-between bg-card/80 backdrop-blur z-10 shrink-0">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <h2 className="text-sm font-semibold text-foreground">{workflow.name}</h2>
           {workflow.publishedVersion > 0 ? (
             <Badge variant="secondary" className="text-[10px] font-mono h-5">
@@ -236,6 +236,23 @@ export function WorkflowCanvas({ projectId, workflow, onRefresh }: WorkflowCanva
           ) : (
             <Badge variant="outline" className="text-[10px] font-mono h-5 text-muted-foreground">
               Draft
+            </Badge>
+          )}
+          <Badge
+            variant="outline"
+            className={`text-[10px] uppercase font-mono h-5 ${
+              workflow.visibility === "public"
+                ? "border-emerald-500/30 text-emerald-500 bg-emerald-500/5"
+                : workflow.visibility === "unlisted"
+                ? "border-purple-500/30 text-purple-500 bg-purple-500/5"
+                : "border-border text-muted-foreground"
+            }`}
+          >
+            {workflow.visibility || "private"}
+          </Badge>
+          {workflow.externalOwnerId && (
+            <Badge variant="outline" className="text-[10px] font-mono h-5 text-blue-500 border-blue-500/30 bg-blue-500/5">
+              User: {workflow.externalOwnerId}
             </Badge>
           )}
           {isDirty && (

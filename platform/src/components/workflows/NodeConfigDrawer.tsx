@@ -276,6 +276,18 @@ export function NodeConfigDrawer({
           {node.type === "output" && (
             <div className="space-y-4 pt-2 border-t border-border/50">
               <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Output Format</Label>
+                <select
+                  value={config.outputType || "text"}
+                  onChange={(e) => setConfig({ ...config, outputType: e.target.value })}
+                  className="w-full h-8 rounded-md border border-input bg-background px-2 text-xs"
+                >
+                  <option value="text">Plain Text / Resolved String</option>
+                  <option value="json">Structured JSON (Parsed Object)</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Output Value Mapping</Label>
                 <Textarea
                   value={config.outputMapping || ""}
@@ -284,6 +296,23 @@ export function NodeConfigDrawer({
                   rows={3}
                   className="text-xs font-mono"
                 />
+              </div>
+            </div>
+          )}
+
+          {node.type === "condition" && (
+            <div className="space-y-4 pt-2 border-t border-border/50">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Condition Expression</Label>
+                <Input
+                  value={config.expression || ""}
+                  onChange={(e) => setConfig({ ...config, expression: e.target.value })}
+                  placeholder="e.g. {{steps.agent1.output.isApproved}} or true"
+                  className="h-8 text-xs font-mono"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Evaluates to boolean: routes to True branch if truthy / non-empty, False branch otherwise.
+                </p>
               </div>
             </div>
           )}

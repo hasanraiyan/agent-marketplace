@@ -85,10 +85,31 @@ const workflowSchema = new mongoose.Schema(
     },
     publishedVersion: { type: Number, default: 0 },
     activeRuns: { type: Number, default: 0 },
+    // Parity with Agent ownership and externalUserId scoping (AD-02 §11.1)
+    ownerType: {
+      type: String,
+      enum: ['Project', 'ExternalUser'],
+      default: 'Project',
+      index: true,
+    },
+    externalOwnerId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    visibility: {
+      type: String,
+      enum: ['private', 'unlisted', 'public'],
+      default: 'private',
+      index: true,
+    },
   },
   { timestamps: true }
 );
 
 workflowSchema.index({ projectId: 1, name: 1 });
+workflowSchema.index({ projectId: 1, externalOwnerId: 1 });
+workflowSchema.index({ projectId: 1, visibility: 1 });
 
 export default mongoose.model('Workflow', workflowSchema);
+

@@ -100,6 +100,73 @@ export const workflowTriggerSchema = z.object({
   config: z.record(z.string(), z.any()).default({}),
 });
 
+/**
+ * Structural validation for Workflow graphs (Finding #5 in review.md).
+ * Ensures:
+ * 1. Exactly one trigger node (if nodes are defined)
+ * 2. At least one output node (if nodes are defined)
+ * 3. No disconnected/unreachable nodes from the trigger (if multiple nodes exist)
+ */
+export function validateWorkflowStructure(nodes = [], edges = []) {
+  if (!nodes || nodes.length === 0) {
+    return { isValid: true };
+  }
+
+  const triggers = nodes.filter((n) => n.type === 'trigger');
+  if (triggers.length !== 1) {
+    return {
+      isValid: false,
+      error: `Workflow must have exactly 1 trigger node (found ${triggers.length})`,
+    };
+  }
+
+  const outputs = nodes.filter((n) => n.type === 'output');
+  if (outputs.length === 0) {
+    return {
+      isValid: false,
+      error: 'Workflow must have at least 1 output node',
+    };
+  }
+
+  // Reachability check from the single trigger
+  const triggerId = triggers[0].id;
+  const adj = new Map();
+  for (const node of nodes) {
+    adj.set(node.id, []);
+  }
+  for (const edge of edges) {
+    if (adj.has(edge.source)) {
+      adj.get(edge.source).push(edge.target);
+    }
+  }
+
+  const reachable = new Set();
+  const queue = [triggerId];
+  reachable.add(triggerId);
+
+  while (queue.length > 0) {
+    const curr = queue.shift();
+    const neighbors = adj.get(curr) || [];
+    for (const n of neighbors) {
+      if (!reachable.has(n)) {
+        reachable.add(n);
+        queue.push(n);
+      }
+    }
+  }
+
+  const unreachable = nodes.filter((n) => !reachable.has(n.id));
+  if (unreachable.length > 0) {
+    return {
+      isValid: false,
+      error: `Unreachable disconnected node(s): ${unreachable.map((n) => n.id).join(', ')}`,
+      unreachableNodes: unreachable.map((n) => n.id),
+    };
+  }
+
+  return { isValid: true };
+}
+
 export const workflowDraftSchema = z
   .object({
     nodes: z.array(workflowNodeSchema).default([]),
@@ -114,12 +181,23 @@ export const workflowDraftSchema = z
         message: `Cycles are not supported in v1. Node ${cycleNode || 'unknown'} references an ancestor.`,
       });
     }
+
+    if (draft.nodes && draft.nodes.length > 0) {
+      const structural = validateWorkflowStructure(draft.nodes, draft.edges);
+      if (!structural.isValid) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: structural.error,
+        });
+      }
+    }
   });
 
 export const createWorkflowSchema = z.object({
   name: z.string().min(1, 'Workflow name is required').max(100),
   description: z.string().max(500).optional(),
   isEnabled: z.boolean().default(true),
+  visibility: z.enum(['private', 'unlisted', 'public']).default('private'),
   draft: workflowDraftSchema.optional(),
 });
 
@@ -127,6 +205,7 @@ export const updateWorkflowSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().max(500).optional(),
   isEnabled: z.boolean().optional(),
+  visibility: z.enum(['private', 'unlisted', 'public']).optional(),
   draft: workflowDraftSchema.optional(),
 });
 
@@ -138,6 +217,7 @@ export const runWorkflowSchema = z.object({
   input: z.any().optional(),
   dryRun: z.boolean().optional(),
   isDryRun: z.boolean().optional(),
+  externalUserId: z.string().optional(),
   version: z.number().int().optional(),
 });
 
