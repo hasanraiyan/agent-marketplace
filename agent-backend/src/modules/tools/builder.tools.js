@@ -404,28 +404,42 @@ export const testPersonaTool = (userId) =>
         const persona = await agentRepository.findOne({ ownerId: userId, isMainAgent: true, isActive: true });
         if (!persona) return JSON.stringify({ status: 'error', message: 'No persona yet. Create it with upsert_agent first.' });
         const { runAgentAsAguiEvents } = await import('../agui/agui.service.js');
+        const { AsyncLocalStorageProviderSingleton } = await import('@langchain/core/singletons');
         let contextOverride;
         if (skillName) {
           const skills = await skillService.getMySkills(userId);
           const sk = skills.find((x) => x.name === skillName);
           if (sk) contextOverride = `### PINNED SKILL: ${sk.title || sk.name}\nThe visitor came here to use this specific skill of yours. Apply it deliberately.\n\n${sk.instructions}`;
         }
-        let text = '';
-        const toolsUsed = [];
-        for await (const ev of runAgentAsAguiEvents({
-          agentId: String(persona._id),
-          userId,
-          langGraphThreadId: `test-${persona._id}-${Date.now()}`,
-          messages: [{ id: `t-${Date.now()}`, role: 'user', content: message }],
-          contextOverride,
-        })) {
-          if (ev.type === 'TEXT_MESSAGE_CHUNK' && ev.role !== 'reasoning') text += ev.delta ?? '';
-          else if (ev.type === 'TOOL_CALL_CHUNK' && ev.toolCallName) toolsUsed.push(ev.toolCallName);
-          else if (ev.type === 'CUSTOM' && ev.name === 'clarification_request') {
-            const qs = (ev.value?.questions || []).map((q) => q.question || q.text || '').filter(Boolean);
-            text += `\n[asked: ${qs.join(' | ')}]`;
-          } else if (ev.type === 'RUN_ERROR') return JSON.stringify({ status: 'error', message: ev.message });
-        }
+        // This tool runs INSIDE the Architect's own graph run. Without
+        // isolation the nested persona run inherits the outer callbacks, and
+        // the AG-UI scope tracker files all its text as a sub-run and drops it.
+        const run = await AsyncLocalStorageProviderSingleton.runWithConfig(
+          { callbacks: [], tags: [], metadata: {} },
+          async () => {
+            let text = '';
+            const toolsUsed = [];
+            let runError = null;
+            for await (const ev of runAgentAsAguiEvents({
+              agentId: String(persona._id),
+              userId,
+              langGraphThreadId: `test-${persona._id}-${Date.now()}`,
+              messages: [{ id: `t-${Date.now()}`, role: 'user', content: message }],
+              contextOverride,
+            })) {
+              if (ev.type === 'TEXT_MESSAGE_CHUNK' && ev.role !== 'reasoning') text += ev.delta ?? '';
+              else if (ev.type === 'TOOL_CALL_CHUNK' && ev.toolCallName) toolsUsed.push(ev.toolCallName);
+              else if (ev.type === 'CUSTOM' && ev.name === 'clarification_request') {
+                const qs = (ev.value?.questions || []).map((q) => q.question || q.text || '').filter(Boolean);
+                text += `\n[asked: ${qs.join(' | ')}]`;
+              } else if (ev.type === 'RUN_ERROR') runError = ev.message;
+            }
+            return { text, toolsUsed, runError };
+          },
+          true
+        );
+        if (run.runError) return JSON.stringify({ status: 'error', message: run.runError });
+        const { text, toolsUsed } = run;
         const reply = text.trim().slice(0, 3500);
         const cache = testPersonaCache.get(String(userId)) || [];
         cache.push({ message: message.slice(0, 300), skillName: skillName || null, reply });
