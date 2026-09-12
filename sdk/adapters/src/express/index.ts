@@ -10,7 +10,7 @@ export type { ExpressResolveUser };
 export type { Logger, LogLevel };
 
 /** Version of this unified package. */
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';
 
 export interface CreateExpressAdapterOptions extends Omit<CreateRuntimeOptions, 'resolveUser'> {
   resolveUser?: ResolveUser;

@@ -1,0 +1,158 @@
+﻿---
+title: "@personaai/adapters 0.2.0"
+description: "Unified Persona adapter package â€” Express, Next.js, and NestJS bindings over @personaai/runtime in a single dependency."
+sdk: "adapters"
+version: "0.2.0"
+---
+
+# @personaai/adapters 0.2.0
+
+`@personaai/adapters` is the **unified adapter package** for Persona. It provides native, first-class bindings for Express, Next.js, and NestJS, wrapping the framework-agnostic [`@personaai/runtime`](/docs/runtime/v0.10.0) engine with zero duplicated logic.
+
+Instead of managing separate adapter packages, `@personaai/adapters` ships as a single package with framework-specific subpath exports sharing a high-performance transport core.
+
+> **Server-Side Only:** Adapter route handlers hold your Persona Project API credential. Never import adapter server entrypoints into browser bundles.
+
+```bash
+npm install @personaai/adapters
+```
+
+---
+
+## Unified Package Exports
+
+| Subpath Export | Framework | Core Exports |
+| :--- | :--- | :--- |
+| **`@personaai/adapters/express`** | Express (v4 & v5) | [`createExpressAdapter`](/docs/adapters/v0.2.0/express), [`toExpressRouter`](/docs/adapters/v0.2.0/express) |
+| **`@personaai/adapters/nextjs/server`** | Next.js (App Router 14+) | [`createPersonaHandler`](/docs/adapters/v0.2.0/nextjs), [`toNextRouteHandlers`](/docs/adapters/v0.2.0/nextjs) |
+| **`@personaai/adapters/nextjs`** | Next.js Client Components | [`PersonaProvider`](/docs/adapters/v0.2.0/nextjs), client hooks (re-exported from `@personaai/react`) |
+| **`@personaai/adapters/nestjs`** | NestJS (v10 & v11) | [`PersonaModule`](/docs/adapters/v0.2.0/nestjs), [`PersonaService`](/docs/adapters/v0.2.0/nestjs), [`PersonaMiddleware`](/docs/adapters/v0.2.0/nestjs) |
+
+---
+
+## Why a Unified Package?
+
+Prior to `0.2.0`, each framework was published as an isolated package (`@personaai/express`, `@personaai/nextjs`, `@personaai/nestjs`). While functional, this introduced version drift and duplicate logic across streaming backpressure, multipart handling, and header translation.
+
+`@personaai/adapters` unifies all adapters into a single package:
+1. **Shared Core Internals (`src/shared/`):** Stream writers with transport backpressure (`res.write` drain listeners), multipart parsing for file attachments, header sanitization, and error translation are written once and shared across all hosts.
+2. **Single Dependency:** Install `@personaai/adapters` once in your monorepo or project. You only need peer dependencies for the framework you actually use (e.g. `express`, `next`, or `@nestjs/common`).
+3. **Zero Deprecation Friction:** The legacy individual packages are now deprecated shims that forward directly to `@personaai/adapters`.
+
+---
+
+## Installation & Peer Dependencies
+
+Install the core package:
+
+```bash
+npm install @personaai/adapters
+# or
+pnpm add @personaai/adapters
+# or
+yarn add @personaai/adapters
+```
+
+### Install Only What You Use
+
+Peer dependencies are strictly optional. Install only the framework you are deploying:
+
+```bash
+# For Express applications
+npm install express
+
+# For Next.js applications
+npm install next react
+
+# For NestJS applications
+npm install @nestjs/common @nestjs/core reflect-metadata rxjs
+```
+
+---
+
+## Quick Example by Framework
+
+### Express
+```ts
+import express from 'express';
+import { createExpressAdapter } from '@personaai/adapters/express';
+
+const app = express();
+app.use(express.json());
+
+const { router } = createExpressAdapter({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUserFrom: (req) => req.user?.id ?? null,
+});
+
+app.use('/api/persona', router);
+```
+
+### Next.js (App Router)
+```ts
+// app/api/persona/[...persona]/route.ts
+import { createPersonaHandler } from '@personaai/adapters/nextjs/server';
+import { auth } from '@clerk/nextjs/server';
+
+export const { GET, POST, PUT, PATCH, DELETE } = createPersonaHandler({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUserFrom: async () => (await auth()).userId,
+});
+
+export const dynamic = 'force-dynamic';
+```
+
+### NestJS
+```ts
+// app.module.ts
+import { Module } from '@nestjs/common';
+import { PersonaModule } from '@personaai/adapters/nestjs';
+
+@Module({
+  imports: [
+    PersonaModule.forRoot({
+      baseUrl: process.env.PERSONA_BASE_URL!,
+      credential: process.env.PERSONA_CREDENTIAL!,
+      resolveUserFrom: (req) => req.user?.id ?? null,
+      routePrefix: '/api/persona',
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+---
+
+## Migration from Legacy Shims
+
+If your codebase currently imports from `@personaai/express`, `@personaai/nextjs`, or `@personaai/nestjs`, migrate to `@personaai/adapters` with a simple import path update:
+
+```diff
+- import { toExpressRouter } from '@personaai/express';
++ import { toExpressRouter } from '@personaai/adapters/express';
+
+- import { createPersonaHandler } from '@personaai/nextjs/server';
++ import { createPersonaHandler } from '@personaai/adapters/nextjs/server';
+
+- import { PersonaModule } from '@personaai/nestjs';
++ import { PersonaModule } from '@personaai/adapters/nestjs';
+```
+
+Then uninstall the legacy package:
+```bash
+npm uninstall @personaai/express @personaai/nextjs @personaai/nestjs
+npm install @personaai/adapters
+```
+
+---
+
+## Documentation Index
+
+- **[Quickstart Guide](/docs/adapters/v0.2.0/quickstart)** â€” Step-by-step onboarding for Express, Next.js, and NestJS.
+- **[Express Adapter](/docs/adapters/v0.2.0/express)** â€” Complete reference for `createExpressAdapter` and `toExpressRouter`.
+- **[Next.js Adapter](/docs/adapters/v0.2.0/nextjs)** â€” Server route handlers and client React providers.
+- **[NestJS Module](/docs/adapters/v0.2.0/nestjs)** â€” Dependency injection, `forRootAsync`, and `PersonaService.forUser()`.
+- **[Shared Core Internals](/docs/adapters/v0.2.0/shared-core)** â€” Backpressure management, multipart uploads, and error handling.
+

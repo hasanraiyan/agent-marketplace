@@ -1,0 +1,138 @@
+﻿---
+title: "Express Adapter"
+description: "Mounting Persona onto Express 4 and Express 5 applications with @personaai/adapters/express."
+sdk: "adapters"
+version: "0.2.0"
+---
+
+# Express Adapter
+
+`@personaai/adapters/express` provides native bindings for Express 4 and Express 5 applications. It wraps `@personaai/runtime` into a standard Express `Router`, handling Server-Sent Events streaming, multipart file uploads, and request translation.
+
+```bash
+npm install @personaai/adapters express
+```
+
+---
+
+## Core APIs
+
+### 1. `createExpressAdapter(options)`
+
+The recommended factory function that creates both the Express `Router` and the underlying `Runtime` instance:
+
+```ts
+import express from 'express';
+import { createExpressAdapter } from '@personaai/adapters/express';
+
+const app = express();
+app.use(express.json());
+
+const { router, runtime } = createExpressAdapter({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  
+  // Custom user resolver receiving the Express Request
+  resolveUserFrom: (req) => {
+    return req.session?.userId ?? req.headers['x-user-id'] ?? null;
+  },
+
+  // Optional capabilities
+  capabilities: {
+    agentsWrite: false, // default
+  },
+});
+
+app.use('/api/persona', router);
+
+// Clean shutdown
+process.on('SIGTERM', () => {
+  runtime.close();
+});
+```
+
+#### Options Reference
+
+`CreateExpressAdapterOptions` extends `CreateRuntimeOptions` with Express-specific properties:
+
+- `baseUrl` *(string, required)*: Developer Platform API URL.
+- `credential` *(string, required)*: Project API key (`"<keyId>.<secret>"`).
+- `resolveUserFrom` *(ExpressResolveUser)*: Function receiving Express `Request`, returning `string | null | Promise<string | null>`.
+- `resolveUser` *(ResolveUser)*: Alternative runtime-level resolver receiving `RuntimeRequest`.
+- `mountPath` *(string, optional)*: Route prefix to strip from URLs.
+- `logger` *(Logger, optional)*: Custom logger instance.
+- `logLevel` *(LogLevel, optional)*: Logging level (`'debug'`, `'info'`, `'warn'`, `'error'`).
+- `capabilities` *(RuntimeCapabilities, optional)*: Admin capability flags.
+- `hooks` *(RuntimeHooks, optional)*: Lifecycle hooks.
+
+---
+
+### 2. `toExpressRouter(runtime, resolveUserFrom?, options?)`
+
+If you prefer to manage the `Runtime` lifecycle manually (or mount multiple routers from separate runtime instances), use `toExpressRouter`:
+
+```ts
+import express from 'express';
+import { createRuntime } from '@personaai/runtime';
+import { toExpressRouter } from '@personaai/adapters/express';
+
+const app = express();
+
+// User runtime
+const userRuntime = createRuntime({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser: (req) => req.userId ?? null,
+});
+
+// Admin runtime
+const adminRuntime = createRuntime({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser: (req) => req.userId ?? null,
+  capabilities: { skills: true, knowledge: true, stores: true },
+});
+
+// Mount user router with user resolver
+app.use(
+  '/api/persona',
+  toExpressRouter(userRuntime, (req) => req.user?.id ?? null)
+);
+
+// Mount admin router behind strict admin middleware
+app.use(
+  '/api/admin/persona',
+  requireAdminMiddleware,
+  toExpressRouter(adminRuntime, (req) => req.adminUser?.id ?? null)
+);
+```
+
+---
+
+## Request Body & File Upload Handling
+
+`@personaai/adapters/express` is designed to be resilient to different Express middleware configurations:
+
+### 1. JSON Bodies
+- Works seamlessly whether `app.use(express.json())` is mounted or omitted. If JSON body middleware was not run, the adapter reads the incoming stream directly.
+
+### 2. Multipart Uploads (`POST /files` and Knowledge Documents)
+- **Zero-Config Multipart:** If no multipart middleware is configured, the adapter automatically parses incoming `multipart/form-data` streams into file buffers using native Node primitives.
+- **Multer Compatibility:** If your application already passes requests through `multer` (`req.file` or `req.files`), the adapter detects pre-parsed multer files and maps them directly into `RuntimeRequest.file` without redundant parsing.
+
+---
+
+## Streaming Backpressure & Socket Management
+
+During `POST /chat` SSE streaming, the adapter actively monitors the Express `Response` socket:
+- **`res.write()` Backpressure:** If a client's network buffers become saturated, `res.write()` returns `false`. The adapter pauses upstream stream processing until the socket emits the `'drain'` event.
+- **Disconnect Cleanup:** If the client disconnects or closes the tab mid-turn, the adapter detects socket closure and terminates the client stream while allowing the internal `RunDriver` to complete any outstanding tool calls safely.
+
+---
+
+## Express 4 vs Express 5
+
+`@personaai/adapters/express` is tested and fully compatible with both **Express 4.x** and **Express 5.x**.
+- Compatible with Express 5's native async route handlers and revised error handling.
+- Compatible with Express 4's middleware chaining.
+

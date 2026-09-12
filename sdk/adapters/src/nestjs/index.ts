@@ -9,4 +9,4 @@ export { writeRuntimeResponse } from '../shared/write-node.js';
 export type { Logger, LogLevel } from '@personaai/logger';
 export { createLogger, createNoopLogger } from '@personaai/logger';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';
