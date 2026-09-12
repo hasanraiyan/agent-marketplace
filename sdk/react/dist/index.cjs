@@ -38,7 +38,11 @@ __export(index_exports, {
   useMemory: () => useMemory,
   usePersonaContext: () => usePersonaContext,
   useThreads: () => useThreads,
-  useVoice: () => useVoice
+  useVoice: () => useVoice,
+  useWorkflow: () => useWorkflow,
+  useWorkflowRuns: () => useWorkflowRuns,
+  useWorkflowStream: () => useWorkflowStream,
+  useWorkflows: () => useWorkflows
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -177,7 +181,8 @@ function fetchReader(response, controller) {
 function xhrStream(opts) {
   return new Promise((resolveStream, rejectStream) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", opts.url);
+    const method = opts.method ?? "POST";
+    xhr.open(method, opts.url);
     for (const [key, val] of Object.entries(opts.headers))
       xhr.setRequestHeader(key, val);
     let consumed = 0;
@@ -276,7 +281,7 @@ function xhrStream(opts) {
         });
       }
     }
-    xhr.send(opts.body);
+    xhr.send(method === "GET" ? null : opts.body ?? null);
   });
 }
 async function openSSEStream(opts) {
@@ -288,10 +293,11 @@ async function openSSEStream(opts) {
     if (opts.signal.aborted) controller.abort();
     else opts.signal.addEventListener("abort", () => controller.abort());
   }
+  const method = opts.method ?? "POST";
   const response = await fetch(opts.url, {
-    method: "POST",
+    method,
     headers: opts.headers,
-    body: opts.body,
+    body: method === "GET" ? void 0 : opts.body,
     signal: controller.signal
   });
   if (!response.ok) {
@@ -2103,9 +2109,595 @@ function useMcp(options = {}) {
   };
 }
 
+// src/hooks/useWorkflows.ts
+var import_react11 = require("react");
+function useWorkflows(options) {
+  const opts = typeof options === "boolean" ? { autoFetch: options } : options ?? {};
+  const { autoFetch = true, search, status, page, limit } = opts;
+  const { fetchWithAuth } = usePersonaContext();
+  const [workflows, setWorkflows] = (0, import_react11.useState)([]);
+  const [pagination, setPagination] = (0, import_react11.useState)({
+    page: page ?? 1,
+    limit: limit ?? 20,
+    total: 0,
+    totalPages: 0
+  });
+  const [isLoading, setIsLoading] = (0, import_react11.useState)(false);
+  const [error, setError] = (0, import_react11.useState)(null);
+  const fetchWorkflows = (0, import_react11.useCallback)(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (status) params.set("status", status);
+      if (page) params.set("page", String(page));
+      if (limit) params.set("limit", String(limit));
+      const queryStr = params.toString() ? `?${params.toString()}` : "";
+      const res = await fetchWithAuth(`/workflows${queryStr}`);
+      if (!res.ok) {
+        throw new Error(`Failed to list workflows: ${res.statusText}`);
+      }
+      const data = await res.json();
+      const items = Array.isArray(data) ? data : data?.items || data?.workflows || [];
+      setWorkflows(items);
+      if (data?.pagination) {
+        setPagination({
+          page: data.pagination.page ?? 1,
+          limit: data.pagination.limit ?? items.length,
+          total: data.pagination.total ?? items.length,
+          totalPages: data.pagination.totalPages ?? 1
+        });
+      } else {
+        setPagination({
+          page: 1,
+          limit: items.length,
+          total: items.length,
+          totalPages: 1
+        });
+      }
+      return items;
+    } catch (err) {
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+      setError(errorObj);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchWithAuth, search, status, page, limit]);
+  const createWorkflow = (0, import_react11.useCallback)(
+    async (input) => {
+      setError(null);
+      try {
+        const res = await fetchWithAuth("/workflows", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input)
+        });
+        if (!res.ok) {
+          const errText = await res.text().catch(() => res.statusText);
+          throw new Error(`Failed to create workflow (${res.status}): ${errText}`);
+        }
+        const created = await res.json();
+        setWorkflows((prev) => [created, ...prev]);
+        return created;
+      } catch (err) {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        setError(errorObj);
+        throw errorObj;
+      }
+    },
+    [fetchWithAuth]
+  );
+  (0, import_react11.useEffect)(() => {
+    if (autoFetch) {
+      void fetchWorkflows();
+    }
+  }, [autoFetch, fetchWorkflows]);
+  return {
+    workflows,
+    pagination,
+    isLoading,
+    error,
+    refetch: fetchWorkflows,
+    createWorkflow
+  };
+}
+
+// src/hooks/useWorkflow.ts
+var import_react12 = require("react");
+function useWorkflow(workflowId, options) {
+  const opts = typeof options === "boolean" ? { autoFetch: options } : options ?? {};
+  const { autoFetch = true } = opts;
+  const { fetchWithAuth } = usePersonaContext();
+  const [workflow, setWorkflow] = (0, import_react12.useState)(null);
+  const [versions, setVersions] = (0, import_react12.useState)([]);
+  const [mermaid, setMermaid] = (0, import_react12.useState)(null);
+  const [isLoading, setIsLoading] = (0, import_react12.useState)(false);
+  const [error, setError] = (0, import_react12.useState)(null);
+  const fetchWorkflow = (0, import_react12.useCallback)(async () => {
+    if (!workflowId) return null;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetchWithAuth(`/workflows/${workflowId}`);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch workflow (${res.status}): ${res.statusText}`);
+      }
+      const data = await res.json();
+      setWorkflow(data);
+      return data;
+    } catch (err) {
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+      setError(errorObj);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchWithAuth, workflowId]);
+  const fetchVersions = (0, import_react12.useCallback)(async () => {
+    if (!workflowId) return [];
+    try {
+      const res = await fetchWithAuth(`/workflows/${workflowId}/versions`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      const items = Array.isArray(data) ? data : data?.items || [];
+      setVersions(items);
+      return items;
+    } catch {
+      return [];
+    }
+  }, [fetchWithAuth, workflowId]);
+  const fetchMermaid = (0, import_react12.useCallback)(async () => {
+    if (!workflowId) return "";
+    try {
+      const res = await fetchWithAuth(`/workflows/${workflowId}/mermaid`);
+      if (!res.ok) return "";
+      const data = await res.json();
+      const code = typeof data?.mermaid === "string" ? data.mermaid : String(data ?? "");
+      setMermaid(code);
+      return code;
+    } catch {
+      return "";
+    }
+  }, [fetchWithAuth, workflowId]);
+  const saveDraft = (0, import_react12.useCallback)(
+    async (draft) => {
+      if (!workflowId) throw new Error("Workflow ID is required");
+      setError(null);
+      const res = await fetchWithAuth(`/workflows/${workflowId}/draft`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draft })
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => res.statusText);
+        throw new Error(`Failed to save draft (${res.status}): ${errText}`);
+      }
+      const updated = await res.json();
+      setWorkflow(updated);
+      return updated;
+    },
+    [fetchWithAuth, workflowId]
+  );
+  const publish = (0, import_react12.useCallback)(
+    async (summary) => {
+      if (!workflowId) throw new Error("Workflow ID is required");
+      setError(null);
+      const res = await fetchWithAuth(`/workflows/${workflowId}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(summary ? { summary } : {})
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => res.statusText);
+        throw new Error(`Failed to publish workflow (${res.status}): ${errText}`);
+      }
+      const versionResult = await res.json();
+      void fetchWorkflow();
+      void fetchVersions();
+      return versionResult;
+    },
+    [fetchWithAuth, workflowId, fetchWorkflow, fetchVersions]
+  );
+  const deleteWorkflow = (0, import_react12.useCallback)(async () => {
+    if (!workflowId) throw new Error("Workflow ID is required");
+    setError(null);
+    const res = await fetchWithAuth(`/workflows/${workflowId}`, {
+      method: "DELETE"
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to delete workflow (${res.status}): ${res.statusText}`);
+    }
+    setWorkflow(null);
+  }, [fetchWithAuth, workflowId]);
+  (0, import_react12.useEffect)(() => {
+    if (autoFetch && workflowId) {
+      void fetchWorkflow();
+    }
+  }, [autoFetch, workflowId, fetchWorkflow]);
+  return {
+    workflow,
+    versions,
+    mermaid,
+    isLoading,
+    error,
+    refetch: fetchWorkflow,
+    fetchVersions,
+    fetchMermaid,
+    saveDraft,
+    publish,
+    deleteWorkflow
+  };
+}
+
+// src/hooks/useWorkflowStream.ts
+var import_react13 = require("react");
+function useWorkflowStream(workflowId, options) {
+  const { baseUrl, getAuthToken, fetchWithAuth, logger } = usePersonaContext();
+  const [status, setStatus] = (0, import_react13.useState)("idle");
+  const [runId, setRunId] = (0, import_react13.useState)(null);
+  const [activeNodeId, setActiveNodeId] = (0, import_react13.useState)(null);
+  const [nodeRuns, setNodeRuns] = (0, import_react13.useState)(
+    {}
+  );
+  const [text, setText] = (0, import_react13.useState)("");
+  const [output, setOutput] = (0, import_react13.useState)(null);
+  const [error, setError] = (0, import_react13.useState)(null);
+  const [events, setEvents] = (0, import_react13.useState)([]);
+  const abortControllerRef = (0, import_react13.useRef)(null);
+  const currentRunIdRef = (0, import_react13.useRef)(null);
+  currentRunIdRef.current = runId;
+  const optionsRef = (0, import_react13.useRef)(options);
+  optionsRef.current = options;
+  const cancel = (0, import_react13.useCallback)(async () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    const currentRun = currentRunIdRef.current;
+    if (currentRun) {
+      try {
+        await fetchWithAuth(`/workflows/runs/${currentRun}/cancel`, {
+          method: "POST"
+        });
+      } catch (err) {
+        logger.warn("Failed to send cancel request to workflow run", {
+          runId: currentRun,
+          error: String(err)
+        });
+      }
+    }
+    setStatus("cancelled");
+    setActiveNodeId(null);
+  }, [fetchWithAuth, logger]);
+  const reset = (0, import_react13.useCallback)(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setStatus("idle");
+    setRunId(null);
+    setActiveNodeId(null);
+    setNodeRuns({});
+    setText("");
+    setOutput(null);
+    setError(null);
+    setEvents([]);
+  }, []);
+  const processStream = (0, import_react13.useCallback)(
+    async (url, method, body, targetRunId) => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+      setStatus("running");
+      setError(null);
+      const token = getAuthToken ? await getAuthToken() : null;
+      const headers = {
+        Accept: "text/event-stream"
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      if (method === "POST") {
+        headers["Content-Type"] = "application/json";
+      }
+      let assignedRunId = targetRunId ?? null;
+      let accumulatedText = "";
+      let finalOutput = null;
+      try {
+        const stream = await openSSEStream({
+          url,
+          method,
+          headers,
+          body,
+          signal: controller.signal
+        });
+        if (!stream.ok) {
+          throw new Error(
+            stream.errorText || `Stream request failed with status ${stream.status}`
+          );
+        }
+        const runIdHeader = stream.getHeader("x-persona-run-id");
+        if (runIdHeader) {
+          assignedRunId = runIdHeader;
+          setRunId(runIdHeader);
+        }
+        let buffer = "";
+        while (true) {
+          const { done, value } = await stream.reader.read();
+          if (done) break;
+          if (!value) continue;
+          buffer += value;
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith(":")) continue;
+            if (trimmed.startsWith("data:")) {
+              const rawData = trimmed.slice(5).trim();
+              if (!rawData || rawData === "[DONE]") continue;
+              try {
+                const event = JSON.parse(rawData);
+                setEvents((prev) => [...prev, event]);
+                optionsRef.current?.onEvent?.(event);
+                if ("runId" in event && typeof event.runId === "string" && !assignedRunId) {
+                  assignedRunId = event.runId;
+                  setRunId(event.runId);
+                }
+                if (event.type === "TEXT_MESSAGE_CHUNK") {
+                  accumulatedText += event.delta;
+                  setText((prev) => prev + event.delta);
+                } else if (event.type === "CUSTOM") {
+                  if (event.name === "workflow_node_started") {
+                    const val = event.value;
+                    setActiveNodeId(val.nodeId);
+                    setNodeRuns((prev) => ({
+                      ...prev,
+                      [val.nodeId]: {
+                        nodeId: val.nodeId,
+                        nodeType: val.nodeType,
+                        nodeLabel: val.nodeLabel,
+                        status: "running",
+                        startedAt: (/* @__PURE__ */ new Date()).toISOString(),
+                        input: val.input
+                      }
+                    }));
+                    optionsRef.current?.onNodeStarted?.(val);
+                  } else if (event.name === "workflow_node_completed") {
+                    const val = event.value;
+                    setNodeRuns((prev) => {
+                      const existing = prev[val.nodeId];
+                      return {
+                        ...prev,
+                        [val.nodeId]: {
+                          nodeId: val.nodeId,
+                          nodeType: existing?.nodeType ?? "unknown",
+                          nodeLabel: existing?.nodeLabel ?? val.nodeId,
+                          status: "completed",
+                          startedAt: existing?.startedAt,
+                          finishedAt: (/* @__PURE__ */ new Date()).toISOString(),
+                          input: existing?.input,
+                          output: val.output
+                        }
+                      };
+                    });
+                    setActiveNodeId((curr) => curr === val.nodeId ? null : curr);
+                    finalOutput = val.output;
+                    setOutput(val.output);
+                    optionsRef.current?.onNodeCompleted?.(val);
+                  } else if (event.name === "workflow_node_failed") {
+                    const val = event.value;
+                    setNodeRuns((prev) => {
+                      const existing = prev[val.nodeId];
+                      return {
+                        ...prev,
+                        [val.nodeId]: {
+                          nodeId: val.nodeId,
+                          nodeType: existing?.nodeType ?? "unknown",
+                          nodeLabel: existing?.nodeLabel ?? val.nodeId,
+                          status: "failed",
+                          startedAt: existing?.startedAt,
+                          finishedAt: (/* @__PURE__ */ new Date()).toISOString(),
+                          input: existing?.input,
+                          error: val.error
+                        }
+                      };
+                    });
+                    setActiveNodeId((curr) => curr === val.nodeId ? null : curr);
+                    optionsRef.current?.onNodeFailed?.(val);
+                  }
+                } else if (event.type === "RUN_FINISHED") {
+                  setStatus("completed");
+                  setActiveNodeId(null);
+                  optionsRef.current?.onFinish?.({
+                    runId: assignedRunId || "",
+                    output: finalOutput,
+                    text: accumulatedText
+                  });
+                } else if (event.type === "RUN_ERROR") {
+                  const runErr = new Error(event.message || event.code || "Workflow run error");
+                  setStatus("failed");
+                  setError(runErr);
+                  setActiveNodeId(null);
+                  optionsRef.current?.onError?.(runErr);
+                }
+              } catch {
+              }
+            }
+          }
+        }
+        setStatus((prev) => prev === "running" ? "completed" : prev);
+        return finalOutput;
+      } catch (err) {
+        if (controller.signal.aborted) {
+          setStatus("cancelled");
+          return null;
+        }
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        setStatus("failed");
+        setError(errorObj);
+        setActiveNodeId(null);
+        optionsRef.current?.onError?.(errorObj);
+        throw errorObj;
+      } finally {
+        if (abortControllerRef.current === controller) {
+          abortControllerRef.current = null;
+        }
+      }
+    },
+    [getAuthToken]
+  );
+  const start = (0, import_react13.useCallback)(
+    async (input, opts) => {
+      const targetWfId = opts?.workflowId || workflowId;
+      if (!targetWfId) {
+        throw new Error("Workflow ID must be provided to start execution");
+      }
+      setNodeRuns({});
+      setText("");
+      setOutput(null);
+      setEvents([]);
+      setActiveNodeId(null);
+      const cleanBase = baseUrl.replace(/\/+$/, "");
+      const url = `${cleanBase}/workflows/${targetWfId}/stream`;
+      const body = JSON.stringify({
+        input: input ?? {},
+        dryRun: opts?.dryRun ?? false
+      });
+      return processStream(url, "POST", body);
+    },
+    [workflowId, baseUrl, processStream]
+  );
+  const resume = (0, import_react13.useCallback)(
+    async (targetRunId, sinceSeq) => {
+      if (!targetRunId) {
+        throw new Error("Run ID is required to resume stream");
+      }
+      setRunId(targetRunId);
+      const cleanBase = baseUrl.replace(/\/+$/, "");
+      const query = sinceSeq !== void 0 ? `?since=${sinceSeq}` : "";
+      const url = `${cleanBase}/workflows/runs/${targetRunId}/resume${query}`;
+      await processStream(url, "GET", void 0, targetRunId);
+    },
+    [baseUrl, processStream]
+  );
+  (0, import_react13.useEffect)(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+  return {
+    runId,
+    status,
+    isRunning: status === "running",
+    activeNodeId,
+    nodeRuns,
+    text,
+    output,
+    error,
+    events,
+    start,
+    cancel,
+    resume,
+    reset
+  };
+}
+
+// src/hooks/useWorkflowRuns.ts
+var import_react14 = require("react");
+function useWorkflowRuns(workflowId, options) {
+  const opts = typeof options === "boolean" ? { autoFetch: options } : options ?? {};
+  const { autoFetch = true, page = 1, limit = 20 } = opts;
+  const { fetchWithAuth } = usePersonaContext();
+  const [runs, setRuns] = (0, import_react14.useState)([]);
+  const [pagination, setPagination] = (0, import_react14.useState)({
+    page,
+    limit,
+    total: 0,
+    totalPages: 0
+  });
+  const [isLoading, setIsLoading] = (0, import_react14.useState)(false);
+  const [error, setError] = (0, import_react14.useState)(null);
+  const fetchRuns = (0, import_react14.useCallback)(async () => {
+    if (!workflowId) return [];
+    setIsLoading(true);
+    setError(null);
+    try {
+      const query = `?page=${page}&limit=${limit}`;
+      const res = await fetchWithAuth(`/workflows/${workflowId}/runs${query}`);
+      if (!res.ok) {
+        throw new Error(`Failed to list workflow runs: ${res.statusText}`);
+      }
+      const data = await res.json();
+      const items = Array.isArray(data) ? data : data?.items || data?.runs || [];
+      setRuns(items);
+      if (data?.pagination) {
+        setPagination({
+          page: data.pagination.page ?? page,
+          limit: data.pagination.limit ?? limit,
+          total: data.pagination.total ?? items.length,
+          totalPages: data.pagination.totalPages ?? 1
+        });
+      }
+      return items;
+    } catch (err) {
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+      setError(errorObj);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchWithAuth, workflowId, page, limit]);
+  const getRun = (0, import_react14.useCallback)(
+    async (runId) => {
+      if (!runId) throw new Error("Run ID is required");
+      const res = await fetchWithAuth(`/workflows/runs/${runId}`);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch workflow run (${res.status}): ${res.statusText}`);
+      }
+      return await res.json();
+    },
+    [fetchWithAuth]
+  );
+  const cancelRun = (0, import_react14.useCallback)(
+    async (runId) => {
+      if (!runId) throw new Error("Run ID is required");
+      const res = await fetchWithAuth(`/workflows/runs/${runId}/cancel`, {
+        method: "POST"
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to cancel workflow run (${res.status}): ${res.statusText}`);
+      }
+      setRuns(
+        (prev) => prev.map((r) => r._id === runId ? { ...r, status: "cancelled" } : r)
+      );
+    },
+    [fetchWithAuth]
+  );
+  (0, import_react14.useEffect)(() => {
+    if (autoFetch && workflowId) {
+      void fetchRuns();
+    }
+  }, [autoFetch, workflowId, fetchRuns]);
+  return {
+    runs,
+    pagination,
+    isLoading,
+    error,
+    refetch: fetchRuns,
+    getRun,
+    cancelRun
+  };
+}
+
 // src/index.ts
 var import_logger2 = require("@personaai/logger");
-var VERSION = "0.8.1";
+var VERSION = "0.9.0";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   PersonaProvider,
@@ -2126,6 +2718,10 @@ var VERSION = "0.8.1";
   useMemory,
   usePersonaContext,
   useThreads,
-  useVoice
+  useVoice,
+  useWorkflow,
+  useWorkflowRuns,
+  useWorkflowStream,
+  useWorkflows
 });
 //# sourceMappingURL=index.cjs.map

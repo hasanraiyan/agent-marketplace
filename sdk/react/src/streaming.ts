@@ -36,7 +36,8 @@ export interface SSEStream {
 export interface OpenSSEOptions {
   url: string;
   headers: Record<string, string>;
-  body: string;
+  body?: string;
+  method?: "GET" | "POST";
   signal?: AbortSignal;
 }
 
@@ -89,7 +90,8 @@ function fetchReader(
 function xhrStream(opts: OpenSSEOptions): Promise<SSEStream> {
   return new Promise<SSEStream>((resolveStream, rejectStream) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", opts.url);
+    const method = opts.method ?? "POST";
+    xhr.open(method, opts.url);
     for (const [key, val] of Object.entries(opts.headers))
       xhr.setRequestHeader(key, val);
 
@@ -204,7 +206,7 @@ function xhrStream(opts: OpenSSEOptions): Promise<SSEStream> {
       }
     }
 
-    xhr.send(opts.body);
+    xhr.send(method === "GET" ? null : (opts.body ?? null));
   });
 }
 
@@ -222,10 +224,11 @@ export async function openSSEStream(opts: OpenSSEOptions): Promise<SSEStream> {
     else opts.signal.addEventListener("abort", () => controller.abort());
   }
 
+  const method = opts.method ?? "POST";
   const response = await fetch(opts.url, {
-    method: "POST",
+    method,
     headers: opts.headers,
-    body: opts.body,
+    body: method === "GET" ? undefined : opts.body,
     signal: controller.signal,
   });
 

@@ -197,6 +197,12 @@ interface PersonaMemoryList {
  * and `REASONING_END` rather than `REASONING_MESSAGE_END`).
  */
 type PersonaStreamingEvent = {
+    type: "RUN_STARTED";
+    threadId?: string;
+    runId?: string;
+} | {
+    type: "RUN_FINISHED";
+} | {
     type: "TEXT_MESSAGE_CHUNK";
     delta: string;
     messageId?: string;
@@ -271,6 +277,29 @@ type PersonaStreamingEvent = {
         toolCallId: string;
         resourceUri: string;
         mcpId: string;
+    };
+} | {
+    type: "CUSTOM";
+    name: "workflow_node_started";
+    value: {
+        nodeId: string;
+        nodeType: string;
+        nodeLabel: string;
+        input?: unknown;
+    };
+} | {
+    type: "CUSTOM";
+    name: "workflow_node_completed";
+    value: {
+        nodeId: string;
+        output: unknown;
+    };
+} | {
+    type: "CUSTOM";
+    name: "workflow_node_failed";
+    value: {
+        nodeId: string;
+        error: string;
     };
 } | {
     type: "CUSTOM";
@@ -425,6 +454,149 @@ interface UseVoiceResult {
      * the next tool call in this session reads the new value.
      */
     updateContext: (context: Record<string, unknown>) => void;
+}
+type PersonaWorkflowNodeType = "trigger" | "agent" | "tool" | "condition" | "parallel" | "code" | "human_review" | (string & {});
+interface PersonaWorkflowNode {
+    id: string;
+    type: PersonaWorkflowNodeType;
+    position: {
+        x: number;
+        y: number;
+    };
+    data: Record<string, unknown>;
+}
+interface PersonaWorkflowEdge {
+    id: string;
+    source: string;
+    target: string;
+    sourceHandle?: string;
+    targetHandle?: string;
+    label?: string;
+}
+interface PersonaWorkflowTrigger {
+    type: "manual" | "webhook" | "schedule" | "event" | (string & {});
+    config?: Record<string, unknown>;
+}
+interface PersonaWorkflowDraft {
+    nodes: PersonaWorkflowNode[];
+    edges: PersonaWorkflowEdge[];
+    triggers?: PersonaWorkflowTrigger[];
+    settings?: Record<string, unknown>;
+}
+interface PersonaWorkflowSummary {
+    _id: string;
+    name: string;
+    slug?: string;
+    description?: string;
+    status: "draft" | "published" | "archived";
+    visibility?: "private" | "public";
+    activeVersion?: number;
+    tags?: string[];
+    createdAt: string;
+    updatedAt: string;
+}
+interface PersonaWorkflow extends PersonaWorkflowSummary {
+    draft: PersonaWorkflowDraft;
+    triggers?: PersonaWorkflowTrigger[];
+    ownerId?: string;
+    projectId?: string;
+}
+interface PersonaWorkflowVersionSummary {
+    _id: string;
+    workflowId: string;
+    version: number;
+    summary?: string;
+    createdAt: string;
+}
+interface PersonaWorkflowRunSummary {
+    _id: string;
+    workflowId: string;
+    version: number;
+    status: "pending" | "running" | "completed" | "failed" | "cancelled";
+    startedAt?: string;
+    finishedAt?: string;
+    durationMs?: number;
+    error?: string;
+    isDryRun?: boolean;
+    createdAt: string;
+}
+interface PersonaNodeRunState {
+    nodeId: string;
+    nodeType: string;
+    nodeLabel: string;
+    status: "idle" | "running" | "completed" | "failed";
+    startedAt?: string;
+    finishedAt?: string;
+    input?: unknown;
+    output?: unknown;
+    error?: string;
+}
+interface CreateWorkflowInput {
+    name: string;
+    description?: string;
+    slug?: string;
+    draft?: PersonaWorkflowDraft;
+    triggers?: PersonaWorkflowTrigger[];
+    visibility?: "private" | "public";
+    tags?: string[];
+}
+type UpdateWorkflowInput = Partial<CreateWorkflowInput>;
+interface UseWorkflowsOptions {
+    autoFetch?: boolean;
+    search?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+}
+interface UseWorkflowOptions {
+    autoFetch?: boolean;
+}
+interface UseWorkflowStreamOptions {
+    workflowId?: string;
+    onNodeStarted?: (node: {
+        nodeId: string;
+        nodeType: string;
+        nodeLabel: string;
+        input?: unknown;
+    }) => void;
+    onNodeCompleted?: (node: {
+        nodeId: string;
+        output: unknown;
+    }) => void;
+    onNodeFailed?: (node: {
+        nodeId: string;
+        error: string;
+    }) => void;
+    onFinish?: (result: {
+        runId: string;
+        output: unknown;
+        text: string;
+    }) => void;
+    onError?: (error: Error) => void;
+    onEvent?: (event: PersonaStreamingEvent) => void;
+}
+interface UseWorkflowStreamResult {
+    runId: string | null;
+    status: "idle" | "running" | "completed" | "failed" | "cancelled";
+    isRunning: boolean;
+    activeNodeId: string | null;
+    nodeRuns: Record<string, PersonaNodeRunState>;
+    text: string;
+    output: unknown;
+    error: Error | null;
+    events: PersonaStreamingEvent[];
+    start: (input?: unknown, options?: {
+        dryRun?: boolean;
+        workflowId?: string;
+    }) => Promise<unknown>;
+    cancel: () => Promise<void>;
+    resume: (runId: string, sinceSeq?: number) => Promise<void>;
+    reset: () => void;
+}
+interface UseWorkflowRunsOptions {
+    autoFetch?: boolean;
+    page?: number;
+    limit?: number;
 }
 
 interface PersonaContextValue {
@@ -633,6 +805,52 @@ declare function useMcp(options?: UseMcpOptions): {
     callTool: (name: string, args?: Record<string, unknown>, mcpId?: string) => Promise<any>;
 };
 
+interface WorkflowsPagination {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+}
+declare function useWorkflows(options?: UseWorkflowsOptions | boolean): {
+    workflows: PersonaWorkflowSummary[];
+    pagination: WorkflowsPagination;
+    isLoading: boolean;
+    error: Error | null;
+    refetch: () => Promise<PersonaWorkflowSummary[]>;
+    createWorkflow: (input: CreateWorkflowInput) => Promise<PersonaWorkflow>;
+};
+
+declare function useWorkflow(workflowId: string, options?: UseWorkflowOptions | boolean): {
+    workflow: PersonaWorkflow | null;
+    versions: PersonaWorkflowVersionSummary[];
+    mermaid: string | null;
+    isLoading: boolean;
+    error: Error | null;
+    refetch: () => Promise<PersonaWorkflow | null>;
+    fetchVersions: () => Promise<PersonaWorkflowVersionSummary[]>;
+    fetchMermaid: () => Promise<any>;
+    saveDraft: (draft: PersonaWorkflowDraft) => Promise<PersonaWorkflow>;
+    publish: (summary?: string) => Promise<PersonaWorkflowVersionSummary>;
+    deleteWorkflow: () => Promise<void>;
+};
+
+declare function useWorkflowStream(workflowId?: string, options?: UseWorkflowStreamOptions): UseWorkflowStreamResult;
+
+declare function useWorkflowRuns(workflowId?: string, options?: UseWorkflowRunsOptions | boolean): {
+    runs: PersonaWorkflowRunSummary[];
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    };
+    isLoading: boolean;
+    error: Error | null;
+    refetch: () => Promise<PersonaWorkflowRunSummary[]>;
+    getRun: (runId: string) => Promise<PersonaWorkflowRunSummary>;
+    cancelRun: (runId: string) => Promise<void>;
+};
+
 /**
  * SSE transport for chat streams, with a React Native fallback.
  *
@@ -671,7 +889,8 @@ interface SSEStream {
 interface OpenSSEOptions {
     url: string;
     headers: Record<string, string>;
-    body: string;
+    body?: string;
+    method?: "GET" | "POST";
     signal?: AbortSignal;
 }
 /**
@@ -689,6 +908,6 @@ declare function supportsStreamingFetch(): boolean;
  */
 declare function openSSEStream(opts: OpenSSEOptions): Promise<SSEStream>;
 
-declare const VERSION = "0.8.1";
+declare const VERSION = "0.9.0";
 
-export { type OpenSSEOptions, type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaSandboxCommand, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendMessageOverride, type UseChatOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseVoiceOptions, type UseVoiceResult, VERSION, openSSEStream, supportsStreamingFetch, useAgents, useChat, useConnection, useFiles, useMcp, useMcpConnections, useMemory, usePersonaContext, useThreads, useVoice };
+export { type CreateWorkflowInput, type OpenSSEOptions, type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaNodeRunState, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaSandboxCommand, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkflow, type PersonaWorkflowDraft, type PersonaWorkflowEdge, type PersonaWorkflowNode, type PersonaWorkflowNodeType, type PersonaWorkflowRunSummary, type PersonaWorkflowSummary, type PersonaWorkflowTrigger, type PersonaWorkflowVersionSummary, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendMessageOverride, type UpdateWorkflowInput, type UseChatOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseVoiceOptions, type UseVoiceResult, type UseWorkflowOptions, type UseWorkflowRunsOptions, type UseWorkflowStreamOptions, type UseWorkflowStreamResult, type UseWorkflowsOptions, VERSION, type WorkflowsPagination, openSSEStream, supportsStreamingFetch, useAgents, useChat, useConnection, useFiles, useMcp, useMcpConnections, useMemory, usePersonaContext, useThreads, useVoice, useWorkflow, useWorkflowRuns, useWorkflowStream, useWorkflows };

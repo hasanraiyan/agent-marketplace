@@ -3,6 +3,16 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.9.0
+
+- **New: Full Workflows Support.** Introduced 4 new hooks for building rich workflow interfaces:
+  - `useWorkflows(options)`: List, filter, paginate, and create workflows via `GET /workflows` and `POST /workflows`.
+  - `useWorkflow(workflowId, options)`: Inspect single workflow metadata, versions (`GET /workflows/:id/versions`), Mermaid diagrams (`GET /workflows/:id/mermaid`), draft saving (`POST /workflows/:id/draft`), publishing (`POST /workflows/:id/publish`), and deletion.
+  - `useWorkflowStream(workflowId, options)`: Live streaming workflow execution hook. Streams `POST /workflows/:id/stream` via SSE (`x-persona-run-id`), automatically tracks real-time step node transitions (`workflow_node_started`, `workflow_node_completed`, `workflow_node_failed`) in `nodeRuns`, supports live client reconnection via `resume(runId, sinceSeq)`, cancellation via `cancel()`, and lifecycle callbacks (`onNodeStarted`, `onNodeCompleted`, `onNodeFailed`, `onFinish`, `onError`, `onEvent`).
+  - `useWorkflowRuns(workflowId, options)`: Inspect historical runs (`GET /workflows/:id/runs`), fetch single run details (`GET /workflows/runs/:runId`), and cancel in-flight runs.
+- **Enhancement: Streaming Resumption.** `openSSEStream` and `xhrStream` in `streaming.ts` now support optional `method: 'GET' | 'POST'` and optional `body`, enabling streaming reconnects without a request body.
+- **Types:** Added `PersonaWorkflow`, `PersonaWorkflowSummary`, `PersonaWorkflowDraft`, `PersonaWorkflowNode`, `PersonaWorkflowEdge`, `PersonaWorkflowTrigger`, `PersonaNodeRunState`, `PersonaWorkflowRunSummary`, `PersonaWorkflowVersionSummary`, and updated `PersonaStreamingEvent` to include `RUN_STARTED`, `RUN_FINISHED`, and custom workflow node lifecycle events.
+
 ## 0.8.1
 
 - **Fix: auto thread titles now update live without reload (swasthsaathi bug).** Backend `agui.service.js:224` yields `{type:'title', title}` via `_autoTitleThread()` 3-4 word LLM summary; `PersonaStreamingEvent` now includes `{type:'title', title}` and `useChat` handles it via new `onTitle(title)` + forwards through `onEvent`. `swasthsaathi-01`'s `chat-app.tsx` now does `onEvent: if(e.type==='title') refetchThreads()` — sidebar no longer stuck on "New chat" until reload. Type `PersonaRole` correctly `+ 'reasoning'` already in 0.8.0.

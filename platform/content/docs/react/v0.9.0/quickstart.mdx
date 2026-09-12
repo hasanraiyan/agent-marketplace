@@ -1,0 +1,224 @@
+---
+title: React SDK Quickstart
+description: Install @personaai/react, wrap your app in PersonaProvider, and build working chat and workflow interfaces with streaming in under 100 lines.
+---
+
+`@personaai/react` is the official React SDK for [Persona](https://persona.hasanraiyan.me) — a
+set of hooks and a context provider that let you build full-featured chat and workflow UIs against any
+Persona backend without writing fetch calls, SSE parsers, or state management by hand.
+
+**v0.9.0, current release.** Requires React 18+.
+
+## Install
+
+```bash
+npm install @personaai/react
+```
+
+```bash
+pnpm add @personaai/react
+```
+
+Peer dependencies: `react >= 18`. No other packages are required.
+
+## Prerequisites
+
+You need a running Persona backend — either:
+
+- [`@personaai/adapters/nextjs`](/docs/adapters/v0.1.0) mounted in your Next.js app
+- [`@personaai/adapters/express`](/docs/adapters/v0.1.0) mounted in your Express app
+- [`@personaai/adapters/nestjs`](/docs/adapters/v0.1.0) configured in your NestJS module
+- A [raw runtime](/docs/runtime/v0.10.0/quickstart) on any other host
+
+The React SDK is a **client-side** package. It calls your backend's HTTP routes (`/chat`,
+`/workflows`, `/threads`, `/files`, `/memory`, `/health`, `/agents`) — it never talks directly to
+persona.hasanraiyan.me or holds any credential.
+
+## Set up the Provider
+
+Wrap your app (or the subtree that needs chat / workflows) in `<PersonaProvider>`. It takes three things:
+
+- **`baseUrl`** — where your Persona backend is mounted (e.g. `http://localhost:3000/api/persona`)
+- **`getAuthToken`** — an async getter for the user's Bearer token (Clerk, JWT, session, whatever your app uses). Omit if your backend doesn't require auth.
+- **`defaultAgentId`** — optional; lets you skip passing `agentId` to every hook call.
+
+```tsx
+// app/providers.tsx (Next.js App Router example)
+'use client';
+
+import { PersonaProvider } from '@personaai/react';
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <PersonaProvider
+      baseUrl="http://localhost:3000/api/persona"
+      getAuthToken={async () => {
+        const res = await fetch('/api/auth/token');
+        const data = await res.json();
+        return data.token;
+      }}
+      defaultAgentId="my-agent-id"
+    >
+      {children}
+    </PersonaProvider>
+  );
+}
+```
+
+## Minimal Chat Example
+
+```tsx
+'use client';
+
+import { useChat, useAgents } from '@personaai/react';
+
+export function SimpleChat() {
+  const { agents } = useAgents();
+  const agentId = agents[0]?._id;
+
+  const {
+    messages,
+    input,
+    setInput,
+    handleSubmit,
+    isStreaming,
+    error,
+    stop,
+  } = useChat({ agentId });
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((msg) => (
+          <div
+            key={msg.id}
+            className={`rounded-lg px-4 py-2 max-w-[80%] ${
+              msg.role === 'user'
+                ? 'ml-auto bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-900'
+            }`}
+          >
+            {msg.content}
+            {msg.isStreaming && <span className="animate-pulse ml-1">▊</span>}
+          </div>
+        ))}
+      </div>
+
+      {error && (
+        <div className="bg-red-50 text-red-700 px-4 py-2 text-sm">
+          {error.message}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="flex gap-2 border-t p-4">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Type a message..."
+          className="flex-1 rounded-lg border px-3 py-2"
+          disabled={isStreaming}
+        />
+        {isStreaming ? (
+          <button
+            type="button"
+            onClick={stop}
+            className="rounded-lg bg-red-600 px-4 py-2 text-white"
+          >
+            Stop
+          </button>
+        ) : (
+          <button
+            type="submit"
+            className="rounded-lg bg-blue-600 px-4 py-2 text-white"
+            disabled={!input.trim()}
+          >
+            Send
+          </button>
+        )}
+      </form>
+    </div>
+  );
+}
+```
+
+## Workflow Execution Example
+
+In `0.9.0`, you can execute and stream multi-step workflows with real-time step node progression:
+
+```tsx
+'use client';
+
+import { useWorkflowStream } from '@personaai/react';
+
+export function WorkflowRunner({ workflowId }: { workflowId: string }) {
+  const {
+    status,
+    isRunning,
+    activeNodeId,
+    nodeRuns,
+    output,
+    error,
+    start,
+    cancel,
+  } = useWorkflowStream(workflowId, {
+    onNodeStarted: (node) => console.log(`Step started: ${node.nodeLabel}`),
+    onNodeCompleted: (node) => console.log(`Step finished: ${node.nodeId}`),
+    onFinish: (result) => console.log('Workflow complete:', result),
+  });
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="flex gap-2">
+        <button
+          onClick={() => start({ query: 'Execute pipeline' })}
+          disabled={isRunning}
+          className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
+        >
+          {isRunning ? 'Running...' : 'Start Workflow'}
+        </button>
+        {isRunning && (
+          <button
+            onClick={cancel}
+            className="rounded bg-red-600 px-4 py-2 text-white"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
+
+      <div className="text-sm">Status: <span className="font-semibold">{status}</span></div>
+
+      {/* Node Progression Telemetry */}
+      <div className="space-y-2">
+        {Object.values(nodeRuns).map((node) => (
+          <div
+            key={node.nodeId}
+            className={`p-3 rounded border text-sm flex justify-between ${
+              node.nodeId === activeNodeId ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+            }`}
+          >
+            <div>
+              <span className="font-medium">{node.nodeLabel}</span> ({node.nodeType})
+            </div>
+            <span className="capitalize text-xs px-2 py-1 rounded bg-gray-100">{node.status}</span>
+          </div>
+        ))}
+      </div>
+
+      {error && <div className="text-red-600 text-sm">{error.message}</div>}
+
+      {output && (
+        <pre className="p-3 bg-gray-50 rounded text-xs overflow-x-auto">
+          {JSON.stringify(output, null, 2)}
+        </pre>
+      )}
+    </div>
+  );
+}
+```
+
+## Next steps
+
+- [Hooks reference](/docs/react/v0.9.0/hooks) — every hook in depth, with full parameters.
+- [Streaming & Resumption](/docs/react/v0.9.0/streaming) — SSE protocol and reconnection handling.
+- [Types reference](/docs/react/v0.9.0/types) — every exported type, interface, and event.

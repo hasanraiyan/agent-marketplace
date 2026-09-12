@@ -202,6 +202,14 @@ export interface PersonaMemoryList {
  */
 export type PersonaStreamingEvent =
   | {
+      type: "RUN_STARTED";
+      threadId?: string;
+      runId?: string;
+    }
+  | {
+      type: "RUN_FINISHED";
+    }
+  | {
       type: "TEXT_MESSAGE_CHUNK";
       delta: string;
       messageId?: string;
@@ -274,6 +282,32 @@ export type PersonaStreamingEvent =
       type: "CUSTOM";
       name: "mcp_app";
       value: { toolCallId: string; resourceUri: string; mcpId: string };
+    }
+  | {
+      type: "CUSTOM";
+      name: "workflow_node_started";
+      value: {
+        nodeId: string;
+        nodeType: string;
+        nodeLabel: string;
+        input?: unknown;
+      };
+    }
+  | {
+      type: "CUSTOM";
+      name: "workflow_node_completed";
+      value: {
+        nodeId: string;
+        output: unknown;
+      };
+    }
+  | {
+      type: "CUSTOM";
+      name: "workflow_node_failed";
+      value: {
+        nodeId: string;
+        error: string;
+      };
     }
   | { type: "CUSTOM"; name: string & {}; value: unknown };
 
@@ -448,3 +482,165 @@ export interface UseVoiceResult {
    */
   updateContext: (context: Record<string, unknown>) => void;
 }
+
+// ---- Workflows -----------------------------------------------------------
+
+export type PersonaWorkflowNodeType =
+  | "trigger"
+  | "agent"
+  | "tool"
+  | "condition"
+  | "parallel"
+  | "code"
+  | "human_review"
+  | (string & {});
+
+export interface PersonaWorkflowNode {
+  id: string;
+  type: PersonaWorkflowNodeType;
+  position: { x: number; y: number };
+  data: Record<string, unknown>;
+}
+
+export interface PersonaWorkflowEdge {
+  id: string;
+  source: string;
+  target: string;
+  sourceHandle?: string;
+  targetHandle?: string;
+  label?: string;
+}
+
+export interface PersonaWorkflowTrigger {
+  type: "manual" | "webhook" | "schedule" | "event" | (string & {});
+  config?: Record<string, unknown>;
+}
+
+export interface PersonaWorkflowDraft {
+  nodes: PersonaWorkflowNode[];
+  edges: PersonaWorkflowEdge[];
+  triggers?: PersonaWorkflowTrigger[];
+  settings?: Record<string, unknown>;
+}
+
+export interface PersonaWorkflowSummary {
+  _id: string;
+  name: string;
+  slug?: string;
+  description?: string;
+  status: "draft" | "published" | "archived";
+  visibility?: "private" | "public";
+  activeVersion?: number;
+  tags?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PersonaWorkflow extends PersonaWorkflowSummary {
+  draft: PersonaWorkflowDraft;
+  triggers?: PersonaWorkflowTrigger[];
+  ownerId?: string;
+  projectId?: string;
+}
+
+export interface PersonaWorkflowVersionSummary {
+  _id: string;
+  workflowId: string;
+  version: number;
+  summary?: string;
+  createdAt: string;
+}
+
+export interface PersonaWorkflowRunSummary {
+  _id: string;
+  workflowId: string;
+  version: number;
+  status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  startedAt?: string;
+  finishedAt?: string;
+  durationMs?: number;
+  error?: string;
+  isDryRun?: boolean;
+  createdAt: string;
+}
+
+export interface PersonaNodeRunState {
+  nodeId: string;
+  nodeType: string;
+  nodeLabel: string;
+  status: "idle" | "running" | "completed" | "failed";
+  startedAt?: string;
+  finishedAt?: string;
+  input?: unknown;
+  output?: unknown;
+  error?: string;
+}
+
+export interface CreateWorkflowInput {
+  name: string;
+  description?: string;
+  slug?: string;
+  draft?: PersonaWorkflowDraft;
+  triggers?: PersonaWorkflowTrigger[];
+  visibility?: "private" | "public";
+  tags?: string[];
+}
+
+export type UpdateWorkflowInput = Partial<CreateWorkflowInput>;
+
+export interface UseWorkflowsOptions {
+  autoFetch?: boolean;
+  search?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface UseWorkflowOptions {
+  autoFetch?: boolean;
+}
+
+export interface UseWorkflowStreamOptions {
+  workflowId?: string;
+  onNodeStarted?: (node: {
+    nodeId: string;
+    nodeType: string;
+    nodeLabel: string;
+    input?: unknown;
+  }) => void;
+  onNodeCompleted?: (node: { nodeId: string; output: unknown }) => void;
+  onNodeFailed?: (node: { nodeId: string; error: string }) => void;
+  onFinish?: (result: {
+    runId: string;
+    output: unknown;
+    text: string;
+  }) => void;
+  onError?: (error: Error) => void;
+  onEvent?: (event: PersonaStreamingEvent) => void;
+}
+
+export interface UseWorkflowStreamResult {
+  runId: string | null;
+  status: "idle" | "running" | "completed" | "failed" | "cancelled";
+  isRunning: boolean;
+  activeNodeId: string | null;
+  nodeRuns: Record<string, PersonaNodeRunState>;
+  text: string;
+  output: unknown;
+  error: Error | null;
+  events: PersonaStreamingEvent[];
+  start: (
+    input?: unknown,
+    options?: { dryRun?: boolean; workflowId?: string },
+  ) => Promise<unknown>;
+  cancel: () => Promise<void>;
+  resume: (runId: string, sinceSeq?: number) => Promise<void>;
+  reset: () => void;
+}
+
+export interface UseWorkflowRunsOptions {
+  autoFetch?: boolean;
+  page?: number;
+  limit?: number;
+}
+

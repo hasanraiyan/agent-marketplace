@@ -3,9 +3,9 @@
     {
       "id": "react",
       "title": "@personaai/react",
-      "description": "React hooks for Persona chat, voice, threads, files, memory",
-      "latest": "0.8.1",
-      "versions": ["0.8.1", "0.8.0", "0.7.10"]
+      "description": "React hooks for Persona chat, workflows, voice, threads, files, memory",
+      "latest": "0.9.0",
+      "versions": ["0.9.0", "0.8.1", "0.8.0"]
     },
     {
       "id": "adapters",

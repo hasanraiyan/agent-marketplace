@@ -2,7 +2,7 @@
 
 React SDK for [Persona](https://persona.hasanraiyan.me) — hooks and a context provider for building chat UIs against any Persona backend.
 
-> **v0.8.0.** Requires React 18+. Client-side only — never holds a credential.
+> **v0.9.0.** Requires React 18+. Client-side only — never holds a credential.
 
 ## Install
 
@@ -46,15 +46,19 @@ function Chat() {
 
 ## Hooks
 
-| Hook            | Purpose                                                                                         |
-| --------------- | ----------------------------------------------------------------------------------------------- |
-| `useChat`       | Streaming chat — messages, send, stop, reload, interrupts, workspace files, ephemeral new chat  |
-| `useVoice`      | Real-time voice calls (Gemini Live) — start/stop/mute, live transcript, tool calls             |
-| `useThreads`    | Thread CRUD — list, create, delete, rename, reset, archive                                     |
-| `useFiles`      | Upload management — list, upload, delete                                                        |
-| `useMemory`     | Persistent memory — read, write, delete                                                         |
-| `useAgents`     | Agent discovery — list available agents                                                         |
-| `useConnection` | Health check — backend connectivity status                                                      |
+| Hook                 | Purpose                                                                                         |
+| -------------------- | ----------------------------------------------------------------------------------------------- |
+| `useChat`            | Streaming chat — messages, send, stop, reload, interrupts, workspace files, ephemeral new chat  |
+| `useWorkflowStream`  | Live streaming workflow execution — real-time node state tracking, cancellation, and resume    |
+| `useWorkflows`       | Workflow discovery & creation — list, paginate, filter, and create workflows                    |
+| `useWorkflow`        | Single workflow authoring — drafts, publishing, versions, and Mermaid diagrams                 |
+| `useWorkflowRuns`    | Workflow run history — list historical runs, get run details, and cancel in-flight runs        |
+| `useVoice`           | Real-time voice calls (Gemini Live) — start/stop/mute, live transcript, tool calls             |
+| `useThreads`         | Thread CRUD — list, create, delete, rename, reset, archive                                     |
+| `useFiles`           | Upload management — list, upload, delete                                                        |
+| `useMemory`          | Persistent memory — read, write, delete                                                         |
+| `useAgents`          | Agent discovery — list available agents                                                         |
+| `useConnection`      | Health check — backend connectivity status                                                      |
 
 ## Voice
 
