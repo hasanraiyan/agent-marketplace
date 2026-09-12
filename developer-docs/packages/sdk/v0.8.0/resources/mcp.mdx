@@ -1,0 +1,24 @@
+---
+title: "MCP — register server, OAuth, test, callTool, readResource"
+description: "McpsResource + McpOAuthResource: create, testConnection, mcpConnections, user/owner OAuth"
+sdk: "sdk"
+version: "0.8.0"
+prev: "/packages/sdk/v0.8.0/resources/knowledge"
+next: "/packages/sdk/v0.8.0/resources/providers"
+related: ["/packages/sdk/v0.8.0/resources/agents", "/packages/sdk/v0.8.0/resources/chat"]
+---
+
+# MCP
+
+`client.mcps` → `/api/v1/developer/mcps` — `Mcp { transport: 'sse'|'streamable', url, authType: 'oauth'|'apiKey', authMode: 'owner'|'user' }`
+
+```ts
+const mcp = await persona.mcps.create({ name: 'Linear', transport: 'sse', url: 'https://mcp.linear.app/sse', auth:{} });
+await persona.mcps.testConnection(mcp._id); // persists tools/resources
+const status: McpUserConnectionStatus = await persona.mcps.oauth.getUserConnectionStatus(mcp._id); // requires externalUserId
+const url = await persona.mcps.oauth.getUserAuthorizeUrl(mcp._id, '/return');
+await persona.mcps.callTool(mcp._id, 'list_issues',{});
+const res: McpReadResourceResult = await persona.mcps.readResource(mcp._id, 'ui://widget');
+```
+
+Related: [Agents McpConnections](/packages/sdk/v0.8.0/resources/agents) • [Chat tool calls](/packages/sdk/v0.8.0/resources/chat)

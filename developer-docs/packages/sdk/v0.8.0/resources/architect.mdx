@@ -1,0 +1,20 @@
+---
+title: "Architect — conversational Agent Architect"
+description: "ArchitectClient at /api/v1/developer/architect/agui — no agentId, stream/sendMessage"
+sdk: "sdk"
+version: "0.8.0"
+prev: "/packages/sdk/v0.8.0/resources/audit-logs"
+next: "/packages/sdk/v0.8.0/guides/pagination"
+related: ["/packages/sdk/v0.8.0/resources/chat", "/packages/sdk/v0.8.0/resources/agents"]
+---
+
+# Architect
+
+`client.architect` → `POST /api/v1/developer/architect/agui` — conversational architect (no `agentId`).
+
+```ts
+for await (const e of persona.architect.stream({ messages: {}] })) {}
+const result = await persona.architect.sendMessage{});
+```
+
+Related: [Chat stream vs send](/packages/sdk/v0.8.0/resources/chat) • [Agents create](/packages/sdk/v0.8.0/resources/agents)

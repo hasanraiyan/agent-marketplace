@@ -1,5 +1,5 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
+  "": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "persona.hasanraiyan.me",
   "colors": {
@@ -16,52 +16,74 @@
           "guides/integration-guide",
           "guides/rest-tools",
           "guides/rcp",
-          "guides/sdk-quickstart",
           {
-            "group": "Node.js SDK Reference",
+            "group": "Node.js SDK (@personaai/sdk v0.8.0)",
             "pages": [
-              "guides/sdk/configuration",
-              "guides/sdk/client",
-              "guides/sdk/http-client",
-              "guides/sdk/errors",
+              "packages/sdk/v0.8.0/index",
+              "packages/sdk/v0.8.0/quickstart",
+              "packages/sdk/v0.8.0/guides/auth",
+              "packages/sdk/v0.8.0/guides/tracking",
               {
                 "group": "Resources",
                 "pages": [
-                  "guides/sdk/resources/providers",
-                  "guides/sdk/resources/agents",
-                  "guides/sdk/resources/skills",
-                  "guides/sdk/resources/knowledge",
-                  "guides/sdk/resources/mcps",
-                  "guides/sdk/resources/rest-tools",
-                  "guides/sdk/resources/threads",
-                  "guides/sdk/resources/memory",
-                  "guides/sdk/resources/stores",
-                  "guides/sdk/resources/files",
-                  "guides/sdk/resources/audit-logs",
-                  "guides/sdk/resources/voice"
+                  "packages/sdk/v0.8.0/resources/agents",
+                  "packages/sdk/v0.8.0/resources/chat",
+                  "packages/sdk/v0.8.0/resources/workflows",
+                  "packages/sdk/v0.8.0/resources/providers",
+                  "packages/sdk/v0.8.0/resources/skills",
+                  "packages/sdk/v0.8.0/resources/knowledge",
+                  "packages/sdk/v0.8.0/resources/mcp",
+                  "packages/sdk/v0.8.0/resources/rest-tools",
+                  "packages/sdk/v0.8.0/resources/threads",
+                  "packages/sdk/v0.8.0/resources/memory",
+                  "packages/sdk/v0.8.0/resources/stores",
+                  "packages/sdk/v0.8.0/resources/files",
+                  "packages/sdk/v0.8.0/resources/voice",
+                  "packages/sdk/v0.8.0/resources/audit-logs",
+                  "packages/sdk/v0.8.0/resources/architect"
                 ]
-              },
-              "guides/sdk/chat",
-              "guides/sdk/architect",
-              "guides/sdk/types",
-              "guides/sdk/behavior",
-              "guides/sdk/workflows",
-              "guides/sdk/troubleshooting",
-              "guides/sdk/compatibility"
+              }
             ]
           },
-          "guides/sdk-quickstart-python",
           {
-            "group": "React SDK Reference",
+            "group": "React SDK (@personaai/react v0.9.0)",
             "pages": [
-              "guides/react/quickstart",
-              "guides/react/hooks",
-              "guides/react/streaming",
-              "guides/react/types"
+              "packages/react/v0.9.0/index",
+              "packages/react/v0.9.0/quickstart",
+              "packages/react/v0.9.0/streaming",
+              "packages/react/v0.9.0/types",
+              "packages/react/v0.9.0/hooks/index",
+              "packages/react/v0.9.0/hooks/useChat",
+              "packages/react/v0.9.0/guides/ephemeral"
             ]
           },
           {
-            "group": "UI Components Reference",
+            "group": "Unified Adapters (@personaai/adapters v0.2.0)",
+            "pages": [
+              "packages/adapters/v0.2.0/index",
+              "packages/adapters/v0.2.0/quickstart",
+              "packages/adapters/v0.2.0/nextjs",
+              "packages/adapters/v0.2.0/express",
+              "packages/adapters/v0.2.0/nestjs",
+              "packages/adapters/v0.2.0/shared-core"
+            ]
+          },
+          {
+            "group": "Runtime Engine (@personaai/runtime v0.10.0)",
+            "pages": [
+              "packages/runtime/v0.10.0/index",
+              "packages/runtime/v0.10.0/quickstart",
+              "packages/runtime/v0.10.0/routes/core",
+              "packages/runtime/v0.10.0/routes/capabilities",
+              "packages/runtime/v0.10.0/guides/streaming-and-resume",
+              "packages/runtime/v0.10.0/guides/hooks",
+              "packages/runtime/v0.10.0/guides/manifests",
+              "packages/runtime/v0.10.0/guides/resolve-user",
+              "packages/runtime/v0.10.0/guides/custom-host"
+            ]
+          },
+          {
+            "group": "UI Components",
             "pages": [
               "guides/ui/shadcn-registry",
               "guides/ui/quickstart",
@@ -71,34 +93,9 @@
             ]
           },
           {
-            "group": "Next.js Adapter",
+            "group": "Devtools",
             "pages": [
-              "guides/nextjs/quickstart",
-              "guides/nextjs/voice",
-              "guides/nextjs/routes",
-              "guides/nextjs/auth",
-              "guides/nextjs/uploads",
-              "guides/nextjs/streaming"
-            ]
-          },
-          {
-            "group": "Express Adapter",
-            "pages": [
-              "guides/express/quickstart",
-              "guides/express/routes",
-              "guides/express/auth",
-              "guides/express/uploads",
-              "guides/express/streaming"
-            ]
-          },
-          {
-            "group": "NestJS Adapter",
-            "pages": [
-              "guides/nestjs/quickstart",
-              "guides/nestjs/routes",
-              "guides/nestjs/auth",
-              "guides/nestjs/uploads",
-              "guides/nestjs/streaming"
+              "guides/devtools/quickstart"
             ]
           },
           {
@@ -132,19 +129,16 @@
             ]
           },
           {
-            "group": "Devtools",
-            "pages": ["guides/devtools/quickstart"]
-          },
-          {
-            "group": "Runtime Reference",
+            "group": "Previous Versions Archive",
             "pages": [
-              "guides/runtime/quickstart",
-              "guides/runtime/routes",
-              "guides/runtime/capabilities",
-              "guides/runtime/hooks",
-              "guides/runtime/reconnect",
-              "guides/runtime/errors",
-              "guides/runtime/roadmap"
+              "packages/sdk/v0.7.5/index",
+              "packages/sdk/v0.7.5/quickstart",
+              "packages/react/v0.8.1/index",
+              "packages/react/v0.8.1/quickstart",
+              "packages/adapters/v0.1.0/index",
+              "packages/adapters/v0.1.0/quickstart",
+              "packages/runtime/v0.9.5/index",
+              "packages/runtime/v0.9.5/quickstart"
             ]
           }
         ]

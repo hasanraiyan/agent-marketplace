@@ -1,0 +1,32 @@
+---
+title: "@personaai/react 0.9.0"
+description: "React SDK for Persona — hooks, provider, streaming, ephemeral chat, and workflows"
+---
+
+# @personaai/react 0.9.0
+
+React SDK for [Persona](https://persona.hasanraiyan.me) — `PersonaProvider` + hooks for chat, workflows, voice, threads, files, memory.
+
+> **0.9.0** Latest. Requires React 18+. Client-side only.
+
+## What's new in 0.9.0
+
+- **Full Workflows Support** — 4 new hooks for building rich workflow interfaces:
+  - `useWorkflowStream` — Real-time workflow execution with step-node telemetry (`workflow_node_started`, `workflow_node_completed`, `workflow_node_failed`), cancellation, and live resumption.
+  - `useWorkflows` — List, paginate, search, and create workflows.
+  - `useWorkflow` — Single workflow authoring, drafts, publishing, version snapshots, and Mermaid diagrams.
+  - `useWorkflowRuns` — Workflow execution history, details, and in-flight cancellation.
+- **Enhanced Streaming Resumption** — `openSSEStream` supports `GET` requests without body for live stream reconnection.
+- **Protocol Events** — Native types for `RUN_STARTED`, `RUN_FINISHED`, and workflow node lifecycle events.
+
+## Quick links
+
+- [Quickstart](/packages/react/v0.9.0/quickstart)
+- [Hooks Reference](/packages/react/v0.9.0/hooks/index)
+- [Ephemeral guide](/packages/react/v0.9.0/guides/ephemeral)
+- [Streaming & Resumption](/packages/react/v0.9.0/streaming)
+- [Types](/packages/react/v0.9.0/types)
+
+```bash
+npm install @personaai/react@0.9.0
+```

@@ -1,0 +1,277 @@
+---
+title: Hooks Reference
+description: Every hook @personaai/react exports — useChat, useWorkflowStream, useWorkflows, useWorkflow, useWorkflowRuns, useVoice, useThreads, useFiles, useMemory, useAgents, useConnection, useMcp.
+---
+
+All hooks are client-side React hooks (`'use client'`). Every one must be called inside a
+`<PersonaProvider>` — they read `fetchWithAuth` and `defaultAgentId` from context.
+
+---
+
+## Workflows Hooks
+
+### `useWorkflowStream`
+
+The primary workflow execution hook — manages streaming execution of multi-step workflows, tracks node progression states live, supports cancellation, and allows stream resumption across disconnects.
+
+```tsx
+import{} from '@personaai/react';
+
+const {
+  status,
+  isRunning,
+  activeNodeId,
+  nodeRuns,
+  output,
+  text,
+  error,
+  start,
+  cancel,
+  resume,
+  reset,
+} = useWorkflowStream(workflowId, {
+  onNodeStarted: (node) => console.log('Node started:', node.nodeLabel),
+  onNodeCompleted: (node) => console.log('Node completed:', node.nodeId),
+  onNodeFailed: (node) => console.error('Node failed:', node.error),
+  onFinish: (result) => console.log('Workflow complete:', result),
+  onError: (error) => console.error('Stream failed:', error),
+});
+```
+
+#### Return Value
+- `status`: `'idle' | 'running' | 'completed' | 'failed' | 'cancelled'`
+- `isRunning`: `boolean` (true when status === 'running')
+- `activeNodeId`: `string | null` (the node currently executing)
+- `nodeRuns`: `Record<string, PersonaNodeRunState>` (live map of all executed and in-flight nodes with input, output, duration, and status)
+- `output`: `unknown` (final workflow return value)
+- `text`: `string` (accumulated assistant message text deltas from Agent steps)
+- `error`: `Error | null`
+- `start(input?, options?)`: Triggers a workflow execution (`POST /workflows/:id/stream`)
+- `cancel()`: Sends cancellation request (`POST /workflows/runs/:runId/cancel`) and aborts connection
+- `resume(runId, sinceSeq?)`: Reconnects to an interrupted run via `GET /workflows/runs/:runId/resume?since=<seq>`
+- `reset()`: Resets all hook state back to idle
+
+---
+
+### `useWorkflows`
+
+List, paginate, search, and create workflows.
+
+```tsx
+import{} from '@personaai/react';
+
+const {
+  workflows,
+  pagination,
+  isLoading,
+  error,
+  refetch,
+  createWorkflow,
+} = useWorkflows{});
+```
+
+#### Options
+- `autoFetch`: `boolean` (default `true`)
+- `search`: `string`
+- `status`: `'draft' | 'published' | 'archived'`
+- `page`: `number`
+- `limit`: `number`
+
+---
+
+### `useWorkflow`
+
+Manage a single workflow: fetch details, inspect published versions, export Mermaid flowcharts, save drafts, publish new versions, and delete.
+
+```tsx
+import{} from '@personaai/react';
+
+const {
+  workflow,
+  versions,
+  mermaid,
+  isLoading,
+  error,
+  refetch,
+  saveDraft,
+  publish,
+  fetchMermaid,
+  fetchVersions,
+  deleteWorkflow,
+} = useWorkflow(workflowId);
+```
+
+---
+
+### `useWorkflowRuns`
+
+List execution history for a workflow, inspect individual run metrics, and cancel in-flight executions.
+
+```tsx
+import{} from '@personaai/react';
+
+const {
+  runs,
+  pagination,
+  isLoading,
+  error,
+  refetch,
+  getRun,
+  cancelRun,
+} = useWorkflowRuns(workflowId);
+```
+
+---
+
+## Agent & Chat Hooks
+
+### `useChat`
+
+Primary chat conversation hook — streaming messages, thread history loading, human-in-the-loop (HITL) approval, clarification questions, workspace files/todos, and ephemeral new-chat state.
+
+```tsx
+import{} from '@personaai/react';
+
+const {
+  messages,
+  input,
+  setInput,
+  handleSubmit,
+  sendMessage,
+  isStreaming,
+  stop,
+  reload,
+  interrupt,
+  resumeInterrupt,
+  startNewChat,
+  isEphemeral,
+} = useChat{});
+```
+
+---
+
+### `useVoice`
+
+Real-time full-duplex voice sessions powered by Gemini Live.
+
+```tsx
+import{} from '@personaai/react';
+
+const {
+  state,
+  isMuted,
+  transcript,
+  partial,
+  toolCalls,
+  start,
+  stop,
+  mute,
+} = useVoice{});
+```
+
+---
+
+### `useThreads`
+
+Thread CRUD operations: list, create, delete, rename, reset, and archive conversations.
+
+```tsx
+import{} from '@personaai/react';
+
+const {
+  threads,
+  isLoading,
+  createThread,
+  deleteThread,
+  renameThread,
+  resetThread,
+} = useThreads();
+```
+
+---
+
+### `useFiles`
+
+Upload and download file management (`POST /files` and `GET /files`).
+
+```tsx
+import{} from '@personaai/react';
+
+const {
+  files,
+  uploadFile,
+  deleteFile,
+  isUploading,
+} = useFiles();
+```
+
+---
+
+### `useMemory`
+
+Read and write persistent memory surviving across threads and sessions (`GET /memory` and `PUT /memory/file`).
+
+```tsx
+import{} from '@personaai/react';
+
+const {
+  memory,
+  getFile,
+  writeFile,
+  deleteFile,
+} = useMemory();
+```
+
+---
+
+### `useAgents`
+
+Agent discovery — query public and private agents.
+
+```tsx
+import{} from '@personaai/react';
+
+const{} = useAgents();
+```
+
+---
+
+### `useConnection`
+
+Probes backend connectivity and capabilities via `GET /health`.
+
+```tsx
+import{} from '@personaai/react';
+
+const{} = useConnection();
+```
+
+---
+
+### `useMcp`
+
+Access MCP resources and trigger MCP tools for interactive Ext App widgets.
+
+```tsx
+import{} from '@personaai/react';
+
+const{} = useMcp{});
+```
+
+---
+
+## `PersonaProvider`
+
+Root context provider wrapping your application:
+
+```tsx
+import{} from '@personaai/react';
+
+<PersonaProvider
+  baseUrl="http://localhost:3000/api/persona"
+  getAuthToken{}
+  defaultAgentId="agent_123"
+>
+ {}
+</PersonaProvider>
+```

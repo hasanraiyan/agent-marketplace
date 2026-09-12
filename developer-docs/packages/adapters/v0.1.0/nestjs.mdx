@@ -1,0 +1,157 @@
+---
+title: "NestJS Module"
+description: "Enterprise integration with NestJS 10 and NestJS 11 using @personaai/adapters/nestjs."
+sdk: "adapters"
+version: "0.1.0"
+---
+
+# NestJS Module
+
+`@personaai/adapters/nestjs` integrates Persona into NestJS 10 and 11 applications with first-class dependency injection, dynamic modules, and lifecycle management.
+
+```bash
+npm install @personaai/adapters @nestjs/common @nestjs/core reflect-metadata rxjs
+```
+
+---
+
+## 1. Module Registration
+
+### Synchronous Configuration (`forRoot`)
+
+Register `PersonaModule` in your root `AppModule`:
+
+```ts
+// app.module.ts
+import{} from '@nestjs/common';
+import{} from '@personaai/adapters/nestjs';
+
+@Module({
+  imports: [
+    PersonaModule.forRoot({
+      baseUrl: process.env.PERSONA_BASE_URL || 'https://api.persona.hasanraiyan.me',
+      credential: process.env.PERSONA_CREDENTIAL!,
+      routePrefix: '/api/persona',
+      
+      // Resolve user from the incoming request (Express Request by default)
+      resolveUserFrom: (req) => req.user?.id ?? req.headers['x-user-id'] ?? null,
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+---
+
+### Asynchronous Configuration (`forRootAsync`)
+
+In production, load credentials dynamically using `@nestjs/config`:
+
+```ts
+// app.module.ts
+import{} from '@nestjs/common';
+import{} from '@nestjs/config';
+import{} from '@personaai/adapters/nestjs';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot{}),
+    PersonaModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        baseUrl: config.getOrThrow<string>('PERSONA_BASE_URL'),
+        credential: config.getOrThrow<string>('PERSONA_CREDENTIAL'),
+        routePrefix: '/api/persona',
+        resolveUserFrom: (req) => {
+          // Works with Passport.js, JWT Guards, or custom sessions
+          return req.user?.id ?? null;
+        },
+      }),
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+---
+
+## 2. Using `PersonaService`
+
+`PersonaModule` is marked `@Global()`. You can inject `PersonaService` into any provider or controller across your entire application without re-importing the module.
+
+### User-Scoped Client (`forUser`)
+
+When triggering agent actions from background workers, scheduled crons, or queue consumers (outside an HTTP request), use `forUser(externalUserId)`:
+
+```ts
+// background-agent.service.ts
+import { Injectable } from '@nestjs/common';
+import { PersonaService } from '@personaai/adapters/nestjs';
+
+@Injectable()
+export class BackgroundAgentService {
+  constructor(private readonly persona: PersonaService) {}
+
+  async notifyUserWithAgent(userId: string, agentId: string, alertMessage: string) {
+    // 1. Obtain an SDK client scoped to this user
+    const userClient = this.persona.forUser(userId);
+
+    // 2. Create a conversation thread
+    const thread = await userClient.threads.create({
+      agentId,
+      title: 'Automated Account Alert',
+    });
+
+    // 3. Trigger chat execution
+    let reply = '';
+    for await (const event of userClient.chat.stream(agentId, {
+      threadId: thread._id,
+      messages: [{ role: 'user', content: alertMessage }],
+    })) {
+      if (event.type === 'TEXT_MESSAGE_CHUNK') {
+        reply += event.delta;
+      }
+    }
+
+    return { threadId: thread._id, reply };
+  }
+}
+```
+
+---
+
+## 3. Dependency Injection Tokens
+
+For advanced use cases, the module exports three injection tokens:
+
+```ts
+import { Inject, Injectable } from '@nestjs/common';
+import { PersonaClient } from '@personaai/sdk';
+import type { Runtime } from '@personaai/runtime';
+import {
+  PERSONA_CLIENT,
+  PERSONA_RUNTIME,
+  PERSONA_MODULE_OPTIONS,
+  PersonaModuleOptions,
+} from '@personaai/adapters/nestjs';
+
+@Injectable()
+export class CustomAdminService {
+  constructor(
+    @Inject(PERSONA_CLIENT) private readonly globalClient: PersonaClient,
+    @Inject(PERSONA_RUNTIME) private readonly runtime: Runtime,
+    @Inject(PERSONA_MODULE_OPTIONS) private readonly options: PersonaModuleOptions,
+  ) {}
+
+  async checkHealth() {
+    return await this.globalClient.whoami();
+  }
+}
+```
+
+---
+
+## 4. Middleware & Lifecycle Management
+
+- **Automatic Route Binding:** `PersonaModule` automatically binds `PersonaMiddleware` to `routePrefix` (`/api/persona/*`). All incoming HTTP traffic on that prefix is routed directly to the underlying `@personaai/runtime`.
+- **Graceful Destruction:** `PersonaService` implements `OnModuleDestroy`. When NestJS shuts down (`SIGTERM`/`SIGINT`), it automatically invokes `runtime.close()` to stop background eviction timers cleanly.

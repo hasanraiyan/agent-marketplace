@@ -1,0 +1,34 @@
+---
+title: "Threads â€” per-user conversations, reset, messages, pendingInterrupt"
+description: "ThreadsResource requires externalUserId â€” create, list, get, updateTitle, reset, getMessages, pendingInterrupt for HITL"
+sdk: "sdk"
+version: "0.7.5"
+prev: "/packages/sdk/v0.7.5/resources/agents"
+next: "/packages/sdk/v0.7.5/resources/chat"
+related: ["/packages/sdk/v0.7.5/resources/chat", "/packages/sdk/v0.7.5/resources/voice", "/packages/react/v0.8.1/guides/ephemeral"]
+---
+
+# Threads
+
+`client.threads` -> `/api/v1/developer/threads` â€” **requires `externalUserId`** (see [Auth](/packages/sdk/v0.7.5/guides/auth)). `Thread { _id, threadId (AG-UI), agentId, title?, isArchived?, createdAt, updatedAt }` â€” `threadId` (AG-UI) â‰  `_id`.
+
+## Methods
+
+### create(input) -> Thread
+```ts
+const thread = await userClient.threads.create{});
+```
+Explicit thread; `chat` can also implicitly create (ephemeral) â€” see [React ephemeral](/packages/react/v0.8.1/guides/ephemeral).
+
+### list(params?) -> PaginatedResult`<Thread>` â€” recent first, `agentId` populated
+
+### get(threadId), update(threadId, `{title?, isArchived?}`), updateTitle(threadId, title), delete(threadId), reset(threadId) -> Thread (same id, cleared messages/files/traces), bulkDelete(ids)
+
+### getMessages(threadId) -> ThreadMessages
+```ts
+const{} = await userClient.threads.getMessages(thread._id);
+```
+`state: { files, todos }` + `subagentTraces: Record<toolCallId, trace>` + `pendingInterrupt: {kind:'hitl'|'clarification'}` for `ChatResume`.
+
+Interlinked: [Chat stream](/packages/sdk/v0.7.5/resources/chat) uses `threadId`; [Voice](/packages/sdk/v0.7.5/resources/voice) mints ticket with `threadId` to persist voice turns back into same thread.
+

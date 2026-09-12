@@ -1,0 +1,34 @@
+---
+title: "Ephemeral new chat"
+description: "How fake new chat works — no empty thread until first send"
+sdk: "react"
+version: "0.9.0"
+prev: "/packages/react/v0.9.0/hooks/useChat"
+next: "/packages/react/v0.9.0/types"
+related: ["/packages/react/v0.9.0/hooks/useChat", "/packages/adapters/v0.1.0/nestjs"]
+---
+
+# Ephemeral new chat
+
+**Problem:** `createThread` on New Chat left empty threads (`threads[0]` = newest empty) and required `ensureThreadId: Promise` wrapper for first send.
+
+**Solution:** `threadId: undefined` is a true ephemeral state.
+
+```tsx
+const [threadId, setThreadId] = useState<string | undefined>();
+const { threads, refetch } = useThreads(true);
+const chat = useChat({
+  agentId,
+  threadId,
+  voice,
+  onThreadCreated: (id) => { setThreadId(id); refetch(); },
+  onTitle: () => refetch(),
+});
+
+const handleNewChat = () => { chat.startNewChat(); setThreadId(undefined); };
+const handleSend = (t?: string) => chat.sendMessage(t); // auto POST /threads if ephemeral
+```
+
+`displayThreads` merges optimistic `New chat` + `optimisticTitles` + server `threads` so list never flashes `Loading…`.
+
+**Interlink:** [useChat](/packages/react/v0.9.0/hooks/useChat) • [useThreads](/packages/react/v0.9.0/hooks/index) • [Runtime core](/packages/runtime/v0.10.0/routes/core)

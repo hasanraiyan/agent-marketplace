@@ -1,0 +1,48 @@
+---
+title: Streaming Events & Resumption
+description: The AG-UI protocol events consumed by useChat and useWorkflowStream — RUN_STARTED, TEXT_MESSAGE_CHUNK, TOOL_CALL_CHUNK, CUSTOM workflow events, and stream reconnection.
+---
+
+When `useChat` or `useWorkflowStream` triggers an execution, the backend streams [AG-UI protocol](https://docs.ag-ui.com) events via Server-Sent Events (SSE). Both hooks parse these internally and update state, while exposing an `onEvent` callback for observing raw events.
+
+## Event Types Reference
+
+| Event Type | Producer | What the SDK does with it |
+| --- | --- | --- |
+| `RUN_STARTED` | Server | Assigns/verifies `runId` and `threadId`. |
+| `RUN_FINISHED` | Server | Marks stream execution as `status: 'completed'`. |
+| `TEXT_MESSAGE_CHUNK` | Agent | Appends `delta` to active assistant response or workflow text output. |
+| `TOOL_CALL_CHUNK` | Agent | Streams tool invocation arguments into `toolCalls`. |
+| `TOOL_CALL_RESULT` | Tool | Fulfills matching tool call with output. |
+| `REASONING_MESSAGE_START` | Model | Begins chain-of-thought reasoning phase. |
+| `REASONING_MESSAGE_CONTENT` | Model | Streams reasoning tokens. |
+| `REASONING_END` | Model | Closes reasoning phase. |
+| `STATE_SNAPSHOT` | Graph | Emits virtual workspace filesystem updates and todos. |
+| `RUN_ERROR` | Engine | Marks execution as `status: 'failed'` and sets error state. |
+| `CUSTOM` (`workflow_node_started`) | Workflow | Emits {}`. Marks node as `running` in `useWorkflowStream`. |
+| `CUSTOM` (`workflow_node_completed`) | Workflow | Emits {}`. Marks node as `completed` with duration and output payload. |
+| `CUSTOM` (`workflow_node_failed`) | Workflow | Emits {}`. Marks node as `failed`. |
+| `CUSTOM` (`hitl_request`) | Chat | Pauses graph for human approval, setting `interrupt` in `useChat`. |
+| `CUSTOM` (`clarification_request`) | Chat | Pauses graph for clarification question prompt. |
+| `CUSTOM` (`subagent_activity`) | Subagent | Streams background subagent execution timeline. |
+
+---
+
+## Stream Reconnection & Resumption
+
+In `@personaai/react 0.9.0`, `openSSEStream` supports both `POST` (initial stream initiation) and `GET` (stream reconnection):
+
+```ts
+import { openSSEStream } from '@personaai/react';
+
+// Reconnect to a running stream after a network drop
+const stream = await openSSEStream({
+  url: 'https://api.your-app.com/api/persona/workflows/runs/run_123/resume?since=12',
+  method: 'GET',
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
+});
+```
+
+The underlying SSE reader handles transport backpressure and unbuffers missed frames without repeating already-processed actions.

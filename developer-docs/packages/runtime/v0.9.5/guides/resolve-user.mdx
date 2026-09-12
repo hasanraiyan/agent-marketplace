@@ -1,0 +1,187 @@
+
+---
+title: "User Resolution & Authentication"
+description: "How to authenticate requests and isolate end-user data using the resolveUser contract."
+sdk: "runtime"
+version: "0.9.5"
+---
+
+# User Resolution & Authentication
+
+Persona operates under a **Zero-Auth Architecture** for end users: the platform never collects passwords, creates user accounts, or verifies end-user identity.
+
+Instead, `@personaai/runtime` delegates all authentication decisions to your host application through a single function:
+
+```ts
+export type ResolveUser = (
+  request: RuntimeRequest
+) => string | null | Promise<string | null>;
+```
+
+---
+
+## How It Works
+
+1. An HTTP request reaches the runtime.
+2. The runtime invokes `resolveUser(request)`.
+3. If `resolveUser` returns a non-empty string, that string is treated as the authenticated **External User ID** (`externalUserId`).
+4. If `resolveUser` returns `null`, `undefined`, empty string, or throws an error, the runtime terminates the request immediately with:
+   ```json
+   {
+     "error": {
+       "code": "UNAUTHORIZED",
+       "message": "Authentication required"
+     }
+   }
+   ```
+   *(HTTP Status: `401 Unauthorized`)*
+5. All subsequent agent operations (thread creation, file uploads, memory storage, chat executions) are strictly isolated to that `externalUserId`.
+
+---
+
+## Production Recipes
+
+### 1. Clerk Authentication (`@clerk/backend`)
+
+If you use Clerk for user management, extract the Bearer token or session cookie and verify it using `@clerk/backend`:
+
+```ts
+import { createClerkClient } from '@clerk/backend';
+import { createRuntime } from '@personaai/runtime';
+
+const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY! });
+
+const runtime = createRuntime({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser: async (req) => {
+    // 1. Check Authorization header
+    const authHeader = req.headers['authorization'];
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+    if (!token) return null;
+
+    try {
+      const verified = await clerk.verifyToken(token);
+      return verified.sub; // Clerk User ID (e.g. "user_2XYZ...")
+    } catch {
+      return null;
+    }
+  },
+});
+```
+
+---
+
+### 2. JWT Verification (`jose`)
+
+For standard stateless JWTs (Auth0, Supabase, Firebase, or custom OAuth2):
+
+```ts
+import * as jose from 'jose';
+import { createRuntime } from '@personaai/runtime';
+
+const JWKS = jose.createRemoteJWKSet(
+  new URL('https://your-domain.auth0.com/.well-known/jwks.json')
+);
+
+const runtime = createRuntime({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser: async (req) => {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader?.startsWith('Bearer ')) return null;
+
+    const token = authHeader.slice(7);
+    try {
+      const { payload } = await jose.jwtVerify(token, JWKS, {
+        issuer: 'https://your-domain.auth0.com/',
+        audience: 'https://api.your-app.com',
+      });
+      return payload.sub ?? null;
+    } catch (err) {
+      return null;
+    }
+  },
+});
+```
+
+---
+
+### 3. Session Cookies (NextAuth / Auth.js / Express Session)
+
+When your frontend and runtime share a domain, you can read session cookies directly from `request.headers['cookie']`:
+
+```ts
+import { parse } from 'cookie';
+import { createRuntime } from '@personaai/runtime';
+
+const runtime = createRuntime({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser: async (req) => {
+    const rawCookie = req.headers['cookie'];
+    if (!rawCookie) return null;
+
+    const cookies = parse(rawCookie);
+    const sessionToken = cookies['my_app_session'];
+    if (!sessionToken) return null;
+
+    // Look up session in your database or cache (e.g. Redis)
+    const session = await db.sessions.findUnique({
+      where: { token: sessionToken },
+      select: { userId: true, expiresAt: true },
+    });
+
+    if (!session || session.expiresAt < new Date()) {
+      return null;
+    }
+
+    return session.userId;
+  },
+});
+```
+
+---
+
+### 4. Service-to-Service / Machine-to-Machine
+
+When another backend service calls your runtime on behalf of a user:
+
+```ts
+import { createRuntime } from '@personaai/runtime';
+
+const runtime = createRuntime({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser: async (req) => {
+    const apiKey = req.headers['x-service-key'];
+    if (apiKey !== process.env.INTERNAL_SERVICE_KEY) {
+      return null; // Reject untrusted service
+    }
+
+    // Trust the forwarded user ID from the trusted internal service
+    const onBehalfOfUser = req.headers['x-persona-user-id'];
+    return onBehalfOfUser ?? null;
+  },
+});
+```
+
+---
+
+## Security Guarantees & Isolation
+
+### Thread Isolation
+When a user calls `GET /threads`, Persona queries threads where `externalUserId === resolvedUserId`. It is impossible for User A to list, read, or delete conversation threads created by User B.
+
+### Memory Isolation
+Memory calls (`GET /memory`, `PUT /memory/file`) are stored in `/memories/user{}/` or `/memories/agent{}_{agentId}/`. Cross-tenant memory leakage is prevented at the storage driver layer.
+
+### File Isolation
+Files uploaded via `POST /files` belong to the uploading `userId`. A user cannot download (`GET /files/:id`) or delete a file uploaded by another user.
+
+---
+
+## Next Steps
+- Learn how conversation streams survive network disconnects in [Streaming, Heartbeats & Resumability](/packages/runtime/v0.9.5/guides/streaming-and-resume).
+- Explore [Lifecycle Hooks](/packages/runtime/v0.9.5/guides/hooks) to track user activity and token counts.

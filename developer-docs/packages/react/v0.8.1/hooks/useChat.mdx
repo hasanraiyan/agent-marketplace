@@ -1,0 +1,43 @@
+---
+title: "useChat — streaming chat + ephemeral new chat"
+description: "Full API for useChat in 0.8.1: ephemeral mint, live title, voice merge, interrupts, workspace"
+sdk: "react"
+version: "0.8.1"
+prev: "/packages/react/v0.8.1/hooks"
+next: "/packages/react/v0.8.1/hooks/useVoice"
+related: ["/packages/react/v0.8.1/guides/ephemeral", "/packages/react/v0.8.1/types"]
+---
+
+# useChat
+
+Primary hook — `threadId: undefined` is a real ephemeral new-chat state (0.8.1). `startNewChat()` clears locally, first `sendMessage` auto-mints via `POST /threads`.
+
+```tsx
+const chat = useChat({
+  agentId,
+  threadId, // undefined = ephemeral
+  voice,
+  onThreadCreated: (id)=> { setThreadId(id); refetch() },
+  onTitle: (title)=> refetch(),
+  onEvent: (e)=> { if(e.type==='title') refetch() },
+})
+```
+
+See [Ephemeral guide](/packages/react/v0.8.1/guides/ephemeral) for full pattern.
+
+## Options
+
+| Param | Type | Description |
+| --- | --- | --- |
+| `threadId` | `string \| undefined` | `undefined` = ephemeral, no `POST` until first send |
+| `onThreadCreated` | `(id:string)=>void` | Fired when ephemeral mints real thread |
+| `onTitle` | `(title:string)=>void` | Auto-title LLM 3-4 words |
+| `context` | `Record<string,unknown> \| (()=>...)` | RCP context, never shown to model |
+
+## Returns
+
+`messages`, `sendMessage: Promise<boolean>`, `reload: Promise<boolean>`, `startNewChat()`, `currentThreadId`, `isEphemeral`, `files`, `todos`, `interrupt`, `isStreaming`, `isLoadingHistory`, `error`, `stop`, `clear`.
+
+---
+
+Next: [useVoice](/guides/react/hooks)

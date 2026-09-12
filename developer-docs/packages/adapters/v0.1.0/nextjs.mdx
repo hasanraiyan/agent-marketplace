@@ -1,0 +1,204 @@
+---
+title: "Next.js Adapter"
+description: "Server route handlers and client React hooks for Next.js App Router applications."
+sdk: "adapters"
+version: "0.1.0"
+---
+
+# Next.js Adapter
+
+`@personaai/adapters` provides complete, seamless integration for Next.js (App Router 14+):
+- **Server:** `@personaai/adapters/nextjs/server` maps Next.js Web `Request` and `Response` objects to `@personaai/runtime`.
+- **Client:** `@personaai/adapters/nextjs` provides client-side React providers and hooks re-exported directly from `@personaai/react`.
+
+```bash
+npm install @personaai/adapters next react
+```
+
+---
+
+## 1. Server Route Handler (`@personaai/adapters/nextjs/server`)
+
+Create a catch-all route at `app/api/persona/[...persona]/route.ts`:
+
+```ts
+// app/api/persona/[...persona]/route.ts
+import{} from '@personaai/adapters/nextjs/server';
+import{} from '@clerk/nextjs/server';
+
+export const{} = createPersonaHandler({
+  baseUrl: process.env.PERSONA_BASE_URL || 'https://api.persona.hasanraiyan.me',
+  credential: process.env.PERSONA_CREDENTIAL!,
+  
+  // Resolve user identity asynchronously
+  resolveUserFrom: async (req: Request) => {
+    // Example using Clerk
+    const session = await auth();
+    return session.userId ?? null;
+  },
+
+  // Optional capabilities
+  capabilities: {
+    agentsWrite: false, // default
+  },
+});
+
+// Route Segment Options
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+```
+
+### Handler API Reference
+
+#### `createPersonaHandler(options)`
+Returns an object containing `{ GET, POST, PUT, PATCH, DELETE, runtime }` conforming to Next.js route handler signatures.
+
+- `baseUrl` *(string, required)*: API host URL.
+- `credential` *(string, required)*: Persona Project API key.
+- `resolveUserFrom` *(NextResolveUser)*: Async function receiving Web standard `Request`, returning `string | null | Promise<string | null>`.
+- `capabilities` *(RuntimeCapabilities, optional)*: Opt-in admin features.
+- `hooks` *(RuntimeHooks, optional)*: Async lifecycle listeners.
+
+#### `toNextRouteHandlers(runtime, options?)`
+Converts an existing `Runtime` instance into Next.js route handlers:
+
+```ts
+import{} from '@personaai/runtime';
+import{} from '@personaai/adapters/nextjs/server';
+
+const runtime = createRuntime{});
+export const{} = toNextRouteHandlers(runtime, {
+  resolveUserFrom: async (req) => extractUserId(req),
+});
+```
+
+---
+
+## 2. Authentication Recipes
+
+### With NextAuth / Auth.js v5
+
+```ts
+import{} from '@personaai/adapters/nextjs/server';
+import{} from '@/auth';
+
+export const{} = createPersonaHandler({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUserFrom: async () => {
+    const session = await auth();
+    return session?.user?.id ?? null;
+  },
+});
+```
+
+### With Custom Bearer Token / Header
+
+```ts
+export const{} = createPersonaHandler({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUserFrom: async (req) => {
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) return null;
+    
+    const token = authHeader.slice(7);
+    const userId = await verifyJwtToken(token);
+    return userId;
+  },
+});
+```
+
+---
+
+## 3. Client Integration (`@personaai/adapters/nextjs`)
+
+`@personaai/adapters/nextjs` is marked with `'use client'` and re-exports the complete `@personaai/react` suite.
+
+### Step 1: Wrap Root Layout with `PersonaProvider`
+
+```tsx
+// app/layout.tsx
+import { PersonaProvider } from '@personaai/adapters/nextjs';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <PersonaProvider baseUrl="/api/persona">
+          {children}
+        </PersonaProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+### Step 2: Use React Hooks in Client Components
+
+```tsx
+// app/chat/page.tsx
+'use client';
+
+import { useChat, useVoice, useThreads } from '@personaai/adapters/nextjs';
+
+export default function ChatView() {
+  const { messages, input, setInput, sendMessage, isStreaming, threadId } = useChat({
+    agentId: '68f12a3b4c5d6e7f8a9b0c1d',
+  });
+
+  const { threads, activeThreadId, selectThread } = useThreads({
+    agentId: '68f12a3b4c5d6e7f8a9b0c1d',
+  });
+
+  return (
+    <div className="flex h-screen">
+      {/* Thread Sidebar */}
+      <aside className="w-64 border-r p-4 space-y-2">
+        <h2 className="font-bold text-sm">Conversations</h2>
+        {threads.map((t) => (
+          <button
+            key={t._id}
+            onClick={() => selectThread(t._id)}
+            className={`w-full text-left p-2 rounded text-sm ${t._id === activeThreadId ? 'bg-primary text-white' : 'hover:bg-muted'}`}
+          >
+            {t.title || 'Untitled Chat'}
+          </button>
+        ))}
+      </aside>
+
+      {/* Chat Area */}
+      <main className="flex-1 flex flex-col p-4">
+        <div className="flex-1 overflow-y-auto space-y-4">
+          {messages.map((m, idx) => (
+            <div key={idx} className={m.role === 'user' ? 'text-right' : 'text-left'}>
+              <div className="inline-block p-3 rounded-lg bg-muted max-w-xl text-sm whitespace-pre-wrap">
+                {m.content}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="mt-4 flex gap-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Type a message..."
+            className="flex-1 border p-2 rounded text-sm"
+          />
+          <button type="submit" disabled={isStreaming} className="bg-primary text-white px-4 py-2 rounded text-sm">
+            Send
+          </button>
+        </form>
+      </main>
+    </div>
+  );
+}
+```
+
+---
+
+## Streaming Optimization & Edge Runtimes
+
+- **Streaming:** The server adapter converts the runtime’s async event stream into a standard Web `ReadableStream`, using UTF-8 `TextEncoder` with backpressure.
+- **Node.js Runtime Recommended:** Set `export const runtime = 'nodejs'` on the catch-all route file for optimal compatibility with Node.js crypto, encryption, and multipart file upload handling.

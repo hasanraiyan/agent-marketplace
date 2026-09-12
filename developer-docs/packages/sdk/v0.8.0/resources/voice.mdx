@@ -1,0 +1,22 @@
+---
+title: "Voice — mint ticket, wsUrl, Gemini Live"
+description: "VoiceResource POST /voice/sessions →{} for direct WebSocket to Persona"
+sdk: "sdk"
+version: "0.8.0"
+prev: "/packages/sdk/v0.8.0/resources/chat"
+next: "/packages/sdk/v0.8.0/resources/skills"
+related: ["/packages/sdk/v0.8.0/resources/threads", "/packages/sdk/v0.8.0/resources/chat"]
+---
+
+# Voice
+
+`client.voice.createSession(agentId, { threadId?, contextOverride?, context? }) → VoiceSessionTicket { ticket, wsUrl, expiresAt, session: {model, voice, inputSampleRate, outputSampleRate, maxDurationMs} }` — requires `externalUserId`, 60s expiry.
+
+Why direct `wsUrl` not relayed via your backend: serverless relay would not survive multi-minute bidirectional audio (see `sdk/react` Voice docs). Mint via your backend, connect straight to Persona.
+
+```ts
+const ticket = await userClient.voice.createSession(agent._id,{});
+const ws = new WebSocket(ticket.wsUrl); // arraybuffer, AudioWorklet 16k in / 24k out
+```
+
+Interlinked: [Threads](/packages/sdk/v0.8.0/resources/threads) `threadId` persists voice turns back into same thread; [React useVoice](/guides/react/hooks) merges into `messages`.

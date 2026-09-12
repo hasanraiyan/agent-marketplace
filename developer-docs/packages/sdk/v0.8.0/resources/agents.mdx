@@ -1,0 +1,52 @@
+﻿---
+title: "Agents â€” create, list, get, update, delete, bulkDelete, MCP connections"
+description: "AgentsResource at /api/v1/developer/agents â€” Agent entity, visibility, skills/mcps/knowledge/storeMounts, interruptOn, mcpConnections"
+sdk: "sdk"
+version: "0.8.0"
+prev: "/packages/sdk/v0.8.0/guides/auth"
+next: "/packages/sdk/v0.8.0/resources/skills"
+related: ["/packages/sdk/v0.8.0/resources/providers", "/packages/sdk/v0.8.0/resources/skills", "/packages/sdk/v0.8.0/resources/mcp", "/packages/runtime/v0.9.5"]
+---
+
+# Agents
+
+`client.agents` -> `POST/GET/PATCH/DELETE /api/v1/developer/agents`
+
+## Types
+
+`Agent { _id, name, systemPrompt, providerId, modelName, skills: string[]|Skill[], mcps: string[]|Mcp[], knowledgeBases: string[]|KnowledgeBase[], storeMounts, visibility: 'public'|'unlisted'|'private', interruptOn, category, socialLinks }`
+
+`CreateAgentInput { name, systemPrompt, providerId, visibility?, skills?, mcps?, knowledgeBases? }` â€” `name/systemPrompt/providerId` required. `skills`/`mcps`/`knowledgeBases` are bare id arrays on create/list, populated objects on `get`.
+
+## Methods
+
+### create(input, idempotencyKey?) -> Agent
+```ts
+const agent = await persona.agents.create({
+  name: 'Career Launchpad',
+  systemPrompt: 'You help students',
+  providerId: 'prov_123',
+  visibility: 'unlisted',
+  skills: [skill._id],
+}, 'idem-key-1'); // Idempotency-Key header
+```
+
+### list(params?) -> PaginatedResult`<Agent>`
+```ts
+const{} = await persona.agents.list{});
+```
+`DiscoverAgentsParams { page?, limit?, search?, category?, scope?:'mine' }`
+
+### get(agentId) -> Agent
+Populated `skills`/`mcps`/`knowledgeBases` as objects.
+
+### update(agentId, input) -> Agent
+Partial â€” arrays **replace** (not merge).
+
+### delete(agentId) -> void / bulkDelete(ids) -> BulkDeleteResult `{deleted: string[], failed:{}[]}` up to 100.
+
+### getMcpConnections(agentId, returnTo?) -> McpConnection[]
+Per-user OAuth status for `authType:oauth authMode:user` MCPs â€” **requires `externalUserId`** client (see [Auth](/packages/sdk/v0.8.0/guides/auth)).
+
+Related: [Skills](/packages/sdk/v0.8.0/resources/skills) â€¢ [MCP](/packages/sdk/v0.8.0/resources/mcp) â€¢ [Providers](/packages/sdk/v0.8.0/resources/providers) â€¢ [Threads](/packages/sdk/v0.8.0/resources/threads)
+

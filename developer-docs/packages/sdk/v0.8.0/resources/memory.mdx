@@ -1,0 +1,21 @@
+---
+title: "Memory — user/agent file memory"
+description: "MemoryResource requires externalUserId: list, getFile, writeFile, deleteFile"
+sdk: "sdk"
+version: "0.8.0"
+prev: "/packages/sdk/v0.8.0/resources/workflows"
+next: "/packages/sdk/v0.8.0/resources/stores"
+related: ["/packages/sdk/v0.8.0/resources/agents", "/packages/sdk/v0.8.0/resources/workflows", "/packages/sdk/v0.8.0/resources/threads"]
+---
+
+# Memory
+
+`client.memory` → `/api/v1/developer/memory` — file-based memory `/memories/user/` + `/memories/agent/`.
+
+```ts
+const list: MemoryListResult = await userClient.memory.list();
+await userClient.memory.writeFile({ path: 'prefs.json', content: JSON.stringify{}), scope:'user' });
+await userClient.memory.deleteFile{});
+```
+
+Related: [Stores generalization](/packages/sdk/v0.8.0/resources/stores) • [Threads state](/packages/sdk/v0.8.0/resources/threads)

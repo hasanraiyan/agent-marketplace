@@ -1,0 +1,37 @@
+---
+title: "Chat — stream vs sendMessage, interrupts, context, file/voice interop"
+description: "ChatClient at /api/v1/developer/agui — AG-UI SSE, TEXT_MESSAGE_CHUNK, TOOL_CALL_CHUNK/RESULT, title, RUN_ERROR, interrupts"
+sdk: "sdk"
+version: "0.8.0"
+prev: "/packages/sdk/v0.8.0/resources/threads"
+next: "/packages/sdk/v0.8.0/resources/voice"
+related: ["/packages/sdk/v0.8.0/resources/threads", "/packages/react/v0.8.1/hooks/useChat", "/packages/runtime/v0.9.5"]
+---
+
+# Chat
+
+`client.chat` → `POST /api/v1/developer/agui` (AG-UI). Requires `externalUserId`.
+
+```ts
+// Raw stream — build your own UI
+for await (const e of userClient.chat.stream(agent._id, {
+  messages: {}],
+  threadId: thread._id,
+  context:{}, // 2k flat, RCP-only, never shown to model
+  contextOverride: 'User is on Pro plan', // 4k, appended to system prompt, model-visible
+})) {
+  if (e.type==='TEXT_MESSAGE_CHUNK' && e.delta) process.stdout.write(e.delta);
+  if (e.type==='title') console.log('auto title', e.title); // 0.8.1+
+  if (e.type==='RUN_ERROR') console.error(e.code, e.message);
+}
+// Convenience — drains stream
+const result: ChatResult = await userClient.chat.sendMessage(agent._id,{});
+if (result.interrupt) {
+  //{} or{}
+  await userClient.chat.sendMessage(agent._id, { messages: [], resume: { decisions: {}] } });
+}
+```
+
+Types: `ChatMessageInput {role, content}`, `SendMessageOptions {messages, threadId?, resume?, context?, contextOverride?}`, `ChatResume`, `ChatInterrupt`, `AguiEvent`, `EventType`, `RunErrorCode`.
+
+Interlinked: [Threads pendingInterrupt](/packages/sdk/v0.8.0/resources/threads) → `resume`; [Voice ticket](/packages/sdk/v0.8.0/resources/voice) shares `threadId`.
