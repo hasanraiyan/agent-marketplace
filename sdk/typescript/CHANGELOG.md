@@ -3,6 +3,22 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.8.0
+
+- **New: `WorkflowsResource` (`client.workflows`).** First-class support for multi-agent workflows
+  orchestrated by LangGraph StateGraphs and streamed via the AG-UI protocol:
+  - **Graph CRUD & Drafts:** `create()`, `list()`, `get()`, `update()`, `delete()`, and `saveDraft()`.
+  - **Version Snapshots:** `publish()`, `listVersions()`, and `getVersion()`.
+  - **Mermaid Export:** `getMermaid()` to export workflow topologies as Mermaid flowchart markdown.
+  - **Run Telemetry & Stream Reconnection:** `stream()` yields sequence-ordered AG-UI frames
+    (`seq`, `parentStepId`), and `resumeStream()` re-attaches to live runs replaying missed frames after `sinceSeq`.
+  - **Execution Aggregator:** `run()` executes the workflow, drains the event stream, and returns
+    assembled `WorkflowRunResult` with output, per-node run metrics, token usage, and event log.
+  - **Execution Control:** `cancel()` aborts an in-flight workflow run, and `listRuns()` / `getRun()`
+    inspect historical execution traces.
+  - **AG-UI Schema Bump:** Bumped `AGUI_SCHEMA_VERSION` to `1.1.0` with typed payloads for
+    `workflow_node_started`, `workflow_node_completed`, and `workflow_node_failed`.
+
 ## 0.7.5
 
 - **New: `Agent.sandboxEnabled` / `CreateAgentInput.sandboxEnabled` / `UpdateAgentInput.sandboxEnabled`.**

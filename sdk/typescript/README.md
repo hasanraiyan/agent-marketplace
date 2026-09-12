@@ -92,6 +92,7 @@ if (result.interrupt) {
 | `.knowledge` | `/api/v1/developer/knowledge` (incl. document upload/search) |
 | `.mcps` (+ `.mcps.oauth`) | `/api/v1/developer/mcps` (incl. OAuth owner/user connection flows) |
 | `.restTools` | `/api/v1/developer/rest-tools` (plain CRUD — see [Defining REST tools in code](#defining-rest-tools-in-code) for the code-first path) |
+| `.workflows` | `/api/v1/developer/workflows` (CRUD, drafts, versions, Mermaid export, AG-UI streaming) |
 | `.providers` | `/api/v1/developer/providers` |
 | `.threads` | `/api/v1/developer/threads` |
 | `.memory` | `/api/v1/developer/memory` |
@@ -99,6 +100,32 @@ if (result.interrupt) {
 | `.files` | `/api/v1/developer/files` |
 | `.chat` | `/api/v1/developer/agui` (streaming) |
 | `.architect` | `/api/v1/developer/architect/agui` (streaming, Agent Architect) |
+
+### Workflows, streamed
+
+```ts
+// Stream multi-step workflow execution with node-level events
+for await (const event of persona.workflows.stream(workflowId, {
+  input: { query: 'Analyze quarterly trends' },
+})) {
+  if (event.type === 'CUSTOM') {
+    if (event.name === 'workflow_node_started') {
+      console.log(`Step started: ${event.value.nodeLabel} (${event.value.nodeType})`);
+    } else if (event.name === 'workflow_node_completed') {
+      console.log(`Step finished: ${event.value.nodeId} in ${event.value.durationMs}ms`);
+    }
+  } else if (event.type === 'TEXT_MESSAGE_CHUNK' && event.delta) {
+    process.stdout.write(event.delta);
+  }
+}
+
+// Or drain the run to completion and inspect step outputs
+const result = await persona.workflows.run(workflowId, {
+  input: { query: 'Analyze quarterly trends' },
+});
+console.log('Workflow status:', result.status);
+console.log('Output:', result.output);
+```
 
 Every method mirrors the real REST endpoint 1:1 — no hidden behavior. Full types are exported from
 the package root.

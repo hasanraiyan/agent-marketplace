@@ -12,6 +12,7 @@ import { StoresResource } from './resources/stores.js';
 import { FilesResource } from './resources/files.js';
 import { AuditLogsResource } from './resources/auditLogs.js';
 import { VoiceResource } from './resources/voice.js';
+import { WorkflowsResource } from './resources/workflows.js';
 import { ChatClient } from './chat/chat-client.js';
 import { ArchitectClient } from './chat/architect-client.js';
 import { createLogger, type Logger } from './logger.js';
@@ -40,6 +41,7 @@ export class PersonaClient {
   readonly files: FilesResource;
   readonly auditLogs: AuditLogsResource;
   readonly voice: VoiceResource;
+  readonly workflows: WorkflowsResource;
   readonly chat: ChatClient;
   readonly architect: ArchitectClient;
 
@@ -80,6 +82,12 @@ export class PersonaClient {
           'sdk:architect',
           options.logLevel !== undefined ? { level: options.logLevel } : undefined
         );
+    const workflowsLogger: Logger = baseLogger
+      ? baseLogger.child('workflows')
+      : createLogger(
+          'sdk:workflows',
+          options.logLevel !== undefined ? { level: options.logLevel } : undefined
+        );
 
     this.http = new HttpClient({ ...options, logger: httpLogger });
     this.providers = new ProvidersResource(this.http);
@@ -94,9 +102,11 @@ export class PersonaClient {
     this.files = new FilesResource(this.http);
     this.auditLogs = new AuditLogsResource(this.http);
     this.voice = new VoiceResource(this.http);
+    this.workflows = new WorkflowsResource(this.http, workflowsLogger);
     this.chat = new ChatClient(this.http, chatLogger);
     this.architect = new ArchitectClient(this.http, architectLogger);
   }
+
 
   /**
    * Resolves the principal context for the credential this client was

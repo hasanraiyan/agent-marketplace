@@ -18,10 +18,10 @@ for that entry point's exports.
 | Kind    | Export                                                                                             |
 | ------- | -------------------------------------------------------------------------------------------------- |
 | Class   | `PersonaClient`, `HttpClient`, `ChatClient`, `ArchitectClient`                                      |
-| Class   | `ProvidersResource`, `SkillsResource`, `AgentsResource`, `KnowledgeResource`, `McpsResource`, `McpOAuthResource`, `RestToolsResource`, `ThreadsResource`, `MemoryResource`, `StoresResource`, `FilesResource`, `AuditLogsResource`, `VoiceResource` |
+| Class   | `ProvidersResource`, `SkillsResource`, `AgentsResource`, `KnowledgeResource`, `McpsResource`, `McpOAuthResource`, `RestToolsResource`, `WorkflowsResource`, `ThreadsResource`, `MemoryResource`, `StoresResource`, `FilesResource`, `AuditLogsResource`, `VoiceResource` |
 | Class   | `PersonaApiError`, `PersonaAuthError`, `PersonaValidationError`                                     |
 | Enum    | `EventType` (re-exported from `@ag-ui/core`)                                                        |
-| Const   | `AGUI_SCHEMA_VERSION` (`'1.0.0'`)                                                                   |
+| Const   | `AGUI_SCHEMA_VERSION` (`'1.1.0'`)                                                                   |
 | Const   | `createLogger`, `createNoopLogger`, `setLogLevel`, `getLogLevel`, `isLevelEnabled`                 |
 | Type    | `PersonaClientOptions`, `HttpClientOptions`, `RequestOptions`, `LogLevel`, `Logger`, `LogTransport`, `CreateLoggerOptions` |
 | Type    | `PrincipalContext`, `ProjectMachineContext`, `ProjectRuntimeContext`                                |
@@ -31,6 +31,8 @@ for that entry point's exports.
 | Type    | `Agent`, `AgentSocialLinks`, `AgentVisibility`, `AgentCategory`, `CreateAgentInput`, `UpdateAgentInput`, `DiscoverAgentsParams`, `McpConnection` |
 | Type    | `KnowledgeBase`, `KnowledgeDocument`, `CreateKnowledgeBaseInput`, `UpdateKnowledgeBaseInput`, `DiscoverKnowledgeBasesParams`, `UploadFileInput`, `UploadDocumentsResult`, `DeleteDocumentResult`, `KnowledgeSearchResult` |
 | Type    | `Mcp`, `McpTransport`, `McpAuthType`, `McpAuthMode`, `McpTool`, `McpResourceSummary`, `McpResourceTemplate`, `McpOAuthConfig`, `McpOAuthInput`, `CreateMcpInput`, `UpdateMcpInput`, `DiscoverMcpsParams`, `McpTestConnectionResult`, `McpReadResourceResult`, `McpUserConnectionStatus` |
+| Type    | `RestApiTool`, `RestToolMethod`, `RestToolAuthType`, `RestToolBodyMode`, `RestToolParamIn`, `RestToolParamType`, `RestToolParamRow`, `RestToolParamDescriptor`, `RestToolResponseMapping`, `CreateRestToolInput`, `UpdateRestToolInput`, `DiscoverRestToolsParams`, `TestRestToolInput`, `RestToolTestResult` |
+| Type    | `Workflow`, `WorkflowDraft`, `WorkflowNode`, `WorkflowNodeType`, `WorkflowNodeData`, `WorkflowEdge`, `WorkflowTrigger`, `WorkflowTriggerType`, `WorkflowVisibility`, `WorkflowOwnerType`, `NodeOnErrorAction`, `NodeRetryPolicy`, `WorkflowVersion`, `AgentSnapshot`, `WorkflowRun`, `WorkflowRunStatus`, `NodeRun`, `NodeRunStatus`, `WorkflowUsage`, `CreateWorkflowInput`, `UpdateWorkflowInput`, `DiscoverWorkflowsParams`, `ListWorkflowRunsParams`, `ListWorkflowVersionsParams`, `RunWorkflowOptions`, `WorkflowRunResult`, `WorkflowStreamEvent` |
 | Type    | `Thread`, `CreateThreadInput`, `UpdateThreadInput`, `ListThreadsParams`, `ThreadMessages`           |
 | Type    | `MemoryFile`, `MemoryAgentGroup`, `MemoryListResult`, `MemoryFileScopeParams`, `GetMemoryFileParams`, `WriteMemoryFileInput`, `DeleteMemoryFileParams` |
 | Type    | `Store`, `StoreScope`, `StoreAccessMode`, `CreateStoreInput`, `UpdateStoreInput`, `DiscoverStoresParams`, `StoreFile`, `GetStoreFileParams`, `DeleteStoreFileParams`, `WriteStoreFileInput` |
@@ -38,7 +40,7 @@ for that entry point's exports.
 | Type    | `AuditLogEntry`, `ListAuditLogsParams`                                                              |
 | Type    | `VoiceSessionInfo`, `VoiceSessionTicket`, `CreateVoiceSessionOptions`                           |
 | Type    | `AguiEvent`, `ChatMessageInput`, `ChatResume`, `SendMessageOptions`, `ChatInterrupt`, `ChatResult`, `ArchitectMessageOptions` |
-| Type    | `ClarificationQuestion`, `ClarificationRequestPayload`, `HitlRequestPayload`, `McpAppPayload`, `SubagentActivityPayload`, `RunErrorCode`, `PersonaRunErrorEvent` |
+| Type    | `ClarificationQuestion`, `ClarificationRequestPayload`, `HitlRequestPayload`, `McpAppPayload`, `SubagentActivityPayload`, `WorkflowNodeStartedPayload`, `WorkflowNodeCompletedPayload`, `WorkflowNodeFailedPayload`, `RunErrorCode`, `PersonaRunErrorEvent` |
 
 ## Configuration types
 
@@ -489,6 +491,220 @@ McpResourceTemplate[] }`.
 `{ connected: boolean }` — whether the asserted external user has completed their per-user OAuth
 connection.
 
+## REST tool types
+
+### `RestApiTool`
+
+| Field              | Type                          | Description                                                               |
+| ------------------ | ----------------------------- | ------------------------------------------------------------------------- |
+| `_id`              | `string`                      | REST tool document id.                                                    |
+| `domain`           | `string`                      | Owning Domain.                                                            |
+| `ownerType`        | `'PersonaUser' \| 'Project' \| 'ExternalUser'` | Owner entity type.                                       |
+| `ownerId`          | `string` (optional)           | Owner id when owned by PersonaUser or Project.                            |
+| `externalOwnerId`  | `string` (optional)           | Owner id when asserted by an external user.                               |
+| `name`             | `string`                      | Unique name of the tool.                                                  |
+| `description`      | `string` (optional)           | What the tool does (shown to LLM agent for tool selection).               |
+| `method`           | `RestToolMethod`              | `'GET' \| 'POST' \| 'PUT' \| 'PATCH' \| 'DELETE'`.                        |
+| `url`              | `string`                      | Target endpoint URL, supporting `{{token}}` variables.                    |
+| `queryParams`      | `RestToolParamRow[]`          | Query parameters to append to the URL.                                    |
+| `headers`          | `RestToolParamRow[]`          | Header key-value templates sent with the request.                         |
+| `bodyMode`         | `RestToolBodyMode`            | `'none' \| 'json'`.                                                       |
+| `bodyTemplate`     | `string` (optional)           | JSON template string with `{{token}}` variables.                          |
+| `paramDescriptors` | `RestToolParamDescriptor[]`   | Definitions of the variables exposed to the LLM agent.                    |
+| `authType`         | `RestToolAuthType`            | `'none' \| 'bearerSecret'`.                                               |
+| `secretRef`        | `string` (optional)           | Secret id when using bearer token authentication.                         |
+| `hasSecret`        | `boolean`                     | Whether a secret is currently associated (secret itself is never leaked). |
+| `responseMappings` | `RestToolResponseMapping[]`   | JSONPath mappings extracting structured fields from response.             |
+| `isEnabled`        | `boolean`                     | Whether the tool is active.                                               |
+| `lastTestedAt`     | `string \| null` (optional)   | ISO timestamp of the last manual test run.                                |
+| `createdAt`        | `string`                      | ISO timestamp.                                                            |
+| `updatedAt`        | `string`                      | ISO timestamp.                                                            |
+
+### `RestToolMethod`, `RestToolAuthType`, `RestToolBodyMode`, `RestToolParamIn`, `RestToolParamType`
+
+- `RestToolMethod`: `'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'`
+- `RestToolAuthType`: `'none' | 'bearerSecret'`
+- `RestToolBodyMode`: `'none' | 'json'`
+- `RestToolParamIn`: `'path' | 'query' | 'header' | 'body'`
+- `RestToolParamType`: `'string' | 'number' | 'boolean'`
+
+### `RestToolParamRow`
+
+`{ key: string; valueTemplate?: string; description?: string; required?: boolean }`.
+
+### `RestToolParamDescriptor`
+
+`{ name: string; in?: RestToolParamIn; type?: RestToolParamType; description?: string; required?: boolean }`.
+
+### `RestToolResponseMapping`
+
+`{ field: string; path: string }` where `path` starts with `@data.`.
+
+### `CreateRestToolInput` / `UpdateRestToolInput`
+
+Inputs for creating and updating REST API tools via `persona.restTools.create()` and `persona.restTools.update()`.
+
+### `DiscoverRestToolsParams`
+
+`{ page?: number; limit?: number; search?: string; scope?: 'mine' }`.
+
+### `TestRestToolInput` / `RestToolTestResult`
+
+- `TestRestToolInput`: `{ method: RestToolMethod; url: string; headers?: Record<string, string>; queryParams?: Record<string, string>; body?: unknown; authType?: RestToolAuthType; secretRef?: string }`
+- `RestToolTestResult`: `{ status: number; statusText: string; headers: Record<string, string>; data: unknown; durationMs: number }`
+
+## Workflow types
+
+### `Workflow`
+
+| Field              | Type                  | Description                                                               |
+| ------------------ | --------------------- | ------------------------------------------------------------------------- |
+| `_id`              | `string`              | Workflow document id.                                                     |
+| `domain`           | `string` (optional)   | Owning Domain.                                                            |
+| `projectId`        | `string` (optional)   | Scoping Project id.                                                       |
+| `name`             | `string`              | Human-readable workflow name.                                             |
+| `description`      | `string` (optional)   | Workflow description.                                                     |
+| `isEnabled`        | `boolean`             | Whether the workflow is currently enabled.                                |
+| `visibility`       | `WorkflowVisibility`  | `'private' \| 'unlisted' \| 'public'`.                                    |
+| `ownerType`        | `WorkflowOwnerType`   | `'Project' \| 'ExternalUser'`.                                            |
+| `externalOwnerId`  | `string \| null` (optional) | Scoped external user id if external-user owned.                     |
+| `draft`            | `WorkflowDraft`       | Working draft containing canvas nodes, edges, and trigger.                |
+| `publishedVersion` | `number`              | Latest published version number (`0` if unpublished draft only).          |
+| `activeRuns`       | `number`              | Number of runs currently in progress.                                     |
+| `createdAt`        | `string`              | ISO timestamp.                                                            |
+| `updatedAt`        | `string`              | ISO timestamp.                                                            |
+
+### `WorkflowDraft`
+
+| Field     | Type               | Description                                              |
+| --------- | ------------------ | -------------------------------------------------------- |
+| `nodes`   | `WorkflowNode[]`   | Canvas nodes forming the workflow steps.                 |
+| `edges`   | `WorkflowEdge[]`   | Directed edges defining control and data flow.           |
+| `trigger` | `WorkflowTrigger` (optional) | Trigger mechanism configuration.               |
+
+### `WorkflowNode`
+
+| Field      | Type                                | Description                                       |
+| ---------- | ----------------------------------- | ------------------------------------------------- |
+| `id`       | `string`                            | Node unique identifier in the canvas graph.       |
+| `type`     | `WorkflowNodeType`                  | Node discriminator.                               |
+| `position` | `{ x: number; y: number }` (optional) | Canvas coordinate position.                     |
+| `data`     | `WorkflowNodeData`                  | Label, configuration, error actions, and retry.   |
+
+### `WorkflowNodeType`
+
+`'trigger' | 'agentStep' | 'knowledgeStep' | 'toolStep' | 'condition' | 'approval' | 'parallel' | 'join' | 'output'` — the 9 node types executing on the backend engine.
+
+### `WorkflowNodeData`
+
+| Field         | Type                         | Description                                            |
+| ------------- | ---------------------------- | ------------------------------------------------------ |
+| `label`       | `string`                     | Display name for the step.                             |
+| `description` | `string` (optional)          | Step description.                                      |
+| `config`      | `Record<string, unknown>` (optional) | Step configuration options.                     |
+| `retryPolicy` | `NodeRetryPolicy` (optional) | `{ maxRetries?, backoffMs?, exponential? }`.           |
+| `onError`     | `NodeOnErrorAction` (optional) | `'fail' \| 'continue' \| 'routeError'`.               |
+
+### `NodeOnErrorAction`, `NodeRetryPolicy`
+
+- `NodeOnErrorAction`: `'fail' | 'continue' | 'routeError'`
+- `NodeRetryPolicy`: `{ maxRetries?: number; backoffMs?: number; exponential?: boolean }`
+
+### `WorkflowEdge`
+
+| Field            | Type                  | Description                                              |
+| ---------------- | --------------------- | -------------------------------------------------------- |
+| `id`             | `string`              | Edge unique identifier.                                  |
+| `source`         | `string`              | Source node id.                                          |
+| `target`         | `string`              | Target node id.                                          |
+| `sourceHandle`   | `string` (optional)   | Source handle / output port identifier.                  |
+| `targetHandle`   | `string` (optional)   | Target handle / input port identifier.                   |
+| `condition`      | `unknown` (optional)  | Evaluation expression or rule for conditional branch.    |
+| `conditionValue` | `string` (optional)   | Value matching condition (e.g. `'true'`, `'false'`).     |
+
+### `WorkflowTrigger`
+
+`{ type: WorkflowTriggerType; config?: Record<string, unknown> }`.
+`WorkflowTriggerType` is `'manual' | 'api' | 'webhook' | 'schedule' | 'chat'`.
+
+### `WorkflowVisibility`, `WorkflowOwnerType`
+
+- `WorkflowVisibility`: `'private' | 'unlisted' | 'public'`
+- `WorkflowOwnerType`: `'Project' | 'ExternalUser'`
+
+### `WorkflowVersion`
+
+| Field            | Type                              | Description                                         |
+| ---------------- | --------------------------------- | --------------------------------------------------- |
+| `_id`            | `string`                          | Version document id.                                |
+| `workflowId`     | `string`                          | Parent workflow id.                                 |
+| `projectId`      | `string`                          | Scoping Project id.                                 |
+| `version`        | `number`                          | Monotonically increasing version number (1, 2, ...).|
+| `definition`     | `WorkflowDraft`                   | Frozen snapshot of nodes and edges for this version.|
+| `agentSnapshots` | `Record<string, AgentSnapshot>` (optional) | Frozen snapshot of agent configurations.   |
+| `publishedBy`    | `string` (optional)               | User or key id that published this version.         |
+| `publishedAt`    | `string`                          | ISO timestamp.                                      |
+
+### `AgentSnapshot`
+
+`{ modelName: string; systemPrompt: string; tools?: string[] }`.
+
+### `WorkflowRun`
+
+| Field             | Type                    | Description                                              |
+| ----------------- | ----------------------- | -------------------------------------------------------- |
+| `_id`             | `string`                | Run document id.                                         |
+| `workflowId`      | `string`                | Target workflow id.                                      |
+| `workflowVersion` | `number`                | Version executed.                                        |
+| `projectId`       | `string`                | Scoping Project id.                                      |
+| `triggeredBy`     | `{ type, userId?, details? }` | Trigger source details.                            |
+| `status`          | `WorkflowRunStatus`     | Run status.                                              |
+| `isDryRun`        | `boolean`               | Whether this run was a simulation dry-run.                |
+| `nodeRuns`        | `NodeRun[]`             | Array of step executions with inputs/outputs/timings.    |
+| `pendingApproval` | `object` (optional)     | Details if the run is currently paused awaiting approval.|
+| `output`          | `unknown` (optional)    | Final output produced by terminal nodes.                 |
+| `usage`           | `WorkflowUsage` (optional) | Token and execution metrics.                          |
+| `threadId`        | `string`                | Underlying thread id for AG-UI streaming.                |
+
+### `WorkflowRunStatus`, `NodeRunStatus`
+
+- `WorkflowRunStatus`: `'queued' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled'`
+- `NodeRunStatus`: `'running' | 'completed' | 'failed' | 'skipped' | 'paused'`
+
+### `NodeRun`
+
+`{ nodeId: string; nodeType: string; status: NodeRunStatus; input?: unknown; output?: unknown; error?: string; retriesTaken: number; durationMs: number; tokens: number; startedAt: string; endedAt?: string }`.
+
+### `WorkflowUsage`
+
+`{ totalTokens: number; agentTurns: number; toolCalls: number; creditsDeducted: number }`.
+
+### `CreateWorkflowInput` / `UpdateWorkflowInput`
+
+- `CreateWorkflowInput`: `{ name: string; description?: string; visibility?: WorkflowVisibility; isEnabled?: boolean; draft?: WorkflowDraft }`
+- `UpdateWorkflowInput`: `{ name?: string; description?: string; visibility?: WorkflowVisibility; isEnabled?: boolean; draft?: WorkflowDraft }`
+
+### `DiscoverWorkflowsParams`
+
+`{ page?: number; limit?: number; search?: string; scope?: 'mine' | 'public' | 'all'; visibility?: WorkflowVisibility; isEnabled?: boolean }`.
+
+### `ListWorkflowRunsParams` / `ListWorkflowVersionsParams`
+
+- `ListWorkflowRunsParams`: `{ page?: number; limit?: number; status?: WorkflowRunStatus; isDryRun?: boolean }`
+- `ListWorkflowVersionsParams`: `{ page?: number; limit?: number }`
+
+### `RunWorkflowOptions`
+
+`{ input?: unknown; dryRun?: boolean; version?: number; signal?: AbortSignal }`.
+
+### `WorkflowRunResult`
+
+`{ runId: string; threadId: string; status: WorkflowRunStatus; isDryRun: boolean; output: unknown; usage?: WorkflowUsage; nodeRuns: Record<string, NodeRun>; events: WorkflowStreamEvent[] }`.
+
+### `WorkflowStreamEvent`
+
+`AguiEvent & { seq?: number; parentStepId?: string }` — full AG-UI event emitted by the workflow engine with sequencing and step hierarchy metadata.
+
 ## Thread types
 
 ### `Thread`
@@ -758,7 +974,7 @@ These mirror the Zod schemas served machine-readably at `GET /api/v1/developer/a
 
 ### `AGUI_SCHEMA_VERSION`
 
-`'1.0.0'` — the schema document version this SDK release was written against.
+`'1.1.0'` — the schema document version this SDK release was written against.
 
 ### `ClarificationQuestion`
 
@@ -773,7 +989,7 @@ These mirror the Zod schemas served machine-readably at `GET /api/v1/developer/a
 
 `{ actionRequests: unknown[]; reviewConfigs: unknown[] }` — payload of the `CUSTOM`
 `hitl_request` event (pauses the run pending approval of pending tool calls). The two fields are
-opaque langchain `humanInTheLoopMiddleware` structures, passed through as-is by the backend.
+`humanInTheLoopMiddleware` structures passed through as-is by the backend.
 
 ### `McpAppPayload`
 
@@ -793,11 +1009,25 @@ type SubagentActivityPayload =
   | { toolCallId: string; kind: 'tool_result'; toolName: string; result: string };
 ```
 
+### `WorkflowNodeStartedPayload`
+
+`{ nodeId: string; nodeType: string; nodeLabel: string; input?: unknown; timestamp?: string }` —
+payload of the `CUSTOM` `workflow_node_started` event when a node starts running.
+
+### `WorkflowNodeCompletedPayload`
+
+`{ nodeId: string; output?: unknown; retriesTaken?: number; durationMs?: number; tokens?: number; timestamp?: string }` —
+payload of the `CUSTOM` `workflow_node_completed` event when a node finishes execution.
+
+### `WorkflowNodeFailedPayload`
+
+`{ nodeId: string; error: string; retriesTaken?: number; durationMs?: number; timestamp?: string }` —
+payload of the `CUSTOM` `workflow_node_failed` event when a node errors out.
+
 ### `RunErrorCode`
 
-`'PROVIDER_AUTH_ERROR' | 'PROVIDER_RATE_LIMIT' | 'TOOL_TIMEOUT' | 'TOOL_ERROR' |
-'CONTEXT_LENGTH_EXCEEDED' | 'INTERNAL_ERROR'` — the `code` values a `RUN_ERROR` event's `code`
-field is drawn from.
+`'PROVIDER_AUTH_ERROR' | 'PROVIDER_RATE_LIMIT' | 'TOOL_TIMEOUT' | 'TOOL_ERROR' | 'CONTEXT_LENGTH_EXCEEDED' | 'INTERNAL_ERROR' | 'EXECUTION_CANCELLED' | 'RUN_FAILED'` —
+the `code` values a `RUN_ERROR` event's `code` field is drawn from.
 
 ### `PersonaRunErrorEvent`
 

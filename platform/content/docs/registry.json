@@ -25,8 +25,8 @@
       "id": "sdk",
       "title": "@personaai/sdk",
       "description": "TypeScript SDK for the Developer Platform API",
-      "latest": "0.7.5",
-      "versions": ["0.7.5"]
+      "latest": "0.8.0",
+      "versions": ["0.8.0", "0.7.5"]
     }
   ]
 }

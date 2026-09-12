@@ -18,42 +18,43 @@
 ## SDK Implementation Roadmap
 
 ### Phase 1: Backend Route Parity & Abuse Protection (`agent-backend`)
-- [ ] **1.1. Rate Limiting Protection on Machine Routes (`developerWorkflow.routes.js`)**
-  - [ ] Import `rateLimiter, { RATE_LIMITS } from '../../rateLimiter/rateLimiter.middleware.js'`.
-  - [ ] Initialize `mutateLimiter = rateLimiter('MUTATE', RATE_LIMITS.MUTATE)`.
-  - [ ] Wire `mutateLimiter` to all mutating routes: `create`, `update`, `remove`, `saveDraft`, `publish`, `run`, `cancel`.
-- [ ] **1.2. Enhance Route Parity (`developerWorkflow.routes.js`)**
-  - [ ] Add `GET /api/v1/developer/workflows/:workflowId/versions` -> `listVersions`.
-  - [ ] Add `GET /api/v1/developer/workflows/:workflowId/versions/:version` -> `getVersion`.
-  - [ ] Add `GET /api/v1/developer/workflows/:workflowId/mermaid` -> `getMermaid`.
-  - [ ] Add `GET /api/v1/developer/workflows/runs/:runId` -> `getRun` (in addition to `/:workflowId/runs/:runId`).
-  - [ ] Add `POST /api/v1/developer/workflows/runs/:runId/cancel` -> `mutateLimiter`, `cancel` (in addition to `/:workflowId/runs/:runId/cancel`).
-  - [ ] Add `GET /api/v1/developer/workflows/runs/:runId/resume` -> `resume` (SSE stream re-attachment).
-  - [ ] Add `POST /api/v1/developer/workflows/:workflowId/run` -> `mutateLimiter`, `run` (alias for `/:workflowId/runs` matching Studio routes).
+- [x] **1.1. Rate Limiting Protection on Machine Routes (`developerWorkflow.routes.js`)**
+  - [x] Import `rateLimiter, { RATE_LIMITS } from '../../rateLimiter/rateLimiter.middleware.js'`.
+  - [x] Initialize `mutateLimiter = rateLimiter('MUTATE', RATE_LIMITS.MUTATE)`.
+  - [x] Wire `mutateLimiter` to all mutating routes: `create`, `update`, `remove`, `saveDraft`, `publish`, `run`, `cancel`.
+- [x] **1.2. Enhance Route Parity (`developerWorkflow.routes.js`)**
+  - [x] Add `GET /api/v1/developer/workflows/:workflowId/versions` -> `listVersions`.
+  - [x] Add `GET /api/v1/developer/workflows/:workflowId/versions/:version` -> `getVersion`.
+  - [x] Add `GET /api/v1/developer/workflows/:workflowId/mermaid` -> `getMermaid`.
+  - [x] Add `GET /api/v1/developer/workflows/runs/:runId` -> `getRun` (in addition to `/:workflowId/runs/:runId`).
+  - [x] Add `POST /api/v1/developer/workflows/runs/:runId/cancel` -> `mutateLimiter`, `cancel` (in addition to `/:workflowId/runs/:runId/cancel`).
+  - [x] Add `GET /api/v1/developer/workflows/runs/:runId/resume` -> `resume` (SSE stream re-attachment).
+  - [x] Add `POST /api/v1/developer/workflows/:workflowId/run` -> `mutateLimiter`, `run` (alias for `/:workflowId/runs` matching Studio routes).
 
 ---
 
 ### Phase 2: TypeScript SDK Types & Resource (`sdk/typescript`)
-- [ ] **2.1. Define TypeScript Types (`sdk/typescript/src/types/workflow.ts`)**
-  - [ ] Node, Edge, and Trigger types (`WorkflowNodeType`, `WorkflowNode`, `WorkflowEdge`, `WorkflowTrigger`, `WorkflowDraft`).
-  - [ ] Node retry policy and error handling enums (`NodeRetryPolicy`, `NodeOnErrorAction`).
-  - [ ] Workflow entity types (`Workflow`, `WorkflowVisibility`, `WorkflowOwnerType`).
-  - [ ] Workflow version snapshot types (`WorkflowVersion`, `AgentSnapshot`).
-  - [ ] Workflow run and execution types (`WorkflowRun`, `NodeRun`, `WorkflowRunStatus`, `NodeRunStatus`, `WorkflowUsage`).
-  - [ ] Input and parameter types (`CreateWorkflowInput`, `UpdateWorkflowInput`, `DiscoverWorkflowsParams`, `ListWorkflowRunsParams`, `RunWorkflowOptions`).
-  - [ ] Telemetry and stream event types (`WorkflowStreamEvent`, `WorkflowRunResult`).
-- [ ] **2.2. Implement `WorkflowsResource` (`sdk/typescript/src/resources/workflows.ts`)**
-  - [ ] CRUD operations: `create`, `list`, `get`, `update`, `delete`.
-  - [ ] Draft & Version management: `saveDraft`, `publish`, `listVersions`, `getVersion`.
-  - [ ] Diagram export: `getMermaid`.
-  - [ ] Run management: `listRuns`, `getRun`, `cancel`.
-- [ ] **2.3. Implement TypeScript Streaming & Execution**
-  - [ ] Implement `stream(workflowId, options)` using native `parseAguiEventStream`.
-  - [ ] Implement `resumeStream(runId, sinceSeq, signal)` for live re-attachment and frame replay.
-  - [ ] Implement `run(workflowId, options)` convenience aggregator (drains stream and returns `WorkflowRunResult`).
-- [ ] **2.4. Mount in `PersonaClient` (`sdk/typescript/src/client.ts` & `index.ts`)**
-  - [ ] Instantiate `this.workflows = new WorkflowsResource(this.http, workflowsLogger)`.
-  - [ ] Export resource and all types in `index.ts`.
+- [x] **2.1. Define TypeScript Types (`sdk/typescript/src/types/workflow.ts`)**
+  - [x] Node, Edge, and Trigger types (`WorkflowNodeType`, `WorkflowNode`, `WorkflowEdge`, `WorkflowTrigger`, `WorkflowDraft`).
+  - [x] Node retry policy and error handling enums (`NodeRetryPolicy`, `NodeOnErrorAction`).
+  - [x] Workflow entity types (`Workflow`, `WorkflowVisibility`, `WorkflowOwnerType`).
+  - [x] Workflow version snapshot types (`WorkflowVersion`, `AgentSnapshot`).
+  - [x] Workflow run and execution types (`WorkflowRun`, `NodeRun`, `WorkflowRunStatus`, `NodeRunStatus`, `WorkflowUsage`).
+  - [x] Input and parameter types (`CreateWorkflowInput`, `UpdateWorkflowInput`, `DiscoverWorkflowsParams`, `ListWorkflowRunsParams`, `RunWorkflowOptions`).
+  - [x] Telemetry and stream event types (`WorkflowStreamEvent`, `WorkflowRunResult`).
+- [x] **2.2. Implement `WorkflowsResource` (`sdk/typescript/src/resources/workflows.ts`)**
+  - [x] CRUD operations: `create`, `list`, `get`, `update`, `delete`.
+  - [x] Draft & Version management: `saveDraft`, `publish`, `listVersions`, `getVersion`.
+  - [x] Diagram export: `getMermaid`.
+  - [x] Run management: `listRuns`, `getRun`, `cancel`.
+- [x] **2.3. Implement TypeScript Streaming & Execution**
+  - [x] Implement `stream(workflowId, options)` using native `parseAguiEventStream`.
+  - [x] Implement `resumeStream(runId, sinceSeq, signal)` for live re-attachment and frame replay.
+  - [x] Implement `run(workflowId, options)` convenience aggregator (drains stream and returns `WorkflowRunResult`).
+- [x] **2.4. Mount in `PersonaClient` (`sdk/typescript/src/client.ts` & `index.ts`)**
+  - [x] Instantiate `this.workflows = new WorkflowsResource(this.http, workflowsLogger)`.
+  - [x] Export resource and all types in `index.ts`.
+
 
 ---
 
@@ -84,22 +85,27 @@
 ---
 
 ### Phase 4: Automated Testing & Verification
-- [ ] **4.1. TypeScript SDK Vitest Tests (`sdk/typescript/test/resources/workflows.test.ts`)**
-  - [ ] Unit test: `create` with and without `Idempotency-Key`.
-  - [ ] Unit test: `list` query parameter serialization.
-  - [ ] Unit test: `saveDraft`, `publish`, `listVersions`, `getVersion`.
-  - [ ] Unit test: `getMermaid` markdown extraction.
-  - [ ] Unit test: `cancel` abort call.
-  - [ ] Streaming test: `stream` yields SSE frames with monotonic `seq`.
-  - [ ] Streaming test: `resumeStream` forwards `sinceSeq`.
-  - [ ] Aggregator test: `run` accumulates events and returns `WorkflowRunResult`.
+- [x] **4.1. TypeScript SDK Vitest Tests (`sdk/typescript/test/resources/workflows.test.ts`)**
+  - [x] Unit test: `create` with and without `Idempotency-Key`.
+  - [x] Unit test: `list` query parameter serialization.
+  - [x] Unit test: `saveDraft`, `publish`, `listVersions`, `getVersion`.
+  - [x] Unit test: `getMermaid` markdown extraction.
+  - [x] Unit test: `cancel` abort call.
+  - [x] Streaming test: `stream` yields SSE frames with monotonic `seq`.
+  - [x] Streaming test: `resumeStream` forwards `sinceSeq`.
+  - [x] Aggregator test: `run` accumulates events and returns `WorkflowRunResult`.
 - [ ] **4.2. Python SDK Pytest Tests (`sdk/python/tests/resources/test_workflows.py`)**
+
   - [ ] Sync CRUD tests via `respx`.
   - [ ] Async CRUD tests via `respx`.
   - [ ] Sync and Async SSE stream decoding tests.
   - [ ] `resume_stream` re-attachment tests.
   - [ ] High-level `run` result aggregation test.
-- [ ] **4.3. Build & CI Verification**
-  - [ ] Run `pnpm run build` in `sdk/typescript` (tsup).
-  - [ ] Run `pnpm test` in `sdk/typescript` (vitest).
+- [x] **4.3. TypeScript Build, Docs & CI Verification**
+  - [x] Run `pnpm run build` in `sdk/typescript` (tsup).
+  - [x] Run `pnpm test` in `sdk/typescript` (vitest - 135 tests passing).
+  - [x] Run `pnpm docs:check` in `sdk/typescript` (172 exports verified against `types.mdx`).
+  - [x] Upgrade Platform documentation for `0.8.0` (`platform/content/docs/registry.json`, `_tracking.json`, `sdk/v0.8.0/`).
+- [ ] **4.4. Python Build & Verification**
   - [ ] Run `pytest` in `sdk/python`.
+

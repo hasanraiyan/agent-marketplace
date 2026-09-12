@@ -1,0 +1,110 @@
+---
+title: "Workflows — create, drafts, versions, runs, AG-UI streaming"
+description: "WorkflowsResource at /api/v1/developer/workflows — Workflow entity, canvas graph, versions, dry-run simulation, and AG-UI event streaming"
+sdk: "sdk"
+version: "0.8.0"
+prev: "/docs/sdk/v0.8.0/resources/rest-tools"
+next: "/docs/sdk/v0.8.0/resources/memory"
+related: ["/docs/sdk/v0.8.0/resources/agents", "/docs/sdk/v0.8.0/resources/chat", "/docs/runtime/v0.9.5"]
+---
+
+# Workflows
+
+`client.workflows` → `POST/GET/PATCH/DELETE /api/v1/developer/workflows`
+
+Workflows coordinate multi-step agent graphs, deterministic tool steps, condition branches, approvals, and parallel executions with live AG-UI event streaming.
+
+## Types
+
+`Workflow { _id, name, description, isEnabled, visibility: 'private'|'unlisted'|'public', ownerType: 'Project'|'ExternalUser', draft: WorkflowDraft, publishedVersion: number, activeRuns: number }`
+
+`WorkflowDraft { nodes: WorkflowNode[], edges: WorkflowEdge[], trigger?: WorkflowTrigger }`
+
+`WorkflowNode { id, type: WorkflowNodeType, position?, data: WorkflowNodeData }`
+
+`WorkflowNodeType`: `'trigger' | 'agentStep' | 'knowledgeStep' | 'toolStep' | 'condition' | 'approval' | 'parallel' | 'join' | 'output'`
+
+`WorkflowStreamEvent = AguiEvent & { seq?: number; parentStepId?: string }`
+
+## Methods
+
+### CRUD & Drafts
+
+```ts
+// Create workflow with initial draft
+const workflow = await persona.workflows.create({
+  name: 'Quarterly Financial Analysis',
+  description: 'Gathers SEC filings, extracts metrics, generates report',
+  visibility: 'private',
+  draft: {
+    nodes: [
+      { id: 'node_1', type: 'trigger', data: { label: 'Start' } },
+      { id: 'node_2', type: 'agentStep', data: { label: 'Analyze', config: { agentId: 'agent_123' } } },
+      { id: 'node_3', type: 'output', data: { label: 'Output' } },
+    ],
+    edges: [
+      { id: 'e1', source: 'node_1', target: 'node_2' },
+      { id: 'e2', source: 'node_2', target: 'node_3' },
+    ],
+  },
+});
+
+// Update draft canvas
+await persona.workflows.saveDraft(workflow._id, {
+  nodes: [...],
+  edges: [...],
+});
+
+// Publish draft into an immutable version snapshot
+const published = await persona.workflows.publish(workflow._id);
+console.log('Published version:', published.version);
+
+// Export Mermaid flowchart diagram
+const mermaid = await persona.workflows.getMermaid(workflow._id);
+console.log(mermaid);
+```
+
+### Execution & AG-UI Streaming
+
+Workflows stream execution progress via standard AG-UI events, plus custom node lifecycle events (`workflow_node_started`, `workflow_node_completed`, `workflow_node_failed`):
+
+```ts
+// Stream execution events
+for await (const event of persona.workflows.stream(workflow._id, {
+  input: { ticker: 'AAPL', quarter: 'Q3' },
+})) {
+  if (event.type === 'CUSTOM') {
+    if (event.name === 'workflow_node_started') {
+      console.log(`Node started: ${event.value.nodeLabel} (${event.value.nodeType})`);
+    } else if (event.name === 'workflow_node_completed') {
+      console.log(`Node finished: ${event.value.nodeId} in ${event.value.durationMs}ms`);
+    }
+  } else if (event.type === 'TEXT_MESSAGE_CHUNK' && event.delta) {
+    process.stdout.write(event.delta);
+  }
+}
+
+// Or run to completion and get aggregated outputs
+const result = await persona.workflows.run(workflow._id, {
+  input: { ticker: 'AAPL', quarter: 'Q3' },
+  dryRun: false,
+});
+console.log('Run status:', result.status);
+console.log('Final output:', result.output);
+```
+
+### Run Lifecycle & Approval Resume
+
+```ts
+// Resume execution after an approval node or pause
+for await (const event of persona.workflows.resumeStream(runId, {
+  approved: true,
+})) {
+  console.log('Resume event:', event.type);
+}
+
+// Cancel an active run
+await persona.workflows.cancel(runId);
+```
+
+Related: [Agents](/docs/sdk/v0.8.0/resources/agents) • [Chat](/docs/sdk/v0.8.0/resources/chat) • [Runtime Engine](/docs/runtime/v0.9.5)

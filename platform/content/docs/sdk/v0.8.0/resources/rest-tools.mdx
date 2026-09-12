@@ -1,0 +1,26 @@
+---
+title: "REST tools — defineRestTool, manifest, attach to agent"
+description: "RestToolsResource + defineRestTool zod: create, list, test, attach via Agent"
+sdk: "sdk"
+version: "0.8.0"
+prev: "/docs/sdk/v0.8.0/resources/providers"
+next: "/docs/sdk/v0.8.0/resources/workflows"
+related: ["/docs/sdk/v0.8.0/resources/agents", "/docs/sdk/v0.8.0/resources/workflows", "/docs/adapters/v0.1.0"]
+---
+
+# REST tools
+
+`client.restTools` → `/api/v1/developer/rest-tools` + code-first `defineRestTool`.
+
+```ts
+import { defineRestTool } from '@personaai/sdk/rest-tools';
+import { z } from 'zod';
+const getProfile = defineRestTool({
+  name: 'Get profile',
+  method: 'GET',
+  args: z.object({ userId: z.string() }),
+  url: t => `https://api.coursify.dev/users/${t.arg('userId')}`,
+});
+```
+
+Interlinked: [Adapters manifest](/docs/adapters/v0.1.0)

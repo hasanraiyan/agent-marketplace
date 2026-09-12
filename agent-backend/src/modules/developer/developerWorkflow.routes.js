@@ -1,6 +1,7 @@
 import express from 'express';
 import developerMachineAuthMiddleware from '../auth/developerMachineAuth.middleware.js';
 import { validateBody } from '../../middlewares/validationMiddleware.js';
+import rateLimiter, { RATE_LIMITS } from '../rateLimiter/rateLimiter.middleware.js';
 import {
   createWorkflowSchema,
   updateWorkflowSchema,
@@ -15,6 +16,7 @@ import workflowController from './workflows/workflow.controller.js';
  * (developerMachineAuth.middleware.js), with optional x-persona-external-user-id header.
  */
 const router = express.Router();
+const mutateLimiter = rateLimiter('MUTATE', RATE_LIMITS.MUTATE);
 
 router.use(developerMachineAuthMiddleware);
 
@@ -66,7 +68,7 @@ router.get('/', workflowController.list);
  *       201: { description: Workflow created }
  *       400: { description: Validation error }
  */
-router.post('/', validateBody(createWorkflowSchema), workflowController.create);
+router.post('/', mutateLimiter, validateBody(createWorkflowSchema), workflowController.create);
 
 /**
  * @openapi
@@ -112,7 +114,7 @@ router.get('/:workflowId', workflowController.getOne);
  *       200: { description: Workflow updated }
  *       404: { description: Workflow not found }
  */
-router.patch('/:workflowId', validateBody(updateWorkflowSchema), workflowController.update);
+router.patch('/:workflowId', mutateLimiter, validateBody(updateWorkflowSchema), workflowController.update);
 
 /**
  * @openapi
@@ -130,7 +132,7 @@ router.patch('/:workflowId', validateBody(updateWorkflowSchema), workflowControl
  *       200: { description: Workflow deleted }
  *       404: { description: Workflow not found }
  */
-router.delete('/:workflowId', workflowController.remove);
+router.delete('/:workflowId', mutateLimiter, workflowController.remove);
 
 /**
  * @openapi
@@ -148,7 +150,7 @@ router.delete('/:workflowId', workflowController.remove);
  *       200: { description: Draft saved }
  *       400: { description: Cycle detected or validation error }
  */
-router.put('/:workflowId/draft', validateBody(saveDraftSchema), workflowController.saveDraft);
+router.put('/:workflowId/draft', mutateLimiter, validateBody(saveDraftSchema), workflowController.saveDraft);
 
 /**
  * @openapi
@@ -166,7 +168,70 @@ router.put('/:workflowId/draft', validateBody(saveDraftSchema), workflowControll
  *       201: { description: Version published }
  *       400: { description: Empty workflow or cycle detected }
  */
-router.post('/:workflowId/publish', workflowController.publish);
+router.post('/:workflowId/publish', mutateLimiter, workflowController.publish);
+
+
+/**
+ * @openapi
+ * /api/v1/developer/workflows/{workflowId}/versions:
+ *   get:
+ *     tags: [Developer]
+ *     summary: List published versions of a workflow
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: workflowId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: page
+ *         in: query
+ *         schema: { type: integer }
+ *       - name: limit
+ *         in: query
+ *         schema: { type: integer }
+ *     responses:
+ *       200: { description: List of published workflow versions }
+ */
+router.get('/:workflowId/versions', workflowController.listVersions);
+
+/**
+ * @openapi
+ * /api/v1/developer/workflows/{workflowId}/versions/{version}:
+ *   get:
+ *     tags: [Developer]
+ *     summary: Get a specific published version of a workflow
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: workflowId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: version
+ *         in: path
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200: { description: Published version snapshot }
+ *       404: { description: Version not found }
+ */
+router.get('/:workflowId/versions/:version', workflowController.getVersion);
+
+/**
+ * @openapi
+ * /api/v1/developer/workflows/{workflowId}/mermaid:
+ *   get:
+ *     tags: [Developer]
+ *     summary: Export workflow as Mermaid flowchart markdown
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: workflowId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Mermaid flowchart string }
+ */
+router.get('/:workflowId/mermaid', workflowController.getMermaid);
 
 /**
  * @openapi
@@ -196,7 +261,8 @@ router.post('/:workflowId/publish', workflowController.publish);
  *       201: { description: Run started or stream attached }
  *       429: { description: Concurrency limit reached }
  */
-router.post('/:workflowId/runs', validateBody(runWorkflowSchema), workflowController.run);
+router.post('/:workflowId/runs', mutateLimiter, validateBody(runWorkflowSchema), workflowController.run);
+router.post('/:workflowId/run', mutateLimiter, validateBody(runWorkflowSchema), workflowController.run);
 
 /**
  * @openapi
@@ -217,16 +283,12 @@ router.get('/:workflowId/runs', workflowController.listRuns);
 
 /**
  * @openapi
- * /api/v1/developer/workflows/{workflowId}/runs/{runId}:
+ * /api/v1/developer/workflows/runs/{runId}:
  *   get:
  *     tags: [Developer]
  *     summary: Get Workflow Run Details
  *     security: [{ projectCredential: [] }]
  *     parameters:
- *       - name: workflowId
- *         in: path
- *         required: true
- *         schema: { type: string }
  *       - name: runId
  *         in: path
  *         required: true
@@ -235,20 +297,39 @@ router.get('/:workflowId/runs', workflowController.listRuns);
  *       200: { description: Run object }
  *       404: { description: Run not found }
  */
+router.get('/runs/:runId', workflowController.getRun);
 router.get('/:workflowId/runs/:runId', workflowController.getRun);
 
 /**
  * @openapi
- * /api/v1/developer/workflows/{workflowId}/runs/{runId}/cancel:
+ * /api/v1/developer/workflows/runs/{runId}/resume:
+ *   get:
+ *     tags: [Developer]
+ *     summary: Resume or re-attach to an in-flight workflow run stream (SSE)
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: runId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: sinceSeq
+ *         in: query
+ *         schema: { type: integer, default: 0 }
+ *     responses:
+ *       200: { description: Replayed and live SSE stream of AG-UI events }
+ *       404: { description: Run not found }
+ */
+router.get('/runs/:runId/resume', workflowController.resume);
+router.get('/:workflowId/runs/:runId/resume', workflowController.resume);
+
+/**
+ * @openapi
+ * /api/v1/developer/workflows/runs/{runId}/cancel:
  *   post:
  *     tags: [Developer]
  *     summary: Cancel in-flight Workflow Run
  *     security: [{ projectCredential: [] }]
  *     parameters:
- *       - name: workflowId
- *         in: path
- *         required: true
- *         schema: { type: string }
  *       - name: runId
  *         in: path
  *         required: true
@@ -256,6 +337,8 @@ router.get('/:workflowId/runs/:runId', workflowController.getRun);
  *     responses:
  *       200: { description: Run cancelled }
  */
-router.post('/:workflowId/runs/:runId/cancel', workflowController.cancel);
+router.post('/runs/:runId/cancel', mutateLimiter, workflowController.cancel);
+router.post('/:workflowId/runs/:runId/cancel', mutateLimiter, workflowController.cancel);
 
 export default router;
+

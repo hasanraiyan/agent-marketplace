@@ -7,7 +7,7 @@
  */
 
 /** The schema document version this SDK release was written against. */
-export const AGUI_SCHEMA_VERSION = '1.0.0';
+export const AGUI_SCHEMA_VERSION = '1.1.0';
 
 export interface ClarificationQuestion {
   id: string;
@@ -53,6 +53,34 @@ export type SubagentActivityPayload =
   | { toolCallId: string; kind: 'tool_start'; toolName: string; args: string }
   | { toolCallId: string; kind: 'tool_result'; toolName: string; result: string };
 
+/** `CUSTOM` event `workflow_node_started` — emitted when a workflow node begins execution. */
+export interface WorkflowNodeStartedPayload {
+  nodeId: string;
+  nodeType: string;
+  nodeLabel: string;
+  input?: unknown;
+  timestamp?: string;
+}
+
+/** `CUSTOM` event `workflow_node_completed` — emitted when a workflow node finishes execution. */
+export interface WorkflowNodeCompletedPayload {
+  nodeId: string;
+  output?: unknown;
+  retriesTaken?: number;
+  durationMs?: number;
+  tokens?: number;
+  timestamp?: string;
+}
+
+/** `CUSTOM` event `workflow_node_failed` — emitted when a workflow node encounters an error. */
+export interface WorkflowNodeFailedPayload {
+  nodeId: string;
+  error: string;
+  retriesTaken?: number;
+  durationMs?: number;
+  timestamp?: string;
+}
+
 /** `code` values a `RUN_ERROR` event's `code` field is drawn from. */
 export type RunErrorCode =
   | 'PROVIDER_AUTH_ERROR'
@@ -60,7 +88,9 @@ export type RunErrorCode =
   | 'TOOL_TIMEOUT'
   | 'TOOL_ERROR'
   | 'CONTEXT_LENGTH_EXCEEDED'
-  | 'INTERNAL_ERROR';
+  | 'INTERNAL_ERROR'
+  | 'EXECUTION_CANCELLED'
+  | 'RUN_FAILED';
 
 /**
  * A narrower, app-typed view of the native `@ag-ui/core` `RUN_ERROR` event

@@ -1,0 +1,29 @@
+---
+title: "Tracking — how versions are bumped and tracked"
+description: "registry.json + _tracking.json + docs-bump.mjs — how LangChain-style versioning is tracked"
+sdk: "sdk"
+version: "0.8.0"
+prev: "/docs/sdk/v0.8.0/resources/architect"
+next: "/docs/sdk/v0.8.0/index"
+related: ["/docs/react/v0.8.1/guides/ephemeral"]
+---
+
+# Tracking versions
+
+Like LangChain (`versions.json` + `versioned_docs`), we track per-SDK:
+
+- `content/docs/registry.json` — list of SDKs, each `versions: ["0.8.1","0.8.0"]`, `latest: "0.8.1"`
+- `content/docs/_tracking.json` — append-only log of bumps: `{sdk, version, from, date, commit}`
+- `content/docs/<sdk>/v<version>/` — copy of previous version folder, then patch frontmatter
+
+**Bump flow:**
+
+```bash
+node scripts/docs-bump.mjs --sdk=react --version=0.8.2 --from=0.8.1
+# copies v0.8.1 → v0.8.2, updates registry.latest, appends _tracking.json
+# then edit frontmatter version + changelog, commit
+```
+
+Header `VersionPicker` reads `registry.json` via `getVersions(sdk)` and `router.push(/docs/${sdk}/v${newVersion}/${slug})`. `latest` badge shown. Interlinks use absolute `/docs/<sdk>/v<version>/...` so they stay pinned.
+
+Related: [React ephemeral](/docs/react/v0.8.1/guides/ephemeral)

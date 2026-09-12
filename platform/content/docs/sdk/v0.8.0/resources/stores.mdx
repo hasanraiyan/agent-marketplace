@@ -1,0 +1,21 @@
+---
+title: "Stores — named mounts, partitions, files"
+description: "StoresResource: create, list, get, update, delete, listFiles, writeFile, getFile, deleteFile"
+sdk: "sdk"
+version: "0.8.0"
+prev: "/docs/sdk/v0.8.0/resources/memory"
+next: "/docs/sdk/v0.8.0/resources/files"
+related: ["/docs/sdk/v0.8.0/resources/memory", "/docs/sdk/v0.8.0/resources/agents"]
+---
+
+# Stores
+
+`client.stores` → `/api/v1/developer/stores` — named mounts generalization of memory (`/stores/<name>/`).
+
+```ts
+const store = await persona.stores.create({ name: 'my-store', scope:'project', accessMode:'readwrite' });
+await persona.stores.writeFile(store._id, { path: 'hello.txt', content: 'hi' });
+const files: StoreFile[] = await persona.stores.listFiles(store._id);
+```
+
+Related: [Memory scopes](/docs/sdk/v0.8.0/resources/memory)
