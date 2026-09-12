@@ -1,12 +1,14 @@
 # Workflows — feature spec (draft)
 
-> Status: idea capture, not yet scoped into a plan. Write-up only — nothing here has been built.
-> Two pillars, wanted together: (1) a **visual workflow builder** in Studio, (2) **multi-agent
-> orchestration** underneath it, powered by LangGraph. Developer-Platform-only for now (lives in
-> `platform`, not the Persona consumer app) and exposed through the SDK too, not just the UI. This
-> doc sketches both pillars and how they fit the existing codebase rather than inventing a
-> parallel system. Decisions below marked **Resolved** came from Raiyan's own notes on the first
-> draft; the rest are still open.
+> [!NOTE]
+> **Implementation Status Notice (September 2026):**  
+> This document is the original feature spec draft. **Phases 1–5 (Backend Engine & Platform Visual Builder) are fully implemented and verified.**
+> For current architecture, live schema definitions, and Phase 6 SDK planning, see:
+> - [`TODO.md`](file:///D:/projects/agent-marketplace/TODO.md) — Master implementation checklist and current phase progress
+> - [`research.md`](file:///D:/projects/agent-marketplace/research.md) — Technical research, AG-UI protocol, and backend audit
+> - [`plan.md`](file:///D:/projects/agent-marketplace/plan.md) — Detailed engineering plan for Workflows SDK (TypeScript & Python)
+> - [`review.md`](file:///D:/projects/agent-marketplace/review.md) — Multi-round engine review and verification report
+
 
 ## 1. Why
 

@@ -47,3 +47,44 @@ Same commit reorders the call to `restApiToolService.testCall(executionContext, 
 ## What's left overall
 
 Phases 1–5 of `TODO.md` have now been verified correct through three full review rounds, including the hardest architectural piece (crash recovery). Phase 6 (SDK client) and Phase 7 (integration tests beyond the current unit suite — orphan-recovery end-to-end, concurrency limits, dry-run interception, cancellation) are the two genuinely unstarted phases remaining.
+
+---
+
+## Review: `prompt.md` / `research.md` / `TODO.md` — current state (Phase 6 SDK planning)
+
+> `prompt.md`, `research.md`, and `TODO.md` have all moved on since the review above: `prompt.md` is back to the original high-level "Workflows — feature spec (draft)" vision doc; `research.md` and `TODO.md` have been fully rewritten to plan **Phase 6 — the Workflows SDK** (`@personaai/sdk` + `persona-agent-sdk`), now that Phases 1–5 (backend engine + visual builder) are marked complete. Every claim below was checked against the actual route files, not taken at face value.
+
+## Verdict: Mostly good, but `research.md` contains one factual error that actively misleads the SDK plan
+
+## What's solid
+
+- **TODO.md's "Phase 1: Backend Route Parity" gap claim is real and verified.** I grepped both route files directly:
+  - `developerWorkflow.routes.js` (machine-credential routes) has: `list`, `create`, `getOne`, `update`, `remove`, `saveDraft`, `publish`, `run` (as `POST /:workflowId/runs`), `listRuns`, `getRun` (only as `/:workflowId/runs/:runId`), `cancel` (only as `/:workflowId/runs/:runId/cancel`).
+  - `workflow.routes.js` (admin/Studio routes) additionally has: `GET /:workflowId/versions`, `GET /:workflowId/versions/:version`, `GET /:workflowId/mermaid`, bare `GET /runs/:runId`, bare `GET /runs/:runId/resume`, bare `POST /runs/:runId/cancel`.
+  - So TODO.md is correct: developer/machine credentials genuinely cannot list versions, fetch a version snapshot, export Mermaid, or resume a disconnected SSE stream today — real gaps the SDK would hit immediately.
+- **research.md's AG-UI event shapes and route matrix match what was actually built and debugged this session** — the `seq`-framed SSE lifecycle, `parentStepId` tagging on child telemetry, the `RUN_STARTED`/`CUSTOM`/`RUN_FINISHED`/`RUN_ERROR` vocabulary — this is grounded in the real implementation, not invented.
+
+## What's wrong
+
+- **research.md states as fact, in its "Edge Cases & Resilience Engineering" section**: *"Workflow runs and creations pass through the backend's `mutateLimiter`."* Grepped `developerWorkflow.routes.js` directly — **zero occurrences of `mutateLimiter` anywhere in the file.** The admin Studio routes (`workflow.routes.js`) wrap `create`/`remove`/`publish`/`saveDraft`/run-trigger/`cancel` in `mutateLimiter`; the developer/machine-credential routes — the exact ones the SDK is being built against — have **no rate limiting at all** on any mutating operation. Confirmed no substitute exists either (no rate-limit references anywhere in `developerWorkflow.routes.js` or `developerMachineAuth.middleware.js` beyond a documented-but-unrelated 429 for the workflow's own internal concurrency-slot limit). This is the surface most exposed to abuse — third-party machine credentials, not just internal Studio users — and the SDK's planned 429/backoff handling (research.md §6.1) is designed around a backend protection that doesn't exist for these routes.
+- **TODO.md's Phase 1.1 mixes in one item that isn't actually parity**: `POST /api/v1/developer/workflows/:workflowId/run` (singular). Checked the admin side — it has no such route either, only plural `/runs`. This isn't fixing a gap; it's a new, unexplained duplicate endpoint alongside the existing trigger route, with no stated rationale for why the SDK needs both a singular and plural form.
+- **Missing from TODO.md's Phase 1 entirely**: adding `mutateLimiter` to the newly-parity'd developer mutating routes isn't listed as a task — directly because research.md told it, incorrectly, that this protection already exists.
+
+## Recommendation before Phase 1 implementation starts
+
+1. Add `mutateLimiter` to `developerWorkflow.routes.js`'s mutating routes (`create`, `update`, `remove`, `saveDraft`, `publish`, `run`, `cancel`) as an explicit Phase 1 task — this is a real, currently-open gap, not a documentation fix.
+2. Correct research.md's Edge Cases section to reflect the actual (missing) state rather than assumed parity with the admin routes.
+3. Either drop the singular `POST .../:workflowId/run` alias from TODO.md's Phase 1.1, or add one line explaining why the SDK needs it alongside the existing plural `/runs` trigger route.
+
+`prompt.md` itself is now stale relative to what's shipped (its "Rollout, roughly" v1/v2/v3 phasing no longer matches reality — condition/branch nodes, for instance, are already built per `TODO.md`'s completed Phase 4, well past the "v1 sequential-only" description) — not urgent to fix since `TODO.md` is now the actual source of truth for status, but worth a note at the top of `prompt.md` pointing readers to `TODO.md` for current state, so it doesn't mislead a future reader who only opens `prompt.md`.
+
+---
+
+## ✅ Resolution & Status Update (September 2026)
+
+All recommendations from the review above have been fully resolved across [`TODO.md`](file:///D:/projects/agent-marketplace/TODO.md), [`research.md`](file:///D:/projects/agent-marketplace/research.md), [`plan.md`](file:///D:/projects/agent-marketplace/plan.md), and [`prompt.md`](file:///D:/projects/agent-marketplace/prompt.md):
+
+1. **`mutateLimiter` Added to Phase 1:** Added explicit task in [`TODO.md:L21-24`](file:///D:/projects/agent-marketplace/TODO.md#L21-L24) and [`plan.md:L40-50`](file:///D:/projects/agent-marketplace/plan.md#L40-L50) to attach `rateLimiter('MUTATE', RATE_LIMITS.MUTATE)` to all mutating routes in `developerWorkflow.routes.js` (`create`, `update`, `remove`, `saveDraft`, `publish`, `run`, `cancel`) before releasing the SDK.
+2. **`research.md` Factual Error Corrected:** [`research.md:L276-281`](file:///D:/projects/agent-marketplace/research.md#L276-L281) has been corrected to explicitly state that `developerWorkflow.routes.js` currently lacks rate limiting middleware, documenting it as an active Phase 1 requirement rather than an existing backend feature.
+3. **Trigger Route Parity Rationale Clarified:** Clarified that Studio's `workflow.routes.js` mounted `POST /:workflowId/run` (singular) while `developerWorkflow.routes.js` mounted `POST /:workflowId/runs` (plural). In Phase 1, `developerWorkflow.routes.js` supports both to guarantee full backward compatibility across all client conventions, with `POST .../runs` serving as the canonical SDK REST collection path.
+4. **`prompt.md` Status Notice Added:** Added a clear, prominent [Implementation Status Notice](file:///D:/projects/agent-marketplace/prompt.md#L3-L11) at the top of `prompt.md` directing future readers to `TODO.md`, `research.md`, `plan.md`, and `review.md` for current live architecture.
