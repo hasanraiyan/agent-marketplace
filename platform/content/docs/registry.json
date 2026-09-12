@@ -18,8 +18,8 @@
       "id": "runtime",
       "title": "@personaai/runtime",
       "description": "Framework-agnostic runtime engine",
-      "latest": "0.9.5",
-      "versions": ["0.9.5"]
+      "latest": "0.10.0",
+      "versions": ["0.10.0", "0.9.5"]
     },
     {
       "id": "sdk",

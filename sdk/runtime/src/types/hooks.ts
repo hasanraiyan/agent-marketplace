@@ -3,11 +3,15 @@ import type { ChatMessageInput } from '@personaai/sdk';
 export interface RunContext {
   userId: string;
   /** Which endpoint started this run. */
-  kind: 'chat' | 'architect';
-  /** Absent for `kind: 'architect'` — the Architect co-pilot has no target agentId, it builds/edits Agents itself. */
+  kind: 'chat' | 'architect' | 'workflow';
+  /** Absent for `kind: 'architect'` or `kind: 'workflow'` without an agent step. */
   agentId?: string;
+  /** Set when `kind: 'workflow'`. */
+  workflowId?: string;
   threadId?: string;
-  messages: ChatMessageInput[];
+  messages?: ChatMessageInput[];
+  /** Input parameters provided to the workflow run. */
+  input?: unknown;
 }
 
 export interface RunResult {
@@ -23,8 +27,9 @@ export interface RunResult {
 export interface ErrorContext {
   userId: string | null;
   /** Which stage of request handling the error came from. */
-  phase: 'auth' | 'chat' | 'architect';
+  phase: 'auth' | 'chat' | 'architect' | 'workflow';
   agentId?: string;
+  workflowId?: string;
   threadId?: string;
 }
 
@@ -35,6 +40,15 @@ export interface ToolCallContext {
   threadId?: string;
   toolName: string;
   toolCallId: string;
+}
+
+export interface WorkflowNodeContext {
+  userId: string;
+  workflowId: string;
+  nodeId: string;
+  nodeType: string;
+  nodeLabel: string;
+  input?: unknown;
 }
 
 export interface FileUploadContext {
@@ -79,6 +93,10 @@ export interface RuntimeHooks {
   beforeToolCall?(ctx: ToolCallContext): void | Promise<void>;
   /** Fires when the matching TOOL_CALL_RESULT event arrives. `result` is the raw (string or JSON-parsed) tool output. */
   afterToolCall?(ctx: ToolCallContext, result: unknown): void | Promise<void>;
+  /** Fires when a workflow node begins execution (CUSTOM event `workflow_node_started`). */
+  beforeWorkflowNode?(ctx: WorkflowNodeContext): void | Promise<void>;
+  /** Fires when a workflow node finishes execution (CUSTOM event `workflow_node_completed`). `output` is the step output. */
+  afterWorkflowNode?(ctx: WorkflowNodeContext, output: unknown): void | Promise<void>;
   /** Fires after a file finishes uploading via `POST /files`. */
   onFileUpload?(ctx: FileUploadContext): void | Promise<void>;
   /**

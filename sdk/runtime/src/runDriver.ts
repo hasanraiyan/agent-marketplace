@@ -28,6 +28,7 @@ interface Accumulator {
   erroredInBand: boolean;
   threadCreateFired: boolean;
   toolNames: Map<string, string>;
+  nodeMeta: Map<string, { nodeType: string; nodeLabel: string }>;
 }
 
 function newAccumulator(): Accumulator {
@@ -37,6 +38,7 @@ function newAccumulator(): Accumulator {
     erroredInBand: false,
     threadCreateFired: false,
     toolNames: new Map(),
+    nodeMeta: new Map(),
   };
 }
 
@@ -71,7 +73,45 @@ async function processEvent(
       break;
     }
     case EventType.CUSTOM: {
-      if (e.name === 'hitl_request' || e.name === 'clarification_request') acc.interrupted = true;
+      if (e.name === 'hitl_request' || e.name === 'clarification_request') {
+        acc.interrupted = true;
+      } else if (e.name === 'workflow_node_started') {
+        const val = (e.value ?? {}) as Record<string, unknown>;
+        const nodeId = String(val.nodeId ?? '');
+        const nodeType = String(val.nodeType ?? '');
+        const nodeLabel = String(val.nodeLabel ?? '');
+        if (nodeId) acc.nodeMeta.set(nodeId, { nodeType, nodeLabel });
+        if (runCtx.workflowId) {
+          await hooks?.beforeWorkflowNode?.({
+            userId: runCtx.userId,
+            workflowId: runCtx.workflowId,
+            nodeId,
+            nodeType,
+            nodeLabel,
+            input: val.input,
+          });
+        }
+      } else if (e.name === 'workflow_node_completed') {
+        const val = (e.value ?? {}) as Record<string, unknown>;
+        const nodeId = String(val.nodeId ?? '');
+        const meta = acc.nodeMeta.get(nodeId);
+        const nodeType = String(val.nodeType ?? meta?.nodeType ?? '');
+        const nodeLabel = String(val.nodeLabel ?? meta?.nodeLabel ?? '');
+        if (runCtx.workflowId) {
+          await hooks?.afterWorkflowNode?.(
+            {
+              userId: runCtx.userId,
+              workflowId: runCtx.workflowId,
+              nodeId,
+              nodeType,
+              nodeLabel,
+            },
+            val.output ?? (val as Record<string, unknown>)
+          );
+        }
+      } else if (e.name === 'workflow_node_failed') {
+        acc.erroredInBand = true;
+      }
       break;
     }
     case EventType.RUN_ERROR: {
@@ -220,6 +260,7 @@ export class RunDriver {
           userId: this.runCtx.userId,
           phase: this.runCtx.kind,
           agentId: this.runCtx.agentId,
+          workflowId: this.runCtx.workflowId,
           threadId: this.runCtx.threadId,
         },
         err

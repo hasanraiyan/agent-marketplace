@@ -4,6 +4,24 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.10.0
+
+- **Workflows Execution & AG-UI Streaming:**
+  - Added always-on routes:
+    - `GET /workflows`: read-only discovery of available workflows.
+    - `POST /workflows/:id/stream`: multi-step workflow execution with node-level AG-UI event streaming via `RunDriver`. Returns `x-persona-run-id`.
+    - `GET /workflows/runs/:runId/resume`: reattaches to an active/recent workflow execution with frame replay after `?since=<seq>`.
+    - `POST /workflows/runs/:runId/cancel`: aborts in-flight execution runs.
+  - Added opt-in `capabilities.workflowsWrite` admin surface:
+    - Full Workflow CRUD: `POST /workflows`, `GET/PATCH/DELETE /workflows/:id`.
+    - Draft & Version snapshots: `PUT /workflows/:id/draft`, `POST /workflows/:id/publish`, `GET /workflows/:id/versions`, `GET /workflows/:id/versions/:version`.
+    - Topology export: `GET /workflows/:id/mermaid`.
+    - Run inspection: `GET /workflows/:id/runs`, `GET /workflows/runs/:runId`.
+  - **Lifecycle Hooks:**
+    - `beforeRun` / `afterRun` now support `kind: 'workflow'`.
+    - Added `beforeWorkflowNode(ctx)` and `afterWorkflowNode(ctx, output)` hooks triggered by `workflow_node_started` and `workflow_node_completed` events.
+  - Bumped `@personaai/sdk` dependency to `^0.8.0`.
+
 ## 0.9.5
 
 - **`createAgent` now forwards `sandboxEnabled` from the request body**, same treatment as

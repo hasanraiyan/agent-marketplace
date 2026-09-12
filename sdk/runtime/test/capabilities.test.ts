@@ -29,6 +29,7 @@ const gatedRoutes: Array<{
   { capability: 'stores', method: 'GET', path: '/stores', disabledStatus: 404 },
   { capability: 'auditLogs', method: 'GET', path: '/audit-logs', disabledStatus: 404 },
   { capability: 'architect', method: 'POST', path: '/architect', disabledStatus: 404 },
+  { capability: 'workflowsWrite', method: 'POST', path: '/workflows', disabledStatus: 405 },
 ];
 
 describe('capability gating — every admin-surface route is off by default', () => {
@@ -87,7 +88,9 @@ describe('capability gating — every admin-surface route is off by default', ()
           method === 'POST'
             ? path === '/agents'
               ? { name: 'x', systemPrompt: 'x', providerId: 'p1' }
-              : { messages: [] }
+              : path === '/workflows'
+                ? { name: 'x' }
+                : { messages: [] }
             : undefined,
         userId: null,
       });

@@ -28,5 +28,6 @@ export type {
   ThreadCreateContext,
   MemoryWriteContext,
   VoiceSessionCreateContext,
+  WorkflowNodeContext,
   RuntimeHooks,
 } from './types/hooks.js';

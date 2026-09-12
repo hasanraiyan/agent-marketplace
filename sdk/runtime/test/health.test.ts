@@ -56,6 +56,7 @@ describe('GET /health', () => {
         files: true,
         memory: true,
         mcpOAuth: true,
+        workflows: true,
         agentsWrite: false,
         mcps: false,
         providers: false,
@@ -64,6 +65,7 @@ describe('GET /health', () => {
         stores: false,
         auditLogs: false,
         architect: false,
+        workflowsWrite: false,
       });
     }
   });

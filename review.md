@@ -70,11 +70,23 @@ Phases 1–5 of `TODO.md` have now been verified correct through three full revi
 - **TODO.md's Phase 1.1 mixes in one item that isn't actually parity**: `POST /api/v1/developer/workflows/:workflowId/run` (singular). Checked the admin side — it has no such route either, only plural `/runs`. This isn't fixing a gap; it's a new, unexplained duplicate endpoint alongside the existing trigger route, with no stated rationale for why the SDK needs both a singular and plural form.
 - **Missing from TODO.md's Phase 1 entirely**: adding `mutateLimiter` to the newly-parity'd developer mutating routes isn't listed as a task — directly because research.md told it, incorrectly, that this protection already exists.
 
+## Re-check pass — one more finding
+
+Asked to verify again before finalizing. Checked `agent-backend/src/index.js` for a possible app-level rate limiter that would soften the `mutateLimiter` finding above — there isn't one (no `app.use(rateLimiter...)` anywhere; the workflow routers are mounted bare). But that check surfaced something more interesting:
+
+`src/index.js` mounts the **same** admin `workflowRouter` (Clerk-session-only — its own file applies `router.use(authMiddleware); router.use(projectAdminAuthMiddleware);`, confirmed by reading the top of `workflow.routes.js`) at **two different paths**:
+```
+app.use('/api/v1/projects/:projectId/workflows', workflowRouter);
+app.use('/api/v1/developer/projects/:projectId/workflows', workflowRouter);
+```
+The second mount is misleading: its URL is `/developer/`-prefixed, which reads like a machine-credential-accessible route (matching the naming convention every other real developer route in this file uses — `developerWorkflowRouter`, `developerAgentRouter`, etc.), but it's actually the exact same Clerk-dashboard-session-only router as the plain admin path. Confirmed `projectAdminAuthMiddleware` has zero machine-credential/`x-persona-external-user-id` handling — a Project Bearer-token caller hitting `/api/v1/developer/projects/:projectId/workflows` gets a 401, not workflow data. This isn't a security hole (it fails closed), but it is confusing, dead-weight routing config that could easily mislead whoever picks up Phase 1 into thinking a fully-featured machine-authenticated route already exists at that path (it has all the routes AND `mutateLimiter`, being the same router) when it doesn't serve machine credentials at all. Worth a one-line decision: remove the duplicate mount, or repoint it if it was meant for something real.
+
 ## Recommendation before Phase 1 implementation starts
 
 1. Add `mutateLimiter` to `developerWorkflow.routes.js`'s mutating routes (`create`, `update`, `remove`, `saveDraft`, `publish`, `run`, `cancel`) as an explicit Phase 1 task — this is a real, currently-open gap, not a documentation fix.
 2. Correct research.md's Edge Cases section to reflect the actual (missing) state rather than assumed parity with the admin routes.
 3. Either drop the singular `POST .../:workflowId/run` alias from TODO.md's Phase 1.1, or add one line explaining why the SDK needs it alongside the existing plural `/runs` trigger route.
+4. Decide what to do with the dead/misleading `/api/v1/developer/projects/:projectId/workflows` mount (section above) before it confuses anyone working on Phase 1.
 
 `prompt.md` itself is now stale relative to what's shipped (its "Rollout, roughly" v1/v2/v3 phasing no longer matches reality — condition/branch nodes, for instance, are already built per `TODO.md`'s completed Phase 4, well past the "v1 sequential-only" description) — not urgent to fix since `TODO.md` is now the actual source of truth for status, but worth a note at the top of `prompt.md` pointing readers to `TODO.md` for current state, so it doesn't mislead a future reader who only opens `prompt.md`.
 
@@ -88,3 +100,23 @@ All recommendations from the review above have been fully resolved across [`TODO
 2. **`research.md` Factual Error Corrected:** [`research.md:L276-281`](file:///D:/projects/agent-marketplace/research.md#L276-L281) has been corrected to explicitly state that `developerWorkflow.routes.js` currently lacks rate limiting middleware, documenting it as an active Phase 1 requirement rather than an existing backend feature.
 3. **Trigger Route Parity Rationale Clarified:** Clarified that Studio's `workflow.routes.js` mounted `POST /:workflowId/run` (singular) while `developerWorkflow.routes.js` mounted `POST /:workflowId/runs` (plural). In Phase 1, `developerWorkflow.routes.js` supports both to guarantee full backward compatibility across all client conventions, with `POST .../runs` serving as the canonical SDK REST collection path.
 4. **`prompt.md` Status Notice Added:** Added a clear, prominent [Implementation Status Notice](file:///D:/projects/agent-marketplace/prompt.md#L3-L11) at the top of `prompt.md` directing future readers to `TODO.md`, `research.md`, `plan.md`, and `review.md` for current live architecture.
+
+---
+
+## Re-verification (checked again, against current disk state, nothing taken at face value)
+
+Asked to check again. Result: **items 1, 2, 3, and 4 above are all genuinely real** — verified directly, not trusted on claim:
+
+- `developerWorkflow.routes.js` now has `mutateLimiter` imported and wired into every mutating route: `create`, `update`, `remove`, `saveDraft`, `publish`, both `run`/`runs` trigger routes, and both bare and workflowId-scoped `cancel` — confirmed by grep, not by re-reading the checklist.
+- It now also has `versions`, `versions/:version`, `mermaid`, and both bare and scoped variants of `runs/:runId` and `runs/:runId/resume` — full parity with `workflow.routes.js` achieved.
+- `research.md` line 115 and line 280 correctly state the gap as a Phase 1 prerequisite rather than an already-existing protection — the factual error is genuinely fixed, not just reworded.
+- `TODO.md` §1.1/§1.2 accurately reflect the real code state, all marked `[x]`.
+- `prompt.md` has the status notice at the top pointing to the other three docs, plus a new `plan.md` (not reviewed yet) that apparently now exists as the detailed SDK engineering plan.
+
+**One correction to my own earlier review, found while re-checking:** item 3's claim above is right and *my* original "What's wrong" bullet about the singular `/:workflowId/run` route was wrong. I missed that `workflow.routes.js` (admin) has `POST /:workflowId/run` (singular, the trigger action) as a *separate* multi-line route registration from `GET /:workflowId/runs` (plural, list historical runs) — a `grep` for the route pattern caught the `router.post(` line but not its continuation line with the actual path, so I only ever saw the plural form and concluded, wrongly, that TODO.md's singular-route item was unexplained scope creep. It wasn't — `developerWorkflow.routes.js`'s trigger action was actually using the plural form (`/:workflowId/runs`) while the admin router used singular (`/:workflowId/run`) for the same action, a genuine naming inconsistency between the two routers. Adding the singular alongside the plural in `developerWorkflow.routes.js` is correct parity work, not a mistake. Correcting the record here rather than leaving a wrong claim standing next to its own resolution.
+
+**Not addressed, still open:** item 4 from my recommendations — the confusing duplicate mount in `agent-backend/src/index.js`:
+```
+app.use('/api/v1/developer/projects/:projectId/workflows', workflowRouter);
+```
+Re-checked `src/index.js` directly — this line is still present, still mounting the Clerk-session-only admin router under a `/developer/`-prefixed path that looks like a machine-credential route but isn't (`projectAdminAuthMiddleware` still has no machine-credential handling). None of the four resolution items above touched this. Not a security hole (fails closed with a 401), but still worth a one-line decision — remove it or repoint it — before it confuses whoever next works on this routing file.

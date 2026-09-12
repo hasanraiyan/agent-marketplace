@@ -50,6 +50,8 @@ export interface RuntimeCapabilities {
   auditLogs?: boolean;
   /** The Architect co-pilot — builds/edits Agents on the caller's behalf via tool calls. @default false */
   architect?: boolean;
+  /** Full Workflow CRUD, draft authoring, versions, and Mermaid export beyond the always-on execution routes. @default false */
+  workflowsWrite?: boolean;
 }
 
 /**

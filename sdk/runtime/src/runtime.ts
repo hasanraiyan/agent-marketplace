@@ -105,6 +105,22 @@ import {
   deleteStoreFile,
 } from './routes/stores.js';
 import { listAuditLogs } from './routes/auditLogs.js';
+import {
+  listWorkflows,
+  createWorkflow,
+  getWorkflow,
+  updateWorkflow,
+  deleteWorkflow,
+  saveWorkflowDraft,
+  publishWorkflow,
+  listWorkflowVersions,
+  getWorkflowVersion,
+  getWorkflowMermaid,
+  listWorkflowRuns,
+  getWorkflowRun,
+  cancelWorkflowRun,
+} from './routes/workflows.js';
+import { workflowStreamRoute } from './routes/workflowStream.js';
 
 function resolveCapabilities(
   capabilities: RuntimeCapabilities | undefined
@@ -118,6 +134,7 @@ function resolveCapabilities(
     stores: capabilities?.stores ?? false,
     auditLogs: capabilities?.auditLogs ?? false,
     architect: capabilities?.architect ?? false,
+    workflowsWrite: capabilities?.workflowsWrite ?? false,
   };
 }
 
@@ -201,6 +218,20 @@ function buildRoutes(capabilities: Required<RuntimeCapabilities>): Route[] {
       method: 'POST',
       pattern: ['mcps', ':id', 'call-tool'],
       handler: callMcpTool,
+    },
+
+    // Workflows — read-only discovery & execution always on; authoring ops behind workflowsWrite.
+    { method: 'GET', pattern: ['workflows'], handler: listWorkflows },
+    { method: 'POST', pattern: ['workflows', ':id', 'stream'], handler: workflowStreamRoute },
+    {
+      method: 'GET',
+      pattern: ['workflows', 'runs', ':runId', 'resume'],
+      handler: createResumeRoute('workflow'),
+    },
+    {
+      method: 'POST',
+      pattern: ['workflows', 'runs', ':runId', 'cancel'],
+      handler: cancelWorkflowRun,
     },
   ];
 
@@ -307,6 +338,22 @@ function buildRoutes(capabilities: Required<RuntimeCapabilities>): Route[] {
         pattern: ['architect', ':runId', 'resume'],
         handler: createResumeRoute('architect'),
       }
+    );
+  }
+
+  if (capabilities.workflowsWrite) {
+    routes.push(
+      { method: 'POST', pattern: ['workflows'], handler: createWorkflow },
+      { method: 'GET', pattern: ['workflows', ':id'], handler: getWorkflow },
+      { method: 'PATCH', pattern: ['workflows', ':id'], handler: updateWorkflow },
+      { method: 'DELETE', pattern: ['workflows', ':id'], handler: deleteWorkflow },
+      { method: 'PUT', pattern: ['workflows', ':id', 'draft'], handler: saveWorkflowDraft },
+      { method: 'POST', pattern: ['workflows', ':id', 'publish'], handler: publishWorkflow },
+      { method: 'GET', pattern: ['workflows', ':id', 'versions'], handler: listWorkflowVersions },
+      { method: 'GET', pattern: ['workflows', ':id', 'versions', ':version'], handler: getWorkflowVersion },
+      { method: 'GET', pattern: ['workflows', ':id', 'mermaid'], handler: getWorkflowMermaid },
+      { method: 'GET', pattern: ['workflows', ':id', 'runs'], handler: listWorkflowRuns },
+      { method: 'GET', pattern: ['workflows', 'runs', ':runId'], handler: getWorkflowRun }
     );
   }
 

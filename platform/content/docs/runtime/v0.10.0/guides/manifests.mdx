@@ -1,0 +1,160 @@
+---
+title: "Tool Manifests (REST Tools & RCP)"
+description: "Serve code-defined tools directly from your runtime for live discovery and invocation by Persona agents."
+sdk: "runtime"
+version: "0.10.0"
+---
+
+# Tool Manifests (REST Tools & RCP)
+
+In addition to routing agent chat turns, `@personaai/runtime` can serve **code-defined tool manifests** directly from your backend. This allows Persona agents to discover and invoke tools hosted on your infrastructure without deploying separate serverless functions or proxy middleware.
+
+The runtime supports two distinct manifest standards:
+1. **Persona REST Tools Manifest** (`restToolsManifest`): Standardized JSON manifest consumed by Persona REST Tool Sources.
+2. **RCP Manifest** (`rcpManifest`): Conformant to the open REST Connector Protocol (`rcp-sdk`).
+
+---
+
+## 1. Persona REST Tools Manifest
+
+Using `defineRestTool` from [`@personaai/sdk/rest-tools`](/docs/sdk/v0.7.5/resources/rest-tools), you can define typesafe tools with Zod argument schemas and register them in the runtime options.
+
+The runtime serves these tools at `GET {mountPath}/rest-tools/manifest`.
+
+### Configuration Example
+
+```ts
+import { createRuntime } from '@personaai/runtime';
+import { defineRestTool } from '@personaai/sdk/rest-tools';
+import { z } from 'zod';
+
+// 1. Define your backend REST tools
+const getOrderTool = defineRestTool({
+  name: 'Get Customer Order',
+  description: 'Fetches order status, tracking number, and line items by order ID.',
+  method: 'GET',
+  args: z.object({
+    orderId: z.string().describe('The alphanumeric order identifier (e.g. ORD-9812)'),
+  }),
+  url: (t) => `https://api.my-store.internal/orders/${t.arg('orderId')}`,
+  headers: {
+    'X-Internal-Secret': process.env.STORE_INTERNAL_SECRET!,
+  },
+});
+
+const refundOrderTool = defineRestTool({
+  name: 'Refund Order',
+  description: 'Issues a refund for an order.',
+  method: 'POST',
+  args: z.object({
+    orderId: z.string(),
+    reason: z.string(),
+    amountCents: z.number().positive(),
+  }),
+  url: () => 'https://api.my-store.internal/refunds',
+  body: (t) => ({
+    orderId: t.arg('orderId'),
+    reason: t.arg('reason'),
+    amount: t.arg('amountCents'),
+  }),
+});
+
+// 2. Pass to createRuntime
+const runtime = createRuntime({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  mountPath: '/api/persona',
+  resolveUser: async (req) => req.headers['x-user-id'] ?? null,
+
+  // Enable REST Tools Manifest route
+  restToolsManifest: {
+    tools: [getOrderTool, refundOrderTool],
+    // Protect manifest with Bearer token authentication
+    authToken: process.env.PERSONA_REST_TOOLS_BEARER_TOKEN!,
+  },
+});
+```
+
+### Manifest Endpoint Behavior
+- **URL:** `GET /api/persona/rest-tools/manifest`
+- **Security:** Requires `Authorization: Bearer <authToken>`. If omitted or invalid, returns `401 Unauthorized`.
+- **Output:** Returns a formatted JSON list of tool specifications conforming to `CreateRestToolInput`.
+
+### Connecting in Persona Studio
+1. Navigate to **Developer Studio > Projects > [Your Project] > REST Tools**.
+2. Click **Add REST Tool Source**.
+3. Set the Manifest URL to `https://your-domain.com/api/persona/rest-tools/manifest`.
+4. Enter the Bearer Token matching `authToken`.
+5. Persona will discover `Get Customer Order` and `Refund Order` and make them immediately attachable to your Agents.
+
+---
+
+## 2. RCP (REST Connector Protocol) Manifest
+
+RCP is an open protocol for declaring tools over HTTP using standard JSON schemas.
+
+Using `rcp-sdk`, you can serve tools conformant with RCP at `GET {mountPath}/rcp/manifest`.
+
+### Configuration Example
+
+```ts
+import { createRuntime } from '@personaai/runtime';
+import { defineTool } from 'rcp-sdk/server';
+
+const calculateShippingTool = defineTool({
+  name: 'calculateShipping',
+  description: 'Calculates shipping rates based on postal code and weight in kilograms.',
+  parameters: {
+    type: 'object',
+    properties: {
+      postalCode: { type: 'string' },
+      weightKg: { type: 'number' },
+    },
+    required: ['postalCode', 'weightKg'],
+  },
+});
+
+const runtime = createRuntime({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  mountPath: '/api/persona',
+  resolveUser: async (req) => req.headers['x-user-id'] ?? null,
+
+  rcpManifest: {
+    tools: [calculateShippingTool],
+    authToken: process.env.RCP_BEARER_TOKEN!,
+  },
+});
+```
+
+### Manifest Endpoint Behavior
+- **URL:** `GET /api/persona/rcp/manifest`
+- **Output:** Returns an RCP manifest object:
+  ```json
+  {
+    "rcpVersion": "0.1.0",
+    "auth": {
+      "type": "bearer"
+    },
+    "tools": [
+      {
+        "name": "calculateShipping",
+        "description": "Calculates shipping rates based on postal code and weight in kilograms.",
+        "parameters": { ... }
+      }
+    ]
+  }
+  ```
+
+---
+
+## Key Benefits
+
+1. **Colocated Tools:** Keep your tool definitions in the same TypeScript codebase as your application business logic and ORM models.
+2. **Dynamic Sync:** Updating a tool's description or arguments in code updates the manifest instantly without needing manual schema edits in the UI.
+3. **Protected Intranets:** Use the `authToken` header to ensure only Persona's outbound tool-calling infrastructure can fetch your API definitions.
+
+---
+
+## Next Steps
+- Learn how to integrate the runtime into custom frameworks with [Custom Host Integration](/docs/runtime/v0.10.0/guides/custom-host).

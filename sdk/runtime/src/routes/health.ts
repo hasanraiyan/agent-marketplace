@@ -9,6 +9,7 @@ const alwaysOnCapabilities = {
   files: true,
   memory: true,
   mcpOAuth: true,
+  workflows: true,
 };
 
 /**

@@ -5,10 +5,7 @@ shared engine every framework adapter (`@personaai/adapters/express`, `@personaa
 to be a thin translation layer over — see
 [the SDK Ecosystem plan](https://github.com/hasanraiyan/agent-marketplace/blob/feat/ai/product-research/11-sdk-new/package-ecosystem.md).
 
-**v0.9.5.** The unified adapter has shipped: [`@personaai/adapters` v0.1.0](https://persona.hasanraiyan.me/guides/express/quickstart)
-(Wave 3 of the
-[SDK Ecosystem plan](https://github.com/hasanraiyan/agent-marketplace/blob/feat/ai/product-research/11-sdk-new/package-ecosystem.md))
-is published as a single package with `express`/`nextjs`/`nestjs` subpaths and mounts this runtime as an Express Router / Next.js Route Handler / NestJS Module. Legacy names `@personaai/express`/`@personaai/nextjs`/`@personaai/nestjs` are deprecated shims re-exporting from `@personaai/adapters`. For non-covered hosts, see
+**v0.10.0.** Added full Workflows engine support (`POST /workflows/:id/stream`, `GET /workflows`, `POST /workflows/runs/:runId/cancel`, `GET /workflows/runs/:runId/resume`), `workflowsWrite` gated authoring capability, and `beforeWorkflowNode`/`afterWorkflowNode` lifecycle hooks. Unified adapter [`@personaai/adapters`](https://persona.hasanraiyan.me/guides/express/quickstart) provides `express`/`nextjs`/`nestjs` bindings. For non-covered hosts, see
 [Quickstart](#quickstart) for how to run it directly against raw Node `http`, and
 [Not yet implemented](#not-yet-implemented) for what's missing before it's a complete Level 2
 runtime.
@@ -108,6 +105,10 @@ user; `resolveUser` returning `null` or throwing responds `401`.
 | `GET` | `/mcps/:id/oauth/user/status` | `client.mcps.oauth.getUserConnectionStatus(id)` |
 | `DELETE` | `/mcps/:id/oauth/user/connection` | `client.mcps.oauth.disconnectUserConnection(id)` → `204` |
 | `DELETE` | `/mcps/:id/oauth/owner/connection` | `client.mcps.oauth.disconnectOwnerConnection(id)` → `204` |
+| `GET` | `/workflows` | `client.workflows.list({page, limit, search, scope, visibility, isEnabled})` — read-only discovery of available workflows. |
+| `POST` | `/workflows/:id/stream` | `client.workflows.stream(id, {input, dryRun, version})` — multi-step workflow execution with node-level AG-UI event streaming. Response carries `x-persona-run-id`. |
+| `GET` | `/workflows/runs/:runId/resume` | Reattaches to in-flight or recent workflow execution with frame replay (`?since=<seq>`). |
+| `POST` | `/workflows/runs/:runId/cancel` | `client.workflows.cancel(runId)` → aborts active execution. |
 | `GET` | `/health` | `client.whoami()` → `{status, version, capabilities}`. Does **not** require `resolveUser` — it's a liveness/capability probe, not a user-scoped call. |
 
 `scope` for memory routes is `'user'` (default) or `'agent'` (`agentId` then required).
@@ -161,10 +162,19 @@ how to enable them safely.
 | `GET` | `/audit-logs` | `auditLogs` | `client.auditLogs.list({page, limit, eventType})` |
 | `POST` | `/architect` | `architect` | `client.architect.stream({messages, resume})`, streamed out as SSE, same `x-persona-run-id`/reconnect mechanics as `/chat`. No `agentId` — the Architect builds/edits the caller's own Agents. |
 | `GET` | `/architect/:runId/resume` | `architect` | Reattaches to the matching `POST /architect` run. |
+| `POST` | `/workflows` | `workflowsWrite` | `client.workflows.create(input)` |
+| `GET`/`PATCH`/`DELETE` | `/workflows/:id` | `workflowsWrite` | `client.workflows.get/update/delete(id)` |
+| `PUT` | `/workflows/:id/draft` | `workflowsWrite` | `client.workflows.saveDraft(id, draft)` |
+| `POST` | `/workflows/:id/publish` | `workflowsWrite` | `client.workflows.publish(id)` |
+| `GET` | `/workflows/:id/versions` | `workflowsWrite` | `client.workflows.listVersions(id)` |
+| `GET` | `/workflows/:id/versions/:version` | `workflowsWrite` | `client.workflows.getVersion(id, version)` |
+| `GET` | `/workflows/:id/mermaid` | `workflowsWrite` | `client.workflows.getMermaid(id)` → `{mermaid}` |
+| `GET` | `/workflows/:id/runs` | `workflowsWrite` | `client.workflows.listRuns(id, params)` |
+| `GET` | `/workflows/runs/:runId` | `workflowsWrite` | `client.workflows.getRun(runId)` |
 
 A disabled capability's routes are simply absent from the route table — a request to one 404s
 (or, where an always-on route shares the same path with a different method, e.g. `POST /agents`
-while only `GET /agents` is always-on, `405`) rather than 403, so a disabled capability leaks no
+while only `GET /agents` is always-on, or `POST /workflows` while `GET /workflows` is always-on, `405`) rather than 403, so a disabled capability leaks no
 information about what it would have done.
 
 ## Capabilities — admin surface
@@ -173,25 +183,26 @@ The routes above are split into two trust tiers, and this is a deliberate design
 oversight:
 
 - **Always on**: things an end user does in their own chat session — send messages, manage their
-  own conversations/files/memory, connect their own MCP account. Scoped entirely to whichever
+  own conversations/files/memory, connect their own MCP account, run workflows. Scoped entirely to whichever
   user `resolveUser` returns.
 - **Opt-in via `capabilities`**: Project-level configuration — LLM provider credentials, skill
   authoring, knowledge base and vector store management, security audit logs, an agent-building
-  co-pilot, and full Agent/MCP-server CRUD. **Every one of these defaults to `false`.** Upgrading
+  co-pilot, workflow canvas builder/publishing, and full Agent/MCP-server CRUD. **Every one of these defaults to `false`.** Upgrading
   this package never silently exposes new surface to whoever `resolveUser` accepts.
 
 ```ts
 createRuntime({
   // ...
   capabilities: {
-    agentsWrite: false, // default
-    mcps: false,        // default
-    providers: false,   // default — holds API keys, think hard before enabling
-    skills: false,       // default
-    knowledge: false,    // default
-    stores: false,        // default
-    auditLogs: false,     // default
-    architect: false,     // default
+    agentsWrite: false,    // default
+    mcps: false,           // default
+    providers: false,      // default — holds API keys, think hard before enabling
+    skills: false,          // default
+    knowledge: false,       // default
+    stores: false,           // default
+    auditLogs: false,        // default
+    architect: false,        // default
+    workflowsWrite: false,   // default — authoring and version snapshots
   },
 });
 ```
