@@ -315,12 +315,25 @@ The caller may be the Project itself (building agents the whole Project owns) or
 // `InterruptOnConfig`, which supports a `when(request)` predicate over
 // `request.toolCall.args`) lets one tool name still only interrupt its
 // mutating actions.
+//
+// `allowedDecisions` is REQUIRED by langchain's `InterruptOnConfigSchema`
+// (no default) — omitting it (as an earlier version of this file did) makes
+// `interopParse` throw a ZodError on every single afterModel hook
+// invocation (it runs unconditionally, before even checking for tool
+// calls), which every existing turn then misreports as a bogus
+// clarification interrupt with no questions ("I need your input to
+// continue..."). Matches the same 3 decisions the old flat `true` config
+// resolved to (langchain's own ALLOWED_DECISIONS default).
+const mutatingOnly = {
+  allowedDecisions: ['approve', 'edit', 'reject'],
+  when: (req) => req.toolCall.args?.action !== 'read',
+};
 const ARCHITECT_INTERRUPT_ON = {
-  manage_agent: { when: (req) => req.toolCall.args?.action !== 'read' },
-  manage_skill: { when: (req) => req.toolCall.args?.action !== 'read' },
-  manage_mcp: { when: (req) => req.toolCall.args?.action !== 'read' },
-  manage_rcp_source: { when: (req) => req.toolCall.args?.action !== 'read' },
-  manage_rest_api_tool: { when: (req) => req.toolCall.args?.action !== 'read' },
+  manage_agent: mutatingOnly,
+  manage_skill: mutatingOnly,
+  manage_mcp: mutatingOnly,
+  manage_rcp_source: mutatingOnly,
+  manage_rest_api_tool: mutatingOnly,
 };
 
 class AgentFactory {
