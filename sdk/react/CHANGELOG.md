@@ -3,6 +3,21 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.10.0
+
+- **New: `useArchitectChat(options)`.** First-class React support for the Agent Architect co-pilot
+  (`POST /architect` on the runtime, see `@personaai/runtime`'s `routes/architect.ts`) — there was
+  previously zero Architect surface in this package. Mirrors `useChat`'s streaming/interrupt/reload/
+  thread-resume mechanics (text streaming, tool calls, `hitl_request`/`clarification_request`
+  interrupts, reasoning messages, files/todos state snapshot, subagent activity, lazy ephemeral-thread
+  minting, `onTitle`) with no `agentId` (the Architect is a single fixed target) and no
+  `voice`/`sandboxCommands` (the Architect has no voice mode and no `execute` tool). Exports
+  `ARCHITECT_AGENT_ID`, the Architect's reserved id, for use with `threads.create()`-style calls.
+- **Internal:** extracted `useChat`'s stream/history parsing helpers (`isErrorToolContent`,
+  `persistedTraceToActivityEntries`, `parsePresentedFile`, `normalizeWorkspaceFiles`,
+  `normalizePendingInterrupt`) into a shared `hooks/streamEventHelpers.ts`, now used by both hooks —
+  no behavior change for `useChat`.
+
 ## 0.9.0
 
 - **New: Full Workflows Support.** Introduced 4 new hooks for building rich workflow interfaces:

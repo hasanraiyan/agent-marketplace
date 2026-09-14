@@ -20,6 +20,7 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/index.ts
 var index_exports = {};
 __export(index_exports, {
+  ARCHITECT_AGENT_ID: () => ARCHITECT_AGENT_ID,
   PersonaProvider: () => PersonaProvider,
   VERSION: () => VERSION,
   createLogger: () => import_logger2.createLogger,
@@ -30,6 +31,7 @@ __export(index_exports, {
   setLogLevel: () => import_logger2.setLogLevel,
   supportsStreamingFetch: () => supportsStreamingFetch,
   useAgents: () => useAgents,
+  useArchitectChat: () => useArchitectChat,
   useChat: () => useChat,
   useConnection: () => useConnection,
   useFiles: () => useFiles,
@@ -334,7 +336,7 @@ async function openSSEStream(opts) {
   };
 }
 
-// src/hooks/useChat.ts
+// src/hooks/streamEventHelpers.ts
 function isErrorToolContent(content) {
   if (typeof content !== "string" || !content.trim().startsWith("{"))
     return false;
@@ -380,6 +382,38 @@ function parsePresentedFile(content) {
     return null;
   }
 }
+function normalizeWorkspaceFiles(raw) {
+  const normalized = {};
+  for (const [path, file] of Object.entries(raw || {})) {
+    normalized[path] = {
+      content: file.content,
+      size: file.size,
+      createdAt: file.created_at,
+      modifiedAt: file.modified_at
+    };
+  }
+  return normalized;
+}
+function normalizePendingInterrupt(pending) {
+  if (!pending || typeof pending !== "object") return null;
+  const p = pending;
+  if (p.kind === "hitl") {
+    return {
+      kind: "hitl",
+      actionRequests: p.value?.actionRequests ?? [],
+      reviewConfigs: p.value?.reviewConfigs ?? []
+    };
+  }
+  if (p.kind === "clarification") {
+    return {
+      kind: "clarification",
+      questions: p.value?.questions ?? []
+    };
+  }
+  return null;
+}
+
+// src/hooks/useChat.ts
 function parseSandboxCommand(tc) {
   let command = tc.args ?? "";
   try {
@@ -410,36 +444,6 @@ function parseSandboxCommand(tc) {
     status: tc.isError ? "error" : tc.result ? "done" : "running",
     seq: tc.seq
   };
-}
-function normalizeWorkspaceFiles(raw) {
-  const normalized = {};
-  for (const [path, file] of Object.entries(raw || {})) {
-    normalized[path] = {
-      content: file.content,
-      size: file.size,
-      createdAt: file.created_at,
-      modifiedAt: file.modified_at
-    };
-  }
-  return normalized;
-}
-function normalizePendingInterrupt(pending) {
-  if (!pending || typeof pending !== "object") return null;
-  const p = pending;
-  if (p.kind === "hitl") {
-    return {
-      kind: "hitl",
-      actionRequests: p.value?.actionRequests ?? [],
-      reviewConfigs: p.value?.reviewConfigs ?? []
-    };
-  }
-  if (p.kind === "clarification") {
-    return {
-      kind: "clarification",
-      questions: p.value?.questions ?? []
-    };
-  }
-  return null;
 }
 function useChat(options = {}) {
   const { defaultAgentId, fetchWithAuth, baseUrl, getAuthToken, logger } = usePersonaContext();
@@ -1154,17 +1158,569 @@ function useChat(options = {}) {
   };
 }
 
-// src/hooks/useMemory.ts
+// src/hooks/useArchitectChat.ts
 var import_react3 = require("react");
+var ARCHITECT_AGENT_ID = "000000000000000000000002";
+function useArchitectChat(options = {}) {
+  const { fetchWithAuth, baseUrl, getAuthToken, logger } = usePersonaContext();
+  const chatLogger = (0, import_react3.useMemo)(() => logger.child("architect"), [logger]);
+  const threadId = options.threadId;
+  const [internalThreadId, setInternalThreadId] = (0, import_react3.useState)(void 0);
+  const effectiveThreadId = threadId ?? internalThreadId;
+  (0, import_react3.useEffect)(() => {
+    if (threadId !== void 0) setInternalThreadId(threadId);
+  }, [threadId]);
+  const didLogInitRef = (0, import_react3.useRef)(false);
+  if (!didLogInitRef.current) {
+    didLogInitRef.current = true;
+    chatLogger.debug("useArchitectChat init", {
+      threadId,
+      hasInitialMessages: !!options.initialMessages?.length
+    });
+    chatLogger.trace("useArchitectChat options", {
+      threadId,
+      initialMessageCount: options.initialMessages?.length ?? 0
+    });
+  }
+  const [messages, setMessages] = (0, import_react3.useState)(
+    options.initialMessages || []
+  );
+  const [input, setInput] = (0, import_react3.useState)("");
+  const [isStreaming, setIsStreaming] = (0, import_react3.useState)(false);
+  const [isLoadingHistory, setIsLoadingHistory] = (0, import_react3.useState)(false);
+  const [error, setError] = (0, import_react3.useState)(null);
+  const [interrupt, setInterrupt] = (0, import_react3.useState)(null);
+  const [files, setFiles] = (0, import_react3.useState)({});
+  const [todos, setTodos] = (0, import_react3.useState)([]);
+  const [presentedFile, setPresentedFile] = (0, import_react3.useState)(null);
+  const abortControllerRef = (0, import_react3.useRef)(null);
+  const loadedThreadIdRef = (0, import_react3.useRef)(void 0);
+  const stop = (0, import_react3.useCallback)(() => {
+    if (abortControllerRef.current) {
+      chatLogger.info("stop streaming", {});
+      chatLogger.debug("abort controller", {
+        hasController: !!abortControllerRef.current
+      });
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsStreaming(false);
+      chatLogger.debug("streaming stopped");
+    } else {
+      chatLogger.trace("stop called \u2014 no active stream");
+    }
+  }, [chatLogger]);
+  const clear = (0, import_react3.useCallback)(() => {
+    chatLogger.info("clear chat", { messageCount: messages.length });
+    chatLogger.debug("clear", { messageCount: messages.length });
+    stop();
+    setMessages([]);
+    setError(null);
+    setInterrupt(null);
+    setFiles({});
+    setTodos([]);
+    setPresentedFile(null);
+    loadedThreadIdRef.current = void 0;
+  }, [stop, chatLogger, messages.length]);
+  const startNewChat = (0, import_react3.useCallback)(() => {
+    chatLogger.info("startNewChat \u2014 entering ephemeral mode");
+    stop();
+    setMessages([]);
+    setError(null);
+    setInterrupt(null);
+    setFiles({});
+    setTodos([]);
+    setPresentedFile(null);
+    setInput("");
+    loadedThreadIdRef.current = void 0;
+    setInternalThreadId(void 0);
+  }, [stop, chatLogger]);
+  const loadThreadMessages = (0, import_react3.useCallback)(
+    async (id) => {
+      chatLogger.debug("loadThreadMessages start", { threadId: id });
+      chatLogger.trace("loadThreadMessages", { threadId: id });
+      setIsLoadingHistory(true);
+      setError(null);
+      try {
+        const res = await fetchWithAuth(`/threads/${id}/messages`);
+        if (!res.ok)
+          throw new Error(`Failed to load thread history: ${res.statusText}`);
+        const body = await res.json();
+        const data = body?.data ?? body;
+        const raw = data?.messages ?? [];
+        const subagentTraces = data?.subagentTraces ?? {};
+        const loaded = raw.map((m, i) => ({
+          id: m.id || `history-${id}-${i}`,
+          role: m.role,
+          content: m.content,
+          createdAt: /* @__PURE__ */ new Date(),
+          toolCalls: m.toolCalls?.map((tc) => {
+            const trace = subagentTraces[tc.toolCallId];
+            return Array.isArray(trace) && trace.length > 0 ? {
+              ...tc,
+              subagentActivity: persistedTraceToActivityEntries(trace)
+            } : tc;
+          })
+        }));
+        setMessages(loaded);
+        setInterrupt(normalizePendingInterrupt(data?.pendingInterrupt));
+        setFiles(normalizeWorkspaceFiles(data?.state?.files ?? {}));
+        setTodos(data?.state?.todos ?? []);
+        loadedThreadIdRef.current = id;
+        chatLogger.info("loadThreadMessages succeeded", {
+          threadId: id,
+          messageCount: loaded.length
+        });
+        chatLogger.debug("loadThreadMessages completed", {
+          threadId: id,
+          messageCount: loaded.length
+        });
+        return loaded;
+      } catch (err) {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        chatLogger.warn("loadThreadMessages failed", {
+          threadId: id,
+          error: errorObj.message
+        });
+        chatLogger.error("loadThreadMessages error", {
+          threadId: id,
+          error: errorObj.message
+        });
+        setError(errorObj);
+        if (loadedThreadIdRef.current === id) loadedThreadIdRef.current = void 0;
+        return [];
+      } finally {
+        setIsLoadingHistory(false);
+        chatLogger.trace("loadThreadMessages end", { threadId: id });
+      }
+    },
+    [fetchWithAuth, chatLogger]
+  );
+  (0, import_react3.useEffect)(() => {
+    if (!effectiveThreadId || isStreaming) {
+      chatLogger.trace("auto-load skipped", { threadId: effectiveThreadId, isStreaming });
+      return;
+    }
+    if (loadedThreadIdRef.current === effectiveThreadId) {
+      chatLogger.trace("auto-load already loaded", { threadId: effectiveThreadId });
+      return;
+    }
+    if (messages.length > 0) {
+      chatLogger.trace("auto-load has messages", {
+        threadId: effectiveThreadId,
+        count: messages.length
+      });
+      return;
+    }
+    chatLogger.info("auto-load thread history", { threadId: effectiveThreadId });
+    chatLogger.debug("loadThreadMessages trigger", { threadId: effectiveThreadId });
+    void loadThreadMessages(effectiveThreadId);
+  }, [effectiveThreadId, isStreaming, messages.length, loadThreadMessages, chatLogger]);
+  const doSend = (0, import_react3.useCallback)(
+    async (prompt, baseMessages, overrideOptions) => {
+      chatLogger.debug("sendMessage start", {
+        promptPreview: prompt.slice(0, 100),
+        threadId: effectiveThreadId ?? overrideOptions?.threadId,
+        hasResume: !!overrideOptions?.resume,
+        messageCount: baseMessages.length
+      });
+      chatLogger.trace("sendMessage details", {
+        promptPreview: prompt.slice(0, 200),
+        hasResume: !!overrideOptions?.resume
+      });
+      const userMessage = {
+        id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        role: "user",
+        content: prompt,
+        createdAt: /* @__PURE__ */ new Date()
+      };
+      const assistantMessageId = `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const placeholderAssistant = {
+        id: assistantMessageId,
+        role: "assistant",
+        content: "",
+        createdAt: /* @__PURE__ */ new Date(),
+        isStreaming: true,
+        toolCalls: []
+      };
+      const nextMessages = [...baseMessages, userMessage];
+      setMessages([...nextMessages, placeholderAssistant]);
+      setInput("");
+      setIsStreaming(true);
+      setError(null);
+      setInterrupt(null);
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+      const finalizeReasoning = () => {
+        setMessages(
+          (prev) => prev.map((m) => m.role === "reasoning" && m.isStreaming ? { ...m, isStreaming: false } : m)
+        );
+      };
+      try {
+        const payloadMessages = nextMessages.filter((m) => m.role !== "reasoning").map((m) => ({
+          role: m.role === "assistant" ? "assistant" : "user",
+          content: m.content
+        }));
+        let resolvedThreadId = await overrideOptions?.threadId ?? effectiveThreadId;
+        if (!resolvedThreadId) {
+          chatLogger.info("minting real thread for ephemeral architect chat", {});
+          const createRes = await fetchWithAuth("/threads", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ agentId: ARCHITECT_AGENT_ID })
+          });
+          if (!createRes.ok) throw new Error(`Failed to create thread: ${createRes.statusText}`);
+          const createBody = await createRes.json();
+          const created = createBody?.data ?? createBody;
+          resolvedThreadId = created._id ?? created.id;
+          if (!resolvedThreadId) throw new Error("Thread creation returned no id");
+          setInternalThreadId(resolvedThreadId);
+          loadedThreadIdRef.current = resolvedThreadId;
+          options.onThreadCreated?.(resolvedThreadId);
+          chatLogger.info("ephemeral architect chat minted", { threadId: resolvedThreadId });
+        }
+        chatLogger.trace("resolved threadId", { threadId: resolvedThreadId });
+        const token = getAuthToken ? await getAuthToken() : null;
+        chatLogger.debug("opening SSE stream", {
+          hasToken: !!token,
+          hasThreadId: !!resolvedThreadId
+        });
+        const stream = await openSSEStream({
+          url: `${baseUrl}/architect`,
+          headers: {
+            "Content-Type": "application/json",
+            ...token ? { Authorization: `Bearer ${token}` } : {}
+          },
+          body: JSON.stringify({
+            messages: payloadMessages,
+            threadId: resolvedThreadId,
+            resume: overrideOptions?.resume
+          }),
+          signal: controller.signal
+        });
+        if (!stream.ok) {
+          chatLogger.warn("SSE stream not ok", { status: stream.status, errorText: stream.errorText });
+          chatLogger.error("architect stream failed", { status: stream.status, error: stream.errorText });
+          throw new Error(`Architect error (${stream.status}): ${stream.errorText ?? "Stream failed"}`);
+        }
+        chatLogger.debug("SSE stream opened", { status: stream.status });
+        chatLogger.info("architect stream started", { threadId: resolvedThreadId });
+        const reader = stream.reader;
+        let buffer = "";
+        let accumulatedText = "";
+        const toolCallsMap = /* @__PURE__ */ new Map();
+        let streamSeq = 0;
+        let activeReasoningId = null;
+        const reasoningById = /* @__PURE__ */ new Map();
+        const patchAssistant = (patch) => {
+          setMessages(
+            (prev) => prev.map(
+              (msg) => msg.id === assistantMessageId ? { ...msg, toolCalls: Array.from(toolCallsMap.values()), ...patch } : msg
+            )
+          );
+        };
+        const insertReasoningMessage = (id, seq) => {
+          const msg = { id, role: "reasoning", content: "", createdAt: /* @__PURE__ */ new Date(), isStreaming: true, seq };
+          setMessages((prev) => {
+            const idx = prev.findIndex((m) => m.id === assistantMessageId);
+            if (idx === -1) return [...prev, msg];
+            const next = [...prev];
+            next.splice(idx, 0, msg);
+            return next;
+          });
+        };
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += value ?? "";
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || !trimmed.startsWith("data:")) continue;
+            const raw = trimmed.replace(/^data:\s*/, "");
+            if (raw === "[DONE]") break;
+            try {
+              const event = JSON.parse(raw);
+              chatLogger.trace("stream event", { type: event.type, event });
+              options.onEvent?.(event);
+              if (event.type === "TEXT_MESSAGE_CHUNK" && event.delta) {
+                chatLogger.debug("text chunk", { deltaLength: event.delta.length });
+                accumulatedText += event.delta;
+                patchAssistant({ content: accumulatedText, isStreaming: true });
+              } else if (event.type === "TOOL_CALL_CHUNK" && event.toolCallId) {
+                chatLogger.debug("tool call chunk", { toolCallId: event.toolCallId, toolCallName: event.toolCallName });
+                const existing = toolCallsMap.get(event.toolCallId);
+                if (existing) {
+                  existing.args = (existing.args || "") + (event.delta || "");
+                } else {
+                  toolCallsMap.set(event.toolCallId, {
+                    toolCallId: event.toolCallId,
+                    toolName: event.toolCallName || "",
+                    args: event.delta || "",
+                    seq: streamSeq++
+                  });
+                }
+                patchAssistant({});
+              } else if (event.type === "TOOL_CALL_RESULT") {
+                chatLogger.debug("tool call result", { toolCallId: event.toolCallId });
+                const existing = toolCallsMap.get(event.toolCallId);
+                if (existing) {
+                  existing.result = event.content;
+                  existing.isError = isErrorToolContent(event.content);
+                  if (existing.isError) chatLogger.warn("tool call error", { toolCallId: event.toolCallId });
+                  if (existing.toolName === "present_file" && !existing.isError) {
+                    const presented = parsePresentedFile(event.content);
+                    if (presented) {
+                      chatLogger.info("present_file", { path: presented.path });
+                      setPresentedFile(presented);
+                    }
+                  }
+                  patchAssistant({});
+                }
+              } else if (event.type === "STATE_SNAPSHOT") {
+                chatLogger.debug("state snapshot", {
+                  fileCount: Object.keys(event.snapshot.files ?? {}).length,
+                  todoCount: event.snapshot.todos?.length ?? 0
+                });
+                setFiles(normalizeWorkspaceFiles(event.snapshot.files ?? {}));
+                setTodos(event.snapshot.todos ?? []);
+              } else if (event.type === "REASONING_MESSAGE_START" && event.messageId) {
+                chatLogger.debug("reasoning start", { messageId: event.messageId });
+                activeReasoningId = event.messageId;
+                reasoningById.set(event.messageId, { content: "" });
+                insertReasoningMessage(event.messageId, streamSeq++);
+              } else if (event.type === "REASONING_MESSAGE_CONTENT") {
+                let rid = event.messageId || activeReasoningId || "";
+                if (!rid || !reasoningById.has(rid)) {
+                  rid = rid || `reasoning-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+                  activeReasoningId = rid;
+                  reasoningById.set(rid, { content: "" });
+                  insertReasoningMessage(rid, streamSeq++);
+                  chatLogger.debug("reasoning lazy start", { messageId: rid });
+                }
+                const entry = reasoningById.get(rid);
+                entry.content += event.delta;
+                chatLogger.trace("reasoning content", { messageId: rid, deltaLength: event.delta?.length ?? 0 });
+                setMessages((prev) => prev.map((m) => m.id === rid ? { ...m, content: entry.content, isStreaming: true } : m));
+              } else if (event.type === "REASONING_END") {
+                chatLogger.debug("reasoning end", { messageId: activeReasoningId });
+                const rid = activeReasoningId;
+                activeReasoningId = null;
+                if (rid) {
+                  setMessages((prev) => prev.map((m) => m.id === rid ? { ...m, isStreaming: false } : m));
+                }
+              } else if (event.type === "CUSTOM") {
+                chatLogger.debug("custom event", { name: event.name });
+                if (event.name === "hitl_request") {
+                  const value2 = event.value;
+                  chatLogger.info("hitl interrupt", { actionCount: value2.actionRequests?.length ?? 0 });
+                  setInterrupt({ kind: "hitl", actionRequests: value2.actionRequests, reviewConfigs: value2.reviewConfigs });
+                } else if (event.name === "clarification_request") {
+                  const value2 = event.value;
+                  chatLogger.info("clarification interrupt", { questionCount: value2.questions?.length ?? 0 });
+                  setInterrupt({ kind: "clarification", questions: value2.questions });
+                } else if (event.name === "subagent_activity") {
+                  const { toolCallId, ...entry } = event.value;
+                  chatLogger.trace("subagent activity", { toolCallId, kind: entry.kind });
+                  const existing = toolCallsMap.get(toolCallId);
+                  if (existing) {
+                    existing.subagentActivity = [...existing.subagentActivity || [], entry];
+                    patchAssistant({});
+                  }
+                } else if (event.name === "mcp_app") {
+                  const val = event.value;
+                  if (val?.toolCallId && val?.resourceUri && val?.mcpId) {
+                    const existing = toolCallsMap.get(val.toolCallId);
+                    if (existing) {
+                      existing.mcpApp = { resourceUri: val.resourceUri, mcpId: val.mcpId };
+                      patchAssistant({});
+                    }
+                  }
+                }
+              } else if (event.type === "title") {
+                const title = event.title;
+                if (typeof title === "string" && title.trim()) {
+                  chatLogger.info("auto title", { title });
+                  options.onTitle?.(title);
+                }
+              } else if (event.type === "RUN_ERROR") {
+                chatLogger.warn("run error", { message: event.message, code: event.code });
+                chatLogger.error("stream run error", { code: event.code, message: event.message });
+                throw new Error(event.message || "Stream error from agent");
+              } else {
+                chatLogger.trace("unhandled event", { type: event.type });
+              }
+            } catch (e) {
+              if (e instanceof Error && e.message.startsWith("Stream error")) throw e;
+              chatLogger.warn("event parse error", { raw: raw.slice(0, 200), error: e instanceof Error ? e.message : String(e) });
+            }
+          }
+        }
+        const finalMessage = {
+          id: assistantMessageId,
+          role: "assistant",
+          content: accumulatedText,
+          createdAt: /* @__PURE__ */ new Date(),
+          isStreaming: false,
+          toolCalls: Array.from(toolCallsMap.values())
+        };
+        setMessages((prev) => prev.map((msg) => msg.id === assistantMessageId ? finalMessage : msg));
+        chatLogger.info("sendMessage succeeded", { textLength: accumulatedText.length, toolCallCount: toolCallsMap.size });
+        chatLogger.debug("sendMessage completed", { textLength: accumulatedText.length, eventCount: toolCallsMap.size + 1 });
+        options.onFinish?.(finalMessage);
+        return true;
+      } catch (err) {
+        if (controller.signal.aborted) {
+          chatLogger.info("sendMessage aborted", {});
+          chatLogger.debug("stream aborted", {});
+          setMessages((prev) => prev.map((msg) => msg.id === assistantMessageId ? { ...msg, isStreaming: false } : msg));
+          return false;
+        }
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        chatLogger.warn("sendMessage failed", { error: errorObj.message });
+        chatLogger.error("sendMessage error", { error: errorObj.message });
+        setError(errorObj);
+        options.onError?.(errorObj);
+        setMessages(
+          (prev) => prev.map(
+            (msg) => msg.id === assistantMessageId ? { ...msg, content: msg.content || `\u26A0\uFE0F Error: ${errorObj.message || "Failed to get response."}`, isStreaming: false } : msg
+          )
+        );
+        return false;
+      } finally {
+        setIsStreaming(false);
+        abortControllerRef.current = null;
+        finalizeReasoning();
+        chatLogger.debug("sendMessage finally", { isStreaming: false });
+        chatLogger.trace("sendMessage end", {});
+      }
+    },
+    [baseUrl, getAuthToken, fetchWithAuth, options, chatLogger, effectiveThreadId]
+  );
+  const sendMessage = (0, import_react3.useCallback)(
+    async (contentToSend, overrideOptions) => {
+      const prompt = (contentToSend ?? input).trim();
+      if (!prompt || isStreaming) {
+        chatLogger.trace("sendMessage skipped", {
+          hasPrompt: !!prompt,
+          isStreaming
+        });
+        if (isStreaming) {
+          chatLogger.warn("sendMessage dropped while streaming \u2014 caller should queue or disable send", {});
+        }
+        return false;
+      }
+      return doSend(prompt, messages, overrideOptions);
+    },
+    [input, isStreaming, messages, doSend, chatLogger]
+  );
+  const handleInputChange = (0, import_react3.useCallback)(
+    (e) => {
+      chatLogger.trace("handleInputChange", { length: e.target.value.length });
+      setInput(e.target.value);
+    },
+    [chatLogger]
+  );
+  const handleSubmit = (0, import_react3.useCallback)(
+    (e) => {
+      if (e) e.preventDefault();
+      chatLogger.debug("handleSubmit", {});
+      void sendMessage();
+    },
+    [sendMessage, chatLogger]
+  );
+  const reload = (0, import_react3.useCallback)(async () => {
+    if (messages.length === 0 || isStreaming) {
+      chatLogger.trace("reload skipped", {
+        messageCount: messages.length,
+        isStreaming
+      });
+      return false;
+    }
+    let lastUserIndex = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "user") {
+        lastUserIndex = i;
+        break;
+      }
+    }
+    if (lastUserIndex === -1) {
+      chatLogger.warn("reload no user message", {});
+      return false;
+    }
+    const lastUserMessage = messages[lastUserIndex];
+    const truncated = messages.slice(0, lastUserIndex);
+    chatLogger.info("reload", { messageId: lastUserMessage.id });
+    chatLogger.debug("reload last user", {
+      preview: lastUserMessage.content.slice(0, 100)
+    });
+    return doSend(lastUserMessage.content, truncated);
+  }, [isStreaming, messages, doSend, chatLogger]);
+  const resumeInterrupt = (0, import_react3.useCallback)(
+    (resume, displayContent) => {
+      chatLogger.info("resumeInterrupt", {
+        kind: resume.decisions ? "hitl" : "clarification",
+        preview: displayContent.slice(0, 50)
+      });
+      return sendMessage(displayContent, { resume });
+    },
+    [sendMessage, chatLogger]
+  );
+  const dismissPresentedFile = (0, import_react3.useCallback)(() => {
+    chatLogger.debug("dismissPresentedFile", {});
+    setPresentedFile(null);
+  }, [chatLogger]);
+  const openWorkspaceFile = (0, import_react3.useCallback)(
+    (path) => {
+      chatLogger.debug("openWorkspaceFile", { path });
+      setPresentedFile({
+        path,
+        title: path.split("/").pop() || path,
+        description: ""
+      });
+    },
+    [chatLogger]
+  );
+  return {
+    messages,
+    input,
+    setInput,
+    handleInputChange,
+    handleSubmit,
+    sendMessage,
+    isStreaming,
+    isLoading: isStreaming,
+    isLoadingHistory,
+    error,
+    interrupt,
+    resumeInterrupt,
+    files,
+    todos,
+    presentedFile,
+    dismissPresentedFile,
+    openWorkspaceFile,
+    stop,
+    reload,
+    clear,
+    startNewChat,
+    currentThreadId: effectiveThreadId,
+    isEphemeral: !effectiveThreadId,
+    setMessages,
+    loadThreadMessages
+  };
+}
+
+// src/hooks/useMemory.ts
+var import_react4 = require("react");
 function useMemory(autoFetch = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [memory, setMemory] = (0, import_react3.useState)({
+  const [memory, setMemory] = (0, import_react4.useState)({
     userFiles: [],
     agentMemories: []
   });
-  const [isLoading, setIsLoading] = (0, import_react3.useState)(false);
-  const [error, setError] = (0, import_react3.useState)(null);
-  const fetchMemory = (0, import_react3.useCallback)(async () => {
+  const [isLoading, setIsLoading] = (0, import_react4.useState)(false);
+  const [error, setError] = (0, import_react4.useState)(null);
+  const fetchMemory = (0, import_react4.useCallback)(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -1183,7 +1739,7 @@ function useMemory(autoFetch = true) {
       setIsLoading(false);
     }
   }, [fetchWithAuth]);
-  const getFile = (0, import_react3.useCallback)(
+  const getFile = (0, import_react4.useCallback)(
     async (params) => {
       const query = new URLSearchParams({ path: params.path });
       if (params.scope) query.set("scope", params.scope);
@@ -1195,7 +1751,7 @@ function useMemory(autoFetch = true) {
     },
     [fetchWithAuth]
   );
-  const writeFile = (0, import_react3.useCallback)(
+  const writeFile = (0, import_react4.useCallback)(
     async (params) => {
       const res = await fetchWithAuth("/memory/file", {
         method: "PUT",
@@ -1210,7 +1766,7 @@ function useMemory(autoFetch = true) {
     },
     [fetchWithAuth, fetchMemory]
   );
-  const deleteFile = (0, import_react3.useCallback)(
+  const deleteFile = (0, import_react4.useCallback)(
     async (params) => {
       const query = new URLSearchParams({ path: params.path });
       if (params.scope) query.set("scope", params.scope);
@@ -1224,7 +1780,7 @@ function useMemory(autoFetch = true) {
     },
     [fetchWithAuth, fetchMemory]
   );
-  (0, import_react3.useEffect)(() => {
+  (0, import_react4.useEffect)(() => {
     if (autoFetch) {
       void fetchMemory();
     }
@@ -1241,13 +1797,13 @@ function useMemory(autoFetch = true) {
 }
 
 // src/hooks/useThreads.ts
-var import_react4 = require("react");
+var import_react5 = require("react");
 function useThreads(autoFetch = true) {
   const { fetchWithAuth, defaultAgentId } = usePersonaContext();
-  const [threads, setThreads] = (0, import_react4.useState)([]);
-  const [isLoading, setIsLoading] = (0, import_react4.useState)(false);
-  const [error, setError] = (0, import_react4.useState)(null);
-  const fetchThreads = (0, import_react4.useCallback)(async () => {
+  const [threads, setThreads] = (0, import_react5.useState)([]);
+  const [isLoading, setIsLoading] = (0, import_react5.useState)(false);
+  const [error, setError] = (0, import_react5.useState)(null);
+  const fetchThreads = (0, import_react5.useCallback)(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -1265,7 +1821,7 @@ function useThreads(autoFetch = true) {
       setIsLoading(false);
     }
   }, [fetchWithAuth]);
-  const createThread = (0, import_react4.useCallback)(
+  const createThread = (0, import_react5.useCallback)(
     async (agentId) => {
       const targetAgentId = agentId || defaultAgentId;
       const res = await fetchWithAuth("/threads", {
@@ -1282,7 +1838,7 @@ function useThreads(autoFetch = true) {
     },
     [fetchWithAuth, defaultAgentId, fetchThreads]
   );
-  const deleteThread = (0, import_react4.useCallback)(
+  const deleteThread = (0, import_react5.useCallback)(
     async (threadId) => {
       const res = await fetchWithAuth(`/threads/${threadId}`, {
         method: "DELETE"
@@ -1293,7 +1849,7 @@ function useThreads(autoFetch = true) {
     },
     [fetchWithAuth]
   );
-  const bulkDeleteThreads = (0, import_react4.useCallback)(
+  const bulkDeleteThreads = (0, import_react5.useCallback)(
     async (threadIds) => {
       const res = await fetchWithAuth("/threads/bulk-delete", {
         method: "POST",
@@ -1310,13 +1866,13 @@ function useThreads(autoFetch = true) {
     },
     [fetchWithAuth]
   );
-  const deleteAllThreads = (0, import_react4.useCallback)(async () => {
+  const deleteAllThreads = (0, import_react5.useCallback)(async () => {
     const ids = threads.map((t) => t._id);
     for (let i = 0; i < ids.length; i += 100) {
       await bulkDeleteThreads(ids.slice(i, i + 100));
     }
   }, [threads, bulkDeleteThreads]);
-  const updateThread = (0, import_react4.useCallback)(
+  const updateThread = (0, import_react5.useCallback)(
     async (threadId, input) => {
       const res = await fetchWithAuth(`/threads/${threadId}`, {
         method: "PATCH",
@@ -1334,11 +1890,11 @@ function useThreads(autoFetch = true) {
     },
     [fetchWithAuth]
   );
-  const renameThread = (0, import_react4.useCallback)(
+  const renameThread = (0, import_react5.useCallback)(
     (threadId, title) => updateThread(threadId, { title }),
     [updateThread]
   );
-  const resetThread = (0, import_react4.useCallback)(
+  const resetThread = (0, import_react5.useCallback)(
     async (threadId) => {
       const res = await fetchWithAuth(`/threads/${threadId}/reset`, {
         method: "POST"
@@ -1353,7 +1909,7 @@ function useThreads(autoFetch = true) {
     },
     [fetchWithAuth]
   );
-  const getThread = (0, import_react4.useCallback)(
+  const getThread = (0, import_react5.useCallback)(
     async (threadId) => {
       const res = await fetchWithAuth(`/threads/${threadId}`);
       if (!res.ok) throw new Error(`Failed to fetch thread: ${res.statusText}`);
@@ -1362,7 +1918,7 @@ function useThreads(autoFetch = true) {
     },
     [fetchWithAuth]
   );
-  (0, import_react4.useEffect)(() => {
+  (0, import_react5.useEffect)(() => {
     if (autoFetch) {
       void fetchThreads();
     }
@@ -1384,7 +1940,7 @@ function useThreads(autoFetch = true) {
 }
 
 // src/hooks/useVoice.ts
-var import_react5 = require("react");
+var import_react6 = require("react");
 
 // src/hooks/voiceWorklets.ts
 var RECORDER_WORKLET_SOURCE = `
@@ -1487,42 +2043,42 @@ function mergeTranscriptText(prev, next) {
 }
 function useVoice(options = {}) {
   const { defaultAgentId, fetchWithAuth, logger } = usePersonaContext();
-  const voiceLogger = (0, import_react5.useMemo)(() => logger.child("voice"), [logger]);
+  const voiceLogger = (0, import_react6.useMemo)(() => logger.child("voice"), [logger]);
   const agentId = options.agentId || defaultAgentId;
   const threadId = options.threadId;
   const contextOverride = options.contextOverride;
   const context = options.context;
-  const [state, setState] = (0, import_react5.useState)("idle");
-  const [isMuted, setIsMuted] = (0, import_react5.useState)(false);
-  const [transcript, setTranscript] = (0, import_react5.useState)(
+  const [state, setState] = (0, import_react6.useState)("idle");
+  const [isMuted, setIsMuted] = (0, import_react6.useState)(false);
+  const [transcript, setTranscript] = (0, import_react6.useState)(
     []
   );
-  const [partial, setPartial] = (0, import_react5.useState)(
+  const [partial, setPartial] = (0, import_react6.useState)(
     null
   );
-  const [toolCalls, setToolCalls] = (0, import_react5.useState)([]);
-  const [error, setError] = (0, import_react5.useState)(null);
-  const [endReason, setEndReason] = (0, import_react5.useState)(
+  const [toolCalls, setToolCalls] = (0, import_react6.useState)([]);
+  const [error, setError] = (0, import_react6.useState)(null);
+  const [endReason, setEndReason] = (0, import_react6.useState)(
     null
   );
-  const wsRef = (0, import_react5.useRef)(null);
-  const streamRef = (0, import_react5.useRef)(null);
-  const inputCtxRef = (0, import_react5.useRef)(null);
-  const outputCtxRef = (0, import_react5.useRef)(null);
-  const recorderNodeRef = (0, import_react5.useRef)(null);
-  const playerNodeRef = (0, import_react5.useRef)(null);
-  const acceptedTurnSeqRef = (0, import_react5.useRef)(0);
-  const mountedRef = (0, import_react5.useRef)(true);
-  const lastFinalTurnRef = (0, import_react5.useRef)(
+  const wsRef = (0, import_react6.useRef)(null);
+  const streamRef = (0, import_react6.useRef)(null);
+  const inputCtxRef = (0, import_react6.useRef)(null);
+  const outputCtxRef = (0, import_react6.useRef)(null);
+  const recorderNodeRef = (0, import_react6.useRef)(null);
+  const playerNodeRef = (0, import_react6.useRef)(null);
+  const acceptedTurnSeqRef = (0, import_react6.useRef)(0);
+  const mountedRef = (0, import_react6.useRef)(true);
+  const lastFinalTurnRef = (0, import_react6.useRef)(
     null
   );
-  (0, import_react5.useEffect)(() => {
+  (0, import_react6.useEffect)(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
     };
   }, []);
-  const teardownAudio = (0, import_react5.useCallback)(() => {
+  const teardownAudio = (0, import_react6.useCallback)(() => {
     try {
       streamRef.current?.getTracks().forEach((track) => track.stop());
     } catch {
@@ -1549,7 +2105,7 @@ function useVoice(options = {}) {
     }
     outputCtxRef.current = null;
   }, []);
-  const stop = (0, import_react5.useCallback)(() => {
+  const stop = (0, import_react6.useCallback)(() => {
     voiceLogger.debug("stop() called");
     try {
       wsRef.current?.close(1e3, "client_stop");
@@ -1559,8 +2115,8 @@ function useVoice(options = {}) {
     teardownAudio();
     if (mountedRef.current) setState("idle");
   }, [teardownAudio, voiceLogger]);
-  (0, import_react5.useEffect)(() => stop, [stop]);
-  const startCapture = (0, import_react5.useCallback)(async (inputSampleRate) => {
+  (0, import_react6.useEffect)(() => stop, [stop]);
+  const startCapture = (0, import_react6.useCallback)(async (inputSampleRate) => {
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
@@ -1586,7 +2142,7 @@ function useVoice(options = {}) {
     recorderNodeRef.current = recorderNode;
     source.connect(recorderNode);
   }, []);
-  const setupPlayback = (0, import_react5.useCallback)(async (outputSampleRate) => {
+  const setupPlayback = (0, import_react6.useCallback)(async (outputSampleRate) => {
     const outputCtx = new AudioContext({ sampleRate: outputSampleRate });
     outputCtxRef.current = outputCtx;
     await outputCtx.audioWorklet.addModule(playerWorkletUrl());
@@ -1594,7 +2150,7 @@ function useVoice(options = {}) {
     playerNode.connect(outputCtx.destination);
     playerNodeRef.current = playerNode;
   }, []);
-  const upsertToolCall = (0, import_react5.useCallback)(
+  const upsertToolCall = (0, import_react6.useCallback)(
     (id, patch) => {
       setToolCalls((prev) => {
         const idx = prev.findIndex((t) => t.id === id);
@@ -1606,7 +2162,7 @@ function useVoice(options = {}) {
     },
     []
   );
-  const handleTranscript = (0, import_react5.useCallback)((value) => {
+  const handleTranscript = (0, import_react6.useCallback)((value) => {
     const { speaker, text, isFinal, turnSeq } = value;
     if (!isFinal) {
       setPartial({ id: "partial", speaker, text });
@@ -1629,7 +2185,7 @@ function useVoice(options = {}) {
     });
     lastFinalTurnRef.current = { speaker, turnSeq };
   }, []);
-  const handleCustomEvent = (0, import_react5.useCallback)(
+  const handleCustomEvent = (0, import_react6.useCallback)(
     (name, value) => {
       switch (name) {
         case "voice_session_ready":
@@ -1687,7 +2243,7 @@ function useVoice(options = {}) {
     },
     [handleTranscript, setupPlayback, startCapture, teardownAudio, voiceLogger]
   );
-  const handleMessage = (0, import_react5.useCallback)(
+  const handleMessage = (0, import_react6.useCallback)(
     (event) => {
       if (typeof event.data !== "string") {
         const buf = event.data;
@@ -1745,7 +2301,7 @@ function useVoice(options = {}) {
     },
     [handleCustomEvent, upsertToolCall, voiceLogger]
   );
-  const start = (0, import_react5.useCallback)(async () => {
+  const start = (0, import_react6.useCallback)(async () => {
     if (!agentId) {
       const err = new Error(
         "useVoice: no agentId provided and no defaultAgentId set on PersonaProvider"
@@ -1812,17 +2368,17 @@ function useVoice(options = {}) {
       teardownAudio();
     }
   }, [agentId, threadId, contextOverride, context, fetchWithAuth, handleMessage, teardownAudio, voiceLogger]);
-  const mute = (0, import_react5.useCallback)((muted) => {
+  const mute = (0, import_react6.useCallback)((muted) => {
     setIsMuted(muted);
     streamRef.current?.getAudioTracks().forEach((track) => {
       track.enabled = !muted;
     });
   }, []);
-  const sendText = (0, import_react5.useCallback)((text) => {
+  const sendText = (0, import_react6.useCallback)((text) => {
     if (!text?.trim() || wsRef.current?.readyState !== WebSocket.OPEN) return;
     wsRef.current.send(JSON.stringify({ type: "voice.text", text }));
   }, []);
-  const updateContext = (0, import_react5.useCallback)((newContext) => {
+  const updateContext = (0, import_react6.useCallback)((newContext) => {
     if (wsRef.current?.readyState !== WebSocket.OPEN) return;
     wsRef.current.send(JSON.stringify({ type: "voice.context", context: newContext }));
   }, []);
@@ -1843,14 +2399,14 @@ function useVoice(options = {}) {
 }
 
 // src/hooks/useFiles.ts
-var import_react6 = require("react");
+var import_react7 = require("react");
 function useFiles(autoFetch = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [files, setFiles] = (0, import_react6.useState)([]);
-  const [isLoading, setIsLoading] = (0, import_react6.useState)(false);
-  const [isUploading, setIsUploading] = (0, import_react6.useState)(false);
-  const [error, setError] = (0, import_react6.useState)(null);
-  const fetchFiles = (0, import_react6.useCallback)(async () => {
+  const [files, setFiles] = (0, import_react7.useState)([]);
+  const [isLoading, setIsLoading] = (0, import_react7.useState)(false);
+  const [isUploading, setIsUploading] = (0, import_react7.useState)(false);
+  const [error, setError] = (0, import_react7.useState)(null);
+  const fetchFiles = (0, import_react7.useCallback)(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -1868,7 +2424,7 @@ function useFiles(autoFetch = true) {
       setIsLoading(false);
     }
   }, [fetchWithAuth]);
-  const uploadFile = (0, import_react6.useCallback)(
+  const uploadFile = (0, import_react7.useCallback)(
     async (fileOrFormData) => {
       setIsUploading(true);
       setError(null);
@@ -1901,7 +2457,7 @@ function useFiles(autoFetch = true) {
     },
     [fetchWithAuth, fetchFiles]
   );
-  const deleteFile = (0, import_react6.useCallback)(
+  const deleteFile = (0, import_react7.useCallback)(
     async (fileId) => {
       const res = await fetchWithAuth(`/files/${fileId}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Failed to delete file: ${res.statusText}`);
@@ -1909,7 +2465,7 @@ function useFiles(autoFetch = true) {
     },
     [fetchWithAuth]
   );
-  const bulkDeleteFiles = (0, import_react6.useCallback)(
+  const bulkDeleteFiles = (0, import_react7.useCallback)(
     async (fileIds) => {
       const res = await fetchWithAuth("/files/bulk-delete", {
         method: "POST",
@@ -1924,10 +2480,10 @@ function useFiles(autoFetch = true) {
     },
     [fetchWithAuth]
   );
-  const getDownloadUrl = (0, import_react6.useCallback)((fileId) => {
+  const getDownloadUrl = (0, import_react7.useCallback)((fileId) => {
     return `/files/${fileId}`;
   }, []);
-  (0, import_react6.useEffect)(() => {
+  (0, import_react7.useEffect)(() => {
     if (autoFetch) {
       void fetchFiles();
     }
@@ -1946,13 +2502,13 @@ function useFiles(autoFetch = true) {
 }
 
 // src/hooks/useAgents.ts
-var import_react7 = require("react");
+var import_react8 = require("react");
 function useAgents(autoFetch = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [agents, setAgents] = (0, import_react7.useState)([]);
-  const [isLoading, setIsLoading] = (0, import_react7.useState)(false);
-  const [error, setError] = (0, import_react7.useState)(null);
-  const fetchAgents = (0, import_react7.useCallback)(async () => {
+  const [agents, setAgents] = (0, import_react8.useState)([]);
+  const [isLoading, setIsLoading] = (0, import_react8.useState)(false);
+  const [error, setError] = (0, import_react8.useState)(null);
+  const fetchAgents = (0, import_react8.useCallback)(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -1970,7 +2526,7 @@ function useAgents(autoFetch = true) {
       setIsLoading(false);
     }
   }, [fetchWithAuth]);
-  (0, import_react7.useEffect)(() => {
+  (0, import_react8.useEffect)(() => {
     if (autoFetch) {
       void fetchAgents();
     }
@@ -1984,13 +2540,13 @@ function useAgents(autoFetch = true) {
 }
 
 // src/hooks/useConnection.ts
-var import_react8 = require("react");
+var import_react9 = require("react");
 function useConnection(autoCheck = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [health, setHealth] = (0, import_react8.useState)(null);
-  const [isConnected, setIsConnected] = (0, import_react8.useState)(false);
-  const [isLoading, setIsLoading] = (0, import_react8.useState)(false);
-  const checkHealth = (0, import_react8.useCallback)(async () => {
+  const [health, setHealth] = (0, import_react9.useState)(null);
+  const [isConnected, setIsConnected] = (0, import_react9.useState)(false);
+  const [isLoading, setIsLoading] = (0, import_react9.useState)(false);
+  const checkHealth = (0, import_react9.useCallback)(async () => {
     setIsLoading(true);
     try {
       const res = await fetchWithAuth("/health");
@@ -2009,7 +2565,7 @@ function useConnection(autoCheck = true) {
       setIsLoading(false);
     }
   }, [fetchWithAuth]);
-  (0, import_react8.useEffect)(() => {
+  (0, import_react9.useEffect)(() => {
     if (autoCheck) {
       void checkHealth();
     }
@@ -2023,15 +2579,15 @@ function useConnection(autoCheck = true) {
 }
 
 // src/hooks/useMcpConnections.ts
-var import_react9 = require("react");
+var import_react10 = require("react");
 function useMcpConnections(options = {}) {
   const { defaultAgentId, fetchWithAuth } = usePersonaContext();
   const agentId = options.agentId ?? defaultAgentId;
   const autoFetch = options.autoFetch ?? true;
-  const [connections, setConnections] = (0, import_react9.useState)([]);
-  const [isLoading, setIsLoading] = (0, import_react9.useState)(false);
-  const [error, setError] = (0, import_react9.useState)(null);
-  const fetchConnections = (0, import_react9.useCallback)(async () => {
+  const [connections, setConnections] = (0, import_react10.useState)([]);
+  const [isLoading, setIsLoading] = (0, import_react10.useState)(false);
+  const [error, setError] = (0, import_react10.useState)(null);
+  const fetchConnections = (0, import_react10.useCallback)(async () => {
     if (!agentId) return [];
     setIsLoading(true);
     setError(null);
@@ -2055,7 +2611,7 @@ function useMcpConnections(options = {}) {
       setIsLoading(false);
     }
   }, [agentId, fetchWithAuth, options.returnTo]);
-  (0, import_react9.useEffect)(() => {
+  (0, import_react10.useEffect)(() => {
     if (autoFetch) void fetchConnections();
   }, [autoFetch, fetchConnections]);
   return {
@@ -2069,11 +2625,11 @@ function useMcpConnections(options = {}) {
 }
 
 // src/hooks/useMcp.ts
-var import_react10 = require("react");
+var import_react11 = require("react");
 function useMcp(options = {}) {
   const { fetchWithAuth } = usePersonaContext();
   const defaultMcpId = options.mcpId;
-  const readResource = (0, import_react10.useCallback)(
+  const readResource = (0, import_react11.useCallback)(
     async (uri, mcpId) => {
       const id = mcpId ?? defaultMcpId;
       if (!id) throw new Error("MCP server ID is required to read resource");
@@ -2087,7 +2643,7 @@ function useMcp(options = {}) {
     },
     [fetchWithAuth, defaultMcpId]
   );
-  const callTool = (0, import_react10.useCallback)(
+  const callTool = (0, import_react11.useCallback)(
     async (name, args, mcpId) => {
       const id = mcpId ?? defaultMcpId;
       if (!id) throw new Error("MCP server ID is required to call tool");
@@ -2110,21 +2666,21 @@ function useMcp(options = {}) {
 }
 
 // src/hooks/useWorkflows.ts
-var import_react11 = require("react");
+var import_react12 = require("react");
 function useWorkflows(options) {
   const opts = typeof options === "boolean" ? { autoFetch: options } : options ?? {};
   const { autoFetch = true, search, status, page, limit } = opts;
   const { fetchWithAuth } = usePersonaContext();
-  const [workflows, setWorkflows] = (0, import_react11.useState)([]);
-  const [pagination, setPagination] = (0, import_react11.useState)({
+  const [workflows, setWorkflows] = (0, import_react12.useState)([]);
+  const [pagination, setPagination] = (0, import_react12.useState)({
     page: page ?? 1,
     limit: limit ?? 20,
     total: 0,
     totalPages: 0
   });
-  const [isLoading, setIsLoading] = (0, import_react11.useState)(false);
-  const [error, setError] = (0, import_react11.useState)(null);
-  const fetchWorkflows = (0, import_react11.useCallback)(async () => {
+  const [isLoading, setIsLoading] = (0, import_react12.useState)(false);
+  const [error, setError] = (0, import_react12.useState)(null);
+  const fetchWorkflows = (0, import_react12.useCallback)(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -2165,7 +2721,7 @@ function useWorkflows(options) {
       setIsLoading(false);
     }
   }, [fetchWithAuth, search, status, page, limit]);
-  const createWorkflow = (0, import_react11.useCallback)(
+  const createWorkflow = (0, import_react12.useCallback)(
     async (input) => {
       setError(null);
       try {
@@ -2189,7 +2745,7 @@ function useWorkflows(options) {
     },
     [fetchWithAuth]
   );
-  (0, import_react11.useEffect)(() => {
+  (0, import_react12.useEffect)(() => {
     if (autoFetch) {
       void fetchWorkflows();
     }
@@ -2205,17 +2761,17 @@ function useWorkflows(options) {
 }
 
 // src/hooks/useWorkflow.ts
-var import_react12 = require("react");
+var import_react13 = require("react");
 function useWorkflow(workflowId, options) {
   const opts = typeof options === "boolean" ? { autoFetch: options } : options ?? {};
   const { autoFetch = true } = opts;
   const { fetchWithAuth } = usePersonaContext();
-  const [workflow, setWorkflow] = (0, import_react12.useState)(null);
-  const [versions, setVersions] = (0, import_react12.useState)([]);
-  const [mermaid, setMermaid] = (0, import_react12.useState)(null);
-  const [isLoading, setIsLoading] = (0, import_react12.useState)(false);
-  const [error, setError] = (0, import_react12.useState)(null);
-  const fetchWorkflow = (0, import_react12.useCallback)(async () => {
+  const [workflow, setWorkflow] = (0, import_react13.useState)(null);
+  const [versions, setVersions] = (0, import_react13.useState)([]);
+  const [mermaid, setMermaid] = (0, import_react13.useState)(null);
+  const [isLoading, setIsLoading] = (0, import_react13.useState)(false);
+  const [error, setError] = (0, import_react13.useState)(null);
+  const fetchWorkflow = (0, import_react13.useCallback)(async () => {
     if (!workflowId) return null;
     setIsLoading(true);
     setError(null);
@@ -2235,7 +2791,7 @@ function useWorkflow(workflowId, options) {
       setIsLoading(false);
     }
   }, [fetchWithAuth, workflowId]);
-  const fetchVersions = (0, import_react12.useCallback)(async () => {
+  const fetchVersions = (0, import_react13.useCallback)(async () => {
     if (!workflowId) return [];
     try {
       const res = await fetchWithAuth(`/workflows/${workflowId}/versions`);
@@ -2248,7 +2804,7 @@ function useWorkflow(workflowId, options) {
       return [];
     }
   }, [fetchWithAuth, workflowId]);
-  const fetchMermaid = (0, import_react12.useCallback)(async () => {
+  const fetchMermaid = (0, import_react13.useCallback)(async () => {
     if (!workflowId) return "";
     try {
       const res = await fetchWithAuth(`/workflows/${workflowId}/mermaid`);
@@ -2261,7 +2817,7 @@ function useWorkflow(workflowId, options) {
       return "";
     }
   }, [fetchWithAuth, workflowId]);
-  const saveDraft = (0, import_react12.useCallback)(
+  const saveDraft = (0, import_react13.useCallback)(
     async (draft) => {
       if (!workflowId) throw new Error("Workflow ID is required");
       setError(null);
@@ -2280,7 +2836,7 @@ function useWorkflow(workflowId, options) {
     },
     [fetchWithAuth, workflowId]
   );
-  const publish = (0, import_react12.useCallback)(
+  const publish = (0, import_react13.useCallback)(
     async (summary) => {
       if (!workflowId) throw new Error("Workflow ID is required");
       setError(null);
@@ -2300,7 +2856,7 @@ function useWorkflow(workflowId, options) {
     },
     [fetchWithAuth, workflowId, fetchWorkflow, fetchVersions]
   );
-  const deleteWorkflow = (0, import_react12.useCallback)(async () => {
+  const deleteWorkflow = (0, import_react13.useCallback)(async () => {
     if (!workflowId) throw new Error("Workflow ID is required");
     setError(null);
     const res = await fetchWithAuth(`/workflows/${workflowId}`, {
@@ -2311,7 +2867,7 @@ function useWorkflow(workflowId, options) {
     }
     setWorkflow(null);
   }, [fetchWithAuth, workflowId]);
-  (0, import_react12.useEffect)(() => {
+  (0, import_react13.useEffect)(() => {
     if (autoFetch && workflowId) {
       void fetchWorkflow();
     }
@@ -2332,25 +2888,25 @@ function useWorkflow(workflowId, options) {
 }
 
 // src/hooks/useWorkflowStream.ts
-var import_react13 = require("react");
+var import_react14 = require("react");
 function useWorkflowStream(workflowId, options) {
   const { baseUrl, getAuthToken, fetchWithAuth, logger } = usePersonaContext();
-  const [status, setStatus] = (0, import_react13.useState)("idle");
-  const [runId, setRunId] = (0, import_react13.useState)(null);
-  const [activeNodeId, setActiveNodeId] = (0, import_react13.useState)(null);
-  const [nodeRuns, setNodeRuns] = (0, import_react13.useState)(
+  const [status, setStatus] = (0, import_react14.useState)("idle");
+  const [runId, setRunId] = (0, import_react14.useState)(null);
+  const [activeNodeId, setActiveNodeId] = (0, import_react14.useState)(null);
+  const [nodeRuns, setNodeRuns] = (0, import_react14.useState)(
     {}
   );
-  const [text, setText] = (0, import_react13.useState)("");
-  const [output, setOutput] = (0, import_react13.useState)(null);
-  const [error, setError] = (0, import_react13.useState)(null);
-  const [events, setEvents] = (0, import_react13.useState)([]);
-  const abortControllerRef = (0, import_react13.useRef)(null);
-  const currentRunIdRef = (0, import_react13.useRef)(null);
+  const [text, setText] = (0, import_react14.useState)("");
+  const [output, setOutput] = (0, import_react14.useState)(null);
+  const [error, setError] = (0, import_react14.useState)(null);
+  const [events, setEvents] = (0, import_react14.useState)([]);
+  const abortControllerRef = (0, import_react14.useRef)(null);
+  const currentRunIdRef = (0, import_react14.useRef)(null);
   currentRunIdRef.current = runId;
-  const optionsRef = (0, import_react13.useRef)(options);
+  const optionsRef = (0, import_react14.useRef)(options);
   optionsRef.current = options;
-  const cancel = (0, import_react13.useCallback)(async () => {
+  const cancel = (0, import_react14.useCallback)(async () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
@@ -2371,7 +2927,7 @@ function useWorkflowStream(workflowId, options) {
     setStatus("cancelled");
     setActiveNodeId(null);
   }, [fetchWithAuth, logger]);
-  const reset = (0, import_react13.useCallback)(() => {
+  const reset = (0, import_react14.useCallback)(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
@@ -2385,7 +2941,7 @@ function useWorkflowStream(workflowId, options) {
     setError(null);
     setEvents([]);
   }, []);
-  const processStream = (0, import_react13.useCallback)(
+  const processStream = (0, import_react14.useCallback)(
     async (url, method, body, targetRunId) => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -2550,7 +3106,7 @@ function useWorkflowStream(workflowId, options) {
     },
     [getAuthToken]
   );
-  const start = (0, import_react13.useCallback)(
+  const start = (0, import_react14.useCallback)(
     async (input, opts) => {
       const targetWfId = opts?.workflowId || workflowId;
       if (!targetWfId) {
@@ -2571,7 +3127,7 @@ function useWorkflowStream(workflowId, options) {
     },
     [workflowId, baseUrl, processStream]
   );
-  const resume = (0, import_react13.useCallback)(
+  const resume = (0, import_react14.useCallback)(
     async (targetRunId, sinceSeq) => {
       if (!targetRunId) {
         throw new Error("Run ID is required to resume stream");
@@ -2584,7 +3140,7 @@ function useWorkflowStream(workflowId, options) {
     },
     [baseUrl, processStream]
   );
-  (0, import_react13.useEffect)(() => {
+  (0, import_react14.useEffect)(() => {
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -2609,21 +3165,21 @@ function useWorkflowStream(workflowId, options) {
 }
 
 // src/hooks/useWorkflowRuns.ts
-var import_react14 = require("react");
+var import_react15 = require("react");
 function useWorkflowRuns(workflowId, options) {
   const opts = typeof options === "boolean" ? { autoFetch: options } : options ?? {};
   const { autoFetch = true, page = 1, limit = 20 } = opts;
   const { fetchWithAuth } = usePersonaContext();
-  const [runs, setRuns] = (0, import_react14.useState)([]);
-  const [pagination, setPagination] = (0, import_react14.useState)({
+  const [runs, setRuns] = (0, import_react15.useState)([]);
+  const [pagination, setPagination] = (0, import_react15.useState)({
     page,
     limit,
     total: 0,
     totalPages: 0
   });
-  const [isLoading, setIsLoading] = (0, import_react14.useState)(false);
-  const [error, setError] = (0, import_react14.useState)(null);
-  const fetchRuns = (0, import_react14.useCallback)(async () => {
+  const [isLoading, setIsLoading] = (0, import_react15.useState)(false);
+  const [error, setError] = (0, import_react15.useState)(null);
+  const fetchRuns = (0, import_react15.useCallback)(async () => {
     if (!workflowId) return [];
     setIsLoading(true);
     setError(null);
@@ -2653,7 +3209,7 @@ function useWorkflowRuns(workflowId, options) {
       setIsLoading(false);
     }
   }, [fetchWithAuth, workflowId, page, limit]);
-  const getRun = (0, import_react14.useCallback)(
+  const getRun = (0, import_react15.useCallback)(
     async (runId) => {
       if (!runId) throw new Error("Run ID is required");
       const res = await fetchWithAuth(`/workflows/runs/${runId}`);
@@ -2664,7 +3220,7 @@ function useWorkflowRuns(workflowId, options) {
     },
     [fetchWithAuth]
   );
-  const cancelRun = (0, import_react14.useCallback)(
+  const cancelRun = (0, import_react15.useCallback)(
     async (runId) => {
       if (!runId) throw new Error("Run ID is required");
       const res = await fetchWithAuth(`/workflows/runs/${runId}/cancel`, {
@@ -2679,7 +3235,7 @@ function useWorkflowRuns(workflowId, options) {
     },
     [fetchWithAuth]
   );
-  (0, import_react14.useEffect)(() => {
+  (0, import_react15.useEffect)(() => {
     if (autoFetch && workflowId) {
       void fetchRuns();
     }
@@ -2697,9 +3253,10 @@ function useWorkflowRuns(workflowId, options) {
 
 // src/index.ts
 var import_logger2 = require("@personaai/logger");
-var VERSION = "0.9.0";
+var VERSION = "0.10.0";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  ARCHITECT_AGENT_ID,
   PersonaProvider,
   VERSION,
   createLogger,
@@ -2710,6 +3267,7 @@ var VERSION = "0.9.0";
   setLogLevel,
   supportsStreamingFetch,
   useAgents,
+  useArchitectChat,
   useChat,
   useConnection,
   useFiles,

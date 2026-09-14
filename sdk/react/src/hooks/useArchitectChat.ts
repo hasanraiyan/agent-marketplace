@@ -8,15 +8,13 @@ import type {
   PersonaMessage,
   PersonaPresentedFile,
   PersonaResumeValue,
-  PersonaRole,
-  PersonaSandboxCommand,
   PersonaStreamingEvent,
   PersonaSubagentActivityEntry,
   PersonaTodo,
   PersonaToolCall,
   PersonaWorkspaceFile,
-  SendMessageOverride,
-  UseChatOptions,
+  SendArchitectMessageOverride,
+  UseArchitectChatOptions,
 } from "../types.js";
 import {
   isErrorToolContent,
@@ -27,54 +25,37 @@ import {
   type PersistedSubagentTraceItem,
 } from "./streamEventHelpers.js";
 
-// execute's args are `{ command }` and result `{ output, exitCode }` (see
-// CodeSandboxBackend.execute, agent-backend/src/modules/sandbox) — both
-// arrive here as opaque JSON strings, so this stays defensive rather than
-// assuming either parses cleanly (args in particular is still-accumulating
-// JSON while the call streams in).
-function parseSandboxCommand(tc: PersonaToolCall): PersonaSandboxCommand {
-  let command = tc.args ?? "";
-  try {
-    const parsedArgs = JSON.parse(tc.args || "{}");
-    if (typeof parsedArgs.command === "string") command = parsedArgs.command;
-  } catch {
-    // incomplete/still-streaming args — show the raw partial string
-  }
+/**
+ * The Developer Platform Architect's own reserved Agent id
+ * (`DEVELOPER_ARCHITECT_AGENT_ID` in agent-backend/src/modules/agents/
+ * architectConstants.js) — it isn't a row in the Agent collection, but the
+ * backend's `POST /api/v1/developer/threads` special-cases exactly this id
+ * past its usual Agent-existence check (see developerThread.controller.js's
+ * `assertAgentAccessible`), so a named Architect Thread can be created the
+ * same way as for a real Agent. Kept in sync with that backend constant —
+ * update both together if it ever changes.
+ */
+export const ARCHITECT_AGENT_ID = "000000000000000000000002";
 
-  let output: string | undefined;
-  let exitCode: number | null | undefined;
-  if (tc.result) {
-    try {
-      const parsedResult = JSON.parse(tc.result);
-      if (typeof parsedResult.output === "string") {
-        output = parsedResult.output;
-        exitCode =
-          typeof parsedResult.exitCode === "number"
-            ? parsedResult.exitCode
-            : null;
-      } else {
-        output = tc.result;
-      }
-    } catch {
-      output = tc.result;
-    }
-  }
-
-  return {
-    toolCallId: tc.toolCallId,
-    command,
-    output,
-    exitCode,
-    status: tc.isError ? "error" : tc.result ? "done" : "running",
-    seq: tc.seq,
-  };
-}
-
-export function useChat(options: UseChatOptions = {}) {
-  const { defaultAgentId, fetchWithAuth, baseUrl, getAuthToken, logger } =
-    usePersonaContext();
-  const chatLogger = useMemo(() => logger.child("chat"), [logger]);
-  const agentId = options.agentId || defaultAgentId;
+/**
+ * Runs the Agent Architect co-pilot — a conversational tool-calling agent
+ * that creates/edits the caller's own Agents (`manage_agent`, `manage_skill`,
+ * etc.), reached over the runtime's `POST /architect` route (see
+ * `@personaai/runtime`'s `routes/architect.ts`). Structurally a trimmed
+ * `useChat`: same streaming/interrupt/reload/thread-resume mechanics, but
+ * with no `agentId` to pass (the Architect is a single fixed target) and no
+ * `voice`/`sandboxCommands` (the Architect has no voice mode and no
+ * `execute` tool).
+ *
+ * `threadId` resume only has an effect when the underlying credential
+ * asserts an external user — a bare Project credential has no Subject for a
+ * Thread to belong to, so the backend silently keeps its single
+ * deterministic per-Project conversation either way (see
+ * `developerArchitect.controller.js`'s doc comment).
+ */
+export function useArchitectChat(options: UseArchitectChatOptions = {}) {
+  const { fetchWithAuth, baseUrl, getAuthToken, logger } = usePersonaContext();
+  const chatLogger = useMemo(() => logger.child("architect"), [logger]);
   const threadId = options.threadId;
   // Ephemeral/fake thread support: when threadId is null/undefined the chat is
   // in "new chat" mode — no history fetch, no thread creation until first send.
@@ -92,13 +73,11 @@ export function useChat(options: UseChatOptions = {}) {
   const didLogInitRef = useRef(false);
   if (!didLogInitRef.current) {
     didLogInitRef.current = true;
-    chatLogger.debug("useChat init", {
-      agentId,
+    chatLogger.debug("useArchitectChat init", {
       threadId,
       hasInitialMessages: !!options.initialMessages?.length,
     });
-    chatLogger.trace("useChat options", {
-      agentId,
+    chatLogger.trace("useArchitectChat options", {
       threadId,
       initialMessageCount: options.initialMessages?.length ?? 0,
     });
@@ -117,30 +96,8 @@ export function useChat(options: UseChatOptions = {}) {
   const [presentedFile, setPresentedFile] =
     useState<PersonaPresentedFile | null>(null);
 
-  // Derived (not separately tracked) from `messages` — every `execute` tool
-  // call already lives there, both live-streamed and loaded from history, so
-  // this stays correct for free instead of needing its own reset/restore
-  // logic the way `presentedFile` (a single most-recent value, not a list)
-  // does.
-  const sandboxCommands = useMemo<PersonaSandboxCommand[]>(() => {
-    const commands: PersonaSandboxCommand[] = [];
-    for (const message of messages) {
-      for (const tc of message.toolCalls ?? []) {
-        if (tc.toolName === "execute") commands.push(parseSandboxCommand(tc));
-      }
-    }
-    return commands;
-  }, [messages]);
-
   const abortControllerRef = useRef<AbortController | null>(null);
   const loadedThreadIdRef = useRef<string | undefined>(undefined);
-
-  // Voice sync bookkeeping — see the effect below. Kept as refs (not state)
-  // because they're pure injection-cursor plumbing, never rendered.
-  const voiceThreadRef = useRef<string | undefined>(effectiveThreadId);
-  const voicePrevLenRef = useRef(0);
-  const voiceStreamingIdRef = useRef<string | null>(null);
-  const voiceUserPartialIdRef = useRef<string | null>(null);
 
   const stop = useCallback(() => {
     if (abortControllerRef.current) {
@@ -181,10 +138,6 @@ export function useChat(options: UseChatOptions = {}) {
     setPresentedFile(null);
     setInput("");
     loadedThreadIdRef.current = undefined;
-    voiceThreadRef.current = undefined;
-    voicePrevLenRef.current = 0;
-    voiceStreamingIdRef.current = null;
-    voiceUserPartialIdRef.current = null;
     setInternalThreadId(undefined);
   }, [stop, chatLogger]);
 
@@ -292,197 +245,24 @@ export function useChat(options: UseChatOptions = {}) {
     void loadThreadMessages(effectiveThreadId);
   }, [effectiveThreadId, isStreaming, messages.length, loadThreadMessages, chatLogger]);
 
-  // Merge a `useVoice()` session's live transcript into `messages` — see
-  // `UseChatOptions.voice`. This replaces the hand-rolled sync effects the
-  // README used to tell every consumer to write themselves (dedup against
-  // thread history, merge same-speaker fragments into one bubble, update the
-  // in-progress agent line in place, and not replay a call's old transcript
-  // after a threadId switch under the same `useVoice()` instance).
-  const voice = options.voice;
-  useEffect(() => {
-    if (!voice) return;
-
-    // The passed useVoice() instance now targets a different thread (e.g. the
-    // host app switched conversations without remounting either hook) — its
-    // transcript belongs to a call that's over as far as this feed is
-    // concerned. Stop injecting and don't let anything already spoken bleed
-    // into the new thread's feed once a new call starts.
-    if (voiceThreadRef.current !== effectiveThreadId) {
-      voiceThreadRef.current = effectiveThreadId;
-      voicePrevLenRef.current = voice.transcript.length;
-      voiceStreamingIdRef.current = null;
-      voiceUserPartialIdRef.current = null;
-      return;
-    }
-
-    const isVoiceActive =
-      voice.state !== "idle" && voice.state !== "ended" && voice.state !== "error";
-    const curLen = voice.transcript.length;
-
-    // start() resets transcript to [] for a fresh call — realign the cursor.
-    if (curLen < voicePrevLenRef.current) {
-      voicePrevLenRef.current = 0;
-      voiceStreamingIdRef.current = null;
-      voiceUserPartialIdRef.current = null;
-    }
-
-    if (!isVoiceActive) {
-      // Flush any unseen transcript lines that arrived just before stop()
-      // set state to idle (A1). Previously this block only advanced the
-      // pointer, permanently discarding the final user utterance.
-      if (curLen > voicePrevLenRef.current) {
-        const pendingLines = voice.transcript.slice(voicePrevLenRef.current);
-        voicePrevLenRef.current = curLen;
-        for (const line of pendingLines) {
-          const text = (line.text || "").trim();
-          if (!text) continue;
-          const role: PersonaRole = line.speaker === "user" ? "user" : "assistant";
-          const voiceId = `voice-${line.id}`;
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === voiceId)) return prev;
-            if (prev.some((m) => !m.id.startsWith("voice-") && m.role === role && m.content.trim() === text)) return prev;
-            const last = prev[prev.length - 1];
-            if (last?.id.startsWith("voice-") && last.role === "assistant" && role === "assistant") {
-              const merged = text.startsWith(last.content) ? text : `${last.content} ${text}`.trim();
-              return [...prev.slice(0, -1), { ...last, content: merged, isStreaming: false }];
-            }
-            return [...prev, { id: voiceId, role, content: text, createdAt: new Date() }];
-          });
-        }
-      } else {
-        voicePrevLenRef.current = voice.transcript.length;
-      }
-      if (voiceStreamingIdRef.current) {
-        const doneId = voiceStreamingIdRef.current;
-        voiceStreamingIdRef.current = null;
-        setMessages((prev) => prev.map((m) => (m.id === doneId ? { ...m, isStreaming: false } : m)));
-      }
-      if (voiceUserPartialIdRef.current) {
-        const doneId = voiceUserPartialIdRef.current;
-        voiceUserPartialIdRef.current = null;
-        setMessages((prev) => prev.map((m) => (m.id === doneId ? { ...m, isStreaming: false } : m)));
-      }
-      return;
-    }
-
-    if (curLen > voicePrevLenRef.current) {
-      const newLines = voice.transcript.slice(voicePrevLenRef.current);
-      voicePrevLenRef.current = curLen;
-      for (const line of newLines) {
-        const text = (line.text || "").trim();
-        if (!text) continue;
-        const role: PersonaRole = line.speaker === "user" ? "user" : "assistant";
-        const voiceId = `voice-${line.id}`;
-        setMessages((prev) => {
-          // Already injected this exact line.
-          if (prev.some((m) => m.id === voiceId)) return prev;
-          // Already on the thread as a persisted turn (voice shares the
-          // thread, so a refresh/reload can already hold it).
-          if (
-            prev.some(
-              (m) =>
-                !m.id.startsWith("voice-") &&
-                m.role === role &&
-                m.content.trim() === text,
-            )
-          )
-            return prev;
-          const last = prev[prev.length - 1];
-          // Consecutive agent finals of one spoken answer merge into the
-          // bubble they opened, same as useVoice() does for `transcript`
-          // itself — mirrors how the thread coalesces them on reload.
-          if (last?.id.startsWith("voice-") && last.role === "assistant" && role === "assistant") {
-            const merged = text.startsWith(last.content)
-              ? text
-              : `${last.content} ${text}`.trim();
-            return [...prev.slice(0, -1), { ...last, content: merged, isStreaming: false }];
-          }
-          return [...prev, { id: voiceId, role, content: text, createdAt: new Date() }];
-        });
-      }
-    }
-
-    const agentPartialText = voice.partial?.speaker === "agent" ? voice.partial.text.trim() : "";
-    const userPartialText = voice.partial?.speaker === "user" ? voice.partial.text.trim() : "";
-
-    if (agentPartialText) {
-      if (voiceUserPartialIdRef.current) {
-        const doneId = voiceUserPartialIdRef.current;
-        voiceUserPartialIdRef.current = null;
-        setMessages((prev) => prev.map((m) => (m.id === doneId ? { ...m, isStreaming: false } : m)));
-      }
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last?.id.startsWith("voice-") && last.role === "assistant") {
-          voiceStreamingIdRef.current = last.id;
-          return [...prev.slice(0, -1), { ...last, content: agentPartialText, isStreaming: true }];
-        }
-        const id = voiceStreamingIdRef.current || `voice-partial-${Date.now()}`;
-        voiceStreamingIdRef.current = id;
-        return [...prev, { id, role: "assistant", content: agentPartialText, isStreaming: true, createdAt: new Date() }];
-      });
-    } else if (userPartialText) {
-      if (voiceStreamingIdRef.current) {
-        const doneId = voiceStreamingIdRef.current;
-        voiceStreamingIdRef.current = null;
-        setMessages((prev) => prev.map((m) => (m.id === doneId ? { ...m, isStreaming: false } : m)));
-      }
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last?.id.startsWith("voice-") && last.role === "user" && last.isStreaming) {
-          voiceUserPartialIdRef.current = last.id;
-          return [...prev.slice(0, -1), { ...last, content: userPartialText, isStreaming: true }];
-        }
-        const id = voiceUserPartialIdRef.current || `voice-partial-user-${Date.now()}`;
-        voiceUserPartialIdRef.current = id;
-        return [...prev, { id, role: "user", content: userPartialText, isStreaming: true, createdAt: new Date() }];
-      });
-    } else {
-      if (voiceStreamingIdRef.current && voice.state !== "speaking") {
-        const doneId = voiceStreamingIdRef.current;
-        voiceStreamingIdRef.current = null;
-        setMessages((prev) => prev.map((m) => (m.id === doneId ? { ...m, isStreaming: false } : m)));
-      }
-      if (voiceUserPartialIdRef.current) {
-        const doneId = voiceUserPartialIdRef.current;
-        voiceUserPartialIdRef.current = null;
-        setMessages((prev) => prev.map((m) => (m.id === doneId ? { ...m, isStreaming: false } : m)));
-      }
-    }
-    // `voice` itself isn't a dep — useVoice() returns a fresh object every
-    // render, so keying off it would re-run this every render regardless of
-    // whether the transcript actually changed.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [voice?.transcript, voice?.partial, voice?.state, effectiveThreadId]);
-
   // Internal stream executor — shared by sendMessage and reload so reload can
-  // supply a truncated base (B1: reload must not build nextMessages from the
-  // stale full closure). Caller has already validated prompt/isStreaming.
+  // supply a truncated base (mirrors useChat's doSend). Caller has already
+  // validated prompt/isStreaming.
   const doSend = useCallback(
-    async (prompt: string, baseMessages: PersonaMessage[], overrideOptions?: SendMessageOverride): Promise<boolean> => {
-      const targetAgentId = overrideOptions?.agentId || agentId;
-      if (!targetAgentId) {
-        const err = new Error("No Agent ID specified for useChat.");
-        chatLogger.warn("sendMessage no agentId", {});
-        chatLogger.error("sendMessage failed — no agent", { error: err.message });
-        setError(err);
-        options.onError?.(err);
-        return false;
-      }
-
+    async (
+      prompt: string,
+      baseMessages: PersonaMessage[],
+      overrideOptions?: SendArchitectMessageOverride,
+    ): Promise<boolean> => {
       chatLogger.debug("sendMessage start", {
         promptPreview: prompt.slice(0, 100),
-        agentId: targetAgentId,
         threadId: effectiveThreadId ?? (overrideOptions?.threadId as string | undefined),
         hasResume: !!overrideOptions?.resume,
-        hasContextOverride: !!overrideOptions?.contextOverride,
         messageCount: baseMessages.length,
       });
       chatLogger.trace("sendMessage details", {
-        agentId: targetAgentId,
         promptPreview: prompt.slice(0, 200),
         hasResume: !!overrideOptions?.resume,
-        hasContextOverride: !!overrideOptions?.contextOverride,
       });
 
       const userMessage: PersonaMessage = {
@@ -528,11 +308,11 @@ export function useChat(options: UseChatOptions = {}) {
 
         let resolvedThreadId: string | undefined = (await (overrideOptions?.threadId as string | undefined)) ?? effectiveThreadId;
         if (!resolvedThreadId) {
-          chatLogger.info("minting real thread for ephemeral chat", { agentId: targetAgentId });
+          chatLogger.info("minting real thread for ephemeral architect chat", {});
           const createRes = await fetchWithAuth("/threads", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ agentId: targetAgentId }),
+            body: JSON.stringify({ agentId: ARCHITECT_AGENT_ID }),
           });
           if (!createRes.ok) throw new Error(`Failed to create thread: ${createRes.statusText}`);
           const createBody = await createRes.json();
@@ -542,44 +322,36 @@ export function useChat(options: UseChatOptions = {}) {
           setInternalThreadId(resolvedThreadId);
           loadedThreadIdRef.current = resolvedThreadId;
           options.onThreadCreated?.(resolvedThreadId);
-          chatLogger.info("ephemeral chat minted", { threadId: resolvedThreadId });
+          chatLogger.info("ephemeral architect chat minted", { threadId: resolvedThreadId });
         }
         chatLogger.trace("resolved threadId", { threadId: resolvedThreadId });
 
         const token = getAuthToken ? await getAuthToken() : null;
-        const resolvedHookContext = typeof options.context === "function" ? options.context() : options.context;
-        const mergedContext = { ...resolvedHookContext, ...overrideOptions?.context };
-        const hasContext = Object.keys(mergedContext).length > 0;
         chatLogger.debug("opening SSE stream", {
-          agentId: targetAgentId,
           hasToken: !!token,
           hasThreadId: !!resolvedThreadId,
-          hasContext,
         });
         const stream = await openSSEStream({
-          url: `${baseUrl}/chat`,
+          url: `${baseUrl}/architect`,
           headers: {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           body: JSON.stringify({
-            agentId: targetAgentId,
             messages: payloadMessages,
             threadId: resolvedThreadId,
             resume: overrideOptions?.resume,
-            contextOverride: overrideOptions?.contextOverride,
-            ...(hasContext ? { context: mergedContext } : {}),
           }),
           signal: controller.signal,
         });
 
         if (!stream.ok) {
           chatLogger.warn("SSE stream not ok", { status: stream.status, errorText: stream.errorText });
-          chatLogger.error("chat stream failed", { agentId: targetAgentId, status: stream.status, error: stream.errorText });
-          throw new Error(`Chat error (${stream.status}): ${stream.errorText ?? "Stream failed"}`);
+          chatLogger.error("architect stream failed", { status: stream.status, error: stream.errorText });
+          throw new Error(`Architect error (${stream.status}): ${stream.errorText ?? "Stream failed"}`);
         }
-        chatLogger.debug("SSE stream opened", { agentId: targetAgentId, status: stream.status });
-        chatLogger.info("chat stream started", { agentId: targetAgentId, threadId: resolvedThreadId });
+        chatLogger.debug("SSE stream opened", { status: stream.status });
+        chatLogger.info("architect stream started", { threadId: resolvedThreadId });
 
         const reader = stream.reader;
         let buffer = "";
@@ -721,7 +493,7 @@ export function useChat(options: UseChatOptions = {}) {
                 const title = (event as { title?: string }).title;
                 if (typeof title === "string" && title.trim()) {
                   chatLogger.info("auto title", { title });
-                  (options as { onTitle?: (t: string) => void }).onTitle?.(title);
+                  options.onTitle?.(title);
                 }
               } else if (event.type === "RUN_ERROR") {
                 chatLogger.warn("run error", { message: event.message, code: event.code });
@@ -746,20 +518,20 @@ export function useChat(options: UseChatOptions = {}) {
           toolCalls: Array.from(toolCallsMap.values()),
         };
         setMessages((prev) => prev.map((msg) => (msg.id === assistantMessageId ? finalMessage : msg)));
-        chatLogger.info("sendMessage succeeded", { agentId: targetAgentId, textLength: accumulatedText.length, toolCallCount: toolCallsMap.size });
-        chatLogger.debug("sendMessage completed", { agentId: targetAgentId, textLength: accumulatedText.length, eventCount: toolCallsMap.size + 1 });
+        chatLogger.info("sendMessage succeeded", { textLength: accumulatedText.length, toolCallCount: toolCallsMap.size });
+        chatLogger.debug("sendMessage completed", { textLength: accumulatedText.length, eventCount: toolCallsMap.size + 1 });
         options.onFinish?.(finalMessage);
         return true;
       } catch (err) {
         if (controller.signal.aborted) {
-          chatLogger.info("sendMessage aborted", { agentId: targetAgentId });
-          chatLogger.debug("stream aborted", { agentId: targetAgentId });
+          chatLogger.info("sendMessage aborted", {});
+          chatLogger.debug("stream aborted", {});
           setMessages((prev) => prev.map((msg) => (msg.id === assistantMessageId ? { ...msg, isStreaming: false } : msg)));
           return false;
         }
         const errorObj = err instanceof Error ? err : new Error(String(err));
-        chatLogger.warn("sendMessage failed", { agentId: targetAgentId, error: errorObj.message });
-        chatLogger.error("sendMessage error", { agentId: targetAgentId, error: errorObj.message });
+        chatLogger.warn("sendMessage failed", { error: errorObj.message });
+        chatLogger.error("sendMessage error", { error: errorObj.message });
         setError(errorObj);
         options.onError?.(errorObj);
         setMessages((prev) =>
@@ -774,15 +546,15 @@ export function useChat(options: UseChatOptions = {}) {
         setIsStreaming(false);
         abortControllerRef.current = null;
         finalizeReasoning();
-        chatLogger.debug("sendMessage finally", { agentId: targetAgentId, isStreaming: false });
-        chatLogger.trace("sendMessage end", { agentId: targetAgentId });
+        chatLogger.debug("sendMessage finally", { isStreaming: false });
+        chatLogger.trace("sendMessage end", {});
       }
     },
-    [agentId, baseUrl, getAuthToken, fetchWithAuth, options, chatLogger, effectiveThreadId],
+    [baseUrl, getAuthToken, fetchWithAuth, options, chatLogger, effectiveThreadId],
   );
 
   const sendMessage = useCallback(
-    async (contentToSend?: string, overrideOptions?: SendMessageOverride): Promise<boolean> => {
+    async (contentToSend?: string, overrideOptions?: SendArchitectMessageOverride): Promise<boolean> => {
       const prompt = (contentToSend ?? input).trim();
       if (!prompt || isStreaming) {
         chatLogger.trace("sendMessage skipped", {
@@ -900,7 +672,6 @@ export function useChat(options: UseChatOptions = {}) {
     presentedFile,
     dismissPresentedFile,
     openWorkspaceFile,
-    sandboxCommands,
     stop,
     reload,
     clear,

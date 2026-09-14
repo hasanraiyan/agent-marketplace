@@ -59,12 +59,12 @@ const {
 } = await import('../dist/index.js');
 
 describe('Workflows exports & streaming', () => {
-  it('exports all workflow hooks and version 0.9.0', () => {
+  it('exports all workflow hooks and version 0.10.0', () => {
     assert.equal(typeof useWorkflows, 'function');
     assert.equal(typeof useWorkflow, 'function');
     assert.equal(typeof useWorkflowStream, 'function');
     assert.equal(typeof useWorkflowRuns, 'function');
-    assert.equal(VERSION, '0.9.0');
+    assert.equal(VERSION, '0.10.0');
   });
 
   it('supports GET method in openSSEStream for stream resumption', async () => {
