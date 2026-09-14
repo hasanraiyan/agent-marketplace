@@ -49,6 +49,7 @@ function Chat() {
 | Hook                 | Purpose                                                                                         |
 | -------------------- | ----------------------------------------------------------------------------------------------- |
 | `useChat`            | Streaming chat — messages, send, stop, reload, interrupts, workspace files, ephemeral new chat  |
+| `useArchitectChat`   | Streaming chat with the Agent Architect co-pilot — same mechanics as `useChat`, no `agentId`     |
 | `useWorkflowStream`  | Live streaming workflow execution — real-time node state tracking, cancellation, and resume    |
 | `useWorkflows`       | Workflow discovery & creation — list, paginate, filter, and create workflows                    |
 | `useWorkflow`        | Single workflow authoring — drafts, publishing, versions, and Mermaid diagrams                 |
@@ -152,6 +153,28 @@ await chat.sendMessage("Hello") // auto POST /threads if threadId is undefined
 ```
 
 `sendMessage` and `reload` now return `Promise<boolean>` (`true` sent, `false` dropped while streaming). `startNewChat()`, `currentThreadId` and `isEphemeral` are new returns on `useChat`.
+
+## Agent Architect chat (0.10.0+)
+
+`useArchitectChat` runs the Agent Architect co-pilot — a conversational agent that creates/edits
+your own Agents via tool calls (`manage_agent`, `manage_skill`, ...). Same shape as `useChat` (same
+streaming/interrupt/reload/ephemeral-thread mechanics), minus `agentId` (fixed target) and
+`voice`/`sandboxCommands` (the Architect has neither):
+
+```tsx
+import { useArchitectChat } from "@personaai/react";
+
+const architect = useArchitectChat({ threadId });
+
+await architect.sendMessage("Create a support bot that...");
+if (architect.interrupt?.kind === "hitl") {
+  await architect.resumeInterrupt({ decisions: [{ type: "approve" }] }, "Approved");
+}
+```
+
+`threadId` resume only has an effect when the underlying credential asserts an external user
+(`x-persona-external-user-id`) — a bare Project credential has no Subject for a Thread to belong to,
+so the backend keeps its single deterministic per-Project conversation either way.
 
 ## Devtools
 

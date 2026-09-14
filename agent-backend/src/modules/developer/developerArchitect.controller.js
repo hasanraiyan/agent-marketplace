@@ -2,8 +2,18 @@ import crypto from 'crypto';
 import { EventType } from '@ag-ui/core';
 import rateLimiterService from '../rateLimiter/rateLimiter.service.js';
 import RateLimitError from '../../utils/errors/RateLimitError.js';
+import NotFoundError from '../../utils/errors/NotFoundError.js';
 import { DEVELOPER_ARCHITECT_AGENT_ID } from '../agents/architectConstants.js';
 import { readJsonBody, runAgentAsAguiEvents } from '../agui/agui.service.js';
+import threadRepository from '../threads/thread.repository.js';
+import threadService from '../threads/thread.service.js';
+import checkpointService from '../threads/checkpoint.service.js';
+import {
+  foldSubagentEvent,
+  reconcileSubagentTraceKeys,
+  extractTaskToolCallIds,
+  settleTrace,
+} from '../agui/subagentTrace.js';
 
 /**
  * Developer Platform Architect runtime — a machine-credential-authenticated
@@ -31,8 +41,22 @@ import { readJsonBody, runAgentAsAguiEvents } from '../agui/agui.service.js';
  *     Architect's single Project-wide shared thread: two different
  *     external users talking to their own Architect must never land on
  *     the same LangGraph conversation. See `langGraphThreadId` below.
- *   - No Thread resume / subagent-trace persistence, no `x-agent-id`
- *     header (nothing to select) — same as the Project Architect route.
+ *   - **Thread resume:** only exists for an asserted external user
+ *     (`ProjectRuntimeContext`) — `thread.service.js`'s Subject model has
+ *     no shape for a bare Project credential (same restriction
+ *     `developerThread.routes.js` enforces on the Thread CRUD endpoints
+ *     themselves), so a bare `ProjectMachineContext` keeps using its single
+ *     deterministic per-Project conversation unconditionally, exactly as
+ *     before. For a `ProjectRuntimeContext` caller, an `x-thread-id` header
+ *     (or `threadId` body field) naming one of `developerThread.controller.js`'s
+ *     Threads for this same Architect sentinel resumes that Thread's real
+ *     LangGraph checkpoint — same pattern `developerAgui.controller.js`
+ *     already uses for regular Agents. A missing/foreign/wrong-agent
+ *     `threadId` is a 404 ("Thread not found"), never a silent fallback to
+ *     the deterministic conversation, for the same reason
+ *     `developerAgui.controller.js` rejects instead of falling back.
+ *     Subagent traces are persisted onto the resolved Thread, same as
+ *     `projectArchitect.controller.js`.
  */
 class DeveloperArchitectController {
   async getProtocolInfo(req, res) {
@@ -60,7 +84,35 @@ class DeveloperArchitectController {
       // single-shared-thread design is intentional there since every caller
       // is a Project Admin managing the same Project-owned agents — that
       // assumption does not hold here).
-      const langGraphThreadId = `architect-${scopeKey}`;
+      const deterministicThreadId = `architect-${scopeKey}`;
+      const threadDbId = req.headers['x-thread-id'] || input.threadId;
+
+      let langGraphThreadId = deterministicThreadId;
+      let resolvedThread = null;
+
+      if (threadDbId && context.principalType === 'ProjectRuntime') {
+        let thread = null;
+        try {
+          thread = await threadService.getThreadById(threadDbId, undefined, context);
+        } catch {
+          thread = null;
+        }
+        // `thread.agentId` comes back populated (thread.repository.js's
+        // findById always populates it for display purposes) — but the
+        // Architect sentinel is never a real Agent row, so the populate
+        // silently no-ops and leaves the raw id string in place. Compare
+        // via `._id` first so a populated regular-Agent thread still
+        // matches correctly, falling back to the raw value for the
+        // sentinel case.
+        const threadAgentId = thread?.agentId?._id ?? thread?.agentId;
+        if (!thread || String(threadAgentId) !== String(DEVELOPER_ARCHITECT_AGENT_ID)) {
+          throw new NotFoundError('Thread not found');
+        }
+        langGraphThreadId = thread.threadId;
+        resolvedThread = thread;
+        await threadRepository.touchLastMessageAt(thread._id);
+      }
+
       const runId = input.runId || crypto.randomUUID();
 
       res.status(200);
@@ -77,6 +129,8 @@ class DeveloperArchitectController {
         res.write(`data: ${JSON.stringify(event)}\n\n`);
       };
 
+      const subagentTraces = {};
+
       send({ type: EventType.RUN_STARTED, threadId: langGraphThreadId, runId });
       for await (const event of runAgentAsAguiEvents({
         agentId: DEVELOPER_ARCHITECT_AGENT_ID,
@@ -91,16 +145,44 @@ class DeveloperArchitectController {
         // ProjectRuntime case: identityKey ignores `userId` entirely then.
         userId: context.externalUserId ?? context.domain,
         langGraphThreadId,
+        threadDbId: resolvedThread?._id,
         messages: input.messages || [],
         resume: input.resume,
         signal: controller.signal,
         executionContext: context,
       })) {
         if (res.destroyed) break;
+        if (event?.type === EventType.CUSTOM && event.name === 'subagent_activity') {
+          const callId = event.value?.toolCallId;
+          if (callId) {
+            foldSubagentEvent((subagentTraces[callId] ??= []), event.value);
+          }
+        }
         send(event);
       }
       send({ type: EventType.RUN_FINISHED, threadId: langGraphThreadId, runId });
       res.end();
+
+      if (resolvedThread && Object.keys(subagentTraces).length > 0) {
+        let reconciled = subagentTraces;
+        try {
+          const snapshot = await checkpointService.checkpointer?.getTuple({
+            configurable: { thread_id: langGraphThreadId },
+          });
+          const rawMessages = snapshot?.checkpoint?.channel_values?.messages;
+          if (rawMessages) {
+            reconciled = reconcileSubagentTraceKeys(subagentTraces, extractTaskToolCallIds(rawMessages));
+          }
+        } catch {
+          // Persist provisional keys if reconciliation fails
+        }
+
+        const setOps = {};
+        for (const [callId, items] of Object.entries(reconciled)) {
+          setOps[`subagentTraces.${callId}`] = settleTrace(items);
+        }
+        threadRepository.update(resolvedThread._id, { $set: setOps }).catch(() => {});
+      }
     } catch (err) {
       next(err);
     } finally {

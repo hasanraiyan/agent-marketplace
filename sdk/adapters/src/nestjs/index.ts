@@ -6,7 +6,12 @@ export * from './persona.module.js';
 export { TranslationError } from '../shared/errors.js';
 export { toRuntimeRequestNode as toRuntimeRequest } from '../shared/translate-node.js';
 export { writeRuntimeResponse } from '../shared/write-node.js';
+export {
+  collectMulterFiles,
+  parseMultipart,
+  type MultipartResult,
+} from '../shared/multipart-node.js';
 export type { Logger, LogLevel } from '@personaai/logger';
 export { createLogger, createNoopLogger } from '@personaai/logger';
 
-export const VERSION = '0.2.0';
+export const VERSION = '0.3.0';

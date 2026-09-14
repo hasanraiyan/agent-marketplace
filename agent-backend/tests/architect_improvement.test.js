@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { ARCHITECT_AGENT_ID } from '../src/modules/tools/index.js';
+import { ARCHITECT_AGENT_ID, DEVELOPER_ARCHITECT_AGENT_ID } from '../src/modules/tools/index.js';
 import agentFactory, { agentSkillsStore } from '../src/modules/agents/agent.factory.js';
 import providerRepository from '../src/modules/providers/provider.repository.js';
 import encryption from '../src/utils/encryption.js';
@@ -82,5 +82,18 @@ describe('Architect Improvements', () => {
     expect(item).not.toBeNull();
     expect(item.value.content).toContain('skill-creator');
     expect(item.value.content).toContain('@teach');
+  });
+
+  test('T13: the SDK-reachable Developer Architect has the same static skills as the other two sentinels', async () => {
+    const agentArchitecture = await agentSkillsStore.get(
+      ['agents', DEVELOPER_ARCHITECT_AGENT_ID, 'enabled'],
+      '/agent-architecture/SKILL.md'
+    );
+    const skillCreator = await agentSkillsStore.get(
+      ['agents', DEVELOPER_ARCHITECT_AGENT_ID, 'enabled'],
+      '/skill-creator/SKILL.md'
+    );
+    expect(agentArchitecture).not.toBeNull();
+    expect(skillCreator).not.toBeNull();
   });
 });

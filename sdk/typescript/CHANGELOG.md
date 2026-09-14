@@ -3,6 +3,15 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.9.0
+
+- **New: `ArchitectMessageOptions.threadId`.** The Architect co-pilot (`client.architect`) can now
+  resume a named Thread instead of always running against one implicit deterministic conversation
+  — the same `threadId` convention `client.chat` already uses. Only takes effect when the client was
+  constructed with `externalUserId`; a bare Project credential has no Subject for a Thread to belong
+  to, so it's silently ignored in that mode. Requires `agent-backend`'s matching
+  `developerArchitect.controller.js` thread-resume support (shipped alongside this release).
+
 ## 0.8.0
 
 - **New: `WorkflowsResource` (`client.workflows`).** First-class support for multi-agent workflows

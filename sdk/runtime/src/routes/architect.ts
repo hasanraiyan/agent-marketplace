@@ -7,6 +7,7 @@ import type { RunContext } from '../types/hooks.js';
 
 interface ArchitectBody {
   messages: ChatMessageInput[];
+  threadId?: string;
   resume?: ChatResume;
 }
 
@@ -24,6 +25,7 @@ function parseArchitectBody(body: unknown): ArchitectBody {
   }
   return {
     messages: b.messages as ChatMessageInput[],
+    threadId: typeof b.threadId === 'string' ? b.threadId : undefined,
     resume: (b.resume as ChatResume | undefined) ?? undefined,
   };
 }
@@ -34,13 +36,18 @@ function parseArchitectBody(body: unknown): ArchitectBody {
  * it builds/edits *their* agents, not the Project's shared roster). Requires
  * capabilities.architect. Reuses the exact same RunDriver/reconnect/
  * heartbeat mechanics as `POST /chat` (see routes/chat.ts) — the Architect
- * just has no `agentId`/`threadId` of its own to pass through.
+ * just has no `agentId` of its own to pass through. An optional `threadId`
+ * resumes a named Architect conversation instead of the implicit
+ * deterministic one — `ArchitectClient.stream()` silently ignores it when
+ * the underlying credential has no asserted external user, same as the
+ * backend route it calls.
  */
 export const architectRoute: RouteHandler = async (request, ctx) => {
   const logger = ctx.logger.child('architect');
   logger.debug('architectRoute start', { userId: request.userId });
   const body = parseArchitectBody(request.body);
   logger.trace('architectRoute body', {
+    threadId: body.threadId,
     messageCount: body.messages?.length ?? 0,
     hasResume: !!body.resume,
   });
@@ -49,21 +56,23 @@ export const architectRoute: RouteHandler = async (request, ctx) => {
   const runCtx: RunContext = {
     userId,
     kind: 'architect',
+    threadId: body.threadId,
     messages: body.messages,
   };
 
-  logger.debug('beforeRun hook (architect)', { userId });
+  logger.debug('beforeRun hook (architect)', { userId, threadId: body.threadId });
   await ctx.hooks?.beforeRun?.(runCtx);
   logger.trace('beforeRun completed (architect)');
 
-  logger.debug('starting architect stream');
+  logger.debug('starting architect stream', { threadId: body.threadId });
   const stream = ctx.client.architect.stream({
     messages: body.messages,
+    threadId: body.threadId,
     resume: body.resume,
   });
 
   const runId = crypto.randomUUID();
-  logger.info('architect run created', { runId, userId });
+  logger.info('architect run created', { runId, userId, threadId: body.threadId });
   const driver = new RunDriver(runId, runCtx, stream, ctx.hooks, ctx.mode);
   ctx.runs.set(runId, driver);
   logger.debug('architect driver registered', { runId, trackedRuns: ctx.runs.size });

@@ -1,6 +1,7 @@
 export * from "./types.js";
 export * from "./context/PersonaContext.js";
 export * from "./hooks/useChat.js";
+export * from "./hooks/useArchitectChat.js";
 export * from "./hooks/useMemory.js";
 export * from "./hooks/useThreads.js";
 export * from "./hooks/useVoice.js";
@@ -28,4 +29,4 @@ export type {
   CreateLoggerOptions,
 } from "@personaai/logger";
 
-export const VERSION = "0.9.0";
+export const VERSION = "0.10.0";

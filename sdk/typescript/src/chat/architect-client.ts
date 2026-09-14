@@ -13,6 +13,16 @@ import { createLogger, type Logger } from '../logger.js';
 
 export interface ArchitectMessageOptions {
   messages: ChatMessageInput[];
+  /**
+   * Resumes a named Thread (create one via `threads.create()` with
+   * `agentId` set to the Architect's own reserved id) instead of the
+   * implicit deterministic conversation. Only takes effect when this client
+   * was constructed with `externalUserId` — a bare Project credential has
+   * no Subject for a Thread to belong to, so this is silently ignored in
+   * that mode (the server keeps using its single deterministic per-Project
+   * conversation either way).
+   */
+  threadId?: string;
   /** Answers a pending interrupt from a previous run; omit for a fresh message. */
   resume?: ChatResume;
   /** Aborts the underlying request/stream. */
@@ -23,16 +33,19 @@ export interface ArchitectMessageOptions {
  * Agent Architect client (`/api/v1/developer/architect/agui`) — a
  * conversational co-pilot that creates/edits Agents via tool calls, on your
  * behalf. Unlike {@link ChatClient}, there's no `agentId` to pass (it's
- * always this one dedicated Architect) and no thread selection (one
- * implicit conversation per caller — see below).
+ * always this one dedicated Architect).
  *
  * **Ownership depends on whether this client was constructed with
  * `externalUserId`:** omit it and the Architect builds/edits Agents owned
  * by your whole Project (the SDK-reachable equivalent of a Project Admin
- * managing the shared roster by hand). Set it and the Architect builds/edits
- * Agents owned by that one external user instead — the same dual-mode
- * ownership convention every other Developer Platform resource already
- * follows (see {@link AgentsResource}).
+ * managing the shared roster by hand) — in this mode there is also only
+ * ever one implicit conversation per Project, since a bare Project
+ * credential has no Subject a named Thread could belong to. Set it and the
+ * Architect builds/edits Agents owned by that one external user instead —
+ * the same dual-mode ownership convention every other Developer Platform
+ * resource already follows (see {@link AgentsResource}) — and, in this
+ * mode, `threadId` above lets that external user hold multiple named
+ * Architect conversations instead of one implicit one.
  */
 export class ArchitectClient {
   private readonly logger: Logger;
@@ -48,11 +61,16 @@ export class ArchitectClient {
    * @yields Each raw {@link AguiEvent} as it arrives.
    */
   async *stream(options: ArchitectMessageOptions): AsyncGenerator<AguiEvent> {
+    const headers: Record<string, string> = {};
+    if (options.threadId) headers['x-thread-id'] = options.threadId;
+
     this.logger.debug('architect stream start', {
+      hasThreadId: !!options.threadId,
       hasResume: !!options.resume,
       messageCount: options.messages?.length ?? 0,
     });
     this.logger.trace('architect stream request', {
+      threadId: options.threadId,
       messagesPreview: options.messages?.map((m) => ({
         role: (m as { role?: string }).role,
         contentPreview:
@@ -65,6 +83,7 @@ export class ArchitectClient {
     let response: Response;
     try {
       response = await this.http.request<Response>('POST', '/api/v1/developer/architect/agui', {
+        headers,
         body: {
           messages: options.messages,
           resume: options.resume,

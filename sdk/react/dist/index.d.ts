@@ -343,6 +343,28 @@ interface UseChatOptions {
      */
     context?: Record<string, unknown> | (() => Record<string, unknown>);
 }
+interface UseArchitectChatOptions {
+    threadId?: string;
+    initialMessages?: PersonaMessage[];
+    onFinish?: (message: PersonaMessage) => void;
+    onError?: (error: Error) => void;
+    /** Hook for receiving every low-level AG-UI streaming event (tool calls, steps, subagents) */
+    onEvent?: (event: PersonaStreamingEvent) => void;
+    /** Called when a fake/ephemeral chat mints a real thread on first send. Use to sync sidebar state (e.g. setThreadId(id)). */
+    onThreadCreated?: (threadId: string) => void;
+    /** Called when the backend auto-generates a thread title (3-4 word LLM summary of first user message). */
+    onTitle?: (title: string) => void;
+}
+interface SendArchitectMessageOverride {
+    /**
+     * A plain id, or a promise/thunk for one still in flight (e.g. a thread
+     * being lazily created for the first message of a new conversation).
+     * Mirrors {@link SendMessageOverride.threadId}.
+     */
+    threadId?: string | Promise<string | undefined>;
+    /** Answers/approves a paused interrupt from a previous turn instead of starting a fresh one. */
+    resume?: PersonaResumeValue;
+}
 interface SendMessageOverride {
     agentId?: string;
     /**
@@ -638,6 +660,61 @@ declare function useChat(options?: UseChatOptions): {
     loadThreadMessages: (id: string) => Promise<PersonaMessage[]>;
 };
 
+/**
+ * The Developer Platform Architect's own reserved Agent id
+ * (`DEVELOPER_ARCHITECT_AGENT_ID` in agent-backend/src/modules/agents/
+ * architectConstants.js) — it isn't a row in the Agent collection, but the
+ * backend's `POST /api/v1/developer/threads` special-cases exactly this id
+ * past its usual Agent-existence check (see developerThread.controller.js's
+ * `assertAgentAccessible`), so a named Architect Thread can be created the
+ * same way as for a real Agent. Kept in sync with that backend constant —
+ * update both together if it ever changes.
+ */
+declare const ARCHITECT_AGENT_ID = "000000000000000000000002";
+/**
+ * Runs the Agent Architect co-pilot — a conversational tool-calling agent
+ * that creates/edits the caller's own Agents (`manage_agent`, `manage_skill`,
+ * etc.), reached over the runtime's `POST /architect` route (see
+ * `@personaai/runtime`'s `routes/architect.ts`). Structurally a trimmed
+ * `useChat`: same streaming/interrupt/reload/thread-resume mechanics, but
+ * with no `agentId` to pass (the Architect is a single fixed target) and no
+ * `voice`/`sandboxCommands` (the Architect has no voice mode and no
+ * `execute` tool).
+ *
+ * `threadId` resume only has an effect when the underlying credential
+ * asserts an external user — a bare Project credential has no Subject for a
+ * Thread to belong to, so the backend silently keeps its single
+ * deterministic per-Project conversation either way (see
+ * `developerArchitect.controller.js`'s doc comment).
+ */
+declare function useArchitectChat(options?: UseArchitectChatOptions): {
+    messages: PersonaMessage[];
+    input: string;
+    setInput: react.Dispatch<react.SetStateAction<string>>;
+    handleInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+    handleSubmit: (e?: React.FormEvent) => void;
+    sendMessage: (contentToSend?: string, overrideOptions?: SendArchitectMessageOverride) => Promise<boolean>;
+    isStreaming: boolean;
+    isLoading: boolean;
+    isLoadingHistory: boolean;
+    error: Error | null;
+    interrupt: PersonaInterrupt | null;
+    resumeInterrupt: (resume: PersonaResumeValue, displayContent: string) => Promise<boolean>;
+    files: Record<string, PersonaWorkspaceFile>;
+    todos: PersonaTodo[];
+    presentedFile: PersonaPresentedFile | null;
+    dismissPresentedFile: () => void;
+    openWorkspaceFile: (path: string) => void;
+    stop: () => void;
+    reload: () => Promise<boolean>;
+    clear: () => void;
+    startNewChat: () => void;
+    currentThreadId: string | undefined;
+    isEphemeral: boolean;
+    setMessages: react.Dispatch<react.SetStateAction<PersonaMessage[]>>;
+    loadThreadMessages: (id: string) => Promise<PersonaMessage[]>;
+};
+
 declare function useMemory(autoFetch?: boolean): {
     memory: PersonaMemoryList;
     isLoading: boolean;
@@ -908,6 +985,6 @@ declare function supportsStreamingFetch(): boolean;
  */
 declare function openSSEStream(opts: OpenSSEOptions): Promise<SSEStream>;
 
-declare const VERSION = "0.9.0";
+declare const VERSION = "0.10.0";
 
-export { type CreateWorkflowInput, type OpenSSEOptions, type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaNodeRunState, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaSandboxCommand, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkflow, type PersonaWorkflowDraft, type PersonaWorkflowEdge, type PersonaWorkflowNode, type PersonaWorkflowNodeType, type PersonaWorkflowRunSummary, type PersonaWorkflowSummary, type PersonaWorkflowTrigger, type PersonaWorkflowVersionSummary, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendMessageOverride, type UpdateWorkflowInput, type UseChatOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseVoiceOptions, type UseVoiceResult, type UseWorkflowOptions, type UseWorkflowRunsOptions, type UseWorkflowStreamOptions, type UseWorkflowStreamResult, type UseWorkflowsOptions, VERSION, type WorkflowsPagination, openSSEStream, supportsStreamingFetch, useAgents, useChat, useConnection, useFiles, useMcp, useMcpConnections, useMemory, usePersonaContext, useThreads, useVoice, useWorkflow, useWorkflowRuns, useWorkflowStream, useWorkflows };
+export { ARCHITECT_AGENT_ID, type CreateWorkflowInput, type OpenSSEOptions, type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaNodeRunState, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaSandboxCommand, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkflow, type PersonaWorkflowDraft, type PersonaWorkflowEdge, type PersonaWorkflowNode, type PersonaWorkflowNodeType, type PersonaWorkflowRunSummary, type PersonaWorkflowSummary, type PersonaWorkflowTrigger, type PersonaWorkflowVersionSummary, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendArchitectMessageOverride, type SendMessageOverride, type UpdateWorkflowInput, type UseArchitectChatOptions, type UseChatOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseVoiceOptions, type UseVoiceResult, type UseWorkflowOptions, type UseWorkflowRunsOptions, type UseWorkflowStreamOptions, type UseWorkflowStreamResult, type UseWorkflowsOptions, VERSION, type WorkflowsPagination, openSSEStream, supportsStreamingFetch, useAgents, useArchitectChat, useChat, useConnection, useFiles, useMcp, useMcpConnections, useMemory, usePersonaContext, useThreads, useVoice, useWorkflow, useWorkflowRuns, useWorkflowStream, useWorkflows };

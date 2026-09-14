@@ -1,3 +1,0 @@
-export const PERSONA_MODULE_OPTIONS = Symbol('PERSONA_MODULE_OPTIONS');
-export const PERSONA_RUNTIME = Symbol('PERSONA_RUNTIME');
-export const PERSONA_CLIENT = Symbol('PERSONA_CLIENT');

@@ -349,6 +349,30 @@ export interface UseChatOptions {
   context?: Record<string, unknown> | (() => Record<string, unknown>);
 }
 
+export interface UseArchitectChatOptions {
+  threadId?: string;
+  initialMessages?: PersonaMessage[];
+  onFinish?: (message: PersonaMessage) => void;
+  onError?: (error: Error) => void;
+  /** Hook for receiving every low-level AG-UI streaming event (tool calls, steps, subagents) */
+  onEvent?: (event: PersonaStreamingEvent) => void;
+  /** Called when a fake/ephemeral chat mints a real thread on first send. Use to sync sidebar state (e.g. setThreadId(id)). */
+  onThreadCreated?: (threadId: string) => void;
+  /** Called when the backend auto-generates a thread title (3-4 word LLM summary of first user message). */
+  onTitle?: (title: string) => void;
+}
+
+export interface SendArchitectMessageOverride {
+  /**
+   * A plain id, or a promise/thunk for one still in flight (e.g. a thread
+   * being lazily created for the first message of a new conversation).
+   * Mirrors {@link SendMessageOverride.threadId}.
+   */
+  threadId?: string | Promise<string | undefined>;
+  /** Answers/approves a paused interrupt from a previous turn instead of starting a fresh one. */
+  resume?: PersonaResumeValue;
+}
+
 export interface SendMessageOverride {
   agentId?: string;
   /**
