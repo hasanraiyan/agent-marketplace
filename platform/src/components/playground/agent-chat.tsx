@@ -30,7 +30,12 @@ import {
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { getProjectAgentThreadMessages } from "@/lib/api/projects";
 
-function normalizeCheckpointData(data: unknown): {
+/**
+ * Generic — not Agent-specific — so `ArchitectChat` reuses this too instead
+ * of duplicating it (the Architect's `test/agui`-shaped thread-messages
+ * response has the identical `{messages, state, subagentTraces}` shape).
+ */
+export function normalizeCheckpointData(data: unknown): {
   messages: HookChatMessage[];
   toolCalls: HookToolCall[];
   conversation: HookConversationEntry[];

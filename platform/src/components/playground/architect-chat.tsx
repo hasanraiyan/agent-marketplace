@@ -1,8 +1,14 @@
 "use client";
 
 import * as React from "react";
+import { SpinnerIcon } from "@phosphor-icons/react";
 import { api } from "@/lib/api/core";
-import { useAguiChat } from "@/lib/agui/use-agui-chat";
+import {
+  useAguiChat,
+  type ChatMessage as HookChatMessage,
+  type ToolCall as HookToolCall,
+  type ConversationEntry as HookConversationEntry,
+} from "@/lib/agui/use-agui-chat";
 import {
   toChatView,
   hitlInterruptFrom,
@@ -18,13 +24,17 @@ import {
   type ChatInterruptData,
 } from "@/components/chat";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { getProjectAgentThreadMessages } from "@/lib/api/projects";
+import { normalizeCheckpointData } from "./agent-chat";
 
 // Sentinel whose dedicated "Project Agent Architect" graph the project-scoped
 // /architect/agui route runs (agent-backend modules/agents/architectConstants.js
 // PROJECT_ARCHITECT_AGENT_ID). It is not a real project Agent — it can't be
 // picked from the project's agent list, only reached through the Architect
-// endpoint — so it lives here as a constant rather than as list data.
-const PROJECT_ARCHITECT_AGENT_ID = "000000000000000000000001";
+// endpoint — so it lives here as a constant rather than as list data. Exported
+// so page.tsx can reuse the exact same id for the Threads sidebar and Memory
+// workspace, which now both work against the Architect too.
+export const PROJECT_ARCHITECT_AGENT_ID = "000000000000000000000001";
 
 /**
  * "Just the chat" surface for the Project Agent Architect — the spec bot that
@@ -32,20 +42,37 @@ const PROJECT_ARCHITECT_AGENT_ID = "000000000000000000000001";
  * `manage_agent` CRUD tool (action: create/read/update/patch/delete).
  * Mirrors AgentChat's text-chat plumbing against the project-scoped
  * `/architect/agui` AG-UI SSE endpoint, minus the per-agent test affordances
- * (no Voice tab, no workspace files / subagents).
+ * (no Voice tab — voice sessions refuse any agent with guarded tools, and
+ * the Architect's entire toolbox is guarded by design; no workspace files /
+ * subagents).
  *
- * The Architect's conversation is one shared, deterministic server-side
- * thread per project (`architect-<domain>`), and every agent the bot creates
- * here is a real project Agent — the parent re-fetches the agent list (via
- * onAgentsRefreshed) whenever a manage_agent create/update/patch/delete call
- * reports success, so the new/updated Agent appears in the Playground picker.
+ * The Architect now supports real per-thread history, same as a real Agent:
+ * `threadId` selects which server-side Conversation/LangGraph thread to
+ * resume (omit it for the original single deterministic `architect-<domain>`
+ * conversation every existing session already resolves to). Every agent the
+ * bot creates here is a real project Agent — the parent re-fetches the agent
+ * list (via onAgentsRefreshed) whenever a manage_agent create/update/patch/
+ * delete call reports success, so the new/updated Agent appears in the
+ * Playground picker.
  */
-function ArchitectChat({
+function ArchitectChatInner({
   projectId,
+  threadId,
+  initialMessages,
+  initialAgentState,
   onAgentsRefreshed,
+  onTitleGenerated,
 }: {
   projectId: string;
+  threadId?: string;
+  initialMessages?: {
+    messages: HookChatMessage[];
+    toolCalls: HookToolCall[];
+    conversation: HookConversationEntry[];
+  };
+  initialAgentState?: Record<string, unknown>;
   onAgentsRefreshed: () => void;
+  onTitleGenerated?: (title: string) => void;
 }) {
   const url = React.useMemo(
     () =>
@@ -56,6 +83,10 @@ function ArchitectChat({
   const chat = useAguiChat({
     url,
     agentId: PROJECT_ARCHITECT_AGENT_ID,
+    threadId,
+    initialMessages,
+    initialAgentState,
+    onTitleGenerated,
     getToken: React.useCallback(
       () =>
         typeof window !== "undefined"
@@ -273,6 +304,81 @@ function ArchitectChat({
         />
       </div>
     </div>
+  );
+}
+
+/**
+ * Top-level ArchitectChat with conversation thread history support — the
+ * exact same "fetch past messages, then mount" pattern `agent-chat.tsx`'s
+ * top-level `AgentChat` already uses for real Agents (same
+ * `getProjectAgentThreadMessages` endpoint, same `normalizeCheckpointData`
+ * shape, since the Architect's `test/agui`-equivalent thread-messages
+ * response is identical).
+ */
+function ArchitectChat({
+  projectId,
+  threadId,
+  onAgentsRefreshed,
+  onTitleGenerated,
+}: {
+  projectId: string;
+  threadId?: string;
+  onAgentsRefreshed: () => void;
+  onTitleGenerated?: (title: string) => void;
+}) {
+  const [initialData, setInitialData] = React.useState<{
+    messages: HookChatMessage[];
+    toolCalls: HookToolCall[];
+    conversation: HookConversationEntry[];
+    agentState: Record<string, unknown>;
+  } | null>(null);
+  const [loadingHistory, setLoadingHistory] = React.useState(Boolean(threadId));
+
+  React.useEffect(() => {
+    if (!threadId) {
+      setInitialData(null);
+      setLoadingHistory(false);
+      return;
+    }
+    let cancelled = false;
+    setLoadingHistory(true);
+    getProjectAgentThreadMessages(projectId, PROJECT_ARCHITECT_AGENT_ID, threadId)
+      .then((res) => {
+        if (cancelled) return;
+        const data = res.data?.data;
+        setInitialData(normalizeCheckpointData(data));
+      })
+      .catch((err) => {
+        console.error("Failed to load Architect thread messages:", err);
+        if (!cancelled) setInitialData(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingHistory(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, threadId]);
+
+  if (loadingHistory) {
+    return (
+      <div className="flex h-full min-h-[350px] flex-col items-center justify-center p-8 text-muted-foreground gap-2.5">
+        <SpinnerIcon className="size-6 animate-spin text-primary" />
+        <span className="text-xs font-medium">Loading conversation history…</span>
+      </div>
+    );
+  }
+
+  return (
+    <ArchitectChatInner
+      key={threadId ?? "default"}
+      projectId={projectId}
+      threadId={threadId}
+      initialMessages={initialData ?? undefined}
+      initialAgentState={initialData?.agentState}
+      onAgentsRefreshed={onAgentsRefreshed}
+      onTitleGenerated={onTitleGenerated}
+    />
   );
 }
 

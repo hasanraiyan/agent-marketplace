@@ -19,7 +19,7 @@ import { getProjectAgents, type ProjectAgentThread } from "@/lib/api/projects";
 import { cacheKey, deleteCachedByPrefix } from "@/lib/cache";
 import { AgentChat } from "@/components/playground/agent-chat";
 import { VoiceTab } from "@/components/playground/voice-tab";
-import { ArchitectChat } from "@/components/playground/architect-chat";
+import { ArchitectChat, PROJECT_ARCHITECT_AGENT_ID } from "@/components/playground/architect-chat";
 import { MemoryWorkspaceDialog } from "@/components/playground/memory-workspace-dialog";
 import { SandboxTerminalDialog } from "@/components/playground/sandbox-terminal-dialog";
 import { AgentThreadsSidebar } from "@/components/playground/agent-threads-sidebar";
@@ -66,12 +66,105 @@ function errorMessage(err: unknown, fallback: string): string {
 }
 
 /**
+ * Shared "threads sidebar + chat" layout (desktop side-by-side, mobile push
+ * slider) — used for both a real Agent's Chat tab and the Architect, which
+ * now both support real per-thread history via `AgentThreadsSidebar`. The
+ * actual chat surface is a render prop since `AgentChat` and `ArchitectChat`
+ * take different props beyond the shared thread-selection plumbing.
+ */
+function ThreadedChatLayout({
+  projectId,
+  agentId,
+  isMobile,
+  threadsOpen,
+  setThreadsOpen,
+  activeThread,
+  setActiveThread,
+  latestTitleUpdate,
+  renderChat,
+}: {
+  projectId: string;
+  agentId: string;
+  isMobile: boolean;
+  threadsOpen: boolean;
+  setThreadsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  activeThread: ProjectAgentThread | null;
+  setActiveThread: (thread: ProjectAgentThread | null) => void;
+  latestTitleUpdate: { threadId: string; title: string } | null;
+  renderChat: () => React.ReactNode;
+}) {
+  const activeThreadId = activeThread?._id || activeThread?.threadId || null;
+
+  const handleThreadDeleted = (deletedId: string) => {
+    if (activeThread?._id === deletedId) setActiveThread(null);
+  };
+
+  if (!isMobile) {
+    return (
+      <div className="flex h-full min-h-0 w-full gap-3 overflow-hidden rounded-md border border-border/40 bg-background">
+        {threadsOpen && (
+          <AgentThreadsSidebar
+            projectId={projectId}
+            agentId={agentId}
+            activeThreadId={activeThreadId}
+            onSelectThread={setActiveThread}
+            onThreadDeleted={handleThreadDeleted}
+            updatedTitle={latestTitleUpdate}
+          />
+        )}
+        <div className="flex-1 min-w-0 h-full">{renderChat()}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative flex h-full min-h-0 w-full overflow-hidden rounded-md border border-border/40 bg-background">
+      <div
+        className={cn(
+          "flex h-full w-full transition-transform duration-300 ease-in-out",
+          threadsOpen ? "translate-x-0" : "-translate-x-[260px]"
+        )}
+      >
+        <div className="w-[260px] shrink-0 h-full">
+          <AgentThreadsSidebar
+            projectId={projectId}
+            agentId={agentId}
+            activeThreadId={activeThreadId}
+            onSelectThread={(thread) => {
+              setActiveThread(thread);
+              setThreadsOpen(false);
+            }}
+            onThreadDeleted={handleThreadDeleted}
+            updatedTitle={latestTitleUpdate}
+            onClose={() => setThreadsOpen(false)}
+            className="w-full h-full"
+          />
+        </div>
+
+        <div className="relative w-full min-w-full shrink-0 h-full">
+          {threadsOpen && (
+            <div
+              onClick={() => setThreadsOpen(false)}
+              className="absolute inset-0 z-20 cursor-pointer bg-background/20 backdrop-blur-[1px]"
+              title="Tap to close threads"
+            />
+          )}
+          {renderChat()}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Per-agent test surface + the Agent Architect. The picker always leads with
  * "Agent Architect" (selected by default) — a chat-only spec bot that creates
  * and edits the project's Agents by conversation. Choosing a real Agent shows
  * the Chat | Voice test tabs. The Architect surface stays mounted (hidden)
  * while an Agent is selected, so switching back preserves the spec
- * conversation in-session.
+ * conversation in-session. Both the Architect and a real Agent's Chat tab now
+ * get the same real thread-history sidebar (ThreadedChatLayout) and Memory
+ * workspace access.
  */
 function PlaygroundContent() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -186,6 +279,18 @@ function PlaygroundContent() {
     setMemoryOpen(true);
   }, []);
 
+  // Memory workspace's own agent-name lookup (`agents.find(...)`) has no
+  // entry for the Architect sentinel — it isn't a real Project Agent, so it
+  // never appears in the fetched `agents` list. Add one synthetic row purely
+  // for that lookup so the dialog's agent-name badge resolves instead of
+  // showing blank; it's never used for anything else (not the picker, not
+  // sandbox/terminal logic).
+  const memoryDialogAgents = React.useMemo(
+    () => [{ id: PROJECT_ARCHITECT_AGENT_ID, name: "Agent Architect", sandboxEnabled: false }, ...agents],
+    [agents]
+  );
+  const memoryActiveAgentId = showingArchitect ? PROJECT_ARCHITECT_AGENT_ID : selectedAgent?.id;
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       {!loading && (
@@ -272,10 +377,47 @@ function PlaygroundContent() {
               </Alert>
             )}
 
-            {/* Architect chat is chat-only; kept mounted while an Agent is
-                selected so returning to it preserves the spec conversation. */}
-            <div className={showingArchitect ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
-              <ArchitectChat projectId={projectId} onAgentsRefreshed={refreshAgents} />
+            {/* Architect: chat-only (no Voice tab), but now gets the same
+                Threads sidebar a real Agent's Chat tab has. Kept mounted
+                while an Agent is selected so returning to it preserves the
+                spec conversation. */}
+            <div className={showingArchitect ? "flex min-h-0 flex-1 flex-col gap-2" : "hidden"}>
+              <div className="flex items-center gap-2 ml-3 sm:ml-0">
+                <Button
+                  variant={threadsOpen ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={() => setThreadsOpen((prev) => !prev)}
+                  className="h-8 w-8 p-0"
+                  title={threadsOpen ? "Collapse threads" : "Show threads"}
+                >
+                  <ListIcon className="size-4" />
+                </Button>
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium">
+                  <SparkleIcon className="size-3.5 text-primary" />
+                  Agent Architect
+                </span>
+              </div>
+              <div className="min-h-0 flex-1">
+                <ThreadedChatLayout
+                  projectId={projectId}
+                  agentId={PROJECT_ARCHITECT_AGENT_ID}
+                  isMobile={isMobile}
+                  threadsOpen={threadsOpen}
+                  setThreadsOpen={setThreadsOpen}
+                  activeThread={activeThread}
+                  setActiveThread={setActiveThread}
+                  latestTitleUpdate={latestTitleUpdate}
+                  renderChat={() => (
+                    <ArchitectChat
+                      key={activeThread?.threadId || activeThread?._id || "default"}
+                      projectId={projectId}
+                      threadId={activeThread?.threadId || activeThread?._id}
+                      onAgentsRefreshed={refreshAgents}
+                      onTitleGenerated={handleTitleGenerated}
+                    />
+                  )}
+                />
+              </div>
             </div>
 
             {!showingArchitect && selectedAgent && (
@@ -304,89 +446,28 @@ function PlaygroundContent() {
 
                 {tab === "chat" ? (
                   <TabsContent value="chat" className="min-h-0 flex-1">
-                    {!isMobile ? (
-                      /* Desktop: standard untouched side-by-side flex layout */
-                      <div className="flex h-full min-h-0 w-full gap-3 overflow-hidden rounded-md border border-border/40 bg-background">
-                        {threadsOpen && (
-                          <AgentThreadsSidebar
-                            projectId={projectId}
-                            agentId={selectedAgent.id}
-                            activeThreadId={activeThread?._id || activeThread?.threadId || null}
-                            onSelectThread={(thread) => setActiveThread(thread)}
-                            onThreadDeleted={(deletedId) => {
-                              if (activeThread?._id === deletedId) {
-                                setActiveThread(null);
-                              }
-                            }}
-                            updatedTitle={latestTitleUpdate}
-                          />
-                        )}
-                        <div className="flex-1 min-w-0 h-full">
-                          <AgentChat
-                            key={`${selectedAgent.id}-${activeThread?._id || activeThread?.threadId || "default"}`}
-                            projectId={projectId}
-                            agentId={selectedAgent.id}
-                            threadId={activeThread?.threadId || activeThread?._id}
-                            onToolCallsChange={selectedAgent.sandboxEnabled ? setToolCalls : undefined}
-                            onOpenFile={handleOpenFile}
-                            onWorkspaceFilesChange={setLiveWorkspaceFiles}
-                            onTitleGenerated={handleTitleGenerated}
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      /* Mobile: Push slider layout where chat maintains 100% full width and never squeezes */
-                      <div className="relative flex h-full min-h-0 w-full overflow-hidden rounded-md border border-border/40 bg-background">
-                        <div
-                          className={cn(
-                            "flex h-full w-full transition-transform duration-300 ease-in-out",
-                            threadsOpen ? "translate-x-0" : "-translate-x-[260px]"
-                          )}
-                        >
-                          {/* Sidebar */}
-                          <div className="w-[260px] shrink-0 h-full">
-                            <AgentThreadsSidebar
-                              projectId={projectId}
-                              agentId={selectedAgent.id}
-                              activeThreadId={activeThread?._id || activeThread?.threadId || null}
-                              onSelectThread={(thread) => {
-                                setActiveThread(thread);
-                                setThreadsOpen(false);
-                              }}
-                              onThreadDeleted={(deletedId) => {
-                                if (activeThread?._id === deletedId) {
-                                  setActiveThread(null);
-                                }
-                              }}
-                              updatedTitle={latestTitleUpdate}
-                              onClose={() => setThreadsOpen(false)}
-                              className="w-full h-full"
-                            />
-                          </div>
-
-                          {/* Chat: 100% min-width of the mobile container so it NEVER squeezes */}
-                          <div className="relative w-full min-w-full shrink-0 h-full">
-                            {threadsOpen && (
-                              <div
-                                onClick={() => setThreadsOpen(false)}
-                                className="absolute inset-0 z-20 cursor-pointer bg-background/20 backdrop-blur-[1px]"
-                                title="Tap to close threads"
-                              />
-                            )}
-                            <AgentChat
-                              key={`${selectedAgent.id}-${activeThread?._id || activeThread?.threadId || "default"}`}
-                              projectId={projectId}
-                              agentId={selectedAgent.id}
-                              threadId={activeThread?.threadId || activeThread?._id}
-                              onToolCallsChange={selectedAgent.sandboxEnabled ? setToolCalls : undefined}
-                              onOpenFile={handleOpenFile}
-                              onWorkspaceFilesChange={setLiveWorkspaceFiles}
-                              onTitleGenerated={handleTitleGenerated}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    <ThreadedChatLayout
+                      projectId={projectId}
+                      agentId={selectedAgent.id}
+                      isMobile={isMobile}
+                      threadsOpen={threadsOpen}
+                      setThreadsOpen={setThreadsOpen}
+                      activeThread={activeThread}
+                      setActiveThread={setActiveThread}
+                      latestTitleUpdate={latestTitleUpdate}
+                      renderChat={() => (
+                        <AgentChat
+                          key={`${selectedAgent.id}-${activeThread?._id || activeThread?.threadId || "default"}`}
+                          projectId={projectId}
+                          agentId={selectedAgent.id}
+                          threadId={activeThread?.threadId || activeThread?._id}
+                          onToolCallsChange={selectedAgent.sandboxEnabled ? setToolCalls : undefined}
+                          onOpenFile={handleOpenFile}
+                          onWorkspaceFilesChange={setLiveWorkspaceFiles}
+                          onTitleGenerated={handleTitleGenerated}
+                        />
+                      )}
+                    />
                   </TabsContent>
                 ) : (
                   <TabsContent value="voice" className="min-h-0 flex-1">
@@ -410,8 +491,8 @@ function PlaygroundContent() {
           if (!next) setOpenFilePath(null);
         }}
         projectId={projectId}
-        activeAgentId={selectedAgent?.id}
-        agents={agents}
+        activeAgentId={memoryActiveAgentId}
+        agents={memoryDialogAgents}
         initialOpenPath={openFilePath}
         liveWorkspaceFiles={liveWorkspaceFiles}
       />
