@@ -20,6 +20,22 @@ concepts underneath, not in more verbs, and not in more skills. Do NOT
 write a system-prompt-style skill from a guess: run the interview below
 and let the creator's own words become the playbook.
 
+## Terms
+
+- **Persona** — the expert's identity and voice. One persona per creator,
+  one Skill per persona.
+- **Verb** — how that expert helps people (teach, coach, review, ...).
+  2-4 per persona.
+- **Concept** — what they're helping with: a specific topic, doc type, or
+  scenario the creator actually handles. Lives under a verb.
+- **Playbook** — the expert's specific method for a verb: the 7-part
+  structure below (Intake, Rules, Process, Concept index, Output,
+  Boundaries, Worked example), written in the creator's own words, not a
+  generic template filler.
+- **Resources** — the material used to perform that work: drills,
+  templates, checklists, anything a concept's playbook points to or
+  hands the client.
+
 ## The verb vocabulary
 
 Every persona picks 2-4 of these. What makes a verb theirs is the playbook
