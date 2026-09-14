@@ -367,12 +367,17 @@ class AgentFactory {
     // Each native type uses its own LangChain integration; 'custom' (and
     // 'openai') keep the original generic OpenAI-compatible construction.
     switch (providerType) {
-      case 'anthropic':
-        return new ChatAnthropic({
+      case 'anthropic': {
+        const clientConfig = {
           apiKey,
           model: modelName,
           streaming: true,
-        });
+        };
+        if (provider.baseURL) {
+          clientConfig.anthropicApiUrl = provider.baseURL.replace(/\/v1\/?$/, '');
+        }
+        return new ChatAnthropic(clientConfig);
+      }
       case 'gemini':
         return new ChatGoogleGenerativeAI({
           apiKey,
