@@ -46,6 +46,7 @@ import {
 } from './architectConstants.js';
 import { loggerService } from '../../utils/index.js';
 import { ARCHITECT_SKILL } from '../skills/architectSkill.js';
+import { SKILL_CREATOR_SKILL } from '../skills/skillCreatorSkill.js';
 
 const logger = loggerService.getLogger();
 
@@ -204,8 +205,14 @@ export const contextOverrideMiddleware = createMiddleware({
 // static entry since it has no DB-backed agent document. Exported for tests.
 export const agentSkillsStore = new AgentSkillsStore({
   staticSkillFiles: {
-    [ARCHITECT_AGENT_ID]: { '/agent-architecture/SKILL.md': ARCHITECT_SKILL },
-    [PROJECT_ARCHITECT_AGENT_ID]: { '/agent-architecture/SKILL.md': ARCHITECT_SKILL },
+    [ARCHITECT_AGENT_ID]: {
+      '/agent-architecture/SKILL.md': ARCHITECT_SKILL,
+      '/skill-creator/SKILL.md': SKILL_CREATOR_SKILL,
+    },
+    [PROJECT_ARCHITECT_AGENT_ID]: {
+      '/agent-architecture/SKILL.md': ARCHITECT_SKILL,
+      '/skill-creator/SKILL.md': SKILL_CREATOR_SKILL,
+    },
   },
 });
 
