@@ -511,8 +511,18 @@ export function useAguiChat(
     messagesRef.current = messages;
   }, [messages]);
 
-  // Reset when external threadId changes (new conversation selected)
+  // Reset when external threadId changes (new conversation selected).
+  // Skip the reset when this id change is our own send()'s draft->real
+  // thread promotion (promotingRef) — local state already holds the
+  // optimistic user message and any in-flight streamed reply, and the
+  // parent's initialMessages prop is stale (still the empty draft, or the
+  // previous thread's history) until it catches up on its own.
   useEffect(() => {
+    if (promotingRef.current) {
+      promotingRef.current = false;
+      setThreadId(externalThreadId);
+      return;
+    }
     const parsed = parseInitialState(
       rawInitialMessages,
       rawInitialToolCalls,
@@ -1187,10 +1197,16 @@ export function useAguiChat(
             } else {
               // Creator returned nothing — send without a thread header and
               // let the backend fall back to deterministic langGraph id.
+              // externalThreadId won't change, so the reset effect never
+              // fires to consume the flag — clear it now.
+              promotingRef.current = false;
               threadIdOverride = null;
             }
           } catch (err) {
-            // Creation failed — surface it and do not attempt the run.
+            // Creation failed — surface it and do not attempt the run. Clear
+            // the flag so it doesn't wrongly suppress a later, unrelated
+            // thread switch.
+            promotingRef.current = false;
             setError(
               (err as Error)?.message || "Failed to create conversation.",
             );
