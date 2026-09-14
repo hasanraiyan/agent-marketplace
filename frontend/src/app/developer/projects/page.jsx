@@ -180,7 +180,8 @@ export default function ProjectsPage() {
             {user?.firstName ? `, ${user.firstName}` : ""}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Manage your external application workspaces, credentials, and agent runtimes.
+            Manage your external application workspaces, credentials, and agent
+            runtimes.
           </p>
         </div>
 
@@ -193,11 +194,18 @@ export default function ProjectsPage() {
           >
             <BookOpen className="size-3.5" />
             {showGuide ? "Hide Quickstart" : "Developer Quickstart"}
-            {showGuide ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+            {showGuide ? (
+              <ChevronUp className="size-3.5" />
+            ) : (
+              <ChevronDown className="size-3.5" />
+            )}
           </Button>
 
           <Link href={developerRoutes.projectNew}>
-            <Button size="sm" className="rounded-full bg-[#1E60FF] px-4 font-bold text-white shadow-sm hover:bg-[#154ed0]">
+            <Button
+              size="sm"
+              className="rounded-full bg-[#1E60FF] px-4 font-bold text-white shadow-sm hover:bg-[#154ed0]"
+            >
               <Plus className="mr-1 size-3.5" />
               New Project
             </Button>
@@ -222,7 +230,10 @@ export default function ProjectsPage() {
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-bold text-foreground">Your Projects</h2>
-            <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-xs">
+            <Badge
+              variant="secondary"
+              className="rounded-full px-2 py-0.5 text-xs"
+            >
               {projects.length}
             </Badge>
           </div>

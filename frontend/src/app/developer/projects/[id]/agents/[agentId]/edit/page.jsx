@@ -662,18 +662,23 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
                         className="-mt-3 rounded-md border border-dashed p-3 text-xs text-muted-foreground"
                       >
                         <p className="font-medium text-foreground">
-                          &quot;{source.name}&quot; expects this context on every message:
+                          &quot;{source.name}&quot; expects this context on
+                          every message:
                         </p>
                         <ul className="mt-1 list-inside list-disc">
                           {source.paramContextMap.map((entry) => (
                             <li key={entry.param}>
-                              <code className="font-mono">{entry.contextKey}</code> — resolves param{" "}
+                              <code className="font-mono">
+                                {entry.contextKey}
+                              </code>{" "}
+                              — resolves param{" "}
                               <code className="font-mono">{entry.param}</code>
                             </li>
                           ))}
                         </ul>
                         <p className="mt-1">
-                          Edit this mapping from the source&apos;s own page, not here.
+                          Edit this mapping from the source&apos;s own page, not
+                          here.
                         </p>
                       </div>
                     ))}

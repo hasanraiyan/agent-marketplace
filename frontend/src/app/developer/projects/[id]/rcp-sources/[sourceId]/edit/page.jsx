@@ -110,7 +110,9 @@ export default function ProjectRcpSourceEditorPage({ params: paramsPromise }) {
           router.push(developerRoutes.project(projectId));
         }
       } catch (err) {
-        toast.error(err.response?.data?.message || "Failed to load RCP source.");
+        toast.error(
+          err.response?.data?.message || "Failed to load RCP source.",
+        );
       } finally {
         setLoading(false);
       }
@@ -137,7 +139,9 @@ export default function ProjectRcpSourceEditorPage({ params: paramsPromise }) {
         authType: formData.authType,
         isEnabled: formData.isEnabled,
         paramContextMap: formData.paramContextMap,
-        ...(formData.authType === "header" ? { secretRef: formData.secretRef } : {}),
+        ...(formData.authType === "header"
+          ? { secretRef: formData.secretRef }
+          : {}),
       };
 
       if (isEditing) {
@@ -188,13 +192,17 @@ export default function ProjectRcpSourceEditorPage({ params: paramsPromise }) {
 
   const handleParamContextChange = (paramName, contextKey) => {
     setFormData((prev) => {
-      const rest = prev.paramContextMap.filter((entry) => entry.param !== paramName);
+      const rest = prev.paramContextMap.filter(
+        (entry) => entry.param !== paramName,
+      );
       const trimmed = contextKey.trim();
       return {
         ...prev,
         // An emptied field un-maps the param (back to model-fillable) rather
         // than persisting a mapping to an empty context key.
-        paramContextMap: trimmed ? [...rest, { param: paramName, contextKey: trimmed }] : rest,
+        paramContextMap: trimmed
+          ? [...rest, { param: paramName, contextKey: trimmed }]
+          : rest,
       };
     });
   };
@@ -223,10 +231,9 @@ export default function ProjectRcpSourceEditorPage({ params: paramsPromise }) {
             <CardDescription>
               A URL your own backend hosts (e.g. via{" "}
               <code>@personaai/runtime</code>&apos;s <code>rcpManifest</code>{" "}
-              option, or any server built with{" "}
-              <code>rcp-sdk/server</code>), describing RCP tools your Agents
-              can call — discovered live, the same way an MCP server&apos;s
-              tools are.
+              option, or any server built with <code>rcp-sdk/server</code>),
+              describing RCP tools your Agents can call — discovered live, the
+              same way an MCP server&apos;s tools are.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -284,7 +291,9 @@ export default function ProjectRcpSourceEditorPage({ params: paramsPromise }) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="header">Header (bearer token)</SelectItem>
+                    <SelectItem value="header">
+                      Header (bearer token)
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </Field>
@@ -383,9 +392,9 @@ export default function ProjectRcpSourceEditorPage({ params: paramsPromise }) {
                   <p className="text-sm text-muted-foreground">
                     Map a param to a context key your frontend sends with each
                     message. A mapped param is hidden from the model on every
-                    turn and resolved live from that key instead of being
-                    left for the model to fill in — leave a param unmapped to
-                    keep it a normal, model-fillable argument.
+                    turn and resolved live from that key instead of being left
+                    for the model to fill in — leave a param unmapped to keep it
+                    a normal, model-fillable argument.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2">
@@ -400,7 +409,10 @@ export default function ProjectRcpSourceEditorPage({ params: paramsPromise }) {
                       >
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="shrink-0 font-mono">
+                            <Badge
+                              variant="outline"
+                              className="shrink-0 font-mono"
+                            >
                               {param.type}
                             </Badge>
                             <span className="truncate font-mono text-sm font-medium">
@@ -426,8 +438,9 @@ export default function ProjectRcpSourceEditorPage({ params: paramsPromise }) {
                   })}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Caller-supplied, not server-verified — don&apos;t map a tenant id or real user id
-                  here; those should keep resolving from the verified execution context instead.
+                  Caller-supplied, not server-verified — don&apos;t map a tenant
+                  id or real user id here; those should keep resolving from the
+                  verified execution context instead.
                 </p>
               </div>
             )}

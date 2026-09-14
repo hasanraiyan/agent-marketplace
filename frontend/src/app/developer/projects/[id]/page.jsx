@@ -918,7 +918,9 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
           setRcpSources(res.data.data);
         }
       } catch (err) {
-        toast.error(err.response?.data?.message || "Failed to load RCP sources.");
+        toast.error(
+          err.response?.data?.message || "Failed to load RCP sources.",
+        );
       } finally {
         setRcpSourcesLoading(false);
       }
@@ -1463,7 +1465,12 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
       "REST Tool Source",
     );
   const handleBulkDeleteRcpSources = (ids) =>
-    runBulkDelete(bulkDeleteProjectRcpSources, ids, setRcpSources, "RCP source");
+    runBulkDelete(
+      bulkDeleteProjectRcpSources,
+      ids,
+      setRcpSources,
+      "RCP source",
+    );
   const handleBulkDeleteSecrets = (ids) =>
     runBulkDelete(bulkDeleteProjectSecrets, ids, setSecrets, "Secret");
   const handleBulkDeleteProviders = (ids) =>
@@ -2624,8 +2631,8 @@ export default function ProjectDetailPage({ params: paramsPromise }) {
                     <CardTitle>RCP Sources</CardTitle>
                     <CardDescription>
                       Hosted RCP manifest URLs — Persona discovers your
-                      code-defined tools from them live, via the open
-                      rcp-sdk package.
+                      code-defined tools from them live, via the open rcp-sdk
+                      package.
                     </CardDescription>
                   </div>
                   <Link href={developerRoutes.projectRcpSourceNew(projectId)}>

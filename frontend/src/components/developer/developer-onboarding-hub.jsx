@@ -29,7 +29,13 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -275,9 +281,10 @@ export function DeveloperOnboardingHub({ onProjectCreated }) {
             </h1>
 
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Persona Developer Studio provides complete headless infrastructure for external apps.
-              Create an isolated Project to manage dedicated API credentials, Bring-Your-Own-LLM
-              providers, vector RAG knowledge, MCP connectors, and real-time AG-UI streaming.
+              Persona Developer Studio provides complete headless infrastructure
+              for external apps. Create an isolated Project to manage dedicated
+              API credentials, Bring-Your-Own-LLM providers, vector RAG
+              knowledge, MCP connectors, and real-time AG-UI streaming.
             </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -388,10 +395,13 @@ export function DeveloperOnboardingHub({ onProjectCreated }) {
               </div>
 
               <div>
-                <h3 className="font-semibold tracking-tight">Create a Project Workspace</h3>
+                <h3 className="font-semibold tracking-tight">
+                  Create a Project Workspace
+                </h3>
                 <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                  Each Project functions as a secure boundary with its own client credentials, team
-                  members, audit logs, and resource limits.
+                  Each Project functions as a secure boundary with its own
+                  client credentials, team members, audit logs, and resource
+                  limits.
                 </p>
               </div>
             </div>
@@ -416,16 +426,22 @@ export function DeveloperOnboardingHub({ onProjectCreated }) {
                 <span className="flex size-8 items-center justify-center rounded-xl bg-slate-100 text-xs font-bold text-slate-800 dark:bg-slate-800 dark:text-slate-200">
                   02
                 </span>
-                <Badge variant="secondary" className="rounded-full text-[11px] font-medium">
+                <Badge
+                  variant="secondary"
+                  className="rounded-full text-[11px] font-medium"
+                >
                   Step 2
                 </Badge>
               </div>
 
               <div>
-                <h3 className="font-semibold tracking-tight">Configure Providers & Tools</h3>
+                <h3 className="font-semibold tracking-tight">
+                  Configure Providers & Tools
+                </h3>
                 <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                  Add your AI provider keys (OpenAI, Anthropic, Gemini, DeepSeek), attach Qdrant RAG
-                  documents, and register MCP servers or REST endpoints.
+                  Add your AI provider keys (OpenAI, Anthropic, Gemini,
+                  DeepSeek), attach Qdrant RAG documents, and register MCP
+                  servers or REST endpoints.
                 </p>
               </div>
             </div>
@@ -450,16 +466,23 @@ export function DeveloperOnboardingHub({ onProjectCreated }) {
                 <span className="flex size-8 items-center justify-center rounded-xl bg-slate-100 text-xs font-bold text-slate-800 dark:bg-slate-800 dark:text-slate-200">
                   03
                 </span>
-                <Badge variant="secondary" className="rounded-full text-[11px] font-medium">
+                <Badge
+                  variant="secondary"
+                  className="rounded-full text-[11px] font-medium"
+                >
                   Step 3
                 </Badge>
               </div>
 
               <div>
-                <h3 className="font-semibold tracking-tight">Integrate into Your App</h3>
+                <h3 className="font-semibold tracking-tight">
+                  Integrate into Your App
+                </h3>
                 <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                  Install <code className="font-mono text-primary">@personaai/sdk</code> or our Python
-                  SDK, mint an API key, and converse with agents via low-latency streaming.
+                  Install{" "}
+                  <code className="font-mono text-primary">@personaai/sdk</code>{" "}
+                  or our Python SDK, mint an API key, and converse with agents
+                  via low-latency streaming.
                 </p>
               </div>
             </div>
@@ -487,12 +510,15 @@ export function DeveloperOnboardingHub({ onProjectCreated }) {
               Developer Integration Preview
             </h2>
             <p className="text-sm text-muted-foreground">
-              Drop Persona agents into your existing backend, serverless function, or frontend.
+              Drop Persona agents into your existing backend, serverless
+              function, or frontend.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Need full API reference?</span>
+            <span className="text-xs text-muted-foreground">
+              Need full API reference?
+            </span>
             <Link
               href="https://persona.hasanraiyan.me/guides/sdk-quickstart"
               target="_blank"
@@ -505,10 +531,17 @@ export function DeveloperOnboardingHub({ onProjectCreated }) {
         </div>
 
         <Card className="overflow-hidden border shadow-sm">
-          <Tabs value={activeCodeTab} onValueChange={setActiveCodeTab} className="w-full">
+          <Tabs
+            value={activeCodeTab}
+            onValueChange={setActiveCodeTab}
+            className="w-full"
+          >
             <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-4 py-2.5">
               <TabsList variant="line" className="h-8 gap-2">
-                <TabsTrigger value="typescript" className="text-xs font-semibold">
+                <TabsTrigger
+                  value="typescript"
+                  className="text-xs font-semibold"
+                >
                   TypeScript / Node.js
                 </TabsTrigger>
                 <TabsTrigger value="python" className="text-xs font-semibold">
@@ -541,7 +574,11 @@ export function DeveloperOnboardingHub({ onProjectCreated }) {
                     <FileText className="size-3.5 text-slate-500" />
                     <span>{config.filename}</span>
                   </div>
-                  <CopyButton value={config.code} label="Code snippet" variant="icon" />
+                  <CopyButton
+                    value={config.code}
+                    label="Code snippet"
+                    variant="icon"
+                  />
                 </div>
                 <div className="overflow-x-auto bg-slate-950 p-4 font-mono text-xs leading-relaxed text-slate-200 dark:bg-black">
                   <pre>{config.code}</pre>
@@ -559,7 +596,8 @@ export function DeveloperOnboardingHub({ onProjectCreated }) {
             Popular Agent Blueprints
           </h2>
           <p className="text-sm text-muted-foreground">
-            Start from a verified architectural pattern or configure from scratch.
+            Start from a verified architectural pattern or configure from
+            scratch.
           </p>
         </div>
 
@@ -576,7 +614,10 @@ export function DeveloperOnboardingHub({ onProjectCreated }) {
                     <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary transition-transform group-hover:scale-105">
                       <Icon className="size-5" />
                     </div>
-                    <Badge variant="secondary" className="rounded-full text-[10px] font-semibold">
+                    <Badge
+                      variant="secondary"
+                      className="rounded-full text-[10px] font-semibold"
+                    >
                       {bp.badge}
                     </Badge>
                   </div>
@@ -606,7 +647,9 @@ export function DeveloperOnboardingHub({ onProjectCreated }) {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => openCreateModal(bp.defaultName, bp.defaultDesc)}
+                    onClick={() =>
+                      openCreateModal(bp.defaultName, bp.defaultDesc)
+                    }
                     className="w-full rounded-xl text-xs font-bold transition-all group-hover:bg-[#1E60FF] group-hover:text-white group-hover:border-[#1E60FF]"
                   >
                     Launch Blueprint
@@ -625,7 +668,8 @@ export function DeveloperOnboardingHub({ onProjectCreated }) {
             Built for Multi-Tenant Enterprise Applications
           </CardTitle>
           <CardDescription className="text-xs">
-            Why development teams choose Persona Developer Platform for production agent systems.
+            Why development teams choose Persona Developer Platform for
+            production agent systems.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -636,8 +680,9 @@ export function DeveloperOnboardingHub({ onProjectCreated }) {
                 Hard Project Isolation
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Complete multi-tenant isolation. External users, sessions, memories, and tools never
-                cross project boundaries or leak into public discovery.
+                Complete multi-tenant isolation. External users, sessions,
+                memories, and tools never cross project boundaries or leak into
+                public discovery.
               </p>
             </div>
 
@@ -647,8 +692,9 @@ export function DeveloperOnboardingHub({ onProjectCreated }) {
                 Real-Time Streaming
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Native AG-UI protocol delivers text deltas, thoughts, tool traces, and human-in-the-loop
-                interrupts via standard Server-Sent Events.
+                Native AG-UI protocol delivers text deltas, thoughts, tool
+                traces, and human-in-the-loop interrupts via standard
+                Server-Sent Events.
               </p>
             </div>
 
@@ -658,8 +704,9 @@ export function DeveloperOnboardingHub({ onProjectCreated }) {
                 AES-256 BYOK Security
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Your API keys are encrypted at rest with AES-256-GCM. We never mark up token costs
-                or proxy your requests through third-party intermediaries.
+                Your API keys are encrypted at rest with AES-256-GCM. We never
+                mark up token costs or proxy your requests through third-party
+                intermediaries.
               </p>
             </div>
 
@@ -669,8 +716,8 @@ export function DeveloperOnboardingHub({ onProjectCreated }) {
                 Deep Agent Graph Runtime
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Powered by LangGraph and Deep Agents. Run subagent delegations, tool calls, and state
-                checkpoints with automatic recovery.
+                Powered by LangGraph and Deep Agents. Run subagent delegations,
+                tool calls, and state checkpoints with automatic recovery.
               </p>
             </div>
           </div>
@@ -686,14 +733,17 @@ export function DeveloperOnboardingHub({ onProjectCreated }) {
                 Create Your Project
               </DialogTitle>
               <DialogDescription className="text-xs">
-                A Project isolates your application&apos;s agents, providers, knowledge bases, and API
-                credentials.
+                A Project isolates your application&apos;s agents, providers,
+                knowledge bases, and API credentials.
               </DialogDescription>
             </DialogHeader>
 
             <div className="flex flex-col gap-4 py-4">
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="quick-name" className="text-xs font-bold text-foreground">
+                <label
+                  htmlFor="quick-name"
+                  className="text-xs font-bold text-foreground"
+                >
                   Project Name <span className="text-destructive">*</span>
                 </label>
                 <Input
@@ -708,8 +758,14 @@ export function DeveloperOnboardingHub({ onProjectCreated }) {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="quick-desc" className="text-xs font-bold text-foreground">
-                  Description <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+                <label
+                  htmlFor="quick-desc"
+                  className="text-xs font-bold text-foreground"
+                >
+                  Description{" "}
+                  <span className="text-xs font-normal text-muted-foreground">
+                    (optional)
+                  </span>
                 </label>
                 <Textarea
                   id="quick-desc"
@@ -748,7 +804,9 @@ export function DeveloperOnboardingHub({ onProjectCreated }) {
                   disabled={creating || !projectName.trim()}
                   className="bg-[#1E60FF] font-bold text-white hover:bg-[#154ed0]"
                 >
-                  {creating && <Loader2 className="mr-2 size-3.5 animate-spin" />}
+                  {creating && (
+                    <Loader2 className="mr-2 size-3.5 animate-spin" />
+                  )}
                   Launch Project
                 </Button>
               </div>

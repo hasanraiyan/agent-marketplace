@@ -131,7 +131,9 @@ export default function ProjectRestToolSourceEditorPage({
         url: formData.url,
         authType: formData.authType,
         isEnabled: formData.isEnabled,
-        ...(formData.authType === "apiKey" ? { secretRef: formData.secretRef } : {}),
+        ...(formData.authType === "apiKey"
+          ? { secretRef: formData.secretRef }
+          : {}),
       };
 
       if (isEditing) {
@@ -270,8 +272,8 @@ export default function ProjectRestToolSourceEditorPage({
                   <FieldDescription>
                     Same Secrets tab REST API Tools use. Sent as{" "}
                     <code>Authorization: Bearer &lt;value&gt;</code> on every
-                    manifest fetch — must match the <code>authToken</code>{" "}
-                    your runtime is configured with.
+                    manifest fetch — must match the <code>authToken</code> your
+                    runtime is configured with.
                   </FieldDescription>
                 </Field>
               )}

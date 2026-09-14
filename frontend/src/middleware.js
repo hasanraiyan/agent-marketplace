@@ -1,7 +1,9 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-const PLATFORM_URL = process.env.NEXT_PUBLIC_PLATFORM_URL || "https://platform.persona.hasanraiyan.me";
+const PLATFORM_URL =
+  process.env.NEXT_PUBLIC_PLATFORM_URL ||
+  "https://platform.persona.hasanraiyan.me";
 
 const isPublicRoute = createRouteMatcher([
   "/",
