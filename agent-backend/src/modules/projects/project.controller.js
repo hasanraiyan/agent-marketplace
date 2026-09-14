@@ -39,18 +39,11 @@ async function assertAgentAccessible(agentId, context) {
 }
 
 /**
- * The Architect's default thread id predates per-thread history
- * (`projectArchitect.controller.js` always used `architect-${domain}`) —
- * keep that exact id as the default here too, so today's live Architect
- * conversations keep resolving to the same LangGraph checkpoint instead of
- * silently orphaning them under a new `agent-test-...` id.
+ * A new thread's id keeps the same prefix the (now-removed) auto-provisioned
+ * default used to, so a fresh Architect conversation still lands in the
+ * `architect-*` namespace `agent.factory.js`'s cache-key/TTL reasoning
+ * expects, not the regular-agent `agent-test-*` shape.
  */
-function defaultThreadIdFor(domain, agentId) {
-  return agentId === PROJECT_ARCHITECT_AGENT_ID
-    ? `architect-${domain}`
-    : `agent-test-${domain}-${agentId}`;
-}
-
 function newThreadIdFor(domain, agentId, uniqueSuffix) {
   return agentId === PROJECT_ARCHITECT_AGENT_ID
     ? `architect-${domain}-${uniqueSuffix}`
@@ -1574,8 +1567,12 @@ class ProjectController {
   // ────────────────────────────────────────────────────────────────────────────
 
   /**
-   * Lists conversation threads for this agent in this project for the current admin.
-   * Auto-provisions a default 'Main Chat' thread if none exist yet.
+   * Lists conversation threads for this agent in this project for the
+   * current admin. Returns an empty list when none exist yet — the
+   * Playground UI defaults to a local-only "new chat" draft (no real thread
+   * id) rather than relying on an eagerly auto-provisioned default; nothing
+   * is persisted here until the caller actually sends a first message
+   * (createAgentThread, or the AG-UI run route's own lazy-create path).
    */
   async listAgentThreads(req, res, next) {
     try {
@@ -1584,32 +1581,12 @@ class ProjectController {
 
       await assertAgentAccessible(agentId, req.projectAdminContext);
 
-      let threads = await Conversation.find({
+      const threads = await Conversation.find({
         domain,
         agentId,
         userId: personaUserId,
         isArchived: false,
       }).sort({ lastMessageAt: -1, createdAt: -1 });
-
-      if (threads.length === 0) {
-        const defaultThreadId = defaultThreadIdFor(domain, agentId);
-        const defaultThread = await Conversation.findOneAndUpdate(
-          { threadId: defaultThreadId },
-          {
-            $setOnInsert: {
-              domain,
-              agentId,
-              userId: personaUserId,
-              subjectType: 'PersonaUser',
-              threadId: defaultThreadId,
-              title: 'Main Chat',
-              lastMessageAt: new Date(),
-            },
-          },
-          { upsert: true, new: true }
-        );
-        threads = [defaultThread];
-      }
 
       res.json({ success: true, data: threads });
     } catch (error) {

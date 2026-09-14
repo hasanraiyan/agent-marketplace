@@ -10,7 +10,6 @@ import {
   CheckIcon,
   XIcon,
   MagnifyingGlassIcon,
-  SpinnerIcon,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,12 +24,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   getProjectAgentThreads,
-  createProjectAgentThread,
   updateProjectAgentThread,
   deleteProjectAgentThread,
   type ProjectAgentThread,
 } from "@/lib/api/projects";
 import { cn } from "@/lib/utils";
+import { DRAFT_THREAD_ID } from "./use-thread-history";
 
 function formatRelativeTime(dateInput: string | Date | undefined): string {
   if (!dateInput) return "";
@@ -57,6 +56,11 @@ interface AgentThreadsSidebarProps {
   onSelectThread: (thread: ProjectAgentThread) => void;
   onThreadDeleted?: (threadId: string) => void;
   updatedTitle?: { threadId: string; title: string } | null;
+  /** Bumped by the parent whenever a draft thread gets lazily promoted to a
+   * real one (via a chat's first send) — forces a silent re-fetch so the
+   * new thread shows up in the list without disturbing the current
+   * selection (see playground/page.tsx's `handleThreadPromoted`). */
+  refreshToken?: string | number;
   onClose?: () => void;
   className?: string;
 }
@@ -68,12 +72,12 @@ export function AgentThreadsSidebar({
   onSelectThread,
   onThreadDeleted,
   updatedTitle,
+  refreshToken,
   onClose,
   className,
 }: AgentThreadsSidebarProps) {
   const [threads, setThreads] = React.useState<ProjectAgentThread[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [creating, setCreating] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editTitle, setEditTitle] = React.useState("");
@@ -102,10 +106,22 @@ export function AgentThreadsSidebar({
     [projectId, agentId, activeThreadId, onSelectThread]
   );
 
+  // No auto-select on mount — the parent defaults to the draft "new chat"
+  // state (see playground/page.tsx). This only ever populates the list so
+  // existing conversations are still there to click into.
   React.useEffect(() => {
-    fetchThreads(true);
+    fetchThreads(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, agentId]);
+
+  // A draft thread promoted to a real one (first send) isn't known to this
+  // component at all — it happens inside the chat surface — so the parent
+  // bumps refreshToken to make it show up here without touching selection.
+  React.useEffect(() => {
+    if (refreshToken === undefined) return;
+    fetchThreads(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshToken]);
 
   React.useEffect(() => {
     if (updatedTitle?.threadId && updatedTitle?.title) {
@@ -126,20 +142,8 @@ export function AgentThreadsSidebar({
     }
   }, [editingId]);
 
-  const handleCreate = async () => {
-    try {
-      setCreating(true);
-      const res = await createProjectAgentThread(projectId, agentId);
-      const newThread: ProjectAgentThread = res.data?.data;
-      if (newThread) {
-        setThreads((prev) => [newThread, ...prev]);
-        onSelectThread(newThread);
-      }
-    } catch (err) {
-      console.error("Failed to create thread:", err);
-    } finally {
-      setCreating(false);
-    }
+  const handleCreate = () => {
+    onSelectThread({ _id: DRAFT_THREAD_ID, threadId: DRAFT_THREAD_ID, title: "New Conversation" } as ProjectAgentThread);
   };
 
   const handleStartRename = (thread: ProjectAgentThread, e?: React.MouseEvent) => {
@@ -211,14 +215,9 @@ export function AgentThreadsSidebar({
             size="sm"
             variant="outline"
             onClick={handleCreate}
-            disabled={creating}
             className="h-7 gap-1 px-2 text-xs font-medium"
           >
-            {creating ? (
-              <SpinnerIcon className="size-3.5 animate-spin" />
-            ) : (
-              <NotePencilIcon className="size-3.5" />
-            )}
+            <NotePencilIcon className="size-3.5" />
             <span>New</span>
           </Button>
           {onClose && (

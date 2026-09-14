@@ -519,8 +519,19 @@ export function useAguiChat(
     messagesRef.current = messages;
   }, [messages]);
 
-  // Reset when external threadId changes (new conversation selected)
+  // Reset when external threadId changes (new conversation selected) — but
+  // NOT when that change is `send()`'s own lazy-creation promotion (virtual
+  // "new" -> the freshly-minted real id, set via `setThreadId(newId)` right
+  // before `onThreadCreated`/`runStream` above): that transition happens
+  // mid-send, and resetting messages/toolCalls back to the (empty)
+  // `initialMessages` here would wipe out the very message that triggered
+  // the promotion, even though the run streams back successfully. Consumed
+  // exactly once per promotion.
   useEffect(() => {
+    if (promotingRef.current) {
+      promotingRef.current = false;
+      return;
+    }
     const parsed = parseInitialState(
       rawInitialMessages,
       rawInitialToolCalls,
