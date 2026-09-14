@@ -52,6 +52,11 @@ jest.unstable_mockModule('../src/modules/projects/projectInvitation.service.js',
 // PR-31 hit and solved by mocking at this boundary instead).
 jest.unstable_mockModule('../src/modules/agents/agent.service.js', () => ({
   default: { discoverAgents: jest.fn() },
+  personaExecutionContext: jest.fn((userId) => ({
+    domain: 'persona',
+    principalType: 'PersonaUser',
+    personaUserId: userId,
+  })),
 }));
 jest.unstable_mockModule('../src/modules/skills/skill.service.js', () => ({
   default: { discoverSkills: jest.fn() },
