@@ -51,6 +51,7 @@ jest.unstable_mockModule('../src/modules/projects/projectInvitation.service.js',
 // agent.factory.js's heavy LangChain/DeepAgents chain (the same problem
 // PR-31 hit and solved by mocking at this boundary instead).
 jest.unstable_mockModule('../src/modules/agents/agent.service.js', () => ({
+  personaExecutionContext: (userId) => ({ principalType: 'PersonaUser', personaUserId: userId }),
   default: { discoverAgents: jest.fn() },
 }));
 jest.unstable_mockModule('../src/modules/skills/skill.service.js', () => ({

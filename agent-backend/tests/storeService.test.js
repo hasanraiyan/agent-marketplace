@@ -20,6 +20,7 @@ jest.unstable_mockModule('../src/modules/agents/agent.factory.js', () => ({
   default: { invalidate: jest.fn() },
 }));
 jest.unstable_mockModule('../src/modules/memory/memory-file.model.js', () => ({
+  upsertMemoryFile: jest.fn(),
   default: {
     find: jest.fn(),
     findOne: jest.fn(),

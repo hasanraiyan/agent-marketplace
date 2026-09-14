@@ -420,8 +420,8 @@ describe('WorkflowsResource', () => {
     expect(result.isDryRun).toBe(false);
     expect(result.output).toEqual({ result: '42' });
     expect(result.usage?.totalTokens).toBe(200);
-    expect(result.nodeRuns['agent_step'].status).toBe('completed');
-    expect(result.nodeRuns['agent_step'].durationMs).toBe(800);
+    expect(result.nodeRuns?.['agent_step']?.status).toBe('completed');
+    expect(result.nodeRuns?.['agent_step']?.durationMs).toBe(800);
     expect(result.events).toHaveLength(4);
   });
 });

@@ -17,25 +17,28 @@ function docKey(namespace, key) {
   return JSON.stringify({ namespace, key });
 }
 
+const upsertMock = jest.fn(async ({ namespace, key }, update) => {
+  const now = new Date();
+  const existing = memoryFileDocs.get(docKey(namespace, key));
+  const doc = {
+    namespace,
+    key,
+    content: update.$set.content,
+    mimeType: update.$set.mimeType,
+    createdAt: existing?.createdAt || now,
+    updatedAt: now,
+  };
+  memoryFileDocs.set(docKey(namespace, key), doc);
+  return doc;
+});
+
 jest.unstable_mockModule('../src/modules/memory/memory-file.model.js', () => ({
+  upsertMemoryFile: upsertMock,
   default: {
     findOne: jest.fn(
       async ({ namespace, key }) => memoryFileDocs.get(docKey(namespace, key)) || null
     ),
-    findOneAndUpdate: jest.fn(async ({ namespace, key }, update) => {
-      const now = new Date();
-      const existing = memoryFileDocs.get(docKey(namespace, key));
-      const doc = {
-        namespace,
-        key,
-        content: update.$set.content,
-        mimeType: update.$set.mimeType,
-        createdAt: existing?.createdAt || now,
-        updatedAt: now,
-      };
-      memoryFileDocs.set(docKey(namespace, key), doc);
-      return doc;
-    }),
+    findOneAndUpdate: upsertMock,
     deleteOne: jest.fn(async ({ namespace, key }) => {
       const existed = memoryFileDocs.delete(docKey(namespace, key));
       return { deletedCount: existed ? 1 : 0 };
