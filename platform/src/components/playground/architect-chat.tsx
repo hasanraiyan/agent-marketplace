@@ -10,22 +10,16 @@ import {
   type ConversationEntry as HookConversationEntry,
 } from "@/lib/agui/use-agui-chat";
 import {
-  toChatView,
-  hitlInterruptFrom,
-  clarificationInterruptFrom,
-} from "@/lib/agui/chat-adapter";
-import {
   ChatScroller,
   ChatScrollerItem,
   ChatMessage,
   ChatComposer,
   ChatEmptyState,
   InterruptPanel,
-  type ChatInterruptData,
 } from "@/components/chat";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { getProjectAgentThreadMessages } from "@/lib/api/projects";
-import { normalizeCheckpointData } from "./agent-chat";
+import { useAguiChatUI, useClerkGetToken } from "./use-chat-ui";
+import { useThreadHistory } from "./use-thread-history";
 
 // Sentinel whose dedicated "Project Agent Architect" graph the project-scoped
 // /architect/agui route runs (agent-backend modules/agents/architectConstants.js
@@ -40,20 +34,17 @@ export const PROJECT_ARCHITECT_AGENT_ID = "000000000000000000000001";
  * "Just the chat" surface for the Project Agent Architect — the spec bot that
  * creates/edits a project's Agents by conversation via its consolidated
  * `manage_agent` CRUD tool (action: create/read/update/patch/delete).
- * Mirrors AgentChat's text-chat plumbing against the project-scoped
- * `/architect/agui` AG-UI SSE endpoint, minus the per-agent test affordances
- * (no Voice tab — voice sessions refuse any agent with guarded tools, and
- * the Architect's entire toolbox is guarded by design; no workspace files /
- * subagents).
+ * Shares the interrupt-handling/transcript logic with `AgentChat` via
+ * `useAguiChatUI` (see use-chat-ui.ts) — this component only adds its own
+ * extra: the "refresh the agent picker on a successful mutation" effect
+ * below, and its own (simpler) JSX (no workspace files / subagents / Voice
+ * tab — voice sessions refuse any agent with guarded tools, and the
+ * Architect's entire toolbox is guarded by design).
  *
  * The Architect now supports real per-thread history, same as a real Agent:
  * `threadId` selects which server-side Conversation/LangGraph thread to
  * resume (omit it for the original single deterministic `architect-<domain>`
- * conversation every existing session already resolves to). Every agent the
- * bot creates here is a real project Agent — the parent re-fetches the agent
- * list (via onAgentsRefreshed) whenever a manage_agent create/update/patch/
- * delete call reports success, so the new/updated Agent appears in the
- * Playground picker.
+ * conversation every existing session already resolves to).
  */
 function ArchitectChatInner({
   projectId,
@@ -79,6 +70,7 @@ function ArchitectChatInner({
       `${api.defaults.baseURL ?? "/api/v1"}/projects/${projectId}/architect/agui`,
     [projectId]
   );
+  const getToken = useClerkGetToken();
 
   const chat = useAguiChat({
     url,
@@ -87,28 +79,12 @@ function ArchitectChatInner({
     initialMessages,
     initialAgentState,
     onTitleGenerated,
-    getToken: React.useCallback(
-      () =>
-        typeof window !== "undefined"
-          ? (window as unknown as { Clerk?: { session?: { getToken: () => Promise<string> } } })
-              .Clerk?.session?.getToken?.() ?? Promise.resolve(null)
-          : Promise.resolve(null),
-      []
-    ),
+    getToken,
   });
 
-  const { send, stop, respondToApproval, respondToClarification } = chat;
-
-  const view = React.useMemo(
-    () =>
-      toChatView({
-        messages: chat.messages,
-        toolCalls: chat.toolCalls,
-        conversation: chat.conversation,
-        isRunning: chat.isRunning,
-      }),
-    [chat.messages, chat.toolCalls, chat.conversation, chat.isRunning]
-  );
+  const { send, stop } = chat;
+  const { view, interrupt, interruptKey, handleDecideHitl, handleSubmitClarification } =
+    useAguiChatUI(chat);
 
   // ── Composer ────────────────────────────────────────────────────────────
   const [input, setInput] = React.useState("");
@@ -122,86 +98,6 @@ function ArchitectChatInner({
       // errors surface through chat.error
     }
   }, [input, send]);
-
-  // ── Interrupts (HITL approval + clarification) ──────────────────────────
-  // Same panel flow as AgentChat, but the per-interrupt buffers live in refs
-  // keyed by the interrupt object's identity, so nothing needs a
-  // reset-on-change effect (the Architect does pause to clarify before it
-  // upserts an Agent).
-  const interrupt = React.useMemo<ChatInterruptData | null>(() => {
-    if (chat.pendingApproval) return hitlInterruptFrom(chat.pendingApproval);
-    if (chat.pendingClarification?.questions?.length) {
-      return clarificationInterruptFrom(chat.pendingClarification);
-    }
-    return null;
-  }, [chat.pendingApproval, chat.pendingClarification]);
-
-  // HITL: the whole request is answered at once — buffer one decision per
-  // action (keyed by its positional id), then fire them all together.
-  const hitlRef = React.useRef<{
-    approval: object;
-    decisions: Record<string, "approve" | "reject">;
-    fired: boolean;
-  } | null>(null);
-
-  const handleDecideHitl = React.useCallback(
-    (actionId: string, decision: "approve" | "reject") => {
-      const approval = chat.pendingApproval;
-      if (!approval) return;
-      if (!hitlRef.current || hitlRef.current.approval !== approval) {
-        hitlRef.current = { approval, decisions: {}, fired: false };
-      }
-      const held = hitlRef.current;
-      if (held.fired) return;
-      const next = { ...held.decisions, [actionId]: decision };
-      held.decisions = next;
-      const { actionRequests } = approval;
-      const allDecided =
-        actionRequests.length > 0 && actionRequests.every((_, i) => next[String(i)]);
-      if (allDecided) {
-        held.fired = true;
-        void respondToApproval(
-          actionRequests.map((_, i) =>
-            next[String(i)] === "reject"
-              ? { type: "reject", message: "Rejected by the developer." }
-              : { type: "approve" }
-          )
-        );
-      }
-    },
-    [chat.pendingApproval, respondToApproval]
-  );
-
-  // Clarification: the hook answers ONE question at a time, so the panel shows
-  // a single-question wizard slice; each submit answers only the current step.
-  // The busy flag lives in a ref so a second submit can't double-answer.
-  const clarRef = React.useRef<{ clar: object; busy: boolean } | null>(null);
-
-  const handleSubmitClarification = React.useCallback(
-    (answers: Record<string, string>) => {
-      const clar = chat.pendingClarification;
-      if (!clar) return;
-      if (!clarRef.current || clarRef.current.clar !== clar) {
-        clarRef.current = { clar, busy: false };
-      }
-      const held = clarRef.current;
-      if (held.busy) return;
-      const q = clar.questions[clar.currentIndex || 0];
-      if (!q) return;
-      const value = answers[q.id ?? `q-${clar.currentIndex || 0}`];
-      held.busy = true;
-      if (value && value.trim()) {
-        void respondToClarification({ answer: value.trim(), freeform: true });
-      } else {
-        void respondToClarification({ skipped: true });
-      }
-    },
-    [chat.pendingClarification, respondToClarification]
-  );
-
-  const interruptKey = chat.pendingApproval
-    ? "hitl"
-    : `clar-${chat.pendingClarification?.currentIndex ?? 0}`;
 
   // ── Agent-list refresh on successful mutation ───────────────────────────
   // The Architect's mutations all flow through its consolidated manage_agent
@@ -308,12 +204,9 @@ function ArchitectChatInner({
 }
 
 /**
- * Top-level ArchitectChat with conversation thread history support — the
- * exact same "fetch past messages, then mount" pattern `agent-chat.tsx`'s
- * top-level `AgentChat` already uses for real Agents (same
- * `getProjectAgentThreadMessages` endpoint, same `normalizeCheckpointData`
- * shape, since the Architect's `test/agui`-equivalent thread-messages
- * response is identical).
+ * Top-level ArchitectChat with conversation thread history support — uses
+ * the same `useThreadHistory` hook `AgentChat` does (see agent-chat.tsx):
+ * fetch past messages, then mount.
  */
 function ArchitectChat({
   projectId,
@@ -326,39 +219,11 @@ function ArchitectChat({
   onAgentsRefreshed: () => void;
   onTitleGenerated?: (title: string) => void;
 }) {
-  const [initialData, setInitialData] = React.useState<{
-    messages: HookChatMessage[];
-    toolCalls: HookToolCall[];
-    conversation: HookConversationEntry[];
-    agentState: Record<string, unknown>;
-  } | null>(null);
-  const [loadingHistory, setLoadingHistory] = React.useState(Boolean(threadId));
-
-  React.useEffect(() => {
-    if (!threadId) {
-      setInitialData(null);
-      setLoadingHistory(false);
-      return;
-    }
-    let cancelled = false;
-    setLoadingHistory(true);
-    getProjectAgentThreadMessages(projectId, PROJECT_ARCHITECT_AGENT_ID, threadId)
-      .then((res) => {
-        if (cancelled) return;
-        const data = res.data?.data;
-        setInitialData(normalizeCheckpointData(data));
-      })
-      .catch((err) => {
-        console.error("Failed to load Architect thread messages:", err);
-        if (!cancelled) setInitialData(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingHistory(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId, threadId]);
+  const { loadingHistory, initialData } = useThreadHistory(
+    projectId,
+    PROJECT_ARCHITECT_AGENT_ID,
+    threadId
+  );
 
   if (loadingHistory) {
     return (

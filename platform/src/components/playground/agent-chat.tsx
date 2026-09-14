@@ -9,12 +9,7 @@ import {
   type ToolCall as HookToolCall,
   type ConversationEntry as HookConversationEntry,
 } from "@/lib/agui/use-agui-chat";
-import {
-  toChatView,
-  hitlInterruptFrom,
-  clarificationInterruptFrom,
-  subagentMessagesForToolId,
-} from "@/lib/agui/chat-adapter";
+import { subagentMessagesForToolId } from "@/lib/agui/chat-adapter";
 import {
   ChatScroller,
   ChatScrollerItem,
@@ -24,107 +19,20 @@ import {
   InterruptPanel,
   SubagentSheet,
   type ChatMessageData,
-  type ChatInterruptData,
   type ChatToolCall,
 } from "@/components/chat";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { getProjectAgentThreadMessages } from "@/lib/api/projects";
-
-/**
- * Generic — not Agent-specific — so `ArchitectChat` reuses this too instead
- * of duplicating it (the Architect's `test/agui`-shaped thread-messages
- * response has the identical `{messages, state, subagentTraces}` shape).
- */
-export function normalizeCheckpointData(data: unknown): {
-  messages: HookChatMessage[];
-  toolCalls: HookToolCall[];
-  conversation: HookConversationEntry[];
-  agentState: Record<string, unknown>;
-} {
-  const messages: HookChatMessage[] = [];
-  const toolCalls: HookToolCall[] = [];
-  const conversation: HookConversationEntry[] = [];
-
-  if (!data || typeof data !== "object") {
-    return { messages, toolCalls, conversation, agentState: {} };
-  }
-
-  const raw = data as {
-    messages?: Array<{
-      id?: string;
-      role?: string;
-      content?: string;
-      toolCalls?: Array<{
-        toolCallId?: string;
-        toolName?: string;
-        args?: string;
-        result?: string;
-      }>;
-    }>;
-    state?: Record<string, unknown>;
-    subagentTraces?: Record<string, unknown[]>;
-  };
-
-  const rawMessages = Array.isArray(raw.messages) ? raw.messages : [];
-  const subagentTraces = raw.subagentTraces || {};
-  const agentState = typeof raw.state === "object" && raw.state !== null ? raw.state : {};
-
-  rawMessages.forEach((msg, idx) => {
-    if (!msg) return;
-    const role = msg.role === "user" ? "user" : "assistant";
-    const content = typeof msg.content === "string" ? msg.content : "";
-    const msgId = msg.id || `${role}-${idx}-${Date.now()}`;
-
-    if (role === "user") {
-      messages.push({
-        id: msgId,
-        role: "user",
-        content,
-        timestamp: Date.now(),
-      });
-      conversation.push({ id: `entry-${msgId}`, type: "message", refId: msgId });
-    } else {
-      if (Array.isArray(msg.toolCalls)) {
-        msg.toolCalls.forEach((tc) => {
-          if (!tc) return;
-          const tcId = tc.toolCallId || `tool-${Math.random().toString(16).slice(2)}`;
-          const tcName = tc.toolName || "tool";
-          const argsText = typeof tc.args === "string" ? tc.args : JSON.stringify(tc.args || {});
-          const resultText = typeof tc.result === "string" ? tc.result : "";
-
-          toolCalls.push({
-            id: tcId,
-            name: tcName,
-            argumentsText: argsText,
-            resultText,
-            status: "completed",
-            subEvents: Array.isArray(subagentTraces[tcId])
-              ? (subagentTraces[tcId] as HookToolCall["subEvents"])
-              : undefined,
-          });
-          conversation.push({ id: `entry-${tcId}`, type: "tool", refId: tcId });
-        });
-      }
-
-      if (content || !msg.toolCalls?.length) {
-        messages.push({
-          id: msgId,
-          role: "assistant",
-          content,
-          timestamp: Date.now(),
-        });
-        conversation.push({ id: `entry-${msgId}`, type: "message", refId: msgId });
-      }
-    }
-  });
-
-  return { messages, toolCalls, conversation, agentState };
-}
+import { useAguiChatUI, useClerkGetToken } from "./use-chat-ui";
+import { useThreadHistory } from "./use-thread-history";
 
 /**
  * Live text-chat for one Agent — runs `useAguiChat` against the backend's
  * `test/agui` SSE endpoint and folds its AG-UI state into the render shapes
- * the chat component library consumes (see lib/agui/chat-adapter.ts).
+ * the chat component library consumes (see lib/agui/chat-adapter.ts). Shares
+ * the interrupt-handling/transcript logic with `ArchitectChat` via
+ * `useAguiChatUI` (see use-chat-ui.ts) — this component only adds its own
+ * extra: workspace-file/tool-call bubbling for the Files/Terminal panels and
+ * the subagent sheet, none of which the Architect has.
  */
 function AgentChatInner({
   projectId,
@@ -162,6 +70,7 @@ function AgentChatInner({
       `${api.defaults.baseURL ?? "/api/v1"}/projects/${projectId}/agents/${agentId}/test/agui`,
     [projectId, agentId]
   );
+  const getToken = useClerkGetToken();
 
   const chat = useAguiChat({
     url,
@@ -170,45 +79,16 @@ function AgentChatInner({
     initialMessages,
     initialAgentState,
     onTitleGenerated,
-    getToken: React.useCallback(
-      () =>
-        typeof window !== "undefined"
-          ? (window as unknown as { Clerk?: { session?: { getToken: () => Promise<string> } } })
-              .Clerk?.session?.getToken?.() ?? Promise.resolve(null)
-          : Promise.resolve(null),
-      []
-    ),
+    getToken,
   });
 
-  const { send, stop, respondToApproval, respondToClarification } = chat;
-
-  // chat.* are state arrays — stable references between commits — so the
-  // adapter re-runs only when the underlying transcript/tool list moves.
-  const view = React.useMemo(
-    () =>
-      toChatView({
-        messages: chat.messages,
-        toolCalls: chat.toolCalls,
-        conversation: chat.conversation,
-        isRunning: chat.isRunning,
-      }),
-    [chat.messages, chat.toolCalls, chat.conversation, chat.isRunning]
-  );
+  const { send, stop } = chat;
+  const { view, interrupt, interruptKey, handleDecideHitl, handleSubmitClarification } =
+    useAguiChatUI(chat);
 
   React.useEffect(() => {
     onToolCallsChange?.(Array.from(view.toolCallsById.values()));
   }, [view.toolCallsById, onToolCallsChange]);
-
-  React.useEffect(() => {
-    if (onWorkspaceFilesChange && chat.agentState?.files) {
-      onWorkspaceFilesChange(
-        chat.agentState.files as Record<
-          string,
-          { content: string; size: number; createdAt: string | null; modifiedAt: string | null }
-        >
-      );
-    }
-  }, [chat.agentState?.files, onWorkspaceFilesChange]);
 
   // ── Composer ────────────────────────────────────────────────────────────
   const [input, setInput] = React.useState("");
@@ -233,73 +113,6 @@ function AgentChatInner({
     },
     [send]
   );
-
-  // ── Interrupts (HITL approval + clarification) ──────────────────────────
-  const interrupt = React.useMemo<ChatInterruptData | null>(() => {
-    if (chat.pendingApproval) return hitlInterruptFrom(chat.pendingApproval);
-    if (chat.pendingClarification?.questions?.length) {
-      return clarificationInterruptFrom(chat.pendingClarification);
-    }
-    return null;
-  }, [chat.pendingApproval, chat.pendingClarification]);
-
-  // HITL: the whole request is answered at once — buffer one decision per
-  // action (keyed by its positional id), then fire them all together.
-  const [hitlDecisions, setHitlDecisions] = React.useState<Record<string, "approve" | "reject">>({});
-  const hitlFiredRef = React.useRef(false);
-  React.useEffect(() => {
-    setHitlDecisions({});
-    hitlFiredRef.current = false;
-  }, [chat.pendingApproval]);
-
-  const handleDecideHitl = React.useCallback(
-    (actionId: string, decision: "approve" | "reject") => {
-      if (!chat.pendingApproval || hitlFiredRef.current) return;
-      const next = { ...hitlDecisions, [actionId]: decision };
-      setHitlDecisions(next);
-      const { actionRequests } = chat.pendingApproval;
-      const allDecided =
-        actionRequests.length > 0 && actionRequests.every((_, i) => next[String(i)]);
-      if (!allDecided) return;
-      hitlFiredRef.current = true;
-      void respondToApproval(
-        actionRequests.map((_, i) =>
-          next[String(i)] === "reject"
-            ? { type: "reject", message: "Rejected by the developer." }
-            : { type: "approve" }
-        )
-      );
-    },
-    [chat.pendingApproval, hitlDecisions, respondToApproval]
-  );
-
-  // Clarification: the hook answers ONE question at a time, so the panel shows
-  // a single-question wizard slice; each submit answers only the current step.
-  const [clarBusy, setClarBusy] = React.useState(false);
-  React.useEffect(() => {
-    setClarBusy(false);
-  }, [chat.pendingClarification]);
-
-  const handleSubmitClarification = React.useCallback(
-    (answers: Record<string, string>) => {
-      if (!chat.pendingClarification || clarBusy) return;
-      const q =
-        chat.pendingClarification.questions[chat.pendingClarification.currentIndex || 0];
-      if (!q) return;
-      const value = answers[q.id ?? `q-${chat.pendingClarification.currentIndex || 0}`];
-      setClarBusy(true);
-      if (value && value.trim()) {
-        void respondToClarification({ answer: value.trim(), freeform: true });
-      } else {
-        void respondToClarification({ skipped: true });
-      }
-    },
-    [chat.pendingClarification, clarBusy, respondToClarification]
-  );
-
-  const interruptKey = chat.pendingApproval
-    ? "hitl"
-    : `clar-${chat.pendingClarification?.currentIndex ?? 0}`;
 
   // ── Subagent sheet + workspace files (Files sidebar, not a local Sheet) ──
   const [openToolId, setOpenToolId] = React.useState<string | null>(null);
@@ -429,8 +242,8 @@ function AgentChatInner({
 
 /**
  * Top-level AgentChat component with conversation thread history support.
- * When `threadId` is supplied, fetches past messages and checkpoint state before
- * mounting the streaming chat interface.
+ * When `threadId` is supplied, fetches past messages and checkpoint state
+ * before mounting the streaming chat interface (see use-thread-history.ts).
  */
 function AgentChat({
   projectId,
@@ -452,39 +265,7 @@ function AgentChat({
   /** Fires when AG-UI emits an auto-generated thread title. */
   onTitleGenerated?: (title: string) => void;
 }) {
-  const [initialData, setInitialData] = React.useState<{
-    messages: HookChatMessage[];
-    toolCalls: HookToolCall[];
-    conversation: HookConversationEntry[];
-    agentState: Record<string, unknown>;
-  } | null>(null);
-  const [loadingHistory, setLoadingHistory] = React.useState(Boolean(threadId));
-
-  React.useEffect(() => {
-    if (!threadId) {
-      setInitialData(null);
-      setLoadingHistory(false);
-      return;
-    }
-    let cancelled = false;
-    setLoadingHistory(true);
-    getProjectAgentThreadMessages(projectId, agentId, threadId)
-      .then((res) => {
-        if (cancelled) return;
-        const data = res.data?.data;
-        setInitialData(normalizeCheckpointData(data));
-      })
-      .catch((err) => {
-        console.error("Failed to load thread messages:", err);
-        if (!cancelled) setInitialData(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingHistory(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId, agentId, threadId]);
+  const { loadingHistory, initialData } = useThreadHistory(projectId, agentId, threadId);
 
   if (loadingHistory) {
     return (
@@ -512,4 +293,3 @@ function AgentChat({
 }
 
 export { AgentChat };
-
