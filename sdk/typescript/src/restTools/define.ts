@@ -89,20 +89,22 @@ function zodTypeName(field: unknown): 'string' | 'number' | 'boolean' {
   // (`_zod.def.type`) internals — a schema this doesn't recognize (a
   // wrapped/refined/union type, say) falls back to 'string', the same
   // default `templateEngine.js`'s `zodTypeFor` uses server-side.
-  let cur: any = field;
+  let cur = field as Record<string, unknown> | undefined;
   for (let i = 0; i < 5 && cur; i++) {
-    const typeName = cur?._def?.typeName ?? cur?._zod?.def?.type;
+    const def = cur._def as Record<string, unknown> | undefined;
+    const zodDef = cur._zod as { def?: Record<string, unknown> } | undefined;
+    const typeName = def?.typeName ?? zodDef?.def?.type;
     if (typeName === 'ZodNumber' || typeName === 'number') return 'number';
     if (typeName === 'ZodBoolean' || typeName === 'boolean') return 'boolean';
     if (typeName === 'ZodString' || typeName === 'string') return 'string';
-    cur = cur?._def?.innerType ?? cur?._zod?.def?.innerType;
+    cur = (def?.innerType ?? zodDef?.def?.innerType) as Record<string, unknown> | undefined;
   }
   return 'string';
 }
 
-function buildParamDescriptors(args: z.ZodObject<any> | undefined): RestToolParamDescriptor[] {
+function buildParamDescriptors(args: z.ZodObject<z.ZodRawShape> | undefined): RestToolParamDescriptor[] {
   if (!args) return [];
-  const shape: Record<string, unknown> = (args as any).shape ?? {};
+  const shape: Record<string, unknown> = (args as unknown as { shape?: Record<string, unknown> }).shape ?? {};
   if (Object.prototype.hasOwnProperty.call(shape, 'externalUserId')) {
     throw new Error(
       'defineRestTool: "externalUserId" is a reserved template token and cannot be declared in `args` — reference it via `t.externalUserId` instead.'
@@ -135,13 +137,16 @@ function makeHelpers<TArgs extends Record<string, unknown>>(
   };
 }
 
-function resolveTemplateString(value: TemplateString<any>, t: RestToolTemplateHelpers<any>): string {
+function resolveTemplateString(
+  value: TemplateString<Record<string, unknown>>,
+  t: RestToolTemplateHelpers<Record<string, unknown>>
+): string {
   return typeof value === 'function' ? value(t) : value;
 }
 
 function toParamRows(
-  entries: Record<string, TemplateString<any>> | undefined,
-  t: RestToolTemplateHelpers<any>
+  entries: Record<string, TemplateString<Record<string, unknown>>> | undefined,
+  t: RestToolTemplateHelpers<Record<string, unknown>>
 ): RestToolParamRow[] {
   if (!entries) return [];
   return Object.entries(entries).map(([key, value]) => ({
@@ -189,7 +194,7 @@ function toResponseMappings(
 export function defineRestTool<TArgs extends z.ZodRawShape = Record<string, never>>(
   opts: DefineRestToolOptions<TArgs>
 ): CreateRestToolInput {
-  const paramDescriptors = buildParamDescriptors(opts.args as z.ZodObject<any> | undefined);
+  const paramDescriptors = buildParamDescriptors(opts.args as z.ZodObject<z.ZodRawShape> | undefined);
   const t = makeHelpers(paramDescriptors.map((d) => d.name));
 
   const body = opts.body
