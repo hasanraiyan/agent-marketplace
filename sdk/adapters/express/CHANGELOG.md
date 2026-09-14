@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.12 — 2026-09-14
+
+- Bump `@personaai/runtime` to `^0.11.0` (forwards `threadId` on `POST /architect`) and `@personaai/sdk` to `^0.9.0` (`ArchitectClient.threadId` support). No adapter code change needed — generic passthrough. Verified against both real published packages — typecheck, 26 tests (7 files), and build all clean.
+
 ## 0.1.11 — 2026-09-09
 
 - Bump `@personaai/runtime` to `^0.9.5` (forwards the new `sandboxEnabled` field on `createAgent`) and `@personaai/sdk` to `^0.7.5` (new `Agent.sandboxEnabled` / `CreateAgentInput.sandboxEnabled` / `UpdateAgentInput.sandboxEnabled` — real shell execution in an isolated CodeSandbox VM, requires a `CSB_API_KEY` Project Secret). No adapter code change needed — generic passthrough. Verified against both real published packages — typecheck, 26 tests (7 files), and build all clean.

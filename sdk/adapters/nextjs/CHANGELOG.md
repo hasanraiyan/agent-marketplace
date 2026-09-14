@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.17 — 2026-09-14
+
+- Bump `@personaai/react` to `^0.10.0` (new `useArchitectChat()` hook and `ARCHITECT_AGENT_ID`
+  export) and `@personaai/runtime` to `^0.11.0` (forwards `threadId` on `POST /architect`). No
+  adapter code change needed for either — `client.ts` re-exports `@personaai/react` verbatim, and
+  `server.ts`'s route handling is a generic pass-through of `@personaai/runtime`'s route table.
+  Verified against both real published packages — typecheck, 35 tests, and build all clean.
+
 ## 0.1.16 — 2026-09-09
 
 - Bump `@personaai/react` to `^0.7.10` (new `useChat()` return value `sandboxCommands:

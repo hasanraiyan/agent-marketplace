@@ -5,6 +5,17 @@ All notable changes to @personaai/adapters will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-09-14
+
+### Changed
+- Upgraded dependencies:
+  - @personaai/sdk to ^0.9.0 (ArchitectClient.threadId support)
+  - @personaai/runtime to ^0.11.0 (POST /architect forwards threadId)
+  - @personaai/react to ^0.10.0 (useArchitectChat hook)
+- No source changes in this package — every adapter here (express/nestjs/nextjs) is a generic
+  translation layer over `runtime.handle()`, so the Architect's new threadId resume support is
+  already reachable through all three without any adapter-specific code.
+
 ## [0.2.0] - 2026-09-12
 
 ### Added
