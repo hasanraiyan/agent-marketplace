@@ -18,6 +18,7 @@ import {
   InterruptPanel,
 } from "@/components/chat";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { createProjectAgentThread } from "@/lib/api/projects";
 import { useAguiChatUI, useClerkGetToken } from "./use-chat-ui";
 import { useThreadHistory } from "./use-thread-history";
 
@@ -53,6 +54,7 @@ function ArchitectChatInner({
   initialAgentState,
   onAgentsRefreshed,
   onTitleGenerated,
+  onThreadPromoted,
 }: {
   projectId: string;
   threadId?: string;
@@ -64,6 +66,9 @@ function ArchitectChatInner({
   initialAgentState?: Record<string, unknown>;
   onAgentsRefreshed: () => void;
   onTitleGenerated?: (title: string) => void;
+  /** Fires once the draft ("new") thread is lazily promoted to a real one by
+   * the first send — see use-thread-history.ts's DRAFT_THREAD_ID. */
+  onThreadPromoted?: (threadId: string) => void;
 }) {
   const url = React.useMemo(
     () =>
@@ -72,13 +77,38 @@ function ArchitectChatInner({
   );
   const getToken = useClerkGetToken();
 
+  // Owned internally (seeded once from the `threadId` prop) rather than
+  // reacting to a prop the parent updates, so promoting a draft ("new") to
+  // its real id never needs a prop change flowing back down — which would
+  // otherwise force a remount via this component's own `key` upstream (see
+  // ArchitectChat/page.tsx) or retrigger useThreadHistory's fetch. The real
+  // id still has to reach `useAguiChat`'s `threadId` option, though (so a
+  // *second* send doesn't try to lazily create yet another thread) — that's
+  // exactly what `onThreadCreated` updating this local state achieves.
+  const [liveThreadId, setLiveThreadId] = React.useState(threadId);
+
+  const onCreateThread = React.useCallback(async () => {
+    const res = await createProjectAgentThread(projectId, PROJECT_ARCHITECT_AGENT_ID);
+    return res.data?.data?.threadId as string | undefined;
+  }, [projectId]);
+
+  const handleThreadCreated = React.useCallback(
+    (newId: string) => {
+      setLiveThreadId(newId);
+      onThreadPromoted?.(newId);
+    },
+    [onThreadPromoted]
+  );
+
   const chat = useAguiChat({
     url,
     agentId: PROJECT_ARCHITECT_AGENT_ID,
-    threadId,
+    threadId: liveThreadId,
     initialMessages,
     initialAgentState,
     onTitleGenerated,
+    onCreateThread,
+    onThreadCreated: handleThreadCreated,
     getToken,
   });
 
@@ -213,11 +243,13 @@ function ArchitectChat({
   threadId,
   onAgentsRefreshed,
   onTitleGenerated,
+  onThreadPromoted,
 }: {
   projectId: string;
   threadId?: string;
   onAgentsRefreshed: () => void;
   onTitleGenerated?: (title: string) => void;
+  onThreadPromoted?: (threadId: string) => void;
 }) {
   const { loadingHistory, initialData } = useThreadHistory(
     projectId,
@@ -243,6 +275,7 @@ function ArchitectChat({
       initialAgentState={initialData?.agentState}
       onAgentsRefreshed={onAgentsRefreshed}
       onTitleGenerated={onTitleGenerated}
+      onThreadPromoted={onThreadPromoted}
     />
   );
 }

@@ -23,6 +23,7 @@ import { ArchitectChat, PROJECT_ARCHITECT_AGENT_ID } from "@/components/playgrou
 import { MemoryWorkspaceDialog } from "@/components/playground/memory-workspace-dialog";
 import { SandboxTerminalDialog } from "@/components/playground/sandbox-terminal-dialog";
 import { AgentThreadsSidebar } from "@/components/playground/agent-threads-sidebar";
+import { DRAFT_THREAD_ID } from "@/components/playground/use-thread-history";
 import type { ChatToolCall } from "@/components/chat";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -39,6 +40,15 @@ interface AgentRow {
 // bot instead of a real project Agent. Distinct from any Agent id (which are
 // Mongo/ObjectIds), so it can never collide with a list row.
 const ARCHITECT = "__architect__";
+
+// Local-only "draft" thread — no backend row exists yet. Both a real Agent
+// and the Architect default to this (see DRAFT_THREAD_ID's own doc comment
+// for why it's never eagerly created).
+const DRAFT_THREAD: ProjectAgentThread = {
+  _id: DRAFT_THREAD_ID,
+  threadId: DRAFT_THREAD_ID,
+  title: "New Conversation",
+} as ProjectAgentThread;
 
 // Same list normalization used across the resource pages: the backend returns
 // an array of full docs (or { items }) inside res.data.data.
@@ -68,9 +78,9 @@ function errorMessage(err: unknown, fallback: string): string {
 /**
  * Shared "threads sidebar + chat" layout (desktop side-by-side, mobile push
  * slider) — used for both a real Agent's Chat tab and the Architect, which
- * now both support real per-thread history via `AgentThreadsSidebar`. The
- * actual chat surface is a render prop since `AgentChat` and `ArchitectChat`
- * take different props beyond the shared thread-selection plumbing.
+ * both support real per-thread history via `AgentThreadsSidebar`. The actual
+ * chat surface is a render prop since `AgentChat` and `ArchitectChat` take
+ * different props beyond the shared thread-selection plumbing.
  */
 function ThreadedChatLayout({
   projectId,
@@ -78,9 +88,11 @@ function ThreadedChatLayout({
   isMobile,
   threadsOpen,
   setThreadsOpen,
-  activeThread,
-  setActiveThread,
-  latestTitleUpdate,
+  activeThreadId,
+  onSelectThread,
+  onThreadDeleted,
+  refreshToken,
+  updatedTitle,
   renderChat,
 }: {
   projectId: string;
@@ -88,17 +100,13 @@ function ThreadedChatLayout({
   isMobile: boolean;
   threadsOpen: boolean;
   setThreadsOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  activeThread: ProjectAgentThread | null;
-  setActiveThread: (thread: ProjectAgentThread | null) => void;
-  latestTitleUpdate: { threadId: string; title: string } | null;
+  activeThreadId: string | null;
+  onSelectThread: (thread: ProjectAgentThread) => void;
+  onThreadDeleted?: (deletedId: string) => void;
+  refreshToken?: number;
+  updatedTitle: { threadId: string; title: string } | null;
   renderChat: () => React.ReactNode;
 }) {
-  const activeThreadId = activeThread?._id || activeThread?.threadId || null;
-
-  const handleThreadDeleted = (deletedId: string) => {
-    if (activeThread?._id === deletedId) setActiveThread(null);
-  };
-
   if (!isMobile) {
     return (
       <div className="flex h-full min-h-0 w-full gap-3 overflow-hidden rounded-md border border-border/40 bg-background">
@@ -107,9 +115,10 @@ function ThreadedChatLayout({
             projectId={projectId}
             agentId={agentId}
             activeThreadId={activeThreadId}
-            onSelectThread={setActiveThread}
-            onThreadDeleted={handleThreadDeleted}
-            updatedTitle={latestTitleUpdate}
+            onSelectThread={onSelectThread}
+            onThreadDeleted={onThreadDeleted}
+            refreshToken={refreshToken}
+            updatedTitle={updatedTitle}
           />
         )}
         <div className="flex-1 min-w-0 h-full">{renderChat()}</div>
@@ -131,11 +140,12 @@ function ThreadedChatLayout({
             agentId={agentId}
             activeThreadId={activeThreadId}
             onSelectThread={(thread) => {
-              setActiveThread(thread);
+              onSelectThread(thread);
               setThreadsOpen(false);
             }}
-            onThreadDeleted={handleThreadDeleted}
-            updatedTitle={latestTitleUpdate}
+            onThreadDeleted={onThreadDeleted}
+            refreshToken={refreshToken}
+            updatedTitle={updatedTitle}
             onClose={() => setThreadsOpen(false)}
             className="w-full h-full"
           />
@@ -162,9 +172,20 @@ function ThreadedChatLayout({
  * and edits the project's Agents by conversation. Choosing a real Agent shows
  * the Chat | Voice test tabs. The Architect surface stays mounted (hidden)
  * while an Agent is selected, so switching back preserves the spec
- * conversation in-session. Both the Architect and a real Agent's Chat tab now
- * get the same real thread-history sidebar (ThreadedChatLayout) and Memory
- * workspace access.
+ * conversation in-session. Both the Architect and a real Agent's Chat tab
+ * default to a local "new chat" draft (no real thread id, nothing persisted)
+ * rather than auto-selecting/auto-creating one — see DRAFT_THREAD_ID.
+ *
+ * Two separate pieces of thread state, deliberately not one:
+ * - `mountThreadId` is the chat surface's mount identity (its React `key`
+ *   and the `threadId` prop it's given at mount). It only changes on an
+ *   EXPLICIT user action (picking a thread in the sidebar, clicking "New",
+ *   switching agents) — never as a side effect of a draft getting lazily
+ *   promoted to a real thread mid-send. If it did, the chat component would
+ *   remount (aborting the in-flight run) or `useThreadHistory` would
+ *   refetch a thread that's still actively streaming.
+ * - `activeThread` is purely for display: the sidebar's highlighted row and
+ *   the auto-generated title. `handleThreadPromoted` updates only this.
  */
 function PlaygroundContent() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -185,7 +206,9 @@ function PlaygroundContent() {
   >({});
   const isMobile = useIsMobile();
   const [threadsOpen, setThreadsOpen] = React.useState(true);
-  const [activeThread, setActiveThread] = React.useState<ProjectAgentThread | null>(null);
+  const [mountThreadId, setMountThreadId] = React.useState<string>(DRAFT_THREAD_ID);
+  const [activeThread, setActiveThread] = React.useState<ProjectAgentThread>(DRAFT_THREAD);
+  const [sidebarRefreshToken, setSidebarRefreshToken] = React.useState(0);
   const [latestTitleUpdate, setLatestTitleUpdate] = React.useState<{
     threadId: string;
     title: string;
@@ -204,12 +227,39 @@ function PlaygroundContent() {
   }, [activeThread]);
 
   const handleTitleGenerated = React.useCallback((newTitle: string) => {
-    setActiveThread((prev) => (prev ? { ...prev, title: newTitle } : null));
-    const currentId = activeThreadRef.current?._id || activeThreadRef.current?.threadId;
+    setActiveThread((prev) => ({ ...prev, title: newTitle }));
+    const currentId = activeThreadRef.current._id || activeThreadRef.current.threadId;
     if (currentId) {
       setLatestTitleUpdate({ threadId: currentId, title: newTitle });
     }
   }, []);
+
+  // Explicit selection — a sidebar click on an existing thread, or the
+  // "New" button (see agent-threads-sidebar.tsx's handleCreate, which passes
+  // a local draft object shaped just like a real thread). Updates BOTH the
+  // display state and the chat surface's mount identity.
+  const handleSelectThread = React.useCallback((thread: ProjectAgentThread) => {
+    setActiveThread(thread);
+    setMountThreadId(thread.threadId || thread._id);
+  }, []);
+
+  // A draft promoted to a real thread by the chat surface's own first send —
+  // NOT a user action, so mountThreadId is deliberately left untouched (see
+  // the component doc comment above). Only updates what the sidebar/title
+  // display, plus asks the sidebar to pick up the newly-created row.
+  const handleThreadPromoted = React.useCallback((newThreadId: string) => {
+    setActiveThread({ _id: newThreadId, threadId: newThreadId, title: "New Conversation" } as ProjectAgentThread);
+    setSidebarRefreshToken((v) => v + 1);
+  }, []);
+
+  const handleThreadDeleted = React.useCallback(
+    (deletedId: string) => {
+      if (activeThread._id === deletedId || activeThread.threadId === deletedId) {
+        handleSelectThread(DRAFT_THREAD);
+      }
+    },
+    [activeThread, handleSelectThread]
+  );
 
   React.useEffect(() => {
     let cancelled = false;
@@ -267,7 +317,8 @@ function PlaygroundContent() {
   const handleSelectAgent = (value: string | null) => {
     const next = value === ARCHITECT ? ARCHITECT : value ?? ARCHITECT;
     setSelectedId(next);
-    setActiveThread(null);
+    setActiveThread(DRAFT_THREAD);
+    setMountThreadId(DRAFT_THREAD_ID);
     setLatestTitleUpdate(null);
     setLiveWorkspaceFiles({});
     if (next !== ARCHITECT) setTab("chat");
@@ -290,6 +341,8 @@ function PlaygroundContent() {
     [agents]
   );
   const memoryActiveAgentId = showingArchitect ? PROJECT_ARCHITECT_AGENT_ID : selectedAgent?.id;
+
+  const activeThreadId = activeThread._id || activeThread.threadId || null;
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -404,16 +457,19 @@ function PlaygroundContent() {
                   isMobile={isMobile}
                   threadsOpen={threadsOpen}
                   setThreadsOpen={setThreadsOpen}
-                  activeThread={activeThread}
-                  setActiveThread={setActiveThread}
-                  latestTitleUpdate={latestTitleUpdate}
+                  activeThreadId={showingArchitect ? activeThreadId : null}
+                  onSelectThread={handleSelectThread}
+                  onThreadDeleted={handleThreadDeleted}
+                  refreshToken={sidebarRefreshToken}
+                  updatedTitle={latestTitleUpdate}
                   renderChat={() => (
                     <ArchitectChat
-                      key={activeThread?.threadId || activeThread?._id || "default"}
+                      key={mountThreadId}
                       projectId={projectId}
-                      threadId={activeThread?.threadId || activeThread?._id}
+                      threadId={mountThreadId}
                       onAgentsRefreshed={refreshAgents}
                       onTitleGenerated={handleTitleGenerated}
+                      onThreadPromoted={handleThreadPromoted}
                     />
                   )}
                 />
@@ -452,19 +508,22 @@ function PlaygroundContent() {
                       isMobile={isMobile}
                       threadsOpen={threadsOpen}
                       setThreadsOpen={setThreadsOpen}
-                      activeThread={activeThread}
-                      setActiveThread={setActiveThread}
-                      latestTitleUpdate={latestTitleUpdate}
+                      activeThreadId={!showingArchitect ? activeThreadId : null}
+                      onSelectThread={handleSelectThread}
+                      onThreadDeleted={handleThreadDeleted}
+                      refreshToken={sidebarRefreshToken}
+                      updatedTitle={latestTitleUpdate}
                       renderChat={() => (
                         <AgentChat
-                          key={`${selectedAgent.id}-${activeThread?._id || activeThread?.threadId || "default"}`}
+                          key={`${selectedAgent.id}-${mountThreadId}`}
                           projectId={projectId}
                           agentId={selectedAgent.id}
-                          threadId={activeThread?.threadId || activeThread?._id}
+                          threadId={mountThreadId}
                           onToolCallsChange={selectedAgent.sandboxEnabled ? setToolCalls : undefined}
                           onOpenFile={handleOpenFile}
                           onWorkspaceFilesChange={setLiveWorkspaceFiles}
                           onTitleGenerated={handleTitleGenerated}
+                          onThreadPromoted={handleThreadPromoted}
                         />
                       )}
                     />

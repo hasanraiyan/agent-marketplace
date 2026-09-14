@@ -821,22 +821,15 @@ describe('Project Controller', () => {
       expect(mockRes.status).toHaveBeenCalledWith(404);
     });
 
-    test('listAgentThreads auto-provisions the Architect default thread as architect-${domain}, not agent-test-...', async () => {
+    test('listAgentThreads returns an empty list as-is — no auto-provisioned default thread', async () => {
       mockReq.params = { agentId: PROJECT_ARCHITECT_AGENT_ID };
       jest.spyOn(Conversation, 'find').mockReturnValue({ sort: jest.fn().mockResolvedValue([]) });
-      const upsertSpy = jest
-        .spyOn(Conversation, 'findOneAndUpdate')
-        .mockResolvedValue({ threadId: `architect-${projectId}`, title: 'Main Chat' });
+      const upsertSpy = jest.spyOn(Conversation, 'findOneAndUpdate');
 
       await projectController.listAgentThreads(mockReq, mockRes, next);
 
-      expect(upsertSpy).toHaveBeenCalledWith(
-        { threadId: `architect-${projectId}` },
-        expect.objectContaining({
-          $setOnInsert: expect.objectContaining({ threadId: `architect-${projectId}` }),
-        }),
-        { upsert: true, new: true }
-      );
+      expect(upsertSpy).not.toHaveBeenCalled();
+      expect(mockRes.json).toHaveBeenCalledWith({ success: true, data: [] });
     });
 
     test('createAgentThread skips the ownership check and uses the architect- prefix for a new thread id', async () => {

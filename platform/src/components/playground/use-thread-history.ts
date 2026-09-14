@@ -3,6 +3,18 @@ import { getProjectAgentThreadMessages } from "@/lib/api/projects";
 import type { HookChatMessage, HookToolCall, HookConversationEntry } from "./use-chat-ui";
 
 /**
+ * The sentinel `threadId` meaning "a draft new chat — no real thread exists
+ * yet." `useAguiChat` (lib/agui/use-agui-chat.ts) already recognizes this
+ * exact string and lazily creates the real thread via `onCreateThread` on
+ * the first `send()`, rather than any of this module's own code branching
+ * on it. Shared here (not e.g. a bare literal in each consumer) because it
+ * has to match exactly across `agent-threads-sidebar.tsx` (constructs the
+ * draft object), the chat components (pass it to `useAguiChat`), and this
+ * hook (skips fetching history for it).
+ */
+export const DRAFT_THREAD_ID = "new";
+
+/**
  * Normalizes the `test/agui`-shaped thread-messages response (also served
  * identically for the Architect's own threads) into `useAguiChat`'s
  * `initialMessages`/`initialAgentState` shape. Generic — not Agent-specific
@@ -115,10 +127,12 @@ export function useThreadHistory(
   threadId: string | undefined
 ): { loadingHistory: boolean; initialData: ThreadHistoryData | null } {
   const [initialData, setInitialData] = React.useState<ThreadHistoryData | null>(null);
-  const [loadingHistory, setLoadingHistory] = React.useState(Boolean(threadId));
+  const [loadingHistory, setLoadingHistory] = React.useState(
+    Boolean(threadId) && threadId !== DRAFT_THREAD_ID
+  );
 
   React.useEffect(() => {
-    if (!threadId) {
+    if (!threadId || threadId === DRAFT_THREAD_ID) {
       setInitialData(null);
       setLoadingHistory(false);
       return;

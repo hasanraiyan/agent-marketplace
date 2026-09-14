@@ -22,6 +22,7 @@ import {
   type ChatToolCall,
 } from "@/components/chat";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { createProjectAgentThread } from "@/lib/api/projects";
 import { useAguiChatUI, useClerkGetToken } from "./use-chat-ui";
 import { useThreadHistory } from "./use-thread-history";
 
@@ -44,6 +45,7 @@ function AgentChatInner({
   onOpenFile,
   onWorkspaceFilesChange,
   onTitleGenerated,
+  onThreadPromoted,
 }: {
   projectId: string;
   agentId: string;
@@ -64,6 +66,9 @@ function AgentChatInner({
   ) => void;
   /** Fires when AG-UI emits an auto-generated thread title. */
   onTitleGenerated?: (title: string) => void;
+  /** Fires once the draft ("new") thread is lazily promoted to a real one by
+   * the first send — see use-thread-history.ts's DRAFT_THREAD_ID. */
+  onThreadPromoted?: (threadId: string) => void;
 }) {
   const url = React.useMemo(
     () =>
@@ -72,13 +77,35 @@ function AgentChatInner({
   );
   const getToken = useClerkGetToken();
 
+  // Owned internally (seeded once from the `threadId` prop) — see the
+  // identical comment in architect-chat.tsx's ArchitectChatInner for why:
+  // promoting a draft ("new") to its real id must never flow back down as a
+  // prop change, or it'd force a remount via this component's own `key`
+  // upstream, or retrigger useThreadHistory's fetch.
+  const [liveThreadId, setLiveThreadId] = React.useState(threadId);
+
+  const onCreateThread = React.useCallback(async () => {
+    const res = await createProjectAgentThread(projectId, agentId);
+    return res.data?.data?.threadId as string | undefined;
+  }, [projectId, agentId]);
+
+  const handleThreadCreated = React.useCallback(
+    (newId: string) => {
+      setLiveThreadId(newId);
+      onThreadPromoted?.(newId);
+    },
+    [onThreadPromoted]
+  );
+
   const chat = useAguiChat({
     url,
     agentId,
-    threadId,
+    threadId: liveThreadId,
     initialMessages,
     initialAgentState,
     onTitleGenerated,
+    onCreateThread,
+    onThreadCreated: handleThreadCreated,
     getToken,
   });
 
@@ -253,6 +280,7 @@ function AgentChat({
   onOpenFile,
   onWorkspaceFilesChange,
   onTitleGenerated,
+  onThreadPromoted,
 }: {
   projectId: string;
   agentId: string;
@@ -264,6 +292,7 @@ function AgentChat({
   ) => void;
   /** Fires when AG-UI emits an auto-generated thread title. */
   onTitleGenerated?: (title: string) => void;
+  onThreadPromoted?: (threadId: string) => void;
 }) {
   const { loadingHistory, initialData } = useThreadHistory(projectId, agentId, threadId);
 
@@ -288,6 +317,7 @@ function AgentChat({
       onOpenFile={onOpenFile}
       onWorkspaceFilesChange={onWorkspaceFilesChange}
       onTitleGenerated={onTitleGenerated}
+      onThreadPromoted={onThreadPromoted}
     />
   );
 }
