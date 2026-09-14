@@ -45,6 +45,20 @@ jest.unstable_mockModule('../src/modules/memory/memory-file.model.js', () => ({
     })),
     deleteMany: jest.fn(async () => ({ deletedCount: 0 })),
   },
+  upsertMemoryFile: jest.fn(async (filter, update) => {
+    const now = new Date();
+    const existing = memoryFileDocs.get(docKey(filter.namespace, filter.key));
+    const doc = {
+      namespace: filter.namespace,
+      key: filter.key,
+      content: update.$set.content,
+      mimeType: update.$set.mimeType || 'text/markdown',
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+    };
+    memoryFileDocs.set(docKey(filter.namespace, filter.key), doc);
+    return doc;
+  }),
 }));
 
 jest.unstable_mockModule('../src/modules/agents/agent.repository.js', () => ({

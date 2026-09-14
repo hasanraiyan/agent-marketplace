@@ -27,6 +27,7 @@ jest.unstable_mockModule('../src/modules/memory/memory-file.model.js', () => ({
     deleteOne: jest.fn(),
     deleteMany: jest.fn(),
   },
+  upsertMemoryFile: jest.fn(),
 }));
 
 const storeRepository = (await import('../src/modules/stores/store.repository.js')).default;
