@@ -6,6 +6,28 @@ import threadService from '../threads/thread.service.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
 import { bulkDelete } from '../../utils/bulkDelete.js';
 import { paginationEnvelope } from '../../utils/pagination.js';
+import { DEVELOPER_ARCHITECT_AGENT_ID } from '../agents/architectConstants.js';
+
+/**
+ * The Developer Architect sentinel isn't a row in the Agent collection, so
+ * `agentRepository.findById` would always come back empty for it — mirrors
+ * `project.controller.js`'s identical `assertAgentAccessible` bypass for
+ * `PROJECT_ARCHITECT_AGENT_ID` (same reasoning: any caller reaching this
+ * route already owns the Architect conversation it's making a Thread for,
+ * there's no separate resource to authorize against).
+ */
+async function assertAgentAccessible(agentId, context) {
+  if (agentId === DEVELOPER_ARCHITECT_AGENT_ID) return;
+  let agent;
+  try {
+    agent = await agentRepository.findById(agentId);
+  } catch {
+    agent = null;
+  }
+  if (!agent || !agentService.canUserExecuteAgent(agent, context)) {
+    throw new NotFoundError('Agent not found');
+  }
+}
 
 /**
  * Developer Platform Thread CRUD (blueprint Phase 9, PR-40, AD-04 §15.3).
@@ -25,7 +47,11 @@ import { paginationEnvelope } from '../../utils/pagination.js';
  * context before letting a Thread be created against it (mirroring
  * `developerAgui.controller.js`'s own `canUserExecuteAgent` check, and
  * existence-hiding per AD-07 §29: an inaccessible Agent looks identical to
- * a nonexistent one).
+ * a nonexistent one) — `assertAgentAccessible` above special-cases
+ * `DEVELOPER_ARCHITECT_AGENT_ID` past that check the same way
+ * `project.controller.js` already does for its own Architect sentinel, so
+ * an asserted external user can create/list/resume named Threads with the
+ * Developer Architect too, not just with their real Agents.
  *
  * This is the piece that closes the "one implicit conversation per
  * external user" gap noted in `developerAgui.controller.js`'s own doc
@@ -40,15 +66,7 @@ class DeveloperThreadController {
     try {
       const { agentId } = req.body;
 
-      let agent;
-      try {
-        agent = await agentRepository.findById(agentId);
-      } catch {
-        agent = null;
-      }
-      if (!agent || !agentService.canUserExecuteAgent(agent, req.projectContext)) {
-        throw new NotFoundError('Agent not found');
-      }
+      await assertAgentAccessible(agentId, req.projectContext);
 
       const threadId = crypto.randomUUID();
       const thread = await threadService.createThread(
