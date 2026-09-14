@@ -64,7 +64,7 @@ export interface ChatHitlAction {
   id: string;
   /** Humanized tool name, used only for the Approve/Reject buttons' aria-label. */
   label: string;
-  /** Raw tool name (e.g. "upsert_agent") — lets the panel render this pending
+  /** Raw tool name (e.g. "manage_agent") — lets the panel render this pending
    * call through the same ToolCallCard used for a completed one. */
   toolName: string;
   /** Raw JSON string of the tool call's arguments — the same shape

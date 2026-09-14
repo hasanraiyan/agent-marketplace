@@ -2,7 +2,7 @@ import { jest } from '@jest/globals';
 import { EventType } from '@ag-ui/core';
 import agentService from '../src/modules/agents/agent.service.js';
 import providerRepository from '../src/modules/providers/provider.repository.js';
-import { upsertAgentTool } from '../src/modules/tools/builder.tools.js';
+import { manageAgentTool } from '../src/modules/tools/builder.tools.js';
 import {
   translateLangGraphStream,
   describeInterrupt,
@@ -11,7 +11,7 @@ import {
 } from '../src/modules/agui/aguiTranslator.js';
 import { askClarificationTool } from '../src/modules/tools/clarification.tool.js';
 
-describe('upsert_agent result contract', () => {
+describe('manage_agent result contract', () => {
   const userId = 'user-123';
   const providerId = 'provider-123';
 
@@ -31,12 +31,15 @@ describe('upsert_agent result contract', () => {
       systemPrompt: 'You are a research assistant.',
     });
 
-    const tool = upsertAgentTool(userId);
+    const tool = manageAgentTool(userId);
     const result = JSON.parse(
       await tool.invoke({
-        name: 'Research Assistant',
-        systemPrompt: 'You are a research assistant.',
-        providerId,
+        action: 'create',
+        data: {
+          name: 'Research Assistant',
+          systemPrompt: 'You are a research assistant.',
+          providerId,
+        },
       })
     );
 
@@ -52,8 +55,10 @@ describe('upsert_agent result contract', () => {
       name: 'Updated Agent',
     });
 
-    const tool = upsertAgentTool(userId);
-    const result = JSON.parse(await tool.invoke({ agentId: 'agent-789', name: 'Updated Agent' }));
+    const tool = manageAgentTool(userId);
+    const result = JSON.parse(
+      await tool.invoke({ action: 'update', id: 'agent-789', data: { name: 'Updated Agent' } })
+    );
 
     expect(result.status).toBe('success');
     expect(result.agentId).toBe('agent-789');
@@ -62,21 +67,36 @@ describe('upsert_agent result contract', () => {
   });
 
   test('create without required fields returns error status', async () => {
-    const tool = upsertAgentTool(userId);
-    const result = JSON.parse(await tool.invoke({ name: 'Only a name' }));
+    const tool = manageAgentTool(userId);
+    const result = JSON.parse(await tool.invoke({ action: 'create', data: { name: 'Only a name' } }));
 
     expect(result.status).toBe('error');
     expect(result.agentId).toBeUndefined();
+  });
+
+  test('patch adds one id to an array field without resending the rest', async () => {
+    agentService.getAgentById = jest.fn().mockResolvedValue({ _id: 'agent-1', mcps: ['mcp-a'] });
+    agentService.updateAgent = jest.fn().mockResolvedValue({ _id: 'agent-1', mcps: ['mcp-a', 'mcp-b'] });
+
+    const tool = manageAgentTool(userId);
+    const result = JSON.parse(
+      await tool.invoke({ action: 'patch', id: 'agent-1', field: 'mcps', op: 'add', value: 'mcp-b' })
+    );
+
+    expect(result.status).toBe('success');
+    expect(agentService.updateAgent).toHaveBeenCalledWith('agent-1', userId, {
+      mcps: ['mcp-a', 'mcp-b'],
+    });
   });
 });
 
 describe('HITL interrupt translation', () => {
   const hitlValue = {
     actionRequests: [
-      { name: 'upsert_agent', args: { name: 'Bot' }, description: 'needs approval' },
+      { name: 'manage_agent', args: { action: 'create', data: { name: 'Bot' } }, description: 'needs approval' },
     ],
     reviewConfigs: [
-      { actionName: 'upsert_agent', allowedDecisions: ['approve', 'edit', 'reject'] },
+      { actionName: 'manage_agent', allowedDecisions: ['approve', 'edit', 'reject'] },
     ],
   };
 
@@ -121,7 +141,7 @@ describe('HITL interrupt translation', () => {
     // covers clarification now, so a HITL payload falls through to the
     // generic fallback instead of duplicating the tool name in prose.
     const notice = buildInterruptNotice([{ value: hitlValue }]);
-    expect(notice).not.toContain('upsert_agent');
+    expect(notice).not.toContain('manage_agent');
   });
 
   test('stream emits CUSTOM hitl_request event and reports kind to onInterrupt', async () => {

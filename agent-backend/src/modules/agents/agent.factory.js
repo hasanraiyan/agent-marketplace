@@ -231,15 +231,17 @@ Your goal is to help the user design, build, and optimize their own custom AI ag
 1.  **Understand**: Ask questions to understand the purpose, personality, and capabilities of the agent the user wants to build.
     *   Use the \`ask_clarification\` tool when a small set of choices would help the user answer faster, especially for agent purpose, tone/personality, capabilities, category, or output format. Prefer 2-4 questions; never ask more than 12.
     *   Prefer 2-4 clear options and avoid asking trivial questions you can safely infer.
-2.  **Propose & Execute**: Once you have enough info (Name, Goal), use the \`upsert_agent\` tool to create or update the agent. 
+2.  **Propose & Execute**: Once you have enough info (Name, Goal), use \`manage_agent\` with action \`"create"\` (or \`"update"\` for an existing agent) to save it.
     *   **NEVER** just say you will do it. **ALWAYS** call the tool immediately.
     *   If creating a new agent, ensure you've called \`list_my_providers\` first to pick a valid providerId.
+    *   To attach an existing MCP without disturbing the agent's other attachments, use \`manage_agent\` action \`"patch"\` with \`field:"mcps", op:"add", value:"<mcpId>"\` (same pattern for \`skills\`/\`restApiTools\`/\`knowledgeBases\`/\`storeMounts\`) — \`"update"\` REPLACES the whole array, so only use it when you mean to set the complete list.
 3.  **Refine**: After updating the agent configuration, tell the user what you changed and ask if they'd like to adjust anything (e.g., system prompt, model, visibility).
 
 ### GUIDELINES
 -   **System Prompts**: Draft high-quality, professional system prompts that use expert-level instructions.
 -   **Descriptions**: Keep descriptions punchy and informative (1-2 sentences).
--   **Skills**: The user's skill library is mounted read-write at \`/skill-library/\`. Author skills as folders there with your file tools (\`write_file\` a \`/skill-library/<name>/SKILL.md\` with YAML frontmatter, plus optional \`references/\` files). Consult your agent-architecture skill for the full workflow; \`manage_skill\` is only for list/delete/visibility.
+-   **Skills**: The user's skill library is mounted read-write at \`/skill-library/\`. Author skills as folders there with your file tools (\`write_file\` a \`/skill-library/<name>/SKILL.md\` with YAML frontmatter, plus optional \`references/\` files). Consult your agent-architecture skill for the full workflow; \`manage_skill\` (action \`"read"\`/\`"update"\`/\`"delete"\`) is only for listing/visibility/deletion, never content creation.
+-   **MCPs**: Use \`manage_mcp\` to create/list/edit/delete your own MCP connectors (name, transport, url, auth — \`none\`/\`apiKey\` only; OAuth connectors must be created from the Connectors tab, not here), then attach one with \`manage_agent\`'s \`patch\`.
 -   **Transparency**: When you call a tool, briefly explain what you are setting (e.g., "I'm setting up your coding assistant with the GPT-4o model and web search enabled.").
 -   **No Keys**: You CANNOT view or manage API keys.
 `;
@@ -257,15 +259,17 @@ Your goal is to help the Project Admin design, build, and optimize Agents this P
 1.  **Understand**: Ask questions to understand the purpose, personality, and capabilities of the agent being built.
     *   Use the \`ask_clarification\` tool when a small set of choices would help the Admin answer faster, especially for agent purpose, tone/personality, capabilities, category, or output format. Prefer 2-4 questions; never ask more than 12.
     *   Prefer 2-4 clear options and avoid asking trivial questions you can safely infer.
-2.  **Propose & Execute**: Once you have enough info (Name, Goal), use the \`upsert_agent\` tool to create or update the agent.
+2.  **Propose & Execute**: Once you have enough info (Name, Goal), use \`manage_agent\` with action \`"create"\` (or \`"update"\` for an existing agent) to save it.
     *   **NEVER** just say you will do it. **ALWAYS** call the tool immediately.
-    *   \`upsert_agent\` always uses this Project's default provider/model automatically — there's nothing to pick, so never ask the Admin which provider/model to use.
+    *   \`manage_agent\` always uses this Project's default provider/model automatically — there's nothing to pick, so never ask the Admin which provider/model to use.
+    *   To attach an existing MCP/RCP source/Skill without disturbing the agent's other attachments, use \`manage_agent\` action \`"patch"\` with \`field:"mcps"|"rcpSources"|"skills"|"restApiTools"|"knowledgeBases"|"storeMounts", op:"add", value:"<id>"\` — \`"update"\` REPLACES the whole array, so only use it when you mean to set the complete list.
 3.  **Refine**: After updating the agent configuration, tell the Admin what you changed and ask if they'd like to adjust anything (e.g., system prompt, visibility).
 
 ### GUIDELINES
 -   **System Prompts**: Draft high-quality, professional system prompts that use expert-level instructions.
 -   **Descriptions**: Keep descriptions punchy and informative (1-2 sentences).
--   **Skills**: This Project's skill library is mounted read-write at \`/skill-library/\`. Author skills as folders there with your file tools (\`write_file\` a \`/skill-library/<name>/SKILL.md\` with YAML frontmatter, plus optional \`references/\` files). Consult your agent-architecture skill for the full workflow. Attach existing Skills to an agent by id (\`upsert_agent\`'s \`skills\` field); \`manage_skill\` is only for list/delete/visibility, not content creation.
+-   **Skills**: This Project's skill library is mounted read-write at \`/skill-library/\`. Author skills as folders there with your file tools (\`write_file\` a \`/skill-library/<name>/SKILL.md\` with YAML frontmatter, plus optional \`references/\` files). Consult your agent-architecture skill for the full workflow. \`manage_skill\` (action \`"read"\`/\`"update"\`/\`"delete"\`) is only for listing/visibility/deletion, never content creation.
+-   **MCPs & RCP sources**: Use \`manage_mcp\`/\`manage_rcp_source\` to create/list/edit/delete this Project's connectors and RCP sources (an RCP source is a hosted manifest URL of REST tools, discovered live at agent-run time), then attach one with \`manage_agent\`'s \`patch\`. \`manage_rest_api_tool\` builds a single hand-defined REST call the same way.
 -   **Everything you build belongs to this Project**, not to you personally — any of this Project's Admins can manage it afterward.
 -   **Transparency**: When you call a tool, briefly explain what you are setting (e.g., "I'm setting up your support agent with the GPT-4o model and web search enabled.").
 -   **No Keys**: You CANNOT view or manage API keys.
@@ -288,19 +292,36 @@ The caller may be the Project itself (building agents the whole Project owns) or
 1.  **Understand**: Ask questions to understand the purpose, personality, and capabilities of the agent being built.
     *   Use the \`ask_clarification\` tool when a small set of choices would help the caller answer faster, especially for agent purpose, tone/personality, capabilities, category, or output format. Prefer 2-4 questions; never ask more than 12.
     *   Prefer 2-4 clear options and avoid asking trivial questions you can safely infer.
-2.  **Propose & Execute**: Once you have enough info (Name, Goal), use the \`upsert_agent\` tool to create or update the agent.
+2.  **Propose & Execute**: Once you have enough info (Name, Goal), use \`manage_agent\` with action \`"create"\` (or \`"update"\` for an existing agent) to save it.
     *   **NEVER** just say you will do it. **ALWAYS** call the tool immediately.
-    *   \`upsert_agent\` always uses this Project's default provider/model automatically — there's nothing to pick, so never ask the caller which provider/model to use.
+    *   \`manage_agent\` always uses this Project's default provider/model automatically — there's nothing to pick, so never ask the caller which provider/model to use.
+    *   To attach an existing MCP/RCP source/Skill without disturbing the agent's other attachments, use \`manage_agent\` action \`"patch"\` with \`field:"mcps"|"rcpSources"|"skills"|"restApiTools"|"knowledgeBases"|"storeMounts", op:"add", value:"<id>"\` — \`"update"\` REPLACES the whole array, so only use it when you mean to set the complete list.
 3.  **Refine**: After updating the agent configuration, tell the caller what you changed and ask if they'd like to adjust anything (e.g., system prompt, visibility).
 
 ### GUIDELINES
 -   **System Prompts**: Draft high-quality, professional system prompts that use expert-level instructions.
 -   **Descriptions**: Keep descriptions punchy and informative (1-2 sentences).
--   **Skills**: Attach existing Skills to an agent by id (\`upsert_agent\`'s \`skills\` field); \`manage_skill\` lists/deletes/toggles visibility of existing ones. You cannot author new Skill content from here.
+-   **Skills**: Attach existing Skills to an agent by id (\`manage_agent\`'s \`skills\` field, or \`patch\`); \`manage_skill\` (action \`"read"\`/\`"update"\`/\`"delete"\`) lists/deletes/toggles visibility of existing ones. You cannot author new Skill content from here.
+-   **MCPs & RCP sources**: Use \`manage_mcp\`/\`manage_rcp_source\`/\`manage_rest_api_tool\` to create/list/edit/delete this Project's connectors, RCP sources, and hand-built REST tools, then attach one with \`manage_agent\`'s \`patch\`.
 -   **Publishing**: Treat \`visibility: 'public'\` as a meaningful, confirmed step, not a default — it makes the agent discoverable to everyone. Confirm with the caller before setting it.
 -   **Transparency**: When you call a tool, briefly explain what you are setting (e.g., "I'm setting up your support agent with the GPT-4o model and web search enabled.").
 -   **No Keys**: You CANNOT view or manage API keys.
 `;
+
+// Every architect's `manage_*` tools are consolidated CRUD (action:
+// create|read|update|patch|delete) — gating HITL approval by tool name
+// alone would either interrupt harmless reads/lists or skip approval for
+// real writes. `when` (deepagents' `interruptOn` re-exports langchain's
+// `InterruptOnConfig`, which supports a `when(request)` predicate over
+// `request.toolCall.args`) lets one tool name still only interrupt its
+// mutating actions.
+const ARCHITECT_INTERRUPT_ON = {
+  manage_agent: { when: (req) => req.toolCall.args?.action !== 'read' },
+  manage_skill: { when: (req) => req.toolCall.args?.action !== 'read' },
+  manage_mcp: { when: (req) => req.toolCall.args?.action !== 'read' },
+  manage_rcp_source: { when: (req) => req.toolCall.args?.action !== 'read' },
+  manage_rest_api_tool: { when: (req) => req.toolCall.args?.action !== 'read' },
+};
 
 class AgentFactory {
   _assertProviderCredentials(provider, apiKey) {
@@ -522,11 +543,7 @@ class AgentFactory {
         modelName: provider.defaultModel || 'gpt-4o', // The architect should be high-intelligence
         updatedAt: new Date(0), // Version 0 (static)
         skills: [],
-        interruptOn: {
-          upsert_agent: true,
-          manage_skill: true,
-          delete_agent: true,
-        },
+        interruptOn: ARCHITECT_INTERRUPT_ON,
       };
     } else if (agentIdStr === PROJECT_ARCHITECT_AGENT_ID) {
       // 1b. Project Agent Architect (blueprint Phase 11.5, PR-62) — a
@@ -552,11 +569,7 @@ class AgentFactory {
         modelName: provider.defaultModel || 'gpt-4o',
         updatedAt: new Date(0),
         skills: [],
-        interruptOn: {
-          upsert_agent: true,
-          manage_skill: true,
-          delete_agent: true,
-        },
+        interruptOn: ARCHITECT_INTERRUPT_ON,
       };
     } else if (agentIdStr === DEVELOPER_ARCHITECT_AGENT_ID) {
       // 1c. Developer Platform Architect — reached only via a route that
@@ -582,11 +595,7 @@ class AgentFactory {
         modelName: provider.defaultModel || 'gpt-4o',
         updatedAt: new Date(0),
         skills: [],
-        interruptOn: {
-          upsert_agent: true,
-          manage_skill: true,
-          delete_agent: true,
-        },
+        interruptOn: ARCHITECT_INTERRUPT_ON,
       };
     } else {
       // 1.5 Fetch Standard Configuration from DB

@@ -104,7 +104,8 @@ export class ArchitectClient {
   /**
    * Convenience wrapper over `stream()`: drains the full run and returns
    * the assembled assistant text, plus a `ChatInterrupt` if the run paused
-   * on a human-in-the-loop decision (e.g. confirming `upsert_agent`)
+   * on a human-in-the-loop decision (e.g. confirming a `manage_agent`
+   * create/update/patch/delete call)
    * instead of finishing normally.
    */
   async sendMessage(options: ArchitectMessageOptions): Promise<ChatResult> {

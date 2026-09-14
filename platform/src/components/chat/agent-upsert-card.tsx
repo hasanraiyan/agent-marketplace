@@ -10,6 +10,7 @@ import {
   TagIcon,
   SparkleIcon,
   FileTextIcon,
+  LinkIcon,
 } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { MessageMarkdown } from "./message-markdown";
@@ -17,7 +18,8 @@ import type { ChatToolCall } from "./types";
 
 /**
  * Body content rendered *inside* ToolCallCard, above the raw Input/Result,
- * whenever the assistant runs `upsert_agent` — no card chrome of its own,
+ * whenever the assistant runs `manage_agent` with action "create"/"update"
+ * — no card chrome of its own,
  * matching how write_todos renders TodoChecklist inside the same card.
  * Presents the create/update as a real form summary (what the tool is doing
  * and, once it returns, a success/error banner with the saved agent id) as a
@@ -89,6 +91,8 @@ export interface AgentUpsertSummary {
   showWebSearch: boolean;
   tags: string[];
   skills: string[];
+  mcps: string[];
+  rcpSources: string[];
   systemPrompt: string;
 }
 
@@ -101,19 +105,21 @@ export function summarizeUpsert(toolCall: ChatToolCall): AgentUpsertSummary {
   const isError = toolCall.status === "error" || resultStatus === "error";
   const succeeded = !isPending && !isError && resultStatus === "success";
 
-  const argsAgentId = idOf(args?.agentId);
+  // manage_agent's fields live under `args.data` (not flat on `args` the way
+  // the old single-purpose `upsert_agent` had them), and create-vs-update is
+  // the explicit `args.action` now, not "does it carry an id".
+  const action = str(args?.action);
+  const argsData = (args?.data as Record<string, unknown> | undefined) ?? null;
   const resultAgentId =
     idOf(result?.agentId) || idOf((result?.data as Record<string, unknown> | undefined)?.id);
 
-  // Create vs update is decided by whether the call carried an agentId to
-  // mutate. Fall back to the result's own copy when args aren't visible yet.
-  const isUpdate = !!argsAgentId || /updated/i.test(str(result?.message));
-  const isCreate = !isUpdate && !resultAgentId;
+  const isUpdate = action === "update" || (!action && /updated/i.test(str(result?.message)));
+  const isCreate = !isUpdate;
 
   // Prefer the authoritative saved payload once the call completes; while it is
   // running we can only echo back what was asked for.
   const saved = (result?.data as Record<string, unknown> | undefined) ?? null;
-  const view: Record<string, unknown> = succeeded && saved ? saved : (args ?? {});
+  const view: Record<string, unknown> = succeeded && saved ? saved : (argsData ?? {});
 
   const name = str(view.name) || str(saved?.name);
   const description = str(view.description) || str(saved?.description);
@@ -131,6 +137,12 @@ export function summarizeUpsert(toolCall: ChatToolCall): AgentUpsertSummary {
     : [];
   const skills = Array.isArray(view.skills)
     ? (view.skills as unknown[]).map(skillLabel).filter(Boolean)
+    : [];
+  const mcps = Array.isArray(view.mcps)
+    ? (view.mcps as unknown[]).map(skillLabel).filter(Boolean)
+    : [];
+  const rcpSources = Array.isArray(view.rcpSources)
+    ? (view.rcpSources as unknown[]).map(skillLabel).filter(Boolean)
     : [];
   const systemPrompt = str(view.systemPrompt) || str(saved?.systemPrompt);
 
@@ -181,6 +193,8 @@ export function summarizeUpsert(toolCall: ChatToolCall): AgentUpsertSummary {
     showWebSearch,
     tags,
     skills,
+    mcps,
+    rcpSources,
     systemPrompt,
   };
 }
@@ -199,7 +213,6 @@ function MetaChip({ icon, children, title }: { icon: React.ReactNode; children: 
 function AgentUpsertBody({ summary }: { summary: AgentUpsertSummary }) {
   const {
     isError,
-    isPending,
     succeeded,
     isUpdate,
     message,
@@ -213,6 +226,8 @@ function AgentUpsertBody({ summary }: { summary: AgentUpsertSummary }) {
     showWebSearch,
     tags,
     skills,
+    mcps,
+    rcpSources,
     systemPrompt,
   } = summary;
 
@@ -263,7 +278,7 @@ function AgentUpsertBody({ summary }: { summary: AgentUpsertSummary }) {
             </div>
           )}
 
-          {(tags.length > 0 || skills.length > 0) && (
+          {(tags.length > 0 || skills.length > 0 || mcps.length > 0 || rcpSources.length > 0) && (
             <div className="flex flex-col gap-1 pt-0.5">
               {tags.length > 0 ? (
                 <div className="flex flex-wrap items-center gap-1.5">
@@ -281,6 +296,26 @@ function AgentUpsertBody({ summary }: { summary: AgentUpsertSummary }) {
                   {skills.map((s) => (
                     <Badge key={s} variant="outline">
                       {s}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
+              {mcps.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <PlugsIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                  {mcps.map((m) => (
+                    <Badge key={m} variant="outline">
+                      {m}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
+              {rcpSources.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <LinkIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                  {rcpSources.map((r) => (
+                    <Badge key={r} variant="outline">
+                      {r}
                     </Badge>
                   ))}
                 </div>

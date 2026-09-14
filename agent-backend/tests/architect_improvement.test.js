@@ -49,13 +49,18 @@ describe('Architect Improvements', () => {
     expect('apiKey' in providerConfig).toBe(false);
   });
 
-  test('T6: Architect has interruptOn for builder actions', async () => {
+  test('T6: Architect gates its manage_* tools behind approval, except read actions', async () => {
     const { agentConfig } = await agentFactory.buildAgent(ARCHITECT_AGENT_ID, userId, null);
-    expect(agentConfig.interruptOn).toEqual({
-      upsert_agent: true,
-      manage_skill: true,
-      delete_agent: true,
-    });
+    const gatedTools = ['manage_agent', 'manage_skill', 'manage_mcp', 'manage_rcp_source', 'manage_rest_api_tool'];
+    for (const name of gatedTools) {
+      const when = agentConfig.interruptOn[name]?.when;
+      expect(typeof when).toBe('function');
+      expect(when({ toolCall: { args: { action: 'read' } } })).toBe(false);
+      expect(when({ toolCall: { args: { action: 'create' } } })).toBe(true);
+      expect(when({ toolCall: { args: { action: 'update' } } })).toBe(true);
+      expect(when({ toolCall: { args: { action: 'patch' } } })).toBe(true);
+      expect(when({ toolCall: { args: { action: 'delete' } } })).toBe(true);
+    }
   });
 
   test('T11: Architect has hardcoded agent-architecture skill', async () => {

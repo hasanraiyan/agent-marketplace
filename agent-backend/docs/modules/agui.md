@@ -98,7 +98,7 @@ sequenceDiagram
 
 ## HITL (Human-in-the-Loop) Interrupts
 
-When a guarded tool is hit (e.g., `upsert_agent`, `manage_skill`), LangGraph pauses the graph and emits an interrupt:
+When a guarded tool is hit (e.g., `manage_agent` with action `create`/`update`/`patch`/`delete`), LangGraph pauses the graph and emits an interrupt — a plain `read` action on the same tool does not, since `agent.factory.js`'s `ARCHITECT_INTERRUPT_ON` gates by a `when` predicate over the tool call's `action` arg, not by tool name alone:
 
 1. **HITL Request** — The translator emits `hitl_request` with `actionRequests` and `reviewConfigs`
 2. **User Responds** — The next request includes `resume.decisions` with approve/reject + feedback

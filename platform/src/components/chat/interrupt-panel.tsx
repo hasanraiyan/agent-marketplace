@@ -49,7 +49,7 @@ function InterruptPanel({
                 starts collapsed like any other tool card. The header alone
                 (title + subtitle, e.g. "Creating agent" / "Exam Master")
                 already tells a human enough to decide approve/reject; forcing
-                it open by default made a large upsert_agent payload (a long
+                it open by default made a large manage_agent create/update payload (a long
                 system prompt, etc.) grow tall enough to push the
                 Approve/Reject buttons off-screen. Still capped + scrollable
                 for whenever it IS expanded. */}

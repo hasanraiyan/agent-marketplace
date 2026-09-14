@@ -54,17 +54,33 @@ Dynamic tools from attached MCP servers, discovered via `resolveMcpTools()`.
 
 ### Builder Toolbox (Architect Only)
 
-Tools for the Architect meta-agent to create/manage agents:
+Tools for the Architect meta-agent to create/manage agents. Each `manage_*`
+tool is one consolidated CRUD tool — `action: "create" | "read" | "update" |
+"patch" | "delete"` — instead of a separate tool per operation. `read` with
+no `id` lists; with `id` fetches one. `update` replaces named fields
+wholesale; `patch` (`{ field, op: "set"|"add"|"remove", value }`) targets one
+field, letting the model attach/detach a single id (e.g. one MCP) from an
+attachment array without resending the whole array.
 
-| Tool                | Purpose                                  |
-| ------------------- | ---------------------------------------- |
-| `upsert_agent`      | Create or update an agent                |
-| `delete_agent`      | Delete an agent                          |
-| `list_my_agents`    | List user's agents                       |
-| `list_my_providers` | List user's providers                    |
-| `manage_skill`      | List, delete, or toggle skill visibility |
+| Tool                   | Purpose                                                                                          | Toolboxes         |
+| ---------------------- | ------------------------------------------------------------------------------------------------- | ------------------ |
+| `manage_agent`         | CRUD for agents, incl. attaching skills/mcps/restApiTools/rcpSources/knowledgeBases/storeMounts   | Persona + Project  |
+| `manage_skill`         | `read`/`update`/`delete` for skills (list/visibility/deletion — no `create`, content is authored via `/skill-library/`) | Persona + Project  |
+| `manage_mcp`           | CRUD for MCP connectors (`none`/`apiKey` auth only — OAuth needs the Connectors tab UI)          | Persona + Project  |
+| `manage_rcp_source`    | CRUD for RCP (REST Connector Protocol) manifest sources — supersedes REST Tool Sources           | Project only       |
+| `manage_rest_api_tool` | CRUD for the no-code single-call REST API Tool Builder                                            | Project only       |
+| `list_my_providers`    | List user's providers (read-only)                                                                 | Persona only       |
 
-These tools are HITL-guarded (require human approval before execution).
+Project-only tools have no Persona-facing route/UI equivalent yet (only
+`mcp.routes.js` exists outside the Developer Platform — there's no
+`rcpSource.routes.js`/Persona `restApiTool` route), so they're wired only
+into the Project/Developer Architect's toolbox (`projectBuilder.tools.js`),
+not the Persona one (`builder.tools.js`).
+
+Every `manage_*` tool is HITL-guarded via a `when` predicate
+(`agent.factory.js`'s `ARCHITECT_INTERRUPT_ON`) that interrupts every action
+except `read` — listing/fetching never pauses for approval, only
+create/update/patch/delete do.
 
 ## Tool Resolution Flow
 
