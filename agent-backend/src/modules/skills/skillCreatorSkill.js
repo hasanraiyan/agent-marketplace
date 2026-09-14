@@ -6,16 +6,19 @@ description: Structured interview for turning a creator's expertise into a "verb
 ## What this is
 
 A persona (an Agent on this platform) is trained on a handful of **verbs**
-— the things it does for people (teach, coach, review, ...). Each verb is
-one Skill here, attached to the agent via \`manage_agent\`. Under each verb
-sit the **concepts** it actually applies to (a specific topic, doc type, or
-scenario the creator handles), each with its own mini-playbook, loaded only
-when a client's request needs it.
+— the things it does for people (teach, coach, review, ...). On this
+platform, one persona is **one Skill** (named after the persona itself),
+attached to the agent via \`manage_agent\`; each verb the persona performs
+is a subfolder inside that one skill, with its own playbook. Under each
+verb sit the **concepts** it actually applies to (a specific topic, doc
+type, or scenario the creator handles), each with its own mini-playbook,
+loaded only when a client's request needs it.
 
-One persona per creator. Two to four verbs is typical — breadth lives in
-the concepts underneath, not in more verbs. Do NOT write a system-prompt-
-style skill from a guess: run the interview below and let the creator's
-own words become the playbook.
+One persona per creator, one Skill per persona. Two to four verbs is
+typical, all bundled inside that same skill — breadth lives in the
+concepts underneath, not in more verbs, and not in more skills. Do NOT
+write a system-prompt-style skill from a guess: run the interview below
+and let the creator's own words become the playbook.
 
 ## The verb vocabulary
 
@@ -63,9 +66,14 @@ Never write a playbook from a guess or a generic template filler.
 Interview the creator section by section, in this order, and use their
 own words rather than paraphrasing them into something more generic.
 
+0. **Name the persona** (first verb only). Ask what to call this persona
+   — this becomes the skill-name (the top folder, e.g. \`career-coaching\`
+   or the creator's own handle). Skip this step entirely when adding
+   another verb to a persona that already exists.
 1. **Pick the verb(s).** Ask what they actually do for people; match it
    to 1-4 verbs from the table above. Most personas need 2-4 — if they
-   name more, ask which ones people actually come to them for most.
+   name more, ask which ones people actually come to them for most. When
+   adding to an existing persona, this is just the one new verb.
 2. **Intake.** Ask: "Before you help someone with this, what do you need
    to know first?" Capture their real questions verbatim, not a generic
    checklist. Then ask what 2-4 distinctions change how they'd approach
@@ -103,9 +111,12 @@ the draft skill's own Intake/Process/Output. Show the creator the
 persona's response and ask: **"Would you have said that? What's the one
 thing you'd change?"**
 
-- If they approve: publish it — attach the skill to their agent with
-  \`manage_agent\`'s \`patch\`, \`field:"skills", op:"add", value:"<skillId>"\`
-  (get the id from \`manage_skill\` \`action:"read"\`).
+- If they approve: publish it. For a persona's FIRST verb, attach the
+  whole persona skill to their agent with \`manage_agent\`'s \`patch\`,
+  \`field:"skills", op:"add", value:"<skillId>"\` (get the id from
+  \`manage_skill\` \`action:"read"\`). For an ADDITIONAL verb on a persona
+  already attached, there's nothing new to attach — it's the same
+  skillId, just grown.
 - If they give one correction: revise the relevant section(s) and test
   again. Don't publish on a "close enough" — one more pass is cheap here
   and expensive after a real client sees it.
@@ -116,44 +127,124 @@ becomes a short revision — not a rewrite from scratch.
 
 ## File layout on this platform
 
-One verb = one Skill, authored at \`/skill-library/<verb-name>/\` (the verb
-without the \`@\`, e.g. \`teach\`, \`review\`, \`rehearse\`). Follow the
-existing skill-authoring order: write \`SKILL.md\` first, alone, confirm
-it succeeded, then add supporting files one at a time.
+One persona is one Skill, authored at \`/skill-library/<skill-name>/\`
+(the persona's own name, e.g. \`career-coaching\`). Each verb it performs
+is a subfolder inside that same skill — NOT a separate skill of its own:
 
 \`\`\`
-/skill-library/<verb-name>/
-  SKILL.md               # sections 1, 2, 3, 5, 6 + the concept index (4)
-  worked-example.md      # section 7 — the real case, verbatim
-  concepts/
-    <concept-slug>.md    # one per concept: that concept's own
-                          # playbook + resources (drills, templates)
+/skill-library/<skill-name>/
+  SKILL.md                     # persona-level index only — see below
+  <verb-name>/                 # e.g. teach/ — the verb without the @
+    SKILL.md                   # sections 1, 2, 3, 5, 6 + concept index (4)
+    worked-example.md          # section 7 — the real case, verbatim
+    concepts/
+      <concept-slug>.md        # one per concept: that concept's own
+                                # playbook + resources (drills, templates)
+  <another-verb-name>/         # e.g. review/ — same shape, repeats
+    SKILL.md
+    worked-example.md
+    concepts/
+      <concept-slug>.md
 \`\`\`
 
-\`SKILL.md\` frontmatter:
+The root \`/skill-library/<skill-name>/SKILL.md\` is the ONLY file this
+platform's filesystem route treats specially (it bootstraps the Skill
+document — see "Creating and managing the files" below). Every path
+under it, including every \`<verb-name>/SKILL.md\`, is an ordinary
+supporting file the agent reads on demand, the same mechanism as any
+skill's \`references/*.md\` — just organized under one folder per verb
+(and \`concepts/\` under that) to match this platform's own vocabulary.
+
+Root \`SKILL.md\` frontmatter and body — an INDEX, not a playbook:
 
 \`\`\`
 ---
-name: <verb-name>
-description: <what this verb does for a client and when to use it, in
-  one or two sentences — this is what the agent reads to decide whether
-  to activate the skill at all>
+name: <skill-name>
+description: <one clause per bundled verb, so the agent's skill-
+  activation check fires for any of them, e.g. "Teaches system design
+  fundamentals; reviews design docs against a 6-dimension rubric.">
 ---
+
+This persona bundles the following verbs — read the matching one in
+full before acting on it:
+- @teach -> teach/SKILL.md — <one line on when this verb applies>
+- @review -> review/SKILL.md — <one line on when this verb applies>
 \`\`\`
 
-Keep \`SKILL.md\` to the structure above plus the concept INDEX — a short
-pointer per concept, e.g. "- <topic> -> concepts/<slug>.md — load when
-the client's ask is about <topic>." The concept's own detail lives in its
-own file, loaded on demand — same reasoning as any other skill's
-\`references/\` files, just organized under \`concepts/\` to match this
-platform's own vocabulary for it.
+Each \`<verb-name>/SKILL.md\` then carries that verb's own frontmatter
+(\`name: <verb-name>\`, a \`description\` scoped to just that verb) and the
+concept INDEX inside it — a short pointer per concept, e.g. "- <topic> ->
+concepts/<slug>.md — load when the client's ask is about <topic>." The
+concept's own detail lives in its own file, loaded on demand.
+
+## Creating and managing the files
+
+Everything below is your own \`write_file\`/\`edit_file\`/\`read_file\`/\`ls\`/
+\`grep\` tools against \`/skill-library/\` — no special skill tool writes
+content, ever (\`manage_skill\` only lists/toggles visibility/deletes).
+
+**Creating a brand-new persona (its first verb), in order:**
+1. \`write_file\` to \`/skill-library/<skill-name>/SKILL.md\` FIRST, ALONE,
+   as its own tool call — just the persona-level index (frontmatter +
+   the verb bullet list). The skill does not exist until this exact path
+   exists — every other file write under this folder is rejected until
+   it does.
+2. Confirm that write succeeded before doing anything else.
+3. Then add the first verb's files ONE AT A TIME, never batched into one
+   parallel tool-call block: \`write_file\` to
+   \`/skill-library/<skill-name>/<verb-name>/SKILL.md\`, then
+   \`.../worked-example.md\`, then one \`write_file\` per
+   \`.../concepts/<slug>.md\`.
+4. Re-\`read_file\` the root \`SKILL.md\` and the verb's \`SKILL.md\`, and
+   show the creator a short summary of what you wrote before moving to
+   "Test before publishing" — don't just assume the draft matches what
+   they said.
+
+**Adding a new verb to a persona that already exists:**
+1. \`ls /skill-library/<skill-name>/\` first — confirm the persona and see
+   which verbs it already has.
+2. \`edit_file\` the root \`SKILL.md\`: add one bullet for the new verb to
+   the index, and extend \`description\` to cover it too.
+3. Add the new verb's files the same one-at-a-time way as above
+   (\`<verb-name>/SKILL.md\`, then \`worked-example.md\`, then each
+   \`concepts/<slug>.md\`) — this folder is new, so order within it still
+   matters the same way, even though the persona skill itself already
+   exists.
+
+**Editing an existing verb** (a creator revising after the test, or
+adding a concept later):
+- \`ls /skill-library/<skill-name>/<verb-name>/\` first to see what's
+  already there — never guess at existing content or overwrite blind.
+- \`read_file\` the specific file you're about to change.
+- \`edit_file\` for a targeted change (one section, one concept file, one
+  line in the concept index); reserve a full \`write_file\` rewrite for
+  when most of the file is actually changing.
+- Use \`grep\` across \`/skill-library/<skill-name>/\` if you need to find
+  which file currently mentions something before editing it.
+- The root \`SKILL.md\` can never be deleted through the filesystem (it's
+  blocked) — deleting the WHOLE persona (every verb) goes through
+  \`manage_skill\` \`action:"delete"\` instead, once the creator confirms
+  they want it gone, not just revised. There's no filesystem operation
+  for "delete just one verb" — recreate the persona skill without it if
+  that's ever needed (rare enough not to special-case).
+
+**Limits to stay inside**: 50 files, 200KB per file, 1MB total — for the
+WHOLE persona skill, every verb combined (root SKILL.md + every verb's
+SKILL.md + worked-example.md + every concept file). A persona with
+several verbs and a handful of concepts each fits comfortably; if a
+single concept file is approaching the per-file limit, that's a sign it
+should split into its own resource file cross-referenced from the
+concept, not a reason to compress the content. If the persona as a whole
+is approaching the 50-file/1MB ceiling, that's a sign some verbs may be
+overlapping enough to merge, not a reason to trim real content.
 
 ## Adding a concept later
 
-A creator's persona grows by adding concepts under an existing verb, not
-by writing a new verb from scratch. Ask the same concept questions (what
-topic, what's the playbook for it, what resources), write the new
-\`concepts/<slug>.md\`, and add one line to \`SKILL.md\`'s concept index.
-No re-interview of Intake/Rules/Process/Output/Boundaries needed — those
-belong to the verb, not to any one concept under it.
+A verb grows by adding concepts under it, not by writing a new verb from
+scratch. Ask the same concept questions (what topic, what's the playbook
+for it, what resources), write the new
+\`<skill-name>/<verb-name>/concepts/<slug>.md\`, and add one line to that
+verb's own \`SKILL.md\` concept index (not the root one). No re-interview
+of Intake/Rules/Process/Output/Boundaries needed — those belong to the
+verb, not to any one concept under it.
 `;
