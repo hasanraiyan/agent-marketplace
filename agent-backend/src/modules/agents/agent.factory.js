@@ -213,6 +213,15 @@ export const agentSkillsStore = new AgentSkillsStore({
       '/agent-architecture/SKILL.md': ARCHITECT_SKILL,
       '/skill-creator/SKILL.md': SKILL_CREATOR_SKILL,
     },
+    // The SDK-reachable Architect (developerArchitect.controller.js) shares
+    // the exact same toolbox as the Project Architect (both dispatch to
+    // projectBuilder.tools.js) but was missing this skill entirely — same
+    // capability, no playbook guiding how to use it. Kept in sync with the
+    // Project Architect's entry above.
+    [DEVELOPER_ARCHITECT_AGENT_ID]: {
+      '/agent-architecture/SKILL.md': ARCHITECT_SKILL,
+      '/skill-creator/SKILL.md': SKILL_CREATOR_SKILL,
+    },
   },
 });
 
