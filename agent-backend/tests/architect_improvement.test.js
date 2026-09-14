@@ -73,4 +73,14 @@ describe('Architect Improvements', () => {
     expect(item).not.toBeNull();
     expect(item.value.content).toContain('agent-architecture');
   });
+
+  test('T12: Architect has hardcoded skill-creator skill (verb/concept persona methodology)', async () => {
+    const item = await agentSkillsStore.get(
+      ['agents', ARCHITECT_AGENT_ID, 'enabled'],
+      '/skill-creator/SKILL.md'
+    );
+    expect(item).not.toBeNull();
+    expect(item.value.content).toContain('skill-creator');
+    expect(item.value.content).toContain('@teach');
+  });
 });
