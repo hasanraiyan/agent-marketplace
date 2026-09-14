@@ -223,13 +223,13 @@ describe('translateLangGraphStream', () => {
       {
         event: 'on_tool_start',
         run_id: 'upsert-1',
-        name: 'upsert_agent',
+        name: 'manage_agent',
         data: { input: { name: 'Bot' } },
       },
       {
         event: 'on_tool_end',
         run_id: 'upsert-1',
-        name: 'upsert_agent',
+        name: 'manage_agent',
         data: {
           output: JSON.stringify({
             status: 'success',
@@ -429,7 +429,7 @@ describe('incremental tool-arg streaming', () => {
           chunk: {
             content: '',
             tool_call_chunks: [
-              { index: 0, id: 'call_g', name: 'upsert_agent', args: '{"name":"Bot"}' },
+              { index: 0, id: 'call_g', name: 'manage_agent', args: '{"name":"Bot"}' },
             ],
           },
         },
@@ -437,21 +437,21 @@ describe('incremental tool-arg streaming', () => {
       {
         event: 'on_tool_start',
         run_id: 'run_g',
-        name: 'upsert_agent',
+        name: 'manage_agent',
         data: { input: { name: 'Bot' } },
       },
-      { event: 'on_tool_end', run_id: 'run_g', name: 'upsert_agent', data: { output: 'saved' } },
+      { event: 'on_tool_end', run_id: 'run_g', name: 'manage_agent', data: { output: 'saved' } },
     ];
 
     const out = await collect(
-      translateLangGraphStream(fakeStream(events), { suppressArgStreamingFor: ['upsert_agent'] })
+      translateLangGraphStream(fakeStream(events), { suppressArgStreamingFor: ['manage_agent'] })
     );
 
     const chunks = out.filter((e) => e.type === 'TOOL_CALL_CHUNK');
     expect(chunks).toHaveLength(1);
     expect(chunks[0]).toMatchObject({
       toolCallId: 'run_g',
-      toolCallName: 'upsert_agent',
+      toolCallName: 'manage_agent',
       delta: JSON.stringify({ name: 'Bot' }),
     });
     expect(out.find((e) => e.type === 'TOOL_CALL_RESULT').toolCallId).toBe('run_g');

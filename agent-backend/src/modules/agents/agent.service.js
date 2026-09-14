@@ -410,7 +410,7 @@ class AgentService {
   /**
    * Developer Platform (blueprint Phase 9, PR-25): `context` defaults to
    * `personaExecutionContext(userId)`, so every existing caller (the
-   * Persona `PUT /agents/:id` route, the Architect's `upsert_agent` tool)
+   * Persona `PUT /agents/:id` route, the Architect's `manage_agent` tool)
    * that omits it gets byte-for-byte identical behavior — same
    * `isAgentOwner` check `canUserExecuteAgent` already uses, generalized
    * from the previous raw `ownerId` string-equality so a Project/

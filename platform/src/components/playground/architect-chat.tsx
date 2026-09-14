@@ -28,16 +28,17 @@ const PROJECT_ARCHITECT_AGENT_ID = "000000000000000000000001";
 
 /**
  * "Just the chat" surface for the Project Agent Architect — the spec bot that
- * creates/edits a project's Agents by conversation (its tools: upsert_agent,
- * get_agent). Mirrors AgentChat's text-chat plumbing against the
- * project-scoped `/architect/agui` AG-UI SSE endpoint, minus the per-agent
- * test affordances (no Voice tab, no workspace files / subagents).
+ * creates/edits a project's Agents by conversation via its consolidated
+ * `manage_agent` CRUD tool (action: create/read/update/patch/delete).
+ * Mirrors AgentChat's text-chat plumbing against the project-scoped
+ * `/architect/agui` AG-UI SSE endpoint, minus the per-agent test affordances
+ * (no Voice tab, no workspace files / subagents).
  *
  * The Architect's conversation is one shared, deterministic server-side
  * thread per project (`architect-<domain>`), and every agent the bot creates
  * here is a real project Agent — the parent re-fetches the agent list (via
- * onAgentsRefreshed) whenever an upsert_agent tool call reports success, so
- * the new/updated Agent appears in the Playground picker.
+ * onAgentsRefreshed) whenever a manage_agent create/update/patch/delete call
+ * reports success, so the new/updated Agent appears in the Playground picker.
  */
 function ArchitectChat({
   projectId,
@@ -171,22 +172,25 @@ function ArchitectChat({
     ? "hitl"
     : `clar-${chat.pendingClarification?.currentIndex ?? 0}`;
 
-  // ── Agent-list refresh on successful upsert ─────────────────────────────
-  // The Architect's mutations all flow through its upsert_agent tool; when one
-  // reports {status:"success"} the parent re-fetches the project's agents so
-  // the new/updated Agent appears in the picker. Tracked per tool-call id so a
-  // single upsert fires exactly one refresh (ids are run-local uuids, so the
-  // set never needs clearing).
+  // ── Agent-list refresh on successful mutation ───────────────────────────
+  // The Architect's mutations all flow through its consolidated manage_agent
+  // tool (action: create/read/update/patch/delete); when a create/update/
+  // patch/delete call reports {status:"success"} the parent re-fetches the
+  // project's agents so the change appears in the picker (a plain "read"
+  // never needs a refresh). Tracked per tool-call id so a single mutation
+  // fires exactly one refresh (ids are run-local uuids, so the set never
+  // needs clearing).
   const handledUpsertIds = React.useRef<Set<string>>(new Set());
   React.useEffect(() => {
     for (const tc of chat.toolCalls) {
-      if (tc.status !== "completed" || tc.name !== "upsert_agent") continue;
+      if (tc.status !== "completed" || tc.name !== "manage_agent") continue;
       if (handledUpsertIds.current.has(tc.id)) continue;
       handledUpsertIds.current.add(tc.id);
       let succeeded = false;
       try {
+        const args = JSON.parse(tc.argumentsText) as { action?: string };
         const parsed = JSON.parse(tc.resultText) as { status?: string };
-        succeeded = parsed?.status === "success";
+        succeeded = parsed?.status === "success" && args?.action !== "read";
       } catch {
         succeeded = false;
       }

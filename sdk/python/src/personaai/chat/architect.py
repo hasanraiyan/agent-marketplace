@@ -77,8 +77,9 @@ class ArchitectClient:
     ) -> ChatResult:
         """Convenience wrapper over ``stream()``: drains the full run and
         returns the assembled assistant text, plus a ``ChatInterrupt`` if the
-        run paused on a human-in-the-loop decision (e.g. confirming
-        ``upsert_agent``) instead of finishing normally.
+        run paused on a human-in-the-loop decision (e.g. confirming a
+        ``manage_agent`` create/update/patch/delete call) instead of
+        finishing normally.
 
         Args:
             messages: The conversation turn(s) to send.

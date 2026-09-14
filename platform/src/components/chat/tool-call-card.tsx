@@ -68,8 +68,9 @@ function parseTodosFromArgs(args: string | undefined): ChatTodo[] | undefined {
  * only changes what's *inside* it: write_todos replaces the raw Input/Result
  * entirely with a TodoChecklist (the plan itself is the only thing worth
  * showing — the raw JSON is noise), task adds a RobotIcon + "View subagent"
- * button, upsert_agent prepends an AgentUpsertBody summary above the raw
- * Input/Result every other tool shows. Never a second card.
+ * button, a manage_agent create/update/patch call prepends an AgentUpsertBody
+ * summary above the raw Input/Result every other tool shows. Never a second
+ * card.
  */
 function ToolCallCard({
   toolCall,
@@ -89,7 +90,16 @@ function ToolCallCard({
 }) {
   const isTask = toolCall.name === "task";
   const isTodos = toolCall.name === "write_todos";
-  const isUpsert = toolCall.name === "upsert_agent";
+  // manage_agent is one consolidated CRUD tool (action: create/read/update/
+  // patch/delete) — only create/update get the AgentUpsertBody form summary
+  // (their `data` is a full field set worth rendering as a form); read/
+  // delete/patch (a small {field,op,value} splice) fall through to the
+  // generic Input/Result panel below, which is plenty readable for those.
+  const manageAgentAction =
+    toolCall.name === "manage_agent"
+      ? (parseToolArgs(toolCall.args) as { action?: string } | null)?.action
+      : undefined;
+  const isUpsert = manageAgentAction === "create" || manageAgentAction === "update";
   const isLs = isLsTool(toolCall.name);
   const isReadFile = isReadFileTool(toolCall.name);
   const isGrep = isGrepTool(toolCall.name);

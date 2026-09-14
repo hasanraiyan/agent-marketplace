@@ -1,19 +1,20 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import agentService from '../agents/agent.service.js';
-import skillService from '../skills/skill.service.js';
 import providerRepository from '../providers/provider.repository.js';
+import { createManageResourceTool } from './manageResourceFactory.js';
+import skillService from '../skills/skill.service.js';
+import { manageMcpTool } from './manageMcp.tools.js';
+import { manageRcpSourceTool } from './manageRcpSource.tools.js';
+import { manageRestApiToolTool } from './manageRestApiTool.tools.js';
 
 /**
- * PROJECT AGENT ARCHITECT TOOLBOX (blueprint Phase 11.5, PR-62):
- * a dedicated, Project-scoped sibling of `builder.tools.js`'s Architect
- * toolbox — same 6 tools, same shape, but every tool closure takes a
- * `ProjectAdminContext` (not a bare Persona `userId`) and calls the
- * already-Project-aware service methods (`createDeveloperAgent`/
- * `discoverAgents`/`discoverSkills`/etc.) instead of the Persona-onboarding-
- * shaped ones `builder.tools.js` uses. Built fresh rather than
- * parameterizing `builder.tools.js` itself, per this initiative's decision
- * to keep the live, heavily-used Persona Architect untouched.
+ * PROJECT AGENT ARCHITECT TOOLBOX (blueprint Phase 11.5, PR-62): a
+ * dedicated, Project-scoped sibling of `builder.tools.js`'s Architect
+ * toolbox — every tool closure takes a `ProjectAdminContext`/
+ * `ProjectMachineContext`/`ProjectRuntimeContext` (not a bare Persona
+ * `userId`) and calls the already-Project-aware service methods
+ * (`createDeveloperAgent`/`discoverAgents`/`discoverSkills`/etc.).
  */
 
 const normalizeAgentPayload = (agent) => {
@@ -27,259 +28,207 @@ const normalizeAgentPayload = (agent) => {
   return plain;
 };
 
-export const upsertAgentTool = (context) =>
-  new DynamicStructuredTool({
-    name: 'upsert_agent',
-    description:
-      'Creates or updates an Agent owned by this Project. Handles basic info, instructions, and runtime settings.',
-    schema: z.object({
-      agentId: z
-        .string()
-        .optional()
-        .describe('ID of the agent to update. Leave empty to create a new one.'),
-      name: z.string().optional().describe('Name of the agent'),
-      description: z.string().optional().describe('Brief summary of what the agent does'),
-      systemPrompt: z
-        .string()
-        .optional()
-        .describe('The primary instructions defining the agent behavior'),
-      webSearchEnabled: z.boolean().optional().describe('Toggle for web search capability'),
-      avatar: z.string().optional().describe('URL to the agent avatar image'),
-      tags: z.array(z.string()).optional().describe('Tags for categorization and search'),
-      category: z
-        .enum(['productivity', 'coding', 'creative', 'research', 'roleplay', 'other'])
-        .optional(),
-      visibility: z.enum(['private', 'unlisted', 'public']).optional(),
-      skills: z.array(z.string()).optional().describe('Array of Skill IDs to link to this agent'),
-    }),
-    func: async (input) => {
-      try {
-        const sanitized = { ...input };
-        if (sanitized.description === '') delete sanitized.description;
-        if (sanitized.avatar === '') delete sanitized.avatar;
+const AGENT_ARRAY_FIELDS = [
+  'skills',
+  'mcps',
+  'restApiTools',
+  'rcpSources',
+  'knowledgeBases',
+  'storeMounts',
+];
 
-        if (sanitized.agentId) {
-          const updated = await agentService.updateAgent(
-            sanitized.agentId,
-            undefined,
-            sanitized,
-            context
-          );
-          const data = normalizeAgentPayload(updated);
-          return JSON.stringify({
-            status: 'success',
-            message: `Successfully updated agent: ${updated.name}`,
-            agentId: data.id,
-            data,
-          });
-        } else {
-          if (!sanitized.name || !sanitized.systemPrompt) {
-            return JSON.stringify({
-              status: 'error',
-              message: 'Name and systemPrompt are required to create a new agent.',
-            });
-          }
-
-          // providerId isn't part of this tool's schema at all — every
-          // Agent it creates uses this Project's default Provider. Keeps
-          // the model from ever needing to reason about Providers (a
-          // control-plane concept the Architect's caller shouldn't have to
-          // know exists) and saves the tokens an extra param/tool call
-          // would cost for a value that's the same 99% of the time anyway.
-          const domainProviders = await providerRepository.findByDomain(context.domain);
-          const defaultProvider = domainProviders.find((p) => p.isDefault) || domainProviders[0];
-          if (!defaultProvider) {
-            return JSON.stringify({
-              status: 'error',
-              message:
-                'No LLM provider is configured for this Project yet — add one from the Providers tab first.',
-            });
-          }
-          sanitized.providerId = defaultProvider._id;
-
-          const created = await agentService.createDeveloperAgent(context, sanitized);
-          const data = normalizeAgentPayload(created);
-          return JSON.stringify({
-            status: 'success',
-            message: `Successfully created new agent: ${created.name}`,
-            agentId: data.id,
-            data,
-          });
-        }
-      } catch (err) {
-        return JSON.stringify({
-          status: 'error',
-          message: `Error managing agent: ${err.message}`,
-        });
-      }
-    },
-  });
+const summarizeAgent = (a) => ({
+  id: a._id ?? a.id,
+  name: a.name,
+  description: a.description,
+  visibility: a.visibility,
+});
 
 /**
- * Lists/deletes/toggles visibility for this Project's own Skills. `list`
- * reuses the Discovery Contract (`discoverSkills`) rather than a "mine"
- * filter — consistent with how the read-only Studio Skills tab already
- * shows every Skill in this Project's own Domain, any owner type.
+ * manage_agent - full CRUD+patch over this Project's agents. Every Agent
+ * this creates uses the Project's default Provider automatically — there's
+ * nothing for the model to pick, unlike the Persona architect's
+ * `providerId`/`modelName` fields (see the original `upsert_agent` comment
+ * this preserves the reasoning from).
  */
-export const manageSkillTool = (context) =>
+export const manageAgentTool = (context) =>
   new DynamicStructuredTool({
-    name: 'manage_skill',
+    name: 'manage_agent',
     description:
-      "Lifecycle operations for this Project's skills: list them (with IDs for attaching to agents), delete one, or toggle marketplace visibility. To CREATE or EDIT skill content, write files under /skill-library/<skill-name>/ instead (SKILL.md with YAML frontmatter + optional references/ files).",
+      'CRUD for this Project\'s agents. action="create"|"read"|"update"|"patch"|"delete". `read` with no `id` lists this Project\'s agents; with `id` fetches one in full. `create`/`update` take `data` (name, description, systemPrompt, webSearchEnabled, avatar, tags, category, visibility, skills[], mcps[], restApiTools[], rcpSources[], knowledgeBases[], storeMounts[] — all attachment fields are arrays of ids and REPLACE the current list; this Project\'s default provider/model is always used automatically, never ask which to use). `patch` takes `id`, `field` (one of the attachment arrays above, or any scalar field), `op` ("set"|"add"|"remove" — add/remove only for the attachment arrays), and `value` — use patch to attach/detach ONE id (e.g. one MCP or RCP source) without resending the whole array.',
     schema: z.object({
-      action: z.enum(['list', 'delete', 'set_visibility']),
-      skillId: z
-        .string()
-        .optional()
-        .describe('ID of the skill (required for delete/set_visibility)'),
-      isPublic: z
-        .boolean()
-        .optional()
-        .describe('Marketplace visibility (required for set_visibility)'),
+      action: z.enum(['create', 'read', 'update', 'patch', 'delete']),
+      id: z.string().optional().describe('Agent id. Required for read (single)/update/patch/delete.'),
+      data: z
+        .object({
+          name: z.string().optional(),
+          description: z.string().optional(),
+          systemPrompt: z.string().optional(),
+          webSearchEnabled: z.boolean().optional(),
+          avatar: z.string().optional(),
+          tags: z.array(z.string()).optional(),
+          category: z
+            .enum(['productivity', 'coding', 'creative', 'research', 'roleplay', 'other'])
+            .optional(),
+          visibility: z.enum(['private', 'unlisted', 'public']).optional(),
+          skills: z.array(z.string()).optional(),
+          mcps: z.array(z.string()).optional(),
+          restApiTools: z.array(z.string()).optional(),
+          rcpSources: z.array(z.string()).optional(),
+          knowledgeBases: z.array(z.string()).optional(),
+          storeMounts: z.array(z.string()).optional(),
+        })
+        .optional(),
+      field: z.enum(AGENT_ARRAY_FIELDS).optional().describe('For patch: which field to change.'),
+      op: z.enum(['set', 'add', 'remove']).optional(),
+      value: z.any().optional(),
     }),
     func: async (input) => {
       try {
         switch (input.action) {
-          case 'list': {
-            const skills = await skillService.discoverSkills(context, {}, { page: 1, limit: 100 });
+          case 'read': {
+            if (input.id) {
+              const agent = await agentService.getDeveloperAgentById(input.id, context);
+              return JSON.stringify({ status: 'success', data: agent });
+            }
+            const agents = await agentService.discoverAgents(context, {}, { page: 1, limit: 100 });
+            return JSON.stringify({ status: 'success', data: agents.map(summarizeAgent) });
+          }
+
+          case 'update': {
+            if (!input.id) {
+              return JSON.stringify({ status: 'error', message: '`id` is required to update.' });
+            }
+            if (!input.data) {
+              return JSON.stringify({ status: 'error', message: '`data` is required.' });
+            }
+            const sanitized = { ...input.data };
+            if (sanitized.description === '') delete sanitized.description;
+            if (sanitized.avatar === '') delete sanitized.avatar;
+            const updated = await agentService.updateAgent(input.id, undefined, sanitized, context);
+            const data = normalizeAgentPayload(updated);
             return JSON.stringify({
               status: 'success',
-              data: skills.map((s) => ({
-                id: s._id,
-                name: s.name,
-                description: s.description,
-                isPublic: s.isPublic,
-              })),
+              message: `Successfully updated agent: ${updated.name}`,
+              agentId: data.id,
+              data,
             });
           }
-          case 'delete': {
-            if (!input.skillId) {
+
+          case 'create': {
+            if (!input.data) {
+              return JSON.stringify({ status: 'error', message: '`data` is required.' });
+            }
+            const sanitized = { ...input.data };
+            if (sanitized.description === '') delete sanitized.description;
+            if (sanitized.avatar === '') delete sanitized.avatar;
+            if (!sanitized.name || !sanitized.systemPrompt) {
               return JSON.stringify({
                 status: 'error',
-                message: 'skillId is required for delete.',
+                message: 'name and systemPrompt are required to create a new agent.',
               });
             }
-            await skillService.deleteSkill(input.skillId, undefined, context);
+
+            const domainProviders = await providerRepository.findByDomain(context.domain);
+            const defaultProvider = domainProviders.find((p) => p.isDefault) || domainProviders[0];
+            if (!defaultProvider) {
+              return JSON.stringify({
+                status: 'error',
+                message:
+                  'No LLM provider is configured for this Project yet — add one from the Providers tab first.',
+              });
+            }
+            sanitized.providerId = defaultProvider._id;
+
+            const created = await agentService.createDeveloperAgent(context, sanitized);
+            const data = normalizeAgentPayload(created);
             return JSON.stringify({
               status: 'success',
-              message: 'Skill deleted permanently.',
+              message: `Successfully created new agent: ${created.name}`,
+              agentId: data.id,
+              data,
             });
           }
-          case 'set_visibility': {
-            if (!input.skillId || typeof input.isPublic !== 'boolean') {
+
+          case 'patch': {
+            const { id, field, op, value } = input;
+            if (!id || !field || !op) {
               return JSON.stringify({
                 status: 'error',
-                message: 'skillId and isPublic are required for set_visibility.',
+                message: '`id`, `field`, and `op` are required to patch.',
               });
             }
-            const updatedSkill = await skillService.updateSkill(
-              input.skillId,
-              undefined,
-              { isPublic: input.isPublic },
-              context
+            const current = await agentService.getDeveloperAgentById(id, context);
+            const currentIds = (Array.isArray(current?.[field]) ? current[field] : []).map((v) =>
+              v && typeof v === 'object' ? String(v._id ?? v.id ?? v) : String(v)
             );
-            return JSON.stringify({
-              status: 'success',
-              message: `Skill is now ${updatedSkill.isPublic ? 'public' : 'private'}.`,
-              data: {
-                id: updatedSkill._id,
-                name: updatedSkill.name,
-                isPublic: updatedSkill.isPublic,
-              },
-            });
+            let nextValue;
+            if (op === 'set') {
+              nextValue = Array.isArray(value) ? value : [value];
+            } else if (op === 'add') {
+              nextValue = currentIds.includes(String(value)) ? currentIds : [...currentIds, String(value)];
+            } else {
+              nextValue = currentIds.filter((v) => v !== String(value));
+            }
+            const updated = await agentService.updateAgent(id, undefined, { [field]: nextValue }, context);
+            const data = normalizeAgentPayload(updated);
+            return JSON.stringify({ status: 'success', message: `Patched '${field}'.`, agentId: data.id, data });
           }
+
+          case 'delete': {
+            if (!input.id) {
+              return JSON.stringify({ status: 'error', message: '`id` is required to delete.' });
+            }
+            await agentService.deleteAgent(input.id, undefined, context);
+            return JSON.stringify({ status: 'success', message: 'Agent deleted successfully.' });
+          }
+
           default:
-            return JSON.stringify({ status: 'error', message: 'Invalid action.' });
+            return JSON.stringify({ status: 'error', message: `Unhandled action '${input.action}'.` });
         }
       } catch (err) {
-        return JSON.stringify({
-          status: 'error',
-          message: `Error managing skill: ${err.message}`,
-        });
-      }
-    },
-  });
-
-export const getAgentTool = (context) =>
-  new DynamicStructuredTool({
-    name: 'get_agent',
-    description: "Retrieves the full configuration of one of this Project's agents by its ID.",
-    schema: z.object({
-      agentId: z.string().describe('The ID of the agent to fetch'),
-    }),
-    func: async ({ agentId }) => {
-      try {
-        const agent = await agentService.getDeveloperAgentById(agentId, context);
-        return JSON.stringify({
-          status: 'success',
-          data: agent,
-        });
-      } catch (err) {
-        return JSON.stringify({
-          status: 'error',
-          message: err.message,
-        });
-      }
-    },
-  });
-
-export const listMyAgentsTool = (context) =>
-  new DynamicStructuredTool({
-    name: 'list_my_agents',
-    description: 'Lists all agents owned by this Project.',
-    schema: z.object({}),
-    func: async () => {
-      try {
-        const agents = await agentService.discoverAgents(context, {}, { page: 1, limit: 100 });
-        return JSON.stringify({
-          status: 'success',
-          data: agents.map((a) => ({
-            id: a._id,
-            name: a.name,
-            description: a.description,
-            visibility: a.visibility,
-          })),
-        });
-      } catch (err) {
-        return JSON.stringify({
-          status: 'error',
-          message: err.message,
-        });
-      }
-    },
-  });
-
-export const deleteAgentTool = (context) =>
-  new DynamicStructuredTool({
-    name: 'delete_agent',
-    description: 'Permanently deletes an agent owned by this Project.',
-    schema: z.object({
-      agentId: z.string().describe('The ID of the agent to delete'),
-    }),
-    func: async ({ agentId }) => {
-      try {
-        await agentService.deleteAgent(agentId, undefined, context);
-        return JSON.stringify({
-          status: 'success',
-          message: 'Agent deleted successfully.',
-        });
-      } catch (err) {
-        return JSON.stringify({
-          status: 'error',
-          message: err.message,
-        });
+        return JSON.stringify({ status: 'error', message: `Error managing agent: ${err.message}` });
       }
     },
   });
 
 /**
+ * manage_skill - read/update/delete for this Project's skills, reusing the
+ * Discovery Contract (`discoverSkills`) for `list` — consistent with how
+ * the read-only Studio Skills tab already shows every Skill in this
+ * Project's own Domain, any owner type. No `create`: skill content is only
+ * authored via the /skill-library/ filesystem route.
+ */
+export const manageSkillTool = (context) =>
+  createManageResourceTool({
+    name: 'manage_skill',
+    description:
+      "Read/update/delete for this Project's skills. `read` with no `id` lists them (with ids for attaching); with `id` fetches one. `update` (data: {isPublic}) toggles marketplace visibility. To CREATE or EDIT skill content, write files under /skill-library/<skill-name>/ instead — not this tool.",
+    actions: ['read', 'update', 'delete'],
+    patchableFields: {},
+    list: async (filters) => {
+      const skills = await skillService.discoverSkills(context, filters, { page: 1, limit: 100 });
+      return skills.map((s) => ({
+        id: s._id,
+        name: s.name,
+        description: s.description,
+        isPublic: s.isPublic,
+      }));
+    },
+    get: async (id) => skillService.getSkillById(id, undefined, context),
+    update: async (id, data) => skillService.updateSkill(id, undefined, data, context),
+    remove: async (id) => skillService.deleteSkill(id, undefined, context),
+  });
+
+/**
  * Factory for all Project Agent Architect tools, injected with a
- * `ProjectAdminContext` instead of a bare Persona `userId`.
+ * `ProjectAdminContext`/`ProjectMachineContext`/`ProjectRuntimeContext`
+ * instead of a bare Persona `userId`.
  */
 export const getProjectBuilderToolbox = (context) => [
-  upsertAgentTool(context),
+  manageAgentTool(context),
   manageSkillTool(context),
-  getAgentTool(context),
-  listMyAgentsTool(context),
-  deleteAgentTool(context),
+  manageMcpTool({ context }),
+  manageRcpSourceTool({ context }),
+  manageRestApiToolTool({ context }),
 ];
