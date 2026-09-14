@@ -153,6 +153,9 @@ const providerService = (await import('../src/modules/providers/provider.service
 const storeService = (await import('../src/modules/stores/store.service.js')).default;
 const memoryService = (await import('../src/modules/memory/memory.service.js')).default;
 const projectController = (await import('../src/modules/projects/project.controller.js')).default;
+const checkpointService = (await import('../src/modules/threads/checkpoint.service.js')).default;
+const Conversation = (await import('../src/modules/threads/thread.model.js')).default;
+const { PROJECT_ARCHITECT_AGENT_ID } = await import('../src/modules/agents/architectConstants.js');
 
 describe('Project Controller', () => {
   const personaUserId = 'user_123';
@@ -790,6 +793,100 @@ describe('Project Controller', () => {
         success: true,
         message: 'All project memory cleared successfully',
       });
+    });
+  });
+
+  describe('Agent Threads — Architect sentinel access', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    test('listAgentThreads skips the ownership check for the Architect sentinel', async () => {
+      mockReq.params = { agentId: PROJECT_ARCHITECT_AGENT_ID };
+      jest.spyOn(Conversation, 'find').mockReturnValue({ sort: jest.fn().mockResolvedValue([{ _id: 't1' }]) });
+
+      await projectController.listAgentThreads(mockReq, mockRes, next);
+
+      expect(agentService.getDeveloperAgentById).not.toHaveBeenCalled();
+      expect(mockRes.json).toHaveBeenCalledWith({ success: true, data: [{ _id: 't1' }] });
+    });
+
+    test('listAgentThreads still enforces ownership for a real agentId', async () => {
+      mockReq.params = { agentId: 'real-agent-1' };
+      agentService.getDeveloperAgentById.mockRejectedValue(new Error('Agent not found'));
+
+      await projectController.listAgentThreads(mockReq, mockRes, next);
+
+      expect(agentService.getDeveloperAgentById).toHaveBeenCalledWith('real-agent-1', adminContext);
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+    });
+
+    test('listAgentThreads auto-provisions the Architect default thread as architect-${domain}, not agent-test-...', async () => {
+      mockReq.params = { agentId: PROJECT_ARCHITECT_AGENT_ID };
+      jest.spyOn(Conversation, 'find').mockReturnValue({ sort: jest.fn().mockResolvedValue([]) });
+      const upsertSpy = jest
+        .spyOn(Conversation, 'findOneAndUpdate')
+        .mockResolvedValue({ threadId: `architect-${projectId}`, title: 'Main Chat' });
+
+      await projectController.listAgentThreads(mockReq, mockRes, next);
+
+      expect(upsertSpy).toHaveBeenCalledWith(
+        { threadId: `architect-${projectId}` },
+        expect.objectContaining({
+          $setOnInsert: expect.objectContaining({ threadId: `architect-${projectId}` }),
+        }),
+        { upsert: true, new: true }
+      );
+    });
+
+    test('createAgentThread skips the ownership check and uses the architect- prefix for a new thread id', async () => {
+      mockReq.params = { agentId: PROJECT_ARCHITECT_AGENT_ID };
+      mockReq.body = {};
+      const createSpy = jest.spyOn(Conversation, 'create').mockResolvedValue({ _id: 't2' });
+
+      await projectController.createAgentThread(mockReq, mockRes, next);
+
+      expect(agentService.getDeveloperAgentById).not.toHaveBeenCalled();
+      expect(createSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ threadId: expect.stringMatching(new RegExp(`^architect-${projectId}-`)) })
+      );
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+    });
+
+    test('getAgentThreadMessages skips the ownership check for the Architect sentinel', async () => {
+      mockReq.params = { agentId: PROJECT_ARCHITECT_AGENT_ID, threadId: 'thread-1' };
+      jest.spyOn(Conversation, 'findOne').mockResolvedValue({ _id: 'thread-1' });
+      checkpointService.getMessages.mockResolvedValue({ messages: [] });
+
+      await projectController.getAgentThreadMessages(mockReq, mockRes, next);
+
+      expect(agentService.getDeveloperAgentById).not.toHaveBeenCalled();
+      expect(mockRes.json).toHaveBeenCalledWith({ success: true, data: { messages: [] } });
+    });
+
+    test('updateAgentThread skips the ownership check for the Architect sentinel', async () => {
+      mockReq.params = { agentId: PROJECT_ARCHITECT_AGENT_ID, threadId: 'thread-1' };
+      mockReq.body = { title: 'Renamed' };
+      jest.spyOn(Conversation, 'findOneAndUpdate').mockResolvedValue({ _id: 'thread-1', title: 'Renamed' });
+
+      await projectController.updateAgentThread(mockReq, mockRes, next);
+
+      expect(agentService.getDeveloperAgentById).not.toHaveBeenCalled();
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: { _id: 'thread-1', title: 'Renamed' },
+      });
+    });
+
+    test('deleteAgentThread skips the ownership check for the Architect sentinel', async () => {
+      mockReq.params = { agentId: PROJECT_ARCHITECT_AGENT_ID, threadId: 'thread-1' };
+      jest.spyOn(Conversation, 'findOneAndDelete').mockResolvedValue({ _id: 'thread-1', threadId: 'architect-project_1-abc' });
+      checkpointService.cleanupThreads.mockResolvedValue();
+
+      await projectController.deleteAgentThread(mockReq, mockRes, next);
+
+      expect(agentService.getDeveloperAgentById).not.toHaveBeenCalled();
+      expect(mockRes.json).toHaveBeenCalledWith({ success: true, message: 'Thread deleted successfully' });
     });
   });
 });

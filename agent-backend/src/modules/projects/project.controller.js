@@ -23,6 +23,39 @@ import Conversation from '../threads/thread.model.js';
 import checkpointService from '../threads/checkpoint.service.js';
 import { bulkDelete } from '../../utils/bulkDelete.js';
 import { paginationEnvelope } from '../../utils/pagination.js';
+import { PROJECT_ARCHITECT_AGENT_ID } from '../agents/architectConstants.js';
+
+/**
+ * The Architect sentinel isn't a row in the Agent collection, so
+ * `agentService.getDeveloperAgentById` would 404 for it — the 5 thread
+ * handlers below only ever use that call as an existence/ownership gate
+ * (never the returned doc), and any Admin of this Project may always use
+ * its own Architect (same reasoning `projectArchitect.controller.js`
+ * already documents: "there is nothing else to select").
+ */
+async function assertAgentAccessible(agentId, context) {
+  if (agentId === PROJECT_ARCHITECT_AGENT_ID) return;
+  await agentService.getDeveloperAgentById(agentId, context);
+}
+
+/**
+ * The Architect's default thread id predates per-thread history
+ * (`projectArchitect.controller.js` always used `architect-${domain}`) —
+ * keep that exact id as the default here too, so today's live Architect
+ * conversations keep resolving to the same LangGraph checkpoint instead of
+ * silently orphaning them under a new `agent-test-...` id.
+ */
+function defaultThreadIdFor(domain, agentId) {
+  return agentId === PROJECT_ARCHITECT_AGENT_ID
+    ? `architect-${domain}`
+    : `agent-test-${domain}-${agentId}`;
+}
+
+function newThreadIdFor(domain, agentId, uniqueSuffix) {
+  return agentId === PROJECT_ARCHITECT_AGENT_ID
+    ? `architect-${domain}-${uniqueSuffix}`
+    : `agent-test-${domain}-${agentId}-${uniqueSuffix}`;
+}
 
 class ProjectController {
   async create(req, res, next) {
@@ -1549,7 +1582,7 @@ class ProjectController {
       const { agentId } = req.params;
       const { domain, personaUserId } = req.projectAdminContext;
 
-      await agentService.getDeveloperAgentById(agentId, req.projectAdminContext);
+      await assertAgentAccessible(agentId, req.projectAdminContext);
 
       let threads = await Conversation.find({
         domain,
@@ -1559,7 +1592,7 @@ class ProjectController {
       }).sort({ lastMessageAt: -1, createdAt: -1 });
 
       if (threads.length === 0) {
-        const defaultThreadId = `agent-test-${domain}-${agentId}`;
+        const defaultThreadId = defaultThreadIdFor(domain, agentId);
         const defaultThread = await Conversation.findOneAndUpdate(
           { threadId: defaultThreadId },
           {
@@ -1596,10 +1629,10 @@ class ProjectController {
       const { domain, personaUserId } = req.projectAdminContext;
       const { title } = req.body || {};
 
-      await agentService.getDeveloperAgentById(agentId, req.projectAdminContext);
+      await assertAgentAccessible(agentId, req.projectAdminContext);
 
       const uniqueSuffix = crypto.randomUUID();
-      const threadId = `agent-test-${domain}-${agentId}-${uniqueSuffix}`;
+      const threadId = newThreadIdFor(domain, agentId, uniqueSuffix);
 
       const thread = await Conversation.create({
         domain,
@@ -1628,7 +1661,7 @@ class ProjectController {
       const { agentId, threadId } = req.params;
       const { domain, personaUserId } = req.projectAdminContext;
 
-      await agentService.getDeveloperAgentById(agentId, req.projectAdminContext);
+      await assertAgentAccessible(agentId, req.projectAdminContext);
 
       const query = mongoose.isValidObjectId(threadId)
         ? { _id: threadId, domain, agentId, userId: personaUserId }
@@ -1663,7 +1696,7 @@ class ProjectController {
       const { domain, personaUserId } = req.projectAdminContext;
       const { title, isArchived } = req.body || {};
 
-      await agentService.getDeveloperAgentById(agentId, req.projectAdminContext);
+      await assertAgentAccessible(agentId, req.projectAdminContext);
 
       const query = mongoose.isValidObjectId(threadId)
         ? { _id: threadId, domain, agentId, userId: personaUserId }
@@ -1695,7 +1728,7 @@ class ProjectController {
       const { agentId, threadId } = req.params;
       const { domain, personaUserId } = req.projectAdminContext;
 
-      await agentService.getDeveloperAgentById(agentId, req.projectAdminContext);
+      await assertAgentAccessible(agentId, req.projectAdminContext);
 
       const query = mongoose.isValidObjectId(threadId)
         ? { _id: threadId, domain, agentId, userId: personaUserId }
