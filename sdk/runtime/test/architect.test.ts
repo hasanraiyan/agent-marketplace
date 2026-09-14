@@ -48,6 +48,32 @@ describe('POST /architect + GET /architect/:runId/resume', () => {
     expect(afterRun).toHaveBeenCalledTimes(1);
   });
 
+  it('forwards a threadId in the body as x-thread-id, and includes it on the beforeRun context', async () => {
+    const beforeRun = vi.fn();
+    const events = [{ type: EventType.RUN_FINISHED, threadId: 'architect-thread-1', runId: 'r1' }];
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse(events));
+    const runtime = withCapability({ fetchMock, hooks: { beforeRun } });
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/architect',
+      headers: {},
+      query: {},
+      body: { messages: [], threadId: 'architect-thread-1' },
+      userId: null,
+    });
+
+    expect(response.status).toBe(200);
+    expect(beforeRun).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'architect', threadId: 'architect-thread-1' })
+    );
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>)['x-thread-id']).toBe('architect-thread-1');
+
+    if (response.kind !== 'stream') return;
+    await drain(response.body);
+  });
+
   it('POST /architect without messages returns 400', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse([]));
     const runtime = withCapability({ fetchMock });

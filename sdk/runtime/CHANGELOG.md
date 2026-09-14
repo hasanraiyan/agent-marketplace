@@ -4,6 +4,15 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.11.0
+
+- **`POST /architect` accepts an optional `threadId`.** Resumes a named Architect conversation
+  instead of always running against the implicit deterministic one — mirrors `POST /chat`'s existing
+  `threadId` field. Forwarded to `ArchitectClient.stream()` and included on the `RunContext` passed
+  to `beforeRun`/`afterRun` hooks. Silently has no effect when the underlying credential has no
+  asserted external user (same as the backend route and `ArchitectClient` it calls).
+- Bumped `@personaai/sdk` dependency to `^0.9.0`.
+
 ## 0.10.0
 
 - **Workflows Execution & AG-UI Streaming:**

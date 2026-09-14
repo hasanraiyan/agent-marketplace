@@ -160,7 +160,7 @@ how to enable them safely.
 | `GET` | `/stores/:id/files` | `stores` | `client.stores.listFiles(id)` |
 | `GET`/`PUT`/`DELETE` | `/stores/:id/file` | `stores` | `client.stores.getFile/writeFile/deleteFile(id, {path, content?})` |
 | `GET` | `/audit-logs` | `auditLogs` | `client.auditLogs.list({page, limit, eventType})` |
-| `POST` | `/architect` | `architect` | `client.architect.stream({messages, resume})`, streamed out as SSE, same `x-persona-run-id`/reconnect mechanics as `/chat`. No `agentId` — the Architect builds/edits the caller's own Agents. |
+| `POST` | `/architect` | `architect` | `client.architect.stream({messages, threadId, resume})`, streamed out as SSE, same `x-persona-run-id`/reconnect mechanics as `/chat`. No `agentId` — the Architect builds/edits the caller's own Agents. `threadId` resumes a named Architect conversation (has no effect without an asserted external user). |
 | `GET` | `/architect/:runId/resume` | `architect` | Reattaches to the matching `POST /architect` run. |
 | `POST` | `/workflows` | `workflowsWrite` | `client.workflows.create(input)` |
 | `GET`/`PATCH`/`DELETE` | `/workflows/:id` | `workflowsWrite` | `client.workflows.get/update/delete(id)` |
