@@ -1,5 +1,4 @@
 import type { AguiEvent } from './chat.js';
-import type { PaginatedResult } from './pagination.js';
 
 export type WorkflowNodeType =
   | 'trigger'
