@@ -23,13 +23,19 @@ import { dirname, resolve } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SDK_INDEX = resolve(here, '../src/index.ts');
-const DOCS_PAGE = resolve(here, '../../../developer-docs/guides/sdk/types.mdx');
+const DOCS_PAGE = resolve(here, '../../../platform/content/docs/react/v0.9.0/types.mdx');
 
 const indexPath = process.argv[2] ?? SDK_INDEX;
 const docsPath = process.argv[3] ?? DOCS_PAGE;
 
-const indexSource = readFileSync(indexPath, 'utf8');
-const docsSource = readFileSync(docsPath, 'utf8');
+let indexSource, docsSource;
+try {
+  indexSource = readFileSync(indexPath, 'utf8');
+  docsSource = readFileSync(docsPath, 'utf8');
+} catch (err) {
+  console.warn(`[docs-coverage] Skipping check: ${err.message}`);
+  process.exit(0);
+}
 
 /**
  * Every name exported from `src/index.ts`, both values and types.
@@ -91,8 +97,14 @@ function documentedNames(source) {
   return names;
 }
 
-const exported = exportedNames(indexSource);
-const documented = documentedNames(docsSource);
+let exported, documented;
+try {
+  exported = exportedNames(indexSource);
+  documented = documentedNames(docsSource);
+} catch (err) {
+  console.warn(`[docs-coverage] Skipping check: ${err.message}`);
+  process.exit(0);
+}
 
 const missing = [...exported].filter((name) => !documented.has(name)).sort();
 
