@@ -427,7 +427,7 @@ genuine unclosed gap or an intentional package boundary, not an oversight:
   per mount; anything finer belongs in `resolveUser` or a hook, not the runtime.
 - Framework adapters beyond the shipped ones (`@personaai/node`, `@personaai/fastify`,
    `@personaai/hono`) — **by design**, not a gap: this package is the foundation they're meant to
-   wrap, not a replacement for them. `@personaai/adapters` (unified `express`/`nextjs`/`nestjs` via subpaths, Wave 3) has shipped — legacy names `@personaai/nextjs`/`@personaai/express`/`@personaai/nestjs` are deprecated shims.
+   wrap, not a replacement for them. `@personaai/adapters` (unified `express`/`nextjs`/`nestjs` via subpaths, Wave 3) has shipped — the legacy standalone `@personaai/nextjs`/`@personaai/express`/`@personaai/nestjs` packages were removed from the repo (2026-09-14); their last-published versions are frozen and deprecated on the registry.
 
 ## Roadmap
 

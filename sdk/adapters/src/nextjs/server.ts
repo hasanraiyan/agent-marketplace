@@ -30,7 +30,7 @@ export type {
   WorkflowNodeContext,
 } from '@personaai/runtime';
 
-export const VERSION = '0.2.0';
+export const VERSION = '0.3.0';
 
 export type NextResolveUser = (req: Request) => string | null | Promise<string | null>;
 

@@ -118,7 +118,7 @@ export function PersonaDevtools({ baseUrl, clientState, defaultOpen = false, pol
                   <p>Devtools is running in <strong>client-only</strong> mode. Pass live hook state:</p>
                   <pre className="rounded-lg bg-zinc-900 p-2 text-[10px] leading-3 text-zinc-100" style={{ background: '#18181b', color: '#f4f4f5', padding: 8, borderRadius: 8, fontSize: 10, overflow: 'auto', marginTop: 8 }}>
 {`'use client';
-import { useChat, useThreads } from '@personaai/nextjs';
+import { useChat, useThreads } from '@personaai/adapters/nextjs';
 import { PersonaDevtools } from '@personaai/devtools/react';
 
 function Devtools() {

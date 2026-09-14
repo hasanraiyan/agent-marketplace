@@ -101,9 +101,9 @@ export class AppModule {}
 
 * **No drift** — `express`/`nestjs` were 95% copy-paste (`translate` 229/235 LOC, `multipart` 190/192, `write` 150/167, `toExpressRouter` 188 vs `PersonaMiddleware` 176). `nextjs` diverged only for Web `Request`/`ReadableStream`. Now `src/shared/` is the single source of truth.
 * **One publish, one version** — no `file:` inter-package links, no 2-step `core → adapters` release.
-* **Back-compat** — `@personaai/express`, `@personaai/nextjs`, `@personaai/nestjs` remain as deprecated shims re-exporting from this package. Migrate by changing the import specifier alone.
+* **One package, not four** — `@personaai/express`, `@personaai/nestjs`, and `@personaai/nextjs` were removed from the repo entirely (2026-09-14): their own last-published npm versions are frozen forever, marked deprecated on the registry, and no further releases will ever be cut for them. The originally-planned "convert them into re-export shims" step was skipped in favor of removing them outright, since the duplication itself — not just its unpublished state — was the actual problem (see "Why unified?" above).
 
-## Migration from separate packages
+## Migration from the removed packages
 
 ```diff
 - import { toExpressRouter } from '@personaai/express';
@@ -116,7 +116,7 @@ export class AppModule {}
 + import { PersonaModule } from '@personaai/adapters/nestjs';
 ```
 
-Then `npm uninstall @personaai/express @personaai/nextjs @nestjs...` and `npm install @personaai/adapters`.
+Then `npm uninstall @personaai/express @personaai/nextjs @personaai/nestjs` and `npm install @personaai/adapters`. There is no shim to fall back on — the old packages' last-published versions still work standalone (they were real implementations, not stubs), but they will never receive another update.
 
 ## Structure
 
@@ -131,13 +131,15 @@ sdk/adapters/
 
 ## Decommission of old packages
 
-* `@personaai/express` / `@personaai/nestjs` / `@personaai/nextjs` are now **deprecated shims** — they `export * from '@personaai/adapters/...'` and will be removed in `1.0`. New code should import from `@personaai/adapters`.
+* `@personaai/express`, `@personaai/nestjs`, and `@personaai/nextjs` were **removed from this repo** (2026-09-14) — their folders no longer exist here. Their last-published npm versions keep working for existing installs (frozen, not shims) but are marked deprecated on the registry pointing here; there will never be another release under those names. New code should install `@personaai/adapters` and import from its subpaths.
 * Internal shared code (`shared/`) is **not** a published package and is not exported to consumers.
+* Express 4 compatibility is verified by `compat/express4/` (`pnpm test:express4`) — a standalone workspace that installs this package via a `file:` link alongside `express@4`, since the main `test/` suite runs against `express@5`.
 
 ## Build
 
 ```bash
 pnpm --dir sdk/adapters build
 pnpm --dir sdk/adapters typecheck
-pnpm --dir sdk/adapters test   # (when tests added)
+pnpm --dir sdk/adapters test           # express/nestjs/nextjs, against express@5
+pnpm --dir sdk/adapters test:express4  # same express suite, against express@4
 ```

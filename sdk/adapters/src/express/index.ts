@@ -9,8 +9,20 @@ export { toExpressRouter };
 export type { ExpressResolveUser };
 export type { Logger, LogLevel };
 
+// Lower-level primitives — parity with the removed standalone
+// @personaai/express package (folded into this one), for a caller composing
+// its own router around these instead of using toExpressRouter directly.
+export { TranslationError } from '../shared/errors.js';
+export { toRuntimeRequestNode as toRuntimeRequest } from '../shared/translate-node.js';
+export { writeRuntimeResponse } from '../shared/write-node.js';
+export {
+  collectMulterFiles,
+  parseMultipart,
+  type MultipartResult,
+} from '../shared/multipart-node.js';
+
 /** Version of this unified package. */
-export const VERSION = '0.2.0';
+export const VERSION = '0.3.0';
 
 export interface CreateExpressAdapterOptions extends Omit<CreateRuntimeOptions, 'resolveUser'> {
   resolveUser?: ResolveUser;

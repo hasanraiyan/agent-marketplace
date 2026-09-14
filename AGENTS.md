@@ -118,7 +118,12 @@ agent-backend/
 All published SDK packages live under one `sdk/` folder. Package *names* (what users install) are
 independent of their folder: `@personaai/sdk`, `@personaai/runtime`, `@personaai/react`, `@personaai/ui`,
 `@personaai/adapters` (unified: `express`/`nextjs`/`nestjs` via subpaths), and `persona-agent-sdk` (PyPI).
-Legacy names `@personaai/express`, `@personaai/nestjs`, `@personaai/nextjs` are deprecated shims that re-export from `@personaai/adapters`.
+Legacy names `@personaai/express`, `@personaai/nestjs`, `@personaai/nextjs` were removed from this repo
+(2026-09-14) — they were meant to become re-export shims but each still carried a full independent
+implementation (~95% duplicated from `@personaai/adapters`'s own `src/`), so the folders were deleted
+outright instead of building the shim layer. Their last-published npm versions keep working standalone
+(frozen, not stubs) and are marked deprecated on the registry; there will be no further releases under
+those names. New/existing code must import from `@personaai/adapters/*`.
 
 ```
 sdk/
@@ -130,15 +135,14 @@ sdk/
 │   ├── src/express/   # @personaai/adapters/express — Express adapter (thin wrapper)
 │   ├── src/nestjs/    # @personaai/adapters/nestjs — NestJS adapter (thin wrapper)
 │   ├── src/nextjs/    # @personaai/adapters/nextjs (+ /server) — Next.js adapter (thin wrapper)
-│   ├── express/       # @personaai/express — deprecated shim → @personaai/adapters/express
-│   ├── nestjs/        # @personaai/nestjs — deprecated shim → @personaai/adapters/nestjs
-│   └── nextjs/        # @personaai/nextjs — deprecated shim → @personaai/adapters/nextjs
+│   ├── test/          # tests for src/express, src/nestjs, src/nextjs
+│   └── compat/express4/ # Express 4 compatibility suite (file: link, separate from the main express@5 test run)
 ├── react/             # @personaai/react — React hooks + context provider (implemented)
 ├── ui/                # @personaai/ui — Pre-built React chat components (implemented)
 └── themes/            # future — not yet started
 ```
 
-The unified adapter has one `package.json`/`tsup.config` at `sdk/adapters/` with multi-entry `express/index`, `nestjs/index`, `nextjs/server`, `nextjs/client` sharing `src/shared/`. Legacy adapter folders remain as deprecated re-export shims for back-compat; new code must import from `@personaai/adapters/*`.
+The unified adapter has one `package.json`/`tsup.config` at `sdk/adapters/` with multi-entry `express/index`, `nestjs/index`, `nextjs/server`, `nextjs/client` sharing `src/shared/`.
 Each package has its own toolchain, version, and release cycle — there is **no root pnpm workspace**
 unifying them (`frontend/` has its own workspace; the SDK packages do not).
 

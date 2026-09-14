@@ -1,6 +1,6 @@
 # @personaai/devtools
 
-Devtools for the Persona SDK — inspect threads, chat, workspace and logs when using `@personaai/nextjs` (which re-exports `@personaai/react` on `sdk/adapters/nextjs/src/client.ts:15` and wraps `@personaai/runtime` on `sdk/adapters/nextjs/src/server.ts:177`).
+Devtools for the Persona SDK — inspect threads, chat, workspace and logs when using `@personaai/adapters/nextjs` (which re-exports `@personaai/react` on `sdk/adapters/src/nextjs/client.ts` and wraps `@personaai/runtime` on `sdk/adapters/src/nextjs/server.ts`).
 
 > **v0.1.0 — dev-only, zero runtime changes.** No new route is required. The panel is a pure client component that reads the hooks you already use. It never bundles into production unless you import it.
 
@@ -21,13 +21,13 @@ Peer `react >=18` is optional — `core` works on Express/NestJS servers with no
 
 ## Quickstart — Next.js (no adapter/runtime change)
 
-`@personaai/nextjs` already re-exports every React hook, so one install covers everything the panel inspects (`useChat`, `useThreads`, `useAgents`, `useFiles`, `useMemory`, `useConnection`, `useMcpConnections` from `sdk/react/src/index.ts:1` and streaming types from `sdk/react/src/types.ts:1`).
+`@personaai/adapters/nextjs` already re-exports every React hook, so one install covers everything the panel inspects (`useChat`, `useThreads`, `useAgents`, `useFiles`, `useMemory`, `useConnection`, `useMcpConnections`, `useArchitectChat` from `sdk/react/src/index.ts` and streaming types from `sdk/react/src/types.ts`).
 
 ```tsx
 // app/layout.tsx
-import { PersonaProvider } from '@personaai/nextjs'; // client.ts:15 re-export
+import { PersonaProvider } from '@personaai/adapters/nextjs'; // client.ts re-export
 import { PersonaDevtools } from '@personaai/devtools/react'; // or '@personaai/devtools/nextjs' inside app/
-import { useChat, useThreads } from '@personaai/nextjs';
+import { useChat, useThreads } from '@personaai/adapters/nextjs';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -44,8 +44,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
 // Tiny wrapper that feeds live hook state into the panel — no server fetch needed
 'use client';
-import { useChat } from '@personaai/nextjs';
-import { useThreads } from '@personaai/nextjs';
+import { useChat } from '@personaai/adapters/nextjs';
+import { useThreads } from '@personaai/adapters/nextjs';
 
 function Devtools() {
   const { threads } = useThreads();

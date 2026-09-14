@@ -3,14 +3,7 @@
 export default defineConfig({
   test: {
     environment: 'node',
-    include: [
-      'express/test/**/*.test.ts',
-      'express/examples/**/*.test.ts',
-      'nextjs/test/**/*.test.ts',
-      'nestjs/test/**/*.spec.ts',
-      'nestjs/test/**/*.test.ts',
-      'test/**/*.test.ts',
-    ],
+    include: ['test/**/*.test.ts', 'test/**/*.spec.ts'],
     exclude: ['**/node_modules/**', '**/dist/**', '**/compat/**'],
   },
 });

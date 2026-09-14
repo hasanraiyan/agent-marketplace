@@ -1,8 +1,9 @@
 /**
  * Snapshot returned by GET __persona/devtools.
- * Shaped to cover every feature a Next.js app reaches via `@personaai/nextjs`
- * (which re-exports `@personaai/react` on `src/nextjs/src/client.ts:15` and
- * wraps `@personaai/runtime` on `src/nextjs/src/server.ts:177`).
+ * Shaped to cover every feature a Next.js app reaches via
+ * `@personaai/adapters/nextjs` (which re-exports `@personaai/react` on
+ * `sdk/adapters/src/nextjs/client.ts` and wraps `@personaai/runtime` on
+ * `sdk/adapters/src/nextjs/server.ts`).
  */
 export interface DevtoolsSnapshot {
   version: string;
