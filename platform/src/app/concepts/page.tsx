@@ -2,6 +2,14 @@ import Link from "next/link";
 import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 export const metadata = {
   title: "Concepts — Persona Docs",
@@ -36,20 +44,36 @@ function listConcepts() {
 export default function ConceptsIndex() {
   const concepts = listConcepts();
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-3xl font-bold tracking-tight">Concepts</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Version-agnostic guides shared across all SDKs — one place to learn credentials, external users, AG-UI, and more.
-      </p>
-      <div className="mt-8 grid gap-3">
+    <div className="mx-auto max-w-5xl px-4 py-12 space-y-10">
+      <div className="space-y-3">
+        <Badge variant="secondary" className="px-3 py-1 text-xs">
+          Shared Concepts
+        </Badge>
+        <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">
+          Concepts
+        </h1>
+        <p className="text-base text-muted-foreground max-w-2xl leading-relaxed">
+          Version-agnostic guides shared across all SDKs — one place to learn credentials, external users, AG-UI, pagination, errors, and more.
+        </p>
+      </div>
+
+      <div className="grid gap-6 sm:grid-cols-2">
         {concepts.map((c) => (
-          <Link
-            key={c.slug}
-            href={`/concepts/${c.slug}`}
-            className="rounded-lg border border-border p-4 hover:border-blue-600 hover:bg-accent/30"
-          >
-            <div className="text-sm font-semibold">{c.title}</div>
-            {c.description && <div className="mt-1 text-xs text-muted-foreground">{c.description}</div>}
+          <Link key={c.slug} href={`/concepts/${c.slug}`} className="group block">
+            <Card className="h-full transition-all hover:bg-muted/40 hover:ring-1 hover:ring-border">
+              <CardHeader className="space-y-2 p-6">
+                <CardTitle className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                  {c.title}
+                </CardTitle>
+                {c.description && (
+                  <CardDescription className="text-xs leading-relaxed">
+                    {c.description}
+                  </CardDescription>
+                )}
+              </CardHeader>
+              <Separator className="opacity-60" />
+              <div className="px-6 py-3 text-xs font-mono text-muted-foreground">/concepts/{c.slug}</div>
+            </Card>
           </Link>
         ))}
       </div>
