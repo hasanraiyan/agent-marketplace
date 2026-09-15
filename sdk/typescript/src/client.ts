@@ -9,6 +9,7 @@ import { RestToolsResource } from './resources/restTools.js';
 import { ThreadsResource } from './resources/threads.js';
 import { MemoryResource } from './resources/memory.js';
 import { StoresResource } from './resources/stores.js';
+import { RcpSourcesResource } from './resources/rcpSources.js';
 import { FilesResource } from './resources/files.js';
 import { AuditLogsResource } from './resources/auditLogs.js';
 import { VoiceResource } from './resources/voice.js';
@@ -38,6 +39,7 @@ export class PersonaClient {
   readonly threads: ThreadsResource;
   readonly memory: MemoryResource;
   readonly stores: StoresResource;
+  readonly rcpSources: RcpSourcesResource;
   readonly files: FilesResource;
   readonly auditLogs: AuditLogsResource;
   readonly voice: VoiceResource;
@@ -99,6 +101,7 @@ export class PersonaClient {
     this.threads = new ThreadsResource(this.http);
     this.memory = new MemoryResource(this.http);
     this.stores = new StoresResource(this.http);
+    this.rcpSources = new RcpSourcesResource(this.http);
     this.files = new FilesResource(this.http);
     this.auditLogs = new AuditLogsResource(this.http);
     this.voice = new VoiceResource(this.http);

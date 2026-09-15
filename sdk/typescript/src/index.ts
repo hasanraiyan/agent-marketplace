@@ -114,6 +114,17 @@ export type {
   DeleteStoreFileParams,
   WriteStoreFileInput,
 } from './types/store.js';
+export { RcpSourcesResource } from './resources/rcpSources.js';
+export type {
+  RcpSource,
+  RcpSourceToolSummary,
+  RcpSourceToolParamSummary,
+  RcpParamContextMapEntry,
+  CreateRcpSourceInput,
+  UpdateRcpSourceInput,
+  DiscoverRcpSourcesParams,
+  RcpSourceTestConnectionResult,
+} from './types/rcpSource.js';
 export { FilesResource } from './resources/files.js';
 export type { PersonaFile, UploadFilePayload, ListFilesParams } from './types/file.js';
 export { AuditLogsResource } from './resources/auditLogs.js';

@@ -3,6 +3,16 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.10.0
+
+- **New: `RcpSourcesResource` (`client.rcpSources`).** Full CRUD for RCP (REST Connector Protocol,
+  npm `rcp-sdk`) manifest sources — `create()`, `list()`, `get()`, `update()`, `delete()`,
+  `bulkDelete()`, `getUsage()`, and `testConnection()` (discovers the manifest live and persists a
+  display-only tool cache). Same self-serve ownership model as `skills`/`agents`/`knowledge`: owned
+  by the Project, or by the asserted external user when this client was constructed with
+  `externalUserId`. Was fully wired at the `agent-backend` REST layer already — this was the one
+  resource domain with no SDK client at all until now.
+
 ## 0.9.0
 
 - **New: `ArchitectMessageOptions.threadId`.** The Architect co-pilot (`client.architect`) can now
