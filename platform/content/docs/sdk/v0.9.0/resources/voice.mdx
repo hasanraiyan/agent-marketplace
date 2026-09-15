@@ -7,6 +7,36 @@ description: "Generated field tables for voice — do not edit"
 
 # voice
 
+> **Auth:** Requires `Authorization: Bearer <keyId>.<secret>` (server-side). For per-user calls add `x-persona-external-user-id`. See [Credentials](/concepts/credentials).
+
+Voice mints a Gemini Live ticket server-side, then the browser opens `new WebSocket(wsUrl)` directly to Persona.
+
+## Example
+
+**TypeScript**
+
+```ts
+const { ticket, wsUrl } = await userClient.voice.createSession(agent._id);
+const ws = new WebSocket(wsUrl); // ticket embedded
+```
+
+**cURL**
+
+```bash
+curl -X POST https://api.persona.hasanraiyan.me/api/v1/developer/voice/sessions -H "Authorization: Bearer $PERSONA_CREDENTIAL" -H "x-persona-external-user-id: user_123" -H "Content-Type: application/json" -d '{"agentId":"ag_123"}'
+```
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": { "ticket": "tik_...", "wsUrl": "wss://voice.persona.../session?ticket=tik_..." }
+}
+```
+
+---
+
 ## `VoiceSessionInfo`
 
 Mirrors the CUSTOM ``voice_session_ready`` AG-UI event's payload shape.

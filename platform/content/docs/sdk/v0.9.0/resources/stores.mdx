@@ -7,6 +7,38 @@ description: "Generated field tables for stores — do not edit"
 
 # stores
 
+> **Auth:** Requires `Authorization: Bearer <keyId>.<secret>` (server-side). For per-user calls add `x-persona-external-user-id`. See [Credentials](/concepts/credentials).
+
+Stores are named mount points agents can be assigned to — filesystem-backed alternative to `contextOverride` for larger reference material.
+
+## Example
+
+**TypeScript**
+
+```ts
+const store = await persona.stores.create({ name: 'Handbook', scope: 'domain', accessMode: 'readwrite' });
+await persona.stores.writeFile(store._id, { path: 'intro.md', content: '# Hello' });
+```
+
+**cURL**
+
+```bash
+curl https://api.persona.hasanraiyan.me/api/v1/developer/stores \
+  -H "Authorization: Bearer $PERSONA_CREDENTIAL" -H "Content-Type: application/json" \
+  -d '{"name":"Handbook","scope":"domain"}'
+```
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": { "_id": "store_123", "name": "Handbook" }
+}
+```
+
+---
+
 ## `Store`
 
 A named, scoped mount point assignable to Agents (``Agent.storeMounts``), generalizing the fixed ``/memories/user/``/``/memories/agent/`` mounts into arbitrarily-named ones. Mounted at ``/stores/<name>/`` in the Agent's filesystem.

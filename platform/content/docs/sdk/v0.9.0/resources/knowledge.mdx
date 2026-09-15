@@ -7,6 +7,38 @@ description: "Generated field tables for knowledge — do not edit"
 
 # knowledge
 
+> **Auth:** Requires `Authorization: Bearer <keyId>.<secret>` (server-side). For per-user calls add `x-persona-external-user-id`. See [Credentials](/concepts/credentials).
+
+Knowledge bases are RAG collections backed by Qdrant. Upload documents, search, and attach to agents.
+
+## Example
+
+**TypeScript**
+
+```ts
+const kb = await persona.knowledge.create({ name: 'Docs', description: 'Product docs' });
+await persona.knowledge.uploadDocuments(kb._id, [{ filename: 'guide.pdf', content: buf }]);
+const { results } = await persona.knowledge.search(kb._id, 'pricing', { topK: 5 });
+```
+
+**cURL**
+
+```bash
+curl https://api.persona.hasanraiyan.me/api/v1/developer/knowledge/KB_ID/documents \
+  -H "Authorization: Bearer $PERSONA_CREDENTIAL" -F files=@guide.pdf
+```
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": { "results": [{ "sourceName": "guide.pdf", "score": 0.92 }] }
+}
+```
+
+---
+
 ## `KnowledgeBase`
 
 Like Skill/Agent, this mirrors the real wire shape (``_id``, raw domain/ownerType fields).

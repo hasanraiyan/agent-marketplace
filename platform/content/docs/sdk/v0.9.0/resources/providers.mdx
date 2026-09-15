@@ -7,6 +7,38 @@ description: "Generated field tables for providers — do not edit"
 
 # providers
 
+> **Auth:** Requires `Authorization: Bearer <keyId>.<secret>` (server-side). For per-user calls add `x-persona-external-user-id`. See [Credentials](/concepts/credentials).
+
+Providers hold LLM credentials (API keys). Requires a Project Secret; `testConnection` and `getModels` verify them.
+
+## Example
+
+**TypeScript**
+
+```ts
+const provider = await persona.providers.create({ name: 'OpenAI', provider: 'openai', apiKey: 'sk-...' });
+await persona.providers.testConnection(provider._id);
+```
+
+**cURL**
+
+```bash
+curl https://api.persona.hasanraiyan.me/api/v1/developer/providers \
+  -H "Authorization: Bearer $PERSONA_CREDENTIAL" -H "Content-Type: application/json" \
+  -d '{"name":"OpenAI","provider":"openai","apiKey":"sk-..."}'
+```
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": { "_id": "prov_123", "provider": "openai" }
+}
+```
+
+---
+
 ## `Provider`
 
 A Provider as returned by the API — ``apiKey`` is never included.

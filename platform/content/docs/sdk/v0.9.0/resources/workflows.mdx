@@ -7,6 +7,37 @@ description: "Generated field tables for workflows — do not edit"
 
 # workflows
 
+> **Auth:** Requires `Authorization: Bearer <keyId>.<secret>` (server-side). For per-user calls add `x-persona-external-user-id`. See [Credentials](/concepts/credentials).
+
+Workflows are multi-agent DAGs compiled to LangGraph StateGraphs — `draft` (editable) + `publishedVersion` (immutable). Stream via AG-UI with `seq` for resume and `dryRun` for safe testing.
+
+## Example
+
+**TypeScript**
+
+```ts
+const wf = await persona.workflows.create({ name: 'Research', draft: { nodes, edges, trigger: { type: 'manual' } } });
+const result = await persona.workflows.run(wf._id, { input: { query: 'trends' } });
+for await (const e of persona.workflows.stream(wf._id, { input: { query: '...' } })) {}
+```
+
+**cURL**
+
+```bash
+curl https://api.persona.hasanraiyan.me/api/v1/developer/workflows/WF_ID/runs -H "Authorization: Bearer $PERSONA_CREDENTIAL" -H "Content-Type: application/json" -d '{"input":{"query":"trends"}}'
+```
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": { "runId": "run_123", "status": "completed", "output": { "summary": "..." } }
+}
+```
+
+---
+
 ## `Workflow`
 
 _Source: `types/workflow.ts:61`_

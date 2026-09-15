@@ -66,6 +66,96 @@ const RESOURCE_MAP = {
   'rest-tools': ['RestApiTool', 'RestToolMethod', 'RestToolAuthType', 'RestToolBodyMode', 'RestToolParamIn', 'RestToolParamType', 'RestToolParamRow', 'RestToolParamDescriptor', 'RestToolResponseMapping', 'CreateRestToolInput', 'UpdateRestToolInput', 'DiscoverRestToolsParams', 'RestToolTestResult', 'TestRestToolInput'],
 };
 
+const RESOURCE_INTRO = {
+  agents: 'Agents are AI personas with a system prompt, provider, and tool attachments. Create them with a control-plane client (no `externalUserId`), then chat with them via a per-user client. `Agent` is the read shape; `CreateAgentInput`/`UpdateAgentInput` are the write shapes.',
+  skills: 'Skills are reusable capabilities (file-backed) that agents can use. Manage them via the SDK and attach via `agents.create({ skills: [skillId] })`.',
+  knowledge: 'Knowledge bases are RAG collections backed by Qdrant. Upload documents, search, and attach to agents.',
+  threads: 'Threads scope messages, files, todos, and checkpoints to one conversation. Use `externalUserId` so threads belong to your user.',
+  files: 'Files are user uploads (multipart `file` part) scoped to an optional `agentId`/`threadId`.',
+  memory: 'Memory is a file-based store: `/memories/user/` (shared) and `/memories/agent/` (per user-agent). Agents read/write via `write_file`/`read_file`.',
+  stores: 'Stores are named mount points agents can be assigned to — filesystem-backed alternative to `contextOverride` for larger reference material.',
+  providers: 'Providers hold LLM credentials (API keys). Requires a Project Secret; `testConnection` and `getModels` verify them.',
+  mcp: 'MCP connectors are Model Context Protocol servers (tools/resources). Supports OAuth `owner` vs `user` modes and `testConnection`/`callTool`.',
+  workflows: 'Workflows are multi-agent DAGs compiled to LangGraph StateGraphs — `draft` (editable) + `publishedVersion` (immutable). Stream via AG-UI with `seq` for resume and `dryRun` for safe testing.',
+  chat: 'Chat is AG-UI SSE streaming: `chat.stream` yields `TEXT_MESSAGE_CHUNK`/`TOOL_CALL_*`/`CUSTOM` events; `sendMessage` drains to `{ text, interrupt, error }`.',
+  voice: 'Voice mints a Gemini Live ticket server-side, then the browser opens `new WebSocket(wsUrl)` directly to Persona.',
+  'audit-logs': 'Audit logs are read-only, control-plane only — lifecycle events (credentials minted/revoked, membership, suspend/restore).',
+  'rest-tools': 'REST tools are code-first tools via `defineRestTool` (zod) served as `GET {mountPath}/rest-tools/manifest` and discovered live as a Source.',
+};
+
+const RESOURCE_EXAMPLES = {
+  agents: {
+    ts: `import { PersonaClient } from '@personaai/sdk';\nconst persona = new PersonaClient({ baseUrl, credential: process.env.PERSONA_CREDENTIAL! });\nconst agent = await persona.agents.create({\n  name: 'Career Launchpad',\n  systemPrompt: 'You help students find internships.',\n  providerId: '...',\n  visibility: 'unlisted',\n});`,
+    curl: `curl https://api.persona.hasanraiyan.me/api/v1/developer/agents \\\n  -H "Authorization: Bearer $PERSONA_CREDENTIAL" \\\n  -H "Content-Type: application/json" \\\n  -d '{"name":"Career Launchpad","systemPrompt":"You help students…","providerId":"...","visibility":"unlisted"}'`,
+    json: `{\n  "success": true,\n  "data": { "_id": "ag_123", "name": "Career Launchpad", "slug": "career-launchpad", "isActive": true }\n}`,
+  },
+  skills: {
+    ts: `const skill = await persona.skills.create({ name: 'Research', description: 'Web search' });\nawait persona.agents.create({ name: 'Analyst', systemPrompt: '...', providerId: '...', skills: [skill._id] });`,
+    curl: `curl https://api.persona.hasanraiyan.me/api/v1/developer/skills \\\n  -H "Authorization: Bearer $PERSONA_CREDENTIAL" -H "Content-Type: application/json" \\\n  -d '{"name":"Research"}'`,
+    json: `{\n  "success": true,\n  "data": { "_id": "sk_123", "name": "Research" }\n}`,
+  },
+  knowledge: {
+    ts: `const kb = await persona.knowledge.create({ name: 'Docs', description: 'Product docs' });\nawait persona.knowledge.uploadDocuments(kb._id, [{ filename: 'guide.pdf', content: buf }]);\nconst { results } = await persona.knowledge.search(kb._id, 'pricing', { topK: 5 });`,
+    curl: `curl https://api.persona.hasanraiyan.me/api/v1/developer/knowledge/KB_ID/documents \\\n  -H "Authorization: Bearer $PERSONA_CREDENTIAL" -F files=@guide.pdf`,
+    json: `{\n  "success": true,\n  "data": { "results": [{ "sourceName": "guide.pdf", "score": 0.92 }] }\n}`,
+  },
+  threads: {
+    ts: `const userClient = new PersonaClient({ baseUrl, credential, externalUserId: currentUser.id });\nconst thread = await userClient.threads.create({ agentId: agent._id });\nfor await (const e of userClient.chat.stream(agent._id, { messages: [{ role:'user', content:'Hi' }], threadId: thread._id })) {}\n`,
+    curl: `curl https://api.persona.hasanraiyan.me/api/v1/developer/threads \\\n  -H "Authorization: Bearer $PERSONA_CREDENTIAL" -H "x-persona-external-user-id: user_123" \\\n  -H "Content-Type: application/json" -d '{"agentId":"ag_123"}'`,
+    json: `{\n  "success": true,\n  "data": { "_id": "th_123", "agentId": "ag_123", "title": "New chat" }\n}`,
+  },
+  files: {
+    ts: `const file = await userClient.files.upload({ filename: 'notes.pdf', content: buf, agentId: agent._id });\nconst list = await userClient.files.list({ page: 1, limit: 20 });`,
+    curl: `curl https://api.persona.hasanraiyan.me/api/v1/developer/files \\\n  -H "Authorization: Bearer $PERSONA_CREDENTIAL" -H "x-persona-external-user-id: user_123" \\\n  -F file=@notes.pdf -F agentId=ag_123`,
+    json: `{\n  "success": true,\n  "data": { "items": [{ "id": "file_123", "originalName": "notes.pdf" }], "pagination": { "total": 1 } }\n}`,
+  },
+  memory: {
+    ts: `const list = await userClient.memory.list();\nawait userClient.memory.writeFile({ path: '/memories/user/preferences.md', content: '# Likes\\n- concise answers' });`,
+    curl: `curl https://api.persona.hasanraiyan.me/api/v1/developer/memory/file?path=/memories/user/preferences.md \\\n  -H "Authorization: Bearer $PERSONA_CREDENTIAL" -H "x-persona-external-user-id: user_123"`,
+    json: `{\n  "success": true,\n  "data": { "path": "/memories/user/preferences.md", "content": "# Likes" }\n}`,
+  },
+  stores: {
+    ts: `const store = await persona.stores.create({ name: 'Handbook', scope: 'domain', accessMode: 'readwrite' });\nawait persona.stores.writeFile(store._id, { path: 'intro.md', content: '# Hello' });`,
+    curl: `curl https://api.persona.hasanraiyan.me/api/v1/developer/stores \\\n  -H "Authorization: Bearer $PERSONA_CREDENTIAL" -H "Content-Type: application/json" \\\n  -d '{"name":"Handbook","scope":"domain"}'`,
+    json: `{\n  "success": true,\n  "data": { "_id": "store_123", "name": "Handbook" }\n}`,
+  },
+  providers: {
+    ts: `const provider = await persona.providers.create({ name: 'OpenAI', provider: 'openai', apiKey: 'sk-...' });\nawait persona.providers.testConnection(provider._id);`,
+    curl: `curl https://api.persona.hasanraiyan.me/api/v1/developer/providers \\\n  -H "Authorization: Bearer $PERSONA_CREDENTIAL" -H "Content-Type: application/json" \\\n  -d '{"name":"OpenAI","provider":"openai","apiKey":"sk-..."}'`,
+    json: `{\n  "success": true,\n  "data": { "_id": "prov_123", "provider": "openai" }\n}`,
+  },
+  mcp: {
+    ts: `const mcp = await persona.mcps.create({ name: 'GitHub', transport: 'sse', url: 'https://mcp.github.com/sse' });\nawait persona.mcps.testConnection(mcp._id);`,
+    curl: `curl https://api.persona.hasanraiyan.me/api/v1/developer/mcps \\\n  -H "Authorization: Bearer $PERSONA_CREDENTIAL" -H "Content-Type: application/json" \\\n  -d '{"name":"GitHub","transport":"sse","url":"https://mcp.github.com/sse"}'`,
+    json: `{\n  "success": true,\n  "data": { "_id": "mcp_123", "name": "GitHub" }\n}`,
+  },
+  workflows: {
+    ts: `const wf = await persona.workflows.create({ name: 'Research', draft: { nodes, edges, trigger: { type: 'manual' } } });\nconst result = await persona.workflows.run(wf._id, { input: { query: 'trends' } });\nfor await (const e of persona.workflows.stream(wf._id, { input: { query: '...' } })) {}`,
+    curl: `curl https://api.persona.hasanraiyan.me/api/v1/developer/workflows/WF_ID/runs -H "Authorization: Bearer $PERSONA_CREDENTIAL" -H "Content-Type: application/json" -d '{"input":{"query":"trends"}}'`,
+    json: `{\n  "success": true,\n  "data": { "runId": "run_123", "status": "completed", "output": { "summary": "..." } }\n}`,
+  },
+  chat: {
+    ts: `for await (const e of userClient.chat.stream(agent._id, { messages: [{ role:'user', content:'Hi' }], threadId: thread._id })) {\n  if (e.type === 'TEXT_MESSAGE_CHUNK' && e.delta) process.stdout.write(e.delta);\n}\nconst result = await userClient.chat.sendMessage(agent._id, { messages: [{ role:'user', content:'Hi' }], threadId: thread._id });`,
+    curl: `curl https://api.persona.hasanraiyan.me/api/v1/developer/agui -H "Authorization: Bearer $PERSONA_CREDENTIAL" -H "x-agent-id: ag_123" -H "x-thread-id: th_123" -H "Content-Type: application/json" -d '{"messages":[{"role":"user","content":"Hi"}]}' # streams text/event-stream`,
+    json: `{\n  "text": "Hello! How can I help?",\n  "events": [{ "type": "TEXT_MESSAGE_CHUNK", "delta": "Hello!" }]\n}`,
+  },
+  voice: {
+    ts: `const { ticket, wsUrl } = await userClient.voice.createSession(agent._id);\nconst ws = new WebSocket(wsUrl); // ticket embedded`,
+    curl: `curl -X POST https://api.persona.hasanraiyan.me/api/v1/developer/voice/sessions -H "Authorization: Bearer $PERSONA_CREDENTIAL" -H "x-persona-external-user-id: user_123" -H "Content-Type: application/json" -d '{"agentId":"ag_123"}'`,
+    json: `{\n  "success": true,\n  "data": { "ticket": "tik_...", "wsUrl": "wss://voice.persona.../session?ticket=tik_..." }\n}`,
+  },
+  'audit-logs': {
+    ts: `const { items } = await persona.auditLogs.list({ page: 1, limit: 20 });`,
+    curl: `curl https://api.persona.hasanraiyan.me/api/v1/developer/audit-logs -H "Authorization: Bearer $PERSONA_CREDENTIAL"`,
+    json: `{\n  "success": true,\n  "data": { "items": [{ "eventType": "credential.minted" }], "pagination": { "total": 1 } }\n}`,
+  },
+  'rest-tools': {
+    ts: `import { defineRestTool } from '@personaai/sdk/rest-tools'; import { z } from 'zod';\nconst getProfile = defineRestTool({ name: 'Get learner', method: 'GET', args: z.object({ userId: z.string() }), url: t => \`https://api.example.com/users/\${t.arg('userId')}\` });`,
+    curl: `curl https://api.persona.hasanraiyan.me/api/v1/developer/rest-tools -H "Authorization: Bearer $PERSONA_CREDENTIAL" | jq .`,
+    json: `{\n  "success": true,\n  "data": { "items": [{ "name": "Get learner" }] }\n}`,
+  },
+};
+
 function commentToText(comment) {
   if (!comment?.summary) return '';
   return comment.summary.map(p => {
@@ -149,6 +239,34 @@ function generateSdkResources() {
     lines.push(``);
     lines.push(`# ${resource}`);
     lines.push(``);
+    lines.push(`> **Auth:** Requires \`Authorization: Bearer <keyId>.<secret>\` (server-side). For per-user calls add \`x-persona-external-user-id\`. See [Credentials](/concepts/credentials).`);
+    lines.push(``);
+    if (RESOURCE_INTRO[resource]) { lines.push(RESOURCE_INTRO[resource]); lines.push(``); }
+    if (RESOURCE_EXAMPLES[resource]) {
+      const ex = RESOURCE_EXAMPLES[resource];
+      lines.push(`## Example`);
+      lines.push(``);
+      lines.push(`**TypeScript**`);
+      lines.push(``);
+      lines.push('```ts');
+      lines.push(ex.ts);
+      lines.push('```');
+      lines.push(``);
+      lines.push(`**cURL**`);
+      lines.push(``);
+      lines.push('```bash');
+      lines.push(ex.curl);
+      lines.push('```');
+      lines.push(``);
+      lines.push(`**Response**`);
+      lines.push(``);
+      lines.push('```json');
+      lines.push(ex.json);
+      lines.push('```');
+      lines.push(``);
+      lines.push(`---`);
+      lines.push(``);
+    }
     for (const [name, node] of found) {
       lines.push(`## \`${name}\``);
       lines.push(``);

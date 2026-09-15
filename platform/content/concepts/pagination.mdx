@@ -1,0 +1,43 @@
+---
+title: "Pagination"
+description: "Paginated list envelope — page, limit, total, pages"
+---
+
+# Pagination
+
+List/discover methods return a **pagination envelope**, not a bare array (since `0.2.0`).
+
+```ts
+const { items, pagination } = await persona.agents.list({ page: 1, limit: 20, search: 'research' });
+// pagination: { total: 42, page: 1, limit: 20, pages: 3 }
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `items` | `T[]` | The page of resources |
+| `pagination.total` | `number` | Total matching resources |
+| `pagination.page` | `number` | Current page (1-indexed, default `1`) |
+| `pagination.limit` | `number` | Page size (default `20`) |
+| `pagination.pages` | `number` | `Math.ceil(total/limit)` |
+
+## Per-resource params
+
+| Resource | Extra filters |
+|---|---|
+| `agents` | `search`, `category`, `scope: 'mine'` |
+| `skills` | `search` |
+| `knowledge` | `search` |
+| `threads` | `search`, `scope` |
+| `files` | `search` |
+| `providers` | *no pagination* — returns bare `Provider[]` (no discovery) |
+| `workflows` | `search`, `scope`, `visibility`, `isEnabled` |
+
+## Bulk delete
+
+`bulkDelete(ids)` is best-effort: `{ deleted: string[], failed: { id, error }[] }`.
+
+```ts
+const { deleted, failed } = await persona.threads.bulkDelete([id1, id2]);
+```
+
+See `sdk/typescript/src/types/pagination.ts` and `sdk/typescript/src/types/bulkDelete.ts`.

@@ -7,6 +7,38 @@ description: "Generated field tables for mcp — do not edit"
 
 # mcp
 
+> **Auth:** Requires `Authorization: Bearer <keyId>.<secret>` (server-side). For per-user calls add `x-persona-external-user-id`. See [Credentials](/concepts/credentials).
+
+MCP connectors are Model Context Protocol servers (tools/resources). Supports OAuth `owner` vs `user` modes and `testConnection`/`callTool`.
+
+## Example
+
+**TypeScript**
+
+```ts
+const mcp = await persona.mcps.create({ name: 'GitHub', transport: 'sse', url: 'https://mcp.github.com/sse' });
+await persona.mcps.testConnection(mcp._id);
+```
+
+**cURL**
+
+```bash
+curl https://api.persona.hasanraiyan.me/api/v1/developer/mcps \
+  -H "Authorization: Bearer $PERSONA_CREDENTIAL" -H "Content-Type: application/json" \
+  -d '{"name":"GitHub","transport":"sse","url":"https://mcp.github.com/sse"}'
+```
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": { "_id": "mcp_123", "name": "GitHub" }
+}
+```
+
+---
+
 ## `Mcp`
 
 Like Provider (not Skill/Agent/Knowledge), this goes through a clean ``toSafeJson()`` DTO — ``oauth``/``apiKeyEncrypted`` are stripped in favor of ``hasApiKey``/a summarized ``oauth`` object. Still ``_id``-shaped, though (``toSafeJson`` spreads the raw document minus secrets, doesn't rename it).

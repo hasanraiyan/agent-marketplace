@@ -7,6 +7,38 @@ description: "Generated field tables for chat — do not edit"
 
 # chat
 
+> **Auth:** Requires `Authorization: Bearer <keyId>.<secret>` (server-side). For per-user calls add `x-persona-external-user-id`. See [Credentials](/concepts/credentials).
+
+Chat is AG-UI SSE streaming: `chat.stream` yields `TEXT_MESSAGE_CHUNK`/`TOOL_CALL_*`/`CUSTOM` events; `sendMessage` drains to `{ text, interrupt, error }`.
+
+## Example
+
+**TypeScript**
+
+```ts
+for await (const e of userClient.chat.stream(agent._id, { messages: [{ role:'user', content:'Hi' }], threadId: thread._id })) {
+  if (e.type === 'TEXT_MESSAGE_CHUNK' && e.delta) process.stdout.write(e.delta);
+}
+const result = await userClient.chat.sendMessage(agent._id, { messages: [{ role:'user', content:'Hi' }], threadId: thread._id });
+```
+
+**cURL**
+
+```bash
+curl https://api.persona.hasanraiyan.me/api/v1/developer/agui -H "Authorization: Bearer $PERSONA_CREDENTIAL" -H "x-agent-id: ag_123" -H "x-thread-id: th_123" -H "Content-Type: application/json" -d '{"messages":[{"role":"user","content":"Hi"}]}' # streams text/event-stream
+```
+
+**Response**
+
+```json
+{
+  "text": "Hello! How can I help?",
+  "events": [{ "type": "TEXT_MESSAGE_CHUNK", "delta": "Hello!" }]
+}
+```
+
+---
+
 ## `AguiEvent`
 
 The full discriminated union of every AG-UI protocol event this backend can emit.

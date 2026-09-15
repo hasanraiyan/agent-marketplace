@@ -7,6 +7,40 @@ description: "Generated field tables for threads — do not edit"
 
 # threads
 
+> **Auth:** Requires `Authorization: Bearer <keyId>.<secret>` (server-side). For per-user calls add `x-persona-external-user-id`. See [Credentials](/concepts/credentials).
+
+Threads scope messages, files, todos, and checkpoints to one conversation. Use `externalUserId` so threads belong to your user.
+
+## Example
+
+**TypeScript**
+
+```ts
+const userClient = new PersonaClient({ baseUrl, credential, externalUserId: currentUser.id });
+const thread = await userClient.threads.create({ agentId: agent._id });
+for await (const e of userClient.chat.stream(agent._id, { messages: [{ role:'user', content:'Hi' }], threadId: thread._id })) {}
+
+```
+
+**cURL**
+
+```bash
+curl https://api.persona.hasanraiyan.me/api/v1/developer/threads \
+  -H "Authorization: Bearer $PERSONA_CREDENTIAL" -H "x-persona-external-user-id: user_123" \
+  -H "Content-Type: application/json" -d '{"agentId":"ag_123"}'
+```
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": { "_id": "th_123", "agentId": "ag_123", "title": "New chat" }
+}
+```
+
+---
+
 ## `Thread`
 
 Like Skill/Agent/Knowledge/Mcp, this mirrors the real wire shape (``_id``).

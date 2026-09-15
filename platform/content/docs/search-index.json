@@ -181,16 +181,16 @@
     "description": "Generated field tables for agents — do not edit",
     "headings": [
       "agents",
+      "Example",
       "`Agent`",
       "`AgentSocialLinks`",
       "`AgentVisibility`",
       "`AgentCategory`",
       "`CreateAgentInput`",
-      "`UpdateAgentInput`",
-      "`DiscoverAgentsParams`"
+      "`UpdateAgentInput`"
     ],
-    "snippet": "> **Generated from — do not edit.** Regenerate with . agents Note: like Skill , this mirrors the real wire shape ( _id , raw domain/ownerType fields) — getOne() returns skills / mcps / knowledgeBases populated as objects, while create() / update() / list() return them as bare id ",
-    "tokens": "agents — @personaai/sdk generated field tables for agents — do not edit agents `agent` `agentsociallinks` `agentvisibility` `agentcategory` `createagentinput` `updateagentinput` `discoveragentsparams` > **generated from — do not edit.** regenerate with . agents note: like skill , this mirrors the real wire shape ( _id , raw domain/ownertype fields) — getone() returns skills / mcps / knowledgebases populated as objects, while create() / update() / list() return them as bare id strings; typed loosely here to reflect that real difference rather than picking one shape and being wrong for the other calls. _source: _ _interface_ _source: _ _interface_ unlisted is reachable by direct link/id but excluded from public discovery listings. _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _interface_ all fields optional — only what you pass is changed. _source: _ _interface_ _source: _ _interface_ one authtype: 'oauth', authmode: 'user' mcp attached to an agent, and whether the calling identity (the client's asserted external user) has connected it yet. authorizeurl is only present when connected is false — send the browser there to start the oauth consent flow. _source: _ _interface_"
+    "snippet": "> **Generated from — do not edit.** Regenerate with . agents > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Agents are AI personas with a system prompt, provider, and tool attachments. Create them with a control-plane client (no ), then chat with th",
+    "tokens": "agents — @personaai/sdk generated field tables for agents — do not edit agents example `agent` `agentsociallinks` `agentvisibility` `agentcategory` `createagentinput` `updateagentinput` > **generated from — do not edit.** regenerate with . agents > **auth:** requires (server-side). for per-user calls add . see credentials. agents are ai personas with a system prompt, provider, and tool attachments. create them with a control-plane client (no ), then chat with them via a per-user client. is the read shape; / are the write shapes. example **typescript** **curl** **response** --- note: like skill , this mirrors the real wire shape ( _id , raw domain/ownertype fields) — getone() returns skills / mcps / knowledgebases populated as objects, while create() / update() / list() return them as bare id strings; typed loosely here to reflect that real difference rather than picking one shape and being wrong for the other calls. _source: _ _interface_ _source: _ _interface_ unlisted is reachable by direct link/id but excluded from public discovery listings. _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _interface_ all fields optional — only what you pass is changed. _source: _ _interface_ _source: _ _interface_ one authtype: 'oauth', authmode: 'user' mcp attached to an agent, and whether the calling identity (the client's asserted external user) has connected it yet. authorizeurl is only present when connected is false — send the browser there to start the oauth consent flow. _source: _ _interface_"
   },
   {
     "id": 10,
@@ -205,11 +205,12 @@
     "description": "Generated field tables for audit-logs — do not edit",
     "headings": [
       "audit-logs",
+      "Example",
       "`AuditLogEntry`",
       "`ListAuditLogsParams`"
     ],
-    "snippet": "> **Generated from — do not edit.** Regenerate with . audit-logs Mirrors agent-backend/src/modules/audit/auditLog.model.js . Covers Project-lifecycle events only (credential minted/revoked, membership changes, suspend/restore) — NOT resource CRUD (Agent/Skill/Knowledge/ Provider/",
-    "tokens": "audit-logs — @personaai/sdk generated field tables for audit-logs — do not edit audit-logs `auditlogentry` `listauditlogsparams` > **generated from — do not edit.** regenerate with . audit-logs mirrors agent-backend/src/modules/audit/auditlog.model.js . covers project-lifecycle events only (credential minted/revoked, membership changes, suspend/restore) — not resource crud (agent/skill/knowledge/ provider/mcp create/update/delete aren't logged here yet). _source: _ _interface_ _source: _ _interface_"
+    "snippet": "> **Generated from — do not edit.** Regenerate with . audit-logs > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Audit logs are read-only, control-plane only — lifecycle events (credentials minted/revoked, membership, suspend/restore). Example **Type",
+    "tokens": "audit-logs — @personaai/sdk generated field tables for audit-logs — do not edit audit-logs example `auditlogentry` `listauditlogsparams` > **generated from — do not edit.** regenerate with . audit-logs > **auth:** requires (server-side). for per-user calls add . see credentials. audit logs are read-only, control-plane only — lifecycle events (credentials minted/revoked, membership, suspend/restore). example **typescript** **curl** **response** --- mirrors agent-backend/src/modules/audit/auditlog.model.js . covers project-lifecycle events only (credential minted/revoked, membership changes, suspend/restore) — not resource crud (agent/skill/knowledge/ provider/mcp create/update/delete aren't logged here yet). _source: _ _interface_ _source: _ _interface_"
   },
   {
     "id": 11,
@@ -224,16 +225,16 @@
     "description": "Generated field tables for chat — do not edit",
     "headings": [
       "chat",
+      "Example",
       "`AguiEvent`",
       "`ChatMessageInput`",
       "`ChatResume`",
       "`SendMessageOptions`",
       "`ChatInterrupt`",
-      "`ChatResult`",
-      "`AGUI_SCHEMA_VERSION`"
+      "`ChatResult`"
     ],
-    "snippet": "> **Generated from — do not edit.** Regenerate with . chat The full discriminated union of every AG-UI protocol event this backend can emit. _Source: _ _Kind 2097152_ _Source: _ _Interface_ Approves/denies a pending human-in-the-loop interrupt from a previous run, or answers a pe",
-    "tokens": "chat — @personaai/sdk generated field tables for chat — do not edit chat `aguievent` `chatmessageinput` `chatresume` `sendmessageoptions` `chatinterrupt` `chatresult` `agui_schema_version` > **generated from — do not edit.** regenerate with . chat the full discriminated union of every ag-ui protocol event this backend can emit. _source: _ _kind 2097152_ _source: _ _interface_ approves/denies a pending human-in-the-loop interrupt from a previous run, or answers a pending clarification. shape depends on the interrupt kind — see chatinterrupt . _source: _ _kind 2097152_ _source: _ _interface_ a pending interrupt surfaced via a custom event — this backend's own human-in-the-loop protocol (tool-approval or clarification-question), not the newer standard ag-ui runfinishedinterruptoutcome field (this backend's translator doesn't emit that; confirmed by reading aguitranslator.js directly rather than assuming the spec's newer shape applies). _source: _ _interface_ _source: _ _interface_ the schema document version this sdk release was written against. _source: _ _variable_ _source: _ _interface_ custom event hitl_request — pauses the run pending approval of one or more pending tool calls (an agent's interrupton config). actionrequests / reviewconfigs are opaque langchain humanintheloopmiddleware structures, passed through as-is by the backend. _source: _ _interface_ custom event mcp_app — an mcp-registered tool call declared an interactive widget via _meta.ui.resourceuri . _source: _ _interface_ a narrower, app-typed view of the native @ag-ui/core run_error event (already covered by aguievent 's union — this just gives code a literal type instead of string | undefined , and documents the extra fields this backend always sends alongside the base protocol's message ). _source: _ _interface_"
+    "snippet": "> **Generated from — do not edit.** Regenerate with . chat > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Chat is AG-UI SSE streaming: yields / / events; drains to . Example **TypeScript** **cURL** **Response** --- The full discriminated union of ev",
+    "tokens": "chat — @personaai/sdk generated field tables for chat — do not edit chat example `aguievent` `chatmessageinput` `chatresume` `sendmessageoptions` `chatinterrupt` `chatresult` > **generated from — do not edit.** regenerate with . chat > **auth:** requires (server-side). for per-user calls add . see credentials. chat is ag-ui sse streaming: yields / / events; drains to . example **typescript** **curl** **response** --- the full discriminated union of every ag-ui protocol event this backend can emit. _source: _ _kind 2097152_ _source: _ _interface_ approves/denies a pending human-in-the-loop interrupt from a previous run, or answers a pending clarification. shape depends on the interrupt kind — see chatinterrupt . _source: _ _kind 2097152_ _source: _ _interface_ a pending interrupt surfaced via a custom event — this backend's own human-in-the-loop protocol (tool-approval or clarification-question), not the newer standard ag-ui runfinishedinterruptoutcome field (this backend's translator doesn't emit that; confirmed by reading aguitranslator.js directly rather than assuming the spec's newer shape applies). _source: _ _interface_ _source: _ _interface_ the schema document version this sdk release was written against. _source: _ _variable_ _source: _ _interface_ custom event hitl_request — pauses the run pending approval of one or more pending tool calls (an agent's interrupton config). actionrequests / reviewconfigs are opaque langchain humanintheloopmiddleware structures, passed through as-is by the backend. _source: _ _interface_ custom event mcp_app — an mcp-registered tool call declared an interactive widget via _meta.ui.resourceuri . _source: _ _interface_ a narrower, app-typed view of the native @ag-ui/core run_error event (already covered by aguievent 's union — this just gives code a literal type instead of string | undefined , and documents the extra fields this backend always sends alongside the base protocol's message ). _source: _ _interface_"
   },
   {
     "id": 12,
@@ -248,12 +249,13 @@
     "description": "Generated field tables for files — do not edit",
     "headings": [
       "files",
+      "Example",
       "`PersonaFile`",
       "`UploadFilePayload`",
       "`ListFilesParams`"
     ],
-    "snippet": "> **Generated from — do not edit.** Regenerate with . files Clean formatted shape ( id , not _id ) — unlike Thread/Skill/Agent/Knowledge. _Source: _ _Interface_ _Source: _ _Interface_ _Source: _ _Interface_",
-    "tokens": "files — @personaai/sdk generated field tables for files — do not edit files `personafile` `uploadfilepayload` `listfilesparams` > **generated from — do not edit.** regenerate with . files clean formatted shape ( id , not _id ) — unlike thread/skill/agent/knowledge. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
+    "snippet": "> **Generated from — do not edit.** Regenerate with . files > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Files are user uploads (multipart part) scoped to an optional / . Example **TypeScript** **cURL** **Response** --- Clean formatted shape ( id ",
+    "tokens": "files — @personaai/sdk generated field tables for files — do not edit files example `personafile` `uploadfilepayload` `listfilesparams` > **generated from — do not edit.** regenerate with . files > **auth:** requires (server-side). for per-user calls add . see credentials. files are user uploads (multipart part) scoped to an optional / . example **typescript** **curl** **response** --- clean formatted shape ( id , not _id ) — unlike thread/skill/agent/knowledge. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
   },
   {
     "id": 13,
@@ -268,16 +270,16 @@
     "description": "Generated field tables for knowledge — do not edit",
     "headings": [
       "knowledge",
+      "Example",
       "`KnowledgeBase`",
       "`KnowledgeDocument`",
       "`CreateKnowledgeBaseInput`",
       "`UpdateKnowledgeBaseInput`",
       "`DiscoverKnowledgeBasesParams`",
-      "`UploadFileInput`",
-      "`UploadDocumentsResult`"
+      "`UploadFileInput`"
     ],
-    "snippet": "> **Generated from — do not edit.** Regenerate with . knowledge Like Skill/Agent, this mirrors the real wire shape ( _id , raw domain/ownerType fields). _Source: _ _Interface_ One uploaded source document's chunking summary (not the chunks themselves). _Source: _ _Interface_ _Sou",
-    "tokens": "knowledge — @personaai/sdk generated field tables for knowledge — do not edit knowledge `knowledgebase` `knowledgedocument` `createknowledgebaseinput` `updateknowledgebaseinput` `discoverknowledgebasesparams` `uploadfileinput` `uploaddocumentsresult` > **generated from — do not edit.** regenerate with . knowledge like skill/agent, this mirrors the real wire shape ( _id , raw domain/ownertype fields). _source: _ _interface_ one uploaded source document's chunking summary (not the chunks themselves). _source: _ _interface_ _source: _ _interface_ all fields optional — only what you pass is changed. does not retroactively re-embed existing documents. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
+    "snippet": "> **Generated from — do not edit.** Regenerate with . knowledge > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Knowledge bases are RAG collections backed by Qdrant. Upload documents, search, and attach to agents. Example **TypeScript** **cURL** **Re",
+    "tokens": "knowledge — @personaai/sdk generated field tables for knowledge — do not edit knowledge example `knowledgebase` `knowledgedocument` `createknowledgebaseinput` `updateknowledgebaseinput` `discoverknowledgebasesparams` `uploadfileinput` > **generated from — do not edit.** regenerate with . knowledge > **auth:** requires (server-side). for per-user calls add . see credentials. knowledge bases are rag collections backed by qdrant. upload documents, search, and attach to agents. example **typescript** **curl** **response** --- like skill/agent, this mirrors the real wire shape ( _id , raw domain/ownertype fields). _source: _ _interface_ one uploaded source document's chunking summary (not the chunks themselves). _source: _ _interface_ _source: _ _interface_ all fields optional — only what you pass is changed. does not retroactively re-embed existing documents. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
   },
   {
     "id": 14,
@@ -292,16 +294,16 @@
     "description": "Generated field tables for mcp — do not edit",
     "headings": [
       "mcp",
+      "Example",
       "`Mcp`",
       "`McpTransport`",
       "`McpAuthType`",
       "`McpAuthMode`",
       "`McpTool`",
-      "`McpResourceSummary`",
-      "`McpResourceTemplate`"
+      "`McpResourceSummary`"
     ],
-    "snippet": "> **Generated from — do not edit.** Regenerate with . mcp Like Provider (not Skill/Agent/Knowledge), this goes through a clean toSafeJson() DTO — oauth / apiKeyEncrypted are stripped in favor of hasApiKey /a summarized oauth object. Still _id -shaped, though ( toSafeJson spreads ",
-    "tokens": "mcp — @personaai/sdk generated field tables for mcp — do not edit mcp `mcp` `mcptransport` `mcpauthtype` `mcpauthmode` `mcptool` `mcpresourcesummary` `mcpresourcetemplate` > **generated from — do not edit.** regenerate with . mcp like provider (not skill/agent/knowledge), this goes through a clean tosafejson() dto — oauth / apikeyencrypted are stripped in favor of hasapikey /a summarized oauth object. still _id -shaped, though ( tosafejson spreads the raw document minus secrets, doesn't rename it). _source: _ _interface_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ owner : one shared connection for the whole project. user : each external user connects their own. _source: _ _kind 2097152_ _source: _ _interface_ _source: _ _interface_ a resource whose uri has placeholder params to fill before calling readresource() . _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ all fields optional — only what you pass is changed. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
+    "snippet": "> **Generated from — do not edit.** Regenerate with . mcp > **Auth:** Requires (server-side). For per-user calls add . See Credentials. MCP connectors are Model Context Protocol servers (tools/resources). Supports OAuth vs modes and / . Example **TypeScript** **cURL** **Response*",
+    "tokens": "mcp — @personaai/sdk generated field tables for mcp — do not edit mcp example `mcp` `mcptransport` `mcpauthtype` `mcpauthmode` `mcptool` `mcpresourcesummary` > **generated from — do not edit.** regenerate with . mcp > **auth:** requires (server-side). for per-user calls add . see credentials. mcp connectors are model context protocol servers (tools/resources). supports oauth vs modes and / . example **typescript** **curl** **response** --- like provider (not skill/agent/knowledge), this goes through a clean tosafejson() dto — oauth / apikeyencrypted are stripped in favor of hasapikey /a summarized oauth object. still _id -shaped, though ( tosafejson spreads the raw document minus secrets, doesn't rename it). _source: _ _interface_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ owner : one shared connection for the whole project. user : each external user connects their own. _source: _ _kind 2097152_ _source: _ _interface_ _source: _ _interface_ a resource whose uri has placeholder params to fill before calling readresource() . _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ all fields optional — only what you pass is changed. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
   },
   {
     "id": 15,
@@ -316,16 +318,16 @@
     "description": "Generated field tables for memory — do not edit",
     "headings": [
       "memory",
+      "Example",
       "`MemoryFile`",
       "`MemoryAgentGroup`",
       "`MemoryListResult`",
       "`MemoryFileScopeParams`",
       "`GetMemoryFileParams`",
-      "`WriteMemoryFileInput`",
-      "`DeleteMemoryFileParams`"
+      "`WriteMemoryFileInput`"
     ],
-    "snippet": "> **Generated from — do not edit.** Regenerate with . memory Mirrors memory.service.js's _toFileDto — the wire shape for one memory file. _Source: _ _Interface_ One agent's group of agent-scoped memory files, as returned by memory.list() . _Source: _ _Interface_ GET /api/v1/devel",
-    "tokens": "memory — @personaai/sdk generated field tables for memory — do not edit memory `memoryfile` `memoryagentgroup` `memorylistresult` `memoryfilescopeparams` `getmemoryfileparams` `writememoryfileinput` `deletememoryfileparams` > **generated from — do not edit.** regenerate with . memory mirrors memory.service.js's _tofiledto — the wire shape for one memory file. _source: _ _interface_ one agent's group of agent-scoped memory files, as returned by memory.list() . _source: _ _interface_ get /api/v1/developer/memory — every memory file for the asserted external user. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
+    "snippet": "> **Generated from — do not edit.** Regenerate with . memory > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Memory is a file-based store: (shared) and (per user-agent). Agents read/write via / . Example **TypeScript** **cURL** **Response** --- Mirro",
+    "tokens": "memory — @personaai/sdk generated field tables for memory — do not edit memory example `memoryfile` `memoryagentgroup` `memorylistresult` `memoryfilescopeparams` `getmemoryfileparams` `writememoryfileinput` > **generated from — do not edit.** regenerate with . memory > **auth:** requires (server-side). for per-user calls add . see credentials. memory is a file-based store: (shared) and (per user-agent). agents read/write via / . example **typescript** **curl** **response** --- mirrors memory.service.js's _tofiledto — the wire shape for one memory file. _source: _ _interface_ one agent's group of agent-scoped memory files, as returned by memory.list() . _source: _ _interface_ get /api/v1/developer/memory — every memory file for the asserted external user. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
   },
   {
     "id": 16,
@@ -340,14 +342,15 @@
     "description": "Generated field tables for providers — do not edit",
     "headings": [
       "providers",
+      "Example",
       "`Provider`",
       "`CreateProviderInput`",
       "`UpdateProviderInput`",
       "`ProviderModel`",
       "`ProviderTestConnectionResult`"
     ],
-    "snippet": "> **Generated from — do not edit.** Regenerate with . providers A Provider as returned by the API — apiKey is never included. _Source: _ _Interface_ _Source: _ _Interface_ All fields optional — only what you pass is changed. _Source: _ _Interface_ _Source: _ _Interface_ _Source: ",
-    "tokens": "providers — @personaai/sdk generated field tables for providers — do not edit providers `provider` `createproviderinput` `updateproviderinput` `providermodel` `providertestconnectionresult` > **generated from — do not edit.** regenerate with . providers a provider as returned by the api — apikey is never included. _source: _ _interface_ _source: _ _interface_ all fields optional — only what you pass is changed. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
+    "snippet": "> **Generated from — do not edit.** Regenerate with . providers > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Providers hold LLM credentials (API keys). Requires a Project Secret; and verify them. Example **TypeScript** **cURL** **Response** --- A ",
+    "tokens": "providers — @personaai/sdk generated field tables for providers — do not edit providers example `provider` `createproviderinput` `updateproviderinput` `providermodel` `providertestconnectionresult` > **generated from — do not edit.** regenerate with . providers > **auth:** requires (server-side). for per-user calls add . see credentials. providers hold llm credentials (api keys). requires a project secret; and verify them. example **typescript** **curl** **response** --- a provider as returned by the api — apikey is never included. _source: _ _interface_ _source: _ _interface_ all fields optional — only what you pass is changed. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
   },
   {
     "id": 17,
@@ -362,16 +365,16 @@
     "description": "Generated field tables for rest-tools — do not edit",
     "headings": [
       "rest-tools",
+      "Example",
       "`RestApiTool`",
       "`RestToolMethod`",
       "`RestToolAuthType`",
       "`RestToolBodyMode`",
       "`RestToolParamIn`",
-      "`RestToolParamType`",
-      "`RestToolParamRow`"
+      "`RestToolParamType`"
     ],
-    "snippet": "> **Generated from — do not edit.** Regenerate with . rest-tools A no-code REST API tool an Agent can call. Goes through toSafeJson() — secretRef 's underlying value is never returned, only hasSecret . _Source: _ _Interface_ _Source: _ _Kind 2097152_ _Source: _ _Kind 2097152_ _So",
-    "tokens": "rest-tools — @personaai/sdk generated field tables for rest-tools — do not edit rest-tools `restapitool` `resttoolmethod` `resttoolauthtype` `resttoolbodymode` `resttoolparamin` `resttoolparamtype` `resttoolparamrow` > **generated from — do not edit.** regenerate with . rest-tools a no-code rest api tool an agent can call. goes through tosafejson() — secretref 's underlying value is never returned, only hassecret . _source: _ _interface_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ one query-string or header entry. valuetemplate may contain {{token}} . _source: _ _interface_ declares one agent-fillable {{token}} referenced in url /params/headers/body. _source: _ _interface_ reshapes the raw json response before the agent sees it, e.g. types/resttool.ts:29 field string types/resttool.ts:30 path string types/resttool.ts:32 createresttoolinput types/resttool.ts:66 name string types/resttool.ts:67 description? string types/resttool.ts:68 method resttoolmethod types/resttool.ts:69 url string types/resttool.ts:70 queryparams? resttoolparamrow[] types/resttool.ts:71 headers? resttoolparamrow[] types/resttool.ts:72 bodymode? resttoolbodymode types/resttool.ts:74 bodytemplate? string types/resttool.ts:75 paramdescriptors? resttoolparamdescriptor[] types/resttool.ts:76 authtype? resttoolauthtype types/resttool.ts:78 secretref? string types/resttool.ts:80 responsemappings? resttoolresponsemapping[] types/resttool.ts:81 isenabled? boolean types/resttool.ts:83 updateresttoolinput types/resttool.ts:87 discoverresttoolsparams types/resttool.ts:92 page? number types/resttool.ts:94 limit? number types/resttool.ts:96 search? string types/resttool.ts:98 scope? \"mine\" types/resttool.ts:100 resttooltestresult types/resttool.ts:103 status number types/resttool.ts:104 ok boolean types/resttool.ts:105 body unknown types/resttool.ts:107 mapped unknown types/resttool.ts:109 testresttoolinput types/resttool.ts:113 toolid? string types/resttool.ts:114 draft? partial<createresttoolinput> types/resttool.ts:115 testvalues? record<string, string> types/resttool.ts:116`_ |"
+    "snippet": "> **Generated from — do not edit.** Regenerate with . rest-tools > **Auth:** Requires (server-side). For per-user calls add . See Credentials. REST tools are code-first tools via (zod) served as and discovered live as a Source. Example **TypeScript** **cURL** **Response** --- A n",
+    "tokens": "rest-tools — @personaai/sdk generated field tables for rest-tools — do not edit rest-tools example `restapitool` `resttoolmethod` `resttoolauthtype` `resttoolbodymode` `resttoolparamin` `resttoolparamtype` > **generated from — do not edit.** regenerate with . rest-tools > **auth:** requires (server-side). for per-user calls add . see credentials. rest tools are code-first tools via (zod) served as and discovered live as a source. example **typescript** **curl** **response** --- a no-code rest api tool an agent can call. goes through tosafejson() — secretref 's underlying value is never returned, only hassecret . _source: _ _interface_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ one query-string or header entry. valuetemplate may contain {{token}} . _source: _ _interface_ declares one agent-fillable {{token}} referenced in url /params/headers/body. _source: _ _interface_ reshapes the raw json response before the agent sees it, e.g. types/resttool.ts:29 field string types/resttool.ts:30 path string types/resttool.ts:32 createresttoolinput types/resttool.ts:66 name string types/resttool.ts:67 description? string types/resttool.ts:68 method resttoolmethod types/resttool.ts:69 url string types/resttool.ts:70 queryparams? resttoolparamrow[] types/resttool.ts:71 headers? resttoolparamrow[] types/resttool.ts:72 bodymode? resttoolbodymode types/resttool.ts:74 bodytemplate? string types/resttool.ts:75 paramdescriptors? resttoolparamdescriptor[] types/resttool.ts:76 authtype? resttoolauthtype types/resttool.ts:78 secretref? string types/resttool.ts:80 responsemappings? resttoolresponsemapping[] types/resttool.ts:81 isenabled? boolean types/resttool.ts:83 updateresttoolinput types/resttool.ts:87 discoverresttoolsparams types/resttool.ts:92 page? number types/resttool.ts:94 limit? number types/resttool.ts:96 search? string types/resttool.ts:98 scope? \"mine\" types/resttool.ts:100 resttooltestresult types/resttool.ts:103 status number types/resttool.ts:104 ok boolean types/resttool.ts:105 body unknown types/resttool.ts:107 mapped unknown types/resttool.ts:109 testresttoolinput types/resttool.ts:113"
   },
   {
     "id": 18,
@@ -386,14 +389,15 @@
     "description": "Generated field tables for skills — do not edit",
     "headings": [
       "skills",
+      "Example",
       "`Skill`",
       "`SkillFile`",
       "`CreateSkillInput`",
       "`UpdateSkillInput`",
       "`DiscoverSkillsParams`"
     ],
-    "snippet": "> **Generated from — do not edit.** Regenerate with . skills Note: unlike Provider , the Developer API returns Skill documents in their raw Mongo shape ( _id , not id ) — reflected here as-is rather than papering over a real backend inconsistency. _Source: _ _Interface_ A file bu",
-    "tokens": "skills — @personaai/sdk generated field tables for skills — do not edit skills `skill` `skillfile` `createskillinput` `updateskillinput` `discoverskillsparams` > **generated from — do not edit.** regenerate with . skills note: unlike provider , the developer api returns skill documents in their raw mongo shape ( _id , not id ) — reflected here as-is rather than papering over a real backend inconsistency. _source: _ _interface_ a file bundled with a skill (e.g. a reference doc or script an agent can read). _source: _ _interface_ _source: _ _interface_ all fields optional — only what you pass is changed. _source: _ _interface_ _source: _ _interface_"
+    "snippet": "> **Generated from — do not edit.** Regenerate with . skills > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Skills are reusable capabilities (file-backed) that agents can use. Manage them via the SDK and attach via . Example **TypeScript** **cURL** ",
+    "tokens": "skills — @personaai/sdk generated field tables for skills — do not edit skills example `skill` `skillfile` `createskillinput` `updateskillinput` `discoverskillsparams` > **generated from — do not edit.** regenerate with . skills > **auth:** requires (server-side). for per-user calls add . see credentials. skills are reusable capabilities (file-backed) that agents can use. manage them via the sdk and attach via . example **typescript** **curl** **response** --- note: unlike provider , the developer api returns skill documents in their raw mongo shape ( _id , not id ) — reflected here as-is rather than papering over a real backend inconsistency. _source: _ _interface_ a file bundled with a skill (e.g. a reference doc or script an agent can read). _source: _ _interface_ _source: _ _interface_ all fields optional — only what you pass is changed. _source: _ _interface_ _source: _ _interface_"
   },
   {
     "id": 19,
@@ -408,16 +412,16 @@
     "description": "Generated field tables for stores — do not edit",
     "headings": [
       "stores",
+      "Example",
       "`Store`",
       "`StoreScope`",
       "`StoreAccessMode`",
       "`CreateStoreInput`",
       "`UpdateStoreInput`",
-      "`DiscoverStoresParams`",
-      "`StoreFile`"
+      "`DiscoverStoresParams`"
     ],
-    "snippet": "> **Generated from — do not edit.** Regenerate with . stores A named, scoped mount point assignable to Agents ( Agent.storeMounts ), generalizing the fixed /memories/user/ / /memories/agent/ mounts into arbitrarily-named ones. Mounted at /stores/<name>/ in the Agent's filesystem.",
-    "tokens": "stores — @personaai/sdk generated field tables for stores — do not edit stores `store` `storescope` `storeaccessmode` `createstoreinput` `updatestoreinput` `discoverstoresparams` `storefile` > **generated from — do not edit.** regenerate with . stores a named, scoped mount point assignable to agents ( agent.storemounts ), generalizing the fixed /memories/user/ / /memories/agent/ mounts into arbitrarily-named ones. mounted at /stores/<name>/ in the agent's filesystem. _source: _ _interface_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _interface_ scope is intentionally not included — immutable after creation. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
+    "snippet": "> **Generated from — do not edit.** Regenerate with . stores > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Stores are named mount points agents can be assigned to — filesystem-backed alternative to for larger reference material. Example **TypeScrip",
+    "tokens": "stores — @personaai/sdk generated field tables for stores — do not edit stores example `store` `storescope` `storeaccessmode` `createstoreinput` `updatestoreinput` `discoverstoresparams` > **generated from — do not edit.** regenerate with . stores > **auth:** requires (server-side). for per-user calls add . see credentials. stores are named mount points agents can be assigned to — filesystem-backed alternative to for larger reference material. example **typescript** **curl** **response** --- a named, scoped mount point assignable to agents ( agent.storemounts ), generalizing the fixed /memories/user/ / /memories/agent/ mounts into arbitrarily-named ones. mounted at /stores/<name>/ in the agent's filesystem. _source: _ _interface_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _interface_ scope is intentionally not included — immutable after creation. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
   },
   {
     "id": 20,
@@ -432,14 +436,15 @@
     "description": "Generated field tables for threads — do not edit",
     "headings": [
       "threads",
+      "Example",
       "`Thread`",
       "`CreateThreadInput`",
       "`UpdateThreadInput`",
       "`ListThreadsParams`",
       "`ThreadMessages`"
     ],
-    "snippet": "> **Generated from — do not edit.** Regenerate with . threads Like Skill/Agent/Knowledge/Mcp, this mirrors the real wire shape ( _id ). _Source: _ _Interface_ _Source: _ _Interface_ All fields optional — only what you pass is changed. _Source: _ _Interface_ _Source: _ _Interface_",
-    "tokens": "threads — @personaai/sdk generated field tables for threads — do not edit threads `thread` `createthreadinput` `updatethreadinput` `listthreadsparams` `threadmessages` > **generated from — do not edit.** regenerate with . threads like skill/agent/knowledge/mcp, this mirrors the real wire shape ( _id ). _source: _ _interface_ _source: _ _interface_ all fields optional — only what you pass is changed. _source: _ _interface_ _source: _ _interface_ messages holds raw langchain message objects (role/content/tool_calls vary by message type) — intentionally untyped rather than guessing at a shape this sdk doesn't own. _source: _ _interface_"
+    "snippet": "> **Generated from — do not edit.** Regenerate with . threads > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Threads scope messages, files, todos, and checkpoints to one conversation. Use so threads belong to your user. Example **TypeScript** **cURL",
+    "tokens": "threads — @personaai/sdk generated field tables for threads — do not edit threads example `thread` `createthreadinput` `updatethreadinput` `listthreadsparams` `threadmessages` > **generated from — do not edit.** regenerate with . threads > **auth:** requires (server-side). for per-user calls add . see credentials. threads scope messages, files, todos, and checkpoints to one conversation. use so threads belong to your user. example **typescript** **curl** **response** --- like skill/agent/knowledge/mcp, this mirrors the real wire shape ( _id ). _source: _ _interface_ _source: _ _interface_ all fields optional — only what you pass is changed. _source: _ _interface_ _source: _ _interface_ messages holds raw langchain message objects (role/content/tool_calls vary by message type) — intentionally untyped rather than guessing at a shape this sdk doesn't own. _source: _ _interface_"
   },
   {
     "id": 21,
@@ -454,12 +459,13 @@
     "description": "Generated field tables for voice — do not edit",
     "headings": [
       "voice",
+      "Example",
       "`VoiceSessionInfo`",
       "`VoiceSessionTicket`",
       "`CreateVoiceSessionOptions`"
     ],
-    "snippet": "> **Generated from — do not edit.** Regenerate with . voice Mirrors the CUSTOM voice_session_ready AG-UI event's payload shape. _Source: _ _Interface_ Returned by VoiceResource.createSession. Hand this whole object (or at least wsUrl ) to your frontend — the ticket embedded in ws",
-    "tokens": "voice — @personaai/sdk generated field tables for voice — do not edit voice `voicesessioninfo` `voicesessionticket` `createvoicesessionoptions` > **generated from — do not edit.** regenerate with . voice mirrors the custom voice_session_ready ag-ui event's payload shape. _source: _ _interface_ returned by voiceresource.createsession. hand this whole object (or at least wsurl ) to your frontend — the ticket embedded in wsurl is single-use and expires at expiresat (60s from mint), so open the websocket promptly and never reuse it for a second connection attempt. _source: _ _interface_ options for voiceresource.createsession. _source: _ _interface_"
+    "snippet": "> **Generated from — do not edit.** Regenerate with . voice > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Voice mints a Gemini Live ticket server-side, then the browser opens directly to Persona. Example **TypeScript** **cURL** **Response** --- Mir",
+    "tokens": "voice — @personaai/sdk generated field tables for voice — do not edit voice example `voicesessioninfo` `voicesessionticket` `createvoicesessionoptions` > **generated from — do not edit.** regenerate with . voice > **auth:** requires (server-side). for per-user calls add . see credentials. voice mints a gemini live ticket server-side, then the browser opens directly to persona. example **typescript** **curl** **response** --- mirrors the custom voice_session_ready ag-ui event's payload shape. _source: _ _interface_ returned by voiceresource.createsession. hand this whole object (or at least wsurl ) to your frontend — the ticket embedded in wsurl is single-use and expires at expiresat (60s from mint), so open the websocket promptly and never reuse it for a second connection attempt. _source: _ _interface_ options for voiceresource.createsession. _source: _ _interface_"
   },
   {
     "id": 22,
@@ -474,16 +480,16 @@
     "description": "Generated field tables for workflows — do not edit",
     "headings": [
       "workflows",
+      "Example",
       "`Workflow`",
       "`WorkflowNodeType`",
       "`WorkflowTriggerType`",
       "`WorkflowVisibility`",
       "`WorkflowOwnerType`",
-      "`NodeOnErrorAction`",
-      "`NodeRetryPolicy`"
+      "`NodeOnErrorAction`"
     ],
-    "snippet": "> **Generated from — do not edit.** Regenerate with . workflows _Source: _ _Interface_ _Source: _ _Kind 2097152_ _Source: _ _Kind 2097152_ _Source: _ _Kind 2097152_ _Source: _ _Kind 2097152_ _Source: _ _Kind 2097152_ _Source: _ _Interface_ _Source: _ _Interface_ _Source: _ _Inter",
-    "tokens": "workflows — @personaai/sdk generated field tables for workflows — do not edit workflows `workflow` `workflownodetype` `workflowtriggertype` `workflowvisibility` `workflowownertype` `nodeonerroraction` `noderetrypolicy` > **generated from — do not edit.** regenerate with . workflows _source: _ _interface_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _kind 2097152_"
+    "snippet": "> **Generated from — do not edit.** Regenerate with . workflows > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Workflows are multi-agent DAGs compiled to LangGraph StateGraphs — (editable) + (immutable). Stream via AG-UI with for resume and for safe",
+    "tokens": "workflows — @personaai/sdk generated field tables for workflows — do not edit workflows example `workflow` `workflownodetype` `workflowtriggertype` `workflowvisibility` `workflowownertype` `nodeonerroraction` > **generated from — do not edit.** regenerate with . workflows > **auth:** requires (server-side). for per-user calls add . see credentials. workflows are multi-agent dags compiled to langgraph stategraphs — (editable) + (immutable). stream via ag-ui with for resume and for safe testing. example **typescript** **curl** **response** --- _source: _ _interface_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _kind 2097152_"
   },
   {
     "id": 23,
@@ -2404,6 +2410,28 @@
     "sdk": "concepts",
     "version": "latest",
     "slug": [
+      "errors"
+    ],
+    "href": "/concepts/errors",
+    "title": "Errors",
+    "description": "Error envelope, typed errors, and how to handle them",
+    "headings": [
+      "Errors",
+      "Envelope",
+      "Typed errors",
+      "Runtime mode",
+      "Rate limiting",
+      "Retries & idempotency",
+      "AG-UI run errors"
+    ],
+    "snippet": "Errors All SDK errors are typed and carry the server's + . Envelope Every non-2xx response is (see ). Typed errors Runtime mode — includes (message/stack/upstream envelope) in error responses; hides it behind generic . Default is unless . Rate limiting responses are retried via h",
+    "tokens": "errors error envelope, typed errors, and how to handle them errors all sdk errors are typed and carry the server's + . envelope every non-2xx response is (see ). typed errors runtime mode — includes (message/stack/upstream envelope) in error responses; hides it behind generic . default is unless . rate limiting responses are retried via header ( default). all mutation routes are rate-limited ( ). see . retries & idempotency pass as last arg to any (or ) → sent as header; replay with same key returns original response instead of duplicate. ag-ui run errors when a run ends in (auth, rate-limit, tool timeout, context length), returns and contains the frame. this is a normal completed-run shape, not a thrown exception — still fires, does not. see also concepts: credentials and sdk guide: chat."
+  },
+  {
+    "id": 136,
+    "sdk": "concepts",
+    "version": "latest",
+    "slug": [
       "external-users"
     ],
     "href": "/concepts/external-users",
@@ -2418,7 +2446,25 @@
     "tokens": "external users — the dual-mode rule when to assert externaluserid and when not to external users persona never authenticates your users — it receives a **resolved user id** and scopes data to it. two planes runtime: — → . when to set it ** threads/files/chat ** always need it (or the thread belongs to no one — ). ** agents/mcps ** can be project-owned (no user) or per-user ( listing). ** ** without → ; with → ."
   },
   {
-    "id": 136,
+    "id": 137,
+    "sdk": "concepts",
+    "version": "latest",
+    "slug": [
+      "pagination"
+    ],
+    "href": "/concepts/pagination",
+    "title": "Pagination",
+    "description": "Paginated list envelope — page, limit, total, pages",
+    "headings": [
+      "Pagination",
+      "Per-resource params",
+      "Bulk delete"
+    ],
+    "snippet": "Pagination List/discover methods return a **pagination envelope**, not a bare array (since ). Per-resource params Bulk delete is best-effort: . See and .",
+    "tokens": "pagination paginated list envelope — page, limit, total, pages pagination list/discover methods return a **pagination envelope**, not a bare array (since ). per-resource params bulk delete is best-effort: . see and ."
+  },
+  {
+    "id": 138,
     "sdk": "concepts",
     "version": "latest",
     "slug": [

@@ -7,6 +7,38 @@ description: "Generated field tables for files — do not edit"
 
 # files
 
+> **Auth:** Requires `Authorization: Bearer <keyId>.<secret>` (server-side). For per-user calls add `x-persona-external-user-id`. See [Credentials](/concepts/credentials).
+
+Files are user uploads (multipart `file` part) scoped to an optional `agentId`/`threadId`.
+
+## Example
+
+**TypeScript**
+
+```ts
+const file = await userClient.files.upload({ filename: 'notes.pdf', content: buf, agentId: agent._id });
+const list = await userClient.files.list({ page: 1, limit: 20 });
+```
+
+**cURL**
+
+```bash
+curl https://api.persona.hasanraiyan.me/api/v1/developer/files \
+  -H "Authorization: Bearer $PERSONA_CREDENTIAL" -H "x-persona-external-user-id: user_123" \
+  -F file=@notes.pdf -F agentId=ag_123
+```
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": { "items": [{ "id": "file_123", "originalName": "notes.pdf" }], "pagination": { "total": 1 } }
+}
+```
+
+---
+
 ## `PersonaFile`
 
 Clean formatted shape (``id``, not ``_id``) — unlike Thread/Skill/Agent/Knowledge.

@@ -1,0 +1,51 @@
+---
+title: "Errors"
+description: "Error envelope, typed errors, and how to handle them"
+---
+
+# Errors
+
+All SDK errors are typed and carry the server's `code` + `statusCode`.
+
+## Envelope
+
+Every non-2xx response is `{ success: false, message, code, timestamp }` (see `agent-backend/src/utils/formatters.js`).
+
+## Typed errors
+
+| Class | When | `code` examples |
+|---|---|---|
+| `PersonaApiError` | Any non-2xx | `UNKNOWN_ERROR`, `NOT_FOUND` |
+| `PersonaAuthError` extends `PersonaApiError` | `401` / `403` — missing/invalid `PERSONA_CREDENTIAL` or `Project` not `ACTIVE` | `UNAUTHORIZED`, `FORBIDDEN` |
+| `PersonaValidationError` extends `PersonaApiError` | `400` — Zod validation failed | `VALIDATION_ERROR` |
+| Runtime `RuntimeHttpError` | `4xx`/`5xx` from `createRuntime` | `NOT_FOUND`, `METHOD_NOT_ALLOWED`, `UNAUTHORIZED` |
+
+```ts
+import { PersonaApiError, PersonaAuthError, PersonaValidationError } from '@personaai/sdk';
+
+try {
+  await persona.agents.create({ name: '' } as any);
+} catch (err) {
+  if (err instanceof PersonaValidationError) console.error('fix input', err.code);
+  if (err instanceof PersonaAuthError) console.error('check credential', err.statusCode);
+  if (err instanceof PersonaApiError) console.error(err.code, err.message, err.response);
+}
+```
+
+## Runtime mode
+
+`createRuntime({ mode: 'development' | 'production' })` — `development` includes `detail` (message/stack/upstream envelope) in error responses; `production` hides it behind generic `INTERNAL_ERROR`. Default is `production` unless `NODE_ENV === 'development'`.
+
+## Rate limiting
+
+`429` responses are retried via `Retry-After` header (`HttpClient` `maxRetries: 2` default). All mutation routes are rate-limited (`RATE_LIMITS.MUTATE`). See `agent-backend/src/modules/rateLimiter`.
+
+## Retries & idempotency
+
+Pass `idempotencyKey` as last arg to any `create()` (or `files.upload`) → sent as `Idempotency-Key` header; replay with same key returns original response instead of duplicate.
+
+## AG-UI run errors
+
+When a run ends in `RUN_ERROR` (auth, rate-limit, tool timeout, context length), `chat.sendMessage` returns `result.error: PersonaRunErrorEvent { code, message, retryable, providerName }` and `result.events` contains the `RUN_ERROR` frame. This is a normal completed-run shape, not a thrown exception — `afterRun` still fires, `onError` does not.
+
+See also [Concepts: Credentials](/concepts/credentials) and [SDK Guide: Chat](/docs/sdk/v0.9.0/guides/chat).

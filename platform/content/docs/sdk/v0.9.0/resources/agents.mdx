@@ -7,6 +7,45 @@ description: "Generated field tables for agents — do not edit"
 
 # agents
 
+> **Auth:** Requires `Authorization: Bearer <keyId>.<secret>` (server-side). For per-user calls add `x-persona-external-user-id`. See [Credentials](/concepts/credentials).
+
+Agents are AI personas with a system prompt, provider, and tool attachments. Create them with a control-plane client (no `externalUserId`), then chat with them via a per-user client. `Agent` is the read shape; `CreateAgentInput`/`UpdateAgentInput` are the write shapes.
+
+## Example
+
+**TypeScript**
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+const persona = new PersonaClient({ baseUrl, credential: process.env.PERSONA_CREDENTIAL! });
+const agent = await persona.agents.create({
+  name: 'Career Launchpad',
+  systemPrompt: 'You help students find internships.',
+  providerId: '...',
+  visibility: 'unlisted',
+});
+```
+
+**cURL**
+
+```bash
+curl https://api.persona.hasanraiyan.me/api/v1/developer/agents \
+  -H "Authorization: Bearer $PERSONA_CREDENTIAL" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Career Launchpad","systemPrompt":"You help students…","providerId":"...","visibility":"unlisted"}'
+```
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": { "_id": "ag_123", "name": "Career Launchpad", "slug": "career-launchpad", "isActive": true }
+}
+```
+
+---
+
 ## `Agent`
 
 Note: like ``Skill``, this mirrors the real wire shape (``_id``, raw domain/ownerType fields) — ``getOne()`` returns ``skills``/``mcps``/ ``knowledgeBases`` populated as objects, while ``create()``/``update()``/ ``list()`` return them as bare id strings; typed loosely here to reflect that real difference rather than picking one shape and being wrong for the other calls.

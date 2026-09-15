@@ -7,6 +7,38 @@ description: "Generated field tables for skills — do not edit"
 
 # skills
 
+> **Auth:** Requires `Authorization: Bearer <keyId>.<secret>` (server-side). For per-user calls add `x-persona-external-user-id`. See [Credentials](/concepts/credentials).
+
+Skills are reusable capabilities (file-backed) that agents can use. Manage them via the SDK and attach via `agents.create({ skills: [skillId] })`.
+
+## Example
+
+**TypeScript**
+
+```ts
+const skill = await persona.skills.create({ name: 'Research', description: 'Web search' });
+await persona.agents.create({ name: 'Analyst', systemPrompt: '...', providerId: '...', skills: [skill._id] });
+```
+
+**cURL**
+
+```bash
+curl https://api.persona.hasanraiyan.me/api/v1/developer/skills \
+  -H "Authorization: Bearer $PERSONA_CREDENTIAL" -H "Content-Type: application/json" \
+  -d '{"name":"Research"}'
+```
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": { "_id": "sk_123", "name": "Research" }
+}
+```
+
+---
+
 ## `Skill`
 
 Note: unlike ``Provider``, the Developer API returns Skill documents in their raw Mongo shape (``_id``, not ``id``) — reflected here as-is rather than papering over a real backend inconsistency.

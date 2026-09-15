@@ -7,6 +7,36 @@ description: "Generated field tables for rest-tools — do not edit"
 
 # rest-tools
 
+> **Auth:** Requires `Authorization: Bearer <keyId>.<secret>` (server-side). For per-user calls add `x-persona-external-user-id`. See [Credentials](/concepts/credentials).
+
+REST tools are code-first tools via `defineRestTool` (zod) served as `GET {mountPath}/rest-tools/manifest` and discovered live as a Source.
+
+## Example
+
+**TypeScript**
+
+```ts
+import { defineRestTool } from '@personaai/sdk/rest-tools'; import { z } from 'zod';
+const getProfile = defineRestTool({ name: 'Get learner', method: 'GET', args: z.object({ userId: z.string() }), url: t => `https://api.example.com/users/${t.arg('userId')}` });
+```
+
+**cURL**
+
+```bash
+curl https://api.persona.hasanraiyan.me/api/v1/developer/rest-tools -H "Authorization: Bearer $PERSONA_CREDENTIAL" | jq .
+```
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": { "items": [{ "name": "Get learner" }] }
+}
+```
+
+---
+
 ## `RestApiTool`
 
 A no-code REST API tool an Agent can call. Goes through ``toSafeJson()`` — ``secretRef``'s underlying value is never returned, only ``hasSecret``.

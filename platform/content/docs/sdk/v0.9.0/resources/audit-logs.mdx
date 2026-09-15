@@ -7,6 +7,35 @@ description: "Generated field tables for audit-logs — do not edit"
 
 # audit-logs
 
+> **Auth:** Requires `Authorization: Bearer <keyId>.<secret>` (server-side). For per-user calls add `x-persona-external-user-id`. See [Credentials](/concepts/credentials).
+
+Audit logs are read-only, control-plane only — lifecycle events (credentials minted/revoked, membership, suspend/restore).
+
+## Example
+
+**TypeScript**
+
+```ts
+const { items } = await persona.auditLogs.list({ page: 1, limit: 20 });
+```
+
+**cURL**
+
+```bash
+curl https://api.persona.hasanraiyan.me/api/v1/developer/audit-logs -H "Authorization: Bearer $PERSONA_CREDENTIAL"
+```
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": { "items": [{ "eventType": "credential.minted" }], "pagination": { "total": 1 } }
+}
+```
+
+---
+
 ## `AuditLogEntry`
 
 Mirrors ``agent-backend/src/modules/audit/auditLog.model.js``. Covers Project-lifecycle events only (credential minted/revoked, membership changes, suspend/restore) — NOT resource CRUD (Agent/Skill/Knowledge/ Provider/MCP create/update/delete aren't logged here yet).
