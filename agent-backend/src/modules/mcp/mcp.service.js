@@ -849,8 +849,25 @@ class McpService {
     return await agentRepository.findAgentsUsingMcp(id, 'name slug avatar visibility');
   }
 
+  /**
+   * FIX: this called the strict `getMcpById`, which meant a ProjectRuntime
+   * (end-user) caller interacting with an MCP-App widget got a 404 on any
+   * Project-owned MCP — the common case, since most Agents attach a
+   * developer-configured shared MCP, not one an individual end user owns.
+   * That directly contradicted `getOwnerAuthorizationUrl`'s own documented
+   * intent ("[the owner-mode shared token is] used by everyone who invokes
+   * the MCP's tools regardless of Subject") and the Domain-boundary
+   * attachment policy (`assertOwnsProvider`, AD-06 §12): any of a
+   * Project's own Agents may use any MCP owned within that same Domain.
+   * `getReadableMcpById` still enforces strict ownership for an
+   * ExternalUser-owned MCP (another end user's own private connection
+   * stays private) — only the Project-owned/shared case opens up, and
+   * `_resolveAuthHeaders` below still independently fails closed for an
+   * `authMode: 'user'` MCP the calling end user hasn't personally
+   * connected, so this doesn't grant access to anyone's own OAuth tokens.
+   */
   async readResource(id, userId, resourceUri, context = personaExecutionContext(userId)) {
-    const mcp = await this.getMcpById(id, userId, context);
+    const mcp = await this.getReadableMcpById(id, userId, context);
     const headers = await this._resolveAuthHeaders(mcp, userId, 'connecting', context);
     const { client, transport } = await this._connectAppsClient(mcp, headers);
 
@@ -874,8 +891,9 @@ class McpService {
     }
   }
 
+  /** Same fix and reasoning as `readResource` above. */
   async callTool(id, userId, toolName, args, context = personaExecutionContext(userId)) {
-    const mcp = await this.getMcpById(id, userId, context);
+    const mcp = await this.getReadableMcpById(id, userId, context);
     const headers = await this._resolveAuthHeaders(mcp, userId, 'connecting', context);
     const { client, transport } = await this._connectAppsClient(mcp, headers);
 

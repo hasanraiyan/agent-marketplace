@@ -603,6 +603,37 @@ describe('Mcp Service', () => {
 
       await expect(mcpService.callTool(mockMcp._id, mockUserId, 'some-tool', {})).rejects.toThrow();
     });
+
+    // Regression: callTool/readResource used to gate on the strict
+    // getMcpById, so a ProjectRuntime (end-user) caller got "MCP server
+    // not found" on any Project-owned MCP — the common case, since most
+    // Agents attach a developer-configured shared MCP, not one an
+    // individual end user owns. Fixed to use getReadableMcpById, which
+    // still keeps another external user's own MCP private (second test).
+    it('a ProjectRuntime caller reaches past the ownership check for a Project-owned Mcp (fails later, at the network layer, not on ownership)', async () => {
+      const projectOwnedMcp = { ...mockMcp, domain: 'project-1', ownerType: 'Project' };
+      const runtimeContext = { domain: 'project-1', principalType: 'ProjectRuntime', externalUserId: 'sabik' };
+      mcpRepository.findById.mockResolvedValue(projectOwnedMcp);
+
+      await expect(
+        mcpService.callTool(mockMcp._id, undefined, 'some-tool', {}, runtimeContext),
+      ).rejects.not.toThrow('MCP server not found');
+    });
+
+    it('a ProjectRuntime caller still cannot call a different external user\'s own MCP', async () => {
+      const otherUsersMcp = {
+        ...mockMcp,
+        domain: 'project-1',
+        ownerType: 'ExternalUser',
+        externalOwnerId: 'someone-else',
+      };
+      const runtimeContext = { domain: 'project-1', principalType: 'ProjectRuntime', externalUserId: 'sabik' };
+      mcpRepository.findById.mockResolvedValue(otherUsersMcp);
+
+      await expect(
+        mcpService.callTool(mockMcp._id, undefined, 'some-tool', {}, runtimeContext),
+      ).rejects.toThrow('MCP server not found');
+    });
   });
 
   describe('ownership generalization (blueprint Phase 9, PR-34)', () => {
