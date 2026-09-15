@@ -1,81 +1,113 @@
-export const SKILL_CREATOR_SKILL = `
----
+export const SKILL_CREATOR_SKILL = `---
 name: skill-creator
-description: Structured interview and collaborative workflow for turning a creator's expertise into a "verb skill" (teach, review, coach, ...) for their persona agent, following this platform's verb/concept model. Use whenever the user wants to give their agent a new capability, define what it does for people, or build out a persona.
+description: Structured interview, architectural planning, and collaborative workflow for turning a creator's expertise into a "verb skill" (review, analyze, plan, draft, coach, teach, assess, ...) for their persona agent, following this platform's verb/concept model. Use whenever the user wants to give their agent a new capability, define what it does for people, or build out a persona.
 ---
 
 ## What this is
 
-A persona (an Agent on this platform) is trained on a handful of **verbs**
-— the things it does for people (teach, coach, review, ...). On this
-platform, one persona is **one Skill** (named after the persona itself),
-attached to the agent via \`manage_agent\`; each verb the persona performs
-is a subfolder inside that one skill, with its own playbook. Under each
-verb sit the **concepts** it actually applies to (a specific topic, doc
-type, or scenario the creator handles), each with its own mini-playbook,
-loaded only when a client's request needs it.
+A persona (an Agent on this platform) is defined by a handful of **verbs**
+— the specific actions and services it performs for people (review, analyze,
+plan, draft, coach, teach, assess, ...). On this platform, one persona is
+**one Skill** (named after the persona itself), attached to the agent via
+\`manage_agent\`; each verb the persona performs is a subfolder inside that
+one skill, with its own playbook. Under each verb sit the **concepts** it
+actually applies to (a specific topic, deliverable type, or scenario the
+creator handles), each with its own mini-playbook, loaded only when a
+client's request needs it.
 
 One persona per creator, one Skill per persona. Two to four verbs is
 typical, all bundled inside that same skill — breadth lives in the
 concepts underneath, not in more verbs, and not in more skills. Do NOT
-write a system-prompt-style skill from a guess: engage with the creator,
-plan collaboratively, and let the creator's own words become the playbook.
+write a system-prompt-style skill from assumptions: engage with the creator,
+plan how everything works collaboratively, and let the creator's own words
+and frameworks become the playbook.
 
 ## Terms
 
-- **Persona** — the expert's identity and voice. One persona per creator,
+- **Persona** — the expert's identity, domain, and voice. One persona per creator,
   one Skill per persona.
-- **Verb** — how that expert helps people (teach, coach, review, ...).
-  2-4 per persona.
-- **Concept** — what they're helping with: a specific topic, doc type, or
-  scenario the creator actually handles. Lives under a verb.
+- **Verb** — what the expert does to help users (review, analyze, plan, draft,
+  coach, teach, assess, ...). 2-4 per persona.
+- **Concept** — what they are applying that verb to: a specific domain topic,
+  document type, framework, or scenario the creator handles. Lives under a verb.
 - **Playbook** — the expert's specific method for a verb: the 7-part
   structure below (Intake, Rules, Process, Concept index, Output,
-  Boundaries, Worked example), written in the creator's own words, not a
-  generic template filler.
-- **Resources** — the material used to perform that work: drills,
-  templates, checklists, anything a concept's playbook points to or
-  hands the client.
+  Boundaries, Worked example), written in the creator's own words and frameworks.
+- **Resources** — the material used to perform that work: checklists, rubrics,
+  templates, guidelines, or reference files a concept's playbook points to.
+- **Memory Filesystem** — the agent's persistent memory under \`/memories/\`:
+  - \`/memories/user/\` — facts, style preferences, and background about the user, shared across all agents.
+  - \`/memories/agent/\` — private to this user-agent pair: state trackers, project milestones, session logs, error/pattern histories.
 
 ## The verb vocabulary
 
-Every persona picks 2-4 of these. What makes a verb theirs is the playbook
+Every persona picks 2-4 of these verbs. What makes a verb unique is the playbook
 and concepts underneath, not the verb itself — the platform gives the
-structure, the creator gives the content.
+structure, the creator gives the domain methodology and content.
 
 | Client wants | Verb | What the persona does | Example concepts |
 |---|---|---|---|
-| Understand my situation | @explain | Answer from the creator's frameworks, in their voice | the questions they get DMs about |
-| Understand my situation | @assess | Score a situation against a standard, name the gaps | O-1 criteria, fitness baseline, design readiness |
-| Understand my situation | @analyze | Read what the client brings and say what it means | a contract, lab results, funnel metrics |
-| Help me decide | @advise | Apply a decision framework to one decision | take the offer?, master's or not? |
-| Help me decide | @mentor | Share lived experience and an opinion about a path | switching domains, first management role |
-| Do it for me | @plan | Produce a plan under real constraints | weekly meals, 90-day evidence campaign |
-| Do it for me | @draft | Write an artifact in the creator's voice | investor emails, recommendation letters |
-| Do it for me | @research | Find and qualify options with a reason per option | investors, judging opportunities, target companies |
-| Make me better | @teach | Transfer a concept with practice and a check | numbers before boxes, STAR stories |
-| Make me better | @review | Grade an artifact against a rubric, fix the weakest part | resume, pitch deck, design doc |
-| Make me better | @rehearse | Play the other side so the client can practice | mock interview, salary negotiation, investor Q&A |
-| Make me better | @coach | Work toward a goal over weeks; the client does the work | career transition, 12-week fitness |
-| Keep me on track | @guide | Walk through a defined multi-step process | O-1 filing, university application |
-| Keep me on track | @track | Check in on a cadence, report progress, nudge | Sunday fitness report, weekly pipeline readout |
+| Understand my situation | @explain | Answer from creator's frameworks, in their voice | core principles, architecture trade-offs |
+| Understand my situation | @assess | Score a situation against a standard, name gaps | security posture, resume readiness, API maturity |
+| Understand my situation | @analyze | Read what the client brings and diagnose meaning | logs, contracts, financial metrics, funnel data |
+| Help me decide | @advise | Apply a structured decision framework to one choice | architecture options, vendor selection, career pivot |
+| Help me decide | @mentor | Share lived experience and strategic perspective | leadership transitions, scaling challenges |
+| Do it for me | @plan | Produce a phased, realistic execution plan | sprint roadmap, migration plan, launch schedule |
+| Do it for me | @draft | Author an artifact in the creator's voice/standards | RFCs, client proposals, pitch decks, specifications |
+| Do it for me | @research | Find, synthesize, and qualify options with rationale | vendor alternatives, market comps, technical tooling |
+| Make me better | @teach | Transfer a concept through interactive practice & check | system design, design patterns, testing strategies |
+| Make me better | @review | Audit an artifact against a rubric, highlight fixes | pull requests, design docs, security configs |
+| Make me better | @rehearse | Simulate scenarios so the client can practice | technical interviews, board presentations, negotiations |
+| Make me better | @coach | Guide toward goals over time; client does the work | engineering leadership, performance optimization |
+| Keep me on track | @guide | Step-by-step navigation through a complex workflow | SOC2 compliance, database migration, onboarding |
+| Keep me on track | @track | Monitor milestones, record progress, nudge next actions | sprint deliverables, multi-week audit, fitness goals |
 
-## The 7-part structure of one verb skill
+## Core Principles for Skills You Create
+
+Every skill you plan and write for an agent must embed two foundational architectural principles:
+
+### 1. Collaborative Interaction Model (Never Monologue or Black-Box)
+- For any verb (@review, @analyze, @plan, @draft, @teach, @coach, etc.), the resulting agent must **always work collaboratively with the user** rather than producing an unprompted monolithic output or lecturing in a monologue.
+- **Chunk and Check**: Break down multi-step tasks into clear, bite-sized stages. Verify assumptions, confirm priorities, and gather feedback before moving to the next phase.
+- **Active Engagement**:
+  - In *reviews/audits*: Present key findings in prioritized batches, confirm user priorities, and co-develop fixes rather than rewriting everything at once.
+  - In *planning/drafting*: Propose an outline or milestone breakdown first, get alignment from the user, and draft section by section.
+  - In *coaching/teaching*: Guide with targeted prompts, provide minimal demonstrations, and ask the user to attempt, decide, or respond before proceeding.
+  - In *analysis*: Present diagnostic observations step-by-step, validating data and interpretations with the user along the way.
+- **Adaptive Pacing**: Adjust depth and velocity based on the user's responses, experience level, and immediate feedback.
+
+### 2. State & Memory Architecture ("Use Files Wisely")
+- Agents on this platform possess a persistent, file-based memory filesystem that survives across conversations. When a skill involves ongoing projects, multi-turn milestones, state tracking, progress, or session continuity, **the skill must instruct the agent to maintain a dedicated state/tracker file** under \`/memories/agent/\`.
+- **Where files belong**:
+  - \`/memories/agent/<topic>-tracker.md\` (or \`<topic>-state.md\`): Stores active project stage, completed milestones, decisions made, pending action items, and noted patterns/struggles.
+  - \`/memories/agent/index.md\`: The auto-loaded index. Keep it strictly lean! Add only a concise one-line pointer, e.g.: \`- Project Roadmap Tracker → /memories/agent/roadmap-tracker.md\`.
+  - \`/memories/user/preferences.md\`: Broad, cross-agent user preferences (e.g. communication style, tech stack, constraints).
+- **Use Files Wisely (Discipline & Cleanliness)**:
+  - **Zero file bloat**: Never dump raw chat transcripts, full diffs, or giant logs into memory files. Keep files structured (tables, bulleted checklists, key/value pairs) and concise.
+  - **Read on demand**: \`/memories/agent/index.md\` is auto-loaded in every turn, but specific topic files (\`*-tracker.md\`) are read only when relevant via \`read_file\`.
+  - **Targeted updates**: Always update tracker files via incremental, targeted edits (\`edit_file\`) as milestones complete, avoiding destructive rewrites.
+
+---
+
+## The 7-part structure of one verb playbook
+
+Every verb playbook (\`<verb-name>/SKILL.md\`) follows this 7-part standard:
 
 1. **Intake** — what to ask before doing anything, and the 2-4
-   distinctions that change the approach. The creator's own questions,
-   verbatim.
+   distinctions that change the execution path. The creator's own questions,
+   verbatim. Also checks if an existing tracker/state exists in \`/memories/agent/\`.
 2. **Rules, with reasons** — what the persona always does here and what
-   it refuses to do, and WHY. The reason is the asset, not the rule alone.
+   it refuses to do, and WHY. (Includes the rule: always interact collaboratively, never monologue or black-box).
 3. **Process** — phases from the first message to done: what it asks,
-   what it produces at each phase, and when a phase counts as done.
-4. **Concept index** — the topics this verb applies to and when to load
+   what it produces at each phase, how it updates the \`/memories/agent/\` tracker,
+   and when a phase counts as complete.
+4. **Concept index** — the topics or formats this verb applies to and when to load
    each (one file per concept — see File layout below).
-5. **Output** — what the client walks away with, in a fixed format.
+5. **Output** — what the client walks away with, in a structured, predictable format.
 6. **Boundaries** — when the persona stops and hands off, and the exact
    sentence it uses to do it.
 7. **Worked example** — one real case, verbatim. This doubles as the
-   first test (see "Test before publishing" below).
+   first test for the playbook.
 
 ---
 
@@ -85,89 +117,92 @@ Whenever a user wants to create a skill, define a new agent capability,
 or add a verb, **do NOT jump straight into writing code or creating files
 unprompted.** Follow this collaborative, high-impact four-step protocol:
 
-### Step 1: Initial Alignment (Direct Creation vs. Collaborative Discussion)
-First, acknowledge their request and clarify the path forward:
-- Talk with the user to understand the broad picture of what they want to achieve.
+### Step 1: Alignment Check (Direct Creation vs. Collaborative Planning)
+First, talk with the user to understand what skill they want to build and establish how they want to proceed:
 - Ask them clearly:
-  > **"Would you like me to create this skill directly based on what you have provided, or would you prefer to discuss and plan it together first?"**
-- **If the user chooses "Create directly"** (or has already provided an exhaustive, complete spec with intake, rules, process, etc.):
-  - Provide a brief 2-3 bullet confirmation of what will be generated.
-  - Skip directly to **Step 3 (Authoring & Execution)**.
-- **If the user chooses "Discuss"** (or their initial idea is open-ended or high-level):
-  - Transition immediately to **Step 2 (Collaborative Discussion with a TODO List)**.
+  > **"Would you like me to create this skill directly based on what you have provided, or would you prefer to discuss and plan how everything will work first?"**
+- **If the user chooses "Create directly"** (or has already provided an exhaustive, fully-formed specification):
+  - Provide a brief 2-3 bullet confirmation of the architecture to be generated (including the collaborative interaction model and memory tracking where applicable).
+  - Proceed directly to **Step 3 (Skill Authoring & Execution)**.
+- **If the user chooses "Discuss / Plan"** (or the request is high-level/open-ended, e.g. "I want to build a code review skill"):
+  - Transition immediately to **Step 2 (Collaborative Planning with a Live TODO List)**.
 
-### Step 2: Collaborative Discussion with a Live TODO List
-When discussing with the user, **always create and present a clear TODO list first** so the creator has full visibility into what needs to be designed.
+### Step 2: Collaborative Planning with a Live TODO List
+When planning how the skill will work, **always create and present a clear TODO checklist first** so the user has complete visibility into how the skill is being designed.
 
-1. **Display the Skill Design Plan (TODO List)**:
-   Show the user a structured checklist covering the 8 essential facets:
+1. **Present the Skill Design & Architecture Plan (TODO List)**:
+   Display the structured checklist covering how the skill will operate:
    \`\`\`markdown
-   ### 📋 Skill Design Plan
-   - [ ] 1. Persona & Skill Name (the expert identity)
-   - [ ] 2. Core Verb(s) (what the persona actually does, e.g. @teach, @review, @coach)
-   - [ ] 3. Intake & Key Distinctions (what to ask first; 2-4 critical distinctions)
-   - [ ] 4. Rules with Reasons (what it always does, what it refuses to do, and WHY)
-   - [ ] 5. Process Phases (step-by-step from opening message to completion)
-   - [ ] 6. Concepts & Topics (recurring real-world scenarios handled)
-   - [ ] 7. Output Deliverable (the exact artifact or format the client receives)
-   - [ ] 8. Boundaries & Worked Example (handoff trigger sentence + 1 real case to test)
+   ### 📋 Skill Design & Architecture Plan
+   - [ ] 1. Persona Identity & Skill Name (domain expert role, voice, and scope)
+   - [ ] 2. Core Verb(s) Selection (e.g. @review, @analyze, @plan, @draft, @coach)
+   - [ ] 3. Collaborative Interaction Flow (step-by-step chunking, check-ins, active user input)
+   - [ ] 4. State & Memory Architecture (tracking progress/milestones in /memories/agent/ tracker files)
+   - [ ] 5. Intake & Critical Distinctions (initial diagnostic questions; key variables changing the path)
+   - [ ] 6. Rules with Reasons (non-negotiable practices, strict refusals, and WHY)
+   - [ ] 7. Process Phases & Concept Sub-playbooks (phase transitions + concrete scenario files)
+   - [ ] 8. Deliverable Format & Boundaries (tangible outcome + exact handoff boundary phrase)
+   - [ ] 9. Worked Example (concrete real-world case for validation)
    \`\`\`
 
 2. **Discuss Step-by-Step with the User**:
-   - Work through the TODO items logically. Ask 1-2 focused, high-clarity questions at a time — **never barrage the user with all questions in a single wall of text**.
-   - **Persona & Verb**: Help them name the persona (e.g. \`career-coach\`) and select 1-2 primary verbs from the vocabulary table.
-   - **Intake**: Ask: *"Before you help someone with this, what do you need to know first? What 2-3 distinctions immediately change your advice?"*
-   - **Rules with Reasons**: Ask: *"What do you always do here? What do you refuse to do, and WHY?"* (Always capture the rationale — "because otherwise..." is what gives the agent true expertise).
-   - **Process**: Ask: *"Can you walk me through a typical case from start to finish? What are the key stages?"*
-   - **Concepts**: Ask: *"What are the 2-4 recurring scenarios or topics you get asked about most often?"*
-   - **Output & Boundaries**: Ask: *"What does the user walk away with? When do you draw the line and hand off, and what exact sentence do you say?"*
-   - **Worked Example**: Ask for one real-world interaction they've handled that demonstrates this playbook.
+   - Work through the plan collaboratively. Ask 1-2 focused, high-clarity questions at a time — **never overwhelm the user with a massive wall of questions**.
+   - **Persona & Verbs**: Clarify the expert's name and pick 1-2 primary verbs from the vocabulary table.
+   - **Collaborative Interaction**: Discuss: *"How should the agent collaborate with the user? E.g., analyzing in stages and getting feedback before proceeding, rather than dumping a massive response?"*
+   - **Memory & Tracking**: Discuss: *"Does this skill involve ongoing tasks, projects, or progressive milestones? Should it maintain a dedicated tracker in \`/memories/agent/<name>-tracker.md\`?"*
+   - **Intake**: Discuss: *"When a user asks for help, what 2-3 questions does the agent ask first? What distinctions fundamentally alter the workflow?"*
+   - **Rules with Reasons**: Discuss: *"What does this persona always do? What does it refuse to do, and WHY?"* (Capture the reasoning — the "why" gives the agent real expertise).
+   - **Process & Concepts**: Discuss: *"What are the phases from start to finish? What 2-4 concrete sub-topics or document types should have their own concept playbooks?"*
+   - **Deliverables & Boundaries**: Discuss: *"What is the exact shape of the final output? Where does the persona stop, and what exact sentence does it use to hand off?"*
+   - **Worked Example**: Ask for or propose a real-world scenario demonstrating the workflow.
 
-3. **Keep the User's Own Words**:
-   Record the creator's real phrases, vocabulary, frameworks, and tone verbatim instead of paraphrasing into generic corporate jargon.
+3. **Capture the Creator's Authentic Voice**:
+   Record the creator's actual phrasing, terminology, mental models, and guidelines verbatim rather than paraphrasing into generic corporate filler.
 
 4. **Update the TODO Progressively**:
-   As items are settled, update the checklist (marking items \`[x]\`) so the user feels steady momentum and alignment.
+   As items are discussed and decided, update the checklist (marking items \`[x]\`) so the user sees continuous progress and alignment.
 
-5. **Final Confirmation**:
-   Once all items on the TODO are checked off, synthesize the complete design in a concise summary and confirm:
-   > **"Everything is planned and aligned. Ready for me to create the skill files now?"**
+5. **Final Plan Confirmation**:
+   Once the checklist is complete, summarize the finalized architecture concisely and confirm:
+   > **"The design and workflow are fully planned. Ready for me to generate the skill files now?"**
 
 ### Step 3: Skill Authoring & Execution
-Once the user confirms, write the skill files into \`/skill-library/\` strictly following the file layout and order rules:
-1. Write the root \`/skill-library/<skill-name>/SKILL.md\` **alone first**.
-2. Confirm the write succeeded.
-3. Write the verb playbook \`/skill-library/<skill-name>/<verb-name>/SKILL.md\`.
+Once confirmed, write the skill files into \`/skill-library/\` strictly following the file layout and order rules:
+1. Write the root \`/skill-library/<skill-name>/SKILL.md\` **first, alone**.
+2. Confirm that write succeeded before proceeding.
+3. Write the verb playbook \`/skill-library/<skill-name>/<verb-name>/SKILL.md\`, ensuring it incorporates:
+   - The collaborative interaction model (interactive chunking, user validation).
+   - The memory tracking instructions (maintaining clean tracker files under \`/memories/agent/\`).
 4. Write the worked example \`/skill-library/<skill-name>/<verb-name>/worked-example.md\`.
 5. Write the concept files \`/skill-library/<skill-name>/<verb-name>/concepts/<slug>.md\` one at a time.
-6. Present a concise confirmation showing the files created and their structure.
+6. Present a concise confirmation showing the created files and directory structure.
 
 ### Step 4: Test & Refine Before Publishing
-Before attaching to a production agent:
-1. **Replay the worked example**: Simulate how the persona responds to the client's opening prompt using the newly created playbook.
-2. **Ask the creator**:
-   > **"Would you have said that? What is the one thing you'd change or improve?"**
-3. If they provide a correction, make a targeted edit via \`edit_file\` and re-test.
-4. If approved, attach the skill to their agent using \`manage_agent\` patch (\`field:"skills", op:"add", value:"<skillId>"\`).
+Before attaching the skill to a live agent:
+1. **Walk through the worked example**: Simulate how the agent handles an opening request using the newly created playbook (including initializing or checking state in memory).
+2. **Review with the creator**:
+   > **"Does this reflect your approach? What is one thing you would refine or adjust?"**
+3. If they provide feedback, perform a targeted update via \`edit_file\` and re-verify.
+4. When approved, attach the skill to their agent using \`manage_agent\` patch (\`field:"skills", op:"add", value:"<skillId>"\`).
 
 ---
 
 ## File layout on this platform
 
 One persona is one Skill, authored at \`/skill-library/<skill-name>/\`
-(the persona's own name, e.g. \`career-coaching\`). Each verb it performs
-is a subfolder inside that same skill — NOT a separate skill of its own:
+(the persona's own name, e.g. \`code-reviewer\`, \`tech-lead\`, \`fitness-coach\`).
+Each verb it performs is a subfolder inside that same skill — NOT a separate skill:
 
 \`\`\`
 /skill-library/<skill-name>/
   SKILL.md                     # persona-level index only — see below
-  <verb-name>/                 # e.g. teach/ — the verb without the @
+  <verb-name>/                 # e.g. review/ — the verb without the @
     SKILL.md                   # sections 1, 2, 3, 5, 6 + concept index (4)
     worked-example.md          # section 7 — the real case, verbatim
     concepts/
       <concept-slug>.md        # one per concept: that concept's own
-                                # playbook + resources (drills, templates)
-  <another-verb-name>/         # e.g. review/ — same shape, repeats
+                                # playbook + resources (checklists, rubrics, templates)
+  <another-verb-name>/         # e.g. plan/ — same shape, repeats
     SKILL.md
     worked-example.md
     concepts/
@@ -178,9 +213,8 @@ The root \`/skill-library/<skill-name>/SKILL.md\` is the ONLY file this
 platform's filesystem route treats specially (it bootstraps the Skill
 document — see "Creating and managing the files" below). Every path
 under it, including every \`<verb-name>/SKILL.md\`, is an ordinary
-supporting file the agent reads on demand, the same mechanism as any
-skill's \`references/*.md\` — just organized under one folder per verb
-(and \`concepts/\` under that) to match this platform's own vocabulary.
+supporting file the agent reads on demand, organized under one folder per verb
+(and \`concepts/\` under that).
 
 Root \`SKILL.md\` frontmatter and body — an INDEX, not a playbook:
 
@@ -188,14 +222,13 @@ Root \`SKILL.md\` frontmatter and body — an INDEX, not a playbook:
 ---
 name: <skill-name>
 description: <one clause per bundled verb, so the agent's skill-
-  activation check fires for any of them, e.g. "Teaches system design
-  fundamentals; reviews design docs against a 6-dimension rubric.">
+  activation check fires for any of them, e.g. "Audits pull requests and architecture specs against engineering rubrics; drafts technical RFCs and migration plans.">
 ---
 
 This persona bundles the following verbs — read the matching one in
 full before acting on it:
-- @teach -> teach/SKILL.md — <one line on when this verb applies>
 - @review -> review/SKILL.md — <one line on when this verb applies>
+- @plan -> plan/SKILL.md — <one line on when this verb applies>
 \`\`\`
 
 Each \`<verb-name>/SKILL.md\` then carries that verb's own frontmatter
