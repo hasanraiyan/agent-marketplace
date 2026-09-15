@@ -6,7 +6,6 @@ import { useUser } from "@clerk/nextjs";
 import {
   ArrowRightIcon,
   ArrowUpIcon,
-  ArrowUpRightIcon,
   BookOpenIcon,
   ChatCircleIcon,
   ChecksIcon,
@@ -28,8 +27,6 @@ import { Message, MessageContent } from "@/components/ui/message";
 import { Item, ItemMedia, ItemContent, ItemTitle, ItemDescription } from "@/components/ui/item";
 import { InputGroup, InputGroupTextarea, InputGroupAddon, InputGroupButton } from "@/components/ui/input-group";
 import { cn } from "@/lib/utils";
-
-const DEV_DOCS_URL = "https://dev-docs.persona.hasanraiyan.me";
 
 /* ── Syntax Highlighting & Shiki Cache ────────────────────────────────── */
 type HighlighterInstance = Awaited<ReturnType<typeof import("shiki")["createHighlighter"]>>;
@@ -302,15 +299,9 @@ function LandingPage() {
               <a href="#components" className="transition-colors hover:text-foreground">
                 UI Registry
               </a>
-              <a
-                href={DEV_DOCS_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 font-medium text-foreground hover:text-primary"
-              >
+              <Link href="/docs" className="transition-colors hover:text-foreground">
                 Docs
-                <ArrowUpRightIcon className="size-3 text-muted-foreground" />
-              </a>
+              </Link>
             </nav>
           </div>
 
@@ -363,7 +354,7 @@ function LandingPage() {
               <Button
                 size="lg"
                 variant="outline"
-                render={<a href={DEV_DOCS_URL} target="_blank" rel="noreferrer" />}
+                render={<Link href="/docs" />}
               >
                 <BookOpenIcon className="size-4" />
                 Documentation
@@ -758,7 +749,7 @@ function LandingPage() {
                 <Button
                   size="lg"
                   variant="outline"
-                  render={<a href={DEV_DOCS_URL} target="_blank" rel="noreferrer" />}
+                  render={<Link href="/docs" />}
                 >
                   <BookOpenIcon className="size-4" />
                   Docs
@@ -779,9 +770,9 @@ function LandingPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            <a href={DEV_DOCS_URL} target="_blank" rel="noreferrer" className="hover:text-foreground">
+            <Link href="/docs" className="hover:text-foreground">
               Docs
-            </a>
+            </Link>
             <Link href="/projects" className="hover:text-foreground">
               Console
             </Link>
