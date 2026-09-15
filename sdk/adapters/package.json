@@ -1,6 +1,6 @@
 {
   "name": "@personaai/adapters",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Unified Persona adapters — Express, Next.js, NestJS in one package with shared internals. Server-side only.",
   "type": "module",
   "exports": {
@@ -87,9 +87,9 @@
   },
   "dependencies": {
     "@personaai/logger": "^0.1.0",
-    "@personaai/react": "^0.10.0",
-    "@personaai/runtime": "^0.11.0",
-    "@personaai/sdk": "^0.9.0"
+    "@personaai/react": "^0.11.0",
+    "@personaai/runtime": "^0.12.0",
+    "@personaai/sdk": "^0.10.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
