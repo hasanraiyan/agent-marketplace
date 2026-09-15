@@ -58,7 +58,10 @@ export function useWorkflows(options?: UseWorkflowsOptions | boolean) {
           page: data.pagination.page ?? 1,
           limit: data.pagination.limit ?? items.length,
           total: data.pagination.total ?? items.length,
-          totalPages: data.pagination.totalPages ?? 1,
+          // Backend's paginationEnvelope() names this field `pages`, not
+          // `totalPages` — this used to always fall through to the `?? 1`
+          // default.
+          totalPages: data.pagination.pages ?? 1,
         });
       } else {
         setPagination({

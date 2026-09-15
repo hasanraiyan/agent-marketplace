@@ -668,3 +668,87 @@ export interface UseWorkflowRunsOptions {
   limit?: number;
 }
 
+// ---- Self-serve resource CRUD (Agent/Workflow/MCP/RCP Source/Knowledge
+// Base/Skill can all be owned by the asserted external user, not just the
+// Project — see each resource's own hook for which capability flag gates
+// it server-side, e.g. `capabilities.skills` for Skills below) ----------
+
+/** Shared list envelope every Developer Platform discovery endpoint uses (Agents/Skills/Knowledge/MCP/Threads/Files). */
+export interface PersonaPagination {
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+}
+
+/** `{ deleted, failed }` from a `POST .../bulk-delete` — a best-effort batch, not all-or-nothing; check `failed` for per-id reasons. */
+export interface PersonaBulkDeleteResult {
+  deleted: string[];
+  failed: Array<{ id: string; reason: string }>;
+}
+
+/** A file bundled with a Skill (e.g. a reference doc or script an Agent can read). */
+export interface PersonaSkillFile {
+  path: string;
+  content: string;
+  mimeType?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PersonaSkill {
+  _id: string;
+  domain: string;
+  ownerType: "PersonaUser" | "Project" | "ExternalUser";
+  ownerId?: string;
+  externalOwnerId?: string;
+  name: string;
+  description: string;
+  instructions: string;
+  files: PersonaSkillFile[];
+  /** Visible to every credential in the platform when `true`, not just this Domain. */
+  isPublic: boolean;
+  createdAt: string;
+  updatedAt: string;
+  /** Present only on a single `getSkill()` read — whether the calling identity owns this Skill. */
+  isOwner?: boolean;
+}
+
+export interface CreatePersonaSkillInput {
+  name: string;
+  description: string;
+  /** The actual prompt text given to an Agent that has this Skill attached. */
+  instructions: string;
+  /** @default false */
+  isPublic?: boolean;
+  files?: Array<{ path: string; content: string; mimeType?: string }>;
+}
+
+/** All fields optional — only what you pass is changed. */
+export interface UpdatePersonaSkillInput {
+  name?: string;
+  description?: string;
+  instructions?: string;
+  isPublic?: boolean;
+  /** Replaces the entire `files` array — not a merge/append. */
+  files?: Array<{ path: string; content: string; mimeType?: string }>;
+}
+
+/** Agents referencing a Skill — check before deleting it to avoid a blocked-delete error. */
+export interface PersonaSkillUsage {
+  /** The real total — `agents` below is a preview capped at 20. */
+  agentCount: number;
+  agents: Array<{ _id: string; name: string }>;
+}
+
+export interface UseSkillsOptions {
+  /** @default true */
+  autoFetch?: boolean;
+  page?: number;
+  limit?: number;
+  /** Free-text match against name/description. */
+  search?: string;
+  /** Restricts to the asserted external user's own Skills. Requires a `ProjectRuntimeContext` (i.e. `PersonaProvider` talking through an adapter with `resolveUserFrom`/`resolveUser`) — a no-op otherwise. */
+  scope?: "mine";
+}
+
