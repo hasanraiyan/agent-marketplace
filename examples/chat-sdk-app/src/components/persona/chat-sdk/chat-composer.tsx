@@ -47,11 +47,12 @@ function VoiceModeIcon(props: React.SVGProps<SVGSVGElement>) {
  *   voice live  → stop the call, or send the typed text into the call
  *   default     → send message (dimmed until there is text to send)
  *
- * Deliberately no voice-mode toggle on the composer itself: the surfaces in
- * this app that support voice run it in their own tab (VoiceTab), so an idle
- * "start voice" waveform would be a dead button. VoiceTab drives the live
- * states via isVoiceActive instead.
+ * The idle send slot doubles as the voice-mode toggle when `onStartVoice` is
+ * passed: with no text typed there is nothing to send, so that same slot
+ * shows the waveform glyph instead of a permanently-dimmed arrow — one
+ * control, not a separate always-on button bolted above the composer.
  *
+
  * The empty-state send is dimmed with `pointer-events-none` + reduced opacity
  * rather than a native `disabled` attribute — InputGroup greys out its WHOLE
  * contents via `has-disabled` when any child is disabled, which would wash
@@ -68,6 +69,7 @@ function ChatComposer({
   onChange,
   onSend,
   onStop,
+  onStartVoice,
   onStopVoice,
   onSendToVoice,
   isStreaming = false,
@@ -79,6 +81,8 @@ function ChatComposer({
   onChange: (value: string) => void;
   onSend: () => void;
   onStop?: () => void;
+  /** Shown in the send slot instead of a dimmed arrow whenever the field is empty and idle. */
+  onStartVoice?: () => void;
   onStopVoice?: () => void;
   onSendToVoice?: (text: string) => void;
   isStreaming?: boolean;
@@ -148,6 +152,16 @@ function ChatComposer({
                 <PhoneXIcon />
               </InputGroupButton>
             </div>
+          ) : !trimmed && onStartVoice ? (
+            <InputGroupButton
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              aria-label="Start voice call"
+              onClick={onStartVoice}
+            >
+              <VoiceModeIcon className="size-4" />
+            </InputGroupButton>
           ) : (
             <InputGroupButton
               type="submit"

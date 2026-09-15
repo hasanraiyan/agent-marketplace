@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatScroller, ChatScrollerItem } from "./chat-scroller";
 import { ChatMessage } from "./chat-message";
-import { ChatComposer, VoiceModeIcon } from "./chat-composer";
+import { ChatComposer } from "./chat-composer";
 import { ChatEmptyState, type ChatStarterPrompt } from "./chat-empty-state";
+import { Spinner } from "@/components/ui/spinner";
 import { InterruptPanel } from "./interrupt-panel";
 import { TodoChecklist } from "./todo-checklist";
 import { SubagentSheet } from "./subagent-sheet";
@@ -239,8 +240,12 @@ export function PersonaChatView({
       )}
 
       <div className="flex min-h-0 flex-1 flex-col">
-        {loadingState && isLoadingHistory && messages.length === 0 ? (
-          loadingState
+        {isLoadingHistory && messages.length === 0 ? (
+          loadingState ?? (
+            <div className="flex flex-1 items-center justify-center">
+              <Spinner className="size-5 text-muted-foreground" />
+            </div>
+          )
         ) : messages.length === 0 ? (
           emptyState ?? (
             <EmptyStateComponent
@@ -287,22 +292,12 @@ export function PersonaChatView({
 
         {showComposer && (
           <div className={cn("mx-auto w-full max-w-3xl shrink-0 px-4 pb-4", classNames.composer)}>
-            {showVoice && (
-              <div className="mb-2 flex items-center justify-end gap-2">
-                {isVoiceActive ? (
-                  <VoiceIndicator state={voice.state} size={22} />
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5"
-                    onClick={() => void voice.start()}
-                  >
-                    <VoiceModeIcon className="size-3.5" />
-                    Start voice
-                  </Button>
-                )}
+            {/* Only occupies space while a call is actually live — the idle
+                "start voice" control lives inside the composer's own send
+                slot below, not as a separate row. */}
+            {showVoice && isVoiceActive && (
+              <div className="mb-2 flex items-center justify-center">
+                <VoiceIndicator state={voice.state} size={40} />
               </div>
             )}
             <ChatComposer
@@ -310,6 +305,7 @@ export function PersonaChatView({
               onChange={setInput}
               onSend={() => void handleSend()}
               onStop={stop}
+              onStartVoice={showVoice ? () => void voice.start() : undefined}
               onStopVoice={voice.stop}
               onSendToVoice={voice.sendText}
               isStreaming={isStreaming}
