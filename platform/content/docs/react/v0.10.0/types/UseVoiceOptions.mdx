@@ -1,0 +1,19 @@
+---
+title: "UseVoiceOptions — @personaai/react"
+description: "Generated field table for UseVoiceOptions — do not edit"
+---
+
+> **Generated from `sdk/react/dist/typedoc.json` — do not edit.**
+
+# `UseVoiceOptions`
+
+_Source: `types.ts:448`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `agentId?` | `string` | Falls back to ``PersonaProvider``'s ``defaultAgentId`` if omitted. — _ `types.ts:450`_ |
+| `threadId?` | `string` | Resume an existing conversation over voice instead of starting fresh. ``start()`` mints the session with this thread id (same value ``useChat``'s ``threadId`` uses), so voice turns are persisted back into that thread's history — a later text message on the same thread sees them. Omit (or leave undefined) to start a fresh conversation. — _ `types.ts:458`_ |
+| `contextOverride?` | `string` | Caller-supplied context appended to the Agent's system instruction for this call — same field/cap/contract as ``useChat``'s ``sendMessage(text, { contextOverride })``. Unlike text chat, this is a **one-time append at connect**, not re-applied per turn: Gemini Live's system instruction is fixed for the whole call, so changing it means ending this call and starting a new ``start()``. Capped at 4000 characters server-side (rejected with a 400, not truncated). — _ `types.ts:468`_ |
+| `context?` | `Record<string, unknown>` | Caller-supplied context — never shown to the model, only ever read live by an RCP tool's resolver. This is the **at-connect seed only**, passed to ``start()``'s ticket-mint call. To refresh it for the rest of an already-open call (a voice call can run up to 15 minutes — long enough for the caller's own context to change), use the returned ``updateContext()`` instead, which sends it live over the open WebSocket with no reconnect and no interruption to the audio. — _ `types.ts:478`_ |

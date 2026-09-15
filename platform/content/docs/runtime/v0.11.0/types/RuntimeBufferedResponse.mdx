@@ -1,0 +1,21 @@
+---
+title: "RuntimeBufferedResponse — @personaai/runtime"
+description: "Generated field table for RuntimeBufferedResponse — do not edit"
+---
+
+> **Generated from `sdk/runtime/dist/typedoc.json` — do not edit.**
+
+# `RuntimeBufferedResponse`
+
+A complete response with a known-length body — every route except streaming chat.
+
+_Source: `types/response.ts:2`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `kind` | `"buffered"` |  — _ `types/response.ts:3`_ |
+| `status` | `number` |  — _ `types/response.ts:4`_ |
+| `headers` | `Record<string, string>` |  — _ `types/response.ts:5`_ |
+| `body` | `string` | Pre-serialized (e.g. already ``JSON.stringify``-ed) — adapters never need to know content-type semantics. — _ `types/response.ts:7`_ |

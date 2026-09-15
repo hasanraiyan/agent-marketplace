@@ -1,0 +1,25 @@
+---
+title: "UseChatOptions — @personaai/react"
+description: "Generated field table for UseChatOptions — do not edit"
+---
+
+> **Generated from `sdk/react/dist/typedoc.json` — do not edit.**
+
+# `UseChatOptions`
+
+_Source: `types.ts:314`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `agentId?` | `string` |  — _ `types.ts:315`_ |
+| `threadId?` | `string` |  — _ `types.ts:316`_ |
+| `initialMessages?` | `PersonaMessage[]` |  — _ `types.ts:317`_ |
+| `onFinish?` | `object` |  — _ `types.ts:318`_ |
+| `onError?` | `object` |  — _ `types.ts:319`_ |
+| `onEvent?` | `object` | Hook for receiving every low-level AG-UI streaming event (tool calls, steps, subagents) — _ `types.ts:321`_ |
+| `onThreadCreated?` | `object` | Called when a fake/ephemeral chat mints a real thread on first send. Use to sync sidebar state (e.g. setThreadId(id)). — _ `types.ts:323`_ |
+| `onTitle?` | `object` | Called when the backend auto-generates a thread title (3-4 word LLM summary of first user message). — _ `types.ts:325`_ |
+| `voice?` | `UseVoiceResult` | Pass the object returned by ``useVoice()`` (sharing the same ``threadId``) to have ``useChat`` merge live voice turns into ``messages`` automatically — one bubble per utterance, deduped against thread history and against a voice turn that already persisted back into this thread, with the in-progress agent line updated in place while it's still being spoken. No manual sync effects needed in the host app; injected messages get a ``voice-`` prefixed id. Only applied while the passed hook's ``state`` is active (not ``idle``/``ended``/``error``); the host app still owns starting/stopping the call itself (e.g. ``voice.start()``/``voice.stop()``). — _ `types.ts:335`_ |
+| `context?` | `Record<string, unknown> \| object` | Caller-supplied context — never shown to the model in any form, unlike ``contextOverride`` (see SendMessageOverride.contextOverride). Only ever read live by an RCP tool's resolver at the moment it's actually called. Accepts a plain object, or a getter (``() => object``) so ``sendMessage()`` always reads your app's *current* state at send time — no ref, no effect to keep it in sync as the value changes (e.g. the user navigates to a different page mid-conversation). Shallow-merged with any call-level ``sendMessage(text, { context })`` override, which wins on key collisions. Must be a flat object of string/number/boolean values only, capped at 2000 bytes serialized — a violation is rejected with a 400, not silently truncated or coerced. — _ `types.ts:349`_ |

@@ -27,6 +27,27 @@ const SDK = {
   version: JSON.parse(readFileSync(join(repoRoot, 'sdk/typescript/package.json'), 'utf8')).version,
 };
 
+const OTHER_SDKS = [
+  {
+    id: 'runtime',
+    typedocJson: 'sdk/runtime/dist/typedoc.json',
+    outBase: 'platform/content/docs/runtime',
+    version: JSON.parse(readFileSync(join(repoRoot, 'sdk/runtime/package.json'), 'utf8')).version,
+  },
+  {
+    id: 'adapters',
+    typedocJson: 'sdk/adapters/dist/typedoc.json',
+    outBase: 'platform/content/docs/adapters',
+    version: JSON.parse(readFileSync(join(repoRoot, 'sdk/adapters/package.json'), 'utf8')).version,
+  },
+  {
+    id: 'react',
+    typedocJson: 'sdk/react/dist/typedoc.json',
+    outBase: 'platform/content/docs/react',
+    version: JSON.parse(readFileSync(join(repoRoot, 'sdk/react/package.json'), 'utf8')).version,
+  },
+];
+
 // Resource → Type names that belong in that file (mirrors legacy resources grouping)
 const RESOURCE_MAP = {
   agents: ['Agent', 'AgentSocialLinks', 'AgentVisibility', 'AgentCategory', 'CreateAgentInput', 'UpdateAgentInput', 'DiscoverAgentsParams', 'McpConnection'],
@@ -97,23 +118,18 @@ function buildTableForInterface(node) {
   return ['| Field | Type | Description |', '|---|---|---|', ...rows].join('\n');
 }
 
-function main() {
+function generateSdkResources() {
   const tdJsonPath = join(repoRoot, SDK.typedocJson);
   if (!existsSync(tdJsonPath)) {
     console.error(`[typedoc-resources] ${tdJsonPath} not found — run npx typedoc first`);
     process.exit(1);
   }
   const root = JSON.parse(readFileSync(tdJsonPath, 'utf8'));
-  // Build name → node map for interfaces/type aliases
   const byName = new Map();
   for (const mod of root.children || []) {
-    for (const exp of mod.children || []) {
-      byName.set(exp.name, exp);
-    }
-    // also handle flat case where mod is itself an interface
+    for (const exp of mod.children || []) byName.set(exp.name, exp);
     if (mod.name && mod.kind === 256) byName.set(mod.name, mod);
   }
-  // Also handle root flat exports (runtime-style) — already covered via mod loop, but ensure
   for (const c of root.children || []) if (c.kind === 256 || c.kind === 4096) byName.set(c.name, c);
 
   const outDir = join(repoRoot, SDK.outBase, `v${SDK.version}`, 'resources');
@@ -139,11 +155,9 @@ function main() {
       const desc = commentToText(node.comment);
       if (desc) { lines.push(desc); lines.push(``); }
       if (node.sources?.[0]) lines.push(`_Source: \`${node.sources[0].fileName}:${node.sources[0].line}\`_`), lines.push(``);
-      // Kind badge
       const kindLabel = node.kind === 256 ? 'Interface' : node.kind === 4194304 ? 'Type alias' : node.kind === 32 ? 'Variable' : `Kind ${node.kind}`;
       lines.push(`_${kindLabel}_`);
       lines.push(``);
-      // For type aliases, show the type string instead of table
       if (node.kind !== 256 || !node.children) {
         if (node.type) lines.push(`\`\`\`ts\ntype ${name} = ${typeToString(node.type)}\n\`\`\``), lines.push(``);
         else lines.push(`_No fields_`), lines.push(``);
@@ -157,7 +171,71 @@ function main() {
     console.log(`[typedoc-resources] wrote ${resource}.mdx (${found.length} types)`);
     count++;
   }
-  console.log(`[typedoc-resources] done — ${count} resource files at ${outDir}`);
+  console.log(`[typedoc-resources] sdk: ${count} resource files at ${outDir}`);
+}
+
+function generatePerInterfaceForSdk(sdkCfg) {
+  const tdJsonPath = join(repoRoot, sdkCfg.typedocJson);
+  if (!existsSync(tdJsonPath)) {
+    console.warn(`[typedoc-resources] ${sdkCfg.id}: ${tdJsonPath} not found — skipping`);
+    return;
+  }
+  const root = JSON.parse(readFileSync(tdJsonPath, 'utf8'));
+  const nodes = [];
+  for (const mod of root.children || []) {
+    if (mod.kind === 2 && mod.children) {
+      for (const exp of mod.children) if (exp.kind === 256 || exp.kind === 4194304) nodes.push(exp);
+    } else if (mod.kind === 256 || mod.kind === 4194304) {
+      nodes.push(mod);
+    }
+  }
+  // For flat runtime-style, root.children are already interfaces
+  if (nodes.length === 0) {
+    for (const c of root.children || []) if (c.kind === 256 || c.kind === 4194304) nodes.push(c);
+  }
+  // Deduplicate by name
+  const byName = new Map();
+  for (const n of nodes) if (!byName.has(n.name)) byName.set(n.name, n);
+
+  const outDir = join(repoRoot, sdkCfg.outBase, `v${sdkCfg.version}`, 'types');
+  mkdirSync(outDir, { recursive: true });
+  let count = 0;
+  for (const [name, node] of byName) {
+    // Skip if already covered by sdk resources (avoid duplicate for sdk)
+    if (sdkCfg.id === 'sdk') continue;
+    const lines = [];
+    lines.push(`---`);
+    lines.push(`title: "${name} — @personaai/${sdkCfg.id}"`);
+    lines.push(`description: "Generated field table for ${name} — do not edit"`);
+    lines.push(`---`);
+    lines.push(``);
+    lines.push(`> **Generated from \`${sdkCfg.typedocJson}\` — do not edit.**`);
+    lines.push(``);
+    lines.push(`# \`${name}\``);
+    lines.push(``);
+    const desc = commentToText(node.comment);
+    if (desc) { lines.push(desc); lines.push(``); }
+    if (node.sources?.[0]) lines.push(`_Source: \`${node.sources[0].fileName}:${node.sources[0].line}\`_`), lines.push(``);
+    const kindLabel = node.kind === 256 ? 'Interface' : node.kind === 4194304 ? 'Type alias' : `Kind ${node.kind}`;
+    lines.push(`_${kindLabel}_`);
+    lines.push(``);
+    if (node.kind !== 256 || !node.children) {
+      if (node.type) lines.push(`\`\`\`ts\ntype ${name} = ${typeToString(node.type)}\n\`\`\``), lines.push(``);
+      else lines.push(`_No fields_`), lines.push(``);
+    } else {
+      lines.push(buildTableForInterface(node));
+      lines.push(``);
+    }
+    const outPath = join(outDir, `${name}.mdx`);
+    writeFileSync(outPath, lines.join('\n'));
+    count++;
+  }
+  console.log(`[typedoc-resources] ${sdkCfg.id}: ${count} per-interface files at ${outDir}`);
+}
+
+function main() {
+  generateSdkResources();
+  for (const sdkCfg of OTHER_SDKS) generatePerInterfaceForSdk(sdkCfg);
 }
 
 main();

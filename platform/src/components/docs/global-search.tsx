@@ -1,7 +1,20 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Kbd } from "@/components/ui/kbd";
+import {
+  Command,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 type SearchDoc = {
   id: number;
@@ -15,10 +28,10 @@ type SearchDoc = {
 };
 
 export function GlobalSearch() {
+  const router = useRouter();
+  const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const [index, setIndex] = React.useState<SearchDoc[] | null>(null);
-  const [open, setOpen] = React.useState(false);
-  const ref = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     fetch("/search-index.json")
@@ -28,11 +41,22 @@ export function GlobalSearch() {
   }, []);
 
   React.useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    const down = (e: KeyboardEvent) => {
+      if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || e.key === "/") {
+        if (
+          (e.target instanceof HTMLElement && e.target.isContentEditable) ||
+          e.target instanceof HTMLInputElement ||
+          e.target instanceof HTMLTextAreaElement ||
+          e.target instanceof HTMLSelectElement
+        ) {
+          return;
+        }
+        e.preventDefault();
+        setOpen((prev) => !prev);
+      }
     };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
+    document.addEventListener("keydown", down);
+    return () => document.removeEventListener("keydown", down);
   }, []);
 
   const results = React.useMemo(() => {
@@ -52,53 +76,80 @@ export function GlobalSearch() {
       })
       .filter(({ score }) => score > 0)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 8)
+      .slice(0, 10)
       .map(({ d }) => d);
     return scored;
   }, [query, index]);
 
   return (
-    <div ref={ref} className="relative w-64">
-      <input
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setOpen(true);
-        }}
-        onFocus={() => setOpen(true)}
-        placeholder="Search docs…"
-        className="w-full rounded-md border border-input bg-background/80 px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-blue-600"
-      />
-      {open && query.trim() && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-80 overflow-y-auto rounded-md border border-border bg-background shadow-lg">
-          {results.length === 0 ? (
-            <div className="px-3 py-4 text-center text-xs text-muted-foreground">No results</div>
-          ) : (
-            <ul className="py-1">
-              {results.map((r) => (
-                <li key={r.id}>
-                  <Link
-                    href={r.href}
-                    onClick={() => setOpen(false)}
-                    className="block px-3 py-2 hover:bg-accent"
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setOpen(true)}
+        className="relative h-8 w-56 justify-between bg-background/80 px-2.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground sm:w-64"
+      >
+        <span className="flex items-center gap-2">
+          <MagnifyingGlassIcon className="size-3.5 text-muted-foreground" />
+          <span>Search docs…</span>
+        </span>
+        <Kbd className="h-4 px-1 text-[10px]">⌘K</Kbd>
+      </Button>
+
+      <CommandDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Search Documentation"
+        description="Search across all SDKs and guides"
+      >
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder="Type to search docs..."
+            value={query}
+            onValueChange={setQuery}
+          />
+          <CommandList>
+            {results.length === 0 ? (
+              <CommandEmpty>
+                {query.trim()
+                  ? "No matching documents found."
+                  : "Type to search documentation across all SDKs..."}
+              </CommandEmpty>
+            ) : (
+              <CommandGroup heading="Results">
+                {results.map((r) => (
+                  <CommandItem
+                    key={r.id}
+                    value={String(r.id)}
+                    onSelect={() => {
+                      setOpen(false);
+                      router.push(r.href);
+                    }}
+                    className="flex flex-col items-start gap-1 py-2 cursor-pointer"
                   >
-                    <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-                      <span className="truncate">{r.title}</span>
-                      <span className="shrink-0 rounded bg-muted px-1 py-0.5 text-[10px] font-mono text-muted-foreground">
+                    <div className="flex w-full items-center justify-between gap-2">
+                      <span className="font-medium text-foreground">{r.title}</span>
+                      <Badge variant="secondary" className="font-mono text-[10px]">
                         {r.sdk}
-                      </span>
+                      </Badge>
                     </div>
                     {r.description && (
-                      <div className="truncate text-[11px] text-muted-foreground">{r.description}</div>
+                      <p className="text-xs text-muted-foreground line-clamp-1">
+                        {r.description}
+                      </p>
                     )}
-                    <div className="truncate text-[11px] text-muted-foreground/70">{r.snippet.slice(0, 80)}</div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-    </div>
+                    {r.snippet && (
+                      <p className="text-[11px] text-muted-foreground/70 line-clamp-1 font-mono">
+                        {r.snippet.slice(0, 100)}
+                      </p>
+                    )}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+          </CommandList>
+        </Command>
+      </CommandDialog>
+    </>
   );
 }

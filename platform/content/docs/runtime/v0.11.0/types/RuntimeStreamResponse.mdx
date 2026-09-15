@@ -1,0 +1,21 @@
+---
+title: "RuntimeStreamResponse — @personaai/runtime"
+description: "Generated field table for RuntimeStreamResponse — do not edit"
+---
+
+> **Generated from `sdk/runtime/dist/typedoc.json` — do not edit.**
+
+# `RuntimeStreamResponse`
+
+An open-ended SSE response — the chat route only.
+
+_Source: `types/response.ts:11`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `kind` | `"stream"` |  — _ `types/response.ts:12`_ |
+| `status` | `number` |  — _ `types/response.ts:13`_ |
+| `headers` | `Record<string, string>` |  — _ `types/response.ts:14`_ |
+| `body` | `AsyncIterable<string>` | Already-formatted SSE frame text chunks (``"data: ...\n\n"``); adapters just write them through as they arrive. — _ `types/response.ts:16`_ |

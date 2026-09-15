@@ -1,0 +1,25 @@
+---
+title: "RuntimeRequest — @personaai/runtime"
+description: "Generated field table for RuntimeRequest — do not edit"
+---
+
+> **Generated from `sdk/runtime/dist/typedoc.json` — do not edit.**
+
+# `RuntimeRequest`
+
+Framework-neutral inbound request. A framework adapter (Express, Node ``http``, ...) translates its own request object into this shape and calls ``Runtime.handle()`` — the runtime never imports a framework.
+
+_Source: `types/request.ts:15`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `method` | `RuntimeMethod` |  — _ `types/request.ts:16`_ |
+| `path` | `string` | Pathname only (no query string). May still include the ``mountPath`` prefix — the runtime strips it. — _ `types/request.ts:18`_ |
+| `headers` | `Record<string, string \| undefined>` | Header names as the adapter received them (Node's ``http`` already lowercases these). — _ `types/request.ts:20`_ |
+| `query` | `Record<string, string \| undefined>` |  — _ `types/request.ts:21`_ |
+| `body` | `unknown` | Already-parsed JSON body, or ``undefined`` for bodyless requests. For a multipart request (``POST /files``, ``POST /knowledge/:id/documents``), this holds the non-file form fields (e.g. ``{ agentId, threadId }``) — the file(s) themselves are on ``file``/``files``, not here. Parsing raw bytes is the adapter's job either way. — _ `types/request.ts:29`_ |
+| `file?` | `RuntimeUploadedFile` | The uploaded file, for a multipart ``POST /files`` request (single-file upload) only. — _ `types/request.ts:31`_ |
+| `files?` | `RuntimeUploadedFile[]` | The uploaded files, for a multipart ``POST /knowledge/:id/documents`` request (multi-file upload) only. — _ `types/request.ts:33`_ |
+| `userId` | `string \| null` | The resolved external user id. Always ``null`` on the request the host constructs — the runtime fills this in via ``resolveUser`` before an auth-required route handler sees it. — _ `types/request.ts:39`_ |

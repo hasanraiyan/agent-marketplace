@@ -1,0 +1,28 @@
+---
+title: "RuntimeHooks — @personaai/runtime"
+description: "Generated field table for RuntimeHooks — do not edit"
+---
+
+> **Generated from `sdk/runtime/dist/typedoc.json` — do not edit.**
+
+# `RuntimeHooks`
+
+Lifecycle hooks — the host application's voice inside the runtime's request handling. Plain async event listeners, not middleware: the runtime proceeds with sensible defaults when a hook is omitted, and a hook that wants to reject a run simply throws (the throw is caught and routed through the same sanitized error path as any other failure).
+
+_Source: `types/hooks.ts:87`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `beforeRun?` | `unknown` |  — _ `types/hooks.ts:88`_ |
+| `afterRun?` | `unknown` |  — _ `types/hooks.ts:89`_ |
+| `onError?` | `unknown` |  — _ `types/hooks.ts:90`_ |
+| `beforeToolCall?` | `unknown` |  — _ `types/hooks.ts:93`_ |
+| `afterToolCall?` | `unknown` |  — _ `types/hooks.ts:95`_ |
+| `beforeWorkflowNode?` | `unknown` |  — _ `types/hooks.ts:97`_ |
+| `afterWorkflowNode?` | `unknown` |  — _ `types/hooks.ts:99`_ |
+| `onFileUpload?` | `unknown` |  — _ `types/hooks.ts:101`_ |
+| `onThreadCreate?` | `unknown` |  — _ `types/hooks.ts:107`_ |
+| `onMemoryWrite?` | `unknown` |  — _ `types/hooks.ts:109`_ |
+| `onVoiceSessionCreate?` | `unknown` |  — _ `types/hooks.ts:111`_ |

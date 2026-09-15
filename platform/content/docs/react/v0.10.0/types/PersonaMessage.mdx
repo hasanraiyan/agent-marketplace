@@ -1,0 +1,24 @@
+---
+title: "PersonaMessage — @personaai/react"
+description: "Generated field table for PersonaMessage — do not edit"
+---
+
+> **Generated from `sdk/react/dist/typedoc.json` — do not edit.**
+
+# `PersonaMessage`
+
+_Source: `types.ts:41`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` |  — _ `types.ts:42`_ |
+| `role` | `PersonaRole` |  — _ `types.ts:43`_ |
+| `content` | `string` |  — _ `types.ts:44`_ |
+| `createdAt` | `Date` |  — _ `types.ts:45`_ |
+| `isStreaming?` | `boolean` |  — _ `types.ts:46`_ |
+| `toolCalls?` | `PersonaToolCall[]` |  — _ `types.ts:47`_ |
+| `seq?` | `number` | Monotonic stream-order index for ``role: 'reasoning'`` messages, from the same counter as ``PersonaToolCall.seq`` — lets clients place each reasoning phase in its chronological spot relative to the tool calls that bracket it. — _ `types.ts:53`_ |
+| `reasoning?` | `string` |  — _ `types.ts:59`_ |
+| `isReasoning?` | `boolean` |  — _ `types.ts:60`_ |

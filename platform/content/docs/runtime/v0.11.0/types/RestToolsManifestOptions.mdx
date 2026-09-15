@@ -1,0 +1,19 @@
+---
+title: "RestToolsManifestOptions — @personaai/runtime"
+description: "Generated field table for RestToolsManifestOptions — do not edit"
+---
+
+> **Generated from `sdk/runtime/dist/typedoc.json` — do not edit.**
+
+# `RestToolsManifestOptions`
+
+Serves a list of code-defined REST tools (built with ``defineRestTool`` from ``@personaai/sdk/rest-tools``) as a JSON manifest at ``GET {mountPath}/rest-tools/manifest`` — register that URL in the Persona dashboard as a REST Tool Source and it discovers/calls these tools live, the same way it discovers an MCP server's tools. This is host-side static data the runtime *serves*, not a Persona-proxy capability — it never calls ``PersonaClient`` and works even with no ``resolveUser`` traffic at all.
+
+_Source: `types/options.ts:67`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `tools` | `CreateRestToolInput[]` | REST tool definitions to serve — build each with ``defineRestTool`` from ``@personaai/sdk/rest-tools``, or pass a plain object of the same shape. — _ `types/options.ts:69`_ |
+| `authToken?` | `string` | Required ``Authorization: Bearer <token>`` value the manifest route checks incoming requests against — must match the API Key configured on the Persona-side REST Tool Source. Omitting this leaves the route open (no auth) — only acceptable for local/dev testing. — _ `types/options.ts:76`_ |
