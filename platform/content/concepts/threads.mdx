@@ -1,0 +1,62 @@
+---
+title: "Threads, Memory & Stores"
+description: "Conversation scope, file-backed memory, and named mount points"
+---
+
+# Threads, Memory & Stores
+
+Three related primitives that scope an agent's state to your user.
+
+## Threads
+
+A **Thread** is a conversation (`_id`, `title`, `agentId`) that owns its messages, files, todos, and LangGraph checkpoints.
+
+- **Create:** `userClient.threads.create({ agentId })` — requires `externalUserId` so the thread belongs to your user. Omit `externalUserId` and the backend uses a deterministic per-Project thread (not per-user).
+- **Resume:** Pass `threadId` on every `chat.stream` turn; the server loads `checkpoint` + `state` (files/todos). `GET /threads/:id/messages` returns `messages`, `pendingInterrupt`, `state.files/todos`, and `subagentTraces`.
+- **Reset vs delete:** `POST /threads/:id/reset` clears messages/files/todos/subagent traces *in place* (keeps same `_id`); `DELETE /threads/:id` removes it. `POST /threads/bulk-delete` is best-effort.
+- **React:** `useChat({ threadId })` auto-loads history; `startNewChat()` enters ephemeral mode (`isEphemeral` true) until first `sendMessage` mints a real id via `POST /threads`.
+
+## Memory
+
+File-based memory that survives restarts (MongoDB-backed, not `InMemoryStore`):
+
+| Path | Scope | Visibility |
+|---|---|---|
+| `/memories/user/` | `scope: 'user'` (default) | Shared across all agents for that `externalUserId` |
+| `/memories/agent/` | `scope: 'agent'` + `agentId` | Per user-agent pair |
+| `/skills/` | read-only | Skill filesystem |
+| `/skill-library/` | read-write | Skill authoring |
+
+SDK:
+
+```ts
+await userClient.memory.list(); // { userFiles, agentMemories: [{ agentId, agentName, files }] }
+await userClient.memory.getFile({ path: '/memories/user/preferences.md' });
+await userClient.memory.writeFile({ path: '/memories/user/preferences.md', content: '# Likes\n- concise' });
+await userClient.memory.deleteFile({ path: '/memories/user/preferences.md' });
+```
+
+Agent tools `read_file`/`write_file` operate on the same paths. Memory is never auto-sent to the model — the agent reads it on demand.
+
+## Stores
+
+Named, scoped mount points you assign to agents — filesystem-backed alternative to `contextOverride` for larger reference material.
+
+```ts
+const store = await persona.stores.create({ name: 'Handbook', scope: 'domain', accessMode: 'readwrite' });
+// scope: 'domain' | 'externalUser', accessMode: 'readonly' | 'readwrite'
+await persona.stores.writeFile(store._id, { path: 'intro.md', content: '# Hello' });
+await persona.stores.listFiles(store._id);
+// Attach at agent creation
+await persona.agents.create({ name: 'Analyst', systemPrompt: '...', providerId: '...', storeMounts: [store._id] });
+```
+
+Agent then `read_file` from `/stores/<storeName>/intro.md` instead of holding large context in the prompt.
+
+## How they relate
+
+- **Threads** are *per-conversation* state (messages + workspace files/todos).
+- **Memory** is *long-term* per-user / per-agent state (preferences, memory files).
+- **Stores** are *per-Project* reference data the agent mounts on demand.
+
+Use `threadId` for continuity, `memory` for personalization, `stores` for shared knowledge that doesn't fit in `contextOverride` (4000 chars) or `context` (2000 bytes, never shown to model — see [context vs contextOverride](/concepts/context-vs-override)).

@@ -2484,6 +2484,26 @@
     "sdk": "concepts",
     "version": "latest",
     "slug": [
+      "threads"
+    ],
+    "href": "/concepts/threads",
+    "title": "Threads, Memory & Stores",
+    "description": "Conversation scope, file-backed memory, and named mount points",
+    "headings": [
+      "Threads, Memory & Stores",
+      "Threads",
+      "Memory",
+      "Stores",
+      "How they relate"
+    ],
+    "snippet": "Threads, Memory & Stores Three related primitives that scope an agent's state to your user. Threads A **Thread** is a conversation ( , , ) that owns its messages, files, todos, and LangGraph checkpoints. **Create:** — requires so the thread belongs to your user. Omit and the back",
+    "tokens": "threads, memory & stores conversation scope, file-backed memory, and named mount points threads, memory & stores three related primitives that scope an agent's state to your user. threads a **thread** is a conversation ( , , ) that owns its messages, files, todos, and langgraph checkpoints. **create:** — requires so the thread belongs to your user. omit and the backend uses a deterministic per-project thread (not per-user). **resume:** pass on every turn; the server loads + (files/todos). returns , , , and . **reset vs delete:** clears messages/files/todos/subagent traces *in place* (keeps same ); removes it. is best-effort. **react:** auto-loads history; enters ephemeral mode ( true) until first mints a real id via . memory file-based memory that survives restarts (mongodb-backed, not ): sdk: agent tools / operate on the same paths. memory is never auto-sent to the model — the agent reads it on demand. stores named, scoped mount points you assign to agents — filesystem-backed alternative to for larger reference material. agent then from instead of holding large context in the prompt. how they relate **threads** are *per-conversation* state (messages + workspace files/todos). **memory** is *long-term* per-user / per-agent state (preferences, memory files). **stores** are *per-project* reference data the agent mounts on demand. use for continuity, for personalization, for shared knowledge that doesn't fit in (4000 chars) or (2000 bytes, never shown to model — see context vs contextoverride)."
+  },
+  {
+    "id": 140,
+    "sdk": "concepts",
+    "version": "latest",
+    "slug": [
       "workflows"
     ],
     "href": "/concepts/workflows",
