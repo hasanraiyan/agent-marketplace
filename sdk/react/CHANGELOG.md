@@ -3,6 +3,17 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.12.0
+
+- **New: `useKnowledgeBases(options)`.** Self-serve CRUD for Knowledge Bases —
+  `list`/`getKnowledgeBase`/`createKnowledgeBase`/`updateKnowledgeBase`/
+  `deleteKnowledgeBase`/`bulkDeleteKnowledgeBases`/`getKnowledgeBaseUsage`,
+  plus document management (`uploadDocuments`/`listDocuments`/`deleteDocument`)
+  and `search`. Gated behind `capabilities.knowledge`. `scope: 'mine'`
+  restricts to the asserted external user's own Knowledge Bases. Level 4/6
+  of the self-serve resource CRUD series (Agent/Workflow/MCP/RCP Source/
+  Knowledge Base/Skill).
+
 ## 0.11.0
 
 - **New: `useSkills(options)`.** Self-serve Skill CRUD — `list`/`getSkill`/`createSkill`/

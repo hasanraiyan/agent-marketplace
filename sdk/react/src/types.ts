@@ -974,3 +974,106 @@ export interface UseRcpSourcesOptions {
   search?: string;
 }
 
+/** One uploaded source document's chunking summary (not the chunks themselves). */
+export interface PersonaKnowledgeDocument {
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  chunkCount: number;
+  uploadedAt: string;
+}
+
+export interface PersonaKnowledgeBase {
+  _id: string;
+  domain: string;
+  ownerType: "PersonaUser" | "Project" | "ExternalUser";
+  ownerId?: string;
+  externalOwnerId?: string;
+  name: string;
+  description?: string;
+  isPublic: boolean;
+  documentCount: number;
+  chunkCount: number;
+  /** Internal vector-store collection name backing this Knowledge Base — informational only. */
+  qdrantCollectionName: string;
+  documents: PersonaKnowledgeDocument[];
+  embeddingModel: string;
+  providerId?: string;
+  /** Characters per chunk, used when splitting uploaded documents. */
+  chunkSize: number;
+  /** Character overlap between adjacent chunks. */
+  chunkOverlap: number;
+  /** Default number of chunks returned per `search()` call when the caller doesn't override `topK`. */
+  topK: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePersonaKnowledgeBaseInput {
+  name: string;
+  description?: string;
+  /** @default false */
+  isPublic?: boolean;
+  /** @default 'text-embedding-3-small' */
+  embeddingModel?: string;
+  /** Must reference a Provider the host Project already created. */
+  providerId: string;
+  /** @default 800 */
+  chunkSize?: number;
+  /** @default 100 */
+  chunkOverlap?: number;
+  /** @default 5 */
+  topK?: number;
+}
+
+/** All fields optional — only what you pass is changed. Does not retroactively re-embed existing documents. */
+export interface UpdatePersonaKnowledgeBaseInput {
+  name?: string;
+  description?: string;
+  isPublic?: boolean;
+  embeddingModel?: string;
+  providerId?: string;
+  chunkSize?: number;
+  chunkOverlap?: number;
+  topK?: number;
+}
+
+export interface PersonaUploadDocumentsResult {
+  /** Total document count for the Knowledge Base after this upload (not just this call's files). */
+  documentCount: number;
+  /** Total chunk count for the Knowledge Base after this upload. */
+  chunkCount: number;
+  files: Array<{ fileName: string; fileSize: number; mimeType: string; chunkCount: number }>;
+}
+
+export interface PersonaDeleteDocumentResult {
+  removedChunks: number;
+  remainingDocuments: number;
+  remainingChunks: number;
+}
+
+export interface PersonaKnowledgeSearchResult {
+  text: string;
+  /** The `fileName` of the source document this chunk came from. */
+  source: string;
+  /** Similarity score (higher is more relevant); `null` if the underlying store didn't return one. */
+  score: number | null;
+}
+
+/** Agents referencing a Knowledge Base — check before deleting it to avoid a blocked-delete error. */
+export interface PersonaKnowledgeBaseUsage {
+  agentCount: number;
+  agents: Array<{ _id: string; name: string }>;
+}
+
+export interface UseKnowledgeBasesOptions {
+  /** @default true */
+  autoFetch?: boolean;
+  page?: number;
+  limit?: number;
+  /** Free-text match against name/description. */
+  search?: string;
+  /** Restricts to the asserted external user's own Knowledge Bases. Requires a `ProjectRuntimeContext` — a no-op otherwise. */
+  scope?: "mine";
+}
+

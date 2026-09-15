@@ -12,6 +12,7 @@ export * from "./hooks/useMcpConnections.js";
 export * from "./hooks/useMcp.js";
 export * from "./hooks/useSkills.js";
 export * from "./hooks/useRcpSources.js";
+export * from "./hooks/useKnowledgeBases.js";
 export * from "./hooks/useWorkflows.js";
 export * from "./hooks/useWorkflow.js";
 export * from "./hooks/useWorkflowStream.js";
