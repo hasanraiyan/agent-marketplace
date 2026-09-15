@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   // deployed server output instead of relying on that analysis to find it.
   outputFileTracingIncludes: {
     "/docs/**": ["./content/docs/**/*"],
+    "/concepts/**": ["./content/concepts/**/*"],
   },
   async rewrites() {
     // NEXT_PUBLIC_API_URL is meant to be settable either as a plain base URL

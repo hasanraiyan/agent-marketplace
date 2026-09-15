@@ -18,17 +18,17 @@ export const metadata = {
 
 function listConcepts() {
   const base = path.join(process.cwd(), "content", "concepts");
-  if (!fs.existsSync(base)) return [];
+  if (!fs.existsSync(/*turbopackIgnore: true*/ base)) return [];
   const out: { slug: string; title: string; description?: string }[] = [];
   function walk(cur: string, prefix: string[]) {
-    for (const e of fs.readdirSync(cur, { withFileTypes: true })) {
+    for (const e of fs.readdirSync(/*turbopackIgnore: true*/ cur, { withFileTypes: true })) {
       if (e.name.startsWith(".")) continue;
       const p = path.join(cur, e.name);
       if (e.isDirectory()) walk(p, [...prefix, e.name]);
       else if (e.name.endsWith(".mdx") || e.name.endsWith(".md")) {
         const slug = [...prefix, e.name.replace(/\.mdx$/, "").replace(/\.md$/, "")].join("/");
         try {
-          const raw = fs.readFileSync(p, "utf8");
+          const raw = fs.readFileSync(/*turbopackIgnore: true*/ p, "utf8");
           const { data } = matter(raw);
           out.push({ slug, title: data.title || slug, description: data.description });
         } catch {
