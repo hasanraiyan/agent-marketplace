@@ -246,3 +246,125 @@ describe('rcpSourceService.getRcpSourceUsage', () => {
     expect(usage).toEqual({ agentCount: 2, agents: [{ _id: 'a1', name: 'Agent 1' }] });
   });
 });
+
+// Regression coverage for a real bug: _buildDiscoveryFilter used to be
+// `scopedFilter(context?.domain, extra)` with no ownerType/scope branching
+// at all — any caller in the Domain, including any other external user,
+// could list every source, Project- and ExternalUser-owned alike. Now
+// routed through the shared buildDiscoveryFilter (resourceOwnership.js).
+describe('rcpSourceService._buildDiscoveryFilter (via discoverRcpSources)', () => {
+  const externalUserContext = (externalUserId) => ({
+    domain: 'proj-1',
+    principalType: 'ProjectRuntime',
+    externalUserId,
+  });
+
+  beforeEach(() => {
+    rcpSourceRepository.search.mockResolvedValue([]);
+  });
+
+  it('a ProjectMachine/admin context sees every source in the Domain, any owner', async () => {
+    await rcpSourceService.discoverRcpSources(context, {}, { page: 1, limit: 20 });
+
+    expect(rcpSourceRepository.search).toHaveBeenCalledWith(
+      { domain: 'proj-1' },
+      { page: 1, limit: 20 },
+    );
+  });
+
+  it('a ProjectRuntime context with scope: "mine" sees only that external user\'s own sources', async () => {
+    await rcpSourceService.discoverRcpSources(
+      externalUserContext('user-42'),
+      { scope: 'mine' },
+      { page: 1, limit: 20 },
+    );
+
+    expect(rcpSourceRepository.search).toHaveBeenCalledWith(
+      { domain: 'proj-1', ownerType: 'ExternalUser', externalOwnerId: 'user-42' },
+      { page: 1, limit: 20 },
+    );
+  });
+
+  it('a ProjectRuntime context with no scope sees only Project-owned sources — never another external user\'s private ones', async () => {
+    await rcpSourceService.discoverRcpSources(
+      externalUserContext('user-42'),
+      {},
+      { page: 1, limit: 20 },
+    );
+
+    expect(rcpSourceRepository.search).toHaveBeenCalledWith(
+      { domain: 'proj-1', ownerType: 'Project' },
+      { page: 1, limit: 20 },
+    );
+  });
+});
+
+describe('rcpSourceService.getRcpSourceById (strict ownership)', () => {
+  it('throws for a ProjectRuntime caller on a Project-owned (shared) source — this method is owner-only', async () => {
+    rcpSourceRepository.findById.mockResolvedValue(ownedSource({ ownerType: 'Project' }));
+
+    await expect(
+      rcpSourceService.getRcpSourceById('src-1', undefined, {
+        domain: 'proj-1',
+        principalType: 'ProjectRuntime',
+        externalUserId: 'user-42',
+      }),
+    ).rejects.toThrow(NotFoundError);
+  });
+
+  it('throws for a different external user\'s own source', async () => {
+    rcpSourceRepository.findById.mockResolvedValue(
+      ownedSource({ ownerType: 'ExternalUser', externalOwnerId: 'user-1' }),
+    );
+
+    await expect(
+      rcpSourceService.getRcpSourceById('src-1', undefined, {
+        domain: 'proj-1',
+        principalType: 'ProjectRuntime',
+        externalUserId: 'user-2',
+      }),
+    ).rejects.toThrow(NotFoundError);
+  });
+});
+
+describe('rcpSourceService.getReadableRcpSourceById (display-only, admits shared sources)', () => {
+  it('a ProjectRuntime caller CAN read a Project-owned (shared) source', async () => {
+    rcpSourceRepository.findById.mockResolvedValue(ownedSource({ ownerType: 'Project' }));
+
+    const source = await rcpSourceService.getReadableRcpSourceById('src-1', undefined, {
+      domain: 'proj-1',
+      principalType: 'ProjectRuntime',
+      externalUserId: 'user-42',
+    });
+
+    expect(source.ownerType).toBe('Project');
+  });
+
+  it('still throws for a different external user\'s own private source', async () => {
+    rcpSourceRepository.findById.mockResolvedValue(
+      ownedSource({ ownerType: 'ExternalUser', externalOwnerId: 'user-1' }),
+    );
+
+    await expect(
+      rcpSourceService.getReadableRcpSourceById('src-1', undefined, {
+        domain: 'proj-1',
+        principalType: 'ProjectRuntime',
+        externalUserId: 'user-2',
+      }),
+    ).rejects.toThrow(NotFoundError);
+  });
+
+  it('still throws for a different Domain\'s Project-owned source', async () => {
+    rcpSourceRepository.findById.mockResolvedValue(
+      ownedSource({ ownerType: 'Project', domain: 'other-proj' }),
+    );
+
+    await expect(
+      rcpSourceService.getReadableRcpSourceById('src-1', undefined, {
+        domain: 'proj-1',
+        principalType: 'ProjectRuntime',
+        externalUserId: 'user-42',
+      }),
+    ).rejects.toThrow(NotFoundError);
+  });
+});

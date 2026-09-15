@@ -2,6 +2,8 @@ import {
   isResourceOwner,
   ownerFilterForContext,
   ownerFieldsForContext,
+  buildDiscoveryFilter,
+  isResourceReadable,
 } from '../src/utils/resourceOwnership.js';
 
 /**
@@ -127,5 +129,83 @@ describe('resourceOwnership — ownerFieldsForContext', () => {
       ownerType: 'ExternalUser',
       externalOwnerId: 'sabik',
     });
+  });
+});
+
+// Regression coverage: RcpSource's own copy of this three-mode filter
+// shipped with NO ownership branching at all (just `scopedFilter(domain,
+// extra)`) — any caller in the Domain, including any other external user,
+// could list every resource regardless of owner. This shared builder is
+// what every self-serve discovery filter should route through instead of
+// hand-rolling the same branching per domain.
+describe('resourceOwnership — buildDiscoveryFilter', () => {
+  const sharedFilter = { isPublic: true };
+
+  test('a ProjectMachine/ProjectAdmin context sees everything in the Domain, ignoring scope', () => {
+    const context = { domain: 'project-1', principalType: 'ProjectMachine' };
+    expect(buildDiscoveryFilter(context, { scope: 'mine' }, { extra: 1 }, sharedFilter)).toEqual({
+      domain: 'project-1',
+      extra: 1,
+    });
+  });
+
+  test('a ProjectRuntimeContext with scope: "mine" is Domain- AND Subject-scoped', () => {
+    const context = { domain: 'project-1', principalType: 'ProjectRuntime', externalUserId: 'sabik' };
+    expect(buildDiscoveryFilter(context, { scope: 'mine' }, {}, sharedFilter)).toEqual({
+      domain: 'project-1',
+      ownerType: 'ExternalUser',
+      externalOwnerId: 'sabik',
+    });
+  });
+
+  test('a ProjectRuntimeContext with no scope falls back to the shared/browsable filter only', () => {
+    const context = { domain: 'project-1', principalType: 'ProjectRuntime', externalUserId: 'sabik' };
+    expect(buildDiscoveryFilter(context, {}, {}, sharedFilter)).toEqual({
+      domain: 'project-1',
+      isPublic: true,
+    });
+  });
+
+  test('extra domain-specific predicates (search, category, ...) survive every mode', () => {
+    const context = { domain: 'project-1', principalType: 'ProjectRuntime', externalUserId: 'sabik' };
+    expect(
+      buildDiscoveryFilter(context, {}, { name: /foo/i }, { ownerType: 'Project' }),
+    ).toEqual({
+      domain: 'project-1',
+      name: /foo/i,
+      ownerType: 'Project',
+    });
+  });
+});
+
+describe('resourceOwnership — isResourceReadable', () => {
+  const isPublic = (r) => r.isPublic;
+
+  test('the strict owner can always read, regardless of the shared predicate', () => {
+    const resource = { ownerType: 'ExternalUser', externalOwnerId: 'sabik', domain: 'project-1', isPublic: false };
+    const context = { domain: 'project-1', principalType: 'ProjectRuntime', externalUserId: 'sabik' };
+    expect(isResourceReadable(resource, context, isPublic)).toBe(true);
+  });
+
+  test('a non-owner CAN read when the resource matches the shared predicate, same Domain', () => {
+    const resource = { ownerType: 'ExternalUser', externalOwnerId: 'someone-else', domain: 'project-1', isPublic: true };
+    const context = { domain: 'project-1', principalType: 'ProjectRuntime', externalUserId: 'sabik' };
+    expect(isResourceReadable(resource, context, isPublic)).toBe(true);
+  });
+
+  test('a non-owner CANNOT read a private resource', () => {
+    const resource = { ownerType: 'ExternalUser', externalOwnerId: 'someone-else', domain: 'project-1', isPublic: false };
+    const context = { domain: 'project-1', principalType: 'ProjectRuntime', externalUserId: 'sabik' };
+    expect(isResourceReadable(resource, context, isPublic)).toBe(false);
+  });
+
+  test('a shared resource from a DIFFERENT Domain is still not readable', () => {
+    const resource = { ownerType: 'Project', domain: 'other-project', isPublic: true };
+    const context = { domain: 'project-1', principalType: 'ProjectRuntime', externalUserId: 'sabik' };
+    expect(isResourceReadable(resource, context, isPublic)).toBe(false);
+  });
+
+  test('returns false for a missing resource', () => {
+    expect(isResourceReadable(null, { principalType: 'ProjectMachine' }, isPublic)).toBe(false);
   });
 });

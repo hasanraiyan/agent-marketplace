@@ -97,4 +97,82 @@ export function ownerFieldsForContext(context) {
   return { ownerType: 'PersonaUser', ownerId: context?.personaUserId };
 }
 
-export default { isResourceOwner, ownerFilterForContext, ownerFieldsForContext };
+/**
+ * The three-mode discovery filter every self-serve resource domain needs
+ * (Agent, Skill, RcpSource, KnowledgeBase, ...) — was independently
+ * hand-rolled per domain (Agent's `_buildDeveloperDiscoveryFilter`, Skill's
+ * own copy of the identical ~15 lines) until RcpSource's copy shipped
+ * *without* the ownership branching at all: no `scope: 'mine'` handling
+ * and no "shared" fallback, so any caller in the Domain could list every
+ * source regardless of owner. One shared builder closes that failure mode
+ * for every future domain instead of relying on each new `_buildDiscoveryFilter`
+ * to reimplement it correctly from scratch.
+ *
+ *   - `ProjectMachineContext`/`ProjectAdminContext`: every resource in this
+ *     Domain, any owner type — a Project's own admin/machine credential
+ *     sees everything happening under its Domain.
+ *   - `ProjectRuntimeContext` with `filters.scope === 'mine'`: Domain- AND
+ *     Subject-scoped — only this external user's own resources.
+ *   - `ProjectRuntimeContext` otherwise: Domain-scoped, `sharedFilter` only
+ *     — the domain's "browsable without ownership" set (e.g. `{ isPublic:
+ *     true }` for Skill, `{ ownerType: 'Project' }` for a resource with no
+ *     public/private toggle of its own, like RcpSource).
+ *
+ * @param {Object} context
+ * @param {{scope?: 'mine'}} [filters]
+ * @param {Object} [extra] - domain-specific $match fragments (search, category, ...)
+ * @param {Object} sharedFilter - this domain's "shared/browsable" predicate
+ * @returns {Object} Mongoose filter fragment, Domain-scoped via `scopedFilter`
+ */
+export function buildDiscoveryFilter(context, filters = {}, extra = {}, sharedFilter = {}) {
+  if (context?.principalType === 'ProjectMachine' || context?.principalType === 'ProjectAdmin') {
+    return scopedFilter(context.domain, extra);
+  }
+  if (filters?.scope === 'mine') {
+    return scopedFilter(context?.domain, {
+      ...extra,
+      ownerType: 'ExternalUser',
+      externalOwnerId: context?.externalUserId,
+    });
+  }
+  return scopedFilter(context?.domain, { ...extra, ...sharedFilter });
+}
+
+/**
+ * True if `context` may READ `resource` — either it's the strict owner
+ * (`isResourceOwner`), or `resource` matches this domain's "shared/
+ * browsable" predicate (same Domain only, checked here independently of
+ * `isResourceOwner`'s own Domain gate since a shared match never calls it).
+ *
+ * **Read-only. Never use this to authorize a mutation** — update/delete
+ * (and anything else that changes state) must keep using `isResourceOwner`
+ * or route the write itself through `ownerFilterForContext` as an atomic
+ * query-level guard. This exists specifically so a single-resource GET can
+ * be more permissive than a write without that permissiveness leaking into
+ * whatever else happens to reuse the same fetch — which is exactly the
+ * failure mode a fix here once took: widening `getRcpSourceById`'s check to
+ * admit shared resources also, transitively, widened every mutation that
+ * reused it for its existence/ownership check (update/delete/testConnection
+ * all called through `getRcpSourceById`). Give the read path its own named
+ * function instead of overloading the strict one.
+ *
+ * @param {Object} resource
+ * @param {Object} context
+ * @param {(resource: Object) => boolean} isShared - e.g. `(r) => r.isPublic`
+ *   for Skill, `(r) => r.ownerType === 'Project'` for RcpSource.
+ * @returns {boolean}
+ */
+export function isResourceReadable(resource, context, isShared) {
+  if (!resource) return false;
+  if (isResourceOwner(resource, context)) return true;
+  if (resource.domain && context?.domain && resource.domain !== context.domain) return false;
+  return Boolean(isShared(resource));
+}
+
+export default {
+  isResourceOwner,
+  ownerFilterForContext,
+  ownerFieldsForContext,
+  buildDiscoveryFilter,
+  isResourceReadable,
+};

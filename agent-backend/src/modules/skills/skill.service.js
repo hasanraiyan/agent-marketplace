@@ -4,10 +4,11 @@ import agentFactory from '../agents/agent.factory.js';
 import { personaExecutionContext } from '../agents/agent.service.js';
 import {
   isResourceOwner,
+  isResourceReadable,
   ownerFilterForContext,
   ownerFieldsForContext,
+  buildDiscoveryFilter,
 } from '../../utils/resourceOwnership.js';
-import { scopedFilter } from '../../utils/domainQuery.js';
 
 class SkillService {
   /**
@@ -35,13 +36,11 @@ class SkillService {
    */
   async getSkillById(id, userId, context = personaExecutionContext(userId)) {
     const skill = await skillRepository.findById(id);
-    if (!skill) throw new Error('Skill not found');
-
-    const isOwner = isResourceOwner(skill, context);
-    if (!skill.isPublic && !isOwner) {
+    if (!isResourceReadable(skill, context, (s) => s.isPublic)) {
       throw new Error('Skill not found or private');
     }
 
+    const isOwner = isResourceOwner(skill, context);
     const skillObj = skill.toObject ? skill.toObject() : skill;
     return { ...skillObj, isOwner };
   }
@@ -167,20 +166,7 @@ class SkillService {
     if (filters.search) {
       extra.name = { $regex: filters.search, $options: 'i' };
     }
-
-    if (context?.principalType === 'ProjectMachine' || context?.principalType === 'ProjectAdmin') {
-      return scopedFilter(context.domain, extra);
-    }
-
-    if (filters.scope === 'mine') {
-      return scopedFilter(context?.domain, {
-        ...extra,
-        ownerType: 'ExternalUser',
-        externalOwnerId: context?.externalUserId,
-      });
-    }
-
-    return scopedFilter(context?.domain, { ...extra, isPublic: true });
+    return buildDiscoveryFilter(context, filters, extra, { isPublic: true });
   }
 
   async discoverSkills(context, filters, pagination) {

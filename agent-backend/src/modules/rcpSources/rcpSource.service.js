@@ -6,10 +6,11 @@ import { personaExecutionContext } from '../agents/agent.service.js';
 import projectSecretService from '../projects/projectSecret.service.js';
 import {
   isResourceOwner,
+  isResourceReadable,
   ownerFilterForContext,
   ownerFieldsForContext,
+  buildDiscoveryFilter,
 } from '../../utils/resourceOwnership.js';
-import { scopedFilter } from '../../utils/domainQuery.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
 import ValidationError from '../../utils/errors/ValidationError.js';
 import { loggerService } from '../../utils/index.js';
@@ -63,12 +64,24 @@ class RcpSourceService {
     return await rcpSourceRepository.create(sourceData);
   }
 
+  /**
+   * FIX: this used to be `scopedFilter(context?.domain, extra)` with no
+   * ownerType/scope branching at all — any caller in the Domain, including
+   * any other external user, could list every source, Project- and
+   * ExternalUser-owned alike. Now routed through the shared
+   * `buildDiscoveryFilter` (resourceOwnership.js) every self-serve domain
+   * uses, with `{ ownerType: 'Project' }` as this domain's "shared/
+   * browsable" set — RcpSource has no `isPublic`/`visibility` field to
+   * fall back to like Skill/Agent do, so the developer's own curated
+   * sources are the equivalent default (never another external user's
+   * private one).
+   */
   _buildDiscoveryFilter(context, filters = {}) {
     const extra = {};
     if (filters.search) {
       extra.name = { $regex: filters.search, $options: 'i' };
     }
-    return scopedFilter(context?.domain, extra);
+    return buildDiscoveryFilter(context, filters, extra, { ownerType: 'Project' });
   }
 
   async discoverRcpSources(context, filters, pagination) {
@@ -81,9 +94,34 @@ class RcpSourceService {
     return await rcpSourceRepository.count(match);
   }
 
+  /**
+   * Strict-ownership fetch. `updateRcpSource`/`deleteRcpSource`/
+   * `testConnection`/`getRcpSourceUsage` all reuse this for their
+   * existence/authorization check — keep it owner-only. Use
+   * `getReadableRcpSourceById` instead for a display-only GET that should
+   * also admit the Domain's shared/Project-owned sources; do not loosen
+   * this one to do that, or every mutation that reuses it inherits the
+   * same loosening (see `isResourceReadable`'s doc comment for why this
+   * split exists).
+   */
   async getRcpSourceById(id, userId, context = personaExecutionContext(userId)) {
     const source = await rcpSourceRepository.findById(id);
     if (!source || !isResourceOwner(source, context)) {
+      throw new NotFoundError('RCP source not found');
+    }
+    return source;
+  }
+
+  /**
+   * Display-only fetch for the single-resource GET route: also admits this
+   * Domain's Project-owned (shared/curated) sources, not just ones the
+   * caller strictly owns — mirrors Skill's `isPublic || isOwner` read
+   * check, substituting "Project-owned" for "isPublic" (RcpSource has no
+   * public/private toggle of its own). Never use this for a mutation.
+   */
+  async getReadableRcpSourceById(id, userId, context = personaExecutionContext(userId)) {
+    const source = await rcpSourceRepository.findById(id);
+    if (!isResourceReadable(source, context, (s) => s.ownerType === 'Project')) {
       throw new NotFoundError('RCP source not found');
     }
     return source;

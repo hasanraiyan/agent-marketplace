@@ -26,7 +26,10 @@ class DeveloperRcpSourceController {
     try {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
-      const filters = { search: req.query.search };
+      const filters = {
+        search: req.query.search,
+        scope: req.query.scope === 'mine' ? 'mine' : undefined,
+      };
 
       const [sources, total] = await Promise.all([
         rcpSourceService.discoverRcpSources(req.projectContext, filters, { page, limit }),
@@ -42,7 +45,7 @@ class DeveloperRcpSourceController {
 
   async getOne(req, res, next) {
     try {
-      const source = await rcpSourceService.getRcpSourceById(
+      const source = await rcpSourceService.getReadableRcpSourceById(
         req.params.sourceId,
         undefined,
         req.projectContext
