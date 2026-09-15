@@ -1,5 +1,14 @@
 import Link from "next/link";
 import { getSdks } from "@/lib/docs/registry";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 export default function DocsHome() {
   const sdks = getSdks();
@@ -7,9 +16,9 @@ export default function DocsHome() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 space-y-10">
       <div className="space-y-3">
-        <div className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white shadow-xs">
+        <Badge variant="secondary" className="px-3 py-1 text-xs">
           Persona Platform Docs
-        </div>
+        </Badge>
         <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">
           Documentation
         </h1>
@@ -23,30 +32,34 @@ export default function DocsHome() {
           <Link
             key={sdk.id}
             href={`/docs/${sdk.id}/v${sdk.latest}`}
-            className="group relative flex flex-col justify-between rounded-xl border border-border bg-card p-6 shadow-xs transition-all hover:border-blue-600 hover:shadow-md"
+            className="group block"
           >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-base font-bold text-foreground group-hover:text-blue-600 transition-colors">
-                  {sdk.title}
-                </span>
-                <span className="rounded-md bg-blue-600 px-2 py-0.5 text-[11px] font-semibold text-white">
-                  v{sdk.latest}
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {sdk.description}
-              </p>
-            </div>
+            <Card className="h-full transition-all hover:bg-muted/40 hover:ring-1 hover:ring-border">
+              <CardHeader className="space-y-3 p-6">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="font-mono text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                    {sdk.title}
+                  </CardTitle>
+                  <Badge variant="secondary" className="font-mono text-[11px]">
+                    v{sdk.latest}
+                  </Badge>
+                </div>
+                <CardDescription className="text-sm text-muted-foreground leading-relaxed">
+                  {sdk.description}
+                </CardDescription>
+              </CardHeader>
 
-            <div className="mt-6 flex items-center justify-between border-t border-border/60 pt-4 text-xs">
-              <span className="text-muted-foreground font-mono">
-                {sdk.versions.length} version{sdk.versions.length > 1 ? "s" : ""}
-              </span>
-              <span className="flex items-center gap-1 font-semibold text-blue-600 group-hover:translate-x-0.5 transition-transform">
-                Read docs →
-              </span>
-            </div>
+              <Separator className="opacity-60" />
+
+              <CardFooter className="flex items-center justify-between p-4 text-xs">
+                <span className="text-muted-foreground font-mono">
+                  {sdk.versions.length} version{sdk.versions.length > 1 ? "s" : ""}
+                </span>
+                <span className="flex items-center gap-1 font-medium text-foreground group-hover:translate-x-0.5 transition-transform">
+                  Read docs →
+                </span>
+              </CardFooter>
+            </Card>
           </Link>
         ))}
       </div>

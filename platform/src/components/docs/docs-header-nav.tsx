@@ -2,33 +2,42 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { getSdks } from "@/lib/docs/registry";
 
 export function DocsHeaderNav() {
   const pathname = usePathname();
+  const sdks = getSdks();
 
-  const links = [
-    { label: "React", href: "/docs/react/v0.8.1", prefix: "/docs/react" },
-    { label: "SDK", href: "/docs/sdk/v0.7.5", prefix: "/docs/sdk" },
-    { label: "Runtime", href: "/docs/runtime/v0.9.5", prefix: "/docs/runtime" },
-    { label: "Adapters", href: "/docs/adapters/v0.1.0", prefix: "/docs/adapters" },
-  ];
+  const labels: Record<string, string> = {
+    react: "React",
+    sdk: "SDK",
+    runtime: "Runtime",
+    adapters: "Adapters",
+  };
 
   return (
     <nav className="flex items-center gap-1">
-      {links.map((link) => {
-        const isActive = pathname.startsWith(link.prefix);
+      {sdks.map((sdk) => {
+        const prefix = `/docs/${sdk.id}`;
+        const isActive = pathname.startsWith(prefix);
+        const href = `/docs/${sdk.id}/v${sdk.latest}`;
+        const label = labels[sdk.id] || sdk.id;
+
         return (
-          <Link
-            key={link.label}
-            href={link.href}
-            className={`rounded-md px-3 py-1.5 text-xs transition-colors ${
+          <Button
+            key={sdk.id}
+            variant={isActive ? "secondary" : "ghost"}
+            size="sm"
+            className={
               isActive
-                ? "bg-blue-600 text-white font-medium shadow-xs"
-                : "text-muted-foreground hover:bg-accent hover:text-foreground"
-            }`}
+                ? "font-medium text-foreground shadow-xs"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }
+            render={<Link href={href} />}
           >
-            {link.label}
-          </Link>
+            {label}
+          </Button>
         );
       })}
     </nav>

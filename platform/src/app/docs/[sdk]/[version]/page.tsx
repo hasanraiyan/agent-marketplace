@@ -3,6 +3,7 @@ import { readDoc, getDocsNavigation } from "@/lib/docs/mdx";
 import { DocsRenderer } from "@/components/docs/docs-renderer";
 import { DocsBreadcrumbs } from "@/components/docs/docs-breadcrumbs";
 import { DocsPager } from "@/components/docs/docs-pager";
+import { Badge } from "@/components/ui/badge";
 
 export default async function VersionIndex({
   params,
@@ -38,9 +39,9 @@ export default async function VersionIndex({
 
       <div className="space-y-2 border-b border-border pb-6">
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-blue-600 px-2.5 py-0.5 text-xs font-semibold text-white">
+          <Badge variant="secondary" className="font-mono text-xs">
             {sdk} v{v}
-          </span>
+          </Badge>
         </div>
         <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
           {doc.meta.title}

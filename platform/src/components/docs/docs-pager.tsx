@@ -1,5 +1,15 @@
+"use client";
+
 import Link from "next/link";
+import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { DocsNavItem } from "@/lib/docs/mdx";
+import { Separator } from "@/components/ui/separator";
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 interface DocsPagerProps {
   prev: DocsNavItem | null;
@@ -10,64 +20,51 @@ export function DocsPager({ prev, next }: DocsPagerProps) {
   if (!prev && !next) return null;
 
   return (
-    <div className="mt-12 flex flex-col gap-4 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
-      {prev ? (
-        <Link
-          href={prev.href}
-          className="group flex flex-col items-start gap-1 rounded-lg border border-border p-4 transition-all hover:border-blue-600 hover:bg-accent/40"
-        >
-          <span className="flex items-center gap-1 text-xs text-muted-foreground group-hover:text-blue-600">
-            <svg
-              className="h-3 w-3 transition-transform group-hover:-translate-x-0.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+    <div className="mt-12 space-y-6">
+      <Separator />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        {prev ? (
+          <Link href={prev.href} className="group flex-1">
+            <Card
+              size="sm"
+              className="transition-all hover:bg-muted/50 hover:ring-1 hover:ring-border"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            Previous
-          </span>
-          <span className="text-sm font-medium text-foreground group-hover:text-blue-600">
-            {prev.title}
-          </span>
-        </Link>
-      ) : (
-        <div />
-      )}
+              <CardHeader className="gap-1 p-4">
+                <CardDescription className="flex items-center gap-1 text-xs text-muted-foreground group-hover:text-foreground">
+                  <CaretLeftIcon className="size-3.5 transition-transform group-hover:-translate-x-0.5" />
+                  Previous
+                </CardDescription>
+                <CardTitle className="text-sm font-medium text-foreground">
+                  {prev.title}
+                </CardTitle>
+              </CardHeader>
+            </Card>
+          </Link>
+        ) : (
+          <div className="flex-1" />
+        )}
 
-      {next ? (
-        <Link
-          href={next.href}
-          className="group flex flex-col items-end gap-1 rounded-lg border border-border p-4 text-right transition-all hover:border-blue-600 hover:bg-accent/40"
-        >
-          <span className="flex items-center gap-1 text-xs text-muted-foreground group-hover:text-blue-600">
-            Next
-            <svg
-              className="h-3 w-3 transition-transform group-hover:translate-x-0.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+        {next ? (
+          <Link href={next.href} className="group flex-1">
+            <Card
+              size="sm"
+              className="text-right transition-all hover:bg-muted/50 hover:ring-1 hover:ring-border"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
-          </span>
-          <span className="text-sm font-medium text-foreground group-hover:text-blue-600">
-            {next.title}
-          </span>
-        </Link>
-      ) : (
-        <div />
-      )}
+              <CardHeader className="items-end gap-1 p-4">
+                <CardDescription className="flex items-center gap-1 text-xs text-muted-foreground group-hover:text-foreground">
+                  Next
+                  <CaretRightIcon className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+                </CardDescription>
+                <CardTitle className="text-sm font-medium text-foreground">
+                  {next.title}
+                </CardTitle>
+              </CardHeader>
+            </Card>
+          </Link>
+        ) : (
+          <div className="flex-1" />
+        )}
+      </div>
     </div>
   );
 }
