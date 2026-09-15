@@ -35,7 +35,9 @@ __export(index_exports, {
   useChat: () => useChat,
   useConnection: () => useConnection,
   useFiles: () => useFiles,
+  useKnowledgeBases: () => useKnowledgeBases,
   useMcp: () => useMcp,
+  useMcpAdmin: () => useMcpAdmin,
   useMcpConnections: () => useMcpConnections,
   useMemory: () => useMemory,
   usePersonaContext: () => usePersonaContext,
@@ -3173,28 +3175,475 @@ function useRcpSources(options = {}) {
   };
 }
 
-// src/hooks/useWorkflows.ts
+// src/hooks/useKnowledgeBases.ts
 var import_react14 = require("react");
+function useKnowledgeBases(options = {}) {
+  const { autoFetch = true, page, limit, search, scope } = options;
+  const { fetchWithAuth } = usePersonaContext();
+  const [knowledgeBases, setKnowledgeBases] = (0, import_react14.useState)([]);
+  const [pagination, setPagination] = (0, import_react14.useState)({
+    total: 0,
+    page: page ?? 1,
+    limit: limit ?? 20,
+    pages: 0
+  });
+  const [isLoading, setIsLoading] = (0, import_react14.useState)(false);
+  const [isUploading, setIsUploading] = (0, import_react14.useState)(false);
+  const [error, setError] = (0, import_react14.useState)(null);
+  const fetchKnowledgeBases = (0, import_react14.useCallback)(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const query = new URLSearchParams();
+      if (page) query.set("page", String(page));
+      if (limit) query.set("limit", String(limit));
+      if (search) query.set("search", search);
+      if (scope) query.set("scope", scope);
+      const queryStr = query.toString() ? `?${query.toString()}` : "";
+      const res = await fetchWithAuth(`/knowledge${queryStr}`);
+      if (!res.ok) throw new Error(`Failed to list knowledge bases: ${res.statusText}`);
+      const data = await res.json();
+      const items = Array.isArray(data) ? data : data?.items ?? [];
+      setKnowledgeBases(items);
+      setPagination(
+        data?.pagination ?? { total: items.length, page: 1, limit: items.length, pages: 1 }
+      );
+      return items;
+    } catch (err) {
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+      setError(errorObj);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchWithAuth, page, limit, search, scope]);
+  const getKnowledgeBase = (0, import_react14.useCallback)(
+    async (kbId) => {
+      const res = await fetchWithAuth(`/knowledge/${kbId}`);
+      if (!res.ok) throw new Error(`Failed to fetch knowledge base: ${res.statusText}`);
+      return res.json();
+    },
+    [fetchWithAuth]
+  );
+  const createKnowledgeBase = (0, import_react14.useCallback)(
+    async (input) => {
+      setError(null);
+      try {
+        const res = await fetchWithAuth("/knowledge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input)
+        });
+        if (!res.ok) {
+          const errText = await res.text().catch(() => res.statusText);
+          throw new Error(`Failed to create knowledge base (${res.status}): ${errText}`);
+        }
+        const created = await res.json();
+        setKnowledgeBases((prev) => [created, ...prev]);
+        return created;
+      } catch (err) {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        setError(errorObj);
+        throw errorObj;
+      }
+    },
+    [fetchWithAuth]
+  );
+  const updateKnowledgeBase = (0, import_react14.useCallback)(
+    async (kbId, input) => {
+      setError(null);
+      try {
+        const res = await fetchWithAuth(`/knowledge/${kbId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input)
+        });
+        if (!res.ok) {
+          const errText = await res.text().catch(() => res.statusText);
+          throw new Error(`Failed to update knowledge base (${res.status}): ${errText}`);
+        }
+        const updated = await res.json();
+        setKnowledgeBases((prev) => prev.map((kb) => kb._id === kbId ? updated : kb));
+        return updated;
+      } catch (err) {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        setError(errorObj);
+        throw errorObj;
+      }
+    },
+    [fetchWithAuth]
+  );
+  const deleteKnowledgeBase = (0, import_react14.useCallback)(
+    async (kbId) => {
+      setError(null);
+      try {
+        const res = await fetchWithAuth(`/knowledge/${kbId}`, { method: "DELETE" });
+        if (!res.ok) {
+          const errText = await res.text().catch(() => res.statusText);
+          throw new Error(`Failed to delete knowledge base (${res.status}): ${errText}`);
+        }
+        setKnowledgeBases((prev) => prev.filter((kb) => kb._id !== kbId));
+      } catch (err) {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        setError(errorObj);
+        throw errorObj;
+      }
+    },
+    [fetchWithAuth]
+  );
+  const bulkDeleteKnowledgeBases = (0, import_react14.useCallback)(
+    async (ids) => {
+      setError(null);
+      try {
+        const res = await fetchWithAuth("/knowledge/bulk-delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids })
+        });
+        if (!res.ok) {
+          const errText = await res.text().catch(() => res.statusText);
+          throw new Error(`Failed to bulk-delete knowledge bases (${res.status}): ${errText}`);
+        }
+        const result = await res.json();
+        const deletedSet = new Set(result.deleted);
+        setKnowledgeBases((prev) => prev.filter((kb) => !deletedSet.has(kb._id)));
+        return result;
+      } catch (err) {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        setError(errorObj);
+        throw errorObj;
+      }
+    },
+    [fetchWithAuth]
+  );
+  const getKnowledgeBaseUsage = (0, import_react14.useCallback)(
+    async (kbId) => {
+      const res = await fetchWithAuth(`/knowledge/${kbId}/usage`);
+      if (!res.ok) throw new Error(`Failed to fetch knowledge base usage: ${res.statusText}`);
+      return res.json();
+    },
+    [fetchWithAuth]
+  );
+  const uploadDocuments = (0, import_react14.useCallback)(
+    async (kbId, files) => {
+      setIsUploading(true);
+      setError(null);
+      try {
+        const body = new FormData();
+        for (const file of files) {
+          if (file.content instanceof Blob) {
+            body.append("files", file.content, file.filename);
+          } else {
+            body.append("files", {
+              uri: file.content.uri,
+              name: file.content.name ?? file.filename,
+              type: file.content.type ?? file.contentType
+            });
+          }
+        }
+        const res = await fetchWithAuth(`/knowledge/${kbId}/documents`, {
+          method: "POST",
+          body
+        });
+        if (!res.ok) {
+          const errText = await res.text().catch(() => res.statusText);
+          throw new Error(`Failed to upload documents (${res.status}): ${errText}`);
+        }
+        const result = await res.json();
+        setKnowledgeBases(
+          (prev) => prev.map(
+            (kb) => kb._id === kbId ? { ...kb, documentCount: result.documentCount, chunkCount: result.chunkCount } : kb
+          )
+        );
+        return result;
+      } catch (err) {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        setError(errorObj);
+        throw errorObj;
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [fetchWithAuth]
+  );
+  const listDocuments = (0, import_react14.useCallback)(
+    async (kbId) => {
+      const res = await fetchWithAuth(`/knowledge/${kbId}/documents`);
+      if (!res.ok) throw new Error(`Failed to list documents: ${res.statusText}`);
+      return res.json();
+    },
+    [fetchWithAuth]
+  );
+  const deleteDocument = (0, import_react14.useCallback)(
+    async (kbId, sourceName) => {
+      setError(null);
+      try {
+        const res = await fetchWithAuth(
+          `/knowledge/${kbId}/documents/${encodeURIComponent(sourceName)}`,
+          { method: "DELETE" }
+        );
+        if (!res.ok) {
+          const errText = await res.text().catch(() => res.statusText);
+          throw new Error(`Failed to delete document (${res.status}): ${errText}`);
+        }
+        const result = await res.json();
+        setKnowledgeBases(
+          (prev) => prev.map(
+            (kb) => kb._id === kbId ? { ...kb, documentCount: result.remainingDocuments, chunkCount: result.remainingChunks } : kb
+          )
+        );
+        return result;
+      } catch (err) {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        setError(errorObj);
+        throw errorObj;
+      }
+    },
+    [fetchWithAuth]
+  );
+  const searchKnowledgeBase = (0, import_react14.useCallback)(
+    async (kbId, query, opts) => {
+      const res = await fetchWithAuth(`/knowledge/${kbId}/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, topK: opts?.topK })
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => res.statusText);
+        throw new Error(`Failed to search knowledge base (${res.status}): ${errText}`);
+      }
+      return res.json();
+    },
+    [fetchWithAuth]
+  );
+  (0, import_react14.useEffect)(() => {
+    if (autoFetch) void fetchKnowledgeBases();
+  }, [autoFetch, fetchKnowledgeBases]);
+  return {
+    knowledgeBases,
+    pagination,
+    isLoading,
+    isUploading,
+    error,
+    refetch: fetchKnowledgeBases,
+    getKnowledgeBase,
+    createKnowledgeBase,
+    updateKnowledgeBase,
+    deleteKnowledgeBase,
+    bulkDeleteKnowledgeBases,
+    getKnowledgeBaseUsage,
+    uploadDocuments,
+    listDocuments,
+    deleteDocument,
+    search: searchKnowledgeBase
+  };
+}
+
+// src/hooks/useMcpAdmin.ts
+var import_react15 = require("react");
+function useMcpAdmin(options = {}) {
+  const { autoFetch = true, page, limit, search } = options;
+  const { fetchWithAuth } = usePersonaContext();
+  const [mcps, setMcps] = (0, import_react15.useState)([]);
+  const [pagination, setPagination] = (0, import_react15.useState)({
+    total: 0,
+    page: page ?? 1,
+    limit: limit ?? 20,
+    pages: 0
+  });
+  const [isLoading, setIsLoading] = (0, import_react15.useState)(false);
+  const [error, setError] = (0, import_react15.useState)(null);
+  const fetchMcps = (0, import_react15.useCallback)(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const query = new URLSearchParams();
+      if (page) query.set("page", String(page));
+      if (limit) query.set("limit", String(limit));
+      if (search) query.set("search", search);
+      query.set("scope", "mine");
+      const res = await fetchWithAuth(`/mcps?${query.toString()}`);
+      if (!res.ok) throw new Error(`Failed to list MCPs: ${res.statusText}`);
+      const data = await res.json();
+      const items = Array.isArray(data) ? data : data?.items ?? [];
+      setMcps(items);
+      setPagination(
+        data?.pagination ?? { total: items.length, page: 1, limit: items.length, pages: 1 }
+      );
+      return items;
+    } catch (err) {
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+      setError(errorObj);
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchWithAuth, page, limit, search]);
+  const getMcp = (0, import_react15.useCallback)(
+    async (mcpId) => {
+      const res = await fetchWithAuth(`/mcps/${mcpId}`);
+      if (!res.ok) throw new Error(`Failed to fetch MCP: ${res.statusText}`);
+      return res.json();
+    },
+    [fetchWithAuth]
+  );
+  const createMcp = (0, import_react15.useCallback)(
+    async (input) => {
+      setError(null);
+      try {
+        const res = await fetchWithAuth("/mcps", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input)
+        });
+        if (!res.ok) {
+          const errText = await res.text().catch(() => res.statusText);
+          throw new Error(`Failed to create MCP (${res.status}): ${errText}`);
+        }
+        const created = await res.json();
+        setMcps((prev) => [created, ...prev]);
+        return created;
+      } catch (err) {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        setError(errorObj);
+        throw errorObj;
+      }
+    },
+    [fetchWithAuth]
+  );
+  const updateMcp = (0, import_react15.useCallback)(
+    async (mcpId, input) => {
+      setError(null);
+      try {
+        const res = await fetchWithAuth(`/mcps/${mcpId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input)
+        });
+        if (!res.ok) {
+          const errText = await res.text().catch(() => res.statusText);
+          throw new Error(`Failed to update MCP (${res.status}): ${errText}`);
+        }
+        const updated = await res.json();
+        setMcps((prev) => prev.map((m) => m._id === mcpId ? updated : m));
+        return updated;
+      } catch (err) {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        setError(errorObj);
+        throw errorObj;
+      }
+    },
+    [fetchWithAuth]
+  );
+  const deleteMcp = (0, import_react15.useCallback)(
+    async (mcpId) => {
+      setError(null);
+      try {
+        const res = await fetchWithAuth(`/mcps/${mcpId}`, { method: "DELETE" });
+        if (!res.ok) {
+          const errText = await res.text().catch(() => res.statusText);
+          throw new Error(`Failed to delete MCP (${res.status}): ${errText}`);
+        }
+        setMcps((prev) => prev.filter((m) => m._id !== mcpId));
+      } catch (err) {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        setError(errorObj);
+        throw errorObj;
+      }
+    },
+    [fetchWithAuth]
+  );
+  const bulkDeleteMcps = (0, import_react15.useCallback)(
+    async (ids) => {
+      setError(null);
+      try {
+        const res = await fetchWithAuth("/mcps/bulk-delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids })
+        });
+        if (!res.ok) {
+          const errText = await res.text().catch(() => res.statusText);
+          throw new Error(`Failed to bulk-delete MCPs (${res.status}): ${errText}`);
+        }
+        const result = await res.json();
+        const deletedSet = new Set(result.deleted);
+        setMcps((prev) => prev.filter((m) => !deletedSet.has(m._id)));
+        return result;
+      } catch (err) {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        setError(errorObj);
+        throw errorObj;
+      }
+    },
+    [fetchWithAuth]
+  );
+  const testConnection = (0, import_react15.useCallback)(
+    async (mcpId) => {
+      setError(null);
+      try {
+        const res = await fetchWithAuth(`/mcps/${mcpId}/test`, { method: "POST" });
+        if (!res.ok) {
+          const errText = await res.text().catch(() => res.statusText);
+          throw new Error(`Failed to test MCP connection (${res.status}): ${errText}`);
+        }
+        const result = await res.json();
+        setMcps(
+          (prev) => prev.map(
+            (m) => m._id === mcpId ? { ...m, tools: result.tools, resources: result.resources, resourceTemplates: result.resourceTemplates } : m
+          )
+        );
+        return result;
+      } catch (err) {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        setError(errorObj);
+        throw errorObj;
+      }
+    },
+    [fetchWithAuth]
+  );
+  (0, import_react15.useEffect)(() => {
+    if (autoFetch) void fetchMcps();
+  }, [autoFetch, fetchMcps]);
+  return {
+    mcps,
+    pagination,
+    isLoading,
+    error,
+    refetch: fetchMcps,
+    getMcp,
+    createMcp,
+    updateMcp,
+    deleteMcp,
+    bulkDeleteMcps,
+    testConnection
+  };
+}
+
+// src/hooks/useWorkflows.ts
+var import_react16 = require("react");
 function useWorkflows(options) {
   const opts = typeof options === "boolean" ? { autoFetch: options } : options ?? {};
-  const { autoFetch = true, search, status, page, limit } = opts;
+  const { autoFetch = true, search, scope, visibility, isEnabled, page, limit } = opts;
   const { fetchWithAuth } = usePersonaContext();
-  const [workflows, setWorkflows] = (0, import_react14.useState)([]);
-  const [pagination, setPagination] = (0, import_react14.useState)({
+  const [workflows, setWorkflows] = (0, import_react16.useState)([]);
+  const [pagination, setPagination] = (0, import_react16.useState)({
     page: page ?? 1,
     limit: limit ?? 20,
     total: 0,
     totalPages: 0
   });
-  const [isLoading, setIsLoading] = (0, import_react14.useState)(false);
-  const [error, setError] = (0, import_react14.useState)(null);
-  const fetchWorkflows = (0, import_react14.useCallback)(async () => {
+  const [isLoading, setIsLoading] = (0, import_react16.useState)(false);
+  const [error, setError] = (0, import_react16.useState)(null);
+  const fetchWorkflows = (0, import_react16.useCallback)(async () => {
     setIsLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
-      if (status) params.set("status", status);
+      if (scope) params.set("scope", scope);
+      if (visibility) params.set("visibility", visibility);
+      if (isEnabled !== void 0) params.set("isEnabled", String(isEnabled));
       if (page) params.set("page", String(page));
       if (limit) params.set("limit", String(limit));
       const queryStr = params.toString() ? `?${params.toString()}` : "";
@@ -3203,7 +3652,7 @@ function useWorkflows(options) {
         throw new Error(`Failed to list workflows: ${res.statusText}`);
       }
       const data = await res.json();
-      const items = Array.isArray(data) ? data : data?.items || data?.workflows || [];
+      const items = Array.isArray(data) ? data : data?.items ?? [];
       setWorkflows(items);
       if (data?.pagination) {
         setPagination({
@@ -3231,8 +3680,8 @@ function useWorkflows(options) {
     } finally {
       setIsLoading(false);
     }
-  }, [fetchWithAuth, search, status, page, limit]);
-  const createWorkflow = (0, import_react14.useCallback)(
+  }, [fetchWithAuth, search, scope, visibility, isEnabled, page, limit]);
+  const createWorkflow = (0, import_react16.useCallback)(
     async (input) => {
       setError(null);
       try {
@@ -3256,7 +3705,7 @@ function useWorkflows(options) {
     },
     [fetchWithAuth]
   );
-  (0, import_react14.useEffect)(() => {
+  (0, import_react16.useEffect)(() => {
     if (autoFetch) {
       void fetchWorkflows();
     }
@@ -3272,17 +3721,17 @@ function useWorkflows(options) {
 }
 
 // src/hooks/useWorkflow.ts
-var import_react15 = require("react");
+var import_react17 = require("react");
 function useWorkflow(workflowId, options) {
   const opts = typeof options === "boolean" ? { autoFetch: options } : options ?? {};
   const { autoFetch = true } = opts;
   const { fetchWithAuth } = usePersonaContext();
-  const [workflow, setWorkflow] = (0, import_react15.useState)(null);
-  const [versions, setVersions] = (0, import_react15.useState)([]);
-  const [mermaid, setMermaid] = (0, import_react15.useState)(null);
-  const [isLoading, setIsLoading] = (0, import_react15.useState)(false);
-  const [error, setError] = (0, import_react15.useState)(null);
-  const fetchWorkflow = (0, import_react15.useCallback)(async () => {
+  const [workflow, setWorkflow] = (0, import_react17.useState)(null);
+  const [versions, setVersions] = (0, import_react17.useState)([]);
+  const [mermaid, setMermaid] = (0, import_react17.useState)(null);
+  const [isLoading, setIsLoading] = (0, import_react17.useState)(false);
+  const [error, setError] = (0, import_react17.useState)(null);
+  const fetchWorkflow = (0, import_react17.useCallback)(async () => {
     if (!workflowId) return null;
     setIsLoading(true);
     setError(null);
@@ -3302,20 +3751,31 @@ function useWorkflow(workflowId, options) {
       setIsLoading(false);
     }
   }, [fetchWithAuth, workflowId]);
-  const fetchVersions = (0, import_react15.useCallback)(async () => {
+  const fetchVersions = (0, import_react17.useCallback)(async () => {
     if (!workflowId) return [];
     try {
       const res = await fetchWithAuth(`/workflows/${workflowId}/versions`);
       if (!res.ok) return [];
       const data = await res.json();
-      const items = Array.isArray(data) ? data : data?.items || [];
+      const items = Array.isArray(data) ? data : data?.items ?? [];
       setVersions(items);
       return items;
     } catch {
       return [];
     }
   }, [fetchWithAuth, workflowId]);
-  const fetchMermaid = (0, import_react15.useCallback)(async () => {
+  const getVersion = (0, import_react17.useCallback)(
+    async (version) => {
+      if (!workflowId) throw new Error("Workflow ID is required");
+      const res = await fetchWithAuth(`/workflows/${workflowId}/versions/${version}`);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch workflow version (${res.status}): ${res.statusText}`);
+      }
+      return await res.json();
+    },
+    [fetchWithAuth, workflowId]
+  );
+  const fetchMermaid = (0, import_react17.useCallback)(async () => {
     if (!workflowId) return "";
     try {
       const res = await fetchWithAuth(`/workflows/${workflowId}/mermaid`);
@@ -3328,14 +3788,33 @@ function useWorkflow(workflowId, options) {
       return "";
     }
   }, [fetchWithAuth, workflowId]);
-  const saveDraft = (0, import_react15.useCallback)(
+  const updateWorkflow = (0, import_react17.useCallback)(
+    async (input) => {
+      if (!workflowId) throw new Error("Workflow ID is required");
+      setError(null);
+      const res = await fetchWithAuth(`/workflows/${workflowId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input)
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => res.statusText);
+        throw new Error(`Failed to update workflow (${res.status}): ${errText}`);
+      }
+      const updated = await res.json();
+      setWorkflow(updated);
+      return updated;
+    },
+    [fetchWithAuth, workflowId]
+  );
+  const saveDraft = (0, import_react17.useCallback)(
     async (draft) => {
       if (!workflowId) throw new Error("Workflow ID is required");
       setError(null);
       const res = await fetchWithAuth(`/workflows/${workflowId}/draft`, {
-        method: "POST",
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ draft })
+        body: JSON.stringify(draft)
       });
       if (!res.ok) {
         const errText = await res.text().catch(() => res.statusText);
@@ -3347,27 +3826,22 @@ function useWorkflow(workflowId, options) {
     },
     [fetchWithAuth, workflowId]
   );
-  const publish = (0, import_react15.useCallback)(
-    async (summary) => {
-      if (!workflowId) throw new Error("Workflow ID is required");
-      setError(null);
-      const res = await fetchWithAuth(`/workflows/${workflowId}/publish`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(summary ? { summary } : {})
-      });
-      if (!res.ok) {
-        const errText = await res.text().catch(() => res.statusText);
-        throw new Error(`Failed to publish workflow (${res.status}): ${errText}`);
-      }
-      const versionResult = await res.json();
-      void fetchWorkflow();
-      void fetchVersions();
-      return versionResult;
-    },
-    [fetchWithAuth, workflowId, fetchWorkflow, fetchVersions]
-  );
-  const deleteWorkflow = (0, import_react15.useCallback)(async () => {
+  const publish = (0, import_react17.useCallback)(async () => {
+    if (!workflowId) throw new Error("Workflow ID is required");
+    setError(null);
+    const res = await fetchWithAuth(`/workflows/${workflowId}/publish`, {
+      method: "POST"
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => res.statusText);
+      throw new Error(`Failed to publish workflow (${res.status}): ${errText}`);
+    }
+    const versionResult = await res.json();
+    void fetchWorkflow();
+    void fetchVersions();
+    return versionResult;
+  }, [fetchWithAuth, workflowId, fetchWorkflow, fetchVersions]);
+  const deleteWorkflow = (0, import_react17.useCallback)(async () => {
     if (!workflowId) throw new Error("Workflow ID is required");
     setError(null);
     const res = await fetchWithAuth(`/workflows/${workflowId}`, {
@@ -3378,7 +3852,7 @@ function useWorkflow(workflowId, options) {
     }
     setWorkflow(null);
   }, [fetchWithAuth, workflowId]);
-  (0, import_react15.useEffect)(() => {
+  (0, import_react17.useEffect)(() => {
     if (autoFetch && workflowId) {
       void fetchWorkflow();
     }
@@ -3391,7 +3865,9 @@ function useWorkflow(workflowId, options) {
     error,
     refetch: fetchWorkflow,
     fetchVersions,
+    getVersion,
     fetchMermaid,
+    updateWorkflow,
     saveDraft,
     publish,
     deleteWorkflow
@@ -3399,25 +3875,25 @@ function useWorkflow(workflowId, options) {
 }
 
 // src/hooks/useWorkflowStream.ts
-var import_react16 = require("react");
+var import_react18 = require("react");
 function useWorkflowStream(workflowId, options) {
   const { baseUrl, getAuthToken, fetchWithAuth, logger } = usePersonaContext();
-  const [status, setStatus] = (0, import_react16.useState)("idle");
-  const [runId, setRunId] = (0, import_react16.useState)(null);
-  const [activeNodeId, setActiveNodeId] = (0, import_react16.useState)(null);
-  const [nodeRuns, setNodeRuns] = (0, import_react16.useState)(
+  const [status, setStatus] = (0, import_react18.useState)("idle");
+  const [runId, setRunId] = (0, import_react18.useState)(null);
+  const [activeNodeId, setActiveNodeId] = (0, import_react18.useState)(null);
+  const [nodeRuns, setNodeRuns] = (0, import_react18.useState)(
     {}
   );
-  const [text, setText] = (0, import_react16.useState)("");
-  const [output, setOutput] = (0, import_react16.useState)(null);
-  const [error, setError] = (0, import_react16.useState)(null);
-  const [events, setEvents] = (0, import_react16.useState)([]);
-  const abortControllerRef = (0, import_react16.useRef)(null);
-  const currentRunIdRef = (0, import_react16.useRef)(null);
+  const [text, setText] = (0, import_react18.useState)("");
+  const [output, setOutput] = (0, import_react18.useState)(null);
+  const [error, setError] = (0, import_react18.useState)(null);
+  const [events, setEvents] = (0, import_react18.useState)([]);
+  const abortControllerRef = (0, import_react18.useRef)(null);
+  const currentRunIdRef = (0, import_react18.useRef)(null);
   currentRunIdRef.current = runId;
-  const optionsRef = (0, import_react16.useRef)(options);
+  const optionsRef = (0, import_react18.useRef)(options);
   optionsRef.current = options;
-  const cancel = (0, import_react16.useCallback)(async () => {
+  const cancel = (0, import_react18.useCallback)(async () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
@@ -3438,7 +3914,7 @@ function useWorkflowStream(workflowId, options) {
     setStatus("cancelled");
     setActiveNodeId(null);
   }, [fetchWithAuth, logger]);
-  const reset = (0, import_react16.useCallback)(() => {
+  const reset = (0, import_react18.useCallback)(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
@@ -3452,7 +3928,7 @@ function useWorkflowStream(workflowId, options) {
     setError(null);
     setEvents([]);
   }, []);
-  const processStream = (0, import_react16.useCallback)(
+  const processStream = (0, import_react18.useCallback)(
     async (url, method, body, targetRunId) => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -3617,7 +4093,7 @@ function useWorkflowStream(workflowId, options) {
     },
     [getAuthToken]
   );
-  const start = (0, import_react16.useCallback)(
+  const start = (0, import_react18.useCallback)(
     async (input, opts) => {
       const targetWfId = opts?.workflowId || workflowId;
       if (!targetWfId) {
@@ -3638,7 +4114,7 @@ function useWorkflowStream(workflowId, options) {
     },
     [workflowId, baseUrl, processStream]
   );
-  const resume = (0, import_react16.useCallback)(
+  const resume = (0, import_react18.useCallback)(
     async (targetRunId, sinceSeq) => {
       if (!targetRunId) {
         throw new Error("Run ID is required to resume stream");
@@ -3651,7 +4127,7 @@ function useWorkflowStream(workflowId, options) {
     },
     [baseUrl, processStream]
   );
-  (0, import_react16.useEffect)(() => {
+  (0, import_react18.useEffect)(() => {
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -3676,21 +4152,21 @@ function useWorkflowStream(workflowId, options) {
 }
 
 // src/hooks/useWorkflowRuns.ts
-var import_react17 = require("react");
+var import_react19 = require("react");
 function useWorkflowRuns(workflowId, options) {
   const opts = typeof options === "boolean" ? { autoFetch: options } : options ?? {};
   const { autoFetch = true, page = 1, limit = 20 } = opts;
   const { fetchWithAuth } = usePersonaContext();
-  const [runs, setRuns] = (0, import_react17.useState)([]);
-  const [pagination, setPagination] = (0, import_react17.useState)({
+  const [runs, setRuns] = (0, import_react19.useState)([]);
+  const [pagination, setPagination] = (0, import_react19.useState)({
     page,
     limit,
     total: 0,
     totalPages: 0
   });
-  const [isLoading, setIsLoading] = (0, import_react17.useState)(false);
-  const [error, setError] = (0, import_react17.useState)(null);
-  const fetchRuns = (0, import_react17.useCallback)(async () => {
+  const [isLoading, setIsLoading] = (0, import_react19.useState)(false);
+  const [error, setError] = (0, import_react19.useState)(null);
+  const fetchRuns = (0, import_react19.useCallback)(async () => {
     if (!workflowId) return [];
     setIsLoading(true);
     setError(null);
@@ -3701,14 +4177,16 @@ function useWorkflowRuns(workflowId, options) {
         throw new Error(`Failed to list workflow runs: ${res.statusText}`);
       }
       const data = await res.json();
-      const items = Array.isArray(data) ? data : data?.items || data?.runs || [];
+      const items = Array.isArray(data) ? data : data?.items ?? [];
       setRuns(items);
       if (data?.pagination) {
         setPagination({
           page: data.pagination.page ?? page,
           limit: data.pagination.limit ?? limit,
           total: data.pagination.total ?? items.length,
-          totalPages: data.pagination.totalPages ?? 1
+          // Backend's paginationEnvelope() names this field `pages`, not
+          // `totalPages`.
+          totalPages: data.pagination.pages ?? 1
         });
       }
       return items;
@@ -3720,7 +4198,7 @@ function useWorkflowRuns(workflowId, options) {
       setIsLoading(false);
     }
   }, [fetchWithAuth, workflowId, page, limit]);
-  const getRun = (0, import_react17.useCallback)(
+  const getRun = (0, import_react19.useCallback)(
     async (runId) => {
       if (!runId) throw new Error("Run ID is required");
       const res = await fetchWithAuth(`/workflows/runs/${runId}`);
@@ -3731,7 +4209,7 @@ function useWorkflowRuns(workflowId, options) {
     },
     [fetchWithAuth]
   );
-  const cancelRun = (0, import_react17.useCallback)(
+  const cancelRun = (0, import_react19.useCallback)(
     async (runId) => {
       if (!runId) throw new Error("Run ID is required");
       const res = await fetchWithAuth(`/workflows/runs/${runId}/cancel`, {
@@ -3746,7 +4224,7 @@ function useWorkflowRuns(workflowId, options) {
     },
     [fetchWithAuth]
   );
-  (0, import_react17.useEffect)(() => {
+  (0, import_react19.useEffect)(() => {
     if (autoFetch && workflowId) {
       void fetchRuns();
     }
@@ -3782,7 +4260,9 @@ var VERSION = "0.10.0";
   useChat,
   useConnection,
   useFiles,
+  useKnowledgeBases,
   useMcp,
+  useMcpAdmin,
   useMcpConnections,
   useMemory,
   usePersonaContext,

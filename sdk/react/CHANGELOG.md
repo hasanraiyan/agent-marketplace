@@ -3,6 +3,49 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.14.0
+
+**Breaking:** the entire Workflows type surface had drifted from `@personaai/sdk`'s real
+wire shapes (never actually matched the backend) and is now corrected to mirror them
+exactly. If you were using these types against the real API, they were already broken —
+this is a strict fix, not a behavior change to anything that worked before:
+
+- `PersonaWorkflowDraft.triggers: PersonaWorkflowTrigger[]` → `.trigger?: PersonaWorkflowTrigger`
+  (singular — the backend never accepted an array here).
+- `PersonaWorkflowSummary`/`PersonaWorkflow.status` (a `"draft"|"published"|"archived"` enum),
+  `.slug`, `.tags`, `.activeVersion`, `.ownerId` — none of these exist on the real `Workflow`
+  document. Replaced by one corrected `PersonaWorkflow` type with the real fields
+  (`isEnabled`, `visibility`, `ownerType`/`externalOwnerId`, `publishedVersion`, `activeRuns`).
+- `PersonaWorkflowNode.type` — the enum values were invented
+  (`agent`/`tool`/`code`/`human_review`); real values are
+  `agentStep`/`knowledgeStep`/`toolStep`/`approval`/`join`/`output` (plus `trigger`/
+  `condition`/`parallel`, unchanged). `.data` is now the real structured
+  `{ label, description?, config?, retryPolicy?, onError? }`, not a bare `Record<string, unknown>`.
+- `PersonaWorkflowVersionSummary` (had a nonexistent `.summary` field) → `PersonaWorkflowVersion`,
+  matching the real `{ definition, agentSnapshots?, publishedBy?, publishedAt, ... }` shape.
+- `PersonaWorkflowRunSummary.status` included `"pending"` (doesn't exist) and was missing
+  `"paused"` (does exist) → `PersonaWorkflowRun.status: PersonaWorkflowRunStatus`, plus the
+  rest of the real run record (`triggeredBy`, `nodeRuns: PersonaNodeRun[]`, `pendingApproval`,
+  `usage`, `threadId`, ...).
+- `CreateWorkflowInput`/`UpdateWorkflowInput` (had `.slug`/`.tags`, neither exists) →
+  `CreatePersonaWorkflowInput`/`UpdatePersonaWorkflowInput`.
+- `UseWorkflowsOptions.status` (a run-status filter that was never a valid workflow-discovery
+  param) → `.scope`/`.visibility`/`.isEnabled`, the real filters `list()` accepts.
+
+Also fixed, found while correcting the above:
+- **`useWorkflow`'s `saveDraft` was broken** — sent `POST` with `{ draft }` as the body; the
+  runtime route is `PUT /workflows/:id/draft` and expects the draft object directly, not
+  wrapped. This 404'd (wrong method) on every real call.
+- `useWorkflowRuns` had the same `data.pagination.totalPages` bug `useWorkflows` did in
+  0.11.0 (real field is `pages`) — fixed.
+- **New:** `useWorkflow`'s `updateWorkflow` (`PATCH /workflows/:id` — metadata: name/
+  description/visibility/isEnabled, separate from `saveDraft`'s node-graph autosave) and
+  `getVersion` (`GET /workflows/:id/versions/:version` — one full version's definition, not
+  just the summary list `fetchVersions` returns). Completes level 6/6 of the self-serve
+  resource CRUD series (Agent/Workflow/MCP/RCP Source/Knowledge Base/Skill).
+- `publish()` no longer takes a `summary` argument — the runtime route never read the
+  request body at all, so it never did anything.
+
 ## 0.13.0
 
 - **New: `useMcpAdmin(options)`.** Self-serve CRUD for the calling end

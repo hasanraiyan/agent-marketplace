@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePersonaContext } from "../context/PersonaContext.js";
 import type {
-  PersonaWorkflowRunSummary,
+  PersonaWorkflowRun,
   UseWorkflowRunsOptions,
 } from "../types.js";
 
@@ -16,7 +16,7 @@ export function useWorkflowRuns(
   const { autoFetch = true, page = 1, limit = 20 } = opts;
 
   const { fetchWithAuth } = usePersonaContext();
-  const [runs, setRuns] = useState<PersonaWorkflowRunSummary[]>([]);
+  const [runs, setRuns] = useState<PersonaWorkflowRun[]>([]);
   const [pagination, setPagination] = useState({
     page,
     limit,
@@ -37,9 +37,9 @@ export function useWorkflowRuns(
         throw new Error(`Failed to list workflow runs: ${res.statusText}`);
       }
       const data = await res.json();
-      const items: PersonaWorkflowRunSummary[] = Array.isArray(data)
+      const items: PersonaWorkflowRun[] = Array.isArray(data)
         ? data
-        : data?.items || data?.runs || [];
+        : (data?.items ?? []);
       setRuns(items);
 
       if (data?.pagination) {
@@ -47,7 +47,9 @@ export function useWorkflowRuns(
           page: data.pagination.page ?? page,
           limit: data.pagination.limit ?? limit,
           total: data.pagination.total ?? items.length,
-          totalPages: data.pagination.totalPages ?? 1,
+          // Backend's paginationEnvelope() names this field `pages`, not
+          // `totalPages`.
+          totalPages: data.pagination.pages ?? 1,
         });
       }
       return items;
@@ -61,13 +63,13 @@ export function useWorkflowRuns(
   }, [fetchWithAuth, workflowId, page, limit]);
 
   const getRun = useCallback(
-    async (runId: string): Promise<PersonaWorkflowRunSummary> => {
+    async (runId: string): Promise<PersonaWorkflowRun> => {
       if (!runId) throw new Error("Run ID is required");
       const res = await fetchWithAuth(`/workflows/runs/${runId}`);
       if (!res.ok) {
         throw new Error(`Failed to fetch workflow run (${res.status}): ${res.statusText}`);
       }
-      return (await res.json()) as PersonaWorkflowRunSummary;
+      return (await res.json()) as PersonaWorkflowRun;
     },
     [fetchWithAuth],
   );

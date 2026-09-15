@@ -477,15 +477,31 @@ interface UseVoiceResult {
      */
     updateContext: (context: Record<string, unknown>) => void;
 }
-type PersonaWorkflowNodeType = "trigger" | "agent" | "tool" | "condition" | "parallel" | "code" | "human_review" | (string & {});
+type PersonaWorkflowNodeType = "trigger" | "agentStep" | "knowledgeStep" | "toolStep" | "condition" | "approval" | "parallel" | "join" | "output";
+type PersonaWorkflowTriggerType = "manual" | "api" | "webhook" | "schedule" | "chat";
+type PersonaWorkflowVisibility = "private" | "unlisted" | "public";
+type PersonaWorkflowOwnerType = "Project" | "ExternalUser";
+type PersonaNodeOnErrorAction = "fail" | "continue" | "routeError";
+interface PersonaNodeRetryPolicy {
+    maxRetries?: number;
+    backoffMs?: number;
+    exponential?: boolean;
+}
+interface PersonaWorkflowNodeData {
+    label: string;
+    description?: string;
+    config?: Record<string, unknown>;
+    retryPolicy?: PersonaNodeRetryPolicy;
+    onError?: PersonaNodeOnErrorAction;
+}
 interface PersonaWorkflowNode {
     id: string;
     type: PersonaWorkflowNodeType;
-    position: {
+    position?: {
         x: number;
         y: number;
     };
-    data: Record<string, unknown>;
+    data: PersonaWorkflowNodeData;
 }
 interface PersonaWorkflowEdge {
     id: string;
@@ -493,55 +509,110 @@ interface PersonaWorkflowEdge {
     target: string;
     sourceHandle?: string;
     targetHandle?: string;
-    label?: string;
+    condition?: unknown;
+    conditionValue?: string;
 }
 interface PersonaWorkflowTrigger {
-    type: "manual" | "webhook" | "schedule" | "event" | (string & {});
+    type: PersonaWorkflowTriggerType;
     config?: Record<string, unknown>;
 }
 interface PersonaWorkflowDraft {
     nodes: PersonaWorkflowNode[];
     edges: PersonaWorkflowEdge[];
-    triggers?: PersonaWorkflowTrigger[];
-    settings?: Record<string, unknown>;
+    /** Singular — a draft has at most one trigger, not an array of them. */
+    trigger?: PersonaWorkflowTrigger;
 }
-interface PersonaWorkflowSummary {
+interface PersonaWorkflow {
     _id: string;
+    domain?: string;
+    projectId?: string;
     name: string;
-    slug?: string;
     description?: string;
-    status: "draft" | "published" | "archived";
-    visibility?: "private" | "public";
-    activeVersion?: number;
-    tags?: string[];
+    isEnabled: boolean;
+    visibility: PersonaWorkflowVisibility;
+    ownerType: PersonaWorkflowOwnerType;
+    externalOwnerId?: string | null;
+    draft: PersonaWorkflowDraft;
+    /** `0` until `publish()` has been called at least once. */
+    publishedVersion: number;
+    activeRuns: number;
     createdAt: string;
     updatedAt: string;
 }
-interface PersonaWorkflow extends PersonaWorkflowSummary {
-    draft: PersonaWorkflowDraft;
-    triggers?: PersonaWorkflowTrigger[];
-    ownerId?: string;
-    projectId?: string;
+interface PersonaAgentSnapshot {
+    modelName: string;
+    systemPrompt: string;
+    tools?: string[];
 }
-interface PersonaWorkflowVersionSummary {
+/** A published, immutable snapshot of a workflow's draft — what `stream()` actually executes. */
+interface PersonaWorkflowVersion {
     _id: string;
     workflowId: string;
+    projectId: string;
     version: number;
-    summary?: string;
+    definition: PersonaWorkflowDraft;
+    agentSnapshots?: Record<string, PersonaAgentSnapshot>;
+    publishedBy?: string;
+    publishedAt: string;
     createdAt: string;
+    updatedAt: string;
 }
-interface PersonaWorkflowRunSummary {
-    _id: string;
-    workflowId: string;
-    version: number;
-    status: "pending" | "running" | "completed" | "failed" | "cancelled";
-    startedAt?: string;
-    finishedAt?: string;
-    durationMs?: number;
+type PersonaWorkflowRunStatus = "queued" | "running" | "paused" | "completed" | "failed" | "cancelled";
+type PersonaNodeRunStatus = "running" | "completed" | "failed" | "skipped" | "paused";
+/** One node's persisted run record, as returned by the REST API after the fact — distinct from `PersonaNodeRunState` below, which is the *live*, client-derived state `useWorkflowStream` builds up from AG-UI events while a run is still in progress. */
+interface PersonaNodeRun {
+    nodeId: string;
+    nodeType: string;
+    status: PersonaNodeRunStatus;
+    input?: unknown;
+    output?: unknown;
     error?: string;
-    isDryRun?: boolean;
-    createdAt: string;
+    retriesTaken: number;
+    durationMs: number;
+    tokens: number;
+    startedAt: string;
+    endedAt?: string;
 }
+interface PersonaWorkflowUsage {
+    totalTokens: number;
+    agentTurns: number;
+    toolCalls: number;
+    creditsDeducted: number;
+}
+interface PersonaWorkflowRun {
+    _id: string;
+    workflowId: string;
+    workflowVersion: number;
+    projectId: string;
+    triggeredBy: {
+        type: PersonaWorkflowTriggerType;
+        userId?: string;
+        details?: unknown;
+    };
+    status: PersonaWorkflowRunStatus;
+    isDryRun: boolean;
+    nodeRuns: PersonaNodeRun[];
+    pendingApproval?: {
+        nodeId?: string;
+        prompt?: string;
+        options?: string[];
+        requestedAt?: string;
+    };
+    output?: unknown;
+    usage?: PersonaWorkflowUsage;
+    threadId: string;
+    startedAt: string;
+    endedAt?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+/**
+ * Live, client-derived state for one node during an in-progress
+ * `useWorkflowStream` run — built up from `workflow_node_started`/
+ * `_completed`/`_failed` AG-UI events, not fetched from the REST API. See
+ * `PersonaNodeRun` for the persisted record `useWorkflowRuns`/`getRun`
+ * return once a run has actually finished.
+ */
 interface PersonaNodeRunState {
     nodeId: string;
     nodeType: string;
@@ -553,22 +624,31 @@ interface PersonaNodeRunState {
     output?: unknown;
     error?: string;
 }
-interface CreateWorkflowInput {
+interface CreatePersonaWorkflowInput {
     name: string;
     description?: string;
-    slug?: string;
+    visibility?: PersonaWorkflowVisibility;
+    isEnabled?: boolean;
     draft?: PersonaWorkflowDraft;
-    triggers?: PersonaWorkflowTrigger[];
-    visibility?: "private" | "public";
-    tags?: string[];
 }
-type UpdateWorkflowInput = Partial<CreateWorkflowInput>;
+/** All fields optional — only what you pass is changed. */
+interface UpdatePersonaWorkflowInput {
+    name?: string;
+    description?: string;
+    visibility?: PersonaWorkflowVisibility;
+    isEnabled?: boolean;
+    draft?: PersonaWorkflowDraft;
+}
 interface UseWorkflowsOptions {
     autoFetch?: boolean;
-    search?: string;
-    status?: string;
     page?: number;
     limit?: number;
+    /** Free-text match against name/description. */
+    search?: string;
+    /** @default 'all' for a ProjectMachine/Admin caller; 'public' for a ProjectRuntime caller without this set. */
+    scope?: "mine" | "public" | "all";
+    visibility?: PersonaWorkflowVisibility;
+    isEnabled?: boolean;
 }
 interface UseWorkflowOptions {
     autoFetch?: boolean;
@@ -905,6 +985,213 @@ interface UseRcpSourcesOptions {
     page?: number;
     limit?: number;
     /** Free-text match against name. */
+    search?: string;
+}
+/** One uploaded source document's chunking summary (not the chunks themselves). */
+interface PersonaKnowledgeDocument {
+    fileName: string;
+    fileSize: number;
+    mimeType: string;
+    chunkCount: number;
+    uploadedAt: string;
+}
+interface PersonaKnowledgeBase {
+    _id: string;
+    domain: string;
+    ownerType: "PersonaUser" | "Project" | "ExternalUser";
+    ownerId?: string;
+    externalOwnerId?: string;
+    name: string;
+    description?: string;
+    isPublic: boolean;
+    documentCount: number;
+    chunkCount: number;
+    /** Internal vector-store collection name backing this Knowledge Base — informational only. */
+    qdrantCollectionName: string;
+    documents: PersonaKnowledgeDocument[];
+    embeddingModel: string;
+    providerId?: string;
+    /** Characters per chunk, used when splitting uploaded documents. */
+    chunkSize: number;
+    /** Character overlap between adjacent chunks. */
+    chunkOverlap: number;
+    /** Default number of chunks returned per `search()` call when the caller doesn't override `topK`. */
+    topK: number;
+    createdAt: string;
+    updatedAt: string;
+}
+interface CreatePersonaKnowledgeBaseInput {
+    name: string;
+    description?: string;
+    /** @default false */
+    isPublic?: boolean;
+    /** @default 'text-embedding-3-small' */
+    embeddingModel?: string;
+    /** Must reference a Provider the host Project already created. */
+    providerId: string;
+    /** @default 800 */
+    chunkSize?: number;
+    /** @default 100 */
+    chunkOverlap?: number;
+    /** @default 5 */
+    topK?: number;
+}
+/** All fields optional — only what you pass is changed. Does not retroactively re-embed existing documents. */
+interface UpdatePersonaKnowledgeBaseInput {
+    name?: string;
+    description?: string;
+    isPublic?: boolean;
+    embeddingModel?: string;
+    providerId?: string;
+    chunkSize?: number;
+    chunkOverlap?: number;
+    topK?: number;
+}
+interface PersonaUploadDocumentsResult {
+    /** Total document count for the Knowledge Base after this upload (not just this call's files). */
+    documentCount: number;
+    /** Total chunk count for the Knowledge Base after this upload. */
+    chunkCount: number;
+    files: Array<{
+        fileName: string;
+        fileSize: number;
+        mimeType: string;
+        chunkCount: number;
+    }>;
+}
+interface PersonaDeleteDocumentResult {
+    removedChunks: number;
+    remainingDocuments: number;
+    remainingChunks: number;
+}
+interface PersonaKnowledgeSearchResult {
+    text: string;
+    /** The `fileName` of the source document this chunk came from. */
+    source: string;
+    /** Similarity score (higher is more relevant); `null` if the underlying store didn't return one. */
+    score: number | null;
+}
+/** Agents referencing a Knowledge Base — check before deleting it to avoid a blocked-delete error. */
+interface PersonaKnowledgeBaseUsage {
+    agentCount: number;
+    agents: Array<{
+        _id: string;
+        name: string;
+    }>;
+}
+interface UseKnowledgeBasesOptions {
+    /** @default true */
+    autoFetch?: boolean;
+    page?: number;
+    limit?: number;
+    /** Free-text match against name/description. */
+    search?: string;
+    /** Restricts to the asserted external user's own Knowledge Bases. Requires a `ProjectRuntimeContext` — a no-op otherwise. */
+    scope?: "mine";
+}
+type PersonaMcpTransport = "http" | "sse";
+type PersonaMcpAuthType = "none" | "oauth" | "apiKey";
+/** `owner`: one shared connection for the whole MCP. `user`: each external user connects their own. */
+type PersonaMcpAuthMode = "owner" | "user";
+interface PersonaMcpTool {
+    name: string;
+    description: string;
+}
+interface PersonaMcpResourceSummary {
+    uri: string;
+    name: string;
+    description: string;
+    mimeType: string;
+}
+/** A resource whose `uri` has placeholder params to fill before calling `readResource()`. */
+interface PersonaMcpResourceTemplate {
+    uriTemplate: string;
+    name: string;
+    description: string;
+    mimeType: string;
+    toolName: string;
+}
+interface PersonaMcpOAuthConfig {
+    clientId: string | null;
+    hasClientSecret: boolean;
+    authorizationEndpoint: string | null;
+    tokenEndpoint: string | null;
+    scopes: string[];
+    dynamicallyRegistered: boolean;
+    /** Whether this MCP's owner has completed the owner-mode OAuth flow. */
+    ownerConnected: boolean;
+}
+/** Your own MCP server connection — a self-serve tool endpoint you registered, not one of the Project's shared ones (see `useMcp`/`useMcpConnections` for those). */
+interface PersonaMcp {
+    _id: string;
+    domain: string;
+    ownerType: "PersonaUser" | "Project" | "ExternalUser";
+    ownerId?: string;
+    externalOwnerId?: string;
+    name: string;
+    description?: string;
+    transport: PersonaMcpTransport;
+    url: string;
+    authType: PersonaMcpAuthType;
+    authMode: PersonaMcpAuthMode;
+    hasApiKey: boolean;
+    oauth?: PersonaMcpOAuthConfig;
+    isEnabled: boolean;
+    /** Populated by `testConnection()`; empty until it's been called at least once. */
+    tools: PersonaMcpTool[];
+    resources: PersonaMcpResourceSummary[];
+    resourceTemplates: PersonaMcpResourceTemplate[];
+    createdAt: string;
+    updatedAt: string;
+}
+interface PersonaMcpOAuthInput {
+    clientId: string;
+    clientSecret: string;
+    scopes?: string[];
+}
+interface CreatePersonaMcpInput {
+    name: string;
+    transport: PersonaMcpTransport;
+    url: string;
+    description?: string;
+    /** @default 'none' */
+    authType?: PersonaMcpAuthType;
+    /** @default 'owner' */
+    authMode?: PersonaMcpAuthMode;
+    /** Required when `authType: 'oauth'` and `useDynamicRegistration` isn't set. */
+    oauth?: PersonaMcpOAuthInput;
+    /** Required when `authType: 'apiKey'`. */
+    apiKey?: string;
+    /** Use RFC 7591 Dynamic Client Registration instead of a manually-configured `oauth` block. @default false */
+    useDynamicRegistration?: boolean;
+    /** @default true */
+    isEnabled?: boolean;
+}
+/** All fields optional — only what you pass is changed. */
+interface UpdatePersonaMcpInput {
+    name?: string;
+    description?: string;
+    transport?: PersonaMcpTransport;
+    url?: string;
+    authType?: PersonaMcpAuthType;
+    authMode?: PersonaMcpAuthMode;
+    isEnabled?: boolean;
+    useDynamicRegistration?: boolean;
+    oauth?: Partial<PersonaMcpOAuthInput>;
+    /** Replaces the stored key entirely; omit to leave the existing key untouched. */
+    apiKey?: string;
+}
+interface PersonaMcpTestConnectionResult {
+    tools: PersonaMcpTool[];
+    resources: PersonaMcpResourceSummary[];
+    resourceTemplates: PersonaMcpResourceTemplate[];
+}
+interface UseMcpAdminOptions {
+    /** @default true */
+    autoFetch?: boolean;
+    page?: number;
+    limit?: number;
+    /** Free-text match against name/description. */
     search?: string;
 }
 
@@ -1248,39 +1535,130 @@ declare function useRcpSources(options?: UseRcpSourcesOptions): {
     testRcpSourceConnection: (sourceId: string) => Promise<PersonaRcpSourceTestResult>;
 };
 
+interface UploadKnowledgeDocumentInput {
+    filename: string;
+    /** Browser `File`/`Blob`, or a React Native `{ uri, name, type }`-style asset. */
+    content: Blob | {
+        uri: string;
+        name?: string;
+        type?: string;
+    };
+    contentType?: string;
+}
+/**
+ * CRUD for Knowledge Bases — vector-search-backed document collections an
+ * Agent can be given. Requires the host's `createPersonaHandler`/
+ * `createRuntime` to opt in with `capabilities: { knowledge: true }`;
+ * every route this hook calls 404s/is unreachable otherwise.
+ *
+ * Ownership follows the same self-serve model as `useSkills`/`useAgents`:
+ * pass `scope: 'mine'` to restrict `knowledgeBases` to the asserted
+ * external user's own Knowledge Bases — omit it to see every one visible
+ * to this Project (its own, plus public ones).
+ */
+declare function useKnowledgeBases(options?: UseKnowledgeBasesOptions): {
+    knowledgeBases: PersonaKnowledgeBase[];
+    pagination: PersonaPagination;
+    isLoading: boolean;
+    isUploading: boolean;
+    error: Error | null;
+    refetch: () => Promise<PersonaKnowledgeBase[]>;
+    getKnowledgeBase: (kbId: string) => Promise<PersonaKnowledgeBase>;
+    createKnowledgeBase: (input: CreatePersonaKnowledgeBaseInput) => Promise<PersonaKnowledgeBase>;
+    updateKnowledgeBase: (kbId: string, input: UpdatePersonaKnowledgeBaseInput) => Promise<PersonaKnowledgeBase>;
+    deleteKnowledgeBase: (kbId: string) => Promise<void>;
+    bulkDeleteKnowledgeBases: (ids: string[]) => Promise<PersonaBulkDeleteResult>;
+    getKnowledgeBaseUsage: (kbId: string) => Promise<PersonaKnowledgeBaseUsage>;
+    uploadDocuments: (kbId: string, files: UploadKnowledgeDocumentInput[]) => Promise<PersonaUploadDocumentsResult>;
+    listDocuments: (kbId: string) => Promise<PersonaKnowledgeDocument[]>;
+    deleteDocument: (kbId: string, sourceName: string) => Promise<PersonaDeleteDocumentResult>;
+    search: (kbId: string, query: string, opts?: {
+        topK?: number;
+    }) => Promise<PersonaKnowledgeSearchResult[]>;
+};
+
+/**
+ * Self-serve CRUD for the calling end user's OWN MCP server connections —
+ * "connect your own tool server to your agent", not the Project's shared
+ * ones (see `useMcp` for calling tools/reading resources on an already-
+ * attached MCP, and `useMcpConnections` for the per-user OAuth connect/
+ * disconnect flow on a Project-configured `authMode: 'user'` MCP).
+ *
+ * Requires the host's `createPersonaHandler`/`createRuntime` to opt in
+ * with `capabilities: { mcps: true }`; every route this hook calls
+ * 404s/is unreachable otherwise.
+ *
+ * Deliberately narrower than `useSkills`/`useAgents`/`useKnowledgeBases`:
+ * always operates in "mine" mode — `list()` only ever returns MCPs the
+ * calling external user themselves registered (there's no `scope` option
+ * to browse the Project's shared MCPs; an end user managing their own tool
+ * connections has no reason to browse someone else's). `createMcp` always
+ * creates as their own — ownership is resolved server-side from the
+ * asserted external user, never something you pass in. No `getUsage` —
+ * unlike a Skill/Agent, other people's Agents can't reference a personal
+ * MCP only its owner can see.
+ */
+declare function useMcpAdmin(options?: UseMcpAdminOptions): {
+    mcps: PersonaMcp[];
+    pagination: PersonaPagination;
+    isLoading: boolean;
+    error: Error | null;
+    refetch: () => Promise<PersonaMcp[]>;
+    getMcp: (mcpId: string) => Promise<PersonaMcp>;
+    createMcp: (input: CreatePersonaMcpInput) => Promise<PersonaMcp>;
+    updateMcp: (mcpId: string, input: UpdatePersonaMcpInput) => Promise<PersonaMcp>;
+    deleteMcp: (mcpId: string) => Promise<void>;
+    bulkDeleteMcps: (ids: string[]) => Promise<PersonaBulkDeleteResult>;
+    testConnection: (mcpId: string) => Promise<PersonaMcpTestConnectionResult>;
+};
+
 interface WorkflowsPagination {
     page: number;
     limit: number;
     total: number;
     totalPages: number;
 }
+/**
+ * Read-only discovery (`workflows`) is always on. `createWorkflow` requires
+ * the host's `createPersonaHandler`/`createRuntime` to opt in with
+ * `capabilities: { workflowsWrite: true }` — otherwise that one route
+ * 404s/is unreachable (authoring workflows is Project-admin/builder work,
+ * not something an ordinary end-user session does by default).
+ */
 declare function useWorkflows(options?: UseWorkflowsOptions | boolean): {
-    workflows: PersonaWorkflowSummary[];
+    workflows: PersonaWorkflow[];
     pagination: WorkflowsPagination;
     isLoading: boolean;
     error: Error | null;
-    refetch: () => Promise<PersonaWorkflowSummary[]>;
-    createWorkflow: (input: CreateWorkflowInput) => Promise<PersonaWorkflow>;
+    refetch: () => Promise<PersonaWorkflow[]>;
+    createWorkflow: (input: CreatePersonaWorkflowInput) => Promise<PersonaWorkflow>;
 };
 
+/**
+ * Single-workflow read + the full `capabilities.workflowsWrite`-gated
+ * authoring surface: metadata update, draft autosave, publish, version
+ * history, and Mermaid export.
+ */
 declare function useWorkflow(workflowId: string, options?: UseWorkflowOptions | boolean): {
     workflow: PersonaWorkflow | null;
-    versions: PersonaWorkflowVersionSummary[];
+    versions: PersonaWorkflowVersion[];
     mermaid: string | null;
     isLoading: boolean;
     error: Error | null;
     refetch: () => Promise<PersonaWorkflow | null>;
-    fetchVersions: () => Promise<PersonaWorkflowVersionSummary[]>;
+    fetchVersions: () => Promise<PersonaWorkflowVersion[]>;
+    getVersion: (version: number) => Promise<PersonaWorkflowVersion>;
     fetchMermaid: () => Promise<any>;
+    updateWorkflow: (input: UpdatePersonaWorkflowInput) => Promise<PersonaWorkflow>;
     saveDraft: (draft: PersonaWorkflowDraft) => Promise<PersonaWorkflow>;
-    publish: (summary?: string) => Promise<PersonaWorkflowVersionSummary>;
+    publish: () => Promise<PersonaWorkflowVersion>;
     deleteWorkflow: () => Promise<void>;
 };
 
 declare function useWorkflowStream(workflowId?: string, options?: UseWorkflowStreamOptions): UseWorkflowStreamResult;
 
 declare function useWorkflowRuns(workflowId?: string, options?: UseWorkflowRunsOptions | boolean): {
-    runs: PersonaWorkflowRunSummary[];
+    runs: PersonaWorkflowRun[];
     pagination: {
         page: number;
         limit: number;
@@ -1289,8 +1667,8 @@ declare function useWorkflowRuns(workflowId?: string, options?: UseWorkflowRunsO
     };
     isLoading: boolean;
     error: Error | null;
-    refetch: () => Promise<PersonaWorkflowRunSummary[]>;
-    getRun: (runId: string) => Promise<PersonaWorkflowRunSummary>;
+    refetch: () => Promise<PersonaWorkflowRun[]>;
+    getRun: (runId: string) => Promise<PersonaWorkflowRun>;
     cancelRun: (runId: string) => Promise<void>;
 };
 
@@ -1353,4 +1731,4 @@ declare function openSSEStream(opts: OpenSSEOptions): Promise<SSEStream>;
 
 declare const VERSION = "0.10.0";
 
-export { ARCHITECT_AGENT_ID, type CreatePersonaAgentInput, type CreatePersonaRcpSourceInput, type CreatePersonaSkillInput, type CreateWorkflowInput, type OpenSSEOptions, type PersonaAgent, type PersonaAgentCategory, type PersonaAgentSocialLinks, type PersonaAgentVisibility, type PersonaBulkDeleteResult, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaNodeRunState, type PersonaPagination, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaRcpParamContextMapEntry, type PersonaRcpSource, type PersonaRcpSourceTestResult, type PersonaRcpSourceToolParamSummary, type PersonaRcpSourceToolSummary, type PersonaResourceUsage, type PersonaResumeValue, type PersonaRole, type PersonaSandboxCommand, type PersonaSkill, type PersonaSkillFile, type PersonaSkillUsage, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkflow, type PersonaWorkflowDraft, type PersonaWorkflowEdge, type PersonaWorkflowNode, type PersonaWorkflowNodeType, type PersonaWorkflowRunSummary, type PersonaWorkflowSummary, type PersonaWorkflowTrigger, type PersonaWorkflowVersionSummary, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendArchitectMessageOverride, type SendMessageOverride, type UpdatePersonaAgentInput, type UpdatePersonaRcpSourceInput, type UpdatePersonaSkillInput, type UpdateWorkflowInput, type UseAgentsOptions, type UseArchitectChatOptions, type UseChatOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseRcpSourcesOptions, type UseSkillsOptions, type UseVoiceOptions, type UseVoiceResult, type UseWorkflowOptions, type UseWorkflowRunsOptions, type UseWorkflowStreamOptions, type UseWorkflowStreamResult, type UseWorkflowsOptions, VERSION, type WorkflowsPagination, openSSEStream, supportsStreamingFetch, useAgents, useArchitectChat, useChat, useConnection, useFiles, useMcp, useMcpConnections, useMemory, usePersonaContext, useRcpSources, useSkills, useThreads, useVoice, useWorkflow, useWorkflowRuns, useWorkflowStream, useWorkflows };
+export { ARCHITECT_AGENT_ID, type CreatePersonaAgentInput, type CreatePersonaKnowledgeBaseInput, type CreatePersonaMcpInput, type CreatePersonaRcpSourceInput, type CreatePersonaSkillInput, type CreatePersonaWorkflowInput, type OpenSSEOptions, type PersonaAgent, type PersonaAgentCategory, type PersonaAgentSnapshot, type PersonaAgentSocialLinks, type PersonaAgentVisibility, type PersonaBulkDeleteResult, type PersonaClarificationQuestion, type PersonaDeleteDocumentResult, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaKnowledgeBase, type PersonaKnowledgeBaseUsage, type PersonaKnowledgeDocument, type PersonaKnowledgeSearchResult, type PersonaMcp, type PersonaMcpAuthMode, type PersonaMcpAuthType, type PersonaMcpConnection, type PersonaMcpOAuthConfig, type PersonaMcpOAuthInput, type PersonaMcpResourceSummary, type PersonaMcpResourceTemplate, type PersonaMcpTestConnectionResult, type PersonaMcpTool, type PersonaMcpTransport, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaNodeOnErrorAction, type PersonaNodeRetryPolicy, type PersonaNodeRun, type PersonaNodeRunState, type PersonaNodeRunStatus, type PersonaPagination, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaRcpParamContextMapEntry, type PersonaRcpSource, type PersonaRcpSourceTestResult, type PersonaRcpSourceToolParamSummary, type PersonaRcpSourceToolSummary, type PersonaResourceUsage, type PersonaResumeValue, type PersonaRole, type PersonaSandboxCommand, type PersonaSkill, type PersonaSkillFile, type PersonaSkillUsage, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaUploadDocumentsResult, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkflow, type PersonaWorkflowDraft, type PersonaWorkflowEdge, type PersonaWorkflowNode, type PersonaWorkflowNodeData, type PersonaWorkflowNodeType, type PersonaWorkflowOwnerType, type PersonaWorkflowRun, type PersonaWorkflowRunStatus, type PersonaWorkflowTrigger, type PersonaWorkflowTriggerType, type PersonaWorkflowUsage, type PersonaWorkflowVersion, type PersonaWorkflowVisibility, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendArchitectMessageOverride, type SendMessageOverride, type UpdatePersonaAgentInput, type UpdatePersonaKnowledgeBaseInput, type UpdatePersonaMcpInput, type UpdatePersonaRcpSourceInput, type UpdatePersonaSkillInput, type UpdatePersonaWorkflowInput, type UploadKnowledgeDocumentInput, type UseAgentsOptions, type UseArchitectChatOptions, type UseChatOptions, type UseKnowledgeBasesOptions, type UseMcpAdminOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseRcpSourcesOptions, type UseSkillsOptions, type UseVoiceOptions, type UseVoiceResult, type UseWorkflowOptions, type UseWorkflowRunsOptions, type UseWorkflowStreamOptions, type UseWorkflowStreamResult, type UseWorkflowsOptions, VERSION, type WorkflowsPagination, openSSEStream, supportsStreamingFetch, useAgents, useArchitectChat, useChat, useConnection, useFiles, useKnowledgeBases, useMcp, useMcpAdmin, useMcpConnections, useMemory, usePersonaContext, useRcpSources, useSkills, useThreads, useVoice, useWorkflow, useWorkflowRuns, useWorkflowStream, useWorkflows };

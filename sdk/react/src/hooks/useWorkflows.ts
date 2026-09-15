@@ -3,9 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePersonaContext } from "../context/PersonaContext.js";
 import type {
-  CreateWorkflowInput,
+  CreatePersonaWorkflowInput,
   PersonaWorkflow,
-  PersonaWorkflowSummary,
   UseWorkflowsOptions,
 } from "../types.js";
 
@@ -16,13 +15,20 @@ export interface WorkflowsPagination {
   totalPages: number;
 }
 
+/**
+ * Read-only discovery (`workflows`) is always on. `createWorkflow` requires
+ * the host's `createPersonaHandler`/`createRuntime` to opt in with
+ * `capabilities: { workflowsWrite: true }` — otherwise that one route
+ * 404s/is unreachable (authoring workflows is Project-admin/builder work,
+ * not something an ordinary end-user session does by default).
+ */
 export function useWorkflows(options?: UseWorkflowsOptions | boolean) {
   const opts: UseWorkflowsOptions =
     typeof options === "boolean" ? { autoFetch: options } : options ?? {};
-  const { autoFetch = true, search, status, page, limit } = opts;
+  const { autoFetch = true, search, scope, visibility, isEnabled, page, limit } = opts;
 
   const { fetchWithAuth } = usePersonaContext();
-  const [workflows, setWorkflows] = useState<PersonaWorkflowSummary[]>([]);
+  const [workflows, setWorkflows] = useState<PersonaWorkflow[]>([]);
   const [pagination, setPagination] = useState<WorkflowsPagination>({
     page: page ?? 1,
     limit: limit ?? 20,
@@ -38,7 +44,9 @@ export function useWorkflows(options?: UseWorkflowsOptions | boolean) {
     try {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
-      if (status) params.set("status", status);
+      if (scope) params.set("scope", scope);
+      if (visibility) params.set("visibility", visibility);
+      if (isEnabled !== undefined) params.set("isEnabled", String(isEnabled));
       if (page) params.set("page", String(page));
       if (limit) params.set("limit", String(limit));
 
@@ -48,9 +56,7 @@ export function useWorkflows(options?: UseWorkflowsOptions | boolean) {
         throw new Error(`Failed to list workflows: ${res.statusText}`);
       }
       const data = await res.json();
-      const items: PersonaWorkflowSummary[] = Array.isArray(data)
-        ? data
-        : data?.items || data?.workflows || [];
+      const items: PersonaWorkflow[] = Array.isArray(data) ? data : (data?.items ?? []);
       setWorkflows(items);
 
       if (data?.pagination) {
@@ -79,10 +85,10 @@ export function useWorkflows(options?: UseWorkflowsOptions | boolean) {
     } finally {
       setIsLoading(false);
     }
-  }, [fetchWithAuth, search, status, page, limit]);
+  }, [fetchWithAuth, search, scope, visibility, isEnabled, page, limit]);
 
   const createWorkflow = useCallback(
-    async (input: CreateWorkflowInput): Promise<PersonaWorkflow> => {
+    async (input: CreatePersonaWorkflowInput): Promise<PersonaWorkflow> => {
       setError(null);
       try {
         const res = await fetchWithAuth("/workflows", {

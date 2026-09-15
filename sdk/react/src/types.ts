@@ -507,23 +507,49 @@ export interface UseVoiceResult {
   updateContext: (context: Record<string, unknown>) => void;
 }
 
-// ---- Workflows -----------------------------------------------------------
+// ---- Workflows -------------------------------------------------------------
+// Mirrors `@personaai/sdk`'s real wire shapes exactly (`types/workflow.ts`) —
+// a prior version of this section had drifted from them (a `triggers[]`
+// array where the backend only ever accepts a singular `trigger`, a `status`
+// enum field that doesn't exist on `Workflow` at all, `slug`/`tags` that
+// don't exist, wrong node-type and run-status enum values, ...). Corrected
+// here; every hook using these types was updated to match.
 
 export type PersonaWorkflowNodeType =
   | "trigger"
-  | "agent"
-  | "tool"
+  | "agentStep"
+  | "knowledgeStep"
+  | "toolStep"
   | "condition"
+  | "approval"
   | "parallel"
-  | "code"
-  | "human_review"
-  | (string & {});
+  | "join"
+  | "output";
+
+export type PersonaWorkflowTriggerType = "manual" | "api" | "webhook" | "schedule" | "chat";
+export type PersonaWorkflowVisibility = "private" | "unlisted" | "public";
+export type PersonaWorkflowOwnerType = "Project" | "ExternalUser";
+export type PersonaNodeOnErrorAction = "fail" | "continue" | "routeError";
+
+export interface PersonaNodeRetryPolicy {
+  maxRetries?: number;
+  backoffMs?: number;
+  exponential?: boolean;
+}
+
+export interface PersonaWorkflowNodeData {
+  label: string;
+  description?: string;
+  config?: Record<string, unknown>;
+  retryPolicy?: PersonaNodeRetryPolicy;
+  onError?: PersonaNodeOnErrorAction;
+}
 
 export interface PersonaWorkflowNode {
   id: string;
   type: PersonaWorkflowNodeType;
-  position: { x: number; y: number };
-  data: Record<string, unknown>;
+  position?: { x: number; y: number };
+  data: PersonaWorkflowNodeData;
 }
 
 export interface PersonaWorkflowEdge {
@@ -532,62 +558,127 @@ export interface PersonaWorkflowEdge {
   target: string;
   sourceHandle?: string;
   targetHandle?: string;
-  label?: string;
+  condition?: unknown;
+  conditionValue?: string;
 }
 
 export interface PersonaWorkflowTrigger {
-  type: "manual" | "webhook" | "schedule" | "event" | (string & {});
+  type: PersonaWorkflowTriggerType;
   config?: Record<string, unknown>;
 }
 
 export interface PersonaWorkflowDraft {
   nodes: PersonaWorkflowNode[];
   edges: PersonaWorkflowEdge[];
-  triggers?: PersonaWorkflowTrigger[];
-  settings?: Record<string, unknown>;
+  /** Singular — a draft has at most one trigger, not an array of them. */
+  trigger?: PersonaWorkflowTrigger;
 }
 
-export interface PersonaWorkflowSummary {
+export interface PersonaWorkflow {
   _id: string;
+  domain?: string;
+  projectId?: string;
   name: string;
-  slug?: string;
   description?: string;
-  status: "draft" | "published" | "archived";
-  visibility?: "private" | "public";
-  activeVersion?: number;
-  tags?: string[];
+  isEnabled: boolean;
+  visibility: PersonaWorkflowVisibility;
+  ownerType: PersonaWorkflowOwnerType;
+  externalOwnerId?: string | null;
+  draft: PersonaWorkflowDraft;
+  /** `0` until `publish()` has been called at least once. */
+  publishedVersion: number;
+  activeRuns: number;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface PersonaWorkflow extends PersonaWorkflowSummary {
-  draft: PersonaWorkflowDraft;
-  triggers?: PersonaWorkflowTrigger[];
-  ownerId?: string;
-  projectId?: string;
+export interface PersonaAgentSnapshot {
+  modelName: string;
+  systemPrompt: string;
+  tools?: string[];
 }
 
-export interface PersonaWorkflowVersionSummary {
+/** A published, immutable snapshot of a workflow's draft — what `stream()` actually executes. */
+export interface PersonaWorkflowVersion {
   _id: string;
   workflowId: string;
+  projectId: string;
   version: number;
-  summary?: string;
+  definition: PersonaWorkflowDraft;
+  agentSnapshots?: Record<string, PersonaAgentSnapshot>;
+  publishedBy?: string;
+  publishedAt: string;
   createdAt: string;
+  updatedAt: string;
 }
 
-export interface PersonaWorkflowRunSummary {
-  _id: string;
-  workflowId: string;
-  version: number;
-  status: "pending" | "running" | "completed" | "failed" | "cancelled";
-  startedAt?: string;
-  finishedAt?: string;
-  durationMs?: number;
+export type PersonaWorkflowRunStatus =
+  | "queued"
+  | "running"
+  | "paused"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+export type PersonaNodeRunStatus = "running" | "completed" | "failed" | "skipped" | "paused";
+
+/** One node's persisted run record, as returned by the REST API after the fact — distinct from `PersonaNodeRunState` below, which is the *live*, client-derived state `useWorkflowStream` builds up from AG-UI events while a run is still in progress. */
+export interface PersonaNodeRun {
+  nodeId: string;
+  nodeType: string;
+  status: PersonaNodeRunStatus;
+  input?: unknown;
+  output?: unknown;
   error?: string;
-  isDryRun?: boolean;
-  createdAt: string;
+  retriesTaken: number;
+  durationMs: number;
+  tokens: number;
+  startedAt: string;
+  endedAt?: string;
 }
 
+export interface PersonaWorkflowUsage {
+  totalTokens: number;
+  agentTurns: number;
+  toolCalls: number;
+  creditsDeducted: number;
+}
+
+export interface PersonaWorkflowRun {
+  _id: string;
+  workflowId: string;
+  workflowVersion: number;
+  projectId: string;
+  triggeredBy: {
+    type: PersonaWorkflowTriggerType;
+    userId?: string;
+    details?: unknown;
+  };
+  status: PersonaWorkflowRunStatus;
+  isDryRun: boolean;
+  nodeRuns: PersonaNodeRun[];
+  pendingApproval?: {
+    nodeId?: string;
+    prompt?: string;
+    options?: string[];
+    requestedAt?: string;
+  };
+  output?: unknown;
+  usage?: PersonaWorkflowUsage;
+  threadId: string;
+  startedAt: string;
+  endedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Live, client-derived state for one node during an in-progress
+ * `useWorkflowStream` run — built up from `workflow_node_started`/
+ * `_completed`/`_failed` AG-UI events, not fetched from the REST API. See
+ * `PersonaNodeRun` for the persisted record `useWorkflowRuns`/`getRun`
+ * return once a run has actually finished.
+ */
 export interface PersonaNodeRunState {
   nodeId: string;
   nodeType: string;
@@ -600,24 +691,33 @@ export interface PersonaNodeRunState {
   error?: string;
 }
 
-export interface CreateWorkflowInput {
+export interface CreatePersonaWorkflowInput {
   name: string;
   description?: string;
-  slug?: string;
+  visibility?: PersonaWorkflowVisibility;
+  isEnabled?: boolean;
   draft?: PersonaWorkflowDraft;
-  triggers?: PersonaWorkflowTrigger[];
-  visibility?: "private" | "public";
-  tags?: string[];
 }
 
-export type UpdateWorkflowInput = Partial<CreateWorkflowInput>;
+/** All fields optional — only what you pass is changed. */
+export interface UpdatePersonaWorkflowInput {
+  name?: string;
+  description?: string;
+  visibility?: PersonaWorkflowVisibility;
+  isEnabled?: boolean;
+  draft?: PersonaWorkflowDraft;
+}
 
 export interface UseWorkflowsOptions {
   autoFetch?: boolean;
-  search?: string;
-  status?: string;
   page?: number;
   limit?: number;
+  /** Free-text match against name/description. */
+  search?: string;
+  /** @default 'all' for a ProjectMachine/Admin caller; 'public' for a ProjectRuntime caller without this set. */
+  scope?: "mine" | "public" | "all";
+  visibility?: PersonaWorkflowVisibility;
+  isEnabled?: boolean;
 }
 
 export interface UseWorkflowOptions {
