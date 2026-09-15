@@ -1,0 +1,91 @@
+---
+title: "skills — @personaai/sdk"
+description: "Generated field tables for skills — do not edit"
+---
+
+> **Generated from `sdk/typescript/dist/typedoc.json` — do not edit.** Regenerate with `node platform/scripts/typedoc-resources.mjs`.
+
+# skills
+
+## `Skill`
+
+Note: unlike ``Provider``, the Developer API returns Skill documents in their raw Mongo shape (``_id``, not ``id``) — reflected here as-is rather than papering over a real backend inconsistency.
+
+_Source: `types/skill.ts:15`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `_id` | `string` |  — _ `types/skill.ts:16`_ |
+| `domain` | `string` |  — _ `types/skill.ts:17`_ |
+| `ownerType` | `"PersonaUser" \| "Project" \| "ExternalUser"` |  — _ `types/skill.ts:18`_ |
+| `ownerId?` | `string` |  — _ `types/skill.ts:19`_ |
+| `externalOwnerId?` | `string` |  — _ `types/skill.ts:20`_ |
+| `name` | `string` |  — _ `types/skill.ts:21`_ |
+| `description` | `string` |  — _ `types/skill.ts:22`_ |
+| `instructions` | `string` |  — _ `types/skill.ts:23`_ |
+| `files` | `SkillFile[]` |  — _ `types/skill.ts:24`_ |
+| `isPublic` | `boolean` | Visible to every credential in the platform when ``true``, not just this Domain. — _ `types/skill.ts:26`_ |
+| `createdAt` | `string` |  — _ `types/skill.ts:27`_ |
+| `updatedAt` | `string` |  — _ `types/skill.ts:28`_ |
+| `isOwner?` | `boolean` | Present only on ``get()`` — whether the calling identity owns this Skill. — _ `types/skill.ts:30`_ |
+
+## `SkillFile`
+
+A file bundled with a Skill (e.g. a reference doc or script an Agent can read).
+
+_Source: `types/skill.ts:2`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `path` | `string` |  — _ `types/skill.ts:3`_ |
+| `content` | `string` |  — _ `types/skill.ts:4`_ |
+| `mimeType?` | `string` |  — _ `types/skill.ts:5`_ |
+| `createdAt?` | `string` |  — _ `types/skill.ts:6`_ |
+| `updatedAt?` | `string` |  — _ `types/skill.ts:7`_ |
+
+## `CreateSkillInput`
+
+_Source: `types/skill.ts:33`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | `string` |  — _ `types/skill.ts:34`_ |
+| `description` | `string` |  — _ `types/skill.ts:35`_ |
+| `instructions` | `string` | The actual prompt text given to an Agent that has this Skill attached. — _ `types/skill.ts:37`_ |
+| `isPublic?` | `boolean` |  — _ `types/skill.ts:39`_ |
+| `files?` | `{ path: string; content: string; mimeType: string }[]` |  — _ `types/skill.ts:40`_ |
+
+## `UpdateSkillInput`
+
+All fields optional — only what you pass is changed.
+
+_Source: `types/skill.ts:44`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `name?` | `string` |  — _ `types/skill.ts:45`_ |
+| `description?` | `string` |  — _ `types/skill.ts:46`_ |
+| `instructions?` | `string` |  — _ `types/skill.ts:47`_ |
+| `isPublic?` | `boolean` |  — _ `types/skill.ts:48`_ |
+| `files?` | `{ path: string; content: string; mimeType: string }[]` | Replaces the entire ``files`` array — this is not a merge/append. — _ `types/skill.ts:50`_ |
+
+## `DiscoverSkillsParams`
+
+_Source: `types/skill.ts:53`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `page?` | `number` |  — _ `types/skill.ts:55`_ |
+| `limit?` | `number` |  — _ `types/skill.ts:57`_ |
+| `search?` | `string` | Free-text match against ``name``/``description``. — _ `types/skill.ts:59`_ |
+| `scope?` | `"mine"` | Restricts to the asserted external user's own Skills (``ProjectRuntimeContext`` only). — _ `types/skill.ts:61`_ |

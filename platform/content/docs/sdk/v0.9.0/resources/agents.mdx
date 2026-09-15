@@ -1,0 +1,176 @@
+---
+title: "agents — @personaai/sdk"
+description: "Generated field tables for agents — do not edit"
+---
+
+> **Generated from `sdk/typescript/dist/typedoc.json` — do not edit.** Regenerate with `node platform/scripts/typedoc-resources.mjs`.
+
+# agents
+
+## `Agent`
+
+Note: like ``Skill``, this mirrors the real wire shape (``_id``, raw domain/ownerType fields) — ``getOne()`` returns ``skills``/``mcps``/ ``knowledgeBases`` populated as objects, while ``create()``/``update()``/ ``list()`` return them as bare id strings; typed loosely here to reflect that real difference rather than picking one shape and being wrong for the other calls.
+
+_Source: `types/agent.ts:21`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `_id` | `string` |  — _ `types/agent.ts:22`_ |
+| `domain` | `string` |  — _ `types/agent.ts:23`_ |
+| `ownerType` | `"PersonaUser" \| "Project" \| "ExternalUser"` |  — _ `types/agent.ts:24`_ |
+| `ownerId?` | `string` |  — _ `types/agent.ts:25`_ |
+| `externalOwnerId?` | `string` |  — _ `types/agent.ts:26`_ |
+| `name` | `string` |  — _ `types/agent.ts:27`_ |
+| `slug` | `string` | URL-safe, unique within the Domain; used in some public-facing routes. — _ `types/agent.ts:29`_ |
+| `description?` | `string` |  — _ `types/agent.ts:30`_ |
+| `avatar?` | `string` |  — _ `types/agent.ts:31`_ |
+| `tags?` | `string[]` |  — _ `types/agent.ts:32`_ |
+| `tagline?` | `string` | Short one-liner shown in list/card views. — _ `types/agent.ts:34`_ |
+| `bio?` | `string` | Longer free-text bio shown on the Agent's own profile view. — _ `types/agent.ts:36`_ |
+| `personalityTraits?` | `string[]` |  — _ `types/agent.ts:37`_ |
+| `socialLinks?` | `AgentSocialLinks` |  — _ `types/agent.ts:38`_ |
+| `systemPrompt?` | `string` | Stripped from the response when the calling identity doesn't own this Agent. — _ `types/agent.ts:40`_ |
+| `providerId?` | `string` | Stripped from the response when the calling identity doesn't own this Agent. — _ `types/agent.ts:42`_ |
+| `modelName?` | `string` | Overrides the referenced Provider's ``defaultModel`` when set. — _ `types/agent.ts:44`_ |
+| `webSearchEnabled` | `boolean` |  — _ `types/agent.ts:45`_ |
+| `sandboxEnabled` | `boolean` | Real shell execution in an isolated CodeSandbox VM. Requires a ``CSB_API_KEY`` Project Secret to exist first (there is no ``secrets`` SDK resource yet — create one via the platform UI or ``POST /api/v1/developer/secrets``). — _ `types/agent.ts:47`_ |
+| `visibility` | `AgentVisibility` |  — _ `types/agent.ts:48`_ |
+| `category` | `AgentCategory` |  — _ `types/agent.ts:49`_ |
+| `skills?` | `unknown[]` | Bare id strings on ``create``/``update``/``list``; populated objects on ``get()``. — _ `types/agent.ts:51`_ |
+| `mcps?` | `unknown[]` | Bare id strings on ``create``/``update``/``list``; populated objects on ``get()``. — _ `types/agent.ts:53`_ |
+| `knowledgeBases?` | `unknown[]` | Bare id strings on ``create``/``update``/``list``; populated objects on ``get()``. — _ `types/agent.ts:55`_ |
+| `storeMounts?` | `unknown[]` | Bare id strings on ``create``/``update``/``list``; populated objects on ``get()``. — _ `types/agent.ts:57`_ |
+| `interruptOn?` | `Record<string, boolean>` | Maps a tool name to whether calling it pauses the run for human approval (a real LangGraph interrupt, resumed via ``chat.stream()``'s ``resume`` option). — _ `types/agent.ts:59`_ |
+| `isActive` | `boolean` |  — _ `types/agent.ts:60`_ |
+| `isMainAgent` | `boolean` | Whether this is the Project's designated default/primary Agent. — _ `types/agent.ts:62`_ |
+| `createdAt` | `string` |  — _ `types/agent.ts:63`_ |
+| `updatedAt` | `string` |  — _ `types/agent.ts:64`_ |
+
+## `AgentSocialLinks`
+
+_Source: `types/agent.ts:1`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `website?` | `string` |  — _ `types/agent.ts:2`_ |
+| `twitter?` | `string` |  — _ `types/agent.ts:3`_ |
+| `github?` | `string` |  — _ `types/agent.ts:4`_ |
+| `linkedin?` | `string` |  — _ `types/agent.ts:5`_ |
+
+## `AgentVisibility`
+
+``unlisted`` is reachable by direct link/id but excluded from public discovery listings.
+
+_Source: `types/agent.ts:9`_
+
+_Kind 2097152_
+
+```ts
+type AgentVisibility = "private" | "unlisted" | "public"
+```
+
+## `AgentCategory`
+
+_Source: `types/agent.ts:10`_
+
+_Kind 2097152_
+
+```ts
+type AgentCategory = "productivity" | "coding" | "creative" | "research" | "roleplay" | "other"
+```
+
+## `CreateAgentInput`
+
+_Source: `types/agent.ts:67`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | `string` |  — _ `types/agent.ts:68`_ |
+| `systemPrompt` | `string` | The instructions that define this Agent's behavior/persona. — _ `types/agent.ts:70`_ |
+| `providerId` | `string` | Must reference a Provider already created via ``providers.create()``. — _ `types/agent.ts:72`_ |
+| `description?` | `string` |  — _ `types/agent.ts:73`_ |
+| `avatar?` | `string` |  — _ `types/agent.ts:74`_ |
+| `tags?` | `string[]` |  — _ `types/agent.ts:75`_ |
+| `tagline?` | `string` |  — _ `types/agent.ts:76`_ |
+| `bio?` | `string` |  — _ `types/agent.ts:77`_ |
+| `personalityTraits?` | `string[]` |  — _ `types/agent.ts:78`_ |
+| `socialLinks?` | `AgentSocialLinks` |  — _ `types/agent.ts:79`_ |
+| `modelName?` | `string` | Overrides the referenced Provider's ``defaultModel``. — _ `types/agent.ts:81`_ |
+| `webSearchEnabled?` | `boolean` |  — _ `types/agent.ts:83`_ |
+| `sandboxEnabled?` | `boolean` |  — _ `types/agent.ts:85`_ |
+| `visibility?` | `AgentVisibility` |  — _ `types/agent.ts:87`_ |
+| `category?` | `AgentCategory` |  — _ `types/agent.ts:89`_ |
+| `skills?` | `string[]` | Skill ids to attach at creation time. — _ `types/agent.ts:91`_ |
+| `mcps?` | `string[]` | MCP server ids to attach at creation time. — _ `types/agent.ts:93`_ |
+| `knowledgeBases?` | `string[]` | Knowledge base ids to attach at creation time. — _ `types/agent.ts:95`_ |
+| `storeMounts?` | `string[]` | Store ids to mount at creation time (see ``stores.create()``). — _ `types/agent.ts:97`_ |
+| `interruptOn?` | `Record<string, boolean>` | Maps a tool name to whether calling it should pause the run for human approval, e.g. ``{ propose_issue: true }``. Works identically for built-in and MCP-sourced tool names. Omit for no gated tools. — _ `types/agent.ts:99`_ |
+| `isActive?` | `boolean` |  — _ `types/agent.ts:101`_ |
+
+## `UpdateAgentInput`
+
+All fields optional — only what you pass is changed.
+
+_Source: `types/agent.ts:105`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `name?` | `string` |  — _ `types/agent.ts:106`_ |
+| `description?` | `string` |  — _ `types/agent.ts:107`_ |
+| `avatar?` | `string` |  — _ `types/agent.ts:108`_ |
+| `tags?` | `string[]` |  — _ `types/agent.ts:109`_ |
+| `tagline?` | `string` |  — _ `types/agent.ts:110`_ |
+| `bio?` | `string` |  — _ `types/agent.ts:111`_ |
+| `personalityTraits?` | `string[]` |  — _ `types/agent.ts:112`_ |
+| `socialLinks?` | `AgentSocialLinks` |  — _ `types/agent.ts:113`_ |
+| `systemPrompt?` | `string` |  — _ `types/agent.ts:114`_ |
+| `providerId?` | `string` |  — _ `types/agent.ts:115`_ |
+| `modelName?` | `string` |  — _ `types/agent.ts:116`_ |
+| `webSearchEnabled?` | `boolean` |  — _ `types/agent.ts:117`_ |
+| `sandboxEnabled?` | `boolean` |  — _ `types/agent.ts:118`_ |
+| `skills?` | `string[]` | Replaces the entire array — this is not a merge/append. — _ `types/agent.ts:120`_ |
+| `mcps?` | `string[]` | Replaces the entire array — this is not a merge/append. — _ `types/agent.ts:122`_ |
+| `knowledgeBases?` | `string[]` | Replaces the entire array — this is not a merge/append. — _ `types/agent.ts:124`_ |
+| `storeMounts?` | `string[]` | Replaces the entire array — this is not a merge/append. — _ `types/agent.ts:126`_ |
+| `interruptOn?` | `Record<string, boolean>` | Replaces the entire map — this is not a merge/append. — _ `types/agent.ts:128`_ |
+| `visibility?` | `AgentVisibility` |  — _ `types/agent.ts:129`_ |
+| `category?` | `AgentCategory` |  — _ `types/agent.ts:130`_ |
+| `isActive?` | `boolean` |  — _ `types/agent.ts:131`_ |
+
+## `DiscoverAgentsParams`
+
+_Source: `types/agent.ts:148`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `page?` | `number` |  — _ `types/agent.ts:150`_ |
+| `limit?` | `number` |  — _ `types/agent.ts:152`_ |
+| `search?` | `string` | Free-text match against ``name``/``description``/``tagline``. — _ `types/agent.ts:154`_ |
+| `category?` | `AgentCategory` |  — _ `types/agent.ts:155`_ |
+| `scope?` | `"mine"` | Restricts to the asserted external user's own Agents (``ProjectRuntimeContext`` only). — _ `types/agent.ts:157`_ |
+
+## `McpConnection`
+
+One ``authType: 'oauth', authMode: 'user'`` MCP attached to an Agent, and whether the calling identity (the client's asserted external user) has connected it yet. ``authorizeUrl`` is only present when ``connected`` is ``false`` — send the browser there to start the OAuth consent flow.
+
+_Source: `types/agent.ts:140`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `mcpId` | `string` |  — _ `types/agent.ts:141`_ |
+| `name` | `string` |  — _ `types/agent.ts:142`_ |
+| `description` | `string` |  — _ `types/agent.ts:143`_ |
+| `connected` | `boolean` |  — _ `types/agent.ts:144`_ |
+| `authorizeUrl` | `string \| null` |  — _ `types/agent.ts:145`_ |

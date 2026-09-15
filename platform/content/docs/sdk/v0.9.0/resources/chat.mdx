@@ -1,0 +1,153 @@
+---
+title: "chat — @personaai/sdk"
+description: "Generated field tables for chat — do not edit"
+---
+
+> **Generated from `sdk/typescript/dist/typedoc.json` — do not edit.** Regenerate with `node platform/scripts/typedoc-resources.mjs`.
+
+# chat
+
+## `AguiEvent`
+
+The full discriminated union of every AG-UI protocol event this backend can emit.
+
+_Source: `types/chat.ts:5`_
+
+_Kind 2097152_
+
+```ts
+type AguiEvent = AGUIEvent
+```
+
+## `ChatMessageInput`
+
+_Source: `types/chat.ts:9`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `role` | `"user" \| "assistant"` |  — _ `types/chat.ts:10`_ |
+| `content` | `string` | Plain text — this SDK doesn't yet support multi-part/multimodal content on the way in. — _ `types/chat.ts:12`_ |
+
+## `ChatResume`
+
+Approves/denies a pending human-in-the-loop interrupt from a previous run, or answers a pending clarification. Shape depends on the interrupt kind — see ``ChatInterrupt``.
+
+_Source: `types/chat.ts:20`_
+
+_Kind 2097152_
+
+```ts
+type ChatResume = { decisions: unknown[] } | { answers: unknown[]; text: string } | Record<string, unknown>
+```
+
+## `SendMessageOptions`
+
+_Source: `types/chat.ts:23`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `messages` | `ChatMessageInput[]` |  — _ `types/chat.ts:24`_ |
+| `threadId?` | `string` | Resumes a named Thread (from ``threads.create()``) instead of the implicit deterministic one. — _ `types/chat.ts:26`_ |
+| `resume?` | `ChatResume` |  — _ `types/chat.ts:27`_ |
+| `contextOverride?` | `string` | Caller-supplied context (e.g. a live end-user profile snapshot) appended to this turn's system prompt only. Never persisted to any memory file and never visible to later turns. Capped at 4000 characters server-side — a longer value is rejected with a 400, not silently truncated. Distinct from SendMessageOptions.context below: this is model-visible prose; ``context`` is never shown to the model at all. — _ `types/chat.ts:37`_ |
+| `context?` | `Record<string, unknown>` | Caller-supplied context — **never shown to the model in any form**, unlike SendMessageOptions.contextOverride above. Only ever read live by an RCP tool's resolver (see your Project's RCP Sources ``paramContextMap`` configuration) at the moment that tool is actually called — a param mapped there is permanently absent from the model's tool schema, and its value is filled from this object's matching key. Must be a flat object of string/number/boolean values only (no nested objects/arrays); capped at 2000 bytes serialized — a violation is rejected with a 400, not silently truncated or coerced. Resent on every turn you want it to apply to; omitting it on a later ``chat.stream()`` call does not carry forward a value from an earlier one. — _ `types/chat.ts:51`_ |
+| `signal?` | `AbortSignal` |  — _ `types/chat.ts:52`_ |
+
+## `ChatInterrupt`
+
+A pending interrupt surfaced via a ``CUSTOM`` event — this backend's own human-in-the-loop protocol (tool-approval or clarification-question), not the newer standard AG-UI ``RunFinishedInterruptOutcome`` field (this backend's translator doesn't emit that; confirmed by reading ``aguiTranslator.js`` directly rather than assuming the spec's newer shape applies).
+
+_Source: `types/chat.ts:63`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `kind` | `"hitl" \| "clarification"` | ``hitl`` → resume with ``{ decisions: [...] }``. ``clarification`` → resume with ``{ answers: [...], text? }``. — _ `types/chat.ts:65`_ |
+| `value` | `unknown` |  — _ `types/chat.ts:66`_ |
+
+## `ChatResult`
+
+_Source: `types/chat.ts:69`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `text` | `string` | The final assembled assistant text (concatenated TEXT_MESSAGE_CHUNK deltas). — _ `types/chat.ts:71`_ |
+| `interrupt?` | `ChatInterrupt` | Set when the run paused on a human-in-the-loop interrupt instead of finishing normally. — _ `types/chat.ts:73`_ |
+| `error?` | `PersonaRunErrorEvent` | Set when the run ended in a genuine failure (RUN_ERROR) instead of finishing normally. — _ `types/chat.ts:75`_ |
+| `events` | `objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<Omit<object & object, "type" \| "messageId"> & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough"> \| objectOutputType<object & object, ZodTypeAny, "passthrough">[]` | Every raw event received, in order — for callers who want full detail beyond ``text``. — _ `types/chat.ts:77`_ |
+
+## `AGUI_SCHEMA_VERSION`
+
+The schema document version this SDK release was written against.
+
+_Source: `types/aguiEvents.ts:10`_
+
+_Variable_
+
+```ts
+type AGUI_SCHEMA_VERSION = "1.1.0"
+```
+
+## `ClarificationQuestion`
+
+_Source: `types/aguiEvents.ts:12`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` |  — _ `types/aguiEvents.ts:13`_ |
+| `text` | `string` |  — _ `types/aguiEvents.ts:14`_ |
+| `options` | `string[]` |  — _ `types/aguiEvents.ts:15`_ |
+| `required` | `boolean` |  — _ `types/aguiEvents.ts:16`_ |
+| `allowCustom` | `boolean` |  — _ `types/aguiEvents.ts:17`_ |
+
+## `HitlRequestPayload`
+
+``CUSTOM`` event ``hitl_request`` — pauses the run pending approval of one or more pending tool calls (an Agent's ``interruptOn`` config). ``actionRequests``/ ``reviewConfigs`` are opaque langchain ``humanInTheLoopMiddleware`` structures, passed through as-is by the backend.
+
+_Source: `types/aguiEvents.ts:32`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `actionRequests` | `unknown[]` |  — _ `types/aguiEvents.ts:33`_ |
+| `reviewConfigs` | `unknown[]` |  — _ `types/aguiEvents.ts:34`_ |
+
+## `McpAppPayload`
+
+``CUSTOM`` event ``mcp_app`` — an MCP-registered tool call declared an interactive widget via ``_meta.ui.resourceUri``.
+
+_Source: `types/aguiEvents.ts:41`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `toolCallId` | `string` |  — _ `types/aguiEvents.ts:42`_ |
+| `resourceUri` | `string` |  — _ `types/aguiEvents.ts:43`_ |
+| `mcpId` | `string` |  — _ `types/aguiEvents.ts:44`_ |
+
+## `PersonaRunErrorEvent`
+
+A narrower, app-typed view of the native ``@ag-ui/core`` ``RUN_ERROR`` event (already covered by ``AguiEvent``'s union — this just gives ``code`` a literal type instead of ``string | undefined``, and documents the extra fields this backend always sends alongside the base protocol's ``message``).
+
+_Source: `types/aguiEvents.ts:101`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `type` | `"RUN_ERROR"` |  — _ `types/aguiEvents.ts:102`_ |
+| `code` | `RunErrorCode` |  — _ `types/aguiEvents.ts:103`_ |
+| `message` | `string` |  — _ `types/aguiEvents.ts:104`_ |
+| `retryable` | `boolean` |  — _ `types/aguiEvents.ts:105`_ |
+| `providerName?` | `string` |  — _ `types/aguiEvents.ts:106`_ |

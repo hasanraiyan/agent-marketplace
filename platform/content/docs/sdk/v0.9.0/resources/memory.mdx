@@ -1,0 +1,101 @@
+---
+title: "memory — @personaai/sdk"
+description: "Generated field tables for memory — do not edit"
+---
+
+> **Generated from `sdk/typescript/dist/typedoc.json` — do not edit.** Regenerate with `node platform/scripts/typedoc-resources.mjs`.
+
+# memory
+
+## `MemoryFile`
+
+Mirrors memory.service.js's ``_toFileDto`` — the wire shape for one memory file.
+
+_Source: `types/memory.ts:2`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `scope` | `"user" \| "agent"` |  — _ `types/memory.ts:3`_ |
+| `agentId?` | `string` | Set when ``scope`` is ``'agent'``. — _ `types/memory.ts:5`_ |
+| `path` | `string` |  — _ `types/memory.ts:6`_ |
+| `content` | `string` |  — _ `types/memory.ts:7`_ |
+| `mimeType` | `string` |  — _ `types/memory.ts:8`_ |
+| `createdAt` | `string` |  — _ `types/memory.ts:9`_ |
+| `updatedAt` | `string` |  — _ `types/memory.ts:10`_ |
+
+## `MemoryAgentGroup`
+
+One agent's group of agent-scoped memory files, as returned by ``memory.list()``.
+
+_Source: `types/memory.ts:14`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `agentId` | `string` |  — _ `types/memory.ts:15`_ |
+| `agentName` | `string \| null` | ``null`` if the Agent no longer exists. — _ `types/memory.ts:17`_ |
+| `files` | `MemoryFile[]` |  — _ `types/memory.ts:18`_ |
+
+## `MemoryListResult`
+
+``GET /api/v1/developer/memory`` — every memory file for the asserted external user.
+
+_Source: `types/memory.ts:22`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `userFiles` | `MemoryFile[]` |  — _ `types/memory.ts:23`_ |
+| `agentMemories` | `MemoryAgentGroup[]` |  — _ `types/memory.ts:24`_ |
+
+## `MemoryFileScopeParams`
+
+_Source: `types/memory.ts:27`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `scope?` | `"user" \| "agent"` |  — _ `types/memory.ts:29`_ |
+| `agentId?` | `string` | Required when ``scope`` is ``'agent'``. — _ `types/memory.ts:31`_ |
+
+## `GetMemoryFileParams`
+
+_Source: `types/memory.ts:34`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `scope?` | `"user" \| "agent"` |  — _ `types/memory.ts:29`_ |
+| `agentId?` | `string` | Required when ``scope`` is ``'agent'``. — _ `types/memory.ts:31`_ |
+| `path` | `string` |  — _ `types/memory.ts:35`_ |
+
+## `WriteMemoryFileInput`
+
+_Source: `types/memory.ts:38`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `scope?` | `"user" \| "agent"` |  — _ `types/memory.ts:29`_ |
+| `agentId?` | `string` | Required when ``scope`` is ``'agent'``. — _ `types/memory.ts:31`_ |
+| `path` | `string` |  — _ `types/memory.ts:39`_ |
+| `content` | `string` |  — _ `types/memory.ts:40`_ |
+
+## `DeleteMemoryFileParams`
+
+_Source: `types/memory.ts:43`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `scope?` | `"user" \| "agent"` |  — _ `types/memory.ts:29`_ |
+| `agentId?` | `string` | Required when ``scope`` is ``'agent'``. — _ `types/memory.ts:31`_ |
+| `path` | `string` |  — _ `types/memory.ts:44`_ |

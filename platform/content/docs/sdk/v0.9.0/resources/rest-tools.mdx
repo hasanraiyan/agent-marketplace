@@ -1,0 +1,210 @@
+---
+title: "rest-tools — @personaai/sdk"
+description: "Generated field tables for rest-tools — do not edit"
+---
+
+> **Generated from `sdk/typescript/dist/typedoc.json` — do not edit.** Regenerate with `node platform/scripts/typedoc-resources.mjs`.
+
+# rest-tools
+
+## `RestApiTool`
+
+A no-code REST API tool an Agent can call. Goes through ``toSafeJson()`` — ``secretRef``'s underlying value is never returned, only ``hasSecret``.
+
+_Source: `types/restTool.ts:39`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `_id` | `string` |  — _ `types/restTool.ts:40`_ |
+| `domain` | `string` |  — _ `types/restTool.ts:41`_ |
+| `ownerType` | `"PersonaUser" \| "Project" \| "ExternalUser"` |  — _ `types/restTool.ts:42`_ |
+| `ownerId?` | `string` |  — _ `types/restTool.ts:43`_ |
+| `externalOwnerId?` | `string` |  — _ `types/restTool.ts:44`_ |
+| `name` | `string` |  — _ `types/restTool.ts:45`_ |
+| `description?` | `string` |  — _ `types/restTool.ts:46`_ |
+| `method` | `RestToolMethod` |  — _ `types/restTool.ts:47`_ |
+| `url` | `string` |  — _ `types/restTool.ts:48`_ |
+| `queryParams` | `RestToolParamRow[]` |  — _ `types/restTool.ts:49`_ |
+| `headers` | `RestToolParamRow[]` |  — _ `types/restTool.ts:50`_ |
+| `bodyMode` | `RestToolBodyMode` |  — _ `types/restTool.ts:51`_ |
+| `bodyTemplate?` | `string` |  — _ `types/restTool.ts:52`_ |
+| `paramDescriptors` | `RestToolParamDescriptor[]` |  — _ `types/restTool.ts:53`_ |
+| `authType` | `RestToolAuthType` |  — _ `types/restTool.ts:54`_ |
+| `secretRef?` | `string` | Present only when ``authType: 'bearerSecret'``. — _ `types/restTool.ts:56`_ |
+| `hasSecret` | `boolean` |  — _ `types/restTool.ts:57`_ |
+| `responseMappings` | `RestToolResponseMapping[]` |  — _ `types/restTool.ts:58`_ |
+| `isEnabled` | `boolean` |  — _ `types/restTool.ts:59`_ |
+| `lastTestedAt?` | `string \| null` |  — _ `types/restTool.ts:60`_ |
+| `lastTestedStatus?` | `number \| null` |  — _ `types/restTool.ts:61`_ |
+| `createdAt` | `string` |  — _ `types/restTool.ts:62`_ |
+| `updatedAt` | `string` |  — _ `types/restTool.ts:63`_ |
+
+## `RestToolMethod`
+
+_Source: `types/restTool.ts:1`_
+
+_Kind 2097152_
+
+```ts
+type RestToolMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
+```
+
+## `RestToolAuthType`
+
+_Source: `types/restTool.ts:2`_
+
+_Kind 2097152_
+
+```ts
+type RestToolAuthType = "none" | "bearerSecret"
+```
+
+## `RestToolBodyMode`
+
+_Source: `types/restTool.ts:3`_
+
+_Kind 2097152_
+
+```ts
+type RestToolBodyMode = "none" | "json"
+```
+
+## `RestToolParamIn`
+
+_Source: `types/restTool.ts:4`_
+
+_Kind 2097152_
+
+```ts
+type RestToolParamIn = "path" | "query" | "header" | "body"
+```
+
+## `RestToolParamType`
+
+_Source: `types/restTool.ts:5`_
+
+_Kind 2097152_
+
+```ts
+type RestToolParamType = "string" | "number" | "boolean"
+```
+
+## `RestToolParamRow`
+
+One query-string or header entry. ``valueTemplate`` may contain ``{{token}}``.
+
+_Source: `types/restTool.ts:8`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `key` | `string` |  — _ `types/restTool.ts:9`_ |
+| `valueTemplate?` | `string` |  — _ `types/restTool.ts:10`_ |
+| `description?` | `string` |  — _ `types/restTool.ts:11`_ |
+| `required?` | `boolean` |  — _ `types/restTool.ts:13`_ |
+
+## `RestToolParamDescriptor`
+
+Declares one agent-fillable ``{{token}}`` referenced in ``url``/params/headers/body.
+
+_Source: `types/restTool.ts:17`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | `string` |  — _ `types/restTool.ts:18`_ |
+| `in?` | `RestToolParamIn` |  — _ `types/restTool.ts:20`_ |
+| `type?` | `RestToolParamType` |  — _ `types/restTool.ts:22`_ |
+| `description?` | `string` |  — _ `types/restTool.ts:23`_ |
+| `required?` | `boolean` |  — _ `types/restTool.ts:25`_ |
+
+## `RestToolResponseMapping`
+
+Reshapes the raw JSON response before the agent sees it, e.g. `{ field: 'name', path: '@data.user.name' }'.
+
+_Source: `types/restTool.ts:29`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `field` | `string` |  — _ `types/restTool.ts:30`_ |
+| `path` | `string` | Must look like ``"@data.field.path"``. — _ `types/restTool.ts:32`_ |
+
+## `CreateRestToolInput`
+
+_Source: `types/restTool.ts:66`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | `string` |  — _ `types/restTool.ts:67`_ |
+| `description?` | `string` |  — _ `types/restTool.ts:68`_ |
+| `method` | `RestToolMethod` |  — _ `types/restTool.ts:69`_ |
+| `url` | `string` |  — _ `types/restTool.ts:70`_ |
+| `queryParams?` | `RestToolParamRow[]` |  — _ `types/restTool.ts:71`_ |
+| `headers?` | `RestToolParamRow[]` |  — _ `types/restTool.ts:72`_ |
+| `bodyMode?` | `RestToolBodyMode` |  — _ `types/restTool.ts:74`_ |
+| `bodyTemplate?` | `string` |  — _ `types/restTool.ts:75`_ |
+| `paramDescriptors?` | `RestToolParamDescriptor[]` |  — _ `types/restTool.ts:76`_ |
+| `authType?` | `RestToolAuthType` |  — _ `types/restTool.ts:78`_ |
+| `secretRef?` | `string` | Required when ``authType: 'bearerSecret'`` — a ``ProjectSecret`` id. — _ `types/restTool.ts:80`_ |
+| `responseMappings?` | `RestToolResponseMapping[]` |  — _ `types/restTool.ts:81`_ |
+| `isEnabled?` | `boolean` |  — _ `types/restTool.ts:83`_ |
+
+## `UpdateRestToolInput`
+
+All fields optional — only what you pass is changed.
+
+_Source: `types/restTool.ts:87`_
+
+_Kind 2097152_
+
+```ts
+type UpdateRestToolInput = Partial<CreateRestToolInput> & { secretRef: string | null }
+```
+
+## `DiscoverRestToolsParams`
+
+_Source: `types/restTool.ts:92`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `page?` | `number` |  — _ `types/restTool.ts:94`_ |
+| `limit?` | `number` |  — _ `types/restTool.ts:96`_ |
+| `search?` | `string` | Free-text match against ``name``/``description``. — _ `types/restTool.ts:98`_ |
+| `scope?` | `"mine"` | Restricts to the asserted external user's own tools (``ProjectRuntimeContext`` only). — _ `types/restTool.ts:100`_ |
+
+## `RestToolTestResult`
+
+_Source: `types/restTool.ts:103`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `status` | `number` |  — _ `types/restTool.ts:104`_ |
+| `ok` | `boolean` |  — _ `types/restTool.ts:105`_ |
+| `body` | `unknown` | Raw JSON (or text) response body. — _ `types/restTool.ts:107`_ |
+| `mapped` | `unknown` | ``body`` reshaped by ``responseMappings`` — identical to what the agent receives. — _ `types/restTool.ts:109`_ |
+
+## `TestRestToolInput`
+
+``testValues`` stand in for agent-fillable args (and ``externalUserId`` if referenced) — never persisted, never usable by an agent.
+
+_Source: `types/restTool.ts:113`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `toolId?` | `string` |  — _ `types/restTool.ts:114`_ |
+| `draft?` | `Partial<CreateRestToolInput>` |  — _ `types/restTool.ts:115`_ |
+| `testValues?` | `Record<string, string>` |  — _ `types/restTool.ts:116`_ |

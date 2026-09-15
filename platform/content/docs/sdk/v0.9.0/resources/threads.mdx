@@ -1,0 +1,81 @@
+---
+title: "threads — @personaai/sdk"
+description: "Generated field tables for threads — do not edit"
+---
+
+> **Generated from `sdk/typescript/dist/typedoc.json` — do not edit.** Regenerate with `node platform/scripts/typedoc-resources.mjs`.
+
+# threads
+
+## `Thread`
+
+Like Skill/Agent/Knowledge/Mcp, this mirrors the real wire shape (``_id``).
+
+_Source: `types/thread.ts:4`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `_id` | `string` |  — _ `types/thread.ts:5`_ |
+| `domain` | `string` |  — _ `types/thread.ts:6`_ |
+| `agentId` | `string \| { _id: string; name: string; avatar: string; slug: string }` | Populated as ``{ _id, name, avatar, slug }`` on ``list()``; a bare id on ``create()``/``get()``. — _ `types/thread.ts:8`_ |
+| `subjectType` | `"PersonaUser" \| "ExternalUser"` |  — _ `types/thread.ts:9`_ |
+| `userId?` | `string` |  — _ `types/thread.ts:10`_ |
+| `externalUserId?` | `string` |  — _ `types/thread.ts:11`_ |
+| `threadId` | `string` | The deterministic AG-UI thread id used for streaming (``x-thread-id``) — distinct from ``_id``. — _ `types/thread.ts:13`_ |
+| `title` | `string` |  — _ `types/thread.ts:14`_ |
+| `lastMessageAt` | `string` |  — _ `types/thread.ts:15`_ |
+| `isArchived` | `boolean` |  — _ `types/thread.ts:16`_ |
+| `subagentTraces?` | `Record<string, unknown>` |  — _ `types/thread.ts:17`_ |
+| `createdAt` | `string` |  — _ `types/thread.ts:18`_ |
+| `updatedAt` | `string` |  — _ `types/thread.ts:19`_ |
+
+## `CreateThreadInput`
+
+_Source: `types/thread.ts:22`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `agentId` | `string` | The Agent this Thread's conversation is with. — _ `types/thread.ts:24`_ |
+
+## `UpdateThreadInput`
+
+All fields optional — only what you pass is changed.
+
+_Source: `types/thread.ts:28`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `title?` | `string` |  — _ `types/thread.ts:29`_ |
+| `isArchived?` | `boolean` |  — _ `types/thread.ts:30`_ |
+
+## `ListThreadsParams`
+
+_Source: `types/thread.ts:33`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `page?` | `number` |  — _ `types/thread.ts:35`_ |
+| `limit?` | `number` |  — _ `types/thread.ts:37`_ |
+
+## `ThreadMessages`
+
+``messages`` holds raw LangChain message objects (role/content/tool_calls vary by message type) — intentionally untyped rather than guessing at a shape this SDK doesn't own.
+
+_Source: `types/thread.ts:45`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `messages` | `unknown[]` |  — _ `types/thread.ts:46`_ |
+| `state` | `Record<string, unknown>` |  — _ `types/thread.ts:47`_ |
+| `subagentTraces` | `Record<string, unknown>` |  — _ `types/thread.ts:48`_ |
+| `pendingInterrupt?` | `ChatInterrupt` | Set when this Thread is currently paused on a HITL/clarification interrupt — lets a caller re-show the approval/clarification card on page load without waiting for the next live ``chat.stream()`` call to re-surface it. Same shape as ``ChatResult.interrupt``. Named ``pendingInterrupt`` (not ``interrupt``) to match the actual wire field checkpointService.getMessages() returns. — _ `types/thread.ts:57`_ |

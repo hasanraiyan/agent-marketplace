@@ -1,0 +1,131 @@
+---
+title: "stores — @personaai/sdk"
+description: "Generated field tables for stores — do not edit"
+---
+
+> **Generated from `sdk/typescript/dist/typedoc.json` — do not edit.** Regenerate with `node platform/scripts/typedoc-resources.mjs`.
+
+# stores
+
+## `Store`
+
+A named, scoped mount point assignable to Agents (``Agent.storeMounts``), generalizing the fixed ``/memories/user/``/``/memories/agent/`` mounts into arbitrarily-named ones. Mounted at ``/stores/<name>/`` in the Agent's filesystem.
+
+_Source: `types/store.ts:10`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `_id` | `string` |  — _ `types/store.ts:11`_ |
+| `domain` | `string` |  — _ `types/store.ts:12`_ |
+| `name` | `string` |  — _ `types/store.ts:13`_ |
+| `description` | `string` |  — _ `types/store.ts:14`_ |
+| `scope` | `StoreScope` | ``domain``: one shared namespace for the whole Project. ``externalUser``: one namespace per external user, resolved per Agent run. Immutable after creation. — _ `types/store.ts:18`_ |
+| `accessMode` | `StoreAccessMode` | ``readonly``: Agents can read but never write via their own tool calls — content is populated only through this API. ``readwrite``: Agents can also write_file/edit_file into it. — _ `types/store.ts:22`_ |
+| `createdAt` | `string` |  — _ `types/store.ts:23`_ |
+| `updatedAt` | `string` |  — _ `types/store.ts:24`_ |
+
+## `StoreScope`
+
+_Source: `types/store.ts:1`_
+
+_Kind 2097152_
+
+```ts
+type StoreScope = "domain" | "externalUser"
+```
+
+## `StoreAccessMode`
+
+_Source: `types/store.ts:2`_
+
+_Kind 2097152_
+
+```ts
+type StoreAccessMode = "readonly" | "readwrite"
+```
+
+## `CreateStoreInput`
+
+_Source: `types/store.ts:27`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | `string` |  — _ `types/store.ts:28`_ |
+| `description?` | `string` |  — _ `types/store.ts:29`_ |
+| `scope` | `StoreScope` |  — _ `types/store.ts:30`_ |
+| `accessMode?` | `StoreAccessMode` |  — _ `types/store.ts:32`_ |
+
+## `UpdateStoreInput`
+
+``scope`` is intentionally not included — immutable after creation.
+
+_Source: `types/store.ts:36`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `name?` | `string` |  — _ `types/store.ts:37`_ |
+| `description?` | `string` |  — _ `types/store.ts:38`_ |
+| `accessMode?` | `StoreAccessMode` |  — _ `types/store.ts:39`_ |
+
+## `DiscoverStoresParams`
+
+_Source: `types/store.ts:42`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `page?` | `number` |  — _ `types/store.ts:44`_ |
+| `limit?` | `number` |  — _ `types/store.ts:46`_ |
+| `search?` | `string` | Free-text match against ``name``. — _ `types/store.ts:48`_ |
+
+## `StoreFile`
+
+_Source: `types/store.ts:51`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `path` | `string` |  — _ `types/store.ts:52`_ |
+| `content` | `string` |  — _ `types/store.ts:53`_ |
+| `mimeType` | `string` |  — _ `types/store.ts:54`_ |
+| `createdAt` | `string` |  — _ `types/store.ts:55`_ |
+| `updatedAt` | `string` |  — _ `types/store.ts:56`_ |
+
+## `GetStoreFileParams`
+
+_Source: `types/store.ts:59`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `path` | `string` |  — _ `types/store.ts:60`_ |
+
+## `DeleteStoreFileParams`
+
+_Source: `types/store.ts:63`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `path` | `string` |  — _ `types/store.ts:64`_ |
+
+## `WriteStoreFileInput`
+
+_Source: `types/store.ts:67`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `path` | `string` |  — _ `types/store.ts:68`_ |
+| `content` | `string` |  — _ `types/store.ts:69`_ |

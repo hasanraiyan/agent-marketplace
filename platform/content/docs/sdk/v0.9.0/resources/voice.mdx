@@ -1,0 +1,53 @@
+---
+title: "voice — @personaai/sdk"
+description: "Generated field tables for voice — do not edit"
+---
+
+> **Generated from `sdk/typescript/dist/typedoc.json` — do not edit.** Regenerate with `node platform/scripts/typedoc-resources.mjs`.
+
+# voice
+
+## `VoiceSessionInfo`
+
+Mirrors the CUSTOM ``voice_session_ready`` AG-UI event's payload shape.
+
+_Source: `types/voice.ts:2`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `model` | `string` | Gemini Live model this session is running (e.g. ``gemini-3.1-flash-live-preview``). — _ `types/voice.ts:4`_ |
+| `voice` | `string` | Prebuilt voice name (e.g. ``Zephyr``). — _ `types/voice.ts:6`_ |
+| `inputSampleRate` | `number` | PCM16 sample rate the client must send mic audio at. — _ `types/voice.ts:8`_ |
+| `outputSampleRate` | `number` | PCM16 sample rate the server sends agent audio at. — _ `types/voice.ts:10`_ |
+| `maxDurationMs` | `number` | Server-enforced hard cap for this session, independent of Gemini's own limits. — _ `types/voice.ts:12`_ |
+
+## `VoiceSessionTicket`
+
+Returned by VoiceResource.createSession. Hand this whole object (or at least ``wsUrl``) to your frontend — the ticket embedded in ``wsUrl`` is single-use and expires at ``expiresAt`` (60s from mint), so open the WebSocket promptly and never reuse it for a second connection attempt.
+
+_Source: `types/voice.ts:21`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `ticket` | `string` | Opaque, single-use, HMAC-signed. Also embedded in ``wsUrl``'s query string. — _ `types/voice.ts:23`_ |
+| `wsUrl` | `string` | Full ``wss://`` URL, ticket included — pass directly to ``new WebSocket(wsUrl)``. — _ `types/voice.ts:25`_ |
+| `expiresAt` | `string` | ISO 8601 — the ticket is rejected after this instant. — _ `types/voice.ts:27`_ |
+| `session` | `VoiceSessionInfo` |  — _ `types/voice.ts:28`_ |
+
+## `CreateVoiceSessionOptions`
+
+Options for VoiceResource.createSession.
+
+_Source: `resources/voice.ts:7`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `threadId?` | `string` | Resume an existing conversation over voice instead of starting fresh. Accepts either the Thread's Mongo id or its stable LangGraph thread id (the same value ``threads.list`` returns as ``id`` / that ``chat.resume`` forwards as ``x-thread-id``) — the server resolves either, and rejects with a generic 404 if the thread isn't one this Subject owns for this Agent. The voice turns are persisted back into the thread's history, so a later text ``resume`` on the same thread sees them. Omit to start a fresh conversation (the server uses the deterministic per-Subject scratch thread, exactly like a text run with no threadId). — _ `resources/voice.ts:21`_ |
+| `contextOverride?` | `string` | Caller-supplied context appended to the Agent's system instruction for this call — same field/cap/contract as SendMessageOptions.contextOverride on ``chat.stream()``. Unlike text chat, this is a **one-time append at connect**, not re-applied per turn: Gemini Live's system instruction is fixed for the whole call, so changing it mid-call requires ending this session and starting a new one. Capped at 4000 characters server-side (rejected with a 400, not truncated). — _ `resources/voice.ts:31`_ |
+| `context?` | `Record<string, unknown>` | Caller-supplied context — same field/cap/contract as SendMessageOptions.contextOverride's sibling ``context`` field: never shown to the model, only ever read live by an RCP tool's resolver via ``configurable.turnContext``. This is the **at-connect seed only** — unlike text chat (which resends ``context`` on every message), a voice call is one continuous session, so refreshing it mid-call means sending ``{ type: 'voice.context', context: {...} }`` over the already-open WebSocket yourself (merged into, not replacing, the current value) — this SDK never touches that socket, see VoiceResource's class doc comment for why. — _ `resources/voice.ts:44`_ |

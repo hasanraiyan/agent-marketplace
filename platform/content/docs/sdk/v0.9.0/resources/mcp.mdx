@@ -1,0 +1,224 @@
+---
+title: "mcp — @personaai/sdk"
+description: "Generated field tables for mcp — do not edit"
+---
+
+> **Generated from `sdk/typescript/dist/typedoc.json` — do not edit.** Regenerate with `node platform/scripts/typedoc-resources.mjs`.
+
+# mcp
+
+## `Mcp`
+
+Like Provider (not Skill/Agent/Knowledge), this goes through a clean ``toSafeJson()`` DTO — ``oauth``/``apiKeyEncrypted`` are stripped in favor of ``hasApiKey``/a summarized ``oauth`` object. Still ``_id``-shaped, though (``toSafeJson`` spreads the raw document minus secrets, doesn't rename it).
+
+_Source: `types/mcp.ts:44`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `_id` | `string` |  — _ `types/mcp.ts:45`_ |
+| `domain` | `string` |  — _ `types/mcp.ts:46`_ |
+| `ownerType` | `"PersonaUser" \| "Project" \| "ExternalUser"` |  — _ `types/mcp.ts:47`_ |
+| `ownerId?` | `string` |  — _ `types/mcp.ts:48`_ |
+| `externalOwnerId?` | `string` |  — _ `types/mcp.ts:49`_ |
+| `name` | `string` |  — _ `types/mcp.ts:50`_ |
+| `description?` | `string` |  — _ `types/mcp.ts:51`_ |
+| `transport` | `McpTransport` |  — _ `types/mcp.ts:52`_ |
+| `url` | `string` |  — _ `types/mcp.ts:53`_ |
+| `authType` | `McpAuthType` |  — _ `types/mcp.ts:54`_ |
+| `authMode` | `McpAuthMode` |  — _ `types/mcp.ts:55`_ |
+| `hasApiKey` | `boolean` |  — _ `types/mcp.ts:56`_ |
+| `oauth?` | `McpOAuthConfig` |  — _ `types/mcp.ts:57`_ |
+| `isEnabled` | `boolean` |  — _ `types/mcp.ts:58`_ |
+| `tools` | `McpTool[]` | Populated by ``testConnection()``; empty until it's been called at least once. — _ `types/mcp.ts:60`_ |
+| `resources` | `McpResourceSummary[]` | Populated by ``testConnection()``; empty until it's been called at least once. — _ `types/mcp.ts:62`_ |
+| `resourceTemplates` | `McpResourceTemplate[]` | Populated by ``testConnection()``; empty until it's been called at least once. — _ `types/mcp.ts:64`_ |
+| `createdAt` | `string` |  — _ `types/mcp.ts:65`_ |
+| `updatedAt` | `string` |  — _ `types/mcp.ts:66`_ |
+
+## `McpTransport`
+
+_Source: `types/mcp.ts:1`_
+
+_Kind 2097152_
+
+```ts
+type McpTransport = "http" | "sse"
+```
+
+## `McpAuthType`
+
+_Source: `types/mcp.ts:2`_
+
+_Kind 2097152_
+
+```ts
+type McpAuthType = "none" | "oauth" | "apiKey"
+```
+
+## `McpAuthMode`
+
+``owner``: one shared connection for the whole Project. ``user``: each external user connects their own.
+
+_Source: `types/mcp.ts:4`_
+
+_Kind 2097152_
+
+```ts
+type McpAuthMode = "owner" | "user"
+```
+
+## `McpTool`
+
+_Source: `types/mcp.ts:6`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | `string` |  — _ `types/mcp.ts:7`_ |
+| `description` | `string` |  — _ `types/mcp.ts:8`_ |
+
+## `McpResourceSummary`
+
+_Source: `types/mcp.ts:11`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `uri` | `string` |  — _ `types/mcp.ts:12`_ |
+| `name` | `string` |  — _ `types/mcp.ts:13`_ |
+| `description` | `string` |  — _ `types/mcp.ts:14`_ |
+| `mimeType` | `string` |  — _ `types/mcp.ts:15`_ |
+
+## `McpResourceTemplate`
+
+A resource whose ``uri`` has placeholder params to fill before calling ``readResource()``.
+
+_Source: `types/mcp.ts:19`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `uriTemplate` | `string` |  — _ `types/mcp.ts:20`_ |
+| `name` | `string` |  — _ `types/mcp.ts:21`_ |
+| `description` | `string` |  — _ `types/mcp.ts:22`_ |
+| `mimeType` | `string` |  — _ `types/mcp.ts:23`_ |
+| `toolName` | `string` |  — _ `types/mcp.ts:24`_ |
+
+## `McpOAuthConfig`
+
+_Source: `types/mcp.ts:27`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `clientId` | `string \| null` |  — _ `types/mcp.ts:28`_ |
+| `hasClientSecret` | `boolean` |  — _ `types/mcp.ts:29`_ |
+| `authorizationEndpoint` | `string \| null` |  — _ `types/mcp.ts:30`_ |
+| `tokenEndpoint` | `string \| null` |  — _ `types/mcp.ts:31`_ |
+| `scopes` | `string[]` |  — _ `types/mcp.ts:32`_ |
+| `dynamicallyRegistered` | `boolean` |  — _ `types/mcp.ts:33`_ |
+| `ownerConnected` | `boolean` | Whether the MCP's owner has completed the owner-mode OAuth flow. — _ `types/mcp.ts:35`_ |
+
+## `McpOAuthInput`
+
+_Source: `types/mcp.ts:69`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `clientId` | `string` |  — _ `types/mcp.ts:70`_ |
+| `clientSecret` | `string` |  — _ `types/mcp.ts:71`_ |
+| `scopes?` | `string[]` |  — _ `types/mcp.ts:72`_ |
+
+## `CreateMcpInput`
+
+_Source: `types/mcp.ts:75`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | `string` |  — _ `types/mcp.ts:76`_ |
+| `transport` | `McpTransport` |  — _ `types/mcp.ts:77`_ |
+| `url` | `string` |  — _ `types/mcp.ts:78`_ |
+| `description?` | `string` |  — _ `types/mcp.ts:79`_ |
+| `authType?` | `McpAuthType` |  — _ `types/mcp.ts:81`_ |
+| `authMode?` | `McpAuthMode` |  — _ `types/mcp.ts:83`_ |
+| `oauth?` | `McpOAuthInput` | Required when ``authType: 'oauth'`` and ``useDynamicRegistration`` isn't set. — _ `types/mcp.ts:85`_ |
+| `apiKey?` | `string` | Required when ``authType: 'apiKey'``. Sent as a static bearer token — always owner-shared, regardless of ``authMode``. — _ `types/mcp.ts:87`_ |
+| `useDynamicRegistration?` | `boolean` | Use RFC 7591 Dynamic Client Registration instead of a manually-configured ``oauth`` block. — _ `types/mcp.ts:89`_ |
+| `isEnabled?` | `boolean` |  — _ `types/mcp.ts:91`_ |
+
+## `UpdateMcpInput`
+
+All fields optional — only what you pass is changed.
+
+_Source: `types/mcp.ts:95`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `name?` | `string` |  — _ `types/mcp.ts:96`_ |
+| `description?` | `string` |  — _ `types/mcp.ts:97`_ |
+| `transport?` | `McpTransport` |  — _ `types/mcp.ts:98`_ |
+| `url?` | `string` |  — _ `types/mcp.ts:99`_ |
+| `authType?` | `McpAuthType` |  — _ `types/mcp.ts:100`_ |
+| `authMode?` | `McpAuthMode` |  — _ `types/mcp.ts:101`_ |
+| `isEnabled?` | `boolean` |  — _ `types/mcp.ts:102`_ |
+| `useDynamicRegistration?` | `boolean` |  — _ `types/mcp.ts:103`_ |
+| `oauth?` | `Partial<McpOAuthInput>` |  — _ `types/mcp.ts:104`_ |
+| `apiKey?` | `string` | Replaces the stored key entirely; omit to leave the existing key untouched. — _ `types/mcp.ts:106`_ |
+
+## `DiscoverMcpsParams`
+
+_Source: `types/mcp.ts:109`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `page?` | `number` |  — _ `types/mcp.ts:111`_ |
+| `limit?` | `number` |  — _ `types/mcp.ts:113`_ |
+| `search?` | `string` | Free-text match against ``name``/``description``. — _ `types/mcp.ts:115`_ |
+| `scope?` | `"mine"` | Restricts to the asserted external user's own MCPs (``ProjectRuntimeContext`` only). — _ `types/mcp.ts:117`_ |
+
+## `McpTestConnectionResult`
+
+_Source: `types/mcp.ts:120`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `tools` | `McpTool[]` |  — _ `types/mcp.ts:121`_ |
+| `resources` | `McpResourceSummary[]` |  — _ `types/mcp.ts:122`_ |
+| `resourceTemplates` | `McpResourceTemplate[]` |  — _ `types/mcp.ts:123`_ |
+
+## `McpReadResourceResult`
+
+_Source: `types/mcp.ts:126`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `text` | `string` |  — _ `types/mcp.ts:127`_ |
+| `mimeType` | `string` |  — _ `types/mcp.ts:128`_ |
+
+## `McpUserConnectionStatus`
+
+_Source: `types/mcp.ts:131`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `connected` | `boolean` |  — _ `types/mcp.ts:132`_ |

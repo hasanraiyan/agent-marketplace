@@ -1,0 +1,77 @@
+---
+title: "providers — @personaai/sdk"
+description: "Generated field tables for providers — do not edit"
+---
+
+> **Generated from `sdk/typescript/dist/typedoc.json` — do not edit.** Regenerate with `node platform/scripts/typedoc-resources.mjs`.
+
+# providers
+
+## `Provider`
+
+A Provider as returned by the API — ``apiKey`` is never included.
+
+_Source: `types/provider.ts:2`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` |  — _ `types/provider.ts:3`_ |
+| `label` | `string` |  — _ `types/provider.ts:4`_ |
+| `baseURL` | `string` |  — _ `types/provider.ts:5`_ |
+| `defaultModel` | `string` |  — _ `types/provider.ts:6`_ |
+| `isDefault` | `boolean` | At most one Provider per Domain has this set — used as the fallback when an Agent has no ``providerId``. — _ `types/provider.ts:8`_ |
+| `createdAt` | `string` |  — _ `types/provider.ts:9`_ |
+| `updatedAt` | `string` |  — _ `types/provider.ts:10`_ |
+
+## `CreateProviderInput`
+
+_Source: `types/provider.ts:13`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `label` | `string` | Human-readable name shown in your own UI, e.g. ``"OpenAI (prod)"``. — _ `types/provider.ts:15`_ |
+| `baseURL` | `string` | OpenAI-compatible base URL, e.g. ``"https://api.openai.com/v1"``. — _ `types/provider.ts:17`_ |
+| `apiKey` | `string` | Plaintext API key — encrypted at rest, never returned in any response. — _ `types/provider.ts:19`_ |
+| `defaultModel` | `string` | Model id used when an Agent references this Provider without its own ``modelName``. — _ `types/provider.ts:21`_ |
+| `isDefault?` | `boolean` |  — _ `types/provider.ts:23`_ |
+
+## `UpdateProviderInput`
+
+All fields optional — only what you pass is changed.
+
+_Source: `types/provider.ts:27`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `label?` | `string` |  — _ `types/provider.ts:28`_ |
+| `baseURL?` | `string` |  — _ `types/provider.ts:29`_ |
+| `apiKey?` | `string` | Replaces the stored key entirely; omit to leave the existing key untouched. — _ `types/provider.ts:31`_ |
+| `defaultModel?` | `string` |  — _ `types/provider.ts:32`_ |
+| `isDefault?` | `boolean` |  — _ `types/provider.ts:33`_ |
+
+## `ProviderModel`
+
+_Source: `types/provider.ts:36`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` |  — _ `types/provider.ts:37`_ |
+
+## `ProviderTestConnectionResult`
+
+_Source: `types/provider.ts:40`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `success` | `boolean` | ``false`` means the endpoint rejected the credentials/URL, not that the request itself failed. — _ `types/provider.ts:42`_ |
+| `message` | `string` |  — _ `types/provider.ts:43`_ |

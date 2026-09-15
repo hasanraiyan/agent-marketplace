@@ -1,0 +1,51 @@
+---
+title: "files — @personaai/sdk"
+description: "Generated field tables for files — do not edit"
+---
+
+> **Generated from `sdk/typescript/dist/typedoc.json` — do not edit.** Regenerate with `node platform/scripts/typedoc-resources.mjs`.
+
+# files
+
+## `PersonaFile`
+
+Clean formatted shape (``id``, not ``_id``) — unlike Thread/Skill/Agent/Knowledge.
+
+_Source: `types/file.ts:2`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` |  — _ `types/file.ts:3`_ |
+| `originalName` | `string` |  — _ `types/file.ts:4`_ |
+| `mimeType` | `string` |  — _ `types/file.ts:5`_ |
+| `size` | `number` | Bytes. — _ `types/file.ts:7`_ |
+| `agentId` | `string \| null` |  — _ `types/file.ts:8`_ |
+| `threadId` | `string \| null` |  — _ `types/file.ts:9`_ |
+| `createdAt` | `string` |  — _ `types/file.ts:10`_ |
+
+## `UploadFilePayload`
+
+_Source: `types/file.ts:13`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `filename` | `string` |  — _ `types/file.ts:14`_ |
+| `content` | `Uint8Array<ArrayBufferLike> \| Blob` | Node Buffer/Uint8Array, or an already-constructed Blob. — _ `types/file.ts:16`_ |
+| `contentType?` | `string` | e.g. ``'application/pdf'``. Required when ``content`` isn't already a ``Blob`` with its own ``type``. — _ `types/file.ts:18`_ |
+| `agentId?` | `string` | Associates this file with an Agent, e.g. for later reference in that Agent's tool calls. — _ `types/file.ts:20`_ |
+| `threadId?` | `string` | Associates this file with a specific Thread/conversation. — _ `types/file.ts:22`_ |
+
+## `ListFilesParams`
+
+_Source: `types/file.ts:25`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `page?` | `number` |  — _ `types/file.ts:27`_ |
+| `limit?` | `number` |  — _ `types/file.ts:29`_ |

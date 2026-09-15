@@ -113,6 +113,9 @@ jobs:
         with:
           node-version: 22.x
 
+      - name: Install platform deps (for search index)
+        run: pnpm --dir platform install --frozen-lockfile
+
       - name: Check version consistency (registry ↔ package.json)
         run: node platform/scripts/check-version-consistency.mjs
 
@@ -126,4 +129,16 @@ jobs:
             npx --yes typedoc --options sdk/$pkg/typedoc.json --help > /dev/null
           done
           echo "TypeDoc configs OK (help check)"
-        # Full JSON generation is verified via `typedoc-to-mdx` producing types.mdx — CI for that is snapshot-based
+
+      - name: Generate TypeDoc JSON and MDX (sdk)
+        run: |
+          for pkg in typescript runtime adapters react; do
+            npx --yes typedoc --options sdk/$pkg/typedoc.json
+          done
+          node platform/scripts/typedoc-to-mdx.mjs --all
+          node platform/scripts/typedoc-resources.mjs
+
+      - name: Build search index and verify no drift
+        run: |
+          node platform/scripts/build-search.mjs
+          git diff --exit-code -- platform/public/search-index.json platform/content/docs/search-index.json || (echo "::error::search-index.json drift — run node platform/scripts/build-search.mjs and commit"; exit 1)

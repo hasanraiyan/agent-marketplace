@@ -1,0 +1,375 @@
+---
+title: "workflows — @personaai/sdk"
+description: "Generated field tables for workflows — do not edit"
+---
+
+> **Generated from `sdk/typescript/dist/typedoc.json` — do not edit.** Regenerate with `node platform/scripts/typedoc-resources.mjs`.
+
+# workflows
+
+## `Workflow`
+
+_Source: `types/workflow.ts:61`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `_id` | `string` |  — _ `types/workflow.ts:62`_ |
+| `domain?` | `string` |  — _ `types/workflow.ts:63`_ |
+| `projectId?` | `string` |  — _ `types/workflow.ts:64`_ |
+| `name` | `string` |  — _ `types/workflow.ts:65`_ |
+| `description?` | `string` |  — _ `types/workflow.ts:66`_ |
+| `isEnabled` | `boolean` |  — _ `types/workflow.ts:67`_ |
+| `visibility` | `WorkflowVisibility` |  — _ `types/workflow.ts:68`_ |
+| `ownerType` | `WorkflowOwnerType` |  — _ `types/workflow.ts:69`_ |
+| `externalOwnerId?` | `string \| null` |  — _ `types/workflow.ts:70`_ |
+| `draft` | `WorkflowDraft` |  — _ `types/workflow.ts:71`_ |
+| `publishedVersion` | `number` |  — _ `types/workflow.ts:72`_ |
+| `activeRuns` | `number` |  — _ `types/workflow.ts:73`_ |
+| `createdAt` | `string` |  — _ `types/workflow.ts:74`_ |
+| `updatedAt` | `string` |  — _ `types/workflow.ts:75`_ |
+
+## `WorkflowNodeType`
+
+_Source: `types/workflow.ts:3`_
+
+_Kind 2097152_
+
+```ts
+type WorkflowNodeType = "trigger" | "agentStep" | "knowledgeStep" | "toolStep" | "condition" | "approval" | "parallel" | "join" | "output"
+```
+
+## `WorkflowTriggerType`
+
+_Source: `types/workflow.ts:14`_
+
+_Kind 2097152_
+
+```ts
+type WorkflowTriggerType = "manual" | "api" | "webhook" | "schedule" | "chat"
+```
+
+## `WorkflowVisibility`
+
+_Source: `types/workflow.ts:15`_
+
+_Kind 2097152_
+
+```ts
+type WorkflowVisibility = "private" | "unlisted" | "public"
+```
+
+## `WorkflowOwnerType`
+
+_Source: `types/workflow.ts:16`_
+
+_Kind 2097152_
+
+```ts
+type WorkflowOwnerType = "Project" | "ExternalUser"
+```
+
+## `NodeOnErrorAction`
+
+_Source: `types/workflow.ts:17`_
+
+_Kind 2097152_
+
+```ts
+type NodeOnErrorAction = "fail" | "continue" | "routeError"
+```
+
+## `NodeRetryPolicy`
+
+_Source: `types/workflow.ts:19`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `maxRetries?` | `number` |  — _ `types/workflow.ts:20`_ |
+| `backoffMs?` | `number` |  — _ `types/workflow.ts:21`_ |
+| `exponential?` | `boolean` |  — _ `types/workflow.ts:22`_ |
+
+## `WorkflowNodeData`
+
+_Source: `types/workflow.ts:25`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `label` | `string` |  — _ `types/workflow.ts:26`_ |
+| `description?` | `string` |  — _ `types/workflow.ts:27`_ |
+| `config?` | `Record<string, unknown>` |  — _ `types/workflow.ts:28`_ |
+| `retryPolicy?` | `NodeRetryPolicy` |  — _ `types/workflow.ts:29`_ |
+| `onError?` | `NodeOnErrorAction` |  — _ `types/workflow.ts:30`_ |
+
+## `WorkflowNode`
+
+_Source: `types/workflow.ts:33`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` |  — _ `types/workflow.ts:34`_ |
+| `type` | `WorkflowNodeType` |  — _ `types/workflow.ts:35`_ |
+| `position?` | `{ x: number; y: number }` |  — _ `types/workflow.ts:36`_ |
+| `data` | `WorkflowNodeData` |  — _ `types/workflow.ts:37`_ |
+
+## `WorkflowEdge`
+
+_Source: `types/workflow.ts:40`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` |  — _ `types/workflow.ts:41`_ |
+| `source` | `string` |  — _ `types/workflow.ts:42`_ |
+| `target` | `string` |  — _ `types/workflow.ts:43`_ |
+| `sourceHandle?` | `string` |  — _ `types/workflow.ts:44`_ |
+| `targetHandle?` | `string` |  — _ `types/workflow.ts:45`_ |
+| `condition?` | `unknown` |  — _ `types/workflow.ts:46`_ |
+| `conditionValue?` | `string` |  — _ `types/workflow.ts:47`_ |
+
+## `WorkflowTrigger`
+
+_Source: `types/workflow.ts:50`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `type` | `WorkflowTriggerType` |  — _ `types/workflow.ts:51`_ |
+| `config?` | `Record<string, unknown>` |  — _ `types/workflow.ts:52`_ |
+
+## `WorkflowDraft`
+
+_Source: `types/workflow.ts:55`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `nodes` | `WorkflowNode[]` |  — _ `types/workflow.ts:56`_ |
+| `edges` | `WorkflowEdge[]` |  — _ `types/workflow.ts:57`_ |
+| `trigger?` | `WorkflowTrigger` |  — _ `types/workflow.ts:58`_ |
+
+## `AgentSnapshot`
+
+_Source: `types/workflow.ts:78`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `modelName` | `string` |  — _ `types/workflow.ts:79`_ |
+| `systemPrompt` | `string` |  — _ `types/workflow.ts:80`_ |
+| `tools?` | `string[]` |  — _ `types/workflow.ts:81`_ |
+
+## `WorkflowVersion`
+
+_Source: `types/workflow.ts:84`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `_id` | `string` |  — _ `types/workflow.ts:85`_ |
+| `workflowId` | `string` |  — _ `types/workflow.ts:86`_ |
+| `projectId` | `string` |  — _ `types/workflow.ts:87`_ |
+| `version` | `number` |  — _ `types/workflow.ts:88`_ |
+| `definition` | `WorkflowDraft` |  — _ `types/workflow.ts:89`_ |
+| `agentSnapshots?` | `Record<string, AgentSnapshot>` |  — _ `types/workflow.ts:90`_ |
+| `publishedBy?` | `string` |  — _ `types/workflow.ts:91`_ |
+| `publishedAt` | `string` |  — _ `types/workflow.ts:92`_ |
+| `createdAt` | `string` |  — _ `types/workflow.ts:93`_ |
+| `updatedAt` | `string` |  — _ `types/workflow.ts:94`_ |
+
+## `WorkflowRunStatus`
+
+_Source: `types/workflow.ts:97`_
+
+_Kind 2097152_
+
+```ts
+type WorkflowRunStatus = "queued" | "running" | "paused" | "completed" | "failed" | "cancelled"
+```
+
+## `NodeRunStatus`
+
+_Source: `types/workflow.ts:105`_
+
+_Kind 2097152_
+
+```ts
+type NodeRunStatus = "running" | "completed" | "failed" | "skipped" | "paused"
+```
+
+## `NodeRun`
+
+_Source: `types/workflow.ts:107`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `nodeId` | `string` |  — _ `types/workflow.ts:108`_ |
+| `nodeType` | `string` |  — _ `types/workflow.ts:109`_ |
+| `status` | `NodeRunStatus` |  — _ `types/workflow.ts:110`_ |
+| `input?` | `unknown` |  — _ `types/workflow.ts:111`_ |
+| `output?` | `unknown` |  — _ `types/workflow.ts:112`_ |
+| `error?` | `string` |  — _ `types/workflow.ts:113`_ |
+| `retriesTaken` | `number` |  — _ `types/workflow.ts:114`_ |
+| `durationMs` | `number` |  — _ `types/workflow.ts:115`_ |
+| `tokens` | `number` |  — _ `types/workflow.ts:116`_ |
+| `startedAt` | `string` |  — _ `types/workflow.ts:117`_ |
+| `endedAt?` | `string` |  — _ `types/workflow.ts:118`_ |
+
+## `WorkflowUsage`
+
+_Source: `types/workflow.ts:121`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `totalTokens` | `number` |  — _ `types/workflow.ts:122`_ |
+| `agentTurns` | `number` |  — _ `types/workflow.ts:123`_ |
+| `toolCalls` | `number` |  — _ `types/workflow.ts:124`_ |
+| `creditsDeducted` | `number` |  — _ `types/workflow.ts:125`_ |
+
+## `WorkflowRun`
+
+_Source: `types/workflow.ts:128`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `_id` | `string` |  — _ `types/workflow.ts:129`_ |
+| `workflowId` | `string` |  — _ `types/workflow.ts:130`_ |
+| `workflowVersion` | `number` |  — _ `types/workflow.ts:131`_ |
+| `projectId` | `string` |  — _ `types/workflow.ts:132`_ |
+| `triggeredBy` | `{ type: WorkflowTriggerType; userId: string; details: unknown }` |  — _ `types/workflow.ts:133`_ |
+| `status` | `WorkflowRunStatus` |  — _ `types/workflow.ts:138`_ |
+| `isDryRun` | `boolean` |  — _ `types/workflow.ts:139`_ |
+| `nodeRuns` | `NodeRun[]` |  — _ `types/workflow.ts:140`_ |
+| `pendingApproval?` | `{ nodeId: string; prompt: string; options: string[]; requestedAt: string }` |  — _ `types/workflow.ts:141`_ |
+| `output?` | `unknown` |  — _ `types/workflow.ts:147`_ |
+| `usage?` | `WorkflowUsage` |  — _ `types/workflow.ts:148`_ |
+| `threadId` | `string` |  — _ `types/workflow.ts:149`_ |
+| `startedAt` | `string` |  — _ `types/workflow.ts:150`_ |
+| `endedAt?` | `string` |  — _ `types/workflow.ts:151`_ |
+| `createdAt` | `string` |  — _ `types/workflow.ts:152`_ |
+| `updatedAt` | `string` |  — _ `types/workflow.ts:153`_ |
+
+## `CreateWorkflowInput`
+
+_Source: `types/workflow.ts:156`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | `string` |  — _ `types/workflow.ts:157`_ |
+| `description?` | `string` |  — _ `types/workflow.ts:158`_ |
+| `visibility?` | `WorkflowVisibility` |  — _ `types/workflow.ts:159`_ |
+| `isEnabled?` | `boolean` |  — _ `types/workflow.ts:160`_ |
+| `draft?` | `WorkflowDraft` |  — _ `types/workflow.ts:161`_ |
+
+## `UpdateWorkflowInput`
+
+_Source: `types/workflow.ts:164`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `name?` | `string` |  — _ `types/workflow.ts:165`_ |
+| `description?` | `string` |  — _ `types/workflow.ts:166`_ |
+| `visibility?` | `WorkflowVisibility` |  — _ `types/workflow.ts:167`_ |
+| `isEnabled?` | `boolean` |  — _ `types/workflow.ts:168`_ |
+| `draft?` | `WorkflowDraft` |  — _ `types/workflow.ts:169`_ |
+
+## `DiscoverWorkflowsParams`
+
+_Source: `types/workflow.ts:172`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `page?` | `number` |  — _ `types/workflow.ts:173`_ |
+| `limit?` | `number` |  — _ `types/workflow.ts:174`_ |
+| `search?` | `string` |  — _ `types/workflow.ts:175`_ |
+| `scope?` | `"mine" \| "public" \| "all"` |  — _ `types/workflow.ts:176`_ |
+| `visibility?` | `WorkflowVisibility` |  — _ `types/workflow.ts:177`_ |
+| `isEnabled?` | `boolean` |  — _ `types/workflow.ts:178`_ |
+
+## `ListWorkflowRunsParams`
+
+_Source: `types/workflow.ts:181`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `page?` | `number` |  — _ `types/workflow.ts:182`_ |
+| `limit?` | `number` |  — _ `types/workflow.ts:183`_ |
+| `status?` | `WorkflowRunStatus` |  — _ `types/workflow.ts:184`_ |
+| `isDryRun?` | `boolean` |  — _ `types/workflow.ts:185`_ |
+
+## `ListWorkflowVersionsParams`
+
+_Source: `types/workflow.ts:188`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `page?` | `number` |  — _ `types/workflow.ts:189`_ |
+| `limit?` | `number` |  — _ `types/workflow.ts:190`_ |
+
+## `RunWorkflowOptions`
+
+_Source: `types/workflow.ts:193`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `input?` | `unknown` |  — _ `types/workflow.ts:194`_ |
+| `dryRun?` | `boolean` |  — _ `types/workflow.ts:195`_ |
+| `version?` | `number` |  — _ `types/workflow.ts:196`_ |
+| `signal?` | `AbortSignal` |  — _ `types/workflow.ts:197`_ |
+
+## `WorkflowRunResult`
+
+_Source: `types/workflow.ts:200`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `runId` | `string` |  — _ `types/workflow.ts:201`_ |
+| `threadId` | `string` |  — _ `types/workflow.ts:202`_ |
+| `status` | `WorkflowRunStatus` |  — _ `types/workflow.ts:203`_ |
+| `isDryRun` | `boolean` |  — _ `types/workflow.ts:204`_ |
+| `output` | `unknown` |  — _ `types/workflow.ts:205`_ |
+| `usage?` | `WorkflowUsage` |  — _ `types/workflow.ts:206`_ |
+| `nodeRuns` | `Record<string, NodeRun>` |  — _ `types/workflow.ts:207`_ |
+| `events` | `WorkflowStreamEvent[]` |  — _ `types/workflow.ts:208`_ |
+
+## `WorkflowStreamEvent`
+
+_Source: `types/workflow.ts:211`_
+
+_Kind 2097152_
+
+```ts
+type WorkflowStreamEvent = AguiEvent & { seq: number; parentStepId: string }
+```

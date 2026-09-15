@@ -1,0 +1,151 @@
+---
+title: "knowledge — @personaai/sdk"
+description: "Generated field tables for knowledge — do not edit"
+---
+
+> **Generated from `sdk/typescript/dist/typedoc.json` — do not edit.** Regenerate with `node platform/scripts/typedoc-resources.mjs`.
+
+# knowledge
+
+## `KnowledgeBase`
+
+Like Skill/Agent, this mirrors the real wire shape (``_id``, raw domain/ownerType fields).
+
+_Source: `types/knowledge.ts:11`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `_id` | `string` |  — _ `types/knowledge.ts:12`_ |
+| `domain` | `string` |  — _ `types/knowledge.ts:13`_ |
+| `ownerType` | `"PersonaUser" \| "Project" \| "ExternalUser"` |  — _ `types/knowledge.ts:14`_ |
+| `ownerId?` | `string` |  — _ `types/knowledge.ts:15`_ |
+| `externalOwnerId?` | `string` |  — _ `types/knowledge.ts:16`_ |
+| `name` | `string` |  — _ `types/knowledge.ts:17`_ |
+| `description?` | `string` |  — _ `types/knowledge.ts:18`_ |
+| `isPublic` | `boolean` |  — _ `types/knowledge.ts:19`_ |
+| `documentCount` | `number` |  — _ `types/knowledge.ts:20`_ |
+| `chunkCount` | `number` |  — _ `types/knowledge.ts:21`_ |
+| `qdrantCollectionName` | `string` | Internal Qdrant collection name backing this Knowledge base — informational only. — _ `types/knowledge.ts:23`_ |
+| `documents` | `KnowledgeDocument[]` |  — _ `types/knowledge.ts:24`_ |
+| `embeddingModel` | `string` |  — _ `types/knowledge.ts:25`_ |
+| `providerId?` | `string` |  — _ `types/knowledge.ts:26`_ |
+| `chunkSize` | `number` | Characters per chunk, used when splitting uploaded documents. — _ `types/knowledge.ts:28`_ |
+| `chunkOverlap` | `number` | Character overlap between adjacent chunks. — _ `types/knowledge.ts:30`_ |
+| `topK` | `number` | Default number of chunks returned per ``search()`` call when the caller doesn't override ``topK``. — _ `types/knowledge.ts:32`_ |
+| `createdAt` | `string` |  — _ `types/knowledge.ts:33`_ |
+| `updatedAt` | `string` |  — _ `types/knowledge.ts:34`_ |
+
+## `KnowledgeDocument`
+
+One uploaded source document's chunking summary (not the chunks themselves).
+
+_Source: `types/knowledge.ts:2`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `fileName` | `string` |  — _ `types/knowledge.ts:3`_ |
+| `fileSize` | `number` |  — _ `types/knowledge.ts:4`_ |
+| `mimeType` | `string` |  — _ `types/knowledge.ts:5`_ |
+| `chunkCount` | `number` |  — _ `types/knowledge.ts:6`_ |
+| `uploadedAt` | `string` |  — _ `types/knowledge.ts:7`_ |
+
+## `CreateKnowledgeBaseInput`
+
+_Source: `types/knowledge.ts:37`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | `string` |  — _ `types/knowledge.ts:38`_ |
+| `description?` | `string` |  — _ `types/knowledge.ts:39`_ |
+| `isPublic?` | `boolean` |  — _ `types/knowledge.ts:41`_ |
+| `embeddingModel?` | `string` |  — _ `types/knowledge.ts:43`_ |
+| `providerId` | `string` | Required on the Developer API — unlike the Persona route, there's no "my default provider" concept for a Project or ExternalUser caller. — _ `types/knowledge.ts:48`_ |
+| `chunkSize?` | `number` |  — _ `types/knowledge.ts:50`_ |
+| `chunkOverlap?` | `number` |  — _ `types/knowledge.ts:52`_ |
+| `topK?` | `number` |  — _ `types/knowledge.ts:54`_ |
+
+## `UpdateKnowledgeBaseInput`
+
+All fields optional — only what you pass is changed. Does not retroactively re-embed existing documents.
+
+_Source: `types/knowledge.ts:58`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `name?` | `string` |  — _ `types/knowledge.ts:59`_ |
+| `description?` | `string` |  — _ `types/knowledge.ts:60`_ |
+| `isPublic?` | `boolean` |  — _ `types/knowledge.ts:61`_ |
+| `embeddingModel?` | `string` |  — _ `types/knowledge.ts:62`_ |
+| `providerId?` | `string` |  — _ `types/knowledge.ts:63`_ |
+| `chunkSize?` | `number` |  — _ `types/knowledge.ts:64`_ |
+| `chunkOverlap?` | `number` |  — _ `types/knowledge.ts:65`_ |
+| `topK?` | `number` |  — _ `types/knowledge.ts:66`_ |
+
+## `DiscoverKnowledgeBasesParams`
+
+_Source: `types/knowledge.ts:69`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `page?` | `number` |  — _ `types/knowledge.ts:71`_ |
+| `limit?` | `number` |  — _ `types/knowledge.ts:73`_ |
+| `search?` | `string` | Free-text match against ``name``/``description``. — _ `types/knowledge.ts:75`_ |
+| `scope?` | `"mine"` | Restricts to the asserted external user's own Knowledge Bases (``ProjectRuntimeContext`` only). — _ `types/knowledge.ts:77`_ |
+
+## `UploadFileInput`
+
+_Source: `types/knowledge.ts:80`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `filename` | `string` |  — _ `types/knowledge.ts:81`_ |
+| `content` | `Uint8Array<ArrayBufferLike> \| Blob` | Node Buffer/Uint8Array, or an already-constructed Blob. — _ `types/knowledge.ts:83`_ |
+| `contentType?` | `string` | e.g. ``'application/pdf'``. Required when ``content`` isn't already a ``Blob`` with its own ``type``. — _ `types/knowledge.ts:85`_ |
+
+## `UploadDocumentsResult`
+
+_Source: `types/knowledge.ts:88`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `documentCount` | `number` | Total document count for the Knowledge base after this upload (not just this call's files). — _ `types/knowledge.ts:90`_ |
+| `chunkCount` | `number` | Total chunk count for the Knowledge base after this upload. — _ `types/knowledge.ts:92`_ |
+| `files` | `{ fileName: string; fileSize: number; mimeType: string; chunkCount: number }[]` |  — _ `types/knowledge.ts:93`_ |
+
+## `DeleteDocumentResult`
+
+_Source: `types/knowledge.ts:96`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `removedChunks` | `number` |  — _ `types/knowledge.ts:97`_ |
+| `remainingDocuments` | `number` |  — _ `types/knowledge.ts:98`_ |
+| `remainingChunks` | `number` |  — _ `types/knowledge.ts:99`_ |
+
+## `KnowledgeSearchResult`
+
+_Source: `types/knowledge.ts:102`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `text` | `string` |  — _ `types/knowledge.ts:103`_ |
+| `source` | `string` | The ``fileName`` of the source document this chunk came from. — _ `types/knowledge.ts:105`_ |
+| `score` | `number \| null` | Similarity score (higher is more relevant); ``null`` if the underlying store didn't return one. — _ `types/knowledge.ts:107`_ |

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { DocsHeaderNav } from "@/components/docs/docs-header-nav";
+import { GlobalSearch } from "@/components/docs/global-search";
 
 export default function DocsLayout({
   children,
@@ -24,6 +25,7 @@ export default function DocsLayout({
           </div>
 
           <div className="flex items-center gap-3">
+            <GlobalSearch />
             <Link
               href="/projects"
               className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
