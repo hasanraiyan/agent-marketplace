@@ -1,0 +1,78 @@
+---
+title: "@personaai/sdk 0.9.0"
+description: "Node.js/TypeScript SDK — raw Developer Platform API client (server-side)"
+---
+
+# @personaai/sdk 0.9.0
+
+Node.js/TypeScript SDK for the Persona Developer Platform API — Agents, Skills, Knowledge, MCP, Stores, memory, and streaming chat **from your own backend**.
+
+> **Server-side only.** `PersonaClient` holds your Project credential — never construct it in a browser bundle or client component. See [Concepts: Credentials](/concepts/credentials).
+
+## Install
+
+```bash
+npm install @personaai/sdk
+# peer (optional, only for rest-tools): npm install zod
+```
+
+Requires Node 18+.
+
+## Quickstart
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+
+const persona = new PersonaClient({
+  baseUrl: 'https://api.persona.hasanraiyan.me',
+  credential: process.env.PERSONA_CREDENTIAL!,
+});
+
+// Sanity-check
+const who = await persona.whoami();
+
+// Provision an Agent (control-plane)
+const agent = await persona.agents.create({
+  name: 'Career Launchpad',
+  systemPrompt: 'You help students find internships.',
+  providerId: '...',
+  visibility: 'unlisted',
+});
+
+// Per-request, assert an external user
+const userClient = new PersonaClient({
+  baseUrl: 'https://api.persona.hasanraiyan.me',
+  credential: process.env.PERSONA_CREDENTIAL!,
+  externalUserId: currentUser.id,
+});
+
+for await (const e of userClient.chat.stream(agent._id, {
+  messages: [{ role: 'user', content: 'Hi' }],
+})) {
+  if (e.type === 'TEXT_MESSAGE_CHUNK' && e.delta) process.stdout.write(e.delta);
+}
+```
+
+See [Quickstart](/docs/sdk/v0.9.0/quickstart) for the full first-chat walkthrough.
+
+## Resources
+
+| Client | Wraps |
+|---|---|
+| `.agents` | `/api/v1/developer/agents` |
+| `.skills` | `/api/v1/developer/skills` |
+| `.knowledge` | `/api/v1/developer/knowledge` |
+| `.mcps` (+ `.mcps.oauth`) | `/api/v1/developer/mcps` |
+| `.restTools` | `/api/v1/developer/rest-tools` |
+| `.threads` | `/api/v1/developer/threads` |
+| `.memory` | `/api/v1/developer/memory` |
+| `.stores` | `/api/v1/developer/stores` |
+| `.files` | `/api/v1/developer/files` |
+| `.chat` | `/api/v1/developer/agui` |
+| `.architect` | `/api/v1/developer/architect/agui` |
+| `.workflows` | `/api/v1/developer/workflows` |
+| `.voice` | `/api/v1/developer/voice/sessions` |
+
+See [Guides](/docs/sdk/v0.9.0/guides/chat) and [Resources](/docs/sdk/v0.9.0/resources/agents).
+
+> **Generated API reference:** [Types](/docs/sdk/v0.9.0/types) is generated from `sdk/typescript/src/index.ts` via TypeDoc — do not edit. Regenerate with `node platform/scripts/typedoc-to-mdx.mjs --sdk sdk --to 0.9.0`.

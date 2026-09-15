@@ -1,0 +1,61 @@
+---
+title: "@personaai/react 0.10.0"
+description: "React hooks + Provider for building chat UIs"
+---
+
+# @personaai/react 0.10.0
+
+React hooks + `PersonaProvider` for building chat UIs against any Persona backend (runtime or adapters).
+
+> **Client-side only** — never holds a credential. `baseUrl` points to your own mounted runtime (e.g. `/api/persona`).
+
+## Install
+
+```bash
+npm install @personaai/react
+```
+
+## Quickstart
+
+```tsx
+import { PersonaProvider, useChat } from '@personaai/react';
+
+function App() {
+  return (
+    <PersonaProvider baseUrl="/api/persona" defaultAgentId="...">
+      <Chat />
+    </PersonaProvider>
+  );
+}
+
+function Chat() {
+  const { messages, input, setInput, handleSubmit, isStreaming } = useChat({ agentId: '...' });
+  return (
+    <div>
+      {messages.map(m => <div key={m.id}>{m.content}</div>)}
+      <form onSubmit={handleSubmit}>
+        <input value={input} onChange={e => setInput(e.target.value)} />
+        <button disabled={isStreaming}>Send</button>
+      </form>
+    </div>
+  );
+}
+```
+
+See [Quickstart](/docs/react/v0.10.0/quickstart).
+
+## Hooks
+
+| Hook | Purpose |
+|---|---|
+| `useChat` | Streaming chat — messages, send, interrupts, ephemeral new chat |
+| `useArchitectChat` | Architect co-pilot — same as `useChat`, no `agentId` |
+| `useThreads` | Thread CRUD — list/create/delete/rename/reset/archive |
+| `useVoice` | Real-time voice (Gemini Live) — start/stop/mute, live transcript |
+| `useFiles` | Upload management — list/upload/delete |
+| `useMemory` | Persistent memory — read/write/delete |
+| `useAgents` | Agent discovery |
+| `useConnection` | Health check — backend connectivity |
+| `useWorkflow*` | Workflows discovery/execution |
+
+See [Hooks](/docs/react/v0.10.0/hooks/useChat).

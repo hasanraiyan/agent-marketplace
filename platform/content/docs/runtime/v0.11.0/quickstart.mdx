@@ -1,0 +1,41 @@
+---
+title: "Quickstart — @personaai/runtime"
+description: "Create a runtime and handle requests via the Node bridge"
+---
+
+# Quickstart
+
+```ts
+import { createRuntime } from '@personaai/runtime';
+import { createServer } from 'node:http';
+import { toNodeHandler } from './node-handler.js'; // copy from sdk/runtime/examples/node-handler.ts
+
+const runtime = createRuntime({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser: (req) => req.headers['x-user-id'] ?? null, // your auth
+  capabilities: {
+    // turn on only what you need, each behind its own resolveUser if admin surface
+    // providers: true,
+  },
+  heartbeatIntervalMs: 15000,
+});
+
+createServer(toNodeHandler(runtime)).listen(3210);
+console.log('Runtime on http://localhost:3210 — try POST /chat, GET /threads, GET /health');
+```
+
+## Mount path
+
+`createRuntime({ mountPath: '/api/persona' })` — runtime strips it before routing. Adapters do this for you.
+
+## Health
+
+`GET /health` is public (no `resolveUser`) → `{ status, version, capabilities }` via `client.whoami()`.
+
+## Next
+
+- [Guide: resolve-user](/docs/runtime/v0.11.0/guides/resolve-user)
+- [Guide: streaming & resume](/docs/runtime/v0.11.0/guides/streaming-and-resume)
+- [Guide: hooks](/docs/runtime/v0.11.0/guides/hooks)
+- [Adapters quickstart](/docs/adapters/v0.3.0/quickstart) — framework-mounted alternative

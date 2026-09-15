@@ -1,0 +1,68 @@
+---
+title: "Quickstart — @personaai/react"
+description: "Provider + useChat in under 10 lines"
+---
+
+# Quickstart
+
+```bash
+npm install @personaai/react
+```
+
+```tsx
+import { PersonaProvider, useChat } from '@personaai/react';
+
+export function App() {
+  return (
+    <PersonaProvider baseUrl="/api/persona" getAuthToken={async () => getToken()} defaultAgentId="demo">
+      <Chat />
+    </PersonaProvider>
+  );
+}
+
+function Chat() {
+  const { messages, input, setInput, handleSubmit, isStreaming, interrupt, resumeInterrupt } = useChat();
+
+  return (
+    <div>
+      {messages.map(m => (
+        <div key={m.id}>
+          <strong>{m.role}:</strong> {m.content}
+          {m.toolCalls?.map(tc => (
+            <div key={tc.toolCallId}>{tc.toolName}: {tc.args}</div>
+          ))}
+        </div>
+      ))}
+      {interrupt && (
+        <button onClick={() => resumeInterrupt({ decisions: [{ type: 'approve' }] }, 'Approved')}>
+          Approve
+        </button>
+      )}
+      <form onSubmit={handleSubmit}>
+        <input value={input} onChange={e => setInput(e.target.value)} placeholder="Ask…" />
+        <button disabled={isStreaming}>Send</button>
+      </form>
+    </div>
+  );
+}
+```
+
+## Ephemeral new chat
+
+```tsx
+const [threadId, setThreadId] = useState<string | undefined>();
+const chat = useChat({ agentId, threadId, onThreadCreated: setThreadId });
+const handleNewChat = () => { chat.startNewChat(); setThreadId(undefined); };
+// isEphemeral true until first send mints a real thread
+```
+
+See [Guide: ephemeral](/docs/react/v0.10.0/guides/ephemeral) and [useChat](/docs/react/v0.10.0/hooks/useChat).
+
+## Voice
+
+```tsx
+import { useVoice } from '@personaai/react';
+const voice = useVoice({ agentId, threadId });
+// start/stop/mute — transcript live, partial streaming, tool calls
+// Share threadId with useChat({ threadId, voice }) to merge voice turns into messages
+```

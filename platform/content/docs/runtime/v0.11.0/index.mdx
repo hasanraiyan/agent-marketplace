@@ -1,0 +1,75 @@
+---
+title: "@personaai/runtime 0.11.0"
+description: "Framework-agnostic runtime engine — the shared brain every adapter wraps"
+---
+
+# @personaai/runtime 0.11.0
+
+Framework-agnostic runtime engine. Adapters (`@personaai/adapters/express`, `nextjs/server`, `nestjs`) are thin translators over this.
+
+> **Server-side only.** Holds `PERSONA_CREDENTIAL` — never bundle.
+
+## Install
+
+```bash
+npm install @personaai/runtime
+```
+
+If you use Express/Next/Nest, install `@personaai/adapters` instead — it wraps this.
+
+## The sacred contract: `resolveUser`
+
+Persona never authenticates users. You tell the runtime who the request is from:
+
+```ts
+import { createRuntime } from '@personaai/runtime';
+
+const runtime = createRuntime({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser: async (request) => {
+    return getUserIdFromSession(request.headers['cookie']); // your auth
+  },
+});
+```
+
+`resolveUser` returns `string | null` — `null`/throw → runtime responds `401`. See [Guide: resolve-user](/docs/runtime/v0.11.0/guides/resolve-user).
+
+## Quickstart (raw Node)
+
+```ts
+import { createServer } from 'node:http';
+import { createRuntime } from '@personaai/runtime';
+import { toNodeHandler } from './node-handler.js'; // copy from sdk/runtime/examples/node-handler.ts
+
+const runtime = createRuntime({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser: (req) => req.headers['x-demo-user-id'] ?? null,
+});
+
+createServer(toNodeHandler(runtime)).listen(3210);
+```
+
+For framework installs, see [Adapters quickstart](/docs/adapters/v0.3.0/quickstart).
+
+## Capabilities (opt-in, default off)
+
+| Capability | Routes |
+|---|---|
+| `agentsWrite` | Full Agent CRUD beyond `GET /agents` |
+| `mcps` | MCP CRUD + test/readResource/callTool |
+| `providers` | LLM providers (holds API keys) |
+| `skills` | Skill authoring |
+| `knowledge` | Knowledge CRUD + upload/search |
+| `stores` | Stores + file read/write |
+| `auditLogs` | Audit log read |
+| `architect` | Architect co-pilot `POST /architect` |
+| `workflowsWrite` | Workflow CRUD + draft/versions/mermaid |
+
+Disabled capabilities' routes are absent (`404`/`405`), not `403`. See [Guide: capabilities](/docs/runtime/v0.11.0/routes/capabilities).
+
+## Routes
+
+Core always-on routes: see [Routes: Core](/docs/runtime/v0.11.0/routes/core).
+Capability-gated routes: see [Routes: Capabilities](/docs/runtime/v0.11.0/routes/capabilities).

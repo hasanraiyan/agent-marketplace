@@ -1,0 +1,46 @@
+---
+title: "@personaai/adapters 0.3.0"
+description: "One package, three frameworks — Express, Next.js, NestJS via subpaths"
+---
+
+# @personaai/adapters 0.3.0
+
+Unified adapter — **one install, three frameworks, one shared core** (`src/shared/`). Replaces legacy `@personaai/express`/`@personaai/nestjs`/`@personaai/nextjs` (frozen/deprecated).
+
+## Install
+
+```bash
+npm install @personaai/adapters
+# peer: install only the framework you use
+# npm install express          # for Express
+# npm install next react       # for Next.js
+# npm install @nestjs/common @nestjs/core reflect-metadata rxjs  # for NestJS
+```
+
+## Exports
+
+| Import | Framework | Contents |
+|---|---|---|
+| `@personaai/adapters/express` | Express 4/5 | `toExpressRouter`, `createExpressAdapter` |
+| `@personaai/adapters/nestjs` | NestJS 10/11 | `PersonaModule`, `PersonaService` |
+| `@personaai/adapters/nextjs` | Next.js 14+ | client re-export (`PersonaProvider`, `useChat`) |
+| `@personaai/adapters/nextjs/server` | Next.js 14+ | `createPersonaHandler`, `toNextRouteHandlers` |
+
+See [Quickstart](/docs/adapters/v0.3.0/quickstart) — pick your framework tab.
+
+## Migration from legacy packages
+
+```diff
+- import { toExpressRouter } from '@personaai/express';
++ import { toExpressRouter } from '@personaai/adapters/express';
+- import { createPersonaHandler } from '@personaai/nextjs/server';
++ import { createPersonaHandler } from '@personaai/adapters/nextjs/server';
+- import { PersonaModule } from '@personaai/nestjs';
++ import { PersonaModule } from '@personaai/adapters/nestjs';
+```
+
+Old packages' last versions keep working but never receive updates.
+
+## Shared core
+
+`src/shared/` (errors, headers, multipart-node, write-node/web, handler-node, translate-node) is single source of truth — fix once, ship everywhere.

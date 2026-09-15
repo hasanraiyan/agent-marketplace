@@ -1,0 +1,19 @@
+---
+title: "Resolve user"
+description: "The sacred contract between host auth and runtime"
+---
+
+# Resolve user
+
+```ts
+createRuntime({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUser: async (request) => {
+    // Your auth — Clerk, JWT, session cookie
+    return getUserIdFromSession(request.headers['cookie']);
+  },
+});
+```
+
+`resolveUser` returns `string | null` — `null` or throw → `401`. See [Concepts: External users](/concepts/external-users).

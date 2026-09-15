@@ -1,0 +1,24 @@
+---
+title: "Express"
+description: "Mount the runtime as an Express Router"
+---
+
+# Express
+
+```ts
+import express from 'express';
+import { createExpressAdapter } from '@personaai/adapters/express';
+
+const app = express();
+app.use(express.json());
+const persona = createExpressAdapter({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUserFrom: (req) => (req as any).user?.id ?? null,
+});
+app.use('/api/persona', persona.router);
+```
+
+Or two mounts: `toExpressRouter(appRuntime)` + `toExpressRouter(adminRuntime)` at different paths with different `resolveUserFrom`.
+
+See [Quickstart](/docs/adapters/v0.3.0/quickstart).

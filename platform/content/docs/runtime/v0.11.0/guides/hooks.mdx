@@ -1,0 +1,25 @@
+---
+title: "Lifecycle hooks"
+description: "Where business logic meets the runtime"
+---
+
+# Lifecycle hooks
+
+```ts
+createRuntime({
+  baseUrl, credential, resolveUser,
+  hooks: {
+    beforeRun(ctx) { /* ctx: { userId, kind: 'chat'|'architect', agentId?, threadId?, messages } */ },
+    afterRun(ctx, result) { /* result: { text, eventCount, interrupted } */ },
+    onError(ctx, error) { /* ctx.phase: 'auth'|'chat'|'architect' */ },
+    beforeToolCall(ctx) { /* ctx: { userId, agentId, toolName, toolCallId } */ },
+    afterToolCall(ctx, result) {},
+    onFileUpload(ctx) {},
+    onThreadCreate(ctx) {},
+    onMemoryWrite(ctx) {},
+    onVoiceSessionCreate(ctx) {},
+  },
+});
+```
+
+All hooks are optional, async, isolated (throwing `afterRun` never triggers `onError` for a successful run).

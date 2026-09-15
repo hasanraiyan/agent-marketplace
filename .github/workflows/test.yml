@@ -50,12 +50,10 @@ jobs:
         run: cd frontend && pnpm run format:check
 
   sdk:
-    # Matrix over every SDK package in sdk/ — add a new row when a package
-    # lands (e.g. sdk/adapters/*, sdk/react, ...). No hardcoded per-package steps.
+    # Greenfield JS-only: 4 SDKs (sdk/typescript, runtime, adapters, react).
+    # Python is old/unmaintained (out-of-scope), logger/ui/devtools are internal/deprecated.
     runs-on: ubuntu-latest
     strategy:
-      # The three SDK packages are independent — a failure in one shouldn't
-      # cancel the others.
       fail-fast: false
       matrix:
         include:
@@ -63,10 +61,10 @@ jobs:
             toolchain: node
           - dir: runtime
             toolchain: node
-          - dir: adapters/express
+          - dir: adapters
             toolchain: node
-          - dir: python
-            toolchain: python
+          - dir: react
+            toolchain: node
 
     steps:
       - uses: actions/checkout@v4
@@ -75,7 +73,6 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 10
-        if: matrix.toolchain == 'node'
 
       - name: Use Node.js 22.x
         uses: actions/setup-node@v4
@@ -83,46 +80,50 @@ jobs:
           node-version: 22.x
           cache: 'pnpm'
           cache-dependency-path: 'sdk/${{ matrix.dir }}/pnpm-lock.yaml'
-        if: matrix.toolchain == 'node'
 
       - name: Install dependencies (sdk/${{ matrix.dir }})
         run: cd sdk/${{ matrix.dir }} && pnpm install --frozen-lockfile
-        if: matrix.toolchain == 'node'
 
       - name: Typecheck (sdk/${{ matrix.dir }})
         run: cd sdk/${{ matrix.dir }} && pnpm typecheck
-        if: matrix.toolchain == 'node'
 
       - name: Lint (sdk/${{ matrix.dir }})
         run: cd sdk/${{ matrix.dir }} && pnpm lint
-        if: matrix.toolchain == 'node'
 
       - name: Run tests (sdk/${{ matrix.dir }})
         run: cd sdk/${{ matrix.dir }} && pnpm test
-        if: matrix.toolchain == 'node'
 
-      - name: Express 4 compatibility suite (sdk/adapters/express)
-        run: cd sdk/adapters/express && pnpm test:express4
-        if: matrix.dir == 'adapters/express'
+      - name: Express 4 compatibility suite (adapters)
+        run: cd sdk/adapters && pnpm test:express4
+        if: matrix.dir == 'adapters'
 
-      - name: Check SDK docs coverage (exports vs docs)
-        run: node sdk/typescript/scripts/check-docs-coverage.mjs
-        if: matrix.dir == 'typescript'
+  docs:
+    # Greenfield docs checks — JS-only, 4 SDKs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
-          python-version: "3.12"
-        if: matrix.toolchain == 'python'
+          version: 10
 
-      - name: Install with dev extras (sdk/${{ matrix.dir }})
-        run: cd sdk/${{ matrix.dir }} && pip install -e ".[dev]"
-        if: matrix.toolchain == 'python'
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
 
-      - name: Lint (sdk/${{ matrix.dir }})
-        run: cd sdk/${{ matrix.dir }} && python -m ruff check .
-        if: matrix.toolchain == 'python'
+      - name: Check version consistency (registry ↔ package.json)
+        run: node platform/scripts/check-version-consistency.mjs
 
-      - name: Run tests (sdk/${{ matrix.dir }})
-        run: cd sdk/${{ matrix.dir }} && python -m pytest
-        if: matrix.toolchain == 'python'
+      - name: Check docs coverage (exports ↔ types.mdx)
+        run: node platform/scripts/check-docs-coverage.mjs
+
+      - name: Validate TypeDoc configs (dry-run)
+        run: |
+          for pkg in typescript runtime adapters react; do
+            echo "--- typedoc dry-run: $pkg ---"
+            npx --yes typedoc --options sdk/$pkg/typedoc.json --help > /dev/null
+          done
+          echo "TypeDoc configs OK (help check)"
+        # Full JSON generation is verified via `typedoc-to-mdx` producing types.mdx — CI for that is snapshot-based

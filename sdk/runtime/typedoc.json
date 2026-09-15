@@ -1,0 +1,15 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/index.ts"],
+  "out": "dist/docs",
+  "json": "dist/typedoc.json",
+  "readme": "none",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "includeVersion": true,
+  "sort": ["source-order"],
+  "categorizeByGroup": true,
+  "categoryOrder": ["Runtime", "Routes", "Types", "Hooks", "Errors", "*"],
+  "tsconfig": "tsconfig.json"
+}

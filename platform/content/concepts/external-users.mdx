@@ -1,0 +1,28 @@
+---
+title: "External Users — the dual-mode rule"
+description: "When to assert externalUserId and when not to"
+---
+
+# External Users
+
+Persona never authenticates your users — it receives a **resolved user id** and scopes data to it.
+
+## Two planes
+
+| Plane | Header | Client | Data |
+|---|---|---|---|
+| **Control-plane** (Project-owned) | _none_ | `new PersonaClient({ baseUrl, credential })` | `agents`, `providers` (some), `auditLogs` |
+| **Runtime-plane** (per-end-user) | `x-persona-external-user-id` | `new PersonaClient({ baseUrl, credential, externalUserId: yourUserId })` | `threads`, `files`, `chat`, `memory` (user scope), `stores` (externalUser scope) |
+
+```ts
+const admin = new PersonaClient({ baseUrl, credential }); // create agents
+const user  = new PersonaClient({ baseUrl, credential, externalUserId: currentUser.id }); // chat
+```
+
+Runtime: `createRuntime({ resolveUser: (req) => req.user?.id ?? null })` — `null` → `401`.
+
+## When to set it
+
+- ** Threads/Files/Chat ** always need it (or the thread belongs to no one — `409`).
+- ** Agents/MCPS ** can be Project-owned (no user) or per-user (`scope: 'mine'` listing).
+- ** `whoami()` ** without `externalUserId` → `ProjectMachineContext`; with → `ProjectRuntimeContext`.

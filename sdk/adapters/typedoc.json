@@ -1,0 +1,16 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/express/index.ts", "src/nestjs/index.ts", "src/nextjs/server.ts", "src/nextjs/client.ts"],
+  "entryPointStrategy": "expand",
+  "out": "dist/docs",
+  "json": "dist/typedoc.json",
+  "readme": "none",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "includeVersion": true,
+  "sort": ["source-order"],
+  "categorizeByGroup": true,
+  "categoryOrder": ["Express", "NestJS", "Next.js", "Shared", "*"],
+  "tsconfig": "tsconfig.json"
+}

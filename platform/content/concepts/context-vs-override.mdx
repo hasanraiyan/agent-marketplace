@@ -1,0 +1,36 @@
+---
+title: "context vs contextOverride"
+description: "Two fields, same name family, opposite trust boundaries"
+---
+
+# context vs contextOverride
+
+Both are per-turn caller-supplied context on `chat.stream({ … })`, but they differ in **visibility to the model**.
+
+## `contextOverride` — model-visible patch
+
+Appended to this turn's system prompt only, never persisted. Cap `4000` chars → `400` if exceeded.
+
+```ts
+await userClient.chat.stream(agent._id, {
+  messages: [{ role: 'user', content: 'Hi' }],
+  contextOverride: `Live page: ${JSON.stringify(pageContext)}`, // model sees this
+});
+```
+
+## `context` — never shown to model, only RCP reads it
+
+Flat object `Record<string, string|number|boolean>` (no nesting), capped at `2000` bytes serialized → `400` if violated. Only ever read live by an **RCP tool's resolver** at the moment it's called; a param mapped via `paramContextMap` is permanently absent from the model's tool schema.
+
+```ts
+await userClient.chat.stream(agent._id, {
+  messages: [{ role: 'user', content: 'Show my orders' }],
+  context: { userId: currentUser.id, tier: 'pro' }, // model never sees this
+});
+```
+
+Must be resent on every turn you want it to apply — never remembered. Voice: at-connect seed only (`voice.createSession({ context })`); live refresh via WebSocket `{ type: 'voice.context', context }`. Runtime: `POST /chat { context }`, `POST /voice/sessions { context }` validated by `validateTurnContext` (flat, ≤2000 bytes, `TextEncoder` for Edge compat).
+
+**Never confuse them.** Use `contextOverride` for live page prose the model should quote; use `context` for typed values an RCP tool resolves without ever exposing the value to the model.
+
+See SDK guide [Chat streaming](/docs/sdk/v0.9.0/guides/chat) and Runtime guide [Streaming & resume](/docs/runtime/v0.11.0/guides/streaming-and-resume).

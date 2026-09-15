@@ -1,0 +1,83 @@
+---
+title: "Quickstart — @personaai/sdk"
+description: "Install, auth, create an agent, chat as an external user"
+---
+
+# Quickstart
+
+## 1. Install
+
+```bash
+npm install @personaai/sdk
+```
+
+Node 18+ (uses native `fetch`).
+
+## 2. Construct the client (server-side)
+
+```ts
+import { PersonaClient } from '@personaai/sdk';
+
+const persona = new PersonaClient({
+  baseUrl: 'https://api.persona.hasanraiyan.me',
+  credential: process.env.PERSONA_CREDENTIAL!, // "<keyId>.<secret>" from Developer Studio
+});
+```
+
+> Never construct `PersonaClient` in a browser bundle. See [Credentials](/concepts/credentials).
+
+## 3. Verify
+
+```ts
+const who = await persona.whoami();
+console.log(who.principalType, who.domain);
+```
+
+## 4. Create an agent (one-time, control-plane)
+
+```ts
+const agent = await persona.agents.create({
+  name: 'Demo',
+  systemPrompt: 'You are helpful.',
+  providerId: '...', // from Developer Studio → Providers
+});
+```
+
+## 5. Chat as one of your users
+
+Most resources (`threads`, `files`, `chat`) act on behalf of an end user. Create a per-request client:
+
+```ts
+const userClient = new PersonaClient({
+  baseUrl: 'https://api.persona.hasanraiyan.me',
+  credential: process.env.PERSONA_CREDENTIAL!,
+  externalUserId: 'user_123', // your own user id
+});
+
+const thread = await userClient.threads.create({ agentId: agent._id });
+
+// Stream
+for await (const e of userClient.chat.stream(agent._id, {
+  messages: [{ role: 'user', content: 'Hello' }],
+  threadId: thread._id,
+})) {
+  if (e.type === 'TEXT_MESSAGE_CHUNK' && e.delta) process.stdout.write(e.delta);
+}
+
+// Or drain to final text
+const result = await userClient.chat.sendMessage(agent._id, {
+  messages: [{ role: 'user', content: 'Hello' }],
+  threadId: thread._id,
+});
+console.log(result.text);
+if (result.interrupt) {
+  // resume with decisions/answers
+}
+```
+
+## Next
+
+- [Concepts: External Users](/concepts/external-users) — when to set `externalUserId`
+- [Guide: Chat streaming](/docs/sdk/v0.9.0/guides/chat)
+- [Guide: Threads](/docs/sdk/v0.9.0/guides/threads)
+- [Adapters quickstart](/docs/adapters/v0.3.0/quickstart) — if you want framework-mount instead of raw SDK

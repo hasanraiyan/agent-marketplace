@@ -1,0 +1,29 @@
+---
+title: "useChat"
+description: "Streaming chat — messages, send, interrupts, voice, ephemeral"
+---
+
+# useChat
+
+```tsx
+const {
+  messages, input, setInput, handleSubmit, isStreaming, isLoadingHistory,
+  error, interrupt, resumeInterrupt, files, todos, presentedFile,
+  stop, reload, clear, startNewChat, currentThreadId, isEphemeral,
+  sandboxCommands, voice,
+} = useChat({
+  agentId,
+  threadId,
+  initialMessages,
+  onFinish, onError, onEvent, onThreadCreated, onTitle,
+  voice: useVoice({ agentId, threadId }),
+  context: () => ({ page: window.location.pathname }), // or plain object
+});
+
+await sendMessage('Hello', { contextOverride: 'Live page context', context: { tier: 'pro' } });
+await resumeInterrupt({ decisions: [{ type: 'approve' }] }, 'Approved');
+```
+
+See [SDK Guide: Chat](/docs/sdk/v0.9.0/guides/chat) for the underlying AG-UI events.
+
+> Generated props table for `UseChatOptions` will be produced from `sdk/react/src/types.ts` via TypeDoc.

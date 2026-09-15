@@ -1,0 +1,16 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/index.ts", "src/rest-tools.ts"],
+  "out": "dist/docs",
+  "json": "dist/typedoc.json",
+  "readme": "none",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "includeVersion": true,
+  "sort": ["source-order"],
+  "categorizeByGroup": true,
+  "categoryOrder": ["Resources", "Types", "Errors", "Chat", "Logging", "*"],
+  "plugin": [],
+  "tsconfig": "tsconfig.json"
+}

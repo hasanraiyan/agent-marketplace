@@ -1,0 +1,43 @@
+---
+title: "AG-UI Protocol & Events"
+description: "SSE framing and event types"
+---
+
+# AG-UI Protocol & Events
+
+Streaming uses `text/event-stream` SSE:
+
+```
+data: {"type":"TEXT_MESSAGE_CHUNK","delta":"Hello ","seq":1}
+
+data: {"type":"TOOL_CALL_CHUNK","toolCallId":"call_123","toolCallName":"search_web","delta":"{\"q\":\"persona\"}","seq":2}
+
+data: {"type":"TOOL_CALL_RESULT","toolCallId":"call_123","content":"{\"results\":[...]}","seq":3}
+
+data: {"type":"STATE_SNAPSHOT","snapshot":{"files":{"src/app.ts":{"content":"…","size":123,"created_at":null}},"todos":[...]},"seq":4}
+
+data: {"type":"CUSTOM","name":"hitl_request","value":{"actionRequests":[{"name":"delete_agent","args":{}}]},"seq":5}
+
+data: {"type":"RUN_ERROR","code":"RATE_LIMITED","message":"Upstream 429","retryable":true,"seq":6}
+```
+
+## Core types
+
+| Type | Notes |
+|---|---|
+| `RUN_STARTED` | `runId`, `threadId` |
+| `TEXT_MESSAGE_CHUNK` | `delta` incremental |
+| `TOOL_CALL_CHUNK` | accumulating `delta` args — SDK merges per `toolCallId` |
+| `TOOL_CALL_RESULT` | `content` (+ `structuredContent`) |
+| `REASONING_MESSAGE_START` / `REASONING_MESSAGE_CONTENT` / `REASONING_END` | per-phase reasoning messages |
+| `STATE_SNAPSHOT` | `files` + `todos` (workspace virtual FS) |
+| `CUSTOM` `hitl_request` / `clarification_request` | interrupts → resume with `{ decisions }` / `{ answers, text }` |
+| `CUSTOM` `subagent_activity` | `task` subagent timeline |
+| `CUSTOM` `workflow_node_started/completed/failed` | workflows |
+| `title` | `{ title: "3-4 word summary" }` |
+| `RUN_FINISHED` / `RUN_ERROR` | terminal |
+
+`X-AGUI-Schema-Version` header on response (e.g. `1.1.0`). SDK `AGUI_SCHEMA_VERSION` exports it.
+
+Runtime adds sequencing for resume: `RunDriver` buffers frames with `seq`, `GET /chat/:runId/resume?since=<seq>` replays, heartbeat `: heartbeat` keeps idle connections alive.
+
