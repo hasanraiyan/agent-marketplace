@@ -3,6 +3,19 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.13.0
+
+- **New: `useMcpAdmin(options)`.** Self-serve CRUD for the calling end
+  user's OWN MCP server connections — "connect your own tool server to
+  your agent" — gated behind `capabilities.mcps`. Deliberately narrower
+  than `useSkills`/`useAgents`/`useKnowledgeBases`: always operates in
+  "mine" mode (no `scope` option — an end user managing their own tool
+  connections has no reason to browse the Project's shared MCPs), and has
+  no `getUsage` (unlike a Skill/Agent, other people's Agents can't
+  reference a personal MCP only its owner can see). `list`/`getMcp`/
+  `createMcp`/`updateMcp`/`deleteMcp`/`bulkDeleteMcps`/`testConnection`.
+  Level 5/6 of the self-serve resource CRUD series.
+
 ## 0.12.0
 
 - **New: `useKnowledgeBases(options)`.** Self-serve CRUD for Knowledge Bases —

@@ -1077,3 +1077,119 @@ export interface UseKnowledgeBasesOptions {
   scope?: "mine";
 }
 
+export type PersonaMcpTransport = "http" | "sse";
+export type PersonaMcpAuthType = "none" | "oauth" | "apiKey";
+/** `owner`: one shared connection for the whole MCP. `user`: each external user connects their own. */
+export type PersonaMcpAuthMode = "owner" | "user";
+
+export interface PersonaMcpTool {
+  name: string;
+  description: string;
+}
+
+export interface PersonaMcpResourceSummary {
+  uri: string;
+  name: string;
+  description: string;
+  mimeType: string;
+}
+
+/** A resource whose `uri` has placeholder params to fill before calling `readResource()`. */
+export interface PersonaMcpResourceTemplate {
+  uriTemplate: string;
+  name: string;
+  description: string;
+  mimeType: string;
+  toolName: string;
+}
+
+export interface PersonaMcpOAuthConfig {
+  clientId: string | null;
+  hasClientSecret: boolean;
+  authorizationEndpoint: string | null;
+  tokenEndpoint: string | null;
+  scopes: string[];
+  dynamicallyRegistered: boolean;
+  /** Whether this MCP's owner has completed the owner-mode OAuth flow. */
+  ownerConnected: boolean;
+}
+
+/** Your own MCP server connection — a self-serve tool endpoint you registered, not one of the Project's shared ones (see `useMcp`/`useMcpConnections` for those). */
+export interface PersonaMcp {
+  _id: string;
+  domain: string;
+  ownerType: "PersonaUser" | "Project" | "ExternalUser";
+  ownerId?: string;
+  externalOwnerId?: string;
+  name: string;
+  description?: string;
+  transport: PersonaMcpTransport;
+  url: string;
+  authType: PersonaMcpAuthType;
+  authMode: PersonaMcpAuthMode;
+  hasApiKey: boolean;
+  oauth?: PersonaMcpOAuthConfig;
+  isEnabled: boolean;
+  /** Populated by `testConnection()`; empty until it's been called at least once. */
+  tools: PersonaMcpTool[];
+  resources: PersonaMcpResourceSummary[];
+  resourceTemplates: PersonaMcpResourceTemplate[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PersonaMcpOAuthInput {
+  clientId: string;
+  clientSecret: string;
+  scopes?: string[];
+}
+
+export interface CreatePersonaMcpInput {
+  name: string;
+  transport: PersonaMcpTransport;
+  url: string;
+  description?: string;
+  /** @default 'none' */
+  authType?: PersonaMcpAuthType;
+  /** @default 'owner' */
+  authMode?: PersonaMcpAuthMode;
+  /** Required when `authType: 'oauth'` and `useDynamicRegistration` isn't set. */
+  oauth?: PersonaMcpOAuthInput;
+  /** Required when `authType: 'apiKey'`. */
+  apiKey?: string;
+  /** Use RFC 7591 Dynamic Client Registration instead of a manually-configured `oauth` block. @default false */
+  useDynamicRegistration?: boolean;
+  /** @default true */
+  isEnabled?: boolean;
+}
+
+/** All fields optional — only what you pass is changed. */
+export interface UpdatePersonaMcpInput {
+  name?: string;
+  description?: string;
+  transport?: PersonaMcpTransport;
+  url?: string;
+  authType?: PersonaMcpAuthType;
+  authMode?: PersonaMcpAuthMode;
+  isEnabled?: boolean;
+  useDynamicRegistration?: boolean;
+  oauth?: Partial<PersonaMcpOAuthInput>;
+  /** Replaces the stored key entirely; omit to leave the existing key untouched. */
+  apiKey?: string;
+}
+
+export interface PersonaMcpTestConnectionResult {
+  tools: PersonaMcpTool[];
+  resources: PersonaMcpResourceSummary[];
+  resourceTemplates: PersonaMcpResourceTemplate[];
+}
+
+export interface UseMcpAdminOptions {
+  /** @default true */
+  autoFetch?: boolean;
+  page?: number;
+  limit?: number;
+  /** Free-text match against name/description. */
+  search?: string;
+}
+
