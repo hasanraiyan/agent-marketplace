@@ -73,6 +73,39 @@ export function useMcpConnections(options: UseMcpConnectionsOptions = {}) {
     }
   }, [agentId, fetchWithAuth, options.returnTo]);
 
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+
+  /** Revokes the current end user's own connection to this MCP (`DELETE .../oauth/user/connection`). */
+  const disconnect = useCallback(
+    async (mcpId: string) => {
+      setIsDisconnecting(true);
+      setError(null);
+      try {
+        const res = await fetchWithAuth(`/mcps/${mcpId}/oauth/user/connection`, {
+          method: "DELETE",
+        });
+        if (!res.ok)
+          throw new Error(`Failed to disconnect MCP: ${res.statusText}`);
+        setConnections((prev) =>
+          prev.map((c) =>
+            c.mcpId === mcpId ? { ...c, connected: false, authorizeUrl: null } : c,
+          ),
+        );
+        // authorizeUrl for the now-disconnected MCP came back null above —
+        // refetch to get a real one (needed to reconnect) instead of leaving
+        // the affordance dead until the next unrelated refetch.
+        void fetchConnections();
+      } catch (err) {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        setError(errorObj);
+        throw errorObj;
+      } finally {
+        setIsDisconnecting(false);
+      }
+    },
+    [fetchWithAuth, fetchConnections],
+  );
+
   useEffect(() => {
     if (autoFetch) void fetchConnections();
   }, [autoFetch, fetchConnections]);
@@ -84,5 +117,7 @@ export function useMcpConnections(options: UseMcpConnectionsOptions = {}) {
     isLoading,
     error,
     refetch: fetchConnections,
+    disconnect,
+    isDisconnecting,
   };
 }
