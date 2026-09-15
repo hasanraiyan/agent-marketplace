@@ -891,3 +891,86 @@ export interface UseAgentsOptions {
   scope?: "mine";
 }
 
+export interface PersonaRcpSourceToolParamSummary {
+  name: string;
+  type: string;
+  description: string;
+  required: boolean;
+}
+
+/** A display cache only, written by `testRcpSourceConnection` — Agent execution discovers tools live via `rcp-sdk`, never reads this. */
+export interface PersonaRcpSourceToolSummary {
+  name: string;
+  description: string;
+  method: string;
+  url: string;
+  /** Every param this tool exposes (never resolver-filtered) — needed client-side to build `paramContextMap`. */
+  params: PersonaRcpSourceToolParamSummary[];
+}
+
+/** Maps one of this source's tool param names to a key sent in a message's per-turn `context` — see `SendMessageOverride.context`. Shared across every Agent this source is attached to, not per-attachment. */
+export interface PersonaRcpParamContextMapEntry {
+  param: string;
+  contextKey: string;
+}
+
+/** A hosted RCP (REST Connector Protocol, npm `rcp-sdk`) manifest URL Persona discovers tools from live on every Agent run. */
+export interface PersonaRcpSource {
+  _id: string;
+  domain: string;
+  ownerType: "PersonaUser" | "Project" | "ExternalUser";
+  ownerId?: string;
+  externalOwnerId?: string;
+  name: string;
+  description: string;
+  /** `GET url` must return a conformant `{ rcpVersion, auth, tools[] }` manifest. */
+  url: string;
+  authType: "none" | "header";
+  /** A Project Secret id — present only when `authType` is `'header'`. Never returns the secret's plaintext value. */
+  secretRef?: string | null;
+  isEnabled: boolean;
+  lastTestedAt?: string | null;
+  tools: PersonaRcpSourceToolSummary[];
+  paramContextMap: PersonaRcpParamContextMapEntry[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePersonaRcpSourceInput {
+  name: string;
+  description?: string;
+  url: string;
+  /** @default 'none' */
+  authType?: "none" | "header";
+  /** A Project Secret id. Required when `authType` is `'header'`. */
+  secretRef?: string;
+  /** @default true */
+  isEnabled?: boolean;
+  paramContextMap?: PersonaRcpParamContextMapEntry[];
+}
+
+/** All fields optional — only what you pass is changed. */
+export interface UpdatePersonaRcpSourceInput {
+  name?: string;
+  description?: string;
+  url?: string;
+  authType?: "none" | "header";
+  secretRef?: string | null;
+  isEnabled?: boolean;
+  paramContextMap?: PersonaRcpParamContextMapEntry[];
+}
+
+/** From `testConnection()` — discovers the source's manifest live and persists it as the new display cache. */
+export interface PersonaRcpSourceTestResult {
+  tools: PersonaRcpSourceToolSummary[];
+}
+
+export interface UseRcpSourcesOptions {
+  /** @default true */
+  autoFetch?: boolean;
+  page?: number;
+  limit?: number;
+  /** Free-text match against name. */
+  search?: string;
+}
+

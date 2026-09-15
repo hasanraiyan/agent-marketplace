@@ -3,6 +3,25 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.11.0
+
+- **New: `useSkills(options)`.** Self-serve Skill CRUD — `list`/`getSkill`/`createSkill`/
+  `updateSkill`/`deleteSkill`/`bulkDeleteSkills`/`getSkillUsage`, gated behind the runtime's
+  `capabilities.skills`. `scope: 'mine'` restricts to the asserted external user's own Skills.
+- **`useAgents` is now full CRUD, not read-only discovery.** Added `getAgent`/`createAgent`/
+  `updateAgent`/`deleteAgent`/`bulkDeleteAgents` (gated behind `capabilities.agentsWrite`), plus
+  the `page`/`limit`/`search`/`category`/`scope: 'mine'` query params `list()` already supported
+  server-side but the hook never exposed. Still accepts a bare boolean for backward compat
+  (`useAgents(false)`), or the new richer `UseAgentsOptions`. `PersonaAgentSummary` (a strictly
+  narrower, inaccurate view of the real list response) is replaced by the full `PersonaAgent` type.
+- **New: `useRcpSources(options)`.** Self-serve CRUD for RCP (REST Connector Protocol) manifest
+  sources — `list`/`getRcpSource`/`createRcpSource`/`updateRcpSource`/`deleteRcpSource`/
+  `bulkDeleteRcpSources`/`getRcpSourceUsage`/`testRcpSourceConnection`, gated behind
+  `capabilities.rcpSources` (new in `@personaai/runtime` 0.12.0 — this was the one self-serve
+  resource domain, alongside Agent/Workflow/MCP/Knowledge Base/Skill, with no SDK surface at all).
+- Fixed `useWorkflows` reading `data.pagination.totalPages`, which the backend never sends (the
+  real field is `pages`) — `totalPages` was always silently falling through to its `?? 1` default.
+
 ## 0.10.0
 
 - **New: `useArchitectChat(options)`.** First-class React support for the Agent Architect co-pilot

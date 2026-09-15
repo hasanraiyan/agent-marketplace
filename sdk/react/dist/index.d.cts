@@ -620,6 +620,293 @@ interface UseWorkflowRunsOptions {
     page?: number;
     limit?: number;
 }
+/** Shared list envelope every Developer Platform discovery endpoint uses (Agents/Skills/Knowledge/MCP/Threads/Files). */
+interface PersonaPagination {
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+}
+/** `{ deleted, failed }` from a `POST .../bulk-delete` — a best-effort batch, not all-or-nothing; check `failed` for per-id reasons. */
+interface PersonaBulkDeleteResult {
+    deleted: string[];
+    failed: Array<{
+        id: string;
+        reason: string;
+    }>;
+}
+/** A file bundled with a Skill (e.g. a reference doc or script an Agent can read). */
+interface PersonaSkillFile {
+    path: string;
+    content: string;
+    mimeType?: string;
+    createdAt?: string;
+    updatedAt?: string;
+}
+interface PersonaSkill {
+    _id: string;
+    domain: string;
+    ownerType: "PersonaUser" | "Project" | "ExternalUser";
+    ownerId?: string;
+    externalOwnerId?: string;
+    name: string;
+    description: string;
+    instructions: string;
+    files: PersonaSkillFile[];
+    /** Visible to every credential in the platform when `true`, not just this Domain. */
+    isPublic: boolean;
+    createdAt: string;
+    updatedAt: string;
+    /** Present only on a single `getSkill()` read — whether the calling identity owns this Skill. */
+    isOwner?: boolean;
+}
+interface CreatePersonaSkillInput {
+    name: string;
+    description: string;
+    /** The actual prompt text given to an Agent that has this Skill attached. */
+    instructions: string;
+    /** @default false */
+    isPublic?: boolean;
+    files?: Array<{
+        path: string;
+        content: string;
+        mimeType?: string;
+    }>;
+}
+/** All fields optional — only what you pass is changed. */
+interface UpdatePersonaSkillInput {
+    name?: string;
+    description?: string;
+    instructions?: string;
+    isPublic?: boolean;
+    /** Replaces the entire `files` array — not a merge/append. */
+    files?: Array<{
+        path: string;
+        content: string;
+        mimeType?: string;
+    }>;
+}
+/** Agents referencing a Skill — check before deleting it to avoid a blocked-delete error. */
+interface PersonaSkillUsage {
+    /** The real total — `agents` below is a preview capped at 20. */
+    agentCount: number;
+    agents: Array<{
+        _id: string;
+        name: string;
+    }>;
+}
+interface UseSkillsOptions {
+    /** @default true */
+    autoFetch?: boolean;
+    page?: number;
+    limit?: number;
+    /** Free-text match against name/description. */
+    search?: string;
+    /** Restricts to the asserted external user's own Skills. Requires a `ProjectRuntimeContext` (i.e. `PersonaProvider` talking through an adapter with `resolveUserFrom`/`resolveUser`) — a no-op otherwise. */
+    scope?: "mine";
+}
+interface PersonaAgentSocialLinks {
+    website?: string;
+    twitter?: string;
+    github?: string;
+    linkedin?: string;
+}
+/** `unlisted` is reachable by direct link/id but excluded from public discovery listings. */
+type PersonaAgentVisibility = "private" | "unlisted" | "public";
+type PersonaAgentCategory = "productivity" | "coding" | "creative" | "research" | "roleplay" | "other";
+/**
+ * Mirrors the real wire shape (`_id`, raw domain/ownerType fields) —
+ * `getAgent()` returns `skills`/`mcps`/`knowledgeBases` populated as
+ * objects, while `createAgent()`/`updateAgent()`/`agents` (from the list)
+ * return them as bare id strings; typed loosely (`unknown[]`) to reflect
+ * that real difference rather than picking one shape and being wrong for
+ * the other calls.
+ */
+interface PersonaAgent {
+    _id: string;
+    domain: string;
+    ownerType: "PersonaUser" | "Project" | "ExternalUser";
+    ownerId?: string;
+    externalOwnerId?: string;
+    name: string;
+    /** URL-safe, unique within the Domain; used in some public-facing routes. */
+    slug: string;
+    description?: string;
+    avatar?: string;
+    tags?: string[];
+    /** Short one-liner shown in list/card views. */
+    tagline?: string;
+    /** Longer free-text bio shown on the Agent's own profile view. */
+    bio?: string;
+    personalityTraits?: string[];
+    socialLinks?: PersonaAgentSocialLinks;
+    /** Stripped from the response when the calling identity doesn't own this Agent. */
+    systemPrompt?: string;
+    /** Stripped from the response when the calling identity doesn't own this Agent. */
+    providerId?: string;
+    /** Overrides the referenced Provider's `defaultModel` when set. */
+    modelName?: string;
+    webSearchEnabled: boolean;
+    /** Real shell execution in an isolated CodeSandbox VM — requires a `CSB_API_KEY` Project Secret to already exist. */
+    sandboxEnabled: boolean;
+    visibility: PersonaAgentVisibility;
+    category: PersonaAgentCategory;
+    skills?: unknown[];
+    mcps?: unknown[];
+    knowledgeBases?: unknown[];
+    storeMounts?: unknown[];
+    /** Maps a tool name to whether calling it pauses the run for human approval. */
+    interruptOn?: Record<string, boolean>;
+    isActive: boolean;
+    /** Whether this is the Project's designated default/primary Agent. */
+    isMainAgent: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+interface CreatePersonaAgentInput {
+    name: string;
+    /** The instructions that define this Agent's behavior/persona. */
+    systemPrompt: string;
+    /** Must reference a Provider the host Project already created. */
+    providerId: string;
+    description?: string;
+    avatar?: string;
+    tags?: string[];
+    tagline?: string;
+    bio?: string;
+    personalityTraits?: string[];
+    socialLinks?: PersonaAgentSocialLinks;
+    modelName?: string;
+    /** @default false */
+    webSearchEnabled?: boolean;
+    /** @default false */
+    sandboxEnabled?: boolean;
+    /** @default 'private' */
+    visibility?: PersonaAgentVisibility;
+    /** @default 'other' */
+    category?: PersonaAgentCategory;
+    /** Skill ids to attach at creation time. */
+    skills?: string[];
+    /** MCP server ids to attach at creation time. */
+    mcps?: string[];
+    /** Knowledge base ids to attach at creation time. */
+    knowledgeBases?: string[];
+    /** Store ids to mount at creation time. */
+    storeMounts?: string[];
+    interruptOn?: Record<string, boolean>;
+    /** @default true */
+    isActive?: boolean;
+}
+/** All fields optional — only what you pass is changed; array/map fields replace the whole value, not a merge/append. */
+interface UpdatePersonaAgentInput {
+    name?: string;
+    description?: string;
+    avatar?: string;
+    tags?: string[];
+    tagline?: string;
+    bio?: string;
+    personalityTraits?: string[];
+    socialLinks?: PersonaAgentSocialLinks;
+    systemPrompt?: string;
+    providerId?: string;
+    modelName?: string;
+    webSearchEnabled?: boolean;
+    sandboxEnabled?: boolean;
+    skills?: string[];
+    mcps?: string[];
+    knowledgeBases?: string[];
+    storeMounts?: string[];
+    interruptOn?: Record<string, boolean>;
+    visibility?: PersonaAgentVisibility;
+    category?: PersonaAgentCategory;
+    isActive?: boolean;
+}
+interface UseAgentsOptions {
+    /** @default true */
+    autoFetch?: boolean;
+    page?: number;
+    limit?: number;
+    /** Free-text match against name/description/tagline. */
+    search?: string;
+    category?: PersonaAgentCategory;
+    /** Restricts to the asserted external user's own Agents. Requires a `ProjectRuntimeContext` — a no-op otherwise. */
+    scope?: "mine";
+}
+interface PersonaRcpSourceToolParamSummary {
+    name: string;
+    type: string;
+    description: string;
+    required: boolean;
+}
+/** A display cache only, written by `testRcpSourceConnection` — Agent execution discovers tools live via `rcp-sdk`, never reads this. */
+interface PersonaRcpSourceToolSummary {
+    name: string;
+    description: string;
+    method: string;
+    url: string;
+    /** Every param this tool exposes (never resolver-filtered) — needed client-side to build `paramContextMap`. */
+    params: PersonaRcpSourceToolParamSummary[];
+}
+/** Maps one of this source's tool param names to a key sent in a message's per-turn `context` — see `SendMessageOverride.context`. Shared across every Agent this source is attached to, not per-attachment. */
+interface PersonaRcpParamContextMapEntry {
+    param: string;
+    contextKey: string;
+}
+/** A hosted RCP (REST Connector Protocol, npm `rcp-sdk`) manifest URL Persona discovers tools from live on every Agent run. */
+interface PersonaRcpSource {
+    _id: string;
+    domain: string;
+    ownerType: "PersonaUser" | "Project" | "ExternalUser";
+    ownerId?: string;
+    externalOwnerId?: string;
+    name: string;
+    description: string;
+    /** `GET url` must return a conformant `{ rcpVersion, auth, tools[] }` manifest. */
+    url: string;
+    authType: "none" | "header";
+    /** A Project Secret id — present only when `authType` is `'header'`. Never returns the secret's plaintext value. */
+    secretRef?: string | null;
+    isEnabled: boolean;
+    lastTestedAt?: string | null;
+    tools: PersonaRcpSourceToolSummary[];
+    paramContextMap: PersonaRcpParamContextMapEntry[];
+    createdAt: string;
+    updatedAt: string;
+}
+interface CreatePersonaRcpSourceInput {
+    name: string;
+    description?: string;
+    url: string;
+    /** @default 'none' */
+    authType?: "none" | "header";
+    /** A Project Secret id. Required when `authType` is `'header'`. */
+    secretRef?: string;
+    /** @default true */
+    isEnabled?: boolean;
+    paramContextMap?: PersonaRcpParamContextMapEntry[];
+}
+/** All fields optional — only what you pass is changed. */
+interface UpdatePersonaRcpSourceInput {
+    name?: string;
+    description?: string;
+    url?: string;
+    authType?: "none" | "header";
+    secretRef?: string | null;
+    isEnabled?: boolean;
+    paramContextMap?: PersonaRcpParamContextMapEntry[];
+}
+/** From `testConnection()` — discovers the source's manifest live and persists it as the new display cache. */
+interface PersonaRcpSourceTestResult {
+    tools: PersonaRcpSourceToolSummary[];
+}
+interface UseRcpSourcesOptions {
+    /** @default true */
+    autoFetch?: boolean;
+    page?: number;
+    limit?: number;
+    /** Free-text match against name. */
+    search?: string;
+}
 
 interface PersonaContextValue {
     baseUrl: string;
@@ -803,19 +1090,31 @@ declare function useFiles(autoFetch?: boolean): {
     getDownloadUrl: (fileId: string) => string;
 };
 
-interface PersonaAgentSummary {
-    _id: string;
-    name: string;
-    slug: string;
-    description?: string;
-    tagline?: string;
-    avatar?: string;
-}
-declare function useAgents(autoFetch?: boolean): {
-    agents: PersonaAgentSummary[];
+/**
+ * Read-only discovery (`agents`) is always on. Create/update/delete/
+ * bulk-delete/getAgent require the host's `createPersonaHandler`/
+ * `createRuntime` to opt in with `capabilities: { agentsWrite: true }` —
+ * every write route this hook calls 404s/is unreachable otherwise
+ * (provisioning Agents is Project-level work the host must deliberately
+ * turn on, not something a chat session gets by default).
+ *
+ * Ownership follows the same self-serve model as `useSkills`/`useWorkflows`:
+ * pass `scope: 'mine'` to restrict `agents` to the asserted external user's
+ * own Agents (only meaningful when `PersonaProvider` is wired through an
+ * adapter that resolves a real end-user identity) — omit it to see every
+ * Agent visible to this Project.
+ */
+declare function useAgents(options?: UseAgentsOptions | boolean): {
+    agents: PersonaAgent[];
+    pagination: PersonaPagination;
     isLoading: boolean;
     error: Error | null;
-    refetch: () => Promise<PersonaAgentSummary[]>;
+    refetch: () => Promise<PersonaAgent[]>;
+    getAgent: (agentId: string) => Promise<PersonaAgent>;
+    createAgent: (input: CreatePersonaAgentInput) => Promise<PersonaAgent>;
+    updateAgent: (agentId: string, input: UpdatePersonaAgentInput) => Promise<PersonaAgent>;
+    deleteAgent: (agentId: string) => Promise<void>;
+    bulkDeleteAgents: (ids: string[]) => Promise<PersonaBulkDeleteResult>;
 };
 
 interface PersonaHealthInfo {
@@ -867,6 +1166,8 @@ declare function useMcpConnections(options?: UseMcpConnectionsOptions): {
     isLoading: boolean;
     error: Error | null;
     refetch: () => Promise<PersonaMcpConnection[]>;
+    disconnect: (mcpId: string) => Promise<void>;
+    isDisconnecting: boolean;
 };
 
 interface UseMcpOptions {
@@ -880,6 +1181,71 @@ interface UseMcpOptions {
 declare function useMcp(options?: UseMcpOptions): {
     readResource: (uri: string, mcpId?: string) => Promise<any>;
     callTool: (name: string, args?: Record<string, unknown>, mcpId?: string) => Promise<any>;
+};
+
+/**
+ * CRUD for Skills — a reusable instruction + optional file bundle an Agent
+ * can be given. Requires the host's `createPersonaHandler`/`createRuntime`
+ * to opt in with `capabilities: { skills: true }`; every route this hook
+ * calls 404s/is unreachable otherwise (skill authoring is Project-level
+ * content management the host must deliberately turn on, not something a
+ * chat session gets by default).
+ *
+ * Ownership follows the same self-serve model as `useAgents`/`useWorkflows`:
+ * pass `scope: 'mine'` to restrict `skills` to the asserted external user's
+ * own Skills (only meaningful when `PersonaProvider` is wired through an
+ * adapter that resolves a real end-user identity) — omit it to see every
+ * Skill visible to this Project (its own, plus public ones).
+ */
+declare function useSkills(options?: UseSkillsOptions): {
+    skills: PersonaSkill[];
+    pagination: PersonaPagination;
+    isLoading: boolean;
+    error: Error | null;
+    refetch: () => Promise<PersonaSkill[]>;
+    getSkill: (skillId: string) => Promise<PersonaSkill>;
+    createSkill: (input: CreatePersonaSkillInput) => Promise<PersonaSkill>;
+    updateSkill: (skillId: string, input: UpdatePersonaSkillInput) => Promise<PersonaSkill>;
+    deleteSkill: (skillId: string) => Promise<void>;
+    bulkDeleteSkills: (ids: string[]) => Promise<PersonaBulkDeleteResult>;
+    getSkillUsage: (skillId: string) => Promise<PersonaSkillUsage>;
+};
+
+interface PersonaResourceUsage {
+    /** The real total — `agents` below is a preview capped at 20. */
+    agentCount: number;
+    agents: Array<{
+        _id: string;
+        name: string;
+    }>;
+}
+/**
+ * CRUD for RCP (REST Connector Protocol, npm `rcp-sdk`) sources — a hosted
+ * manifest URL Persona discovers tools from live on every Agent run.
+ * Requires the host's `createPersonaHandler`/`createRuntime` to opt in with
+ * `capabilities: { rcpSources: true }`; every route this hook calls
+ * 404s/is unreachable otherwise.
+ *
+ * Ownership follows the same self-serve model as `useSkills`/`useAgents`:
+ * an RCP source can be owned by the Project or by the asserted external
+ * user — but unlike Skills there's no `isPublic` concept here, so
+ * `getRcpSource`/list only ever return sources the calling identity
+ * actually owns (no server-side `scope: 'mine'` filter needed or
+ * supported — every visible source already is "mine").
+ */
+declare function useRcpSources(options?: UseRcpSourcesOptions): {
+    rcpSources: PersonaRcpSource[];
+    pagination: PersonaPagination;
+    isLoading: boolean;
+    error: Error | null;
+    refetch: () => Promise<PersonaRcpSource[]>;
+    getRcpSource: (sourceId: string) => Promise<PersonaRcpSource>;
+    createRcpSource: (input: CreatePersonaRcpSourceInput) => Promise<PersonaRcpSource>;
+    updateRcpSource: (sourceId: string, input: UpdatePersonaRcpSourceInput) => Promise<PersonaRcpSource>;
+    deleteRcpSource: (sourceId: string) => Promise<void>;
+    bulkDeleteRcpSources: (ids: string[]) => Promise<PersonaBulkDeleteResult>;
+    getRcpSourceUsage: (sourceId: string) => Promise<PersonaResourceUsage>;
+    testRcpSourceConnection: (sourceId: string) => Promise<PersonaRcpSourceTestResult>;
 };
 
 interface WorkflowsPagination {
@@ -987,4 +1353,4 @@ declare function openSSEStream(opts: OpenSSEOptions): Promise<SSEStream>;
 
 declare const VERSION = "0.10.0";
 
-export { ARCHITECT_AGENT_ID, type CreateWorkflowInput, type OpenSSEOptions, type PersonaAgentSummary, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaNodeRunState, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaResumeValue, type PersonaRole, type PersonaSandboxCommand, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkflow, type PersonaWorkflowDraft, type PersonaWorkflowEdge, type PersonaWorkflowNode, type PersonaWorkflowNodeType, type PersonaWorkflowRunSummary, type PersonaWorkflowSummary, type PersonaWorkflowTrigger, type PersonaWorkflowVersionSummary, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendArchitectMessageOverride, type SendMessageOverride, type UpdateWorkflowInput, type UseArchitectChatOptions, type UseChatOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseVoiceOptions, type UseVoiceResult, type UseWorkflowOptions, type UseWorkflowRunsOptions, type UseWorkflowStreamOptions, type UseWorkflowStreamResult, type UseWorkflowsOptions, VERSION, type WorkflowsPagination, openSSEStream, supportsStreamingFetch, useAgents, useArchitectChat, useChat, useConnection, useFiles, useMcp, useMcpConnections, useMemory, usePersonaContext, useThreads, useVoice, useWorkflow, useWorkflowRuns, useWorkflowStream, useWorkflows };
+export { ARCHITECT_AGENT_ID, type CreatePersonaAgentInput, type CreatePersonaRcpSourceInput, type CreatePersonaSkillInput, type CreateWorkflowInput, type OpenSSEOptions, type PersonaAgent, type PersonaAgentCategory, type PersonaAgentSocialLinks, type PersonaAgentVisibility, type PersonaBulkDeleteResult, type PersonaClarificationQuestion, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaMcpConnection, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaNodeRunState, type PersonaPagination, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaRcpParamContextMapEntry, type PersonaRcpSource, type PersonaRcpSourceTestResult, type PersonaRcpSourceToolParamSummary, type PersonaRcpSourceToolSummary, type PersonaResourceUsage, type PersonaResumeValue, type PersonaRole, type PersonaSandboxCommand, type PersonaSkill, type PersonaSkillFile, type PersonaSkillUsage, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkflow, type PersonaWorkflowDraft, type PersonaWorkflowEdge, type PersonaWorkflowNode, type PersonaWorkflowNodeType, type PersonaWorkflowRunSummary, type PersonaWorkflowSummary, type PersonaWorkflowTrigger, type PersonaWorkflowVersionSummary, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendArchitectMessageOverride, type SendMessageOverride, type UpdatePersonaAgentInput, type UpdatePersonaRcpSourceInput, type UpdatePersonaSkillInput, type UpdateWorkflowInput, type UseAgentsOptions, type UseArchitectChatOptions, type UseChatOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseRcpSourcesOptions, type UseSkillsOptions, type UseVoiceOptions, type UseVoiceResult, type UseWorkflowOptions, type UseWorkflowRunsOptions, type UseWorkflowStreamOptions, type UseWorkflowStreamResult, type UseWorkflowsOptions, VERSION, type WorkflowsPagination, openSSEStream, supportsStreamingFetch, useAgents, useArchitectChat, useChat, useConnection, useFiles, useMcp, useMcpConnections, useMemory, usePersonaContext, useRcpSources, useSkills, useThreads, useVoice, useWorkflow, useWorkflowRuns, useWorkflowStream, useWorkflows };
