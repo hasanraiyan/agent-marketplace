@@ -46,6 +46,8 @@ export interface RuntimeCapabilities {
   knowledge?: boolean;
   /** Vector store CRUD and file read/write. @default false */
   stores?: boolean;
+  /** RCP (REST Connector Protocol) source CRUD + Test Connection. @default false */
+  rcpSources?: boolean;
   /** Security/compliance audit log read access. @default false */
   auditLogs?: boolean;
   /** The Architect co-pilot — builds/edits Agents on the caller's behalf via tool calls. @default false */

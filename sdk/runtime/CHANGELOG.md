@@ -4,6 +4,17 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.12.0
+
+- **New: `capabilities.rcpSources`.** Full RCP (REST Connector Protocol, npm `rcp-sdk`) source
+  CRUD + Test Connection, gated the same way as every other write surface (`skills`, `knowledge`,
+  ...) — off by default. Adds `GET/POST /rcp-sources`, `GET/PATCH/DELETE /rcp-sources/:id`,
+  `POST /rcp-sources/bulk-delete`, `GET /rcp-sources/:id/usage`, and `POST /rcp-sources/:id/test`.
+  This was the one self-serve resource domain (Agent/Workflow/MCP/RCP Source/Knowledge Base/Skill
+  can all be owned by the asserted external user) with no runtime route wiring at all — `@personaai/sdk`
+  had no `rcpSources` client either, until 0.10.0.
+- Bumped `@personaai/sdk` dependency to `^0.10.0`.
+
 ## 0.11.0
 
 - **`POST /architect` accepts an optional `threadId`.** Resumes a named Architect conversation

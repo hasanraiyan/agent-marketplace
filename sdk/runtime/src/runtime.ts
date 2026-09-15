@@ -104,6 +104,16 @@ import {
   writeStoreFile,
   deleteStoreFile,
 } from './routes/stores.js';
+import {
+  listRcpSources,
+  createRcpSource,
+  getRcpSource,
+  updateRcpSource,
+  deleteRcpSource,
+  bulkDeleteRcpSources,
+  getRcpSourceUsage,
+  testRcpSourceConnection,
+} from './routes/rcpSources.js';
 import { listAuditLogs } from './routes/auditLogs.js';
 import {
   listWorkflows,
@@ -132,6 +142,7 @@ function resolveCapabilities(
     skills: capabilities?.skills ?? false,
     knowledge: capabilities?.knowledge ?? false,
     stores: capabilities?.stores ?? false,
+    rcpSources: capabilities?.rcpSources ?? false,
     auditLogs: capabilities?.auditLogs ?? false,
     architect: capabilities?.architect ?? false,
     workflowsWrite: capabilities?.workflowsWrite ?? false,
@@ -323,6 +334,19 @@ function buildRoutes(capabilities: Required<RuntimeCapabilities>): Route[] {
       { method: 'GET', pattern: ['stores', ':id', 'file'], handler: getStoreFile },
       { method: 'PUT', pattern: ['stores', ':id', 'file'], handler: writeStoreFile },
       { method: 'DELETE', pattern: ['stores', ':id', 'file'], handler: deleteStoreFile }
+    );
+  }
+
+  if (capabilities.rcpSources) {
+    routes.push(
+      { method: 'GET', pattern: ['rcp-sources'], handler: listRcpSources },
+      { method: 'POST', pattern: ['rcp-sources'], handler: createRcpSource },
+      { method: 'POST', pattern: ['rcp-sources', 'bulk-delete'], handler: bulkDeleteRcpSources },
+      { method: 'GET', pattern: ['rcp-sources', ':id'], handler: getRcpSource },
+      { method: 'PATCH', pattern: ['rcp-sources', ':id'], handler: updateRcpSource },
+      { method: 'DELETE', pattern: ['rcp-sources', ':id'], handler: deleteRcpSource },
+      { method: 'GET', pattern: ['rcp-sources', ':id', 'usage'], handler: getRcpSourceUsage },
+      { method: 'POST', pattern: ['rcp-sources', ':id', 'test'], handler: testRcpSourceConnection }
     );
   }
 
