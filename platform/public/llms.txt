@@ -1,0 +1,26 @@
+# Persona Platform
+
+> Agent marketplace + agent creation/runtime platform. Four SDKs sharing one backend, one auth, one AG-UI runtime.
+
+## Docs
+
+- [Documentation](https://platform.persona.hasanraiyan.me/docs)
+- [SDK TypeScript — @personaai/sdk](https://platform.persona.hasanraiyan.me/docs/sdk/v0.9.0)
+- [SDK Quickstart](https://platform.persona.hasanraiyan.me/docs/sdk/v0.9.0/quickstart)
+- [Runtime — @personaai/runtime](https://platform.persona.hasanraiyan.me/docs/runtime/v0.11.0)
+- [Adapters — @personaai/adapters](https://platform.persona.hasanraiyan.me/docs/adapters/v0.3.0)
+- [React — @personaai/react](https://platform.persona.hasanraiyan.me/docs/react/v0.10.0)
+- [Concepts — Credentials](https://platform.persona.hasanraiyan.me/concepts/credentials)
+- [Concepts — External Users](https://platform.persona.hasanraiyan.me/concepts/external-users)
+- [Concepts — AG-UI](https://platform.persona.hasanraiyan.me/concepts/agui)
+- [Concepts — Errors](https://platform.persona.hasanraiyan.me/concepts/errors)
+- [Concepts — Pagination](https://platform.persona.hasanraiyan.me/concepts/pagination)
+
+## Sitemap
+
+- Sitemap: https://platform.persona.hasanraiyan.me/sitemap.xml
+- Robots: https://platform.persona.hasanraiyan.me/robots.txt
+
+## Markdown
+
+Append `.md` is not yet supported; use the HTML pages above. Search index at `/search-index.json`.

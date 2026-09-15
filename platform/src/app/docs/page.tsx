@@ -1,5 +1,17 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { getSdks } from "@/lib/docs/registry";
+
+export const metadata: Metadata = {
+  title: "Documentation — Persona Platform",
+  description: "Guides, route references, and architecture blueprints for Persona SDKs and runtimes.",
+  alternates: { canonical: "/docs" },
+  openGraph: {
+    title: "Persona Platform Docs",
+    description: "Guides, route references, and architecture blueprints for Persona SDKs and runtimes.",
+    url: "/docs",
+  },
+};
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
