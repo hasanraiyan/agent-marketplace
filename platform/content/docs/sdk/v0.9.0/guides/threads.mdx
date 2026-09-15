@@ -1,0 +1,29 @@
+---
+title: "Threads"
+description: "Conversation scope — create, list, resume, reset"
+---
+
+# Threads
+
+Threads scope messages, files, and memory to one conversation. The runtime and React auto-load them.
+
+## Create
+
+```ts
+const thread = await userClient.threads.create({ agentId: agent._id });
+// { _id, title, agentId, createdAt }
+```
+
+In React, `useChat` mints lazily when `threadId` is undefined (see [Ephemeral](/docs/react/v0.10.0/guides/ephemeral)) — no `create` needed.
+
+## Resume
+
+```ts
+// Same thread next turn
+await userClient.chat.stream(agent._id, {
+  messages: [{ role: 'user', content: 'follow-up' }],
+  threadId: thread._id,
+});
+```
+
+In the runtime: `GET /threads/:id/messages` loads history; `POST /threads/:id/reset` clears it in place. See [Runtime: Core routes](/docs/runtime/v0.11.0/routes/core).

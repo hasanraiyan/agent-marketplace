@@ -1,0 +1,25 @@
+---
+title: "NestJS"
+description: "PersonaModule with resolveUserFrom"
+---
+
+# NestJS
+
+```ts
+import { Module } from '@nestjs/common';
+import { PersonaModule } from '@personaai/adapters/nestjs';
+
+@Module({
+  imports: [PersonaModule.forRoot({
+    baseUrl: process.env.PERSONA_BASE_URL!,
+    credential: process.env.PERSONA_CREDENTIAL!,
+    resolveUserFrom: (req) => req.user?.id ?? null,
+    routePrefix: '/api/persona',
+  })],
+})
+export class AppModule {}
+```
+
+`forRootAsync` + `PersonaService.forUser(id)` (scoped SDK client) also available. `PersonaMiddleware` is applied by the module.
+
+Requires `reflect-metadata` + `rxjs` peers.

@@ -1,0 +1,17 @@
+---
+title: "useThreads"
+description: "Thread CRUD — list, create, delete, rename, reset, archive"
+---
+
+# useThreads
+
+```tsx
+const { threads, createThread, deleteThread, renameThread, resetThread, isLoading } = useThreads();
+
+await createThread({ agentId });
+await renameThread(threadId, 'New title');
+await resetThread(threadId); // clears messages/files/todos in place
+await deleteThread(threadId);
+```
+
+Auto-refetch via `refetchThreads()` (often wired to `useChat`'s `onTitle`).

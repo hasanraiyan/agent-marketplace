@@ -1,0 +1,25 @@
+---
+title: "Workflows"
+description: "Stream multi-step workflows with node state"
+---
+
+# Workflows
+
+```tsx
+import { useWorkflows, useWorkflow, useWorkflowStream, useWorkflowRuns } from '@personaai/react';
+
+const { workflows, create } = useWorkflows({ search: 'research' });
+const { draft, saveDraft, publish, mermaid } = useWorkflow(workflowId);
+const { nodeRuns, text, output, start, cancel, resume } = useWorkflowStream({
+  workflowId,
+  onNodeStarted: n => console.log(n.nodeLabel),
+  onNodeCompleted: n => console.log(n.nodeId, n.output),
+});
+
+// Stream
+await start({ query: 'Analyze trends' }, { dryRun: false });
+// Resume after drop
+await resume(runId, sinceSeq);
+```
+
+See [SDK Workflows guide](/docs/sdk/v0.9.0/guides/workflows) for the underlying `stream`/`resumeStream`/`run` semantics.

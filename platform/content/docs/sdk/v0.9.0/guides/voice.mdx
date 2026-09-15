@@ -1,0 +1,23 @@
+---
+title: "Voice"
+description: "Gemini Live — mint a ticket, then WebSocket directly to Persona"
+---
+
+# Voice
+
+Mint a single-use ticket server-side, then connect from the browser:
+
+```ts
+// Server
+const ticket = await userClient.voice.createSession(agent._id, {
+  contextOverride: 'Live page context ≤4000 chars',
+  context: { userTier: 'pro' }, // never shown to model, ≤2000 bytes
+});
+// → { ticket, wsUrl, expiresAt, session }
+
+// Client
+const ws = new WebSocket(ticket.wsUrl); // ticket embedded, direct to Persona
+// For mid-call context refresh, send { type: 'voice.context', context: { ... } } over the open socket
+```
+
+In React, see `useVoice({ agentId, threadId, contextOverride, context })` and `updateContext` (live refresh). See [Runtime: Voice](/docs/runtime/v0.11.0/guides/voice) and [Concepts: context vs contextOverride](/concepts/context-vs-override).

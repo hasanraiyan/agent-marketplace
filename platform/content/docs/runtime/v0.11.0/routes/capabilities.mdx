@@ -1,0 +1,22 @@
+---
+title: "Capability routes"
+description: "Opt-in Project-level admin surface — all default off"
+---
+
+# Capability routes
+
+| Method | Path | Capability | Proxies to |
+|---|---|---|---|
+| `POST` | `/agents` | `agentsWrite` | `client.agents.create` |
+| `GET/PATCH/DELETE` | `/agents/:id` | `agentsWrite` | `client.agents.get/update/delete` |
+| `GET/POST` | `/mcps` | `mcps` | `client.mcps.list/create` |
+| `GET/PATCH/DELETE` | `/mcps/:id` | `mcps` | `client.mcps.get/update/delete` |
+| `GET/POST` | `/providers` | `providers` | `client.providers.list/create` |
+| `GET/POST` | `/skills` | `skills` | `client.skills.list/create` |
+| `GET/POST` | `/knowledge` | `knowledge` | `client.knowledge.list/create` |
+| `GET/POST` | `/stores` | `stores` | `client.stores.list/create` |
+| `POST` | `/architect` | `architect` | `client.architect.stream` → SSE + `x-persona-run-id` |
+| `POST` | `/workflows` | `workflowsWrite` | `client.workflows.create` |
+| `GET` | `/workflows/:id/mermaid` | `workflowsWrite` | `client.workflows.getMermaid` |
+
+A disabled capability's routes are absent (`404`/`405`), not `403` — no leak. See [Runtime: Capabilities concept](/concepts/capabilities) (todo).

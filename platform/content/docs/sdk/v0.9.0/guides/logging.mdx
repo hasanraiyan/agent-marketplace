@@ -1,0 +1,20 @@
+---
+title: "Logging"
+description: "OFF by default — per-client or global, with redaction"
+---
+
+# Logging
+
+```ts
+import { PersonaClient, setLogLevel, createLogger } from '@personaai/sdk';
+
+setLogLevel('debug'); // global: off < error < warn < info < debug < trace
+
+const persona = new PersonaClient({
+  baseUrl, credential,
+  logLevel: 'debug', // per-client override
+  // or logger: createLogger('my-app', { level: 'debug', transport: (level, ns, msg, meta) => myPino[ level==='trace'?'debug':level ]({ns, ...meta}, msg) })
+});
+```
+
+Redacts `Authorization: Bearer <keyId>:***` and body keys matching `credential|secret|apiKey|token|password`. Child namespaces: `sdk:http`, `sdk:chat`, `sdk:architect`, `sdk:workflows`.

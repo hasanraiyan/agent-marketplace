@@ -1,0 +1,18 @@
+---
+title: "Shared core"
+description: "One source of truth for Express/NestJS/Next.js"
+---
+
+# Shared core
+
+`src/shared/` is the single source of truth:
+
+| Module | Role |
+|---|---|
+| `errors` | `TranslationError` |
+| `headers` | `redactHeaders` |
+| `multipart-node` | `collectMulterFiles`, `parseMultipart` (multer-aware + native `Request.formData`) |
+| `write-node` / `write-web` | `writeRuntimeResponse` with drain/backpressure + `iterator.return()` on disconnect |
+| `translate-node` / `handler-node` | `toRuntimeRequest` / handler bridge |
+
+Fix once, ship everywhere. `src/shared/` is **not** a published package — not exported to consumers.

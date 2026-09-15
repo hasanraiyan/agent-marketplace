@@ -1,0 +1,19 @@
+---
+title: "Custom host"
+description: "Run the runtime without Express/Next/Nest — raw Node handler"
+---
+
+# Custom host
+
+For Hono/Fastify/raw `http`, copy the tested bridge at `sdk/runtime/examples/node-handler.ts` (not exported — `files: ["dist"]` only):
+
+```ts
+import { createServer } from 'node:http';
+import { createRuntime } from '@personaai/runtime';
+import { toNodeHandler } from './node-handler.js'; // copied
+
+const runtime = createRuntime({ baseUrl, credential, resolveUser: req => req.headers['x-user-id'] ?? null });
+createServer(toNodeHandler(runtime)).listen(3210);
+```
+
+Handles multipart via native `Request`/`FormData` (no `multer`). See `sdk/runtime/README.md:44` quickstart.

@@ -1,0 +1,41 @@
+---
+title: "Workflows"
+description: "Multi-step agent graphs — draft, publish, stream, resume, cancel"
+---
+
+# Workflows
+
+Workflows are LangGraph StateGraph DAGs: `nodes` + `edges` + `trigger`, with `draft` (editable) and `publishedVersion` (immutable snapshot).
+
+## CRUD
+
+```ts
+const wf = await persona.workflows.create({ name: 'Research', draft: { nodes, edges } });
+await persona.workflows.saveDraft(wf._id, { nodes: updatedNodes, edges });
+const version = await persona.workflows.publish(wf._id); // → { version, definition, agentSnapshots }
+await persona.workflows.listVersions(wf._id);
+await persona.workflows.getVersion(wf._id, version.version);
+const { mermaid } = await persona.workflows.getMermaid(wf._id);
+```
+
+## Execute
+
+```ts
+// Drain to final output
+const result: WorkflowRunResult = await persona.workflows.run(wf._id, { input: { query: '...' }, dryRun: false });
+console.log(result.output, result.nodeRuns, result.usage);
+
+// Stream with seq for resume
+for await (const e of persona.workflows.stream(wf._id, { input: { query: '...' } })) {
+  if (e.type === 'CUSTOM' && e.name === 'workflow_node_started') console.log(e.value.nodeLabel);
+}
+// Resume
+for await (const e of persona.workflows.resumeStream(runId, sinceSeq)) {}
+
+// Cancel
+await persona.workflows.cancel(runId);
+await persona.workflows.listRuns(wf._id);
+await persona.workflows.getRun(runId);
+```
+
+See [Concepts: Workflows](/concepts/workflows) (todo) and `sdk/typescript/src/types/workflow.ts:215`.

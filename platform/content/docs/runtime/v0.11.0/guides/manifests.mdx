@@ -1,0 +1,25 @@
+---
+title: "Manifests"
+description: "Serve REST/RCP tool manifests that Persona discovers live"
+---
+
+# Manifests
+
+```ts
+import { defineRestTool } from '@personaai/sdk/rest-tools';
+import { z } from 'zod';
+import { defineTool } from 'rcp-sdk/server';
+
+const getProfile = defineRestTool({ name: 'Get profile', method: 'GET', args: z.object({ userId: z.string() }), url: t => `https://api.example.com/users/${t.arg('userId')}` });
+const rcpTool = defineTool({ name: 'lookup', handler: async ({ userId }) => db.get(userId) });
+
+createRuntime({
+  baseUrl, credential, resolveUser,
+  restToolsManifest: { tools: [getProfile], authToken: process.env.PERSONA_TOOLS_SECRET },
+  rcpManifest: { tools: [rcpTool], authToken: process.env.RCP_SECRET },
+});
+// → GET {mountPath}/rest-tools/manifest, GET {mountPath}/rcp/manifest
+// Register each URL in Developer Studio as a Source — tools fetched live each turn.
+```
+
+Not capability-gated — host static data, only when configured. `authToken` reflected as `auth: { type: 'header' }` vs `{ type: 'none' }`; omit only for local dev.
