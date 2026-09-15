@@ -752,3 +752,142 @@ export interface UseSkillsOptions {
   scope?: "mine";
 }
 
+export interface PersonaAgentSocialLinks {
+  website?: string;
+  twitter?: string;
+  github?: string;
+  linkedin?: string;
+}
+
+/** `unlisted` is reachable by direct link/id but excluded from public discovery listings. */
+export type PersonaAgentVisibility = "private" | "unlisted" | "public";
+export type PersonaAgentCategory =
+  | "productivity"
+  | "coding"
+  | "creative"
+  | "research"
+  | "roleplay"
+  | "other";
+
+/**
+ * Mirrors the real wire shape (`_id`, raw domain/ownerType fields) —
+ * `getAgent()` returns `skills`/`mcps`/`knowledgeBases` populated as
+ * objects, while `createAgent()`/`updateAgent()`/`agents` (from the list)
+ * return them as bare id strings; typed loosely (`unknown[]`) to reflect
+ * that real difference rather than picking one shape and being wrong for
+ * the other calls.
+ */
+export interface PersonaAgent {
+  _id: string;
+  domain: string;
+  ownerType: "PersonaUser" | "Project" | "ExternalUser";
+  ownerId?: string;
+  externalOwnerId?: string;
+  name: string;
+  /** URL-safe, unique within the Domain; used in some public-facing routes. */
+  slug: string;
+  description?: string;
+  avatar?: string;
+  tags?: string[];
+  /** Short one-liner shown in list/card views. */
+  tagline?: string;
+  /** Longer free-text bio shown on the Agent's own profile view. */
+  bio?: string;
+  personalityTraits?: string[];
+  socialLinks?: PersonaAgentSocialLinks;
+  /** Stripped from the response when the calling identity doesn't own this Agent. */
+  systemPrompt?: string;
+  /** Stripped from the response when the calling identity doesn't own this Agent. */
+  providerId?: string;
+  /** Overrides the referenced Provider's `defaultModel` when set. */
+  modelName?: string;
+  webSearchEnabled: boolean;
+  /** Real shell execution in an isolated CodeSandbox VM — requires a `CSB_API_KEY` Project Secret to already exist. */
+  sandboxEnabled: boolean;
+  visibility: PersonaAgentVisibility;
+  category: PersonaAgentCategory;
+  skills?: unknown[];
+  mcps?: unknown[];
+  knowledgeBases?: unknown[];
+  storeMounts?: unknown[];
+  /** Maps a tool name to whether calling it pauses the run for human approval. */
+  interruptOn?: Record<string, boolean>;
+  isActive: boolean;
+  /** Whether this is the Project's designated default/primary Agent. */
+  isMainAgent: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePersonaAgentInput {
+  name: string;
+  /** The instructions that define this Agent's behavior/persona. */
+  systemPrompt: string;
+  /** Must reference a Provider the host Project already created. */
+  providerId: string;
+  description?: string;
+  avatar?: string;
+  tags?: string[];
+  tagline?: string;
+  bio?: string;
+  personalityTraits?: string[];
+  socialLinks?: PersonaAgentSocialLinks;
+  modelName?: string;
+  /** @default false */
+  webSearchEnabled?: boolean;
+  /** @default false */
+  sandboxEnabled?: boolean;
+  /** @default 'private' */
+  visibility?: PersonaAgentVisibility;
+  /** @default 'other' */
+  category?: PersonaAgentCategory;
+  /** Skill ids to attach at creation time. */
+  skills?: string[];
+  /** MCP server ids to attach at creation time. */
+  mcps?: string[];
+  /** Knowledge base ids to attach at creation time. */
+  knowledgeBases?: string[];
+  /** Store ids to mount at creation time. */
+  storeMounts?: string[];
+  interruptOn?: Record<string, boolean>;
+  /** @default true */
+  isActive?: boolean;
+}
+
+/** All fields optional — only what you pass is changed; array/map fields replace the whole value, not a merge/append. */
+export interface UpdatePersonaAgentInput {
+  name?: string;
+  description?: string;
+  avatar?: string;
+  tags?: string[];
+  tagline?: string;
+  bio?: string;
+  personalityTraits?: string[];
+  socialLinks?: PersonaAgentSocialLinks;
+  systemPrompt?: string;
+  providerId?: string;
+  modelName?: string;
+  webSearchEnabled?: boolean;
+  sandboxEnabled?: boolean;
+  skills?: string[];
+  mcps?: string[];
+  knowledgeBases?: string[];
+  storeMounts?: string[];
+  interruptOn?: Record<string, boolean>;
+  visibility?: PersonaAgentVisibility;
+  category?: PersonaAgentCategory;
+  isActive?: boolean;
+}
+
+export interface UseAgentsOptions {
+  /** @default true */
+  autoFetch?: boolean;
+  page?: number;
+  limit?: number;
+  /** Free-text match against name/description/tagline. */
+  search?: string;
+  category?: PersonaAgentCategory;
+  /** Restricts to the asserted external user's own Agents. Requires a `ProjectRuntimeContext` — a no-op otherwise. */
+  scope?: "mine";
+}
+
