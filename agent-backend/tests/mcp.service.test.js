@@ -266,6 +266,49 @@ describe('Mcp Service', () => {
       const result = await mcpService.getMcpById(mockMcp._id, mockUserId);
       expect(result).toEqual(mockMcp);
     });
+
+    it('is strict-owner-only: throws for a ProjectRuntime caller on a Project-owned Mcp too — reused by testConnection/readResource/callTool/updateMcp/deleteMcp, must never admit a shared/Project-owned resource for a non-owner', async () => {
+      const projectOwnedMcp = { _id: 'm1', domain: 'project-1', ownerType: 'Project' };
+      const runtimeContext = { domain: 'project-1', principalType: 'ProjectRuntime', externalUserId: 'sabik' };
+      mcpRepository.findById.mockResolvedValue(projectOwnedMcp);
+
+      await expect(mcpService.getMcpById('m1', undefined, runtimeContext)).rejects.toThrow(
+        'MCP server not found'
+      );
+    });
+  });
+
+  describe('getReadableMcpById (display-only, admits shared Project-owned Mcps)', () => {
+    const runtimeContext = { domain: 'project-1', principalType: 'ProjectRuntime', externalUserId: 'sabik' };
+
+    it('lets a ProjectRuntime caller read a Project-owned (shared) Mcp', async () => {
+      mcpRepository.findById.mockResolvedValue({ _id: 'm1', domain: 'project-1', ownerType: 'Project' });
+
+      const mcp = await mcpService.getReadableMcpById('m1', undefined, runtimeContext);
+
+      expect(mcp.ownerType).toBe('Project');
+    });
+
+    it('still throws for a different external user\'s own private Mcp', async () => {
+      mcpRepository.findById.mockResolvedValue({
+        _id: 'm1',
+        domain: 'project-1',
+        ownerType: 'ExternalUser',
+        externalOwnerId: 'someone-else',
+      });
+
+      await expect(mcpService.getReadableMcpById('m1', undefined, runtimeContext)).rejects.toThrow(
+        'MCP server not found'
+      );
+    });
+
+    it('still throws for a different Domain\'s Project-owned Mcp', async () => {
+      mcpRepository.findById.mockResolvedValue({ _id: 'm1', domain: 'other-project', ownerType: 'Project' });
+
+      await expect(mcpService.getReadableMcpById('m1', undefined, runtimeContext)).rejects.toThrow(
+        'MCP server not found'
+      );
+    });
   });
 
   describe('updateMcp', () => {
@@ -743,12 +786,15 @@ describe('Mcp Service', () => {
       );
     });
 
-    test('ProjectRuntimeContext without scope=mine ALSO sees the whole Domain (no isPublic field exists)', async () => {
+    test('ProjectRuntimeContext without scope=mine sees only Project-owned Mcps — never another external user\'s own (fix: this used to see the whole Domain, no ownership restriction at all)', async () => {
       mcpRepository.search.mockResolvedValue([]);
 
       await mcpService.discoverMcps(runtimeContext, {}, {});
 
-      expect(mcpRepository.search).toHaveBeenCalledWith({ domain: 'project-1' }, {});
+      expect(mcpRepository.search).toHaveBeenCalledWith(
+        { domain: 'project-1', ownerType: 'Project' },
+        {},
+      );
     });
 
     test("ProjectRuntimeContext with scope=mine restricts to that external user's own Mcps", async () => {
@@ -771,6 +817,7 @@ describe('Mcp Service', () => {
       expect(total).toBe(4);
     });
   });
+
 
   describe('OAuth/connection Subject generalization (blueprint Phase 9, PR-47c)', () => {
     const runtimeContext = {

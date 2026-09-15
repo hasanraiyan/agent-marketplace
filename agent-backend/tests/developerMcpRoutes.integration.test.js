@@ -21,6 +21,7 @@ jest.unstable_mockModule('../src/modules/mcp/mcp.service.js', () => ({
   default: {
     createMcp: jest.fn(),
     getMcpById: jest.fn(),
+    getReadableMcpById: jest.fn(),
     updateMcp: jest.fn(),
     deleteMcp: jest.fn(),
     discoverMcps: jest.fn(),
@@ -153,14 +154,14 @@ describe('developerMcp.routes.js — mount integration', () => {
   });
 
   test('GET /:mcpId reaches the controller and returns the Mcp', async () => {
-    mcpService.getMcpById.mockResolvedValue({ _id: 'm1' });
+    mcpService.getReadableMcpById.mockResolvedValue({ _id: 'm1' });
 
     const res = await request(app)
       .get('/api/v1/developer/mcps/m1')
       .set('Authorization', 'Bearer pk_test.secret');
 
     expect(res.status).toBe(200);
-    expect(mcpService.getMcpById).toHaveBeenCalledWith('m1', undefined, expect.any(Object));
+    expect(mcpService.getReadableMcpById).toHaveBeenCalledWith('m1', undefined, expect.any(Object));
   });
 
   test('GET /:mcpId/usage reaches the controller and returns usage', async () => {

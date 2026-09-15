@@ -4,6 +4,7 @@ jest.unstable_mockModule('../src/modules/mcp/mcp.service.js', () => ({
   default: {
     createMcp: jest.fn(),
     getMcpById: jest.fn(),
+    getReadableMcpById: jest.fn(),
     updateMcp: jest.fn(),
     deleteMcp: jest.fn(),
     discoverMcps: jest.fn(),
@@ -114,20 +115,20 @@ describe('Developer Mcp Controller', () => {
   });
 
   describe('getOne', () => {
-    test('returns the Mcp using the :mcpId param and req.projectContext', async () => {
+    test('returns the Mcp using the :mcpId param and req.projectContext, via the display-only readable fetch', async () => {
       mockReq.params = { mcpId: 'm1' };
-      mcpService.getMcpById.mockResolvedValue({ _id: 'm1' });
+      mcpService.getReadableMcpById.mockResolvedValue({ _id: 'm1' });
 
       await developerMcpController.getOne(mockReq, mockRes, next);
 
-      expect(mcpService.getMcpById).toHaveBeenCalledWith('m1', undefined, machineContext);
+      expect(mcpService.getReadableMcpById).toHaveBeenCalledWith('m1', undefined, machineContext);
       expect(mockRes.json).toHaveBeenCalledWith({ success: true, data: { _id: 'm1' } });
     });
 
     test('passes a NotFoundError straight through to next (no special-casing needed)', async () => {
       mockReq.params = { mcpId: 'm1' };
       const err = new Error('MCP server not found');
-      mcpService.getMcpById.mockRejectedValue(err);
+      mcpService.getReadableMcpById.mockRejectedValue(err);
 
       await developerMcpController.getOne(mockReq, mockRes, next);
 

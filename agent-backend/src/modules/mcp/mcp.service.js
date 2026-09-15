@@ -22,10 +22,11 @@ import { loggerService } from '../../utils/index.js';
 import { personaExecutionContext } from '../agents/agent.service.js';
 import {
   isResourceOwner,
+  isResourceReadable,
   ownerFilterForContext,
   ownerFieldsForContext,
+  buildDiscoveryFilter,
 } from '../../utils/resourceOwnership.js';
-import { scopedFilter } from '../../utils/domainQuery.js';
 
 const logger = loggerService.getLogger();
 
@@ -185,38 +186,40 @@ class McpService {
    * only ever lists the Persona caller's own MCPs), mirroring Agent's
    * PR-43 / Skill's PR-44 / Knowledge's PR-45 treatment.
    *
-   * Unlike those three resources, Mcp has NO `isPublic`/`visibility` field
-   * at all — an MCP definition has no "browse other people's MCP servers"
-   * product concept the way an Agent/Skill/Knowledge Base does; MCPs exist
-   * to be attached to Agents, not consumed directly. Attachment itself
-   * already uses a Domain-boundary-is-sufficient policy (mirrors
-   * `agent.service.js`'s `assertOwnsProvider`, AD-06 §12 — any of a
-   * Project's own Agents may use any MCP owned within that same Domain,
-   * not just ones the same Subject created). Discovery follows the exact
-   * same reasoning: there is no third "public browse" subset to carve out
-   * of "everything in the Domain" — so the two non-`mine` modes below
-   * collapse to the same Domain-scoped, unrestricted-by-owner filter.
-   *   - `ProjectMachineContext`/`ProjectAdminContext` OR
-   *     `ProjectRuntimeContext` without `filters.scope === 'mine'`: every
-   *     MCP in this Project's own Domain, any owner type.
+   * Unlike Agent/Skill/Knowledge Base, Mcp has NO `isPublic`/`visibility`
+   * field at all — an MCP definition has no "browse other people's MCP
+   * servers" product concept. Attachment (any of a Project's own Agents
+   * may use any MCP owned within that same Domain, not just ones the same
+   * Subject created — mirrors `agent.service.js`'s `assertOwnsProvider`,
+   * AD-06 §12) still uses a Domain-boundary-is-sufficient policy — that is
+   * unchanged.
+   *
+   * FIX: *discovery* used to collapse the non-`mine` modes into the same
+   * unrestricted-by-owner filter as attachment, reasoning there was no
+   * third "public browse" subset to carve out — but that meant any
+   * ProjectRuntime (external-user) caller listing without `scope: 'mine'`
+   * saw every MCP in the Domain, including every OTHER external user's own
+   * configs (name/URL/auth-type metadata — `toSafeJson` always strips the
+   * actual secret regardless of owner, so this was never credential
+   * exposure, but it was still a cross-tenant metadata leak). Now routed
+   * through the same shared `buildDiscoveryFilter` RcpSource uses, with
+   * `{ ownerType: 'Project' }` as the "shared/browsable" set — the
+   * Domain-boundary-is-sufficient policy still holds for what an Agent may
+   * *attach*, it just no longer means "any end user may *list* any other
+   * end user's own MCP".
+   *   - `ProjectMachineContext`/`ProjectAdminContext`: every MCP in this
+   *     Project's own Domain, any owner type.
    *   - `ProjectRuntimeContext` with `filters.scope === 'mine'`: Domain-
    *     and Subject-scoped to just that external user's own MCPs.
+   *   - `ProjectRuntimeContext` otherwise: Domain-scoped, Project-owned
+   *     MCPs only.
    */
   _buildDeveloperDiscoveryFilter(context, filters = {}) {
     const extra = {};
     if (filters.search) {
       extra.name = { $regex: filters.search, $options: 'i' };
     }
-
-    if (context?.principalType === 'ProjectRuntime' && filters.scope === 'mine') {
-      return scopedFilter(context.domain, {
-        ...extra,
-        ownerType: 'ExternalUser',
-        externalOwnerId: context.externalUserId,
-      });
-    }
-
-    return scopedFilter(context?.domain, extra);
+    return buildDiscoveryFilter(context, filters, extra, { ownerType: 'Project' });
   }
 
   async discoverMcps(context, filters, pagination) {
@@ -230,15 +233,37 @@ class McpService {
   }
 
   /**
-   * Fetches an MCP by ID with an ownership check. `context` defaults to
-   * `personaExecutionContext(userId)` — zero behavior change for every
-   * existing (Persona) caller, including the many internal call sites below
-   * (testConnection, readResource, callTool, etc.) that stay Persona-only
-   * and call this with just `(id, userId)`.
+   * Fetches an MCP by ID with a STRICT ownership check. `context` defaults
+   * to `personaExecutionContext(userId)` — zero behavior change for every
+   * existing (Persona) caller. Reused by many internal call sites
+   * (testConnection, readResource, callTool, disconnectOwnerConnection,
+   * updateMcp, deleteMcp, etc.) — keep this strict; do not loosen it to
+   * admit shared/Project-owned resources for a non-owner ProjectRuntime
+   * caller, or every one of those reuses inherits the loosening (see
+   * `isResourceReadable`'s doc comment — this is exactly the failure mode
+   * a first attempt at RcpSource's equivalent fix hit). Use
+   * `getReadableMcpById` instead for a display-only GET.
    */
   async getMcpById(id, userId, context = personaExecutionContext(userId)) {
     const mcp = await mcpRepository.findById(id);
     if (!mcp || !isResourceOwner(mcp, context)) {
+      throw new NotFoundError('MCP server not found');
+    }
+    return mcp;
+  }
+
+  /**
+   * Display-only fetch for the single-resource GET route: also admits this
+   * Domain's Project-owned (shared/curated) MCPs, not just ones the caller
+   * strictly owns — mirrors RcpSource's `getReadableRcpSourceById`/Skill's
+   * `isPublic || isOwner` read check, substituting "Project-owned" for
+   * "isPublic" (Mcp has no public/private toggle of its own). Never use
+   * this for a mutation or for tool execution (readResource/callTool stay
+   * on the strict `getMcpById`).
+   */
+  async getReadableMcpById(id, userId, context = personaExecutionContext(userId)) {
+    const mcp = await mcpRepository.findById(id);
+    if (!isResourceReadable(mcp, context, (m) => m.ownerType === 'Project')) {
       throw new NotFoundError('MCP server not found');
     }
     return mcp;
