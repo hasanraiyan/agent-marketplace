@@ -206,6 +206,76 @@ class DeveloperThreadController {
       next(error);
     }
   }
+
+  async listWorkspaceFiles(req, res, next) {
+    try {
+      const files = await checkpointService.listWorkspaceFiles(
+        req.params.threadId,
+        undefined,
+        req.projectContext
+      );
+      res.json({ success: true, data: files });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getWorkspaceFile(req, res, next) {
+    try {
+      const path = req.query.path;
+      if (!path) {
+        return res.status(400).json({ success: false, message: 'A "path" query parameter is required' });
+      }
+      const file = await checkpointService.getWorkspaceFile(
+        req.params.threadId,
+        path,
+        undefined,
+        req.projectContext
+      );
+      res.json({ success: true, data: file });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async writeWorkspaceFile(req, res, next) {
+    try {
+      const { path, content } = req.body || {};
+      if (!path || typeof content !== 'string') {
+        return res
+          .status(400)
+          .json({ success: false, message: '"path" and "content" (string) are both required' });
+      }
+      const file = await checkpointService.writeWorkspaceFile(
+        req.params.threadId,
+        path,
+        content,
+        undefined,
+        req.projectContext
+      );
+      res.json({ success: true, data: file });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteWorkspaceFile(req, res, next) {
+    try {
+      const path = req.query.path;
+      if (!path) {
+        return res.status(400).json({ success: false, message: 'A "path" query parameter is required' });
+      }
+      await checkpointService.deleteWorkspaceFile(
+        req.params.threadId,
+        path,
+        undefined,
+        req.projectContext
+      );
+      res.json({ success: true, message: 'Workspace file deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export default new DeveloperThreadController();
