@@ -1,0 +1,330 @@
+"use client";
+
+import * as React from "react";
+import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ChatScroller, ChatScrollerItem } from "./chat-scroller";
+import { ChatMessage } from "./chat-message";
+import { ChatComposer, VoiceModeIcon } from "./chat-composer";
+import { ChatEmptyState, type ChatStarterPrompt } from "./chat-empty-state";
+import { InterruptPanel } from "./interrupt-panel";
+import { TodoChecklist } from "./todo-checklist";
+import { SubagentSheet } from "./subagent-sheet";
+import { VoiceIndicator } from "./voice-indicator";
+import { flattenSubagentActivity } from "./message-grouping";
+import type { PersonaMessage, PersonaStreamingEvent } from "@personaai/react";
+import {
+  usePersonaChatWidget,
+  type UsePersonaChatWidgetOptions,
+} from "./use-persona-chat-widget";
+
+export interface PersonaChatViewClassNames {
+  root?: string;
+  threadList?: string;
+  scroller?: string;
+  composer?: string;
+}
+
+export interface PersonaMessageSlotProps {
+  message: PersonaMessage;
+  reasoningPhases?: PersonaMessage[];
+  onOpenSubagent?: (toolCallId: string) => void;
+  onOpenWorkspaceFile?: (path: string) => void;
+  onSendMessage?: (text: string) => void;
+}
+
+export interface PersonaChatViewComponents {
+  /** Replaces the whole per-message row (avatar/bubble/tool-trace/markdown). */
+  Message?: React.ComponentType<PersonaMessageSlotProps>;
+  /** Replaces the empty-conversation state. */
+  EmptyState?: React.ComponentType<{
+    title: string;
+    description?: string;
+    starterPrompts?: ChatStarterPrompt[];
+    onSelectPrompt?: (template: string) => void;
+  }>;
+}
+
+export interface PersonaChatViewProps extends UsePersonaChatWidgetOptions {
+  title?: string;
+  emptyTitle?: string;
+  emptyDescription?: string;
+  starterPrompts?: ChatStarterPrompt[];
+  placeholder?: string;
+  /** @default "sidebar-main" */
+  layout?: "sidebar-main" | "stacked";
+  /** @default true — ignored when layout is "stacked". */
+  showThreadList?: boolean;
+  /** @default true */
+  showComposer?: boolean;
+  /** Renders a "start voice call" button + the live voice-state orb. @default true */
+  showVoice?: boolean;
+  /**
+   * CSS custom properties that override this app's shadcn tokens for just
+   * this view (`--primary`, `--radius`, `--background`, …) — every visual
+   * surface underneath is already bound to these vars via Tailwind, so
+   * theming never means forking a component.
+   */
+  theme?: React.CSSProperties;
+  classNames?: PersonaChatViewClassNames;
+  /** Slot overrides — each receives the same props the default component gets. */
+  components?: PersonaChatViewComponents;
+  /** Wrap or replace a message's default render without losing the default. */
+  renderMessage?: (
+    message: PersonaMessage,
+    reasoningPhases: PersonaMessage[] | undefined,
+    defaultRender: () => React.ReactNode
+  ) => React.ReactNode;
+  emptyState?: React.ReactNode;
+  loadingState?: React.ReactNode;
+  errorState?: React.ReactNode | ((error: Error) => React.ReactNode);
+  /** Raw AG-UI event passthrough (tool calls, steps, subagent activity). */
+  onEvent?: (event: PersonaStreamingEvent) => void;
+  className?: string;
+}
+
+/**
+ * Assembled chat widget — thread list + message feed + composer — built
+ * entirely on `usePersonaChatWidget` (itself built on `@personaai/react`'s
+ * `useChat`/`useThreads`/`useFiles`/`useVoice`). Every component underneath
+ * (`ChatMessage`, `ChatComposer`, …) consumes `@personaai/react`'s own types
+ * directly, no parallel vocabulary; this file is the SDK-first glue + the
+ * configurability seams (`layout`, `theme`, `classNames`, `components`,
+ * `render*`) on top of it.
+ *
+ * Throws (via `usePersonaContext`, called deep inside `useChat`) with a
+ * clear message if rendered outside `<PersonaProvider baseUrl>`.
+ */
+export function PersonaChatView({
+  agentId,
+  threadId,
+  onThreadChange,
+  onEvent,
+  title = "Assistant",
+  emptyTitle = "How can I help?",
+  emptyDescription,
+  starterPrompts,
+  placeholder,
+  layout = "sidebar-main",
+  showThreadList = true,
+  showComposer = true,
+  showVoice = true,
+  theme,
+  classNames = {},
+  components = {},
+  renderMessage,
+  emptyState,
+  loadingState,
+  errorState,
+  className,
+}: PersonaChatViewProps) {
+  const {
+    activeThreadId,
+    threads,
+    threadsLoading,
+    handleSelectThread,
+    handleNewChat,
+    deleteThread,
+    messages,
+    input,
+    setInput,
+    isStreaming,
+    isLoadingHistory,
+    error,
+    interrupt,
+    todos,
+    handleSend,
+    handleDecideHitl,
+    handleSubmitClarification,
+    stop,
+    openWorkspaceFile,
+    voice,
+    isVoiceActive,
+  } = usePersonaChatWidget({ agentId, threadId, onThreadChange, onEvent, enableVoice: showVoice });
+
+  const [openSubagentFor, setOpenSubagentFor] = React.useState<string | null>(null);
+  const subagentMessages: PersonaMessage[] = React.useMemo(() => {
+    if (!openSubagentFor) return [];
+    for (const { message } of messages) {
+      const call = message.toolCalls?.find((tc) => tc.toolCallId === openSubagentFor);
+      if (call?.subagentActivity) return flattenSubagentActivity(call.toolCallId, call.subagentActivity);
+    }
+    return [];
+  }, [messages, openSubagentFor]);
+
+  const MessageComponent = components.Message;
+  const EmptyStateComponent = components.EmptyState ?? ChatEmptyState;
+
+  const renderOneMessage = (message: PersonaMessage, reasoningPhases: PersonaMessage[] | undefined) => {
+    const defaultRender = () =>
+      MessageComponent ? (
+        <MessageComponent
+          message={message}
+          reasoningPhases={reasoningPhases}
+          onOpenSubagent={setOpenSubagentFor}
+          onOpenWorkspaceFile={openWorkspaceFile}
+          onSendMessage={handleSend}
+        />
+      ) : (
+        <ChatMessage
+          message={message}
+          reasoningPhases={reasoningPhases}
+          todos={todos}
+          onOpenSubagent={setOpenSubagentFor}
+          onOpenWorkspaceFile={openWorkspaceFile}
+          onSendMessage={handleSend}
+        />
+      );
+    return renderMessage ? renderMessage(message, reasoningPhases, defaultRender) : defaultRender();
+  };
+
+  const showThreads = layout === "sidebar-main" && showThreadList;
+
+  return (
+    <div
+      style={theme}
+      className={cn(
+        "flex h-full min-h-0 w-full overflow-hidden bg-background text-foreground",
+        classNames.root,
+        className
+      )}
+    >
+      {showThreads && (
+        <div
+          className={cn(
+            "flex w-64 shrink-0 flex-col border-r border-border bg-card",
+            classNames.threadList
+          )}
+        >
+          <div className="flex items-center justify-between border-b border-border p-2">
+            <span className="px-1 text-sm font-semibold">{title}</span>
+            <Button type="button" variant="ghost" size="icon-sm" aria-label="New chat" onClick={handleNewChat}>
+              <PlusIcon />
+            </Button>
+          </div>
+          <ScrollArea className="flex-1">
+            <div className="flex flex-col gap-0.5 p-1.5">
+              {threadsLoading && threads.length === 0 && (
+                <div className="px-2 py-1.5 text-xs text-muted-foreground">Loading…</div>
+              )}
+              {threads.map((t) => (
+                <div key={t._id} className="group/thread flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectThread(t._id)}
+                    className={cn(
+                      "min-w-0 flex-1 truncate rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent",
+                      activeThreadId === t._id && "bg-accent font-medium"
+                    )}
+                  >
+                    {t.title || "New chat"}
+                  </button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Delete thread"
+                    className="opacity-0 group-hover/thread:opacity-100"
+                    onClick={() => void deleteThread(t._id)}
+                  >
+                    <TrashIcon />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+      )}
+
+      <div className="flex min-h-0 flex-1 flex-col">
+        {loadingState && isLoadingHistory && messages.length === 0 ? (
+          loadingState
+        ) : messages.length === 0 ? (
+          emptyState ?? (
+            <EmptyStateComponent
+              title={emptyTitle}
+              description={emptyDescription}
+              starterPrompts={messages.length === 0 ? starterPrompts : undefined}
+              onSelectPrompt={(template) => void handleSend(template)}
+            />
+          )
+        ) : (
+          <ChatScroller className={classNames.scroller}>
+            {messages.map(({ message, reasoningPhases }) => (
+              <ChatScrollerItem key={message.id}>
+                {renderOneMessage(message, reasoningPhases)}
+              </ChatScrollerItem>
+            ))}
+          </ChatScroller>
+        )}
+
+        {error &&
+          (errorState ? (
+            typeof errorState === "function" ? errorState(error) : errorState
+          ) : (
+            <div className="mx-auto mb-2 w-full max-w-3xl px-4 text-xs text-destructive">
+              {error.message || "Failed to communicate with agent."}
+            </div>
+          ))}
+
+        {interrupt && (
+          <div className="mx-auto w-full max-w-3xl shrink-0 px-4 pb-2">
+            <InterruptPanel
+              interrupt={interrupt}
+              onDecideHitl={handleDecideHitl}
+              onSubmitClarification={handleSubmitClarification}
+            />
+          </div>
+        )}
+
+        {todos.length > 0 && (
+          <div className="mx-auto w-full max-w-3xl shrink-0 px-4">
+            <TodoChecklist todos={todos} className="pb-2" />
+          </div>
+        )}
+
+        {showComposer && (
+          <div className={cn("mx-auto w-full max-w-3xl shrink-0 px-4 pb-4", classNames.composer)}>
+            {showVoice && (
+              <div className="mb-2 flex items-center justify-end gap-2">
+                {isVoiceActive ? (
+                  <VoiceIndicator state={voice.state} size={22} />
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => void voice.start()}
+                  >
+                    <VoiceModeIcon className="size-3.5" />
+                    Start voice
+                  </Button>
+                )}
+              </div>
+            )}
+            <ChatComposer
+              value={input}
+              onChange={setInput}
+              onSend={() => void handleSend()}
+              onStop={stop}
+              onStopVoice={voice.stop}
+              onSendToVoice={voice.sendText}
+              isStreaming={isStreaming}
+              isVoiceActive={isVoiceActive}
+              placeholder={placeholder}
+            />
+          </div>
+        )}
+      </div>
+
+      <SubagentSheet
+        open={openSubagentFor !== null}
+        onOpenChange={(open) => !open && setOpenSubagentFor(null)}
+        messages={subagentMessages}
+      />
+    </div>
+  );
+}
