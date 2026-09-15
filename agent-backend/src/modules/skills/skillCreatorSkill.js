@@ -1,6 +1,7 @@
-export const SKILL_CREATOR_SKILL = `---
+export const SKILL_CREATOR_SKILL = `
+---
 name: skill-creator
-description: Structured interview for turning a creator's expertise into a "verb skill" (teach, review, coach, ...) for their persona agent, following this platform's verb/concept model. Use whenever the user wants to give their agent a new capability, define what it does for people, or build out a persona — not for generic one-off skills unrelated to a persona's verbs.
+description: Structured interview and collaborative workflow for turning a creator's expertise into a "verb skill" (teach, review, coach, ...) for their persona agent, following this platform's verb/concept model. Use whenever the user wants to give their agent a new capability, define what it does for people, or build out a persona.
 ---
 
 ## What this is
@@ -17,8 +18,8 @@ loaded only when a client's request needs it.
 One persona per creator, one Skill per persona. Two to four verbs is
 typical, all bundled inside that same skill — breadth lives in the
 concepts underneath, not in more verbs, and not in more skills. Do NOT
-write a system-prompt-style skill from a guess: run the interview below
-and let the creator's own words become the playbook.
+write a system-prompt-style skill from a guess: engage with the creator,
+plan collaboratively, and let the creator's own words become the playbook.
 
 ## Terms
 
@@ -76,70 +77,80 @@ structure, the creator gives the content.
 7. **Worked example** — one real case, verbatim. This doubles as the
    first test (see "Test before publishing" below).
 
-## How to run the interview
+---
 
-Never write a playbook from a guess or a generic template filler.
-Interview the creator section by section, in this order, and use their
-own words rather than paraphrasing them into something more generic.
+## Interactive Workflow: Talk, Plan (TODO), Discuss, then Create
 
-0. **Name the persona** (first verb only). Ask what to call this persona
-   — this becomes the skill-name (the top folder, e.g. \`career-coaching\`
-   or the creator's own handle). Skip this step entirely when adding
-   another verb to a persona that already exists.
-1. **Pick the verb(s).** Ask what they actually do for people; match it
-   to 1-4 verbs from the table above. Most personas need 2-4 — if they
-   name more, ask which ones people actually come to them for most. When
-   adding to an existing persona, this is just the one new verb.
-2. **Intake.** Ask: "Before you help someone with this, what do you need
-   to know first?" Capture their real questions verbatim, not a generic
-   checklist. Then ask what 2-4 distinctions change how they'd approach
-   it (e.g. "beginner vs. someone who's already shipped something").
-3. **Rules, with reasons.** Ask: "What do you always do here? What do
-   you refuse to do, and why?" Push for the reason every time — "because
-   otherwise ___" is what makes a rule transferable instead of generic
-   advice.
-4. **Process.** Ask them to walk through one real case start to finish:
-   what they ask, in what order, what they produce at each step, and how
-   they know a phase is done.
-5. **Concepts.** Ask what specific topics or situations this verb
-   applies to for them — their actual recurring client requests, not
-   abstractions. Each becomes one concept file. Don't over-collect: 2-5
-   concepts to start is plenty; more can be added later the same way
-   (see "Adding a concept later").
-6. **Output.** Ask what the client walks away with, and in what shape —
-   a doc, a score plus one fix, a plan, a redlined draft.
-7. **Boundaries.** Ask: "When do you stop and hand off, and what do you
-   say?" Get the exact sentence, not a paraphrase of it.
-8. **Worked example.** Ask for one real case they've actually handled,
-   in enough detail to replay it start to finish. This becomes both
-   section 7 of the skill and the test in the next step.
+Whenever a user wants to create a skill, define a new agent capability,
+or add a verb, **do NOT jump straight into writing code or creating files
+unprompted.** Follow this collaborative, high-impact four-step protocol:
 
-Draft the whole \`SKILL.md\` (plus \`worked-example.md\` and the concept
-files) from what they gave you — see File layout below. Show it back
-once and ask them to approve or give one correction. Don't iterate
-section by section during drafting; the interview already did that.
+### Step 1: Initial Alignment (Direct Creation vs. Collaborative Discussion)
+First, acknowledge their request and clarify the path forward:
+- Talk with the user to understand the broad picture of what they want to achieve.
+- Ask them clearly:
+  > **"Would you like me to create this skill directly based on what you have provided, or would you prefer to discuss and plan it together first?"**
+- **If the user chooses "Create directly"** (or has already provided an exhaustive, complete spec with intake, rules, process, etc.):
+  - Provide a brief 2-3 bullet confirmation of what will be generated.
+  - Skip directly to **Step 3 (Authoring & Execution)**.
+- **If the user chooses "Discuss"** (or their initial idea is open-ended or high-level):
+  - Transition immediately to **Step 2 (Collaborative Discussion with a TODO List)**.
 
-## Test before publishing
+### Step 2: Collaborative Discussion with a Live TODO List
+When discussing with the user, **always create and present a clear TODO list first** so the creator has full visibility into what needs to be designed.
 
-Before attaching the new skill to any real agent, run it: replay the
-worked example as if a client had just sent that opening message, using
-the draft skill's own Intake/Process/Output. Show the creator the
-persona's response and ask: **"Would you have said that? What's the one
-thing you'd change?"**
+1. **Display the Skill Design Plan (TODO List)**:
+   Show the user a structured checklist covering the 8 essential facets:
+   \`\`\`markdown
+   ### 📋 Skill Design Plan
+   - [ ] 1. Persona & Skill Name (the expert identity)
+   - [ ] 2. Core Verb(s) (what the persona actually does, e.g. @teach, @review, @coach)
+   - [ ] 3. Intake & Key Distinctions (what to ask first; 2-4 critical distinctions)
+   - [ ] 4. Rules with Reasons (what it always does, what it refuses to do, and WHY)
+   - [ ] 5. Process Phases (step-by-step from opening message to completion)
+   - [ ] 6. Concepts & Topics (recurring real-world scenarios handled)
+   - [ ] 7. Output Deliverable (the exact artifact or format the client receives)
+   - [ ] 8. Boundaries & Worked Example (handoff trigger sentence + 1 real case to test)
+   \`\`\`
 
-- If they approve: publish it. For a persona's FIRST verb, attach the
-  whole persona skill to their agent with \`manage_agent\`'s \`patch\`,
-  \`field:"skills", op:"add", value:"<skillId>"\` (get the id from
-  \`manage_skill\` \`action:"read"\`). For an ADDITIONAL verb on a persona
-  already attached, there's nothing new to attach — it's the same
-  skillId, just grown.
-- If they give one correction: revise the relevant section(s) and test
-  again. Don't publish on a "close enough" — one more pass is cheap here
-  and expensive after a real client sees it.
+2. **Discuss Step-by-Step with the User**:
+   - Work through the TODO items logically. Ask 1-2 focused, high-clarity questions at a time — **never barrage the user with all questions in a single wall of text**.
+   - **Persona & Verb**: Help them name the persona (e.g. \`career-coach\`) and select 1-2 primary verbs from the vocabulary table.
+   - **Intake**: Ask: *"Before you help someone with this, what do you need to know first? What 2-3 distinctions immediately change your advice?"*
+   - **Rules with Reasons**: Ask: *"What do you always do here? What do you refuse to do, and WHY?"* (Always capture the rationale — "because otherwise..." is what gives the agent true expertise).
+   - **Process**: Ask: *"Can you walk me through a typical case from start to finish? What are the key stages?"*
+   - **Concepts**: Ask: *"What are the 2-4 recurring scenarios or topics you get asked about most often?"*
+   - **Output & Boundaries**: Ask: *"What does the user walk away with? When do you draw the line and hand off, and what exact sentence do you say?"*
+   - **Worked Example**: Ask for one real-world interaction they've handled that demonstrates this playbook.
 
-This mirrors how the creator will keep improving it later, too: real
-conversations surface a "here's what I'd have said differently," which
-becomes a short revision — not a rewrite from scratch.
+3. **Keep the User's Own Words**:
+   Record the creator's real phrases, vocabulary, frameworks, and tone verbatim instead of paraphrasing into generic corporate jargon.
+
+4. **Update the TODO Progressively**:
+   As items are settled, update the checklist (marking items \`[x]\`) so the user feels steady momentum and alignment.
+
+5. **Final Confirmation**:
+   Once all items on the TODO are checked off, synthesize the complete design in a concise summary and confirm:
+   > **"Everything is planned and aligned. Ready for me to create the skill files now?"**
+
+### Step 3: Skill Authoring & Execution
+Once the user confirms, write the skill files into \`/skill-library/\` strictly following the file layout and order rules:
+1. Write the root \`/skill-library/<skill-name>/SKILL.md\` **alone first**.
+2. Confirm the write succeeded.
+3. Write the verb playbook \`/skill-library/<skill-name>/<verb-name>/SKILL.md\`.
+4. Write the worked example \`/skill-library/<skill-name>/<verb-name>/worked-example.md\`.
+5. Write the concept files \`/skill-library/<skill-name>/<verb-name>/concepts/<slug>.md\` one at a time.
+6. Present a concise confirmation showing the files created and their structure.
+
+### Step 4: Test & Refine Before Publishing
+Before attaching to a production agent:
+1. **Replay the worked example**: Simulate how the persona responds to the client's opening prompt using the newly created playbook.
+2. **Ask the creator**:
+   > **"Would you have said that? What is the one thing you'd change or improve?"**
+3. If they provide a correction, make a targeted edit via \`edit_file\` and re-test.
+4. If approved, attach the skill to their agent using \`manage_agent\` patch (\`field:"skills", op:"add", value:"<skillId>"\`).
+
+---
 
 ## File layout on this platform
 
@@ -173,7 +184,7 @@ skill's \`references/*.md\` — just organized under one folder per verb
 
 Root \`SKILL.md\` frontmatter and body — an INDEX, not a playbook:
 
-\`\`\`
+\`\`\`markdown
 ---
 name: <skill-name>
 description: <one clause per bundled verb, so the agent's skill-
