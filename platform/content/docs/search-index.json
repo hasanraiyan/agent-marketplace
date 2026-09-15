@@ -2478,5 +2478,24 @@
     ],
     "snippet": "Concepts — cross-SDK, version-agnostic These pages are **shared across all 4 JS SDKs** — one place fixes all. Versioned SDK guides link here instead of duplicating. Planned pages (greenfield will author from scratch, not copy legacy): — Project credential lifecycle (mint/revoke, ",
     "tokens": "readme  concepts — cross-sdk, version-agnostic these pages are **shared across all 4 js sdks** — one place fixes all. versioned sdk guides link here instead of duplicating. planned pages (greenfield will author from scratch, not copy legacy): — project credential lifecycle (mint/revoke, blocks immediately) — dual-mode (control-plane vs runtime-plane) + when to assert — threads & memory & stores mental model — ag-ui event table — (never-shown, rcp-only) vs (prompt-appended) — errors · pagination · idempotency · — workflow graph (nodes/edges/trigger/draft/publishedversion) each is rendered alongside versioned docs via future reader (or symlinked into each version's nav as \"concepts\" group)."
+  },
+  {
+    "id": 139,
+    "sdk": "concepts",
+    "version": "latest",
+    "slug": [
+      "workflows"
+    ],
+    "href": "/concepts/workflows",
+    "title": "Workflows — mental model",
+    "description": "Nodes, edges, trigger, draft vs publishedVersion, and run lifecycle",
+    "headings": [
+      "Workflows — mental model",
+      "Graph",
+      "Draft vs Published",
+      "Run lifecycle"
+    ],
+    "snippet": "Workflows — mental model Workflows are **multi-agent DAGs** compiled to LangGraph and executed via the AG-UI protocol. Graph **Nodes** — (manual/api/webhook/schedule/chat), / / , / / / / . Each has , , . **Edges** — with optional / . **Trigger** — how a run starts ( in Studio, / ",
+    "tokens": "workflows — mental model nodes, edges, trigger, draft vs publishedversion, and run lifecycle workflows — mental model workflows are **multi-agent dags** compiled to langgraph and executed via the ag-ui protocol. graph **nodes** — (manual/api/webhook/schedule/chat), / / , / / / / . each has , , . **edges** — with optional / . **trigger** — how a run starts ( in studio, / / in production). draft vs published **draft** — editable canvas ( , , ) saved via . **publishedversion** — immutable snapshot ( , , ) created via . counts in-flight runs. export via → mermaid flowchart markdown. run lifecycle / → . **stream** yields → / (with ) → → , each with monotonic for . **dry run** ( ) intercepts destructive tools, bypasses credit checks. **cancel** via aborts and emits . see sdk workflows guide and runtime workflows for execution details."
   }
 ]
