@@ -52,6 +52,7 @@ jest.unstable_mockModule('../src/modules/mcp/mcp-token.service.js', () => ({
     getOwnerAccessToken: jest.fn(),
     getUserAccessToken: jest.fn(),
     getApiKeyToken: jest.fn(),
+    isTokenUsable: jest.fn((connection) => Boolean(connection)),
   },
 }));
 
@@ -479,6 +480,20 @@ describe('Mcp Service', () => {
 
       const status = await mcpService.getUserConnectionStatus(mockMcp._id, mockUserId);
 
+      expect(status).toEqual({ connected: false });
+    });
+
+    it('reports not connected when a record exists but its token is unusable (hard-expired, no refresh token)', async () => {
+      const deadConnection = { _id: 'conn1' };
+      mcpUserConnectionRepository.findByMcpAndUser.mockResolvedValue(deadConnection);
+      // Once, not a standing mockReturnValue — jest.clearAllMocks() (this
+      // file's beforeEach) clears call history but NOT a set implementation,
+      // so a standing override here would leak into every later test.
+      mcpTokenService.isTokenUsable.mockReturnValueOnce(false);
+
+      const status = await mcpService.getUserConnectionStatus(mockMcp._id, mockUserId);
+
+      expect(mcpTokenService.isTokenUsable).toHaveBeenCalledWith(deadConnection);
       expect(status).toEqual({ connected: false });
     });
   });

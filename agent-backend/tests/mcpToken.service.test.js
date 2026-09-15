@@ -45,6 +45,49 @@ describe('McpToken Service', () => {
     encryption.decrypt.mockImplementation((v) => v.replace(/^enc:/, ''));
   });
 
+  describe('isTokenUsable', () => {
+    it('is false for a missing connection', () => {
+      expect(mcpTokenService.isTokenUsable(null)).toBe(false);
+      expect(mcpTokenService.isTokenUsable(undefined)).toBe(false);
+    });
+
+    it('is false for a connection with no access token', () => {
+      expect(mcpTokenService.isTokenUsable({})).toBe(false);
+    });
+
+    it('is true when a refresh token exists, even past expiresAt', () => {
+      expect(
+        mcpTokenService.isTokenUsable({
+          accessTokenEncrypted: 'enc:x',
+          refreshTokenEncrypted: 'enc:r',
+          expiresAt: new Date(Date.now() - 60 * 60 * 1000),
+        })
+      ).toBe(true);
+    });
+
+    it('is true when expiresAt is in the future and there is no refresh token', () => {
+      expect(
+        mcpTokenService.isTokenUsable({
+          accessTokenEncrypted: 'enc:x',
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        })
+      ).toBe(true);
+    });
+
+    it('is true when expiresAt is unset (no expiry tracked) and there is no refresh token', () => {
+      expect(mcpTokenService.isTokenUsable({ accessTokenEncrypted: 'enc:x' })).toBe(true);
+    });
+
+    it('is false when hard-expired with no refresh token', () => {
+      expect(
+        mcpTokenService.isTokenUsable({
+          accessTokenEncrypted: 'enc:x',
+          expiresAt: new Date(Date.now() - 60 * 60 * 1000),
+        })
+      ).toBe(false);
+    });
+  });
+
   describe('getOwnerAccessToken', () => {
     it('returns null when authType is not oauth', async () => {
       const result = await mcpTokenService.getOwnerAccessToken({ authType: 'none' });
@@ -126,6 +169,48 @@ describe('McpToken Service', () => {
       expect(mcpRepository.update).toHaveBeenCalled();
       expect(token).toBe('new-access');
     });
+
+    it('returns null instead of a stale token when hard-expired with no refresh token', async () => {
+      const mcp = {
+        authType: 'oauth',
+        authMode: 'owner',
+        oauth: {
+          ownerToken: {
+            accessTokenEncrypted: 'enc:dead-access',
+            expiresAt: new Date(Date.now() - 60 * 60 * 1000),
+          },
+        },
+      };
+
+      const token = await mcpTokenService.getOwnerAccessToken(mcp);
+
+      expect(token).toBeNull();
+      expect(refreshAccessToken).not.toHaveBeenCalled();
+    });
+
+    it('returns null instead of throwing when the refresh token is rejected', async () => {
+      const mcp = {
+        _id: 'mcp1',
+        ownerId: 'owner1',
+        authType: 'oauth',
+        authMode: 'owner',
+        oauth: {
+          clientId: 'client1',
+          tokenEndpoint: 'https://example.com/token',
+          toObject: () => ({ clientId: 'client1', tokenEndpoint: 'https://example.com/token' }),
+          ownerToken: {
+            accessTokenEncrypted: 'enc:old-access',
+            refreshTokenEncrypted: 'enc:revoked-refresh',
+            expiresAt: new Date(Date.now() + 10 * 1000),
+          },
+        },
+      };
+
+      refreshAccessToken.mockRejectedValue(new Error('invalid_grant'));
+
+      await expect(mcpTokenService.getOwnerAccessToken(mcp)).resolves.toBeNull();
+      expect(mcpRepository.update).not.toHaveBeenCalled();
+    });
   });
 
   describe('getUserAccessToken', () => {
@@ -187,6 +272,41 @@ describe('McpToken Service', () => {
         expect.objectContaining({ accessTokenEncrypted: 'enc:new-user-access' })
       );
       expect(result).toBe('new-user-access');
+    });
+
+    it('returns null instead of a stale token when hard-expired with no refresh token', async () => {
+      mcpUserConnectionRepository.findByMcpAndUser.mockResolvedValue({
+        accessTokenEncrypted: 'enc:dead-user-access',
+        expiresAt: new Date(Date.now() - 60 * 60 * 1000),
+      });
+
+      const result = await mcpTokenService.getUserAccessToken(
+        { _id: 'mcp1', authType: 'oauth', authMode: 'user' },
+        'user1'
+      );
+
+      expect(result).toBeNull();
+      expect(refreshAccessToken).not.toHaveBeenCalled();
+    });
+
+    it('returns null instead of throwing when the refresh token is rejected', async () => {
+      mcpUserConnectionRepository.findByMcpAndUser.mockResolvedValue({
+        accessTokenEncrypted: 'enc:old-user-access',
+        refreshTokenEncrypted: 'enc:revoked-user-refresh',
+        expiresAt: new Date(Date.now() + 5 * 1000),
+      });
+
+      refreshAccessToken.mockRejectedValue(new Error('invalid_grant'));
+
+      const mcp = {
+        _id: 'mcp1',
+        authType: 'oauth',
+        authMode: 'user',
+        oauth: { clientId: 'client1', tokenEndpoint: 'https://example.com/token' },
+      };
+
+      await expect(mcpTokenService.getUserAccessToken(mcp, 'user1')).resolves.toBeNull();
+      expect(mcpUserConnectionRepository.upsert).not.toHaveBeenCalled();
     });
 
     describe('context-aware Subject resolution (blueprint Phase 9, PR-48)', () => {
