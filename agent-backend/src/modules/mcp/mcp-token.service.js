@@ -4,7 +4,9 @@ import mcpUserConnectionRepository, {
 } from './mcp-user-connection.repository.js';
 import encryption from '../../utils/encryption.js';
 import { refreshAccessToken } from './mcp-oauth-client.js';
+import { loggerService } from '../../utils/index.js';
 
+const logger = loggerService.getLogger();
 const TOKEN_REFRESH_SKEW_MS = 60 * 1000;
 
 /**
@@ -15,6 +17,23 @@ const TOKEN_REFRESH_SKEW_MS = 60 * 1000;
  */
 class McpTokenService {
   /**
+   * Whether a stored connection's credential can currently authenticate a
+   * request — either the access token hasn't hard-expired yet, or there's a
+   * refresh token to renew it with. This is a cheap DB-only check (compares
+   * `expiresAt` against now); it does NOT verify the refresh token is still
+   * accepted by the provider — that's only known once a refresh is actually
+   * attempted (see `getUserAccessToken`/`getOwnerAccessToken`, which fail
+   * closed — return `null` — if a refresh attempt itself fails).
+   * `getUserConnectionStatus` uses this so a connection whose token is
+   * already unrecoverable reads as disconnected instead of a stale `true`.
+   */
+  isTokenUsable(connection) {
+    if (!connection?.accessTokenEncrypted) return false;
+    if (connection.refreshTokenEncrypted) return true;
+    const expiresAt = connection.expiresAt ? new Date(connection.expiresAt).getTime() : null;
+    return !expiresAt || expiresAt > Date.now();
+  }
+  /**
    * Returns a ready-to-use bearer token for the MCP's owner-mode connection,
    * refreshing it first if it's near expiry. Returns null if not applicable
    * (authType !== 'oauth', authMode !== 'owner', or never connected).
@@ -23,7 +42,9 @@ class McpTokenService {
     if (mcp.authType !== 'oauth' || mcp.authMode !== 'owner') return null;
 
     const ownerToken = mcp.oauth?.ownerToken;
-    if (!ownerToken?.accessTokenEncrypted) return null;
+    // Hard-expired with nothing to refresh — returning the stale token here
+    // used to just defer the failure to whatever request tried to use it.
+    if (!this.isTokenUsable(ownerToken)) return null;
 
     const expiresAt = ownerToken.expiresAt ? new Date(ownerToken.expiresAt).getTime() : 0;
     const isExpiring = expiresAt && expiresAt - Date.now() < TOKEN_REFRESH_SKEW_MS;
@@ -36,14 +57,23 @@ class McpTokenService {
       ? encryption.decrypt(mcp.oauth.clientSecretEncrypted)
       : null;
 
-    const refreshed = await refreshAccessToken({
-      tokenEndpoint: mcp.oauth.tokenEndpoint,
-      clientId: mcp.oauth.clientId,
-      clientSecret,
-      refreshToken: encryption.decrypt(ownerToken.refreshTokenEncrypted),
-      resource: mcp.url,
-      tokenEndpointAuthMethod: mcp.oauth.tokenEndpointAuthMethod,
-    });
+    let refreshed;
+    try {
+      refreshed = await refreshAccessToken({
+        tokenEndpoint: mcp.oauth.tokenEndpoint,
+        clientId: mcp.oauth.clientId,
+        clientSecret,
+        refreshToken: encryption.decrypt(ownerToken.refreshTokenEncrypted),
+        resource: mcp.url,
+        tokenEndpointAuthMethod: mcp.oauth.tokenEndpointAuthMethod,
+      });
+    } catch (err) {
+      // Refresh token itself was rejected (provider-side revocation, expiry,
+      // etc.) — fail closed instead of throwing an unhandled error up
+      // through whatever request triggered this token resolution.
+      logger.error(`[MCP] owner token refresh failed for mcp ${mcp._id}: ${err?.message}`);
+      return null;
+    }
 
     const newExpiresAt = refreshed.expires_in
       ? new Date(Date.now() + refreshed.expires_in * 1000)
@@ -92,7 +122,9 @@ class McpTokenService {
 
     const subjectFilter = subjectFilterForContext(context);
     const connection = await mcpUserConnectionRepository.findByMcpAndUser(mcp._id, subjectFilter);
-    if (!connection) return null;
+    // Hard-expired with nothing to refresh — returning the stale token here
+    // used to just defer the failure to whatever request tried to use it.
+    if (!this.isTokenUsable(connection)) return null;
 
     const expiresAt = connection.expiresAt ? new Date(connection.expiresAt).getTime() : 0;
     const isExpiring = expiresAt && expiresAt - Date.now() < TOKEN_REFRESH_SKEW_MS;
@@ -105,14 +137,27 @@ class McpTokenService {
       ? encryption.decrypt(mcp.oauth.clientSecretEncrypted)
       : null;
 
-    const refreshed = await refreshAccessToken({
-      tokenEndpoint: mcp.oauth.tokenEndpoint,
-      clientId: mcp.oauth.clientId,
-      clientSecret,
-      refreshToken: encryption.decrypt(connection.refreshTokenEncrypted),
-      resource: mcp.url,
-      tokenEndpointAuthMethod: mcp.oauth.tokenEndpointAuthMethod,
-    });
+    let refreshed;
+    try {
+      refreshed = await refreshAccessToken({
+        tokenEndpoint: mcp.oauth.tokenEndpoint,
+        clientId: mcp.oauth.clientId,
+        clientSecret,
+        refreshToken: encryption.decrypt(connection.refreshTokenEncrypted),
+        resource: mcp.url,
+        tokenEndpointAuthMethod: mcp.oauth.tokenEndpointAuthMethod,
+      });
+    } catch (err) {
+      // Refresh token itself was rejected (provider-side revocation, expiry,
+      // etc.) — fail closed instead of throwing an unhandled error up
+      // through whatever request triggered this token resolution (a live
+      // chat run's tool resolution, or an MCP App widget's resource/tool
+      // call — see mcp.tools.js and mcp.service.js#_resolveAuthHeaders).
+      logger.error(
+        `[MCP] user token refresh failed for mcp ${mcp._id}: ${err?.message}`
+      );
+      return null;
+    }
 
     const newExpiresAt = refreshed.expires_in
       ? new Date(Date.now() + refreshed.expires_in * 1000)

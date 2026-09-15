@@ -790,7 +790,15 @@ class McpService {
       id,
       subjectFilterForContext(context)
     );
-    return { connected: Boolean(connection) };
+    // `isTokenUsable` is a cheap DB-only check (expiresAt vs. now, or a
+    // refresh token present to renew with) — not a live provider round-trip,
+    // so a refresh token the provider itself revoked still reads as
+    // connected here until the next actual token resolution attempt fails.
+    // Still a real improvement over "does a row exist": the common dead
+    // case (hard-expired access token, no refresh token at all) now reports
+    // disconnected instead of lying, which is what re-lights `authorizeUrl`
+    // for this connection in getMcpConnections (developerAgent.controller.js).
+    return { connected: Boolean(connection) && mcpTokenService.isTokenUsable(connection) };
   }
 
   async disconnectUserConnection(id, userId, context = personaExecutionContext(userId)) {
