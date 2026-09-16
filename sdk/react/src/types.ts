@@ -149,9 +149,10 @@ export interface PersonaProviderProps {
 
 export interface PersonaThread {
   _id: string;
-  /** A bare id string on create()/get(); populated as an object on list(). */
+  /** A bare id string on create(); populated (incl. sandboxEnabled) on get()/list(). */
   agentId:
-    string | { _id: string; name: string; avatar?: string; slug: string };
+    | string
+    | { _id: string; name: string; avatar?: string; slug: string; sandboxEnabled: boolean };
   title?: string;
   isArchived?: boolean;
   createdAt: string;

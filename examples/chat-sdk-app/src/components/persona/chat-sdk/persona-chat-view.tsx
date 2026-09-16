@@ -17,7 +17,7 @@ import { MemoryWorkspaceDialog } from "./memory-workspace-dialog";
 import { SandboxTerminalDialog } from "./sandbox-terminal-dialog";
 import { VoiceIndicator } from "./voice-indicator";
 import { flattenSubagentActivity } from "./message-grouping";
-import { useAgents, type PersonaMessage, type PersonaStreamingEvent } from "@personaai/react";
+import type { PersonaMessage, PersonaStreamingEvent } from "@personaai/react";
 import {
   usePersonaChatWidget,
   type UsePersonaChatWidgetOptions,
@@ -164,25 +164,24 @@ export function PersonaChatView({
   // conversation with that Agent) — prefer the active thread's own agentId
   // (authoritative for which agent this conversation is actually with) over
   // the `agentId` prop, which only matters before any thread exists yet.
-  const activeAgentId = React.useMemo(() => {
+  // The Thread's own populated agentId already carries sandboxEnabled (same
+  // place name/avatar come from) — deliberately NOT sourced from Agent
+  // discovery (`useAgents()`), which only ever lists Agents that are either
+  // `visibility: "public"` or owned by this external user; a Project-owned,
+  // non-public Agent this Subject is already authorized to chat with (they
+  // have a real Thread with it) would never show up there.
+  const { activeAgentId, activeThreadSandboxEnabled } = React.useMemo(() => {
     const thread = threads.find((t) => t._id === activeThreadId);
-    const threadAgentId = thread
-      ? typeof thread.agentId === "string"
-        ? thread.agentId
-        : thread.agentId?._id
-      : undefined;
-    return threadAgentId || agentId;
+    if (!thread) return { activeAgentId: agentId, activeThreadSandboxEnabled: false };
+    if (typeof thread.agentId === "string") {
+      return { activeAgentId: thread.agentId || agentId, activeThreadSandboxEnabled: false };
+    }
+    return {
+      activeAgentId: thread.agentId?._id || agentId,
+      activeThreadSandboxEnabled: !!thread.agentId?.sandboxEnabled,
+    };
   }, [threads, activeThreadId, agentId]);
-
-  // Read-only discovery, always on — used only to check the active Agent's
-  // own sandboxEnabled flag, so the Terminal button never shows for an
-  // Agent that has no sandbox to replay.
-  const { agents } = useAgents(showTerminal);
-  const activeAgent = React.useMemo(
-    () => agents.find((a) => a._id === activeAgentId),
-    [agents, activeAgentId]
-  );
-  const canShowTerminal = showTerminal && !!activeAgent?.sandboxEnabled;
+  const canShowTerminal = showTerminal && activeThreadSandboxEnabled;
   const subagentMessages: PersonaMessage[] = React.useMemo(() => {
     if (!openSubagentFor) return [];
     for (const { message } of messages) {

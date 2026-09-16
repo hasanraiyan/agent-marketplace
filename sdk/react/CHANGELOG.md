@@ -3,6 +3,18 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.17.0
+
+- **`PersonaThread.agentId`'s populated shape gains `sandboxEnabled: boolean`.** `useThreads()`'s
+  `getThread()`/`threads` already populate `agentId` as `{ _id, name, avatar, slug }` for display —
+  it now also carries `sandboxEnabled`, so a consumer can tell whether the active Thread's own Agent
+  has a sandbox (and show a Terminal-style UI for it, alongside `useChat()`'s existing
+  `sandboxCommands`) without a separate Agent lookup. This matters because `useAgents()` discovery
+  only ever returns `visibility: "public"` Agents or ones the caller owns — a Project-owned,
+  non-public Agent a Subject is already chatting with (they have a real Thread with it) never shows
+  up there, so reading this off the Thread itself is the only reliable way to get it for the common
+  case of chatting with a Project's own private Agent.
+
 ## 0.16.0
 
 **Breaking:** `useWorkspaceFiles` is now `useWorkspaceFiles(agentId, autoFetch)`, not
